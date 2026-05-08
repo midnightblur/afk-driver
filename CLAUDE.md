@@ -14,7 +14,8 @@ The driver itself is a Python package; the *work* it drives is Java/Maven inside
 # install editable (run from this repo root, or substitute the worktree path)
 pip install -e .
 
-# full test suite (89 tests, in-memory fakes, <1s)
+# full test suite (180 tests; runner + unit suites in-memory, ~0.2s
+# each; scenario + smoke suites are slower — single test files run fast)
 python -m pytest -v
 
 # single test file / single test
@@ -79,6 +80,10 @@ A small Enhancement or Bug labelled `afk-agents` with no labelled SubTasks under
 ## Skills this driver depends on
 
 Live at `~/.claude/skills/` (not in this repo): `/to-prd`, `/prd-to-subtasks`, `/afk-go`. The runner spawns `/afk-go` per SubTask. If you change the SubTask Markdown contract, the `/afk-go` and `/prd-to-subtasks` skills must change in lockstep.
+
+### Skill ↔ runner ownership split (don't break)
+
+The `Dev-CR/Merge` transition is **runner-only**. The skill drives in-flight transitions (`Dev-Designing`, `Dev-Developing`), TDD, commits, push, MR checklist, and parent Implementation Notes — then exits with a `ClaudeOutcome`. The runner fires `Request CR & Merge` + gate fields only when that outcome is `success`. If the skill *also* fires `Request CR & Merge` from inside the session, the runner's follow-up call fails (SubTask has already left `Dev-Developing`) — this is the bug fixed when the skill's CR/Merge step was removed. Preserve the split when editing either side.
 
 ## Reference
 
