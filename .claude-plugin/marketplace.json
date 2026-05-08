@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "afk",
-      "source": ".",
+      "source": "./",
       "description": "AFK driver chain — design + executor skills for the async-from-keyboard Jira/GitLab autonomy pipeline. Ships with the afk-driver Python orchestrator in the same repo."
     }
   ]
