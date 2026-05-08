@@ -3,7 +3,7 @@ end-to-end, etc.).
 
 The runner-closure tests below exercise the production seam: a spawned
 ``claude --print`` session writes its combined stdout+stderr into a log file
-the closure opens, and the ``/afk-go`` skill is required to emit a final
+the closure opens, and the ``/afk:execute`` skill is required to emit a final
 ``<<<AFK_OUTCOME>>>{json}<<<END>>>`` marker block before exiting. The closure
 parses that marker as the source of truth — subprocess exit code is only a
 fallback when no marker was emitted (then the closure reports
@@ -32,11 +32,11 @@ def _emit_marker(stdout_file, status: str, detail: str = "", producer_key=None) 
 
 
 def test_real_claude_runner_invokes_claude_non_interactively(monkeypatch, tmp_path):
-    """Without --print, `claude /afk-go X` opens an interactive REPL after the
+    """Without --print, `claude /afk:execute X` opens an interactive REPL after the
     slash command runs — subprocess.run blocks until cap_s. The driver must
     invoke claude in non-interactive --print mode.
 
-    Discovered during the P2P-1226 smoke run: afk-go session emitted final
+    Discovered during the P2P-1226 smoke run: afk:execute session emitted final
     success but the parent driver hung for the full 1-hour cap because the
     REPL stayed open."""
     captured: dict = {}
@@ -61,7 +61,7 @@ def test_real_claude_runner_invokes_claude_non_interactively(monkeypatch, tmp_pa
     assert args[0] == "claude"
     assert "--print" in args, "must run non-interactively or subprocess.run hangs"
     assert "--dangerously-skip-permissions" in args, "AFK lane is autonomous; tools must not prompt"
-    assert f"/afk-go P2P-1230" in args, "slash command + arg must be a single prompt token"
+    assert f"/afk:execute P2P-1230" in args, "slash command + arg must be a single prompt token"
     assert captured["kw"]["cwd"] == str(tmp_path)
     assert captured["kw"]["timeout"] == 60
 

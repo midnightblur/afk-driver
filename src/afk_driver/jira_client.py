@@ -412,7 +412,7 @@ class JiraClient:
     def get_issue_description_markdown(self, key: str) -> str:
         """Fetch ``key``'s description and render the ADF tree as Markdown.
 
-        Used by ``afk-go`` to feed ``subtask_template.parse(...)``. Handles
+        Used by ``/afk:execute`` to feed ``subtask_template.parse(...)``. Handles
         heading / bulletList / orderedList / codeBlock / hardBreak / `code`
         marks — the shapes a SubTask description authored via the Jira UI uses.
         """

@@ -481,10 +481,10 @@ class Runner:
         ## Design refs (cited) / ## Scope / ## Acceptance / ## Produces
         (cited) / ## Test command / ## Parent PRD / ## Parent SDD (cited) /
         ## Blocked by / ## Consumes (cited+blocked) / ## Conflict procedure
-        (cited) / ## Implementation Notes`` — that is what /afk-go reads.
+        (cited) / ## Implementation Notes`` — that is what /afk:execute reads.
 
         Cited-mode contract enforcement applies equally to the standalone
-        path: /afk-go runs the consumer preflight (Step 2) and producer
+        path: /afk:execute runs the consumer preflight (Step 2) and producer
         self-preflight (Step 10) regardless of whether this is a SubTask
         or a standalone. A ``contract_mismatch`` raised here names a
         producer that may live outside this drain pass — the runner still

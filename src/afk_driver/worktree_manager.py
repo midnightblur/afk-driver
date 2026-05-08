@@ -333,7 +333,7 @@ def commit_dirty_changes(spec: WorktreeSpec, message: str) -> bool:
     """Stage all tracked + untracked files in the worktree and commit them.
 
     Tolerates a dirty tree (that's the point — used as a safety net after a
-    spawned ``claude /afk-go`` session edits files but exits without
+    spawned ``claude /afk:execute`` session edits files but exits without
     committing). Returns True if a commit was created, False if there was
     nothing to commit. Branch identity is still checked so the runner can't
     accidentally commit into the wrong worktree.

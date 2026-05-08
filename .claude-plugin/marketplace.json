@@ -1,0 +1,13 @@
+{
+  "name": "afk-marketplace",
+  "owner": {
+    "name": "midnightblur"
+  },
+  "plugins": [
+    {
+      "name": "afk",
+      "source": ".",
+      "description": "AFK driver chain — design + executor skills for the async-from-keyboard Jira/GitLab autonomy pipeline. Ships with the afk-driver Python orchestrator in the same repo."
+    }
+  ]
+}

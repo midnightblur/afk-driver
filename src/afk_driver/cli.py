@@ -70,9 +70,10 @@ class _WorktreeAdapter:
         return worktree_manager.find_worktree_for_branch(repo_root, branch)
 
 
-# Seam between the spawned `claude --print "/afk-go SUBKEY"` session and the
-# runner. The skill is required to emit one of these blocks as the LAST thing
-# in its output (see ~/.claude/skills/afk-go/SKILL.md Step 13). The substring
+# Seam between the spawned `claude --print "/afk:execute SUBKEY"` session and
+# the runner. The skill is required to emit one of these blocks as the LAST
+# thing in its output (see the afk plugin's `skills/execute/SKILL.md` Step 13,
+# shipped in this repo at `.claude-plugin/` + `skills/`). The substring
 # between markers must be valid JSON: {"status": ..., "detail": ...,
 # "producer_key": ... | null}. We regex-scan for the LAST occurrence so a
 # session that retried internally and re-emitted wins. Without this, the
@@ -172,7 +173,7 @@ def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
             f.flush()
             try:
                 proc = subprocess.run(
-                    ["claude", "--print", "--dangerously-skip-permissions", f"/afk-go {subtask_key}"],
+                    ["claude", "--print", "--dangerously-skip-permissions", f"/afk:execute {subtask_key}"],
                     cwd=str(worktree_path),
                     stdout=f,
                     stderr=subprocess.STDOUT,

@@ -1,0 +1,8 @@
+{
+  "name": "afk",
+  "version": "0.0.0",
+  "description": "AFK driver chain — design pipeline (grill-me → prd → architect-grill → sdd → design-brief → subtasks) + executor (execute) for autonomous Jira → GitLab SubTask drain. Pinned to afk-driver Python package version.",
+  "author": {
+    "name": "midnightblur"
+  }
+}

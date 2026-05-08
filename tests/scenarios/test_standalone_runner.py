@@ -101,7 +101,7 @@ def test_st1_standalone_enhancement_happy_path(tmp_path, runner_factory):
     # noise) — the marker block stays empty.
     assert "[x] P2P-1500" not in mr.description
 
-    # Acceptance flipped on the standalone itself (this is where /afk-go
+    # Acceptance flipped on the standalone itself (this is where /afk:execute
     # would have done its work in real life).
     desc_text = adf_text(jira_world.issues["P2P-1500"].description)
     assert "[x] thing happens" in desc_text

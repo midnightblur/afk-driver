@@ -532,7 +532,7 @@ def test_flaky_suspect_excludes_build_fail_recovery(tmp_path):
 
 
 def test_design_conflict_no_retry_explicit_comment(tmp_path):
-    """A `design_conflict` outcome from /afk-go must:
+    """A `design_conflict` outcome from /afk:execute must:
       - skip retry (binding-contract issue, retrying as-is is wasted work)
       - post a Jira comment that names the conflict and points the human at
         /architect-grill so they emit a superseding ADR before re-queueing
@@ -581,7 +581,7 @@ def test_design_conflict_no_retry_explicit_comment(tmp_path):
 
 
 def test_contract_mismatch_no_retry_routes_comment_to_producer(tmp_path):
-    """A `contract_mismatch` outcome from /afk-go's preflight grep must:
+    """A `contract_mismatch` outcome from /afk:execute's preflight grep must:
       - skip retry (signature drift won't fix itself by re-running the
         consumer; the producer must change)
       - post an explicit "contract mismatch" comment on the **consumer**
@@ -787,7 +787,7 @@ def test_contract_mismatch_status_fetch_failure_falls_back_to_mutable_framing(tm
 
 
 def test_produces_drift_no_retry_explicit_comment(tmp_path):
-    """A `produces_drift` outcome from /afk-go's producer self-preflight must:
+    """A `produces_drift` outcome from /afk:execute's producer self-preflight must:
       - skip retry (the SubTask declared X in ## Produces but didn't deliver
         X; re-running it without intervention will fail the same way)
       - post a comment that names the failed self-check + points the human at
@@ -1126,7 +1126,7 @@ def test_enhancement_continues_when_lifecycle_transition_fails(tmp_path):
 
 def test_subtask_aborts_when_claude_succeeds_but_no_code_change(tmp_path):
     """Empirically observed in the P2P-1233/1234/1235 smoke run: the spawned
-    `claude /afk-go` session edited files but exited without `git commit`.
+    `claude /afk:execute` session edited files but exited without `git commit`.
     The runner trusted the success exit code and transitioned the SubTask to
     Dev-CR/Merge anyway — leaving the parent's MR with zero work commits.
 
