@@ -63,34 +63,64 @@ collapses onto the single ticket — **no MR subtasks checklist** is
 maintained, and **no Implementation Notes splice** is written into a
 parent (there is no parent). Because `/afk-go` reads the SubTask Markdown
 contract (`## Goal / Scope / Acceptance / Test command / Parent PRD /
-Blocked by / Implementation Notes`), a standalone ticket's description
-**must be authored in that shape** for the skill to find work — the
-driver does not synthesise it. If a labelled non-subtask also has
-labelled SubTasks under it, the SubTask flow wins and the standalone path
-is skipped.
+Blocked by / Implementation Notes`, plus the cited-mode sections
+`## Design refs / Produces / Parent SDD / Consumes / Conflict procedure`
+when the standalone is sliced from an SDD), a standalone ticket's
+description **must be authored in that shape** for the skill to find
+work — the driver does not synthesise it. **Cited-mode contract layers
+apply equally to standalones**: `/afk-go` runs the same Step 2 consumer
+preflight on `## Consumes` (a missing upstream `{file}#{anchor}` exits
+`contract_mismatch` and the runner comments on the standalone AND on the
+named producer ticket — the producer may live outside this drain pass)
+and the same Step 10 producer self-preflight on `## Produces` (a missing
+own anchor exits `produces_drift`). If a labelled non-subtask also has
+labelled SubTasks under it, the SubTask flow wins and the standalone
+path is skipped.
 
 ## Modules
 
 | Module | Responsibility |
 |---|---|
-| `subtask_template.py` | Parser/emitter for the SubTask Markdown contract (`## Goal / Scope / Acceptance / Test command / Parent PRD / Blocked by / Implementation Notes`). Round-trip lossless. |
+| `subtask_template.py` | Parser/emitter for the SubTask Markdown contract (`## Goal / Scope / Acceptance / Test command / Parent PRD / Blocked by / Implementation Notes`, plus cited-mode `## Design refs / Produces / Parent SDD / Consumes / Conflict procedure`). Round-trip lossless. |
 | `scope_enforcer.py` | Pure function `(diff, scope_globs, forbidden, home_module, marker) → list[Violation]`. Catches out-of-scope edits, forbidden patterns (`UpgradeGroup*.java`, `db/changelog/**`, `PreDbMigration*`), and cross-module edits without a JIRA-prefixed marker comment. |
 | `config.py` | `DriverConfig` dataclass + TOML override. Defaults: project→service map, `customfield_13706` Target Branch field, `MASTER → master` value map, forbidden patterns, marker template, wall-clock cap (3600s), retry count (3), worktree/log/digest roots under `~/.afk-driver/`, `dev_cr_merge_gate_fields`, `mr_assignee`. |
 | `worktree_manager.py` | Per-Enhancement git worktree lifecycle. `ensure / publish_branch / validate_state / rebase_onto_target`. Branch name pattern `mvu/afk/{enh_id_lower}` (GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`). |
 | `jira_client.py` | REST client. `search`, `get_enhancement_fields`, `list_transitions`, `transition` (by name), `update_implementation_notes` (idempotent splice), `set_fields`, `assign`, `get_my_account_id`, `get_issue_description_markdown` (ADF→Markdown for the SubTask parser). |
 | `gitlab_client.py` | `glab` CLI wrapper. `find_mr_by_branch / open_draft_mr / update_subtasks_checklist`. Auto-maintained block bracketed by `<!-- afk:subtasks:start/end -->` HTML comments preserves human edits to the rest of the description. |
-| `runner.py` | Orchestrator. `Runner.one_pass()` is the entry; `preflight()` validates env. Two flows: `_process_parent` (parent Enhancement + labelled SubTasks) and `_process_standalone` (one labelled non-subtask, collapsed lifecycle — no checklist, no impl-notes splice). Outcomes: `success / test_fail / build_fail / timeout / other`. Retries on `test_fail` / `build_fail` up to `retry_count`. |
+| `runner.py` | Orchestrator. `Runner.one_pass()` is the entry; `preflight()` validates env. Two flows: `_process_parent` (parent Enhancement + labelled SubTasks) and `_process_standalone` (one labelled non-subtask, collapsed lifecycle — no checklist, no impl-notes splice). Outcomes: `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`. Retries on `test_fail` / `build_fail` up to `retry_count`. `design_conflict` (cited-mode binding-contract violation flagged by `/afk-go`) skips retry and routes the SubTask back to Dev-Pending with a comment pointing the human at `/architect-grill`. `contract_mismatch` (cited-mode consumer preflight grep miss against an upstream `## Produces` artifact) also skips retry: posts an explicit comment on the consumer AND a separate comment on the producer SubTask (carried via `ClaudeOutcome.producer_key`). `produces_drift` (cited-mode producer self-preflight: SubTask declared `## Produces` X but its own grep cannot find X) likewise skips retry: posts a single "producer self-check failed" comment routing the human to fix the impl OR re-emit the slice. |
 | `digest_writer.py` | Emits `RunRecord` as L4 morning Markdown. |
 | `cli.py` | `python -m afk_driver` entry. Wires real clients into Runner. Spawns `claude --print --dangerously-skip-permissions "/afk-go SUBTASK"` per SubTask. |
 
-All I/O is dependency-injected so the runner integration tests (28) drive
+All I/O is dependency-injected so the runner integration tests (31) drive
 fakes in <0.2s. Real-client wiring lives only in `cli.py`.
 
 ### Skill ↔ runner contract
 
 Each spawned `claude --print` session returns a `ClaudeOutcome` to the
-runner: one of `success / test_fail / build_fail / timeout / other`. The
-ownership split between the two sides is load-bearing:
+runner: one of `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`.
+
+The seam is a **structured outcome marker** the `/afk-go` skill emits as
+the last thing in its log (Step 13 of the skill spec):
+
+```
+<<<AFK_OUTCOME>>>
+{"status": "<status>", "detail": "<one-line summary>", "producer_key": <"PRODUCER-KEY" | null>}
+<<<END>>>
+```
+
+`cli._parse_outcome_marker` regex-scans the per-SubTask log for the LAST
+occurrence (so a session that retried internally and re-emitted wins),
+parses the JSON payload, and returns a fully-typed `ClaudeOutcome`. The
+marker is the source of truth — when present, it beats the subprocess
+exit code, including on timeout: `claude --print` exits 0 on clean
+termination regardless of narrative outcome, so without the marker the
+runner would collapse every structured failure status (`test_fail`,
+`contract_mismatch`, `design_conflict`, `produces_drift`) into
+`success`. When the marker is missing or malformed the runner reports
+`other` with detail `"no AFK_OUTCOME marker emitted (...)"` so the loss
+is loud — silent demotion is the bug this seam fixes.
+
+The ownership split between the two sides is load-bearing:
 
 - **Skill (`/afk-go`) owns**: in-flight transitions (`Dev-Designing`,
   `Dev-Developing`), TDD loop, code edits, commits, push, MR checklist
@@ -112,6 +142,8 @@ Mixed human + automated edits live in three Markdown surfaces. Don't let
 them collide:
 
 - **Parent Enhancement description**: `## PRD` is owned by `/to-prd`;
+  `## SDD` (when present) is owned by `/to-sdd`;
+  `## Design Brief` (when present) is owned by `/to-design-brief`;
   `## Implementation Notes (auto-maintained)` is owned by this driver
   (idempotent splice via `update_implementation_notes`); other prose
   belongs to the human.
@@ -147,17 +179,25 @@ sred_rationale = "customfield_14003"
 
 ## Skills
 
-The driver leans on three Claude Code skills (live at `~/.claude/skills/`,
-not in this repo):
+The driver leans on a chain of Claude Code skills (live at `~/.claude/skills/`,
+not in this repo). Three are mandatory, two are an optional design layer.
+
+**Mandatory chain** (`/to-prd` → `/to-subtasks` → `/afk-go`):
 
 - **`/to-prd`** — turns conversation context into a PRD. AFK adaptation:
   writes to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
   (or `tools/{group}/{tool}/PRD.md` for tooling work). Owns the `## PRD`
   section of the parent Enhancement description; AFK driver owns
   `## Implementation Notes (auto-maintained)`.
-- **`/prd-to-subtasks`** — slices a PRD into Jira SubTasks under the parent
-  Enhancement, each with the structured Markdown contract and the `afk-agents`
-  label.
+- **`/to-subtasks`** (renamed from `/prd-to-subtasks` 2026-05-08) —
+  slices a PRD (and the accompanying SDD + ADRs, when present) into Jira
+  SubTasks under the parent Enhancement, each with the structured Markdown
+  contract and the `afk-agents` label. **Cited mode** (default when an
+  SDD exists) emits `## Design refs`, `## Parent SDD`, and
+  `## Conflict procedure` blocks per SubTask, so the implementing agent
+  inherits a binding contract — not just a feature ask. **Uncited mode**
+  is human-gated for small features / bugs / refactors / tooling: when
+  no SDD is present, the skill asks before slicing without one.
 - **`/afk-go`** — invoked by the driver in the spawned session; takes one
   SubTask from `Dev-Pending` through `Dev-Designing` → `Dev-Developing`, gets
   the test command green, pushes commits, then exits with a structured
@@ -167,18 +207,73 @@ not in this repo):
   split avoids the double-transition that occurs if both sides try to fire
   `Request CR & Merge`.
 
+**Optional design layer** (recommended for new complex features touching
+≥2 modules / introducing patterns / non-trivial transactions or data;
+skip for small enhancements, bugs, refactors, tooling):
+
+- **`/architect-grill`** — interviews the user top-down across 8 layers
+  (L1 system topology → L8 tactical patterns) until every non-trivial
+  decision has a rationale and ≥2 alternatives weighed. Does NOT produce
+  documents.
+- **`/to-sdd`** — synthesizes the conversation into `SDD.md` plus
+  per-decision ADRs, sibling to the PRD:
+  `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/SDD.md`
+  and `.../adr/NNNN-*.md`. Owns the `## SDD` section of the parent
+  Enhancement description. Mandates visualizations (Mermaid diagrams,
+  tables) per layer so reviewers can scan vertically.
+- **`/to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
+  1-2 page `DESIGN-BRIEF.md` sibling to the PRD/SDD. One money-shot
+  diagram, 5-10 row decision digest, stakeholder-impact table. Owns the
+  `## Design Brief` section of the parent Enhancement description.
+  Strict synthesis: refuses to invent decisions and refuses to emit when
+  the SDD has executor-blocking open questions. Use for stakeholder
+  reviews and as a map before reading the full SDD.
+
+> **Cited-mode contract.** When `/to-subtasks` slices in cited mode it
+> emits five additional SubTask sections — `## Design refs`,
+> `## Produces`, `## Consumes` (when `Blocked by` is non-empty),
+> `## Parent SDD`, `## Conflict procedure`. `subtask_template.py` parses
+> all five losslessly. The contract is enforced at three checkpoints:
+>
+> 1. **Slicing time** (`/to-subtasks` Step 7): graph validation
+>    (every `## Consumes` line resolves to a prior `## Produces`) +
+>    anchor quality (forbidden-token check, ≥12-char length, trial
+>    grep against `{file}` at HEAD must return ≤1 match — refuse on
+>    ambiguity). Catches contract drift at declaration time.
+> 2. **Consumer preflight** (`/afk-go` Step 2): before any work, grep
+>    every `## Consumes` line `{PRODUCER-KEY} {file}#{anchor}` on the
+>    branch — a missing artifact or signature-divergent anchor exits
+>    `contract_mismatch` (no retry; runner comments on consumer AND on
+>    producer SubTask).
+> 3. **Producer self-preflight** (`/afk-go` Step 10): right before
+>    declaring success, grep every own `## Produces` anchor on the
+>    branch. Missing or signature-divergent anchor exits
+>    `produces_drift` (no retry; runner comments on the SubTask
+>    framing it as "I declared X but did not deliver X" and routes the
+>    human to impl-vs-slice fix).
+>
+> On a binding-decision break (SDD §8 mandate is wrong/infeasible),
+> `/afk-go` exits `design_conflict` and routes to `/architect-grill` for
+> a superseding ADR. `## Produces` is mandatory on every cited SubTask,
+> even leaves with no consumer — it doubles as the reviewer's
+> cheat-sheet AND the next SubTask's preflight target. Cited and uncited
+> SubTasks both round-trip through the driver — `/to-subtasks` decides
+> which to emit based on whether an SDD is present (human-gated).
+
 ## Tests
 
 ```
 python -m pytest -v
 ```
 
-180 tests covering: subtask_template parser/emitter (round-trip),
-scope_enforcer, config (defaults + TOML override), worktree_manager (real
-temp-repo integration), jira_client (HTTP fake), gitlab_client (subprocess
-fake), runner (28 integration tests against in-memory fakes, plus phase /
-standalone scenario suites), digest_writer, cli (subprocess invocation
-contract).
+197 tests covering: subtask_template parser/emitter (round-trip,
+including cited-mode `## Produces` / `## Consumes`), scope_enforcer,
+config (defaults + TOML override), worktree_manager (real temp-repo
+integration), jira_client (HTTP fake), gitlab_client (subprocess fake),
+runner (31 integration tests against in-memory fakes — incl.
+`design_conflict`, `contract_mismatch`, and `produces_drift` no-retry
+semantics with producer-side comment routing — plus phase / standalone
+scenario suites), digest_writer, cli (subprocess invocation contract).
 
 ## Limitations / known gaps
 

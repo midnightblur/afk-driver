@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+import time
 from typing import Any, Optional
 
 import pytest
@@ -423,6 +425,128 @@ def test_implementation_notes_preserves_rich_body_blocks():
     start_t, _ = marker_id_text("notes")
     assert new_adf["content"][len(rich_body)] == _marker_para(start_t)
     assert _items_inside_notes_markers(new_adf) == ["(P2P-1233) [AFK] Plumb flag"]
+
+
+class _StatefulNotesTransport:
+    """Fake transport that maintains a single issue's description across
+    calls, the way a real Jira backend would. Each GET returns the
+    current description; each PUT replaces it. Used to exercise
+    concurrency on ``update_implementation_notes``: two threads that
+    each splice one bullet must both end up in the final description,
+    NOT clobber each other.
+
+    Includes a configurable per-call delay between GET and PUT so the
+    test can amplify any window where the lock would have to hold.
+    """
+
+    def __init__(self, initial_adf: dict, *, delay_s: float = 0.0):
+        self.adf = initial_adf
+        self.delay_s = delay_s
+        self._state_lock = threading.Lock()
+        self.calls: list[tuple[str, str]] = []
+
+    def send(self, method, path, *, json_body=None, params=None):
+        self.calls.append((method, path))
+        if method == "GET" and "/issue/" in path:
+            with self._state_lock:
+                snapshot = {"fields": {"description": _deepcopy(self.adf)}}
+            # Simulate latency between GET and PUT to widen the race
+            # window. Without the per-key lock under test, the two
+            # threads' GETs would both see the same baseline and the
+            # second PUT would clobber the first.
+            time.sleep(self.delay_s)
+            return snapshot
+        if method == "PUT" and "/issue/" in path:
+            new_desc = (json_body or {}).get("fields", {}).get("description")
+            with self._state_lock:
+                if new_desc is not None:
+                    self.adf = _deepcopy(new_desc)
+            return {}
+        raise AssertionError(f"_StatefulNotesTransport: unhandled {method} {path}")
+
+
+def _deepcopy(obj):
+    import copy as _copy
+    return _copy.deepcopy(obj)
+
+
+def test_implementation_notes_serializes_concurrent_writes_per_parent():
+    """Two threads splicing different bullets into the same parent must
+    NOT clobber each other. Both bullets must end up in the final
+    description.
+
+    S4 closure 2026-05-08. Pre-fix, two concurrent calls would each
+    GET the baseline description (no marker block, or the same set of
+    bullets), splice their own bullet locally, and the second PUT
+    would overwrite the first — losing one bullet per race.
+
+    The fix: ``JiraClient`` holds a per-parent-key lock, so the two
+    threads' read-modify-write splices serialize. After the test, the
+    description has BOTH bullets in the marker block.
+    """
+    initial = {"type": "doc", "version": 1, "content": []}
+    transport = _StatefulNotesTransport(initial, delay_s=0.05)
+    client = JiraClient(_config(), transport)
+
+    barrier = threading.Barrier(2)
+    errors: list[Exception] = []
+
+    def worker(subkey: str, text: str) -> None:
+        try:
+            barrier.wait()  # release both threads as close to simultaneously as possible
+            client.update_implementation_notes("P2P-1220", subkey, text)
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+
+    t1 = threading.Thread(target=worker, args=("P2P-1221", "first"))
+    t2 = threading.Thread(target=worker, args=("P2P-1222", "second"))
+    t1.start(); t2.start()
+    t1.join(); t2.join()
+
+    assert not errors, errors
+    final_items = _items_inside_notes_markers(transport.adf)
+    # Both bullets must be present (order is whichever thread won the
+    # lock first; we only assert containment, not order).
+    assert "(P2P-1221) first" in final_items
+    assert "(P2P-1222) second" in final_items
+    assert len(final_items) == 2
+
+
+def test_implementation_notes_different_parents_proceed_in_parallel():
+    """Locking is per-parent-key. Two writes targeting *different* parents
+    must NOT serialize against each other — that would defeat the
+    parallelization the per-key locking was added to enable. We verify
+    by giving each parent its own transport (so the locks don't share
+    state across them) and asserting both calls complete inside a
+    bounded window."""
+    t1 = _StatefulNotesTransport(
+        {"type": "doc", "version": 1, "content": []}, delay_s=0.1,
+    )
+    t2 = _StatefulNotesTransport(
+        {"type": "doc", "version": 1, "content": []}, delay_s=0.1,
+    )
+    c1 = JiraClient(_config(), t1)
+    c2 = JiraClient(_config(), t2)
+
+    start = time.monotonic()
+    th1 = threading.Thread(
+        target=lambda: c1.update_implementation_notes("P2P-A", "P2P-A1", "x")
+    )
+    th2 = threading.Thread(
+        target=lambda: c2.update_implementation_notes("P2P-B", "P2P-B1", "y")
+    )
+    th1.start(); th2.start()
+    th1.join(); th2.join()
+    elapsed = time.monotonic() - start
+
+    # Each call sleeps 0.1s in the GET delay. If they ran serialized
+    # they'd take ~0.2s; in parallel they should take ~0.1s. Allow
+    # generous slack for thread-start overhead but reject obvious
+    # serial behaviour (>0.18s would mean serialization).
+    assert elapsed < 0.18, (
+        f"different parents serialized: elapsed={elapsed:.3f}s "
+        f"(expected ~0.1s for parallel, ~0.2s for serial)"
+    )
 
 
 def test_comment_posts_adf():

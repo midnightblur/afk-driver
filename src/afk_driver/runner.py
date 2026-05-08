@@ -26,13 +26,27 @@ from afk_driver.gitlab_client import SubtaskItem
 from afk_driver.worktree_manager import WorktreeError, WorktreeSpec
 
 
-ClaudeStatus = Literal["success", "test_fail", "build_fail", "timeout", "other"]
+ClaudeStatus = Literal[
+    "success",
+    "test_fail",
+    "build_fail",
+    "timeout",
+    "design_conflict",
+    "contract_mismatch",
+    "produces_drift",
+    "other",
+]
 
 
 @dataclass(frozen=True)
 class ClaudeOutcome:
     status: ClaudeStatus
     detail: str = ""
+    # Populated only for ``contract_mismatch``: the producer SubTask key whose
+    # ``## Produces`` artifact failed the consumer's preflight grep. The runner
+    # routes a comment there so the human knows where the binding-contract
+    # break lives, separate from the consumer's own abort comment.
+    producer_key: Optional[str] = None
 
 
 ClaudeRunner = Callable[[str, Path, int], ClaudeOutcome]
@@ -46,6 +60,17 @@ class SubTaskRun:
     attempts: int = 0
     detail: str = ""
     duration_s: float = 0.0
+    # S1 — true when this SubTask succeeded on attempt N>1 AND at least
+    # one prior attempt failed with ``test_fail``. The retry loop hides
+    # flake otherwise: a successful retry looks identical to a clean
+    # first-attempt success in the digest, but the underlying cause may
+    # be a race / timing-dependent test rather than a real fix. Surfacing
+    # the suspicion gives the human a flag to investigate without
+    # forcing a hard failure on the SubTask. Excludes ``build_fail``
+    # because build infrastructure transients are a different
+    # category — they look like flake at the run level but are
+    # typically dep-cache / network issues that don't recur in CI.
+    flaky_suspect: bool = False
 
 
 @dataclass
@@ -316,6 +341,7 @@ class Runner:
 
         outcome: Optional[ClaudeOutcome] = None
         pre_tip = self.worktrees.head_sha(spec)
+        prior_statuses: list[str] = []
         for attempt in range(1, self.config.retry_count + 1):
             sub_run.attempts = attempt
             self.progress(
@@ -330,6 +356,14 @@ class Runner:
                 + (f" — {outcome.detail}" if outcome.detail else "")
             )
             if outcome.status == "success":
+                # S1 — flag flaky-suspect when a prior attempt was
+                # ``test_fail`` but a later attempt succeeded. The runner
+                # has no way to tell "real fix" from "race that resolved"
+                # without re-running deterministically; the flag tells
+                # the human to look. Build_fail recovery is excluded —
+                # see SubTaskRun.flaky_suspect docstring for rationale.
+                if "test_fail" in prior_statuses:
+                    sub_run.flaky_suspect = True
                 # Safety net: claude was supposed to commit + push during its
                 # session, but the spawned --print Code session has been
                 # observed to edit files and exit without committing
@@ -379,20 +413,57 @@ class Runner:
                 if jira_errors:
                     sub_run.detail = "; ".join(jira_errors)
                 sub_run.duration_s = self.monotonic() - t0
+                if sub_run.flaky_suspect:
+                    self.progress(
+                        f"[afk]   subtask {subtask.key}: flaky-suspect — "
+                        f"passed on attempt {attempt} after test_fail on a prior attempt"
+                    )
+                    flake_body = _flaky_suspect_comment(attempt, prior_statuses)
+                    _try_sub("flaky-suspect note",
+                             lambda: self.jira.comment(subtask.key, flake_body))
                 self.progress(
                     f"[afk]   subtask {subtask.key}: success in {sub_run.duration_s:.1f}s"
                 )
                 return sub_run
+            prior_statuses.append(outcome.status)
             if outcome.status not in ("test_fail", "build_fail"):
                 break  # timeout/other → no retry
 
         # exhausted retries or non-retryable failure
         detail = outcome.detail if outcome else "no outcome"
         self.progress(f"[afk]   subtask {subtask.key}: aborting — {detail}")
+        # Fetch producer status for ``contract_mismatch`` so the comment
+        # framing can branch on lock-point — re-open vs. emit-corrective.
+        # On fetch failure (network, 404 if producer key was wrong, etc.)
+        # producer_status stays empty and the comment falls back to the
+        # historic re-open framing rather than guessing.
+        producer_status = ""
+        if (
+            outcome is not None
+            and outcome.status == "contract_mismatch"
+            and outcome.producer_key
+        ):
+            try:
+                producer_status = self.jira.get_status(outcome.producer_key)
+            except Exception as e:
+                jira_errors.append(f"producer status fetch failed: {e}")
+        comment_body = _abort_comment(
+            outcome, sub_run.attempts, detail, producer_status=producer_status,
+        )
         _try_sub("abort comment",
-                 lambda: self.jira.comment(
-                     subtask.key,
-                     f"AFK aborted after {sub_run.attempts} attempt(s): {detail}"))
+                 lambda: self.jira.comment(subtask.key, comment_body))
+        if (
+            outcome is not None
+            and outcome.status == "contract_mismatch"
+            and outcome.producer_key
+        ):
+            producer_body = _producer_mismatch_comment(
+                subtask.key, outcome, producer_status,
+            )
+            _try_sub(
+                "producer mismatch comment",
+                lambda: self.jira.comment(outcome.producer_key, producer_body),
+            )
         _try_sub("transition Request Development (back to Dev-Pending)",
                  lambda: self.jira.transition(subtask.key, "Request Development"))
         sub_run.detail = "; ".join([detail, *jira_errors])
@@ -406,9 +477,18 @@ class Runner:
         Collapses the parent loop and the per-subtask loop onto a single
         ticket: one Draft MR, one claude spawn, one lifecycle through
         Designing/Developing/Request CR & Merge. The ticket description
-        must follow the SubTask Markdown contract (## Goal / ## Scope /
-        ## Acceptance / ## Test command / ## Parent PRD / ## Blocked by /
-        ## Implementation Notes) — that is what /afk-go reads.
+        must follow the SubTask Markdown contract — full set: ``## Goal /
+        ## Design refs (cited) / ## Scope / ## Acceptance / ## Produces
+        (cited) / ## Test command / ## Parent PRD / ## Parent SDD (cited) /
+        ## Blocked by / ## Consumes (cited+blocked) / ## Conflict procedure
+        (cited) / ## Implementation Notes`` — that is what /afk-go reads.
+
+        Cited-mode contract enforcement applies equally to the standalone
+        path: /afk-go runs the consumer preflight (Step 2) and producer
+        self-preflight (Step 10) regardless of whether this is a SubTask
+        or a standalone. A ``contract_mismatch`` raised here names a
+        producer that may live outside this drain pass — the runner still
+        posts the producer-side comment via ``ClaudeOutcome.producer_key``.
         """
         key = issue.key
         info = self.jira.get_parent_fields(key)
@@ -463,6 +543,7 @@ class Runner:
 
         outcome: Optional[ClaudeOutcome] = None
         pre_tip = self.worktrees.head_sha(spec)
+        prior_statuses: list[str] = []
         for attempt in range(1, self.config.retry_count + 1):
             sub_run.attempts = attempt
             self.progress(
@@ -477,6 +558,8 @@ class Runner:
                 + (f" — {outcome.detail}" if outcome.detail else "")
             )
             if outcome.status == "success":
+                if "test_fail" in prior_statuses:
+                    sub_run.flaky_suspect = True
                 auto_msg = (
                     f"[{key}] AFK auto-commit\n\n"
                     "Claude session reported success but did not run git commit "
@@ -493,16 +576,58 @@ class Runner:
                 self.worktrees.push_branch(spec)
                 sub_run.status = "success"
                 break
+            prior_statuses.append(outcome.status)
             if outcome.status not in ("test_fail", "build_fail"):
                 break
+
+        if sub_run.status == "success" and sub_run.flaky_suspect:
+            self.progress(
+                f"[afk] standalone {key}: flaky-suspect — "
+                f"passed on attempt {sub_run.attempts} after test_fail on a prior attempt"
+            )
+            flake_body = _flaky_suspect_comment(sub_run.attempts, prior_statuses)
+            _try_jira(
+                "flaky-suspect note",
+                lambda: self.jira.comment(key, flake_body),
+            )
 
         if sub_run.status != "success":
             detail = outcome.detail if outcome else "no outcome"
             self.progress(f"[afk] standalone {key}: aborting — {detail}")
+            # Fetch producer status for ``contract_mismatch`` so the comment
+            # framing branches on lock-point. Standalones can name producers
+            # in entirely different drain pools, so the producer may already
+            # be merged — if it is, "re-open" is wrong advice.
+            producer_status = ""
+            if (
+                outcome is not None
+                and outcome.status == "contract_mismatch"
+                and outcome.producer_key
+            ):
+                try:
+                    producer_status = self.jira.get_status(outcome.producer_key)
+                except Exception as e:  # noqa: BLE001
+                    self.progress(
+                        f"[afk] standalone {key}: producer status fetch "
+                        f"failed ({e}) — falling back to mutable framing"
+                    )
+            comment_body = _abort_comment(
+                outcome, sub_run.attempts, detail, producer_status=producer_status,
+            )
             _try_jira("abort comment",
-                      lambda: self.jira.comment(
-                          key,
-                          f"AFK aborted after {sub_run.attempts} attempt(s): {detail}"))
+                      lambda: self.jira.comment(key, comment_body))
+            if (
+                outcome is not None
+                and outcome.status == "contract_mismatch"
+                and outcome.producer_key
+            ):
+                producer_body = _producer_mismatch_comment(
+                    key, outcome, producer_status,
+                )
+                _try_jira(
+                    "producer mismatch comment",
+                    lambda: self.jira.comment(outcome.producer_key, producer_body),
+                )
             _try_jira("transition Request Development (back to Dev-Pending)",
                       lambda: self.jira.transition(key, "Request Development"))
             sub_run.status = "aborted"
@@ -706,6 +831,186 @@ class Runner:
                 payload[cf_id] = default_value
         if payload:
             self.jira.set_fields(key, payload)
+
+
+# Producer SubTask statuses for which "re-open and correct" is a viable
+# recovery path. Anything else (Dev-CR/Merge, Done, Closed, Resolved, the
+# Merged terminus, etc.) means the producer ticket has passed the lock
+# point — re-opening it would require reverting a merge — so the runner
+# tells the human to emit a *corrective* SubTask under the same parent
+# instead. Without this branching the consumer would bounce back to
+# Dev-Pending forever, waiting for a producer ticket that nobody can
+# touch. (S3 closure 2026-05-08.)
+_PRODUCER_MUTABLE_STATUSES = frozenset({
+    "Dev-Pending",
+    "Dev-Designing",
+    "Dev-Developing",
+})
+
+
+def _producer_is_locked(producer_status: str) -> bool:
+    """A producer is locked when its workflow position is past the
+    Dev-Developing terminus — re-opening would mean reverting a merge.
+    Empty / unknown status is treated as mutable (status-fetch failure
+    falls back to the historic re-open framing rather than emitting the
+    locked framing on guesswork)."""
+    return bool(producer_status) and producer_status not in _PRODUCER_MUTABLE_STATUSES
+
+
+def _abort_comment(
+    outcome: Optional[ClaudeOutcome], attempts: int, detail: str,
+    *, producer_status: str = "",
+) -> str:
+    """Build the Jira comment body for an aborted SubTask.
+
+    Three binding-contract outcomes get explicit framing:
+
+    - ``design_conflict`` — the SDD/ADR mandate is wrong/infeasible. Routes
+      the human to ``/architect-grill`` for a superseding ADR.
+    - ``contract_mismatch`` — an upstream SubTask's ``## Produces`` artifact
+      failed this consumer's preflight grep (signature drift, missing symbol,
+      wrong file). Routes the human to the producer SubTask. Without the
+      explicit framing, the human reads "aborted: <detail>" and assumes a
+      flaky test, retries, and the chain wedges again.
+    - ``produces_drift`` — this SubTask's OWN producer self-preflight failed:
+      it declared artifacts in ``## Produces`` but its own grep found them
+      missing or signature-divergent. Symmetric to ``contract_mismatch`` but
+      with no separate producer ticket — the producer IS this SubTask. Routes
+      the human to either fix the impl OR re-emit the slice with a corrected
+      ``## Produces`` declaration. Without the explicit framing the failure
+      surfaces only at the next consumer's preflight — wasting a drain pass
+      on the wrong ticket.
+    """
+    if outcome is not None and outcome.status == "design_conflict":
+        return (
+            f"AFK aborted: **design conflict** flagged by the implementing agent "
+            f"after {attempts} attempt(s).\n\n"
+            f"{detail}\n\n"
+            "The agent found a binding decision in the SDD/ADR wrong, infeasible, "
+            "or contradicting reality. Resolve via `/architect-grill` and emit a "
+            "superseding ADR (Status: Accepted, Supersedes: NNNN) before "
+            "re-queueing this SubTask. Do not retry as-is."
+        )
+    if outcome is not None and outcome.status == "contract_mismatch":
+        if outcome.producer_key and _producer_is_locked(producer_status):
+            producer_line = (
+                f"Producer SubTask: **{outcome.producer_key}** "
+                f"(currently `{producer_status}` — past the lock point).\n\n"
+            )
+            recovery = (
+                "The producer ticket is **locked** — its workflow has passed "
+                "Dev-Developing, so re-opening it would mean reverting a "
+                "merge. Emit a **corrective SubTask** under the same parent "
+                "that delivers the missing/divergent `## Produces` artifact, "
+                "then re-rank this consumer behind it before re-queueing. Do "
+                "NOT retry this consumer as-is — it will bounce on the same "
+                "preflight every drain pass until the corrective slice lands."
+            )
+        else:
+            producer_status_note = (
+                f" (currently `{producer_status}`)"
+                if outcome.producer_key and producer_status
+                else ""
+            )
+            producer_line = (
+                f"Producer SubTask: **{outcome.producer_key}**{producer_status_note}\n\n"
+                if outcome.producer_key
+                else ""
+            )
+            recovery = (
+                "An upstream `## Produces` artifact does not match what this "
+                "SubTask's `## Consumes` declared. Fix the producer (re-open "
+                "it or emit a corrective SubTask) before re-queueing this "
+                "one. Retrying as-is will fail the same way."
+            )
+        return (
+            f"AFK aborted: **contract mismatch** detected by the implementing "
+            f"agent's preflight on attempt {attempts}.\n\n"
+            f"{producer_line}{detail}\n\n"
+            f"{recovery}"
+        )
+    if outcome is not None and outcome.status == "produces_drift":
+        return (
+            f"AFK aborted: **producer self-check failed** on attempt "
+            f"{attempts}.\n\n"
+            f"{detail}\n\n"
+            "This SubTask declared artifacts in `## Produces` that its own "
+            "pre-success grep could not find on the branch — either the "
+            "implementation diverged from the declared signature, or the "
+            "declared signature itself was wrong. Fix the implementation OR "
+            "re-emit the slice with a corrected `## Produces` declaration "
+            "before re-queueing. Retrying as-is will fail the same way. "
+            "(If the declared signature is wrong because a binding SDD/ADR "
+            "decision is wrong, exit `design_conflict` next time, not "
+            "`produces_drift`.)"
+        )
+    return f"AFK aborted after {attempts} attempt(s): {detail}"
+
+
+def _flaky_suspect_comment(
+    success_attempt: int, prior_statuses: list[str],
+) -> str:
+    """Comment posted when a SubTask succeeded on a retry after a prior
+    ``test_fail``. The retry mechanism is supposed to absorb genuine
+    transients (network blip, lock contention), but a test that passes
+    on attempt N and fails on attempt N-1 with the same code is by
+    definition not deterministic — the human needs a heads-up so the
+    flake can be diagnosed before it's normalized into the test suite's
+    background noise. (S1 closure 2026-05-08.)
+    """
+    history = " → ".join(prior_statuses + ["success"])
+    return (
+        f"AFK note: **flaky-suspect** — this SubTask passed on retry "
+        f"attempt **{success_attempt}** after at least one earlier "
+        f"`test_fail`. Attempt history: `{history}`.\n\n"
+        "The retry loop absorbed the failure, but the same code passed "
+        "the same test command twice with different outcomes — that's a "
+        "race / timing dependency / shared-state leak by definition, not "
+        "a genuine transient. Investigate before this normalises into "
+        "background noise: rerun the test in isolation, check for "
+        "shared mutable fixtures, look for time-of-day or ordering "
+        "dependencies. If confirmed flaky, file a separate ticket — "
+        "do not just close this comment."
+    )
+
+
+def _producer_mismatch_comment(
+    consumer_key: str, outcome: ClaudeOutcome, producer_status: str = "",
+) -> str:
+    """Comment posted on the **producer** SubTask when its consumer flagged a
+    contract mismatch. Surfaces the break at the producing SubTask's history
+    so the human triaging that ticket knows the downstream impact without
+    cross-referencing the consumer's comment thread.
+
+    Branches on producer status: when the producer is past the Dev-Developing
+    lock point (Dev-CR/Merge, Done, Closed, ...), telling the human to "re-
+    open" is wrong — re-opening would mean reverting a merge. The locked
+    framing tells them to emit a corrective SubTask instead. (S3 closure
+    2026-05-08.)
+    """
+    if _producer_is_locked(producer_status):
+        return (
+            f"AFK contract break flagged by downstream SubTask **{consumer_key}**:\n\n"
+            f"{outcome.detail}\n\n"
+            f"This SubTask is currently in `{producer_status}` — past the "
+            "Dev-Developing lock point. Do **not** re-open it (that would "
+            "require reverting a merge). Instead, emit a **corrective "
+            "SubTask** under the same parent that delivers the missing or "
+            "divergent `## Produces` artifact the consumer expected. Re-rank "
+            "the consumer behind that corrective slice before re-queueing. "
+            "If the binding contract itself is wrong, route via "
+            "`/architect-grill` for a superseding ADR before slicing the "
+            "correction."
+        )
+    return (
+        f"AFK contract break flagged by downstream SubTask **{consumer_key}**:\n\n"
+        f"{outcome.detail}\n\n"
+        "This SubTask's `## Produces` artifact does not match the signature / "
+        "symbol the consumer expected. Re-open and correct the produced "
+        "interface, or supersede via `/architect-grill` if the binding "
+        "contract itself was wrong. The consumer SubTask is blocked until "
+        "this is resolved."
+    )
 
 
 # Logical field names whose values must be sent as ADF documents, even though

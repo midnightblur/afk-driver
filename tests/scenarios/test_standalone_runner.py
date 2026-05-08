@@ -36,7 +36,8 @@ from tests.fakes import (
     success_no_change,
 )
 from tests.fakes import test_fail_step as fail_step  # avoid pytest collection
-from tests.fakes.jira_world import CF_TARGET_BRANCH
+from tests.fakes.fake_claude import contract_mismatch_step
+from tests.fakes.jira_world import CF_TARGET_BRANCH, JiraIssue
 from tests.scenarios.conftest import adf_text
 
 
@@ -368,3 +369,79 @@ def test_stf5_standalone_skip_when_required_field_missing(
         n for kind, k, n in jira_world.events if kind == "transition"
     ]
     assert not (tmp_path / "worktrees" / "P2P-1503").exists()
+
+
+# ---------------------------------------------------------------------------
+# STF6 — standalone contract_mismatch with locked producer (S3 closure)
+# ---------------------------------------------------------------------------
+
+
+def test_stf6_standalone_contract_mismatch_locked_producer_routes_to_corrective(
+    tmp_path, runner_factory,
+):
+    """When a standalone consumer hits ``contract_mismatch`` and names a
+    producer ticket whose Jira status is past Dev-Developing (already merged
+    in a prior drain pass, or living in a different drain pool entirely), the
+    runner's abort comment must NOT tell the human to re-open the producer —
+    re-opening would mean reverting a merge. Both the consumer-side abort
+    comment and the producer-side mismatch comment must use the locked
+    framing: emit a corrective SubTask, do not retry as-is.
+
+    Standalones are the most exposed case here because they often reference
+    producers that aren't even in the current drain pool, so the producer
+    has had every opportunity to land on master while the consumer was
+    waiting on humans to triage the parent label.
+    """
+    monorepo = MonorepoBuilder().build(tmp_path)
+
+    jira_world = JiraWorld()
+    # Producer issue exists in Jira but is past the lock point. It is NOT
+    # AFK-labelled, so the drain pass won't run it — it just exists for
+    # status-fetch purposes. (In production this is the typical shape: a
+    # SubTask from last week that's now merged.)
+    jira_world.add_issue(
+        JiraIssue(
+            key="P2P-1599",
+            summary="LockedProducerSDK already merged",
+            status="Dev-CR/Merge",
+            issuetype="SubTask",
+        )
+    )
+    seed_standalone(
+        jira_world,
+        "P2P-1600",
+        summary="standalone consumer hits drift on a merged producer",
+        issuetype="Enhancement",
+    )
+    gitlab_world = GitLabWorld()
+    claude = FakeClaude().plan(
+        "P2P-1600",
+        contract_mismatch_step("P2P-1599"),
+    )
+
+    runner = runner_factory(
+        jira_world, gitlab_world, claude, monorepo, retry_count=2,
+    )
+    runner.one_pass()
+
+    # Consumer-side abort comment posted on the standalone work key.
+    consumer = next(
+        adf_text(c["body"])
+        for c in jira_world.issues["P2P-1600"].comments
+        if "contract mismatch" in adf_text(c["body"]).lower()
+    )
+    assert "past the lock point" in consumer.lower(), consumer
+    assert "corrective subtask" in consumer.lower(), consumer
+    assert "Dev-CR/Merge" in consumer
+
+    # Producer-side mismatch comment posted on P2P-1599.
+    producer = next(
+        adf_text(c["body"])
+        for c in jira_world.issues["P2P-1599"].comments
+        if "contract break" in adf_text(c["body"]).lower()
+    )
+    assert "do not re-open" in producer.lower() or "do **not** re-open" in producer.lower(), producer
+    assert "corrective subtask" in producer.lower(), producer
+
+    # No retry: contract_mismatch is single-attempt.
+    assert claude.call_history == [("P2P-1600", 1)]

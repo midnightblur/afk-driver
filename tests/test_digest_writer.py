@@ -53,6 +53,42 @@ def test_full_digest_golden():
     assert out == expected
 
 
+def test_flaky_suspect_surfaces_in_summary_and_row():
+    """S1 — the digest must surface the flaky-suspect tag inline so the
+    morning reader sees it without diffing two consecutive digests. Not
+    failing the run is intentional: the SubTask succeeded, the digest
+    just needs to flag investigation."""
+    enh = ParentRun(
+        key="P2P-1220",
+        summary="AFK bootstrap",
+        target_branch="master",
+        mr_url="https://example.com/mr/42",
+        rebase="clean",
+        duration_s=10.0,
+        subtasks=[
+            SubTaskRun(
+                key="P2P-1221", summary="flaky-on-retry", status="success",
+                attempts=2, duration_s=4.5, flaky_suspect=True,
+            ),
+            SubTaskRun(
+                key="P2P-1222", summary="clean", status="success",
+                attempts=1, duration_s=2.0, flaky_suspect=False,
+            ),
+        ],
+    )
+    rec = RunRecord(
+        started_iso="2026-05-05T03:00:00+00:00",
+        ended_iso="2026-05-05T03:00:30+00:00",
+        parents=[enh],
+    )
+    out = format_digest(rec)
+    # Summary line carries the flaky count.
+    assert "2 SubTask(s) succeeded, 1 flaky-suspect" in out
+    # Row for P2P-1221 has the warning glyph; the clean row does not.
+    assert "| P2P-1221 | success ⚠️ flaky-suspect | 2 |" in out
+    assert "| P2P-1222 | success | 1 |" in out
+
+
 def test_skipped_enhancement():
     rec = RunRecord(
         started_iso="2026-05-05T03:00:00+00:00",

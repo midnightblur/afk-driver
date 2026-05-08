@@ -7,13 +7,15 @@ real worktree_manager) into a Runner, executes one pass, writes the digest.
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from typing import Callable
+from typing import Callable, Optional, Union
 
 from afk_driver.config import load
 from afk_driver.digest_writer import format_digest
@@ -68,6 +70,83 @@ class _WorktreeAdapter:
         return worktree_manager.find_worktree_for_branch(repo_root, branch)
 
 
+# Seam between the spawned `claude --print "/afk-go SUBKEY"` session and the
+# runner. The skill is required to emit one of these blocks as the LAST thing
+# in its output (see ~/.claude/skills/afk-go/SKILL.md Step 13). The substring
+# between markers must be valid JSON: {"status": ..., "detail": ...,
+# "producer_key": ... | null}. We regex-scan for the LAST occurrence so a
+# session that retried internally and re-emitted wins. Without this, the
+# runner only sees subprocess exit codes — and `claude --print` exits 0 on
+# clean termination regardless of narrative outcome, collapsing every
+# structured status (test_fail, contract_mismatch, design_conflict,
+# produces_drift) into "success". The whole no-retry / dual-comment routing
+# story for cited-mode contracts depends on this marker propagating.
+_OUTCOME_MARKER_RE = re.compile(
+    r"<<<AFK_OUTCOME>>>\s*(?P<json>\{.*?\})\s*<<<END>>>",
+    re.DOTALL,
+)
+_VALID_OUTCOME_STATUSES = frozenset({
+    "success",
+    "test_fail",
+    "build_fail",
+    "timeout",
+    "design_conflict",
+    "contract_mismatch",
+    "produces_drift",
+    "other",
+})
+
+
+def _parse_outcome_marker(log_path: Path) -> Union[ClaudeOutcome, str]:
+    """Scan a spawned-claude log for the last AFK_OUTCOME marker and parse it.
+
+    Returns a fully-populated ``ClaudeOutcome`` when the marker is present,
+    well-formed JSON, and carries a known status. Otherwise returns a short
+    reason string the caller maps into the runner-visible detail text:
+
+      - ``"log_unreadable"`` — the log file does not exist or cannot be read
+      - ``"no_marker"`` — the file is readable but has no marker
+      - ``"marker_malformed_json"`` — last marker's payload is not valid JSON
+      - ``"marker_unknown_status:<status>"`` — JSON parses but status is
+        outside the ``ClaudeStatus`` literal set
+
+    The string-vs-outcome split lets the caller surface *why* a fallback
+    happened in the digest comment, instead of a silent demotion to
+    ``other``.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "log_unreadable"
+
+    matches = list(_OUTCOME_MARKER_RE.finditer(text))
+    if not matches:
+        return "no_marker"
+
+    last_payload = matches[-1].group("json")
+    try:
+        payload = json.loads(last_payload)
+    except json.JSONDecodeError:
+        return "marker_malformed_json"
+
+    if not isinstance(payload, dict):
+        return "marker_malformed_json"
+
+    status = payload.get("status")
+    if status not in _VALID_OUTCOME_STATUSES:
+        return f"marker_unknown_status:{status!r}"
+
+    detail = payload.get("detail", "")
+    if not isinstance(detail, str):
+        detail = str(detail)
+
+    producer_key = payload.get("producer_key")
+    if producer_key is not None and not isinstance(producer_key, str):
+        producer_key = None
+
+    return ClaudeOutcome(status=status, detail=detail, producer_key=producer_key)
+
+
 def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
     """Build a claude_runner closure that tees the spawned session's combined
     stdout+stderr to a per-SubTask log file under ``log_root``. The path is
@@ -86,6 +165,8 @@ def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
         # --dangerously-skip-permissions: AFK lane is fully autonomous by
         # design; the spawned session must be able to edit/commit/push
         # without prompts.
+        timed_out = False
+        returncode: Optional[int] = None
         with log_path.open("w", encoding="utf-8") as f:
             f.write(f"# afk claude session log\n# subtask: {subtask_key}\n# cwd: {worktree_path}\n# started: {ts}\n# cap_s: {cap_s}\n\n")
             f.flush()
@@ -98,16 +179,32 @@ def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
                     text=True,
                     timeout=cap_s,
                 )
+                returncode = proc.returncode
             except subprocess.TimeoutExpired:
-                return ClaudeOutcome(
-                    status="timeout",
-                    detail=f"hit {cap_s}s wall-clock cap (log: {log_path})",
-                )
-        if proc.returncode == 0:
-            return ClaudeOutcome(status="success", detail=f"log: {log_path}")
+                timed_out = True
+
+        # The skill's emitted AFK_OUTCOME marker is the source of truth — it
+        # carries the structured status (test_fail, contract_mismatch,
+        # produces_drift, ...). If parsed cleanly we trust it regardless of
+        # exit code: claude --print exits 0 on clean termination and the
+        # narrative outcome is what determines runner routing.
+        parsed = _parse_outcome_marker(log_path)
+        if isinstance(parsed, ClaudeOutcome):
+            return parsed
+
+        if timed_out:
+            return ClaudeOutcome(
+                status="timeout",
+                detail=f"hit {cap_s}s wall-clock cap (log: {log_path})",
+            )
+
+        # No usable marker — surface the reason loudly. Pre-marker behaviour
+        # demoted every nonzero exit to ``other`` and every zero exit to
+        # ``success``; the latter silently masked structured failures, which
+        # is exactly the bug this seam fixes.
         return ClaudeOutcome(
             status="other",
-            detail=f"exit {proc.returncode} (log: {log_path})",
+            detail=f"no AFK_OUTCOME marker emitted ({parsed}); exit {returncode} (log: {log_path})",
         )
 
     return _run

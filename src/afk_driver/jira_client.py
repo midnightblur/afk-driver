@@ -18,6 +18,7 @@ import base64
 import copy
 import json as _json
 import re
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -121,6 +122,29 @@ class JiraClient:
     def __init__(self, config: JiraConfig, transport: HttpTransport):
         self._cfg = config
         self._http = transport
+        # S4 — per-parent-key lock for ``update_implementation_notes``.
+        # The splice is read-modify-write against the parent description;
+        # without serialization, two SubTasks finishing concurrently could
+        # both read the same baseline ADF, splice their bullets, and the
+        # second PUT would clobber the first. The runner is currently
+        # single-threaded (``one_pass`` processes parents and SubTasks
+        # sequentially) so the race is latent in production, but locking
+        # here unblocks future parallelization within a single runner
+        # process. Cross-process races (two runners on different machines
+        # writing to the same parent) remain — Jira's REST API has no
+        # if-match for description fields, so a true CAS is impossible
+        # against the server. Single-runner is the practical scope.
+        self._notes_locks: dict[str, threading.Lock] = {}
+        self._notes_locks_guard = threading.Lock()
+
+    def _acquire_notes_lock(self, parent_key: str) -> threading.Lock:
+        """Get-or-create the per-parent-key lock for description splices."""
+        with self._notes_locks_guard:
+            lock = self._notes_locks.get(parent_key)
+            if lock is None:
+                lock = threading.Lock()
+                self._notes_locks[parent_key] = lock
+            return lock
 
     def search(self, jql: str, *, max_results: int = 100) -> list[IssueSummary]:
         body = {
@@ -243,41 +267,51 @@ class JiraClient:
         so the next splice creates the marker form fresh. After all live
         ``afk-agents`` parents have been written-through once, this fallback
         becomes dead code.
+
+        Concurrency: serialized per ``parent_key`` via
+        ``_acquire_notes_lock`` (S4 closure). Two concurrent calls for the
+        same parent are guaranteed not to clobber each other; concurrent
+        calls for *different* parents proceed in parallel. Cross-process
+        races (multiple runner processes targeting the same parent) are
+        not protected — Jira's REST API offers no if-match primitive on
+        description fields, so a true CAS against the server is
+        impossible. Single-runner-process is the supported scope.
         """
-        resp = self._http.send(
-            "GET", f"/rest/api/3/issue/{parent_key}", params={"fields": "description"}
-        )
-        adf = (resp.get("fields") or {}).get("description") or {
-            "type": "doc",
-            "version": 1,
-            "content": [],
-        }
+        with self._acquire_notes_lock(parent_key):
+            resp = self._http.send(
+                "GET", f"/rest/api/3/issue/{parent_key}", params={"fields": "description"}
+            )
+            adf = (resp.get("fields") or {}).get("description") or {
+                "type": "doc",
+                "version": 1,
+                "content": [],
+            }
 
-        inside = jira_section.read_block_in_adf(adf, marker_id=_NOTES_MARKER_ID)
-        if inside is not None:
-            existing_items = _bullets_from_block_nodes(inside)
-            adf_for_splice = adf
-        else:
-            existing_items, adf_for_splice = _strip_legacy_notes_heading_block(adf)
+            inside = jira_section.read_block_in_adf(adf, marker_id=_NOTES_MARKER_ID)
+            if inside is not None:
+                existing_items = _bullets_from_block_nodes(inside)
+                adf_for_splice = adf
+            else:
+                existing_items, adf_for_splice = _strip_legacy_notes_heading_block(adf)
 
-        new_items = _merge_notes_bullet(existing_items, subtask_key, bullet_text)
-        block_nodes = [
-            _make_heading2(_NOTES_HEADER_TEXT),
-            *jira_section.render_bullets_adf(new_items),
-        ]
-        new_adf, changed = jira_section.splice_in_adf(
-            adf_for_splice,
-            block_nodes,
-            marker_id=_NOTES_MARKER_ID,
-            create_if_missing=True,
-        )
-        if not changed:
-            return
-        self._http.send(
-            "PUT",
-            f"/rest/api/3/issue/{parent_key}",
-            json_body={"fields": {"description": new_adf}},
-        )
+            new_items = _merge_notes_bullet(existing_items, subtask_key, bullet_text)
+            block_nodes = [
+                _make_heading2(_NOTES_HEADER_TEXT),
+                *jira_section.render_bullets_adf(new_items),
+            ]
+            new_adf, changed = jira_section.splice_in_adf(
+                adf_for_splice,
+                block_nodes,
+                marker_id=_NOTES_MARKER_ID,
+                create_if_missing=True,
+            )
+            if not changed:
+                return
+            self._http.send(
+                "PUT",
+                f"/rest/api/3/issue/{parent_key}",
+                json_body={"fields": {"description": new_adf}},
+            )
 
     def set_fields(self, key: str, fields: Mapping[str, Any]) -> None:
         """Generic field write — used to attach the MR link to the parent
@@ -319,6 +353,22 @@ class JiraClient:
             f"/rest/api/3/issue/{key}/comment",
             json_body={"body": _text_to_adf(markdown)},
         )
+
+    def get_status(self, key: str) -> str:
+        """Return the current Jira status name of ``key``.
+
+        Lean alternative to ``get_parent_fields`` when only the workflow
+        position matters — used by the runner's ``contract_mismatch``
+        routing to decide whether the producer SubTask is still mutable
+        (Dev-Pending / Dev-Designing / Dev-Developing) or has already
+        passed the lock point (Dev-CR/Merge and beyond), which changes
+        the recovery framing posted to the human.
+        """
+        resp = self._http.send(
+            "GET", f"/rest/api/3/issue/{key}", params={"fields": "status"}
+        )
+        f = resp.get("fields") or {}
+        return (f.get("status") or {}).get("name", "")
 
     def get_my_account_id(self) -> str:
         """Return the authenticated user's Atlassian accountId.

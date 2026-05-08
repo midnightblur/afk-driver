@@ -35,6 +35,15 @@ class FakeJira:
         self.events: list[tuple] = []  # ordered log of ("transition"|"set_fields", key, payload)
         self.search_calls: int = 0
         self.account_id: str = "fake-account-id-123"
+        # S3 — the runner's contract_mismatch routing reads producer status
+        # via get_status(key). Tests that need a stable producer-status
+        # response REGARDLESS of intervening transition() calls (e.g. when
+        # the producer's own success-path transitions it past the lock
+        # point during the same drain pass) seed this dict; entries here
+        # win over self._parents. Keys present in _status_raise raise
+        # instead, simulating a transient HTTP error.
+        self._status_overrides: dict[str, str] = {}
+        self._status_raise: set[str] = set()
 
     def get_my_account_id(self) -> str:
         return self.account_id
@@ -48,6 +57,19 @@ class FakeJira:
 
     def get_parent_fields(self, key: str) -> dict:
         return dict(self._parents[key])
+
+    def get_status(self, key: str) -> str:
+        # _status_overrides wins over _parents because transition() mutates
+        # _parents in-place, which would otherwise mean a producer that
+        # succeeded earlier in the same drain pass appears as Dev-CR/Merge
+        # by the time its consumer's contract_mismatch lands here — fine
+        # in production (it's the actual current state), but useless when
+        # a test wants to pin the response.
+        if key in self._status_raise:
+            raise RuntimeError("simulated jira get_status failure")
+        if key in self._status_overrides:
+            return self._status_overrides[key]
+        return self._parents.get(key, {}).get("status", "Dev-Pending")
 
     def transition(self, key: str, name: str) -> None:
         self.transitions.append((key, name))
@@ -417,6 +439,411 @@ def test_retry_then_abort(tmp_path):
     assert ("P2P-1", "Request Development") in j.transitions
     assert any(k == "P2P-1" and "aborted" in c.lower() for k, c in j.comments)
     # Rebase NOT attempted when something aborted
+    assert w.rebased == []
+
+
+def test_flaky_suspect_flagged_when_test_fail_precedes_success(tmp_path):
+    """When a SubTask succeeds on attempt N>1 after at least one prior
+    attempt was ``test_fail``, the runner must:
+      - flag SubTaskRun.flaky_suspect = True (digest surfaces this)
+      - post an explicit "flaky-suspect" comment so the human knows to
+        investigate before the flake normalises into background noise
+      - still mark the SubTask as success (the retry loop succeeded;
+        we're not invalidating the run, just calling out the flake).
+
+    S1 closure 2026-05-08."""
+    issues = [_issue("P2P-1")]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    attempts = {"P2P-1": 0}
+
+    def claude(key, path, cap):
+        attempts["P2P-1"] += 1
+        if attempts["P2P-1"] == 1:
+            return ClaudeOutcome("test_fail", detail="3 unit tests failed")
+        return ClaudeOutcome("success")
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    sub = rec.parents[0].subtasks[0]
+    assert sub.status == "success"
+    assert sub.attempts == 2
+    assert sub.flaky_suspect is True
+
+    flaky_comments = [
+        c for k, c in j.comments
+        if k == "P2P-1" and "flaky-suspect" in c.lower()
+    ]
+    assert flaky_comments, "expected a flaky-suspect comment on the SubTask"
+    assert "attempt **2**" in flaky_comments[0]
+    assert "test_fail" in flaky_comments[0].lower()
+
+
+def test_flaky_suspect_not_flagged_when_clean_first_attempt(tmp_path):
+    """Success on attempt 1 (no prior failures) must NOT be flagged. The
+    flaky-suspect signal would lose meaning if every successful run
+    carried it."""
+    issues = [_issue("P2P-1")]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    r = _runner(
+        j, g, w, lambda *a: ClaudeOutcome("success"), tmp_path=tmp_path,
+    )
+    rec = r.one_pass()
+    sub = rec.parents[0].subtasks[0]
+    assert sub.status == "success"
+    assert sub.flaky_suspect is False
+    # No flaky-suspect comment posted.
+    assert not [
+        c for k, c in j.comments
+        if k == "P2P-1" and "flaky-suspect" in c.lower()
+    ]
+
+
+def test_flaky_suspect_excludes_build_fail_recovery(tmp_path):
+    """build_fail recovering on retry is a different category — typically
+    a transient dep-cache / network issue rather than a feature-level
+    race. Do NOT flag flaky-suspect for build_fail-only retry histories;
+    otherwise CI noise would drown the signal."""
+    issues = [_issue("P2P-1")]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    attempts = {"P2P-1": 0}
+
+    def claude(key, path, cap):
+        attempts["P2P-1"] += 1
+        if attempts["P2P-1"] == 1:
+            return ClaudeOutcome("build_fail", detail="mvn cache eviction")
+        return ClaudeOutcome("success")
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    sub = rec.parents[0].subtasks[0]
+    assert sub.status == "success"
+    assert sub.attempts == 2
+    assert sub.flaky_suspect is False
+    assert not [
+        c for k, c in j.comments
+        if k == "P2P-1" and "flaky-suspect" in c.lower()
+    ]
+
+
+def test_design_conflict_no_retry_explicit_comment(tmp_path):
+    """A `design_conflict` outcome from /afk-go must:
+      - skip retry (binding-contract issue, retrying as-is is wasted work)
+      - post a Jira comment that names the conflict and points the human at
+        /architect-grill so they emit a superseding ADR before re-queueing
+      - transition the SubTask back to Dev-Pending
+      - NOT proceed to subsequent SubTasks (treat like other aborts)
+    """
+    issues = [_issue("P2P-1"), _issue("P2P-2")]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    attempts = {"P2P-1": 0}
+
+    def claude(key, path, cap):
+        if key == "P2P-1":
+            attempts["P2P-1"] += 1
+            return ClaudeOutcome(
+                "design_conflict",
+                detail="SDD §8 names ExportLoader<E>; PDF lib forces Future<PDF> return",
+            )
+        return ClaudeOutcome("success")
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    enh = rec.parents[0]
+    assert enh.subtasks[0].status == "aborted"
+    # Critical: design_conflict must NOT retry — one attempt only.
+    assert enh.subtasks[0].attempts == 1
+    assert attempts["P2P-1"] == 1
+    # Subsequent SubTask not tried (same abort semantics as other non-retryables).
+    assert len(enh.subtasks) == 1
+    # Routed back to Dev-Pending for human triage.
+    assert ("P2P-1", "Request Development") in j.transitions
+    # Comment must surface the binding-contract framing — not a generic
+    # "aborted" — so the human runs /architect-grill instead of re-queueing.
+    conflict_comments = [
+        c for k, c in j.comments
+        if k == "P2P-1" and "design conflict" in c.lower()
+    ]
+    assert conflict_comments, "expected a design-conflict-tagged comment"
+    body = conflict_comments[0]
+    assert "architect-grill" in body
+    assert "superseding ADR" in body
+    assert "ExportLoader" in body  # detail surfaced verbatim
+    # Rebase NOT attempted when something aborted.
+    assert w.rebased == []
+
+
+def test_contract_mismatch_no_retry_routes_comment_to_producer(tmp_path):
+    """A `contract_mismatch` outcome from /afk-go's preflight grep must:
+      - skip retry (signature drift won't fix itself by re-running the
+        consumer; the producer must change)
+      - post an explicit "contract mismatch" comment on the **consumer**
+      - ALSO post a separate comment on the **producer** SubTask so the
+        ticket the human will re-open carries the break in its own thread
+      - transition the consumer back to Dev-Pending
+      - halt the chain (no subsequent SubTask runs)
+    """
+    issues = [
+        _issue("P2P-100", summary="ExportStrategy abstraction"),
+        _issue("P2P-101", summary="TemplateRegistry"),
+        _issue("P2P-102", summary="PdfExportStrategy"),
+    ]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    attempts = {"P2P-101": 0}
+
+    def claude(key, path, cap):
+        if key == "P2P-100":
+            return ClaudeOutcome("success")
+        if key == "P2P-101":
+            attempts["P2P-101"] += 1
+            return ClaudeOutcome(
+                "contract_mismatch",
+                detail=(
+                    "Consumes `ExportStrategy.java#interface ExportStrategy<E>` "
+                    "from P2P-100 not found on branch — preflight grep "
+                    "returned no match"
+                ),
+                producer_key="P2P-100",
+            )
+        return ClaudeOutcome("success")
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    enh = rec.parents[0]
+
+    # P2P-100 succeeded; P2P-101 hit contract_mismatch on first attempt; P2P-102 never ran.
+    assert [s.key for s in enh.subtasks] == ["P2P-100", "P2P-101"]
+    assert enh.subtasks[0].status == "success"
+    assert enh.subtasks[1].status == "aborted"
+    # Critical: contract_mismatch must NOT retry — one attempt only.
+    assert enh.subtasks[1].attempts == 1
+    assert attempts["P2P-101"] == 1
+
+    # Consumer comment frames it as contract mismatch + names the producer.
+    consumer_comments = [
+        c for k, c in j.comments
+        if k == "P2P-101" and "contract mismatch" in c.lower()
+    ]
+    assert consumer_comments, "expected a contract-mismatch-tagged comment on consumer"
+    assert "P2P-100" in consumer_comments[0]
+    assert "ExportStrategy" in consumer_comments[0]
+
+    # Producer comment landed separately on P2P-100.
+    producer_comments = [
+        c for k, c in j.comments
+        if k == "P2P-100" and "contract break" in c.lower()
+    ]
+    assert producer_comments, (
+        "expected a producer-side comment on P2P-100 surfacing the downstream break"
+    )
+    assert "P2P-101" in producer_comments[0]
+    assert "ExportStrategy" in producer_comments[0]
+
+    # Consumer routed back to Dev-Pending; rebase did not run.
+    assert ("P2P-101", "Request Development") in j.transitions
+    assert w.rebased == []
+
+
+def test_contract_mismatch_with_locked_producer_emits_corrective_framing(tmp_path):
+    """When the producer SubTask is past Dev-Developing (Dev-CR/Merge, Done,
+    Closed, ...), telling the human to "re-open" is wrong advice — re-opening
+    requires reverting a merge. The comments must instead route to "emit a
+    corrective SubTask" so the consumer can be re-ranked behind the new
+    producer slice instead of bouncing forever on a locked ticket.
+
+    S3 closure 2026-05-08."""
+    issues = [
+        _issue("P2P-200", summary="LockedProducer (already merged elsewhere)"),
+        _issue("P2P-201", summary="ConsumerThatStrandedBefore"),
+    ]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    # Producer is past the lock point at the moment the consumer's
+    # contract_mismatch lands. Override survives the producer's own
+    # success-path transitions in the same drain pass.
+    j._status_overrides["P2P-200"] = "Dev-CR/Merge"
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    def claude(key, path, cap):
+        if key == "P2P-200":
+            return ClaudeOutcome("success")
+        return ClaudeOutcome(
+            "contract_mismatch",
+            detail="Consumes `Foo.java#class Foo implements Bar<E>` not found",
+            producer_key="P2P-200",
+        )
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    enh = rec.parents[0]
+
+    assert enh.subtasks[1].status == "aborted"
+    assert enh.subtasks[1].attempts == 1  # no retry on contract_mismatch
+
+    # Consumer comment must use the LOCKED framing — corrective SubTask, not
+    # re-open the producer.
+    consumer = next(
+        c for k, c in j.comments
+        if k == "P2P-201" and "contract mismatch" in c.lower()
+    )
+    assert "locked" in consumer.lower(), consumer
+    assert "corrective subtask" in consumer.lower(), consumer
+    assert "Dev-CR/Merge" in consumer
+    # Must NOT instruct re-opening when the producer is locked.
+    assert "re-open it or" not in consumer
+
+    # Producer-side comment must also route to corrective-SubTask framing
+    # rather than "re-open".
+    producer = next(
+        c for k, c in j.comments
+        if k == "P2P-200" and "contract break" in c.lower()
+    )
+    assert "do **not** re-open" in producer.lower() or "do not re-open" in producer.lower(), producer
+    assert "corrective subtask" in producer.lower(), producer
+    assert "Dev-CR/Merge" in producer
+
+
+def test_contract_mismatch_with_mutable_producer_keeps_reopen_framing(tmp_path):
+    """When the producer SubTask is still in {Dev-Pending, Dev-Designing,
+    Dev-Developing}, the existing "re-open the producer" framing is correct
+    — the producer ticket can still legally accept changes. The locked
+    framing must NOT fire here, otherwise we'd push humans to spawn extra
+    SubTasks unnecessarily."""
+    issues = [
+        _issue("P2P-300", summary="MutableProducer"),
+        _issue("P2P-301", summary="ConsumerThatHitDrift"),
+    ]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    j._status_overrides["P2P-300"] = "Dev-Developing"
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    def claude(key, path, cap):
+        if key == "P2P-300":
+            return ClaudeOutcome("success")
+        return ClaudeOutcome(
+            "contract_mismatch",
+            detail="Consumes `Foo.java#bar(...)` returned no match",
+            producer_key="P2P-300",
+        )
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    r.one_pass()
+
+    consumer = next(c for k, c in j.comments if k == "P2P-301" and "contract mismatch" in c.lower())
+    assert "re-open it or" in consumer.lower(), consumer
+    assert "locked" not in consumer.lower(), consumer
+
+    producer = next(c for k, c in j.comments if k == "P2P-300" and "contract break" in c.lower())
+    # Mutable producer → "Re-open and correct" stays in play.
+    assert "re-open and correct" in producer.lower(), producer
+    assert "do not re-open" not in producer.lower()
+
+
+def test_contract_mismatch_status_fetch_failure_falls_back_to_mutable_framing(tmp_path):
+    """If the runner cannot fetch the producer's status (transient HTTP
+    error, 404 if the producer key was wrong, etc.), the comment must fall
+    back to the historic mutable framing rather than guess at locked-state
+    advice. Wrong "emit a corrective SubTask" advice is worse than the
+    historic framing because it asks the human to slice extra work that
+    might not be needed."""
+    issues = [
+        _issue("P2P-400", summary="StatusFetchFails"),
+        _issue("P2P-401", summary="ConsumerOnTopOfFlakyJira"),
+    ]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    j._status_raise.add("P2P-400")
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    def claude(key, path, cap):
+        if key == "P2P-400":
+            return ClaudeOutcome("success")
+        return ClaudeOutcome(
+            "contract_mismatch",
+            detail="Consumes anchor missing",
+            producer_key="P2P-400",
+        )
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    r.one_pass()
+
+    consumer = next(c for k, c in j.comments if k == "P2P-401" and "contract mismatch" in c.lower())
+    # Falls back to the historic mutable framing — the locked-state
+    # tell-tales ("past the lock point", "do not retry this consumer
+    # as-is") must NOT appear on a fetch failure, because we don't know
+    # what state the producer is actually in. ("corrective SubTask"
+    # appears in BOTH framings — it's a valid recovery either way; the
+    # discriminator is the "re-open it or" phrasing that only the
+    # mutable framing uses.)
+    assert "past the lock point" not in consumer.lower()
+    assert "re-open it or" in consumer.lower()
+
+
+def test_produces_drift_no_retry_explicit_comment(tmp_path):
+    """A `produces_drift` outcome from /afk-go's producer self-preflight must:
+      - skip retry (the SubTask declared X in ## Produces but didn't deliver
+        X; re-running it without intervention will fail the same way)
+      - post a comment that names the failed self-check + points the human at
+        impl-vs-slice mismatch (not at /architect-grill — that's design_conflict)
+      - transition the SubTask back to Dev-Pending
+      - halt the chain (no subsequent SubTask runs)
+
+    Symmetric counterpart to contract_mismatch, but consumer == producer
+    (same SubTask): no separate producer-side comment is posted.
+    """
+    issues = [_issue("P2P-1"), _issue("P2P-2")]
+    j = FakeJira(issues, {"P2P-1220": _parent()})
+    g, w = FakeGitLab(), FakeWorktrees()
+
+    attempts = {"P2P-1": 0}
+
+    def claude(key, path, cap):
+        if key == "P2P-1":
+            attempts["P2P-1"] += 1
+            return ClaudeOutcome(
+                "produces_drift",
+                detail=(
+                    "Declared `## Produces` artifact "
+                    "`ExportStrategy.java#interface ExportStrategy<E>` "
+                    "not found on branch — own pre-success grep returned no match"
+                ),
+            )
+        return ClaudeOutcome("success")
+
+    r = _runner(j, g, w, claude, tmp_path=tmp_path)
+    rec = r.one_pass()
+    enh = rec.parents[0]
+    assert enh.subtasks[0].status == "aborted"
+    # Critical: produces_drift must NOT retry — one attempt only.
+    assert enh.subtasks[0].attempts == 1
+    assert attempts["P2P-1"] == 1
+    # Subsequent SubTask not tried (same abort semantics as other non-retryables).
+    assert len(enh.subtasks) == 1
+    # Routed back to Dev-Pending for human triage.
+    assert ("P2P-1", "Request Development") in j.transitions
+    # Comment must surface the producer-self-check framing — not a generic
+    # "aborted" — so the human fixes impl or slice, not re-queues blindly.
+    drift_comments = [
+        c for k, c in j.comments
+        if k == "P2P-1" and "producer self-check" in c.lower()
+    ]
+    assert drift_comments, "expected a producer-self-check-tagged comment"
+    body = drift_comments[0]
+    assert "## Produces" in body
+    assert "ExportStrategy" in body  # detail surfaced verbatim
+    # Does NOT mention architect-grill (that framing is for design_conflict).
+    assert "architect-grill" not in body
+    # No producer-side comment: drift is self-detected, no separate producer ticket.
+    other_comments = [c for k, c in j.comments if k != "P2P-1"]
+    assert all("contract break" not in c.lower() for c in other_comments)
+    # Rebase NOT attempted when something aborted.
     assert w.rebased == []
 
 

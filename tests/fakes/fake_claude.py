@@ -80,6 +80,55 @@ def other_step(detail: str = "exit 2") -> Step:
     return Step(ClaudeOutcome("other", detail=detail), lambda p, k: None)
 
 
+def design_conflict_step(
+    detail: str = "SDD §8 names ExportLoader<E>; PDF lib forces Future<PDF> return — Strategy interface incompatible",
+) -> Step:
+    """Mirrors a /afk-go session that flagged a binding decision in the
+    SDD/ADR as wrong/infeasible. The runner must NOT retry and must comment
+    explicitly so the human runs /architect-grill before re-queueing.
+    """
+    return Step(ClaudeOutcome("design_conflict", detail=detail), lambda p, k: None)
+
+
+def contract_mismatch_step(
+    producer: str,
+    detail: str = (
+        "Consumes `ExportStrategy.java#interface ExportStrategy<E>` from "
+        "{producer} not found on branch — preflight grep returned no match"
+    ),
+) -> Step:
+    """Mirrors a /afk-go preflight that found an upstream `## Produces`
+    artifact missing or signature-divergent. The runner must NOT retry, must
+    comment on the consumer surfacing the mismatch, AND must comment on the
+    PRODUCER subtask so the human knows where the binding-contract break
+    lives.
+    """
+    formatted = detail.format(producer=producer) if "{producer}" in detail else detail
+    return Step(
+        ClaudeOutcome("contract_mismatch", detail=formatted, producer_key=producer),
+        lambda p, k: None,
+    )
+
+
+def produces_drift_step(
+    detail: str = (
+        "Declared `## Produces` artifact "
+        "`ExportStrategy.java#interface ExportStrategy<E>` "
+        "not found on branch — own pre-success grep returned no match"
+    ),
+) -> Step:
+    """Mirrors a /afk-go session whose own producer self-preflight failed:
+    the SubTask declared an artifact in `## Produces` but its own grep could
+    not find it on the branch. Symmetric to ``contract_mismatch`` but
+    consumer == producer (this same SubTask). The runner must NOT retry and
+    must comment with the producer-self-check framing so the human fixes
+    the impl or re-emits the slice rather than re-queueing as-is.
+    """
+    return Step(
+        ClaudeOutcome("produces_drift", detail=detail), lambda p, k: None
+    )
+
+
 class FakeClaude:
     def __init__(self) -> None:
         self._plans: dict[str, list[Step]] = {}
