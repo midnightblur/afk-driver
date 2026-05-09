@@ -141,9 +141,9 @@ follow-up call will fail because the SubTask has already left
 Mixed human + automated edits live in three Markdown surfaces. Don't let
 them collide:
 
-- **Parent Enhancement description**: `## PRD` is owned by `/afk:prd`;
-  `## SDD` (when present) is owned by `/afk:sdd`;
-  `## Design Brief` (when present) is owned by `/afk:design-brief`;
+- **Parent Enhancement description**: `## PRD` is owned by `/afk:to-prd`;
+  `## SDD` (when present) is owned by `/afk:to-sdd`;
+  `## Design Brief` (when present) is owned by `/afk:to-design-brief`;
   `## Implementation Notes (auto-maintained)` is owned by this driver
   (idempotent splice via `update_implementation_notes`); other prose
   belongs to the human.
@@ -222,14 +222,14 @@ afk@afk-marketplace`. Auto-update for private repos requires
 Use `/afk:start` first if you're not sure where to begin — it prints the
 pipeline map and routes you to the right entry skill.
 
-**Mandatory chain** (`/afk:prd` → `/afk:subtasks` → `/afk:execute`):
+**Mandatory chain** (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`):
 
-- **`/afk:prd`** — turns conversation context into a PRD. AFK adaptation:
+- **`/afk:to-prd`** — turns conversation context into a PRD. AFK adaptation:
   writes to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
   (or `tools/{group}/{tool}/PRD.md` for tooling work). Owns the `## PRD`
   section of the parent Enhancement description; AFK driver owns
   `## Implementation Notes (auto-maintained)`.
-- **`/afk:subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
+- **`/afk:to-subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
   when present) into Jira SubTasks under the parent Enhancement, each
   with the structured Markdown contract and the `afk-agents` label.
   **Cited mode** (default when an SDD exists) emits `## Design refs`,
@@ -253,18 +253,18 @@ skip for small enhancements, bugs, refactors, tooling):
 
 - **`/afk:grill-me`** — interviews the user about a raw idea or plan
   until the requirements decision tree is exhausted. Does NOT produce
-  documents. Pair with `/afk:prd` afterward to synthesize.
+  documents. Pair with `/afk:to-prd` afterward to synthesize.
 - **`/afk:architect-grill`** — interviews the user top-down across 8 layers
   (L1 system topology → L8 tactical patterns) until every non-trivial
   decision has a rationale and ≥2 alternatives weighed. Does NOT produce
   documents.
-- **`/afk:sdd`** — synthesizes the conversation into `SDD.md` plus
+- **`/afk:to-sdd`** — synthesizes the conversation into `SDD.md` plus
   per-decision ADRs, sibling to the PRD:
   `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/SDD.md`
   and `.../adr/NNNN-*.md`. Owns the `## SDD` section of the parent
   Enhancement description. Mandates visualizations (Mermaid diagrams,
   tables) per layer so reviewers can scan vertically.
-- **`/afk:design-brief`** — synthesizes PRD + SDD + ADRs into a tight
+- **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
   1-2 page `DESIGN-BRIEF.md` sibling to the PRD/SDD. One money-shot
   diagram, 5-10 row decision digest, stakeholder-impact table. Owns the
   `## Design Brief` section of the parent Enhancement description.
@@ -272,13 +272,13 @@ skip for small enhancements, bugs, refactors, tooling):
   the SDD has executor-blocking open questions. Use for stakeholder
   reviews and as a map before reading the full SDD.
 
-> **Cited-mode contract.** When `/afk:subtasks` slices in cited mode it
+> **Cited-mode contract.** When `/afk:to-subtasks` slices in cited mode it
 > emits five additional SubTask sections — `## Design refs`,
 > `## Produces`, `## Consumes` (when `Blocked by` is non-empty),
 > `## Parent SDD`, `## Conflict procedure`. `subtask_template.py` parses
 > all five losslessly. The contract is enforced at three checkpoints:
 >
-> 1. **Slicing time** (`/afk:subtasks` Step 7): graph validation
+> 1. **Slicing time** (`/afk:to-subtasks` Step 7): graph validation
 >    (every `## Consumes` line resolves to a prior `## Produces`) +
 >    anchor quality (forbidden-token check, ≥12-char length, trial
 >    grep against `{file}` at HEAD must return ≤1 match — refuse on
@@ -300,7 +300,7 @@ skip for small enhancements, bugs, refactors, tooling):
 > a superseding ADR. `## Produces` is mandatory on every cited SubTask,
 > even leaves with no consumer — it doubles as the reviewer's
 > cheat-sheet AND the next SubTask's preflight target. Cited and uncited
-> SubTasks both round-trip through the driver — `/afk:subtasks` decides
+> SubTasks both round-trip through the driver — `/afk:to-subtasks` decides
 > which to emit based on whether an SDD is present (human-gated).
 
 ## Tests

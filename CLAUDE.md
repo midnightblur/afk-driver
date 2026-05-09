@@ -66,7 +66,7 @@ A small Enhancement or Bug labelled `afk-agents` with no labelled SubTasks under
 
 ### Section ownership invariants (don't violate)
 
-- **Parent Enhancement description**: `## PRD` is owned by the `/afk:prd` skill. `## SDD` (when present) is owned by the `/afk:sdd` skill. `## Design Brief` (when present) is owned by the `/afk:design-brief` skill. `## Implementation Notes (auto-maintained)` is owned by this driver (`update_implementation_notes`). Other prose belongs to the human.
+- **Parent Enhancement description**: `## PRD` is owned by the `/afk:to-prd` skill. `## SDD` (when present) is owned by the `/afk:to-sdd` skill. `## Design Brief` (when present) is owned by the `/afk:to-design-brief` skill. `## Implementation Notes (auto-maintained)` is owned by this driver (`update_implementation_notes`). Other prose belongs to the human.
 - **MR description**: the `<!-- afk:subtasks:start --> ... <!-- afk:subtasks:end -->` block is auto-maintained; everything outside is preserved verbatim.
 - **SubTask description**: parsed by `subtask_template.py`; the parser must round-trip losslessly. If you add a section, update both parser and emitter together.
 
@@ -89,19 +89,19 @@ The skills ship **in this repo** as the `afk` Claude Code plugin
 The 9 skills shipped:
 
 - **Orientation**: `/afk:start` (pipeline map + entry-point router).
-- **Mandatory chain**: `/afk:prd` → `/afk:subtasks` → `/afk:execute`. The runner spawns `/afk:execute` per SubTask.
-- **Optional design layer**: `/afk:grill-me` (raw-idea grilling) → `/afk:prd` → `/afk:architect-grill` (top-down L1→L8 interview) → `/afk:sdd` (writes `SDD.md` + per-decision ADRs sibling to the PRD; owns the `## SDD` section of the parent Enhancement description) → `/afk:design-brief` (optional digest: synthesizes PRD + SDD + ADRs into a 1-2 page `DESIGN-BRIEF.md` for stakeholder review and pre-SDD reading; owns the `## Design Brief` section). Recommended for new complex features; skip for small bugs / refactors / tooling.
+- **Mandatory chain**: `/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`. The runner spawns `/afk:execute` per SubTask.
+- **Optional design layer**: `/afk:grill-me` (raw-idea grilling) → `/afk:to-prd` → `/afk:architect-grill` (top-down L1→L8 interview) → `/afk:to-sdd` (writes `SDD.md` + per-decision ADRs sibling to the PRD; owns the `## SDD` section of the parent Enhancement description) → `/afk:to-design-brief` (optional digest: synthesizes PRD + SDD + ADRs into a 1-2 page `DESIGN-BRIEF.md` for stakeholder review and pre-SDD reading; owns the `## Design Brief` section). Recommended for new complex features; skip for small bugs / refactors / tooling.
 - **Tooling**: `/afk:tdd` (red-green-refactor doctrine, invoked from `/afk:execute` Step 5).
 
-`/afk:subtasks` slices in **cited mode** when an SDD is present (each SubTask references binding SDD sections + ADRs and carries a Conflict procedure block) and in **uncited mode** otherwise (PRD-only; human-gated per ticket).
+`/afk:to-subtasks` slices in **cited mode** when an SDD is present (each SubTask references binding SDD sections + ADRs and carries a Conflict procedure block) and in **uncited mode** otherwise (PRD-only; human-gated per ticket).
 
 If you change the SubTask Markdown contract, `skills/execute/SKILL.md`, `skills/subtasks/SKILL.md`, and `subtask_template.py` here must all change in lockstep — they live in the same repo specifically so this lockstep is enforced by a single commit.
 
-**Cited-mode contract (wired 2026-05-08, extended with typed contracts 2026-05-08, producer self-preflight + anchor-quality slicing checks 2026-05-08)**: `/afk:subtasks` cited mode emits `## Design refs`, `## Produces`, `## Consumes` (when `Blocked by` is non-empty), `## Parent SDD`, and `## Conflict procedure` in addition to the legacy 7 sections. `subtask_template.py` parses all five losslessly (round-trip tested).
+**Cited-mode contract (wired 2026-05-08, extended with typed contracts 2026-05-08, producer self-preflight + anchor-quality slicing checks 2026-05-08)**: `/afk:to-subtasks` cited mode emits `## Design refs`, `## Produces`, `## Consumes` (when `Blocked by` is non-empty), `## Parent SDD`, and `## Conflict procedure` in addition to the legacy 7 sections. `subtask_template.py` parses all five losslessly (round-trip tested).
 
 The contract is enforced at three checkpoints — drift is impossible to ship without surfacing somewhere:
 
-1. **Slicing time (`/afk:subtasks` Step 7).** Two passes:
+1. **Slicing time (`/afk:to-subtasks` Step 7).** Two passes:
    - **Graph validation** — every `## Consumes` line resolves to a `## Produces` bullet on a SubTask earlier in rank order. Forward refs / orphan consumers / multi-producer collisions all bounce.
    - **Anchor quality** — every `## Produces` `{grep-anchor}` is checked against (a) a forbidden-generic-token list (`class`, `interface`, `void`, `function`, `def`, `method`, `struct`, `enum`, `type`, `record`); (b) length ≥12 chars; (c) trial `ctx_search` against `{file}` at HEAD must return ≤1 match. Ambiguous anchors that would fail-open at runtime are rejected at declaration time.
 2. **Consumer preflight (`/afk:execute` Step 2).** Reads `design_refs` and `parent_sdd` to load binding SDD/ADR context. Then for each `## Consumes` line `{PRODUCER-KEY} {file}#{grep-anchor}`, reads `{file}` and greps for `{grep-anchor}`. A miss exits `contract_mismatch` carrying `producer_key` (no retry; runner comments on both consumer and producer). Binding-decision break exits `design_conflict` (no retry; routes to `/afk:architect-grill`).

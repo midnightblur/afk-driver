@@ -1,5 +1,5 @@
 ---
-name: sdd
+name: to-sdd
 description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use after `/afk:architect-grill` (or equivalent design conversation) when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
 ---
 
@@ -393,11 +393,11 @@ When the SDD belongs to an AFK-driven Enhancement / Bug:
 
 After the SDD + ADRs land, you have two choices:
 
-- **Stakeholder review upcoming?** Run **`/afk:design-brief`** to synthesize a
+- **Stakeholder review upcoming?** Run **`/afk:to-design-brief`** to synthesize a
   tight 1-2 page digest (one money-shot diagram + 5-10 row decision table +
   stakeholder-impact table). Strict synthesis — no new decisions.
-- **Slicing time?** Run **`/afk:subtasks`** to slice the PRD + SDD + ADRs
+- **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs
   into AFK-eligible Jira SubTasks with typed `## Produces` / `## Consumes`
-  contracts. The slicing-time refuse gate (`/afk:subtasks` Step 3) re-runs
+  contracts. The slicing-time refuse gate (`/afk:to-subtasks` Step 3) re-runs
   the §13 / library-version checks defensively in case the SDD was
   hand-edited after this skill ran.

@@ -1,9 +1,9 @@
 ---
-name: subtasks
+name: to-subtasks
 description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Jira SubTasks under a parent ticket (Enhancement or Bug — both share the Nakisa workflow), each tagged with the AFK label. Each SubTask cites the binding design artifacts that constrain it, so the implementing agent has a contract — not just a feature ask. SDD/ADR citations may be omitted for small features / bugs at the human's discretion. Use when the user has a PRD (and optionally an SDD) and a parent ticket, and wants the AFK driver to be able to drain the work.
 ---
 
-# afk:subtasks — slice a PRD (+ SDD/ADRs) into AFK-eligible SubTasks
+# afk:to-subtasks — slice a PRD (+ SDD/ADRs) into AFK-eligible SubTasks
 
 ## Arguments
 
@@ -37,11 +37,11 @@ description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Ji
 3. **Refuse-to-slice gate (cited mode only).** Before slicing, run two
    passes over the SDD and every ADR. **Refuse on any failure** in
    either pass — print offenders verbatim, bounce the user back to fix
-   the SDD via `/afk:architect-grill` + `/afk:sdd` (or hand-edit + re-run this
+   the SDD via `/afk:architect-grill` + `/afk:to-sdd` (or hand-edit + re-run this
    skill).
 
    **(a) Executor-blocking markers** — `ctx_search` for the same blocker
-   pattern set `/afk:sdd` Step 7 enforces:
+   pattern set `/afk:to-sdd` Step 7 enforces:
 
    - hard-blocker tokens: `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`,
      `\?\?\?`, `<TBD>`, `<TODO>`, `<placeholder>`, `<fill>`, `<\?>`,
@@ -72,9 +72,9 @@ description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Ji
    version differs from the manifest's pinned version, the slice
    inherits a fictional API surface — refuse and bounce. If the SDD
    labelled the version as `"inherited from {BOM}; not a direct pin"`,
-   accept; that's the documented escape hatch from `/afk:sdd` Step 8.
-   `/afk:sdd` should already have caught these, but the gate here
-   defends against (i) hand-edits to the SDD after `/afk:sdd` ran,
+   accept; that's the documented escape hatch from `/afk:to-sdd` Step 8.
+   `/afk:to-sdd` should already have caught these, but the gate here
+   defends against (i) hand-edits to the SDD after `/afk:to-sdd` ran,
    (ii) ADRs the SDD synthesizer didn't fully cross-check, and (iii)
    the manifest moving forward in a separate commit between SDD
    authorship and slicing.
@@ -312,7 +312,7 @@ is overkill. The human decides per ticket.
    proceeding. One question:
    *"No SDD found at `{path}`. Is this a small feature / bug / refactor that
    doesn't need one? Reply `yes` to slice without design citations, `no` to
-   pause and run `/afk:architect-grill` + `/afk:sdd` first."*
+   pause and run `/afk:architect-grill` + `/afk:to-sdd` first."*
 3. If `skip_design_docs=true` (or user replies `yes`): slice in uncited mode.
    The `## Design refs` block reads `(none — sliced without SDD/ADR per
    human approval; see PRD for scope)`. Drop the `## Conflict procedure`

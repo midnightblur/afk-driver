@@ -32,7 +32,7 @@ parent Enhancement's key is on the SubTask's `parent` field.
    and `code` text-marks). Parse the result with
    `afk_driver.subtask_template.parse(...)`. Read the parent Enhancement's
    PRD file (path: `tools/payable/afk/PRD.md` for AFK-bootstrap work, or the
-   service-prefixed path per the `/afk:prd` convention).
+   service-prefixed path per the `/afk:to-prd` convention).
 
    **Read the binding design context (cited mode).** If the parsed template
    has non-empty `design_refs` and a `parent_sdd`, you are running in
@@ -67,7 +67,7 @@ parent Enhancement's key is on the SubTask's `parent` field.
      **before any other work** (no Dev-Designing transition, no commits,
      no test runs).
    - `ctx_search` for `{grep-anchor}` inside `{file-path}`. The anchor was
-     chosen by `/afk:subtasks` to be distinctive — a class declaration, a
+     chosen by `/afk:to-subtasks` to be distinctive — a class declaration, a
      method signature substring, an exported function name. If it does not
      appear, the producer drifted from the contract — exit
      `contract_mismatch` with the same shape.

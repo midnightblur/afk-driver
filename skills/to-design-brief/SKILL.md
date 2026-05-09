@@ -1,6 +1,6 @@
 ---
-name: design-brief
-description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:architect-grill` / `/afk:sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
+name: to-design-brief
+description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:architect-grill` / `/afk:to-sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
 ---
 
 This skill takes the PRD, SDD, and per-decision ADRs and emits a single
@@ -150,7 +150,7 @@ If a row's "What changes" is "(none)", omit the row.
 - **Strict synthesis.** Every claim must trace back to PRD / SDD / an ADR.
   No new decisions, no new alternatives, no new rationale. If a section
   cannot be filled from sources, refuse — bounce to `/afk:architect-grill` +
-  `/afk:sdd`.
+  `/afk:to-sdd`.
 - **Length cap: 400-800 words** excluding the diagram and tables. Long
   briefs are not briefs.
 - **One diagram only.** Discipline forces you to pick the most useful one.
@@ -194,6 +194,6 @@ When the brief belongs to an AFK-driven Enhancement / Bug:
 
 The brief is for stakeholder review, not for the executor — the binding
 contract for AFK SubTasks is the SDD + ADRs, not the brief. After the brief
-is published and stakeholders are aligned, run **`/afk:subtasks`** to slice
+is published and stakeholders are aligned, run **`/afk:to-subtasks`** to slice
 the PRD + SDD + ADRs into AFK-eligible Jira SubTasks. The brief itself is
 not in the executor's reading list.

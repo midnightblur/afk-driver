@@ -1,5 +1,5 @@
 ---
-name: prd
+name: to-prd
 description: Turn the current conversation context into a PRD and publish it to the project issue tracker. Use when user wants to create a PRD from the current context.
 ---
 
@@ -76,7 +76,7 @@ Any further notes about the feature.
 ## AFK adaptation (core-services)
 
 When publishing a PRD that the AFK driver should be able to slice
-(`/afk:subtasks` skill), follow these conventions:
+(`/afk:to-subtasks` skill), follow these conventions:
 
 - **PRD file location.** Write to
   `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
@@ -109,6 +109,6 @@ When publishing a PRD that the AFK driver should be able to slice
 ## Next
 
 After the PRD is published, run **`/afk:architect-grill`** to interview the
-architecture top-down across L1 → L8 layers, then **`/afk:sdd`** to
+architecture top-down across L1 → L8 layers, then **`/afk:to-sdd`** to
 synthesize the SDD + ADRs. The SDD is what makes the AFK driver hands-off:
 without it, downstream SubTasks slice in uncited mode (PRD-only, human-gated).

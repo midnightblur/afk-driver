@@ -12,7 +12,7 @@ tickets, so the smoke is not automated; it's a checklist.
 - The `afk` Claude Code plugin installed and enabled. From inside Claude
   Code: `/plugin marketplace add <path-to-this-repo>` →
   `/plugin install afk@afk-marketplace` → confirm `/afk:execute`,
-  `/afk:prd`, `/afk:subtasks` resolve. (Persisting via
+  `/afk:to-prd`, `/afk:to-subtasks` resolve. (Persisting via
   `enabledPlugins` in `~/.claude/settings.json` is recommended; see
   `README.md` § Skills.)
 - The driver package importable: `pip install -e .` from this repo's

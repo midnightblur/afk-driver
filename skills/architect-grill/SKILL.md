@@ -1,6 +1,6 @@
 ---
 name: architect-grill
-description: Interview the user relentlessly about software architecture top-down across 8 layers (L1 system topology -> L8 tactical patterns) until every non-trivial decision has a rationale and >=2 alternatives weighed. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "architect-grill". Does NOT produce documents — pair with `/afk:sdd` for that.
+description: Interview the user relentlessly about software architecture top-down across 8 layers (L1 system topology -> L8 tactical patterns) until every non-trivial decision has a rationale and >=2 alternatives weighed. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd` for that.
 ---
 
 Interview me relentlessly about every aspect of the architecture until we reach a shared understanding. Walk the design tree **top-down across 8 layers**. Resolve each layer before descending — choices at a lower layer are brittle when choices at a higher layer haven't been pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async means the strategy interface might need to return a `Future<T>` you didn't plan for).
@@ -167,7 +167,7 @@ Until all hold, keep grilling.
 
 ## Out of scope for this skill
 
-- Do NOT produce SDD or ADR documents. Pair with `/afk:sdd` to synthesize artifacts.
+- Do NOT produce SDD or ADR documents. Pair with `/afk:to-sdd` to synthesize artifacts.
 - Do NOT descend into implementation (file paths, code snippets, library version pins, helper-function names).
 - Do NOT grill below L8.
 
@@ -176,6 +176,6 @@ Until all hold, keep grilling.
 Once L1 → L8 are exhausted (every entity has an owner aggregate, every
 cross-aggregate op has a txn strategy, every NFR has a number, every
 existing-infra claim has been verified against the codebase), run
-**`/afk:sdd`** to synthesize the SDD + per-decision ADRs as artifacts.
-`/afk:sdd` does NOT interview — it synthesizes what was decided here. If
+**`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts.
+`/afk:to-sdd` does NOT interview — it synthesizes what was decided here. If
 it finds a gap, it bounces you back to this skill.

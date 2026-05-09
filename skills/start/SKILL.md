@@ -21,9 +21,9 @@ session — each chain skill expects its own session.
    graph LR
        Start[/afk:start/] -->|raw idea| Grill[/afk:grill-me/]
        Start -->|have PRD| AG[/afk:architect-grill/]
-       Start -->|have SDD| Sub[/afk:subtasks/]
-       Grill --> Prd[/afk:prd/] --> AG --> Sdd[/afk:sdd/]
-       Sdd -->|optional| Brief[/afk:design-brief/]
+       Start -->|have SDD| Sub[/afk:to-subtasks/]
+       Grill --> Prd[/afk:to-prd/] --> AG --> Sdd[/afk:to-sdd/]
+       Sdd -->|optional| Brief[/afk:to-design-brief/]
        Sdd --> Sub
        Brief --> Sub
        Sub -->|driver spawns per SubTask| Exec[/afk:execute/]
@@ -41,11 +41,11 @@ session — each chain skill expects its own session.
    | # | Skill | Input | Output | Binding gate |
    |---|-------|-------|--------|--------------|
    | 1 | `/afk:grill-me` | raw idea / problem | exhausted requirements decision tree | (no synthesis — moves to step 2 when user agrees the tree is exhausted) |
-   | 2 | `/afk:prd` | the conversation from step 1 | PRD.md published to repo + parent ticket | none — synthesis only, no gate |
+   | 2 | `/afk:to-prd` | the conversation from step 1 | PRD.md published to repo + parent ticket | none — synthesis only, no gate |
    | 3 | `/afk:architect-grill` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
-   | 4 | `/afk:sdd` | conversation from step 3 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
-   | 5 | `/afk:design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
-   | 6 | `/afk:subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | Jira SubTasks under parent ticket, each with typed `## Produces` / `## Consumes` contracts | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** (every bullet ends with `(PRD §X.Y)` / `(SDD §N)` / `(ADR-NNNN)`) |
+   | 4 | `/afk:to-sdd` | conversation from step 3 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
+   | 5 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
+   | 6 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | Jira SubTasks under parent ticket, each with typed `## Produces` / `## Consumes` contracts | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** (every bullet ends with `(PRD §X.Y)` / `(SDD §N)` / `(ADR-NNNN)`) |
    | 7 | `/afk:execute` | one labelled SubTask | code committed + pushed + Dev-CR/Merge handoff | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 10 producer self-preflight** (every own `## Produces` anchor must grep clean) + JPA-entity liquibase-hibernate7 pickup check |
    | — | `/afk:tdd` | (called from inside `/afk:execute` Step 5) | red-green-refactor doctrine | n/a — tooling |
 
@@ -55,8 +55,8 @@ session — each chain skill expects its own session.
    >
    > (a) Raw idea — nothing written yet. → `/afk:grill-me`
    > (b) PRD already published, no SDD yet. → `/afk:architect-grill`
-   > (c) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:subtasks`
-   > (d) Stakeholder review upcoming on an existing SDD. → `/afk:design-brief`
+   > (c) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:to-subtasks`
+   > (d) Stakeholder review upcoming on an existing SDD. → `/afk:to-design-brief`
    > (e) Something else / I just want to read the map and decide later.
 
    Wait for the user's answer. Do **not** run artifact detection on disk —
@@ -70,8 +70,8 @@ session — each chain skill expects its own session.
    - The binding gate the user should expect to hit (lifted from the table
      above).
    - For routes (a) and (b), name the FULL downstream chain so the user
-     can pace themselves: `/afk:grill-me` → `/afk:prd` → `/afk:architect-grill`
-     → `/afk:sdd` → optional `/afk:design-brief` → `/afk:subtasks`. They
+     can pace themselves: `/afk:grill-me` → `/afk:to-prd` → `/afk:architect-grill`
+     → `/afk:to-sdd` → optional `/afk:to-design-brief` → `/afk:to-subtasks`. They
      will run each manually; this skill does not auto-advance.
 
    For (e), exit with no command — the user wanted only the map.
@@ -94,13 +94,13 @@ The chain has two modes:
   it (Consumes). Use cited mode for **new complex features** — anything
   touching ≥2 modules, introducing patterns, or with non-trivial txn / data.
 - **Uncited mode** — PRD only, no SDD/ADR citations, no Produces/Consumes.
-  Human-gated: `/afk:subtasks` asks before slicing without an SDD when
+  Human-gated: `/afk:to-subtasks` asks before slicing without an SDD when
   one is absent. Use for **small features / bugs / refactors / tooling
   work** where the SDD overhead exceeds the value.
 
-The chain is the same up through `/afk:prd`. The branch is at
-`/afk:architect-grill`: skip it (and `/afk:sdd`, `/afk:design-brief`) for
-uncited-mode work. `/afk:subtasks` accepts both modes.
+The chain is the same up through `/afk:to-prd`. The branch is at
+`/afk:architect-grill`: skip it (and `/afk:to-sdd`, `/afk:to-design-brief`) for
+uncited-mode work. `/afk:to-subtasks` accepts both modes.
 
 ## What this skill does NOT do
 
@@ -108,7 +108,7 @@ uncited-mode work. `/afk:subtasks` accepts both modes.
 - Does NOT detect what stage they're at by scanning disk for PRD.md / SDD.md.
 - Does NOT invoke other skills via the Skill tool.
 - Does NOT validate the user's choice — if they say "I have an SDD" but
-  don't, `/afk:subtasks` will refuse cleanly at its slicing-time gate.
+  don't, `/afk:to-subtasks` will refuse cleanly at its slicing-time gate.
   That's the right place for that check, not here.
 
 ## Next
