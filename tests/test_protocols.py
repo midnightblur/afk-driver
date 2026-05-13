@@ -1,9 +1,9 @@
-"""Tests for the IssueTracker + Scm Protocol declarations (SubTask 01).
+"""Tests for the IssueTracker + Scm Protocol declarations.
 
-This SubTask only declares the Protocols. ST02 makes the legacy
-``JiraClient`` and ``GitLabClient`` adapters conform; until then,
-``isinstance`` against the Protocols must return False so the conformance
-gap is visible in CI.
+ST01 declared the Protocols. ST02 made ``JiraClient`` and ``GitLabClient``
+formally conform — both via explicit nominal subtyping (``class
+JiraClient(IssueTracker):``) and via method-name presence so
+``isinstance`` against the Protocols returns True.
 """
 
 from __future__ import annotations
@@ -177,7 +177,7 @@ def test_scm_protocol_has_no_io_imports():
 
 
 # ---------------------------------------------------------------------------
-# Legacy adapters do NOT yet conform — ST02 closes this gap
+# Legacy adapters DO conform — ST02 closed this gap
 # ---------------------------------------------------------------------------
 
 
@@ -193,22 +193,21 @@ def _legacy_jira_client():
     return JiraClient(cfg, _NullTransport())
 
 
-def test_jira_client_does_not_yet_conform_to_issue_tracker():
-    """ST01 only declares the Protocols. ST02 will rename / add methods on
-    JiraClient so it conforms. Until then, isinstance must return False so
-    a future accidental "looks like it conforms" regression is visible.
+def test_jira_client_conforms_to_issue_tracker():
+    """ST02 acceptance — ``isinstance(JiraClient(...), IssueTracker)`` must
+    return True via the explicit ``class JiraClient(IssueTracker):`` nominal
+    subtype declaration + method-shape alignment (SDD §9 classDiagram).
     """
     instance = _legacy_jira_client()
-    assert not isinstance(instance, IssueTracker), (
-        "JiraClient unexpectedly conforms to IssueTracker — ST02 should be "
-        "the SubTask that makes this true, not ST01."
+    assert isinstance(instance, IssueTracker), (
+        "JiraClient does not conform to IssueTracker — ST02 should add the "
+        "phase-semantic method aliases that close this gap."
     )
 
 
-def test_jira_client_is_missing_phase_semantic_methods():
-    """Structural assertion of the same gap: the phase-semantic method
-    names declared by the IssueTracker Protocol are NOT yet present on
-    the legacy adapter (it still uses ``transition(key, name)``).
+def test_jira_client_has_phase_semantic_methods():
+    """Structural assertion of the same coverage: every phase-semantic method
+    declared by the IssueTracker Protocol is present on the adapter.
     """
     from afk_driver.jira_client import JiraClient
     phase_methods = {
@@ -221,21 +220,35 @@ def test_jira_client_is_missing_phase_semantic_methods():
         "get_target_branch",
         "list_stuck_subissues",
     }
-    present = {m for m in phase_methods if hasattr(JiraClient, m)}
-    assert not present, (
-        f"JiraClient already has phase-semantic methods {present}; ST02 was "
-        f"expected to introduce them, not ST01."
+    missing = {m for m in phase_methods if not hasattr(JiraClient, m)}
+    assert not missing, (
+        f"JiraClient is missing phase-semantic methods {missing}; ST02 was "
+        f"expected to introduce them."
     )
 
 
-def test_gitlab_client_does_not_yet_conform_to_scm():
-    """Symmetric assertion for the SCM side — GitLabClient still exposes
-    glab-CLI-shaped methods (``find_mr_by_branch``, ``open_draft_mr``,
-    ``update_subtasks_checklist``), not the Protocol's PR-semantic names.
+def test_jira_client_subclasses_issue_tracker_nominally():
+    """Acceptance bullet 1 — ``class JiraClient(IssueTracker):`` (explicit
+    Protocol nominal subtype). Python permits this for ``runtime_checkable``
+    Protocols.
+    """
+    from afk_driver.jira_client import JiraClient
+    assert IssueTracker in JiraClient.__mro__
+
+
+def test_gitlab_client_conforms_to_scm():
+    """ST02 acceptance — ``isinstance(GitLabClient(...), Scm)`` returns True
+    via explicit ``class GitLabClient(Scm):`` + the four PR-semantic methods
+    (SDD §9 classDiagram).
     """
     from afk_driver.gitlab_client import GitLabClient
     instance = GitLabClient(runner=lambda args: None)  # type: ignore[arg-type]
-    assert not isinstance(instance, Scm), (
-        "GitLabClient unexpectedly conforms to Scm — ST02 should close this "
-        "gap, not ST01."
+    assert isinstance(instance, Scm), (
+        "GitLabClient does not conform to Scm — ST02 should close this gap."
     )
+
+
+def test_gitlab_client_subclasses_scm_nominally():
+    """Acceptance bullet 2 — ``class GitLabClient(Scm):``."""
+    from afk_driver.gitlab_client import GitLabClient
+    assert Scm in GitLabClient.__mro__

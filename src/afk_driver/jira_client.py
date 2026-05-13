@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Protocol
 
 from afk_driver import jira_section
+from afk_driver.tracker_protocol import IssueTracker, ParentRef, SubIssueRef
 
 
 _NOTES_HEADER_TEXT = "Implementation Notes (auto-maintained)"
@@ -118,7 +119,15 @@ class UrllibTransport:
         return _json.loads(raw.decode("utf-8"))
 
 
-class JiraClient:
+class JiraClient(IssueTracker):
+    # ST02: explicit Protocol nominal subtype — see SDD §8 row "jira_client",
+    # §9 Strategy classDiagram. Method bodies below either delegate to existing
+    # transition()/comment()/update_implementation_notes() machinery or raise
+    # NotImplementedError as a placeholder for ST07's runner refactor — this
+    # SubTask is a typing/shape exercise (PRD §"Backend abstraction"); the
+    # JQL-bound and Bug-vs-Enhancement-aware behaviour stays in runner.py
+    # until ST07 lifts it onto these methods.
+
     def __init__(self, config: JiraConfig, transport: HttpTransport):
         self._cfg = config
         self._http = transport
@@ -420,6 +429,116 @@ class JiraClient:
             "GET", f"/rest/api/3/issue/{key}", params={"fields": "description"}
         )
         return _adf_to_markdown((resp.get("fields") or {}).get("description"))
+
+    # ------------------------------------------------------------------
+    # IssueTracker Protocol conformance (ST02 — typing/shape only)
+    # ------------------------------------------------------------------
+    # Method shapes from src/afk_driver/tracker_protocol.py. Method bodies
+    # either delegate to existing JiraClient operations (transition aliases,
+    # get_parent, splice_notes_block, get_target_branch) or raise
+    # NotImplementedError for the JQL-bound list_*() methods — ST07 lifts
+    # those JQL strings off runner.py onto this adapter. Spec rule:
+    # "no behaviour change — this ST is a typing/shape exercise only."
+
+    def start_designing(self, child_id: str) -> None:
+        """Protocol alias for ``transition(child_id, "Start Designing")``."""
+        self.transition(child_id, "Start Designing")
+
+    def start_developing(self, child_id: str) -> None:
+        """Protocol alias for ``transition(child_id, "Start Development")``."""
+        self.transition(child_id, "Start Development")
+
+    def request_cr_merge(self, child_id: str) -> None:
+        """Protocol alias for ``transition(child_id, "Request CR & Merge")``."""
+        self.transition(child_id, "Request CR & Merge")
+
+    def revert_to_pending(self, child_id: str) -> None:
+        """Protocol alias for ``transition(child_id, "Request Development")`` —
+        the Nakisa workflow transition back to ``Dev-Pending`` (SDD §7 use-case
+        3, ADR-0005 sweeper recovery).
+        """
+        self.transition(child_id, "Request Development")
+
+    def get_parent(self, child_id: str) -> ParentRef:
+        """Resolve the parent reference for a sub-issue. Delegates to ``search``
+        (single-issue JQL) to fetch the parent key + summary; ``backend`` is
+        always ``"jira"`` for this adapter.
+        """
+        rows = self.search(f"key = {child_id}", max_results=1)
+        if not rows:
+            raise JiraError(f"get_parent: {child_id} not found")
+        row = rows[0]
+        parent_key = row.parent_key
+        if parent_key is None:
+            raise JiraError(f"get_parent: {child_id} has no parent")
+        parent_fields = self.get_parent_fields(parent_key)
+        return ParentRef(
+            id=parent_key,
+            backend="jira",
+            title=str(parent_fields.get("summary", "")),
+        )
+
+    def close(self, child_id: str, reason: str) -> None:
+        """Close the sub-issue terminally. ``reason`` distinguishes
+        ``completed`` from ``not_planned`` but at the Jira layer both currently
+        flow through the same "Closed" workflow transition — the distinction
+        lives in ST07's runner mapping. NotImplementedError until then so
+        callers don't accidentally close issues with no audit trail.
+        """
+        raise NotImplementedError(
+            "JiraClient.close is a Protocol stub — wire in ST07 with the "
+            "closed/not-planned transition mapping"
+        )
+
+    def splice_notes_block(self, parent_id: str, body: str) -> None:
+        """Idempotently replace the parent's Implementation Notes block with
+        ``body``. The legacy ``update_implementation_notes`` takes a single
+        ``(SUBTASK_KEY) ...`` bullet; this Protocol method takes the whole
+        rendered block body. ST07 will route the runner through this; until
+        then the legacy bullet-at-a-time path stays the canonical writer.
+        """
+        raise NotImplementedError(
+            "JiraClient.splice_notes_block is a Protocol stub — wire in ST07 "
+            "(ADF whole-block body rendering); ``update_implementation_notes`` "
+            "remains the canonical per-bullet writer"
+        )
+
+    def get_target_branch(self, parent_id: str) -> str:
+        """Return the parent's resolved target branch (``customfield_13706`` on
+        Jira). Delegates to ``get_parent_fields`` and unwraps the option-shape
+        ``{"value": "MASTER"}`` returned by Jira's single-select field type.
+        Returns ``""`` if unset — runner caches and decides fallback (SDD §6
+        invariants).
+        """
+        fields = self.get_parent_fields(parent_id)
+        raw = fields.get("target_branch")
+        if raw is None:
+            return ""
+        if isinstance(raw, Mapping):
+            value = raw.get("value")
+            return str(value) if value is not None else ""
+        return str(raw)
+
+    def list_pickable(self) -> list[SubIssueRef]:
+        """Return all AFK-eligible sub-issues currently in ``Dev-Pending``.
+        JQL composition lives in ``runner.py`` until ST07 lifts it; raising
+        here avoids silently returning an empty list and masking the gap.
+        """
+        raise NotImplementedError(
+            "JiraClient.list_pickable is a Protocol stub — JQL composition "
+            "stays in runner.py until ST07's refactor lifts it onto adapters"
+        )
+
+    def list_stuck_subissues(self) -> list[SubIssueRef]:
+        """Pre-flight sweeper input — sub-issues whose phase is one of
+        ``{Dev-Designing, Dev-Developing, Dev-CR/Merge}`` from a prior crashed
+        run (SDD §7 use-case 3, ADR-0005). Same JQL-lift-pending rationale as
+        ``list_pickable``.
+        """
+        raise NotImplementedError(
+            "JiraClient.list_stuck_subissues is a Protocol stub — JQL "
+            "composition stays in runner.py until ST07's refactor"
+        )
 
 
 def _merge_notes_bullet(

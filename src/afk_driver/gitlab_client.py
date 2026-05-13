@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from afk_driver.scm_protocol import PrRef, Scm
 from afk_driver.section_splice import SectionMarkerMissing, marker_id_text
 
 
@@ -39,6 +40,21 @@ class SubtaskItem:
     done: bool
 
 
+@dataclass(frozen=True)
+class OpenDraftPrSpec:
+    """Adapter-specific request record consumed by ``Scm.open_draft_pr``
+    (SDD §9 Strategy classDiagram). Keeps the cross-backend Protocol module
+    free of GitLab-specific fields while pinning the inputs ``GitLabClient``
+    needs to call ``glab mr create``.
+    """
+
+    source_branch: str
+    target_branch: str
+    title: str
+    description: str
+    assignee: Optional[str] = None
+
+
 GlabRunner = Callable[[list[str]], subprocess.CompletedProcess]
 
 
@@ -48,7 +64,13 @@ def default_runner(args: list[str]) -> subprocess.CompletedProcess:
     )
 
 
-class GitLabClient:
+class GitLabClient(Scm):
+    # ST02: explicit Protocol nominal subtype — see SDD §8 row "gitlab_client",
+    # §9 Strategy classDiagram. The four Protocol methods below delegate to
+    # the existing glab-CLI operations and return ``PrRef`` shapes instead of
+    # ``MRInfo``. Legacy methods stay for back-compat — runner.py keeps
+    # calling them until ST07's refactor.
+
     def __init__(self, runner: GlabRunner = default_runner):
         self._run = runner
 
@@ -144,6 +166,70 @@ class GitLabClient:
         if proc.returncode != 0:
             raise GitLabError(f"glab mr update {branch} failed: {proc.stderr.strip()}")
 
+    # ------------------------------------------------------------------
+    # Scm Protocol conformance (ST02 — typing/shape only)
+    # ------------------------------------------------------------------
+    # Method shapes from src/afk_driver/scm_protocol.py. ``PrRef`` is the
+    # cross-backend reduction of ``MRInfo`` (source_branch / target_branch /
+    # url). Legacy methods (``find_mr_by_branch``, ``open_draft_mr``,
+    # ``update_description``, ``update_subtasks_checklist``) stay — runner.py
+    # keeps calling them until ST07's refactor.
+
+    def find_open_pr_by_parent(self, parent_id: str) -> PrRef | None:
+        """Protocol alias for ``find_open_mr_by_parent_key`` — returns the
+        cross-backend ``PrRef`` shape (or ``None``).
+        """
+        mr = self.find_open_mr_by_parent_key(parent_id)
+        return _pr_ref_from_mr(mr) if mr is not None else None
+
+    def open_draft_pr(self, spec: object) -> PrRef:
+        """Open a Draft MR. ``spec`` must be an ``OpenDraftPrSpec`` (declared
+        in this module) with ``source_branch`` / ``target_branch`` / ``title``
+        / ``description`` / optional ``assignee``. Delegates to the existing
+        ``open_draft_mr`` kwargs path; reduces the returned ``MRInfo`` to
+        ``PrRef``.
+        """
+        if not isinstance(spec, OpenDraftPrSpec):
+            raise TypeError(
+                "GitLabClient.open_draft_pr requires an OpenDraftPrSpec; "
+                f"got {type(spec).__name__}"
+            )
+        mr = self.open_draft_mr(
+            source_branch=spec.source_branch,
+            target_branch=spec.target_branch,
+            title=spec.title,
+            description=spec.description,
+            assignee=spec.assignee,
+        )
+        return _pr_ref_from_mr(mr)
+
+    def update_pr_description(self, branch: str, body: str) -> None:
+        """Protocol alias for ``update_description`` — replaces the MR
+        description for ``branch`` with ``body`` in full.
+        """
+        self.update_description(branch, body)
+
+    def splice_pr_block(self, branch: str, body: str) -> None:
+        """Idempotently replace the auto-maintained ``afk:subtasks`` block in
+        the MR description with ``body`` (pre-rendered). The legacy
+        ``update_subtasks_checklist`` takes a list of ``SubtaskItem`` and
+        renders inside; this Protocol method takes the rendered string so the
+        rendering layer is backend-agnostic in ST07's runner. Behaviour is
+        otherwise identical — splice via ``splice_marker_block``, only PUT if
+        the description changed.
+        """
+        existing = self.find_mr_by_branch(branch)
+        if existing is None:
+            raise GitLabError(f"no MR open for branch {branch}")
+        new_desc = splice_marker_block(
+            existing.description,
+            body,
+            marker_id=_SUBTASKS_MARKER_ID,
+            create_if_missing=True,
+        )
+        if new_desc != existing.description:
+            self.update_description(branch, new_desc)
+
     def update_subtasks_checklist(self, branch: str, items: list[SubtaskItem]) -> MRInfo:
         existing = self.find_mr_by_branch(branch)
         if existing is None:
@@ -172,6 +258,16 @@ class GitLabClient:
             source_branch=existing.source_branch,
             target_branch=existing.target_branch,
         )
+
+
+def _pr_ref_from_mr(mr: MRInfo) -> PrRef:
+    """Reduce an ``MRInfo`` to the cross-backend ``PrRef`` shape (SDD §6
+    erDiagram ``DraftPullRequest``)."""
+    return PrRef(
+        source_branch=mr.source_branch,
+        target_branch=mr.target_branch,
+        url=mr.web_url,
+    )
 
 
 def _render_subtasks_block(items: list[SubtaskItem]) -> str:
