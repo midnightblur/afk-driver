@@ -45,8 +45,8 @@ def make_runner(
         retry_count=retry_count,
     )
     return Runner(
-        jira=jira,
-        gitlab=gitlab,
+        tracker=jira,
+        scm=gitlab,
         worktrees=_WorktreeAdapter(),
         claude_runner=claude,
         config=cfg,

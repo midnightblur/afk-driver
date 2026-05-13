@@ -1,5 +1,5 @@
 """Unit tests for cli._parse_outcome_marker — the seam between the spawned
-``claude --print "/afk-go ..."`` session and the runner's ClaudeOutcome.
+``claude --print "/afk:execute ..."`` session and the runner's ClaudeOutcome.
 
 Without a working parser, claude's exit code is the only signal back to the
 runner; ``claude --print`` exits 0 on clean termination, so every structured

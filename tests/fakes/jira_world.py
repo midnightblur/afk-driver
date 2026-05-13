@@ -491,7 +491,7 @@ def seed_standalone(
     The driver's standalone path treats the ticket as both parent and
     its only unit of work. Description follows the SubTask Markdown
     contract so ``flip_acceptance_checkboxes`` finds a checkbox to flip
-    (in real life ``/afk-go`` also reads from this shape).
+    (in real life ``/afk:execute`` also reads from this shape).
     """
     issue = JiraIssue(
         key=key,

@@ -12,6 +12,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from afk_driver import cli
+from afk_driver.backend_select import Backend, RepoCoords
+from afk_driver.gitlab_client import GitLabClient
 
 from tests.fakes import (
     FakeClaude,
@@ -22,6 +24,24 @@ from tests.fakes import (
     seed_enhancement_parent_with_subtasks,
     success_committing,
 )
+
+
+def _jira_backend_resolver(gitlab_world):
+    """ST08 made ``cli.main`` resolve the backend via ``backend_select.resolve``
+    BEFORE pre-flight. The MonorepoBuilder fake uses a local ``origin.git``
+    bare-repo URL that matches neither ``github.com`` nor the configured
+    GitLab host, so the default resolver would raise
+    ``BackendResolutionError``. These smoke tests intentionally test the
+    Jira branch end-to-end; we inject a resolver that returns a Jira
+    backend bound to the test's ``GitLabClient`` (constructed against the
+    test's fake glab runner ``gitlab_world``)."""
+    def _resolve(_cwd, _cfg, **_kw):
+        return Backend(
+            tracker=None,  # cli materialises JiraClient from env-var creds
+            scm=GitLabClient(runner=gitlab_world),
+            repo_coords=RepoCoords(backend="jira", host="gitlab.example"),
+        )
+    return _resolve
 
 
 def _redirect_home(monkeypatch, home: Path) -> None:
@@ -70,6 +90,7 @@ def test_cli_main_happy_path(tmp_path, monkeypatch):
         transport_factory=lambda *_a: FakeTransport(jira_world),
         glab_runner_factory=lambda: gitlab_world,
         claude_runner_factory=lambda log_root: claude,
+        backend_resolver=_jira_backend_resolver(gitlab_world),
     )
 
     assert rc == 0
@@ -104,6 +125,7 @@ def test_cli_main_preflight_fails_when_gitlab_token_missing(tmp_path, monkeypatc
             "--jira-email", "test@example.com",
             "--jira-token", "fake-token",
         ],
+        backend_resolver=_jira_backend_resolver(None),
     )
 
     assert rc == 2

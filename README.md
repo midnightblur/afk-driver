@@ -2,7 +2,7 @@
 
 Async-from-keyboard driver for the Nakisa core-services platform. Drains
 `afk-agents`-labelled Jira SubTasks under their parent Enhancement, opens a
-Draft MR, spawns a fresh Claude Code session per SubTask via the `/afk-go`
+Draft MR, spawns a fresh Claude Code session per SubTask via the `/afk:execute`
 skill, transitions tickets through `Dev-Pending → Dev-Designing →
 Dev-Developing → Dev-CR/Merge`, and produces a morning digest.
 
@@ -42,7 +42,7 @@ flowchart LR
     E --> F[Assign + transition Enhancement<br/>Dev-Pending → Dev-Designing → Dev-Developing<br/>Bug parent skips Dev-Designing]
     F --> G[For each SubTask in rank order]
     G --> H[Assign + transition Dev-Pending → Dev-Designing → Dev-Developing]
-    H --> I[Spawn claude --print /afk-go SUBTASK-KEY]
+    H --> I[Spawn claude --print /afk:execute SUBTASK-KEY]
     I --> J{outcome}
     J -->|success| K[Update parent Implementation Notes]
     J -->|test_fail / build_fail| L[retry up to retry_count]
@@ -61,14 +61,14 @@ under it is driven directly: one Draft MR, one `claude --print` invocation
 on the ticket key itself, lifecycle transitions on that key. The lifecycle
 collapses onto the single ticket — **no MR subtasks checklist** is
 maintained, and **no Implementation Notes splice** is written into a
-parent (there is no parent). Because `/afk-go` reads the SubTask Markdown
+parent (there is no parent). Because `/afk:execute` reads the SubTask Markdown
 contract (`## Goal / Scope / Acceptance / Test command / Parent PRD /
 Blocked by / Implementation Notes`, plus the cited-mode sections
 `## Design refs / Produces / Parent SDD / Consumes / Conflict procedure`
 when the standalone is sliced from an SDD), a standalone ticket's
 description **must be authored in that shape** for the skill to find
 work — the driver does not synthesise it. **Cited-mode contract layers
-apply equally to standalones**: `/afk-go` runs the same Step 2 consumer
+apply equally to standalones**: `/afk:execute` runs the same Step 2 consumer
 preflight on `## Consumes` (a missing upstream `{file}#{anchor}` exits
 `contract_mismatch` and the runner comments on the standalone AND on the
 named producer ticket — the producer may live outside this drain pass)
@@ -87,9 +87,9 @@ path is skipped.
 | `worktree_manager.py` | Per-Enhancement git worktree lifecycle. `ensure / publish_branch / validate_state / rebase_onto_target`. Branch name pattern `mvu/afk/{enh_id_lower}` (GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`). |
 | `jira_client.py` | REST client. `search`, `get_enhancement_fields`, `list_transitions`, `transition` (by name), `update_implementation_notes` (idempotent splice), `set_fields`, `assign`, `get_my_account_id`, `get_issue_description_markdown` (ADF→Markdown for the SubTask parser). |
 | `gitlab_client.py` | `glab` CLI wrapper. `find_mr_by_branch / open_draft_mr / update_subtasks_checklist`. Auto-maintained block bracketed by `<!-- afk:subtasks:start/end -->` HTML comments preserves human edits to the rest of the description. |
-| `runner.py` | Orchestrator. `Runner.one_pass()` is the entry; `preflight()` validates env. Two flows: `_process_parent` (parent Enhancement + labelled SubTasks) and `_process_standalone` (one labelled non-subtask, collapsed lifecycle — no checklist, no impl-notes splice). Outcomes: `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`. Retries on `test_fail` / `build_fail` up to `retry_count`. `design_conflict` (cited-mode binding-contract violation flagged by `/afk-go`) skips retry and routes the SubTask back to Dev-Pending with a comment pointing the human at `/architect-grill`. `contract_mismatch` (cited-mode consumer preflight grep miss against an upstream `## Produces` artifact) also skips retry: posts an explicit comment on the consumer AND a separate comment on the producer SubTask (carried via `ClaudeOutcome.producer_key`). `produces_drift` (cited-mode producer self-preflight: SubTask declared `## Produces` X but its own grep cannot find X) likewise skips retry: posts a single "producer self-check failed" comment routing the human to fix the impl OR re-emit the slice. |
+| `runner.py` | Orchestrator. `Runner.one_pass()` is the entry; `preflight()` validates env. Two flows: `_process_parent` (parent Enhancement + labelled SubTasks) and `_process_standalone` (one labelled non-subtask, collapsed lifecycle — no checklist, no impl-notes splice). Outcomes: `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`. Retries on `test_fail` / `build_fail` up to `retry_count`. `design_conflict` (cited-mode binding-contract violation flagged by `/afk:execute`) skips retry and routes the SubTask back to Dev-Pending with a comment pointing the human at `/afk:architect-grill`. `contract_mismatch` (cited-mode consumer preflight grep miss against an upstream `## Produces` artifact) also skips retry: posts an explicit comment on the consumer AND a separate comment on the producer SubTask (carried via `ClaudeOutcome.producer_key`). `produces_drift` (cited-mode producer self-preflight: SubTask declared `## Produces` X but its own grep cannot find X) likewise skips retry: posts a single "producer self-check failed" comment routing the human to fix the impl OR re-emit the slice. |
 | `digest_writer.py` | Emits `RunRecord` as L4 morning Markdown. |
-| `cli.py` | `python -m afk_driver` entry. Wires real clients into Runner. Spawns `claude --print --dangerously-skip-permissions "/afk-go SUBTASK"` per SubTask. |
+| `cli.py` | `python -m afk_driver` entry. Wires real clients into Runner. Spawns `claude --print --dangerously-skip-permissions "/afk:execute SUBTASK"` per SubTask. |
 
 All I/O is dependency-injected so the runner integration tests (31) drive
 fakes in <0.2s. Real-client wiring lives only in `cli.py`.
@@ -99,7 +99,7 @@ fakes in <0.2s. Real-client wiring lives only in `cli.py`.
 Each spawned `claude --print` session returns a `ClaudeOutcome` to the
 runner: one of `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`.
 
-The seam is a **structured outcome marker** the `/afk-go` skill emits as
+The seam is a **structured outcome marker** the `/afk:execute` skill emits as
 the last thing in its log (Step 13 of the skill spec):
 
 ```
@@ -122,7 +122,7 @@ is loud — silent demotion is the bug this seam fixes.
 
 The ownership split between the two sides is load-bearing:
 
-- **Skill (`/afk-go`) owns**: in-flight transitions (`Dev-Designing`,
+- **Skill (`/afk:execute`) owns**: in-flight transitions (`Dev-Designing`,
   `Dev-Developing`), TDD loop, code edits, commits, push, MR checklist
   update, parent Implementation Notes splice.
 - **Runner owns** (only when outcome is `success`): the boundary
@@ -141,9 +141,9 @@ follow-up call will fail because the SubTask has already left
 Mixed human + automated edits live in three Markdown surfaces. Don't let
 them collide:
 
-- **Parent Enhancement description**: `## PRD` is owned by `/to-prd`;
-  `## SDD` (when present) is owned by `/to-sdd`;
-  `## Design Brief` (when present) is owned by `/to-design-brief`;
+- **Parent Enhancement description**: `## PRD` is owned by `/afk:to-prd`;
+  `## SDD` (when present) is owned by `/afk:to-sdd`;
+  `## Design Brief` (when present) is owned by `/afk:to-design-brief`;
   `## Implementation Notes (auto-maintained)` is owned by this driver
   (idempotent splice via `update_implementation_notes`); other prose
   belongs to the human.
@@ -179,26 +179,66 @@ sred_rationale = "customfield_14003"
 
 ## Skills
 
-The driver leans on a chain of Claude Code skills (live at `~/.claude/skills/`,
-not in this repo). Three are mandatory, two are an optional design layer.
+The driver depends on a chain of Claude Code skills that **ship in this
+repo** as the `afk` Claude Code plugin. The plugin lives at
+`.claude-plugin/plugin.json` (manifest) + `.claude-plugin/marketplace.json`
+(local marketplace) + `skills/<name>/SKILL.md` (one dir per skill). It
+ships in lockstep with the Python driver — single git tag, both move
+together.
 
-**Mandatory chain** (`/to-prd` → `/to-subtasks` → `/afk-go`):
+### Plugin install (one-time per machine)
 
-- **`/to-prd`** — turns conversation context into a PRD. AFK adaptation:
+```
+# inside Claude Code, from any session
+/plugin marketplace add C:\Users\mvu\PersonalProjects\afk    # or your local path
+/plugin install afk@afk-marketplace
+```
+
+To auto-load on every Claude Code launch, add to `~/.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "afk-marketplace": {
+      "source": { "source": "directory", "path": "C:\\Users\\mvu\\PersonalProjects\\afk" }
+    }
+  },
+  "enabledPlugins": {
+    "afk@afk-marketplace": true
+  }
+}
+```
+
+After editing any `SKILL.md`, run `/reload-plugins` to pick up changes
+without restarting. After `git pull`, same.
+
+For teammate install (private repo, collaborator access required):
+`/plugin marketplace add midnightblur/afk-driver` → `/plugin install
+afk@afk-marketplace`. Auto-update for private repos requires
+`GITHUB_TOKEN` in env.
+
+### The 9 skills
+
+Use `/afk:start` first if you're not sure where to begin — it prints the
+pipeline map and routes you to the right entry skill.
+
+**Mandatory chain** (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`):
+
+- **`/afk:to-prd`** — turns conversation context into a PRD. AFK adaptation:
   writes to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
   (or `tools/{group}/{tool}/PRD.md` for tooling work). Owns the `## PRD`
   section of the parent Enhancement description; AFK driver owns
   `## Implementation Notes (auto-maintained)`.
-- **`/to-subtasks`** (renamed from `/prd-to-subtasks` 2026-05-08) —
-  slices a PRD (and the accompanying SDD + ADRs, when present) into Jira
-  SubTasks under the parent Enhancement, each with the structured Markdown
-  contract and the `afk-agents` label. **Cited mode** (default when an
-  SDD exists) emits `## Design refs`, `## Parent SDD`, and
-  `## Conflict procedure` blocks per SubTask, so the implementing agent
-  inherits a binding contract — not just a feature ask. **Uncited mode**
-  is human-gated for small features / bugs / refactors / tooling: when
-  no SDD is present, the skill asks before slicing without one.
-- **`/afk-go`** — invoked by the driver in the spawned session; takes one
+- **`/afk:to-subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
+  when present) into Jira SubTasks under the parent Enhancement, each
+  with the structured Markdown contract and the `afk-agents` label.
+  **Cited mode** (default when an SDD exists) emits `## Design refs`,
+  `## Parent SDD`, and `## Conflict procedure` blocks per SubTask, so
+  the implementing agent inherits a binding contract — not just a
+  feature ask. **Uncited mode** is human-gated for small features /
+  bugs / refactors / tooling: when no SDD is present, the skill asks
+  before slicing without one.
+- **`/afk:execute`** — invoked by the driver in the spawned session; takes one
   SubTask from `Dev-Pending` through `Dev-Designing` → `Dev-Developing`, gets
   the test command green, pushes commits, then exits with a structured
   outcome. The **runner** — not this skill — performs the final
@@ -211,17 +251,20 @@ not in this repo). Three are mandatory, two are an optional design layer.
 ≥2 modules / introducing patterns / non-trivial transactions or data;
 skip for small enhancements, bugs, refactors, tooling):
 
-- **`/architect-grill`** — interviews the user top-down across 8 layers
+- **`/afk:grill-me`** — interviews the user about a raw idea or plan
+  until the requirements decision tree is exhausted. Does NOT produce
+  documents. Pair with `/afk:to-prd` afterward to synthesize.
+- **`/afk:architect-grill`** — interviews the user top-down across 8 layers
   (L1 system topology → L8 tactical patterns) until every non-trivial
   decision has a rationale and ≥2 alternatives weighed. Does NOT produce
   documents.
-- **`/to-sdd`** — synthesizes the conversation into `SDD.md` plus
+- **`/afk:to-sdd`** — synthesizes the conversation into `SDD.md` plus
   per-decision ADRs, sibling to the PRD:
   `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/SDD.md`
   and `.../adr/NNNN-*.md`. Owns the `## SDD` section of the parent
   Enhancement description. Mandates visualizations (Mermaid diagrams,
   tables) per layer so reviewers can scan vertically.
-- **`/to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
+- **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
   1-2 page `DESIGN-BRIEF.md` sibling to the PRD/SDD. One money-shot
   diagram, 5-10 row decision digest, stakeholder-impact table. Owns the
   `## Design Brief` section of the parent Enhancement description.
@@ -229,23 +272,23 @@ skip for small enhancements, bugs, refactors, tooling):
   the SDD has executor-blocking open questions. Use for stakeholder
   reviews and as a map before reading the full SDD.
 
-> **Cited-mode contract.** When `/to-subtasks` slices in cited mode it
+> **Cited-mode contract.** When `/afk:to-subtasks` slices in cited mode it
 > emits five additional SubTask sections — `## Design refs`,
 > `## Produces`, `## Consumes` (when `Blocked by` is non-empty),
 > `## Parent SDD`, `## Conflict procedure`. `subtask_template.py` parses
 > all five losslessly. The contract is enforced at three checkpoints:
 >
-> 1. **Slicing time** (`/to-subtasks` Step 7): graph validation
+> 1. **Slicing time** (`/afk:to-subtasks` Step 7): graph validation
 >    (every `## Consumes` line resolves to a prior `## Produces`) +
 >    anchor quality (forbidden-token check, ≥12-char length, trial
 >    grep against `{file}` at HEAD must return ≤1 match — refuse on
 >    ambiguity). Catches contract drift at declaration time.
-> 2. **Consumer preflight** (`/afk-go` Step 2): before any work, grep
+> 2. **Consumer preflight** (`/afk:execute` Step 2): before any work, grep
 >    every `## Consumes` line `{PRODUCER-KEY} {file}#{anchor}` on the
 >    branch — a missing artifact or signature-divergent anchor exits
 >    `contract_mismatch` (no retry; runner comments on consumer AND on
 >    producer SubTask).
-> 3. **Producer self-preflight** (`/afk-go` Step 10): right before
+> 3. **Producer self-preflight** (`/afk:execute` Step 10): right before
 >    declaring success, grep every own `## Produces` anchor on the
 >    branch. Missing or signature-divergent anchor exits
 >    `produces_drift` (no retry; runner comments on the SubTask
@@ -253,11 +296,11 @@ skip for small enhancements, bugs, refactors, tooling):
 >    human to impl-vs-slice fix).
 >
 > On a binding-decision break (SDD §8 mandate is wrong/infeasible),
-> `/afk-go` exits `design_conflict` and routes to `/architect-grill` for
+> `/afk:execute` exits `design_conflict` and routes to `/afk:architect-grill` for
 > a superseding ADR. `## Produces` is mandatory on every cited SubTask,
 > even leaves with no consumer — it doubles as the reviewer's
 > cheat-sheet AND the next SubTask's preflight target. Cited and uncited
-> SubTasks both round-trip through the driver — `/to-subtasks` decides
+> SubTasks both round-trip through the driver — `/afk:to-subtasks` decides
 > which to emit based on whether an SDD is present (human-gated).
 
 ## Tests
@@ -278,8 +321,8 @@ scenario suites), digest_writer, cli (subprocess invocation contract).
 ## Limitations / known gaps
 
 - **No system-wide install.** Run from a checkout that has `pip install -e
-  .` applied; the spawned afk-go session needs `afk_driver` importable from
-  its cwd.
+  .` applied; the spawned `/afk:execute` session needs `afk_driver`
+  importable from its cwd.
 - **No CI / scheduled run.** `python -m afk_driver` is invoked manually
   (cron / Task Scheduler is up to the operator).
 - **Failure paths only unit-tested.** `test_fail` retry, `build_fail`,

@@ -1,4 +1,4 @@
-"""FakeClaude — substitutes for the real ``claude --print /afk-go`` subprocess.
+"""FakeClaude — substitutes for the real ``claude --print /afk:execute`` subprocess.
 
 The real claude_runner closure spawns a subprocess and parses its exit code.
 For scenarios, we stand in a callable that:
@@ -83,9 +83,9 @@ def other_step(detail: str = "exit 2") -> Step:
 def design_conflict_step(
     detail: str = "SDD §8 names ExportLoader<E>; PDF lib forces Future<PDF> return — Strategy interface incompatible",
 ) -> Step:
-    """Mirrors a /afk-go session that flagged a binding decision in the
+    """Mirrors a /afk:execute session that flagged a binding decision in the
     SDD/ADR as wrong/infeasible. The runner must NOT retry and must comment
-    explicitly so the human runs /architect-grill before re-queueing.
+    explicitly so the human runs /afk:architect-grill before re-queueing.
     """
     return Step(ClaudeOutcome("design_conflict", detail=detail), lambda p, k: None)
 
@@ -97,7 +97,7 @@ def contract_mismatch_step(
         "{producer} not found on branch — preflight grep returned no match"
     ),
 ) -> Step:
-    """Mirrors a /afk-go preflight that found an upstream `## Produces`
+    """Mirrors a /afk:execute preflight that found an upstream `## Produces`
     artifact missing or signature-divergent. The runner must NOT retry, must
     comment on the consumer surfacing the mismatch, AND must comment on the
     PRODUCER subtask so the human knows where the binding-contract break
@@ -117,7 +117,7 @@ def produces_drift_step(
         "not found on branch — own pre-success grep returned no match"
     ),
 ) -> Step:
-    """Mirrors a /afk-go session whose own producer self-preflight failed:
+    """Mirrors a /afk:execute session whose own producer self-preflight failed:
     the SubTask declared an artifact in `## Produces` but its own grep could
     not find it on the branch. Symmetric to ``contract_mismatch`` but
     consumer == producer (this same SubTask). The runner must NOT retry and

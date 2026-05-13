@@ -9,11 +9,14 @@ tickets, so the smoke is not automated; it's a checklist.
 - `glab`, `mvn`, `node`, `claude`, `git`, `python` (≥3.11) all on PATH.
 - `GITLAB_TOKEN` env set (`glab auth status` green).
 - Jira API credentials in env: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`.
-- The three AFK skills installed at `~/.claude/skills/`: `afk-go`,
-  `prd-to-subtasks`, `to-prd` (with the AFK adaptation section).
-- The driver package importable: `pip install -e tools/payable/afk/` from
-  the repo root (or rely on `pythonpath = ["src"]` in pyproject for ad-hoc
-  runs from `tools/payable/afk/`).
+- The `afk` Claude Code plugin installed and enabled. From inside Claude
+  Code: `/plugin marketplace add <path-to-this-repo>` →
+  `/plugin install afk@afk-marketplace` → confirm `/afk:execute`,
+  `/afk:to-prd`, `/afk:to-subtasks` resolve. (Persisting via
+  `enabledPlugins` in `~/.claude/settings.json` is recommended; see
+  `README.md` § Skills.)
+- The driver package importable: `pip install -e .` from this repo's
+  root.
 
 ## Step 1 — fixture Enhancement + SubTask
 
@@ -74,7 +77,7 @@ This:
 - creates `~/.afk-driver/worktrees/{ENH-ID}/`,
 - opens a Draft MR `[{ENH-ID}] [AFK smoke] noop SubTask drain` against `master`,
 - transitions the parent Enhancement: `Dev-Pending → Dev-Designing → Dev-Developing`,
-- spawns a fresh Claude Code session executing `/afk-go {SUBTASK-KEY}`,
+- spawns a fresh Claude Code session executing `/afk:execute {SUBTASK-KEY}`,
 - the session writes `output.txt`, runs the Test command (green-bar),
 - transitions the SubTask `Dev-Pending → Dev-Designing → Dev-Developing → Dev-CR/Merge`,
 - updates the parent's `## Implementation Notes (auto-maintained)`,
