@@ -116,6 +116,43 @@ _VALID_OUTCOME_STATUSES = frozenset({
 })
 
 
+def _detect_afk_plugin_dir() -> Optional[str]:
+    """Resolve the installed afk plugin's directory via ``claude plugin list --json``.
+
+    ``claude --print`` does not auto-load user-scoped marketplace plugins, so
+    the spawned executor session sees ``Unknown command: /afk:execute`` unless
+    we hand the install path back in via ``--plugin-dir``. Returns ``None`` on
+    any failure (CLI absent, JSON malformed, plugin disabled) and the caller
+    omits the flag — matches legacy behavior.
+    """
+    try:
+        result = subprocess.run(
+            ["claude", "plugin", "list", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        plugins = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(plugins, list):
+        return None
+    for plugin in plugins:
+        if not isinstance(plugin, dict):
+            continue
+        plugin_id = plugin.get("id", "")
+        if isinstance(plugin_id, str) and plugin_id.startswith("afk@") and plugin.get("enabled"):
+            install_path = plugin.get("installPath")
+            if isinstance(install_path, str) and install_path:
+                return install_path
+    return None
+
+
 class _WorktreeAdapter:
     """Adapts the module-level worktree_manager functions into the object shape Runner expects."""
 
@@ -213,6 +250,7 @@ def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
     progress sink can point the user at the log when something goes wrong.
     """
     log_root.mkdir(parents=True, exist_ok=True)
+    afk_plugin_dir = _detect_afk_plugin_dir()
 
     def _run(subtask_key: str, worktree_path: Path, cap_s: int) -> ClaudeOutcome:
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -224,14 +262,21 @@ def _make_claude_runner(log_root: Path) -> "ClaudeRunner":
         # --dangerously-skip-permissions: AFK lane is fully autonomous by
         # design; the spawned session must be able to edit/commit/push
         # without prompts.
+        # --plugin-dir: user-scoped marketplace plugins are not auto-loaded
+        # by `claude --print`. Pass the afk plugin install path explicitly so
+        # the spawned session can resolve `/afk:execute`.
+        args: list[str] = ["claude", "--print", "--dangerously-skip-permissions"]
+        if afk_plugin_dir:
+            args.extend(["--plugin-dir", afk_plugin_dir])
+        args.append(f"/afk:execute {subtask_key}")
         timed_out = False
         returncode: Optional[int] = None
         with log_path.open("w", encoding="utf-8") as f:
-            f.write(f"# afk claude session log\n# subtask: {subtask_key}\n# cwd: {worktree_path}\n# started: {ts}\n# cap_s: {cap_s}\n\n")
+            f.write(f"# afk claude session log\n# subtask: {subtask_key}\n# cwd: {worktree_path}\n# started: {ts}\n# cap_s: {cap_s}\n# args: {args!r}\n# afk_plugin_dir: {afk_plugin_dir!r}\n\n")
             f.flush()
             try:
                 proc = subprocess.run(
-                    ["claude", "--print", "--dangerously-skip-permissions", f"/afk:execute {subtask_key}"],
+                    args,
                     cwd=str(worktree_path),
                     stdout=f,
                     stderr=subprocess.STDOUT,
