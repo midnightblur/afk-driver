@@ -689,25 +689,12 @@ def main(
 
 
 def _render_digest_with_sweep(record, warnings: Sequence[SweepWarning]) -> str:
-    """Prepend a ``## Sweeper warnings`` section to ST09's digest output.
-
-    ST09 owns the canonical digest writer; this shim keeps the sweeper
-    warnings visible in the morning digest even before ST09 lands its
-    own sweeper-aware render path. When ST09 ships a dedicated parameter
-    on ``format_digest`` for warnings, this shim collapses into a single
-    call.
+    """Thin alias kept for backwards-compatibility with the ST08 cli wiring
+    and its tests. ST09 moved the sweeper-warnings block into
+    ``digest_writer.format_digest``'s own signature; this shim just
+    forwards. New callers should invoke ``format_digest`` directly.
     """
-    body = format_digest(record)
-    if not warnings:
-        return body
-    header = ["## Sweeper warnings", ""]
-    for w in warnings:
-        if w.error:
-            header.append(f"- `{w.issue_id}` — {w.action} ({w.error})")
-        else:
-            header.append(f"- `{w.issue_id}` — {w.action}")
-    header.append("")
-    return "\n".join(header) + body
+    return format_digest(record, warnings)
 
 
 if __name__ == "__main__":
