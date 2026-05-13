@@ -78,13 +78,23 @@ def ensure(spec: WorktreeSpec) -> Path:
     3. Branch is brand-new — ``git worktree add -b BRANCH PATH BASE`` as
        before.
 
-    Asset bootstrap (``bootstrap_assets``) runs only when this call actually
-    creates the worktree directory; reusing an existing path leaves the
-    user's tooling config intact.
+    Asset bootstrap (``bootstrap_assets``) runs on every ``ensure()`` call
+    against a managed worktree path so stale worktrees — created by older
+    AFK installs that predated bootstrap, or by an install that has since
+    been replaced — self-heal on next pickup. Helpers are idempotent and
+    skip-on-exist for committed ``CLAUDE.md``, so the worktree's git
+    status stays clean and ``validate_state`` does not regress.
+
+    When ``spec.path_override`` is set the worktree is foreign (user
+    opened it themselves, e.g. via ``new-task`` / IntelliJ), so we leave
+    the user's tooling alone and skip the heal — re-bootstrapping there
+    would clobber any ``.mcp.json`` / ``.claude/`` the user has tuned.
     """
     if spec.path.exists():
         reset_to_clean(spec)
         validate_state(spec)
+        if spec.path_override is None:
+            bootstrap_assets(spec.repo_root, spec.path)
         return spec.path
     spec.worktree_root.mkdir(parents=True, exist_ok=True)
     if _branch_exists_local(spec.repo_root, spec.branch):

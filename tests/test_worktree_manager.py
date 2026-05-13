@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -569,6 +570,60 @@ def test_find_worktree_for_branch_returns_none_when_branch_not_checked_out(tmp_p
     assert find_worktree_for_branch(main, "kapteyn/development/mvu/unchecked") is None
     # Also: completely unknown branch.
     assert find_worktree_for_branch(main, "does/not/exist") is None
+
+
+def test_ensure_re_bootstraps_managed_worktree_on_re_entry(tmp_path: Path):
+    """Stale-worktree heal: a managed worktree created before bootstrap_assets
+    shipped (or by an older install that has since been replaced) is missing
+    .mcp.json / .claude/. Pass 2 calls ensure(spec) and the assets self-heal.
+    Without this, claude sessions in old worktrees silently miss MCP servers,
+    skills, and settings until manual intervention."""
+    main, _ = _init_main_with_origin(tmp_path)
+    _seed_intellij_assets(main)
+    spec = _spec(main, tmp_path / "wt")
+    path = ensure(spec)
+
+    # Simulate a worktree from before bootstrap shipped: nuke the assets.
+    (path / ".mcp.json").unlink()
+    shutil.rmtree(path / ".claude")
+    shutil.rmtree(path / ".run")
+    shutil.rmtree(path / ".idea")
+
+    again = ensure(spec)
+    assert again == path
+    assert (path / ".mcp.json").read_text(encoding="utf-8") == '{"mcpServers": {}}\n'
+    assert (path / ".claude" / "settings.local.json").is_file()
+    assert (path / ".claude" / "hooks" / "pre-commit.sh").is_file()
+    assert (path / ".run" / "App.run.xml").is_file()
+    assert (path / ".idea" / "workspace.xml").is_file()
+    porcelain = _run(path, "status", "--porcelain").strip()
+    assert porcelain == "", "re-bootstrap must keep tree clean (assets are gitignored)"
+
+
+def test_ensure_does_not_rebootstrap_path_override_worktree(tmp_path: Path):
+    """Foreign path_override worktrees belong to the user (IntelliJ via
+    new-task etc.). Re-bootstrap would clobber any .mcp.json / .claude
+    the user has tuned for their own session — keep hands off."""
+    main, _ = _init_main_with_origin(tmp_path)
+    _seed_intellij_assets(main)  # main HAS assets that would otherwise be copied
+    foreign = tmp_path / "user" / "feature-Y"
+    _run(main, "worktree", "add", "-b", "kapteyn/development/mvu/feature-y", str(foreign), "master")
+    # User-tuned .mcp.json in the foreign worktree we must preserve verbatim:
+    (foreign / ".mcp.json").write_text('{"mcpServers": {"USER_OWNED": {}}}\n', encoding="utf-8")
+
+    spec = WorktreeSpec(
+        repo_root=main,
+        worktree_root=tmp_path / "wt",
+        parent_id="P2P-6666",
+        base_branch="master",
+        branch_override="kapteyn/development/mvu/feature-y",
+        path_override=foreign,
+    )
+    ensure(spec)
+
+    assert (foreign / ".mcp.json").read_text(encoding="utf-8") == '{"mcpServers": {"USER_OWNED": {}}}\n'
+    # And bootstrap-only assets that main has but foreign didn't never appear:
+    assert not (foreign / ".claude").exists()
 
 
 def test_ensure_auto_recovers_from_dirty_worktree_on_re_entry(tmp_path: Path):
