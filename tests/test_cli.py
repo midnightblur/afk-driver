@@ -51,6 +51,7 @@ def test_real_claude_runner_invokes_claude_non_interactively(monkeypatch, tmp_pa
         _emit_marker(kw["stdout"], "success", "all green")
         return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
+    monkeypatch.setattr("afk_driver.cli._detect_afk_plugin_dir", lambda: None)
     monkeypatch.setattr("afk_driver.cli.subprocess.run", fake_run)
     runner = _make_claude_runner(tmp_path / "logs")
     out = runner("P2P-1230", tmp_path, 60)
@@ -89,6 +90,7 @@ def test_real_claude_runner_marker_wins_over_timeout(monkeypatch, tmp_path):
         _emit_marker(kw["stdout"], "test_fail", "one failure, retry")
         raise subprocess.TimeoutExpired(cmd=args, timeout=kw.get("timeout"))
 
+    monkeypatch.setattr("afk_driver.cli._detect_afk_plugin_dir", lambda: None)
     monkeypatch.setattr("afk_driver.cli.subprocess.run", fake_run)
     runner = _make_claude_runner(tmp_path / "logs")
     out = runner("P2P-1230", tmp_path, 30)
@@ -149,6 +151,7 @@ def test_real_claude_runner_marker_wins_over_nonzero_exit(monkeypatch, tmp_path)
             args=args, returncode=2, stdout="", stderr=""
         )
 
+    monkeypatch.setattr("afk_driver.cli._detect_afk_plugin_dir", lambda: None)
     monkeypatch.setattr("afk_driver.cli.subprocess.run", fake_run)
     runner = _make_claude_runner(tmp_path / "logs")
     out = runner("P2P-1230", tmp_path, 60)
@@ -177,6 +180,7 @@ def test_real_claude_runner_full_marker_round_trip_for_every_status(monkeypatch,
                 return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
             return fake_run
 
+        monkeypatch.setattr("afk_driver.cli._detect_afk_plugin_dir", lambda: None)
         monkeypatch.setattr("afk_driver.cli.subprocess.run", make_fake())
         runner = _make_claude_runner(tmp_path / f"logs-{i}")
         out = runner(f"P2P-{2000 + i}", tmp_path, 60)
