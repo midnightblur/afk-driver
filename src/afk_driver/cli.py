@@ -254,8 +254,8 @@ def main(
     )
     gitlab = GitLabClient(runner=glab_runner_factory())
     runner = Runner(
-        jira=jira,
-        gitlab=gitlab,
+        tracker=jira,
+        scm=gitlab,
         worktrees=_WorktreeAdapter(),
         claude_runner=claude_runner_factory(config.log_root),
         config=config,

@@ -113,6 +113,26 @@ class FakeJira:
     def flip_acceptance_checkboxes(self, key: str) -> None:
         self.flips.append(key)
 
+    # ------------------------------------------------------------------
+    # IssueTracker Protocol surface — ST07 routes the runner through these
+    # method names. FakeJira mirrors JiraClient's ST02 aliases: each
+    # phase-semantic method delegates to ``transition`` with the legacy
+    # Nakisa transition-label so the existing assertions on
+    # ``self.transitions == [(key, "Start Designing"), ...]`` keep working.
+    # ------------------------------------------------------------------
+
+    def start_designing(self, child_id: str) -> None:
+        self.transition(child_id, "Start Designing")
+
+    def start_developing(self, child_id: str) -> None:
+        self.transition(child_id, "Start Development")
+
+    def request_cr_merge(self, child_id: str) -> None:
+        self.transition(child_id, "Request CR & Merge")
+
+    def revert_to_pending(self, child_id: str) -> None:
+        self.transition(child_id, "Request Development")
+
 
 class FakeGitLab:
     def __init__(self):
@@ -313,8 +333,8 @@ def _runner(
     else:
         claude_to_use = claude
     return Runner(
-        jira=jira,
-        gitlab=gitlab,
+        tracker=jira,
+        scm=gitlab,
         worktrees=worktrees,
         claude_runner=claude_to_use,
         config=cfg,
@@ -1322,6 +1342,21 @@ def test_runner_skips_parent_when_mr_lookup_is_ambiguous(tmp_path):
     assert [s.status for s in by_key["P2P-CLEAN"].subtasks] == ["success"]
 
 
+def test_runner_record_carries_backend_discriminator_for_jira_default(tmp_path):
+    """ST07: ``RunRecord.backend`` is the discriminator column the digest
+    writer uses to render the "backend" column. Legacy single-repo Jira
+    callers construct Runner without ``repo_coords`` and must see
+    ``backend == "jira"`` so existing digest output is byte-for-byte
+    unchanged (PRD §"Backend abstraction" — "byte-for-byte unchanged
+    on the Jira+GitLab path")."""
+    j = FakeJira([], {})
+    g, w = FakeGitLab(), FakeWorktrees()
+    r = _runner(j, g, w, lambda *a: ClaudeOutcome("success"), tmp_path=tmp_path)
+    rec = r.one_pass()
+    assert rec.backend == "jira"
+    assert rec.repo_failures == []
+
+
 def test_runner_uses_foreign_worktree_path_when_branch_already_checked_out(tmp_path):
     """If the discovered branch is already checked out at a worktree
     outside the managed root (user opened it in IntelliJ via ``new-task``),
@@ -1352,3 +1387,395 @@ def test_runner_uses_foreign_worktree_path_when_branch_already_checked_out(tmp_p
     # And spec.branch is still the discovered one.
     assert all(s.branch == "kapteyn/development/mvu/some-feature" for s in w.ensured)
     assert rec.parents[0].subtasks[0].status == "success"
+
+
+# --- GitHub backend: per-(repo, parent) outer loop (ST07) ------------------
+
+
+@dataclass
+class _GhSubIssue:
+    """IssueSummary-compatible record for the GitHub multi-repo tests.
+
+    The runner's per-parent loop reads ``.key`` / ``.summary`` /
+    ``.parent_key`` off each queued sub-issue (existing IssueSummary
+    contract). The GitHub adapter's Protocol return type is the leaner
+    ``SubIssueRef(id, parent_id, scope_globs)``; ST07's runner-side
+    ``_drain_issue_list`` falls back to ``.parent_id`` when
+    ``.parent_key`` is absent (see ``Runner._issue_parent_key``), but
+    ``.summary`` is read directly inside ``_process_subtask`` — so the
+    tests pass the richer shape rather than the bare ``SubIssueRef``.
+    """
+
+    key: str
+    parent_key: str
+    summary: str = ""
+    issuetype: str = "SubTask"
+
+
+class _FakeGhTracker:
+    """Minimal ``IssueTracker`` fake covering the runner's GitHub call
+    sites: ``list_pickable`` for the multi-repo outer loop, ``get_parent``
+    + ``get_target_branch`` for ``Runner._get_parent_fields``, and the
+    four phase-transition aliases the runner now drives via Protocol
+    method names (``start_designing`` / ``start_developing`` /
+    ``request_cr_merge`` / ``revert_to_pending``). Other Protocol methods
+    are stubbed; the GitHub-side ``comment`` is recorded so abort-routing
+    assertions can verify the dual-comment pattern.
+    """
+
+    def __init__(self, issues, parents, target_branches=None):
+        self._issues = list(issues)
+        self._parents = dict(parents)  # parent_id -> ParentRef-like
+        self._target_branches = dict(target_branches or {})
+        self.transitions: list[tuple[str, str]] = []
+        self.comments: list[tuple[str, str]] = []
+        self.list_pickable_calls: int = 0
+
+    # IssueTracker — queue discovery
+    def list_pickable(self):
+        self.list_pickable_calls += 1
+        return list(self._issues)
+
+    def list_stuck_subissues(self):
+        return []
+
+    # IssueTracker — parent resolution
+    def get_parent(self, child_id):
+        from afk_driver.tracker_protocol import ParentRef
+        parent_id = next(
+            (p for p in self._parents if any(
+                i.key == child_id and i.parent_key == p for i in self._issues
+            )),
+            "",
+        )
+        title = (self._parents.get(parent_id) or {}).get("title", "")
+        return ParentRef(id=parent_id or "", backend="github", title=title)
+
+    def get_target_branch(self, parent_id):
+        return self._target_branches.get(parent_id, "main")
+
+    # IssueTracker — phase transitions
+    def start_designing(self, child_id):
+        self.transitions.append((child_id, "afk:designing"))
+
+    def start_developing(self, child_id):
+        self.transitions.append((child_id, "afk:developing"))
+
+    def request_cr_merge(self, child_id):
+        self.transitions.append((child_id, "afk:cr-merge"))
+
+    def revert_to_pending(self, child_id):
+        self.transitions.append((child_id, "afk:pending"))
+
+    def close(self, child_id, reason):
+        self.transitions.append((child_id, f"close:{reason}"))
+
+    # IssueTracker — body splices + comments
+    def splice_notes_block(self, parent_id, body):
+        pass
+
+    def comment(self, child_id, body):
+        self.comments.append((child_id, body))
+
+
+def _gh_issue(repo_slug, number, parent_number, summary=""):
+    """Build a ``_GhSubIssue`` with ``owner/repo#N`` ids matching the
+    runner's per-repo grouping rule (``Runner._group_issues_by_repo``)."""
+    return _GhSubIssue(
+        key=f"{repo_slug}#{number}",
+        parent_key=f"{repo_slug}#{parent_number}",
+        summary=summary,
+    )
+
+
+def _gh_parent(title="Parent on GitHub"):
+    return {"title": title}
+
+
+def _gh_runner(
+    tracker: _FakeGhTracker,
+    scm: FakeGitLab,
+    worktrees: FakeWorktrees,
+    *,
+    tmp_path: Path,
+    repo_clone_manager,
+    mode: str = "all-repos",
+    repo_coords=None,
+):
+    """Construct a Runner wired for the GitHub backend.
+
+    Uses ``FakeGitLab`` for the Scm slot — the runner still talks to the
+    Scm via the GitLab-shape kwargs surface inside ``_bootstrap_for_work``
+    (a documented migration boundary on the ``Runner`` class docstring);
+    both ``GitLabClient`` and ``GitHubPrClient`` expose this surface, so
+    the fake is shape-compatible.
+    """
+    from afk_driver.backend_select import RepoCoords
+    from afk_driver.config import GithubConfig, defaults
+    from dataclasses import replace
+    cfg = defaults()
+    cfg = replace(
+        cfg,
+        worktree_root=tmp_path / "wt",
+        log_root=tmp_path / "logs",
+        digest_root=tmp_path / "dg",
+        retry_count=3,
+        github=GithubConfig(mode=mode, auto_clone_root=str(tmp_path / "clones")),
+    )
+    coords = repo_coords or RepoCoords(backend="github", host="github.com")
+
+    # Auto-dirty wrapper so a "success" claude marks the latest worktree
+    # dirty — mirrors the Jira test helper. Required for the auto-commit
+    # gate to consider the run a real success.
+    def claude(key, path, cap):
+        if worktrees.ensured:
+            worktrees.mark_dirty(worktrees.ensured[-1])
+        return ClaudeOutcome("success")
+
+    return Runner(
+        tracker=tracker,
+        scm=scm,
+        worktrees=worktrees,
+        claude_runner=claude,
+        config=cfg,
+        repo_root=tmp_path / "unused",
+        repo_coords=coords,
+        repo_clone_manager=repo_clone_manager,
+        progress=lambda msg: None,
+    )
+
+
+def test_github_multi_repo_groups_by_owner_repo_and_clones_each(tmp_path):
+    """ADR-0003 outer-loop happy path: ``list_pickable`` returns issues
+    spanning two repos; the runner groups by ``(owner, repo)``, calls
+    ``ensure_clone`` once per repo, then drives each repo's parents inside
+    that clone's path. ``RunRecord.parents`` carries one ``ParentRun`` per
+    parent encountered; ``RunRecord.repo_failures`` is empty when every
+    clone succeeds.
+    """
+    issues = [
+        _gh_issue("acme/repo-a", 10, parent_number=1, summary="alpha"),
+        _gh_issue("acme/repo-a", 11, parent_number=1, summary="beta"),
+        _gh_issue("acme/repo-b", 20, parent_number=2, summary="gamma"),
+    ]
+    parents = {
+        "acme/repo-a#1": _gh_parent("Parent A"),
+        "acme/repo-b#2": _gh_parent("Parent B"),
+    }
+    tracker = _FakeGhTracker(issues, parents, target_branches={
+        "acme/repo-a#1": "main",
+        "acme/repo-b#2": "main",
+    })
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+
+    clone_calls: list[tuple[str, str, Path]] = []
+
+    def fake_ensure_clone(owner, repo, root):
+        clone_calls.append((owner, repo, Path(root)))
+        path = Path(root) / "github" / owner / repo
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=fake_ensure_clone,
+    )
+    rec = r.one_pass()
+
+    # Discovery: one ``list_pickable`` call, two repos → two clone calls.
+    assert tracker.list_pickable_calls == 1
+    assert [(o, r) for o, r, _ in clone_calls] == [
+        ("acme", "repo-a"), ("acme", "repo-b"),
+    ]
+    # Two parents processed, no per-repo failures.
+    assert [p.key for p in rec.parents] == ["acme/repo-a#1", "acme/repo-b#2"]
+    assert rec.repo_failures == []
+    assert rec.backend == "github"
+    # Phase transitions went through Protocol method names: ``afk:designing``,
+    # ``afk:developing``, ``afk:cr-merge`` (no ``Start Designing`` strings).
+    target_labels = {t for _, t in tracker.transitions}
+    assert "afk:developing" in target_labels
+    assert "afk:cr-merge" in target_labels
+    # No Nakisa transition strings leaked through.
+    assert not any("Start " in t for _, t in tracker.transitions)
+
+
+def test_github_multi_repo_repo_failure_isolates_and_records(tmp_path):
+    """ADR-0003 ``skip_repo`` rung: ``ensure_clone`` raises for one repo;
+    the runner appends a ``RepoFailed`` entry and continues to the next
+    repo. Sibling repos must still drain normally (per-repo isolation —
+    not per-run halt).
+    """
+    issues = [
+        _gh_issue("acme/broken", 10, parent_number=1, summary="a"),
+        _gh_issue("acme/healthy", 20, parent_number=2, summary="b"),
+    ]
+    parents = {
+        "acme/broken#1": _gh_parent("Doomed"),
+        "acme/healthy#2": _gh_parent("OK"),
+    }
+    tracker = _FakeGhTracker(issues, parents)
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+
+    def fake_ensure_clone(owner, repo, root):
+        if repo == "broken":
+            raise RuntimeError("simulated clone timeout")
+        path = Path(root) / "github" / owner / repo
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=fake_ensure_clone,
+    )
+    rec = r.one_pass()
+
+    # Healthy repo drained; broken repo isolated as RepoFailed.
+    assert [p.key for p in rec.parents] == ["acme/healthy#2"]
+    assert len(rec.repo_failures) == 1
+    failed = rec.repo_failures[0]
+    assert failed.backend == "github"
+    assert failed.owner == "acme"
+    assert failed.repo == "broken"
+    assert "simulated clone timeout" in failed.reason
+
+
+def test_github_multi_repo_auth_error_during_discovery_halts_run(tmp_path):
+    """PRD §"Pre-flight checks": auth-level failures (raised by
+    ``tracker.list_pickable``) propagate up and halt the whole run. The
+    runner must NOT wrap the discovery call in per-repo isolation —
+    that's reserved for clone-fail / missing-default-branch (ADR-0003
+    "auth-level failures halt").
+    """
+    class _AuthFailingTracker(_FakeGhTracker):
+        def list_pickable(self):
+            raise PermissionError("auth: token expired")
+
+    tracker = _AuthFailingTracker([], {})
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=lambda o, r, root: tmp_path / "never",
+    )
+    with pytest.raises(PermissionError):
+        r.one_pass()
+
+
+def test_github_multi_repo_per_repo_cwd_isolation(tmp_path):
+    """Within the outer loop each parent's worktree is rooted in the
+    matching repo's clone path — repo-A's parents must not spawn
+    worktrees inside repo-B's checkout (ADR-0003 implicit invariant:
+    each parent's sub-issues drain within one repo's CWD).
+    """
+    issues = [
+        _gh_issue("acme/repo-a", 10, parent_number=1, summary="a"),
+        _gh_issue("acme/repo-b", 20, parent_number=2, summary="b"),
+    ]
+    parents = {
+        "acme/repo-a#1": _gh_parent("A"),
+        "acme/repo-b#2": _gh_parent("B"),
+    }
+    tracker = _FakeGhTracker(issues, parents)
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+
+    clones: dict[str, Path] = {}
+
+    def fake_ensure_clone(owner, repo, root):
+        path = Path(root) / "github" / owner / repo
+        path.mkdir(parents=True, exist_ok=True)
+        clones[f"{owner}/{repo}"] = path
+        return path
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=fake_ensure_clone,
+    )
+    r.one_pass()
+
+    # Each WorktreeSpec carries the parent's owning repo as its repo_root.
+    # repo-a parent → spec.repo_root == clone for repo-a; same for repo-b.
+    spec_for_parent_a = next(s for s in w.ensured if s.parent_id == "acme/repo-a#1")
+    spec_for_parent_b = next(s for s in w.ensured if s.parent_id == "acme/repo-b#2")
+    assert spec_for_parent_a.repo_root == clones["acme/repo-a"]
+    assert spec_for_parent_b.repo_root == clones["acme/repo-b"]
+    assert spec_for_parent_a.repo_root != spec_for_parent_b.repo_root
+
+
+def test_github_cwd_mode_uses_single_repo_flow_no_outer_loop(tmp_path):
+    """When ``github.mode = "cwd"`` (auto-detect from origin remote, not
+    multi-repo), the runner takes the single-repo path: no outer loop,
+    no ``repo_clone_manager`` calls, just one queue-discovery + per-
+    parent drain rooted at ``self.repo_root``."""
+    from afk_driver.backend_select import RepoCoords
+    issues = [_gh_issue("acme/single", 5, parent_number=1, summary="solo")]
+    parents = {"acme/single#1": _gh_parent("Solo Parent")}
+    tracker = _FakeGhTracker(issues, parents)
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+    clone_invocations = 0
+
+    def fake_ensure_clone(owner, repo, root):
+        nonlocal clone_invocations
+        clone_invocations += 1
+        return tmp_path / "github" / owner / repo
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=fake_ensure_clone,
+        mode="cwd",  # single-repo
+        repo_coords=RepoCoords(
+            backend="github", host="github.com",
+            owner="acme", repo="single",
+        ),
+    )
+    rec = r.one_pass()
+
+    # No outer-loop clone calls — single-repo mode operates on self.repo_root.
+    assert clone_invocations == 0
+    assert rec.backend == "github"
+    # One parent processed.
+    assert [p.key for p in rec.parents] == ["acme/single#1"]
+
+
+def test_github_backend_skips_jira_only_side_effects(tmp_path):
+    """GitHub backend has no Nakisa workflow validator (PRD §"Tracker-
+    only fields"); the runner must skip the Jira-only side-effects:
+    ``assign``, gate-field writes, acceptance flips, implementation-
+    notes ADF splice. Phase transitions DO fire — they're the only
+    cross-backend semantically shared step.
+    """
+    issues = [_gh_issue("acme/repo", 10, parent_number=1, summary="x")]
+    parents = {"acme/repo#1": _gh_parent("P")}
+    tracker = _FakeGhTracker(issues, parents)
+    scm = FakeGitLab()
+    w = FakeWorktrees()
+
+    def fake_ensure_clone(owner, repo, root):
+        path = Path(root) / "github" / owner / repo
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    r = _gh_runner(
+        tracker, scm, w,
+        tmp_path=tmp_path,
+        repo_clone_manager=fake_ensure_clone,
+    )
+    r.one_pass()
+
+    # Phase transitions fired through Protocol method names.
+    assert any(t == "afk:developing" for _, t in tracker.transitions)
+    # No Jira-side helpers were invoked — the fake tracker does not expose
+    # ``assign`` / ``flip_acceptance_checkboxes`` / ``set_fields`` /
+    # ``update_implementation_notes``, so any call would have raised
+    # AttributeError and aborted the run. The fact that one_pass
+    # completes is the assertion that those code paths are gated off.

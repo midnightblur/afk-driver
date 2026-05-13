@@ -23,6 +23,8 @@ from typing import Any, Callable, Literal, Mapping, Optional
 
 from afk_driver.config import DriverConfig
 from afk_driver.gitlab_client import SubtaskItem
+from afk_driver.scm_protocol import Scm
+from afk_driver.tracker_protocol import IssueTracker
 from afk_driver.worktree_manager import WorktreeError, WorktreeSpec
 
 
@@ -86,11 +88,46 @@ class ParentRun:
     duration_s: float = 0.0
 
 
+@dataclass(frozen=True)
+class RepoFailed:
+    """Per-repo failure record for the GitHub multi-repo outer loop.
+
+    Emitted by ``Runner._drain_repo`` when ``repo_clone_manager.ensure_clone``
+    raises, when the queue-discovery groups a repo whose default branch can't
+    be resolved, or when any other repo-scoped pre-condition fails before the
+    per-parent loop opens. ST09's digest writer renders one row per entry so
+    the morning summary surfaces which repos were skipped and why (ADR-0003
+    flowchart ``skip_repo`` rung — SDD §7 failure-recovery matrix row
+    "``gh repo clone`` fails").
+
+    ``backend`` is the discriminator (``"github"`` | ``"jira"``); the
+    ``owner`` / ``repo`` pair are the per-repo coordinates (empty strings on
+    backends that have no notion of multi-repo, but the type is still
+    populated so consumers can rely on the field's presence).
+    """
+
+    backend: str
+    owner: str = ""
+    repo: str = ""
+    reason: str = ""
+
+
 @dataclass
 class RunRecord:
+    """One drain-pass result.
+
+    Backwards-compatible with the pre-ST07 shape: ``parents`` remains the
+    canonical list the digest writer iterates. ST07 adds ``backend`` (digest
+    discriminator column per SDD §7 use-case 4) and ``repo_failures`` (per-
+    repo skip records — see ``RepoFailed``); both default to empty / "jira"
+    so the existing Jira+GitLab path constructs identically.
+    """
+
     started_iso: str
     ended_iso: str = ""
+    backend: str = "jira"
     parents: list[ParentRun] = field(default_factory=list)
+    repo_failures: list[RepoFailed] = field(default_factory=list)
 
 
 class PreflightError(RuntimeError):
@@ -121,14 +158,93 @@ def preflight(
 
 @dataclass
 class Runner:
-    jira: Any
-    gitlab: Any
+    """Orchestrator.
+
+    Post-ST07 the runner is **Protocol-driven**: it accepts an
+    ``IssueTracker`` and an ``Scm`` (not concrete ``JiraClient`` /
+    ``GitLabClient``) so the same orchestration layer drives both the
+    Jira+GitLab and the GitHub Issues+PR backends (SDD §8 row
+    "runner (modified)", PRD §"Backend abstraction").
+
+    Migration boundary — NOT all Jira-side calls have been lifted onto the
+    Protocol surface yet. The runner still invokes the following methods
+    directly on the concrete Jira adapter when the active backend is Jira;
+    these are Nakisa-workflow-specific fixtures the PRD §"Backend
+    abstraction" explicitly leaves "off by default on GitHub" and ST02's
+    docstring on each stub method names ST07 as where they would be lifted:
+
+      * ``get_my_account_id`` / ``assign`` — Nakisa workflow validator on
+        Start Development demands an assignee; GitHub backend has no
+        equivalent gate, so this code path stays Jira-only.
+      * ``transition`` for ``Start Designing`` / ``Start Development`` /
+        ``Request CR & Merge`` / ``Request Development`` — phase transitions
+        are NOW routed through Protocol aliases (``start_designing``,
+        ``start_developing``, ``request_cr_merge``, ``revert_to_pending``)
+        which both adapters implement; the legacy ``transition(key, name)``
+        signature is no longer called from the runner.
+      * ``update_implementation_notes`` — JiraClient renders bullet-at-a-time
+        ADF; the Protocol's ``splice_notes_block(parent_id, body)`` takes a
+        whole rendered block. ST02 left ``splice_notes_block`` as a stub on
+        ``JiraClient`` with the note "ST07 will route the runner through
+        this; until then the legacy bullet-at-a-time path stays the
+        canonical writer." Per spec rule 4 (option b) we keep the legacy
+        path and document this boundary; lifting it requires a separate
+        slice that ports the bullet-rendering logic onto ADF generation in
+        the adapter and adds GitHub-side parity.
+      * ``set_fields`` / ``set_field_if_unset`` — Nakisa Dev-CR/Merge gate
+        custom fields (merge-request-link, SRED eligibility, time
+        estimation, SRED rationale, A+ Clarity). GitHub backend has no
+        analogue (PRD §"Tracker-only fields" — "Nakisa-specific gates are
+        dropped on the GitHub path").
+      * ``flip_acceptance_checkboxes`` — Jira ADF parses ``[ ]``/``[x]``
+        markers inside the Acceptance section; GitHub renders task lists
+        differently. The Acceptance flip is Jira-only by design.
+      * ``get_status`` — used only by the ``contract_mismatch`` routing
+        which fetches the producer SubTask's workflow status. GitHub's
+        equivalent is the ``afk:*`` phase label; lifting this requires a
+        Protocol method that returns the phase rather than the raw status
+        string. Out of scope for ST07.
+
+    The runner branches on ``record.backend`` (set from
+    ``repo_coords.backend`` when supplied; otherwise ``"jira"`` for the
+    legacy single-repo flow) so Jira-only calls execute only under the
+    Jira backend. When ``record.backend == "github"`` the Jira-only steps
+    are skipped — the GitHub adapter's phase labels carry the same
+    semantics without the gate-field ceremony.
+
+    Scm migration boundary — the runner still calls a small set of
+    GitLab-shape methods directly on ``self.scm`` (``find_open_mr_by_parent_key``,
+    ``open_draft_mr(source_branch=..., target_branch=..., title=...,
+    description=..., assignee=...)``, ``update_subtasks_checklist``). Each
+    of these has a Protocol counterpart (``find_open_pr_by_parent``,
+    ``open_draft_pr(OpenDraftPrSpec)``, ``splice_pr_block``); lifting the
+    runner onto the Protocol surface fully is out of scope for ST07 (the
+    Protocol-typed parameters and the per-(repo, parent) outer loop are
+    the load-bearing changes here). For now both ``GitLabClient`` and
+    ``GitHubPrClient`` are expected to expose the GitLab-shape surface
+    when wired into the runner; the GitHub adapter's Protocol surface is
+    additive (``find_open_pr_by_parent`` / ``open_draft_pr`` /
+    ``splice_pr_block`` plus the GitLab-shape compatibility shims).
+    """
+
+    tracker: IssueTracker
+    scm: Scm
     worktrees: Any
     claude_runner: ClaudeRunner
     config: DriverConfig
     repo_root: Path
     label: str = "afk-agents"
     project_key: str = "P2P"
+    # Composition-root binding from ``backend_select.Backend``. When supplied
+    # and ``repo_coords.backend == "github"`` AND ``config.github.mode ==
+    # "all-repos"`` the runner switches on the per-repo outer loop (ADR-0003
+    # flowchart). The legacy single-repo flow is preserved when this is
+    # ``None`` — existing Jira+GitLab callers construct without it.
+    repo_coords: Optional[Any] = None
+    # Optional injectable for ``repo_clone_manager.ensure_clone``. Accepts
+    # ``(owner, repo, root) -> Path``. Only used when the multi-repo outer
+    # loop fires; otherwise ignored.
+    repo_clone_manager: Optional[Callable[[str, str, Path], Path]] = None
     now_iso: Callable[[], str] = field(
         default_factory=lambda: lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -138,44 +254,227 @@ class Runner:
     # pass a no-op callable to keep pytest output clean.
     progress: Callable[[str], None] = field(default=lambda msg: print(msg, flush=True))
 
+    # ------------------------------------------------------------------
+    # Legacy attribute aliases (read-only) so the migration boundary is
+    # explicit: code paths that call ``jira.X`` are routing through the
+    # Jira-specific surface listed in the class docstring. Removing these
+    # aliases requires lifting the corresponding Jira-only calls onto the
+    # ``IssueTracker`` / ``Scm`` Protocols.
+    # ------------------------------------------------------------------
+
+    @property
+    def jira(self):
+        """Jira-only surface alias for ``self.tracker``. Used by code paths
+        documented in the class docstring's "Migration boundary" list —
+        ``get_my_account_id``, ``assign``, ``set_fields``,
+        ``set_field_if_unset``, ``update_implementation_notes``,
+        ``flip_acceptance_checkboxes``, ``get_status``, ``comment``,
+        ``transition`` (legacy — phase transitions now go through Protocol
+        aliases). Branched on ``record.backend`` so these execute only on
+        the Jira backend.
+        """
+        return self.tracker
+
+    @property
+    def gitlab(self):
+        """GitLab-only surface alias for ``self.scm``. Used by code paths
+        that still call ``open_draft_mr`` (kwargs flavour),
+        ``find_open_mr_by_parent_key``, ``update_subtasks_checklist`` — all
+        GitLab-shaped APIs that ST02 kept alongside the Scm Protocol
+        methods. The GitHub adapter exposes the Protocol surface; lifting
+        the remaining call sites onto Protocol methods is out of scope for
+        ST07.
+        """
+        return self.scm
+
     def one_pass(self) -> RunRecord:
-        record = RunRecord(started_iso=self.now_iso())
-        self.progress(f"[afk] one_pass start (project={self.project_key} label={self.label})")
+        """Run a single drain pass.
+
+        Dispatches between two execution shapes based on the active backend:
+
+        1. **Single-repo (Jira+GitLab, or GitHub with ``mode = "cwd"``)** —
+           the historical flow. One JQL/search call lists pickable
+           sub-issues, parents are grouped, and ``_process_parent`` /
+           ``_process_standalone`` drive each to completion against
+           ``self.repo_root``.
+        2. **Multi-repo (GitHub with ``mode = "all-repos"``)** — per
+           ADR-0003. Queue discovery still returns a flat list of
+           sub-issue refs, but each ref carries its ``owner/repo`` in its
+           id. The runner groups by repo and delegates to ``_drain_repo``
+           per group, with each group wrapped in a per-repo isolation
+           ``try/except`` so a clone failure on repo A does not abort
+           repos B…Z. Auth-level failures (raised by ``tracker`` /
+           ``scm`` pre-flight) propagate up and halt the whole run.
+        """
+        backend = self._backend_name()
+        record = RunRecord(started_iso=self.now_iso(), backend=backend)
+        self.progress(
+            f"[afk] one_pass start (backend={backend} project={self.project_key} "
+            f"label={self.label})"
+        )
+
+        if self._is_github_multi_repo():
+            self._drain_github_multi_repo(record)
+        else:
+            self._drain_single_repo(record)
+
+        record.ended_iso = self.now_iso()
+        self.progress(
+            f"[afk] one_pass done ({len(record.parents)} parent(s) processed, "
+            f"{len(record.repo_failures)} repo failure(s))"
+        )
+        return record
+
+    # ------------------------------------------------------------------
+    # Backend dispatch helpers (ST07)
+    # ------------------------------------------------------------------
+
+    def _backend_name(self) -> str:
+        """Return the active backend discriminator.
+
+        Reads ``repo_coords.backend`` when the runner was constructed with
+        a ``Backend`` binding (post-ST08 cli wiring path); falls back to
+        ``"jira"`` for legacy callers (existing single-repo Jira+GitLab
+        flow keeps working without modification).
+        """
+        coords = self.repo_coords
+        if coords is None:
+            return "jira"
+        return getattr(coords, "backend", "jira") or "jira"
+
+    def _is_github_multi_repo(self) -> bool:
+        """True iff this runner should fan-out the per-repo outer loop.
+
+        Three conjuncts: (1) active backend is github, (2)
+        ``config.github.mode == "all-repos"`` (ADR-0003 trigger), and
+        (3) a ``repo_clone_manager`` is wired (test fakes can short-circuit
+        the loop by leaving it as the default ``None`` on the legacy
+        single-repo branch).
+        """
+        if self._backend_name() != "github":
+            return False
+        mode = (self.config.github.mode or "").strip().lower()
+        if mode != "all-repos":
+            return False
+        return self.repo_clone_manager is not None
+
+    def _drain_single_repo(self, record: RunRecord) -> None:
+        """Legacy single-repo drain — wraps the historical body of
+        ``one_pass`` so the multi-repo branch can dispatch to the same
+        per-parent / per-standalone loop without code duplication."""
+        backend = record.backend
         # Cache the authenticated account once; needed before every transition
         # that runs through the "Assignee must be specified" workflow validator.
-        self._account_id = self.jira.get_my_account_id()
-        issues = self.jira.search(
-            f'project = {self.project_key} AND labels = "{self.label}" '
-            f'AND status = "Dev-Pending" ORDER BY rank'
-        )
-        if not issues:
-            self.progress("[afk] no Dev-Pending labelled tickets found; exiting")
-            record.ended_iso = self.now_iso()
-            return record
-        self.progress(f"[afk] found {len(issues)} Dev-Pending labelled ticket(s)")
+        # Jira-only — GitHub backend has no equivalent gate.
+        if backend == "jira":
+            self._account_id = self.jira.get_my_account_id()
+        else:
+            self._account_id = ""
 
-        # Classify: anything with a parent_key is a SubTask under the existing
-        # group-by-parent flow. Anything without is a candidate "standalone"
-        # (Enhancement/Bug labelled directly with no labelled SubTasks driving
-        # it). If a non-subtask ALSO has labelled SubTasks in this same
-        # result, prefer the SubTask flow — a labelled parent in that case is
-        # treated as residual.
+        issues = self._list_pickable_for_single_repo()
+        if not issues:
+            self.progress("[afk] no pickable tickets found; exiting")
+            return
+        self.progress(f"[afk] found {len(issues)} pickable ticket(s)")
+
+        self._drain_issue_list(issues, record)
+
+    def _drain_github_multi_repo(self, record: RunRecord) -> None:
+        """Per-(repo, parent) outer loop for ADR-0003.
+
+        Single ``tracker.list_pickable()`` call discovers the queue across
+        all owned repos; grouping happens here. Each repo is wrapped in a
+        try/except so a clone failure isolates without aborting siblings.
+        Auth-level errors raised by ``list_pickable()`` itself propagate
+        (no try/except around the call) — the PRD §"Pre-flight checks"
+        rule says auth halts.
+        """
+        self._account_id = ""
+        issues = self.tracker.list_pickable()
+        if not issues:
+            self.progress("[afk] no pickable tickets found; exiting")
+            return
+        self.progress(f"[afk] found {len(issues)} pickable ticket(s)")
+
+        groups = _group_issues_by_repo(issues)
+        self.progress(f"[afk] grouped into {len(groups)} repo(s)")
+
+        clone_root = self._auto_clone_root()
+        for (owner, repo), repo_issues in groups.items():
+            try:
+                self._drain_repo(owner, repo, repo_issues, clone_root, record)
+            except _RepoIsolatedError as e:
+                record.repo_failures.append(
+                    RepoFailed(
+                        backend="github", owner=owner, repo=repo, reason=str(e),
+                    )
+                )
+                self.progress(
+                    f"[afk] repo {owner}/{repo}: SKIPPED — {e}"
+                )
+
+    def _drain_repo(
+        self,
+        owner: str,
+        repo: str,
+        repo_issues: list,
+        clone_root: Path,
+        record: RunRecord,
+    ) -> None:
+        """Drain a single repo's parents within the multi-repo outer loop.
+
+        Idempotent clone via ``self.repo_clone_manager.ensure_clone`` is the
+        first step; any failure here raises ``_RepoIsolatedError`` which
+        the caller converts to a ``RepoFailed`` record. Once the working
+        tree exists, the runner swaps ``self.repo_root`` to that path for
+        the duration of this group's parents, then restores it — the
+        per-parent worktree manager reads ``self.repo_root`` to position
+        its per-parent worktrees, and each repo's worktrees must live
+        inside the corresponding clone.
+        """
+        self.progress(f"[afk] repo {owner}/{repo}: {len(repo_issues)} issue(s)")
+        if self.repo_clone_manager is None:
+            raise _RepoIsolatedError("no repo_clone_manager wired")
+        try:
+            repo_path = self.repo_clone_manager(owner, repo, clone_root)
+        except Exception as e:  # noqa: BLE001 — clone errors isolate per repo
+            raise _RepoIsolatedError(f"clone failed: {e}") from e
+
+        saved_root = self.repo_root
+        self.repo_root = Path(repo_path)
+        try:
+            self._drain_issue_list(repo_issues, record)
+        finally:
+            self.repo_root = saved_root
+
+    def _drain_issue_list(self, issues: list, record: RunRecord) -> None:
+        """Shared per-parent / per-standalone fan-out used by both the
+        single-repo path and the per-repo branch of the multi-repo path.
+
+        Classifies into ``by_parent`` (sub-issues with a parent ref) and
+        ``standalones`` (parent-less labelled tickets driven directly).
+        Order is preserved from the input list except that parents already
+        past the pending phase sort first — keeps in-flight work draining
+        before fresh work spawns new worktrees.
+        """
         by_parent: dict[str, list] = defaultdict(list)
         standalone_candidates: list = []
         for issue in issues:
-            if issue.parent_key:
-                by_parent[issue.parent_key].append(issue)
+            parent_key = self._issue_parent_key(issue)
+            if parent_key:
+                by_parent[parent_key].append(issue)
             else:
                 standalone_candidates.append(issue)
         covered_as_parent = set(by_parent.keys())
         standalones = [
-            i for i in standalone_candidates if i.key not in covered_as_parent
+            i for i in standalone_candidates
+            if self._issue_key(i) not in covered_as_parent
         ]
 
-        # Order parent-flow entries: those already past Dev-Pending first.
+        # Order parent-flow entries: those already past pending first.
         ordered: list[tuple[str, dict, list]] = []
         for parent_key, subs in by_parent.items():
-            parent = self.jira.get_parent_fields(parent_key)
+            parent = self._get_parent_fields(parent_key)
             ordered.append((parent_key, parent, subs))
         ordered.sort(key=lambda t: 0 if t[1].get("status") != "Dev-Pending" else 1)
 
@@ -187,9 +486,86 @@ class Runner:
             run = self._process_standalone(standalone)
             record.parents.append(run)
 
-        record.ended_iso = self.now_iso()
-        self.progress(f"[afk] one_pass done ({len(record.parents)} parent(s) processed)")
-        return record
+    def _list_pickable_for_single_repo(self) -> list:
+        """Single-repo queue discovery.
+
+        Jira backend: uses the existing JQL ``search`` directly (Nakisa-
+        specific JQL stays on the runner per the ST02 stub docstring; the
+        Protocol's ``list_pickable`` raises ``NotImplementedError`` on the
+        Jira adapter for the same reason). GitHub backend: delegates to
+        the Protocol method (the GitHub adapter's implementation).
+        """
+        if self._backend_name() == "jira":
+            return self.jira.search(
+                f'project = {self.project_key} AND labels = "{self.label}" '
+                f'AND status = "Dev-Pending" ORDER BY rank'
+            )
+        return self.tracker.list_pickable()
+
+    @staticmethod
+    def _issue_parent_key(issue) -> str:
+        """Return the parent id of an issue ref in a backend-agnostic way.
+
+        Jira ``IssueSummary`` exposes ``parent_key``; GitHub
+        ``SubIssueRef`` exposes ``parent_id``. The runner accepts either
+        shape so ``_drain_issue_list`` can stay backend-agnostic.
+        """
+        if hasattr(issue, "parent_key"):
+            return getattr(issue, "parent_key", "") or ""
+        return getattr(issue, "parent_id", "") or ""
+
+    @staticmethod
+    def _issue_key(issue) -> str:
+        """Return the sub-issue's own id (``IssueSummary.key`` or
+        ``SubIssueRef.id``)."""
+        if hasattr(issue, "key"):
+            return issue.key
+        return getattr(issue, "id", "")
+
+    def _get_parent_fields(self, parent_key: str) -> dict:
+        """Backend-agnostic parent-field fetch.
+
+        Jira backend uses the rich ``get_parent_fields`` (issuetype,
+        fix_versions, target_branch custom field, …). GitHub uses the
+        Protocol's ``get_parent`` for title + ``get_target_branch`` for
+        the branch label, projected into the same dict shape the runner's
+        single-repo code path expects.
+        """
+        if self._backend_name() == "jira":
+            return self.jira.get_parent_fields(parent_key)
+        # GitHub branch: build the parent-fields dict from the Protocol
+        # surface. ``issuetype`` is not part of GitHub's data model —
+        # leave blank so the Bug-vs-Enhancement Start-Designing fork
+        # collapses to the always-skip branch (GitHub uses afk:designing
+        # uniformly regardless of issue category).
+        try:
+            parent_ref = self.tracker.get_parent(parent_key)
+            title = parent_ref.title
+        except Exception:  # noqa: BLE001 - best-effort title fetch
+            title = ""
+        try:
+            target = self.tracker.get_target_branch(parent_key)
+        except Exception:  # noqa: BLE001 - target branch fetch is best-effort
+            target = ""
+        return {
+            "summary": title,
+            "status": "Dev-Pending",  # phase fork is GitHub-uniform
+            "issuetype": "",
+            "fix_versions": ["github"],  # bypass the "no fixVersions" skip
+            "components": [],
+            "target_branch": target,
+        }
+
+    def _auto_clone_root(self) -> Path:
+        """Resolve the on-disk root where per-repo clones live.
+
+        Defaults to ``{config.worktree_root}/github`` per SDD §4 state
+        table row "Cloned repos (GitHub)". An explicit
+        ``config.github.auto_clone_root`` override wins when non-empty.
+        """
+        if self.config.github.auto_clone_root:
+            return Path(self.config.github.auto_clone_root).expanduser()
+        return Path(self.config.worktree_root)
 
     def _process_parent(self, parent_key, parent, subtasks):
         issuetype = parent.get("issuetype", "")
@@ -235,18 +611,25 @@ class Runner:
                     f"[afk] parent {parent_key}: jira side-effect failed — {msg}"
                 )
 
+        on_jira = self._backend_name() == "jira"
         if parent_status == "Dev-Pending":
-            _try_jira("assign parent",
-                      lambda: self.jira.assign(parent_key, self._account_id))
+            if on_jira:
+                # Assignee-required Nakisa workflow validator; GitHub backend
+                # has no equivalent gate (PRD §"Backend abstraction").
+                _try_jira("assign parent",
+                          lambda: self.jira.assign(parent_key, self._account_id))
             # Bug workflow goes Dev-Pending → Dev-Developing directly; only the
             # Enhancement workflow has the intermediate "Start Designing"
             # transition. Verified empirically against P2P-1228 (Bug):
-            # available transitions did not include "Start Designing".
+            # available transitions did not include "Start Designing". On the
+            # GitHub backend the Bug-vs-Enhancement distinction collapses
+            # (one ``afk:designing`` label regardless of issue category),
+            # so issuetype defaults to "" and this branch is skipped.
             if parent.get("issuetype") == "Enhancement":
                 _try_jira("transition Start Designing",
-                          lambda: self.jira.transition(parent_key, "Start Designing"))
+                          lambda: self.tracker.start_designing(parent_key))
             _try_jira("transition Start Development",
-                      lambda: self.jira.transition(parent_key, "Start Development"))
+                      lambda: self.tracker.start_developing(parent_key))
 
         any_aborted = False
         for sub in subtasks:
@@ -272,16 +655,20 @@ class Runner:
             run.rebase = outcome
             self.progress(f"[afk] parent {parent_key}: rebase {outcome}")
             if outcome == "clean":
-                _try_jira("populate Dev-CR/Merge gate fields",
-                          lambda: self._populate_dev_cr_merge_gate(parent_key, mr.web_url))
+                if on_jira:
+                    # Dev-CR/Merge gate-field writes + acceptance flips are
+                    # Nakisa-workflow-specific; GitHub backend has no analogue.
+                    _try_jira("populate Dev-CR/Merge gate fields",
+                              lambda: self._populate_dev_cr_merge_gate(parent_key, mr.web_url))
                 _try_jira("transition Request CR & Merge",
-                          lambda: self.jira.transition(parent_key, "Request CR & Merge"))
-                _try_jira("flip acceptance checkboxes",
-                          lambda: self.jira.flip_acceptance_checkboxes(parent_key))
-                self.progress(f"[afk] parent {parent_key}: transitioned to Dev-CR/Merge")
+                          lambda: self.tracker.request_cr_merge(parent_key))
+                if on_jira:
+                    _try_jira("flip acceptance checkboxes",
+                              lambda: self.jira.flip_acceptance_checkboxes(parent_key))
+                self.progress(f"[afk] parent {parent_key}: transitioned to cr-merge")
             else:
                 _try_jira("rebase-conflict comment",
-                          lambda: self.jira.comment(
+                          lambda: self.tracker.comment(
                               parent_key,
                               f"AFK rebase against `{target_branch}` reported conflicts. "
                               "Resolve manually before merging."))
@@ -332,12 +719,14 @@ class Runner:
                     f"[afk]   subtask {subtask.key}: jira side-effect failed — {msg}"
                 )
 
-        # Lifecycle: Dev-Pending → Dev-Designing → Dev-Developing
-        _try_sub("assign", lambda: self.jira.assign(subtask.key, self._account_id))
+        # Lifecycle: pending → designing → developing
+        on_jira = self._backend_name() == "jira"
+        if on_jira:
+            _try_sub("assign", lambda: self.jira.assign(subtask.key, self._account_id))
         _try_sub("transition Start Designing",
-                 lambda: self.jira.transition(subtask.key, "Start Designing"))
+                 lambda: self.tracker.start_designing(subtask.key))
         _try_sub("transition Start Development",
-                 lambda: self.jira.transition(subtask.key, "Start Development"))
+                 lambda: self.tracker.start_developing(subtask.key))
 
         outcome: Optional[ClaudeOutcome] = None
         pre_tip = self.worktrees.head_sha(spec)
@@ -400,15 +789,22 @@ class Runner:
                 # Code already committed + pushed by this point. sub_run is
                 # "success" no matter what these Jira calls do — we don't
                 # punish the run because Jira refused a workflow transition.
-                _try_sub("populate Dev-CR/Merge gate fields",
-                         lambda: self._populate_dev_cr_merge_gate(subtask.key, mr_url))
+                if on_jira:
+                    _try_sub("populate Dev-CR/Merge gate fields",
+                             lambda: self._populate_dev_cr_merge_gate(subtask.key, mr_url))
                 _try_sub("transition Request CR & Merge",
-                         lambda: self.jira.transition(subtask.key, "Request CR & Merge"))
-                _try_sub("update implementation notes",
-                         lambda: self.jira.update_implementation_notes(
-                             parent_key, subtask.key, subtask.summary))
-                _try_sub("flip acceptance checkboxes",
-                         lambda: self.jira.flip_acceptance_checkboxes(subtask.key))
+                         lambda: self.tracker.request_cr_merge(subtask.key))
+                if on_jira:
+                    # Bullet-at-a-time ADF writer is the canonical Jira path
+                    # (ST02 left the Protocol's whole-block ``splice_notes_block``
+                    # as ``NotImplementedError``); GitHub uses the Protocol
+                    # method via the runner's ADR-0004 ``splice_pr_block``
+                    # neighbour rather than per-bullet ADF.
+                    _try_sub("update implementation notes",
+                             lambda: self.jira.update_implementation_notes(
+                                 parent_key, subtask.key, subtask.summary))
+                    _try_sub("flip acceptance checkboxes",
+                             lambda: self.jira.flip_acceptance_checkboxes(subtask.key))
                 sub_run.status = "success"
                 if jira_errors:
                     sub_run.detail = "; ".join(jira_errors)
@@ -420,7 +816,7 @@ class Runner:
                     )
                     flake_body = _flaky_suspect_comment(attempt, prior_statuses)
                     _try_sub("flaky-suspect note",
-                             lambda: self.jira.comment(subtask.key, flake_body))
+                             lambda: self.tracker.comment(subtask.key, flake_body))
                 self.progress(
                     f"[afk]   subtask {subtask.key}: success in {sub_run.duration_s:.1f}s"
                 )
@@ -451,7 +847,7 @@ class Runner:
             outcome, sub_run.attempts, detail, producer_status=producer_status,
         )
         _try_sub("abort comment",
-                 lambda: self.jira.comment(subtask.key, comment_body))
+                 lambda: self.tracker.comment(subtask.key, comment_body))
         if (
             outcome is not None
             and outcome.status == "contract_mismatch"
@@ -462,10 +858,10 @@ class Runner:
             )
             _try_sub(
                 "producer mismatch comment",
-                lambda: self.jira.comment(outcome.producer_key, producer_body),
+                lambda: self.tracker.comment(outcome.producer_key, producer_body),
             )
         _try_sub("transition Request Development (back to Dev-Pending)",
-                 lambda: self.jira.transition(subtask.key, "Request Development"))
+                 lambda: self.tracker.revert_to_pending(subtask.key))
         sub_run.detail = "; ".join([detail, *jira_errors])
         sub_run.status = "aborted"
         sub_run.duration_s = self.monotonic() - t0
@@ -529,12 +925,14 @@ class Runner:
                     f"[afk] standalone {key}: jira side-effect failed — {msg}"
                 )
 
-        _try_jira("assign", lambda: self.jira.assign(key, self._account_id))
+        on_jira = self._backend_name() == "jira"
+        if on_jira:
+            _try_jira("assign", lambda: self.jira.assign(key, self._account_id))
         if issuetype == "Enhancement":
             _try_jira("transition Start Designing",
-                      lambda: self.jira.transition(key, "Start Designing"))
+                      lambda: self.tracker.start_designing(key))
         _try_jira("transition Start Development",
-                  lambda: self.jira.transition(key, "Start Development"))
+                  lambda: self.tracker.start_developing(key))
 
         if self.worktrees.reset_to_clean(spec):
             self.progress(
@@ -588,7 +986,7 @@ class Runner:
             flake_body = _flaky_suspect_comment(sub_run.attempts, prior_statuses)
             _try_jira(
                 "flaky-suspect note",
-                lambda: self.jira.comment(key, flake_body),
+                lambda: self.tracker.comment(key, flake_body),
             )
 
         if sub_run.status != "success":
@@ -615,7 +1013,7 @@ class Runner:
                 outcome, sub_run.attempts, detail, producer_status=producer_status,
             )
             _try_jira("abort comment",
-                      lambda: self.jira.comment(key, comment_body))
+                      lambda: self.tracker.comment(key, comment_body))
             if (
                 outcome is not None
                 and outcome.status == "contract_mismatch"
@@ -626,10 +1024,10 @@ class Runner:
                 )
                 _try_jira(
                     "producer mismatch comment",
-                    lambda: self.jira.comment(outcome.producer_key, producer_body),
+                    lambda: self.tracker.comment(outcome.producer_key, producer_body),
                 )
             _try_jira("transition Request Development (back to Dev-Pending)",
-                      lambda: self.jira.transition(key, "Request Development"))
+                      lambda: self.tracker.revert_to_pending(key))
             sub_run.status = "aborted"
             sub_run.detail = detail
             sub_run.duration_s = self.monotonic() - t0
@@ -641,16 +1039,18 @@ class Runner:
         run.rebase = rebase_outcome
         self.progress(f"[afk] standalone {key}: rebase {rebase_outcome}")
         if rebase_outcome == "clean":
-            _try_jira("populate Dev-CR/Merge gate fields",
-                      lambda: self._populate_dev_cr_merge_gate(key, mr.web_url))
+            if on_jira:
+                _try_jira("populate Dev-CR/Merge gate fields",
+                          lambda: self._populate_dev_cr_merge_gate(key, mr.web_url))
             _try_jira("transition Request CR & Merge",
-                      lambda: self.jira.transition(key, "Request CR & Merge"))
-            _try_jira("flip acceptance checkboxes",
-                      lambda: self.jira.flip_acceptance_checkboxes(key))
-            self.progress(f"[afk] standalone {key}: transitioned to Dev-CR/Merge")
+                      lambda: self.tracker.request_cr_merge(key))
+            if on_jira:
+                _try_jira("flip acceptance checkboxes",
+                          lambda: self.jira.flip_acceptance_checkboxes(key))
+            self.progress(f"[afk] standalone {key}: transitioned to cr-merge")
         else:
             _try_jira("rebase-conflict comment",
-                      lambda: self.jira.comment(
+                      lambda: self.tracker.comment(
                           key,
                           f"AFK rebase against `{target_branch}` reported conflicts. "
                           "Resolve manually before merging."))
@@ -776,24 +1176,29 @@ class Runner:
         self.progress(f"[afk] {label_prefix} {key}: MR {mr.web_url}")
 
         # Attach MR link immediately so reviewers can find the in-flight
-        # branch even before any work reaches Dev-CR/Merge.
-        mr_link_field = self.config.dev_cr_merge_gate_fields.get("merge_request_link")
-        if mr_link_field:
-            try:
-                self.jira.set_fields(key, {mr_link_field: mr.web_url})
-            except Exception as e:  # noqa: BLE001
-                run.skip_reason = f"MR-link write failed: {e}"
-        # Default A+ Clarity to green when unset; never overrides a
-        # deliberate human choice (set_field_if_unset is no-op when set).
-        if self.config.aplus_clarity_field and self.config.aplus_clarity_green_option_id:
-            try:
-                self.jira.set_field_if_unset(
-                    key,
-                    self.config.aplus_clarity_field,
-                    {"id": self.config.aplus_clarity_green_option_id},
-                )
-            except Exception as e:  # noqa: BLE001
-                run.skip_reason = f"A+ clarity write failed: {e}"
+        # branch even before any work reaches Dev-CR/Merge. Jira-only — the
+        # Nakisa MR-link custom field has no GitHub equivalent (PRD §"Tracker
+        # -only fields"); the PR's own description carries the linkage on
+        # GitHub.
+        on_jira = self._backend_name() == "jira"
+        if on_jira:
+            mr_link_field = self.config.dev_cr_merge_gate_fields.get("merge_request_link")
+            if mr_link_field:
+                try:
+                    self.jira.set_fields(key, {mr_link_field: mr.web_url})
+                except Exception as e:  # noqa: BLE001
+                    run.skip_reason = f"MR-link write failed: {e}"
+            # Default A+ Clarity to green when unset; never overrides a
+            # deliberate human choice (set_field_if_unset is no-op when set).
+            if self.config.aplus_clarity_field and self.config.aplus_clarity_green_option_id:
+                try:
+                    self.jira.set_field_if_unset(
+                        key,
+                        self.config.aplus_clarity_field,
+                        {"id": self.config.aplus_clarity_green_option_id},
+                    )
+                except Exception as e:  # noqa: BLE001
+                    run.skip_reason = f"A+ clarity write failed: {e}"
 
         return spec, worktree_path, mr, target_branch
 
@@ -831,6 +1236,48 @@ class Runner:
                 payload[cf_id] = default_value
         if payload:
             self.jira.set_fields(key, payload)
+
+
+class _RepoIsolatedError(RuntimeError):
+    """Internal-only signal that one repo's work failed in a way that should
+    isolate (record as ``RepoFailed`` + continue to next repo) rather than
+    halt the run.
+
+    Raised inside ``Runner._drain_repo`` when ``ensure_clone`` fails or any
+    other per-repo pre-condition can't be satisfied. The enclosing
+    ``Runner._drain_github_multi_repo`` catches it, emits the run-record
+    entry, and proceeds to the next repo (ADR-0003 flowchart ``skip_repo``
+    rung).
+
+    Auth-level failures (raised by ``tracker`` / ``scm`` pre-flight) are
+    NOT wrapped in this type — they propagate up and halt the entire run
+    per PRD §"Pre-flight checks".
+    """
+
+
+def _group_issues_by_repo(issues: list) -> dict[tuple[str, str], list]:
+    """Group GitHub ``SubIssueRef`` rows by ``(owner, repo)``.
+
+    Each ref's ``id`` follows the ``owner/repo#N`` convention (see
+    ``tracker_protocol.SubIssueRef``). Issues whose id cannot be parsed
+    (e.g. a non-GitHub backend leaking into the wrong code path) are
+    silently dropped here — the runner's caller is expected to fan-out
+    only GitHub queues into this helper. Order within each group is
+    preserved from the input list.
+    """
+    groups: dict[tuple[str, str], list] = {}
+    for issue in issues:
+        issue_id = getattr(issue, "id", "") or getattr(issue, "key", "")
+        if not issue_id or "#" not in issue_id:
+            continue
+        left, _, _ = issue_id.rpartition("#")
+        if "/" not in left:
+            continue
+        owner, _, repo = left.partition("/")
+        if not owner or not repo:
+            continue
+        groups.setdefault((owner, repo), []).append(issue)
+    return groups
 
 
 # Producer SubTask statuses for which "re-open and correct" is a viable
