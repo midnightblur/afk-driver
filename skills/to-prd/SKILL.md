@@ -7,6 +7,63 @@ This skill takes the current conversation context and codebase understanding and
 
 The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
 
+## Backend dispatch (GitHub vs Jira+GitLab)
+
+Detect the active backend **before** writing the PRD or touching the tracker.
+Inspect the origin remote of the cwd:
+
+```
+git remote get-url origin
+```
+
+| Host substring | Backend | Tracker MCP namespace | SCM MCP namespace |
+|----------------|---------|------------------------|--------------------|
+| `github.com`   | GitHub  | `mcp__github__*`       | `mcp__github__*`   |
+| anything else  | Jira + GitLab (legacy) | `mcp__jira__*` | `glab` CLI via the runner |
+
+Use the tracker MCP namespace selected above for **every** issue / sub-issue
+read-or-write in the rest of this skill. The shared prose below references
+the picked client as the "tracker tool" — it speaks the same Markdown
+vocabulary regardless of backend (Goal / Scope / Acceptance / Test command).
+See SDD §3 (skills bypass the Python protocol layer and use parallel MCP
+namespaces) and ADR-0001 (skill seam is the official `github/github-mcp-server`).
+
+### GitHub backend — `to-prd` specifics
+
+When the dispatch lands on the GitHub branch:
+
+1. **PRD path.** Write the PRD to the per-repo configured `spec_root` from
+   `.afk-driver.toml` (default `.afk/specs/{N}/PRD.md` where `{N}` is the
+   parent issue number). The Nakisa `{service}/src/main/resources/specs/...`
+   convention has no analogue here — the per-repo spec root replaces it.
+2. **Parent issue.** If a parent issue number was passed in, edit its body
+   to add or update a `## PRD` section pointing at the on-disk path (do not
+   inline the PRD body — keep it on disk so future edits don't churn issue
+   revisions). If **no parent issue was passed**, create a new parent issue
+   first via `mcp__github__create_issue` using the PRD title as the issue
+   title and the PRD's Problem Statement + Solution as the issue body, then
+   continue with the `## PRD` splice into the just-created issue. Either
+   path is valid — the human gates by choosing whether to pass a key
+   (PRD Q12 "either").
+3. **Body splice rules** mirror the Jira branch: only the `## PRD` section
+   is owned by this skill; the `## Implementation Notes (auto-maintained)`
+   block is owned by the AFK driver — splice the PRD section only, preserve
+   everything else verbatim.
+
+### Jira+GitLab backend — `to-prd` specifics
+
+Follow the "AFK adaptation (core-services)" section below verbatim — that
+section was written for this backend and still binds.
+
+## Shared prose (after dispatch)
+
+The rest of this skill uses backend-agnostic vocabulary: "tracker tool"
+means whichever MCP namespace the dispatch above selected, "parent ticket"
+means a Jira Enhancement / Bug or a GitHub parent issue, "PRD path" means
+whatever the backend's PRD-path rule above resolved to. A reader cannot
+tell which backend a PRD was authored against from the Markdown body
+alone — the structure is identical.
+
 ## Process
 
 1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching.

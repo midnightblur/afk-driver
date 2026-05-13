@@ -5,6 +5,76 @@ description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Ji
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into AFK-eligible SubTasks
 
+## Backend dispatch (GitHub vs Jira+GitLab)
+
+Detect the active backend **before** slicing or creating any tracker items.
+Inspect the origin remote of the cwd:
+
+```
+git remote get-url origin
+```
+
+| Host substring | Backend | Tracker MCP namespace |
+|----------------|---------|------------------------|
+| `github.com`   | GitHub  | `mcp__github__*`       |
+| anything else  | Jira + GitLab (legacy) | `mcp__jira__*` |
+
+The dispatch happens **once at the top**. The rest of this skill refers to
+the picked client as the "tracker tool" and speaks the same Goal / Scope /
+Acceptance / Test-command vocabulary on both backends — a reader cannot
+tell which backend a SubTask was authored against from the body alone (PRD
+§"Authoring features on GitHub" — User Story 10). See SDD §3 and ADR-0001
+for the seam rationale.
+
+### GitHub backend — `prd-to-subtasks` specifics
+
+When the dispatch lands on the GitHub branch:
+
+#### Ensure phase labels exist (GitHub)
+
+Before tagging any issue with `afk:pending`, ensure the four phase labels
+exist in the target repo (ADR-0002 — phase = label, not Projects v2 Status
+column). Run, once per target repo:
+
+```
+gh label create --force afk:pending     --color CCCCCC --description "AFK queued"
+gh label create --force afk:designing   --color FBCA04 --description "AFK designing"
+gh label create --force afk:developing  --color 0E8A16 --description "AFK developing"
+gh label create --force afk:cr-merge    --color 1D76DB --description "AFK CR/Merge"
+```
+
+`--force` is idempotent: pre-existing labels with the same name are kept
+and their color / description are updated to match. Skipping this step
+makes the very next `mcp__github__update_issue` call fail with "label not
+found" — the labels must exist server-side before any sub-issue is
+tagged.
+
+Then create one GitHub sub-issue per slice via the tracker tool
+(`mcp__github__create_issue` for the issue itself + `gh api
+/repos/{owner}/{repo}/issues/{N}/sub_issues` to attach it as a sub-issue
+of the parent — the REST sub-issues endpoint is the canonical seam per
+ADR-0001; the `gh` CLI does not yet wrap it natively). For each
+sub-issue:
+
+- **Title** — `[AFK] <short slice title>` (mirrors the Jira `summary`).
+- **Body** — the structured Markdown contract documented in Step 6 below
+  (Goal / Scope / Acceptance / Test command / Parent PRD / Blocked by /
+  Implementation Notes, plus cited-mode sections when applicable).
+  Identical to the Jira-branch body — same vocabulary, same anchors.
+- **Labels** — `afk-agents` (search filter — invariant: every
+  AFK-eligible sub-issue carries this) + `afk:pending` (the initial
+  phase label; ADR-0002 state machine `[*] --> afk:pending`).
+- **Parent attachment** — `POST /repos/{owner}/{repo}/issues/{parent}/sub_issues`
+  with `{"sub_issue_id": <new_issue_id>}` per SDD §3 sequenceDiagram.
+
+### Jira+GitLab backend — `prd-to-subtasks` specifics
+
+Follow the "Process" Steps 1-11 below as written. The Process section was
+authored for this backend and still binds: the "tracker tool" is
+`mcp__jira__*`, the parent-attachment mechanism is the `parent.key` field
+on the SubTask, and the labels are `mvu-afk` / `afk-agents` per the
+runner's `--label` flag.
+
 ## Arguments
 
 - `prd_path` — path to the PRD file (typically

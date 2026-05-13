@@ -5,6 +5,94 @@ description: Execute one labelled SubTask end-to-end (Dev-Designing → Dev-Deve
 
 # afk:execute — run one AFK SubTask
 
+## Backend dispatch (GitHub vs Jira+GitLab)
+
+Detect the active backend **before** any tracker read-or-write. Inspect
+the origin remote of the cwd (the runner has already set cwd to the
+worktree root):
+
+```
+git remote get-url origin
+```
+
+| Host substring | Backend | Tracker MCP namespace | SCM MCP namespace |
+|----------------|---------|------------------------|--------------------|
+| `github.com`   | GitHub  | `mcp__github__*`       | `mcp__github__*`   |
+| anything else  | Jira + GitLab (legacy) | `mcp__jira__*` | `glab` CLI via the runner |
+
+The dispatch happens **once at the top**; the rest of this skill refers to
+the picked clients as the "tracker tool" and "scm tool" — both speak the
+same SubTask Markdown contract (Goal / Scope / Acceptance / Test command)
+regardless of backend, so the body below applies identically. See SDD §3
+(skills bypass the Python protocol layer) and ADR-0001 (skill seam = MCP
+server).
+
+### GitHub backend — `afk-go` specifics
+
+When the dispatch lands on the GitHub branch, the SubTask is a GitHub
+sub-issue under a parent issue. The lifecycle maps to mutually-exclusive
+phase labels (ADR-0002 state machine):
+
+1. **Read the contract.** Fetch the parent issue + sub-issue bodies via
+   `mcp__github__get_issue` (parent number is the sub-issue's parent;
+   `mcp__github__list_sub_issues` resolves the relation when needed).
+   Parse the sub-issue body with `afk_driver.subtask_template.parse(...)`
+   exactly as on the Jira branch — the body shape is identical.
+2. **Phase-label transitions.** Each forward step is a single-call swap
+   via `mcp__github__update_issue` (or equivalent), removing the prior
+   `afk:*` label and adding the next one atomically — invariant: **at
+   most one `afk:*` label per issue at any time** (SDD §"Invariants
+   table" row 1; enforced as a single REST call so a crash between
+   remove and add cannot leave the issue label-less):
+
+   - `afk:pending` → `afk:designing` — at the start of Step 4
+     ("Transition: Dev-Designing" in the shared prose below).
+   - `afk:designing` → `afk:developing` — at the start of Step 6.
+   - `afk:developing` → `afk:cr-merge` — owned by the **runner**, not
+     this skill. The same boundary rule as Jira's `Dev-CR/Merge`
+     transition applies: leave the sub-issue on `afk:developing` and
+     exit with `success`; the runner performs the final swap.
+
+3. **Draft PR.** Open or update the Draft PR via
+   `mcp__github__create_pull_request` (idempotent — find the open PR
+   for this parent first with `mcp__github__list_pull_requests` filtered
+   by head branch `afk/issue-{parent_number}`; invariant: at most one
+   Draft PR per parent, SDD §"Invariants table" row 2). The PR body
+   carries `Closes #{sub_issue_number}` per completed sub-issue so
+   merging the PR auto-closes them with `state_reason=completed`.
+
+4. **Parent body splice.** The parent issue carries an
+   `## Implementation Notes (auto-maintained)` block — same convention
+   as the Jira Enhancement description. Append one bullet per completed
+   SubTask (`(#{sub_issue_number}) <one-line summary>`) by reading the
+   parent body, splicing the section in place, and writing back via
+   `mcp__github__update_issue`. The splice targets the
+   auto-maintained block only; everything else (including any
+   human-authored `## PRD` section) is preserved verbatim.
+
+5. **Branch convention.** `afk/issue-{parent_number}` on GitHub vs
+   `mvu/afk/{ENH-ID}` on Jira (SDD §"Invariants table" row 3). The
+   runner's worktree manager has already created the right branch
+   before spawning this session; this skill does not name branches.
+
+### Jira+GitLab backend — `afk-go` specifics
+
+Follow the "Process" steps below as written. The Process section was
+authored for this backend and still binds: the "tracker tool" is
+`mcp__jira__*`, the "scm tool" is the runner's `glab` CLI, the named
+transitions are `Start Designing` / `Start Development`, and the parent
+container is a Jira Enhancement (or Bug).
+
+## Shared prose (after dispatch)
+
+The rest of this skill uses backend-agnostic vocabulary: "tracker tool"
+means whichever MCP namespace the dispatch above selected; "scm tool"
+means the picked SCM client; "phase transition" means the named Jira
+transition on Jira+GitLab and the single-call label swap on GitHub.
+A reader cannot tell which backend a SubTask was authored against from
+the Markdown body — the body shape, the outcome marker contract, and the
+hard rules below are identical.
+
 You are running inside a fresh Claude Code session that the AFK driver
 (`afk_driver/runner.py`) just spawned for a single SubTask. The runner has
 already:
