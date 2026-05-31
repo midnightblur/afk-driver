@@ -14,7 +14,7 @@ Without an adapted workflow, the user faces three concrete problems:
 
 A labelled AFK lane on top of the existing Jira/GitLab/Maven setup, where:
 
-- **Day shift (synchronous, human-driven):** the user runs grill-me to harden a feature idea, then writes a PRD per Enhancement to a per-ticket spec directory, then slices that PRD into Jira SubTasks tagged with an opt-in label.
+- **Day shift (synchronous, human-driven):** the user runs grill-requirements to harden a feature idea, then writes a PRD per Enhancement to a per-ticket spec directory, then slices that PRD into Jira SubTasks tagged with an opt-in label.
 - **Night shift (asynchronous, agent-driven):** a Python driver picks up labelled SubTasks via JQL, drives one Claude Code session per SubTask inside a per-Enhancement git worktree, opens a single Draft Merge Request per Enhancement, and transitions Jira tickets along the standard core-services workflow (Dev-Pending → Dev-Designing → Dev-Developing → Dev-CR/Merge).
 - **Morning review (synchronous, human-driven):** the user reads a markdown digest of the night's work, opens the Draft MR(s) in GitLab, marks them Ready when satisfied, and merges. Failed or aborted SubTasks are bounced back to Dev-Pending with explanatory comments.
 

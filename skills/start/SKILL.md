@@ -19,7 +19,7 @@ session — each chain skill expects its own session.
 
    ```mermaid
    graph LR
-       Start[/afk:start/] -->|raw idea| Grill[/afk:grill-me/]
+       Start[/afk:start/] -->|raw idea| Grill[/afk:grill-requirements/]
        Start -->|have PRD| AG[/afk:architect-grill/]
        Start -->|have SDD| Sub[/afk:to-subtasks/]
        Grill --> Prd[/afk:to-prd/] --> AG --> Sdd[/afk:to-sdd/]
@@ -40,7 +40,7 @@ session — each chain skill expects its own session.
 
    | # | Skill | Input | Output | Binding gate |
    |---|-------|-------|--------|--------------|
-   | 1 | `/afk:grill-me` | raw idea / problem | exhausted requirements decision tree | (no synthesis — moves to step 2 when user agrees the tree is exhausted) |
+   | 1 | `/afk:grill-requirements` | raw idea / problem | exhausted requirements decision tree | (no synthesis — moves to step 2 when user agrees the tree is exhausted) |
    | 2 | `/afk:to-prd` | the conversation from step 1 | PRD.md published to repo + parent ticket | none — synthesis only, no gate |
    | 3 | `/afk:architect-grill` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
    | 4 | `/afk:to-sdd` | conversation from step 3 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
@@ -53,7 +53,7 @@ session — each chain skill expects its own session.
 
    > **Where are you starting?**
    >
-   > (a) Raw idea — nothing written yet. → `/afk:grill-me`
+   > (a) Raw idea — nothing written yet. → `/afk:grill-requirements`
    > (b) PRD already published, no SDD yet. → `/afk:architect-grill`
    > (c) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:to-subtasks`
    > (d) Stakeholder review upcoming on an existing SDD. → `/afk:to-design-brief`
@@ -70,14 +70,14 @@ session — each chain skill expects its own session.
    - The binding gate the user should expect to hit (lifted from the table
      above).
    - For routes (a) and (b), name the FULL downstream chain so the user
-     can pace themselves: `/afk:grill-me` → `/afk:to-prd` → `/afk:architect-grill`
+     can pace themselves: `/afk:grill-requirements` → `/afk:to-prd` → `/afk:architect-grill`
      → `/afk:to-sdd` → optional `/afk:to-design-brief` → `/afk:to-subtasks`. They
      will run each manually; this skill does not auto-advance.
 
    For (e), exit with no command — the user wanted only the map.
 
 5. **Do not interview the user.** This skill is orientation, not grilling.
-   The grilling skills (`/afk:grill-me`, `/afk:architect-grill`) are
+   The grilling skills (`/afk:grill-requirements`, `/afk:architect-grill`) are
    designed to be invoked in fresh sessions because each manages its own
    conversational state. Driving them from inside `/afk:start` confuses
    the instruction frame and produces worse interviews.

@@ -251,7 +251,7 @@ pipeline map and routes you to the right entry skill.
 ≥2 modules / introducing patterns / non-trivial transactions or data;
 skip for small enhancements, bugs, refactors, tooling):
 
-- **`/afk:grill-me`** — interviews the user about a raw idea or plan
+- **`/afk:grill-requirements`** — interviews the user about a raw idea or plan
   until the requirements decision tree is exhausted. Does NOT produce
   documents. Pair with `/afk:to-prd` afterward to synthesize.
 - **`/afk:architect-grill`** — interviews the user top-down across 8 layers
