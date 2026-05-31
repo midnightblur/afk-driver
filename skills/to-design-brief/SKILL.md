@@ -169,9 +169,9 @@ If a row's "What changes" is "(none)", omit the row.
 
 ## AFK adaptation (core-services)
 
-When the brief belongs to an AFK-driven Enhancement / Bug:
+When the brief belongs to an Enhancement / Bug in the AFK workflow:
 
-- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/DESIGN-BRIEF.md`. Service auto-derived from the Jira project key via `project_service_map`.
+- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/DESIGN-BRIEF.md`. Service is derived from the Jira project key per the project's mapping (e.g. `P2P` → `11700-payable`).
 - **Parent ticket splice.** Add or update a `## Design Brief` section in the
   Enhancement / Bug description:
 

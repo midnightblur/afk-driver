@@ -16,7 +16,7 @@ Do NOT interview the user — just synthesize what you already know. If a critic
 
 2. **Re-read the ticket's existing ADRs** — the design ADRs in the sibling `adr/design/` (to avoid contradicting prior design decisions) and the requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Do not read or write repo-wide `docs/adr/` — all ADRs are ticket-local. If you must reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §13 Reversed Decisions. Never edit an `adr/requirements/` ADR — if a requirement decision blocks the design, that's a `design-conflict` to route back, not a thing to overwrite here.
 
-3. **Use the project's domain glossary.** Match the vocabulary used in the PRD and `CONTEXT.md` (if present).
+3. **Use the project's domain glossary.** Match the vocabulary used in the PRD and the relevant `GLOSSARY.md` (if present — start from the root `GLOSSARY-MAP.md` to find the owning service's glossary, per `/afk:grill-requirements`).
 
 4. **Apply the triviality cutoff.** ADR-worthy = (non-obvious for the stack) AND (≥2 real alternatives) AND (reversal is expensive). Skip ADRs for "we use HTTPS / UTF-8 / JSON".
 
@@ -374,9 +374,9 @@ At least two. **Required visual:** comparison table OR `quadrantChart` plotting 
 
 ## AFK adaptation (core-services)
 
-When the SDD belongs to an AFK-driven Enhancement / Bug:
+When the SDD belongs to an Enhancement / Bug in the AFK workflow:
 
-- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/SDD.md` and `.../adr/design/NNNN-*.md`. Service auto-derived from the Jira project key via `project_service_map`.
+- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/SDD.md` and `.../adr/design/NNNN-*.md`. Service is derived from the Jira project key per the project's mapping (e.g. `P2P` → `11700-payable`).
 - **Parent ticket splice.** Add or update a `## SDD` section in the Enhancement / Bug description:
 
   ```

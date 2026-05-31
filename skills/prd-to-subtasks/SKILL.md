@@ -1,79 +1,14 @@
 ---
 name: to-subtasks
-description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Jira SubTasks under a parent ticket (Enhancement or Bug — both share the Nakisa workflow), each tagged with the AFK label. Each SubTask cites the binding design artifacts that constrain it, so the implementing agent has a contract — not just a feature ask. SDD/ADR citations may be omitted for small features / bugs at the human's discretion. Use when the user has a PRD (and optionally an SDD) and a parent ticket, and wants the AFK driver to be able to drain the work.
+description: Slice a PRD (and the accompanying SDD + ADRs, when present) into Jira SubTasks under a parent ticket (Enhancement or Bug — both share the Nakisa workflow), each tagged with the AFK label. Each SubTask cites the binding design artifacts that constrain it, so the implementing agent has a contract — not just a feature ask. SDD/ADR citations may be omitted for small features / bugs at the human's discretion. Use when the user has a PRD (and optionally an SDD) and a parent ticket, and wants to execute the work as AFK-eligible SubTasks via `/afk:execute`.
 ---
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into AFK-eligible SubTasks
 
-## Backend dispatch (GitHub vs Jira+GitLab)
-
-Detect the active backend **before** slicing or creating any tracker items.
-Inspect the origin remote of the cwd:
-
-```
-git remote get-url origin
-```
-
-| Host substring | Backend | Tracker MCP namespace |
-|----------------|---------|------------------------|
-| `github.com`   | GitHub  | `mcp__github__*`       |
-| anything else  | Jira + GitLab (legacy) | `mcp__jira__*` |
-
-The dispatch happens **once at the top**. The rest of this skill refers to
-the picked client as the "tracker tool" and speaks the same Goal / Scope /
-Acceptance / Test-command vocabulary on both backends — a reader cannot
-tell which backend a SubTask was authored against from the body alone (PRD
-§"Authoring features on GitHub" — User Story 10). See SDD §3 and ADR-0001
-for the seam rationale.
-
-### GitHub backend — `prd-to-subtasks` specifics
-
-When the dispatch lands on the GitHub branch:
-
-#### Ensure phase labels exist (GitHub)
-
-Before tagging any issue with `afk:pending`, ensure the four phase labels
-exist in the target repo (ADR-0002 — phase = label, not Projects v2 Status
-column). Run, once per target repo:
-
-```
-gh label create --force afk:pending     --color CCCCCC --description "AFK queued"
-gh label create --force afk:designing   --color FBCA04 --description "AFK designing"
-gh label create --force afk:developing  --color 0E8A16 --description "AFK developing"
-gh label create --force afk:cr-merge    --color 1D76DB --description "AFK CR/Merge"
-```
-
-`--force` is idempotent: pre-existing labels with the same name are kept
-and their color / description are updated to match. Skipping this step
-makes the very next `mcp__github__update_issue` call fail with "label not
-found" — the labels must exist server-side before any sub-issue is
-tagged.
-
-Then create one GitHub sub-issue per slice via the tracker tool
-(`mcp__github__create_issue` for the issue itself + `gh api
-/repos/{owner}/{repo}/issues/{N}/sub_issues` to attach it as a sub-issue
-of the parent — the REST sub-issues endpoint is the canonical seam per
-ADR-0001; the `gh` CLI does not yet wrap it natively). For each
-sub-issue:
-
-- **Title** — `[AFK] <short slice title>` (mirrors the Jira `summary`).
-- **Body** — the structured Markdown contract documented in Step 6 below
-  (Goal / Scope / Acceptance / Test command / Parent PRD / Blocked by /
-  Implementation Notes, plus cited-mode sections when applicable).
-  Identical to the Jira-branch body — same vocabulary, same anchors.
-- **Labels** — `afk-agents` (search filter — invariant: every
-  AFK-eligible sub-issue carries this) + `afk:pending` (the initial
-  phase label; ADR-0002 state machine `[*] --> afk:pending`).
-- **Parent attachment** — `POST /repos/{owner}/{repo}/issues/{parent}/sub_issues`
-  with `{"sub_issue_id": <new_issue_id>}` per SDD §3 sequenceDiagram.
-
-### Jira+GitLab backend — `prd-to-subtasks` specifics
-
-Follow the "Process" Steps 1-11 below as written. The Process section was
-authored for this backend and still binds: the "tracker tool" is
-`mcp__jira__*`, the parent-attachment mechanism is the `parent.key` field
-on the SubTask, and the labels are `mvu-afk` / `afk-agents` per the
-runner's `--label` flag.
+The tracker is **Jira** (`mcp__jira__*` for every read/write). SubTasks attach
+to the parent via the `parent.key` field and carry the AFK label
+(`mvu-afk` / `afk-agents`, configurable). The SubTask body speaks the Goal /
+Scope / Acceptance / Test-command vocabulary documented in Step 6.
 
 ## Arguments
 
@@ -82,8 +17,8 @@ runner's `--label` flag.
   `tasks/{TICKET-ID}/PRD.md` for tooling work).
 - `parent_key` — Jira key of the parent ticket, e.g. `P2P-1220`. May be an
   Enhancement (typical) or a Bug (when slicing a hot-fix into AFK-eligible
-  SubTasks). The runner branches on `issuetype`: Enhancement parents get the
-  Dev-Designing step (`Start Designing` then `Start Development`), Bug
+  SubTasks). `/afk:execute` branches on `issuetype`: Enhancement parents get
+  the Dev-Designing step (`Start Designing` then `Start Development`), Bug
   parents skip Dev-Designing and transition directly to Dev-Developing via
   `Start Development`.
 - `sdd_path` *(optional)* — path to `SDD.md`. Defaults to the sibling of the PRD
@@ -162,8 +97,8 @@ runner's `--label` flag.
      `tasks/{...}/**` or `{service}/{module}/**`).
    - Verifiable by a single Test command (`pytest ...`, `mvn -pl ... test`,
      etc.).
-   - Sized so a fresh Claude Code session can finish in under the configured
-     wall-clock cap (default 1 hour).
+   - Sized so one `/afk:execute` session can finish in a single sitting
+     (aim for under ~1 hour of work).
    - **(cited mode only)** Anchored to specific SDD section(s) and ADR(s).
      The SubTask's interface is the public interface stated in SDD §8 — do
      not invent a different one.
@@ -173,10 +108,10 @@ runner's `--label` flag.
      reads from a prior sibling is named in `## Consumes` with the producing
      SubTask's key. The `/afk:execute` preflight greps Consumes against the branch
      before planning; mismatches halt the chain instead of crashing
-     mid-implementation. This is what makes the AFK chain truly hands-off.
+     mid-implementation. This is what keeps the AFK chain reliable.
 
-6. **For each SubTask, fill the structured Markdown contract** (parsed by
-   `afk_driver.subtask_template`):
+6. **For each SubTask, fill the structured Markdown contract** (the SubTask
+   Markdown contract — `/afk:execute` parses these same sections):
 
    ```
    ## Goal
@@ -303,7 +238,7 @@ runner's `--label` flag.
    producer's declaration but would also match unrelated code, letting
    signature drift sneak through `/afk:execute`'s preflight. Together they
    make contract drift impossible to ship: catch it here, save a wasted
-   drain pass.
+   `/afk:execute` run.
 
    **(c) Acceptance citation rule (cited mode only).** Every bullet in
    `## Acceptance` MUST end with a citation tag of one of these shapes:
@@ -343,16 +278,17 @@ runner's `--label` flag.
 9. **Create the SubTasks in Jira** under the parent ticket. For each:
    - `issuetype` = "SubTask".
    - `parent.key` = `parent_key` (the Enhancement or Bug key passed in).
-   - `labels` includes `mvu-afk` (the runner's `--label`, configurable).
+   - `labels` includes the AFK label (`mvu-afk`, configurable).
    - `summary` is `[AFK] <short title>`.
    - `description` is the structured Markdown above wrapped in ADF.
    - Rank order matches the slicing order (use `customfield_10004` /
      `Rank` field — drag if the Jira API doesn't expose it directly).
    - `fixVersions` and `components` inherited from the parent.
 
-10. **Validate.** Run `afk_driver.subtask_template.parse(...)` on each
-    created SubTask's description (round-trip check). If parsing fails, fix
-    the template and update the SubTask before exiting.
+10. **Validate.** Re-read each created SubTask's description and confirm it
+    round-trips against the SubTask Markdown contract — every section parses
+    and nothing was mangled by the ADF round-trip. If a section is missing or
+    malformed, fix the template and update the SubTask before exiting.
 
 11. **Output.** A short bullet list of created SubTask keys + summaries +
     their cited SDD/ADR refs (or a "uncited" tag) for the user to scan. The
@@ -397,7 +333,7 @@ The optionality is human-gated, not skill-decided.
 The Acceptance bullets describe *behavior* the SubTask must satisfy. Without
 something more, two SubTasks can both pass their own Acceptance and still
 collide at integration: the producer's interface drifts from what the consumer
-assumed, and the chain wedges mid-drain. Typed contracts close that gap.
+assumed, and the chain wedges mid-run. Typed contracts close that gap.
 
 **`## Produces`** — emitted on every cited SubTask, even ones with no
 downstream consumer. Each bullet names one consumer-visible artifact:
@@ -407,7 +343,7 @@ downstream consumer. Each bullet names one consumer-visible artifact:
 ```
 
 - `{file-path}` is relative to the worktree root.
-- `{grep-anchor}` is a distinctive substring the runner can grep for —
+- `{grep-anchor}` is a distinctive substring `/afk:execute` can grep for —
   a class declaration (`class FooStrategy implements ExportStrategy<E>`), a
   method signature (`register(format: String, strategy: ExportStrategy)`),
   an enum constant, an exported function name. Pick whatever uniquely
@@ -428,13 +364,13 @@ bullet names one upstream artifact:
 ```
 
 The `{file-path}#{grep-anchor}` MUST appear verbatim in the producer's
-`## Produces` block (Step 8 graph validation enforces this). The runner's
+`## Produces` block (Step 8 graph validation enforces this). `/afk:execute`'s
 preflight greps for `{grep-anchor}` in `{file-path}` before the consumer's
 session does any work; a missing or signature-divergent anchor exits with
 `contract_mismatch` outcome — no wasted attempt, no half-applied changes.
 
-**Why this is mandatory in cited mode**: the AFK driver runs each SubTask
-in a fresh, blind Claude Code session. The session has no memory of what
+**Why this is mandatory in cited mode**: each SubTask runs in its own fresh
+`/afk:execute` session. The session has no memory of what
 the previous session's plan was. The only way SubTask N+1 can verify
 SubTask N delivered the expected interface is if N's interface was
 declared up-front and N+1 can grep for it. Without typed contracts, the
@@ -514,13 +450,9 @@ contracts make the handoff explicit.
 ## Next
 
 After SubTasks land in Jira and you've reviewed the slice, transition each
-SubTask from `Creating` → `Dev-Pending` and apply the runner's `--label`
-(default `afk-agents`). Then drain them with the AFK driver:
-
-```powershell
-python -m afk_driver --label afk-agents --project P2P --digest-out auto
-```
-
-The driver spawns a fresh Claude Code session per SubTask and invokes
-**`/afk:execute SUBTASK-KEY`** in each. You don't run `/afk:execute`
-yourself — it's the runner's entry-point.
+SubTask from `Creating` → `Dev-Pending` and apply the AFK label
+(default `afk-agents`). Then work them one at a time: in a session on the
+parent Enhancement's branch, run **`/afk:execute SUBTASK-KEY`** for each
+SubTask in rank order (respecting `## Blocked by`). Each run takes that
+SubTask through Dev-Designing → Dev-Developing, commits, pushes, and updates
+the Draft MR; you handle CR/Merge after reviewing.

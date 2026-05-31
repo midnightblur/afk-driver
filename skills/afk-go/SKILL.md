@@ -1,135 +1,53 @@
 ---
 name: execute
-description: Execute one labelled SubTask end-to-end (Dev-Designing → Dev-Developing, then exit success) inside the AFK driver's worktree. The runner spawns one fresh Claude Code session per SubTask and invokes this skill. The runner — not this skill — performs the final Dev-CR/Merge transition after the session exits success.
+description: Execute one labelled SubTask end-to-end interactively — read its contract, design, develop under TDD, commit, push, update the Draft MR — then stop at CR/Merge for the human. You run this yourself in a session on the parent Enhancement's branch; there is no autonomous driver. Drives the SubTask through Dev-Designing → Dev-Developing and reports a structured outcome.
 ---
 
-# afk:execute — run one AFK SubTask
+# afk:execute — run one AFK SubTask interactively
 
-## Backend dispatch (GitHub vs Jira+GitLab)
+You run this skill yourself, in a Claude Code session, against a **single
+SubTask**. There is no autonomous driver spawning you — you (the human) invoke
+`/afk:execute SUBTASK-KEY` from a session whose cwd is a worktree checked out
+on the parent Enhancement's branch.
 
-Detect the active backend **before** any tracker read-or-write. Inspect
-the origin remote of the cwd (the runner has already set cwd to the
-worktree root):
+Before you start, make sure:
 
-```
-git remote get-url origin
-```
+- The cwd is a clean worktree on the parent Enhancement's branch
+  (`mvu/afk/{enh-id}` or whatever branch the parent ticket targets). Create the
+  worktree + branch yourself if it doesn't exist yet.
+- A Draft MR for that branch exists (open one with `glab mr create --draft` if
+  not). The MR carries the auto-maintained SubTask checklist block.
 
-| Host substring | Backend | Tracker MCP namespace | SCM MCP namespace |
-|----------------|---------|------------------------|--------------------|
-| `github.com`   | GitHub  | `mcp__github__*`       | `mcp__github__*`   |
-| anything else  | Jira + GitLab (legacy) | `mcp__jira__*` | `glab` CLI via the runner |
+The tracker is **Jira** and the SCM is **GitLab** (`glab` CLI). Use the
+`mcp__jira__*` tools for every ticket read/write and `glab` for MR operations.
 
-The dispatch happens **once at the top**; the rest of this skill refers to
-the picked clients as the "tracker tool" and "scm tool" — both speak the
-same SubTask Markdown contract (Goal / Scope / Acceptance / Test command)
-regardless of backend, so the body below applies identically. See SDD §3
-(skills bypass the Python protocol layer) and ADR-0001 (skill seam = MCP
-server).
-
-### GitHub backend — `afk-go` specifics
-
-When the dispatch lands on the GitHub branch, the SubTask is a GitHub
-sub-issue under a parent issue. The lifecycle maps to mutually-exclusive
-phase labels (ADR-0002 state machine):
-
-1. **Read the contract.** Fetch the parent issue + sub-issue bodies via
-   `mcp__github__get_issue` (parent number is the sub-issue's parent;
-   `mcp__github__list_sub_issues` resolves the relation when needed).
-   Parse the sub-issue body with `afk_driver.subtask_template.parse(...)`
-   exactly as on the Jira branch — the body shape is identical.
-2. **Phase-label transitions.** Each forward step is a single-call swap
-   via `mcp__github__update_issue` (or equivalent), removing the prior
-   `afk:*` label and adding the next one atomically — invariant: **at
-   most one `afk:*` label per issue at any time** (SDD §"Invariants
-   table" row 1; enforced as a single REST call so a crash between
-   remove and add cannot leave the issue label-less):
-
-   - `afk:pending` → `afk:designing` — at the start of Step 4
-     ("Transition: Dev-Designing" in the shared prose below).
-   - `afk:designing` → `afk:developing` — at the start of Step 6.
-   - `afk:developing` → `afk:cr-merge` — owned by the **runner**, not
-     this skill. The same boundary rule as Jira's `Dev-CR/Merge`
-     transition applies: leave the sub-issue on `afk:developing` and
-     exit with `success`; the runner performs the final swap.
-
-3. **Draft PR.** Open or update the Draft PR via
-   `mcp__github__create_pull_request` (idempotent — find the open PR
-   for this parent first with `mcp__github__list_pull_requests` filtered
-   by head branch `afk/issue-{parent_number}`; invariant: at most one
-   Draft PR per parent, SDD §"Invariants table" row 2). The PR body
-   carries `Closes #{sub_issue_number}` per completed sub-issue so
-   merging the PR auto-closes them with `state_reason=completed`.
-
-4. **Parent body splice.** The parent issue carries an
-   `## Implementation Notes (auto-maintained)` block — same convention
-   as the Jira Enhancement description. Append one bullet per completed
-   SubTask (`(#{sub_issue_number}) <one-line summary>`) by reading the
-   parent body, splicing the section in place, and writing back via
-   `mcp__github__update_issue`. The splice targets the
-   auto-maintained block only; everything else (including any
-   human-authored `## PRD` section) is preserved verbatim.
-
-5. **Branch convention.** `afk/issue-{parent_number}` on GitHub vs
-   `mvu/afk/{ENH-ID}` on Jira (SDD §"Invariants table" row 3). The
-   runner's worktree manager has already created the right branch
-   before spawning this session; this skill does not name branches.
-
-### Jira+GitLab backend — `afk-go` specifics
-
-Follow the "Process" steps below as written. The Process section was
-authored for this backend and still binds: the "tracker tool" is
-`mcp__jira__*`, the "scm tool" is the runner's `glab` CLI, the named
-transitions are `Start Designing` / `Start Development`, and the parent
-container is a Jira Enhancement (or Bug).
-
-## Shared prose (after dispatch)
-
-The rest of this skill uses backend-agnostic vocabulary: "tracker tool"
-means whichever MCP namespace the dispatch above selected; "scm tool"
-means the picked SCM client; "phase transition" means the named Jira
-transition on Jira+GitLab and the single-call label swap on GitHub.
-A reader cannot tell which backend a SubTask was authored against from
-the Markdown body — the body shape, the outcome marker contract, and the
-hard rules below are identical.
-
-You are running inside a fresh Claude Code session that the AFK driver
-(`afk_driver/runner.py`) just spawned for a single SubTask. The runner has
-already:
-
-- Created the per-Enhancement worktree and ensured it's clean.
-- Opened a Draft MR for the parent Enhancement's branch.
-- Set the cwd to the worktree.
-
-Your job is to take one SubTask from `Dev-Pending` through `Dev-Designing` →
-`Dev-Developing`, get the test command green, push commits, and exit with a
-structured outcome. The **runner** performs the final `Dev-CR/Merge` transition
-(and its gate-field writes) only when this skill exits with `success` — leave
-that boundary transition to the runner so it never double-fires.
+Your job: take one SubTask from `Dev-Pending` through `Dev-Designing` →
+`Dev-Developing`, get its Test command green, commit + push, update the Draft
+MR, then **stop**. CR/Merge is the human's call — see Step 12.
 
 ## Argument
 
-A single Jira SubTask key, e.g. `P2P-1234`. Read it from the invocation; the
-parent Enhancement's key is on the SubTask's `parent` field.
+A single Jira SubTask key, e.g. `P2P-1234`. The parent Enhancement's key is on
+the SubTask's `parent` field.
 
 ## Process
 
 1. **Read the contract.** Fetch the SubTask description as Markdown via
-   `JiraClient.get_issue_description_markdown(subtask_key)` (the helper
-   handles ADF → Markdown for headings, bulletList, codeBlock, hardBreak,
-   and `code` text-marks). Parse the result with
-   `afk_driver.subtask_template.parse(...)`. Read the parent Enhancement's
-   PRD file (path: `tools/payable/afk/PRD.md` for AFK-bootstrap work, or the
-   service-prefixed path per the `/afk:to-prd` convention).
+   `mcp__jira__jira_get` and parse its sections yourself against the SubTask
+   Markdown contract (`## Goal / Scope / Acceptance / Test command / Parent PRD
+   / Blocked by / Implementation Notes`, plus the cited-mode sections `## Design
+   refs / Produces / Parent SDD / Consumes / Conflict procedure` when present).
+   Read the parent Enhancement's PRD file (the service-prefixed path per the
+   `/afk:to-prd` convention).
 
-   **Read the binding design context (cited mode).** If the parsed template
-   has non-empty `design_refs` and a `parent_sdd`, you are running in
-   cited mode and the SDD/ADRs constrain your work:
+   **Read the binding design context (cited mode).** If the SubTask has
+   non-empty `## Design refs` and a `## Parent SDD`, you are running in cited
+   mode and the SDD/ADRs constrain your work:
 
    - Read every cited SDD section and ADR via `ctx_read` BEFORE planning.
-     `design_refs` is a tuple of bullets like
+     `## Design refs` bullets look like
      `"SDD: SDD.md#l7-modules — TemplateRegistry interface lives in §8"` or
-     `"ADR: adr/0002-template-strategy-registry.md — registry-keyed Strategy"`.
+     `"ADR: adr/design/0002-template-strategy-registry.md — registry-keyed Strategy"`.
    - Treat the public interface stated in SDD §8 (Module Decomposition)
      as **frozen**. Do not invent a different signature.
    - Treat the pattern choice in the cited ADRs as **frozen**. Do not
@@ -138,9 +56,9 @@ parent Enhancement's key is on the SubTask's `parent` field.
      named module, private helpers, internal naming, test fixtures, library
      API call shape (when the SDD picked the library).
 
-2. **Preflight: verify Consumed contracts (cited mode).** If the parsed
-   template has a non-empty `consumes` tuple, every line is an upstream
-   artifact this SubTask depends on. Each bullet has the shape:
+2. **Preflight: verify Consumed contracts (cited mode).** If the SubTask has a
+   non-empty `## Consumes` section, every line is an upstream artifact this
+   SubTask depends on. Each bullet has the shape:
 
    ```
    {PRODUCER-KEY} {file-path}#{grep-anchor} — {description}
@@ -150,77 +68,79 @@ parent Enhancement's key is on the SubTask's `parent` field.
 
    - `ctx_read` the `{file-path}` (cwd is the worktree root, so paths are
      relative to it). If the file does not exist on this branch, the
-     producer hasn't landed what they promised — exit with
-     `ClaudeOutcome("contract_mismatch", detail=..., producer_key="{PRODUCER-KEY}")`
-     **before any other work** (no Dev-Designing transition, no commits,
-     no test runs).
+     producer hasn't landed what they promised — stop with a
+     `contract_mismatch` outcome (carry the `{PRODUCER-KEY}`) **before any
+     other work** (no Dev-Designing transition, no commits, no test runs).
    - `ctx_search` for `{grep-anchor}` inside `{file-path}`. The anchor was
      chosen by `/afk:to-subtasks` to be distinctive — a class declaration, a
      method signature substring, an exported function name. If it does not
-     appear, the producer drifted from the contract — exit
-     `contract_mismatch` with the same shape.
-   - Quote the offending bullet verbatim in `detail` so the runner's
-     producer-side comment surfaces what the consumer expected.
+     appear, the producer drifted from the contract — stop with the same
+     `contract_mismatch` outcome.
+   - Quote the offending bullet verbatim in the outcome detail so you can
+     comment on both the consumer (this SubTask) and the producer SubTask.
 
    If every line greps clean, proceed. **Do not retry the grep, and do not
    try to auto-correct the producer.** A `contract_mismatch` halts the
-   chain on purpose — the human needs to fix the producer (re-open the
-   producer SubTask or emit a corrective SubTask) before this SubTask can
-   succeed.
+   chain on purpose — the producer must be fixed (re-open the producer SubTask
+   or emit a corrective SubTask) before this SubTask can succeed. Post a Jira
+   comment on both the consumer and the producer SubTask (via
+   `mcp__jira__jira_comment`) so the break is recorded where it lives.
 
 3. **Plan inside the SubTask's Scope.** Stay strictly within the Scope globs
-   from the parsed template. Forbidden patterns are enforced post-hoc by
-   `scope_enforcer.enforce(...)` against the diff — adding entity classes is
-   fine, hand-written `UpgradeGroup_*.java` / liquibase changesets / pre-DB
-   migrations are not.
+   from the contract. Check your own diff against those globs and the
+   forbidden-pattern list before committing — adding entity classes is fine,
+   hand-written `UpgradeGroup_*.java` / liquibase changesets / pre-DB
+   migrations are not (see Hard rules).
 
-4. **Transition: `Dev-Designing`.** Call the Jira client to transition the
-   SubTask via the "Start Designing" transition before you start writing.
+4. **Transition: `Dev-Designing`.** Transition the SubTask via the "Start
+   Designing" transition (`mcp__jira__jira_transition`) before you start
+   writing.
 
 5. **Apply TDD.** Use the `/afk:tdd` skill: write a failing test first, then make it
-   pass, then refactor. The Test command from the parsed template is the
+   pass, then refactor. The Test command from the contract is the
    green-bar check — it must pass before you transition out of Dev-Developing.
 
 6. **Transition: `Dev-Developing`.** After the planning is done and you start
-   editing, transition via "Start Development".
+   editing, transition via "Start Development" (`mcp__jira__jira_transition`).
 
 7. **Commit.** Each commit message starts with the SubTask key in brackets:
    `[P2P-1234] <message>`. Cross-module edits must include a JIRA-prefixed
-   marker comment in the added hunks (the `scope_enforcer` enforces this).
+   marker comment in the added hunks (see Hard rules).
 
    **Honor `## Produces` (cited mode).** Every artifact declared in the
-   parsed `produces` tuple must exist on the branch by the time this
-   SubTask exits with success. **Step 10 below greps every declared
-   anchor right before the success exit and aborts with `produces_drift`
-   if any are missing — drifting from your own declared contract is no
-   longer survivable mid-session.** If you discover the declared
-   signature is wrong mid-flight, that is a `design_conflict`, not a
-   license to silently change it.
+   `## Produces` section must exist on the branch by the time this SubTask
+   exits with success. **Step 10 below greps every declared anchor right
+   before the success exit and aborts with `produces_drift` if any are
+   missing — drifting from your own declared contract is not survivable
+   mid-session.** If you discover the declared signature is wrong mid-flight,
+   that is a `design_conflict`, not a license to silently change it.
 
-8. **Push and update the Draft MR.** Push commits to the per-Enhancement
-   branch. Call `gitlab_client.update_subtasks_checklist(...)` so the MR's
-   auto-maintained section reflects this SubTask as done.
+8. **Push and update the Draft MR.** Push commits to the parent Enhancement's
+   branch. Update the MR's auto-maintained SubTask checklist block (bracketed
+   by `<!-- afk:subtasks:start -->` … `<!-- afk:subtasks:end -->`) via `glab`
+   so it reflects this SubTask as done — preserve everything outside the block
+   verbatim.
 
-9. **Run the Test command.** Run the exact command from the parsed template
+9. **Run the Test command.** Run the exact command from the contract
    (`pytest ...`, `mvn -pl ... test`, etc.). If it fails, retry once with a
-   targeted fix. If still failing, abort (return `ClaudeOutcome("test_fail", detail=...)`).
+   targeted fix. If still failing, stop with a `test_fail` outcome.
 
 10. **Producer self-preflight on `## Produces` (cited mode).** Before
-    declaring success, verify every artifact you declared in the parsed
-    `produces` tuple actually lands on the branch. For each bullet of the
+    declaring success, verify every artifact you declared in the `## Produces`
+    section actually lands on the branch. For each bullet of the
     shape `{file-path}#{grep-anchor} — {one-line contract}`:
 
     - `ctx_read` the `{file-path}` (cwd is the worktree root, paths are
       relative). If the file does not exist, you committed without
-      producing what you declared — exit with
-      `ClaudeOutcome("produces_drift", detail=...)` quoting the offending
-      bullet verbatim. **Do not retry, do not amend silently.**
+      producing what you declared — stop with a `produces_drift` outcome,
+      quoting the offending bullet verbatim. **Do not retry, do not amend
+      silently.**
     - `ctx_search` for `{grep-anchor}` inside `{file-path}`. The anchor
       was chosen at slicing time to be distinctive (a class declaration,
       a method signature substring, an exported function name). If it
       does not appear, the implementation diverged from the declared
-      signature — exit `produces_drift` with the same shape.
-    - Quote the failing bullet in `detail` so the runner's abort comment
+      signature — stop with `produces_drift`.
+    - Quote the failing bullet in the outcome detail so the abort comment
       surfaces what was promised vs. what landed.
     - **JPA-entity pickup check (core-services Java only).** If
       `{file-path}` ends in `.java` AND the file contains `@Entity` (or
@@ -241,7 +161,7 @@ parent Enhancement's key is on the SubTask's `parent` field.
          module's `pom.xml` for the `liquibase-hibernate7` plugin
          config to find the right goal). Inspect the generated diff
          file; if it does NOT mention the new entity / column / table,
-         the plugin is not picking it up. Exit `produces_drift` with
+         the plugin is not picking it up. Stop with `produces_drift`,
          detail naming the entity and the empty diff path.
 
       This is the symmetric counterpart to the `## Produces` grep:
@@ -256,112 +176,80 @@ parent Enhancement's key is on the SubTask's `parent` field.
 
     This is the symmetric counterpart to Step 2's consumer-side preflight.
     Without it, signature drift is observable only at the **next**
-    consumer's preflight — wasting a drain pass and surfacing the failure
-    on the wrong ticket.
+    consumer's preflight — surfacing the failure on the wrong ticket.
 
     `produces_drift` is **not** the same as `design_conflict`:
     `design_conflict` means "the binding contract is wrong, route to
     `/afk:architect-grill`"; `produces_drift` means "I did not deliver the
-    contract I declared, route to impl-or-slice fix." The runner does
-    not retry either, but the comment framing differs — pick the right
-    status. If you discover mid-flight that the declared signature itself
-    is wrong (the SDD §8 mandate is infeasible), exit `design_conflict`
+    contract I declared, route to impl-or-slice fix." Pick the right status.
+    If you discover mid-flight that the declared signature itself
+    is wrong (the SDD §8 mandate is infeasible), use `design_conflict`
     instead.
 
-11. **Update parent Implementation Notes.** One bullet per
-    `(SUBTASK-KEY)` via `jira_client.update_implementation_notes(...)`.
+11. **Update parent Implementation Notes.** Splice one bullet per
+    `(SUBTASK-KEY)` into the parent Enhancement's
+    `## Implementation Notes (auto-maintained)` section via
+    `mcp__jira__jira_edit` — preserve the human-edited prose around the block.
 
-12. **Do NOT transition to `Dev-CR/Merge`.** The runner owns this boundary
-    transition and the gate-field writes (`dev_cr_merge_gate_fields` in
-    `DriverConfig`). It will fire them only when this skill returns
-    `success`. Calling `Request CR & Merge` from inside the session causes a
-    double-transition: the runner's follow-up call then fails because the
-    SubTask has already left `Dev-Developing`. Leave the SubTask in
-    `Dev-Developing` and exit.
+12. **Stop at CR/Merge — the human decides.** Do **not** fire
+    `Request CR & Merge` or merge the MR yourself. Leave the SubTask in
+    `Dev-Developing` with the Draft MR updated and report `success`. The human
+    reviews the MR and performs the `Dev-CR/Merge` transition (and any gate-
+    field writes) out of band. Auto-merging is outside this skill's lane.
 
-13. **Emit the structured outcome marker, then exit.** This block is the
-    contract between this session and the runner — without it, the runner
-    has no way to tell `success` from `contract_mismatch` from
-    `produces_drift`, because the spawned `claude --print` process exits
-    `0` on clean termination regardless of the narrative outcome. Print
-    exactly the following as the **last** thing in your output, on its own
-    lines, not inside a tool result or commit message:
+13. **Report the structured outcome.** End your run with a one-line outcome so
+    the invoking human (or an orchestrator like `/afk:iterate-afk`) can tell
+    `success` from a structured failure at a glance. State the status and a
+    one-line detail (and, for `contract_mismatch`, the producer key):
 
     ```
-    <<<AFK_OUTCOME>>>
-    {"status": "<status>", "detail": "<one-line summary>", "producer_key": <"PRODUCER-KEY" | null>}
-    <<<END>>>
+    OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-KEY|none>]
     ```
 
-    The substring between the markers MUST be valid JSON. `producer_key`
-    is required (set to `null` when not applicable). The runner regex-
-    scans the log for the **last** occurrence of the marker (so a retry
-    inside this session that re-emits the marker wins); a missing,
-    malformed, or unknown-status marker is recorded by the runner as
-    `other` with detail `"no AFK_OUTCOME marker emitted (...)"` and the
-    SubTask is treated as an unexpected failure — i.e. silence is louder
-    than failure now. If a wrapping framework (e.g. tool-call rendering)
-    might mangle the angle-bracket markers, print them inside a fenced
-    code block whose body is exactly the three lines shown above; the
-    runner's regex tolerates surrounding whitespace and code-fence noise.
-
-    Allowed `status` values and their meaning:
+    Status values and their meaning:
 
     - `success` — Test command green, code committed + pushed,
-      Designing/Developing transitions landed. The runner will perform the
-      final `Dev-CR/Merge` transition + gate fields after this skill exits.
-    - `test_fail` / `build_fail` — let the runner retry up to `retry_count`.
-    - `timeout` — exited because of the wall-clock cap. (You will rarely
-      emit this yourself; the runner records `timeout` when subprocess.run
-      raises `TimeoutExpired` and no marker was emitted in time.)
+      Designing/Developing transitions landed, MR updated. The human handles
+      CR/Merge.
+    - `test_fail` / `build_fail` — the Test command / build did not go green
+      after one targeted retry.
+    - `timeout` — exited because of a wall-clock cap.
     - `design_conflict` — cited mode only. A binding decision in the SDD
       or a cited ADR is wrong, infeasible, or contradicts reality (e.g. the
       named library's API does not allow the signature SDD §8 specifies).
-      Put the offending SDD section / ADR ID + the concrete conflict in
-      `detail`. The runner does NOT retry; it posts a comment routing the
-      human to `/afk:architect-grill` to emit a superseding ADR before
-      re-queueing the SubTask. Do **not** fall back to `other` for
-      binding-contract issues — the explicit status is what tells the
-      human "the design is wrong, not the code."
+      Name the offending SDD section / ADR ID + the concrete conflict.
+      Route the human to `/afk:architect-grill` to emit a superseding ADR
+      before re-running the SubTask.
     - `contract_mismatch` — cited mode only. Raised by Step 2 preflight
       when an upstream `## Produces` artifact is missing or its
-      `{grep-anchor}` does not appear in the named file. Populate
-      `producer_key` with the `{PRODUCER-KEY}` from the offending
-      `## Consumes` line and quote the offending bullet in `detail`. The
-      runner does NOT retry; it posts a comment on the consumer (this
-      SubTask) AND a separate comment on the producer SubTask so the human
-      can fix the producer (re-open it or emit a corrective SubTask)
-      before re-queueing this one. Use this status — not `other` — for
-      every preflight grep miss.
+      `{grep-anchor}` does not appear in the named file. Name the
+      `{PRODUCER-KEY}` from the offending `## Consumes` line and quote the
+      offending bullet. Comment on both the consumer and the producer SubTask.
     - `produces_drift` — cited mode only. Raised by Step 10's producer
       self-preflight when one of THIS SubTask's own `## Produces` anchors
-      does not appear in its declared file. Quote the offending bullet
-      verbatim in `detail`. Symmetric to `contract_mismatch` but no
-      separate producer ticket — consumer == producer == this SubTask.
-      The runner does NOT retry; it posts a single comment framing it as
-      "producer self-check failed" and routing the human to fix the impl
-      OR re-emit the slice with a corrected `## Produces`. Use this
-      status — not `design_conflict` — when YOUR implementation drifted
-      from YOUR declaration (versus the SDD/ADR mandate being wrong).
-    - `other` — unexpected failure; the runner will abort and comment.
+      does not appear in its declared file. Quote the offending bullet.
+      Symmetric to `contract_mismatch` but no separate producer ticket —
+      consumer == producer == this SubTask. Fix the impl OR re-emit the
+      slice with a corrected `## Produces`.
+    - `other` — unexpected failure.
 
 ## Conflict procedure (cited mode)
 
-If the parsed SubTask has a `## Conflict procedure` block, follow it
+If the SubTask has a `## Conflict procedure` block, follow it
 verbatim when you hit a binding-contract violation. The canonical flow:
 
 1. Stop coding the moment you realize the SDD/ADR mandate is unimplementable
    or contradicts reality. Don't paper over it with workarounds.
 2. Stage no code. Commit nothing under the conflict.
-3. Exit with `ClaudeOutcome("design_conflict", detail=<concrete description
-   quoting the SDD section + the conflict>)`.
-4. The runner handles the rest: posts a Jira comment surfacing the
-   conflict, transitions the SubTask back to `Dev-Pending`, and tells the
-   human to run `/afk:architect-grill` for a superseding ADR.
+3. Report a `design_conflict` outcome with a concrete description quoting the
+   SDD section + the conflict.
+4. Post a Jira comment surfacing the conflict, transition the SubTask back to
+   `Dev-Pending`, and run `/afk:architect-grill` for a superseding ADR before
+   re-running.
 
 **Do NOT silently override the SDD/ADR.** Substituting a different pattern
-or interface from inside this session breaks the binding contract and
-produces work other SubTasks cannot integrate with.
+or interface breaks the binding contract and produces work other SubTasks
+cannot integrate with.
 
 ## Hard rules (inherited from core-services CLAUDE.md)
 
@@ -376,12 +264,5 @@ produces work other SubTasks cannot integrate with.
   `// P2P-1234: shared helper added` in the added hunks of any file outside
   the home module.
 - **No `--no-verify`, no `--force`, no global git config changes.**
-- **Stay inside Scope globs.** If the work requires going outside, abort with
+- **Stay inside Scope globs.** If the work requires going outside, stop with
   detail explaining what was needed and why.
-
-## Invoked by
-
-The AFK driver (`afk_driver/cli.py`) spawns one fresh Claude Code session per
-SubTask and invokes `/afk:execute SUBTASK-KEY`. Not invoked manually. The
-caller is the runner; the only "next" after a successful exit is the runner's
-own `Dev-CR/Merge` transition + gate-field writes.

@@ -26,14 +26,14 @@ session — each chain skill expects its own session.
        Sdd -->|optional| Brief[/afk:to-design-brief/]
        Sdd --> Sub
        Brief --> Sub
-       Sub -->|driver spawns per SubTask| Exec[/afk:execute/]
+       Sub -->|run once per SubTask| Exec[/afk:execute/]
        Exec -.uses.-> Tdd[/afk:tdd/]
    ```
 
    > The chain runs left-to-right. Each stage either grills (interviews you)
-   > or synthesizes (turns settled context into an artifact). The only
-   > skill the human never invokes manually is `/afk:execute` — the
-   > driver spawns it per labelled SubTask.
+   > or synthesizes (turns settled context into an artifact). You invoke
+   > every stage yourself, including `/afk:execute` — run it once per
+   > labelled SubTask, in its own session on the parent's branch.
 
 2. **Print the stage table.** One row per skill. Columns: Stage, Skill,
    Input, Output, Binding gate that blocks progress.
@@ -88,8 +88,8 @@ The chain has two modes:
 
 - **Cited mode** — the SubTasks reference the SDD §N + ADR-NNNN that
   constrain them, and carry typed `## Produces` / `## Consumes` contracts.
-  The AFK driver runs each SubTask in a fresh, blind Claude Code session;
-  the only way SubTask N+1 can verify SubTask N delivered the expected
+  Each SubTask runs in its own fresh `/afk:execute` session with no memory
+  of the previous one's plan; the only way SubTask N+1 can verify SubTask N delivered the expected
   interface is if N declared it up-front (Produces) and N+1 can grep for
   it (Consumes). Use cited mode for **new complex features** — anything
   touching ≥2 modules, introducing patterns, or with non-trivial txn / data.
