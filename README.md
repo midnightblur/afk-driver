@@ -224,8 +224,11 @@ pipeline map and routes you to the right entry skill.
 
 **Mandatory chain** (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`):
 
-- **`/afk:to-prd`** — turns conversation context into a PRD. AFK adaptation:
-  writes to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
+- **`/afk:to-prd`** — turns conversation context into a PRD, plus
+  requirement-level ADRs (behaviour / scope decisions that clear the
+  hard-to-reverse + surprising + real-trade-off bar) under
+  `.../{ENH-ID}/adr/requirements/NNNN-*.md`. AFK adaptation: writes to
+  `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
   (or `tools/{group}/{tool}/PRD.md` for tooling work). Owns the `## PRD`
   section of the parent Enhancement description; AFK driver owns
   `## Implementation Notes (auto-maintained)`.
@@ -252,16 +255,20 @@ pipeline map and routes you to the right entry skill.
 skip for small enhancements, bugs, refactors, tooling):
 
 - **`/afk:grill-requirements`** — interviews the user about a raw idea or plan
-  until the requirements decision tree is exhausted. Does NOT produce
-  documents. Pair with `/afk:to-prd` afterward to synthesize.
+  until the requirements decision tree is exhausted, challenging it against the
+  project's domain glossary. Maintains `GLOSSARY.md` inline (the shared
+  understanding being built) but produces NO decision records — those are
+  emitted downstream by `/afk:to-prd` (requirement ADRs) and `/afk:to-sdd`
+  (design ADRs). Pair with `/afk:to-prd` afterward to synthesize.
 - **`/afk:architect-grill`** — interviews the user top-down across 8 layers
   (L1 system topology → L8 tactical patterns) until every non-trivial
   decision has a rationale and ≥2 alternatives weighed. Does NOT produce
   documents.
 - **`/afk:to-sdd`** — synthesizes the conversation into `SDD.md` plus
-  per-decision ADRs, sibling to the PRD:
+  per-decision design ADRs, sibling to the PRD:
   `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/SDD.md`
-  and `.../adr/NNNN-*.md`. Owns the `## SDD` section of the parent
+  and `.../adr/design/NNNN-*.md` (distinct from `/afk:to-prd`'s
+  `adr/requirements/`). Owns the `## SDD` section of the parent
   Enhancement description. Mandates visualizations (Mermaid diagrams,
   tables) per layer so reviewers can scan vertically.
 - **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight

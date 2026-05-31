@@ -90,7 +90,7 @@ The 9 skills shipped:
 
 - **Orientation**: `/afk:start` (pipeline map + entry-point router).
 - **Mandatory chain**: `/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`. The runner spawns `/afk:execute` per SubTask.
-- **Optional design layer**: `/afk:grill-requirements` (raw-idea grilling) → `/afk:to-prd` → `/afk:architect-grill` (top-down L1→L8 interview) → `/afk:to-sdd` (writes `SDD.md` + per-decision ADRs sibling to the PRD; owns the `## SDD` section of the parent Enhancement description) → `/afk:to-design-brief` (optional digest: synthesizes PRD + SDD + ADRs into a 1-2 page `DESIGN-BRIEF.md` for stakeholder review and pre-SDD reading; owns the `## Design Brief` section). Recommended for new complex features; skip for small bugs / refactors / tooling.
+- **Optional design layer**: `/afk:grill-requirements` (raw-idea grilling; maintains `GLOSSARY.md` only — no decision records) → `/afk:to-prd` (PRD + requirement ADRs under `.../adr/requirements/`) → `/afk:architect-grill` (top-down L1→L8 interview) → `/afk:to-sdd` (writes `SDD.md` + per-decision design ADRs under `.../adr/design/` sibling to the PRD; owns the `## SDD` section of the parent Enhancement description) → `/afk:to-design-brief` (optional digest: synthesizes PRD + SDD + ADRs into a 1-2 page `DESIGN-BRIEF.md` for stakeholder review and pre-SDD reading; owns the `## Design Brief` section). Recommended for new complex features; skip for small bugs / refactors / tooling.
 - **Tooling**: `/afk:tdd` (red-green-refactor doctrine, invoked from `/afk:execute` Step 5).
 
 `/afk:to-subtasks` slices in **cited mode** when an SDD is present (each SubTask references binding SDD sections + ADRs and carries a Conflict procedure block) and in **uncited mode** otherwise (PRD-only; human-gated per ticket).

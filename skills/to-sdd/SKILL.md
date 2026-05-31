@@ -6,15 +6,15 @@ description: Turn the current conversation context into a Software Design Docume
 This skill takes the current conversation context, the PRD, and the codebase understanding, and produces:
 
 1. A single `SDD.md` organized layer-by-layer (L1 -> L8), with **mandatory visualizations** per section.
-2. One ADR per non-trivial decision under `adr/NNNN-kebab-title.md`, each with at least one diagram or table.
+2. One design ADR per non-trivial decision under `adr/design/NNNN-kebab-title.md`, each with at least one diagram or table.
 
 Do NOT interview the user — just synthesize what you already know. If a critical-logic concern is unresolved, STOP and tell the user to run `/afk:architect-grill` first; do not invent decisions.
 
 ## Process
 
-1. **Locate the PRD.** Default path: `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md` (service-scoped) or `tasks/{TICKET-ID}/PRD.md` (cross-cutting tooling). Read it with `ctx_read` (mode=full). The SDD and ADRs land in the SAME folder as the PRD.
+1. **Locate the PRD.** Default path: `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md` (service-scoped) or `tasks/{TICKET-ID}/PRD.md` (cross-cutting tooling). Read it with `ctx_read` (mode=full). The SDD lands in the SAME folder as the PRD; design ADRs land in its `adr/design/` subfolder.
 
-2. **Re-read existing ADRs in the area** — repo-wide `docs/adr/` and any sibling `adr/` next to the PRD. Do not contradict prior decisions silently; if you must, write a new ADR that explicitly **Supersedes** the old one and list it in §13 Reversed Decisions.
+2. **Re-read the ticket's existing ADRs** — the design ADRs in the sibling `adr/design/` (to avoid contradicting prior design decisions) and the requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Do not read or write repo-wide `docs/adr/` — all ADRs are ticket-local. If you must reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §13 Reversed Decisions. Never edit an `adr/requirements/` ADR — if a requirement decision blocks the design, that's a `design-conflict` to route back, not a thing to overwrite here.
 
 3. **Use the project's domain glossary.** Match the vocabulary used in the PRD and `CONTEXT.md` (if present).
 
@@ -123,10 +123,11 @@ Do NOT interview the user — just synthesize what you already know. If a critic
    contradicts the manifest. Same outcome as Step 7: do not write,
    surface offenders verbatim, bounce back.
 
-9. **Emit ADRs.** Numbering is local to the ticket folder (start at `0001`).
-   ADRs are subject to the same Step 7 refuse-to-publish gate AND the
-   Step 8 library-version cross-check — apply both before writing any
-   `adr/NNNN-*.md` file.
+9. **Emit design ADRs** into the `adr/design/` subfolder. Numbering is local
+   to `adr/design/` (start at `0001`), independent of the `adr/requirements/`
+   numbering. ADRs are subject to the same Step 7 refuse-to-publish gate AND
+   the Step 8 library-version cross-check — apply both before writing any
+   `adr/design/NNNN-*.md` file.
 
 10. **Splice a `## SDD` pointer into the parent Jira ticket description.** Never modify `## Implementation Notes (auto-maintained)`.
 
@@ -375,14 +376,14 @@ At least two. **Required visual:** comparison table OR `quadrantChart` plotting 
 
 When the SDD belongs to an AFK-driven Enhancement / Bug:
 
-- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/SDD.md` and `.../adr/NNNN-*.md`. Service auto-derived from the Jira project key via `project_service_map`.
+- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/SDD.md` and `.../adr/design/NNNN-*.md`. Service auto-derived from the Jira project key via `project_service_map`.
 - **Parent ticket splice.** Add or update a `## SDD` section in the Enhancement / Bug description:
 
   ```
   ## SDD
 
   Architecture lives in the repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/SDD.md`
-  (this branch). ADRs in `.../adr/`.
+  (this branch). Design ADRs in `.../adr/design/`.
   ```
 
   Leave `## PRD` and `## Implementation Notes (auto-maintained)` untouched.

@@ -130,6 +130,19 @@ Any further notes about the feature.
 
 </prd-template>
 
+4. **Emit requirement-level ADRs.** The PRD's `## Implementation Decisions` is
+   the broad list. From it, extract the subset of *behavioural* decisions that
+   pass all three of (hard to reverse) AND (surprising without context) AND (a
+   real trade-off with ≥2 genuine alternatives), and write each as a standalone
+   ADR in the ticket-local `adr/requirements/` subfolder, sibling to the PRD —
+   `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/adr/requirements/NNNN-slug.md`
+   (GitHub backend: `{spec_root}/{TICKET-ID}/adr/requirements/NNNN-slug.md`).
+   Numbering is local to that subfolder, starting at `0001`. Use the format in
+   [ADR-FORMAT.md](./ADR-FORMAT.md). These record the *what / why* (feature
+   behaviour, scope boundaries) — NOT the *how* (algorithm / pattern / tech),
+   which `/afk:to-sdd` records separately under `adr/design/`. Skip this step
+   entirely if no decision clears the three-part bar — most small PRDs won't.
+
 ## AFK adaptation (core-services)
 
 When publishing a PRD that the AFK driver should be able to slice

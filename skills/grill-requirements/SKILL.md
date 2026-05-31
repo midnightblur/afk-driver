@@ -1,6 +1,6 @@
 ---
 name: grill-requirements
-description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates documentation (GLOSSARY.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates the domain glossary (GLOSSARY.md) inline as terms crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 ---
 
 <what-to-do>
@@ -54,7 +54,6 @@ Create lazily, but create what's missing:
   move** — a glossary that isn't in the map is invisible to the next session.
 - A term several services share lives in the **root `GLOSSARY.md`**; record the
   cross-service usage in the map's Relationships section.
-- No `docs/adr/`? Create it when the first ADR is needed.
 
 ## During the session
 
@@ -84,15 +83,20 @@ capture them as they happen. Use the format in [GLOSSARY-FORMAT.md](./GLOSSARY-F
 
 `GLOSSARY.md` should be totally devoid of implementation details. Do not treat `GLOSSARY.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
 
-### Offer ADRs sparingly
+### Decision records come later — don't write them here
 
-Only offer to create an ADR when all three are true:
+This skill builds *understanding*; it does not emit decision records. When a
+decision worth recording crystallises during grilling (hard to reverse +
+surprising without context + a real trade-off), note it in the conversation so
+the downstream synthesis skills capture it as an ADR:
 
-1. **Hard to reverse** — the cost of changing your mind later is meaningful
-2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
-3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
+- **Requirement-level** decisions (how the feature must *behave*, what's in/out
+  of scope) → recorded by **`/afk:to-prd`** as a requirements ADR.
+- **Solution-level** decisions (algorithm, pattern, technology) → recorded by
+  **`/afk:to-sdd`** as a design ADR.
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+The glossary is the one artifact this skill maintains — because it *is* the
+shared understanding being built, not a record of a decision.
 
 </supporting-info>
 

@@ -24,7 +24,7 @@ the SDD; do not invent.
 1. **Locate the source docs.** Default paths (sibling layout):
    - PRD: `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`
    - SDD: `.../{TICKET-ID}/SDD.md`
-   - ADRs: `.../{TICKET-ID}/adr/NNNN-*.md`
+   - ADRs: `.../{TICKET-ID}/adr/requirements/NNNN-*.md` (requirement-level, from `/afk:to-prd`) and `.../{TICKET-ID}/adr/design/NNNN-*.md` (design-level, from `/afk:to-sdd`)
    - The brief lands at `.../{TICKET-ID}/DESIGN-BRIEF.md` (sibling).
 
    Read PRD with `ctx_read` mode=full. Read SDD mode=full. Read each ADR
@@ -138,8 +138,9 @@ If a row's "What changes" is "(none)", omit the row.
 
 - **Curious about the user-facing problem?** → `PRD.md`
 - **Reviewing the full design?** → `SDD.md` (layered §2 L1 → §9 L8)
-- **Auditing a specific decision?** → `adr/NNNN-*.md` (each cites its
-  layer, alternatives, consequences)
+- **Auditing a specific decision?** → `adr/requirements/NNNN-*.md` (behaviour /
+  scope) or `adr/design/NNNN-*.md` (solution — each cites its layer,
+  alternatives, consequences)
 - **Disagree with a decision?** → run `/afk:architect-grill` to draft a
   superseding ADR; do not edit the existing one in place.
 

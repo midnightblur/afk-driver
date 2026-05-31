@@ -99,10 +99,10 @@ runner's `--label` flag.
    The parent may be an Enhancement or a Bug — handle both the same way.
 
 2. **Resolve design docs.** Look for `SDD.md` at `sdd_path` (or sibling of the
-   PRD by default). If found, also enumerate `adr/NNNN-*.md` next to it and
-   `ctx_read` each in `signatures` mode. The set of `(SDD section IDs, ADR
-   IDs)` is your **citation pool** — every SubTask must reference at least
-   one entry from it.
+   PRD by default). If found, also enumerate `adr/design/NNNN-*.md` and
+   `adr/requirements/NNNN-*.md` next to it and `ctx_read` each in
+   `signatures` mode. The set of `(SDD section IDs, ADR IDs)` is your
+   **citation pool** — every SubTask must reference at least one entry from it.
 
 3. **Refuse-to-slice gate (cited mode only).** Before slicing, run two
    passes over the SDD and every ADR. **Refuse on any failure** in
