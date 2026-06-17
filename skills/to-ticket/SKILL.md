@@ -179,6 +179,6 @@ ticket:
 - **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features:
   interview the architecture, synthesize the SDD + design ADRs (those go next to
   the PRD on disk and into the `## SDD` section — not through this skill).
-  Downstream SubTasks slice in **cited mode**.
+  The downstream plan slices in **cited mode**.
 - **`/afk:to-subtasks`** — for small features / bugs / refactors / tooling:
-  slice the PRD straight into SubTasks in **uncited mode** (human-gated).
+  slice the PRD straight into a local plan in **uncited mode** (human-gated).

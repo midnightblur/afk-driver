@@ -78,7 +78,7 @@ caches, queues, auth providers, observability stacks, modules, schemas,
 build/deploy topology — do **not** accept it into the design. Verify
 against the codebase before letting it constrain a downstream decision.
 A fictional premise propagates into the SDD, then into ADRs, then into
-SubTask `## Produces` contracts referencing types that don't exist —
+subtask `## Produces` contracts referencing types that don't exist —
 every downstream layer inherits the lie, and no preflight grep can
 catch it because the contracts are *internally* consistent with the
 fiction.

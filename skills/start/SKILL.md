@@ -26,14 +26,14 @@ session — each chain skill expects its own session.
        Sdd -->|optional| Brief[/afk:to-design-brief/]
        Sdd --> Sub
        Brief --> Sub
-       Sub -->|run once per SubTask| Exec[/afk:execute/]
+       Sub -->|run once per subtask| Exec[/afk:execute/]
        Exec -.uses.-> Tdd[/afk:tdd/]
    ```
 
    > The chain runs left-to-right. Each stage either grills (interviews you)
    > or synthesizes (turns settled context into an artifact). You invoke
    > every stage yourself, including `/afk:execute` — run it once per
-   > labelled SubTask, in its own session on the parent's branch.
+   > subtask in the local plan, in its own session on the parent's branch.
 
 2. **Print the stage table.** One row per skill. Columns: Stage, Skill,
    Input, Output, Binding gate that blocks progress.
@@ -46,8 +46,8 @@ session — each chain skill expects its own session.
    | 4 | `/afk:grill-solution` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
    | 5 | `/afk:to-sdd` | conversation from step 4 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
    | 6 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
-   | 7 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | Jira SubTasks under parent ticket, each with typed `## Produces` / `## Consumes` contracts | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** (every bullet ends with `(PRD §X.Y)` / `(SDD §N)` / `(ADR-NNNN)`) |
-   | 8 | `/afk:execute` | one labelled SubTask | code committed + pushed + Dev-CR/Merge handoff | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 10 producer self-preflight** (every own `## Produces` anchor must grep clean) + JPA-entity liquibase-hibernate7 pickup check |
+   | 7 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | local `plan/` dir — `PLAN.md` index (solution map, seam register, progress tracker) + `NNNN-slug.md` per subtask with typed `## Produces` / `## Consumes` + tiered `## Verification` (no Jira) | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** + **seam coverage** (every SDD §9b seam has a named implementer carrying its seam-test) |
+   | 8 | `/afk:execute` | one subtask id (`NNNN-slug`) from the plan | code committed + pushed, tracker row `done`, Draft MR updated, handoff to human CR/Merge | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 9 producer self-preflight** (every own `## Produces` anchor must grep clean) + **every `## Verification` tier green** + JPA-entity liquibase-hibernate7 pickup check |
    | — | `/afk:tdd` | (called from inside `/afk:execute` Step 5) | red-green-refactor doctrine | n/a — tooling |
 
 3. **Ask the routing question.** Then ask **exactly one** question:
@@ -57,7 +57,7 @@ session — each chain skill expects its own session.
    > (a) Raw idea — nothing written yet. → `/afk:grill-requirements`
    > (b) PRD written on disk, not yet on the tracker. → `/afk:to-ticket`
    > (c) PRD published to the parent, no SDD yet. → `/afk:grill-solution`
-   > (d) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:to-subtasks`
+   > (d) PRD + SDD + ADRs already in hand, ready to plan. → `/afk:to-subtasks`
    > (e) Stakeholder review upcoming on an existing SDD. → `/afk:to-design-brief`
    > (f) Something else / I just want to read the map and decide later.
 
@@ -89,13 +89,14 @@ session — each chain skill expects its own session.
 
 The chain has two modes:
 
-- **Cited mode** — the SubTasks reference the SDD §N + ADR-NNNN that
-  constrain them, and carry typed `## Produces` / `## Consumes` contracts.
-  Each SubTask runs in its own fresh `/afk:execute` session with no memory
-  of the previous one's plan; the only way SubTask N+1 can verify SubTask N delivered the expected
-  interface is if N declared it up-front (Produces) and N+1 can grep for
-  it (Consumes). Use cited mode for **new complex features** — anything
-  touching ≥2 modules, introducing patterns, or with non-trivial txn / data.
+- **Cited mode** — the subtasks reference the SDD §N + ADR-NNNN that
+  constrain them, list the §9b seams they implement/use, and carry typed
+  `## Produces` / `## Consumes` contracts. Each subtask runs in its own fresh
+  `/afk:execute` session with no memory of the previous one's plan; the only
+  way subtask N+1 can verify subtask N delivered the expected interface is if
+  N declared it up-front (Produces) and N+1 can grep for it (Consumes). Use
+  cited mode for **new complex features** — anything touching ≥2 modules,
+  introducing patterns, or with non-trivial txn / data.
 - **Uncited mode** — PRD only, no SDD/ADR citations, no Produces/Consumes.
   Human-gated: `/afk:to-subtasks` asks before slicing without an SDD when
   one is absent. Use for **small features / bugs / refactors / tooling

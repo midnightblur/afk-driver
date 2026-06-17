@@ -30,8 +30,8 @@ Do NOT interview the user — just synthesize what you already know. If a critic
    offender with its §-location verbatim (`§4 L3 — row "events table"` reads
    `Retention: TBD`) and bounce to `/afk:grill-solution`.
 
-   Blocker tokens (this is the canonical set; `/afk:to-subtasks` Step 3
-   re-scans it): `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`,
+   Blocker tokens (this is the canonical set; `/afk:to-subtasks`'s
+   refuse-to-slice gate re-scans it): `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`,
    `<TBD>` / `<TODO>` / `<placeholder>` / `<fill>` / `<\?>`, `\[\?\]`,
    `_?FILL[_-]?IN_?`, `\(decide later\)` / `\(unresolved\)` / `\(open\)`,
    and unsubstituted template literals (`<TICKET-ID>`, `<NNNN>`,
@@ -144,7 +144,7 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | Internal naming, control flow | ❌ | ✅ |
 | Test fixture structure | ❌ | ✅ |
 
-**Conflict procedure.** If an executor finds a binding decision wrong / infeasible / contradicting reality, exit the SubTask with `design-conflict` status quoting the SDD section + the conflict. Route back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Do not override silently.
+**Conflict procedure.** If an executor finds a binding decision wrong / infeasible / contradicting reality, exit the subtask with `design_conflict` status quoting the SDD section + the conflict. Route back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Do not override silently.
 
 ## §1 Context Summary
 
@@ -364,7 +364,7 @@ When the SDD belongs to an Enhancement / Bug in the AFK workflow:
 
   Leave `## PRD` and `## Implementation Notes (auto-maintained)` untouched.
 
-- **Hand-off.** Each downstream SubTask MUST cite the SDD section(s) and ADR(s) that constrain it, so the implementing agent has a binding contract — not just a feature ask.
+- **Hand-off.** Each downstream subtask MUST cite the SDD section(s) and ADR(s) that constrain it, so the implementing agent has a binding contract — not just a feature ask.
 
 ## Next
 
@@ -374,7 +374,7 @@ After the SDD + ADRs land, you have two choices:
   tight 1-2 page digest (one money-shot diagram + 5-10 row decision table +
   stakeholder-impact table). Strict synthesis — no new decisions.
 - **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs
-  into AFK-eligible Jira SubTasks with typed `## Produces` / `## Consumes`
-  contracts. The slicing-time refuse gate (`/afk:to-subtasks` Step 3) re-runs
-  the §13 / library-version checks defensively in case the SDD was
-  hand-edited after this skill ran.
+  into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with
+  typed `## Produces` / `## Consumes` and a per-subtask `## Seams` list. The
+  slicing-time refuse gate re-runs the §13 / library-version checks defensively
+  in case the SDD was hand-edited after this skill ran.

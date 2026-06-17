@@ -174,8 +174,8 @@ When the brief belongs to an Enhancement / Bug in the AFK workflow:
   the Jira ticket: the brief is shared with stakeholders out of band (link
   the repo file, paste it into a review thread), not published to the
   Enhancement/Bug. Leave the ticket description entirely to its other owners
-  (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`,
-  `## Implementation Notes` via `/afk:execute`).
+  (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`). Subtask progress
+  is local (`plan/PLAN.md`), not on the ticket.
 - **Re-emit on SDD change.** Briefs go stale silently — when the SDD or any
   ADR changes materially, re-run this skill. The `Last updated` field is
   the canary.
@@ -183,7 +183,7 @@ When the brief belongs to an Enhancement / Bug in the AFK workflow:
 ## Next
 
 The brief is for stakeholder review, not for the executor — the binding
-contract for AFK SubTasks is the SDD + ADRs, not the brief. After the brief
+contract for AFK subtasks is the SDD + ADRs, not the brief. After the brief
 is written and shared with stakeholders out of band, run **`/afk:to-subtasks`** to slice
-the PRD + SDD + ADRs into AFK-eligible Jira SubTasks. The brief itself is
+the PRD + SDD + ADRs into a local execution plan. The brief itself is
 not in the executor's reading list.

@@ -2,9 +2,10 @@
 
 A Claude Code **plugin** for the async-from-keyboard (AFK) workflow on the
 Nakisa core-services platform: a chain of skills that take a raw idea through
-grilling → PRD → architecture → SDD → sliced SubTasks → execution, all run
-**interactively** in Claude Code sessions. There is no autonomous driver — you
-invoke each stage yourself, including execution.
+grilling → PRD → architecture → SDD → a local execution plan → execution, all
+run **interactively** in Claude Code sessions. There is no autonomous driver —
+you invoke each stage yourself, including execution. The plan and its progress
+are local files (a `plan/` directory), not Jira issues.
 
 Inspired by [Matt Pocock's AFK Claude Code workflow](https://github.com/mattpocock/skills),
 adapted for the Nakisa Jira + GitLab + Maven environment on Windows. The *work*
@@ -82,20 +83,23 @@ afk@afk-marketplace`.
   design-chain skill that writes to the tracker; the work is done by the bundled
   `skills/to-ticket/scripts/publish_prd.py` engine for deterministic formatting.
 - **`/afk:to-subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
-  when present) into Jira SubTasks under the parent Enhancement, each
-  with the structured Markdown contract and the `afk-agents` label.
-  **Cited mode** (default when an SDD exists) emits `## Design refs`,
-  `## Parent SDD`, and `## Conflict procedure` blocks per SubTask, so
-  the implementing agent inherits a binding contract — not just a
-  feature ask. **Uncited mode** is human-gated for small features /
-  bugs / refactors / tooling: when no SDD is present, the skill asks
-  before slicing without one.
-- **`/afk:execute`** — you run this yourself, once per SubTask, in a session on
-  the parent Enhancement's branch. Takes one SubTask from `Dev-Pending` through
-  `Dev-Designing` → `Dev-Developing`, gets the test command green, commits +
-  pushes, updates the Draft MR, then **stops at CR/Merge** — you review and do
-  the `Dev-CR/Merge` transition out of band. Reports a structured outcome
-  (`success` / `test_fail` / `contract_mismatch` / `produces_drift` /
+  when present) into a **local execution plan**: a `plan/` directory
+  sibling to the PRD, with a `PLAN.md` index (solution map, seam
+  register, live progress tracker) and one `NNNN-slug.md` contract per
+  subtask. **No Jira.** **Cited mode** (default when an SDD exists) emits
+  `## Design refs`, `## Seams`, typed `## Produces`/`## Consumes`, and a
+  `## Conflict procedure` per subtask, so the implementing agent inherits
+  a binding contract — not just a feature ask. **Uncited mode** is
+  human-gated for small features / bugs / refactors / tooling. Every
+  subtask declares **tiered verification** (static → unit → integration →
+  e2e/browser).
+- **`/afk:execute`** — you run this yourself, once per subtask, in a session on
+  the parent ticket's branch. Reads the subtask's local contract, advances its
+  row in `plan/PLAN.md` (`designing` → `developing` → `verifying` → `done`),
+  turns **every declared verification tier** green under TDD, commits + pushes,
+  updates the Draft MR, then **stops at CR/Merge** — you review and merge out of
+  band. Touches GitLab + the local plan, **not Jira**. Reports a structured
+  outcome (`success` / `test_fail` / `contract_mismatch` / `produces_drift` /
   `design_conflict` / …).
 
 **Optional design layer** (recommended for new complex features touching
@@ -131,31 +135,33 @@ skip for small enhancements, bugs, refactors, tooling):
 `/afk:execute` Step 5.
 
 > **Cited-mode contract.** When `/afk:to-subtasks` slices in cited mode it
-> emits five additional SubTask sections — `## Design refs`,
+> emits six additional subtask sections — `## Design refs`, `## Seams`,
 > `## Produces`, `## Consumes` (when `Blocked by` is non-empty),
 > `## Parent SDD`, `## Conflict procedure`. The contract is enforced at
 > three checkpoints:
 >
-> 1. **Slicing time** (`/afk:to-subtasks` Step 7): graph validation
+> 1. **Slicing time** (`/afk:to-subtasks` Validation): graph validation
 >    (every `## Consumes` line resolves to a prior `## Produces`) +
 >    anchor quality (forbidden-token check, ≥12-char length, trial
 >    grep against `{file}` at HEAD must return ≤1 match — refuse on
->    ambiguity). Catches contract drift at declaration time.
+>    ambiguity) + Acceptance-citation + seam-coverage (every SDD §9b
+>    seam has a named implementer carrying its seam-test). Catches drift
+>    at declaration time.
 > 2. **Consumer preflight** (`/afk:execute` Step 2): before any work, grep
->    every `## Consumes` line `{PRODUCER-KEY} {file}#{anchor}` on the
+>    every `## Consumes` line `{PRODUCER-ID} {file}#{anchor}` on the
 >    branch — a missing artifact or signature-divergent anchor exits
->    `contract_mismatch` (no retry; comment on consumer AND on the
->    producer SubTask).
-> 3. **Producer self-preflight** (`/afk:execute` Step 10): right before
+>    `contract_mismatch` (no retry; recorded on consumer AND producer
+>    subtask files + both tracker rows `blocked`).
+> 3. **Producer self-preflight** (`/afk:execute` Step 9): right before
 >    declaring success, grep every own `## Produces` anchor on the
 >    branch. Missing or signature-divergent anchor exits
 >    `produces_drift` (no retry; route the human to impl-vs-slice fix).
 >
 > On a binding-decision break (SDD §8 mandate is wrong/infeasible),
 > `/afk:execute` exits `design_conflict` and routes to `/afk:grill-solution`
-> for a superseding ADR. `## Produces` is mandatory on every cited SubTask,
-> even leaves with no consumer — it doubles as the reviewer's cheat-sheet
-> AND the next SubTask's preflight target.
+> for a superseding ADR. `## Produces` is mandatory on every cited subtask,
+> even leaves with no consumer — it doubles as the reviewer's cheat-sheet,
+> the `static`-tier grep target, AND the next subtask's preflight target.
 
 ## Section ownership invariants
 
@@ -166,13 +172,15 @@ them collide:
   `/afk:to-prd`) is published by `/afk:to-ticket` inside an AFK-managed
   block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief
   is **not** published to the ticket (`/afk:to-design-brief` is repo-only);
-  `## Implementation Notes (auto-maintained)` is spliced by `/afk:execute`
-  (idempotent — preserves human prose around the block); other prose
-  belongs to the human.
+  other prose belongs to the human. Subtask progress is **not** spliced into
+  the ticket — it lives in the local `plan/PLAN.md` tracker.
 - **MR description**: the block bracketed by `<!-- afk:subtasks:start -->`
   / `<!-- afk:subtasks:end -->` is auto-maintained by `/afk:execute`;
   everything outside is preserved verbatim.
-- **SubTask description**: the SubTask Markdown contract must round-trip
-  losslessly. If `/afk:to-subtasks` and `/afk:execute` add or change a
-  section, update both the emitter (`/afk:to-subtasks` Step 6) and the
-  parser (`/afk:execute` Step 1) together.
+- **Local plan (`plan/`)**: `/afk:execute` owns only the PLAN.md progress
+  tracker's `Status` cell for the subtask it runs (+ the `Last updated`
+  date) and that subtask file's `## Implementation Notes` block. The
+  contract sections must round-trip losslessly. If `/afk:to-subtasks` and
+  `/afk:execute` add or change a section, update both the emitter
+  (`/afk:to-subtasks` "Subtask contract") and the parser (`/afk:execute`
+  Step 1) together.

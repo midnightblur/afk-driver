@@ -124,4 +124,4 @@ This skill stops at the local PRD (+ requirement ADRs). Then, in order:
 - **`/afk:grill-solution`** — interview the architecture top-down across
   L1 → L8 layers.
 - **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,
-  downstream SubTasks slice in uncited mode (PRD-only).
+  the downstream plan slices in uncited mode (PRD-only).
