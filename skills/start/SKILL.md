@@ -27,6 +27,7 @@ session — each chain skill expects its own session.
        Sdd --> Sub
        Brief --> Sub
        Sub -->|run once per subtask| Exec[/afk:execute/]
+       Exec -->|all subtasks done · optional gate| Smoke[/afk:smoke/]
        Exec -.uses.-> Tdd[/afk:tdd/]
    ```
 
@@ -48,6 +49,7 @@ session — each chain skill expects its own session.
    | 6 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
    | 7 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | local `plan/` dir — `PLAN.md` index (solution map, seam register, progress tracker) + `NNNN-slug.md` per subtask with typed `## Produces` / `## Consumes` + tiered `## Verification` (no Jira) | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** + **seam coverage** (every SDD §9b seam has a named implementer carrying its seam-test) |
    | 8 | `/afk:execute` | one subtask id (`NNNN-slug`) from the plan | code committed + pushed, tracker row `done`, Draft MR updated, handoff to human CR/Merge | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 9 producer self-preflight** (every own `## Produces` anchor must grep clean) + **every `## Verification` tier green** + JPA-entity liquibase-hibernate7 pickup check |
+   | 9 | `/afk:smoke` *(optional gate)* | a plan with a `## Feature smoke gate` + every subtask `done` | integrated browser smoke suite run against a running app; `Feature: complete` stamped in PLAN.md on green; suite reused by CI / scheduled / manual | **every subtask `done`** (else `preconditions_unmet`) + **app reachable at target** (else `env_unreachable`) + **every gate scenario green** (else `smoke_fail`); present only when `/afk:to-subtasks` set `smoke_e2e = yes` |
    | — | `/afk:tdd` | (called from inside `/afk:execute` Step 5) | red-green-refactor doctrine | n/a — tooling |
 
 3. **Ask the routing question.** Then ask **exactly one** question:

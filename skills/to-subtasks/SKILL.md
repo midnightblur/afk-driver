@@ -49,6 +49,10 @@ warrants no SDD (see "Design-doc optionality").
   the plan and the eventual branch. **Nothing is written to Jira.**
 - `skip_design_docs` *(optional, default false)* — human override to slice
   uncited even though an SDD might be warranted.
+- `smoke_e2e` *(optional, default: ask)* — human-gated: does this feature need a
+  browser smoke suite as its completion gate? `yes` → emit a `## Feature smoke
+  gate` in PLAN.md + a terminal `NNNN-smoke-e2e` authoring subtask (see
+  "Feature smoke gate" below). Like the SDD call, never decide on your own.
 
 ## Process
 
@@ -86,6 +90,16 @@ warrants no SDD (see "Design-doc optionality").
    yourself splitting a §8 module, the SDD is too coarse: bounce, don't invent a
    split that contradicts §8. Aim for 4–10 subtasks; more than 10 means the PRD
    is too big or the slice too fine.
+
+   **Decide the smoke gate.** Resolve `smoke_e2e` (ask if unset — see "Feature
+   smoke gate"). If `yes`, append one **terminal** subtask
+   `NNNN-smoke-e2e.md` that *authors* the feature's browser smoke specs:
+   `## Blocked by` **every** other subtask, `## Scope` the e2e suite dir
+   (`11700-payable/e2e/<feature>`), Acceptance tracing to the gate's scenarios,
+   and an `e2e` `## Verification` row running the new specs locally. It is normal
+   `/afk:execute` work — the specs land as reviewed code. The integrated gate
+   itself is `/afk:smoke`, run after this subtask is `done` (not part of this
+   skill).
 
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the
    contract below. `NNNN` is the zero-padded rank; `{slug}` is a short kebab
@@ -204,6 +218,34 @@ A subtask that **implements** a §9b seam must carry the seam's test as a
 Verification row (unit or integration tier) asserting on the framework's real
 output, not our DTO — it's the only test that covers the boundary.
 
+### Feature smoke gate (optional, human-gated)
+
+The per-subtask `e2e/browser` tier proves **one slice's** UI in isolation. A
+feature may also want an **integrated smoke gate**: the cross-subtask user
+journeys, run against a real running app, as the final "feature complete" check —
+and reused afterward by CI / scheduled jobs / manual sanity runs. That gate is a
+separate skill (`/afk:smoke`); this skill only **decides** it and **specifies**
+it.
+
+Whether a feature needs one is a per-feature human call (like the SDD). If
+`smoke_e2e` is unset, **ask**:
+
+> *Does this feature need a browser smoke suite as its completion gate
+> (integrated journeys against a running app, reused for CI / scheduled checks)?
+> Yes → I add a `## Feature smoke gate` to PLAN.md and a terminal smoke-spec
+> subtask. No → the per-subtask e2e tiers are the only browser coverage.*
+
+When `yes`, emit **both**:
+
+- **The PLAN.md `## Feature smoke gate` section** (template below): each scenario
+  is an integrated user journey traced to a PRD User Story, plus the suite path,
+  the run command, and the target env. Draw the scenarios from the PRD's top
+  User Stories — they are the feature's definition-of-done flows.
+- **The terminal `NNNN-smoke-e2e` subtask** (Process step 3): authors those
+  scenarios as real specs in the e2e suite, blocked by every other subtask.
+
+Record the human's `smoke_e2e` choice in the output so it's auditable.
+
 ## PLAN.md (the index)
 
 ````
@@ -213,6 +255,7 @@ output, not our DTO — it's the only test that covers the boundary.
 > Sources: [PRD](../PRD.md){cited: · [SDD](../SDD.md) · [ADRs](../adr/)}
 > Branch (for /afk:execute): mvu/afk/{ticket-id-lower}
 > Last updated: {YYYY-MM-DD} (status column maintained by /afk:execute)
+> Feature: in-progress   <!-- /afk:smoke stamps "complete (smoke green …)" iff a smoke gate exists -->
 
 ## Solution map
 
@@ -248,12 +291,29 @@ flowchart LR
 Status values: `pending` → `designing` → `developing` → `verifying` → `done`,
 or `blocked(<reason>)`. `/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
+
+## Feature smoke gate   <!-- present iff smoke_e2e = yes; omit whole section otherwise -->
+
+> Gate: /afk:smoke   Suite: 11700-payable/e2e/<feature>   Target env: local | staging
+> Run: <command, e.g. npx playwright test e2e/<feature>>
+> Authored by: NNNN-smoke-e2e (terminal subtask, blocked by all)
+> Last run: — (date + target; maintained by /afk:smoke)
+
+Integrated user journeys that decide "feature complete". Each traces to a PRD
+User Story. `/afk:smoke` runs them against a running app and owns the Status
+column + the header `Feature:` line; the rows themselves are seeded here.
+
+| # | Scenario (integrated journey) | Traces to | Spec | Status |
+|---|-------------------------------|-----------|------|--------|
+| 1 | <journey in plain language> | PRD User Story N | e2e/<feature>/foo.spec.ts | pending |
+| 2 | <journey> | PRD User Story M | e2e/<feature>/bar.spec.ts | pending |
 ````
 
 ## Validation
 
-Run before declaring the plan emitted. **Cited mode** runs all checks;
-**uncited mode** runs only (e) and (f).
+Run before declaring the plan emitted. **Cited mode** runs (a)–(f);
+**uncited mode** runs only (e) and (f). Check **(g)** runs in either mode
+whenever `smoke_e2e = yes`.
 
 **(a) Contract graph.** Walk every `## Consumes` line: `{PRODUCER-ID}` must
 resolve to a subtask **earlier in rank order** (forward refs = circular dep;
@@ -287,6 +347,14 @@ root.
 **(f) Scope sanity.** Globs are concrete (no bare `**`), and the union of all
 subtask Scopes covers the PRD's stated work with no silent gap.
 
+**(g) Smoke gate (iff `smoke_e2e = yes`).** PLAN.md has a `## Feature smoke
+gate` with ≥1 scenario, each tracing to a real PRD User Story (grep the PRD).
+A terminal `NNNN-smoke-e2e` subtask exists, `## Blocked by` **every** other
+subtask, with the e2e suite dir in `## Scope` and an `e2e` `## Verification`
+row. Every gate scenario maps to a spec the terminal subtask is responsible for.
+Conversely, if `smoke_e2e = no`, neither the section nor the terminal subtask is
+present (don't emit a half-gate).
+
 ## Hard rules
 
 - **No tracker writes.** This skill only writes files under `plan/`. It creates
@@ -311,6 +379,11 @@ subtask Scopes covers the PRD's stated work with no silent gap.
   entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own that
   the design needs no SDD.
+- **The smoke gate is all-or-nothing and human-decided.** `smoke_e2e = yes`
+  emits both the `## Feature smoke gate` section AND the terminal
+  `NNNN-smoke-e2e` subtask (blocked by all); `no` emits neither. Never decide on
+  your own that a feature needs (or skips) a browser smoke gate. This skill only
+  specifies the gate — running it is `/afk:smoke`'s job.
 
 ## Design-doc optionality
 
@@ -334,3 +407,10 @@ seam-touching subtasks. Then work the subtasks one at a time, in rank order
 in the tracker, drives it through design → develop → verify (every declared
 tier green), commits, pushes, and updates the Draft MR — then stops at CR/Merge
 for you.
+
+If the plan has a `## Feature smoke gate`, the terminal `NNNN-smoke-e2e` subtask
+authors its specs last (it's blocked by everything). Once **every** subtask is
+`done`, run **`/afk:smoke`** as the feature-completion gate: it runs the
+integrated browser journeys against a running app and, only on green, stamps
+`Feature: complete` in PLAN.md. That suite then serves CI / scheduled / manual
+sanity runs.

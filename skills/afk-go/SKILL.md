@@ -144,7 +144,12 @@ the full path.
 11. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself.
     Leave the Draft MR updated and the subtask `done` in the tracker, and report
     `success`. The human reviews the MR and merges out of band. Auto-merging is
-    outside this skill's lane.
+    outside this skill's lane. The **feature-level** smoke gate (the integrated
+    browser journeys against a running app) is likewise not yours — when the plan
+    has a `## Feature smoke gate` and every subtask is `done`, the human runs
+    `/afk:smoke`. A terminal `NNNN-smoke-e2e` subtask (which *authors* those
+    specs) is a normal subtask you run like any other; the gate that *runs* them
+    integrated is the separate skill.
 
 12. **Report the structured outcome.** End with a one-line outcome so the human
     (or an orchestrator) can tell `success` from a structured failure at a

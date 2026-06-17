@@ -1,7 +1,7 @@
 {
   "name": "afk-dev",
   "version": "0.0.0",
-  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → to-ticket → grill-solution → sdd → design-brief → subtasks) + interactive executor (execute) for the Nakisa Jira/GitLab workflow. Run each stage yourself; no autonomous driver.",
+  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → to-ticket → grill-solution → sdd → design-brief → subtasks) + interactive executor (execute) + optional feature smoke gate (smoke) for the Nakisa Jira/GitLab workflow. Run each stage yourself; no autonomous driver.",
   "author": {
     "name": "midnightblur"
   }

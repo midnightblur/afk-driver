@@ -1,13 +1,13 @@
 {
-  "name": "afk-marketplace",
+  "name": "afk-marketplace-dev",
   "owner": {
     "name": "midnightblur"
   },
   "plugins": [
     {
-      "name": "afk",
+      "name": "afk-dev",
       "source": "./",
-      "description": "AFK driver chain — design + executor skills for the async-from-keyboard Jira/GitLab autonomy pipeline. Ships with the afk-driver Python orchestrator in the same repo."
+      "description": "AFK skill chain — design + interactive executor + optional feature smoke gate skills for the async-from-keyboard Jira/GitLab workflow. Run each stage yourself in Claude Code; no autonomous driver."
     }
   ]
 }

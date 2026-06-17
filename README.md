@@ -2,10 +2,11 @@
 
 A Claude Code **plugin** for the async-from-keyboard (AFK) workflow on the
 Nakisa core-services platform: a chain of skills that take a raw idea through
-grilling → PRD → architecture → SDD → a local execution plan → execution, all
-run **interactively** in Claude Code sessions. There is no autonomous driver —
-you invoke each stage yourself, including execution. The plan and its progress
-are local files (a `plan/` directory), not Jira issues.
+grilling → PRD → architecture → SDD → a local execution plan → execution →
+an optional feature smoke gate, all run **interactively** in Claude Code
+sessions. There is no autonomous driver — you invoke each stage yourself,
+including execution. The plan and its progress are local files (a `plan/`
+directory), not Jira issues.
 
 Inspired by [Matt Pocock's AFK Claude Code workflow](https://github.com/mattpocock/skills),
 adapted for the Nakisa Jira + GitLab + Maven environment on Windows. The *work*
@@ -23,7 +24,8 @@ graph LR
     Sdd -->|optional| Brief[/afk:to-design-brief/]
     Sdd --> Sub
     Brief --> Sub
-    Sub -->|run once per SubTask| Exec[/afk:execute/]
+    Sub -->|run once per subtask| Exec[/afk:execute/]
+    Exec -->|all subtasks done · optional gate| Smoke[/afk:smoke/]
     Exec -.uses.-> Tdd[/afk:tdd/]
 ```
 
@@ -101,6 +103,17 @@ afk@afk-marketplace`.
   band. Touches GitLab + the local plan, **not Jira**. Reports a structured
   outcome (`success` / `test_fail` / `contract_mismatch` / `produces_drift` /
   `design_conflict` / …).
+- **`/afk:smoke`** *(optional feature gate)* — the **feature-level** completion
+  gate, distinct from the per-subtask `e2e/browser` tier. Runs only when
+  `/afk:to-subtasks` emitted a `## Feature smoke gate` (a per-feature human
+  call). After **every** subtask is `done`, it runs the integrated browser smoke
+  suite — the cross-subtask user journeys — against a **running app**, and only
+  on green stamps `Feature: complete` in `plan/PLAN.md`. The specs themselves are
+  authored as a terminal `NNNN-smoke-e2e` subtask (reviewed code in
+  `11700-payable/e2e/<feature>`), not by this skill. The same suite is then
+  reused by CI / scheduled verification / manual sanity runs. Merges nothing,
+  touches no Jira. Reports `smoke_green` / `smoke_fail` / `env_unreachable` /
+  `preconditions_unmet` / `no_gate`.
 
 **Optional design layer** (recommended for new complex features touching
 ≥2 modules / introducing patterns / non-trivial transactions or data;
@@ -183,4 +196,6 @@ them collide:
   contract sections must round-trip losslessly. If `/afk:to-subtasks` and
   `/afk:execute` add or change a section, update both the emitter
   (`/afk:to-subtasks` "Subtask contract") and the parser (`/afk:execute`
-  Step 1) together.
+  Step 1) together. **`/afk:smoke`** owns a disjoint slice of the same file:
+  the `## Feature smoke gate` table's `Status` cells, its `Last run` line, and
+  the header `Feature:` line — nothing else.
