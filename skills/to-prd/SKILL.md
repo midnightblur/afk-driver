@@ -106,19 +106,21 @@ The **on-disk location** is load-bearing — downstream skills (`/afk:to-sdd`,
 - **`{ENH-ID}`** is the parent ticket key the PRD belongs to (e.g. `P2P-1220`).
   This skill does not create or fetch that ticket — the key is supplied by the
   user / session context. If no key is known yet, write under a provisional
-  slug and let `/afk:to-ticket` reconcile the path once the ticket exists.
+  slug and rename the folder once the key exists.
 
-Everything tracker-side — creating the parent Enhancement, splicing a `## PRD`
-section into its description, setting the branch, applying labels — is handled
-by **`/afk:to-ticket`**, not here.
+Everything tracker-side — publishing the full PRD content into the (already
+existing) parent ticket's description as native Jira formatting, with any
+mermaid diagrams rendered and embedded — is handled by **`/afk:to-ticket`**,
+not here.
 
 ## Next
 
 This skill stops at the local PRD (+ requirement ADRs). Then, in order:
 
-- **`/afk:to-ticket`** — publish the PRD to the tracker: create/update the
-  parent Enhancement, splice the `## PRD` pointer at the on-disk path, set the
-  branch + labels. (Only this skill touches Jira / GitLab.)
+- **`/afk:to-ticket`** — publish the full PRD content into the **existing**
+  parent ticket as native Jira formatting (mermaid diagrams rendered + embedded);
+  idempotent, and preserves any product-owner content already in the ticket.
+  (Requires a parent key — it does not create the ticket.)
 - **`/afk:architect-grill`** — interview the architecture top-down across
   L1 → L8 layers.
 - **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,

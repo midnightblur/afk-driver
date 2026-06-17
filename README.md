@@ -18,7 +18,7 @@ graph LR
     Start[/afk:start/] -->|raw idea| Grill[/afk:grill-requirements/]
     Start -->|have PRD| AG[/afk:architect-grill/]
     Start -->|have SDD| Sub[/afk:to-subtasks/]
-    Grill --> Prd[/afk:to-prd/] --> AG --> Sdd[/afk:to-sdd/]
+    Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
     Sdd -->|optional| Brief[/afk:to-design-brief/]
     Sdd --> Sub
     Brief --> Sub
@@ -61,7 +61,8 @@ afk@afk-marketplace`.
 
 ## The skills
 
-**Mandatory chain** (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`):
+**Mandatory chain** (`/afk:to-prd` → `/afk:to-ticket` → `/afk:to-subtasks` →
+`/afk:execute`):
 
 - **`/afk:to-prd`** — turns conversation context into a PRD, plus
   requirement-level ADRs (behaviour / scope decisions that clear the
@@ -70,6 +71,16 @@ afk@afk-marketplace`.
   `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
   (or `tasks/{ENH-ID}/PRD.md` for tooling work). **Produces local artifacts
   only** — it does not touch the issue tracker (that's `/afk:to-ticket`'s job).
+- **`/afk:to-ticket`** — publishes the full PRD **content** into its parent
+  ticket as native Jira formatting (ADF): headings, lists, tables, code, and any
+  `mermaid` diagrams rendered to PNGs locally, attached, and embedded inline so
+  they're viewable in Jira. **Idempotent** — re-run when `PRD.md` changes and it
+  updates in place (no duplicate sections or attachments). Preserves
+  product-owner content already in the ticket unless it's barebone. Publishes
+  PRD content only — never the SDD or lower-level design. **Requires an existing
+  parent** (does not create it); sets no label and no branch. The only
+  design-chain skill that writes to the tracker; the work is done by the bundled
+  `skills/to-ticket/scripts/publish_prd.py` engine for deterministic formatting.
 - **`/afk:to-subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
   when present) into Jira SubTasks under the parent Enhancement, each
   with the structured Markdown contract and the `afk-agents` label.

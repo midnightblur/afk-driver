@@ -22,7 +22,7 @@ session — each chain skill expects its own session.
        Start[/afk:start/] -->|raw idea| Grill[/afk:grill-requirements/]
        Start -->|have PRD| AG[/afk:architect-grill/]
        Start -->|have SDD| Sub[/afk:to-subtasks/]
-       Grill --> Prd[/afk:to-prd/] --> AG --> Sdd[/afk:to-sdd/]
+       Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
        Sdd -->|optional| Brief[/afk:to-design-brief/]
        Sdd --> Sub
        Brief --> Sub
@@ -41,12 +41,13 @@ session — each chain skill expects its own session.
    | # | Skill | Input | Output | Binding gate |
    |---|-------|-------|--------|--------------|
    | 1 | `/afk:grill-requirements` | raw idea / problem | exhausted requirements decision tree | (no synthesis — moves to step 2 when user agrees the tree is exhausted) |
-   | 2 | `/afk:to-prd` | the conversation from step 1 | PRD.md published to repo + parent ticket | none — synthesis only, no gate |
-   | 3 | `/afk:architect-grill` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
-   | 4 | `/afk:to-sdd` | conversation from step 3 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
-   | 5 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
-   | 6 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | Jira SubTasks under parent ticket, each with typed `## Produces` / `## Consumes` contracts | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** (every bullet ends with `(PRD §X.Y)` / `(SDD §N)` / `(ADR-NNNN)`) |
-   | 7 | `/afk:execute` | one labelled SubTask | code committed + pushed + Dev-CR/Merge handoff | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 10 producer self-preflight** (every own `## Produces` anchor must grep clean) + JPA-entity liquibase-hibernate7 pickup check |
+   | 2 | `/afk:to-prd` | the conversation from step 1 | PRD.md + requirement ADRs on disk (local artifacts only) | none — synthesis only, no gate; does NOT touch the tracker |
+   | 3 | `/afk:to-ticket` | PRD.md on disk + existing parent key | full PRD content published into the parent ticket as native Jira formatting (mermaid rendered + embedded inline); idempotent update; PO content preserved | requires an existing parent ticket — refuses without `parent_key` (does NOT create the ticket); publishes PRD content only |
+   | 4 | `/afk:architect-grill` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
+   | 5 | `/afk:to-sdd` | conversation from step 4 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
+   | 6 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
+   | 7 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated) | Jira SubTasks under parent ticket, each with typed `## Produces` / `## Consumes` contracts | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** (every bullet ends with `(PRD §X.Y)` / `(SDD §N)` / `(ADR-NNNN)`) |
+   | 8 | `/afk:execute` | one labelled SubTask | code committed + pushed + Dev-CR/Merge handoff | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 10 producer self-preflight** (every own `## Produces` anchor must grep clean) + JPA-entity liquibase-hibernate7 pickup check |
    | — | `/afk:tdd` | (called from inside `/afk:execute` Step 5) | red-green-refactor doctrine | n/a — tooling |
 
 3. **Ask the routing question.** Then ask **exactly one** question:
@@ -54,10 +55,11 @@ session — each chain skill expects its own session.
    > **Where are you starting?**
    >
    > (a) Raw idea — nothing written yet. → `/afk:grill-requirements`
-   > (b) PRD already published, no SDD yet. → `/afk:architect-grill`
-   > (c) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:to-subtasks`
-   > (d) Stakeholder review upcoming on an existing SDD. → `/afk:to-design-brief`
-   > (e) Something else / I just want to read the map and decide later.
+   > (b) PRD written on disk, not yet on the tracker. → `/afk:to-ticket`
+   > (c) PRD published to the parent, no SDD yet. → `/afk:architect-grill`
+   > (d) PRD + SDD + ADRs already in hand, ready to slice. → `/afk:to-subtasks`
+   > (e) Stakeholder review upcoming on an existing SDD. → `/afk:to-design-brief`
+   > (f) Something else / I just want to read the map and decide later.
 
    Wait for the user's answer. Do **not** run artifact detection on disk —
    parent-ticket key is rarely in scope at this stage, and a half-written
@@ -69,12 +71,13 @@ session — each chain skill expects its own session.
    - One sentence on what that skill will do (interview vs. synthesize).
    - The binding gate the user should expect to hit (lifted from the table
      above).
-   - For routes (a) and (b), name the FULL downstream chain so the user
-     can pace themselves: `/afk:grill-requirements` → `/afk:to-prd` → `/afk:architect-grill`
-     → `/afk:to-sdd` → optional `/afk:to-design-brief` → `/afk:to-subtasks`. They
-     will run each manually; this skill does not auto-advance.
+   - For routes (a), (b) and (c), name the FULL downstream chain so the user
+     can pace themselves: `/afk:grill-requirements` → `/afk:to-prd` →
+     `/afk:to-ticket` → `/afk:architect-grill` → `/afk:to-sdd` → optional
+     `/afk:to-design-brief` → `/afk:to-subtasks`. They will run each manually;
+     this skill does not auto-advance.
 
-   For (e), exit with no command — the user wanted only the map.
+   For (f), exit with no command — the user wanted only the map.
 
 5. **Do not interview the user.** This skill is orientation, not grilling.
    The grilling skills (`/afk:grill-requirements`, `/afk:architect-grill`) are

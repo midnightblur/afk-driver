@@ -17,7 +17,7 @@ The plugin lives at `.claude-plugin/plugin.json` (manifest) + `.claude-plugin/ma
 ## The skills
 
 - **Orientation**: `/afk:start` (pipeline map + entry-point router).
-- **Mandatory chain**: `/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`. You run `/afk:execute` yourself, once per labelled SubTask.
+- **Mandatory chain**: `/afk:to-prd` → `/afk:to-ticket` → `/afk:to-subtasks` → `/afk:execute`. `/afk:to-ticket` is the one step that publishes the local PRD to the parent Enhancement (the only design-chain skill that writes to the tracker). You run `/afk:execute` yourself, once per labelled SubTask.
 - **Optional design layer**: `/afk:grill-requirements` (raw-idea grilling; maintains `GLOSSARY.md` only — no decision records) → `/afk:to-prd` (PRD + requirement ADRs under `.../adr/requirements/`; **local artifacts only — does not touch the tracker**) → `/afk:architect-grill` (top-down L1→L8 interview) → `/afk:to-sdd` (writes `SDD.md` + per-decision design ADRs under `.../adr/design/` sibling to the PRD; owns the `## SDD` section of the parent Enhancement description) → `/afk:to-design-brief` (optional digest: synthesizes PRD + SDD + ADRs into a 1-2 page `DESIGN-BRIEF.md` for stakeholder review and pre-SDD reading; owns the `## Design Brief` section). Recommended for new complex features; skip for small bugs / refactors / tooling.
 - **Tooling**: `/afk:tdd` (red-green-refactor doctrine, invoked from `/afk:execute` Step 5).
 
@@ -43,7 +43,7 @@ The contract is enforced at three checkpoints — drift is impossible to ship wi
 
 ## Section ownership invariants (don't violate)
 
-- **Parent Enhancement description**: `## PRD` is owned by `/afk:to-prd`. `## SDD` (when present) is owned by `/afk:to-sdd`. `## Design Brief` (when present) is owned by `/afk:to-design-brief`. `## Implementation Notes (auto-maintained)` is spliced by `/afk:execute` (idempotent — preserves human prose around the block). Other prose belongs to the human.
+- **Parent Enhancement description**: the PRD content is authored by `/afk:to-prd` (on disk) and published into the parent — as the full inlined body in native Jira formatting (ADF), inside an AFK-managed sentinel block — by `/afk:to-ticket`, which preserves all content outside that block. `## SDD` (when present) is owned by `/afk:to-sdd`. `## Design Brief` (when present) is owned by `/afk:to-design-brief`. `## Implementation Notes (auto-maintained)` is spliced by `/afk:execute` (idempotent — preserves human prose around the block). Other prose belongs to the human.
 - **MR description**: the `<!-- afk:subtasks:start --> ... <!-- afk:subtasks:end -->` block is auto-maintained by `/afk:execute`; everything outside is preserved verbatim.
 - **SubTask description**: the SubTask Markdown contract must round-trip losslessly. If you add a section, update both the `/afk:to-subtasks` emitter and the `/afk:execute` parser together (see Lockstep above).
 
@@ -53,7 +53,7 @@ The contract is enforced at three checkpoints — drift is impossible to ship wi
 
 ## Tracker boundary
 
-`/afk:to-prd` produces **local artifacts only** (PRD.md + requirement ADRs on disk); it does not create or update any Jira/GitLab issue. Publishing the PRD to the tracker (creating/updating the parent Enhancement, splicing the `## PRD` pointer, branch + labels) is the job of a separate `/afk:to-ticket` skill *(not yet implemented — referenced as a forward pointer)*. `/afk:to-subtasks` and `/afk:execute` do touch Jira directly (creating SubTasks, transitions, comments) via `mcp__jira__*`.
+`/afk:to-prd` produces **local artifacts only** (PRD.md + requirement ADRs on disk); it does not create or update any Jira/GitLab issue. Publishing the PRD to the tracker is the job of **`/afk:to-ticket`**: it publishes the **full PRD content** into an **existing** parent ticket's description as native Jira formatting (ADF — Jira Cloud), with any `mermaid` blocks rendered to PNGs **locally**, attached, and embedded inline as media nodes (the verified media-UUID method; no diagram source leaves the network). It is **idempotent** — the PRD lives in an AFK-managed sentinel block, so re-running updates in place and replaces prior `afk-fig*` attachments rather than duplicating; content **outside** the managed block (product-owner prose) is preserved verbatim unless the existing description is barebone. The intricate formatting/diagram/merge work is codified in `skills/to-ticket/scripts/publish_prd.py` for deterministic behavior (it reads Jira creds from env or `~/.claude.json` and talks to the REST API directly, since attachment upload has no MCP tool). It deliberately **does not** create the parent (refuses without `parent_key`), sets **no label**, creates **no GitLab branch** (`/afk:execute` self-creates its branch), and publishes **PRD content only** — not the SDD/Design Brief. `/afk:to-ticket`, `/afk:to-subtasks`, and `/afk:execute` touch Jira directly; `/afk:to-prd` is the one upstream artifact skill that does not (it stops at disk). `/afk:to-sdd` and `/afk:to-design-brief` still splice their own `## SDD` / `## Design Brief` sections into the parent directly — only the PRD is routed through `to-ticket`.
 
 ## Conventions to keep
 
