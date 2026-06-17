@@ -42,7 +42,7 @@ Scope / Acceptance / Test-command vocabulary documented in Step 6.
 3. **Refuse-to-slice gate (cited mode only).** Before slicing, run two
    passes over the SDD and every ADR. **Refuse on any failure** in
    either pass — print offenders verbatim, bounce the user back to fix
-   the SDD via `/afk:architect-grill` + `/afk:to-sdd` (or hand-edit + re-run this
+   the SDD via `/afk:grill-solution` + `/afk:to-sdd` (or hand-edit + re-run this
    skill).
 
    **(a) Executor-blocking markers** — `ctx_search` for the same blocker
@@ -139,6 +139,7 @@ Scope / Acceptance / Test-command vocabulary documented in Step 6.
    - [ ] <cited mode> Implements the public interface in SDD §8 row "<module>" without modification (SDD §8)
    - [ ] <cited mode> Conforms to ADR-<NNNN> (no silent pattern substitution) (ADR-NNNN)
    - [ ] <cited mode> Every artifact in ## Produces compiles + matches its declared signature (SDD §8)
+   - [ ] <cited mode, iff this SubTask owns an SDD §9b framework seam> Framework-seam test asserts on <framework>'s real output (serialized result / generated schema / surfaced error), not our intermediate objects (SDD §9b row "<boundary>")
    - [ ] Tests pass via `<test command>` (SDD §10 NFRs)
    <uncited mode — citations omitted; bullets reference PRD sections by
    prose only, e.g. "Implements User Story 2.">
@@ -175,7 +176,7 @@ Scope / Acceptance / Test-command vocabulary documented in Step 6.
    If a binding decision in SDD/ADR is wrong / infeasible / contradicts
    reality during implementation, exit with `design-conflict` status quoting
    the SDD section + the conflict. Do NOT override silently. Route back to
-   `/afk:architect-grill` for a superseding ADR.
+   `/afk:grill-solution` for a superseding ADR.
    (omit this block in uncited mode)
 
    ## Implementation Notes (auto-maintained)
@@ -261,6 +262,12 @@ Scope / Acceptance / Test-command vocabulary documented in Step 6.
    - **At least one bullet cites the SDD §8 module row** that this
      SubTask owns (cited mode), so the binding interface is impossible
      to miss when the executor scans Acceptance.
+   - **Framework-seam coverage.** If an SDD §9b framework seam is owned by
+     this SubTask (its module is in `## Scope` / `## Produces`), an
+     Acceptance bullet must cite that seam-test `(SDD §9b row "...")`,
+     matching the test the SDD named. A seam sliced without its
+     framework-output test fails the slice — that's the gap green unit
+     tests hide. Refuse and name the uncovered seam.
 
    This rule turns Acceptance into a binding-traceability table: every
    bullet has a definite source-of-truth that the executor can re-read
@@ -298,7 +305,7 @@ Scope / Acceptance / Test-command vocabulary documented in Step 6.
 ## Design-doc optionality
 
 Not every parent ticket is worth an SDD. The cost of writing one is real
-(architect-grill + to-sdd is a 30-90 minute investment); for trivial work it
+(grill-solution + to-sdd is a 30-90 minute investment); for trivial work it
 is overkill. The human decides per ticket.
 
 **Decision matrix:**
@@ -318,7 +325,7 @@ is overkill. The human decides per ticket.
    proceeding. One question:
    *"No SDD found at `{path}`. Is this a small feature / bug / refactor that
    doesn't need one? Reply `yes` to slice without design citations, `no` to
-   pause and run `/afk:architect-grill` + `/afk:to-sdd` first."*
+   pause and run `/afk:grill-solution` + `/afk:to-sdd` first."*
 3. If `skip_design_docs=true` (or user replies `yes`): slice in uncited mode.
    The `## Design refs` block reads `(none — sliced without SDD/ADR per
    human approval; see PRD for scope)`. Drop the `## Conflict procedure`
@@ -403,7 +410,7 @@ contracts make the handoff explicit.
   bugs.
 - **Don't invent a public interface.** In cited mode, the interface comes
   from SDD §8 verbatim. If the SDD does not name it, that is a design gap —
-  bounce to `/afk:architect-grill`, do not improvise.
+  bounce to `/afk:grill-solution`, do not improvise.
 - **Don't apply the AFK label to risky SubTasks.** DB schema migrations,
   cross-team library bumps, anything that touches `db/changelog/**` —
   these need a human in the loop, so omit `mvu-afk`.
@@ -422,6 +429,10 @@ contracts make the handoff explicit.
   at the next environment refresh. `/afk:execute` Step 10's symmetric
   pickup check enforces this at runtime, but slicing-time enforcement
   catches it before the SubTask ever runs.
+- **Framework-seam SubTasks carry the seam-test.** A SubTask owning an
+  SDD §9b seam cites the seam-test in `## Acceptance` (Step 8(c) enforces)
+  and runs it in `## Test command` — asserting on the framework's real
+  output, not our DTO. It's the only test that covers the boundary.
 - **Never set status directly.** Leave SubTasks in `Creating` for the user
   to review and transition manually.
 - **Cited mode SubTasks must include the Conflict procedure block.**

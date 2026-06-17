@@ -1,13 +1,13 @@
 ---
-name: architect-grill
-description: Interview the user relentlessly about software architecture top-down across 8 layers (L1 system topology -> L8 tactical patterns) until every non-trivial decision has a rationale and >=2 alternatives weighed. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd` for that.
+name: grill-solution
+description: Interview the user relentlessly about the solution design top-down across 8 layers (L1 system topology -> L8 tactical patterns) until every non-trivial decision has a rationale and >=2 alternatives weighed. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd` for that.
 ---
 
 Interview me relentlessly about every aspect of the architecture until we reach a shared understanding. Walk the design tree **top-down across 8 layers**. Resolve each layer before descending — choices at a lower layer are brittle when choices at a higher layer haven't been pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async means the strategy interface might need to return a `Future<T>` you didn't plan for).
 
 Ask the questions one at a time. For each question, provide your recommended answer with the trade-off and the alternative you are rejecting.
 
-If a question can be answered by exploring the codebase, exploring the PRD, or reading existing ADRs, do that instead.
+If a question can be answered by exploring the codebase, the PRD, the existing ADRs, or the project glossary (start at the root `GLOSSARY-MAP.md`, then the owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
 
 ## The 8 layers (grill in this order)
 
@@ -24,7 +24,7 @@ Datastore choice per piece of state (RDBMS / document / KV / search / event stor
 Auth model (session / JWT / mTLS / OAuth flow), authz model (RBAC / ABAC / ReBAC), observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async invocation for long-running work.
 
 ### L5 — Domain model (tactical DDD)
-Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate. Every invariant has exactly one guardian.
+Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate. Every invariant has exactly one guardian. Name them in the glossary's terms; if the design needs a term that conflicts with or is missing from `GLOSSARY.md`, flag it — that's a language gap to resolve in `/afk:grill-requirements`, not to silently coin here.
 
 ### L6 — Process / coordination
 Transaction boundaries per use case (what's in one txn, what's across), cross-aggregate strategy (saga / outbox / 2PC / accept-eventual), consistency model per read path (strong / read-after-write / eventual + staleness budget), ordering guarantees, concurrency control (optimistic version / pessimistic lock / CRDT), failure-and-recovery matrix per multi-step flow.
@@ -148,6 +148,34 @@ something specific in the codebase, **verify before you write it down**
 — this rule applies to your own drafts too, not just the user's
 assertions.
 
+## External-seam rule — the boundary with code you don't control
+
+The Grounding rule proves things *exist*. It won't catch a design that's
+wrong at the seam with a framework, a UI contract, or another layer's
+enforcement — the grill is sharp on seams between *our* modules and blind
+where our code meets things we don't own. Before locking any decision that
+crosses such a seam, **verify (don't assume)** the four things that pass
+existence checks and still ship broken:
+
+1. **Framework runtime behavior** — not the API signature, what it *does*
+   at the pinned version: how it serializes your output, generates the
+   input schema from your types, which annotations it honors, how it
+   surfaces errors. (Classic misses: a Jackson-2 value serialized by
+   Jackson 3; a `@NotNull` that moves no schema.) A test on your own
+   object can't cover this — only one asserting on the framework's real
+   output can; flag that test so `/afk:to-sdd` binds it.
+2. **Contract source of truth** — required / immutable / constraint come
+   from the canonical source, not a proxy. Here: UI vuelidate `*Form.vue`
+   (required) and edit-mode `:readonly` (immutable), not DB `NOT NULL`.
+   Name it and read it.
+3. **Where it's enforced** — "the UI prevents X" ≠ "the system prevents
+   X." A new API/MCP caller bypasses the UI; verify the guard lives below
+   it, or design one that does.
+4. **Failure affordance** — design the error contract, not just the happy
+   path: per violation class, what the consumer gets, and whether a
+   business refusal is distinguishable from a server fault (including the
+   framework's own signal, e.g. MCP `isError`).
+
 ## Stop conditions
 
 Only declare the design exhausted when ALL hold:
@@ -162,6 +190,7 @@ Only declare the design exhausted when ALL hold:
 - Every L8 pattern choice has ≥2 alternatives weighed.
 - Every NFR has a number, not an adjective ("p95 < 200 ms", not "fast").
 - **Every claim about existing infrastructure has been verified against the codebase OR explicitly labelled "unverified premise" with the user's acknowledgement** (per the Grounding rule). A design built on a fictional premise is not exhausted, it's poisoned.
+- **Every external seam has cleared the four checks** (per the External-seam rule): framework runtime behavior verified against the pin, every field contract sourced from its canonical truth, every relied-on invariant enforced below the new caller, every surface's failure affordance pinned — with a framework-seam test flagged wherever check 1 fired.
 
 Until all hold, keep grilling.
 
@@ -175,7 +204,8 @@ Until all hold, keep grilling.
 
 Once L1 → L8 are exhausted (every entity has an owner aggregate, every
 cross-aggregate op has a txn strategy, every NFR has a number, every
-existing-infra claim has been verified against the codebase), run
+existing-infra claim verified against the codebase, and every external
+seam cleared per the External-seam rule), run
 **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts.
 `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. If
 it finds a gap, it bounces you back to this skill.

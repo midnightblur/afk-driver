@@ -1,6 +1,6 @@
 ---
 name: to-sdd
-description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use after `/afk:architect-grill` (or equivalent design conversation) when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
+description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use after `/afk:grill-solution` (or equivalent design conversation) when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
 ---
 
 This skill takes the current conversation context, the PRD, and the codebase understanding, and produces:
@@ -8,7 +8,7 @@ This skill takes the current conversation context, the PRD, and the codebase und
 1. A single `SDD.md` organized layer-by-layer (L1 -> L8), with **mandatory visualizations** per section.
 2. One design ADR per non-trivial decision under `adr/design/NNNN-kebab-title.md`, each with at least one diagram or table.
 
-Do NOT interview the user — just synthesize what you already know. If a critical-logic concern is unresolved, STOP and tell the user to run `/afk:architect-grill` first; do not invent decisions.
+Do NOT interview the user — just synthesize what you already know. If a critical-logic concern is unresolved, STOP and tell the user to run `/afk:grill-solution` first; do not invent decisions.
 
 ## Process
 
@@ -29,7 +29,7 @@ Do NOT interview the user — just synthesize what you already know. If a critic
    for any of the patterns below. **If any appear in normal prose / table
    cells / diagram labels (NOT inside fenced code blocks containing real
    code), do NOT write the file.** Quote each occurrence with its
-   section/anchor and bounce back to `/afk:architect-grill` to resolve the gap;
+   section/anchor and bounce back to `/afk:grill-solution` to resolve the gap;
    re-run this skill afterwards.
 
    Hard-blocker patterns (case-sensitive unless noted):
@@ -60,7 +60,7 @@ Do NOT interview the user — just synthesize what you already know. If a critic
 
    When refusing, list every offender with its location verbatim
    (`§4 L3 Data — row "events table"` reads `Retention: TBD`) so the user
-   knows exactly what `/afk:architect-grill` needs to nail down. Do NOT
+   knows exactly what `/afk:grill-solution` needs to nail down. Do NOT
    silently demote a blocker to a §13 row to make the gate pass — that
    defeats the purpose.
 
@@ -69,7 +69,7 @@ Do NOT interview the user — just synthesize what you already know. If a critic
    Vue, Quasar, Pinia, axios, Kafka client, ActiveMQ, vue-router,
    vue-i18n, @casl/ability, ts-jest, anything carrying a `\d+\.\d+`
    shape — verify the pin against the actual build manifest BEFORE
-   writing the file. The Grounding rule (architect-grill) catches
+   writing the file. The Grounding rule (grill-solution) catches
    library-**existence** claims at interview time; this step catches
    library-**version** claims at synthesis time, because a fictional
    version of a real library is internally consistent with "we use
@@ -122,6 +122,14 @@ Do NOT interview the user — just synthesize what you already know. If a critic
    written without a manifest citation OR with a citation that
    contradicts the manifest. Same outcome as Step 7: do not write,
    surface offenders verbatim, bounce back.
+
+8b. **Framework-seam cross-check.** Step 8 verifies the version pin; this
+   verifies the *behavior* at that pin. For each §9b framework row, confirm
+   what it does to our value (and which annotations it honors) against the
+   framework source / docs (`get-api-docs` where available), not memory.
+   Unverifiable → label `unverified premise`; if the design depends on it,
+   it's a §13 blocker → bounce to `/afk:grill-solution`. Every framework row
+   names a seam-test or the seam isn't done.
 
 9. **Emit design ADRs** into the `adr/design/` subfolder. Numbering is local
    to `adr/design/` (start at `0001`), independent of the `adr/requirements/`
@@ -186,12 +194,13 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | API contract / schema | ✅ | ❌ |
 | Aggregate boundary | ✅ | ❌ |
 | Txn / idempotency strategy | ✅ | ❌ |
+| External-seam contract (§9b: framework I/O shape, field source-of-truth, enforcement point, failure surface) | ✅ | ❌ |
 | File / package layout *within* a named module | ❌ | ✅ |
 | Private helper extraction | ❌ | ✅ |
 | Internal naming, control flow | ❌ | ✅ |
 | Test fixture structure | ❌ | ✅ |
 
-**Conflict procedure.** If an executor finds a binding decision wrong / infeasible / contradicting reality, exit the SubTask with `design-conflict` status quoting the SDD section + the conflict. Route back to `/afk:architect-grill` for a new ADR (Status: Accepted, Supersedes: NNNN). Do not override silently.
+**Conflict procedure.** If an executor finds a binding decision wrong / infeasible / contradicting reality, exit the SubTask with `design-conflict` status quoting the SDD section + the conflict. Route back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Do not override silently.
 
 ## §1 Context Summary
 
@@ -287,6 +296,25 @@ For each top use case from the PRD.
 
 2. `classDiagram` — interface + impls + how the pattern is wired (registry, factory, DI scope). One per non-trivial pattern.
 
+## §9b External Seams & Failure Affordance
+
+The seams where our code meets things we don't control — synthesized from
+the External-seam rule's four checks in `/afk:grill-solution`. Capture, in
+whatever table shape fits: each framework boundary (what it does to our
+value at the pinned version + the **seam-test** that asserts on its real
+output), each field contract's canonical source of truth, each relied-on
+invariant's enforcement point (proven for the new caller), and the failure
+affordance per violation class. If the feature has no external seam, say
+so in one line rather than deleting the section.
+
+**Required visual:** a table covering the seams present. The framework
+rows' **seam-test** entry is mandatory — a test on the framework's real
+output (serialized result / generated schema / surfaced error), not our
+objects; that name is what `/afk:to-subtasks` cites in `## Acceptance`. E.g.:
+
+| Boundary | Framework @ pin | What it does to our value | Failure surface | Seam-test |
+|----------|-----------------|---------------------------|-----------------|-----------|
+
 ---
 
 ## §10 NFRs
@@ -319,7 +347,7 @@ Bullet list. Cite PRD's Out of Scope and add design-level exclusions.
 | Question | Layer (L1-L8) | Blocks executor? | Owner | Target resolve date |
 |----------|---------------|------------------|-------|---------------------|
 
-If any row has `Blocks executor? = yes` in L2-L7, the design is NOT publishable — bounce back to `/afk:architect-grill`. L1 / L8 open questions may pass if scoped.
+If any row has `Blocks executor? = yes` in L2-L7, the design is NOT publishable — bounce back to `/afk:grill-solution`. L1 / L8 open questions may pass if scoped.
 
 </sdd-template>
 
@@ -367,9 +395,14 @@ At least two. **Required visual:** comparison table OR `quadrantChart` plotting 
 - **Label every edge and node.** Unlabeled arrows are rejected.
 - **Tables must include units in headers.**
 - **Numbers, not adjectives** — for every NFR, retry budget, timeout, latency target.
-- **Do not invent decisions.** If a section cannot be filled, list it under §13 Open Questions and bounce to `/afk:architect-grill`. The Step 7 refuse-to-publish gate enforces this — a draft with `TBD` / `TODO` / `FIXME` / `???` / `<placeholder>` / `[?]` / `_FILL_IN_` / unsubstituted template literals, OR with any §13 row marked `Blocks executor? = yes` in L2-L7, is not written. The gate is non-negotiable; do NOT paper over it by demoting a blocker to a §13 row to make the scan pass.
+- **Do not invent decisions.** If a section cannot be filled, list it under §13 Open Questions and bounce to `/afk:grill-solution`. The Step 7 refuse-to-publish gate enforces this — a draft with `TBD` / `TODO` / `FIXME` / `???` / `<placeholder>` / `[?]` / `_FILL_IN_` / unsubstituted template literals, OR with any §13 row marked `Blocks executor? = yes` in L2-L7, is not written. The gate is non-negotiable; do NOT paper over it by demoting a blocker to a §13 row to make the scan pass.
 - **No code or file paths in SDD/ADRs.** They rot.
 - **Every ADR weighs ≥2 alternatives** and declares its layer (L1-L8).
+- **§9b seams are binding.** Every framework seam names a seam-test that
+  asserts on the framework's real output (not our objects) — that's the gap
+  that makes green unit tests lie; every field contract cites its canonical
+  source; every relied-on invariant proves it holds for the new caller. A
+  seam that can't satisfy these is a §13 blocker → bounce to `/afk:grill-solution`.
 - **Never modify** `## Implementation Notes (auto-maintained)` in the parent Jira ticket.
 
 ## AFK adaptation (core-services)

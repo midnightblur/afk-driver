@@ -176,7 +176,7 @@ collections) render as broken placeholders — do not use them.
 The PRD is now live on the parent ticket. Then, per the design choice for this
 ticket:
 
-- **`/afk:architect-grill`** → **`/afk:to-sdd`** — for new complex features:
+- **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features:
   interview the architecture, synthesize the SDD + design ADRs (those go next to
   the PRD on disk and into the `## SDD` section — not through this skill).
   Downstream SubTasks slice in **cited mode**.

@@ -180,7 +180,7 @@ the SubTask's `parent` field.
 
     `produces_drift` is **not** the same as `design_conflict`:
     `design_conflict` means "the binding contract is wrong, route to
-    `/afk:architect-grill`"; `produces_drift` means "I did not deliver the
+    `/afk:grill-solution`"; `produces_drift` means "I did not deliver the
     contract I declared, route to impl-or-slice fix." Pick the right status.
     If you discover mid-flight that the declared signature itself
     is wrong (the SDD §8 mandate is infeasible), use `design_conflict`
@@ -218,7 +218,7 @@ the SubTask's `parent` field.
       or a cited ADR is wrong, infeasible, or contradicts reality (e.g. the
       named library's API does not allow the signature SDD §8 specifies).
       Name the offending SDD section / ADR ID + the concrete conflict.
-      Route the human to `/afk:architect-grill` to emit a superseding ADR
+      Route the human to `/afk:grill-solution` to emit a superseding ADR
       before re-running the SubTask.
     - `contract_mismatch` — cited mode only. Raised by Step 2 preflight
       when an upstream `## Produces` artifact is missing or its
@@ -244,7 +244,7 @@ verbatim when you hit a binding-contract violation. The canonical flow:
 3. Report a `design_conflict` outcome with a concrete description quoting the
    SDD section + the conflict.
 4. Post a Jira comment surfacing the conflict, transition the SubTask back to
-   `Dev-Pending`, and run `/afk:architect-grill` for a superseding ADR before
+   `Dev-Pending`, and run `/afk:grill-solution` for a superseding ADR before
    re-running.
 
 **Do NOT silently override the SDD/ADR.** Substituting a different pattern

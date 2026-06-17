@@ -16,7 +16,7 @@ repo contains only the skills.
 ```mermaid
 graph LR
     Start[/afk:start/] -->|raw idea| Grill[/afk:grill-requirements/]
-    Start -->|have PRD| AG[/afk:architect-grill/]
+    Start -->|have PRD| AG[/afk:grill-solution/]
     Start -->|have SDD| Sub[/afk:to-subtasks/]
     Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
     Sdd -->|optional| Brief[/afk:to-design-brief/]
@@ -108,7 +108,7 @@ skip for small enhancements, bugs, refactors, tooling):
   understanding being built) but produces NO decision records — those are
   emitted downstream by `/afk:to-prd` (requirement ADRs) and `/afk:to-sdd`
   (design ADRs). Pair with `/afk:to-prd` afterward to synthesize.
-- **`/afk:architect-grill`** — interviews the user top-down across 8 layers
+- **`/afk:grill-solution`** — interviews the user top-down across 8 layers
   (L1 system topology → L8 tactical patterns) until every non-trivial
   decision has a rationale and ≥2 alternatives weighed. Does NOT produce
   documents.
@@ -152,7 +152,7 @@ skip for small enhancements, bugs, refactors, tooling):
 >    `produces_drift` (no retry; route the human to impl-vs-slice fix).
 >
 > On a binding-decision break (SDD §8 mandate is wrong/infeasible),
-> `/afk:execute` exits `design_conflict` and routes to `/afk:architect-grill`
+> `/afk:execute` exits `design_conflict` and routes to `/afk:grill-solution`
 > for a superseding ADR. `## Produces` is mandatory on every cited SubTask,
 > even leaves with no consumer — it doubles as the reviewer's cheat-sheet
 > AND the next SubTask's preflight target.

@@ -1,6 +1,6 @@
 ---
 name: to-design-brief
-description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:architect-grill` / `/afk:to-sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
+description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:grill-solution` / `/afk:to-sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
 ---
 
 This skill takes the PRD, SDD, and per-decision ADRs and emits a single
@@ -16,7 +16,7 @@ trace back to the PRD, SDD, or an ADR. The brief never introduces a new
 decision, alternative, or rationale.
 
 Do NOT interview the user. If a brief section cannot be filled from the
-source docs, STOP and tell the user to run `/afk:architect-grill` and re-emit
+source docs, STOP and tell the user to run `/afk:grill-solution` and re-emit
 the SDD; do not invent.
 
 ## Process
@@ -33,7 +33,7 @@ the SDD; do not invent.
 2. **Refuse if the SDD is incomplete.** If SDD §13 Open Questions is
    non-empty with `Blocks executor? = yes` rows, do NOT emit a brief — the
    design is not stable enough to summarize. Tell the user to resolve via
-   `/afk:architect-grill` first.
+   `/afk:grill-solution` first.
 
 3. **Pick ONE money-shot diagram.** Choose the single diagram from the SDD
    that best conveys the feature's shape to a stakeholder seeing it cold.
@@ -141,7 +141,7 @@ If a row's "What changes" is "(none)", omit the row.
 - **Auditing a specific decision?** → `adr/requirements/NNNN-*.md` (behaviour /
   scope) or `adr/design/NNNN-*.md` (solution — each cites its layer,
   alternatives, consequences)
-- **Disagree with a decision?** → run `/afk:architect-grill` to draft a
+- **Disagree with a decision?** → run `/afk:grill-solution` to draft a
   superseding ADR; do not edit the existing one in place.
 
 </brief-template>
@@ -150,7 +150,7 @@ If a row's "What changes" is "(none)", omit the row.
 
 - **Strict synthesis.** Every claim must trace back to PRD / SDD / an ADR.
   No new decisions, no new alternatives, no new rationale. If a section
-  cannot be filled from sources, refuse — bounce to `/afk:architect-grill` +
+  cannot be filled from sources, refuse — bounce to `/afk:grill-solution` +
   `/afk:to-sdd`.
 - **Length cap: 400-800 words** excluding the diagram and tables. Long
   briefs are not briefs.

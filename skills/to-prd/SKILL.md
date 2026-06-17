@@ -121,7 +121,7 @@ This skill stops at the local PRD (+ requirement ADRs). Then, in order:
   parent ticket as native Jira formatting (mermaid diagrams rendered + embedded);
   idempotent, and preserves any product-owner content already in the ticket.
   (Requires a parent key — it does not create the ticket.)
-- **`/afk:architect-grill`** — interview the architecture top-down across
+- **`/afk:grill-solution`** — interview the architecture top-down across
   L1 → L8 layers.
 - **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,
   downstream SubTasks slice in uncited mode (PRD-only).
