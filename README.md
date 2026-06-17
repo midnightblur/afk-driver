@@ -121,8 +121,8 @@ skip for small enhancements, bugs, refactors, tooling):
   tables) per layer so reviewers can scan vertically.
 - **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
   1-2 page `DESIGN-BRIEF.md` sibling to the PRD/SDD. One money-shot
-  diagram, 5-10 row decision digest, stakeholder-impact table. Owns the
-  `## Design Brief` section of the parent Enhancement description.
+  diagram, 5-10 row decision digest, stakeholder-impact table. **Repo-only
+  — does not touch the tracker**; shared with stakeholders out of band.
   Strict synthesis: refuses to invent decisions and refuses to emit when
   the SDD has executor-blocking open questions. Use for stakeholder
   reviews and as a map before reading the full SDD.
@@ -162,9 +162,10 @@ skip for small enhancements, bugs, refactors, tooling):
 Mixed human + automated edits live in several Markdown surfaces. Don't let
 them collide:
 
-- **Parent Enhancement description**: `## PRD` is owned by `/afk:to-prd`;
-  `## SDD` (when present) is owned by `/afk:to-sdd`;
-  `## Design Brief` (when present) is owned by `/afk:to-design-brief`;
+- **Parent Enhancement description**: the PRD content (authored on disk by
+  `/afk:to-prd`) is published by `/afk:to-ticket` inside an AFK-managed
+  block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief
+  is **not** published to the ticket (`/afk:to-design-brief` is repo-only);
   `## Implementation Notes (auto-maintained)` is spliced by `/afk:execute`
   (idempotent — preserves human prose around the block); other prose
   belongs to the human.

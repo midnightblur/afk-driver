@@ -54,11 +54,8 @@ the SDD; do not invent.
 
 4. **Write the brief using the template below.** Hard length cap:
    400-800 words excluding the diagram and tables. If a draft runs long,
-   compress; do not add more sections.
-
-5. **Splice a `## Design Brief` pointer into the parent Jira ticket
-   description** alongside `## PRD` and `## SDD`. Never modify
-   `## Implementation Notes (auto-maintained)`.
+   compress; do not add more sections. The brief is a **repo-only
+   artifact** — it does not touch the Jira ticket (see below).
 
 ## Template
 
@@ -172,21 +169,13 @@ If a row's "What changes" is "(none)", omit the row.
 When the brief belongs to an Enhancement / Bug in the AFK workflow:
 
 - **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/DESIGN-BRIEF.md`. Service is derived from the Jira project key per the project's mapping (e.g. `P2P` → `11700-payable`).
-- **Parent ticket splice.** Add or update a `## Design Brief` section in the
-  Enhancement / Bug description:
-
-  ```
-  ## Design Brief
-
-  One-pager for stakeholder review at
-  `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/DESIGN-BRIEF.md`
-  (this branch). Maps onto the full design in `SDD.md` and the user-facing
-  motivation in `PRD.md`.
-  ```
-
-  Leave `## PRD`, `## SDD`, and `## Implementation Notes (auto-maintained)`
-  untouched.
-
+- **Repo-only — does not touch the tracker.** This skill writes
+  `DESIGN-BRIEF.md` to disk and stops. It does **not** splice a section into
+  the Jira ticket: the brief is shared with stakeholders out of band (link
+  the repo file, paste it into a review thread), not published to the
+  Enhancement/Bug. Leave the ticket description entirely to its other owners
+  (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`,
+  `## Implementation Notes` via `/afk:execute`).
 - **Re-emit on SDD change.** Briefs go stale silently — when the SDD or any
   ADR changes materially, re-run this skill. The `Last updated` field is
   the canary.
@@ -195,6 +184,6 @@ When the brief belongs to an Enhancement / Bug in the AFK workflow:
 
 The brief is for stakeholder review, not for the executor — the binding
 contract for AFK SubTasks is the SDD + ADRs, not the brief. After the brief
-is published and stakeholders are aligned, run **`/afk:to-subtasks`** to slice
+is written and shared with stakeholders out of band, run **`/afk:to-subtasks`** to slice
 the PRD + SDD + ADRs into AFK-eligible Jira SubTasks. The brief itself is
 not in the executor's reading list.

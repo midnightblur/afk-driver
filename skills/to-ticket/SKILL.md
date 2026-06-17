@@ -35,9 +35,9 @@ are codified there for deterministic behavior.
   managed PRD block becomes the whole description.
 - **PRD content only.** It never publishes the SDD, ADRs, or lower-level
   technical detail. Keep those out of `PRD.md`; this skill publishes whatever
-  `PRD.md` contains and nothing more. (`## SDD` / `## Design Brief` remain owned
-  by `/afk:to-sdd` / `/afk:to-design-brief`, which splice their own sections
-  directly — this skill never touches them.)
+  `PRD.md` contains and nothing more. (`## SDD` remains owned by `/afk:to-sdd`,
+  which splices its own pointer section directly; the Design Brief is
+  repo-only and never reaches the ticket — this skill touches neither.)
 - **Requires an existing parent.** It refuses without a parent key and does not
   create the Enhancement/Bug. It sets **no labels** and does **not** create a
   GitLab branch (the AFK driver is gone; `/afk:execute` self-creates its branch).
