@@ -54,6 +54,9 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Claude Code local working dir (TODO backlog, agent handoffs, job scratch)
+.claude/
+
 # Secrets — never commit
 .env
 .env.*
