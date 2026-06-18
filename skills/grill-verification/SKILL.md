@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). Emits a VERIFICATION-PLAN.md sibling to the PRD. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. UI journeys can be designed after `/afk:to-prd`; API scenarios need the SDD's endpoint contracts, so they are only designed after `/afk:to-sdd`. Optional and human-invoked. Produces the plan `/afk:to-subtasks` turns into build subtasks and `/afk:smoke-test` later runs as the completion gate. Does not write to the tracker.
+description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). A grilling skill like `/afk:grill-requirements` and `/afk:grill-solution` — it interviews and surfaces gaps; it does NOT write a file. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. UI journeys can be designed after `/afk:to-prd`; API scenarios need the SDD's endpoint contracts, so they are only designed after `/afk:to-sdd`. Optional and human-invoked. Pair with `/afk:to-verification-plan` to synthesize the conversation into `VERIFICATION-PLAN.md`. Does not write to the tracker.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user
@@ -15,18 +15,15 @@ not in the abstract, but as concrete, runnable scenarios across two modalities:
   MCP callers, who bypass every UI guard. Designed against the SDD's endpoint
   contracts.
 
-The output is `VERIFICATION-PLAN.md`: a catalog of both, each traced to its
-source (a UI journey → a PRD User Story; an API scenario → an SDD §3 endpoint +
-the PRD Acceptance Criterion it proves). Downstream, `/afk:to-subtasks` turns the
-plan into terminal **build** subtasks that author the specs, and `/afk:smoke-test`
-runs them — both modalities — as the feature-completion gate.
-
 This is a **grilling** skill, like `/afk:grill-requirements` and
-`/afk:grill-solution`: you interview, you don't assume. The lens is **concreteness** —
-you walk the actual scenario step by step (the click-path, or the request →
-response envelope). A User Story that can't be turned into a demonstrable journey,
-or an endpoint whose success/error envelope nobody can state, is underspecified —
-and saying so out loud is how this skill earns its keep.
+`/afk:grill-solution`: you interview, you don't assume, and **you do not write a
+file**. The output of this session is a settled, shared understanding of the
+verification scenarios — which `/afk:to-verification-plan` then synthesizes into
+`VERIFICATION-PLAN.md`. The lens is **concreteness** — you walk the actual
+scenario step by step (the click-path, or the request → response envelope). A
+User Story that can't be turned into a demonstrable journey, or an endpoint whose
+success/error envelope nobody can state, is underspecified — and saying so out
+loud is how this skill earns its keep.
 
 ## When to invoke — and which modality
 
@@ -40,9 +37,9 @@ on disk:
 
 - **API scenarios require the SDD.** They verify endpoint contracts, and the
   endpoints aren't settled until the SDD's §3 L2 API contract table exists. So a
-  pre-SDD run designs **UI journeys only** and records API scenarios as deferred
-  (see the plan template's `## API Scenarios` placeholder). Re-run after
-  `/afk:to-sdd` to add them — append, don't rewrite the UI section.
+  pre-SDD run designs **UI journeys only** and leaves API scenarios deferred.
+  Re-run after `/afk:to-sdd` to design them — and re-run `/afk:to-verification-plan`
+  to append them.
 - If neither PRD nor SDD exists, stop and route the user to `/afk:to-prd` first —
   there's nothing to ground scenarios against.
 
@@ -82,7 +79,7 @@ Don't invent endpoints to keep moving.
    "it works" is not acceptance), the preconditions/data setup (the journey's
    `Given`), the alternate/error paths worth gating, and **env reachability** (can
    it go green on the dev stack? SAP-behind-VPN and GL-post-parking-on-FOS can't —
-   mark them `env-limited` now so the gate excludes them rather than reading them
+   note them `env-limited` now so the gate excludes them rather than reading them
    as failures; see `verification/ui-e2e/AUTHORING.md`).
 
 3. **Grill the API scenarios** *(only when an SDD is present)*. Work from the SDD
@@ -116,82 +113,25 @@ Don't invent endpoints to keep moving.
 
 5. **Surface PRD/SDD gaps explicitly.** Revealing gaps is a primary output. When a
    walk exposes an ambiguous, missing, or contradictory detail, name it. Small →
-   capture in the plan's `## Gaps surfaced` section for the human to fold back.
-   Load-bearing (the scenario can't be designed without it) → **stop and route
-   back**: a PRD gap to `/afk:grill-requirements` + `/afk:to-prd`; a technical /
-   endpoint gap to `/afk:grill-solution` + `/afk:to-sdd`.
+   note it in the conversation so `/afk:to-verification-plan` captures it in the
+   plan's `## Gaps surfaced` section for the human to fold back. Load-bearing (the
+   scenario can't be designed without it) → **stop and route back**: a PRD gap to
+   `/afk:grill-requirements` + `/afk:to-prd`; a technical / endpoint gap to
+   `/afk:grill-solution` + `/afk:to-sdd`.
 
-6. **Emit `VERIFICATION-PLAN.md`** sibling to the PRD (template below) once the
-   scenarios are settled and the user agrees the set is complete. Print the path
-   and a one-line-per-scenario summary (modality, actor/surface, traces-to,
-   env-limited?). Note explicitly whether API scenarios were designed or deferred.
-
-## `VERIFICATION-PLAN.md` (the artifact)
-
-Written next to `PRD.md` / `SDD.md` at `…/{TICKET-ID}/VERIFICATION-PLAN.md`. It is
-the design artifact `/afk:to-subtasks` reads to seed the gate and emit the build
-subtasks — the scenarios here are the source of truth for both modalities.
-
-````
-# Verification Plan — {Feature Name}
-
-> Parent ticket: {TICKET-ID}   Sources: [PRD](PRD.md){· [SDD](SDD.md)}
-> Suite: 11700-payable/verification   Built per: ui-e2e/AUTHORING.md · api/AUTHORING.md
-> Status: draft (built by NNNN-smoke-e2e / NNNN-smoke-api; run by /afk:smoke-test)
-
-## UI Journeys
-
-Each is one integrated end-user browser flow that decides "feature works". Each
-traces to a PRD User Story and becomes one `Scenario` in the ui-e2e Gherkin catalog.
-
-| # | Journey (plain business language) | Actor | Traces to | Env-limited? |
-|---|-----------------------------------|-------|-----------|--------------|
-| 1 | <trigger → click-path → definition of done> | <role/job> | PRD User Story N | no |
-| 2 | <journey> | <role> | PRD User Story M | env-limited (@sap) |
-
-### U1 — <journey title>
-- **Given** <preconditions / data setup>
-- **When** <the concrete click-path, step by step>
-- **Then** <the observable definition of done — the assertion>
-- **Alt/error paths**: <edge journeys worth gating, or "none">
-- **Reuses**: <existing L2 scenarios.mjs flows this leans on, if known>
-
-## API Scenarios
-
-<present iff an SDD exists; otherwise this whole section is the one-line placeholder:>
-> Deferred — needs the SDD's §3 endpoint contracts. Re-run /afk:grill-verification
-> after /afk:to-sdd to design these.
-
-Each is one direct-REST check that proves a backend contract without the UI. Each
-traces to an SDD §3 endpoint (+ the PRD Acceptance Criterion it proves) and becomes
-one `node:test` *.test.mjs in verification/api/ (using ../core).
-
-| # | Scenario (call → asserted contract) | Surface (method + path) | Traces to | Env-limited? |
-|---|-------------------------------------|-------------------------|-----------|--------------|
-| 1 | <call → response envelope asserted> | GET /api/... | SDD §3 row "..." · PRD AC k | no |
-| 2 | <unauthorized role → 403 envelope> | POST /api/... | SDD §9b row "..." | no |
-
-### A1 — <scenario title>
-- **Given** <preconditions / data setup via ../core>
-- **When** <method + surface + request shape (auth role, path, body)>
-- **Then** <the asserted response envelope — the REAL shape, success AND edge>
-- **Auth/authz**: <no-token / garbage-token / role-scoping assertions>
-- **Reuses**: <existing core/api helpers this leans on, if known>
-
-## Gaps surfaced
-
-Gaps the scenario-walk exposed, for the human to fold back into the PRD/SDD.
-(Load-bearing gaps were routed back before this plan was emitted.)
-
-- <gap> — <which Story / endpoint / scenario exposed it>
-````
+6. **Settle the set.** When every Story has a journey, every exposed endpoint has
+   a scenario (or API is deferred for lack of an SDD), and the user agrees the set
+   is complete, recap the scenarios — modality, actor/surface, traces-to,
+   env-limited?, plus whether API was designed or deferred — and hand off to
+   `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. **You write
+   nothing.**
 
 ## Hard rules
 
 - **Grill, don't assume.** If a journey's steps, an endpoint's envelope, or a
   definition-of-done can't be stated concretely, that's a gap to surface (step 5) —
   never invent the flow or the contract to keep moving.
-- **API needs the SDD.** No SDD → design UI journeys only and mark API deferred;
+- **API needs the SDD.** No SDD → design UI journeys only and leave API deferred;
   never fabricate endpoint contracts from the PRD alone. SDD §3 too vague to state
   an envelope → route back to `/afk:to-sdd`, don't guess.
 - **Design buildable scenarios.** Ground UI journeys in what
@@ -205,20 +145,18 @@ Gaps the scenario-walk exposed, for the human to fold back into the PRD/SDD.
   modality's reason to exist.
 - **Every scenario traces to a source; every gap is named.** No orphan scenarios,
   no silently-swallowed PRD/SDD ambiguities.
-- **Mark env-limited scenarios at design time** — both modalities — so the
-  downstream gate excludes them from its green verdict rather than reading them as
-  failures.
-- **No tracker writes.** This skill produces a local artifact only
-  (`VERIFICATION-PLAN.md` + gap notes). It touches no Jira and no GitLab.
+- **Note env-limited scenarios as you go** — both modalities — so
+  `/afk:to-verification-plan` can mark them and the downstream gate excludes them
+  from its green verdict rather than reading them as failures.
+- **You write no file and touch no tracker.** This skill only interviews. The
+  artifact is `/afk:to-verification-plan`'s job; it touches no Jira and no GitLab.
 
 ## Next
 
-`VERIFICATION-PLAN.md` is on disk. Fold any `## Gaps surfaced` back into the
-PRD/SDD (and re-run `/afk:to-ticket` if the PRD changed and is already published).
-Then run **`/afk:to-subtasks`**: it detects the plan and automatically emits the
-`## Feature smoke gate` in `PLAN.md` (seeded from both modalities) plus the
-terminal build subtasks — `NNNN-smoke-e2e` for the UI journeys (authored per
-`verification/ui-e2e/AUTHORING.md`) and, when API scenarios exist, `NNNN-smoke-api`
-for the API contracts (authored per `verification/api/AUTHORING.md`). Both are
-blocked by every other subtask. After every subtask is `done`, **`/afk:smoke-test`**
-runs both modalities against a running app as the completion gate.
+The scenarios are settled in the conversation. Run **`/afk:to-verification-plan`**
+to synthesize them into `VERIFICATION-PLAN.md` sibling to the PRD (it does NOT
+re-interview — it writes what was settled here). From there, `/afk:to-subtasks`
+detects the plan and emits the `## Feature smoke gate` plus the terminal build
+subtasks (`NNNN-smoke-e2e`, and `NNNN-smoke-api` when API scenarios exist), and
+`/afk:smoke-test` later runs both modalities against a running app as the
+completion gate.

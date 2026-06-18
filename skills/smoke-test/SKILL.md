@@ -25,8 +25,8 @@ gate** plus a convenient **manual runner** — not the only way the suites ever 
 ## When it applies
 
 Only when the feature has a smoke gate — i.e. someone ran
-`/afk:grill-verification` to design the scenarios (producing
-`VERIFICATION-PLAN.md`) and `/afk:to-subtasks` therefore seeded a `## Feature
+`/afk:grill-verification` to design the scenarios and `/afk:to-verification-plan`
+to write `VERIFICATION-PLAN.md`, and `/afk:to-subtasks` therefore seeded a `## Feature
 smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands,
 target env) and a terminal build subtask **per modality** (`NNNN-smoke-e2e`
 and/or `NNNN-smoke-api`) that **built** the specs. If `PLAN.md` has no `##
@@ -34,7 +34,7 @@ Feature smoke gate`, this feature has no designed scenarios — there is nothing
 run (exit `no_gate`).
 
 **This skill never authors or edits specs.** The scenarios are designed by
-`/afk:grill-verification` and the specs are built by the terminal
+`/afk:grill-verification` (written up by `/afk:to-verification-plan`) and the specs are built by the terminal
 `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks through `/afk:execute` (reviewed in
 an MR like any code). This skill only **executes** the already-implemented
 scenarios as the gate.
@@ -140,9 +140,10 @@ scenarios as the gate.
   those prove one slice — its endpoint contract or its UI — in a dev worktree as
   the slice lands. This proves the **integrated** feature against a running app,
   after everything has landed. Both exist on purpose; neither replaces the other.
-- **vs. `/afk:grill-verification` + the terminal `NNNN-smoke-e2e` /
-  `NNNN-smoke-api` subtasks**: `grill-verification` *designs* the scenarios
-  (`VERIFICATION-PLAN.md`); the build subtasks *write* them — UI journeys as
+- **vs. `/afk:grill-verification` + `/afk:to-verification-plan` + the terminal
+  `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks**: `grill-verification` *designs*
+  the scenarios and `to-verification-plan` *writes* `VERIFICATION-PLAN.md`; the
+  build subtasks *implement* them — UI journeys as
   `Scenario`s in the `11700-payable/verification/ui-e2e` Gherkin catalog, API
   scenarios as `node:test` `*.test.mjs` in `11700-payable/verification/api`
   (reuse-first), resolve them offline (`cucumber-js --dry-run` / `node --check`,

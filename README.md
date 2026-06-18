@@ -66,8 +66,7 @@ Five ideas. Hold these and the rest follows.
 
 **① Stages are interactive and you invoke them.** Each skill is a
 `/afk:<name>` slash command you run in a Claude Code session. There is no
-scheduler. `/afk:start` prints the map and routes you if you're unsure where to
-begin.
+scheduler. The map in [§3](#3-the-chain-at-a-glance) shows where each stage fits.
 
 **② Artifacts on disk are the source of truth.** The PRD, SDD, ADRs, the
 `VERIFICATION-PLAN.md`, and the execution plan all live as files next to the code
@@ -122,19 +121,16 @@ graph LR
 
 ```mermaid
 graph LR
-    Start[/afk:start/] -->|raw idea| Grill[/afk:grill-requirements/]
-    Start -->|have PRD| AG[/afk:grill-solution/]
-    Start -->|have SDD| Sub[/afk:to-subtasks/]
-
-    Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
+    Grill[/afk:grill-requirements/] --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG[/afk:grill-solution/] --> Sdd[/afk:to-sdd/]
     Sdd -->|optional digest| Brief[/afk:to-design-brief/]
 
     Prd -.optional verification design.-> E2E[/afk:grill-verification/]
     Sdd -.optional verification design.-> E2E
+    E2E -->|interview settled| VPlan[/afk:to-verification-plan/]
 
     Sdd --> Sub
     Brief --> Sub
-    E2E -->|VERIFICATION-PLAN.md| Sub
+    VPlan -->|VERIFICATION-PLAN.md| Sub
 
     Sub -->|run once per subtask| Exec[/afk:execute/]
     Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
@@ -143,7 +139,7 @@ graph LR
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Exec mand;
-    class Grill,AG,Sdd,Brief,E2E,Smoke,Tdd opt;
+    class Grill,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -151,8 +147,8 @@ The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` �
 you add for complex features and skip for small ones (see
 [§6](#6-choosing-your-path)).
 
-Run **`/afk:start`** first if you're unsure where to begin — it prints this map
-and routes you to the right entry skill based on what you already have.
+Start where your inputs land: a raw idea enters at `/afk:grill-requirements`; an
+existing PRD at `/afk:grill-solution`; an SDD already in hand at `/afk:to-subtasks`.
 
 ---
 
@@ -219,6 +215,8 @@ sequenceDiagram
     CC->>Disk: SDD.md + adr/design ADRs
     CC->>Jira: SDD pointer section
     Dev->>CC: /afk:grill-verification (optional)
+    CC-->>Dev: two-modality scenario interview
+    Dev->>CC: /afk:to-verification-plan
     CC->>Disk: VERIFICATION-PLAN.md (+ gap notes)
     Dev->>CC: /afk:to-subtasks
     CC->>Disk: plan/PLAN.md + plan/NNNN-slug.md (cited)
@@ -249,23 +247,26 @@ sequenceDiagram
 5. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs, and writes the parent ticket's `## SDD` pointer section.
 6. **`/afk:grill-verification`** *(optional but recommended)* — designs the
-   feature's verification scenarios with you and emits `VERIFICATION-PLAN.md`: the
-   real end-user **browser journeys**, plus (once the SDD exists) the **API
-   scenarios** that prove the backend contract for API/MCP callers who bypass the
-   UI. Walking them concretely routinely surfaces PRD/SDD gaps — surfacing them is
-   a feature, not a side effect.
-7. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
+   feature's verification scenarios with you: the real end-user **browser
+   journeys**, plus (once the SDD exists) the **API scenarios** that prove the
+   backend contract for API/MCP callers who bypass the UI. It **interviews only** —
+   walking them concretely routinely surfaces PRD/SDD gaps, surfacing them is a
+   feature, not a side effect.
+7. **`/afk:to-verification-plan`** — synthesizes that conversation into
+   `VERIFICATION-PLAN.md` (UI journeys now; API scenarios too once the SDD exists,
+   else deferred and appended on a re-run).
+8. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
    it slices in **cited mode** (typed contracts). Because a `VERIFICATION-PLAN.md`
    exists it also seeds a `## Feature smoke gate` and a terminal build subtask per
    modality (`NNNN-smoke-e2e` for the UI journeys, `NNNN-smoke-api` for the API
    scenarios).
-8. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
+9. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
    dependency order, from a worktree on the parent branch. It designs, develops
    under TDD, turns every verification tier green, pushes, updates the Draft MR,
    advances the tracker — then stops. You review and merge each MR.
-9. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
-   verification suites — browser journeys **and** API contracts — against a running
-   app and stamps `Feature: complete` on green across both.
+10. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
+    verification suites — browser journeys **and** API contracts — against a running
+    app and stamps `Feature: complete` on green across both.
 
 For a **small** feature you collapse this to the lean path — see next section.
 
@@ -289,7 +290,7 @@ graph TD
 
     FULL --> F1["grill-requirements, to-prd, to-ticket"]
     F1 --> F2["grill-solution, to-sdd"]
-    F2 --> F3["grill-verification - optional"]
+    F2 --> F3["grill-verification, to-verification-plan - optional"]
     F3 --> F4["to-design-brief - optional"]
     F4 --> F5["to-subtasks - cited mode"]
     F5 --> F6["execute - once per subtask"]
@@ -306,7 +307,7 @@ graph TD
 | When | bug / refactor / tooling / small enhancement | new complex feature, new pattern, multi-module |
 | Design docs | none | SDD + ADRs |
 | Slice mode | **uncited** (PRD-only, human-gated) | **cited** (typed `Produces`/`Consumes`, mechanically enforced) |
-| verification gate | usually none | optional via `/afk:grill-verification` (UI + API) |
+| verification gate | usually none | optional via `/afk:grill-verification` → `/afk:to-verification-plan` (UI + API) |
 
 **Mode is set by what's upstream**, not by a flag: a PRD **with** an SDD slices
 cited; a PRD **alone** slices uncited.
@@ -322,7 +323,7 @@ spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
 {service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── SDD.md                     ← /afk:to-sdd        (its ## SDD pointer goes to Jira)
-├── VERIFICATION-PLAN.md       ← /afk:grill-verification (local only; UI journeys + API scenarios)
+├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only, optional)
 ├── GLOSSARY.md                ← /afk:grill-requirements
 ├── adr/
@@ -482,16 +483,21 @@ tooling.)*
   Refuses to invent decisions or to emit while the SDD has executor-blocking open
   questions.
 - **`/afk:grill-verification`** — interviews you to design the feature's
-  verification scenarios across two modalities and emits `VERIFICATION-PLAN.md`
-  sibling to the PRD: **UI journeys** (the real browser flows that decide "this
-  feature works", traced to User Stories) and **API scenarios** (direct-REST
-  checks that prove the backend contract for API/MCP callers who bypass the UI,
-  traced to SDD §3 endpoints). UI journeys can be designed after `/afk:to-prd`;
-  API scenarios need the SDD's endpoint contracts, so they're added after
-  `/afk:to-sdd` (a pre-SDD run defers them). Walking them concretely surfaces
-  PRD/SDD gaps. Its plan is what makes `/afk:to-subtasks` emit the smoke gate +
-  the per-modality build subtasks. **Repo-only.** The build recipes are **not**
-  here — they're canonical at `11700-payable/verification/ui-e2e/AUTHORING.md` and
+  verification scenarios across two modalities: **UI journeys** (the real browser
+  flows that decide "this feature works", traced to User Stories) and **API
+  scenarios** (direct-REST checks that prove the backend contract for API/MCP
+  callers who bypass the UI, traced to SDD §3 endpoints). A grilling skill like
+  `/afk:grill-requirements` and `/afk:grill-solution` — it **writes no file**;
+  walking the scenarios concretely surfaces PRD/SDD gaps. UI journeys can be
+  designed after `/afk:to-prd`; API scenarios need the SDD's endpoint contracts,
+  so they're added after `/afk:to-sdd` (a pre-SDD run defers them).
+- **`/afk:to-verification-plan`** — synthesizes that conversation into
+  `VERIFICATION-PLAN.md` sibling to the PRD (no interview — writes what the grill
+  settled). UI journeys now; API scenarios too once the SDD exists, else a deferred
+  placeholder that a post-SDD re-run **appends** to (preserving the UI section).
+  Its plan is what makes `/afk:to-subtasks` emit the smoke gate + the per-modality
+  build subtasks. **Repo-only.** The build recipes are **not** here — they're
+  canonical at `11700-payable/verification/ui-e2e/AUTHORING.md` and
   `11700-payable/verification/api/AUTHORING.md`, only pointed at.
 
 ### Optional feature gate
@@ -543,7 +549,7 @@ strict ownership so edits never collide:
 > rename, or change a contract section, update **both** skills in the **same
 > commit**. A section read by `/afk:smoke-test` (a gate field) must be changed in
 > lockstep with that skill too — and a smoke-gate field's shape touches all three
-> (`grill-verification` emitter, `to-subtasks` seeder, `smoke-test` reader).
+> (`to-verification-plan` emitter, `to-subtasks` seeder, `smoke-test` reader).
 
 ---
 

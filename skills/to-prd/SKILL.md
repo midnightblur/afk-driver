@@ -62,7 +62,7 @@ This is **distinct** from two neighbours, and the distinction is load-bearing:
 - vs. **Testing Decisions** (below) — that's the test *strategy* (what to test,
   how, prior art); Acceptance Criteria are the *conditions*, not the approach.
 - vs. **verification scenarios** (`/afk:grill-verification` →
-  `VERIFICATION-PLAN.md`) — those are concrete UI click-paths and API
+  `/afk:to-verification-plan` → `VERIFICATION-PLAN.md`) — those are concrete UI click-paths and API
   request/response checks; Acceptance Criteria are the outcomes those scenarios
   (and unit/integration tests) must satisfy. A criterion may be proven by several
   tests; a scenario may cover several criteria.
@@ -148,9 +148,10 @@ This skill stops at the local PRD (+ requirement ADRs). Then, in order:
   L1 → L8 layers.
 - **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,
   the downstream plan slices in uncited mode (PRD-only).
-- **`/afk:grill-verification`** *(optional)* — design the feature's verification
-  scenarios now, emitting `VERIFICATION-PLAN.md`. Post-PRD it can design the
-  **UI journeys** (the PRD's User Stories are usually concrete enough; the
+- **`/afk:grill-verification`** *(optional)* → **`/afk:to-verification-plan`** —
+  design the feature's verification scenarios now; the grill interviews, then
+  `/afk:to-verification-plan` writes `VERIFICATION-PLAN.md`. Post-PRD it can design
+  the **UI journeys** (the PRD's User Stories are usually concrete enough; the
   journey-walk often surfaces PRD gaps worth fixing here) and **defers the API
-  scenarios** until an SDD settles the endpoints — re-run it after `/afk:to-sdd`
-  to add those. Its plan makes `/afk:to-subtasks` add the feature smoke-test gate.
+  scenarios** until an SDD settles the endpoints — re-run both after `/afk:to-sdd`
+  to append those. Its plan makes `/afk:to-subtasks` add the feature smoke-test gate.

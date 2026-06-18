@@ -51,12 +51,13 @@ warrants no SDD (see "Design-doc optionality").
   uncited even though an SDD might be warranted.
 - `verification_plan_path` *(optional)* — defaults to the PRD's sibling
   `VERIFICATION-PLAN.md`. **Its presence is the trigger**: if a
-  `VERIFICATION-PLAN.md` exists (the user ran `/afk:grill-verification`),
-  automatically emit the feature smoke gate + a terminal build subtask **per
-  modality present** — `NNNN-smoke-e2e` for the `## UI Journeys`, and
-  `NNNN-smoke-api` for the `## API Scenarios` (omitted if that section is the
-  "deferred" placeholder) — see "Feature smoke gate" below. No ask — the decision
-  was made by running `grill-verification`. Absent → no gate, no build subtask.
+  `VERIFICATION-PLAN.md` exists (the user ran `/afk:grill-verification` →
+  `/afk:to-verification-plan`), automatically emit the feature smoke gate + a
+  terminal build subtask **per modality present** — `NNNN-smoke-e2e` for the
+  `## UI Journeys`, and `NNNN-smoke-api` for the `## API Scenarios` (omitted if
+  that section is the "deferred" placeholder) — see "Feature smoke gate" below. No
+  ask — the decision was made by producing the plan. Absent → no gate, no build
+  subtask.
 
 ## Process
 
@@ -65,7 +66,7 @@ warrants no SDD (see "Design-doc optionality").
    `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md`
    (mode=signatures). The set of `(SDD section IDs, §9b seam rows, ADR IDs)` is
    your **citation pool** — every cited subtask references at least one entry.
-   Also check for a sibling `VERIFICATION-PLAN.md` (from `/afk:grill-verification`);
+   Also check for a sibling `VERIFICATION-PLAN.md` (from `/afk:to-verification-plan`);
    if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive
    the smoke gate + build subtasks (step 3).
 
@@ -100,7 +101,8 @@ warrants no SDD (see "Design-doc optionality").
 
    **Detect the verification plan.** Check for `VERIFICATION-PLAN.md` next to the
    PRD. If present, the user designed the feature's verification scenarios via
-   `/afk:grill-verification`, so you **automatically** append a **terminal** build
+   `/afk:grill-verification` → `/afk:to-verification-plan`, so you **automatically**
+   append a **terminal** build
    subtask **per modality the plan carries** (each `## Blocked by` **every** other
    subtask), using the "Feature smoke gate" build-subtask templates below:
    - `NNNN-smoke-e2e.md` — authors the `## UI Journeys` as `Scenario`s in the
@@ -248,14 +250,16 @@ output, not our DTO — it's the only test that covers the boundary.
 
 The per-subtask `api` / `e2e/browser` tiers prove **one slice** in isolation. A
 feature whose verification scenarios were designed via `/afk:grill-verification`
-also gets an **integrated smoke gate**: those cross-subtask scenarios — both
+(and written by `/afk:to-verification-plan`) also gets an **integrated smoke
+gate**: those cross-subtask scenarios — both
 modalities — run against a real running app as the final "feature complete"
 check, and reused afterward by CI / scheduled jobs / manual sanity runs. The gate
 that *runs* them is a separate skill (`/afk:smoke-test`); this skill **seeds** the
 gate and **emits the build subtasks** that author the specs.
 
 **The trigger is the artifact, not an ask.** If `VERIFICATION-PLAN.md` sits next
-to the PRD, the human already decided (by running `/afk:grill-verification`).
+to the PRD, the human already decided (by running `/afk:grill-verification` →
+`/afk:to-verification-plan`).
 Emit the gate section **and one build subtask per modality the plan carries**:
 
 - **The PLAN.md `## Feature smoke gate` section** (template below): seed one row
@@ -347,7 +351,7 @@ If there is no `VERIFICATION-PLAN.md`, emit no gate and no build subtask — the
 per-subtask `api` / `e2e/browser` tiers are the only verification coverage. If the
 plan has UI journeys but its `## API Scenarios` is the "deferred" placeholder,
 emit only `NNNN-smoke-e2e`. (To add coverage later, run
-`/afk:grill-verification`, then re-run this skill.)
+`/afk:grill-verification` → `/afk:to-verification-plan`, then re-run this skill.)
 
 ## PLAN.md (the index)
 
@@ -506,7 +510,7 @@ API subtask).
   `NNNN-smoke-api` for real API scenarios; both blocked by all). No plan emits
   neither; a UI-only plan emits only `NNNN-smoke-e2e`. Never invent a gate without
   the plan, and never half-emit. The scenario design is `/afk:grill-verification`'s
-  job, the build recipes are the verification repo's
+  job and the plan is `/afk:to-verification-plan`'s, the build recipes are the verification repo's
   `11700-payable/verification/{ui-e2e,api}/AUTHORING.md` (referenced, never
   copied), and running the gate is `/afk:smoke-test`'s — this skill only seeds +
   slices.

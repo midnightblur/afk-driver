@@ -375,12 +375,13 @@ After the SDD + ADRs land, you have a few choices:
   stakeholder-impact table). Strict synthesis — no new decisions.
 - **Verification scenarios need the settled solution?** Run
   **`/afk:grill-verification`** *(optional)* to design the feature's verification
-  scenarios against the now-settled design, emitting `VERIFICATION-PLAN.md`. Now
-  that the SDD exists, this run can design **both** modalities — the UI journeys
-  **and** the API scenarios (which read the §3 API contract table above and the
-  §9b below-the-UI seams). (If only the UI journeys were clear, an earlier
-  post-`/afk:to-prd` run may have designed those and deferred the API scenarios —
-  re-run now to append them.) Its plan makes `/afk:to-subtasks` add the feature
+  scenarios against the now-settled design, then **`/afk:to-verification-plan`** to
+  write `VERIFICATION-PLAN.md`. Now that the SDD exists, this run can design
+  **both** modalities — the UI journeys **and** the API scenarios (which read the
+  §3 API contract table above and the §9b below-the-UI seams). (If only the UI
+  journeys were clear, an earlier post-`/afk:to-prd` run may have designed those
+  and deferred the API scenarios — re-run both skills now; `/afk:to-verification-plan`
+  appends the API section.) Its plan makes `/afk:to-subtasks` add the feature
   smoke-test gate + the per-modality build subtasks.
 - **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs
   into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with
