@@ -44,6 +44,28 @@ A LONG, numbered list of user stories. Each user story should be in the format o
 
 This list of user stories should be extremely extensive and cover all aspects of the feature.
 
+## Acceptance Criteria
+
+A checklist of **binary, verifiable conditions** that must all hold for the
+feature to be accepted — the definition of done from the product's point of view.
+Each is a single observable pass/fail statement in business language, independent
+of *how* it's tested:
+
+- [ ] <a condition that is unambiguously true or false on inspection>
+
+Write enough to pin down the feature's accepted behaviour (happy path, the
+important edge/error conditions, and any non-functional bar that gates
+acceptance — e.g. a permission rule, a data-integrity guarantee). Keep each
+criterion atomic; split compound ones.
+
+This is **distinct** from two neighbours, and the distinction is load-bearing:
+- vs. **Testing Decisions** (below) — that's the test *strategy* (what to test,
+  how, prior art); Acceptance Criteria are the *conditions*, not the approach.
+- vs. **E2E journeys** (`/afk:grill-e2e` → `E2E-PLAN.md`) — those are concrete
+  click-paths a user walks; Acceptance Criteria are the outcomes those journeys
+  (and unit/integration tests) must satisfy. A criterion may be proven by several
+  tests; a journey may cover several criteria.
+
 ## Implementation Decisions
 
 A list of implementation decisions that were made. This can include:
