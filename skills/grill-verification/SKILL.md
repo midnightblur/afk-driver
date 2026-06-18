@@ -61,7 +61,10 @@ Don't invent endpoints to keep moving.
 
 1. **Read the sources.** `ctx_read` the PRD (full) — especially its **User
    Stories** and **Acceptance Criteria** — and, when present, the SDD (full),
-   especially **§3 L2** (API contracts) and **§9b** (external seams). Skim the
+   especially **§3 L2** (API contracts) and **§9b** (external seams). If
+   `/afk:prototype` settled the UI, `ctx_read` `PROTOTYPE.md` too — its screens are
+   the concrete thing the **UI journeys** trace to (a real screen, not an imagined
+   one). Skim the
    canonical build recipes so you grill **buildable** scenarios, never ones the
    suite can't drive:
    - UI: **`11700-payable/verification/ui-e2e/AUTHORING.md`** (+ its sibling

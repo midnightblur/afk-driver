@@ -95,6 +95,7 @@ graph LR
         PRD[PRD.md]
         SDD[SDD.md]
         ADR[ADRs]
+        PROTO[PROTOTYPE.md + mockup HTML]
         E2E[VERIFICATION-PLAN.md]
         PLAN["plan/: PLAN.md + NNNN-slug.md"]
     end
@@ -110,7 +111,7 @@ graph LR
     classDef disk fill:#e8f0fe,stroke:#4285f4;
     classDef jira fill:#fff4e5,stroke:#fb8c00;
     classDef gl fill:#fde7f3,stroke:#e91e63;
-    class PRD,SDD,ADR,E2E,PLAN disk;
+    class PRD,SDD,ADR,PROTO,E2E,PLAN disk;
     class TICKET jira;
     class MR gl;
 ```
@@ -123,6 +124,9 @@ graph LR
 graph LR
     Grill[/afk:grill-requirements/] --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG[/afk:grill-solution/] --> Sdd[/afk:to-sdd/]
     Sdd -->|optional digest| Brief[/afk:to-design-brief/]
+
+    Prd -.optional UI mockup.-> Proto[/afk:prototype/]
+    Proto -.PROTOTYPE.md feeds design.-> AG
 
     Prd -.optional verification design.-> E2E[/afk:grill-verification/]
     Sdd -.optional verification design.-> E2E
@@ -139,7 +143,7 @@ graph LR
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Exec mand;
-    class Grill,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd opt;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -209,6 +213,9 @@ sequenceDiagram
     CC->>Disk: PRD.md + adr/requirements ADRs
     Dev->>CC: /afk:to-ticket (parent_key)
     CC->>Jira: PRD body (ADF, diagrams as PNGs)
+    Dev->>CC: /afk:prototype (optional, if net-new UI)
+    CC-->>Dev: live HTML mockup loop (refresh + react)
+    CC->>Disk: PROTOTYPE.md + chosen HTML
     Dev->>CC: /afk:grill-solution
     CC-->>Dev: L1→L8 design interview
     Dev->>CC: /afk:to-sdd
@@ -241,30 +248,38 @@ sequenceDiagram
 3. **`/afk:to-ticket`** — publishes the PRD *content* into the **existing**
    parent ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
    to attached PNGs. Idempotent — re-run when the PRD changes.
-4. **`/afk:grill-solution`** — top-down design interview across 8 layers (L1
+4. **`/afk:prototype`** *(optional — only if the feature has net-new UI)* — crafts
+   the screens with you interactively, anchored to the **real frontend's**
+   components and tokens. Writes self-contained HTML you open and refresh while you
+   reshape it in plain language; on settle it captures `PROTOTYPE.md` + the chosen
+   HTML sibling to the PRD. Self-gates `no_ui` for backend-only features. The won
+   design feeds the next two steps and gives the verification UI journeys a concrete
+   screen to trace to. Local-first; an opt-in push mirrors the mockup to
+   `claude.ai/design` for stakeholder review.
+5. **`/afk:grill-solution`** — top-down design interview across 8 layers (L1
    system topology → L8 tactical patterns); every non-trivial decision gets a
    rationale and ≥2 weighed alternatives.
-5. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
+6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs, and writes the parent ticket's `## SDD` pointer section.
-6. **`/afk:grill-verification`** *(optional but recommended)* — designs the
+7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
    feature's verification scenarios with you: the real end-user **browser
    journeys**, plus (once the SDD exists) the **API scenarios** that prove the
    backend contract for API/MCP callers who bypass the UI. It **interviews only** —
    walking them concretely routinely surfaces PRD/SDD gaps, surfacing them is a
    feature, not a side effect.
-7. **`/afk:to-verification-plan`** — synthesizes that conversation into
+8. **`/afk:to-verification-plan`** — synthesizes that conversation into
    `VERIFICATION-PLAN.md` (UI journeys now; API scenarios too once the SDD exists,
    else deferred and appended on a re-run).
-8. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
+9. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
    it slices in **cited mode** (typed contracts). Because a `VERIFICATION-PLAN.md`
    exists it also seeds a `## Feature smoke gate` and a terminal build subtask per
    modality (`NNNN-smoke-e2e` for the UI journeys, `NNNN-smoke-api` for the API
    scenarios).
-9. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
-   dependency order, from a worktree on the parent branch. It designs, develops
-   under TDD, turns every verification tier green, pushes, updates the Draft MR,
-   advances the tracker — then stops. You review and merge each MR.
-10. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
+10. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
+    dependency order, from a worktree on the parent branch. It designs, develops
+    under TDD, turns every verification tier green, pushes, updates the Draft MR,
+    advances the tracker — then stops. You review and merge each MR.
+11. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
     verification suites — browser journeys **and** API contracts — against a running
     app and stamps `Feature: complete` on green across both.
 
@@ -289,7 +304,8 @@ graph TD
     L3 --> L4["/afk:execute - once per subtask"]
 
     FULL --> F1["grill-requirements, to-prd, to-ticket"]
-    F1 --> F2["grill-solution, to-sdd"]
+    F1 --> FP["prototype - optional, iff net-new UI"]
+    FP --> F2["grill-solution, to-sdd"]
     F2 --> F3["grill-verification, to-verification-plan - optional"]
     F3 --> F4["to-design-brief - optional"]
     F4 --> F5["to-subtasks - cited mode"]
@@ -299,13 +315,14 @@ graph TD
     classDef lean fill:#d7f3e3,stroke:#1b9e58;
     classDef full fill:#e8f0fe,stroke:#4285f4;
     class LEAN,L1,L2,L3,L4 lean;
-    class FULL,F1,F2,F3,F4,F5,F6,F7 full;
+    class FULL,F1,FP,F2,F3,F4,F5,F6,F7 full;
 ```
 
 | | **Lean path** | **Full path** |
 |---|---|---|
 | When | bug / refactor / tooling / small enhancement | new complex feature, new pattern, multi-module |
 | Design docs | none | SDD + ADRs |
+| UI prototype | none | optional via `/afk:prototype` (iff net-new UI) |
 | Slice mode | **uncited** (PRD-only, human-gated) | **cited** (typed `Produces`/`Consumes`, mechanically enforced) |
 | verification gate | usually none | optional via `/afk:grill-verification` → `/afk:to-verification-plan` (UI + API) |
 
@@ -322,6 +339,8 @@ spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
 ```text
 {service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
+├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
+├── prototype/                 ← /afk:prototype     (the chosen self-contained mockup HTML)
 ├── SDD.md                     ← /afk:to-sdd        (its ## SDD pointer goes to Jira)
 ├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only, optional)
@@ -470,6 +489,19 @@ tooling.)*
   requirements decision tree is exhausted, challenging it against the domain
   glossary. Maintains `GLOSSARY.md`; emits **no** decision records (those come
   from `/afk:to-prd`).
+- **`/afk:prototype`** *(after `/afk:to-prd`; only if net-new UI)* — an interactive
+  UI-crafting loop, neither a grill nor a one-shot producer. Reads the PRD User
+  Stories, anchors to the **real frontend's** components + tokens, and writes
+  self-contained HTML you open in a browser and **refresh** while you reshape it in
+  plain language. Converges from optional divergent sketches to one design.
+  **Self-gates `no_ui`** for backend/API/refactor features. **Durable-lite**: the
+  won direction becomes `PROTOTYPE.md` + the chosen HTML sibling to the PRD
+  (traceable to User Stories, so `/afk:grill-verification`'s UI journeys trace to
+  it); losing scaffolding is discarded. **Local-first** — the in-repo files are
+  canonical; a **frictionless opt-in** push mirrors the mockup to a persistent,
+  team-shareable `claude.ai/design` project (share-only, never the source of
+  truth). Touches no tracker. Feeds `/afk:grill-solution` (UX decisions) and
+  `/afk:grill-verification` (the screen its journeys trace to).
 - **`/afk:grill-solution`** — top-down design interview across 8 layers (L1
   topology → L8 tactical patterns); every non-trivial decision gets a rationale +
   ≥2 alternatives. Produces **no** documents — feeds `/afk:to-sdd`.

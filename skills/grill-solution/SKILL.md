@@ -7,7 +7,7 @@ Interview me relentlessly about every aspect of the architecture until we reach 
 
 Ask the questions one at a time. For each question, provide your recommended answer with the trade-off and the alternative you are rejecting.
 
-If a question can be answered by exploring the codebase, the PRD, the existing ADRs, or the project glossary (start at the root `GLOSSARY-MAP.md`, then the owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
+If a question can be answered by exploring the codebase, the PRD, a `PROTOTYPE.md` if `/afk:prototype` settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), the existing ADRs, or the project glossary (start at the root `GLOSSARY-MAP.md`, then the owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
 
 ## The 8 layers (grill in this order)
 
