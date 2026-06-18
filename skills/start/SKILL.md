@@ -24,13 +24,13 @@ session — each chain skill expects its own session.
        Start -->|have SDD| Sub[/afk:to-subtasks/]
        Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
        Sdd -->|optional| Brief[/afk:to-design-brief/]
-       Prd -.optional e2e design.-> E2E[/afk:grill-e2e/]
-       Sdd -.optional e2e design.-> E2E
+       Prd -.optional verification design.-> Verif[/afk:grill-verification/]
+       Sdd -.optional verification design.-> Verif
        Sdd --> Sub
        Brief --> Sub
-       E2E -->|E2E-PLAN.md| Sub
+       Verif -->|VERIFICATION-PLAN.md| Sub
        Sub -->|run once per subtask| Exec[/afk:execute/]
-       Exec -->|all subtasks done · gate iff e2e plan| Smoke[/afk:smoke-test/]
+       Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
        Exec -.uses.-> Tdd[/afk:tdd/]
    ```
 
@@ -50,10 +50,10 @@ session — each chain skill expects its own session.
    | 4 | `/afk:grill-solution` | PRD | exhausted L1-L8 architecture decisions | **Grounding rule** — every claim about existing infra (libraries, services, modules, schemas) must be verified via `ctx_search` / `ctx_read` OR explicitly labelled "unverified premise" with user acknowledgement |
    | 5 | `/afk:to-sdd` | conversation from step 4 + PRD | SDD.md + per-decision ADRs | **Refuse-to-publish gate** (executor-blocking markers like `TBD` / `TODO` / `<placeholder>` + §13 Open Questions blocking executor in L2-L7) AND **library-version pin cross-check** against `pom.xml` / `package.json+lockfile` / `pyproject.toml` |
    | 6 | `/afk:to-design-brief` *(optional)* | PRD + SDD + ADRs | DESIGN-BRIEF.md (1-2 page stakeholder digest) | refuses if SDD §13 has executor-blocking open questions |
-   | 7 | `/afk:grill-e2e` *(optional)* | PRD (after `/afk:to-prd`) or PRD + SDD (after `/afk:to-sdd`) | `E2E-PLAN.md` — the feature's end-user journeys, each traced to a PRD User Story + env-limited flags | **Concreteness gate** — every journey needs a narratable click-path + an observable definition-of-done, else it's a PRD gap (small → noted in plan; load-bearing → routes back to `/afk:to-prd` or `/afk:to-sdd`) |
-   | 8 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated); auto-adds the smoke build subtask iff an `E2E-PLAN.md` is present | local `plan/` dir — `PLAN.md` index (solution map, seam register, progress tracker) + `NNNN-slug.md` per subtask with typed `## Produces` / `## Consumes` + tiered `## Verification` (no Jira) | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** + **seam coverage** (every SDD §9b seam has a named implementer carrying its seam-test) |
+   | 7 | `/afk:grill-verification` *(optional)* | PRD (after `/afk:to-prd`) → UI journeys only, API deferred; PRD + SDD (after `/afk:to-sdd`) → UI journeys + API scenarios | `VERIFICATION-PLAN.md` — UI journeys (traced to User Stories) + API scenarios (traced to SDD §3 endpoints / Acceptance Criteria) + env-limited flags | **Concreteness gate** — every journey needs a narratable click-path + observable done; every API scenario needs a stated request → real response envelope + below-the-UI authz; else it's a PRD/SDD gap (small → noted; load-bearing → routes back to `/afk:to-prd` or `/afk:to-sdd`) |
+   | 8 | `/afk:to-subtasks` | PRD + SDD + ADRs (cited mode) OR PRD only (uncited, human-gated); auto-adds the per-modality smoke build subtasks iff a `VERIFICATION-PLAN.md` is present | local `plan/` dir — `PLAN.md` index (solution map, seam register, progress tracker) + `NNNN-slug.md` per subtask with typed `## Produces` / `## Consumes` + tiered `## Verification` (no Jira) | **Slicing-time refuse gate** (re-runs §13 + library-version checks defensively) + **anchor-quality check** (forbidden generic tokens, ≥12 chars, ≤1 trial-grep match) + **acceptance citation rule** + **seam coverage** (every SDD §9b seam has a named implementer carrying its seam-test) |
    | 9 | `/afk:execute` | one subtask id (`NNNN-slug`) from the plan | code committed + pushed, tracker row `done`, Draft MR updated, handoff to human CR/Merge | **Step 2 consumer preflight** (every `## Consumes` anchor must grep clean on the branch) + **Step 9 producer self-preflight** (every own `## Produces` anchor must grep clean) + **every `## Verification` tier green** + JPA-entity liquibase-hibernate7 pickup check |
-   | 10 | `/afk:smoke-test` *(optional gate)* | a plan with a `## Feature smoke gate` + every subtask `done` | integrated browser smoke suite run against a running app; `Feature: complete` stamped in PLAN.md on green; suite reused by CI / scheduled / manual | **every subtask `done`** (else `preconditions_unmet`) + **app reachable at target** (else `env_unreachable`) + **every runnable gate scenario green** (else `smoke_fail`); present only when an `E2E-PLAN.md` drove the gate |
+   | 10 | `/afk:smoke-test` *(optional gate)* | a plan with a `## Feature smoke gate` + every subtask `done` | integrated smoke suites (UI journeys + API contracts) run against a running app; `Feature: complete` stamped in PLAN.md on green across both; suites reused by CI / scheduled / manual | **every subtask `done`** (else `preconditions_unmet`) + **app reachable at target** (else `env_unreachable`) + **every runnable gate scenario green, both modalities** (else `smoke_fail`); present only when a `VERIFICATION-PLAN.md` drove the gate |
    | — | `/afk:tdd` | (called from inside `/afk:execute` Step 5) | red-green-refactor doctrine | n/a — tooling |
 
 3. **Ask the routing question.** Then ask **exactly one** question:
@@ -80,10 +80,11 @@ session — each chain skill expects its own session.
    - For routes (a), (b) and (c), name the FULL downstream chain so the user
      can pace themselves: `/afk:grill-requirements` → `/afk:to-prd` →
      `/afk:to-ticket` → `/afk:grill-solution` → `/afk:to-sdd` → optional
-     `/afk:to-design-brief` → optional `/afk:grill-e2e` (design the e2e
-     journeys; can also run right after `/afk:to-prd`) → `/afk:to-subtasks` →
-     `/afk:execute` → optional `/afk:smoke-test`. They will run each manually;
-     this skill does not auto-advance.
+     `/afk:to-design-brief` → optional `/afk:grill-verification` (design the
+     verification scenarios — UI journeys after `/afk:to-prd`, API scenarios once
+     the SDD exists) → `/afk:to-subtasks` → `/afk:execute` → optional
+     `/afk:smoke-test`. They will run each manually; this skill does not
+     auto-advance.
 
    For (f), exit with no command — the user wanted only the map.
 

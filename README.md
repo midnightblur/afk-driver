@@ -43,7 +43,7 @@ manifests.
 down where it can be reviewed, cited, and re-read. The payoff:
 
 - **The hand-off is a file, not a memory.** Every stage emits an artifact (PRD,
-  SDD, ADRs, a plan, an e2e plan). The next agent reads the contract; it doesn't
+  SDD, ADRs, a plan, a verification plan). The next agent reads the contract; it doesn't
   re-derive intent from a chat log.
 - **Drift is caught mechanically, not in review.** When the design is settled
   (an SDD exists), the plan slices in *cited mode*: each subtask carries typed
@@ -70,8 +70,8 @@ scheduler. `/afk:start` prints the map and routes you if you're unsure where to
 begin.
 
 **② Artifacts on disk are the source of truth.** The PRD, SDD, ADRs, the
-`E2E-PLAN.md`, and the execution plan all live as files next to the code they
-describe. Jira holds **only** the parent Enhancement/Bug — and only two skills
+`VERIFICATION-PLAN.md`, and the execution plan all live as files next to the code
+they describe. Jira holds **only** the parent Enhancement/Bug — and only two skills
 ever write to it (see ④).
 
 **③ The plan is a local contract, not Jira issues.** `/afk:to-subtasks` emits a
@@ -96,7 +96,7 @@ graph LR
         PRD[PRD.md]
         SDD[SDD.md]
         ADR[ADRs]
-        E2E[E2E-PLAN.md]
+        E2E[VERIFICATION-PLAN.md]
         PLAN["plan/: PLAN.md + NNNN-slug.md"]
     end
     subgraph jira_store [Jira - parent ticket only]
@@ -129,15 +129,15 @@ graph LR
     Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
     Sdd -->|optional digest| Brief[/afk:to-design-brief/]
 
-    Prd -.optional e2e design.-> E2E[/afk:grill-e2e/]
-    Sdd -.optional e2e design.-> E2E
+    Prd -.optional verification design.-> E2E[/afk:grill-verification/]
+    Sdd -.optional verification design.-> E2E
 
     Sdd --> Sub
     Brief --> Sub
-    E2E -->|E2E-PLAN.md| Sub
+    E2E -->|VERIFICATION-PLAN.md| Sub
 
     Sub -->|run once per subtask| Exec[/afk:execute/]
-    Exec -->|all subtasks done · gate iff e2e plan| Smoke[/afk:smoke-test/]
+    Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
     Exec -.uses.-> Tdd[/afk:tdd/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
@@ -218,8 +218,8 @@ sequenceDiagram
     Dev->>CC: /afk:to-sdd
     CC->>Disk: SDD.md + adr/design ADRs
     CC->>Jira: SDD pointer section
-    Dev->>CC: /afk:grill-e2e (optional)
-    CC->>Disk: E2E-PLAN.md (+ PRD-gap notes)
+    Dev->>CC: /afk:grill-verification (optional)
+    CC->>Disk: VERIFICATION-PLAN.md (+ gap notes)
     Dev->>CC: /afk:to-subtasks
     CC->>Disk: plan/PLAN.md + plan/NNNN-slug.md (cited)
     loop once per subtask, in dependency order
@@ -248,19 +248,24 @@ sequenceDiagram
    rationale and ≥2 weighed alternatives.
 5. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs, and writes the parent ticket's `## SDD` pointer section.
-6. **`/afk:grill-e2e`** *(optional but recommended)* — walks the real end-user
-   browser journeys with you and emits `E2E-PLAN.md`. Walking journeys concretely
-   routinely surfaces PRD gaps — surfacing them is a feature, not a side effect.
+6. **`/afk:grill-verification`** *(optional but recommended)* — designs the
+   feature's verification scenarios with you and emits `VERIFICATION-PLAN.md`: the
+   real end-user **browser journeys**, plus (once the SDD exists) the **API
+   scenarios** that prove the backend contract for API/MCP callers who bypass the
+   UI. Walking them concretely routinely surfaces PRD/SDD gaps — surfacing them is
+   a feature, not a side effect.
 7. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
-   it slices in **cited mode** (typed contracts). Because an `E2E-PLAN.md` exists
-   it also seeds a `## Feature smoke gate` and a terminal `NNNN-smoke-e2e` build
-   subtask.
+   it slices in **cited mode** (typed contracts). Because a `VERIFICATION-PLAN.md`
+   exists it also seeds a `## Feature smoke gate` and a terminal build subtask per
+   modality (`NNNN-smoke-e2e` for the UI journeys, `NNNN-smoke-api` for the API
+   scenarios).
 8. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
    dependency order, from a worktree on the parent branch. It designs, develops
    under TDD, turns every verification tier green, pushes, updates the Draft MR,
    advances the tracker — then stops. You review and merge each MR.
 9. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
-   browser journeys against a running app and stamps `Feature: complete` on green.
+   verification suites — browser journeys **and** API contracts — against a running
+   app and stamps `Feature: complete` on green across both.
 
 For a **small** feature you collapse this to the lean path — see next section.
 
@@ -284,11 +289,11 @@ graph TD
 
     FULL --> F1["grill-requirements, to-prd, to-ticket"]
     F1 --> F2["grill-solution, to-sdd"]
-    F2 --> F3["grill-e2e - optional"]
+    F2 --> F3["grill-verification - optional"]
     F3 --> F4["to-design-brief - optional"]
     F4 --> F5["to-subtasks - cited mode"]
     F5 --> F6["execute - once per subtask"]
-    F6 --> F7["smoke-test - iff e2e plan"]
+    F6 --> F7["smoke-test - iff verification plan"]
 
     classDef lean fill:#d7f3e3,stroke:#1b9e58;
     classDef full fill:#e8f0fe,stroke:#4285f4;
@@ -301,7 +306,7 @@ graph TD
 | When | bug / refactor / tooling / small enhancement | new complex feature, new pattern, multi-module |
 | Design docs | none | SDD + ADRs |
 | Slice mode | **uncited** (PRD-only, human-gated) | **cited** (typed `Produces`/`Consumes`, mechanically enforced) |
-| e2e gate | usually none | optional via `/afk:grill-e2e` |
+| verification gate | usually none | optional via `/afk:grill-verification` (UI + API) |
 
 **Mode is set by what's upstream**, not by a flag: a PRD **with** an SDD slices
 cited; a PRD **alone** slices uncited.
@@ -317,7 +322,7 @@ spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
 {service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── SDD.md                     ← /afk:to-sdd        (its ## SDD pointer goes to Jira)
-├── E2E-PLAN.md                ← /afk:grill-e2e     (local only)
+├── VERIFICATION-PLAN.md       ← /afk:grill-verification (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only, optional)
 ├── GLOSSARY.md                ← /afk:grill-requirements
 ├── adr/
@@ -332,11 +337,15 @@ spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
 (`adr/requirements/`, owned by `/afk:to-prd`) never share numbering with design
 ADRs (`adr/design/`, owned by `/afk:to-sdd`).
 
-The end-to-end browser suite itself is **not** in this repo — it lives in the
-core-services tree at `11700-payable/e2e` (a Cucumber + Playwright module), and
-its authoring recipe is canonical at **`11700-payable/e2e/AUTHORING.md`**
-(versioned with the e2e code so it can't drift). AFK skills only *point* at that
-recipe — they never embed a copy.
+The verification suites themselves are **not** in this repo — they live in the
+core-services tree under `11700-payable/verification`, a multi-modal tree:
+`ui-e2e/` (the Cucumber + Playwright browser module), `api/` (direct-REST
+`node:test` contracts), and `core/` (shared, dependency-free auth/base-URL/poll
+primitives both import; `api → core`, `ui-e2e → core`, `core → nothing`). The
+authoring recipes are canonical at **`11700-payable/verification/ui-e2e/AUTHORING.md`**
+and **`11700-payable/verification/api/AUTHORING.md`** (versioned with the
+verification code so they can't drift). AFK skills only *point* at those recipes —
+they never embed a copy.
 
 ---
 
@@ -362,7 +371,7 @@ stateDiagram-v2
 
     note right of verifying
         Verification tiers run in order:
-        static, unit, integration, e2e/browser
+        static, unit, integration, api, e2e/browser
         every declared tier must go green
     end note
 ```
@@ -439,9 +448,10 @@ for a superseding ADR — it never silently substitutes a different interface.
   local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
   typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.
   **Uncited mode** (PRD only) is human-gated. Every subtask declares tiered
-  verification (static → unit → integration → e2e/browser). An `E2E-PLAN.md` also
-  makes it seed the `## Feature smoke gate` + a terminal `NNNN-smoke-e2e` build
-  subtask. **No Jira.**
+  verification (static → unit → integration → api → e2e/browser). A
+  `VERIFICATION-PLAN.md` also makes it seed the `## Feature smoke gate` + a
+  terminal build subtask per modality (`NNNN-smoke-e2e` for UI journeys,
+  `NNNN-smoke-api` for API scenarios). **No Jira.**
 - **`/afk:execute`** — you run it once per subtask, in a worktree on the parent
   branch (`mvu/afk/{ticket-id}`). Reads the contract, advances the tracker
   (`designing → developing → verifying → done`), turns every verification tier
@@ -471,27 +481,35 @@ tooling.)*
   stakeholder-impact table). **Repo-only**; shared with stakeholders out of band.
   Refuses to invent decisions or to emit while the SDD has executor-blocking open
   questions.
-- **`/afk:grill-e2e`** — interviews you to design the feature's **end-user
-  journeys** (the real browser flows that decide "this feature works") and emits
-  `E2E-PLAN.md` sibling to the PRD. Walking them concretely surfaces PRD gaps.
-  Invoke after `/afk:to-prd` (usual) or `/afk:to-sdd` (when the technical
-  solution must be settled first). Its plan is what makes `/afk:to-subtasks` emit
-  the smoke gate + build subtask. **Repo-only.** The build recipe is **not** here
-  — it's canonical at `11700-payable/e2e/AUTHORING.md`, only pointed at.
+- **`/afk:grill-verification`** — interviews you to design the feature's
+  verification scenarios across two modalities and emits `VERIFICATION-PLAN.md`
+  sibling to the PRD: **UI journeys** (the real browser flows that decide "this
+  feature works", traced to User Stories) and **API scenarios** (direct-REST
+  checks that prove the backend contract for API/MCP callers who bypass the UI,
+  traced to SDD §3 endpoints). UI journeys can be designed after `/afk:to-prd`;
+  API scenarios need the SDD's endpoint contracts, so they're added after
+  `/afk:to-sdd` (a pre-SDD run defers them). Walking them concretely surfaces
+  PRD/SDD gaps. Its plan is what makes `/afk:to-subtasks` emit the smoke gate +
+  the per-modality build subtasks. **Repo-only.** The build recipes are **not**
+  here — they're canonical at `11700-payable/verification/ui-e2e/AUTHORING.md` and
+  `11700-payable/verification/api/AUTHORING.md`, only pointed at.
 
 ### Optional feature gate
 
 - **`/afk:smoke-test`** — the **feature-level** completion gate, distinct from the
-  per-subtask `e2e/browser` tier. It **only executes** already-built scenarios —
-  it authors nothing. Present only when the feature has a `## Feature smoke gate`
-  (an `E2E-PLAN.md` drove a build subtask). After **every** subtask is `done`, it
-  runs the integrated browser suite against a **running app** and, only on green,
-  stamps `Feature: complete` in `PLAN.md`. The specs are built reuse-first into
-  the existing `11700-payable/e2e` Cucumber + Playwright module by the terminal
-  `NNNN-smoke-e2e` subtask (reviewed as code). Env-limited journeys (e.g. `@sap`)
-  are tagged and excluded from the green verdict. The same suite is reused by CI /
-  scheduled / manual runs. Merges nothing, touches no Jira. Reports `smoke_green`
-  / `smoke_fail` / `env_unreachable` / `preconditions_unmet` / `no_gate`.
+  per-subtask `api` / `e2e/browser` tiers. It **only executes** already-built
+  scenarios — it authors nothing. Present only when the feature has a `## Feature
+  smoke gate` (a `VERIFICATION-PLAN.md` drove build subtasks). After **every**
+  subtask is `done`, it runs the integrated suites — the browser UI journeys
+  (`npm run smoke`) **and** the API contracts (`node --test`) — against a
+  **running app** and, only on green across both, stamps `Feature: complete` in
+  `PLAN.md`. The specs are built reuse-first into the existing
+  `11700-payable/verification` tree (`ui-e2e` Cucumber + Playwright module; `api`
+  `node:test` files) by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks
+  (reviewed as code). Env-limited scenarios (e.g. `@sap`) are tagged and excluded
+  from the green verdict. The same suites are reused by CI / scheduled / manual
+  runs. Merges nothing, touches no Jira. Reports `smoke_green` / `smoke_fail` /
+  `env_unreachable` / `preconditions_unmet` / `no_gate`.
 
 ### Tooling
 
@@ -525,7 +543,7 @@ strict ownership so edits never collide:
 > rename, or change a contract section, update **both** skills in the **same
 > commit**. A section read by `/afk:smoke-test` (a gate field) must be changed in
 > lockstep with that skill too — and a smoke-gate field's shape touches all three
-> (`grill-e2e` emitter, `to-subtasks` seeder, `smoke-test` reader).
+> (`grill-verification` emitter, `to-subtasks` seeder, `smoke-test` reader).
 
 ---
 

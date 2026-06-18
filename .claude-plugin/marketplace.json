@@ -7,7 +7,7 @@
     {
       "name": "afk-dev",
       "source": "./",
-      "description": "AFK skill chain — design (incl. optional e2e-journey design via grill-e2e) + interactive executor + optional feature smoke-test gate for the async-from-keyboard Jira/GitLab workflow. Run each stage yourself in Claude Code; no autonomous driver."
+      "description": "AFK skill chain — design (incl. optional verification design — UI journeys + API scenarios — via grill-verification) + interactive executor + optional feature smoke-test gate (runs UI + API) for the async-from-keyboard Jira/GitLab workflow. Run each stage yourself in Claude Code; no autonomous driver."
     }
   ]
 }

@@ -168,7 +168,7 @@ Which service owns what. Where the seam falls. Integration style. Versioning pos
 
 1. `flowchart LR` — services as nodes, edges labeled with integration style (REST / gRPC / async-event / shared DB) + the message name.
 2. `sequenceDiagram` — one per non-trivial cross-service interaction.
-3. **API contract table** — surface, method, request shape ref, response shape ref, error codes, version. Cite OpenAPI / proto file paths; do not inline schemas that will rot.
+3. **API contract table** — surface, method, request shape ref, response shape ref, error codes, version. Cite OpenAPI / proto file paths; do not inline schemas that will rot. This table is the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: state the **success envelope AND the real edge envelopes** the backend actually returns (e.g. a missing entity → `200 + NULL_RESPONSE` rather than 404; an unauthorized vendor → `403 "no.authorized.vendor"`), plus the auth/role required (the below-the-UI guard, cross-referenced to its §9b seam). A row too vague to state its envelope is a §13 gap, not a publishable contract.
 
 ## §4 L3 — Data Architecture
 
@@ -373,11 +373,15 @@ After the SDD + ADRs land, you have a few choices:
 - **Stakeholder review upcoming?** Run **`/afk:to-design-brief`** to synthesize a
   tight 1-2 page digest (one money-shot diagram + 5-10 row decision table +
   stakeholder-impact table). Strict synthesis — no new decisions.
-- **End-user journeys need the settled solution?** Run **`/afk:grill-e2e`**
-  *(optional)* to design the feature's e2e journeys against the now-settled
-  technical design, emitting `E2E-PLAN.md`. (If the journeys were already clear
-  from the PRD, this was likely done after `/afk:to-prd`.) Its plan makes
-  `/afk:to-subtasks` add the feature smoke-test gate.
+- **Verification scenarios need the settled solution?** Run
+  **`/afk:grill-verification`** *(optional)* to design the feature's verification
+  scenarios against the now-settled design, emitting `VERIFICATION-PLAN.md`. Now
+  that the SDD exists, this run can design **both** modalities — the UI journeys
+  **and** the API scenarios (which read the §3 API contract table above and the
+  §9b below-the-UI seams). (If only the UI journeys were clear, an earlier
+  post-`/afk:to-prd` run may have designed those and deferred the API scenarios —
+  re-run now to append them.) Its plan makes `/afk:to-subtasks` add the feature
+  smoke-test gate + the per-modality build subtasks.
 - **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs
   into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with
   typed `## Produces` / `## Consumes` and a per-subtask `## Seams` list. The

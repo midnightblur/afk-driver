@@ -46,8 +46,9 @@ the full path.
    **Blocked-by guard.** If any id in this subtask's `## Blocked by` is not `done`
    in the tracker, stop with `blocked(blocked_by: …)` naming the laggards — don't
    start a subtask whose prerequisites haven't landed. This is load-bearing for the
-   terminal `NNNN-smoke-e2e` subtask, which is `Blocked by` every slice: building
-   and running the integrated smoke specs before the feature is whole is wasted work.
+   terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` build subtasks, each `Blocked by`
+   every slice: building and running the integrated smoke specs before the feature
+   is whole is wasted work.
 
    **Cited mode** (non-empty `## Design refs` + a `## Parent SDD`): the SDD/ADRs
    constrain you.
@@ -107,18 +108,24 @@ the full path.
 
 8. **Status → `verifying`; run every Verification tier.** Flip the tracker cell
    to `verifying`. Run **every row** of the subtask's `## Verification` table —
-   `static`, then `unit`, then `integration`, then `e2e/browser` as present.
-   Each row's command must go green:
+   `static`, then `unit`, then `integration`, then `api`, then `e2e/browser` as
+   present. Each row's command must go green:
    - **static** — the compile/lint/type command AND a grep of every `## Produces`
      anchor (the symbols you declared must exist).
-   - **unit / integration / e2e** — run the exact command. A seam-implementing
-     subtask's seam-test (an integration/unit row) must assert on the
-     framework's real output, not your DTO. The terminal `NNNN-smoke-e2e`
-     subtask's tiers run inside the in-tree `11700-payable/e2e` module (a path
-     relative to this same worktree — its specs land on this branch/MR like any
-     other code): its `static` tier is `cucumber-js --dry-run` (offline), and its
-     `e2e/browser` tier (`npm run smoke`) needs a running app + the suite's env
-     (auth/base-URL per `11700-payable/e2e/README.md`). Bring those up before the
+   - **unit / integration / api / e2e** — run the exact command. A
+     seam-implementing subtask's seam-test (an integration/unit row) must assert
+     on the framework's real output, not your DTO. An **api**-tier row hits the
+     endpoint over REST (`node --test` against `11700-payable/verification/api`,
+     using `../core`, or a disposable probe importing `../core`) and asserts the
+     real envelope + the below-the-UI authz guard — it needs a running backend.
+     The terminal build subtasks run inside the in-tree
+     `11700-payable/verification` module (paths relative to this same worktree —
+     their specs land on this branch/MR like any other code): `NNNN-smoke-e2e`'s
+     `static` tier is `cucumber-js --dry-run` (offline) and its `e2e/browser` tier
+     (`npm run smoke`) needs a running app + the suite's env (auth/base-URL per
+     `11700-payable/verification/ui-e2e/README.md`); `NNNN-smoke-api`'s `static`
+     tier is `node --check` (offline) and its `api` tier (`node --test`) needs a
+     running backend + a token (minted via `../core`). Bring those up before the
      tier, the same as `/afk:smoke-test` does.
    If a tier fails, retry once with a targeted fix. Still red → stop with
    `test_fail` (or `build_fail` for a static/compile failure), naming the tier.
@@ -159,10 +166,11 @@ the full path.
     outside this skill's lane. The **feature-level** smoke gate (the integrated
     browser journeys against a running app) is likewise not yours — when the plan
     has a `## Feature smoke gate` and every subtask is `done`, the human runs
-    `/afk:smoke-test`. A terminal `NNNN-smoke-e2e` subtask (which *builds* those
-    specs from `E2E-PLAN.md`, following the canonical recipe at
-    `11700-payable/e2e/AUTHORING.md`) is a normal subtask you run like any other;
-    the gate that *runs* them integrated is the separate skill.
+    `/afk:smoke-test`. The terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks
+    (which *build* those specs from `VERIFICATION-PLAN.md`, following the canonical
+    recipes at `11700-payable/verification/ui-e2e/AUTHORING.md` and
+    `11700-payable/verification/api/AUTHORING.md`) are normal subtasks you run like
+    any other; the gate that *runs* them integrated is the separate skill.
 
 12. **Report the structured outcome.** End with a one-line outcome so the human
     (or an orchestrator) can tell `success` from a structured failure at a
