@@ -125,3 +125,9 @@ This skill stops at the local PRD (+ requirement ADRs). Then, in order:
   L1 → L8 layers.
 - **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,
   the downstream plan slices in uncited mode (PRD-only).
+- **`/afk:grill-e2e`** *(optional)* — design the feature's end-user journeys
+  now (the PRD's User Stories are usually concrete enough), emitting
+  `E2E-PLAN.md`. Often the journey-walk surfaces PRD gaps worth fixing here.
+  Defer it to after `/afk:to-sdd` if a journey only becomes realistic once the
+  technical solution is settled. Its plan makes `/afk:to-subtasks` add the
+  feature smoke-test gate.

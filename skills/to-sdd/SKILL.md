@@ -368,11 +368,16 @@ When the SDD belongs to an Enhancement / Bug in the AFK workflow:
 
 ## Next
 
-After the SDD + ADRs land, you have two choices:
+After the SDD + ADRs land, you have a few choices:
 
 - **Stakeholder review upcoming?** Run **`/afk:to-design-brief`** to synthesize a
   tight 1-2 page digest (one money-shot diagram + 5-10 row decision table +
   stakeholder-impact table). Strict synthesis — no new decisions.
+- **End-user journeys need the settled solution?** Run **`/afk:grill-e2e`**
+  *(optional)* to design the feature's e2e journeys against the now-settled
+  technical design, emitting `E2E-PLAN.md`. (If the journeys were already clear
+  from the PRD, this was likely done after `/afk:to-prd`.) Its plan makes
+  `/afk:to-subtasks` add the feature smoke-test gate.
 - **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs
   into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with
   typed `## Produces` / `## Consumes` and a per-subtask `## Seams` list. The

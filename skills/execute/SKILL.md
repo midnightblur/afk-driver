@@ -43,6 +43,12 @@ the full path.
    for rank order, the `## Blocked by` graph, and the seam register. Read the
    `## Parent PRD` file.
 
+   **Blocked-by guard.** If any id in this subtask's `## Blocked by` is not `done`
+   in the tracker, stop with `blocked(blocked_by: …)` naming the laggards — don't
+   start a subtask whose prerequisites haven't landed. This is load-bearing for the
+   terminal `NNNN-smoke-e2e` subtask, which is `Blocked by` every slice: building
+   and running the integrated smoke specs before the feature is whole is wasted work.
+
    **Cited mode** (non-empty `## Design refs` + a `## Parent SDD`): the SDD/ADRs
    constrain you.
    - Read every cited SDD section and ADR via `ctx_read` BEFORE planning.
@@ -107,7 +113,13 @@ the full path.
      anchor (the symbols you declared must exist).
    - **unit / integration / e2e** — run the exact command. A seam-implementing
      subtask's seam-test (an integration/unit row) must assert on the
-     framework's real output, not your DTO.
+     framework's real output, not your DTO. The terminal `NNNN-smoke-e2e`
+     subtask's tiers run inside the in-tree `11700-payable/e2e` module (a path
+     relative to this same worktree — its specs land on this branch/MR like any
+     other code): its `static` tier is `cucumber-js --dry-run` (offline), and its
+     `e2e/browser` tier (`npm run smoke`) needs a running app + the suite's env
+     (auth/base-URL per `11700-payable/e2e/README.md`). Bring those up before the
+     tier, the same as `/afk:smoke-test` does.
    If a tier fails, retry once with a targeted fix. Still red → stop with
    `test_fail` (or `build_fail` for a static/compile failure), naming the tier.
    Partial tier coverage is failure: a UI subtask whose e2e row is red is not
@@ -147,9 +159,10 @@ the full path.
     outside this skill's lane. The **feature-level** smoke gate (the integrated
     browser journeys against a running app) is likewise not yours — when the plan
     has a `## Feature smoke gate` and every subtask is `done`, the human runs
-    `/afk:smoke`. A terminal `NNNN-smoke-e2e` subtask (which *authors* those
-    specs) is a normal subtask you run like any other; the gate that *runs* them
-    integrated is the separate skill.
+    `/afk:smoke-test`. A terminal `NNNN-smoke-e2e` subtask (which *builds* those
+    specs from `E2E-PLAN.md`, following the canonical recipe at
+    `11700-payable/e2e/AUTHORING.md`) is a normal subtask you run like any other;
+    the gate that *runs* them integrated is the separate skill.
 
 12. **Report the structured outcome.** End with a one-line outcome so the human
     (or an orchestrator) can tell `success` from a structured failure at a
@@ -164,6 +177,9 @@ the full path.
       updated, subtask `done`. The human handles CR/Merge.
     - `test_fail` / `build_fail` — a Verification tier stayed red after one
       targeted retry. Name the tier.
+    - `blocked_by` — Step 1: a `## Blocked by` prerequisite isn't `done` yet.
+      Name the laggards; set this row `blocked(blocked_by: …)`. Run the
+      prerequisites first.
     - `timeout` — exited on a wall-clock cap.
     - `design_conflict` — cited mode. A binding SDD/ADR decision is wrong,
       infeasible, or contradicts reality. Name the SDD section / ADR + the

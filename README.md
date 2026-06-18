@@ -3,7 +3,8 @@
 A Claude Code **plugin** for the async-from-keyboard (AFK) workflow on the
 Nakisa core-services platform: a chain of skills that take a raw idea through
 grilling → PRD → architecture → SDD → a local execution plan → execution →
-an optional feature smoke gate, all run **interactively** in Claude Code
+an optional feature smoke gate (e2e journeys designed up front via
+`/afk:grill-e2e`), all run **interactively** in Claude Code
 sessions. There is no autonomous driver — you invoke each stage yourself,
 including execution. The plan and its progress are local files (a `plan/`
 directory), not Jira issues.
@@ -22,10 +23,13 @@ graph LR
     Start -->|have SDD| Sub[/afk:to-subtasks/]
     Grill --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG --> Sdd[/afk:to-sdd/]
     Sdd -->|optional| Brief[/afk:to-design-brief/]
+    Prd -.optional e2e design.-> E2E[/afk:grill-e2e/]
+    Sdd -.optional e2e design.-> E2E
     Sdd --> Sub
     Brief --> Sub
+    E2E -->|E2E-PLAN.md| Sub
     Sub -->|run once per subtask| Exec[/afk:execute/]
-    Exec -->|all subtasks done · optional gate| Smoke[/afk:smoke/]
+    Exec -->|all subtasks done · gate iff e2e plan| Smoke[/afk:smoke-test/]
     Exec -.uses.-> Tdd[/afk:tdd/]
 ```
 
@@ -103,17 +107,20 @@ afk@afk-marketplace`.
   band. Touches GitLab + the local plan, **not Jira**. Reports a structured
   outcome (`success` / `test_fail` / `contract_mismatch` / `produces_drift` /
   `design_conflict` / …).
-- **`/afk:smoke`** *(optional feature gate)* — the **feature-level** completion
-  gate, distinct from the per-subtask `e2e/browser` tier. Runs only when
-  `/afk:to-subtasks` emitted a `## Feature smoke gate` (a per-feature human
-  call). After **every** subtask is `done`, it runs the integrated browser smoke
-  suite — the cross-subtask user journeys — against a **running app**, and only
-  on green stamps `Feature: complete` in `plan/PLAN.md`. The specs themselves are
-  authored as a terminal `NNNN-smoke-e2e` subtask (reviewed code in
-  `11700-payable/e2e/<feature>`), not by this skill. The same suite is then
-  reused by CI / scheduled verification / manual sanity runs. Merges nothing,
-  touches no Jira. Reports `smoke_green` / `smoke_fail` / `env_unreachable` /
-  `preconditions_unmet` / `no_gate`.
+- **`/afk:smoke-test`** *(optional feature gate)* — the **feature-level**
+  completion gate, distinct from the per-subtask `e2e/browser` tier. It **only
+  executes** already-built scenarios — it authors nothing. Present only when the
+  feature has a `## Feature smoke gate` (i.e. an `E2E-PLAN.md` from
+  `/afk:grill-e2e` drove a build subtask). After **every** subtask is `done`, it
+  runs the integrated browser smoke suite — the cross-subtask user journeys —
+  against a **running app**, and only on green stamps `Feature: complete` in
+  `plan/PLAN.md`. The journeys are designed by `/afk:grill-e2e` and the specs are
+  built as a terminal `NNNN-smoke-e2e` subtask — reviewed code added
+  **reuse-first** to the existing `11700-payable/e2e` Cucumber+Playwright module.
+  Env-limited journeys (e.g. `@sap`) are tagged and excluded from the green
+  verdict. The same suite is then reused by CI / scheduled verification / manual
+  sanity runs. Merges nothing, touches no Jira. Reports `smoke_green` /
+  `smoke_fail` / `env_unreachable` / `preconditions_unmet` / `no_gate`.
 
 **Optional design layer** (recommended for new complex features touching
 ≥2 modules / introducing patterns / non-trivial transactions or data;
@@ -143,6 +150,17 @@ skip for small enhancements, bugs, refactors, tooling):
   Strict synthesis: refuses to invent decisions and refuses to emit when
   the SDD has executor-blocking open questions. Use for stakeholder
   reviews and as a map before reading the full SDD.
+- **`/afk:grill-e2e`** — interviews the user to design the feature's **end-user
+  journeys** — the real browser flows that decide "this feature works" — and
+  emits `E2E-PLAN.md` sibling to the PRD. Walking the journeys concretely
+  routinely reveals PRD gaps (a story with no demonstrable click-path is
+  underspecified). Invoke after `/afk:to-prd` (usual) or after `/afk:to-sdd`
+  (when the technical solution must be settled first). Its plan is what makes
+  `/afk:to-subtasks` emit the smoke-test build subtask + gate, and what
+  `/afk:smoke-test` later runs. The how-to-build recipe is **not** maintained
+  here — it lives canonically in the payable repo at `11700-payable/e2e/AUTHORING.md`
+  (versioned with the e2e code so it can't drift); the workflow only points at it.
+  Repo-only — touches no tracker.
 
 **Tooling**: `/afk:tdd` — red-green-refactor doctrine, invoked from
 `/afk:execute` Step 5.
@@ -196,6 +214,6 @@ them collide:
   contract sections must round-trip losslessly. If `/afk:to-subtasks` and
   `/afk:execute` add or change a section, update both the emitter
   (`/afk:to-subtasks` "Subtask contract") and the parser (`/afk:execute`
-  Step 1) together. **`/afk:smoke`** owns a disjoint slice of the same file:
+  Step 1) together. **`/afk:smoke-test`** owns a disjoint slice of the same file:
   the `## Feature smoke gate` table's `Status` cells, its `Last run` line, and
   the header `Feature:` line — nothing else.

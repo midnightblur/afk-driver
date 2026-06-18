@@ -49,10 +49,11 @@ warrants no SDD (see "Design-doc optionality").
   the plan and the eventual branch. **Nothing is written to Jira.**
 - `skip_design_docs` *(optional, default false)* — human override to slice
   uncited even though an SDD might be warranted.
-- `smoke_e2e` *(optional, default: ask)* — human-gated: does this feature need a
-  browser smoke suite as its completion gate? `yes` → emit a `## Feature smoke
-  gate` in PLAN.md + a terminal `NNNN-smoke-e2e` authoring subtask (see
-  "Feature smoke gate" below). Like the SDD call, never decide on your own.
+- `e2e_plan_path` *(optional)* — defaults to the PRD's sibling `E2E-PLAN.md`.
+  **Its presence is the trigger**: if an `E2E-PLAN.md` exists (the user ran
+  `/afk:grill-e2e`), automatically emit the feature smoke gate + a terminal
+  `NNNN-smoke-e2e` build subtask (see "Feature smoke gate" below). No ask — the
+  decision was made by running `grill-e2e`. Absent → no gate, no build subtask.
 
 ## Process
 
@@ -61,6 +62,8 @@ warrants no SDD (see "Design-doc optionality").
    `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md`
    (mode=signatures). The set of `(SDD section IDs, §9b seam rows, ADR IDs)` is
    your **citation pool** — every cited subtask references at least one entry.
+   Also check for a sibling `E2E-PLAN.md` (from `/afk:grill-e2e`); if present,
+   read it (full) — its journeys drive the smoke gate + build subtask (step 3).
 
 2. **Refuse-to-slice gate (cited mode).** A plan built on an unstable SDD ships
    the instability into every subtask. Before slicing, scan the SDD + every ADR
@@ -91,15 +94,16 @@ warrants no SDD (see "Design-doc optionality").
    split that contradicts §8. Aim for 4–10 subtasks; more than 10 means the PRD
    is too big or the slice too fine.
 
-   **Decide the smoke gate.** Resolve `smoke_e2e` (ask if unset — see "Feature
-   smoke gate"). If `yes`, append one **terminal** subtask
-   `NNNN-smoke-e2e.md` that *authors* the feature's browser smoke specs:
-   `## Blocked by` **every** other subtask, `## Scope` the e2e suite dir
-   (`11700-payable/e2e/<feature>`), Acceptance tracing to the gate's scenarios,
-   and an `e2e` `## Verification` row running the new specs locally. It is normal
-   `/afk:execute` work — the specs land as reviewed code. The integrated gate
-   itself is `/afk:smoke`, run after this subtask is `done` (not part of this
-   skill).
+   **Detect the e2e plan.** Check for `E2E-PLAN.md` next to the PRD. If present,
+   the user designed the feature's end-user journeys via `/afk:grill-e2e`, so you
+   **automatically** append one **terminal** build subtask `NNNN-smoke-e2e.md`
+   (`## Blocked by` **every** other subtask) that authors those journeys as specs
+   in the `11700-payable/e2e` module — using the "Feature smoke gate" build-subtask
+   template below. The build agent follows the **canonical authoring recipe at
+   `11700-payable/e2e/AUTHORING.md`** (versioned with the e2e code; never copied
+   here). It's normal `/afk:execute` work; the specs land as reviewed code. The
+   integrated gate that *runs* them is `/afk:smoke-test`, after this subtask is
+   `done` (not part of this skill). No `E2E-PLAN.md` → no build subtask, no gate.
 
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the
    contract below. `NNNN` is the zero-padded rank; `{slug}` is a short kebab
@@ -218,33 +222,68 @@ A subtask that **implements** a §9b seam must carry the seam's test as a
 Verification row (unit or integration tier) asserting on the framework's real
 output, not our DTO — it's the only test that covers the boundary.
 
-### Feature smoke gate (optional, human-gated)
+### Feature smoke gate (driven by `E2E-PLAN.md`)
 
 The per-subtask `e2e/browser` tier proves **one slice's** UI in isolation. A
-feature may also want an **integrated smoke gate**: the cross-subtask user
-journeys, run against a real running app, as the final "feature complete" check —
-and reused afterward by CI / scheduled jobs / manual sanity runs. That gate is a
-separate skill (`/afk:smoke`); this skill only **decides** it and **specifies**
-it.
+feature whose end-user journeys were designed via `/afk:grill-e2e` also gets an
+**integrated smoke gate**: those cross-subtask journeys, run against a real
+running app, as the final "feature complete" check — and reused afterward by CI /
+scheduled jobs / manual sanity runs. The gate that *runs* them is a separate
+skill (`/afk:smoke-test`); this skill **seeds** the gate and **emits the build
+subtask** that authors the specs.
 
-Whether a feature needs one is a per-feature human call (like the SDD). If
-`smoke_e2e` is unset, **ask**:
+**The trigger is the artifact, not an ask.** If `E2E-PLAN.md` sits next to the
+PRD, the human already decided (by running `/afk:grill-e2e`). Emit **both**:
 
-> *Does this feature need a browser smoke suite as its completion gate
-> (integrated journeys against a running app, reused for CI / scheduled checks)?
-> Yes → I add a `## Feature smoke gate` to PLAN.md and a terminal smoke-spec
-> subtask. No → the per-subtask e2e tiers are the only browser coverage.*
+- **The PLAN.md `## Feature smoke gate` section** (template below): seed one row
+  per `E2E-PLAN.md` journey — its plain-language summary, the PRD User Story it
+  traces to, the `features/*.feature ▸ scenario` it maps to, and its
+  `env-limited` flag carried over verbatim (so `/afk:smoke-test` excludes those
+  from its green verdict). Don't invent journeys here — `E2E-PLAN.md` is the
+  source of truth.
+- **The terminal `NNNN-smoke-e2e` build subtask** (Process step 3), using the
+  base subtask contract with the fields below. The how-to-build recipe (module
+  layers, conventions, reference data, verify-in-order, definition-of-done) is
+  **not** restated here or anywhere in this repo — it lives canonically at
+  **`11700-payable/e2e/AUTHORING.md`**, versioned with the e2e code so it can't
+  drift. The subtask's job is to point the build agent there and read it first.
+  Blocked by every other subtask.
 
-When `yes`, emit **both**:
+```
+## Goal
+Author the integrated browser smoke specs for {Feature} into the existing
+11700-payable/e2e module, one Scenario per E2E-PLAN.md journey, so /afk:smoke-test
+can run them as the gate. FOLLOW THE CANONICAL RECIPE: read
+11700-payable/e2e/AUTHORING.md first — it is the authoritative how-to (layer
+rules, conventions, reference data, verify steps, definition-of-done). Also see
+its siblings README.md (run/env) + CLAUDE.md.
 
-- **The PLAN.md `## Feature smoke gate` section** (template below): each scenario
-  is an integrated user journey traced to a PRD User Story, plus the suite path,
-  the run command, and the target env. Draw the scenarios from the PRD's top
-  User Stories — they are the feature's definition-of-done flows.
-- **The terminal `NNNN-smoke-e2e` subtask** (Process step 3): authors those
-  scenarios as real specs in the e2e suite, blocked by every other subtask.
+## Scope
+- 11700-payable/e2e/features/*.feature          # new Scenarios / a new feature file
+- 11700-payable/e2e/steps/*.mjs                  # only if a new step sentence is needed
+- 11700-payable/e2e/scenarios.mjs               # only if a genuinely new L2 action is needed
 
-Record the human's `smoke_e2e` choice in the output so it's auditable.
+## Acceptance
+- [ ] Authored per 11700-payable/e2e/AUTHORING.md (read first; followed, not improvised)
+- [ ] One Scenario per E2E-PLAN.md journey, each tracing to its PRD User Story
+- [ ] Env-limited journeys tagged + flagged env-limited in the gate table (not left to fail the gate)
+
+## Verification
+| Tier | Check (command or method) | Proves |
+|------|---------------------------|--------|
+| static | `cd 11700-payable/e2e && npx cucumber-js --dry-run` | every step resolves; 0 undefined / 0 ambiguous |
+| e2e/browser | `cd 11700-payable/e2e && npm run smoke` | the runnable (non-env-limited) scenarios go green locally |
+
+## Blocked by
+<every other subtask id>
+
+## Implementation Notes (auto-maintained)
+<!-- the authoritative recipe is 11700-payable/e2e/AUTHORING.md; do not duplicate it here -->
+```
+
+If there is no `E2E-PLAN.md`, emit neither — the per-subtask e2e tiers are the
+only browser coverage. (To add a gate later, run `/afk:grill-e2e`, then re-run
+this skill.)
 
 ## PLAN.md (the index)
 
@@ -255,7 +294,7 @@ Record the human's `smoke_e2e` choice in the output so it's auditable.
 > Sources: [PRD](../PRD.md){cited: · [SDD](../SDD.md) · [ADRs](../adr/)}
 > Branch (for /afk:execute): mvu/afk/{ticket-id-lower}
 > Last updated: {YYYY-MM-DD} (status column maintained by /afk:execute)
-> Feature: in-progress   <!-- /afk:smoke stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 
 ## Solution map
 
@@ -292,28 +331,32 @@ Status values: `pending` → `designing` → `developing` → `verifying` → `d
 or `blocked(<reason>)`. `/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
-## Feature smoke gate   <!-- present iff smoke_e2e = yes; omit whole section otherwise -->
+## Feature smoke gate   <!-- present iff an E2E-PLAN.md exists; omit whole section otherwise -->
 
-> Gate: /afk:smoke   Suite: 11700-payable/e2e/<feature>   Target env: local | staging
-> Run: <command, e.g. npx playwright test e2e/<feature>>
-> Authored by: NNNN-smoke-e2e (terminal subtask, blocked by all)
-> Last run: — (date + target; maintained by /afk:smoke)
+> Gate: /afk:smoke-test   Suite: 11700-payable/e2e   Target env: local | staging
+> Run: npm run smoke   (full incl. env-limited: npm run smoke:all)
+> Source: ../E2E-PLAN.md   Built by: NNNN-smoke-e2e (terminal subtask, blocked by all)
+> Last run: — (date + target; maintained by /afk:smoke-test)
 
-Integrated user journeys that decide "feature complete". Each traces to a PRD
-User Story. `/afk:smoke` runs them against a running app and owns the Status
-column + the header `Feature:` line; the rows themselves are seeded here.
+Integrated user journeys that decide "feature complete", seeded from
+`E2E-PLAN.md` (one row per journey). Each traces to a PRD User Story and maps to
+a `Scenario` in the e2e module's Gherkin catalog. `/afk:smoke-test` runs them
+against a running app and owns the Status column + the header `Feature:` line;
+the rows themselves are seeded here. An `env-limited` journey (e.g. `@sap`,
+GL-post) carries that flag from `E2E-PLAN.md` — the gate excludes it from its
+green verdict.
 
-| # | Scenario (integrated journey) | Traces to | Spec | Status |
-|---|-------------------------------|-----------|------|--------|
-| 1 | <journey in plain language> | PRD User Story N | e2e/<feature>/foo.spec.ts | pending |
-| 2 | <journey> | PRD User Story M | e2e/<feature>/bar.spec.ts | pending |
+| # | Scenario (integrated journey) | Traces to | Spec (feature ▸ scenario) | Status |
+|---|-------------------------------|-----------|---------------------------|--------|
+| 1 | <journey in plain language> | PRD User Story N | features/<feature>.feature ▸ "<scenario>" | pending |
+| 2 | <journey, env-gated> | PRD User Story M | features/<feature>.feature ▸ "<scenario>" | env-limited |
 ````
 
 ## Validation
 
 Run before declaring the plan emitted. **Cited mode** runs (a)–(f);
 **uncited mode** runs only (e) and (f). Check **(g)** runs in either mode
-whenever `smoke_e2e = yes`.
+whenever an `E2E-PLAN.md` is present.
 
 **(a) Contract graph.** Walk every `## Consumes` line: `{PRODUCER-ID}` must
 resolve to a subtask **earlier in rank order** (forward refs = circular dep;
@@ -347,12 +390,16 @@ root.
 **(f) Scope sanity.** Globs are concrete (no bare `**`), and the union of all
 subtask Scopes covers the PRD's stated work with no silent gap.
 
-**(g) Smoke gate (iff `smoke_e2e = yes`).** PLAN.md has a `## Feature smoke
-gate` with ≥1 scenario, each tracing to a real PRD User Story (grep the PRD).
-A terminal `NNNN-smoke-e2e` subtask exists, `## Blocked by` **every** other
-subtask, with the e2e suite dir in `## Scope` and an `e2e` `## Verification`
-row. Every gate scenario maps to a spec the terminal subtask is responsible for.
-Conversely, if `smoke_e2e = no`, neither the section nor the terminal subtask is
+**(g) Smoke gate (iff an `E2E-PLAN.md` is present).** Every `E2E-PLAN.md` journey
+is seeded as a `## Feature smoke gate` row, each tracing to a real PRD User Story
+(grep the PRD) and naming a `features/*.feature ▸ scenario` spec; no gate row
+invents a journey absent from `E2E-PLAN.md`. A terminal `NNNN-smoke-e2e` build
+subtask exists, `## Blocked by` **every** other subtask, pointing the build agent
+at `11700-payable/e2e/AUTHORING.md` (e2e authoring layer in `## Scope`;
+`## Verification` carries both a `static` `cucumber-js --dry-run` row and an `e2e`
+`npm run smoke` row). Any gate row marked `env-limited` carries that flag from
+`E2E-PLAN.md`.
+Conversely, no `E2E-PLAN.md` → neither the section nor the build subtask is
 present (don't emit a half-gate).
 
 ## Hard rules
@@ -379,11 +426,13 @@ present (don't emit a half-gate).
   entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own that
   the design needs no SDD.
-- **The smoke gate is all-or-nothing and human-decided.** `smoke_e2e = yes`
-  emits both the `## Feature smoke gate` section AND the terminal
-  `NNNN-smoke-e2e` subtask (blocked by all); `no` emits neither. Never decide on
-  your own that a feature needs (or skips) a browser smoke gate. This skill only
-  specifies the gate — running it is `/afk:smoke`'s job.
+- **The smoke gate is artifact-driven, all-or-nothing.** An `E2E-PLAN.md` next to
+  the PRD emits **both** the `## Feature smoke gate` section AND the terminal
+  `NNNN-smoke-e2e` build subtask (blocked by all); no `E2E-PLAN.md` emits neither.
+  Never invent a gate without the plan, and never half-emit. The journey design is
+  `/afk:grill-e2e`'s job, the build recipe is the e2e repo's
+  `11700-payable/e2e/AUTHORING.md` (referenced, never copied), and running the
+  gate is `/afk:smoke-test`'s — this skill only seeds + slices.
 
 ## Design-doc optionality
 
@@ -408,9 +457,9 @@ in the tracker, drives it through design → develop → verify (every declared
 tier green), commits, pushes, and updates the Draft MR — then stops at CR/Merge
 for you.
 
-If the plan has a `## Feature smoke gate`, the terminal `NNNN-smoke-e2e` subtask
-authors its specs last (it's blocked by everything). Once **every** subtask is
-`done`, run **`/afk:smoke`** as the feature-completion gate: it runs the
-integrated browser journeys against a running app and, only on green, stamps
-`Feature: complete` in PLAN.md. That suite then serves CI / scheduled / manual
-sanity runs.
+If an `E2E-PLAN.md` drove a `## Feature smoke gate`, the terminal
+`NNNN-smoke-e2e` build subtask authors its specs last (it's blocked by
+everything). Once **every** subtask is `done`, run **`/afk:smoke-test`** as the
+feature-completion gate: it runs the integrated browser journeys against a
+running app and, only on green, stamps `Feature: complete` in PLAN.md. That suite
+then serves CI / scheduled / manual sanity runs.
