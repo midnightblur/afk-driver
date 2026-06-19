@@ -1,194 +1,165 @@
-# afk-driver
+# afk — the async-from-keyboard workflow
 
-Async-from-keyboard driver for the Nakisa core-services platform. Drains
-`afk-agents`-labelled Jira SubTasks under their parent Enhancement, opens a
-Draft MR, spawns a fresh Claude Code session per SubTask via the `/afk:execute`
-skill, transitions tickets through `Dev-Pending → Dev-Designing →
-Dev-Developing → Dev-CR/Merge`, and produces a morning digest.
+A Claude Code **plugin** that turns a raw feature idea into shipped, verified
+code through a chain of **interactive** skills. You drive every stage yourself in
+a Claude Code session — there is **no autonomous driver**. Each stage leaves a
+durable artifact on disk, so the next stage (and the next human) inherits a
+written contract instead of a verbal hand-off.
 
-Bootstrapped under [P2P-1220](https://nakisa.atlassian.net/browse/P2P-1220).
-Design rationale lives in [`PRD.md`](./PRD.md).
+> **New here? Read this top to bottom once.** It explains *why* the workflow is
+> shaped this way, the handful of concepts you must hold in your head, and then
+> walks one feature end to end. The per-skill catalog and the install snippet are
+> further down as reference.
 
-## Quick start
+Inspired by [Matt Pocock's AFK Claude Code workflow](https://github.com/mattpocock/skills),
+adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
+*work* the chain drives is Java/Maven inside a sibling core-services checkout;
+**this repo contains only the skills** (the AFK chain under
+`skills/afk/<name>/SKILL.md`, plus a few standalone utility skills under
+`skills/utils/<name>/SKILL.md`) and the plugin manifests.
 
-Prerequisites: `glab`, `mvn`, `node`, `claude` (≥ the version supporting
-`--print --dangerously-skip-permissions`), `git`, `python` (≥ 3.11).
+---
 
-```powershell
-# from this repo's root
-pip install -e .
+## Table of contents
 
-# env (one-shot per shell session)
-$j = (Get-Content $env:USERPROFILE\.claude.json -Raw | ConvertFrom-Json).mcpServers.jira.env
-$env:JIRA_BASE_URL  = $j.JIRA_BASE_URL
-$env:JIRA_EMAIL     = $j.JIRA_EMAIL
-$env:JIRA_API_TOKEN = $j.JIRA_API_TOKEN
-$env:GITLAB_TOKEN   = (glab auth status -t 2>&1 | Select-String 'Token found:\s*(\S+)').Matches.Groups[1].Value
+1. [Why AFK](#1-why-afk) — the problem it solves
+2. [The mental model](#2-the-mental-model) — five ideas to internalize
+3. [The chain at a glance](#3-the-chain-at-a-glance) — the map
+4. [Install](#4-install) — one-time setup
+5. [Walkthrough: your first feature](#5-walkthrough-your-first-feature) — end to end
+6. [Choosing your path](#6-choosing-your-path) — full chain vs. the lean path
+7. [Where everything lives](#7-where-everything-lives) — the artifact map
+8. [The subtask lifecycle](#8-the-subtask-lifecycle) — how `/afk:execute` works
+9. [The cited-mode contract](#9-the-cited-mode-contract) — how drift is caught
+10. [Skill reference](#10-skill-reference) — every skill, one paragraph each
+11. [Section-ownership invariants](#11-section-ownership-invariants) — don't let edits collide
+12. [Conventions & gotchas](#12-conventions--gotchas)
 
-# drain one pass
-python -m afk_driver --label afk-agents --project P2P --digest-out auto
-```
+---
 
-End-to-end smoke procedure: [`SMOKE.md`](./SMOKE.md).
+## 1. Why AFK
 
-## What it does, in one pass
+"Async-from-keyboard" means the expensive thinking — *what* to build, *why*, and
+*how* — is settled **before** anyone writes implementation code, and is written
+down where it can be reviewed, cited, and re-read. The payoff:
+
+- **The hand-off is a file, not a memory.** Every stage emits an artifact (PRD,
+  SDD, ADRs, a plan, a verification plan). The next agent reads the contract; it doesn't
+  re-derive intent from a chat log.
+- **Drift is caught mechanically, not in review.** When the design is settled
+  (an SDD exists), the plan slices in *cited mode*: each subtask carries typed
+  `Produces`/`Consumes` anchors, and `/afk:execute` greps them before and after
+  it works. A signature that drifts from its contract halts the run — it never
+  reaches a human reviewer as a surprise.
+- **The human stays in the loop at the load-bearing seams.** The skills design,
+  draft, implement, and verify; **you** approve the requirements, approve the
+  design, review the Draft MR, and merge. Auto-merge is deliberately outside the
+  skills' lane.
+
+What it is **not**: a bot that runs unattended. You invoke each stage, including
+`/afk:execute` — once per subtask — and read what it reports before moving on.
+
+---
+
+## 2. The mental model
+
+Five ideas. Hold these and the rest follows.
+
+**① Stages are interactive and you invoke them.** Each skill is a
+`/afk:<name>` slash command you run in a Claude Code session. There is no
+scheduler. The map in [§3](#3-the-chain-at-a-glance) shows where each stage fits.
+
+**② Artifacts on disk are the source of truth.** The PRD, SDD, ADRs, the
+`VERIFICATION-PLAN.md`, and the execution plan all live as files next to the code
+they describe. Jira holds **only** the parent Enhancement/Bug — and only two skills
+ever write to it (see ④).
+
+**③ The plan is a local contract, not Jira issues.** `/afk:to-subtasks` emits a
+`plan/` directory: a `PLAN.md` index (solution map, seam register, live progress
+tracker) plus one `NNNN-slug.md` contract per subtask. A subtask's *id* is its
+filename stem. `/afk:execute` parses these files and writes back progress. No
+subtask ever becomes a Jira issue.
+
+**④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
+into the parent ticket; `/afk:to-sdd` writes the parent's `## SDD` pointer
+section. **Everything else stops at disk or GitLab.** `/afk:execute` pushes
+branches + Draft MRs to GitLab but writes no Jira.
+
+**⑤ The human owns the merge.** `/afk:execute` takes a subtask all the way to a
+pushed, verified, Draft MR — then **stops**. You review and merge out of band.
+Same for the feature gate: `/afk:smoke-test` stamps a feature complete on green
+but merges nothing.
 
 ```mermaid
-flowchart LR
-    A[JQL: label=afk-agents<br/>status=Dev-Pending<br/>type=SubTask] --> B[Group by parent Enhancement]
-    B --> C[For each Enhancement]
-    C --> D[Ensure worktree off Target Branch]
-    D --> E[Push branch + open Draft MR]
-    E --> F[Assign + transition Enhancement<br/>Dev-Pending → Dev-Designing → Dev-Developing<br/>Bug parent skips Dev-Designing]
-    F --> G[For each SubTask in rank order]
-    G --> H[Assign + transition Dev-Pending → Dev-Designing → Dev-Developing]
-    H --> I[Spawn claude --print /afk:execute SUBTASK-KEY]
-    I --> J{outcome}
-    J -->|success| K[Update parent Implementation Notes]
-    J -->|test_fail / build_fail| L[retry up to retry_count]
-    J -->|timeout / other| M[Comment on SubTask + Request Development]
-    K --> N[Last SubTask?]
-    N -->|yes| O[Rebase worktree onto target<br/>+ Enhancement → Dev-CR/Merge]
-    N -->|no| G
-    L --> I
-    O --> P[Write digest to ~/.afk-driver/digests/]
+graph LR
+    subgraph disk_store [On disk - source of truth]
+        PRD[PRD.md]
+        SDD[SDD.md]
+        ADR[ADRs]
+        PROTO[PROTOTYPE.md + mockup HTML]
+        E2E[VERIFICATION-PLAN.md]
+        PLAN["plan/: PLAN.md + NNNN-slug.md"]
+    end
+    subgraph jira_store [Jira - parent ticket only]
+        TICKET["Enhancement or Bug: PRD body + SDD pointer"]
+    end
+    subgraph gl_store [GitLab]
+        MR[Branch + Draft MR]
+    end
+    PRD -->|/afk:to-ticket| TICKET
+    SDD -->|/afk:to-sdd| TICKET
+    PLAN -->|/afk:execute| MR
+    classDef disk fill:#e8f0fe,stroke:#4285f4;
+    classDef jira fill:#fff4e5,stroke:#fb8c00;
+    classDef gl fill:#fde7f3,stroke:#e91e63;
+    class PRD,SDD,ADR,PROTO,E2E,PLAN disk;
+    class TICKET jira;
+    class MR gl;
 ```
 
-### Standalone tickets (label on a non-subtask)
+---
 
-A small Enhancement or Bug labelled `afk-agents` with no labelled SubTasks
-under it is driven directly: one Draft MR, one `claude --print` invocation
-on the ticket key itself, lifecycle transitions on that key. The lifecycle
-collapses onto the single ticket — **no MR subtasks checklist** is
-maintained, and **no Implementation Notes splice** is written into a
-parent (there is no parent). Because `/afk:execute` reads the SubTask Markdown
-contract (`## Goal / Scope / Acceptance / Test command / Parent PRD /
-Blocked by / Implementation Notes`, plus the cited-mode sections
-`## Design refs / Produces / Parent SDD / Consumes / Conflict procedure`
-when the standalone is sliced from an SDD), a standalone ticket's
-description **must be authored in that shape** for the skill to find
-work — the driver does not synthesise it. **Cited-mode contract layers
-apply equally to standalones**: `/afk:execute` runs the same Step 2 consumer
-preflight on `## Consumes` (a missing upstream `{file}#{anchor}` exits
-`contract_mismatch` and the runner comments on the standalone AND on the
-named producer ticket — the producer may live outside this drain pass)
-and the same Step 10 producer self-preflight on `## Produces` (a missing
-own anchor exits `produces_drift`). If a labelled non-subtask also has
-labelled SubTasks under it, the SubTask flow wins and the standalone
-path is skipped.
+## 3. The chain at a glance
 
-## Modules
+```mermaid
+graph LR
+    Grill[/afk:grill-requirements/] --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG[/afk:grill-solution/] --> Sdd[/afk:to-sdd/]
+    Sdd -->|optional digest| Brief[/afk:to-design-brief/]
 
-| Module | Responsibility |
-|---|---|
-| `subtask_template.py` | Parser/emitter for the SubTask Markdown contract (`## Goal / Scope / Acceptance / Test command / Parent PRD / Blocked by / Implementation Notes`, plus cited-mode `## Design refs / Produces / Parent SDD / Consumes / Conflict procedure`). Round-trip lossless. |
-| `scope_enforcer.py` | Pure function `(diff, scope_globs, forbidden, home_module, marker) → list[Violation]`. Catches out-of-scope edits, forbidden patterns (`UpgradeGroup*.java`, `db/changelog/**`, `PreDbMigration*`), and cross-module edits without a JIRA-prefixed marker comment. |
-| `config.py` | `DriverConfig` dataclass + TOML override. Defaults: project→service map, `customfield_13706` Target Branch field, `MASTER → master` value map, forbidden patterns, marker template, wall-clock cap (3600s), retry count (3), worktree/log/digest roots under `~/.afk-driver/`, `dev_cr_merge_gate_fields`, `mr_assignee`. |
-| `worktree_manager.py` | Per-Enhancement git worktree lifecycle. `ensure / publish_branch / validate_state / rebase_onto_target`. Branch name pattern `mvu/afk/{enh_id_lower}` (GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`). |
-| `jira_client.py` | REST client. `search`, `get_enhancement_fields`, `list_transitions`, `transition` (by name), `update_implementation_notes` (idempotent splice), `set_fields`, `assign`, `get_my_account_id`, `get_issue_description_markdown` (ADF→Markdown for the SubTask parser). |
-| `gitlab_client.py` | `glab` CLI wrapper. `find_mr_by_branch / open_draft_mr / update_subtasks_checklist`. Auto-maintained block bracketed by `<!-- afk:subtasks:start/end -->` HTML comments preserves human edits to the rest of the description. |
-| `runner.py` | Orchestrator. `Runner.one_pass()` is the entry; `preflight()` validates env. Two flows: `_process_parent` (parent Enhancement + labelled SubTasks) and `_process_standalone` (one labelled non-subtask, collapsed lifecycle — no checklist, no impl-notes splice). Outcomes: `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`. Retries on `test_fail` / `build_fail` up to `retry_count`. `design_conflict` (cited-mode binding-contract violation flagged by `/afk:execute`) skips retry and routes the SubTask back to Dev-Pending with a comment pointing the human at `/afk:architect-grill`. `contract_mismatch` (cited-mode consumer preflight grep miss against an upstream `## Produces` artifact) also skips retry: posts an explicit comment on the consumer AND a separate comment on the producer SubTask (carried via `ClaudeOutcome.producer_key`). `produces_drift` (cited-mode producer self-preflight: SubTask declared `## Produces` X but its own grep cannot find X) likewise skips retry: posts a single "producer self-check failed" comment routing the human to fix the impl OR re-emit the slice. |
-| `digest_writer.py` | Emits `RunRecord` as L4 morning Markdown. |
-| `cli.py` | `python -m afk_driver` entry. Wires real clients into Runner. Spawns `claude --print --dangerously-skip-permissions "/afk:execute SUBTASK"` per SubTask. |
+    Prd -.->|optional UI mockup| Proto[/afk:prototype/]
+    Proto -.->|PROTOTYPE.md feeds design| AG
 
-All I/O is dependency-injected so the runner integration tests (31) drive
-fakes in <0.2s. Real-client wiring lives only in `cli.py`.
+    Prd -.->|optional verification design| E2E[/afk:grill-verification/]
+    Sdd -.->|optional verification design| E2E
+    E2E -->|interview settled| VPlan[/afk:to-verification-plan/]
 
-### Skill ↔ runner contract
+    Sdd --> Sub
+    Brief --> Sub
+    VPlan -->|VERIFICATION-PLAN.md| Sub
 
-Each spawned `claude --print` session returns a `ClaudeOutcome` to the
-runner: one of `success / test_fail / build_fail / timeout / design_conflict / contract_mismatch / produces_drift / other`.
+    Sub -->|run once per subtask| Exec[/afk:execute/]
+    Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
+    Exec -.->|uses| Tdd[/afk:tdd/]
 
-The seam is a **structured outcome marker** the `/afk:execute` skill emits as
-the last thing in its log (Step 13 of the skill spec):
-
-```
-<<<AFK_OUTCOME>>>
-{"status": "<status>", "detail": "<one-line summary>", "producer_key": <"PRODUCER-KEY" | null>}
-<<<END>>>
+    classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
+    classDef opt fill:#eef1f5,stroke:#90a4ae;
+    class Prd,Ticket,Sub,Exec mand;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd opt;
 ```
 
-`cli._parse_outcome_marker` regex-scans the per-SubTask log for the LAST
-occurrence (so a session that retried internally and re-emitted wins),
-parses the JSON payload, and returns a fully-typed `ClaudeOutcome`. The
-marker is the source of truth — when present, it beats the subprocess
-exit code, including on timeout: `claude --print` exits 0 on clean
-termination regardless of narrative outcome, so without the marker the
-runner would collapse every structured failure status (`test_fail`,
-`contract_mismatch`, `design_conflict`, `produces_drift`) into
-`success`. When the marker is missing or malformed the runner reports
-`other` with detail `"no AFK_OUTCOME marker emitted (...)"` so the loss
-is loud — silent demotion is the bug this seam fixes.
+The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
+`/afk:to-subtasks` → `/afk:execute`. Everything in grey is optional design depth
+you add for complex features and skip for small ones (see
+[§6](#6-choosing-your-path)).
 
-The ownership split between the two sides is load-bearing:
+Start where your inputs land: a raw idea enters at `/afk:grill-requirements`; an
+existing PRD at `/afk:grill-solution`; an SDD already in hand at `/afk:to-subtasks`.
 
-- **Skill (`/afk:execute`) owns**: in-flight transitions (`Dev-Designing`,
-  `Dev-Developing`), TDD loop, code edits, commits, push, MR checklist
-  update, parent Implementation Notes splice.
-- **Runner owns** (only when outcome is `success`): the boundary
-  transition `Dev-CR/Merge`, gate-field writes, parent rebase, parent
-  Enhancement → `Dev-CR/Merge`, acceptance-checkbox flips. On
-  `test_fail` / `build_fail` it retries; on `timeout` / `other` it
-  comments and transitions back to `Dev-Pending`.
+---
 
-The boundary transition is **runner-only** by design — if the skill also
-fires `Request CR & Merge` from inside the session, the runner's
-follow-up call will fail because the SubTask has already left
-`Dev-Developing`. Keep this split when changing either side.
+## 4. Install
 
-### Section ownership invariants
-
-Mixed human + automated edits live in three Markdown surfaces. Don't let
-them collide:
-
-- **Parent Enhancement description**: `## PRD` is owned by `/afk:to-prd`;
-  `## SDD` (when present) is owned by `/afk:to-sdd`;
-  `## Design Brief` (when present) is owned by `/afk:to-design-brief`;
-  `## Implementation Notes (auto-maintained)` is owned by this driver
-  (idempotent splice via `update_implementation_notes`); other prose
-  belongs to the human.
-- **MR description**: the block bracketed by `<!-- afk:subtasks:start -->`
-  / `<!-- afk:subtasks:end -->` is auto-maintained; everything outside is
-  preserved verbatim.
-- **SubTask description**: parsed by `subtask_template.py` and must
-  round-trip losslessly. Adding a section requires updating both parser
-  and emitter together.
-
-## Configuration
-
-Defaults are in `config.defaults()`. Override via `~/.afk-driver/config.toml`:
-
-```toml
-wall_clock_cap_seconds = 1800
-retry_count = 2
-mr_assignee = "your.gitlab.handle"
-
-[project_service_map]
-P2P = "11700-payable"
-
-[target_branch_value_map]
-MASTER = "master"
-FINCORE_RELEASE = "fin-core/release"
-
-[dev_cr_merge_gate_fields]
-merge_request_link = "customfield_12700"
-sred_eligibility = "customfield_14005"
-time_estimation = "customfield_14006"
-sred_rationale = "customfield_14003"
-```
-
-## Skills
-
-The driver depends on a chain of Claude Code skills that **ship in this
-repo** as the `afk` Claude Code plugin. The plugin lives at
-`.claude-plugin/plugin.json` (manifest) + `.claude-plugin/marketplace.json`
-(local marketplace) + `skills/<name>/SKILL.md` (one dir per skill). It
-ships in lockstep with the Python driver — single git tag, both move
-together.
-
-### Plugin install (one-time per machine)
-
-```
+```text
 # inside Claude Code, from any session
 /plugin marketplace add C:\Users\mvu\PersonalProjects\afk    # or your local path
 /plugin install afk@afk-marketplace
@@ -209,154 +180,454 @@ To auto-load on every Claude Code launch, add to `~/.claude/settings.json`:
 }
 ```
 
-After editing any `SKILL.md`, run `/reload-plugins` to pick up changes
-without restarting. After `git pull`, same.
+After editing any `SKILL.md`, run **`/reload-plugins`** to pick up changes
+without restarting. Same after `git pull`.
 
-For teammate install (private repo, collaborator access required):
+**Teammate install** (private repo, collaborator access required):
 `/plugin marketplace add midnightblur/afk-driver` → `/plugin install
-afk@afk-marketplace`. Auto-update for private repos requires
-`GITHUB_TOKEN` in env.
+afk@afk-marketplace`.
 
-### The 9 skills
+The dev loop for *this* repo is just: edit a `SKILL.md` → `/reload-plugins`.
+There's no build step, no test suite, no Python package.
 
-Use `/afk:start` first if you're not sure where to begin — it prints the
-pipeline map and routes you to the right entry skill.
+---
 
-**Mandatory chain** (`/afk:to-prd` → `/afk:to-subtasks` → `/afk:execute`):
+## 5. Walkthrough: your first feature
 
-- **`/afk:to-prd`** — turns conversation context into a PRD. AFK adaptation:
-  writes to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
-  (or `tools/{group}/{tool}/PRD.md` for tooling work). Owns the `## PRD`
-  section of the parent Enhancement description; AFK driver owns
-  `## Implementation Notes (auto-maintained)`.
-- **`/afk:to-subtasks`** — slices a PRD (and the accompanying SDD + ADRs,
-  when present) into Jira SubTasks under the parent Enhancement, each
-  with the structured Markdown contract and the `afk-agents` label.
-  **Cited mode** (default when an SDD exists) emits `## Design refs`,
-  `## Parent SDD`, and `## Conflict procedure` blocks per SubTask, so
-  the implementing agent inherits a binding contract — not just a
-  feature ask. **Uncited mode** is human-gated for small features /
-  bugs / refactors / tooling: when no SDD is present, the skill asks
-  before slicing without one.
-- **`/afk:execute`** — invoked by the driver in the spawned session; takes one
-  SubTask from `Dev-Pending` through `Dev-Designing` → `Dev-Developing`, gets
-  the test command green, pushes commits, then exits with a structured
-  outcome. The **runner** — not this skill — performs the final
-  `Dev-CR/Merge` transition and the gate-field writes (SRED Eligibility,
-  Time, Rationale, MR link), and only when the skill exits `success`. This
-  split avoids the double-transition that occurs if both sides try to fire
-  `Request CR & Merge`.
+Here is a complete pass for a **complex** feature (one needing real design). The
+commands are slash commands you type in a Claude Code session; the files are what
+appears on disk as a result.
 
-**Optional design layer** (recommended for new complex features touching
-≥2 modules / introducing patterns / non-trivial transactions or data;
-skip for small enhancements, bugs, refactors, tooling):
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev
+    participant CC as Claude Code (skills)
+    participant Disk as Disk
+    participant Jira as Jira
+    participant GL as GitLab
 
-- **`/afk:grill-me`** — interviews the user about a raw idea or plan
-  until the requirements decision tree is exhausted. Does NOT produce
-  documents. Pair with `/afk:to-prd` afterward to synthesize.
-- **`/afk:architect-grill`** — interviews the user top-down across 8 layers
-  (L1 system topology → L8 tactical patterns) until every non-trivial
-  decision has a rationale and ≥2 alternatives weighed. Does NOT produce
-  documents.
-- **`/afk:to-sdd`** — synthesizes the conversation into `SDD.md` plus
-  per-decision ADRs, sibling to the PRD:
-  `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/SDD.md`
-  and `.../adr/NNNN-*.md`. Owns the `## SDD` section of the parent
-  Enhancement description. Mandates visualizations (Mermaid diagrams,
-  tables) per layer so reviewers can scan vertically.
-- **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight
-  1-2 page `DESIGN-BRIEF.md` sibling to the PRD/SDD. One money-shot
-  diagram, 5-10 row decision digest, stakeholder-impact table. Owns the
-  `## Design Brief` section of the parent Enhancement description.
-  Strict synthesis: refuses to invent decisions and refuses to emit when
-  the SDD has executor-blocking open questions. Use for stakeholder
-  reviews and as a map before reading the full SDD.
-
-> **Cited-mode contract.** When `/afk:to-subtasks` slices in cited mode it
-> emits five additional SubTask sections — `## Design refs`,
-> `## Produces`, `## Consumes` (when `Blocked by` is non-empty),
-> `## Parent SDD`, `## Conflict procedure`. `subtask_template.py` parses
-> all five losslessly. The contract is enforced at three checkpoints:
->
-> 1. **Slicing time** (`/afk:to-subtasks` Step 7): graph validation
->    (every `## Consumes` line resolves to a prior `## Produces`) +
->    anchor quality (forbidden-token check, ≥12-char length, trial
->    grep against `{file}` at HEAD must return ≤1 match — refuse on
->    ambiguity). Catches contract drift at declaration time.
-> 2. **Consumer preflight** (`/afk:execute` Step 2): before any work, grep
->    every `## Consumes` line `{PRODUCER-KEY} {file}#{anchor}` on the
->    branch — a missing artifact or signature-divergent anchor exits
->    `contract_mismatch` (no retry; runner comments on consumer AND on
->    producer SubTask).
-> 3. **Producer self-preflight** (`/afk:execute` Step 10): right before
->    declaring success, grep every own `## Produces` anchor on the
->    branch. Missing or signature-divergent anchor exits
->    `produces_drift` (no retry; runner comments on the SubTask
->    framing it as "I declared X but did not deliver X" and routes the
->    human to impl-vs-slice fix).
->
-> On a binding-decision break (SDD §8 mandate is wrong/infeasible),
-> `/afk:execute` exits `design_conflict` and routes to `/afk:architect-grill` for
-> a superseding ADR. `## Produces` is mandatory on every cited SubTask,
-> even leaves with no consumer — it doubles as the reviewer's
-> cheat-sheet AND the next SubTask's preflight target. Cited and uncited
-> SubTasks both round-trip through the driver — `/afk:to-subtasks` decides
-> which to emit based on whether an SDD is present (human-gated).
-
-## Tests
-
-```
-python -m pytest -v
+    Dev->>CC: /afk:grill-requirements
+    CC-->>Dev: interview → exhausts requirement tree
+    CC->>Disk: GLOSSARY.md
+    Dev->>CC: /afk:to-prd
+    CC->>Disk: PRD.md + adr/requirements ADRs
+    Dev->>CC: /afk:to-ticket (parent_key)
+    CC->>Jira: PRD body (ADF, diagrams as PNGs)
+    Dev->>CC: /afk:prototype (optional, if net-new UI)
+    CC-->>Dev: live HTML mockup loop (refresh + react)
+    CC->>Disk: PROTOTYPE.md + chosen HTML
+    Dev->>CC: /afk:grill-solution
+    CC-->>Dev: L1→L8 design interview
+    Dev->>CC: /afk:to-sdd
+    CC->>Disk: SDD.md + adr/design ADRs
+    CC->>Jira: SDD pointer section
+    Dev->>CC: /afk:grill-verification (optional)
+    CC-->>Dev: two-modality scenario interview
+    Dev->>CC: /afk:to-verification-plan
+    CC->>Disk: VERIFICATION-PLAN.md (+ gap notes)
+    Dev->>CC: /afk:to-subtasks
+    CC->>Disk: plan/PLAN.md + plan/NNNN-slug.md (cited)
+    loop once per subtask, in dependency order
+        Dev->>CC: /afk:execute {NNNN-slug}
+        CC->>GL: commit + push + Draft MR checklist
+        CC->>Disk: tracker row → done
+        Dev->>GL: review + merge (out of band)
+    end
+    Dev->>CC: /afk:smoke-test (iff gate exists)
+    CC->>GL: run integrated browser suite vs running app
+    CC->>Disk: Feature: complete (on green)
 ```
 
-197 tests covering: subtask_template parser/emitter (round-trip,
-including cited-mode `## Produces` / `## Consumes`), scope_enforcer,
-config (defaults + TOML override), worktree_manager (real temp-repo
-integration), jira_client (HTTP fake), gitlab_client (subprocess fake),
-runner (31 integration tests against in-memory fakes — incl.
-`design_conflict`, `contract_mismatch`, and `produces_drift` no-retry
-semantics with producer-side comment routing — plus phase / standalone
-scenario suites), digest_writer, cli (subprocess invocation contract).
+**Step by step:**
 
-## Limitations / known gaps
+1. **`/afk:grill-requirements`** — Claude interviews you about the idea,
+   challenging it against the domain glossary until the requirements decision
+   tree is exhausted. Maintains `GLOSSARY.md`; emits no decision records yet.
+2. **`/afk:to-prd`** — synthesizes the conversation into `PRD.md` plus
+   requirement-level ADRs. **Local only** — nothing in Jira yet.
+3. **`/afk:to-ticket`** — publishes the PRD *content* into the **existing**
+   parent ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
+   to attached PNGs. Idempotent — re-run when the PRD changes.
+4. **`/afk:prototype`** *(optional — only if the feature has net-new UI)* — crafts
+   the screens with you interactively, anchored to the **real frontend's**
+   components and tokens. Writes self-contained HTML you open and refresh while you
+   reshape it in plain language; on settle it captures `PROTOTYPE.md` + the chosen
+   HTML sibling to the PRD. Self-gates `no_ui` for backend-only features. The won
+   design feeds the next two steps and gives the verification UI journeys a concrete
+   screen to trace to. Local-first; an opt-in push mirrors the mockup to
+   `claude.ai/design` for stakeholder review.
+5. **`/afk:grill-solution`** — top-down design interview across 8 layers (L1
+   system topology → L8 tactical patterns); every non-trivial decision gets a
+   rationale and ≥2 weighed alternatives.
+6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
+   ADRs, and writes the parent ticket's `## SDD` pointer section.
+7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
+   feature's verification scenarios with you: the real end-user **browser
+   journeys**, plus (once the SDD exists) the **API scenarios** that prove the
+   backend contract for API/MCP callers who bypass the UI. It **interviews only** —
+   walking them concretely routinely surfaces PRD/SDD gaps, surfacing them is a
+   feature, not a side effect.
+8. **`/afk:to-verification-plan`** — synthesizes that conversation into
+   `VERIFICATION-PLAN.md` (UI journeys now; API scenarios too once the SDD exists,
+   else deferred and appended on a re-run).
+9. **`/afk:to-subtasks`** — slices everything into `plan/`. Because an SDD exists
+   it slices in **cited mode** (typed contracts). Because a `VERIFICATION-PLAN.md`
+   exists it also seeds a `## Feature smoke gate` and a terminal build subtask per
+   modality (`NNNN-smoke-e2e` for the UI journeys, `NNNN-smoke-api` for the API
+   scenarios).
+10. **`/afk:execute {NNNN-slug}`** — you run this **once per subtask**, in
+    dependency order, from a worktree on the parent branch. It designs, develops
+    under TDD, turns every verification tier green, pushes, updates the Draft MR,
+    advances the tracker — then stops. You review and merge each MR.
+11. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
+    verification suites — browser journeys **and** API contracts — against a running
+    app and stamps `Feature: complete` on green across both.
 
-- **No system-wide install.** Run from a checkout that has `pip install -e
-  .` applied; the spawned `/afk:execute` session needs `afk_driver`
-  importable from its cwd.
-- **No CI / scheduled run.** `python -m afk_driver` is invoked manually
-  (cron / Task Scheduler is up to the operator).
-- **Failure paths only unit-tested.** `test_fail` retry, `build_fail`,
-  `timeout`, `rebase conflict`, mid-run aborts — fakes only.
+For a **small** feature you collapse this to the lean path — see next section.
 
-## Failure modes & recovery
+---
 
-- **Preflight hard-fail** (missing tool / token / PRD path) → fix env, rerun.
-- **Parent not in `Dev-Pending` / `Dev-Developing`** → driver skips the
-  Enhancement. Transition the parent into a runnable state first.
-- **Rebase conflict on the post-last-SubTask rebase** → driver posts a
-  comment on the Enhancement and exits clean; resolve manually.
-- **Claude session timeout (1h cap)** → recorded as `timeout` in the digest;
-  the SubTask returns to `Dev-Pending`.
-- **Worktree dirty on resume** (prior session killed mid-edit) → before
-  spawning each SubTask the runner does a hard reset to `HEAD`,
-  discarding uncommitted leftovers. Resuming partial edits is unsafe
-  (claude has no notion of "pick up where the dead session left off"), so
-  the deterministic recovery is to start from `HEAD`. Logged as
-  `discarded uncommitted leftovers from prior interruption`.
-- **Claude reports `success` but didn't commit** (observed during the
-  P2P-1233/4/5 smoke run) → the runner auto-stages and commits any dirty
-  tree under a `[KEY] AFK auto-commit` message so the work lands on the
-  branch. If both claude *and* the auto-commit pass produce no commits
-  (branch tip unchanged), the SubTask is failed — refusing to transition
-  a SubTask that didn't change any code.
+## 6. Choosing your path
 
-If a run hangs and Jira state is partially advanced, the smoke runbook in
-[`SMOKE.md`](./SMOKE.md) (§ "Failure modes to watch for") covers manual
-recovery.
+The optional design layer earns its cost on complex work and is pure overhead on
+trivial work. Decide up front:
 
-## Origin
+```mermaid
+graph TD
+    A{New work} --> B{2+ modules, a new pattern, or non-trivial txn or data?}
+    B -->|No: bug, refactor, tooling, small enh| LEAN[Lean path]
+    B -->|Yes| FULL[Full path]
 
-Inspired by Matt Pocock's AFK Claude Code workflow, adapted for the Nakisa
-Jira + GitLab + Maven environment on Windows. The driver is a standalone
-Python package; the *work* it drives is Java/Maven inside a sibling
-core-services checkout. See `PRD.md` § "AFK adaptation (core-services)".
+    LEAN --> L1["/afk:to-prd"]
+    L1 --> L2["/afk:to-ticket"]
+    L2 --> L3["/afk:to-subtasks - uncited mode"]
+    L3 --> L4["/afk:execute - once per subtask"]
+
+    FULL --> F1["grill-requirements, to-prd, to-ticket"]
+    F1 --> FP["prototype - optional, iff net-new UI"]
+    FP --> F2["grill-solution, to-sdd"]
+    F2 --> F3["grill-verification, to-verification-plan - optional"]
+    F3 --> F4["to-design-brief - optional"]
+    F4 --> F5["to-subtasks - cited mode"]
+    F5 --> F6["execute - once per subtask"]
+    F6 --> F7["smoke-test - iff verification plan"]
+
+    classDef lean fill:#d7f3e3,stroke:#1b9e58;
+    classDef full fill:#e8f0fe,stroke:#4285f4;
+    class LEAN,L1,L2,L3,L4 lean;
+    class FULL,F1,FP,F2,F3,F4,F5,F6,F7 full;
+```
+
+| | **Lean path** | **Full path** |
+|---|---|---|
+| When | bug / refactor / tooling / small enhancement | new complex feature, new pattern, multi-module |
+| Design docs | none | SDD + ADRs |
+| UI prototype | none | optional via `/afk:prototype` (iff net-new UI) |
+| Slice mode | **uncited** (PRD-only, human-gated) | **cited** (typed `Produces`/`Consumes`, mechanically enforced) |
+| verification gate | usually none | optional via `/afk:grill-verification` → `/afk:to-verification-plan` (UI + API) |
+
+**Mode is set by what's upstream**, not by a flag: a PRD **with** an SDD slices
+cited; a PRD **alone** slices uncited.
+
+---
+
+## 7. Where everything lives
+
+Every design artifact sits next to the code it describes, under the ticket's
+spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
+
+```text
+{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/
+├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
+├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
+├── prototype/                 ← /afk:prototype     (the chosen self-contained mockup HTML)
+├── SDD.md                     ← /afk:to-sdd        (its ## SDD pointer goes to Jira)
+├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
+├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only, optional)
+├── GLOSSARY.md                ← /afk:grill-requirements
+├── adr/
+│   ├── requirements/NNNN-*.md ← /afk:to-prd   (what / why)
+│   └── design/NNNN-*.md       ← /afk:to-sdd   (how)
+└── plan/                      ← /afk:to-subtasks
+    ├── PLAN.md                  (index: solution map, seam register, progress tracker, smoke gate)
+    └── NNNN-slug.md             (one contract per subtask)
+```
+
+**Two ADR tiers, separate subfolders, separate numbering** — requirement ADRs
+(`adr/requirements/`, owned by `/afk:to-prd`) never share numbering with design
+ADRs (`adr/design/`, owned by `/afk:to-sdd`).
+
+The verification suites themselves are **not** in this repo — they live in the
+core-services tree under `11700-payable/verification`, a multi-modal tree:
+`ui-e2e/` (the Cucumber + Playwright browser module), `api/` (direct-REST
+`node:test` contracts), and `core/` (shared, dependency-free auth/base-URL/poll
+primitives both import; `api → core`, `ui-e2e → core`, `core → nothing`). The
+authoring recipes are canonical at **`11700-payable/verification/ui-e2e/AUTHORING.md`**
+and **`11700-payable/verification/api/AUTHORING.md`** (versioned with the
+verification code so they can't drift). AFK skills only *point* at those recipes —
+they never embed a copy.
+
+---
+
+## 8. The subtask lifecycle
+
+`/afk:execute` runs **one** subtask per invocation. It owns exactly one cell of
+the `PLAN.md` progress tracker (the row it's working) plus that subtask file's
+`## Implementation Notes` — and nothing else. The states:
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> designing: contract read, blocked-by satisfied
+    designing --> developing: plan within scope
+    developing --> verifying: code + TDD done, pushed
+    verifying --> done: every tier green
+    done --> [*]
+
+    pending --> blocked: blocked_by or contract_mismatch
+    designing --> blocked: design_conflict
+    verifying --> blocked: test_fail, build_fail or produces_drift
+    blocked --> [*]
+
+    note right of verifying
+        Verification tiers run in order:
+        static, unit, integration, api, e2e/browser
+        every declared tier must go green
+    end note
+```
+
+The happy path is `pending → designing → developing → verifying → done`. Any
+structured failure parks the row at `blocked(<reason>)` and reports a matching
+`OUTCOME:` line. The reasons:
+
+| Outcome | Meaning | Where you go next |
+|---|---|---|
+| `success` | every tier green, pushed, MR updated, row `done` | review + merge the MR |
+| `blocked_by` | a `## Blocked by` prerequisite isn't `done` yet | run the prerequisites first |
+| `test_fail` / `build_fail` | a verification tier stayed red after one retry | fix the impl |
+| `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
+| `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
+| `design_conflict` | a binding SDD/ADR decision is wrong/infeasible | `/afk:grill-solution` → superseding ADR |
+| `timeout` / `other` | wall-clock cap / unexpected | inspect and re-run |
+
+Then **it stops at CR/Merge** — reviewing and merging the Draft MR is yours.
+
+---
+
+## 9. The cited-mode contract
+
+When an SDD is present, the plan slices in **cited mode** and each subtask
+carries a typed contract. The point: a producer/consumer signature mismatch is
+caught by a `grep`, at a precise checkpoint, on the *right* subtask — never as a
+silent integration surprise.
+
+```mermaid
+graph TD
+    subgraph slice [1 - Slicing time, to-subtasks Validation]
+        a["graph: every Consumes resolves to a prior Produces"]
+        b["anchor quality: no generic tokens, min 12 chars, max 1 grep hit at HEAD"]
+        c["acceptance citations + every SDD seam has a named implementer + seam-test"]
+    end
+    subgraph pre [2 - Consumer preflight, execute Step 2]
+        d["grep each Consumes line PRODUCER-ID file anchor on the branch"]
+        d -->|miss| dm["contract_mismatch: no retry, both rows blocked"]
+    end
+    subgraph post [3 - Producer self-preflight, execute Step 9]
+        e["grep each own Produces anchor right before success"]
+        e -->|miss| em["produces_drift: no retry"]
+    end
+    slice --> pre --> post
+```
+
+`## Produces` is mandatory on **every** cited subtask — even a leaf with no
+consumer — because it quadruples as: the reviewer's cheat-sheet, the `static`-tier
+grep target, the producer self-preflight target, and the next subtask's consumer
+preflight target.
+
+On a binding-decision break (an SDD §8 mandate that's wrong or infeasible),
+`/afk:execute` exits `design_conflict` and routes you to `/afk:grill-solution`
+for a superseding ADR — it never silently substitutes a different interface.
+
+---
+
+## 10. Skill reference
+
+### Mandatory chain
+
+- **`/afk:to-prd`** — turns conversation context into a `PRD.md`, plus
+  requirement-level ADRs (decisions clearing the *hard-to-reverse + surprising +
+  real-trade-off* bar) under `.../{ENH-ID}/adr/requirements/`. **Local artifacts
+  only** — does not touch the tracker.
+- **`/afk:to-ticket`** — publishes the full PRD **content** into its **existing**
+  parent ticket as native Jira ADF (headings, tables, code, Mermaid → attached
+  PNGs embedded inline). **Idempotent**: re-run on PRD change, updates in place,
+  preserves product-owner prose outside the managed block. Publishes PRD content
+  only — never the SDD/Brief. Refuses without `parent_key`; sets no label,
+  creates no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`.
+- **`/afk:to-subtasks`** — slices the PRD (+ SDD + ADRs when present) into the
+  local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
+  typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.
+  **Uncited mode** (PRD only) is human-gated. Every subtask declares tiered
+  verification (static → unit → integration → api → e2e/browser). A
+  `VERIFICATION-PLAN.md` also makes it seed the `## Feature smoke gate` + a
+  terminal build subtask per modality (`NNNN-smoke-e2e` for UI journeys,
+  `NNNN-smoke-api` for API scenarios). **No Jira.**
+- **`/afk:execute`** — you run it once per subtask, in a worktree on the parent
+  branch (`mvu/afk/{ticket-id}`). Reads the contract, advances the tracker
+  (`designing → developing → verifying → done`), turns every verification tier
+  green under TDD, commits + pushes, updates the Draft MR, then **stops at
+  CR/Merge**. Touches GitLab + the local plan, **not Jira**. Reports a structured
+  outcome (see [§8](#8-the-subtask-lifecycle)).
+
+### Optional design layer
+
+*(Recommended for new complex features touching ≥2 modules / introducing patterns
+/ non-trivial transactions or data; skip for small enhancements, bugs, refactors,
+tooling.)*
+
+- **`/afk:grill-requirements`** — interviews you about a raw idea until the
+  requirements decision tree is exhausted, challenging it against the domain
+  glossary. Maintains `GLOSSARY.md`; emits **no** decision records (those come
+  from `/afk:to-prd`).
+- **`/afk:prototype`** *(after `/afk:to-prd`; only if net-new UI)* — an interactive
+  UI-crafting loop, neither a grill nor a one-shot producer. Reads the PRD User
+  Stories, anchors to the **real frontend's** components + tokens, and writes
+  self-contained HTML you open in a browser and **refresh** while you reshape it in
+  plain language. Converges from optional divergent sketches to one design.
+  **Self-gates `no_ui`** for backend/API/refactor features. **Durable-lite**: the
+  won direction becomes `PROTOTYPE.md` + the chosen HTML sibling to the PRD
+  (traceable to User Stories, so `/afk:grill-verification`'s UI journeys trace to
+  it); losing scaffolding is discarded. **Local-first** — the in-repo files are
+  canonical; a **frictionless opt-in** push mirrors the mockup to a persistent,
+  team-shareable `claude.ai/design` project (share-only, never the source of
+  truth). Touches no tracker. Feeds `/afk:grill-solution` (UX decisions) and
+  `/afk:grill-verification` (the screen its journeys trace to).
+- **`/afk:grill-solution`** — top-down design interview across 8 layers (L1
+  topology → L8 tactical patterns); every non-trivial decision gets a rationale +
+  ≥2 alternatives. Produces **no** documents — feeds `/afk:to-sdd`.
+- **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
+  ADRs under `adr/design/`, and owns the parent ticket's `## SDD` pointer
+  section. Mandates per-layer visualizations (Mermaid, tables) so reviewers can
+  scan vertically.
+- **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight 1-2 page
+  `DESIGN-BRIEF.md` (one money-shot diagram, a decision digest, a
+  stakeholder-impact table). **Repo-only**; shared with stakeholders out of band.
+  Refuses to invent decisions or to emit while the SDD has executor-blocking open
+  questions.
+- **`/afk:grill-verification`** — interviews you to design the feature's
+  verification scenarios across two modalities: **UI journeys** (the real browser
+  flows that decide "this feature works", traced to User Stories) and **API
+  scenarios** (direct-REST checks that prove the backend contract for API/MCP
+  callers who bypass the UI, traced to SDD §3 endpoints). A grilling skill like
+  `/afk:grill-requirements` and `/afk:grill-solution` — it **writes no file**;
+  walking the scenarios concretely surfaces PRD/SDD gaps. UI journeys can be
+  designed after `/afk:to-prd`; API scenarios need the SDD's endpoint contracts,
+  so they're added after `/afk:to-sdd` (a pre-SDD run defers them).
+- **`/afk:to-verification-plan`** — synthesizes that conversation into
+  `VERIFICATION-PLAN.md` sibling to the PRD (no interview — writes what the grill
+  settled). UI journeys now; API scenarios too once the SDD exists, else a deferred
+  placeholder that a post-SDD re-run **appends** to (preserving the UI section).
+  Its plan is what makes `/afk:to-subtasks` emit the smoke gate + the per-modality
+  build subtasks. **Repo-only.** The build recipes are **not** here — they're
+  canonical at `11700-payable/verification/ui-e2e/AUTHORING.md` and
+  `11700-payable/verification/api/AUTHORING.md`, only pointed at.
+
+### Optional feature gate
+
+- **`/afk:smoke-test`** — the **feature-level** completion gate, distinct from the
+  per-subtask `api` / `e2e/browser` tiers. It **only executes** already-built
+  scenarios — it authors nothing. Present only when the feature has a `## Feature
+  smoke gate` (a `VERIFICATION-PLAN.md` drove build subtasks). After **every**
+  subtask is `done`, it runs the integrated suites — the browser UI journeys
+  (`npm run smoke`) **and** the API contracts (`node --test`) — against a
+  **running app** and, only on green across both, stamps `Feature: complete` in
+  `PLAN.md`. The specs are built reuse-first into the existing
+  `11700-payable/verification` tree (`ui-e2e` Cucumber + Playwright module; `api`
+  `node:test` files) by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks
+  (reviewed as code). Env-limited scenarios (e.g. `@sap`) are tagged and excluded
+  from the green verdict. The same suites are reused by CI / scheduled / manual
+  runs. Merges nothing, touches no Jira. Reports `smoke_green` / `smoke_fail` /
+  `env_unreachable` / `preconditions_unmet` / `no_gate`.
+
+### Tooling
+
+- **`/afk:tdd`** — red-green-refactor doctrine, invoked from `/afk:execute`
+  Step 5. Not run standalone.
+
+### Utility skills (not part of the AFK chain)
+
+General-purpose skills that ship in the same plugin for convenience but are
+**not** stages of the workflow. They live under `skills/utils/` and can be
+invoked any time, in any project.
+
+- **`/afk:caveman`** — ultra-compressed "caveman" response mode; cuts token use
+  while keeping technical accuracy.
+- **`/afk:diagnose`** — disciplined diagnosis loop for hard bugs / perf
+  regressions (build a feedback loop → reproduce → hypothesise → instrument →
+  fix → regression-test).
+- **`/afk:draw-charts`** — render-safe Mermaid/diagrams; steers around the
+  constructs that break renderers and render-checks before shipping.
+- **`/afk:handoff`** — compact the current conversation into a handoff doc for a
+  fresh agent to pick up.
+- **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
+  survives sessions.
+- **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR
+  (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
+  Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
+  `scripts/fetch-mr.sh`); code mode is fully standalone.
+
+---
+
+## 11. Section-ownership invariants
+
+Several Markdown surfaces carry mixed human + automated edits. The rule is
+strict ownership so edits never collide:
+
+- **Parent Enhancement description** — PRD content (authored on disk by
+  `/afk:to-prd`) is published by `/afk:to-ticket` inside an AFK-managed sentinel
+  block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief is
+  **not** published to the ticket; other prose is the human's. Subtask progress
+  is **not** spliced into the ticket — it lives in `plan/PLAN.md`.
+- **MR description** — the block bracketed by `<!-- afk:subtasks:start -->` /
+  `<!-- afk:subtasks:end -->` is auto-maintained by `/afk:execute`; everything
+  outside is preserved verbatim.
+- **Local plan (`plan/`)** — `/afk:execute` owns only the working subtask's
+  `Status` cell (+ the `Last updated` date) and that subtask file's
+  `## Implementation Notes` block. **`/afk:smoke-test`** owns a *disjoint* slice
+  of the same `PLAN.md`: the `## Feature smoke gate` table's `Status` cells, its
+  `Last run` line, and the header `Feature:` line — nothing else. All contract
+  sections must round-trip losslessly.
+
+> **Lockstep rule for contributors.** The plan is the load-bearing interface
+> between `/afk:to-subtasks` (emitter) and `/afk:execute` (parser). If you add,
+> rename, or change a contract section, update **both** skills in the **same
+> commit**. A section read by `/afk:smoke-test` (a gate field) must be changed in
+> lockstep with that skill too — and a smoke-gate field's shape touches all three
+> (`to-verification-plan` emitter, `to-subtasks` seeder, `smoke-test` reader).
+
+---
+
+## 12. Conventions & gotchas
+
+- **Branch names** must match the GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`. The
+  `mvu/afk/{enh_id_lower}` pattern is load-bearing for `/afk:execute`'s push.
+- **`/afk:execute` is the *only* place the agent commits autonomously.** No other
+  context auto-commits. No `--no-verify`, no `--force`, no global git config
+  changes.
+- **Never alter the DB directly.** Add JPA entities and let liquibase-hibernate7
+  pick them up; no hand-written `UpgradeGroup` / `db/changelog/*`. `/afk:execute`
+  Step 9 enforces this with a pickup-verification run.
+- **Cross-module edits need a marker comment** — a ticket-prefixed line like
+  `// {TICKET-ID}: shared helper added` in the added hunks of any file outside
+  the home module.
+- **Re-run `/afk:to-ticket`** after the PRD changes (it's idempotent). It's the
+  only design-chain skill that writes to Jira, alongside `/afk:to-sdd`'s pointer.
+- **The dev loop for this repo**: edit a `SKILL.md` → `/reload-plugins`. Nothing
+  to build.
+
+---
+
+**Parent ticket:** P2P-1220 (Jira). For the contributor-facing internals (the
+lockstep contract, the three-checkpoint enforcement, the tracker boundary), see
+[`CLAUDE.md`](CLAUDE.md).

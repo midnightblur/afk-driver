@@ -54,9 +54,8 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
-# Local driver state (per CLAUDE.md: ~/.afk-driver/ is outside repo, but be safe)
-.afk-driver/
-.afkenv
+# Claude Code local working dir (TODO backlog, agent handoffs, job scratch)
+.claude/
 
 # Secrets — never commit
 .env
