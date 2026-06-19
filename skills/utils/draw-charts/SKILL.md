@@ -26,6 +26,11 @@ Charts that render the first time. Mermaid-first; grow as new gotchas surface.
 - Subgraphs use the bracket-title form `subgraph id [Plain Title]` — not
   `subgraph id["..."]` (needs Mermaid ≥8.6, which old previews lack).
 - Never name a node `end` (reserved word). Keep edge labels `-->|text|` ASCII.
+- **Label a dotted/thick edge with the pipe form `-.->|text|` / `==>|text|`, not
+  the inline `-. text .->` / `== text ==>`.** A `.` in an inline dotted label (a
+  filename like `PROTOTYPE.md`) collides with the `.->` terminator and aborts the
+  parse (`Lexical error … Unrecognized text`); the pipe-delimited label tolerates
+  periods.
 - State machines: use `stateDiagram-v2` (v1 has no `note`).
 
 ## Where it renders
