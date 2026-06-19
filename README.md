@@ -1,4 +1,4 @@
-# afk — the async-from-keyboard workflow
+# afk — the away-from-keyboard workflow
 
 A Claude Code **plugin** that turns a raw feature idea into shipped, verified
 code through a chain of **interactive** skills. You drive every stage yourself in
