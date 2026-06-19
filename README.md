@@ -11,10 +11,15 @@ written contract instead of a verbal hand-off.
 > walks one feature end to end. The per-skill catalog and the install snippet are
 > further down as reference.
 
-Inspired by [Matt Pocock's AFK Claude Code workflow](https://github.com/mattpocock/skills),
-adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
-*work* the chain drives is Java/Maven inside a sibling core-services checkout;
-**this repo contains only the skills** (the AFK chain under
+**Credit & inspiration.** This repo is directly inspired by and built upon
+[Matt Pocock's AFK Claude Code workflow and skills](https://github.com/mattpocock/skills).
+The original idea, the AFK framing, and several skill patterns come from his work
+— this repo adapts and extends them for a specific environment. If you find this
+useful, go read the upstream source first.
+
+Here it is adapted for the Nakisa **Jira + GitLab + Maven** environment on
+Windows. The *work* the chain drives is Java/Maven inside a sibling core-services
+checkout; **this repo contains only the skills** (the AFK chain under
 `skills/afk/<name>/SKILL.md`, plus a few standalone utility skills under
 `skills/utils/<name>/SKILL.md`) and the plugin manifests.
 
@@ -37,11 +42,27 @@ adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
 
 ---
 
-## 1. Why AFK
+## 1. Why AFK (and what the name really means)
 
-"Async-from-keyboard" means the expensive thinking — *what* to build, *why*, and
-*how* — is settled **before** anyone writes implementation code, and is written
-down where it can be reviewed, cited, and re-read. The payoff:
+**AFK = "away from keyboard."** The original idea behind this workflow is
+ambitious: spend the expensive, focused effort **up front** — exploring
+requirements and designing the solution thoroughly — and then let agents
+**autonomously implement the whole thing with no human in the loop**. You'd settle
+the *what* and the *why*, walk away from the keyboard, and come back to finished
+code. That's where the name comes from.
+
+**That fully-autonomous vision was never fully realized here** — for a number of
+practical reasons (drift, trust, the cost of getting an unattended driver right in
+a real Jira + GitLab + Maven monorepo). So be clear-eyed about what this repo
+actually delivers:
+
+> A **structured, human-in-the-loop workflow** where the implementation phase is
+> *somewhat* automated but still **human-gated** at every load-bearing seam. The
+> "AFK" name is kept for continuity with the upstream inspiration, but it does
+> **not** accurately describe how this repo works today — you are very much at the
+> keyboard.
+
+What you *do* get is still worth the discipline:
 
 - **The hand-off is a file, not a memory.** Every stage emits an artifact (PRD,
   SDD, ADRs, a plan, a verification plan). The next agent reads the contract; it doesn't
@@ -56,7 +77,7 @@ down where it can be reviewed, cited, and re-read. The payoff:
   design, review the Draft MR, and merge. Auto-merge is deliberately outside the
   skills' lane.
 
-What it is **not**: a bot that runs unattended. You invoke each stage, including
+So what it is **not**: a bot that runs unattended. You invoke each stage, including
 `/afk:execute` — once per subtask — and read what it reports before moving on.
 
 ---
