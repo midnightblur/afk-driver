@@ -168,9 +168,9 @@ If the mockup surfaced a PRD gap, route back to `/afk:to-prd` first.
 
 ---
 
-*(Deferred — not this skill: a one-time "Phase 0" extraction of the existing
-frontend into a shared, team-accessible `claude.ai/design` catalog, so future
-mockups compose from a hosted component library rather than re-reading the
-frontend each run. Parked until we validate the per-feature loop. Open question
-to settle then: claude.ai/design's team-sharing model — link-share vs shared
-workspace vs org seats — so "accessible for all team members" is actually met.)*
+*(The one-time "Phase 0" extraction of the existing frontend into a shared,
+team-accessible `claude.ai/design` catalog is now its own skill —
+**`/afk:design-system`**. Run it once per service to seed the catalog, then this
+skill's Step 1 anchor can compose from those hosted cards instead of re-reading
+the frontend each run, and Step 5's share push lands ticket mockups as cards in
+the same project.)*

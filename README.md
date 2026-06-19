@@ -14,8 +14,9 @@ written contract instead of a verbal hand-off.
 Inspired by [Matt Pocock's AFK Claude Code workflow](https://github.com/mattpocock/skills),
 adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
 *work* the chain drives is Java/Maven inside a sibling core-services checkout;
-**this repo contains only the skills** (`skills/<name>/SKILL.md`) and the plugin
-manifests.
+**this repo contains only the skills** (the AFK chain under
+`skills/afk/<name>/SKILL.md`, plus a few standalone utility skills under
+`skills/utils/<name>/SKILL.md`) and the plugin manifests.
 
 ---
 
@@ -463,7 +464,7 @@ for a superseding ADR — it never silently substitutes a different interface.
   PNGs embedded inline). **Idempotent**: re-run on PRD change, updates in place,
   preserves product-owner prose outside the managed block. Publishes PRD content
   only — never the SDD/Brief. Refuses without `parent_key`; sets no label,
-  creates no branch. Driven by `skills/to-ticket/scripts/publish_prd.py`.
+  creates no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`.
 - **`/afk:to-subtasks`** — slices the PRD (+ SDD + ADRs when present) into the
   local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
   typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.
@@ -553,6 +554,28 @@ tooling.)*
 
 - **`/afk:tdd`** — red-green-refactor doctrine, invoked from `/afk:execute`
   Step 5. Not run standalone.
+
+### Utility skills (not part of the AFK chain)
+
+General-purpose skills that ship in the same plugin for convenience but are
+**not** stages of the workflow. They live under `skills/utils/` and can be
+invoked any time, in any project.
+
+- **`/afk:caveman`** — ultra-compressed "caveman" response mode; cuts token use
+  while keeping technical accuracy.
+- **`/afk:diagnose`** — disciplined diagnosis loop for hard bugs / perf
+  regressions (build a feedback loop → reproduce → hypothesise → instrument →
+  fix → regression-test).
+- **`/afk:draw-charts`** — render-safe Mermaid/diagrams; steers around the
+  constructs that break renderers and render-checks before shipping.
+- **`/afk:handoff`** — compact the current conversation into a handoff doc for a
+  fresh agent to pick up.
+- **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
+  survives sessions.
+- **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR
+  (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
+  Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
+  `scripts/fetch-mr.sh`); code mode is fully standalone.
 
 ---
 
