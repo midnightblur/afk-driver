@@ -126,11 +126,11 @@ graph LR
     Grill[/afk:grill-requirements/] --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG[/afk:grill-solution/] --> Sdd[/afk:to-sdd/]
     Sdd -->|optional digest| Brief[/afk:to-design-brief/]
 
-    Prd -.optional UI mockup.-> Proto[/afk:prototype/]
-    Proto -.PROTOTYPE.md feeds design.-> AG
+    Prd -.->|optional UI mockup| Proto[/afk:prototype/]
+    Proto -.->|PROTOTYPE.md feeds design| AG
 
-    Prd -.optional verification design.-> E2E[/afk:grill-verification/]
-    Sdd -.optional verification design.-> E2E
+    Prd -.->|optional verification design| E2E[/afk:grill-verification/]
+    Sdd -.->|optional verification design| E2E
     E2E -->|interview settled| VPlan[/afk:to-verification-plan/]
 
     Sdd --> Sub
@@ -139,7 +139,7 @@ graph LR
 
     Sub -->|run once per subtask| Exec[/afk:execute/]
     Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
-    Exec -.uses.-> Tdd[/afk:tdd/]
+    Exec -.->|uses| Tdd[/afk:tdd/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
