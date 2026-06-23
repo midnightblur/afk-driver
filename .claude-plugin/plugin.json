@@ -24,6 +24,7 @@
     "./skills/utils/caveman",
     "./skills/utils/diagnose",
     "./skills/utils/draw-charts",
+    "./skills/utils/fix",
     "./skills/utils/glossary",
     "./skills/utils/handoff",
     "./skills/utils/to-code-walkthrough",
