@@ -11,7 +11,6 @@ description: >
   terminology, build a glossary, sharpen the ubiquitous language, or
   mentions "domain model" / "DDD" terminology hygiene. Does NOT grill
   requirements, emit ADRs, or touch the tracker.
-disable-model-invocation: true
 ---
 
 # glossary — domain-vocabulary steward
@@ -29,10 +28,9 @@ terms. **Read `GLOSSARY-MAP.md` first** — it routes you to the right service g
 glossaries the current work touches.
 
 Format, rules, and the full multi-context layout are **canonical** in
-[`skills/afk/grill-requirements/GLOSSARY-FORMAT.md`](../../afk/grill-requirements/GLOSSARY-FORMAT.md) —
-shared with `/afk:grill-requirements`, the single source of truth. Follow it exactly; do **not** restate
-its rules here. Both skills write the same format so a glossary is identical no matter which one touched
-it.
+[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns it, and
+`/afk:grill-requirements` defers here for glossary mechanics. Follow it exactly; do **not** restate its
+rules. Both skills write the same format so a glossary is identical no matter which one touched it.
 
 **Routing:** route by the **known target service** (ticket / spec path), not by guessing from the topic.
 Infer or ask only when the target is ambiguous or the work spans services. Create lazily what's missing —

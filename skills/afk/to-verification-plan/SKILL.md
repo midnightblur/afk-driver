@@ -1,6 +1,5 @@
 ---
 name: to-verification-plan
-disable-model-invocation: true
 description: Turn the verification scenarios settled in a `/afk:grill-verification` conversation into `VERIFICATION-PLAN.md`, written next to the PRD/SDD as a local artifact. Catalogs both modalities — UI journeys (traced to PRD User Stories) and API scenarios (traced to SDD §3 endpoints + Acceptance Criteria) — with env-limited flags and a surfaced-gaps section. Does NOT interview — synthesizes what `/afk:grill-verification` already settled. UI journeys can be written after `/afk:to-prd`; API scenarios need an SDD, so a pre-SDD run writes UI journeys only and marks API deferred — re-run after `/afk:to-sdd` to append them. Produces the plan `/afk:to-subtasks` turns into build subtasks and `/afk:smoke-test` runs as the completion gate. Does not write to the tracker.
 ---
 

@@ -1,6 +1,5 @@
 ---
 name: grill-requirements
-disable-model-invocation: true
 description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates the domain glossary (GLOSSARY.md) inline as terms crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 ---
 
@@ -19,42 +18,13 @@ If a question can be answered by exploring the codebase, explore the codebase in
 ## Domain awareness
 
 During codebase exploration, also look for existing documentation. This repo uses
-a **multi-context glossary**: one `GLOSSARY-MAP.md` at the root indexes a
-`GLOSSARY.md` per service.
-
-### File structure
-
-The root always carries the map. Each service — a directory one level below the
-root — carries at most one `GLOSSARY.md`. Glossaries never nest deeper than one
-level.
-
-```
-/
-├── GLOSSARY-MAP.md                ← root index: every service glossary + relationships
-├── GLOSSARY.md                    ← system-wide / shared terms only (optional)
-├── docs/
-│   └── adr/                       ← system-wide decisions
-├── 11700-payable/
-│   └── GLOSSARY.md                ← terms owned by this service
-└── 11024-sap-posting-bot/
-    └── GLOSSARY.md
-```
-
-`GLOSSARY-MAP.md` is the single entry point — **read it first.** It tells you
-which service owns which glossary and how the services relate. From the map, read
-only the `GLOSSARY.md` of the service(s) the current work touches; do not load
-every glossary.
-
-### Create the setup if it doesn't exist
-
-Create lazily, but create what's missing:
-
-- No `GLOSSARY-MAP.md` at the root? Create it the first time any term resolves.
-- Target service has no `GLOSSARY.md`? Create it at `{service}/GLOSSARY.md` (one
-  level deep, never deeper) and **add its row to `GLOSSARY-MAP.md` in the same
-  move** — a glossary that isn't in the map is invisible to the next session.
-- A term several services share lives in the **root `GLOSSARY.md`**; record the
-  cross-service usage in the map's Relationships section.
+a **multi-context glossary** (root `GLOSSARY-MAP.md` indexing a per-service
+`GLOSSARY.md`). The full setup, routing, lazy-create rules, and write format are
+owned by **[`/afk:glossary`](../../utils/glossary/SKILL.md)** — its
+[`GLOSSARY-FORMAT.md`](../../utils/glossary/GLOSSARY-FORMAT.md) is canonical.
+Read `GLOSSARY-MAP.md` first to locate the owning glossary; follow `/afk:glossary`
+for everything about *how* the glossary is structured and written. This skill only
+adds the **grilling** that resolves terms in the first place.
 
 ## During the session
 
@@ -80,7 +50,9 @@ When the user states how something works, check whether the code agrees. If you 
 
 When a term is resolved, update the owning service's `GLOSSARY.md` — or the root
 `GLOSSARY.md` if the term is system-wide — right there. Don't batch these up —
-capture them as they happen. Use the format in [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md).
+capture them as they happen. Use the format owned by `/afk:glossary`
+([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the
+lazy-create-and-index rules for a missing map or service glossary.
 
 `GLOSSARY.md` should be totally devoid of implementation details. Do not treat `GLOSSARY.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
 
