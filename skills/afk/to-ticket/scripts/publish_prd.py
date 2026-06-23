@@ -246,8 +246,9 @@ def _inline_to_adf(token):
         if not text:
             return
         node = {"type": "text", "text": text}
-        if marks:
-            node["marks"] = [dict(m) for m in marks]
+        ms = _adf_marks(marks)
+        if ms:
+            node["marks"] = ms
         out.append(node)
 
     for c in token.children or []:
@@ -256,7 +257,7 @@ def _inline_to_adf(token):
             push_text(c.content)
         elif t == "code_inline":
             node = {"type": "text", "text": c.content,
-                    "marks": [dict(m) for m in marks] + [{"type": "code"}]}
+                    "marks": _adf_marks(marks + [{"type": "code"}])}
             out.append(node)
         elif t == "strong_open":
             marks.append({"type": "strong"})
@@ -272,7 +273,11 @@ def _inline_to_adf(token):
             _pop(marks, "strike")
         elif t == "link_open":
             href = dict(c.attrs).get("href", "")
-            marks.append({"type": "link", "attrs": {"href": href}})
+            # Jira ADF rejects link marks whose href is not an absolute URI it
+            # can render (relative repo paths, in-doc #anchors) with a generic
+            # INVALID_INPUT. Keep the link text, drop the unrenderable href.
+            if re.match(r"(?:https?|mailto):", href, re.I):
+                marks.append({"type": "link", "attrs": {"href": href}})
         elif t == "link_close":
             _pop(marks, "link")
         elif t == "softbreak":
@@ -284,6 +289,16 @@ def _inline_to_adf(token):
             push_text(c.content or dict(c.attrs).get("alt", "") or "[image]")
         # unknown inline types are dropped deterministically
     return out or [{"type": "text", "text": ""}]
+
+
+def _adf_marks(marks):
+    """Copy the mark stack into ADF marks. Jira's `code` mark is exclusive — it
+    may only co-exist with `link`; combined with strong/em/strike it triggers a
+    generic INVALID_INPUT. So when `code` is present, drop the rest."""
+    ms = [dict(m) for m in marks]
+    if any(m["type"] == "code" for m in ms):
+        ms = [m for m in ms if m["type"] in ("code", "link")]
+    return ms
 
 
 def _pop(marks, mtype):
