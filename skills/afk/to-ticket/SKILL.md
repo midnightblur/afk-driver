@@ -1,5 +1,6 @@
 ---
 name: to-ticket
+disable-model-invocation: true
 description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native, properly-formatted Jira content (ADF) — full PRD body inline, with any mermaid diagrams rendered to images and embedded so they're viewable in Jira. Idempotent: re-run whenever PRD.md changes and it updates in place. Preserves product-owner content already in the ticket unless it's barebone. Publishes PRD content only — never SDD or lower-level design. Requires an existing parent ticket. The one design-chain skill that writes to the tracker. Use after `/afk:to-prd` once you have the parent key.
 ---
 

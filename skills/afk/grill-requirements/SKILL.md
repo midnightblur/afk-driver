@@ -1,5 +1,6 @@
 ---
 name: grill-requirements
+disable-model-invocation: true
 description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates the domain glossary (GLOSSARY.md) inline as terms crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 ---
 

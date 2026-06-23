@@ -1,5 +1,6 @@
 ---
 name: grill-solution
+disable-model-invocation: true
 description: Interview the user relentlessly about the solution design top-down across 8 layers (L1 system topology -> L8 tactical patterns) until every non-trivial decision has a rationale and >=2 alternatives weighed. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd` for that.
 ---
 

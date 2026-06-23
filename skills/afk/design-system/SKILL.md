@@ -1,5 +1,6 @@
 ---
 name: design-system
+disable-model-invocation: true
 description: Build (or refresh) a team-shareable `claude.ai/design` catalog that mirrors a service's **live frontend look**, so `/afk:prototype` and the team craft mockups against the real app instead of generic Tailwind. A per-service setup skill, not part of the per-feature chain: you point it at a frontend checkout AND the URL of the running app, it profiles the reachable UI from **both** the source code and the live running app, extracts the real design tokens as ground truth, reduces the app to a set of **archetype-complete** standalone HTML cards (foundations + the full primitive/overlay component library + the app-shell/navigation chrome + each page archetype once + each domain as one representative instance — not one card per screen), verifies their fidelity by **browsing the live running app** and pixel-comparing real screenshots (not just the framework's static render), and publishes them as grouped cards to a persistent Claude Design project. Reads the running app and pushes to Claude Design; otherwise local. Run once to seed a new service's catalog, or again to refresh after the frontend's tokens/components drift. The catalog is a mirror — the frontend code stays the source of truth.
 ---
 

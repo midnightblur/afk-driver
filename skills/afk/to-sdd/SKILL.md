@@ -1,5 +1,6 @@
 ---
 name: to-sdd
+disable-model-invocation: true
 description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use after `/afk:grill-solution` (or equivalent design conversation) when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
 ---
 

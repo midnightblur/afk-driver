@@ -1,5 +1,6 @@
 ---
 name: to-design-brief
+disable-model-invocation: true
 description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:grill-solution` / `/afk:to-sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
 ---
 

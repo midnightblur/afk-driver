@@ -1,5 +1,6 @@
 ---
 name: to-code-walkthrough
+disable-model-invocation: true
 description: Generate top-down narrative walkthrough of a GitLab MR or existing code module — caveman prose w/ mermaid diagrams. Layers TL;DR -> context -> architecture -> modules -> classes -> logic flow -> UI flow -> data model -> footguns. Use when user drops an MR URL asking to understand/explain/walk through the changes, or wants a tour of an existing codebase area (path: or symbol: prefix). Distinct from review-code (verdicts + findings) — this skill produces narrative understanding, no judgments.
 ---
 

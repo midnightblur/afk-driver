@@ -589,6 +589,12 @@ invoked any time, in any project.
   fix → regression-test).
 - **`/afk:draw-charts`** — render-safe Mermaid/diagrams; steers around the
   constructs that break renderers and render-checks before shipping.
+- **`/afk:glossary`** — domain-vocabulary steward; the vocabulary-only subset of
+  `/afk:grill-requirements`. Audits an existing `GLOSSARY.md` for ambiguity,
+  synonyms, vague terms, and code drift, or grills new terminology one question
+  at a time. Writes the same `GLOSSARY-MAP.md` + per-service `GLOSSARY.md` setup
+  (sharing `grill-requirements`'s `GLOSSARY-FORMAT.md`) after approval. Does not
+  grill requirements or emit ADRs.
 - **`/afk:handoff`** — compact the current conversation into a handoff doc for a
   fresh agent to pick up.
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that

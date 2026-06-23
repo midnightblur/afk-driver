@@ -1,5 +1,6 @@
 ---
 name: prototype
+disable-model-invocation: true
 description: Interactively craft a feature's UI mockup with the user after `/afk:to-prd`. A conversational loop — it reads the PRD user stories, anchors to the real frontend's existing components and design tokens, writes self-contained HTML you open in a browser and refresh, and reshapes that HTML live as you react in plain language. A single skill that interviews, crafts, and updates the mockup as the conversation goes — not a one-shot variant dump, not a grill. Self-gates (`no_ui`) for backend/API/refactor features with no net-new screens. Durable-lite: the won direction is captured as `PROTOTYPE.md` + the chosen HTML sibling to `PRD.md`, traceable to user stories so `/afk:grill-verification`'s UI journeys can trace to it; the losing scaffolding is thrown away. Local-first, with a frictionless opt-in push to a persistent, team-shareable `claude.ai/design` project for stakeholder review. Optional — run when a feature has meaningful net-new UI worth settling before the SDD locks decisions.
 ---
 

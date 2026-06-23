@@ -1,5 +1,6 @@
 ---
 name: grill-verification
+disable-model-invocation: true
 description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). A grilling skill like `/afk:grill-requirements` and `/afk:grill-solution` — it interviews and surfaces gaps; it does NOT write a file. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. UI journeys can be designed after `/afk:to-prd`; API scenarios need the SDD's endpoint contracts, so they are only designed after `/afk:to-sdd`. Optional and human-invoked. Pair with `/afk:to-verification-plan` to synthesize the conversation into `VERIFICATION-PLAN.md`. Does not write to the tracker.
 ---
 
