@@ -578,6 +578,13 @@ tooling.)*
 
 - **`/afk:tdd`** — red-green-refactor doctrine, invoked from `/afk:execute`
   Step 5. Not run standalone.
+- **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
+  bug: pulls ticket/repro context, delegates root-cause + regression test to
+  `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
+  feature-building session — reconciles the load-bearing artifacts (PRD / SDD /
+  ADRs / VERIFICATION-PLAN) so the source of truth stays true. Commits nothing.
+  Run standalone for ad-hoc bugs, or routed from `/afk:execute` Step 8 when a
+  verification tier stays red.
 
 ### Utility skills (not part of the AFK chain)
 
@@ -592,11 +599,6 @@ invoked any time, in any project.
   fix → regression-test).
 - **`/afk:draw-charts`** — render-safe Mermaid/diagrams; steers around the
   constructs that break renderers and render-checks before shipping.
-- **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
-  bug: pulls ticket/repro context, delegates root-cause + regression test to
-  `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
-  feature-building session — reconciles the load-bearing artifacts (PRD / SDD /
-  ADRs / VERIFICATION-PLAN) so the source of truth stays true. Commits nothing.
 - **`/afk:glossary`** — domain-vocabulary steward; the vocabulary-only subset of
   `/afk:grill-requirements`. Audits an existing `GLOSSARY.md` for ambiguity,
   synonyms, vague terms, and code drift, or grills new terminology one question

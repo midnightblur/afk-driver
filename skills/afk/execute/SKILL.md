@@ -127,10 +127,14 @@ the full path.
      tier is `node --check` (offline) and its `api` tier (`node --test`) needs a
      running backend + a token (minted via `../core`). Bring those up before the
      tier, the same as `/afk:smoke-test` does.
-   If a tier fails, retry once with a targeted fix. Still red → stop with
-   `test_fail` (or `build_fail` for a static/compile failure), naming the tier.
-   Partial tier coverage is failure: a UI subtask whose e2e row is red is not
-   `success`.
+   If a tier fails, retry once with a targeted fix. Still red → **route to
+   `/afk:fix`** (it wraps `/afk:diagnose` + proportional coverage, and on this
+   unreleased feature reconciles any stale spec artifact), then re-run this
+   subtask from Step 8. If `/afk:fix` returns `design_conflict`, follow the
+   Step 12 `design_conflict` path instead. If it still can't get the tier green,
+   stop with `test_fail` (or `build_fail` for a static/compile failure), naming
+   the tier. Partial tier coverage is failure: a UI subtask whose e2e row is red
+   is not `success`.
 
 9. **Producer self-preflight on `## Produces` (cited mode).** Before declaring
    success, verify every artifact you declared lands on the branch. For each
@@ -184,7 +188,7 @@ the full path.
     - `success` — every Verification tier green, code committed + pushed, MR
       updated, subtask `done`. The human handles CR/Merge.
     - `test_fail` / `build_fail` — a Verification tier stayed red after one
-      targeted retry. Name the tier.
+      targeted retry **and** an `/afk:fix` pass (Step 8). Name the tier.
     - `blocked_by` — Step 1: a `## Blocked by` prerequisite isn't `done` yet.
       Name the laggards; set this row `blocked(blocked_by: …)`. Run the
       prerequisites first.

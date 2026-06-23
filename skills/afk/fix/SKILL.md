@@ -1,16 +1,21 @@
 ---
 name: fix
-description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, and (in a feature-building session) reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) so the source of truth stays true. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification.
+description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, and (in a feature-building session) reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) so the source of truth stays true. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification. /afk:execute routes here on a stuck verification tier.
+
 ---
 
 # afk:fix — fix a bug and keep the source of truth true
 
 You run this yourself when a bug surfaces — typically during the **verification
 phase** of an in-flight feature (agent- or human-found), or as an ad-hoc fix on
-released code. `fix` is a **thin orchestrator**: it does not re-implement
-diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression
-test → cleanup. `fix` wraps that with **context intake**, **proportional
-higher-tier tests**, and **feature-session artifact reconciliation**.
+released code. It is also the **recovery path `/afk:execute` routes to** when a
+verification tier stays red after its targeted retry (execute Step 8), and the
+natural follow-up to a `/afk:smoke-test` red.
+
+`fix` is a **thin orchestrator**: it does not re-implement diagnosis.
+`/afk:diagnose` owns reproduce → root-cause → fix → seam regression test →
+cleanup. `fix` wraps that with **context intake**, **proportional higher-tier
+tests**, and **feature-session artifact reconciliation**.
 
 `fix` does **not** commit, push, or merge — see Hard rules.
 
@@ -31,7 +36,7 @@ the conversation — e.g. a verification result just came back red).
    maintenance**. Feature-building signals: cwd on an AFK feature branch
    (`mvu/afk/{ticket-id}`); a spec dir with `plan/PLAN.md` whose `Feature:` is
    not yet shipped; the bug came from *this* feature's verification. Otherwise
-   ad-hoc → **skip Phase 4**.
+   ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only):
    `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/` — `PRD.md`,
    `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
@@ -48,7 +53,7 @@ cleanup + post-mortem. Don't redo any of it here.
   (api or headless browser) over HITL — you have the env and steps.
 - If diagnose reports it **cannot reproduce**, or surfaces that a binding design
   decision is wrong → stop; report `cannot_reproduce` / `design_conflict` and
-  route (Phase 4).
+  route (Phase 3).
 
 Exit gate: root cause known, fix applied, seam regression test green (or
 seam-absence explicitly documented per diagnose Phase 5).
@@ -70,7 +75,7 @@ Tiers are the same set `/afk:execute` uses: `static → unit → integration →
 → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new
 scenarios land on the branch like code. A bug that slipped a feature's smoke
 gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md`
-+ a `NNNN-smoke-*` subtask (Phase 4), not just an inline test.
++ a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
 
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green
 before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
@@ -106,7 +111,8 @@ OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
 - `cannot_reproduce` — diagnose couldn't build a loop; list what was tried and
   what's needed (env / artifact / instrumentation).
 - `design_conflict` — fix requires changing a frozen SDD/ADR decision; routed to
-  `/afk:grill-solution`.
+  `/afk:grill-solution`. (When invoked from `/afk:execute`, this maps to execute's
+  own `design_conflict` path.)
 - `needs_artifact_sync` — fix landed but a load-bearing artifact is now stale and
   unreconciled; name it + the owning skill.
 - `blocked` — anything else; explain.
@@ -114,7 +120,8 @@ OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
 ## Hard rules
 
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human
-  commits, or the calling `/afk:execute` run does. Apply edits and stop.
+  commits, or the calling `/afk:execute` run does (it resumes from its Step 8 and
+  drives commit + push + MR itself). Apply edits and stop.
 - **Never alter the DB directly.** Add JPA entities; let liquibase-hibernate7
   pick them up. No hand-written `UpgradeGroup` / `PreDbMigration` / `db/changelog/*`.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an
