@@ -37,9 +37,12 @@ cross-cutting principle for the worktree family → write the per-directory note
 
 ## Content style
 Dense-but-parseable caveman. See [STYLE.md](STYLE.md). Verbatim: paths, commands, flag/field
-names, errors. Keep directive subject+scope. Match target file's existing headings.
+names, errors. Keep directive subject+scope. Match target file's existing heading depth/density.
 Stay generic — no version numbers / counts / dates (go stale → wrong-but-authoritative);
 state the rule, not the current value.
+**Leaf/subdir CLAUDE.md = directive only** — emit the `## …` heading + body, NO `# CLAUDE.md — <dir>`
+title and NO `Scope:` / `Inherits` preamble (dir path scopes it, ancestors auto-load; banner = tokens,
+not steering). Legacy leaf files with that banner are not the pattern to copy.
 
 ## Audit
 See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`.

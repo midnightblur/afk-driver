@@ -22,7 +22,14 @@ live where they're authoritative (`package.json`/lockfile, code, memory).
 
 ## Keep precise
 - Directive subject + scope. "Never run migrations against prod DB" ≠ "Never run migrations".
-- Match target file's existing heading structure + density.
+- Match target file's existing heading structure + density — meaning *density / heading depth*,
+  NOT replicating a redundant title / `Scope:` banner some legacy file happens to carry.
+
+## Leaf/subdir CLAUDE.md = directive only
+Emit the steering heading (`## …`) + body, nothing else. NO file-title line (`# CLAUDE.md — <dir>`),
+NO `Scope:` / `Inherits` preamble — the dir path already scopes it (progressive disclosure) and
+ancestors auto-load, so a title/Scope banner adds tokens, not steering (fails inclusion bar #3).
+Legacy repo leaf files that carry that banner are NOT the pattern to copy.
 
 ## Shape of a good line
 `<topic>: <non-obvious fact / pointer>. <gotcha if any>.`
