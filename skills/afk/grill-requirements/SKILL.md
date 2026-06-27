@@ -5,7 +5,7 @@ description: Grilling session that challenges your plan against the existing dom
 
 <what-to-do>
 
-Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+Interview the user relentlessly about every aspect of the plan until a shared understanding is reached. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide a recommended answer.
 
 Ask the questions one at a time, waiting for feedback on each question before continuing.
 
@@ -46,10 +46,14 @@ When domain relationships are being discussed, stress-test them with specific sc
 
 When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
+### Grill the access & validation policy (every feature)
+
+When the plan touches access or validation, grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md).
+
 ### Update GLOSSARY.md inline
 
 When a term is resolved, update the owning service's `GLOSSARY.md` — or the root
-`GLOSSARY.md` if the term is system-wide — right there. Don't batch these up —
+`GLOSSARY.md` if the term is system-wide — immediately. Don't batch these up —
 capture them as they happen. Use the format owned by `/afk:glossary`
 ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the
 lazy-create-and-index rules for a missing map or service glossary.
@@ -76,7 +80,9 @@ shared understanding being built, not a record of a decision.
 ## Next
 
 Once the requirements decision tree is exhausted (every actor / user story /
-out-of-scope / non-functional concern is settled), run **`/afk:to-prd`** to
+out-of-scope / non-functional concern is settled, **and every actor/story has a
+role policy with at least one denied role, a data-scope policy, and a validation
+policy**), run **`/afk:to-prd`** to
 synthesize the conversation into a PRD and publish it (Jira parent + repo at
 `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`).
 `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

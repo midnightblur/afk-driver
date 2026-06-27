@@ -23,6 +23,7 @@
     "./skills/afk/to-ticket",
     "./skills/afk/to-verification-plan",
     "./skills/utils/caveman",
+    "./skills/utils/create-skill",
     "./skills/utils/diagnose",
     "./skills/utils/draw-charts",
     "./skills/utils/glossary",

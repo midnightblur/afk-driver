@@ -5,12 +5,12 @@ description: Turn the verification scenarios settled in a `/afk:grill-verificati
 
 # afk:to-verification-plan — synthesize the verification plan
 
-You turn the verification scenarios settled in a `/afk:grill-verification`
+Synthesize the verification scenarios settled in a `/afk:grill-verification`
 conversation into `VERIFICATION-PLAN.md` on disk. Like `/afk:to-prd` and
-`/afk:to-sdd`, this is a **synthesis** skill: you do **not** re-interview — you
-write down what was already settled. If the scenarios aren't settled (the user
-hasn't been grilled, or key envelopes/click-paths are still vague), stop and route
-them to `/afk:grill-verification` first.
+`/afk:to-sdd`, this is a **synthesis** skill — no re-interview; write down what was
+already settled. If the scenarios aren't settled (the user hasn't been grilled, or
+key envelopes/click-paths are still vague), stop and route to
+`/afk:grill-verification` first.
 
 The artifact catalogs both modalities:
 
@@ -66,6 +66,13 @@ what that session could design, which depends on what's on disk:
    green verdict rather than reading it as a failure). When no SDD exists, the
    `## API Scenarios` section is the one-line deferred placeholder.
 
+3b. **Write the `## Aspect coverage` ledger.** Transcribe the per-aspect verdict
+   the grill settled — triggered vs N/A-with-reason, the proving row IDs, and the
+   env-limited flag. Role-based and data-scoped each cite a row in both modalities;
+   an Envers row appears whenever the feature added a new entity. Do not invent a
+   verdict the grill didn't settle — a missing verdict is a `/afk:grill-verification`
+   gap, route back.
+
 4. **Capture surfaced gaps.** Fold the grill's non-load-bearing gaps into the
    `## Gaps surfaced` section for the human. (Load-bearing gaps were already routed
    back during `/afk:grill-verification`.)
@@ -80,73 +87,21 @@ Written next to `PRD.md` / `SDD.md` at `…/{TICKET-ID}/VERIFICATION-PLAN.md`. I
 the design artifact `/afk:to-subtasks` reads to seed the gate and emit the build
 subtasks — the scenarios here are the source of truth for both modalities.
 
-````
-# Verification Plan — {Feature Name}
-
-> Parent ticket: {TICKET-ID}   Sources: [PRD](PRD.md){· [SDD](SDD.md)}
-> Suite: 11700-payable/verification   Built per: ui-e2e/AUTHORING.md · api/AUTHORING.md
-> Status: draft (built by NNNN-smoke-e2e / NNNN-smoke-api; run by /afk:smoke-test)
-
-## UI Journeys
-
-Each is one integrated end-user browser flow that decides "feature works". Each
-traces to a PRD User Story and becomes one `Scenario` in the ui-e2e Gherkin catalog.
-
-| # | Journey (plain business language) | Actor | Traces to | Env-limited? |
-|---|-----------------------------------|-------|-----------|--------------|
-| 1 | <trigger → click-path → definition of done> | <role/job> | PRD User Story N | no |
-| 2 | <journey> | <role> | PRD User Story M | env-limited (@sap) |
-
-### U1 — <journey title>
-- **Given** <preconditions / data setup>
-- **When** <the concrete click-path, step by step>
-- **Then** <the observable definition of done — the assertion>
-- **Alt/error paths**: <edge journeys worth gating, or "none">
-- **Reuses**: <existing L2 scenarios.mjs flows this leans on, if known>
-
-## API Scenarios
-
-<present iff an SDD exists; otherwise this whole section is the one-line placeholder:>
-> Deferred — needs the SDD's §3 endpoint contracts. Re-run /afk:grill-verification
-> after /afk:to-sdd, then /afk:to-verification-plan to append these.
-
-Each is one direct-REST check that proves a backend contract without the UI. Each
-traces to an SDD §3 endpoint (+ the PRD Acceptance Criterion it proves) and becomes
-one `node:test` *.test.mjs in verification/api/ (using ../core).
-
-| # | Scenario (call → asserted contract) | Surface (method + path) | Traces to | Env-limited? |
-|---|-------------------------------------|-------------------------|-----------|--------------|
-| 1 | <call → response envelope asserted> | GET /api/... | SDD §3 row "..." · PRD AC k | no |
-| 2 | <unauthorized role → 403 envelope> | POST /api/... | SDD §9b row "..." | no |
-
-### A1 — <scenario title>
-- **Given** <preconditions / data setup via ../core>
-- **When** <method + surface + request shape (auth role, path, body)>
-- **Then** <the asserted response envelope — the REAL shape, success AND edge>
-- **Auth/authz**: <no-token / garbage-token / role-scoping assertions>
-- **Reuses**: <existing core/api helpers this leans on, if known>
-
-## Gaps surfaced
-
-Gaps the scenario-walk exposed, for the human to fold back into the PRD/SDD.
-(Load-bearing gaps were routed back during /afk:grill-verification.)
-
-- <gap> — <which Story / endpoint / scenario exposed it>
-````
+Write `VERIFICATION-PLAN.md` using the template in [VERIFICATION-PLAN-TEMPLATE.md](VERIFICATION-PLAN-TEMPLATE.md).
 
 ## Hard rules
 
-- **Synthesize, don't interview.** Write what `/afk:grill-verification` settled. If
-  a journey's steps or an endpoint's envelope is still vague, stop and route back —
-  never invent a flow or a contract to fill the table.
-- **API needs the SDD.** No SDD → write UI journeys only and leave the deferred
-  placeholder; never fabricate endpoint contracts from the PRD alone.
-- **Re-run appends.** Preserve an existing `## UI Journeys` section verbatim when
-  adding `## API Scenarios` post-SDD.
+(Synthesis-vs-interview, SDD-gating of the API section, and append-on-re-run are
+defined above — Process and the modality matrix — and not repeated here.)
+
 - **Carry env-limited flags through.** Both modalities — so the downstream gate
   excludes them from its green verdict.
 - **Every scenario traces to a source.** No orphan rows: UI → User Story; API →
   SDD §3 row + PRD Acceptance Criterion.
+- **The `## Aspect coverage` ledger is complete.** Every aspect has a verdict
+  (triggered with proving rows, or N/A with a reason); role-based and data-scoped
+  each cite a proving row in both modalities. A blank verdict is a grill gap to
+  route back, not a row to leave empty.
 - **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). It touches
   no Jira and no GitLab.
 

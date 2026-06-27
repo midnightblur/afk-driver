@@ -15,15 +15,40 @@ not in the abstract, but as concrete, runnable scenarios across two modalities:
   MCP callers, who bypass every UI guard. Designed against the SDD's endpoint
   contracts.
 
+Cutting across **both** modalities is a fixed set of **verification aspects** —
+the cross-cutting things almost every feature must prove and almost every "it's
+done" forgets. Each aspect has a **trigger** (when it applies) and the
+**modalities** it must be proven in. You walk every aspect for the feature,
+evaluate its trigger, and either design concrete scenarios for it **or record it
+N/A with the reason** — recording the N/A is what stops a silent gap:
+
+| Aspect | Trigger | Prove in |
+|--------|---------|----------|
+| **Role-based access** | always | UI **and** API |
+| **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data | UI **and** API |
+| **Input validation** | user input **or** a workflow is involved | UI **and** API |
+| **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
+| *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
+
+> The canonical miss this catches: p2p-412 proved role-based access *below* the UI
+> (backend `403`) but never *at* it (UI wide open) — an aspect proven in one
+> modality and assumed in the other.
+
+Role-based, data-scoped, and validation aspects trace back to the PRD's
+**`## Access & validation policy`** matrix; the Envers aspect and the *mechanism*
+of role/scope enforcement come from the SDD (§5 L4 / §9b / §4 L3). An aspect is
+not designed in the abstract — it becomes **real woven rows** in the UI/API tables
+below, plus a line in the `## Aspect coverage` ledger `/afk:to-verification-plan`
+writes.
+
 This is a **grilling** skill, like `/afk:grill-requirements` and
-`/afk:grill-solution`: you interview, you don't assume, and **you do not write a
-file**. The output of this session is a settled, shared understanding of the
+`/afk:grill-solution`: you interview, you don't assume. The output of this
+session is a settled, shared understanding of the
 verification scenarios — which `/afk:to-verification-plan` then synthesizes into
 `VERIFICATION-PLAN.md`. The lens is **concreteness** — you walk the actual
 scenario step by step (the click-path, or the request → response envelope). A
 User Story that can't be turned into a demonstrable journey, or an endpoint whose
-success/error envelope nobody can state, is underspecified — and saying so out
-loud is how this skill earns its keep.
+success/error envelope nobody can state, is underspecified.
 
 ## When to invoke — and which modality
 
@@ -42,14 +67,6 @@ on disk:
   to append them.
 - If neither PRD nor SDD exists, stop and route the user to `/afk:to-prd` first —
   there's nothing to ground scenarios against.
-
-**If the SDD has no usable endpoint contract.** API scenarios read the SDD §3 L2
-**API contract table** (surface, method, request/response shape, error codes) and
-the §9b external seams (especially the "a new API/MCP caller bypasses the UI"
-guards `/afk:grill-solution` flags). If §3 is empty or too vague to state an
-endpoint's success **and** error/empty envelope, that's an SDD gap — **stop and
-route back** to `/afk:grill-solution` + `/afk:to-sdd` to settle the contract.
-Don't invent endpoints to keep moving.
 
 ## Arguments
 
@@ -82,28 +99,25 @@ Don't invent endpoints to keep moving.
    "it works" is not acceptance), the preconditions/data setup (the journey's
    `Given`), the alternate/error paths worth gating, and **env reachability** (can
    it go green on the dev stack? SAP-behind-VPN and GL-post-parking-on-FOS can't —
-   note them `env-limited` now so the gate excludes them rather than reading them
-   as failures; see `verification/ui-e2e/AUTHORING.md`).
+   note them `env-limited` now; see `verification/ui-e2e/AUTHORING.md`).
 
-3. **Grill the API scenarios** *(only when an SDD is present)*. Work from the SDD
-   §3 L2 endpoints and the §9b below-the-UI guards. For each endpoint the feature
-   adds or changes, drive the user through:
-   - **The call** — method + surface + the request shape (auth role/token, path,
-     body), in terms the `../core` REST client can issue.
-   - **The asserted contract** — the response envelope on success, **and** on the
-     contract edges this backend actually returns. Pin the real shape, not the
-     ideal one: e.g. a missing entity may return `200 + NULL_RESPONSE` (not 404),
-     and an unauthorized vendor may return `403 "no.authorized.vendor"`
-     (authorization, not authentication). If the user can't state the envelope,
-     that's an SDD §3 gap — surface it (step 5).
-   - **Auth/authz coverage** — because API callers bypass the UI, prove the guard
-     lives **below** it: no-token and garbage-token rejection, and role-scoping
-     (a role with access vs one without). This is the modality's whole reason to
-     exist; don't skip it.
-   - **Preconditions / data setup** — what must exist first (these become the
-     test's setup via `../core`).
-   - **Env reachability** — same `env-limited` rule as UI (e.g. an endpoint that
-     fans out to SAP).
+   Then walk the **aspects at the UI** for the surfaces this feature touches:
+   - **Role-based access** — for every protected surface, the **role tiers**: what
+     each tier *sees* and the observable per tier — `admin` (menu shows, page +
+     create/edit controls show), `read-only` (menu + page show, **no** create
+     control), `denied` (**menu absent, direct-nav redirected**). The **denied
+     tier is a required row**, never optional. Reuse the
+     harness's `access:admin` / `access:readonly` / `access:denied` flows driven by
+     `E2E_ROLE=<descriptor role>` (token injected via route-interception) — you
+     specify the per-tier observable, you don't invent the flow.
+   - **Data-scoped access** — a user scoped to one company/vendor sees only its
+     rows on the relevant list/detail screen. Usually **`env-limited`** (needs two
+     FOS-provisioned scoped users the smoke env may not have) — flag it now.
+   - **Input validation** — the form refuses a violating input (inline field
+     error + disabled submit), per the PRD validation policy.
+
+3. **Grill the API scenarios** *(only when an SDD is present)*. When an SDD with
+   endpoint contracts exists, design API scenarios per [API-SCENARIOS.md](API-SCENARIOS.md).
 
 4. **Check coverage.** Every top User Story maps to at least one UI journey;
    every endpoint the feature exposes maps to at least one API scenario; every
@@ -114,6 +128,14 @@ Don't invent endpoints to keep moving.
    the user flow, the API scenario proves the contract a UI test can't see (the
    raw envelope, the below-the-UI guard).
 
+   **Then check aspect coverage.** For every aspect in the table above, evaluate
+   its trigger: if triggered, it must have **at least one proving woven row** in
+   each modality it owns (role-based and data-scoped owe a row in *both* UI and
+   API); if not triggered, record it **N/A — <reason>**. A triggered aspect
+   with no proving row is an under-coverage gap to surface (step 5). This
+   per-aspect verdict (triggered / N-A / proving row-IDs / env-limited) becomes
+   the `## Aspect coverage` ledger `/afk:to-verification-plan` writes.
+
 5. **Surface PRD/SDD gaps explicitly.** Revealing gaps is a primary output. When a
    walk exposes an ambiguous, missing, or contradictory detail, name it. Small →
    note it in the conversation so `/afk:to-verification-plan` captures it in the
@@ -123,11 +145,12 @@ Don't invent endpoints to keep moving.
    `/afk:grill-solution` + `/afk:to-sdd`.
 
 6. **Settle the set.** When every Story has a journey, every exposed endpoint has
-   a scenario (or API is deferred for lack of an SDD), and the user agrees the set
-   is complete, recap the scenarios — modality, actor/surface, traces-to,
-   env-limited?, plus whether API was designed or deferred — and hand off to
-   `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. **You write
-   nothing.**
+   a scenario (or API is deferred for lack of an SDD), **every triggered aspect
+   has a proving row or a recorded N/A reason**, and the user agrees the set is
+   complete, recap the scenarios — modality, actor/surface, traces-to,
+   env-limited?, plus the per-aspect coverage verdict and whether API was designed
+   or deferred — and hand off to `/afk:to-verification-plan` to write
+   `VERIFICATION-PLAN.md`.
 
 ## Hard rules
 
@@ -142,10 +165,11 @@ Don't invent endpoints to keep moving.
   `../core` can issue (canonical recipes: `verification/ui-e2e/AUTHORING.md`,
   `verification/api/AUTHORING.md`). Reuse existing flows/helpers. Never spec a
   scenario the suite has no way to perform.
-- **API scenarios must cover the below-the-UI guard.** An API/MCP caller bypasses
-  every UI check — no-token, bad-token, and role-scoping assertions are mandatory
-  where the endpoint is protected (per the SDD §9b seam). That coverage is the
-  modality's reason to exist.
+- **Every triggered aspect is covered, in every modality it owns.** Walk the
+  aspect table; a triggered aspect with no proving row is a gap, and a non-N/A
+  aspect with no recorded reason is a skip. The denied-role UI row is mandatory
+  for every protected surface; the no-token/bad-token/role-scoping API assertions
+  are mandatory for every protected endpoint (per the SDD §9b bidirectional seam).
 - **Every scenario traces to a source; every gap is named.** No orphan scenarios,
   no silently-swallowed PRD/SDD ambiguities.
 - **Note env-limited scenarios as you go** — both modalities — so

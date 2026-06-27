@@ -9,7 +9,7 @@ This skill takes the PRD, SDD, and per-decision ADRs and emits a single
 - **Technical stakeholders outside the implementing team** (security, ops,
   adjacent leads, reviewers): they need enough to grasp impact and ask the
   right questions without reading the full SDD.
-- **Humans pre-reading the SDD**: a map before the territory.
+- **Humans pre-reading the SDD**.
 
 This is **not** a third design document. It is a digest — every claim must
 trace back to the PRD, SDD, or an ADR. The brief never introduces a new
@@ -36,8 +36,8 @@ the SDD; do not invent.
    `/afk:grill-solution` first.
 
 3. **Pick ONE money-shot diagram.** Choose the single diagram from the SDD
-   that best conveys the feature's shape to a stakeholder seeing it cold.
-   The right pick depends on the feature:
+   that best conveys the feature's shape to a stakeholder. The right pick
+   depends on the feature:
 
    - Cross-service / cross-context feature → SDD §3 service interaction
      `flowchart` or `sequenceDiagram`.
@@ -48,9 +48,8 @@ the SDD; do not invent.
    - Pattern-introduction feature → SDD §9 `classDiagram`.
 
    Embed it inline. Caption it with one sentence stating the takeaway.
-   **Do not include more than one diagram.** The discipline is the point —
-   if one diagram cannot carry the shape, the SDD is the right artifact,
-   not the brief.
+   **Do not include more than one diagram.** If one diagram cannot carry
+   the shape, the SDD is the right artifact, not the brief.
 
 4. **Write the brief using the template below.** Hard length cap:
    400-800 words excluding the diagram and tables. If a draft runs long,
@@ -59,89 +58,7 @@ the SDD; do not invent.
 
 ## Template
 
-<brief-template>
-
-# Design Brief — {Feature Name}
-
-> Parent ticket: {TICKET-ID}
-> Sources: [PRD](./PRD.md) · [SDD](./SDD.md) · [ADRs](./adr/)
-> Status: mirrors SDD status (Draft / Approved / Superseded)
-> Last updated: {YYYY-MM-DD}
-> Audience: technical stakeholders + humans pre-reading the SDD
-
-## §1 Problem
-
-One paragraph from the PRD's Problem Statement, in domain language. 3-5
-sentences. No solution mentioned here.
-
-## §2 Shape
-
-3-7 sentences explaining what is being built and how it works at the
-narrative level — the kind of explanation a senior engineer would give in
-30 seconds at a whiteboard. Name the bounded contexts / services / modules
-involved, the primary flow, and the key invariant the design protects.
-Plain language; technical terms allowed where they shorten the explanation.
-
-## §3 At a Glance
-
-One Mermaid diagram (the money shot — see Process step 3 for selection
-rules). Caption it with one sentence stating what to take away.
-
-```mermaid
-{the chosen diagram}
-```
-
-> {one-sentence caption}
-
-## §4 Key Decisions
-
-5-10 rows. Each row is the digest of an ADR — never duplicate the ADR's
-full text. If you have more than 10 ADRs, pick the rows a stakeholder is
-most likely to question or need to align on.
-
-| # | Decision | Layer (L1-L8) | Why this, not the alternative | ADR |
-|---|----------|---------------|--------------------------------|-----|
-| 1 | {one phrase} | L3 | {rejected alt + the constraint that ruled it out} | `adr/0001-...md` |
-
-The "Why" column must be one short sentence. If you cannot compress the
-rationale to one sentence, that is signal the ADR's Context section needs
-tightening — not a license to expand the brief.
-
-## §5 Stakeholder Impact
-
-What changes for each stakeholder group. Empty cells are valid — most
-stakeholders are unaffected by most features.
-
-| Stakeholder | What changes | What they need to do |
-|-------------|--------------|----------------------|
-| Security review | {e.g. new auth flow on /export endpoint} | {e.g. review ADR-0004 + threat-model the signed-URL path} |
-| Operations | {e.g. new background-job queue} | {e.g. provision queue X, set alert on lag > Y} |
-| Adjacent team {name} | {e.g. event schema change on `payment.posted`} | {e.g. consume new fields by date Z; old fields stay for 2 releases} |
-| End users | {e.g. async PDF generation; download link instead of immediate response} | (none) |
-
-If a row's "What changes" is "(none)", omit the row.
-
-## §6 Out of Scope & Risks
-
-- **Out of scope** — bullet list, lifted from PRD §Out of Scope + SDD §11.
-  Stakeholders read this to confirm their concern is being deferred, not
-  forgotten.
-- **Risks** — the top 2-3 risks from the SDD's Failure & Recovery matrix
-  or Open Questions list. Each risk: one phrase + the named recovery /
-  mitigation. If the SDD has no risks worth surfacing, write
-  "No design-level risks open at brief time" rather than padding.
-
-## §7 Where to Go Next
-
-- **Curious about the user-facing problem?** → `PRD.md`
-- **Reviewing the full design?** → `SDD.md` (layered §2 L1 → §9 L8)
-- **Auditing a specific decision?** → `adr/requirements/NNNN-*.md` (behaviour /
-  scope) or `adr/design/NNNN-*.md` (solution — each cites its layer,
-  alternatives, consequences)
-- **Disagree with a decision?** → run `/afk:grill-solution` to draft a
-  superseding ADR; do not edit the existing one in place.
-
-</brief-template>
+Write the brief using the template in [BRIEF-TEMPLATE.md](BRIEF-TEMPLATE.md).
 
 ## Hard rules
 
@@ -149,10 +66,8 @@ If a row's "What changes" is "(none)", omit the row.
   No new decisions, no new alternatives, no new rationale. If a section
   cannot be filled from sources, refuse — bounce to `/afk:grill-solution` +
   `/afk:to-sdd`.
-- **Length cap: 400-800 words** excluding the diagram and tables. Long
-  briefs are not briefs.
-- **One diagram only.** Discipline forces you to pick the most useful one.
-  More diagrams = read the SDD.
+- **Length cap: 400-800 words** excluding the diagram and tables.
+- **One diagram only.** Pick the most useful one.
 - **One sentence per "Why" row** in §4. Rationale that does not compress
   to one sentence belongs in the ADR, not here.
 - **No code, no file paths inside the prose.** Pointers in §7 are the only
@@ -161,24 +76,9 @@ If a row's "What changes" is "(none)", omit the row.
   itself Draft — stakeholders need to know whether they are reviewing a
   proposal or a decision.
 - **Refuse on incomplete SDD.** If SDD §13 has open questions that block
-  executors (L2-L7), do not emit a brief. The brief's value is showing
-  shape; an SDD with shape-blocking gaps has no shape yet.
+  executors (L2-L7), do not emit a brief.
 
-## AFK adaptation (core-services)
-
-When the brief belongs to an Enhancement / Bug in the AFK workflow:
-
-- **File location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/DESIGN-BRIEF.md`. Service is derived from the Jira project key per the project's mapping (e.g. `P2P` → `11700-payable`).
-- **Repo-only — does not touch the tracker.** This skill writes
-  `DESIGN-BRIEF.md` to disk and stops. It does **not** splice a section into
-  the Jira ticket: the brief is shared with stakeholders out of band (link
-  the repo file, paste it into a review thread), not published to the
-  Enhancement/Bug. Leave the ticket description entirely to its other owners
-  (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`). Subtask progress
-  is local (`plan/PLAN.md`), not on the ticket.
-- **Re-emit on SDD change.** Briefs go stale silently — when the SDD or any
-  ADR changes materially, re-run this skill. The `Last updated` field is
-  the canary.
+See [AFK-ADAPTATION.md](AFK-ADAPTATION.md) for the core-services AFK adaptation.
 
 ## Next
 

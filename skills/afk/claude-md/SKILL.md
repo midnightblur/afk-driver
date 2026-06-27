@@ -5,8 +5,7 @@ description: Create, maintain, audit, and enhance CLAUDE.md / .claude/rules / sh
 
 # claude-md — project-memory steward
 
-Senior-dev-over-the-shoulder. Right hint at right level. Steer, don't document.
-Trust agents to read code; capture only what reading code won't reveal.
+Steer, don't document. Trust agents to read code; capture only what reading code won't reveal.
 Always **propose → approve → write**. Never write unasked.
 
 ## Modes (auto-detect; user may force via arg)

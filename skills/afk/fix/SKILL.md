@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, and (in a feature-building session) reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) so the source of truth stays true. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification. /afk:execute routes here on a stuck verification tier.
+description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, run an escape analysis on the existing test that should have caught it, reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) in a feature-building session, and — for AFK-delivered features — hand off a structured workflow lesson so the AFK chain stops repeating the miss. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification. /afk:execute routes here on a stuck verification tier.
 
 ---
 
@@ -45,12 +45,12 @@ the conversation — e.g. a verification result just came back red).
 
 Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env,
 the exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop
-(failing test / curl / **headless-browser** / API replay / harness), 3–5 ranked
+(failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked
 hypotheses, instrumentation, the fix, the **seam-level regression test**, and
-cleanup + post-mortem. Don't redo any of it here.
+cleanup + post-mortem.
 
 - For a ticketed or known-env bug, push diagnose toward an **automated** loop
-  (api or headless browser) over HITL — you have the env and steps.
+  (api or e2e/browser) over HITL — you have the env and steps.
 - If diagnose reports it **cannot reproduce**, or surfaces that a binding design
   decision is wrong → stop; report `cannot_reproduce` / `design_conflict` and
   route (Phase 3).
@@ -80,6 +80,13 @@ gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLA
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green
 before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
+## Phase 2.5 — Escape analysis (standing-suite-tier bugs only)
+
+For a user-visible (`e2e/browser`) or backend-contract (`api`) bug, interrogate why
+the existing guard missed it and name the miss class — full procedure and miss-class
+table in [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md). Skip for a pure unit/logic bug
+that never had a higher-tier scenario. Carry the miss class into Phase 4's report.
+
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
 A fix on an unreleased feature can invalidate a load-bearing artifact. Triage
@@ -93,9 +100,18 @@ ownership boundary (that breaks Jira sync, ADR numbering, and grill provenance).
 | The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
 
-Common case: the doc was **right**, the code was wrong → no artifact change.
+Doc right + code wrong → no artifact change.
 Only reconcile when the fix changed something a doc asserts. If you can't reach
 truth this session, record the divergence and report `needs_artifact_sync`.
+
+## Phase 3.5 — Workflow feedback (AFK-delivered features only)
+
+When the feature was built with AFK assistance (Phase 0 signals: AFK branch +
+`plan/PLAN.md`), trace the miss to the AFK stage that under-specified the guard and
+**hand off** a structured workflow lesson via `/afk:handoff` (never self-applied) —
+full stage-mapping table, handoff payload, and procedure in
+[WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). For ad-hoc/maintenance bugs there is no
+AFK workflow to improve → skip. Report the handoff doc path in Phase 4.
 
 ## Phase 4 — Report
 
@@ -117,6 +133,13 @@ OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
   unreconciled; name it + the owning skill.
 - `blocked` — anything else; explain.
 
+When Phase 2.5 ran, add the **miss class** to the summary; when Phase 3.5 ran,
+append the **handoff doc path** so the workflow-improvement lesson isn't lost:
+
+```
+OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
+```
+
 ## Hard rules
 
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human
@@ -126,6 +149,9 @@ OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
   pick them up. No hand-written `UpgradeGroup` / `PreDbMigration` / `db/changelog/*`.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an
   ownership boundary.** Route to the owning skill (Phase 3).
+- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow
+  lesson is **handed off** (`/afk:handoff`), never self-applied — no `/afk:retro`,
+  no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial
   cosmetic fix — match the tier to the bug class (Phase 2).
 - **Cross-module edits carry a `// {TICKET-ID}:` marker comment** in the added hunks.

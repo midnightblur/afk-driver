@@ -5,11 +5,10 @@ description: Interactively craft a feature's UI mockup with the user after `/afk
 
 # afk:prototype — craft the UI, conversationally
 
-This is not an artifact-producer you run once and read, and not a grill that
-only interviews. It is an **interactive UI-crafting loop**: you and I shape a
-feature's screens together in a browser, and the durable record falls out of the
-conversation at the end. The local HTML is the canvas; your reactions are the
-steering; the won design is the artifact.
+An **interactive UI-crafting loop**: you and I shape a feature's screens together
+in a browser, and the durable record falls out of the conversation at the end.
+The local HTML is the canvas; your reactions are the steering; the won design is
+the artifact.
 
 It sits **after `/afk:to-prd`** — the user stories are settled (so there's
 something concrete to draw), but the SDD isn't (so a mockup can still cheaply
@@ -42,11 +41,10 @@ Read `PRD.md` — the User Stories and Acceptance Criteria are what the screen m
 serve. Then **anchor to the real frontend**: find the sibling frontend checkout's
 components, layout shell (header/sidebar/nav), and design tokens (the CSS /
 Tailwind config / component library it actually uses), and read enough to mock
-*in that vocabulary*. The point of prototyping a brownfield app is that the
-mockup looks like **your app** — a generic Tailwind page teaches you nothing
-about whether the feature fits the product. If you genuinely can't find the
-frontend, say so and proceed with a neutral style, flagging that the anchor is
-missing.
+*in that vocabulary* — the mockup must look like **your app**; a generic Tailwind
+page teaches you nothing about whether the feature fits the product. If you
+genuinely can't find the frontend, say so and proceed with a neutral style,
+flagging that the anchor is missing.
 
 ### 2. Open the canvas
 
@@ -68,7 +66,7 @@ How many screens to open with depends on how settled the direction is:
 
 ### 3. Craft, react, update — the loop
 
-This is the heart of the skill, and it is a **conversation**, not a spec hand-off:
+A **conversation**, not a spec hand-off:
 
 1. The user reacts in plain language — "table's too dense", "move the actions to a
    sidebar", "I want the header from A with the list from B", "what if approvals
@@ -99,24 +97,9 @@ losing scaffolding is thrown away.
   the chosen HTML. This — not the HTML, not the Claude Design project — is the
   **canonical record**.
 
-### 5. Share — frictionless Claude Design push (opt-in)
+### 5. Share — Claude Design push (opt-in)
 
-The local file is the fast loop; pushing to `claude.ai/design` is one move when
-you want a hosted, link-shareable preview for non-technical stakeholders. Only
-when the user asks ("push it" / "share this"):
-
-1. `DesignSync list_projects` → **reuse** the team's design-system project if it
-   exists (a stable, app/team-level project — *not* a per-ticket one); else
-   `create_project` once. Verify the target is a design-system project.
-2. Tag the chosen HTML with a `<!-- @dsCard group="{TICKET-ID}" -->` first-line
-   marker so it lands as a labelled card grouped by ticket and is **findable later**
-   (`list_projects` → `list_files` re-finds any ticket's mockup months on).
-3. `finalize_plan` (the one permission prompt) → `write_files` → print the
-   shareable URL.
-
-First run only: if design scopes aren't granted, tell the user to run
-`/design-login` once, then retry — after that it's silent. The pushed project is a
-**persistent mirror**, never the source of truth (see Boundary).
+To share the prototype on Claude Design, follow [CLAUDE-DESIGN-PUSH.md](CLAUDE-DESIGN-PUSH.md).
 
 ### 6. Report
 
@@ -168,9 +151,8 @@ If the mockup surfaced a PRD gap, route back to `/afk:to-prd` first.
 
 ---
 
-*(The one-time "Phase 0" extraction of the existing frontend into a shared,
-team-accessible `claude.ai/design` catalog is now its own skill —
-**`/afk:design-system`**. Run it once per service to seed the catalog, then this
-skill's Step 1 anchor can compose from those hosted cards instead of re-reading
-the frontend each run, and Step 5's share push lands ticket mockups as cards in
-the same project.)*
+Visual extraction of the existing frontend into a shared, team-accessible
+`claude.ai/design` catalog lives in **`/afk:design-system`**. Run it once per
+service to seed the catalog; Step 1's anchor can then compose from those hosted
+cards instead of re-reading the frontend each run, and Step 5's share push lands
+ticket mockups as cards in the same project.

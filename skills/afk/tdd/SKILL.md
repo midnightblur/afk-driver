@@ -9,9 +9,11 @@ description: Test-driven development with red-green-refactor loop. Use when user
 
 **Core principle**: Tests should verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
 
-**Good tests** are integration-style: they exercise real code paths through public APIs. They describe _what_ the system does, not _how_ it does it. A good test reads like a specification - "user can checkout with valid cart" tells you exactly what capability exists. These tests survive refactors because they don't care about internal structure.
+**Good tests** are integration-style — they exercise real code paths through public APIs:
 
-**Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
+- Verify behavior through the public interface, not implementation — describe _what_ the system does, not _how_.
+- Survive refactors because they don't care about internal structure.
+- **Bad tests** are coupled to implementation: they mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface).
 
 See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking guidelines.
 
@@ -19,7 +21,7 @@ See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking g
 
 **DO NOT write all tests first, then all implementation.** This is "horizontal slicing" - treating RED as "write all tests" and GREEN as "write all code."
 
-This produces **crap tests**:
+This produces **Bad tests**:
 
 - Tests written in bulk test _imagined_ behavior, not _actual_ behavior
 - You end up testing the _shape_ of things (data structures, function signatures) rather than user-facing behavior

@@ -10,17 +10,16 @@ description: The feature-level completion gate. After every subtask in a local p
 exposes an endpoint and an `e2e/browser` row when it touches UI — goes green
 before that subtask is `done`. That is **one slice**, in a dev worktree.
 
-This skill is a different animal: the **integrated feature smoke gate**. It runs
-the feature's verification suites — the cross-subtask UI journeys (`ui-e2e`) and
-the direct-REST API contracts (`api`) — against a **real running app**, and only
-when **both** modalities pass does it stamp the feature **complete**. It is the
-milestone the per-subtask flow never had: "all subtasks `done`" is not "the
-feature works"; this gate is.
+This skill is the **integrated feature smoke gate**: it runs the feature's
+verification suites — the cross-subtask UI journeys (`ui-e2e`) and the direct-REST
+API contracts (`api`) — against a **real running app**, and stamps the feature
+**complete** only when **both** modalities pass. "All subtasks `done`" ≠ "the
+feature works".
 
 The same suites then live on permanently under `11700-payable/verification`
 (`ui-e2e` Gherkin catalog + `api` `node:test` files), so CI, scheduled jobs, and
 ad-hoc human sanity runs invoke them directly. This skill is the **AFK-facing
-gate** plus a convenient **manual runner** — not the only way the suites ever run.
+gate** plus a **manual runner** — not the only way the suites ever run.
 
 ## When it applies
 
@@ -74,9 +73,8 @@ scenarios as the gate.
    per `11700-payable/verification/ui-e2e/README.md`, and the API suite's token /
    base URL per `11700-payable/verification/api/AUTHORING.md` (the API client mints
    via `../core`). A green build never compensates for a missing token at gate
-   time. Needing a **real running app** is this gate's defining trait — it is what
-   separates it from the per-subtask tiers, which may run against a stub or a
-   transient dev server.
+   time. This gate requires a **real running app** — unlike the per-subtask tiers,
+   which may run against a stub or a transient dev server.
 
 4. **Run the suites.** Execute each present modality's run command against
    `target`, skipping a modality only if `scope` named the other:
@@ -134,31 +132,7 @@ scenarios as the gate.
      out. Nothing to run.
    - `other` — unexpected failure.
 
-## Relationship to the rest of the chain
-
-- **vs. the per-subtask `api` / `e2e/browser` tiers** (`/afk:execute` Step 8):
-  those prove one slice — its endpoint contract or its UI — in a dev worktree as
-  the slice lands. This proves the **integrated** feature against a running app,
-  after everything has landed. Both exist on purpose; neither replaces the other.
-- **vs. `/afk:grill-verification` + `/afk:to-verification-plan` + the terminal
-  `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks**: `grill-verification` *designs*
-  the scenarios and `to-verification-plan` *writes* `VERIFICATION-PLAN.md`; the
-  build subtasks *implement* them — UI journeys as
-  `Scenario`s in the `11700-payable/verification/ui-e2e` Gherkin catalog, API
-  scenarios as `node:test` `*.test.mjs` in `11700-payable/verification/api`
-  (reuse-first), resolve them offline (`cucumber-js --dry-run` / `node --check`,
-  their `static` tiers), and run them locally (`npm run smoke` / `node --test`,
-  their `e2e` / `api` tiers) to prove they pass in dev. This skill *runs the
-  already-built suites* against the real target as the gate. The local redundancy
-  is intentional — "specs pass in dev" ≠ "feature works in the env with all
-  subtasks integrated." If the gate hits an undefined/ambiguous step or an
-  import/parse error, the build subtask skipped its dry-run — fix it there, not
-  here.
-- **Reuse**: the built specs are permanent residents of
-  `11700-payable/verification` (`ui-e2e` + `api`). CI pipelines and scheduled jobs
-  run the same suite commands directly; a human can run this skill (or the raw
-  commands) any time to re-check system sanity. The gate is one consumer of the
-  suites, not their owner.
+How this gate relates to the per-subtask tiers and the rest of the chain: see [RELATIONSHIP.md](RELATIONSHIP.md).
 
 ## Boundary (Hard rules)
 
