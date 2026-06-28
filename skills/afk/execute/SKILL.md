@@ -1,6 +1,6 @@
 ---
 name: execute
-description: Execute one subtask from a local plan end-to-end interactively — read its contract from plan/NNNN-slug.md, design, develop under TDD, run every declared verification tier, commit, push, update the Draft MR, and advance the subtask's row in PLAN.md — then stop at CR/Merge for the human. You run this yourself in a session on the parent branch; there is no autonomous driver and no Jira. Reports a structured outcome.
+description: Execute one subtask from a local plan end-to-end interactively — read its contract from plan/NNNN-slug.md, design, develop under TDD, run every declared verification tier, commit, push, update the Draft MR, and advance the subtask's row in PLAN.md — then stop at CR/Merge for the human. Use when the user runs `/afk:execute {NNNN-slug}` on the parent branch to build one planned subtask, or when `/afk:fix` routes a stuck verification tier back to it. You run this yourself; there is no autonomous driver and no Jira. Reports a structured outcome.
 ---
 
 # afk:execute — run one subtask from the local plan interactively
