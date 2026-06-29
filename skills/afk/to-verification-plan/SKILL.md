@@ -56,6 +56,7 @@ Write `VERIFICATION-PLAN.md` using the template in [VERIFICATION-PLAN-TEMPLATE.m
 (Synthesis-vs-interview, SDD-gating of the API section, and append-on-re-run are defined above — Process and the modality matrix — not repeated here.)
 
 - **Carry env-limited flags through.** Both modalities — so the downstream gate excludes them from its green verdict.
+- **Reverify persistence on reload (UI).** When a UI journey's definition-of-done is a value that must persist to the DB (or must *not* persist — a cancelled edit, a rejected/validation-blocked input), the journey carries a final step that reloads the **same** screen/dialog (browser refresh / reopen) and re-asserts against the freshly-fetched data — a post-save assertion on optimistic client/form state can pass without the value ever reaching the DB. Emit it as the journey's `**Persistence reverify**` line; `n/a` when the DoD isn't a persisted-state claim (navigation-only, transient UI, read-only view).
 - **Every scenario traces to a source.** No orphan rows: UI → User Story; API → SDD §3 row + PRD Acceptance Criterion.
 - **The `## Aspect coverage` ledger is complete.** Every aspect has a verdict (triggered with proving rows, or N/A with a reason); role-based and data-scoped each cite a proving row in both modalities. A blank verdict is a grill gap to route back, not a row to leave empty.
 - **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). Touches no Jira, no GitLab.

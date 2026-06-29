@@ -7,6 +7,8 @@ description: Disciplined diagnosis loop for hard bugs and performance regression
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 
+**Be certain before you fix.** A fix on a wrong diagnosis wastes the fix *and* buries the bug deeper. Do not edit code to "try" a fix until the loop has **confirmed** the cause. Exhaust every tool below first — a guess is a last resort, taken only after you've said so explicitly and stated your confidence.
+
 When exploring the codebase, use the project's domain glossary to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
 
 ## Phase 1 — Build a feedback loop
@@ -29,6 +31,15 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 10. **HITL bash script.** Last resort. If a human must click, drive _them_ with `scripts/hitl-loop.template.sh` so the loop is still structured. Captured output feeds back to you.
 
 Build the right feedback loop, and the bug is 90% fixed.
+
+### Tools at your disposal (core-services)
+
+The list above is generic methods; these are the concrete instruments in this repo. Use every one that fits before settling for a guess.
+
+- **Live UI** — most bugs are only *real* once they reproduce in the running app. The app must be **built and running**: if you can't confirm a live build, ask the user to start/confirm it — never reproduce against stale output.
+- **Mint a token** — `node tools/nakisa-financial-suite/jwt/mint.mjs [roles…]` prints an `access-token` JWT to stdout (or run `tools/nakisa-financial-suite/jwt/mint-jwt.cmd` for the web minter). Local-stack HS256 only; pass it as the `access-token` header to call `/ui/v1/` & `/api/v1/` as any role without an expiring token.
+- **Query the DB** — confirm what actually persisted (row written? column null? FK set?) instead of inferring from logs; settles "the service says it saved" vs "the row is wrong" directly.
+- **IntelliJ MCP** (if connected) — breakpoint, inspect, and evaluate against a *running* service — the Phase-4 "one breakpoint beats ten logs" rule, live.
 
 ### Iterate on the loop itself
 
@@ -59,6 +70,7 @@ Confirm:
 - [ ] The loop produces the failure mode the **user** described — not a different failure that happens to be nearby. Wrong bug = wrong fix.
 - [ ] The failure is reproducible across multiple runs (or, for non-deterministic bugs, reproducible at a high enough rate to debug against).
 - [ ] You have captured the exact symptom (error message, wrong output, slow timing) so later phases can verify the fix actually addresses it.
+- [ ] For a UI-visible bug, you reproduced it **in the running app** (live build) — not only at a code seam. A green seam over a broken UI means you reproduced the wrong thing.
 
 Do not proceed until you reproduce the bug.
 
@@ -80,7 +92,7 @@ Each probe must map to a specific prediction from Phase 3. **Change one variable
 
 Tool preference:
 
-1. **Debugger / REPL inspection** if the env supports it. One breakpoint beats ten logs.
+1. **Debugger / REPL inspection** if the env supports it (IntelliJ MCP, when connected, gives you this against a running service). One breakpoint beats ten logs.
 2. **Targeted logs** at the boundaries that distinguish hypotheses.
 3. Never "log everything and grep".
 
@@ -112,6 +124,7 @@ Required before declaring done:
 - [ ] Regression test passes (or absence of seam is documented)
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
+- [ ] For a UI-visible bug, the fix was confirmed **in the running UI** (re-mint token, re-drive the app) — not only by the test seam
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
 
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.

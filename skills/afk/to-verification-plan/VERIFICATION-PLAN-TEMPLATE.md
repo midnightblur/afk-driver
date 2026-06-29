@@ -18,6 +18,7 @@ traces to a PRD User Story and becomes one `Scenario` in the ui-e2e Gherkin cata
 - **Given** <preconditions / data setup>
 - **When** <the concrete click-path, step by step>
 - **Then** <the observable definition of done — the assertion>
+- **Persistence reverify**: <iff the Then asserts a persisted (or deliberately not-persisted) DB value — reload the same screen/dialog (browser refresh / reopen) and re-assert against freshly-fetched data, proving the value reached the DB and isn't just optimistic client/form state; else "n/a">
 - **Alt/error paths**: <edge journeys worth gating, or "none">
 - **Reuses**: <existing L2 scenarios.mjs flows this leans on, if known>
 
