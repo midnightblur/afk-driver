@@ -5,78 +5,38 @@ description: Turn the current conversation context into a PRD and write it to th
 
 Do NOT interview the user — just synthesize what you already know.
 
-Write `PRD.md` (and any requirement-level ADRs) to the repo and stop — publishing
-the PRD to a tracker is the job of the separate **`/afk:to-ticket`** skill, run afterwards.
+Write `PRD.md` (and any requirement-level ADRs) to the repo and stop — publishing the PRD to a tracker is the separate **`/afk:to-ticket`** skill, run afterwards.
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching.
+1. Explore the repo for current codebase state, if not already done. Use the project's domain glossary vocabulary throughout the PRD; respect any ADRs in the area you're touching.
 
-2. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
+2. Sketch the major modules to build or modify for the implementation. Actively look for deep modules that can be tested in isolation.
 
-A deep module (as opposed to a shallow module) is one which encapsulates a lot of functionality in a simple, testable interface which rarely changes.
+A deep module (vs a shallow one) encapsulates a lot of functionality behind a simple, testable interface that rarely changes.
 
-Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
+Check with the user that these modules match their expectations, and which modules they want tests written for.
 
 3. Write the PRD using the format in [PRD-TEMPLATE.md](./PRD-TEMPLATE.md).
 
-4. **Emit requirement-level ADRs.** The PRD's `## Implementation Decisions` is
-   the broad list. From it, extract the subset of *behavioural* decisions that
-   pass all three of (hard to reverse) AND (surprising without context) AND (a
-   real trade-off with ≥2 genuine alternatives), and write each as a standalone
-   ADR in the ticket-local `adr/requirements/` subfolder, sibling to the PRD —
-   `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/adr/requirements/NNNN-slug.md`.
-   Numbering is local to that subfolder, starting at `0001`. Use the format in
-   [ADR-FORMAT.md](./ADR-FORMAT.md). These record the *what / why* (feature
-   behaviour, scope boundaries) — NOT the *how* (algorithm / pattern / tech),
-   which `/afk:to-sdd` records separately under `adr/design/`. Skip this step
-   entirely if no decision clears the three-part bar — most small PRDs won't.
+4. **Emit requirement-level ADRs.** The PRD's `## Implementation Decisions` is the broad list. From it, extract the *behavioural* decisions passing all three of (hard to reverse) AND (surprising without context) AND (a real trade-off with ≥2 genuine alternatives); write each as a standalone ADR in the ticket-local `adr/requirements/` subfolder, sibling to the PRD — `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/adr/requirements/NNNN-slug.md`. Numbering is local to that subfolder, starting at `0001`. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). These record the *what / why* (feature behaviour, scope boundaries) — NOT the *how* (algorithm / pattern / tech), which `/afk:to-sdd` records separately under `adr/design/`. Skip this step entirely if no decision clears the three-part bar — most small PRDs won't.
 
 ## Monorepo conventions (core-services)
 
-The **on-disk location** is load-bearing — downstream skills (`/afk:to-sdd`,
-`/afk:to-subtasks`) find the PRD by convention, not by a tracker pointer:
+The **on-disk location** is load-bearing — downstream skills (`/afk:to-sdd`, `/afk:to-subtasks`) find the PRD by convention, not by a tracker pointer:
 
-- **PRD file location.** Write to
-  `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md`
-  for service-scoped work, or `tasks/{ENH-ID}/PRD.md` when the work is
-  cross-cutting tooling (the PRD's `## Service:` line is `tasks`). Service is
-  derived from the ticket / project key per the project's mapping — e.g.
-  project `P2P` maps to service `11700-payable`. `year` is the calendar year,
-  `release` is the n-th release of that year (1-indexed).
+- **PRD file location.** Write to `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/PRD.md` for service-scoped work, or `tasks/{ENH-ID}/PRD.md` when the work is cross-cutting tooling (the PRD's `## Service:` line is `tasks`). Service is derived from the ticket / project key per the project's mapping — e.g. project `P2P` maps to service `11700-payable`. `year` is the calendar year, `release` is the n-th release of that year (1-indexed).
 
-- **`{ENH-ID}`** is the parent ticket key the PRD belongs to (e.g. `P2P-1220`).
-  This skill does not create or fetch that ticket — the key is supplied by the
-  user / session context. If no key is known yet, write under a provisional
-  slug and rename the folder once the key exists.
+- **`{ENH-ID}`** is the parent ticket key the PRD belongs to (e.g. `P2P-1220`). This skill neither creates nor fetches that ticket — the key comes from the user / session context. If no key is known yet, write under a provisional slug and rename the folder once the key exists.
 
-Everything tracker-side — publishing the full PRD content into the (already
-existing) parent ticket's description as native Jira formatting, with any
-mermaid diagrams rendered and embedded — is handled by **`/afk:to-ticket`**,
-not here.
+Everything tracker-side — publishing the full PRD content into the (already existing) parent ticket's description as native Jira formatting, with any mermaid diagrams rendered and embedded — is handled by **`/afk:to-ticket`**, not here.
 
 ## Next
 
 This skill stops at the local PRD (+ requirement ADRs). Then, in order:
 
-- **`/afk:to-ticket`** — publish the full PRD content into the **existing**
-  parent ticket as native Jira formatting (mermaid diagrams rendered + embedded);
-  idempotent, and preserves any product-owner content already in the ticket.
-  (Requires a parent key — it does not create the ticket.)
-- **`/afk:prototype`** *(optional)* — if the feature has meaningful net-new UI,
-  craft the screens interactively now, against the **real frontend's** look,
-  before the SDD locks decisions. Writes `PROTOTYPE.md` + chosen HTML sibling to
-  this PRD; self-gates `no_ui` for backend-only features. Feeds `/afk:grill-solution`
-  (UX decisions) and gives `/afk:grill-verification`'s UI journeys a concrete screen
-  to trace to.
-- **`/afk:grill-solution`** — interview the architecture top-down across
-  L1 → L8 layers.
-- **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD,
-  the downstream plan slices in uncited mode (PRD-only).
-- **`/afk:grill-verification`** *(optional)* → **`/afk:to-verification-plan`** —
-  design the feature's verification scenarios now; the grill interviews, then
-  `/afk:to-verification-plan` writes `VERIFICATION-PLAN.md`. Post-PRD it can design
-  the **UI journeys** (the PRD's User Stories are usually concrete enough; the
-  journey-walk often surfaces PRD gaps worth fixing here) and **defers the API
-  scenarios** until an SDD settles the endpoints — re-run both after `/afk:to-sdd`
-  to append those. Its plan makes `/afk:to-subtasks` add the feature smoke-test gate.
+- **`/afk:to-ticket`** — publish the full PRD content into the **existing** parent ticket as native Jira formatting (mermaid diagrams rendered + embedded); idempotent, and preserves any product-owner content already in the ticket. (Requires a parent key — it does not create the ticket.)
+- **`/afk:prototype`** *(optional)* — if the feature has meaningful net-new UI, craft the screens interactively now, against the **real frontend's** look, before the SDD locks decisions. Writes `PROTOTYPE.md` + chosen HTML sibling to this PRD; self-gates `no_ui` for backend-only features. Feeds `/afk:grill-solution` (UX decisions) and gives `/afk:grill-verification`'s UI journeys a concrete screen to trace.
+- **`/afk:grill-solution`** — interview the architecture top-down across L1 → L8 layers.
+- **`/afk:to-sdd`** — synthesize the SDD + design ADRs. Without an SDD, the downstream plan slices in uncited mode (PRD-only).
+- **`/afk:grill-verification`** *(optional)* → **`/afk:to-verification-plan`** — design the feature's verification scenarios now; the grill interviews, then `/afk:to-verification-plan` writes `VERIFICATION-PLAN.md`. Post-PRD it can design the **UI journeys** (the PRD's User Stories are usually concrete enough; the journey-walk often surfaces PRD gaps worth fixing here) and **defers the API scenarios** until an SDD settles the endpoints — re-run both after `/afk:to-sdd` to append them. Its plan makes `/afk:to-subtasks` add the feature smoke-test gate.

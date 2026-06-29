@@ -7,28 +7,28 @@ description: Test-driven development with red-green-refactor loop. Use when user
 
 ## Philosophy
 
-**Core principle**: Tests should verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
+**Core principle**: tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
 
-**Good tests** are integration-style — they exercise real code paths through public APIs:
+**Good tests** are integration-style — exercise real code paths through public APIs:
 
-- Verify behavior through the public interface, not implementation — describe _what_ the system does, not _how_.
-- Survive refactors because they don't care about internal structure.
-- **Bad tests** are coupled to implementation: they mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface).
+- Verify behavior through public interface, not implementation — describe _what_ the system does, not _how_.
+- Survive refactors → don't care about internal structure.
+- **Bad tests** couple to implementation: mock internal collaborators, test private methods, or verify through external means (e.g. querying a database directly instead of using the interface).
 
 See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking guidelines.
 
 ## Anti-Pattern: Horizontal Slices
 
-**DO NOT write all tests first, then all implementation.** This is "horizontal slicing" - treating RED as "write all tests" and GREEN as "write all code."
+**DO NOT write all tests first, then all implementation.** That's "horizontal slicing" — treating RED as "write all tests" and GREEN as "write all code."
 
-This produces **Bad tests**:
+Produces **Bad tests**:
 
-- Tests written in bulk test _imagined_ behavior, not _actual_ behavior
-- You end up testing the _shape_ of things (data structures, function signatures) rather than user-facing behavior
-- Tests become insensitive to real changes - they pass when behavior breaks, fail when behavior is fine
+- Bulk-written tests test _imagined_ behavior, not _actual_ behavior
+- You test the _shape_ of things (data structures, function signatures) rather than user-facing behavior
+- Tests go insensitive to real changes — pass when behavior breaks, fail when behavior is fine
 - You outrun your headlights, committing to test structure before understanding the implementation
 
-**Correct approach**: Vertical slices via tracer bullets. One test → one implementation → repeat. Each test responds to what you learned from the previous cycle. Because you just wrote the code, you know exactly what behavior matters and how to verify it.
+**Correct approach**: vertical slices via tracer bullets. One test → one implementation → repeat. Each test responds to what the previous cycle taught you. Because you just wrote the code, you know exactly what behavior matters and how to verify it.
 
 ```
 WRONG (horizontal):
@@ -46,7 +46,7 @@ RIGHT (vertical):
 
 ### 1. Planning
 
-When exploring the codebase, use the project's domain glossary so that test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
+When exploring the codebase, use the project's domain glossary so test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
 
 Before writing any code:
 
@@ -54,7 +54,7 @@ Before writing any code:
 - [ ] Confirm with user which behaviors to test (prioritize)
 - [ ] Identify opportunities for [deep modules](deep-modules.md) (small interface, deep implementation)
 - [ ] Design interfaces for [testability](interface-design.md)
-- [ ] List the behaviors to test (not implementation steps)
+- [ ] List behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
 Ask: "What should the public interface look like? Which behaviors are most important to test?"
@@ -70,7 +70,7 @@ RED:   Write test for first behavior → test fails
 GREEN: Write minimal code to pass → test passes
 ```
 
-This is your tracer bullet - proves the path works end-to-end.
+Your tracer bullet — proves the path works end-to-end.
 
 ### 3. Incremental Loop
 
