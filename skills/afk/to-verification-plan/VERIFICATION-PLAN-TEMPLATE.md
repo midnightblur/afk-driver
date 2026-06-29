@@ -41,6 +41,7 @@ one `node:test` *.test.mjs in verification/api/ (using ../core).
 - **Given** <preconditions / data setup via ../core>
 - **When** <method + surface + request shape (auth role, path, body)>
 - **Then** <the asserted response envelope — the REAL shape, success AND edge>
+- **Persistence refetch**: <iff the contract is a state change that must persist (or must *not* — rejected write / rolled-back txn) — issue an independent GET (not the write's own response body) and assert the persisted shape; else "n/a">
 - **Auth/authz**: <no-token / garbage-token / role-scoping assertions>
 - **Reuses**: <existing core/api helpers this leans on, if known>
 
