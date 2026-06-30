@@ -14,6 +14,7 @@
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",
     "./skills/afk/prototype",
+    "./skills/afk/review",
     "./skills/afk/smoke-test",
     "./skills/afk/tdd",
     "./skills/afk/to-design-brief",

@@ -14,7 +14,7 @@ Before starting, ensure:
 - cwd is a clean worktree on the parent branch (`mvu/afk/{ticket-id}`). Create worktree + branch yourself if it doesn't exist yet.
 - A Draft MR for that branch exists (`glab mr create --draft` if not). The MR carries the auto-maintained subtask checklist block.
 
-Your job: take one subtask through `designing` → `developing` → `verifying`, get **every declared verification tier green**, commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 11.
+Your job: take one subtask through `designing` → `developing` → `verifying` → `reviewing`, get **every declared verification tier green** and the independent review gate `clean`/`advisory`, commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 12.
 
 ## Argument
 
@@ -44,15 +44,28 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 
 8. **Status → `verifying`; run every Verification tier.** Flip the tracker cell to `verifying`. Run **every row** of the subtask's `## Verification` table — `static`, then `unit`, then `integration`, then `api`, then `e2e/browser` as present. Each row's command must go green:
    - **static** — the compile/lint/type command AND a grep of every `## Produces` anchor (declared symbols must exist).
-   - **unit / integration / api / e2e** — run the exact command. A seam-implementing subtask's seam-test (an integration/unit row) must assert on the framework's real output, not your DTO. An **api**-tier row hits the endpoint over REST (`node --test` against `11700-payable/verification/api`, using `../core`, or a disposable probe importing `../core`) and asserts the real envelope + the below-the-UI authz guard — needs a running backend. The terminal build subtasks run inside the in-tree `11700-payable/verification` module (paths relative to this same worktree — their specs land on this branch/MR like any other code): `NNNN-smoke-e2e`'s `static` tier is `cucumber-js --dry-run` (offline) and its `e2e/browser` tier (`npm run smoke`) needs a running app + the suite's env (auth/base-URL per `11700-payable/verification/ui-e2e/README.md`); `NNNN-smoke-api`'s `static` tier is `node --check` (offline) and its `api` tier (`node --test`) needs a running backend + a token (minted via `../core`). Bring those up before the tier, same as `/afk:smoke-test` does. If a tier fails, retry once with a targeted fix. Still red → **route to `/afk:fix`** (it wraps `/afk:diagnose` + proportional coverage, and on this unreleased feature reconciles any stale spec artifact), then re-run this subtask from Step 8. If `/afk:fix` returns `design_conflict`, follow the Step 12 `design_conflict` path instead. If it still can't get the tier green, stop with `test_fail` (or `build_fail` for a static/compile failure), naming the tier. Partial tier coverage is failure: a UI subtask whose e2e row is red is not `success`.
+   - **unit / integration / api / e2e** — run the exact command. A seam-implementing subtask's seam-test (an integration/unit row) must assert on the framework's real output, not your DTO. An **api**-tier row hits the endpoint over REST (`node --test` against `11700-payable/verification/api`, using `../core`, or a disposable probe importing `../core`) and asserts the real envelope + the below-the-UI authz guard — needs a running backend. The terminal build subtasks run inside the in-tree `11700-payable/verification` module (paths relative to this same worktree — their specs land on this branch/MR like any other code): `NNNN-smoke-e2e`'s `static` tier is `cucumber-js --dry-run` (offline) and its `e2e/browser` tier (`npm run smoke`) needs a running app + the suite's env (auth/base-URL per `11700-payable/verification/ui-e2e/README.md`); `NNNN-smoke-api`'s `static` tier is `node --check` (offline) and its `api` tier (`node --test`) needs a running backend + a token (minted via `../core`). Bring those up before the tier, same as `/afk:smoke-test` does. If a tier fails, retry once with a targeted fix. Still red → **route to `/afk:fix`** (it wraps `/afk:diagnose` + proportional coverage, and on this unreleased feature reconciles any stale spec artifact), then re-run this subtask from Step 8. If `/afk:fix` returns `design_conflict`, follow the Step 13 `design_conflict` path instead. If it still can't get the tier green, stop with `test_fail` (or `build_fail` for a static/compile failure), naming the tier. Partial tier coverage is failure: a UI subtask whose e2e row is red is not `success`.
 
 9. **Producer self-preflight on `## Produces` (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-10. **Update Implementation Notes + tracker.** Append one note to this subtask file's `## Implementation Notes (auto-maintained)` block (preserve any human prose around it). Set the subtask's PLAN.md row `Status` to `done`; stamp the date.
+10. **Status → `reviewing`; independent review gate.** Every tier is green (Step 8) and the `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — it returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]`.
 
-11. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. The **feature-level** smoke gate (integrated browser journeys against a running app) is likewise not yours — when the plan has a `## Feature smoke gate` and every subtask is `done`, the human runs `/afk:smoke-test`. The terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (which *build* those specs from `VERIFICATION-PLAN.md`, following the canonical recipes at `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`) are normal subtasks you run like any other; the gate that *runs* them integrated is the separate skill.
+    - **`clean`** → proceed to Step 11.
+    - **`advisory`** (only `medium`/`low`) → don't block on nits. Carry the findings into Step 11's `## Implementation Notes` note and add a brief MR note, then proceed to Step 11.
+    - **`blocking`** (any `critical`/`high`) → remediate **by each finding's `class`**, then re-verify:
+      - `correctness` / `spec` (incl. a behaviour-risk refactor) → route to **`/afk:fix`** (diagnose-backed; it adds the regression / behaviour-pinning test the gate demanded).
+      - `compliance` / `smell` / `test` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
+      - `scope` → trim the out-of-scope change back inside the Scope globs; if the finding genuinely needs work **outside** Scope, stop with `blocked` per the Scope hard rule (not `review_fail`) so the human can re-slice.
+      - Commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and **re-run from Step 8** (tiers → preflight → this gate).
+    - **Cap at 2 review cycles.** If the gate is still `blocking` after the second remediation, **stop with `review_fail`** — name the surviving `critical`/`high` findings and their `class`; do **not** mark the subtask `done`.
 
-12. **Report the structured outcome.** End with a one-line outcome so the human (or an orchestrator) tells `success` from a structured failure at a glance. The same status drives the PLAN.md `Status` cell (`done` on success, `blocked(<status>: …)` otherwise):
+    Standalone, `/afk:review` is also runnable on its own (`/afk:review {NNNN-slug}`) to audit a slice without gating.
+
+11. **Update Implementation Notes + tracker.** Append one note to this subtask file's `## Implementation Notes (auto-maintained)` block (preserve any human prose around it) — include any `advisory` review findings from Step 10. Set the subtask's PLAN.md row `Status` to `done`; stamp the date.
+
+12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. The **feature-level** smoke gate (integrated browser journeys against a running app) is likewise not yours — when the plan has a `## Feature smoke gate` and every subtask is `done`, the human runs `/afk:smoke-test`. The terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (which *build* those specs from `VERIFICATION-PLAN.md`, following the canonical recipes at `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`) are normal subtasks you run like any other; the gate that *runs* them integrated is the separate skill.
+
+13. **Report the structured outcome.** End with a one-line outcome so the human (or an orchestrator) tells `success` from a structured failure at a glance. The same status drives the PLAN.md `Status` cell (`done` on success, `blocked(<status>: …)` otherwise):
 
     ```
     OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-ID|none>]
@@ -60,8 +73,9 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 
     | Status | Meaning / next action |
     |---|---|
-    | `success` | Every Verification tier green, code committed + pushed, MR updated, subtask `done`. The human handles CR/Merge. |
+    | `success` | Every Verification tier green, the Step 10 review gate `clean`/`advisory`, code committed + pushed, MR updated, subtask `done`. The human handles CR/Merge. |
     | `test_fail` / `build_fail` | A Verification tier stayed red after one targeted retry **and** an `/afk:fix` pass (Step 8). Name the tier. |
+    | `review_fail` | Step 10: the independent review gate stayed `blocking` after two remediation cycles. Name the surviving `critical`/`high` findings + their `class`. Set this row `blocked(review_fail: …)`. |
     | `blocked_by` | Step 1: a `## Blocked by` prerequisite isn't `done` yet. Name the laggards; set this row `blocked(blocked_by: …)`. Run the prerequisites first. |
     | `timeout` | Exited on a wall-clock cap. |
     | `other` | Unexpected failure. |

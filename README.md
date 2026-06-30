@@ -161,11 +161,12 @@ graph LR
     Sub -->|run once per subtask| Exec[/afk:execute/]
     Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
     Exec -.->|uses| Tdd[/afk:tdd/]
+    Exec -.->|review gate| Rev[/afk:review/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Exec mand;
-    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd opt;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -406,22 +407,25 @@ stateDiagram-v2
     pending --> designing: contract read, blocked-by satisfied
     designing --> developing: plan within scope
     developing --> verifying: code + TDD done, pushed
-    verifying --> done: every tier green
+    verifying --> reviewing: every tier green
+    reviewing --> done: review gate clean/advisory
     done --> [*]
 
     pending --> blocked: blocked_by or contract_mismatch
     designing --> blocked: design_conflict
     verifying --> blocked: test_fail, build_fail or produces_drift
+    reviewing --> blocked: review_fail (blocking after 2 cycles)
     blocked --> [*]
 
-    note right of verifying
-        Verification tiers run in order:
-        static, unit, integration, api, e2e/browser
-        every declared tier must go green
+    note right of reviewing
+        /afk:review fans out fresh subagents,
+        one per concern; blocking findings route
+        to /afk:fix (correctness/spec) or an
+        inline fix, capped at 2 cycles
     end note
 ```
 
-The happy path is `pending → designing → developing → verifying → done`. Any
+The happy path is `pending → designing → developing → verifying → reviewing → done`. Any
 structured failure parks the row at `blocked(<reason>)` and reports a matching
 `OUTCOME:` line. The reasons:
 
@@ -430,6 +434,7 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `success` | every tier green, pushed, MR updated, row `done` | review + merge the MR |
 | `blocked_by` | a `## Blocked by` prerequisite isn't `done` yet | run the prerequisites first |
 | `test_fail` / `build_fail` | a verification tier stayed red after one retry | fix the impl |
+| `review_fail` | the Step 10 review gate stayed `blocking` after two remediation cycles | address the surviving critical/high findings |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
 | `design_conflict` | a binding SDD/ADR decision is wrong/infeasible | `/afk:grill-solution` → superseding ADR |
@@ -499,9 +504,9 @@ for a superseding ADR — it never silently substitutes a different interface.
   `NNNN-smoke-api` for API scenarios). **No Jira.**
 - **`/afk:execute`** — you run it once per subtask, in a worktree on the parent
   branch (`mvu/afk/{ticket-id}`). Reads the contract, advances the tracker
-  (`designing → developing → verifying → done`), turns every verification tier
-  green under TDD, commits + pushes, updates the Draft MR, then **stops at
-  CR/Merge**. Touches GitLab + the local plan, **not Jira**. Reports a structured
+  (`designing → developing → verifying → reviewing → done`), turns every
+  verification tier green under TDD, runs the independent `/afk:review` gate,
+  commits + pushes, updates the Draft MR, then **stops at CR/Merge**. Touches GitLab + the local plan, **not Jira**. Reports a structured
   outcome (see [§8](#8-the-subtask-lifecycle)).
 
 ### Optional design layer
@@ -578,13 +583,24 @@ tooling.)*
 
 - **`/afk:tdd`** — red-green-refactor doctrine, invoked from `/afk:execute`
   Step 5. Not run standalone.
+- **`/afk:review`** — the **independent post-verification review gate**. Fresh,
+  parallel subagents — one per concern (CLAUDE.md-compliance, spec-fidelity,
+  logic-correctness, code-quality, test-veracity, scope-and-impact,
+  refactor-safety) — check the slice diff against the applicable CLAUDE.md
+  chain, the spec/acceptance contract, and senior-engineer code-quality +
+  refactor bars. **Read-only**: it returns a ranked findings report + a
+  `clean`/`advisory`/`blocking` verdict and never edits or commits. The
+  reviewers never see the implementor's reasoning — independence is the point.
+  Invoked from `/afk:execute` Step 10 (the gate before `done`); also runnable
+  standalone as `/afk:review {NNNN-slug}` to audit any slice.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
   feature-building session — reconciles the load-bearing artifacts (PRD / SDD /
   ADRs / VERIFICATION-PLAN) so the source of truth stays true. Commits nothing.
-  Run standalone for ad-hoc bugs, or routed from `/afk:execute` Step 8 when a
-  verification tier stays red.
+  Run standalone for ad-hoc bugs, routed from `/afk:execute` Step 8 when a
+  verification tier stays red, or from the Step 10 review gate on a
+  `correctness`/`spec` blocking finding.
 
 ### Utility skills (not part of the AFK chain)
 
