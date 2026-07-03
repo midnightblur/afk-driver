@@ -1,6 +1,6 @@
 ---
 name: to-code-walkthrough
-description: Generate top-down narrative walkthrough of a GitLab MR or existing code module — caveman prose w/ mermaid diagrams. Layers TL;DR -> context -> architecture -> modules -> classes -> logic flow -> UI flow -> data model -> footguns. Use when user drops an MR URL asking to understand/explain/walk through the changes, or wants a tour of an existing codebase area (path: or symbol: prefix). Distinct from review-code (verdicts + findings) — this skill produces narrative understanding, no judgments.
+description: Generate top-down narrative walkthrough of a GitLab MR or existing code module — caveman prose w/ mermaid diagrams. Layers TL;DR -> context -> architecture -> modules -> classes -> logic flow -> UI flow -> data model -> footguns. Use when user drops an MR URL asking to understand/explain/walk through the changes, or wants a tour of an existing codebase area (path: or symbol: prefix). Produces narrative understanding — no verdicts or judgments.
 ---
 
 # to-code-walkthrough
@@ -60,8 +60,8 @@ Filter rules:
 2. **Validate.** MR mode: `glab --version` + `glab auth status`. Code mode: ensure `--repo` resolves or prompt.
 3. **Fetch.** MR mode: `bash scripts/fetch-mr.sh <URL>` (bundled in this skill, resolved relative to the skill's base dir) -> `$CLAUDE_JOB_DIR/mr.json` + `mr.diff`. The helper is self-contained (needs only `glab` on PATH). Code mode: skip.
 4. **Size gate.** MR diff lines or code subtree LOC: `<5000` silent, `5000-15000` warn, `>15000` refuse — require `only path:src/foo/**` or narrower symbol.
-5. **Resolve repo path.** Same prompt as review-code (`Existing worktree path for {project}@{target_branch}?` -> validate / clone fresh / `skip` -> `diff-only`). **Strictly read-only** on user-owned repos. `diff-only` degrades L5/L7/L8/L9 (annotate sections w/ "(diff-only — code not consulted)").
-6. **Discover spec** (MR mode only). Reuse review-code cascade against `mr.json.description`: URL regex `https?://[^\s)]+(atlassian\.net/browse/[A-Z]+-\d+|/issues/\d+)` -> markdown link `\[([A-Z]+-\d+)\]\([^)]+\)` -> free-text `[A-Z]+-\d+` -> commit messages. Key + repo has `specs/**/{KEY}/PRD.md` -> file. Else jira MCP / WebFetch. -> `$CLAUDE_JOB_DIR/spec.md`. Fail -> `spec_path=none`, mode flag `no-spec` (L2 falls back to MR description + commits).
+5. **Resolve repo path.** Prompt `Existing worktree path for {project}@{target_branch}?` -> validate / clone fresh / `skip` -> `diff-only`. **Strictly read-only** on user-owned repos. `diff-only` degrades L5/L7/L8/L9 (annotate sections w/ "(diff-only — code not consulted)").
+6. **Discover spec** (MR mode only). Cascade against `mr.json.description`: URL regex `https?://[^\s)]+(atlassian\.net/browse/[A-Z]+-\d+|/issues/\d+)` -> markdown link `\[([A-Z]+-\d+)\]\([^)]+\)` -> free-text `[A-Z]+-\d+` -> commit messages. Key + repo has `specs/**/{KEY}/PRD.md` -> file. Else jira MCP / WebFetch. -> `$CLAUDE_JOB_DIR/spec.md`. Fail -> `spec_path=none`, mode flag `no-spec` (L2 falls back to MR description + commits).
 7. **Auto-skip detection.** Glob changed paths for frontend (`*.vue`, `*.tsx`, `*.jsx`, `*.svelte`) -> include L7, else drop. Glob for schema/DTO/event signals (`*.sql`, `**/entity/**`, `**/dto/**`, `**/event/**`, `**/*Entity.java`, `**/*Dto.java`) -> include L8, else drop. `only` arg overrides auto-skip.
 8. **Resolve layer list.** Preset -> `only` replaces -> `skip` removes -> auto-skip applies. Empty -> exit w/ `--list-layers` hint.
 9. **Spawn layer agents.** Single message, parallel Agent calls. One per layer. All `subagent_type: general-purpose`. See "Subagent prompt" below.
@@ -119,7 +119,7 @@ output_format:
 - Each layer self-contained w/ stable anchor `L1..L9` for cross-ref.
 - Never invent symbols / files / line numbers. Cite paths from diff or repo verbatim.
 - Always parallel fan-out in single message — never sequential layer agents.
-- Aggregator never inserts judgments ("looks risky", "should refactor") — that's review-code's job.
+- Aggregator never inserts judgments ("looks risky", "should refactor") — this skill narrates, it doesn't review.
 
 ## Edge cases
 

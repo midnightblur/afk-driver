@@ -174,6 +174,11 @@ The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` �
 you add for complex features and skip for small ones (see
 [§6](#6-choosing-your-path)).
 
+Every plan `/afk:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
+subtask (blocked by all others) that `/afk:execute` runs last to sync the
+CLAUDE.md harness for the shipped feature, delegating the write to
+`/afk:claude-md`.
+
 Start where your inputs land: a raw idea enters at `/afk:grill-requirements`; an
 existing PRD at `/afk:grill-solution`; an SDD already in hand at `/afk:to-subtasks`.
 
@@ -501,7 +506,10 @@ for a superseding ADR — it never silently substitutes a different interface.
   verification (static → unit → integration → api → e2e/browser). A
   `VERIFICATION-PLAN.md` also makes it seed the `## Feature smoke gate` + a
   terminal build subtask per modality (`NNNN-smoke-e2e` for UI journeys,
-  `NNNN-smoke-api` for API scenarios). **No Jira.**
+  `NNNN-smoke-api` for API scenarios). It always seeds one terminal
+  `NNNN-sync-harness` doc subtask — blocked by every other subtask, run last —
+  that syncs the CLAUDE.md harness for the shipped feature via `/afk:claude-md`.
+  **No Jira.**
 - **`/afk:execute`** — you run it once per subtask, in a worktree on the parent
   branch (`mvu/afk/{ticket-id}`). Reads the contract, advances the tracker
   (`designing → developing → verifying → reviewing → done`), turns every

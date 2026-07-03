@@ -1,12 +1,12 @@
 ---
 name: fix
-description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, run an escape analysis on the existing test that should have caught it, reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) in a feature-building session, and — for AFK-delivered features — hand off a structured workflow lesson so the AFK chain stops repeating the miss. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification. /afk:execute routes here on a stuck verification tier.
+description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, run an escape analysis on the existing test that should have caught it, reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) in a feature-building session, and — for AFK-delivered features — hand off a structured workflow lesson so the AFK chain stops repeating the miss. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification.
 
 ---
 
 # afk:fix — fix a bug and keep the source of truth true
 
-Run this yourself when a bug surfaces — typically during a feature's **verification phase** (agent- or human-found), or as ad-hoc fix on released code. Also the **recovery path `/afk:execute` routes to** when a verification tier stays red after its targeted retry (execute Step 8), and the natural follow-up to a `/afk:smoke-test` red.
+Run this yourself when a bug surfaces — typically during a feature's **verification phase** (agent- or human-found), or as ad-hoc fix on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the natural follow-up to a red feature smoke gate.
 
 `fix` is a **thin orchestrator**; it does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, and **feature-session artifact reconciliation**.
 
@@ -44,7 +44,7 @@ Diagnose gave you the seam regression test. Decide whether a **higher tier** is 
 | Contract / envelope / authz / status-code | Yes — it's a backend contract | `api` → `11700-payable/verification/api` per `…/api/AUTHORING.md` |
 | User-visible flow that **escaped to the verification phase** | Yes — the journey had no guard | `e2e/browser` → `11700-payable/verification/ui-e2e` per `…/ui-e2e/AUTHORING.md` |
 
-Tiers are the same set `/afk:execute` uses: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
+Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
 
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
@@ -82,7 +82,7 @@ OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
 | `fixed` | Root cause found, fix applied, regression test + any added tier green. |
 | `fixed_no_test` | Fix applied, no new test, naming the proportionality reason (e.g. caption fix) or the absent-seam finding from diagnose. |
 | `cannot_reproduce` | Diagnose couldn't build a loop; list what was tried and what's needed (env / artifact / instrumentation). |
-| `design_conflict` | Fix requires changing a frozen SDD/ADR decision; routed to `/afk:grill-solution`. (When invoked from `/afk:execute`, this maps to execute's own `design_conflict` path.) |
+| `design_conflict` | Fix requires changing a frozen SDD/ADR decision; routed to `/afk:grill-solution`. |
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
@@ -94,7 +94,7 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
 
 ## Hard rules
 
-- **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling `/afk:execute` run does (it resumes from its Step 8 and drives commit + push + MR itself). Apply edits and stop.
+- **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (it resumes and drives commit + push + MR itself). Apply edits and stop.
 - **Never alter the DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup` / `PreDbMigration` / `db/changelog/*`.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
 - **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **handed off** (`/afk:handoff`), never self-applied — no `/afk:retro`, no in-session edit of any `SKILL.md` under the plugin repo.

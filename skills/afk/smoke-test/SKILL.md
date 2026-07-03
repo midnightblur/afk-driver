@@ -1,11 +1,11 @@
 ---
 name: smoke-test
-description: The feature-level completion gate — after every subtask in a local plan is done, run the feature's already-built verification suites (the browser UI journeys `ui-e2e` and direct-REST API contracts `api` under `11700-payable/verification`) against a running app and, only on green across both, stamp the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and a `## Feature smoke gate` exists in `PLAN.md`, or to manually re-verify a feature's sanity. This skill only EXECUTES scenarios designed by `/afk:grill-verification` and built by the terminal smoke-e2e / smoke-api subtasks — it authors nothing. Distinct from the per-subtask `api` / `e2e/browser` tiers: this verifies the integrated whole. Touches no Jira and merges nothing.
+description: The feature-level completion gate — after every subtask in a local plan is done, run the feature's already-built verification suites (the browser UI journeys `ui-e2e` and direct-REST API contracts `api` under `11700-payable/verification`) against a running app and, only on green across both, stamp the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and a `## Feature smoke gate` exists in `PLAN.md`, or to manually re-verify a feature's sanity. This skill only EXECUTES already-built verification suites — it authors nothing. It verifies the integrated whole, not one slice. Touches no Jira and merges nothing.
 ---
 
 # afk:smoke-test — the feature-level smoke gate (runs, never authors)
 
-`/afk:execute` proves each subtask works in isolation: every declared `## Verification` tier — including a per-subtask `api` row when the subtask exposes an endpoint and an `e2e/browser` row when it touches UI — goes green before that subtask is `done`. That is **one slice**, in a dev worktree.
+Each subtask's own `## Verification` tiers prove that **one slice** works in isolation, in a dev worktree — a per-subtask `api` row when it exposes an endpoint, an `e2e/browser` row when it touches UI, each green before that subtask is `done`.
 
 This skill is the **integrated feature smoke gate**: it runs the feature's verification suites — cross-subtask UI journeys (`ui-e2e`) and direct-REST API contracts (`api`) — against a **real running app**, and stamps the feature **complete** only when **both** modalities pass. "All subtasks `done`" ≠ "feature works".
 
@@ -13,9 +13,9 @@ Those suites then live on permanently under `11700-payable/verification` (`ui-e2
 
 ## When it applies
 
-Only when the feature has a smoke gate — i.e. someone ran `/afk:grill-verification` to design the scenarios and `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`, so `/afk:to-subtasks` seeded a `## Feature smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands, target env) plus a terminal build subtask **per modality** (`NNNN-smoke-e2e` and/or `NNNN-smoke-api`) that **built** the specs. No `## Feature smoke gate` in `PLAN.md` → no designed scenarios → nothing to run (exit `no_gate`).
+Only when the feature has a smoke gate — a `## Feature smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands, target env) plus a terminal build subtask **per modality** (`NNNN-smoke-e2e` and/or `NNNN-smoke-api`) that **built** the specs. No `## Feature smoke gate` in `PLAN.md` → nothing to run (exit `no_gate`).
 
-**This skill never authors or edits specs.** Scenarios are designed by `/afk:grill-verification` (written up by `/afk:to-verification-plan`); specs are built by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks through `/afk:execute` (reviewed in an MR like any code). This skill only **executes** the already-implemented scenarios as the gate.
+**This skill never authors or edits specs.** The specs are built by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (reviewed in an MR like any code); this skill only **executes** the already-implemented scenarios as the gate.
 
 ## Argument
 
@@ -41,7 +41,7 @@ Only when the feature has a smoke gate — i.e. someone ran `/afk:grill-verifica
    - **All runnable green across both modalities** (full run, not a `scope` subset) → stamp the `PLAN.md` header `Feature: complete (smoke green {YYYY-MM-DD}, target={env})`. This is the completion milestone — a green UI suite with a red (or unrun) API suite is **not** complete, and vice versa. If any `env-limited` rows were skipped, note them in the report so "green" isn't read as "everything ran".
    - **Any runnable red** (either modality) → set `Feature: smoke-failing`; do **not** stamp complete. List failing scenarios + modality + source (User Story / §3 row) + artifact path. **No silent retry** — a flaky run is the human's to re-run deliberately; a real failure is fixed via a new/re-opened subtask or `/afk:grill-solution`, not by patching here. (An `env-limited` scenario going red is expected, not a gate failure — don't confuse the two.)
 
-7. **Report the structured outcome.** End with one line, mirroring `/afk:execute`'s style so a human or orchestrator can read it at a glance:
+7. **Report the structured outcome.** End with one line so a human or orchestrator can read it at a glance:
 
    ```
    OUTCOME: <status> — <one-line summary> [target: <env>] [failing: <n>]
@@ -56,13 +56,11 @@ Only when the feature has a smoke gate — i.e. someone ran `/afk:grill-verifica
    | `no_gate` | `PLAN.md` has no `## Feature smoke gate`; this feature opted out. Nothing to run. |
    | `other` | Unexpected failure. |
 
-How this gate relates to the per-subtask tiers and the rest of the chain: see [RELATIONSHIP.md](RELATIONSHIP.md).
-
 ## Boundary (Hard rules)
 
 - **Owns only the gate's surface in `PLAN.md`** — the `## Feature smoke gate` table `Status` cells, its `Last run` line, and the header `Feature:` line. Everything else in `PLAN.md` round-trips verbatim (the `## Progress tracker` status column stays `/afk:execute`'s).
-- **Merges nothing, touches no Jira.** Like `/afk:execute`, it stops at the human's lane: a green gate does not merge the Draft MRs and does not write to the tracker. The human merges out of band.
-- **Authors no specs.** Spec code is the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks' reviewed work, designed upstream by `/afk:grill-verification` and built per the canonical recipes `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`. A scenario needing a new/changed spec is a subtask edit (re-run `/afk:execute` on it) — or a scenario redesign (`/afk:grill-verification`) — not an edit from inside the gate. If a suite is missing or red because scenarios were authored ad hoc, point the fix back at the relevant `AUTHORING.md` — that's the standard the build subtask owes.
+- **Merges nothing, touches no Jira.** It stops at the human's lane: a green gate does not merge the Draft MRs and does not write to the tracker. The human merges out of band.
+- **Authors no specs.** Spec code is the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks' reviewed work, built per the canonical recipes `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`. A scenario needing a new/changed spec is a subtask edit (re-run `/afk:execute` on it) — or a scenario redesign (`/afk:grill-verification`) — not an edit from inside the gate. If a suite is missing or red because scenarios were authored ad hoc, point the fix back at the relevant `AUTHORING.md` — that's the standard the build subtask owes.
 - **Never patches to green.** Do not touch app code or specs to make a red run pass — a red gate is a true signal about the feature or the spec. Fix it upstream (subtask or grill), then re-run the gate.
 - **Right target for the purpose.** `local` for dev sanity; `staging` (or the release target) for acceptance gating. Don't release-gate against a dev server.
 

@@ -77,7 +77,7 @@ For each piece of state.
 | Concern | Required visual |
 |---------|-----------------|
 | AuthN flow | `sequenceDiagram` showing token issuance + propagation |
-| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b)**. A surface guarded on only one side ships silently broken (p2p-412). This table is what `/afk:grill-verification` reads to design the role-based aspect rows. |
+| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b)**. A surface guarded on only one side ships silently broken. This table is what `/afk:grill-verification` reads to design the role-based aspect rows. |
 | Data-scoping | table — scoped entity × scope (company / vendor — never tenant) × enforcement mechanism (e.g. AOP aspect + projection filter; company always-on vs vendor toggle) |
 | Idempotency | table — surface, key shape, dedup window, side-effect ledger |
 | Retry + timeout | table — call, attempts, backoff (numbers), timeout (ms) |
@@ -136,7 +136,7 @@ value at the pinned version + the **seam-test** that asserts on its real
 output), each field contract's canonical source of truth, each relied-on
 invariant's enforcement point **on both sides of the UI seam** (the UI-surface
 guard *and* the below-UI guard proven for the new caller — a guard on only one
-side ships silently broken, cf. p2p-412: backend `403`, UI ungated), and the
+side ships silently broken — e.g. backend `403`, UI ungated), and the
 failure affordance per violation class. If the feature has no external seam, say
 so in one line rather than deleting the section.
 

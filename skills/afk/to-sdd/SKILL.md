@@ -1,6 +1,6 @@
 ---
 name: to-sdd
-description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use after `/afk:grill-solution` (or equivalent design conversation) when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
+description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision ADRs and publish them next to the PRD. SDD sections are organized top-down by architecture layer (L1 system topology -> L8 tactical patterns) and EVERY layer ships with the appropriate visualization (Mermaid diagram, table, or chart) so reviewers can grasp the design at a glance. Use once the design decisions are settled in conversation, when the user wants to materialize the design as artifacts. Does NOT interview — synthesizes what is already known.
 ---
 
 From the current conversation context, the PRD, and codebase understanding, produce:
@@ -16,7 +16,7 @@ Do NOT interview — synthesize what you already know. If a critical-logic conce
 
 2. **Re-read the ticket's existing ADRs** — design ADRs in sibling `adr/design/` (don't contradict prior design decisions) and requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Don't read or write repo-wide `docs/adr/` — all ADRs are ticket-local. To reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §13 Reversed Decisions. Never edit an `adr/requirements/` ADR — if a requirement decision blocks the design, that's a `design-conflict` to route back, not to overwrite here.
 
-3. **Use the project's domain glossary.** Match the vocabulary in the PRD and the relevant `GLOSSARY.md` (if present — start from root `GLOSSARY-MAP.md` to find the owning service's glossary, per `/afk:grill-requirements`).
+3. **Use the project's domain glossary.** Match the vocabulary in the PRD and the relevant `GLOSSARY.md` (if present — start from root `GLOSSARY-MAP.md` to find the owning service's glossary).
 
 4. **Apply the triviality cutoff.** ADR-worthy = (non-obvious for the stack) AND (≥2 real alternatives) AND (reversal is expensive). Skip ADRs for "we use HTTPS / UTF-8 / JSON".
 

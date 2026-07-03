@@ -12,7 +12,7 @@ modality tables, and the Hard rules — stays in `SKILL.md`.
 **If the SDD has no usable endpoint contract.** API scenarios read the SDD §3 L2
 **API contract table** (surface, method, request/response shape, error codes) and
 the §9b external seams (especially the "a new API/MCP caller bypasses the UI"
-guards `/afk:grill-solution` flags). If §3 is empty or too vague to state an
+guards). If §3 is empty or too vague to state an
 endpoint's success **and** error/empty envelope, that's an SDD gap — **stop and
 route back** to `/afk:grill-solution` + `/afk:to-sdd` to settle the contract.
 Don't invent endpoints to keep moving.

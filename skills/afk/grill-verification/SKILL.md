@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). Use when the user runs `/afk:grill-verification`, or wants to design or stress-test a feature's verification scenarios — UI journeys after `/afk:to-prd`, API scenarios after `/afk:to-sdd`. A grilling skill like `/afk:grill-requirements` and `/afk:grill-solution` — it interviews and surfaces gaps; it does NOT write a file. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. Optional and human-invoked. Pair with `/afk:to-verification-plan` to synthesize the conversation into `VERIFICATION-PLAN.md`. Does not write to the tracker.
+description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). Use when the user runs `/afk:grill-verification`, or wants to design or stress-test a feature's verification scenarios — UI journeys once the PRD exists, API scenarios once the SDD does. A grilling skill — it interviews and surfaces gaps; it does NOT write a file. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. Optional and human-invoked. Pair with `/afk:to-verification-plan` to synthesize the conversation into `VERIFICATION-PLAN.md`. Does not write to the tracker.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user
@@ -20,22 +20,22 @@ Cutting across **both** modalities is a fixed set of **verification aspects** �
 | **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
 | *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
 
-> The canonical miss this catches: p2p-412 proved role-based access *below* the UI (backend `403`) but never *at* it (UI wide open) — an aspect proven in one modality and assumed in the other.
+> The canonical miss this catches: an aspect proven in one modality but assumed in the other — e.g. role-based access enforced *below* the UI (backend `403`) but never *at* it (UI wide open).
 
 Role-based, data-scoped, and validation aspects trace back to the PRD's **`## Access & validation policy`** matrix; the Envers aspect and the *mechanism* of role/scope enforcement come from the SDD (§5 L4 / §9b / §4 L3). An aspect is not designed in the abstract — it becomes **real woven rows** in the UI/API tables below, plus a line in the `## Aspect coverage` ledger `/afk:to-verification-plan` writes.
 
-A **grilling** skill, like `/afk:grill-requirements` and `/afk:grill-solution`: you interview, you don't assume. Output of this session is a settled, shared understanding of the verification scenarios — which `/afk:to-verification-plan` then synthesizes into `VERIFICATION-PLAN.md`. Lens is **concreteness** — walk the actual scenario step by step (the click-path, or the request → response envelope). A User Story that can't be turned into a demonstrable journey, or an endpoint whose success/error envelope nobody can state, is underspecified.
+A **grilling** skill: you interview, you don't assume. Output of this session is a settled, shared understanding of the verification scenarios — which `/afk:to-verification-plan` then synthesizes into `VERIFICATION-PLAN.md`. Lens is **concreteness** — walk the actual scenario step by step (the click-path, or the request → response envelope). A User Story that can't be turned into a demonstrable journey, or an endpoint whose success/error envelope nobody can state, is underspecified.
 
 ## When to invoke — and which modality
 
 Optional and **human-invoked**. Which modalities you can design depends on what's on disk:
 
-| Upstream on disk | UI journeys | API scenarios |
-|------------------|-------------|---------------|
-| PRD only (after `/afk:to-prd`) | ✅ design now | ⏸ **deferred** — no settled endpoints to verify yet |
-| PRD + SDD (after `/afk:to-sdd`) | ✅ design now | ✅ design now |
+| On disk | UI journeys | API scenarios |
+|---------|-------------|---------------|
+| PRD only | ✅ design now | ⏸ **deferred** — no settled endpoints to verify yet |
+| PRD + SDD | ✅ design now | ✅ design now |
 
-- **API scenarios require the SDD.** They verify endpoint contracts, not settled until the SDD's §3 L2 API contract table exists. So a pre-SDD run designs **UI journeys only** and leaves API scenarios deferred. Re-run after `/afk:to-sdd` to design them — and re-run `/afk:to-verification-plan` to append them.
+- **API scenarios require the SDD.** They verify endpoint contracts, not settled until the SDD's §3 L2 API contract table exists. So a pre-SDD run designs **UI journeys only** and leaves API scenarios deferred. Re-run once the SDD exists to design them — and re-run `/afk:to-verification-plan` to append them.
 - If neither PRD nor SDD exists, stop and route the user to `/afk:to-prd` first — nothing to ground scenarios against.
 
 ## Arguments
@@ -45,7 +45,7 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 
 ## Process
 
-1. **Read the sources.** `ctx_read` the PRD (full) — especially its **User Stories** and **Acceptance Criteria** — and, when present, the SDD (full), especially **§3 L2** (API contracts) and **§9b** (external seams). If `/afk:prototype` settled the UI, `ctx_read` `PROTOTYPE.md` too — its screens are the concrete thing the **UI journeys** trace to (a real screen, not an imagined one). Skim the canonical build recipes so you grill **buildable** scenarios, never ones the suite can't drive:
+1. **Read the sources.** `ctx_read` the PRD (full) — especially its **User Stories** and **Acceptance Criteria** — and, when present, the SDD (full), especially **§3 L2** (API contracts) and **§9b** (external seams). If a `PROTOTYPE.md` settled the UI, `ctx_read` it too — its screens are the concrete thing the **UI journeys** trace to (a real screen, not an imagined one). Skim the canonical build recipes so you grill **buildable** scenarios, never ones the suite can't drive:
    - UI: **`11700-payable/verification/ui-e2e/AUTHORING.md`** (+ its sibling `CLAUDE.md`) — each journey becomes one `Scenario` in the Cucumber+Playwright catalog, reusing the module's existing L2 domain flows.
    - API: **`11700-payable/verification/api/AUTHORING.md`** (+ `CLAUDE.md`) — each scenario becomes one `node:test` `*.test.mjs` using `fetch` + the shared `../core` primitives (auth/base-URL/poll). Dependency-free, no install.
    - Umbrella selection guidance: **`11700-payable/verification/README.md`**.

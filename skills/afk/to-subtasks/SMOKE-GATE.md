@@ -1,8 +1,7 @@
 # Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
 The per-subtask `api` / `e2e/browser` tiers prove **one slice** in isolation. A
-feature whose verification scenarios were designed via `/afk:grill-verification`
-(and written by `/afk:to-verification-plan`) also gets an **integrated smoke
+feature with a `VERIFICATION-PLAN.md` also gets an **integrated smoke
 gate**: those cross-subtask scenarios — both
 modalities — run against a real running app as the final "feature complete"
 check, and reused afterward by CI / scheduled jobs / manual sanity runs. The gate
@@ -10,8 +9,7 @@ that *runs* them is a separate skill (`/afk:smoke-test`); this skill **seeds** t
 gate and **emits the build subtasks** that author the specs.
 
 **The trigger is the artifact, not an ask.** If `VERIFICATION-PLAN.md` sits next
-to the PRD, the human already decided (by running `/afk:grill-verification` →
-`/afk:to-verification-plan`).
+to the PRD, the human already decided.
 Emit the gate section **and one build subtask per modality the plan carries**:
 
 - **The PLAN.md `## Feature smoke gate` section** (template below): seed one row
@@ -58,7 +56,7 @@ Also see its siblings README.md (run/env) + CLAUDE.md.
 | e2e/browser | `cd 11700-payable/verification/ui-e2e && npm run smoke` | the runnable (non-env-limited) scenarios go green locally |
 
 ## Blocked by
-<every other non-build subtask id>
+<every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
 
 ## Implementation Notes (auto-maintained)
 <!-- the authoritative recipe is 11700-payable/verification/ui-e2e/AUTHORING.md; do not duplicate it here -->
@@ -93,7 +91,7 @@ reference data). Also see its sibling CLAUDE.md. Dependency-free; no install.
 | api | `cd 11700-payable/verification/api && node --test` | the runnable (non-env-limited) scenarios go green locally |
 
 ## Blocked by
-<every other non-build subtask id>
+<every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
 
 ## Implementation Notes (auto-maintained)
 <!-- the authoritative recipe is 11700-payable/verification/api/AUTHORING.md; do not duplicate it here -->

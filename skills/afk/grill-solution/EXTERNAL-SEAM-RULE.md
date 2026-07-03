@@ -26,8 +26,8 @@ existence checks and still ship broken:
    - *At the UI* — the converse, and the one that ships silently: a guard that
      lives **only** below the UI leaves the surface itself ungated (menu shown,
      route reachable, control visible to a role that should never see it), and no
-     API test catches it because the backend correctly returns `403`. This is the
-     literal p2p-412 miss. Verify (or design) the guard at the **UI surface**
+     API test catches it because the backend correctly returns `403`. Verify (or
+     design) the guard at the **UI surface**
      too — route guard, menu visibility, control visibility per role tier.
 
    Both sides feed the §9b seam and become required `/afk:grill-verification`

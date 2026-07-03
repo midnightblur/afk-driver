@@ -1,24 +1,24 @@
 ---
 name: review
-description: Independent multi-aspect review of one subtask's implementation — fresh subagents (one per concern, parallel) check the slice diff against the applicable CLAUDE.md chain, the subtask's spec/acceptance contract, and senior-engineer code-quality bars, then emit a ranked findings report + a verdict. Read-only; never commits, never auto-fixes. Use when `/afk:execute` reaches its post-verification review gate (Step 10), or standalone via `/afk:review {NNNN-slug}` to audit a slice's work. Reports a structured verdict the caller gates on.
+description: Independent multi-aspect review of one subtask's implementation — fresh subagents (one per concern, parallel) check the slice diff against the applicable CLAUDE.md chain, the subtask's spec/acceptance contract, and senior-engineer code-quality bars, then emit a ranked findings report + a verdict. Read-only; never commits, never auto-fixes. Use as a subtask's post-verification review gate once its tiers pass, or standalone via `/afk:review {NNNN-slug}` to audit a slice's work. Reports a structured verdict the caller gates on.
 ---
 
 # afk:review — independently check the implementor's work
 
-The implementor (`/afk:execute`) builds a subtask, gets every `## Verification` tier green, and is *about to* mark it `done`. Green tiers prove the code runs and the declared tests pass — they do **not** prove it honours the project's documented rules, covers everything the spec asked, or is free of the things a senior engineer wouldn't ship. This skill is that second gate.
+The implementor builds a subtask, gets every `## Verification` tier green, and is *about to* mark it `done`. Green tiers prove the code runs and the declared tests pass — they do **not** prove it honours the project's documented rules, covers everything the spec asked, or is free of the things a senior engineer wouldn't ship. This skill is that second gate.
 
 It spawns **fresh subagents — one per concern, in parallel** — that see the diff, the contract, and the CLAUDE.md hierarchy, but **not** the implementor's reasoning. Independence is the point: the agent that wrote the code is the worst auditor of it. The skill is strictly **read-only** — it finds and ranks; it never edits, commits, or fixes. The caller decides what to do with the verdict.
 
 Two entry points, same machinery:
 
-- **Gate mode** — invoked from `/afk:execute` Step 10 after all tiers are green, before `done`. Execute reads the verdict and gates (auto-fix loop or stop). See `/afk:execute` Step 10 for the gate policy.
+- **Gate mode** — invoked by the caller after all tiers are green, before `done`. The caller reads the verdict and gates (auto-fix loop or stop) per its own policy.
 - **Standalone** — `/afk:review {NNNN-slug}` from a worktree on the parent branch, to audit a slice's work on demand. Same report; no gating, no side effects.
 
 ## Argument
 
 A single subtask id — its filename stem under `plan/`, e.g. `0003-export-registry` (`.md` optional). Optional:
 
-- `--base <ref>` — override the diff range. By default the slice diff is **this subtask's own commits**: `/afk:execute` prefixes every commit with `[{NNNN-slug}]` (its Step 6), so the slice is the combined patch of the commits on this branch whose subject starts `[{NNNN-slug}]`. This isolates exactly this subtask's contribution — **including any file it touched outside its `## Scope` globs**, which is what lets `scope-and-impact` catch scope creep (a Scope-glob-filtered diff would hide it). `--base <ref>` falls back to `git diff <ref>...HEAD` for the edge case where the subtask's history isn't cleanly isolable by prefix (e.g. a squash or a hand-amended branch).
+- `--base <ref>` — override the diff range. By default the slice diff is **this subtask's own commits**: every commit is prefixed `[{NNNN-slug}]` by convention, so the slice is the combined patch of the commits on this branch whose subject starts `[{NNNN-slug}]`. This isolates exactly this subtask's contribution — **including any file it touched outside its `## Scope` globs**, which is what lets `scope-and-impact` catch scope creep (a Scope-glob-filtered diff would hide it). `--base <ref>` falls back to `git diff <ref>...HEAD` for the edge case where the subtask's history isn't cleanly isolable by prefix (e.g. a squash or a hand-amended branch).
 - `--only <concerns>` / `--skip <concerns>` — narrow the concern set (names below). Default: all seven.
 
 ## What the review reads
@@ -44,7 +44,7 @@ One subagent per concern, all spawned in a **single message** as parallel `Agent
 | `scope-and-impact` | Stayed inside `## Scope` globs, no forbidden patterns, no scope creep, no stray churn — **and** what's the blast radius of the changed symbols? | diff + contract + repo |
 | `refactor-safety` | Did the implementor touch **pre-existing** code — rename, re-signature, extract/move, edit a shared base/util/DTO — and is each medium/high-risk change behaviour-preserving, fully propagated, and warranted? | diff + repo |
 
-**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's Step 10 routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule below. A cross-class finding takes the class that drives the right fix (correctness/spec → `/afk:fix`; compliance/smell/scope/test → inline).
+**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule below. A cross-class finding takes the class that drives the right fix (correctness/spec → `/afk:fix`; compliance/smell/scope/test → inline).
 
 ### Checklists
 
@@ -115,7 +115,7 @@ REVIEW: <verdict> — crit=<n> high=<n> med=<n> low=<n> [findings: <path>]
 |---|---|---|
 | `clean` | zero findings | proceed to `done` |
 | `advisory` | only `medium`/`low` | note them in MR + Implementation Notes; proceed to `done` |
-| `blocking` | any `critical`/`high` | gate per `/afk:execute` Step 10 (auto-fix loop, ≤2 cycles, then `review_fail`) |
+| `blocking` | any `critical`/`high` | the caller gates — bounded remediate-and-re-review, then stops |
 
 Standalone mode stops here — print the verdict and the report path; gate nothing.
 
@@ -130,6 +130,5 @@ Standalone mode stops here — print the verdict and the report path; gate nothi
 
 ## See also
 
-- `skills/afk/execute/SKILL.md` Step 10 — the gate that invokes this and acts on the verdict.
-- `skills/afk/fix/SKILL.md` — where execute routes a `correctness`/`spec` blocking finding (diagnose-backed fix + regression test).
+- `skills/afk/fix/SKILL.md` — the diagnose-backed fix path for a `correctness`/`spec` blocking finding (fix + regression test).
 - The plugin `CLAUDE.md` — Section ownership invariants + the outcome-status lockstep.

@@ -1,11 +1,11 @@
 ---
 name: to-verification-plan
-description: Turn the verification scenarios settled in a `/afk:grill-verification` conversation into `VERIFICATION-PLAN.md`, written next to the PRD/SDD as a local artifact. Use when the user runs `/afk:to-verification-plan`, or wants to write `VERIFICATION-PLAN.md` from a settled `/afk:grill-verification` conversation (UI journeys after `/afk:to-prd`; re-run after `/afk:to-sdd` to append API scenarios). Catalogs both modalities — UI journeys (traced to PRD User Stories) and API scenarios (traced to SDD §3 endpoints + Acceptance Criteria) — with env-limited flags and a surfaced-gaps section. Does NOT interview — synthesizes what `/afk:grill-verification` already settled. Produces the plan `/afk:to-subtasks` turns into build subtasks and `/afk:smoke-test` runs as the completion gate. Does not write to the tracker.
+description: Turn settled verification scenarios into `VERIFICATION-PLAN.md`, written next to the PRD/SDD as a local artifact. Use when the user runs `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md` from verification scenarios already settled in conversation (UI journeys need the PRD; API scenarios need the SDD's §3 endpoint contracts, so re-run once the SDD exists to append them). Catalogs both modalities — UI journeys (traced to PRD User Stories) and API scenarios (traced to SDD §3 endpoints + Acceptance Criteria) — with env-limited flags and a surfaced-gaps section. Does NOT interview — synthesizes what was already settled. Produces the plan `/afk:to-subtasks` turns into build subtasks and `/afk:smoke-test` runs as the completion gate. Does not write to the tracker.
 ---
 
 # afk:to-verification-plan — synthesize the verification plan
 
-Synthesize the verification scenarios settled in a `/afk:grill-verification` conversation into `VERIFICATION-PLAN.md` on disk. Like `/afk:to-prd` and `/afk:to-sdd`, this is a **synthesis** skill — no re-interview; write down what was already settled. Scenarios not settled (user not grilled, or key envelopes/click-paths still vague) → stop, route to `/afk:grill-verification` first.
+Synthesize the verification scenarios already settled in conversation into `VERIFICATION-PLAN.md` on disk. This is a **synthesis** skill — no re-interview; write down what was already settled. Scenarios not settled (key envelopes/click-paths still vague) → stop, route to `/afk:grill-verification` first.
 
 The artifact catalogs both modalities:
 
@@ -16,12 +16,12 @@ Downstream: `/afk:to-subtasks` reads this plan to seed the `## Feature smoke gat
 
 ## When to invoke — and which modalities land
 
-Run **after** a `/afk:grill-verification` session. What you can write depends on what that session could design → depends on what's on disk:
+Run once the verification scenarios are settled. What you can write depends on what's on disk:
 
-| Upstream on disk | UI journeys | API scenarios |
-|------------------|-------------|---------------|
-| PRD only (after `/afk:to-prd`) | ✅ write now | ⏸ **deferred** placeholder |
-| PRD + SDD (after `/afk:to-sdd`) | ✅ write now | ✅ write now |
+| On disk | UI journeys | API scenarios |
+|---------|-------------|---------------|
+| PRD only | ✅ write now | ⏸ **deferred** placeholder |
+| PRD + SDD | ✅ write now | ✅ write now |
 
 - **API scenarios require the SDD.** Pre-SDD run writes UI journeys, leaves `## API Scenarios` as the deferred placeholder (below).
 - **Re-running appends, doesn't rewrite.** If `VERIFICATION-PLAN.md` already exists (UI journeys written pre-SDD), a post-SDD re-run **adds** the `## API Scenarios` section, leaves existing `## UI Journeys` untouched. Never clobber settled UI journeys.
@@ -33,7 +33,7 @@ Run **after** a `/afk:grill-verification` session. What you can write depends on
 
 ## Process
 
-1. **Confirm scenarios are settled.** The `/afk:grill-verification` conversation must have walked each journey/scenario to a concrete click-path or request → response envelope. Anything load-bearing still vague → stop; that's a `/afk:grill-verification` gap, not something to invent here.
+1. **Confirm scenarios are settled.** Each journey/scenario must have been walked to a concrete click-path or request → response envelope. Anything load-bearing still vague → stop; that's a `/afk:grill-verification` gap, not something to invent here.
 
 2. **Detect prior state.** Check for an existing sibling `VERIFICATION-PLAN.md`. Present (UI written pre-SDD) + SDD now on disk → you're **appending** the API section; read the existing file, preserve `## UI Journeys` verbatim.
 

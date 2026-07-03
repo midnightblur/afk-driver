@@ -1,8 +1,8 @@
 ---
 name: glossary
 description: >
-  Maintain and fix the repo's multi-context domain glossary — the
-  vocabulary-only subset of /afk:grill-requirements. Audits an existing
+  Maintain and fix the repo's multi-context domain glossary — a
+  vocabulary-only steward. Audits an existing
   GLOSSARY.md for ambiguity, synonyms, vague/overloaded terms, and drift
   from the code; or grills new terminology one question at a time when
   building vocabulary in conversation. Writes to the GLOSSARY-MAP.md +
@@ -15,9 +15,8 @@ description: >
 
 # glossary — domain-vocabulary steward
 
-The **vocabulary-only slice** of [`/afk:grill-requirements`](../../afk/grill-requirements/SKILL.md):
-it tends terminology and nothing else. No requirements grilling, no scope decisions, no PRD, no
-decision records. Reach for it when the *only* concern is the words. Always **propose → approve →
+A **vocabulary-only steward**: it tends terminology and nothing else. No requirements grilling, no
+scope decisions, no PRD, no decision records. Reach for it when the *only* concern is the words. Always **propose → approve →
 write**; never write unasked.
 
 ## The glossary setup (shared, not redefined here)
@@ -28,9 +27,8 @@ terms. **Read `GLOSSARY-MAP.md` first** — it routes you to the right service g
 glossaries the current work touches.
 
 Format, rules, and the full multi-context layout are **canonical** in
-[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns it, and
-`/afk:grill-requirements` defers here for glossary mechanics. Follow it exactly; do **not** restate its
-rules. Both skills write the same format so a glossary is identical no matter which one touched it.
+[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns it. Follow it exactly; do **not** restate
+its rules.
 
 **Routing:** route by the **known target service** (ticket / spec path), not by guessing from the topic.
 Infer or ask only when the target is ambiguous or the work spans services. Create lazily what's missing —

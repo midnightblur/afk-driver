@@ -54,6 +54,6 @@ Group by target file. Per change: diff · one-line **why** · **placement ration
 
 ## Safety
 - Never write without approval.
-- **Baked write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11xxx*/**` and `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. The boundary is a constant baked into the fan-out (`scripts/fanout-shell.py` `BAKED_BOUNDARY`), not a config file or per-call argument; any target outside it is **refused before any write**. afk is purpose-built for 11xxx, so it knows the boundary natively.
+- **Baked write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11xxx*/**` and `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. The boundary is a constant baked into the fan-out (`scripts/fanout-shell.py` `BAKED_BOUNDARY`), not a config file or per-call argument; any target outside it is **refused before any write**.
 - **Cross-worktree divergence is solved by propagation, not by `~/.claude/shared`.** Don't route a shared-worthy principle out to a personal `~/.claude/shared` @import; write it as an in-repo per-directory note and let the fan-out propagate it to every worktree (see Propagation). One author step → every worktree, no merge, no out-of-repo layer. (Truly personal all-projects prefs still belong in `~/.claude/CLAUDE.md`; uncommitted local-only notes in gitignored `CLAUDE.local.md`.)
 - Discovery never scans system roots (CrowdStrike guard).

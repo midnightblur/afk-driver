@@ -48,10 +48,10 @@ one `node:test` *.test.mjs in verification/api/ (using ../core).
 ## Aspect coverage
 
 The cross-cutting aspects every feature must prove, with the per-aspect verdict
-settled in `/afk:grill-verification`. A triggered aspect points at the row(s) that
+settled while designing the scenarios. A triggered aspect points at the row(s) that
 prove it; a non-triggered one records why it's N/A — so the table shows the aspect
-was *considered*, not silently skipped (the p2p-412 failure: role-based access
-proven below the UI, assumed at it). Role-based and data-scoped access each owe a
+was *considered*, not silently skipped (the classic failure: an aspect proven
+below the UI but assumed at it). Role-based and data-scoped access each owe a
 proving row in **both** modalities.
 
 | Aspect | Verdict | Proving rows | Env-limited? |

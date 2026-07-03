@@ -1,13 +1,13 @@
 ---
 name: prototype
-description: Interactively craft a feature's UI mockup with the user after `/afk:to-prd`. Use when the user runs `/afk:prototype`, or wants to craft or settle a feature's UI mockup after `/afk:to-prd` and before the SDD locks decisions; skip for backend/API/refactor features with no net-new screens (self-gates `no_ui`). A conversational loop — it reads the PRD user stories, anchors to the real frontend's existing components and design tokens, writes self-contained HTML you open in a browser and refresh, and reshapes that HTML live as you react in plain language. Durable-lite: the won direction is captured as `PROTOTYPE.md` + the chosen HTML sibling to `PRD.md`, traceable to user stories so `/afk:grill-verification`'s UI journeys can trace to it; the losing scaffolding is thrown away. Local-first, with a frictionless opt-in push to a persistent, team-shareable `claude.ai/design` project for stakeholder review.
+description: Interactively craft a feature's UI mockup with the user once the PRD's user stories are settled. Use when the user runs `/afk:prototype`, or wants to craft or settle a feature's UI mockup after the PRD exists and before the SDD locks decisions; skip for backend/API/refactor features with no net-new screens (self-gates `no_ui`). A conversational loop — it reads the PRD user stories, anchors to the real frontend's existing components and design tokens, writes self-contained HTML you open in a browser and refresh, and reshapes that HTML live as you react in plain language. Durable-lite: the won direction is captured as `PROTOTYPE.md` + the chosen HTML sibling to `PRD.md`, traceable to user stories so `/afk:grill-verification`'s UI journeys can trace to it; the losing scaffolding is thrown away. Local-first, with a frictionless opt-in push to a persistent, team-shareable `claude.ai/design` project for stakeholder review.
 ---
 
 # afk:prototype — craft the UI, conversationally
 
 An **interactive UI-crafting loop**: you and I shape a feature's screens together in a browser; the durable record falls out of the conversation. Local HTML is the canvas; your reactions steer; the won design is the artifact.
 
-Sits **after `/afk:to-prd`** — user stories settled (something concrete to draw), SDD not yet (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, this answers "what should this actually look like" against the *real* app, not in someone's head.
+Runs once the PRD's user stories are settled (something concrete to draw) and before the SDD locks decisions (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, this answers "what should this actually look like" against the *real* app, not in someone's head.
 
 ## When it applies
 
@@ -58,7 +58,7 @@ To share the prototype on Claude Design, follow [CLAUDE-DESIGN-PUSH.md](CLAUDE-D
 
 ### 6. Report
 
-End with one line, mirroring the chain's other skills:
+End with one line:
 
 ```
 OUTCOME: <status> — <one-line summary> [pushed: <url|no>]
