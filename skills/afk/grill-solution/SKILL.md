@@ -9,6 +9,8 @@ Ask questions one at a time. For each, give your recommended answer with the tra
 
 If a question can be answered from the codebase, PRD, a `PROTOTYPE.md` if one settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), existing ADRs, or the project glossary (start at root `GLOSSARY-MAP.md`, then owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
 
+The staples the PRD **accepted** (from `{service}/STAPLES.md`) are **binding design inputs**: realize each in the layer it belongs to, using the staple's registry **Reference** as the template, and weigh it with ≥2 alternatives like any other decision. A design that drops an accepted staple isn't exhausted.
+
 ## The 8 layers (grill in this order)
 
 ### L1 — System / topology

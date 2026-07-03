@@ -1,6 +1,6 @@
 ---
 name: claude-md
-description: Create, maintain, audit, and enhance CLAUDE.md / .claude/rules / shared-md files across a project hierarchy. Use when the user runs /claude-md, asks to create/update/audit/improve/dedup/reorganize CLAUDE.md or project memory, mentions "project memory" or "CLAUDE.md maintenance", or when a durable learning surfaces mid-session (repeated correction, gotcha discovered, pattern established) that belongs in project memory. Writes only after grouped, cherry-pickable approval.
+description: Create, maintain, audit, and enhance CLAUDE.md / .claude/rules / shared-md files across a project hierarchy — and steward each service's STAPLES.md cross-cutting staples registry. Use when the user runs /claude-md, asks to create/update/audit/improve/dedup/reorganize CLAUDE.md or project memory, register or advance a staple, mentions "project memory" or "CLAUDE.md maintenance", or when a durable learning surfaces mid-session (repeated correction, gotcha discovered, pattern established) that belongs in project memory. Writes only after grouped, cherry-pickable approval.
 ---
 
 # claude-md — project-memory steward
@@ -27,6 +27,9 @@ Unsure → **omit silently**. Pointer one-liners > explanations (`X in Y; gotcha
 
 ## Placement
 See [PLACEMENT.md](PLACEMENT.md). Cohesion test: about a *place* → subdir `CLAUDE.md`; about a *kind-of-file* anywhere → `.claude/rules/`+`paths:`; project-wide → root `CLAUDE.md`; cross-cutting principle for the worktree family → write the per-directory note **in-repo** and **propagate it across worktrees** (see Propagation) — never route it out to `~/.claude/shared`.
+
+## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
+Beyond CLAUDE.md/rules, this skill is the **sole writer** of each service's `{service}/STAPLES.md` — a registry of **staples**: delivered capabilities that became standing expectations (e.g. deep-linking, Excel import/export). A staple imposes an obligation on any **future** feature whose work matches its **Trigger**; the AFK chain consults it at grill/design/plan/review time, and only this skill writes it. The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: it's a **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, and has a real **Reference** exemplar (or an explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol and the cross-worktree fan-out (it's a per-directory in-repo steering note like any other). Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
 
 ## Content style
 Be extremely concise and sacrifice grammar for sake of concision. Give references instead of examples.

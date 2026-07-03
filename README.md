@@ -176,8 +176,18 @@ you add for complex features and skip for small ones (see
 
 Every plan `/afk:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
 subtask (blocked by all others) that `/afk:execute` runs last to sync the
-CLAUDE.md harness for the shipped feature, delegating the write to
-`/afk:claude-md`.
+CLAUDE.md harness for the shipped feature **and settle the staples registry**
+(`{service}/STAPLES.md`), delegating the write to `/afk:claude-md`.
+
+**Staples.** A *staple* is a delivered capability that became a standing
+expectation (e.g. deep-linking, Excel import/export). Once one exists, every future
+feature whose work matches its trigger must **consider** adopting it. The chain wires this as two loops around a
+per-service `STAPLES.md` registry (stewarded solely by `/afk:claude-md`): the design
+side **consults** it — `/afk:grill-requirements` matches each active staple's trigger
+and grills *in-or-out*, `/afk:to-prd` records the call + carries any new-staple
+candidate, `/afk:grill-solution` designs the accepted ones; the delivery side
+**captures** — the `NNNN-sync-harness` subtask makes the final call on candidates, and
+`/afk:review` (spec-fidelity) checks accepted staples were honoured, not stubbed.
 
 Start where your inputs land: a raw idea enters at `/afk:grill-requirements`; an
 existing PRD at `/afk:grill-solution`; an SDD already in hand at `/afk:to-subtasks`.
@@ -388,6 +398,11 @@ spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
 (`adr/requirements/`, owned by `/afk:to-prd`) never share numbering with design
 ADRs (`adr/design/`, owned by `/afk:to-sdd`).
 
+Two artifacts live at the **service root**, not the per-ticket spec folder, because
+the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by `/afk:glossary`)
+and `STAPLES.md` (the cross-cutting staples registry, stewarded by `/afk:claude-md`).
+Every design/plan/review stage reads `STAPLES.md`; only `/afk:claude-md` writes it.
+
 The verification suites themselves are **not** in this repo — they live in the
 core-services tree under `11700-payable/verification`, a multi-modal tree:
 `ui-e2e/` (the Cucumber + Playwright browser module), `api/` (direct-REST
@@ -525,8 +540,10 @@ tooling.)*
 
 - **`/afk:grill-requirements`** — interviews you about a raw idea until the
   requirements decision tree is exhausted, challenging it against the domain
-  glossary. Maintains `GLOSSARY.md`; emits **no** decision records (those come
-  from `/afk:to-prd`).
+  glossary **and the staples registry** (for each `active` staple whose trigger
+  the feature matches, grills *in-or-out-and-why*; also raises whether the feature
+  mints a new staple). Maintains `GLOSSARY.md`; emits **no** decision records and
+  never writes `STAPLES.md` (those come from `/afk:to-prd` and `/afk:claude-md`).
 - **`/afk:prototype`** *(after `/afk:to-prd`; only if net-new UI)* — an interactive
   UI-crafting loop, neither a grill nor a one-shot producer. Reads the PRD User
   Stories, anchors to the **real frontend's** components + tokens, and writes

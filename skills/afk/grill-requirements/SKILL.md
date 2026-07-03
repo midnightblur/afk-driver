@@ -41,6 +41,10 @@ When the user states how something works, check whether the code agrees. If you 
 
 When the plan touches access or validation, grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md).
 
+### Go through the staples (every feature)
+
+Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, grill the user *in or out — and why?*, and record the rationale in the conversation — a matching staple must never be skipped silently. Then raise the mirror question: does this feature itself mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
+
 ### Update GLOSSARY.md inline
 
 When a term is resolved, update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if the term is system-wide — immediately. Don't batch these up — capture them as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
@@ -60,4 +64,4 @@ The glossary is the one artifact this skill maintains — because it *is* the sh
 
 ## Next
 
-Once the requirements decision tree is exhausted (every actor / user story / out-of-scope / non-functional concern settled, **and every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy**), run **`/afk:to-prd`** to synthesize the conversation into a PRD and publish it (Jira parent + repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Once the requirements decision tree is exhausted (every actor / user story / out-of-scope / non-functional concern settled, **and every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy**, **and every `active` staple whose Trigger matches this feature is resolved in/out with a rationale**), run **`/afk:to-prd`** to synthesize the conversation into a PRD and publish it (Jira parent + repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

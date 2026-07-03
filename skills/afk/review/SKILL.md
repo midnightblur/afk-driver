@@ -61,7 +61,7 @@ One subagent per concern, all spawned in a **single message** as parallel `Agent
 - Commits start with `[{NNNN-slug}]`.
 - Any rule stated in a service/sub-package `CLAUDE.md` that the diff contradicts — quote the rule and the offending line.
 
-**`spec-fidelity`** — walk every `## Acceptance` bullet and find the diff line(s) that satisfy it; an unsatisfied or partially-satisfied bullet is a finding (severity by how load-bearing). In cited mode, every SDD §9b seam this subtask `implement:`s must be present and assert on the framework's real output. Every `## Produces` `{grep-anchor}` must resolve in the diff. Flag silent scope-shrink: an acceptance bullet "handled" by a stub, a `TODO`, or a swallowed branch is **not** done.
+**`spec-fidelity`** — walk every `## Acceptance` bullet and find the diff line(s) that satisfy it; an unsatisfied or partially-satisfied bullet is a finding (severity by how load-bearing). In cited mode, every SDD §9b seam this subtask `implement:`s must be present and assert on the framework's real output. Every `## Produces` `{grep-anchor}` must resolve in the diff. Flag silent scope-shrink: an acceptance bullet "handled" by a stub, a `TODO`, or a swallowed branch is **not** done. Any acceptance bullet that traces to an **accepted staple** (`{service}/STAPLES.md`) gets the scrutiny its registry **Obligation** demands: a matching staple silently dropped, stubbed, or half-enforced against that Obligation is a finding, class `spec`.
 
 **`logic-correctness`** — the bug-hunt lens. Boundary values, empty/null/missing inputs, error and rollback paths, off-by-one, concurrency/ordering, integer/decimal precision (BigDecimal for money), partial-failure handling. Cite `file:line`; give a concrete failing input.
 
