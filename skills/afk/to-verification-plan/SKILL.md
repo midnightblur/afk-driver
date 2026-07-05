@@ -43,7 +43,9 @@ Run once the verification scenarios are settled. What you can write depends on w
 
 4. **Capture surfaced gaps.** Fold the grill's non-load-bearing gaps into the `## Gaps surfaced` section for the human. (Load-bearing gaps already routed back during `/afk:grill-verification`.)
 
-5. **Print the result.** The path and one line per scenario (modality, actor/surface, traces-to, env-limited?). State explicitly whether API scenarios were written or deferred.
+5. **Update the ticket index.** Upsert the `Verification plan` row in the sibling `INDEX.md` (`UI only (API deferred)` or `UI + API`) per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
+
+6. **Print the result.** The path and one line per scenario (modality, actor/surface, traces-to, env-limited?). State explicitly whether API scenarios were written or deferred.
 
 ## `VERIFICATION-PLAN.md` (the artifact)
 

@@ -105,10 +105,23 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 
 ## Verdict & output
 
-Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked) and the machine list alongside as `…-{base-short}.findings.json`. End with one line the caller parses:
+Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked) and the machine list alongside as `…-{base-short}.findings.json`.
+
+**Update the rollup.** Upsert this subtask's row in `plan/review/INDEX.md` (create with the header row if missing) — the one place a human sees every subtask's latest review state without hunting per-base filenames:
+
+```
+| Subtask | Latest report | Verdict | crit/high/med/low | Open advisories |
+|---|---|---|---|---|
+| {NNNN-slug} | {NNNN-slug}-{base-short}.md | advisory | 0/0/2/1 | m: <one-line each, or "none"> |
+```
+
+One row per subtask, latest review wins the row; `Open advisories` lists the medium/low findings still unaddressed so they stop vanishing into MR bodies. Adversary reports (`{NNNN-slug}-adversary.md`) live in this directory too; when one exists, mention it in the row's `Latest report` cell.
+
+End with one line the caller parses, plus the plain-terms line per `REPORTING.md` (plugin root):
 
 ```
 REVIEW: <verdict> — crit=<n> high=<n> med=<n> low=<n> [findings: <path>]
+In plain terms: <one jargon-free sentence — the worst thing found and whether it blocks shipping>
 ```
 
 | Verdict | When | Caller (gate mode) |

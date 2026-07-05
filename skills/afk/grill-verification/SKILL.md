@@ -75,7 +75,7 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 - **Every triggered aspect is covered, in every modality it owns.** Walk the aspect table; a triggered aspect with no proving row is a gap, and a non-N/A aspect with no recorded reason is a skip. The denied-role UI row is mandatory for every protected surface; the no-token/bad-token/role-scoping API assertions are mandatory for every protected endpoint (per the SDD §9b bidirectional seam).
 - **Every scenario traces to a source; every gap is named.** No orphan scenarios, no silently-swallowed PRD/SDD ambiguities.
 - **Note env-limited scenarios as you go** — both modalities — so `/afk:to-verification-plan` can mark them and the downstream gate excludes them from its green verdict rather than reading them as failures.
-- **You write no file and touch no tracker.** This skill only interviews. The artifact is `/afk:to-verification-plan`'s job; it touches no Jira and no GitLab.
+- **You write no artifact and touch no tracker.** This skill only interviews. The artifact is `/afk:to-verification-plan`'s job; it touches no Jira and no GitLab. The one exception is the checkpoint: mirror the per-aspect verdicts, settled journeys/scenarios, and the API designed-vs-deferred state into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md`, updated as they settle — so a pause before the synthesis skill runs loses nothing.
 
 ## Next
 

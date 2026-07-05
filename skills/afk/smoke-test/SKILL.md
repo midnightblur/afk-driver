@@ -1,6 +1,6 @@
 ---
 name: smoke-test
-description: The feature-level completion gate — after every subtask in a local plan is done, run the feature's already-built verification suites (the browser UI journeys `ui-e2e` and direct-REST API contracts `api` under `11700-payable/verification`) against a running app and, only on green across both, stamp the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and a `## Feature smoke gate` exists in `PLAN.md`, or to manually re-verify a feature's sanity. This skill only EXECUTES already-built verification suites — it authors nothing. It verifies the integrated whole, not one slice. Touches no Jira and merges nothing.
+description: The feature-level completion gate — after every subtask in a local plan is done, run the feature's already-built verification suites (the browser UI journeys `ui-e2e` and direct-REST API contracts `api` under `11700-payable/verification`) against a running app and, only on green across both, stamp the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and `PLAN.md` carries a `## Feature smoke gate` (full) or `## Feature smoke gate (minimal)` section, or to manually re-verify a feature's sanity. This skill only EXECUTES already-built verification suites — it authors nothing. It verifies the integrated whole, not one slice. Touches no Jira and merges nothing.
 ---
 
 # afk:smoke-test — the feature-level smoke gate (runs, never authors)
@@ -13,7 +13,12 @@ Those suites then live on permanently under `11700-payable/verification` (`ui-e2
 
 ## When it applies
 
-Only when the feature has a smoke gate — a `## Feature smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands, target env) plus a terminal build subtask **per modality** (`NNNN-smoke-e2e` and/or `NNNN-smoke-api`) that **built** the specs. No `## Feature smoke gate` in `PLAN.md` → nothing to run (exit `no_gate`).
+Every feature has one of two gates:
+
+- **Full gate** — a `## Feature smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands, target env) plus a terminal build subtask **per modality** (`NNNN-smoke-e2e` and/or `NNNN-smoke-api`) that **built** the specs.
+- **Minimal gate** — a `## Feature smoke gate (minimal)` section (features that skipped verification design): four fixed rows — compile, app-start, regression, existing suites — run as-is, no scenario table, no build subtasks. Green ⇒ stamp `Feature: complete (minimal gate, {YYYY-MM-DD})`; the stamp names the gate kind so "complete" is never mistaken for scenario-verified.
+
+Neither section in `PLAN.md` → the plan predates the minimal-gate rule; report `no_gate` and point the human at re-running the slicing skill's gate seeding.
 
 **This skill never authors or edits specs.** The specs are built by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (reviewed in an MR like any code); this skill only **executes** the already-implemented scenarios as the gate.
 
@@ -25,7 +30,7 @@ Only when the feature has a smoke gate — a `## Feature smoke gate` section in 
 
 ## Process
 
-1. **Locate the gate.** Read `PLAN.md`. Find `## Feature smoke gate`. Absent → no smoke gate → report `no_gate` and stop (nothing failed; nothing to do). Read the suite paths, run command **per modality**, and the scenario table — each row carries its `Modality` (`ui-e2e` | `api`) and traces to its source (UI → a PRD User Story; API → an SDD §3 row / PRD Acceptance Criterion).
+1. **Locate the gate.** Read `PLAN.md`. Find `## Feature smoke gate` or `## Feature smoke gate (minimal)`; neither → `no_gate` (see "When it applies"). **Minimal gate:** run its rows in order after the Step 2 precondition (Step 3's env checks apply to the app-start and existing-suite rows); record each row's `Status` cell + the section's `Last run` line (this section is part of the gate surface this skill owns — see Boundary); any red row → `smoke_fail` naming the row, all green → stamp `Feature: complete (minimal gate, {YYYY-MM-DD})` and report — Steps 4–6 below are the full-gate path only. **Full gate:** read the suite paths, run command **per modality**, and the scenario table — each row carries its `Modality` (`ui-e2e` | `api`) and traces to its source (UI → a PRD User Story; API → an SDD §3 row / PRD Acceptance Criterion).
 
 2. **Precondition — feature fully built.** Every row in the `## Progress tracker` (including terminal build subtasks `NNNN-smoke-e2e` and, when present, `NNNN-smoke-api`) must be `done`. Any subtask not `done` → refuse with `preconditions_unmet`, naming the laggards. A smoke gate on a half-built feature is meaningless — integrated scenarios can't pass until every slice has landed.
 
@@ -37,14 +42,19 @@ Only when the feature has a smoke gate — a `## Feature smoke gate` section in 
 
 5. **Record per scenario.** Update each scenario row's `Status` in the `## Feature smoke gate` table (`pass` / `fail`), keyed by its `Modality`, and stamp the gate's `Last run` (date + target). A row pre-marked `env-limited` (a scenario that can't go green on `target` by design — either modality) stays `env-limited` — **not** run as pass/fail, never blocks the verdict. Attach the failure trace/artifact path on any `fail` row so the human can open it.
 
+   **Keep the run history.** Append one line to the gate section's `Run history` list (create the list under the gate section if missing; append-only, both gate shapes): `- {YYYY-MM-DD} {target} — {verdict}, failing: {scenario names | none}`. The `Last run` line shows only the latest state; the history is what shows a gate that went red four times before green. Also append the run's journal line to `plan/JOURNAL.md` (format: `skills/afk/to-subtasks/JOURNAL-FORMAT.md`).
+
 6. **Verdict.** Computed over the **runnable** scenarios of **both** modalities — every row not marked `env-limited`.
    - **All runnable green across both modalities** (full run, not a `scope` subset) → stamp the `PLAN.md` header `Feature: complete (smoke green {YYYY-MM-DD}, target={env})`. This is the completion milestone — a green UI suite with a red (or unrun) API suite is **not** complete, and vice versa. If any `env-limited` rows were skipped, note them in the report so "green" isn't read as "everything ran".
    - **Any runnable red** (either modality) → set `Feature: smoke-failing`; do **not** stamp complete. List failing scenarios + modality + source (User Story / §3 row) + artifact path. **No silent retry** — a flaky run is the human's to re-run deliberately; a real failure is fixed via a new/re-opened subtask or `/afk:grill-solution`, not by patching here. (An `env-limited` scenario going red is expected, not a gate failure — don't confuse the two.)
 
-7. **Report the structured outcome.** End with one line so a human or orchestrator can read it at a glance:
+6b. **Update the ticket index.** Upsert the `Smoke gate` row in the ticket folder's `INDEX.md` (`red {date}` / `green {date} ({full|minimal} gate)`) per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
+
+7. **Report the structured outcome.** End with the status line plus one plain-terms sentence per the reporting protocol (`REPORTING.md` at the plugin root):
 
    ```
    OUTCOME: <status> — <one-line summary> [target: <env>] [failing: <n>]
+   In plain terms: <one jargon-free sentence — is the feature shippable, and if not, what broke>
    ```
 
    | Status | Meaning / next action |
@@ -53,12 +63,12 @@ Only when the feature has a smoke gate — a `## Feature smoke gate` section in 
    | `smoke_fail` | ≥1 scenario red (either modality). Name each + its modality + its source (User Story / §3 row) + artifact path; the feature is **not** complete. |
    | `env_unreachable` | The `target` app was not up. No scenarios were run. |
    | `preconditions_unmet` | Not every subtask is `done`; name the laggards. |
-   | `no_gate` | `PLAN.md` has no `## Feature smoke gate`; this feature opted out. Nothing to run. |
+   | `no_gate` | `PLAN.md` carries neither gate section — a legacy plan from before the minimal-gate rule. Re-seed the gate via the slicing skill, then re-run. |
    | `other` | Unexpected failure. |
 
 ## Boundary (Hard rules)
 
-- **Owns only the gate's surface in `PLAN.md`** — the `## Feature smoke gate` table `Status` cells, its `Last run` line, and the header `Feature:` line. Everything else in `PLAN.md` round-trips verbatim (the `## Progress tracker` status column stays `/afk:execute`'s).
+- **Owns only the gate's surface in `PLAN.md`** — the gate section's table `Status` cells (full or minimal shape), its `Last run` line, its append-only `Run history` list, and the header `Feature:` line. Everything else in `PLAN.md` round-trips verbatim (the `## Progress tracker` status column stays `/afk:execute`'s). Outside `PLAN.md` it appends to `plan/JOURNAL.md` (append-only) and upserts the `Smoke gate` row of the ticket `INDEX.md` — nothing else.
 - **Merges nothing, touches no Jira.** It stops at the human's lane: a green gate does not merge the Draft MRs and does not write to the tracker. The human merges out of band.
 - **Authors no specs.** Spec code is the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks' reviewed work, built per the canonical recipes `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`. A scenario needing a new/changed spec is a subtask edit (re-run `/afk:execute` on it) — or a scenario redesign (`/afk:grill-verification`) — not an edit from inside the gate. If a suite is missing or red because scenarios were authored ad hoc, point the fix back at the relevant `AUTHORING.md` — that's the standard the build subtask owes.
 - **Never patches to green.** Do not touch app code or specs to make a red run pass — a red gate is a true signal about the feature or the spec. Fix it upstream (subtask or grill), then re-run the gate.

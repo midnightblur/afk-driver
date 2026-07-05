@@ -26,7 +26,10 @@
 
 ## Acceptance
 <cited — every bullet ends with a citation tag: (PRD §X.Y) / (SDD §N) /
-(SDD §N row "...") / (SDD §9b row "...") / (ADR-NNNN)>
+(SDD §N row "...") / (SDD §9b row "...") / (ADR-NNNN).
+The criterion text itself must be a self-contained pass/fail statement a reader
+understands WITHOUT opening the cited doc — the tag is provenance, never the
+content. "Honours SDD §4" alone is invalid.>
 - [ ] <criterion> (PRD §X.Y)
 - [ ] Implements the public interface in SDD §8 row "<module>" unmodified (SDD §8)
 - [ ] Conforms to ADR-<NNNN> — no silent pattern substitution (ADR-NNNN)

@@ -72,6 +72,8 @@ Filter rules:
     - Footer: cross-ref to `review.md` if exists in `$CLAUDE_JOB_DIR/`; closing line.
     Final caveman pass: aggregator scans for filler ("just", "really", "basically", "we can see that") and trims. Technical terms / mermaid blocks / code blocks **never** modified.
     Save to `$CLAUDE_JOB_DIR/walkthrough-{slug}-{YYYYMMDD-HHMMSS}.md`. Slug = `mr{IID}` (MR mode) or sanitized path/symbol (code mode, replace `/` and special chars w/ `-`).
+
+**Durable copy (opt-in).** `$CLAUDE_JOB_DIR` is a temp dir — the walkthrough is gone next session. When the subject maps to a ticket spec folder (the caller passed `save:{ticket-spec-dir}`, or the discovered spec lives at `specs/**/{KEY}/`), offer to copy the finished walkthrough to `{ticket-spec-dir}/walkthroughs/{same filename}` so future readers of that feature find it. Copy on yes; this is the one sanctioned write outside `$CLAUDE_JOB_DIR`.
 11. **Closing line:**
     ```
     Walkthrough: $CLAUDE_JOB_DIR/walkthrough-<slug>-<TS>.md
@@ -113,7 +115,7 @@ output_format:
 ## Hard rules
 
 - Static read only. Never run app / build / tests.
-- Never modify user's cwd / worktree. Read-only on user-owned repos. Writes only inside `$CLAUDE_JOB_DIR`.
+- Never modify user's cwd / worktree. Read-only on user-owned repos. Writes only inside `$CLAUDE_JOB_DIR` — sole exception: the user-approved durable copy into a ticket's `walkthroughs/` dir (Aggregate step).
 - Caveman prose throughout; technical terms + code + mermaid syntax verbatim.
 - Mermaid blocks only — never ASCII boxes/arrows for diagrams.
 - Each layer self-contained w/ stable anchor `L1..L9` for cross-ref.

@@ -42,6 +42,8 @@ Tracker is **Jira Cloud** (`nakisa.atlassian.net`), so the description field is 
 
    Prints the plan and asks confirmation before the single `PUT` (pass `--yes` to skip the prompt in automated context). Note: each publish updates the description field → watchers notified per re-run (Jira only honours `notifyUsers=false` for project admins, so the engine doesn't send it) — re-run when the PRD has meaningfully changed, not idly.
 
+4. **Update the ticket index.** On a successful publish, upsert the `PRD` row of the PRD's sibling `INDEX.md` to `published to Jira {date}` per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
+
 ADF mapping, the Mermaid-image method, and the description merge model are detailed in [REFERENCE.md](REFERENCE.md).
 
 ## Hard rules

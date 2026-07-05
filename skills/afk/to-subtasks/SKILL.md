@@ -48,7 +48,7 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
 3. **Slice into subtasks.** A good subtask is independently buildable (no dependency on an unlanded sibling except via `## Blocked by`), bounded by a clear Scope (one or two globs), verifiable on its own, sized for one `/afk:execute` sitting (~1 hour). In cited mode, **slice along SDD §8 module boundaries** — one subtask per module's public interface. Splitting a §8 module means the SDD is too coarse: bounce, don't invent a split that contradicts §8. Aim for 4–10 subtasks; more than 10 means the PRD is too big or the slice too fine.
 
-   **Detect the verification plan.** If a `VERIFICATION-PLAN.md` sits next to the PRD (from `/afk:grill-verification` → `/afk:to-verification-plan`), **automatically** append a **terminal** build subtask **per modality the plan carries** — `NNNN-smoke-e2e` for the `## UI Journeys`, `NNNN-smoke-api` for the `## API Scenarios` (omit when that section is the "deferred" placeholder) — each `## Blocked by` **every** other subtask, per the templates in [SMOKE-GATE.md](SMOKE-GATE.md). The specs land as reviewed `/afk:execute` work; the integrated gate that *runs* them is `/afk:smoke-test`, after these subtasks are `done` (not part of this skill). No `VERIFICATION-PLAN.md` → no build subtask, no gate.
+   **Detect the verification plan.** If a `VERIFICATION-PLAN.md` sits next to the PRD (from `/afk:grill-verification` → `/afk:to-verification-plan`), **automatically** append a **terminal** build subtask **per modality the plan carries** — `NNNN-smoke-e2e` for the `## UI Journeys`, `NNNN-smoke-api` for the `## API Scenarios` (omit when that section is the "deferred" placeholder) — each `## Blocked by` **every** other subtask, per the templates in [SMOKE-GATE.md](SMOKE-GATE.md). The specs land as reviewed `/afk:execute` work; the integrated gate that *runs* them is `/afk:smoke-test`, after these subtasks are `done` (not part of this skill). No `VERIFICATION-PLAN.md` → no build subtasks, but the plan still gets the **minimal** gate section per [SMOKE-GATE.md](SMOKE-GATE.md) — a plan never ships gate-less.
 
    **Carry the accepted staples.** Each staple the PRD accepted (traceable to `{service}/STAPLES.md`) is an obligation on this feature, not a suggestion — turn it into Acceptance bullets on the owning subtask, and in cited mode a `## Seams` row wherever the SDD named one (the staple's registry **Reference** is the exemplar to copy). A staple the PRD accepted but that appears in no subtask is a slice gap — fix the slice, don't drop it.
 
@@ -56,11 +56,13 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` is the zero-padded rank; `{slug}` a short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere).
 
-5. **Write `PLAN.md`** (the index) using the PLAN template below: the solution map, the seam register (cited), and the progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on.
+5. **Write `PLAN.md`** (the index) using the PLAN template below: the solution map, the seam register (cited), and the progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` with its header line per [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md) — the append-only event log the execution skills write to.
 
 6. **Validate the slice** (see "Validation"). Cited mode runs the contract-graph + anchor-quality + Acceptance-citation + seam-coverage checks; all must pass before the plan is considered emitted. Uncited mode runs only the Verification-tier and Scope sanity checks.
 
-7. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) so the human can review before any execution. Flag every seam-touching subtask explicitly — those rows are worth a careful human read.
+7. **Update the ticket index.** Upsert this skill's row(s) in the ticket folder's `INDEX.md` (the plan row: subtask count, mode, pointer to `plan/PLAN.md` for live status) per `skills/afk/to-prd/INDEX-FORMAT.md`. Create the file per that format if it doesn't exist yet.
+
+8. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) so the human can review before any execution. Flag every seam-touching subtask explicitly — those rows are worth a careful human read. Also state in one plain-language sentence per subtask *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere.
 
 ## Subtask contract (`plan/NNNN-{slug}.md`)
 
@@ -80,7 +82,7 @@ A subtask that **implements** a §9b seam must carry the seam's test as a Verifi
 
 ### Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
-When a `VERIFICATION-PLAN.md` is present, seed the gate and emit the per-modality build subtasks per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3.
+Seed the gate per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3. A `VERIFICATION-PLAN.md` drives the full gate + per-modality build subtasks; its absence drives the minimal gate (no build subtasks). Every plan gets exactly one of the two.
 
 ### Harness sync (always)
 
@@ -88,11 +90,11 @@ Every plan ends with a terminal `NNNN-sync-harness` documentation subtask that s
 
 ## PLAN.md (the index)
 
-Write `PLAN.md` (header, solution map, seam register, progress tracker, and — when a `VERIFICATION-PLAN.md` exists — the feature smoke gate) using the template in [PLAN-TEMPLATE.md](PLAN-TEMPLATE.md).
+Write `PLAN.md` (header, solution map, seam register, progress tracker, and the feature smoke gate — full or minimal per [SMOKE-GATE.md](SMOKE-GATE.md)) using the template in [PLAN-TEMPLATE.md](PLAN-TEMPLATE.md).
 
 ## Validation
 
-Run before declaring the plan emitted. **Cited mode** runs (a)–(f); **uncited mode** runs only (e) and (f). Check **(g)** runs in either mode whenever a `VERIFICATION-PLAN.md` is present.
+Run before declaring the plan emitted. **Cited mode** runs (a)–(g); **uncited mode** runs (e), (f), and (g). Check **(g)** always runs — it validates whichever gate shape the plan carries.
 
 Run the detailed checks (a)–(g) in [VALIDATION.md](VALIDATION.md).
 
@@ -106,7 +108,7 @@ Run the detailed checks (a)–(g) in [VALIDATION.md](VALIDATION.md).
 - **Seam-implementing subtasks carry the seam-test** as a Verification row asserting on the framework's real output, not our DTO.
 - **JPA-entity subtasks verify liquibase-hibernate7 pickup** (core-services Java only): a `## Produces` `.java` file with `@Entity` / `@MappedSuperclass` / `@Embeddable` must list an integration-tier row running the documented pickup check (`mvn -pl {module} compile liquibase:diff …` then grep the diff for the entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own that the design needs no SDD.
-- **The smoke gate is artifact-driven, all-or-nothing.** Emit it only when a `VERIFICATION-PLAN.md` is present, never invent one without the plan, never half-emit (Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule). This skill only seeds + slices; running the gate is `/afk:smoke-test`'s job.
+- **The smoke gate's shape is artifact-driven; its presence is not optional.** A `VERIFICATION-PLAN.md` drives the full gate (never half-emit — Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule; never invent scenarios without the plan); its absence drives the minimal gate. This skill only seeds + slices; running the gate is `/afk:smoke-test`'s job.
 - **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk:claude-md`; this skill only seeds it. Never omit it.
 
 ## Design-doc optionality

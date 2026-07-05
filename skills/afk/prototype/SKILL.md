@@ -51,6 +51,7 @@ When the design feels right, the **won direction** becomes the artifact; losing 
 
 - Keep the **chosen HTML** as `…/{TICKET-ID}/prototype/<screen>.html`. Delete the losing variants and the switcher — they rot fast and confuse the next reader.
 - Write **`…/{TICKET-ID}/PROTOTYPE.md`** (sibling to `PRD.md`): screens settled, each traced to the User Stories it serves; key interactions / states; design decisions made and *why* (so `/afk:grill-solution` and `/afk:grill-verification` inherit them); any PRD gaps surfaced; a link to the chosen HTML. This — not the HTML, not the Claude Design project — is the **canonical record**.
+- Upsert the `Prototype` row (`chosen {date}`) in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
 
 ### 5. Share — Claude Design push (opt-in)
 

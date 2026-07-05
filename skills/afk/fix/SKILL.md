@@ -71,10 +71,11 @@ When the feature was built with AFK assistance (Phase 0 signals: AFK branch + `p
 
 ## Phase 4 — Report
 
-End with one structured line:
+End with the structured line plus one plain-terms sentence per the reporting protocol (`REPORTING.md` at the plugin root):
 
 ```
 OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
+In plain terms: <one jargon-free sentence — what was broken, what's true now, what (if anything) still needs a human>
 ```
 
 | Status | Meaning / next action |

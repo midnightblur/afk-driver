@@ -33,9 +33,24 @@ When the user uses vague or overloaded terms, propose a precise canonical term. 
 
 When domain relationships are discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about boundaries between concepts.
 
-### Cross-reference with code
+### Verify claims — maintain the claim ledger
 
-When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling). A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+
+Keep a running **claim ledger** in the conversation: every load-bearing claim gets one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it and update the row to `verified` against the actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. The ledger is what the PRD synthesis gates on — a lost ledger means re-verifying, not waving through.
+
+**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying.
+
+### Challenge the want (find the real pain, not the perceived one)
+
+Users ask for the solution they imagined, not always the one their problem needs. Two standing obligations:
+
+- **Every requirement records its pain.** Before accepting a requirement, elicit the underlying pain/value in one sentence ("what goes wrong today without this?"). A requirement whose pain can't be stated gets challenged, not recorded.
+- **Every restrictive rule pays for itself.** Whenever the plan says *disallow / only / never / prevent / must not*, ask the mandatory counter-question: "what legitimate scenario does this block, and how does the user recover when they hit it?" If a plausible legitimate scenario exists, the restriction needs an explicit trade-off decision — not a silent default to the safe-sounding option.
+
+### Devil's-advocate pass (before synthesis)
+
+When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation). Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
 
 ### Grill the access & validation policy (every feature)
 
@@ -64,4 +79,4 @@ The glossary is the one artifact this skill maintains — because it *is* the sh
 
 ## Next
 
-Once the requirements decision tree is exhausted (every actor / user story / out-of-scope / non-functional concern settled, **and every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy**, **and every `active` staple whose Trigger matches this feature is resolved in/out with a rationale**), run **`/afk:to-prd`** to synthesize the conversation into a PRD and publish it (Jira parent + repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Once the requirements decision tree is exhausted (every actor / user story / out-of-scope / non-functional concern settled, **and every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy**, **and every `active` staple whose Trigger matches this feature is resolved in/out with a rationale**, **and the claim ledger is settled — every load-bearing claim verified or explicitly unverified-external — every requirement carries its pain, every restriction survived its counter-question, and the devil's-advocate pass ran with its findings resolved**), run **`/afk:to-prd`** to synthesize the conversation into a PRD and publish it (Jira parent + repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

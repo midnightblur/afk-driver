@@ -7,6 +7,10 @@
 > Parent PRD: `{relative path to PRD.md}`
 > Status: Draft | Approved | Superseded
 > Last updated: {YYYY-MM-DD}
+> Reading guide: sections follow the L1–L9 design-layer ladder, top of the system down to the code
+> (L1 topology · L2 service boundaries · L3 data · L4 cross-cutting quality · L5 domain model ·
+> L6 processes · L7 modules · L8 patterns · L9 seams into existing code). Skim §0 (what's locked)
+> and §1 (why) first; non-implementers can stop there or read the DESIGN-BRIEF instead.
 
 ## §0 Binding Contract
 
@@ -177,9 +181,18 @@ Bullet list. Cite PRD's Out of Scope and add design-level exclusions.
 
 **Required visual:** table.
 
-| Question | Layer (L1-L8) | Blocks executor? | Owner | Target resolve date |
+| Question | Layer (L1-L9) | Blocks executor? | Owner | Target resolve date |
 |----------|---------------|------------------|-------|---------------------|
 
-If any row has `Blocks executor? = yes` in L2-L7, the design is NOT publishable — bounce back to `/afk:grill-solution`. L1 / L8 open questions may pass if scoped.
+If any row has `Blocks executor? = yes` in L2-L7 or L9, the design is NOT publishable — bounce back to `/afk:grill-solution`. L1 / L8 open questions may pass if scoped.
+
+## §14 L9 — Implementation Seams & Change Impact
+
+**Required visual:** table — one row per seam the design touches in existing code, from the L9 seam walk.
+
+| Seam (class/method/contract) | Existing contract (verified where) | Planned change | Impacted flows | Conventions / landmines | Verdict |
+|------------------------------|------------------------------------|----------------|----------------|-------------------------|---------|
+
+Every row's existing contract cites where it was verified (file); `Verdict` is `fits` / `extends (ADR-NNNN)` / `reworked`. Below the table, list each compatibility-audit finding that was **accepted** rather than resolved, with its rationale (resolved findings changed the design and need no entry). A §14 with an unverified contract or an unlisted accepted finding is not publishable.
 
 </sdd-template>

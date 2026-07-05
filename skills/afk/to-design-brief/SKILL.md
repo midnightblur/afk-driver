@@ -36,6 +36,8 @@ Do NOT interview the user. If a brief section can't be filled from source docs, 
 
 4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding the diagram and tables. If a draft runs long, compress; don't add more sections. The brief is a **repo-only artifact** — does not touch the Jira ticket (see below).
 
+5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
+
 ## Template
 
 Write the brief using the template in [BRIEF-TEMPLATE.md](BRIEF-TEMPLATE.md).
@@ -48,7 +50,7 @@ Write the brief using the template in [BRIEF-TEMPLATE.md](BRIEF-TEMPLATE.md).
 - **One sentence per "Why" row** in §4. Rationale that doesn't compress to one sentence belongs in the ADR, not here.
 - **No code, no file paths inside the prose.** Pointers in §7 are the only exception — stable filenames sibling to the brief.
 - **Mirror the SDD status field.** A brief whose source SDD is Draft is itself Draft — stakeholders need to know whether they're reviewing a proposal or a decision.
-- **Refuse on incomplete SDD.** If SDD §13 has open questions that block executors (L2-L7), do not emit a brief.
+- **Refuse on incomplete SDD.** If SDD §13 has open questions that block executors (L2-L7, L9), do not emit a brief.
 
 See [AFK-ADAPTATION.md](AFK-ADAPTATION.md) for the core-services AFK adaptation.
 
