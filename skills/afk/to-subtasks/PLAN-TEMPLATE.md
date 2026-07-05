@@ -44,7 +44,7 @@ Status values: `pending` → `designing` → `developing` → `verifying` → `d
 or `blocked(<reason>)`. `/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
-## Feature smoke gate   <!-- present iff a VERIFICATION-PLAN.md exists; omit whole section otherwise -->
+## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
 > Gate: /afk:smoke-test   Suite: 11700-payable/verification   Target env: local | staging
 > Run (ui-e2e): cd verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)

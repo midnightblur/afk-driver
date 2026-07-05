@@ -1,11 +1,13 @@
 {
   "name": "afk",
   "version": "0.0.0",
-  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + interactive executor (execute) + optional feature smoke gate (smoke-test, runs UI + API verification) for the Nakisa Jira/GitLab workflow. Run each stage yourself; no autonomous driver.",
+  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) for the Nakisa Jira/GitLab workflow.",
   "author": {
     "name": "mvu"
   },
   "skills": [
+    "./skills/afk/adversary",
+    "./skills/afk/autopilot",
     "./skills/afk/claude-md",
     "./skills/afk/design-system",
     "./skills/afk/execute",

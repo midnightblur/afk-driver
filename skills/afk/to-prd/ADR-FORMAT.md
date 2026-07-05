@@ -35,7 +35,7 @@ for the highest existing number and increment by one.
 That's it. A requirement ADR can be a single paragraph. The value is in
 recording *that* a behavioural decision was made and *why* — not in filling out
 sections. The `Layer: Requirements` line is the discriminator that keeps these
-distinct from `/afk:to-sdd`'s `Layer: L1–L8` design ADRs in the sibling folder.
+distinct from `/afk:to-sdd`'s `Layer: L1–L9` design ADRs in the sibling folder.
 
 ## Optional sections
 

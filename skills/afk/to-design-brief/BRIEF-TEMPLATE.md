@@ -38,7 +38,7 @@ rules). Caption it with one sentence stating what to take away.
 full text. If you have more than 10 ADRs, pick the rows a stakeholder is
 most likely to question or need to align on.
 
-| # | Decision | Layer (L1-L8) | Why this, not the alternative | ADR |
+| # | Decision | Layer (L1-L9) | Why this, not the alternative | ADR |
 |---|----------|---------------|--------------------------------|-----|
 | 1 | {one phrase} | L3 | {rejected alt + the constraint that ruled it out} | `adr/0001-...md` |
 
@@ -73,7 +73,7 @@ If a row's "What changes" is "(none)", omit the row.
 ## §7 Where to Go Next
 
 - **Curious about the user-facing problem?** → `PRD.md`
-- **Reviewing the full design?** → `SDD.md` (layered §2 L1 → §9 L8)
+- **Reviewing the full design?** → `SDD.md` (layered §2 L1 → §9 L8 (+ §14 L9))
 - **Auditing a specific decision?** → `adr/requirements/NNNN-*.md` (behaviour /
   scope) or `adr/design/NNNN-*.md` (solution — each cites its layer,
   alternatives, consequences)

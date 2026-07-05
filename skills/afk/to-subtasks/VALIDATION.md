@@ -24,15 +24,28 @@ and carries its seam-test as a Verification row. A seam sliced without its
 framework-output test fails the slice — that's the gap green unit tests hide.
 Every `use:` seam points at a real register row.
 
-**(e) Verification tiers.** Every subtask's `## Verification` has at least the
-`static` row; tiers are appropriate to the change (UI subtask → e2e present;
-protected-endpoint subtask → api present; JPA entity → integration/pickup
-present). Every command is runnable from repo root.
+**(e) Verification tiers — mechanical mandates.** Every subtask's
+`## Verification` has at least the `static` row, and every command is runnable
+from repo root. Additionally, tier rows are **mandated by what the Scope globs
+touch** — a missing mandated row means refuse the plan, naming the subtask and
+the rule:
+
+| Scope touches | Mandated tier row |
+|---|---|
+| any `*-ui/**` path (components, pages, stores, router) | `e2e/browser` |
+| a controller / `@RestController` / any SDD §3 endpoint | `api` |
+| `*-entities/**` (`@Entity`, repository, schema pickup) | `integration` (incl. the liquibase-pickup check) |
+| messaging / JMS listener / async job wiring | `integration` |
+
+Mandates are **hard downstream** — the no-waiver rule's owning statement is the
+execute contract's "Driven mode" section; this check only guarantees the rows
+exist to be enforced.
 
 **(f) Scope sanity.** Globs are concrete (no bare `**`), and the union of all
 subtask Scopes covers the PRD's stated work with no silent gap.
 
-**(g) Smoke gate (iff a `VERIFICATION-PLAN.md` is present).** Every plan scenario
+**(g) Smoke gate (always — shape depends on `VERIFICATION-PLAN.md`).** When the
+plan is present: Every plan scenario
 — across `## UI Journeys` and `## API Scenarios` — is seeded as a `## Feature
 smoke gate` row carrying its `Modality`, each tracing to its real source (UI →
 grep the PRD User Story; API → the SDD §3 row / PRD Acceptance Criterion) and
@@ -46,7 +59,8 @@ subtasks exist **per modality present**:
     placeholder) — `## Blocked by` **every** other subtask, pointing at
     `11700-payable/verification/api/AUTHORING.md`; `## Verification` carries a
     `static` `node --check` row and an `api` `node --test` row.
-Any gate row marked `env-limited` carries that flag from the plan. Conversely, no
-`VERIFICATION-PLAN.md` → neither the section nor any build subtask is present, and
-a UI-only plan emits only `NNNN-smoke-e2e` (don't emit a half-gate or a phantom
-API subtask).
+Any gate row marked `env-limited` carries that flag from the plan. A UI-only plan
+emits only `NNNN-smoke-e2e` (don't emit a half-gate or a phantom API subtask).
+No `VERIFICATION-PLAN.md` → the `## Feature smoke gate (minimal)` section is
+present instead (see SMOKE-GATE.md), with no build subtasks and no scenario
+table — a plan with neither gate section is invalid.
