@@ -172,7 +172,7 @@ graph LR
     Auto -->|one fresh subagent per subtask| Exec[/afk:execute/]
     Sub -.->|or run once per subtask by hand| Exec
     Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
-    Exec -.->|uses| Tdd[/afk:tdd/]
+    Exec -.->|uses| Tdd[/tdd skill/]
     Exec -.->|review gate| Rev[/afk:review/]
     Exec -.->|adversarial gate| Adv[/afk:adversary/]
 
@@ -655,8 +655,8 @@ tooling.)*
 
 ### Tooling
 
-- **`/afk:tdd`** — red-green-refactor doctrine, invoked from `/afk:execute`
-  Step 5. Not run standalone.
+- **`tdd`** (agent-invoked, not in the `/` menu) — red-green-refactor
+  doctrine, invoked from `/afk:execute` Step 5. Not run standalone.
 - **`/afk:review`** — the **independent post-verification review gate**. Fresh,
   parallel subagents — one per concern (CLAUDE.md-compliance, spec-fidelity,
   logic-correctness, code-quality, test-veracity, scope-and-impact,
