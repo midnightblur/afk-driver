@@ -1,6 +1,7 @@
 ---
 name: verify-seams
 description: Independent orphan hunt over a change — verify everything produced is actually consumed. Use before declaring a multi-artifact task done, before pushing/shipping (`final` mode), or when asked whether a change is fully wired.
+user-invocable: false
 ---
 
 Catch the producer-without-consumer failure: work that is locally correct but dead at the seam — a file nothing reads, an endpoint nothing calls, an event nothing subscribes to, a config key nothing loads, a DTO field never mapped. Compilers and unit tests are blind to it; this skill isn't.

@@ -100,5 +100,5 @@ The contract is enforced at three checkpoints — drift is impossible to ship wi
 - `GLOSSARY.md` — workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts).
 - `REPORTING.md` — the human-facing reporting protocol every status-emitting skill follows.
 - `DELEGATION.md` — the subagent-delegation protocol every context-heavy skill follows.
-- `hooks/wiring-gate.sh` — Stop hook shipped with the plugin: a new artifact with no consumer and no anchored IOU (repo's `.claude/wiring-ious.md`) blocks the turn; judgment tier is `/afk:verify-seams`.
+- `hooks/wiring-gate.sh` — Stop hook shipped with the plugin: a new artifact with no consumer and no anchored IOU (repo's `.claude/wiring-ious.md`) blocks the turn; judgment tier is the `verify-seams` skill (`skills/utils/verify-seams` — agent-invoked, hidden from the `/` menu via `user-invocable: false`).
 - Parent ticket: P2P-1220 (Jira).

@@ -709,12 +709,14 @@ invoked any time, in any project.
   (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
   Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
   `scripts/fetch-mr.sh`); code mode is fully standalone.
-- **`/afk:verify-seams`** — independent orphan hunt over a change: a
-  fresh-context subagent (blind to the author's narrative) classifies every
-  produced artifact wired / weak / orphan; `final` mode blocks shipping on open
-  wiring IOUs. Judgment tier above `hooks/wiring-gate.sh`, the Stop hook the
-  plugin ships that blocks any new artifact with no consumer and no anchored
-  IOU in the repo's `.claude/wiring-ious.md`.
+- **`verify-seams`** (agent-invoked, not in the `/` menu) — independent orphan
+  hunt over a change: a fresh-context subagent (blind to the author's
+  narrative) classifies every produced artifact wired / weak / orphan; `final`
+  mode blocks shipping on open wiring IOUs. The agent runs it before declaring
+  multi-artifact work done and before push/ship; to trigger it yourself, just
+  ask ("verify seams"). Judgment tier above `hooks/wiring-gate.sh`, the Stop
+  hook the plugin ships that blocks any new artifact with no consumer and no
+  anchored IOU in the repo's `.claude/wiring-ious.md`.
 
 ---
 
