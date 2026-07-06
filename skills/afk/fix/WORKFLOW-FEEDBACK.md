@@ -37,5 +37,5 @@ reviewed change that the agent owning the plugin
 3. **Hand it off.** Invoke **`/afk:handoff`** with that payload and the focus
    *"harden AFK skill `<name>` so a `<miss-class>` bug in `<flow>` can't recur."*
    The handoff names the skill file(s) to edit under the plugin repo and suggests
-   the next session run that skill's authoring loop (`/afk:create-skill`). Report
+   the next session run that skill's authoring loop (`/afk:writing-great-skills`). Report
    the handoff doc path in Phase 4.
