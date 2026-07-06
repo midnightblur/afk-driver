@@ -36,6 +36,7 @@
     "./skills/utils/handoff",
     "./skills/utils/to-code-walkthrough",
     "./skills/utils/todo",
+    "./skills/utils/verify-seams",
     "./skills/utils/writing-great-skills"
   ]
 }
