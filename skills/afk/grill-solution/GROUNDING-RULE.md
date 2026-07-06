@@ -34,6 +34,11 @@ verify before continuing:
 | Existing behaviour ("the system does X when Y") | Find the code path: `ctx_search` the entry point, read the branch that decides; or run the existing test that pins it. |
 | Cross-repo / runtime topology / deploy posture | Often unverifiable from this repo alone — see "external claims" below. |
 
+Run these verifications in `afk-reader` subagents — parallel where the
+claims are independent — each returning a cited confirm/refute digest,
+per `DELEGATION.md` (plugin root); the grilling session keeps its
+context on the interview and acts on the digests.
+
 **How to handle a verification miss.**
 
 1. **Surface the gap explicitly.** Quote what the user said. Quote what

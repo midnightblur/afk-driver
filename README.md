@@ -81,6 +81,11 @@ What makes it trustworthy while you're away:
   (`REPORTING.md`), and every piece of workflow vocabulary has one definition
   (`GLOSSARY.md` at the plugin root — domain vocabulary stays in the target
   repo's glossaries).
+- **The orchestrator keeps conclusions, not inputs.** Context-heavy work — bulk
+  reads, repo-wide searches, suite runs, big diffs, tracker pulls — runs in
+  fresh subagents that return terse cited digests (`DELEGATION.md` at the
+  plugin root). The driving agent stays lean for the decisions only it can
+  make, and every heavy judgment gets a fresh pair of eyes.
 
 ---
 

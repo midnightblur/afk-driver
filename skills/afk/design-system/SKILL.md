@@ -65,7 +65,7 @@ Each card is a **standalone HTML file, openable as `file://`** (inline CSS, no b
 
 The marker's `group` is how the catalog buckets cards (Foundations · Form controls · Actions · Data display · Overlays · Navigation · Patterns, or whatever shapes your service has). Keep a **shared boilerplate** — font import, body reset, heading/subtitle styles — identical across cards so the catalog reads as one system.
 
-Authoring a few dozen cards is parallel work: hand each builder agent an **identical "KIT"** — verified tokens, conventions (Step 5's findings), boilerplate — so independently-authored cards stay visually consistent instead of each agent re-deriving (and diverging on) the same hex.
+Authoring a few dozen cards is parallel work: hand each builder agent an **identical "KIT"** — verified tokens, conventions (Step 5's findings), boilerplate — so independently-authored cards stay visually consistent instead of each agent re-deriving (and diverging on) the same hex. Spawn mechanics and each builder's return contract follow `DELEGATION.md` (plugin root).
 
 **Fidelity check — compare each card to the LIVE app, side by side.** The reference is **a screenshot of the real running screen at `live_url`**, not the card's own render and not the framework's static CSS. For each high-risk card: screenshot the matching live screen (from Step 1's live pass, or navigate now), screenshot the card, and **diff them by eye** — header heights, control density, spacing, exact fill/underline/tooltip treatment, how a shared component kit actually paints. Fix the card to match the live pixel, then re-shoot. A card you never put next to the live app is **not verified — say so on it.**
 

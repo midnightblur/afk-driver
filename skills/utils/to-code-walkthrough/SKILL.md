@@ -64,7 +64,7 @@ Filter rules:
 6. **Discover spec** (MR mode only). Cascade against `mr.json.description`: URL regex `https?://[^\s)]+(atlassian\.net/browse/[A-Z]+-\d+|/issues/\d+)` -> markdown link `\[([A-Z]+-\d+)\]\([^)]+\)` -> free-text `[A-Z]+-\d+` -> commit messages. Key + repo has `specs/**/{KEY}/PRD.md` -> file. Else jira MCP / WebFetch. -> `$CLAUDE_JOB_DIR/spec.md`. Fail -> `spec_path=none`, mode flag `no-spec` (L2 falls back to MR description + commits).
 7. **Auto-skip detection.** Glob changed paths for frontend (`*.vue`, `*.tsx`, `*.jsx`, `*.svelte`) -> include L7, else drop. Glob for schema/DTO/event signals (`*.sql`, `**/entity/**`, `**/dto/**`, `**/event/**`, `**/*Entity.java`, `**/*Dto.java`) -> include L8, else drop. `only` arg overrides auto-skip.
 8. **Resolve layer list.** Preset -> `only` replaces -> `skip` removes -> auto-skip applies. Empty -> exit w/ `--list-layers` hint.
-9. **Spawn layer agents.** Single message, parallel Agent calls. One per layer. All `subagent_type: general-purpose`. See "Subagent prompt" below.
+9. **Spawn layer agents.** Single message, parallel Agent calls. One per layer. All `subagent_type: general-purpose`. See "Subagent prompt" below. Spawn mechanics + child return contract per `DELEGATION.md` (plugin root).
 10. **Aggregate.** Collect outputs in layer order (L1 -> L9). Stitch:
     - Header: mode + ticket (if any) + MR title + branches + generated timestamp + layers run.
     - TOC: anchor links to each layer section.

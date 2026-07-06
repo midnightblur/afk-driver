@@ -48,7 +48,9 @@ terms" while terms are still fluid → GRILL. When both apply, audit what exists
 
 ### AUDIT
 
-1. Read `GLOSSARY-MAP.md` → locate the target service `GLOSSARY.md`. Read it + the relevant code.
+1. Read `GLOSSARY-MAP.md` → locate the target service `GLOSSARY.md`. Read it inline; delegate the
+   code side of the scan to an `afk-reader` subagent that checks the relevant code against the
+   glossary's terms and returns cited drift findings, per `DELEGATION.md` (plugin root).
 2. Diagnose vocabulary problems only:
    - **Ambiguity** — one word used for several concepts.
    - **Synonyms** — several words for one concept (pick a canonical, list the rest under `_Avoid_`).

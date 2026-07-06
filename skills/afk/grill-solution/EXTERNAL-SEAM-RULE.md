@@ -5,7 +5,9 @@ wrong at the seam with a framework, a UI contract, or another layer's
 enforcement — the grill is sharp on seams between *our* modules and blind
 where our code meets things we don't own. Before locking any decision that
 crosses such a seam, **verify (don't assume)** the four things that pass
-existence checks and still ship broken:
+existence checks and still ship broken — like Grounding-rule
+verifications, these reads run in `afk-reader` subagents returning cited
+confirm/refute digests, per `DELEGATION.md` (plugin root):
 
 1. **Framework runtime behavior** — not the API signature, what it *does*
    at the pinned version: how it serializes your output, generates the

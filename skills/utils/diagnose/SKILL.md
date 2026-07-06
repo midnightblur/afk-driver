@@ -32,6 +32,8 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 
 Build the right feedback loop, and the bug is 90% fixed.
 
+Bulk executions inside the loop (failing-suite runs, builds, instrumented runs with long logs) run via an `afk-runner` subagent that returns only the distilled observations — the decisive lines, cited — per `DELEGATION.md` (plugin root); the hypothesise → instrument → conclude reasoning itself stays inline, because each decision needs the previous step's texture.
+
 ### Tools at your disposal (core-services)
 
 The list above is generic methods; these are the concrete instruments in this repo. Use every one that fits before settling for a guess.

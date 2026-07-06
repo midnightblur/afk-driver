@@ -5,6 +5,10 @@
   "author": {
     "name": "mvu"
   },
+  "agents": [
+    "./agents/afk-reader.md",
+    "./agents/afk-runner.md"
+  ],
   "skills": [
     "./skills/afk/adversary",
     "./skills/afk/autopilot",

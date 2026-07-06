@@ -20,7 +20,7 @@ Do NOT interview the user. If a brief section can't be filled from source docs, 
    - ADRs: `.../{TICKET-ID}/adr/requirements/NNNN-*.md` (requirement-level, from `/afk:to-prd`) and `.../{TICKET-ID}/adr/design/NNNN-*.md` (design-level, from `/afk:to-sdd`)
    - Brief lands at `.../{TICKET-ID}/DESIGN-BRIEF.md` (sibling).
 
-   Read PRD with `ctx_read` mode=full. Read SDD mode=full. Read each ADR mode=signatures (just title, decision, alternatives count, layer).
+   Read PRD with `ctx_read` mode=full. Read SDD mode=full. Read each ADR mode=signatures (just title, decision, alternatives count, layer). Delegate this digestion to an `afk-reader` subagent returning a cited digest of the source docs, per `DELEGATION.md` (plugin root); the brief itself is written here, from that digest.
 
 2. **Refuse if the SDD is incomplete.** If SDD §13 Open Questions is non-empty with `Blocks executor? = yes` rows, do NOT emit a brief — design not stable enough to summarize. Tell the user to resolve via `/afk:grill-solution` first.
 

@@ -19,8 +19,8 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 ## Phase 0 — Intake & classify
 
 1. **Source of the finding.**
-   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Extract repro steps, env, expected vs actual.
-   - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation.
+   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to the ticket fields — per `DELEGATION.md` (plugin root).
+   - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
 2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`mvu/afk/{ticket-id}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 
@@ -54,7 +54,7 @@ For a user-visible (`e2e/browser`) or backend-contract (`api`) bug, interrogate 
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
-A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance).
+A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance). The reads that only locate which artifacts need reconciling (PRD / SDD / ADRs / VERIFICATION-PLAN) go through an `afk-reader` returning a cited digest of what each asserts vs the fix, per `DELEGATION.md` (plugin root); the triage and routing stay here.
 
 | What the fix revealed | Stale artifact | Route to |
 |-----------------------|----------------|----------|

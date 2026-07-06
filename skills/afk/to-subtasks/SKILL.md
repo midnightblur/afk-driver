@@ -38,11 +38,13 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
 ## Process
 
-1. **Read the sources.** `ctx_read` the PRD (mode=full) and the parent ticket description for context (target branch, components). In cited mode also read `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md` (mode=signatures). The set of `(SDD section IDs, §9b seam rows, ADR IDs)` is your **citation pool** — every cited subtask references at least one entry. Also check for a sibling `VERIFICATION-PLAN.md`; if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive the smoke gate + build subtasks (step 3).
+1. **Read the sources.** `ctx_read` the PRD (mode=full) and the parent ticket description for context (target branch, components). In cited mode also read `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md` (mode=signatures). The set of `(SDD section IDs, §9b seam rows, ADR IDs)` is your **citation pool** — every cited subtask references at least one entry. Also check for a sibling `VERIFICATION-PLAN.md`; if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive the smoke gate + build subtasks (step 3). Delegate this read set + citation-pool build to an `afk-reader` subagent that returns the pool with `file#anchor` citations — don't pull the full sources into your own context, per `DELEGATION.md` (plugin root).
 
 2. **Refuse-to-slice gate (cited mode).** A plan built on an unstable SDD ships the instability into every subtask. Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk:grill-solution` + `/afk:to-sdd`:
    - **Executor-blocking markers** — the canonical blocker set `/afk:to-sdd` Step 7 enforces (`\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`, `<TBD>`/`<TODO>`/`<placeholder>`/`<fill>`/`<\?>`, `\[\?\]`, `_?FILL[_-]?IN_?`, `\(decide later\)`/`\(unresolved\)`/`\(open\)`, unsubstituted template literals like `<TICKET-ID>`/`{Feature Name}`), plus §13 Open-Questions rows marked `Blocks executor? = yes`. Skip code-block contents (real generics `<T>`, nullable `Foo?` are not blockers).
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
+
+   Run both scans via `afk-reader` — the same child that built step 1's citation pool, or a second one spawned in parallel in the same message — returning pass/fail + cited hits, per `DELEGATION.md` (plugin root).
 
    Uncited mode skips this gate — the human has accepted the PRD as sole source of truth.
 

@@ -33,6 +33,10 @@ The workflow's speed is worthless if the human can't stay on top of it. Two plug
 
 The followability artifacts and their stewards: the **ticket index** (`INDEX.md`, read-this-first dashboard — created by `/afk:to-prd`, each later synthesis skill upserts only its own row), the **journal** (`plan/JOURNAL.md`, append-only event log — seeded by `/afk:to-subtasks`, appended to by `/afk:execute`, `/afk:autopilot`, `/afk:smoke-test`; append-only is the one sanctioned multi-writer pattern), the **review rollup** (`plan/review/INDEX.md`, owned by `/afk:review`), the **trace matrix** (`plan/TRACE.md`, emitted once by the terminal sync-harness subtask), and the **grill log** (`GRILL-LOG.md`, one section per grill skill).
 
+## Context protection (binding on every skill)
+
+The orchestrating agent's context window is the run's scarcest resource. **`DELEGATION.md`** (plugin root) owns the doctrine: the must-delegate triggers (bulk reads, repo-wide searches, suite/build runs, large diffs, external intake), the spawn rules (parallel-in-one-message, named agent types, nesting cap), the return contract (terse cited digest, bulk evidence to a file), and what must never be delegated (the human conversation, conversation synthesis, single-writer stamps). Skills point at it, never restate it. A step that matches a trigger delegates even where a skill's own prose predates the doctrine.
+
 ## The skills
 
 - **Mandatory chain**: `/afk:to-prd` → `/afk:to-ticket` → `/afk:to-subtasks` → `/afk:autopilot` (or `/afk:execute` per subtask by hand) → `/afk:smoke-test`. `/afk:to-ticket` is the one step that publishes the local PRD to the parent Enhancement (the only design-chain skill that writes to the tracker). `/afk:to-subtasks` emits a **local plan** (`plan/PLAN.md` index + `plan/NNNN-slug.md` per subtask) — no Jira. `/afk:autopilot` runs the subtasks hands-off (or you run `/afk:execute` yourself, once per subtask); either way the executor advances each subtask's row in the local progress tracker. `/afk:to-subtasks` always seeds one terminal `NNNN-sync-harness` doc subtask (blocked by every other subtask, run last by `/afk:execute`) that syncs the CLAUDE.md harness for the shipped feature **and settles the staples registry** by delegating to `/afk:claude-md`.
@@ -95,4 +99,5 @@ The contract is enforced at three checkpoints — drift is impossible to ship wi
 - `README.md` — install, the chain map, and the per-skill summary.
 - `GLOSSARY.md` — workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts).
 - `REPORTING.md` — the human-facing reporting protocol every status-emitting skill follows.
+- `DELEGATION.md` — the subagent-delegation protocol every context-heavy skill follows.
 - Parent ticket: P2P-1220 (Jira).

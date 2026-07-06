@@ -24,7 +24,7 @@ Optional. Run for a feature with **meaningful net-new UI** worth settling before
 
 ### 1. Read the stories and anchor to the real app
 
-Read `PRD.md` — User Stories and Acceptance Criteria are what the screen must serve. Then **anchor to the real frontend**: find the sibling frontend checkout's components, layout shell (header/sidebar/nav), and design tokens (the CSS / Tailwind config / component library it actually uses); read enough to mock *in that vocabulary* — the mockup must look like **your app**; a generic Tailwind page teaches nothing about whether the feature fits the product. Can't find the frontend? Say so, proceed with a neutral style, flag the missing anchor.
+Read `PRD.md` — User Stories and Acceptance Criteria are what the screen must serve. Then **anchor to the real frontend**: find the sibling frontend checkout's components, layout shell (header/sidebar/nav), and design tokens (the CSS / Tailwind config / component library it actually uses); read enough to mock *in that vocabulary* — the mockup must look like **your app**; a generic Tailwind page teaches nothing about whether the feature fits the product. Delegate that anchor read to an `afk-reader` subagent returning a vocabulary digest — component names, token values, layout idioms, each with file citations — per `DELEGATION.md` (plugin root); the crafting loop then mocks from the digest. Can't find the frontend? Say so, proceed with a neutral style, flag the missing anchor.
 
 ### 2. Open the canvas
 

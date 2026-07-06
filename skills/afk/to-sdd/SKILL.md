@@ -46,7 +46,9 @@ Do NOT interview — synthesize what you already know. If a critical-logic conce
 
    Refuse-to-publish (same as Step 7) if any pin lacks a manifest citation or contradicts it.
 
-8b. **Framework-seam cross-check.** Step 8 verifies the version pin; this verifies the *behavior* at that pin. For each §9b framework row, confirm what it does to our value (and which annotations it honors) against the framework source / docs (`get-api-docs` where available), not memory. Unverifiable → label `unverified premise`; if the design depends on it, it's a §13 blocker → bounce to `/afk:grill-solution`. Every framework row names a seam-test or the seam isn't done.
+   This cross-check is pure research: delegate it to an `afk-reader` subagent returning a cited confirm/refute per pin — Step 8b's seam check is independent and runs as a parallel sibling in the same message — per `DELEGATION.md` (plugin root). The conversation synthesis itself stays inline.
+
+8b. **Framework-seam cross-check.** Step 8 verifies the version pin; this verifies the *behavior* at that pin. For each §9b framework row, confirm what it does to our value (and which annotations it honors) against the framework source / docs (`get-api-docs` where available), not memory. Unverifiable → label `unverified premise`; if the design depends on it, it's a §13 blocker → bounce to `/afk:grill-solution`. Every framework row names a seam-test or the seam isn't done. Like Step 8, delegate this research to an `afk-reader` returning a cited confirm/refute per §9b row, per `DELEGATION.md` (plugin root).
 
 9. **Emit design ADRs** into the `adr/design/` subfolder. Numbering is local to `adr/design/` (start at `0001`), independent of `adr/requirements/` numbering. ADRs are subject to the same Step 7 refuse-to-publish gate AND the Step 8 library-version cross-check — apply both before writing any `adr/design/NNNN-*.md` file.
 

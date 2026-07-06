@@ -7,11 +7,11 @@ Do NOT interview the user — just synthesize what you already know.
 
 Write `PRD.md` (and any requirement-level ADRs) to the repo and stop — publishing the PRD to a tracker is the separate **`/afk:to-ticket`** skill, run afterwards.
 
-**Claim-ledger gate.** Before writing, check every load-bearing claim about **this repo** that the requirements rest on: any claim not `verified` — whether its ledger row says otherwise, is missing, or the ledger didn't survive into context — is verified **now** (one search/read) or the synthesis **refuses**, naming the claim; never build a PRD on an unverified or refuted in-repo premise. Claims marked `unverified-external` (outside this repo, user-acknowledged) are allowed in, but every requirement resting on one carries the literal label `(unverified premise: {claim})` where it appears in the PRD.
+**Claim-ledger gate.** Before writing, check every load-bearing claim about **this repo** that the requirements rest on: any claim not `verified` — whether its ledger row says otherwise, is missing, or the ledger didn't survive into context — is verified **now** (one search/read) or the synthesis **refuses**, naming the claim; never build a PRD on an unverified or refuted in-repo premise. Run these in-repo re-verifications in `afk-reader` subagents — parallel where the claims are independent — each returning a cited confirm/refute digest, per `DELEGATION.md` (plugin root). Claims marked `unverified-external` (outside this repo, user-acknowledged) are allowed in, but every requirement resting on one carries the literal label `(unverified premise: {claim})` where it appears in the PRD.
 
 ## Process
 
-1. Explore the repo for current codebase state, if not already done. Use the project's domain glossary vocabulary throughout the PRD; respect any ADRs in the area you're touching.
+1. Explore the repo for current codebase state, if not already done — delegate that exploration to `afk-reader` subagents (parallel where the areas are independent) returning cited digests, per `DELEGATION.md` (plugin root); the PRD synthesis itself stays inline, since it synthesizes this conversation. Use the project's domain glossary vocabulary throughout the PRD; respect any ADRs in the area you're touching.
 
 2. Sketch the major modules to build or modify for the implementation. Actively look for deep modules that can be tested in isolation.
 

@@ -32,7 +32,7 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 
 ## Concerns (7)
 
-One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: the concern's checklist (below, verbatim), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — dedup handles it.
+One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: the concern's checklist (below, verbatim), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — dedup handles it. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
 
 | Concern | Asks | Default subagent reads |
 |---|---|---|

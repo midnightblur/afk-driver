@@ -9,7 +9,7 @@ Interview the user relentlessly about every aspect of the plan until shared unde
 
 Ask questions one at a time; wait for feedback on each before continuing.
 
-If a question can be answered by exploring the codebase, explore it instead.
+If a question can be answered by exploring the codebase, explore it instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
 
 </what-to-do>
 
@@ -35,7 +35,7 @@ When domain relationships are discussed, stress-test them with specific scenario
 
 ### Verify claims — maintain the claim ledger
 
-When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling). A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling) — the verification runs in `afk-reader` subagents returning cited confirm/refute digests, per `DELEGATION.md` (plugin root). A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
 Keep a running **claim ledger** in the conversation: every load-bearing claim gets one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it and update the row to `verified` against the actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. The ledger is what the PRD synthesis gates on — a lost ledger means re-verifying, not waving through.
 
@@ -50,7 +50,7 @@ Users ask for the solution they imagined, not always the one their problem needs
 
 ### Devil's-advocate pass (before synthesis)
 
-When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation). Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
+When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn mechanics and its return contract follow `DELEGATION.md` (plugin root). Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
 
 ### Grill the access & validation policy (every feature)
 

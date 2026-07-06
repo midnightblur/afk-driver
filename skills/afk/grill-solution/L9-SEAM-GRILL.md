@@ -15,7 +15,7 @@ Record each seam as a row: `seam | existing contract (verified where) | planned 
 
 ## Part 2 — parallel compatibility audit
 
-After the seam walk, fan out **read-only audit subagents — one per touched module or load-bearing pattern** (e.g. one for the owning service module, one per cross-module seam, one per framework pattern the design leans on). Each gets: the settled design summary (decisions + seam rows for its area) — not the conversation — and this brief:
+After the seam walk, fan out **read-only audit subagents — one per touched module or load-bearing pattern** (e.g. one for the owning service module, one per cross-module seam, one per framework pattern the design leans on). Each gets: the settled design summary (decisions + seam rows for its area) — not the conversation — and this brief; spawn mechanics and each auditor's return contract follow `DELEGATION.md` (plugin root):
 
 > Attack this design against the code you can read. Where does it contradict an existing invariant, pattern, contract, or convention in your area? What existing behaviour would it silently change? What does it assume that the code refutes? Report findings with file evidence; report nothing you cannot cite.
 

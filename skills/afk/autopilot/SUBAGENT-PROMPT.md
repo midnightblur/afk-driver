@@ -1,6 +1,6 @@
 # Per-subtask subagent prompt
 
-Spawn one general-purpose subagent per subtask with this prompt, placeholders filled. The subagent does not need skill-invocation support — it reads the skill files by path and follows them.
+Spawn one general-purpose subagent per subtask with this prompt, placeholders filled. The subagent does not need skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics and the subagent's return contract follow `DELEGATION.md` (plugin root).
 
 ```
 You are executing one subtask of a local plan, non-interactively.
