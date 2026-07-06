@@ -3,15 +3,14 @@ name: draw-charts
 description: Render-safe diagrams. Use when writing any Mermaid (or other) chart into a file or message — steers away from the few constructs that break renderers and render-checks before shipping.
 ---
 
-# draw-charts
-
 Charts that render the first time. Mermaid-first; grow as new gotchas surface.
 
 ## Always
 
 - **Render-check before you ship.** Lint Mermaid with `mmdc -i d.mmd -o d.svg`
-  (mermaid-cli) — a clean SVG means it renders. No mmdc → stay in the safe subset
-  below.
+  (mermaid-cli) — a clean SVG means it renders. No mmdc on PATH → self-provision:
+  `npm i -g @mermaid-js/mermaid-cli`; if install isn't possible, stay in the safe
+  subset below.
 - **Target the oldest renderer in play.** A VSCode preview extension lags GitHub;
   lowest-common-denominator syntax renders everywhere.
 

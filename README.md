@@ -394,10 +394,10 @@ cited; a PRD **alone** slices uncited.
 ## 7. Where everything lives
 
 Every design artifact sits next to the code it describes, under the ticket's
-spec folder (or `tasks/{ENH-ID}/` for tooling work that has no service home):
+spec folder (or `tasks/{TICKET-ID}/` for tooling work that has no service home):
 
 ```text
-{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/
+{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/
 ├── INDEX.md                   ← /afk:to-prd creates; each skill upserts its row (read this first)
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
@@ -543,7 +543,7 @@ for a superseding ADR — it never silently substitutes a different interface.
 
 - **`/afk:to-prd`** — turns conversation context into a `PRD.md`, plus
   requirement-level ADRs (decisions clearing the *hard-to-reverse + surprising +
-  real-trade-off* bar) under `.../{ENH-ID}/adr/requirements/`. **Local artifacts
+  real-trade-off* bar) under `.../{TICKET-ID}/adr/requirements/`. **Local artifacts
   only** — does not touch the tracker.
 - **`/afk:to-ticket`** — publishes the full PRD **content** into its **existing**
   parent ticket as native Jira ADF (headings, tables, code, Mermaid → attached

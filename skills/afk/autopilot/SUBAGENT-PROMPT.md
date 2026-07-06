@@ -11,9 +11,10 @@ subtask {NNNN-slug}, in DRIVEN mode (see that file's "Driven mode" section).
 Context:
 - worktree (cwd): {WORKTREE_PATH} — already on branch {BRANCH}
 - plan dir: {PLAN_DIR}
-- live app for api/e2e/adversarial verification: {APP_BASE_URL}
-  (already provisioned with your changes after you implement; if you need a
-  reboot to pick up later changes:
+- live app base URL for api/e2e/adversarial verification: {APP_BASE_URL}
+  (the port is reserved and the baseline was booted before the run — YOU
+  provision the instance AFTER implementing, so it serves your changes;
+  re-run the same command to pick up later changes:
   APP_START_KEEP=1 APP_START_PORT={PORT} [APP_START_SKIP_UI=false for UI slices]
   bash .claude/hooks/app-start-gate.sh {LEAF_MODULE})
 - commit + push on {BRANCH} and Draft-MR checklist updates are authorized
@@ -29,4 +30,4 @@ Journal: plan/JOURNAL.md · Contract: plan/{NNNN-slug}.md
 OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-ID|none>]
 ```
 
-The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim.
+The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim. The report-block grammar above is owned by `/afk:execute` (Step 13) — a lockstep copy here because the orchestrator parses it; update both in the same commit.

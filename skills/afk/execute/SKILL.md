@@ -1,6 +1,6 @@
 ---
 name: execute
-description: Execute one subtask from a local plan end-to-end — read its contract from plan/NNNN-slug.md, design, develop under TDD, run every declared verification tier plus the adversarial execution gate, commit, push, update the Draft MR, and advance the subtask's row in PLAN.md — then stop at CR/Merge for the human. Use when the user runs `/afk:execute {NNNN-slug}` on the parent branch to build one planned subtask, or when `/afk:fix` routes a stuck verification tier back to it. Runs interactively by default, or non-interactively when the invoker requests DRIVEN mode. No Jira. Reports a structured outcome.
+description: Executes one subtask from a local plan end-to-end — design, TDD, every declared verification tier plus the review and adversarial gates, commit, push, Draft-MR and PLAN.md updates — then stops at CR/Merge. Use when the user runs `/afk:execute {NNNN-slug}` on the parent branch, or when an invoker requests DRIVEN mode.
 ---
 
 # afk:execute — run one subtask from the local plan
@@ -62,7 +62,7 @@ When the invocation says DRIVEN (the invoker passes the flag plus a live-app bas
 
 9. **Producer self-preflight on `## Produces` (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-10. **Status → `reviewing`; independent review gate.** Every tier is green (Step 8) and the `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — it returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]`.
+10. **Status → `reviewing`; independent review gate.** Every tier is green (Step 8) and the `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — it returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it).
 
     - **`clean`** → proceed to Step 11.
     - **`advisory`** (only `medium`/`low`) → don't block on nits. Carry the findings into Step 11's `## Implementation Notes` note and add a brief MR note, then proceed to Step 11.
@@ -79,7 +79,7 @@ When the invocation says DRIVEN (the invoker passes the flag plus a live-app bas
 
     - **`clean`** → proceed to Step 11.
     - **`findings`** with any `critical`/`high` → remediate by each finding's `class` with the same routing as Step 10 (`correctness`/`spec` → `/afk:fix`; `authz`/`robustness` → inline within Scope), commit, push, and **re-run from Step 8**. These remediation cycles **count toward the same 2-cycle cap** as Step 10; still `critical`/`high` after the cap → stop with `adversary_fail`. Findings that are only `medium`/`low` → treat like an advisory review: carry them into Step 11's notes and proceed.
-    - **`tainted`** / **`env_unreachable`** → respawn it fresh / restore the app, then re-run the gate; don't proceed around it.
+    - **`tainted`** / **`env_unreachable`** → respawn it fresh / restore the app, then re-run the gate; don't proceed around it. **Cap at 2 such re-run attempts**: still `tainted` after the second → stop with `adversary_fail` (name the taint); still `env_unreachable` → stop with `blocked(env_unreachable: …)` naming what wouldn't come up.
 
     Mandatory in driven mode; on by default interactively (only the human may skip it).
 
@@ -91,7 +91,7 @@ When the invocation says DRIVEN (the invoker passes the flag plus a live-app bas
 
     Set the subtask's PLAN.md row `Status` to `done`; stamp the date.
 
-12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. Anything the plan defines beyond a single subtask — a feature-level gate the human runs once all subtasks are `done` — is likewise not yours to trigger. Run **every** subtask uniformly from its contract, including one whose `## Goal` says to invoke another skill: invoke that skill as written — don't recognize a subtask by kind, hand-write its output, or reimplement what it delegates to.
+12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. Anything the plan defines beyond a single subtask — a feature-level gate the human runs once all subtasks are `done` — is likewise not yours to trigger.
 
 13. **Report the structured outcome.** End with a one-line outcome so the human (or an orchestrator) tells `success` from a structured failure at a glance. The same status drives the PLAN.md `Status` cell (`done` on success, `blocked(<status>: …)` otherwise):
 
@@ -121,9 +121,10 @@ If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-M
 
 ## Hard rules (inherited from core-services CLAUDE.md)
 
-- **Never alter DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup`, `PreDbMigration`, or `db/changelog/*` edits. Step 9's pickup check enforces this — `@Entity` without a passing pickup-verification run is `produces_drift`, not success.
+- **Never alter DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup`, `PreDbMigration`, or `db/changelog/*` edits. In cited mode Step 9's pickup check enforces this (`@Entity` without a passing pickup-verification run is `produces_drift`, not success); in uncited mode the guard is the static tier plus Step 4's diff check against the forbidden-pattern list.
 - **Never auto-commit outside this AFK lane.** This skill is the *only* context where the agent commits autonomously.
 - **Cross-module edits need marker comments.** A ticket-prefixed line like `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the home module.
 - **No `--no-verify`, no `--force`, no global git config changes.**
 - **Stay inside Scope globs.** If work requires going outside, stop with detail explaining what was needed and why.
+- **Run every subtask uniformly from its contract** — including one whose `## Goal` says to invoke another skill: invoke that skill as written; don't recognize a subtask by kind, hand-write its output, or reimplement what it delegates to.
 - **Only the tracker's Status column and the auto-maintained blocks are yours.** In PLAN.md edit only the working subtask's `Status` cell + the `Last updated` date; in the subtask file only the `## Implementation Notes` block; in the MR only the checklist block. Everything else round-trips verbatim.

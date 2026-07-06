@@ -1,11 +1,9 @@
 ---
 name: todo
 description: >
-  Quick per-project todo list that survives sessions. Stored at
-  `<cwd>/.claude/TODO.md`. Use when user invokes `/todo`, says "add a
-  todo", "remind me later", "save for later", "don't forget", "note that
-  down", "what's open", "any open todos", "what was I going to do", or
-  starts a session in a project that has open todos.
+  Quick per-project todo list that survives sessions. Use when user
+  invokes `/todo`, asks to add a todo / remember something for later, or
+  asks what's open.
 ---
 
 Per-project scratchpad for "do this next, but not now". Plain markdown file. Dead simple.
@@ -26,7 +24,7 @@ Format — markdown checklist, one item per line:
 - [x] finished item (2026-05-08)
 ```
 
-Date in parens = date added. Keep done items in place (struck through by `[x]`) until user runs `clear`.
+Date in parens = date added. Keep done items in place (checked `[x]`) until user runs `clear`.
 
 ## Subcommands
 
@@ -49,21 +47,15 @@ Remove all `[x]` lines. Confirm count removed.
 ### `rm <n>`
 Delete the n-th open item entirely (mistake / no longer relevant). Confirm.
 
-## Auto-trigger behaviors
+## Intent → subcommand
 
-Beyond `/todo` slash invocation, recognize these intents and call this skill:
-
-- User says "remind me to X later", "add todo X", "don't forget X", "note that down" → `add X`
-- User says "what's open", "any todos", "what was I going to do", "open items" → `list`
+- Add-shaped intent (remember/save something for later) → `add X`
+- List-shaped intent (what's open) → `list`
 - User finishes a task that matches an open todo → suggest `done <n>` (do not auto-mark; ask first).
 
 ## Session-start check
 
-When this skill is invoked with no args at session start, also surface count of open todos so the user remembers they exist:
-
-> 3 open todos in this project. Run `/todo list` to see them.
-
-Do NOT proactively read TODO.md every session without invocation — only when the skill is called. Keep cost zero when unused.
+No-args invocation always means `list` (see Subcommands). Do NOT proactively read TODO.md every session without invocation — only when the skill is called. Keep cost zero when unused.
 
 ## Don'ts
 

@@ -40,17 +40,20 @@ flowchart LR
 | 2 | 0002-slug | … | pending | — | static, unit, integration | impl §1 |
 | 3 | 0003-slug | … | pending | 0002-slug | static, unit, e2e | use §1 |
 
-Status values: `pending` → `designing` → `developing` → `verifying` → `done`,
-or `blocked(<reason>)`. `/afk:execute` advances the row it is working and writes
+Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
+or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
+`/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
 ## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
 > Gate: /afk:smoke-test   Suite: 11700-payable/verification   Target env: local | staging
-> Run (ui-e2e): cd verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)
-> Run (api): cd verification/api && node --test
+> Run (ui-e2e): cd 11700-payable/verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)
+> Run (api): cd 11700-payable/verification/api && node --test
 > Source: ../VERIFICATION-PLAN.md   Built by: NNNN-smoke-e2e (UI) · NNNN-smoke-api (API) — terminal, blocked by all
 > Last run: — (date + target; maintained by /afk:smoke-test)
+
+Run history: <!-- append-only; one line per run, appended by /afk:smoke-test -->
 
 Integrated verification scenarios that decide "feature complete", seeded from
 `VERIFICATION-PLAN.md` (one row per scenario, both modalities). A `ui-e2e` row

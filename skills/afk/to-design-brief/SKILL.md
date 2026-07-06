@@ -1,6 +1,6 @@
 ---
 name: to-design-brief
-description: Synthesize the existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md aimed at (a) technical stakeholders outside the team — security, ops, adjacent leads — and (b) humans pre-reading the SDD. One canonical diagram, 5-10 key-decision digest, stakeholder impact table. Strict synthesis: no new decisions; if a section can't be filled from the source docs, refuse and bounce back to `/afk:grill-solution` / `/afk:to-sdd`. Use when the user has a PRD + SDD (and ADRs) and wants a digestible briefing for stakeholder review or as a map before reading the full SDD.
+description: Synthesize an existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md for technical stakeholders outside the team and humans pre-reading the SDD. Strict synthesis — no new decisions. Use when the user has a PRD + SDD and wants a digestible stakeholder briefing or a pre-SDD map.
 ---
 
 Takes PRD, SDD, and per-decision ADRs; emits one `DESIGN-BRIEF.md` — a tight 1-2 page synthesis aimed at:
@@ -14,11 +14,7 @@ Do NOT interview the user. If a brief section can't be filled from source docs, 
 
 ## Process
 
-1. **Locate the source docs.** Default paths (sibling layout):
-   - PRD: `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`
-   - SDD: `.../{TICKET-ID}/SDD.md`
-   - ADRs: `.../{TICKET-ID}/adr/requirements/NNNN-*.md` (requirement-level, from `/afk:to-prd`) and `.../{TICKET-ID}/adr/design/NNNN-*.md` (design-level, from `/afk:to-sdd`)
-   - Brief lands at `.../{TICKET-ID}/DESIGN-BRIEF.md` (sibling).
+1. **Locate the source docs** in the ticket spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions") — sibling layout: `PRD.md`, `SDD.md`, `adr/requirements/NNNN-*.md` (requirement-level, from `/afk:to-prd`), `adr/design/NNNN-*.md` (design-level, from `/afk:to-sdd`). Brief lands at `.../{TICKET-ID}/DESIGN-BRIEF.md` (sibling).
 
    Read PRD with `ctx_read` mode=full. Read SDD mode=full. Read each ADR mode=signatures (just title, decision, alternatives count, layer). Delegate this digestion to an `afk-reader` subagent returning a cited digest of the source docs, per `DELEGATION.md` (plugin root); the brief itself is written here, from that digest.
 
@@ -34,9 +30,13 @@ Do NOT interview the user. If a brief section can't be filled from source docs, 
 
    Embed inline. Caption with one sentence stating the takeaway. **Do not include more than one diagram.** If one diagram can't carry the shape, the SDD is the right artifact, not the brief.
 
-4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding the diagram and tables. If a draft runs long, compress; don't add more sections. The brief is a **repo-only artifact** — does not touch the Jira ticket (see below).
+4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding the diagram and tables. If a draft runs long, compress; don't add more sections. The brief is a **repo-only artifact** — it does not touch the Jira ticket: it is shared with stakeholders out of band (link the repo file, paste it into a review thread), and the ticket description stays with its other owners (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`).
 
-5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
+5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
+
+**Done when:** `DESIGN-BRIEF.md` is on disk within the length cap and the `INDEX.md` `Design brief` row is upserted.
+
+**Re-emit on SDD change.** Briefs go stale silently — when the SDD or any ADR changes materially, re-run this skill; the `Last updated` field is the canary.
 
 ## Template
 
@@ -45,14 +45,10 @@ Write the brief using the template in [BRIEF-TEMPLATE.md](BRIEF-TEMPLATE.md).
 ## Hard rules
 
 - **Strict synthesis.** Every claim must trace back to PRD / SDD / an ADR. No new decisions, alternatives, or rationale. If a section can't be filled from sources, refuse — bounce to `/afk:grill-solution` + `/afk:to-sdd`.
-- **Length cap: 400-800 words** excluding the diagram and tables.
 - **One diagram only.** Pick the most useful one.
 - **One sentence per "Why" row** in §4. Rationale that doesn't compress to one sentence belongs in the ADR, not here.
 - **No code, no file paths inside the prose.** Pointers in §7 are the only exception — stable filenames sibling to the brief.
 - **Mirror the SDD status field.** A brief whose source SDD is Draft is itself Draft — stakeholders need to know whether they're reviewing a proposal or a decision.
-- **Refuse on incomplete SDD.** If SDD §13 has open questions that block executors (L2-L7, L9), do not emit a brief.
-
-See [AFK-ADAPTATION.md](AFK-ADAPTATION.md) for the core-services AFK adaptation.
 
 ## Next
 

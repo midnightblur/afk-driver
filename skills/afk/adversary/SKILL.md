@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Execution-based adversarial verification of one subtask's slice against a LIVE app — designs attack scenarios from the contract and specs alone (never the diff, never the implementor's tests), executes them over REST (and browser for UI-observable acceptance), and returns a clean/findings verdict with reproducible evidence. Use as an execution gate on one subtask's slice (`/afk:adversary {NNNN-slug} {app-base-url}`), or standalone to probe whether a slice actually works at runtime. Read-only for code and plan: edits nothing, reports everything.
+description: Adversarial execution verification of one subtask's slice against a LIVE app — designs attack scenarios from the contract and specs alone, never the diff or implementor tests, executes them, and returns a classed verdict with reproducible evidence. Use as an execution gate or standalone runtime probe, via `/afk:adversary {NNNN-slug} {app-base-url}`.
 ---
 
 # afk:adversary — prove the slice at runtime, blind to how it was built
@@ -27,10 +27,13 @@ MUST NOT read: the slice diff, the implementor's tests, `## Implementation Notes
    - **authz** — no token, expired token, wrong-role token: expect deny (below-the-UI, per the endpoint's declared guard);
    - **state** — the operation against an entity in a workflow state that should refuse it; repeat/duplicate submission;
    - **cross-effect** — the promise's side effects (balances, statuses, links) verified by a follow-up read, not trusted from the mutation response.
+
+   Effort bound: at most 3 scenarios per promise × class cell; deepen a cell past that only when one of its scenarios surfaces a finding.
 3. **Execute against `{app-base-url}`** — REST via `11700-payable/verification/core` (token minting, fetch, poll). When a promise is only observable in the browser, drive it with the ui-e2e harness's driver against the same instance. Create your own test data through public APIs (self-provision; never assume fixtures).
 4. **Verdict.**
    - Every scenario behaves as promised → `clean`.
    - Otherwise `findings`, each: `class` (`correctness` | `spec` | `authz` | `robustness`), severity (`critical`/`high`/`medium`/`low`), the promise it breaks (citation), and an exact repro (request + actual vs expected response, or UI steps + observed state).
+   - `env_unreachable` — the app at `{app-base-url}` cannot be reached or provisioned, at start or mid-run, after the retry the caller's gate allows; report it instead of probing a dead instance.
 
    Write the full report to `plan/review/{NNNN-slug}-adversary.md` (create `plan/review/` if missing; a re-run overwrites — the verdict line and the journal carry the history). Findings ranked most-severe first. End with:
 

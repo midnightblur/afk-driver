@@ -42,14 +42,14 @@ or invoke the feature, pointing at the key types + the spec dir; (2) ONE awarene
 affected service-root CLAUDE.md that names the feature and leads to (1); and (3) ONLY IF
 applicable, the STAPLES.md change — register a candidate new staple the PRD flagged, or
 advance/fill an existing staple's Reference this feature now exemplifies. If nothing is
-staple-worthy, (3) is a no-op. Then (4) write plan/TRACE.md per the trace-matrix spec in the
-plan emitter's HARNESS-SYNC.md — every PRD Acceptance Criterion mapped to its subtask, commits,
-and proving test, unsatisfied rows flagged.
+staple-worthy, (3) is a no-op. Then (4) write plan/TRACE.md per the trace-matrix spec in
+skills/afk/to-subtasks/HARNESS-SYNC.md — every PRD Acceptance Criterion mapped to its subtask,
+commits, and proving test, unsatisfied rows flagged.
 
 ## Scope
 - {service}/**/CLAUDE.md        # the affected service's CLAUDE.md chain (nearest leaf + service root)
 - {service}/STAPLES.md          # only if this feature mints a new staple or advances an existing one's Reference
-- 11xxx*/**/CLAUDE.md           # only the other 11xxx dirs the feature genuinely spans
+- 11???*/**/CLAUDE.md           # only the other 11xxx dirs the feature genuinely spans
 - tools/payable/**/CLAUDE.md    # only when the feature is harness / tooling itself
 - {plan dir}/TRACE.md           # the trace matrix this subtask emits
 # docs only — NO source edits
@@ -66,6 +66,7 @@ and proving test, unsatisfied rows flagged.
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | grep the awareness sentence's path in the service-root CLAUDE.md; confirm that leaf CLAUDE.md exists on disk | the pointer resolves |
+| static | grep every PRD Acceptance Criterion against plan/TRACE.md rows — each criterion has a row (or an explicit `— UNSATISFIED` flag) | the trace matrix is complete |
 
 ## Blocked by
 <every other subtask id, including any NNNN-smoke-* build subtasks>

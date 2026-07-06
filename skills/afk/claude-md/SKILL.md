@@ -1,6 +1,6 @@
 ---
 name: claude-md
-description: Create, maintain, audit, and enhance CLAUDE.md / .claude/rules / shared-md files across a project hierarchy — and steward each service's STAPLES.md cross-cutting staples registry. Use when the user runs /claude-md, asks to create/update/audit/improve/dedup/reorganize CLAUDE.md or project memory, register or advance a staple, mentions "project memory" or "CLAUDE.md maintenance", or when a durable learning surfaces mid-session (repeated correction, gotcha discovered, pattern established) that belongs in project memory. Writes only after grouped, cherry-pickable approval.
+description: Stewards CLAUDE.md, .claude/rules, and each service's STAPLES.md registry across a project hierarchy. Use when the user runs /claude-md, asks to create/update/audit/dedup project memory, registers or advances a staple, or when a durable learning (repeated correction, gotcha, established pattern) surfaces mid-session. Writes only after grouped approval.
 ---
 
 # claude-md — project-memory steward
@@ -17,6 +17,8 @@ Steer, don't document. Trust agents to read code; capture only what reading code
 
 Auto-fire: **HARVEST only**, on a durable signal → propose ONE item. AUDIT + BOOTSTRAP manual. Signal = same correction twice · gotcha found · pattern established · review catch code won't reveal. One-off / obvious-from-code / this-session-only → do NOT harvest.
 
+BOOTSTRAP done when: every emitted line passes the 4-gate inclusion bar and the proposal is approved before any write.
+
 ## Inclusion bar — every line passes ALL 4
 1. **non-obvious** — not quickly derivable from the code
 2. **durable** — will recur
@@ -26,19 +28,16 @@ Auto-fire: **HARVEST only**, on a durable signal → propose ONE item. AUDIT + B
 Unsure → **omit silently**. Pointer one-liners > explanations (`X in Y; gotcha: Z`).
 
 ## Placement
-See [PLACEMENT.md](PLACEMENT.md). Cohesion test: about a *place* → subdir `CLAUDE.md`; about a *kind-of-file* anywhere → `.claude/rules/`+`paths:`; project-wide → root `CLAUDE.md`; cross-cutting principle for the worktree family → write the per-directory note **in-repo** and **propagate it across worktrees** (see Propagation) — never route it out to `~/.claude/shared`.
+See [PLACEMENT.md](PLACEMENT.md) — routes each candidate fact by scope + cohesion (place vs kind-of-file vs project-wide vs worktree-family).
 
 ## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
 Beyond CLAUDE.md/rules, this skill is the **sole writer** of each service's `{service}/STAPLES.md` — a registry of **staples**: delivered capabilities that became standing expectations (e.g. deep-linking, Excel import/export). A staple imposes an obligation on any **future** feature whose work matches its **Trigger**; the AFK chain consults it at grill/design/plan/review time, and only this skill writes it. The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: it's a **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, and has a real **Reference** exemplar (or an explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol and the cross-worktree fan-out (it's a per-directory in-repo steering note like any other). Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
 
 ## Content style
-Be extremely concise and sacrifice grammar for sake of concision. Give references instead of examples.
-See [STYLE.md](STYLE.md). Verbatim: paths, commands, flag/field names, errors. Keep directive subject+scope. Match target file's existing heading depth/density.
-Stay generic; state the rule, not the current value.
-**Leaf/subdir CLAUDE.md = directive only** — emit the `## …` heading + body, NO `# CLAUDE.md — <dir>` title and NO `Scope:` / `Inherits` preamble (dir path scopes it, ancestors auto-load; banner = tokens, not steering). Legacy leaf files with that banner are not the pattern to copy.
+See [STYLE.md](STYLE.md) — compression, verbatim identifiers, generic-over-volatile, precision, leaf-file shape.
 
 ## Audit
-See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`. Discovery scoped to git-repo root (or cwd) — NEVER recurse from system roots; skip vendor/build/.git; honor `claudeMdExcludes`.
+See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`. Discovery-safety rules (scoping, excludes, CrowdStrike guard) live in AUDIT.md's Discovery section.
 
 ## Propagation (cross-worktree fan-out)
 A captured learning must land **immediately in every one of the developer's worktrees** — branch isolation must not strand a note in one checkout. Model: **in-repo per-directory notes, divergence solved by propagation** (not an out-of-repo `~/.claude/shared` @import layer).
@@ -57,6 +56,6 @@ Group by target file. Per change: diff · one-line **why** · **placement ration
 
 ## Safety
 - Never write without approval.
-- **Baked write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11xxx*/**` and `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. The boundary is a constant baked into the fan-out (`scripts/fanout-shell.py` `BAKED_BOUNDARY`), not a config file or per-call argument; any target outside it is **refused before any write**.
-- **Cross-worktree divergence is solved by propagation, not by `~/.claude/shared`.** Don't route a shared-worthy principle out to a personal `~/.claude/shared` @import; write it as an in-repo per-directory note and let the fan-out propagate it to every worktree (see Propagation). One author step → every worktree, no merge, no out-of-repo layer. (Truly personal all-projects prefs still belong in `~/.claude/CLAUDE.md`; uncommitted local-only notes in gitignored `CLAUDE.local.md`.)
-- Discovery never scans system roots (CrowdStrike guard).
+- **Baked write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `("11???*/**", "tools/payable/**")`, the literal `BAKED_BOUNDARY` constant — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. The boundary is baked into the fan-out (`scripts/fanout-shell.py` `BAKED_BOUNDARY`), not a config file or per-call argument; any target outside it is **refused before any write**.
+- **Cross-worktree divergence is solved by propagation (see Propagation), never by a `~/.claude/shared` @import layer.**
+- Discovery safety per [AUDIT.md](AUDIT.md) Discovery (never scan system roots).

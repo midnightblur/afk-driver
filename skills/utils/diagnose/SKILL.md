@@ -36,6 +36,8 @@ Bulk executions inside the loop (failing-suite runs, builds, instrumented runs w
 
 ### Tools at your disposal (core-services)
 
+*Repo-specific — skip this list outside the core-services monorepo.*
+
 The list above is generic methods; these are the concrete instruments in this repo. Use every one that fits before settling for a guess.
 
 - **Live UI** — most bugs are only *real* once they reproduce in the running app. The app must be **built and running**: if you can't confirm a live build, ask the user to start/confirm it — never reproduce against stale output.
@@ -129,4 +131,4 @@ Required before declaring done:
 - [ ] For a UI-visible bug, the fix was confirmed **in the running UI** (re-mint token, re-drive the app) — not only by the test seam
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
 
-**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.
+**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics, if that skill is available; otherwise record the recommendation in the diagnosis notes. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.

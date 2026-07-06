@@ -1,6 +1,6 @@
 ---
 name: to-subtasks
-description: Slice a PRD (and the accompanying SDD + ADRs, when present) into a local, reviewable execution plan on disk — a plan/ directory with a PLAN.md index (solution map, seam register, live progress tracker) and one NNNN-slug.md contract per subtask. No Jira: subtasks are local artifacts the human reviews and `/afk:execute` works one at a time. Cited mode (PRD + SDD) carries binding design refs, typed Produces/Consumes contracts, and a per-subtask seam list; uncited mode (PRD only) is lighter and human-gated. Every subtask declares tiered verification (static → unit → integration → api → e2e/browser). Use when you have a PRD (and optionally an SDD) and want to plan the work.
+description: Slices a PRD (and the SDD + ADRs when present) into a local plan/ directory — a PLAN.md index plus one NNNN-slug.md contract per subtask; cited mode with an SDD, human-gated uncited mode without. Use when a PRD exists and the user wants to plan the work. No Jira.
 ---
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
@@ -41,7 +41,7 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 1. **Read the sources.** `ctx_read` the PRD (mode=full) and the parent ticket description for context (target branch, components). In cited mode also read `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md` (mode=signatures). The set of `(SDD section IDs, §9b seam rows, ADR IDs)` is your **citation pool** — every cited subtask references at least one entry. Also check for a sibling `VERIFICATION-PLAN.md`; if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive the smoke gate + build subtasks (step 3). Delegate this read set + citation-pool build to an `afk-reader` subagent that returns the pool with `file#anchor` citations — don't pull the full sources into your own context, per `DELEGATION.md` (plugin root).
 
 2. **Refuse-to-slice gate (cited mode).** A plan built on an unstable SDD ships the instability into every subtask. Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk:grill-solution` + `/afk:to-sdd`:
-   - **Executor-blocking markers** — the canonical blocker set `/afk:to-sdd` Step 7 enforces (`\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`, `<TBD>`/`<TODO>`/`<placeholder>`/`<fill>`/`<\?>`, `\[\?\]`, `_?FILL[_-]?IN_?`, `\(decide later\)`/`\(unresolved\)`/`\(open\)`, unsubstituted template literals like `<TICKET-ID>`/`{Feature Name}`), plus §13 Open-Questions rows marked `Blocks executor? = yes`. Skip code-block contents (real generics `<T>`, nullable `Foo?` are not blockers).
+   - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, its §13 `Blocks executor? = yes` rule, and its not-a-blocker exclusions.
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
 
    Run both scans via `afk-reader` — the same child that built step 1's citation pool, or a second one spawned in parallel in the same message — returning pass/fail + cited hits, per `DELEGATION.md` (plugin root).
@@ -58,7 +58,7 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` is the zero-padded rank; `{slug}` a short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere).
 
-5. **Write `PLAN.md`** (the index) using the PLAN template below: the solution map, the seam register (cited), and the progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` with its header line per [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md) — the append-only event log the execution skills write to.
+5. **Write `PLAN.md`** (the index) using the PLAN template below: the solution map, the seam register (cited), and the progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
 
 6. **Validate the slice** (see "Validation"). Cited mode runs the contract-graph + anchor-quality + Acceptance-citation + seam-coverage checks; all must pass before the plan is considered emitted. Uncited mode runs only the Verification-tier and Scope sanity checks.
 

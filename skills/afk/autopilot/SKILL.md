@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Hands-off driver for the implementation phase — walk an entire local plan (plan/PLAN.md) subtask by subtask with a fresh subagent per subtask, self-provision the live app for api/e2e/adversarial verification, park failures and their dependents while independent work continues, and finish at the feature smoke gate. Use when the user runs `/afk:autopilot` on the parent branch once a local plan exists, wanting the implementation to proceed without them. Notifies the human on every park and at run end; journals every run event to plan/JOURNAL.md so the run is reconstructable. Commit + push per subtask on the feature branch is authorized for the duration of the run; merging never is.
+description: Hands-off driver that walks a local plan subtask by subtask with a fresh subagent per subtask, provisions the live app for verification, parks failures and their dependents, and finishes at the feature smoke gate. Use when the user runs `/afk:autopilot` on the parent branch once a local plan exists.
 ---
 
 # afk:autopilot — drive the whole plan hands-off
@@ -29,17 +29,17 @@ Walk the `## Progress tracker` in rank order. For each subtask not `done`:
 
 1. **Blocked-by check.** Any prerequisite not `done` (including parked ones) → the subtask is **parked by inheritance**: skip it, record `parked(waiting on {ID})` in the run report **and append its journal line**. Do not write to PLAN.md — the tracker's Status column belongs to the executor; parked-by-inheritance rows simply never start.
 2. **Spawn a fresh subagent** for the subtask using [SUBAGENT-PROMPT.md](SUBAGENT-PROMPT.md). One subtask per subagent — no context bleed between slices. The subagent runs the execute contract in **driven mode** and must end with its structured `OUTCOME:` line.
-3. **Provision the live app when the slice needs it.** Before the subagent's `api`/`e2e`/adversarial steps can run, the app must serve **this slice's code**: after implementation lands, repackage + boot via `.claude/hooks/app-start-gate.sh {leaf-module}` in provisioning mode — `APP_START_KEEP=1` (leaves the instance running), `APP_START_PORT={side port}`, and `APP_START_SKIP_UI=false` for UI-touching slices so the jar serves the rebuilt UI; export the base URL to the subagent. Kill the instance (the pid the gate printed) when the slice finishes; never point verification at a developer's own running instance.
+3. **The subtask subagent provisions its own app.** The orchestrator only reserves the side port and boots the baseline before the run (Preconditions item 3) — it does not provision per slice. The subagent, which holds the reboot command, self-provisions **after implementing** — so the instance serves this slice's code — via `.claude/hooks/app-start-gate.sh {leaf-module}` in provisioning mode: `APP_START_KEEP=1` (leaves the instance running), `APP_START_PORT={side port}`, and `APP_START_SKIP_UI=false` for UI-touching slices so the jar serves the rebuilt UI; the spawn prompt hands it the port + command. When the slice finishes, kill any instance left running (the pid the gate printed); never point verification at a developer's own running instance.
 4. **Read the OUTCOME.**
    - `success` → next subtask.
    - Anything else → **park** this subtask and continue with subtasks not downstream of it. A structured outcome means the executor already left the row `blocked(…)`; a killed/vanished subagent leaves its row at an in-flight status — leave it (re-runs skip only `done`), flag the stranded row in the report, **and journal it as `stranded`** so the stale in-flight cell can't be mistaken for live work. On **every** park, send a push notification per `REPORTING.md` (plugin root): subtask + status + one plain-terms sentence — the human may want to intervene while independent work is still burning wall-clock. Every park also lands in the final report.
-5. **Wall-clock guard.** A subagent silent past the per-subtask cap (default 90 min) is killed and parked as `timeout` (its tracker row stays in-flight — see above).
+5. **Wall-clock guard.** A subagent silent past the per-subtask cap (default 90 min): stop waiting — mark the subtask `parked(timeout)` in the journal, park its dependents, and continue with independent subtasks. Its tracker row stays in-flight (see above); if the stale subagent reports later, discard the report.
 
 Sequential by design: one subtask, one worktree, one app instance at a time. Do not parallelize independent subtasks.
 
 ## Finish
 
-- Every non-parked subtask `done` (including terminal `NNNN-smoke-*` / `NNNN-sync-harness` build subtasks) → run `/afk:smoke-test` against the self-provisioned instance.
+- Every non-parked subtask `done` (including terminal `NNNN-smoke-*` / `NNNN-sync-harness` build subtasks) → run `/afk:smoke-test` against the self-provisioned instance. A parked terminal `NNNN-smoke-*` build subtask parks the feature gate too — the smoke suite is not run half-suited; report `smoke: not_run` with the park.
 - Send the end-of-run notification and report:
 
 ```

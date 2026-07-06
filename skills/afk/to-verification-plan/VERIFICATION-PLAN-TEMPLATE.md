@@ -47,12 +47,11 @@ one `node:test` *.test.mjs in verification/api/ (using ../core).
 
 ## Aspect coverage
 
-The cross-cutting aspects every feature must prove, with the per-aspect verdict
-settled while designing the scenarios. A triggered aspect points at the row(s) that
-prove it; a non-triggered one records why it's N/A — so the table shows the aspect
-was *considered*, not silently skipped (the classic failure: an aspect proven
-below the UI but assumed at it). Role-based and data-scoped access each owe a
-proving row in **both** modalities.
+One verdict per aspect: a triggered aspect points at the row(s) that prove it; a
+non-triggered one records why it's N/A. Role-based and data-scoped access each owe
+a proving row in **both** modalities.
+
+<!-- aspect set below: lockstep copy — owned by skills/afk/grill-verification/SKILL.md (aspect table) -->
 
 | Aspect | Verdict | Proving rows | Env-limited? |
 |--------|---------|--------------|--------------|

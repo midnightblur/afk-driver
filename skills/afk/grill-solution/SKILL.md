@@ -1,6 +1,6 @@
 ---
 name: grill-solution
-description: Interview the user relentlessly about the solution design top-down across 9 layers (L1 system topology -> L8 tactical patterns -> L9 implementation seams & change impact) until every non-trivial decision has a rationale and >=2 alternatives weighed and the assembled design is proven compatible with the existing code. Walks the design tree layer-by-layer, resolving higher layers before descending — because lower-layer choices are brittle when upper-layer choices haven't been pinned. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd` for that.
+description: Interview the user relentlessly about the solution design top-down across 9 layers (L1 system topology -> L9 implementation seams), resolving each layer before descending. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd`.
 ---
 
 Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer choices aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
@@ -23,7 +23,7 @@ Which service owns what, where the seam falls between this feature and the rest,
 Datastore per piece of state (RDBMS / document / KV / search / event store / object store), partitioning / sharding, replication topology, cache placement, schema-evolution policy, retention. Most expensive layer to get wrong — grill hard here. For every **new entity / table**, decide whether it is **Envers-audited** — a new audited entity triggers the mandatory audit-trail verification aspect (`/afk:grill-verification`), and the SDD §4 L3 state table records the `Audited?` verdict.
 
 ### L4 — Cross-cutting & quality attributes
-Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced: at the UI surface (route / menu / control visibility) *and* below it (controller / service)**, because a guard on only one side ships broken and the API test never sees it (backend `403`, UI wide open); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work.
+Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced on both sides of the UI seam** (per [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md), check 3); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work.
 
 ### L5 — Domain model (tactical DDD)
 Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; if the design needs a term conflicting with or missing from `GLOSSARY.md`, flag it — a language gap to resolve in `/afk:grill-requirements`, not to silently coin here.
@@ -55,13 +55,7 @@ If a question is below the line, don't ask it. Redirect: "that's executor latitu
 
 ## Triviality cutoff (avoid ADR fatigue)
 
-A decision is **ADR-worthy** when ALL THREE hold:
-
-1. Non-obvious — not the community default for the stack.
-2. ≥2 real alternatives exist for THIS context.
-3. Reversing it later is expensive.
-
-Skip ADRs for: "we use HTTPS / UTF-8 / JSON / ISO-8601 / the framework's idiomatic way." Apply ADRs for: "Postgres over Mongo because we need cross-aggregate ACID", "async job + signed URL over sync HTTP because p99 render is 8s."
+A decision is **ADR-worthy** when it clears the design-level three-part bar owned by `skills/afk/to-sdd/SKILL.md` (Step 4, "Apply the triviality cutoff"). Apply ADRs for: "Postgres over Mongo because we need cross-aggregate ACID", "async job + signed URL over sync HTTP because p99 render is 8s."
 
 A decision can be in the SDD without being an ADR. ADRs are the subset where the *why* is non-obvious enough to warrant a standalone record.
 
@@ -71,7 +65,7 @@ For each layer L1 → L9:
 
 1. **State the layer and what it covers in one sentence.**
 2. **Probe: is anything in this layer non-trivial for THIS feature?** If no -> say so explicitly ("L1 inherited from the monolith — skipping") and move on.
-3. **For each non-trivial concern, ask one question at a time.** Recommend an answer. Force ≥2 alternatives — and for **L1–L3** decisions, present one deliberately different **third option** before settling: a different paradigm (event-driven vs sync, buy vs build, denormalize vs join), not a variant of the front-runner, with an honest cost. Two look-alike options is how the obvious answer wins unexamined. Capture the rationale before the next concern. **If the question's premise OR the user's answer references existing infrastructure (library, service, module, schema, queue, cache, auth posture, etc.), verify it against the codebase BEFORE locking the decision in. When an infrastructure/runtime claim surfaces, apply the [GROUNDING-RULE.md](GROUNDING-RULE.md) before building on it.**
+3. **For each non-trivial concern, ask one question at a time.** Recommend an answer. Force ≥2 alternatives — and for **L1–L3** decisions, present one deliberately different **third option** before settling: a different paradigm (event-driven vs sync, buy vs build, denormalize vs join), not a variant of the front-runner, with an honest cost. Two look-alike options is how the obvious answer wins unexamined. Capture the rationale before the next concern. **When the question's premise OR the user's answer references existing infrastructure, apply [GROUNDING-RULE.md](GROUNDING-RULE.md) before locking the decision in.**
 4. **Before descending, restate the locked decisions** so the user can challenge. As each layer locks, checkpoint it (one row) into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` — a 9-layer grill is long; the log is what lets a paused or compacted session resume at the right layer with the locked set intact, and it records L9 seam verdicts until the SDD lands.
 5. **Do not skip ahead.** If the user pulls toward L8 (the fun layer) before L3/L4/L6 are pinned, refuse: "Pin the datastore + sync-vs-async first — Strategy interface depends on whether it returns `T` or `Future<T>`."
 
@@ -104,4 +98,4 @@ Until all hold, keep grilling.
 
 ## Next
 
-Once L1 → L9 are exhausted (every entity has an owner aggregate, every cross-aggregate op a txn strategy, every NFR a number, every existing-infra claim verified against the codebase, every external seam cleared per the External-seam rule, every L9 seam row verdicted and audit finding settled), run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. If it finds a gap, it bounces you back to this skill.
+Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. If it finds a gap, it bounces you back to this skill.

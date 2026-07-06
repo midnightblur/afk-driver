@@ -3,17 +3,13 @@ name: grill-requirements
 description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates the domain glossary (GLOSSARY.md) inline as terms crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
 ---
 
-<what-to-do>
+## What to do
 
 Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide a recommended answer.
 
 Ask questions one at a time; wait for feedback on each before continuing.
 
 If a question can be answered by exploring the codebase, explore it instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
-
-</what-to-do>
-
-<supporting-info>
 
 ## Domain awareness
 
@@ -35,7 +31,7 @@ When domain relationships are discussed, stress-test them with specific scenario
 
 ### Verify claims — maintain the claim ledger
 
-When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling) — the verification runs in `afk-reader` subagents returning cited confirm/refute digests, per `DELEGATION.md` (plugin root). A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling) — delegate the verification per `DELEGATION.md`. A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
 Keep a running **claim ledger** in the conversation: every load-bearing claim gets one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it and update the row to `verified` against the actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. The ledger is what the PRD synthesis gates on — a lost ledger means re-verifying, not waving through.
 
@@ -50,11 +46,11 @@ Users ask for the solution they imagined, not always the one their problem needs
 
 ### Devil's-advocate pass (before synthesis)
 
-When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn mechanics and its return contract follow `DELEGATION.md` (plugin root). Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
+When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn per `DELEGATION.md`. Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
 
 ### Grill the access & validation policy (every feature)
 
-When the plan touches access or validation, grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md).
+Grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md) — every run, whether or not the plan mentions access or validation; the exit gate below requires its three policies for every actor and story.
 
 ### Go through the staples (every feature)
 
@@ -75,8 +71,15 @@ This skill builds *understanding*; it does not emit decision records. When a dec
 
 The glossary is the one artifact this skill maintains — because it *is* the shared understanding being built, not a record of a decision.
 
-</supporting-info>
-
 ## Next
 
-Once the requirements decision tree is exhausted (every actor / user story / out-of-scope / non-functional concern settled, **and every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy**, **and every `active` staple whose Trigger matches this feature is resolved in/out with a rationale**, **and the claim ledger is settled — every load-bearing claim verified or explicitly unverified-external — every requirement carries its pain, every restriction survived its counter-question, and the devil's-advocate pass ran with its findings resolved**), run **`/afk:to-prd`** to synthesize the conversation into a PRD and publish it (Jira parent + repo at `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md`). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Only declare the requirements decision tree exhausted when ALL hold:
+
+- Every actor / user story / out-of-scope / non-functional concern settled.
+- Every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy.
+- Every `active` staple whose Trigger matches this feature is resolved in/out with a rationale.
+- The claim ledger is settled — every load-bearing claim verified or explicitly unverified-external.
+- Every requirement carries its pain; every restriction survived its counter-question.
+- The devil's-advocate pass ran with its findings resolved.
+
+Then run **`/afk:to-prd`** to synthesize the conversation into a PRD written to the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

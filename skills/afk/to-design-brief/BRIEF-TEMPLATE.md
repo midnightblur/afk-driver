@@ -40,7 +40,7 @@ most likely to question or need to align on.
 
 | # | Decision | Layer (L1-L9) | Why this, not the alternative | ADR |
 |---|----------|---------------|--------------------------------|-----|
-| 1 | {one phrase} | L3 | {rejected alt + the constraint that ruled it out} | `adr/0001-...md` |
+| 1 | {one phrase} | L3 | {rejected alt + the constraint that ruled it out} | `adr/design/0001-...md` |
 
 The "Why" column must be one short sentence. If you cannot compress the
 rationale to one sentence, that is signal the ADR's Context section needs

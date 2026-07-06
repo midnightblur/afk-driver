@@ -62,20 +62,12 @@ unverified label?"* Letting the user decide whether to chase external
 verification is fine; **pretending you verified is not**.
 
 **This rule binds across all 9 layers**, not just L1/L2 where infra
-claims are most common. Verification triggers at every layer:
+claims are most common — the claim-type table above covers the how; e.g.:
 
 - L1 ("we deploy multi-region") — check ops manifests / Terraform.
-- L2 ("payable-svc owns invoices") — check ownership in module roots.
-- L3 ("we shard payables by tenant_id") — check the sharding config
-  or DDL.
 - L4 ("we have an idempotency table") — `ctx_search` the schema.
-- L5 ("the Order aggregate lives in `core.order`") — verify the
-  package + the aggregate-root annotation/class.
 - L6 ("the order saga is implemented via outbox") — verify the
   outbox table + dispatcher.
-- L7 ("the API contract is in `openapi.yaml`") — `ctx_read` the file.
-- L8 ("we already use Strategy here for ExportFormat") — find the
-  interface.
 - L9 ("that service method takes a DTO and handles validation") — read
   the actual signature and its entry path; the seam walk is this rule
   applied per seam.

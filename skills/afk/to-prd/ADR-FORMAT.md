@@ -8,7 +8,7 @@ Requirement ADRs live in the ticket-local `adr/requirements/` subfolder, sibling
 to the PRD:
 
 ```
-{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/
+{ticket spec folder}/          ← path convention: SKILL.md "Monorepo conventions"
 ├── PRD.md
 └── adr/
     ├── requirements/        ← this skill (to-prd)

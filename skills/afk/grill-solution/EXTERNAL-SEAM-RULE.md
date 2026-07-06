@@ -38,9 +38,10 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
    path: per violation class, what the consumer gets, and whether a
    business refusal is distinguishable from a server fault (including the
    framework's own signal, e.g. MCP `isError`). State the **real** response
-   shape an API/MCP caller sees on each edge (e.g. a missing entity →
-   `200 + NULL_RESPONSE` not 404; an unauthorized role → `403
-   "no.authorized.vendor"`) — this is exactly what `/afk:to-sdd` records in
+   shape an API/MCP caller sees on each edge (a missing entity may return an
+   empty-success envelope rather than 404, a denial a coded 403 — the
+   harness's actual envelope conventions live in
+   `11700-payable/verification/api/AUTHORING.md`) — this is exactly what `/afk:to-sdd` records in
    the §3 API contract table and what `/afk:grill-verification` later turns
    into assertable API scenarios; a hand-wave here leaves the endpoint
    un-verifiable.

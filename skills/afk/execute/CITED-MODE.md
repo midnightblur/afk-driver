@@ -89,7 +89,7 @@ integrate with.
 
 ## Cited-mode OUTCOME statuses
 
-These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 12:
+These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 13:
 
 - `design_conflict` — cited mode. A binding SDD/ADR decision is wrong,
   infeasible, or contradicts reality. Name the SDD section / ADR + the

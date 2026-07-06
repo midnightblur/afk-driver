@@ -1,9 +1,9 @@
 ---
 name: smoke-test
-description: The feature-level completion gate — after every subtask in a local plan is done, run the feature's already-built verification suites (the browser UI journeys `ui-e2e` and direct-REST API contracts `api` under `11700-payable/verification`) against a running app and, only on green across both, stamp the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and `PLAN.md` carries a `## Feature smoke gate` (full) or `## Feature smoke gate (minimal)` section, or to manually re-verify a feature's sanity. This skill only EXECUTES already-built verification suites — it authors nothing. It verifies the integrated whole, not one slice. Touches no Jira and merges nothing.
+description: Runs a feature's already-built verification suites (browser `ui-e2e` + direct-REST `api`) against a running app and, only on green across both, stamps the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and `PLAN.md` carries a full or minimal smoke gate, or to re-verify feature sanity.
 ---
 
-# afk:smoke-test — the feature-level smoke gate (runs, never authors)
+# afk:smoke-test — the feature-level smoke gate
 
 Each subtask's own `## Verification` tiers prove that **one slice** works in isolation, in a dev worktree — a per-subtask `api` row when it exposes an endpoint, an `e2e/browser` row when it touches UI, each green before that subtask is `done`.
 
@@ -16,11 +16,9 @@ Those suites then live on permanently under `11700-payable/verification` (`ui-e2
 Every feature has one of two gates:
 
 - **Full gate** — a `## Feature smoke gate` section in `PLAN.md` (scenarios ↔ sources, suite paths, run commands, target env) plus a terminal build subtask **per modality** (`NNNN-smoke-e2e` and/or `NNNN-smoke-api`) that **built** the specs.
-- **Minimal gate** — a `## Feature smoke gate (minimal)` section (features that skipped verification design): four fixed rows — compile, app-start, regression, existing suites — run as-is, no scenario table, no build subtasks. Green ⇒ stamp `Feature: complete (minimal gate, {YYYY-MM-DD})`; the stamp names the gate kind so "complete" is never mistaken for scenario-verified.
+- **Minimal gate** — a `## Feature smoke gate (minimal)` section (features that skipped verification design): five fixed rows — compile, app-start, regression, existing ui-e2e suite, existing api suite — run as-is, no scenario table, no build subtasks. Green ⇒ stamp `Feature: complete (minimal gate, {YYYY-MM-DD})`; the stamp names the gate kind so "complete" is never mistaken for scenario-verified.
 
 Neither section in `PLAN.md` → the plan predates the minimal-gate rule; report `no_gate` and point the human at re-running the slicing skill's gate seeding.
-
-**This skill never authors or edits specs.** The specs are built by the terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (reviewed in an MR like any code); this skill only **executes** the already-implemented scenarios as the gate.
 
 ## Argument
 
@@ -30,15 +28,15 @@ Neither section in `PLAN.md` → the plan predates the minimal-gate rule; report
 
 ## Process
 
-1. **Locate the gate.** Read `PLAN.md`. Find `## Feature smoke gate` or `## Feature smoke gate (minimal)`; neither → `no_gate` (see "When it applies"). **Minimal gate:** run its rows in order after the Step 2 precondition (Step 3's env checks apply to the app-start and existing-suite rows); record each row's `Status` cell + the section's `Last run` line (this section is part of the gate surface this skill owns — see Boundary); any red row → `smoke_fail` naming the row, all green → stamp `Feature: complete (minimal gate, {YYYY-MM-DD})` and report — Steps 4–6 below are the full-gate path only. **Full gate:** read the suite paths, run command **per modality**, and the scenario table — each row carries its `Modality` (`ui-e2e` | `api`) and traces to its source (UI → a PRD User Story; API → an SDD §3 row / PRD Acceptance Criterion).
+1. **Locate the gate.** Read `PLAN.md`. Find `## Feature smoke gate` or `## Feature smoke gate (minimal)`; neither → `no_gate` (see "When it applies"). **Full gate:** read the suite paths, the run command **per modality**, and the scenario table — each row carries its `Modality` (`ui-e2e` | `api`) and traces to its source (UI → a PRD User Story; API → an SDD §3 row / PRD Acceptance Criterion). **Minimal gate:** take step 1b instead.
+
+1b. **Minimal-gate path** *(minimal gate only — Steps 4–6 below are the full-gate path)*. After the Step 2 precondition, run the section's rows in order (Step 3's env checks apply to the app-start and existing-suite rows); record each row's `Status` cell + the section's `Last run` line (part of the gate surface this skill owns — see Boundary). Any red row → `smoke_fail` naming the row; all green → stamp `Feature: complete (minimal gate, {YYYY-MM-DD})` and report.
 
 2. **Precondition — feature fully built.** Every row in the `## Progress tracker` (including terminal build subtasks `NNNN-smoke-e2e` and, when present, `NNNN-smoke-api`) must be `done`. Any subtask not `done` → refuse with `preconditions_unmet`, naming the laggards. A smoke gate on a half-built feature is meaningless — integrated scenarios can't pass until every slice has landed.
 
 3. **Precondition — app reachable + suite env set.** Confirm the `target` app instance is up (hit its base/health URL). Not reachable → `env_unreachable`; tell the human to start the app / bring up the env. Also confirm **each modality's** run env is configured — the browser suite's auth token / base URL per `11700-payable/verification/ui-e2e/README.md`, and the API suite's token / base URL per `11700-payable/verification/api/AUTHORING.md` (API client mints via `../core`). A green build never compensates for a missing token at gate time. This gate requires a **real running app** — unlike the per-subtask tiers, which may run against a stub or a transient dev server.
 
-4. **Run the suites.** Execute each present modality's run command against `target`, skipping a modality only if `scope` named the other:
-   - **ui-e2e** — `cd 11700-payable/verification/ui-e2e && npm run smoke`, which already excludes the env-limited tags the gate declared (the same journeys marked `env-limited`; `@sap` is the common one but the exclusion set is whatever the run command carries, not a fixed list). (`npm run smoke:all` is the everything-incl-env-limited variant — not what the gate runs.)
-   - **api** — `cd 11700-payable/verification/api && node --test`, likewise skipping the scenarios the plan marked `env-limited`. All in-scope scenarios across both suites — or the `scope` subset. Do not modify the app or the specs to coax a pass (Hard rules).
+4. **Run the suites.** Execute each present modality's run command **as read from the gate section in Step 1** — the gate section owns the run commands; don't substitute your own — against `target`, skipping a modality only if `scope` named the other. The `ui-e2e` command already excludes the env-limited tags the gate declared (the exclusion set is whatever the run command carries, not a fixed list); the `api` run likewise skips the scenarios the plan marked `env-limited`. All in-scope scenarios across both suites — or the `scope` subset. Do not modify the app or the specs to coax a pass (Hard rules).
 
    Each modality's run goes through an `afk-runner` subagent, which returns per-scenario/per-test verdicts + failure digests and saves the raw suite output to an evidence file — that file's path is what Step 5 attaches to `fail` rows and the `Run history` line, per `DELEGATION.md` (plugin root). Verdict interpretation and every PLAN.md stamp stay with this skill (single-writer).
 

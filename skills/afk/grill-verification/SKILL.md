@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interview the user to design the feature's verification scenarios across two modalities — UI journeys (the real browser flows that decide "this feature works") and API scenarios (direct-REST checks that prove the backend contract for API/MCP callers who bypass the UI). Use when the user runs `/afk:grill-verification`, or wants to design or stress-test a feature's verification scenarios — UI journeys once the PRD exists, API scenarios once the SDD does. A grilling skill — it interviews and surfaces gaps; it does NOT write a file. Forces a concrete walk of each scenario, which routinely reveals PRD/SDD gaps. Optional and human-invoked. Pair with `/afk:to-verification-plan` to synthesize the conversation into `VERIFICATION-PLAN.md`. Does not write to the tracker.
+description: Interviews the user to design a feature's verification scenarios across two modalities — UI journeys (browser flows; need the PRD) and API scenarios (direct-REST contract checks; need the SDD). Use when the user runs `/afk:grill-verification` or wants to design or stress-test verification scenarios. Writes only its `GRILL-LOG.md` checkpoint section.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user
@@ -35,7 +35,7 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 | PRD only | ✅ design now | ⏸ **deferred** — no settled endpoints to verify yet |
 | PRD + SDD | ✅ design now | ✅ design now |
 
-- **API scenarios require the SDD.** They verify endpoint contracts, not settled until the SDD's §3 L2 API contract table exists. So a pre-SDD run designs **UI journeys only** and leaves API scenarios deferred. Re-run once the SDD exists to design them — and re-run `/afk:to-verification-plan` to append them.
+- Re-run once the SDD exists to design the deferred API scenarios — and re-run `/afk:to-verification-plan` to append them. (The gating itself: the matrix above + the "API needs the SDD" Hard rule.)
 - If neither PRD nor SDD exists, stop and route the user to `/afk:to-prd` first — nothing to ground scenarios against.
 
 ## Arguments
@@ -53,11 +53,11 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 2. **Grill the UI journeys.** Work from the PRD's top User Stories — the definition-of-done flows. For each, drive the user through actor & trigger, the concrete click-path (plain business language), the observable definition-of-done (a visible state, a posted record, a status transition, a surfaced error — vague "it works" is not acceptance), the preconditions/data setup (the journey's `Given`), the alternate/error paths worth gating, and **env reachability** (can it go green on the dev stack? SAP-behind-VPN and GL-post-parking-on-FOS can't — note them `env-limited` now; see `verification/ui-e2e/AUTHORING.md`).
 
    Then walk the **aspects at the UI** for the surfaces this feature touches:
-   - **Role-based access** — for every protected surface, the **role tiers**: what each tier *sees* and the observable per tier — `admin` (menu shows, page + create/edit controls show), `read-only` (menu + page show, **no** create control), `denied` (**menu absent, direct-nav redirected**). The **denied tier is a required row**, never optional. Reuse the harness's `access:admin` / `access:readonly` / `access:denied` flows driven by `E2E_ROLE=<descriptor role>` (token injected via route-interception) — you specify the per-tier observable, you don't invent the flow.
+   - **Role-based access** — for every protected surface, walk the harness's role tiers and pin what each tier *sees* (the observable per tier). The **denied tier is a required row**, never optional. The tier set, its driving mechanics, and the reusable per-tier flows are canonical in `11700-payable/verification/ui-e2e/AUTHORING.md` — you specify the per-tier observable, you don't invent the flow.
    - **Data-scoped access** — a user scoped to one company/vendor sees only its rows on the relevant list/detail screen. Usually **`env-limited`** (needs two FOS-provisioned scoped users the smoke env may not have) — flag it now.
    - **Input validation** — the form refuses a violating input (inline field error + disabled submit), per the PRD validation policy.
 
-3. **Grill the API scenarios** *(only when an SDD is present)*. When an SDD with endpoint contracts exists, design API scenarios per [API-SCENARIOS.md](API-SCENARIOS.md).
+3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md).
 
 4. **Check coverage.** Every top User Story maps to at least one UI journey; every endpoint the feature exposes maps to at least one API scenario; every scenario traces back to a Story / Acceptance Criterion / §3 row. Surface over-coverage (a scenario nothing asks for — is the spec missing it?) and under-coverage (a Story or endpoint with no demonstrable scenario — is it real?). UI and API are **complementary, not redundant**: the UI journey proves the user flow, the API scenario proves the contract a UI test can't see (the raw envelope, the below-the-UI guard).
 
@@ -75,7 +75,7 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 - **Every triggered aspect is covered, in every modality it owns.** Walk the aspect table; a triggered aspect with no proving row is a gap, and a non-N/A aspect with no recorded reason is a skip. The denied-role UI row is mandatory for every protected surface; the no-token/bad-token/role-scoping API assertions are mandatory for every protected endpoint (per the SDD §9b bidirectional seam).
 - **Every scenario traces to a source; every gap is named.** No orphan scenarios, no silently-swallowed PRD/SDD ambiguities.
 - **Note env-limited scenarios as you go** — both modalities — so `/afk:to-verification-plan` can mark them and the downstream gate excludes them from its green verdict rather than reading them as failures.
-- **You write no artifact and touch no tracker.** This skill only interviews. The artifact is `/afk:to-verification-plan`'s job; it touches no Jira and no GitLab. The one exception is the checkpoint: mirror the per-aspect verdicts, settled journeys/scenarios, and the API designed-vs-deferred state into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md`, updated as they settle — so a pause before the synthesis skill runs loses nothing.
+- **Your only write is the `GRILL-LOG.md` checkpoint; touch no tracker.** This skill interviews — the plan artifact is `/afk:to-verification-plan`'s job; no Jira, no GitLab. Mirror the per-aspect verdicts, settled journeys/scenarios, and the API designed-vs-deferred state into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md`, updated as they settle — so a pause before the synthesis skill runs loses nothing.
 
 ## Next
 

@@ -51,7 +51,7 @@ smoke gate` row carrying its `Modality`, each tracing to its real source (UI →
 grep the PRD User Story; API → the SDD §3 row / PRD Acceptance Criterion) and
 naming its spec; no gate row invents a scenario absent from the plan. The build
 subtasks exist **per modality present**:
-  - `NNNN-smoke-e2e` (always, when UI journeys exist) — `## Blocked by` **every**
+  - `NNNN-smoke-e2e` (when UI journeys exist) — `## Blocked by` **every**
     other subtask, pointing the build agent at
     `11700-payable/verification/ui-e2e/AUTHORING.md`; `## Verification` carries a
     `static` `cucumber-js --dry-run` row and an `e2e/browser` `npm run smoke` row.

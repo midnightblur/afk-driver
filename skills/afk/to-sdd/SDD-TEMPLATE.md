@@ -55,7 +55,7 @@ Which service owns what. Where the seam falls. Integration style. Versioning pos
 
 1. `flowchart LR` — services as nodes, edges labeled with integration style (REST / gRPC / async-event / shared DB) + the message name.
 2. `sequenceDiagram` — one per non-trivial cross-service interaction.
-3. **API contract table** — surface, method, request shape ref, response shape ref, error codes, version. Cite OpenAPI / proto file paths; do not inline schemas that will rot. This table is the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: state the **success envelope AND the real edge envelopes** the backend actually returns (e.g. a missing entity → `200 + NULL_RESPONSE` rather than 404; an unauthorized vendor → `403 "no.authorized.vendor"`), plus the auth/role required (the below-the-UI guard, cross-referenced to its §9b seam). A row too vague to state its envelope is a §13 gap, not a publishable contract.
+3. **API contract table** — surface, method, request shape ref, response shape ref, error codes, version. Cite OpenAPI / proto file paths; do not inline schemas that will rot. This table is the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: state the **success envelope AND the real edge envelopes** the backend actually returns (a missing entity may be an empty-success envelope rather than 404, a denial a coded 403 — envelope conventions: `11700-payable/verification/api/AUTHORING.md`), plus the auth/role required (the below-the-UI guard, cross-referenced to its §9b seam). A row too vague to state its envelope is a §13 gap, not a publishable contract.
 
 ## §4 L3 — Data Architecture
 
@@ -81,7 +81,7 @@ For each piece of state.
 | Concern | Required visual |
 |---------|-----------------|
 | AuthN flow | `sequenceDiagram` showing token issuance + propagation |
-| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b)**. A surface guarded on only one side ships silently broken. This table is what `/afk:grill-verification` reads to design the role-based aspect rows. |
+| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b and the both-sides doctrine in `skills/afk/grill-solution/EXTERNAL-SEAM-RULE.md` check 3)**. This table is what `/afk:grill-verification` reads to design the role-based aspect rows. |
 | Data-scoping | table — scoped entity × scope (company / vendor — never tenant) × enforcement mechanism (e.g. AOP aspect + projection filter; company always-on vs vendor toggle) |
 | Idempotency | table — surface, key shape, dedup window, side-effect ledger |
 | Retry + timeout | table — call, attempts, backoff (numbers), timeout (ms) |
@@ -138,9 +138,9 @@ the External-seam rule's four checks in `/afk:grill-solution`. Capture, in
 whatever table shape fits: each framework boundary (what it does to our
 value at the pinned version + the **seam-test** that asserts on its real
 output), each field contract's canonical source of truth, each relied-on
-invariant's enforcement point **on both sides of the UI seam** (the UI-surface
-guard *and* the below-UI guard proven for the new caller — a guard on only one
-side ships silently broken — e.g. backend `403`, UI ungated), and the
+invariant's enforcement point **on both sides of the UI seam** (per the
+both-sides doctrine in `skills/afk/grill-solution/EXTERNAL-SEAM-RULE.md`
+check 3), and the
 failure affordance per violation class. If the feature has no external seam, say
 so in one line rather than deleting the section.
 
