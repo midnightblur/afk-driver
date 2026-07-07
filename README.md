@@ -675,6 +675,21 @@ tooling.)*
   from the green verdict. The same suites are reused by CI / scheduled / manual
   runs. Merges nothing, touches no Jira. Reports `smoke_green` / `smoke_fail` /
   `env_unreachable` / `preconditions_unmet` / `no_gate`.
+- **`/afk:preflight`** — the **feature-level ship gate**, chained by
+  `/afk:autopilot` once the smoke gate is green, or run by hand to resume a
+  parked feature. Refuses outright (writing nothing) without a green smoke
+  gate. A resumable, table-driven PF-1..7 ladder (`PLAN.md`'s `## Preflight`
+  section, its sole writer; green rows skipped on re-run): merge
+  `origin/master` behind an ancestry guard (never rebase, never
+  force-push), re-run validations, a fresh review of the integrated feature
+  diff, and a final `/afk:verify-seams final` check — a shared 2-cycle fix
+  cap across those three steps — then commit the mission-control end-state
+  snapshot, update the MR's own evidence marker block (sibling to
+  `/afk:execute`'s checklist block; each writer touches only its own), and
+  background-babysit CI (bundled `ci-wait.sh`: exit 0 green / 1 red / 2
+  budget / 3 glab-flake) to flip the Draft MR to Ready. CI-only test
+  failures and secret-detection hits always park — never auto-fixed. Never
+  merges the MR.
 
 ### Tooling
 

@@ -20,6 +20,7 @@
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",
     "./skills/afk/mission-control",
+    "./skills/afk/preflight",
     "./skills/afk/prototype",
     "./skills/afk/review",
     "./skills/afk/smoke-test",

@@ -45,6 +45,27 @@ or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute
 `/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
+## Preflight   <!-- created on first /afk:preflight run only — omit entirely until then -->
+<!-- lockstep copy: column shape `# | Step | Status | Cycle | Evidence` is owned
+     jointly by /afk:preflight (sole writer) and the mission-control renderer's
+     gates panel (skills/afk/mission-control/scripts/mc/panels/gates.py) — a
+     column rename here is a same-commit change in both places -->
+
+`/afk:preflight` is this section's sole writer (progress tracker + smoke gate
+above stay untouched by it); re-run skips rows already `green`, resuming at
+the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
+(counted across PF-2/PF-3/PF-7, not per row).
+
+| # | Step | Status | Cycle | Evidence |
+|---|------|--------|-------|----------|
+| 1 | PF-1 merge origin/master + ancestry guard, push | pending | — | — |
+| 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
+| 3 | PF-3 fresh-context review of the integrated diff | pending | 0/2 | — |
+| 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
+| 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |
+| 6 | PF-6 launch ci-wait (background) | pending | — | — |
+| 7 | PF-7 CI outcome routing (Draft→Ready on green) | pending | 0/2 | — |
+
 ## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
 > Gate: /afk:smoke-test   Suite: 11700-payable/verification   Target env: local | staging

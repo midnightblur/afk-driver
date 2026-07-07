@@ -21,7 +21,7 @@ The append-only event log of a plan: one timestamped line per event, newest last
 {YYYY-MM-DD HH:mm} | {writer} | {subject} | {event} — {plain terms}
 ```
 
-- `{writer}` — the skill appending: `execute`, `autopilot`, `smoke-test`.
+- `{writer}` — the skill appending: `execute`, `autopilot`, `smoke-test`, `preflight`.
 - `{subject}` — a subtask id (`NNNN-slug`), `run`, or `gate`.
 - `{event}` — a short token from the writer's set below.
 - `{plain terms}` — one clause; jargon-free; may be omitted only when the event token is self-explanatory to a lay reader (it almost never is).
@@ -33,6 +33,33 @@ The append-only event log of a plan: one timestamped line per event, newest last
 | `execute` | `designing`, `developing`, `verifying`, `reviewing`, `done`; `pushed {short-sha}..{short-sha} ({n} commits)`; `review {verdict} crit={n} high={n} med={n} low={n}`; `adversary {verdict} …`; `parked({status})` |
 | `autopilot` | `run start ({n} runnable)`; `heartbeat {k}/{n} done, starting {NNNN-slug}`; `parked({status})`; `park-inherited(waiting on {ID})`; `stranded`; `run end ({k}/{n} done, {p} parked)` |
 | `smoke-test` | `smoke {verdict} ({passed}/{run} scenarios{, k skipped env-limited})` |
+| `preflight` | `refused(no_green_smoke)`; `PF-{n} green`; `PF-{n} parked({reason})`; `fix-cycle {k}/2 on PF-{n}`; `ci-wait launched (budget={s}s, interval={s}s)`; `ready`; `done` — full grammar: "### Preflight events" below |
+
+### Preflight events
+
+`/afk:preflight`'s event set (lockstep copy — owned jointly by
+`skills/afk/preflight/SKILL.md`, the emitter, and this file; a token added or
+renamed there is a same-commit change here):
+
+- `refused(no_green_smoke)` — the Step-0 refusal guard fired; nothing else
+  was written this run (the one event a refused run still logs, appended
+  before the guard's own "write nothing" rule takes effect — the guard
+  itself never creates the `## Preflight` section, but the refusal is still
+  worth a JOURNAL line so a human scanning history sees the attempt).
+- `PF-{n} green` — step `n` (1-7) completed; its `## Preflight` table row
+  flipped to `green`.
+- `PF-{n} parked({reason})` — step `n` could not proceed; `{reason}` is one
+  of `merge_conflict`, `ancestry_guard_failed`, `semantic_red`,
+  `review_blocking`, `orphan_artifact`, `ci_test_red`, `secret_hit`,
+  `budget_exhausted`, `glab_flake` (per `skills/afk/preflight/SKILL.md`'s
+  PF-1..7 routing table).
+- `fix-cycle {k}/2 on PF-{n}` — the shared fix-cycle counter incremented
+  (logged **before** the fix attempt, so a crash mid-fix still shows the
+  spent cycle on resume).
+- `ci-wait launched (budget={s}s, interval={s}s)` — PF-6's background task
+  started.
+- `ready` — PF-7 flipped the MR Draft → Ready on a green pipeline.
+- `done` — every `## Preflight` row is `green`; the run is terminal.
 
 Hypothetical shape:
 
