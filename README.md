@@ -230,8 +230,18 @@ To auto-load on every Claude Code launch, add to `~/.claude/settings.json`:
 }
 ```
 
+That snippet is the only manual part — it can't be a skill because the plugin
+isn't loaded yet. **Then run `/afk:setup`** — the workflow doctor: it probes
+every external dependency the chain needs (CLIs, MCP servers, secrets, sibling
+checkouts) against `skills/afk/setup/MANIFEST.md`, installs what it can, and
+walks you through the rest (Jira token, `glab auth login`). Prefer doing it by
+hand? `MANIFEST.md` is human-followable — every probe and fix is a
+copy-pasteable command.
+
 After editing any `SKILL.md`, run **`/reload-plugins`** to pick up changes
-without restarting. Same after `git pull`.
+without restarting. Same after `git pull` — and if the pull changed the
+workflow itself (new deps, new tools), re-run **`/afk:setup`**: it's
+idempotent, so it fixes exactly what the update broke and touches nothing else.
 
 **Teammate install**: the plugin ships inside `core-services`, so a `git pull`
 delivers it. Each developer enables it once at **local** scope with the snippet
@@ -535,6 +545,16 @@ On a binding-decision break (an SDD §8 mandate that's wrong or infeasible),
 `/afk:execute` exits `design_conflict` and routes you to `/afk:grill-solution`
 for a superseding ADR — it never silently substitutes a different interface.
 
+**Optional upgrade — materialized seams.** Run `/afk:to-subtasks` with
+`materialize_seams=true` and each **new-Java** seam is pre-created on the branch
+at slicing time: the interface stub (SDD §8 signatures verbatim) plus a
+`@Disabled` contract-shape test that pins the signature by compiling. Those
+`Produces`/`Consumes` bullets carry a `[materialized]` marker, and the grep
+checkpoints above gain the compiler: consumer preflight `test-compile`s the seam
+module, and the implementer must enable the contract test and turn it green as
+its seam-test. You review and commit the stubs together with the plan.
+Existing-file and non-Java seams keep grep-anchors — the fallback never goes away.
+
 ---
 
 ## 10. Skill reference
@@ -573,7 +593,10 @@ for a superseding ADR — it never silently substitutes a different interface.
   hand.
 - **`/afk:autopilot`** — the hands-off driver for the middle. Walks the plan in
   rank order (Blocked-by respected), one fresh subagent per subtask running
-  `/afk:execute` in driven mode, self-provisions the live app per slice, parks
+  `/afk:execute` in driven mode — **sized by the contract's `## Complexity`**
+  (`mechanical` slices get a fast/cheap agent, `complex` ones the strongest;
+  a parked `mechanical` is retried once at `standard` before the park stands) —
+  self-provisions the live app per slice, parks
   failed subtasks + their dependents while independent subtasks continue (push
   notification with a plain-terms sentence on **every** park), appends run
   events + a per-subtask heartbeat to `plan/JOURNAL.md`, then runs
@@ -682,6 +705,34 @@ tooling.)*
   verification tier stays red, or from the Step 10 review gate on a
   `correctness`/`spec` blocking finding.
 
+- **`/afk:retro`** — the cross-feature retrospective: mines delivered plans'
+  exhaust (journals, review rollups, adversary verdicts, park reasons, the
+  harness `gate-latency.jsonl` metrics, open wiring IOUs) into recurring
+  signals — what the chain keeps getting wrong, where it stalls, what it costs
+  — and writes a dated `RETRO-*.md` report whose Proposals section contains at
+  most 5 evidence-cited, lockstep-aware plugin edits for a human to apply.
+  Read-only over everything it mines; the systemic counterpart of `/afk:fix`'s
+  per-bug escape analysis. Run it after a release's features ship, or
+  periodically.
+- **`/afk:claude-md`** — steward of the three steering artifacts: `CLAUDE.md`
+  files / `.claude/rules` across a project hierarchy, and the per-service
+  `STAPLES.md` registry (its **sole** writer). Creates, audits, dedups, and
+  reorganizes project memory; the plan's terminal `NNNN-sync-harness` subtask
+  delegates its writes here.
+- **`/afk:design-system`** — per-service setup, not a per-feature stage: builds
+  (or refreshes) a team-shareable `claude.ai/design` catalog that mirrors the
+  service's **live frontend** — real design tokens as ground truth,
+  archetype-complete standalone HTML cards, fidelity-checked against the
+  running app — so `/afk:prototype` crafts against the real app instead of
+  generic defaults. Re-run when the frontend's tokens/components drift.
+- **`/afk:setup`** — the workflow doctor. Probes every external dependency in
+  `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling
+  checkouts), fixes what it can, guides the human through the rest — idempotent,
+  so first-time install and post-`git pull` repair are the same run. As
+  `/afk:setup audit` it instead hunts drift between the plugin's artifacts and
+  reality (structural consistency, unregistered dependencies, dead pointers) —
+  run that before shipping plugin changes (see `FRESHNESS.md`).
+
 ### Utility skills (not part of the AFK chain)
 
 General-purpose skills that ship in the same plugin for convenience but are
@@ -709,14 +760,19 @@ invoked any time, in any project.
   (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
   Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
   `scripts/fetch-mr.sh`); code mode is fully standalone.
+- **`writing-great-skills`** — the reference doctrine for authoring and editing
+  skills (invocation choice, information hierarchy, progressive disclosure,
+  leading words, failure modes); consulted whenever a skill is created,
+  audited, or reviewed.
 - **`verify-seams`** (agent-invoked, not in the `/` menu) — independent orphan
   hunt over a change: a fresh-context subagent (blind to the author's
   narrative) classifies every produced artifact wired / weak / orphan; `final`
   mode blocks shipping on open wiring IOUs. The agent runs it before declaring
   multi-artifact work done and before push/ship; to trigger it yourself, just
-  ask ("verify seams"). Judgment tier above `hooks/wiring-gate.sh`, the Stop
-  hook the plugin ships that blocks any new artifact with no consumer and no
-  anchored IOU in the repo's `.claude/wiring-ious.md`.
+  ask ("verify seams"). Judgment tier above `hooks/wiring-gate.sh`, one of the
+  Stop-hook gates the plugin ships (wiring, Maven compile, UI lint, Java
+  format — see `hooks/README.md`); the wiring gate blocks any new artifact
+  with no consumer and no anchored IOU in the repo's `.claude/wiring-ious.md`.
 
 ---
 
@@ -739,6 +795,12 @@ strict ownership so edits never collide:
   of the same `PLAN.md`: the `## Feature smoke gate` table's `Status` cells, its
   `Last run` line, and the header `Feature:` line — nothing else. All contract
   sections must round-trip losslessly.
+
+> **Freshness rule for contributors.** No plugin artifact may go stale:
+> a dependency change updates `skills/afk/setup/MANIFEST.md` in the same
+> commit, a skill/doc surface change updates every surface its `FRESHNESS.md`
+> registry row names — and `/afk:setup audit` is the drift catcher to run
+> before shipping plugin changes. Doctrine: `FRESHNESS.md` (plugin root).
 
 > **Lockstep rule for contributors.** The plan is the load-bearing interface
 > between `/afk:to-subtasks` (emitter) and `/afk:execute` (parser). If you add,
@@ -769,6 +831,11 @@ strict ownership so edits never collide:
   to build.
 
 ---
+
+**Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
+`DELEGATION.md`, `FRESHNESS.md`, and `LAVISH.md` (the lavish-axi pin,
+invocation shapes, render-point → playbook map, and fallback/forbid-list —
+render-point skills carry only a pointer to it).
 
 **Parent ticket:** P2P-1220 (Jira). For the contributor-facing internals (the
 lockstep contract, the three-checkpoint enforcement, the tracker boundary), see
