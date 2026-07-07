@@ -65,7 +65,7 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
 
 5. **Surface PRD/SDD gaps explicitly.** Revealing gaps is a primary output. When a walk exposes an ambiguous, missing, or contradictory detail, name it. Small → note it in the conversation so `/afk:to-verification-plan` captures it in the plan's `## Gaps surfaced` section for the human to fold back. Load-bearing (the scenario can't be designed without it) → **stop and route back**: a PRD gap to `/afk:grill-requirements` + `/afk:to-prd`; a technical / endpoint gap to `/afk:grill-solution` + `/afk:to-sdd`.
 
-6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API is deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus the per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`.
+6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API is deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus the per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. When a human is present, render per LAVISH.md (RP-3, playbook `table`) for the journey/scenario matrix recap; markdown fallback and driven mode use the prose recap above instead.
 
 ## Hard rules
 

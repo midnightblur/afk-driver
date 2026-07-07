@@ -34,6 +34,7 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 - `sdd_path` *(optional)* — defaults to the PRD's sibling `SDD.md`. Present → cited mode.
 - `ticket_id` — parent Enhancement/Bug key (e.g. `P2P-1220`), used only to label the plan and the eventual branch. **Nothing is written to Jira.**
 - `skip_design_docs` *(optional, default false)* — human override to slice uncited even though an SDD might be warranted.
+- `materialize_seams` *(optional, cited mode only, default false)* — pre-create each new-Java seam's stub + contract test on the branch at slicing time (Process step 3.5), upgrading those contracts from grep-checked to compiler-checked.
 - `verification_plan_path` *(optional)* — defaults to the PRD's sibling `VERIFICATION-PLAN.md`. Its presence is the smoke-gate trigger (Process step 3).
 
 ## Process
@@ -56,6 +57,13 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
    **Always seed the harness-sync subtask.** For every feature, append a single terminal `NNNN-sync-harness` documentation subtask, `## Blocked by` **every** other subtask, per [HARNESS-SYNC.md](HARNESS-SYNC.md). It keeps the CLAUDE.md harness current so the next agent discovers the shipped feature, and makes the **final** staples-registry call (register a candidate new staple / advance an existing staple's Reference to this feature); it delegates the write to `/afk:claude-md`. Emit it unconditionally — it is not gated on any artifact.
 
+3.5. **Materialize seams (cited mode, only when `materialize_seams=true`).** A grep-anchor is a *proxy* for a contract; the compiler is the real check. For every SDD §8/§9b seam whose home is a **new Java type** (not an edit to an existing file):
+   - Write the **stub**: the interface/skeleton at the SDD §7/§8-declared package with the §8 signatures verbatim, body-less, carrying a `// {TICKET-ID}: seam stub — implemented by {NNNN-slug}` marker comment.
+   - Write the **contract-shape test** sibling under `src/test/java`: `{Seam}ContractTest`, `@Disabled("seam pending — enabled by its implementer")`, whose method bodies reference the stub's signatures and assert the SDD-declared behaviour. Compiling it pins the signature; the implementing subtask **enables** it (drops `@Disabled`) and turns it green as its seam-test `## Verification` row.
+   - Run `./mvnw -f all-modules-pom.xml -pl {module} --also-make test-compile -DskipUi=true` — a materialization that doesn't compile is not emitted.
+   - Mark the corresponding `## Produces` bullet and every `## Consumes` line citing it with the trailing `[materialized]` marker (grammar: [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)).
+   Seams that extend **existing** files, and non-Java seams, stay grep-anchor-only — the marker is never on them. The materialized files are **not committed by this skill** (see Hard rules): the human commits them together with the plan on approval, exactly like the `plan/` files.
+
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` is the zero-padded rank; `{slug}` a short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere).
 
 5. **Write `PLAN.md`** (the index) using the PLAN template below: the solution map, the seam register (cited), and the progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
@@ -64,7 +72,7 @@ Cited mode is default whenever an `SDD.md` sits next to the PRD. Uncited mode is
 
 7. **Update the ticket index.** Upsert this skill's row(s) in the ticket folder's `INDEX.md` (the plan row: subtask count, mode, pointer to `plan/PLAN.md` for live status) per `skills/afk/to-prd/INDEX-FORMAT.md`. Create the file per that format if it doesn't exist yet.
 
-8. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) so the human can review before any execution. Flag every seam-touching subtask explicitly — those rows are worth a careful human read. Also state in one plain-language sentence per subtask *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere.
+8. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) so the human can review before any execution. Flag every seam-touching subtask explicitly — those rows are worth a careful human read. Also state in one plain-language sentence per subtask *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere. When a human is present, render per LAVISH.md (RP-2, playbook `plan`) for plan approval; markdown fallback and driven mode use the printed summary above instead.
 
 ## Subtask contract (`plan/NNNN-{slug}.md`)
 
@@ -102,7 +110,7 @@ Run the detailed checks (a)–(g) in [VALIDATION.md](VALIDATION.md).
 
 ## Hard rules
 
-- **No tracker writes.** This skill only writes files under `plan/`. It creates no Jira issue, sets no label, opens no branch. (`/afk:execute` self-creates the branch.)
+- **No tracker writes.** This skill only writes files under `plan/` — with one opt-in exception: `materialize_seams=true` additionally writes seam stubs + contract tests into the service modules (Process step 3.5). It creates no Jira issue, sets no label, opens no branch, and **never commits** — materialized files land in the working tree for the human to review and commit with the plan (`/afk:execute` stays the only auto-commit lane).
 - **The plan round-trips.** `/afk:execute` parses these exact section headings; if you add/rename/reorder a section, update the `/afk:execute` parser in the same commit (lockstep).
 - **Don't fabricate Acceptance.** Every bullet traces to the PRD or (cited) the SDD/an ADR; cited bullets carry a resolving citation tag (validation (c)).
 - **Don't invent a public interface.** Cited interfaces come from SDD §8 verbatim; a missing one is a design gap → bounce to `/afk:grill-solution`.

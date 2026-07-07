@@ -42,11 +42,12 @@ ADVERSARY: <clean|findings|tainted|env_unreachable> — probed=<n> [crit=… hig
 In plain terms: <one jargon-free sentence — what the running app got wrong (or that it held up), and what it means for shipping>
 ```
 
-   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict states in plain terms that the session saw material it must not see and a fresh one is needed — the human should know the gate churned.
+   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict states in plain terms that the session saw material it must not see and a fresh one is needed — the human should know the gate churned. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
 - **Edits nothing**: no code, no specs, no plan files. The report is the only output.
 - **Runtime evidence only.** A finding without a reproduced request/response (or observed UI state) is a hypothesis — don't report it here.
+- **Repros are written to be lifted.** State each finding's repro in the idiom of the standing verification catalogs (`11700-payable/verification/api/AUTHORING.md` for REST repros, `…/ui-e2e/AUTHORING.md` for browser repros — including their corpus conventions) so whoever remediates can land it there verbatim as a permanent scenario.
 - **Data hygiene.** Prefix created entities so they're identifiable; don't mutate or depend on pre-existing business data.
 - Findings carry a `class` so the caller can route remediation — the routing itself belongs to the caller, not here.

@@ -30,7 +30,7 @@ Do NOT interview the user. If a brief section can't be filled from source docs, 
 
    Embed inline. Caption with one sentence stating the takeaway. **Do not include more than one diagram.** If one diagram can't carry the shape, the SDD is the right artifact, not the brief.
 
-4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding the diagram and tables. If a draft runs long, compress; don't add more sections. The brief is a **repo-only artifact** — it does not touch the Jira ticket: it is shared with stakeholders out of band (link the repo file, paste it into a review thread), and the ticket description stays with its other owners (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`).
+4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding the diagram and tables. If a draft runs long, compress; don't add more sections. The brief is a **repo-only artifact** — it does not touch the Jira ticket: it is shared with stakeholders out of band (link the repo file, paste it into a review thread), and the ticket description stays with its other owners (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`). When a human is present, render per LAVISH.md (RP-5, playbook `slides`) for a digest-slides walkthrough before sharing; markdown fallback and driven mode use the written `DESIGN-BRIEF.md` instead.
 
 5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 

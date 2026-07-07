@@ -67,6 +67,8 @@ One subagent per concern, all spawned in a **single message** as parallel `Agent
 
 **`test-veracity`** — does the test prove the behaviour? A seam test must assert on the framework's **real** serialized output, not echo the DTO back. Flag tautological asserts (`assertEquals(x, x)`), asserts on mocks instead of results, happy-path-only coverage of a multi-branch acceptance bullet, missing negative/authz cases, and the repo's ApprovalTests `JsonApprovals.verifyJson(capturedSaveArg)` pattern where a hand-rolled field-by-field assert was used instead.
 
+*Mutation probe (gate mode, sampled).* Static reading can miss a test that runs the code but asserts nothing that matters; mutation testing catches that empirically. When the slice diff changes production Java in a module whose `## Verification` table declares a green `unit`/`integration` tier, run `bash tools/payable/ai-agents/plugins/workflow/hooks/mutation-probe.sh {module} {changed-classes-csv} [{covering-test-classes-csv}]` — one module per review (the one with the most changed production lines), `targetClasses` = only the classes the diff changed, `targetTests` = the test classes covering them (the sibling `*Test` by convention plus any test the diff touched). Read its one-line result: a `SURVIVED` mutant on a diff-changed line is a finding (`class: test`, severity `medium`; `high` when the mutant sits on a line satisfying an `## Acceptance` bullet); `NO_COVERAGE` on a diff-changed line likewise. `MUTATION: unavailable`/timeout is **no signal**: note it once in the report header and move on — never a finding, never a verdict input. Standalone mode skips the probe unless asked.
+
 **`scope-and-impact`** — confirm every changed path matches a `## Scope` glob (out-of-scope file = finding), no forbidden pattern (liquibase/UpgradeGroup), no unrelated churn (stray `package-lock.json` reflow, formatter-only diffs in untouched files). Then assess blast radius: for each changed public symbol (method/class signature, REST path, DTO field, event), search the repo for its callers/consumers (`Grep` the symbol name across the affected module + its `*-client`/`*-entities` siblings) and surface any caller the diff changed the contract for but did **not** update or cover with a test as a finding. A changed `*-client` DTO or endpoint signature with downstream consumers in other services is high severity.
 
 **`refactor-safety`** — separate the **net-new** code from changes to **pre-existing** code; the latter is refactoring and carries behaviour-preservation risk that green tiers don't catch (the existing tests may have moved with the code). Identify each refactor in the diff — symbol/file rename, signature or return-type change, extracted/inlined method, logic moved between classes/modules, edits to a **shared base class / util / `*-client` DTO / `*-entities` / state-machine**, reworked control flow in an existing method, changed defaults or data structures — and rate its risk as blast radius × behaviour-change potential × test coverage:
@@ -139,7 +141,7 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 | `advisory` | only `medium`/`low` findings |
 | `blocking` | any `critical`/`high` finding |
 
-What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing.
+What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
@@ -147,7 +149,7 @@ What the caller does with the verdict is the caller's policy; each blocking find
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer that's told "the author says this is fine" isn't a reviewer.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (the rule text, the failing input, the unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
 - **Parallel fan-out, single message.** Spawn all concern subagents at once; never sequential.
-- **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run.
+- **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run. **One carve-out:** the `test-veracity` concern's sampled mutation probe (its checklist owns the sampling rule) — it measures test *strength*, which no static read can, and fails open to "no signal".
 - **No new contract sections.** This skill only *reads* the plan; it owns no PLAN.md cell and no Implementation-Notes block. The caller records outcomes.
 
 ## See also
