@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Hands-off driver that walks a local plan subtask by subtask with a fresh subagent per subtask, provisions the live app for verification, parks failures and their dependents, and finishes at the feature smoke gate. Use when the user runs `/afk:autopilot` on the parent branch once a local plan exists.
+description: Hands-off driver that walks a local plan subtask by subtask with a fresh subagent per subtask, provisions the live app for verification, parks failures and their dependents, runs the feature smoke gate, and — on smoke-green — chains `/afk:preflight`. Use when the user runs `/afk:autopilot` on the parent branch once a local plan exists.
 ---
 
 # afk:autopilot — drive the whole plan hands-off
@@ -29,7 +29,9 @@ Walk the `## Progress tracker` in rank order. For each subtask not `done`:
 
 1. **Blocked-by check.** Any prerequisite not `done` (including parked ones) → the subtask is **parked by inheritance**: skip it, record `parked(waiting on {ID})` in the run report **and append its journal line**. Do not write to PLAN.md — the tracker's Status column belongs to the executor; parked-by-inheritance rows simply never start.
 2. **Spawn a fresh subagent** for the subtask using [SUBAGENT-PROMPT.md](SUBAGENT-PROMPT.md). One subtask per subagent — no context bleed between slices. The subagent runs the execute contract in **driven mode** and must end with its structured `OUTCOME:` line.
-3. **The subtask subagent provisions its own app.** The orchestrator only reserves the side port and boots the baseline before the run (Preconditions item 3) — it does not provision per slice. The subagent, which holds the reboot command, self-provisions **after implementing** — so the instance serves this slice's code — via `.claude/hooks/app-start-gate.sh {leaf-module}` in provisioning mode: `APP_START_KEEP=1` (leaves the instance running), `APP_START_PORT={side port}`, and `APP_START_SKIP_UI=false` for UI-touching slices so the jar serves the rebuilt UI; the spawn prompt hands it the port + command. When the slice finishes, kill any instance left running (the pid the gate printed); never point verification at a developer's own running instance.
+
+   **Size the subagent by the contract's `## Complexity`** (token owned by `skills/afk/to-subtasks/SUBTASK-CONTRACT.md` — lockstep copy here because this step routes on it; absent → `standard`): `mechanical` → a fast/cheap model tier at low reasoning effort; `standard` → inherit the session's model and effort (the default — when unsure, this); `complex` → the strongest available tier at high reasoning effort. Routing applies to the subtask's executing subagent only — the review/adversary gates it spawns keep their own defaults. A `mechanical` subtask that parks is re-run once at `standard` sizing before the park stands (misclassification, not code, may be the cause — journal the resize).
+3. **The subtask subagent provisions its own app.** The orchestrator only reserves the side port and boots the baseline before the run (Preconditions item 3) — it does not provision per slice. The subagent, which holds the reboot command, self-provisions **after implementing** — so the instance serves this slice's code — via `tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf-module}` (shipped with this plugin, run from the repo root) in provisioning mode: `APP_START_KEEP=1` (leaves the instance running), `APP_START_PORT={side port}`, and `APP_START_SKIP_UI=false` for UI-touching slices so the jar serves the rebuilt UI; the spawn prompt hands it the port + command. When the slice finishes, kill any instance left running (the pid the gate printed); never point verification at a developer's own running instance.
 4. **Read the OUTCOME.**
    - `success` → next subtask.
    - Anything else → **park** this subtask and continue with subtasks not downstream of it. A structured outcome means the executor already left the row `blocked(…)`; a killed/vanished subagent leaves its row at an in-flight status — leave it (re-runs skip only `done`), flag the stranded row in the report, **and journal it as `stranded`** so the stale in-flight cell can't be mistaken for live work. On **every** park, send a push notification per `REPORTING.md` (plugin root): subtask + status + one plain-terms sentence — the human may want to intervene while independent work is still burning wall-clock. Every park also lands in the final report.
@@ -40,12 +42,13 @@ Sequential by design: one subtask, one worktree, one app instance at a time. Do 
 ## Finish
 
 - Every non-parked subtask `done` (including terminal `NNNN-smoke-*` / `NNNN-sync-harness` build subtasks) → run `/afk:smoke-test` against the self-provisioned instance. A parked terminal `NNNN-smoke-*` build subtask parks the feature gate too — the smoke suite is not run half-suited; report `smoke: not_run` with the park.
+- **On smoke-green** (`PLAN.md`'s `Feature:` header reads `complete (smoke green …)` or `complete (minimal gate, …)`) → invoke /afk:preflight `{plan-dir}`. This is the one added chain step (SDD §8 row "M2 autopilot chain edit", §14 row "autopilot skill chain") — the per-subtask `/afk:execute` tail (tiers → review → adversary → commit → push → Draft-MR checklist) stays untouched, and a human can still run `/afk:preflight {plan-dir}` by hand later (e.g. to resume a `parked(PF-n: …)` feature) — chaining it here doesn't retire the standalone entry point. Preflight's own outcome (`success` / `refused(no_green_smoke)` / `parked(PF-n: …)` / `other`) folds into this run's report and, on `parked(PF-n: …)`, gets the same push notification + report treatment as a subtask park (per `REPORTING.md`) — smoke-red or smoke-`not_run` skips this step entirely (nothing to chain onto).
 - Send the end-of-run notification and report:
 
 ```
-AUTOPILOT: <n_done>/<n_total> done, <n_parked> parked — smoke: <verdict|not_run>
+AUTOPILOT: <n_done>/<n_total> done, <n_parked> parked — smoke: <verdict|not_run> — preflight: <verdict|not_run>
 In plain terms: <one jargon-free sentence — what the human comes back to and what needs their decision first>
-parked: {NNNN-slug}(status — <plain-terms clause>), … [+ dependents by inheritance]
+parked: {NNNN-slug}(status — <plain-terms clause>), … [+ dependents by inheritance] [+ preflight: parked(PF-n: reason) if applicable]
 Journal: plan/JOURNAL.md · Reviews: plan/review/INDEX.md
 ```
 
