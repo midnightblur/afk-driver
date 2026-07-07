@@ -1,0 +1,291 @@
+"""The A-suite's home (subtask 0003-mc-renderer's ## Produces anchor):
+A1 full-fixture golden, A2 path-fence exit 2 + nothing written, A3
+absent-per-panel x5, A4 self-containment, A5 GET-only/read-only, A6
+idempotent re-render. Fixture layout below is executor latitude (SDD §0).
+"""
+from __future__ import annotations
+
+import http.client
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+import mission_control  # noqa: E402
+from mc import server  # noqa: E402
+from mc.vm import Absent  # noqa: E402
+
+_SDD_TEXT = """# SDD - fixture
+
+## S2 L1 - System Topology
+
+```mermaid
+flowchart LR
+    A --> B
+```
+
+## S8 L7 - Module Decomposition
+
+```mermaid
+flowchart TB
+    M1 --> M2
+```
+"""
+
+_PROGRESS_SECTION = """## Progress tracker
+
+| # | Subtask | Title | Status |
+|---|---------|-------|--------|
+| 1 | 0001-sample | Sample subtask | done |
+"""
+
+_SEAM_SECTION = """## Seam register
+
+| # | Seam (SDD §9b row) | Implemented by | Used by |
+|---|--------------------|-----------------|---------|
+| 1 | "git binary" | 0001-sample | 0002-sample |
+"""
+
+_SMOKE_SECTION = """## Feature smoke gate
+
+| # | Scenario (integrated) | Modality | Status |
+|---|------------------------|----------|--------|
+| 1 | Sample scenario | api | pending |
+"""
+
+_PREFLIGHT_SECTION = """## Preflight
+
+| # | Step | Status | Cycle | Evidence |
+|---|------|--------|-------|----------|
+| 1 | PF-1 merge origin/master | green | 0 | commit abc123 |
+"""
+
+_JOURNAL_TEXT = (
+    "# Journal - append-only event log "
+    "(format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.\n\n"
+    "2026-07-07 09:00 | execute | 0001-sample | done "
+    "— fixture event for the timeline panel test\n"
+)
+
+_REVIEW_INDEX_TEXT = """| Subtask | Latest report | Verdict | crit/high/med/low | Open advisories |
+|---|---|---|---|---|
+| 0001-sample | 0001-sample-abc123.md | clean | 0/0/0/0 | none |
+"""
+
+_SUBTASK_TEXT = """# 0001-sample
+
+## Produces
+- scripts/sample.py#`SAMPLE_ANCHOR` — a fixture anchor for the design-map panel test
+
+## Consumes
+- 0000-other scripts/other.py#`OTHER_ANCHOR` — a fixture consumed anchor
+"""
+
+
+def _git(base: Path, args: list) -> None:
+    result = subprocess.run(
+        ["git", "-C", str(base), *args], capture_output=True, text=True
+    )
+    assert result.returncode == 0, f"git {args} failed: {result.stderr}"
+
+
+def _build_fixture(
+    base: Path,
+    *,
+    plan_progress: bool = True,
+    plan_smoke: bool = True,
+    plan_preflight: bool = False,
+    journal: bool = True,
+    sdd: bool = True,
+    review_index: bool = True,
+    git_init: bool = True,
+    git_commit: bool = True,
+) -> Path:
+    base.mkdir(parents=True, exist_ok=True)
+    if sdd:
+        (base / "SDD.md").write_text(_SDD_TEXT, encoding="utf-8")
+
+    plan_dir = base / "plan"
+    any_plan_section = plan_progress or plan_smoke or plan_preflight
+    if any_plan_section or journal or review_index:
+        plan_dir.mkdir(parents=True, exist_ok=True)
+
+    if any_plan_section:
+        sections = []
+        if plan_progress:
+            sections.append(_PROGRESS_SECTION)
+            sections.append(_SEAM_SECTION)
+        if plan_smoke:
+            sections.append(_SMOKE_SECTION)
+        if plan_preflight:
+            sections.append(_PREFLIGHT_SECTION)
+        (plan_dir / "PLAN.md").write_text("# Plan\n\n" + "\n\n".join(sections) + "\n", encoding="utf-8")
+
+    if journal:
+        (plan_dir / "JOURNAL.md").write_text(_JOURNAL_TEXT, encoding="utf-8")
+
+    if review_index:
+        review_dir = plan_dir / "review"
+        review_dir.mkdir(parents=True, exist_ok=True)
+        (review_dir / "INDEX.md").write_text(_REVIEW_INDEX_TEXT, encoding="utf-8")
+
+    if any_plan_section or journal or review_index:
+        (plan_dir / "0001-sample.md").write_text(_SUBTASK_TEXT, encoding="utf-8")
+
+    if git_init:
+        _git(base, ["init", "-q"])
+        _git(base, ["config", "user.email", "mc-tests@example.com"])
+        _git(base, ["config", "user.name", "MC Tests"])
+        if git_commit:
+            (base / "README-fixture.md").write_text("fixture\n", encoding="utf-8")
+            _git(base, ["add", "-A"])
+            _git(base, ["commit", "-q", "-m", "[0001-sample] fixture commit"])
+
+    return base
+
+
+class MissionControlContractTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    # A1 - full fixture render -> exit 0, golden HTML per panel
+    def test_full_fixture_golden(self):
+        spec_dir = _build_fixture(self.base / "feature", plan_preflight=True)
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        exit_code = mission_control.main(["--once", str(spec_dir)])
+
+        self.assertEqual(exit_code, mission_control.EXIT_OK)
+        html_text = (out_dir / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('data-panel="progress"', html_text)
+        self.assertIn("0001-sample", html_text)
+        self.assertIn("Sample subtask", html_text)
+
+        self.assertIn('data-panel="timeline"', html_text)
+        self.assertIn("fixture event for the timeline panel test", html_text)
+
+        self.assertIn('data-panel="design_map"', html_text)
+        self.assertIn("2 design diagram(s) in SDD.md", html_text)
+        self.assertIn("SAMPLE_ANCHOR", html_text)
+
+        self.assertIn('data-panel="diffs"', html_text)
+        self.assertIn("[0001-sample] fixture commit", html_text)
+
+        self.assertIn('data-panel="gates"', html_text)
+        self.assertIn("PF-1 merge origin/master", html_text)
+        self.assertIn("0001-sample-abc123.md", html_text)
+
+        self.assertNotIn("mc-card-absent", html_text)
+
+    # A2 - path outside fence -> exit 2, nothing written
+    def test_path_fence_exit_2(self):
+        outside = Path(tempfile.mkdtemp())
+        try:
+            with self.assertRaises(SystemExit) as ctx:
+                mission_control.main(["--once", str(outside)])
+            self.assertEqual(ctx.exception.code, mission_control.EXIT_PATH_FENCE)
+            self.assertEqual(list(outside.iterdir()), [])
+        finally:
+            shutil.rmtree(outside, ignore_errors=True)
+
+    # A3 - missing source per panel -> Absent card, others golden, exit 0
+    def test_absent_state_per_panel(self):
+        def panels_for(spec_dir):
+            return {p.panel_id: p for p in (parser(spec_dir) for parser in mission_control.PANEL_PARSERS)}
+
+        spec = _build_fixture(self.base / "no-plan", plan_progress=False, plan_smoke=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["progress"], Absent)
+        self.assertNotIsInstance(panels["timeline"], Absent)
+
+        spec = _build_fixture(self.base / "no-journal", journal=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["timeline"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
+        spec = _build_fixture(self.base / "no-sdd", sdd=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["design_map"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
+        spec = _build_fixture(self.base / "no-commits", git_commit=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["diffs"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
+        spec = _build_fixture(self.base / "no-gates", plan_smoke=False, plan_preflight=False, review_index=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["gates"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
+    # A4 - page self-contained: zero external refs, opens via file://
+    def test_page_self_contained(self):
+        spec_dir = _build_fixture(self.base / "contained")
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        mission_control.main(["--once", str(spec_dir)])
+
+        html_text = (out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertNotRegex(html_text, r'(src|href)\s*=\s*"https?://')
+        self.assertNotIn("<link", html_text)
+        self.assertNotIn("<script src", html_text)
+
+    # A5 - GET-only server; page has no mutating control
+    def test_get_only_read_only(self):
+        spec_dir = _build_fixture(self.base / "serve")
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.PANEL_PARSERS)
+        self.assertEqual(httpd.server_address[0], "127.0.0.1")
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = httpd.server_address[1]
+
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("GET", "/index.html")
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 200)
+            body = resp.read()
+            conn.close()
+            self.assertNotIn(b"<button", body)
+            self.assertNotIn(b"onclick=", body)
+
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            conn.request("POST", "/index.html")
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 501)
+            resp.read()
+            conn.close()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
+
+    # A6 - unchanged fixture re-render -> byte-identical
+    def test_idempotent_rerender(self):
+        spec_dir = _build_fixture(self.base / "idem")
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        mission_control.main(["--once", str(spec_dir)])
+        first = (out_dir / "index.html").read_bytes()
+        mission_control.main(["--once", str(spec_dir)])
+        second = (out_dir / "index.html").read_bytes()
+
+        self.assertEqual(first, second)
+
+
+if __name__ == "__main__":
+    unittest.main()
