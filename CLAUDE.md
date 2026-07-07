@@ -104,6 +104,7 @@ The contract is enforced at three checkpoints — drift is impossible to ship wi
 ## Reference
 
 - `README.md` — install, the chain map, and the per-skill summary.
+- `skills/afk/CLAUDE.md` — how to invoke/extend mission control, preflight, and render points (the Mission Control, Preflight & Lavish adoption feature).
 - `LAVISH.md` — the one home for the lavish-axi doctrine: the exact pin, the `npx` invocation shapes, the render-point → playbook map, the human-present-only + markdown-fallback rules, and the forbidden operations. Render-point skills carry only a pointer here.
 - `FRESHNESS.md` — the same-commit rule + artifact registry that keep plugin artifacts from going stale; `/afk:setup` is the dependency doctor (`skills/afk/setup/MANIFEST.md` register) and `/afk:setup audit` the drift catcher.
 - `GLOSSARY.md` — workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts).
