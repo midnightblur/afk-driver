@@ -47,11 +47,11 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
         pass  # keep CLI/test output quiet; not a correctness concern
 
 
-def _snapshot_mtimes(spec_dir: Path) -> dict:
+def _snapshot_mtimes(spec_dir: Path, out_dir: Path) -> dict:
     snapshot = {}
     try:
         for path in spec_dir.rglob("*"):
-            if "mission-control" in path.parts:
+            if path == out_dir or out_dir in path.parents:
                 continue  # never watch our own output directory
             try:
                 if path.is_file():
@@ -85,17 +85,17 @@ def watch_and_serve(
     httpd.mc_token = token
 
     def _watch_loop():
-        last = _snapshot_mtimes(spec_dir)
+        last = _snapshot_mtimes(spec_dir, out_dir)
         while not (stop_event and stop_event.is_set()):
             time.sleep(_POLL_INTERVAL)
             try:
-                current = _snapshot_mtimes(spec_dir)
+                current = _snapshot_mtimes(spec_dir, out_dir)
                 if current != last:
                     # Debounce: wait for the burst to settle, then take one
                     # more snapshot so a slow render coalesces instead of
                     # queuing re-renders (SDD §5 retry/timeout table).
                     time.sleep(debounce)
-                    current = _snapshot_mtimes(spec_dir)
+                    current = _snapshot_mtimes(spec_dir, out_dir)
                     render_once(spec_dir, out_dir, panel_parsers, live_reload=True)
                     token[0] += 1
                     last = current

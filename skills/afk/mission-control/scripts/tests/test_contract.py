@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -269,6 +270,45 @@ class MissionControlContractTests(unittest.TestCase):
             self.assertEqual(resp.status, 501)
             resp.read()
             conn.close()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
+
+    # A7 - watch mode detects an edit and re-renders, even when the feature's
+    # own spec_dir is literally named "mission-control" (regression: the
+    # watcher's self-exclusion previously matched on that bare path
+    # component, silently excluding every file whenever spec_dir itself was
+    # named "mission-control" and permanently disabling change detection).
+    def test_watch_detects_edit_when_spec_dir_named_mission_control(self):
+        spec_dir = _build_fixture(self.base / "mission-control")
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.PANEL_PARSERS, debounce=0.1)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = httpd.server_address[1]
+            time.sleep(0.3)  # let the watcher take its initial snapshot before we edit
+            (spec_dir / "plan" / "JOURNAL.md").write_text(
+                _JOURNAL_TEXT + "2026-07-07 10:00 | execute | 0001-sample | edited for watch-mode test\n",
+                encoding="utf-8",
+            )
+
+            deadline = time.monotonic() + 5
+            updated = False
+            while time.monotonic() < deadline:
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                conn.request("GET", "/index.html")
+                resp = conn.getresponse()
+                body = resp.read()
+                conn.close()
+                if b"edited for watch-mode test" in body:
+                    updated = True
+                    break
+                time.sleep(0.2)
+
+            self.assertTrue(updated, "watch mode never re-rendered after the JOURNAL.md edit")
         finally:
             httpd.shutdown()
             httpd.server_close()
