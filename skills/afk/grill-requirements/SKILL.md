@@ -54,7 +54,7 @@ Grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md) — every run, whe
 
 ### Go through the staples (every feature)
 
-Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, grill the user *in or out — and why?*, and record the rationale in the conversation — a matching staple must never be skipped silently. Then raise the mirror question: does this feature itself mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
+Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, resolve the user *in or out — and why?*, and record the rationale in the conversation — a matching staple must never be skipped silently. The in/out calls are confirm-class by default: batch them per [TRIAGE.md](TRIAGE.md) (a contested call escalates to debate). Then raise the mirror question: does this feature itself mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
 
 ### Update GLOSSARY.md inline
 

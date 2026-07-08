@@ -57,6 +57,8 @@ Optional and **human-invoked**. Which modalities you can design depends on what'
    - **Data-scoped access** — a user scoped to one company/vendor sees only its rows on the relevant list/detail screen. Usually **`env-limited`** (needs two FOS-provisioned scoped users the smoke env may not have) — flag it now.
    - **Input validation** — the form refuses a violating input (inline field error + disabled submit), per the PRD validation policy.
 
+   Journey shape and observables are debate-class — walked one at a time. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: batch them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate).
+
 3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md).
 
 4. **Check coverage.** Every top User Story maps to at least one UI journey; every endpoint the feature exposes maps to at least one API scenario; every scenario traces back to a Story / Acceptance Criterion / §3 row. Surface over-coverage (a scenario nothing asks for — is the spec missing it?) and under-coverage (a Story or endpoint with no demonstrable scenario — is it real?). UI and API are **complementary, not redundant**: the UI journey proves the user flow, the API scenario proves the contract a UI test can't see (the raw envelope, the below-the-UI guard).

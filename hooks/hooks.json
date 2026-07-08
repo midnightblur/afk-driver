@@ -9,6 +9,24 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/wiring-gate.sh\"",
             "timeout": 60,
             "statusMessage": "Wiring gate..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/maven-compile-gate.sh\"",
+            "timeout": 600,
+            "statusMessage": "Maven compile gate..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ui-lint-gate.sh\"",
+            "timeout": 300,
+            "statusMessage": "UI lint gate..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/java-format-gate.sh\"",
+            "timeout": 600,
+            "statusMessage": "Java format gate..."
           }
         ]
       }

@@ -20,7 +20,7 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 1. **Source of the finding.**
    - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to the ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`mvu/afk/{ticket-id}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
+2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`kapteyn/development/{username}/{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
@@ -44,6 +44,8 @@ Diagnose gave you the seam regression test. Decide whether a **higher tier** is 
 | User-visible flow that **escaped to the verification phase** | Yes — the journey had no guard | `e2e/browser` → `11700-payable/verification/ui-e2e` per `…/ui-e2e/AUTHORING.md` |
 
 Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
+
+**Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug that came from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). The standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
 
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 

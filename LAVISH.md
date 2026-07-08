@@ -41,6 +41,7 @@ never under `~/.claude/`.
 | RP-4 | `table` |
 | RP-5 | `slides` |
 | RP-6 | `diagram` |
+| RP-7 | `input` |
 
 A rendering skill knows its own RP id (assigned where it's woven in) and
 looks up only its own row here — this file does not enumerate which skill

@@ -20,9 +20,7 @@ Tracker is **Jira Cloud** (`nakisa.atlassian.net`), so the description field is 
 
 ## Prerequisites
 
-- **Python 3** with `markdown-it-py` (already present in this environment).
-- **Node + mermaid-cli** for diagram rendering. Engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`. First `npx` run downloads a headless Chromium (one-time, ~hundreds of MB) — if the PRD has no mermaid blocks, nothing renders and this isn't needed. To pre-install: `npm i -g @mermaid-js/mermaid-cli`.
-- **Jira Cloud creds.** Engine reads `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` from same-named OS env vars, else from the Jira MCP server's `env` block in `~/.claude.json`. Nothing hardcoded. (Attachment upload has no Jira MCP tool, so the engine talks to the REST API directly with these creds.)
+Register: `skills/afk/setup/MANIFEST.md` — this skill needs **P1/P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
 
 ## How to run
 

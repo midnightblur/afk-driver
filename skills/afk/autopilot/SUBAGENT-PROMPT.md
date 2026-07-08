@@ -16,7 +16,13 @@ Context:
   provision the instance AFTER implementing, so it serves your changes;
   re-run the same command to pick up later changes:
   APP_START_KEEP=1 APP_START_PORT={PORT} [APP_START_SKIP_UI=false for UI slices]
-  bash .claude/hooks/app-start-gate.sh {LEAF_MODULE})
+  bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {LEAF_MODULE}
+  The gate kills any prior subtask's instance on the port itself. If YOUR
+  changes touched nothing the app loads — no file under a Maven module's
+  src/, and no UI file when the instance serves the UI — add
+  APP_START_REUSE=1 to reuse the running instance without a rebuild.
+  When your slice finishes, LEAVE the instance running: it is per-run;
+  the orchestrator stops it at run end.)
 - commit + push on {BRANCH} and Draft-MR checklist updates are authorized
   for this run; merging, other branches, and Jira are not.
 

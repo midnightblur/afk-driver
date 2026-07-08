@@ -8,9 +8,9 @@ Charts that render the first time. Mermaid-first; grow as new gotchas surface.
 ## Always
 
 - **Render-check before you ship.** Lint Mermaid with `mmdc -i d.mmd -o d.svg`
-  (mermaid-cli) — a clean SVG means it renders. No mmdc on PATH → self-provision:
-  `npm i -g @mermaid-js/mermaid-cli`; if install isn't possible, stay in the safe
-  subset below.
+  (mermaid-cli) — a clean SVG means it renders. No mmdc on PATH → provision per
+  `skills/afk/setup/MANIFEST.md` entry N2; if install isn't possible, stay in
+  the safe subset below.
 - **Target the oldest renderer in play.** A VSCode preview extension lags GitHub;
   lowest-common-denominator syntax renders everywhere.
 

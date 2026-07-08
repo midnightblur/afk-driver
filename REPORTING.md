@@ -6,7 +6,7 @@ How every AFK skill reports to the human. Binding on any skill that emits a stat
 
 Every terminal report has three layers, in this order:
 
-1. **Headline** — the structured status line the skill already owns (`OUTCOME:`, `AUTOPILOT:`, `REVIEW:`, `ADVERSARY:`). Grammar unchanged, machine-parseable; each skill's own file remains the owner of its grammar.
+1. **Headline** — the structured status line the skill already owns (`OUTCOME:`, `AUTOPILOT:`, `REVIEW:`, `ADVERSARY:`, `RETRO:`). Grammar unchanged, machine-parseable; each skill's own file remains the owner of its grammar.
 2. **Plain terms** — adjacent to the headline, one sentence starting `In plain terms:` that names what happened and its consequence for the reader, using no workflow jargon. It must stand alone — a reader must not need `GLOSSARY.md` to act on it.
 3. **Pointer** — where the full story lives, as paths: the report file, the journal, the MR.
 

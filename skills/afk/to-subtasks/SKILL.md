@@ -90,6 +90,10 @@ Pick the tiers the change actually demands — don't pad, don't under-cover:
 
 A subtask that **implements** a §9b seam must carry the seam's test as a Verification row (unit or integration tier) asserting on the framework's real output, not our DTO — it's the only test that covers the boundary.
 
+**A runtime-effect Acceptance bullet needs a runtime-effect test.** When an Acceptance bullet cites an observable runtime effect — "X happens within Y seconds of Z", or any live/watch/poll/reactive language — the unit/integration row covering it must name a check that **triggers the real condition and asserts the real observable outcome** at the seam (e.g. AC "file edit → page re-renders within ~7s" → the test edits a tracked file and polls for the re-render). A test that only starts the machinery and asserts surrounding shape/structure does not cover that bullet — the tier reads green while the promised behavior is unexercised.
+
+**Fixtures use the feature's real names.** When a subtask's deliverable runs against paths/directories/modules whose real name matches a literal string the implementation special-cases (e.g. a tool named "mission-control" whose own path-exclusion logic matches the substring `"mission-control"`), emit an explicit Acceptance bullet requiring the test fixture to use that real name, not a placeholder — a generic fixture name can never surface the collision.
+
 ### Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
 Seed the gate per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3. A `VERIFICATION-PLAN.md` drives the full gate + per-modality build subtasks; its absence drives the minimal gate (no build subtasks). Every plan gets exactly one of the two.

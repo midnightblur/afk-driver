@@ -49,6 +49,10 @@ fi
 new_files=$(printf '%s\n%s\n' "$worktree_new" "$committed_new" | sed '/^$/d' | sort -u)
 [ -z "$new_files" ] && exit 0
 
+. "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
+gate_metrics_begin
+n_new=$(printf '%s\n' "$new_files" | wc -l | tr -d '[:space:]')
+
 # ---- ledger helpers
 ledger_open() {   # 0 if an open IOU exists for $1
   [ -f "$LEDGER" ] && grep -qF -- "- [ ] \`$1\`" "$LEDGER"
@@ -118,6 +122,7 @@ $new_files
 EOF
 
 if [ -n "$orphans" ]; then
+  gate_metrics_emit wiring blocked "\"new_files\":$n_new"
   {
     printf '[afk] Wiring gate: new artifact(s) with NO consumer and NO IOU — cannot finish.\n'
     printf 'Orphans:\n'
@@ -131,6 +136,7 @@ if [ -n "$orphans" ]; then
 fi
 
 if [ "$FINAL" = "1" ] && [ -n "$pending" ]; then
+  gate_metrics_emit wiring blocked "\"new_files\":$n_new,\"detail\":\"final: open IOUs\""
   {
     printf '[afk] Wiring gate (FINAL): open IOUs remain — consumers never arrived.\n'
     printf '%s' "$pending" | sed 's/^/  - /'
@@ -139,4 +145,5 @@ if [ "$FINAL" = "1" ] && [ -n "$pending" ]; then
   exit 2
 fi
 
+gate_metrics_emit wiring pass "\"new_files\":$n_new"
 exit 0

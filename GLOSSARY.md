@@ -59,6 +59,21 @@ _Avoid_: log file (generic), history
 **Staple**:
 A delivered capability that became a standing expectation (registry: `{service}/STAPLES.md`); every future feature matching its trigger must consider adopting it.
 
+**Manifest**:
+`skills/afk/setup/MANIFEST.md` — the register of every external dependency the workflow needs (CLIs, MCP servers, secrets, sibling checkouts), one entry each with a runnable `Probe:` (exit 0 = healthy) and a `Fix:` (`auto:` runnable / `human:` guided). The one home for install steps; skills point at entry ids instead of restating them.
+_Avoid_: prerequisites list (scattered inline — the failure the manifest retires)
+
+**Freshness registry**:
+The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs.
+
+**Grill triage (debate / confirm)**:
+The classification every grill question gets before it's asked (rule: `skills/afk/grill-requirements/TRIAGE.md`): *debate* — alternatives worth weighing, asked one at a time; *confirm* — a safe default the user accepts or overrides, batched at the section/layer boundary into one answer round. An overridden confirm escalates to debate.
+_Avoid_: quick questions (vague), survey (implies no escalation path)
+
+**Mission control**:
+The per-feature, read-only HTML dashboard *derived* from the plan's existing artifacts — tracker, journal, gate verdicts, SDD diagrams, git diffs. A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
+_Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
+
 ## Design layers (L1–L9)
 
 The top-down ladder the solution grill and the SDD follow. One line each — this is the legend for SDD section titles:
@@ -89,6 +104,10 @@ The unique string a `Produces` bullet declares so its existence in the codebase 
 
 **Produces / Consumes**:
 The typed contract between subtasks: what code artifacts a slice delivers, and which upstream deliveries it depends on. A consumer's miss is a `contract_mismatch`; a producer's own miss is `produces_drift`.
+
+**Materialized seam**:
+A seam whose stub + disabled contract-shape test were pre-created on the branch at slicing time (opt-in), upgrading its `Produces`/`Consumes` contract from grep-checked to compiler-checked; marked `[materialized]` in the plan. Only for new-Java seams — existing-file and non-Java seams stay grep-anchored.
+_Avoid_: scaffold (generic), codegen (nothing is generated at build time)
 
 ## Execution states
 
@@ -122,5 +141,20 @@ A fresh session probing the running app under a hard information diet, trying to
 **Smoke gate**:
 The feature-level completion gate — full (runs the verification plan's UI + API suites) or minimal (compile / app-start / regression) — whose green verdict stamps `Feature: complete`. Its `Run history` lines keep every run, red ones included.
 
+**Preflight**:
+The feature-level ship gate chained by autopilot after a green smoke gate — brings the branch up to date with master (merge, never rebase), re-runs repo validations and the final seam check, reviews the integrated diff as a whole, readies the MR with evidence, and babysits CI to green. Fixes only mechanical failures; anything semantic parks for the human.
+_Avoid_: no-mistakes (the upstream tool it derives from), pre-ship check (vague)
+
+**CI-babysit**:
+Preflight's tail — watching the pushed pipeline until green, auto-fixing only mechanical reds (format, config validations, merge-induced compile breaks, one flaky retry) within a bounded number of fix-push cycles; CI-only test failures and secret hits always escalate.
+
+**Drift audit**:
+The read-only `/afk:setup audit` pass that hunts staleness between the plugin's artifacts and reality — structural consistency, unregistered dependencies, dead pointers, registry compliance — and routes each finding to the file that must change.
+_Avoid_: doctor (that is the fix-the-machine branch, not this one)
+
 **Escape analysis**:
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).
+
+**Retro**:
+The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis.
+_Avoid_: postmortem (that is per-incident), audit (that is `/afk:setup audit`'s staleness hunt)

@@ -18,6 +18,11 @@ complete on its own — run these in addition when the subtask is in Cited mode.
      across without changing its contract.
    - Executor latitude is below the line: file/package layout within the module,
      private helpers, internal naming, test fixtures, library call shape.
+   - **Materialized seams** (a `## Produces` bullet ending `[materialized]`):
+     the stub and its `{Seam}ContractTest` already sit on the branch and are the
+     binding starting point — fill the stub, **enable** the contract test (drop
+     its `@Disabled`) and turn it green as your seam-test Verification row.
+     Never re-declare the type elsewhere or leave the stub as a parallel copy.
 
 ## Step 2 — Preflight: verify Consumed contracts (cited mode)
 
@@ -30,6 +35,12 @@ complete on its own — run these in addition when the subtask is in Cited mode.
      commits, no verification runs.
    - `ctx_search` `{grep-anchor}` in `{file-path}`. Absent → producer drifted →
      same `contract_mismatch`.
+   - Lines marked `[materialized]` get the compiler on top of the grep: run
+     `./mvnw -f all-modules-pom.xml -pl {module-of-file-path} --also-make
+     test-compile -DskipUi=true` once (covering all such lines in that module).
+     A compile failure in the seam surface (the consumed type or its
+     `{Seam}ContractTest`) → `contract_mismatch` — the compiler caught a
+     signature drift the anchor string couldn't.
    - Quote the offending bullet verbatim. **Do not retry, do not auto-correct the
      producer.** A `contract_mismatch` halts on purpose: the producer must be
      fixed (re-run it or emit a corrective subtask) first. Record the break in
@@ -54,6 +65,11 @@ complete on its own — run these in addition when the subtask is in Cited mode.
      not retry or amend silently.
    - `ctx_search` `{grep-anchor}`; absent → implementation diverged from the
      declared signature → `produces_drift`.
+   - **Materialized seams.** For each own `## Produces` bullet marked
+     `[materialized]`: its `{Seam}ContractTest` must be **enabled** — a
+     surviving `@Disabled("seam pending …")` on it is `produces_drift` (the
+     seam-test Verification row can't have legitimately gone green while
+     disabled; name the test file).
    - **JPA-entity pickup (core-services Java).** If `{file-path}` ends `.java`
      and contains `@Entity` / `@MappedSuperclass` / `@Embeddable`: a
      class-declaration grep hit is necessary but not sufficient. Confirm the
