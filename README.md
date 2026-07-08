@@ -111,10 +111,10 @@ tracker) plus one `NNNN-slug.md` contract per subtask. A subtask's *id* is its
 filename stem. `/afk:execute` parses these files and writes back progress. No
 subtask ever becomes a Jira issue.
 
-**④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
-into the parent ticket; `/afk:to-sdd` writes the parent's `## SDD` pointer
-section. **Everything else stops at disk or GitLab.** `/afk:execute` pushes
-branches + Draft MRs to GitLab but writes no Jira.
+**④ Only one skill touches the tracker.** `/afk:to-ticket` publishes the PRD body
+into the parent ticket. **Everything else stops at disk or GitLab** — including
+`/afk:to-sdd`, whose `SDD.md` + design ADRs are local artifacts only. `/afk:execute`
+pushes branches + Draft MRs to GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask all the way to a
 pushed, verified, Draft MR — then **stops**. You review and merge out of band.
@@ -412,7 +412,7 @@ spec folder (or `tasks/{TICKET-ID}/` for tooling work that has no service home):
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
 ├── prototype/                 ← /afk:prototype     (the chosen self-contained mockup HTML)
-├── SDD.md                     ← /afk:to-sdd        (its ## SDD pointer goes to Jira)
+├── SDD.md                     ← /afk:to-sdd        (local only; not published to Jira)
 ├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
@@ -459,8 +459,7 @@ they never embed a copy.
 ## 8. The subtask lifecycle
 
 `/afk:execute` runs **one** subtask per invocation. It owns exactly one cell of
-the `PLAN.md` progress tracker (the row it's working) plus that subtask file's
-`## Implementation Notes` — and nothing else. The states:
+the `PLAN.md` progress tracker (the row it's working) — and nothing else. The states:
 
 ```mermaid
 stateDiagram-v2
@@ -633,8 +632,8 @@ tooling.)*
   topology → L8 tactical patterns); every non-trivial decision gets a rationale +
   ≥2 alternatives. Produces **no** documents — feeds `/afk:to-sdd`.
 - **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
-  ADRs under `adr/design/`, and owns the parent ticket's `## SDD` pointer
-  section. Mandates per-layer visualizations (Mermaid, tables) so reviewers can
+  ADRs under `adr/design/`, **local artifacts only — does not touch the tracker**.
+  Mandates per-layer visualizations (Mermaid, tables) so reviewers can
   scan vertically.
 - **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight 1-2 page
   `DESIGN-BRIEF.md` (one money-shot diagram, a decision digest, a
@@ -813,8 +812,7 @@ strict ownership so edits never collide:
   `<!-- afk:subtasks:end -->` is auto-maintained by `/afk:execute`; everything
   outside is preserved verbatim.
 - **Local plan (`plan/`)** — `/afk:execute` owns only the working subtask's
-  `Status` cell (+ the `Last updated` date) and that subtask file's
-  `## Implementation Notes` block. **`/afk:smoke-test`** owns a *disjoint* slice
+  `Status` cell (+ the `Last updated` date). **`/afk:smoke-test`** owns a *disjoint* slice
   of the same `PLAN.md`: the `## Feature smoke gate` table's `Status` cells, its
   `Last run` line, and the header `Feature:` line — nothing else. All contract
   sections must round-trip losslessly.
@@ -849,7 +847,7 @@ strict ownership so edits never collide:
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside
   the home module.
 - **Re-run `/afk:to-ticket`** after the PRD changes (it's idempotent). It's the
-  only design-chain skill that writes to Jira, alongside `/afk:to-sdd`'s pointer.
+  only design-chain skill that writes to Jira.
 - **The dev loop for this repo**: edit a `SKILL.md` → `/reload-plugins`. Nothing
   to build.
 

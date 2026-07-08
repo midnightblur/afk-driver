@@ -16,7 +16,7 @@ Static review checks what the code says; this gate checks what the running syste
 
 MAY read: the subtask contract's `## Goal / Scope / Acceptance / Seams` and its cited PRD/SDD sections; SDD §3 endpoint contracts; `GLOSSARY.md`; the verification harness docs (`11700-payable/verification/{core,api,ui-e2e}` READMEs) for auth/base-URL mechanics.
 
-MUST NOT read: the slice diff, the implementor's tests, `## Implementation Notes`, review findings, or any commit of this branch. If any of it enters context, the verdict is tainted — report `tainted` and let the invoker respawn a fresh session.
+MUST NOT read: the slice diff, the implementor's tests, review findings, or any commit of this branch. If any of it enters context, the verdict is tainted — report `tainted` and let the invoker respawn a fresh session.
 
 ## Process
 

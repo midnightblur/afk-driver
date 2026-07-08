@@ -70,6 +70,4 @@ commits, and proving test, unsatisfied rows flagged.
 
 ## Blocked by
 <every other subtask id, including any NNNN-smoke-* build subtasks>
-
-## Implementation Notes (auto-maintained)
 ```

@@ -57,9 +57,6 @@ Also see its siblings README.md (run/env) + CLAUDE.md.
 
 ## Blocked by
 <every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
-
-## Implementation Notes (auto-maintained)
-<!-- the authoritative recipe is 11700-payable/verification/ui-e2e/AUTHORING.md; do not duplicate it here -->
 ```
 
 ```
@@ -92,9 +89,6 @@ reference data). Also see its sibling CLAUDE.md. Dependency-free; no install.
 
 ## Blocked by
 <every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
-
-## Implementation Notes (auto-maintained)
-<!-- the authoritative recipe is 11700-payable/verification/api/AUTHORING.md; do not duplicate it here -->
 ```
 
 If the plan has UI journeys but its `## API Scenarios` is the "deferred"

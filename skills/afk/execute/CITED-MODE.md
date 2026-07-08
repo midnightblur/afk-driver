@@ -43,9 +43,9 @@ complete on its own — run these in addition when the subtask is in Cited mode.
      signature drift the anchor string couldn't.
    - Quote the offending bullet verbatim. **Do not retry, do not auto-correct the
      producer.** A `contract_mismatch` halts on purpose: the producer must be
-     fixed (re-run it or emit a corrective subtask) first. Record the break in
-     **both** subtask files' `## Implementation Notes` and set both rows in
-     PLAN.md to `blocked(contract_mismatch: …)`.
+     fixed (re-run it or emit a corrective subtask) first. Set both rows in
+     PLAN.md to `blocked(contract_mismatch: …)` (naming the producer id) — that
+     row carries the break for both subtasks.
 
 ## Step 6 — Honor `## Produces` (cited mode)
 
@@ -96,8 +96,7 @@ binding-contract violation. The canonical flow:
 2. Stage no code; commit nothing under the conflict.
 3. Report `design_conflict` quoting the SDD section + the conflict, and set the
    tracker row to `blocked(design_conflict: …)`.
-4. Note it in the subtask's Implementation Notes and run `/afk:grill-solution`
-   for a superseding ADR before re-running.
+4. Run `/afk:grill-solution` for a superseding ADR before re-running.
 
 **Do NOT silently override the SDD/ADR.** Substituting a different pattern or
 interface breaks the binding contract and produces work other subtasks can't

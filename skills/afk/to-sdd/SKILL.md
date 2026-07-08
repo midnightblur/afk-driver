@@ -1,6 +1,6 @@
 ---
 name: to-sdd
-description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision design ADRs, written next to the PRD. Use once the design decisions are settled in conversation and the user wants them materialized as artifacts. Does NOT interview — synthesizes what is already known.
+description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision design ADRs, written next to the PRD. Use once the design decisions are settled in conversation and the user wants them materialized as artifacts. Does NOT interview — synthesizes what is already known. Local artifacts only — does not touch the issue tracker.
 ---
 
 From the current conversation context, the PRD, and codebase understanding, produce:
@@ -54,11 +54,9 @@ If the design conversation didn't survive into context (compaction, new session)
 
 9. **Emit design ADRs** into the `adr/design/` subfolder. Numbering is local to `adr/design/` (start at `0001`), independent of `adr/requirements/` numbering. ADRs are subject to the same Step 7 refuse-to-publish gate AND the Step 8 library-version cross-check — apply both before writing any `adr/design/NNNN-*.md` file.
 
-10. **Splice a `## SDD` section into the parent Jira ticket description** (shape: [AFK-ADAPTATION.md](AFK-ADAPTATION.md) — a short human-readable digest + the repo path, not a bare pointer). Never modify `## Implementation Notes (auto-maintained)`.
+10. **Update the ticket index.** Upsert this skill's rows in the sibling `INDEX.md` (`SDD`, `Design ADRs`) per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-11. **Update the ticket index.** Upsert this skill's rows in the sibling `INDEX.md` (`SDD`, `Design ADRs`) per `skills/afk/to-prd/INDEX-FORMAT.md`.
-
-**Done when:** `SDD.md` + every design ADR are on disk, the Step 7 and Step 8/8b gates passed, the `## SDD` splice landed in the parent ticket, and the `INDEX.md` rows are upserted.
+**Done when:** `SDD.md` + every design ADR are on disk, the Step 7 and Step 8/8b gates passed, and the `INDEX.md` rows are upserted.
 
 ## Visualization rules
 

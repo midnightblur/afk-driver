@@ -94,7 +94,4 @@ during implementation, exit `design_conflict` quoting the SDD section + the
 conflict. Do NOT override silently. Route back to `/afk:grill-solution` for a
 superseding ADR.
 (omit this block in uncited mode)
-
-## Implementation Notes (auto-maintained)
-<!-- /afk:execute appends one note per run; humans may add prose around it -->
 ```
