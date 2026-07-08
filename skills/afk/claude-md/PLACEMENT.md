@@ -1,6 +1,7 @@
 # Placement engine
 
 Per candidate fact, route by scope + cohesion. First match wins.
+After picking the directory (steps below), ALSO route by audience — see "Audience routing" at the bottom.
 
 ## Decision order
 1. Personal/uncommitted (sandbox URL, local creds)? → `CLAUDE.local.md` (gitignored).
@@ -38,6 +39,36 @@ Before adding to a child, read full root→child ancestor chain + applicable rul
 Shared content lives at the **lowest common ancestor** covering all consumers.
 - Two+ siblings repeat it → lift to nearest common parent (or root).
 - Only one subtree needs it → push down, strip from parent.
+
+## Audience routing — CLAUDE.md vs role sidecars
+
+A directory's `CLAUDE.md` auto-loads (whole file) for EVERY agent that reads any file under it —
+planner, griller, reviewer, implementer alike. Content that only one activity needs pollutes all
+the others. So within the chosen directory, route each fact by audience into a **closed set** of
+files:
+
+| File | Auto-loads? | Audience / read trigger | Content | Allowed level |
+|---|---|---|---|---|
+| `CLAUDE.md` | yes | everyone | invariants, landmines, architecture, placement contracts — anything that can change a plan/design/review decision | any |
+| `IMPL.md` | no — read before editing source here | implementers | procedures, generated-code mechanics, rebuild sequences, hook/proxy mechanics, annotation recipes | any |
+| `TESTING.md` | no — read before writing/fixing tests here | test authors | test harness, conventions, what's wired vs not, naming | module root |
+| `DEBUG.md` | no — read when diagnosing runtime behavior | debuggers | run/attach, ports, logs, failure signatures | service root |
+
+(`GLOSSARY.md` and `STAPLES.md` complete the set but have their own stewards/skills.)
+
+**Litmus per fact:** "could this change a grill/plan/design/review decision?" → `CLAUDE.md`.
+"Only matters while typing code / tests here?" → `IMPL.md` / `TESTING.md`. Unsure → `CLAUDE.md`
+(under-loading an implementer is worse than over-loading a planner).
+
+**Rules:**
+- Closed nameset — never invent a new sidecar name; extending the set is a convention change, not a placement call.
+- No empty placeholders — a sidecar exists only where content exists (an empty sidecar is an orphan).
+- Every sidecar is announced by exactly one pointer line in the SAME directory's `CLAUDE.md`. Keep the tail `Read [<FILE>](<FILE>) first. Otherwise skip it.` verbatim (stable target for the read-before-edit hook); the leading trigger clause may match the sidecar's actual content:
+  - `> **Editing code under this directory? Read [IMPL.md](IMPL.md) first. Otherwise skip it.**` (source dirs) — or `Building, testing, or running this service?` when the IMPL.md holds build/run commands (service root).
+  - `> **Writing or fixing tests in this module? Read [TESTING.md](TESTING.md) first. Otherwise skip it.**`
+  - `> **Diagnosing runtime behavior of this service? Read [DEBUG.md](DEBUG.md) first. Otherwise skip it.**`
+- A sidecar inherits its directory scope — dedup vs ancestor sidecars exactly like CLAUDE.md (lowest common ancestor).
+- HARVEST/AUDIT proposals must state the audience route alongside the placement rationale; AUDIT flags implementation-procedure content sitting in a `CLAUDE.md` as a move candidate (`CLAUDE.md → IMPL.md`).
 
 ## In-repo notes, not a shared layer
 Cross-cutting principles live as **in-repo per-directory notes**, NOT an out-of-repo

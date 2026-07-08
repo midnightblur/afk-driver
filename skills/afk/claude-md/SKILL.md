@@ -1,6 +1,6 @@
 ---
 name: claude-md
-description: Stewards CLAUDE.md, .claude/rules, and each service's STAPLES.md registry across a project hierarchy. Use when the user runs /claude-md, asks to create/update/audit/dedup project memory, registers or advances a staple, or when a durable learning (repeated correction, gotcha, established pattern) surfaces mid-session. Writes only after grouped approval.
+description: Stewards CLAUDE.md, its role sidecars (IMPL.md/TESTING.md/DEBUG.md), .claude/rules, and each service's STAPLES.md registry across a project hierarchy. Use when the user runs /claude-md, asks to create/update/audit/dedup project memory, registers or advances a staple, or when a durable learning (repeated correction, gotcha, established pattern) surfaces mid-session. Writes only after grouped approval.
 ---
 
 # claude-md — project-memory steward
@@ -28,7 +28,7 @@ BOOTSTRAP done when: every emitted line passes the 4-gate inclusion bar and the 
 Unsure → **omit silently**. Pointer one-liners > explanations (`X in Y; gotcha: Z`).
 
 ## Placement
-See [PLACEMENT.md](PLACEMENT.md) — routes each candidate fact by scope + cohesion (place vs kind-of-file vs project-wide).
+See [PLACEMENT.md](PLACEMENT.md) — routes each candidate fact by scope + cohesion (place vs kind-of-file vs project-wide), then by **audience** (`CLAUDE.md` for decision-relevant facts everyone auto-loads; role sidecars `IMPL.md`/`TESTING.md`/`DEBUG.md` read on demand via a pointer line). This skill stewards the sidecars alongside CLAUDE.md — same inclusion bar, same proposal protocol.
 
 ## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
 Beyond CLAUDE.md/rules, this skill is the **sole writer** of each service's `{service}/STAPLES.md` — a registry of **staples**: delivered capabilities that became standing expectations (e.g. deep-linking, Excel import/export). A staple imposes an obligation on any **future** feature whose work matches its **Trigger**; the AFK chain consults it at grill/design/plan/review time, and only this skill writes it. The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: it's a **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, and has a real **Reference** exemplar (or an explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol (it's a per-directory in-repo steering note like any other). Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
