@@ -62,6 +62,16 @@ markdown flow. This is **never a phase failure**: the phase completes via
 markdown, work is not lost, and the skill continues exactly as it would have
 before lavish adoption.
 
+**Primary path, not optional (binding on every render point).** At a render
+point with a human present, the lavish render IS the presentation — you **MUST**
+invoke it, not merely *may*. The coding host's native question / multiple-choice
+picker (e.g. an `AskUserQuestion`-style card) is **not** a lavish render and
+**not** the markdown fallback; it must never stand in for a render point.
+**Exactly two** things license not rendering: **driven mode** (no human — see
+Human-present-only above) and a **genuine render failure** (the markdown
+fallback above). A skip for any other reason is a protocol violation. When you
+do skip, state which of the two applied.
+
 **Forbidden operations** — never invoke, never set, in any weave:
 
 | Operation | Why forbidden |
