@@ -71,3 +71,72 @@ collections) render as broken placeholders — do not use them.
 - **Re-run** strips the prior managed block (markers inclusive) and its
   `afk-fig*.png` attachments, then re-inserts at the same position and re-renders
   the figures — so the ticket never accumulates duplicates.
+
+## Meeting Summaries publish (meeting mode)
+
+`scripts/publish_meeting.py` publishes a meeting into the issue description as a
+collapsible `expand`, in a region **disjoint** from the PRD managed block — the
+two engines never touch each other's nodes.
+
+### Region shape
+
+A single level-2 heading, then one `expand` per meeting (newest first):
+
+- `heading` (level 2), text exactly `Meeting Summaries` — created once, at the
+  **top** of the description, if absent.
+- one `expand` per meeting — `attrs.title` is the meeting **key**
+  (`"{date} — {title}"`, or `"{title}"` when `--date` is omitted). The whole
+  meeting body lives inside it; the subsections are plain headings, **not**
+  nested expands (ADF forbids `expand`-in-`expand`).
+
+### Meeting body (the `--meeting` Markdown)
+
+Authored by the caller from a transcript or notes, then converted to the
+expand's content by the shared Markdown→ADF mapping (table at the top of this
+file). The fixed shape:
+
+```markdown
+<one-line lead-in: what the meeting was>
+
+**Recordings:**
+- [<label, e.g. Demo (10:31)>](<url>)
+- [<label>](<url>)
+
+In Attendance: <names> (<optional note, e.g. "from transcript speakers">)
+
+Documents: <links, or an em-dash when none>
+
+---
+
+# Summary
+
+## 1. Decisions / Confirmations
+- <decision or confirmation>
+
+## 2. Open questions / Action items
+- **[<owner>]** <action>
+
+## 3. Meeting notes
+- <clarification worth keeping>
+```
+
+Record only what the source supports. `[text](url)` links keep only
+`https`/`mailto` hrefs (relative/anchor hrefs are dropped, text kept), per the
+mapping table.
+
+### Merge model (idempotent, meeting-keyed)
+
+- **Locate** the level-2 `Meeting Summaries` heading. Absent → create it with
+  the new expand at the **top** of the description → `action: created`.
+- The meetings are the **contiguous run of `expand` nodes** immediately after
+  that heading.
+- An expand in that run whose `attrs.title` **equals** this meeting's key is
+  **replaced** in place → `action: replaced` (a re-run updates, never duplicates).
+- Otherwise the new expand is **inserted** directly after the heading, newest
+  first → `action: inserted`.
+- Every other top-level node — the PRD sentinel block, product-owner prose, any
+  trailing `rule`/notes — is preserved verbatim.
+
+Meetings are keyed solely by expand title, so keep `--title` (and `--date`)
+stable across re-runs of the same meeting; a changed key adds a second expand
+rather than updating the first.
