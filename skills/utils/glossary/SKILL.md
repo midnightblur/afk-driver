@@ -1,16 +1,11 @@
 ---
 name: glossary
 description: >
-  Maintain and fix the repo's multi-context domain glossary — a
-  vocabulary-only steward. Audits an existing
-  GLOSSARY.md for ambiguity, synonyms, vague/overloaded terms, and drift
-  from the code; or grills new terminology one question at a time when
-  building vocabulary in conversation. Writes to the GLOSSARY-MAP.md +
-  per-service GLOSSARY.md setup after approval. Use when user invokes
-  `/afk:glossary`, asks to define/fix/audit/dedup domain terms, harden
-  terminology, build a glossary, sharpen the ubiquitous language, or
-  mentions "domain model" / "DDD" terminology hygiene. Does NOT grill
-  requirements, emit ADRs, or touch the tracker.
+  Vocabulary-only steward of the repo's multi-context domain glossary
+  (GLOSSARY-MAP.md + per-service GLOSSARY.md). Use when the user invokes
+  `/afk:glossary`, asks to define/audit/dedup/harden domain terms, or
+  mentions "domain model" / "DDD" terminology hygiene. Writes only after
+  approval; does NOT grill requirements, emit ADRs, or touch the tracker.
 ---
 
 # glossary — domain-vocabulary steward
@@ -21,20 +16,10 @@ write**; never write unasked.
 
 ## The glossary setup (shared, not redefined here)
 
-This repo uses a **multi-context glossary**: a root `GLOSSARY-MAP.md` indexes one `GLOSSARY.md` per
-service (one level below root, never nested deeper); an optional root `GLOSSARY.md` holds system-wide
-terms. **Read `GLOSSARY-MAP.md` first** — it routes you to the right service glossary; load only the
-glossaries the current work touches.
-
-Format, rules, and the full multi-context layout are **canonical** in
-[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns it. Follow it exactly; do **not** restate
-its rules.
-
-**Routing:** route by the **known target service** (ticket / spec path), not by guessing from the topic.
-Infer or ask only when the target is ambiguous or the work spans services. Create lazily what's missing —
-a new `{service}/GLOSSARY.md` gets its `GLOSSARY-MAP.md` row **in the same move** (an unlisted glossary
-is invisible to the next session); a genuinely system-wide term goes in the root `GLOSSARY.md` with a
-Relationships note in the map.
+This repo uses a **multi-context glossary** — a root `GLOSSARY-MAP.md` routing to per-service
+`GLOSSARY.md` files. Layout, format, rules, and routing are **canonical** in
+[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns that file; follow it exactly and do
+**not** restate its rules. Load only the glossaries the current work touches.
 
 ## Two modes (auto-detect)
 
@@ -48,7 +33,9 @@ terms" while terms are still fluid → GRILL. When both apply, audit what exists
 
 ### AUDIT
 
-1. Read `GLOSSARY-MAP.md` → locate the target service `GLOSSARY.md`. Read it + the relevant code.
+1. Read `GLOSSARY-MAP.md` → locate the target service `GLOSSARY.md`. Read it inline; delegate the
+   code side of the scan to an `afk-reader` subagent that checks the relevant code against the
+   glossary's terms and returns cited drift findings, per `DELEGATION.md` (plugin root).
 2. Diagnose vocabulary problems only:
    - **Ambiguity** — one word used for several concepts.
    - **Synonyms** — several words for one concept (pick a canonical, list the rest under `_Avoid_`).
@@ -69,6 +56,8 @@ If a question is answerable from the code, read the code instead of asking. Chal
 the existing glossary immediately; sharpen fuzzy language to a canonical term; stress-test boundaries
 between related concepts with concrete scenarios.
 
+Done when every term surfaced in the conversation has an owning glossary entry or an explicit park.
+
 ## Boundaries (don't cross)
 
 - **Glossary is glossary only** — totally devoid of implementation details. Not a spec, not a scratchpad,
@@ -76,13 +65,13 @@ between related concepts with concrete scenarios.
   domain-specific meaning.
 - **Emit no decision records.** A requirement/solution decision that surfaces is for `/afk:to-prd` /
   `/afk:to-sdd` — note it in the conversation, don't record it here.
-- **One owner per term** — never let the same term carry two definitions across glossaries.
+- **One owner per term** — per [`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) Rules.
 - **Never write without approval.** Group changes; approval is **apply-all / by-file / by-term**.
 
 ## Safety
 
-Discovery is scoped to the git-repo root (or cwd) — **never** recurse from system roots (CrowdStrike
-guard). Skip vendor/build/.git.
+Discovery-safety rules (repo-root scoping, vendor/build/.git skips, CrowdStrike guard) per
+[`claude-md/AUDIT.md`](../../afk/claude-md/AUDIT.md), Discovery section.
 
 ## Next
 

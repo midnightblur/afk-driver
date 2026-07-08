@@ -40,17 +40,41 @@ flowchart LR
 | 2 | 0002-slug | … | pending | — | static, unit, integration | impl §1 |
 | 3 | 0003-slug | … | pending | 0002-slug | static, unit, e2e | use §1 |
 
-Status values: `pending` → `designing` → `developing` → `verifying` → `done`,
-or `blocked(<reason>)`. `/afk:execute` advances the row it is working and writes
+Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
+or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
+`/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
-## Feature smoke gate   <!-- present iff a VERIFICATION-PLAN.md exists; omit whole section otherwise -->
+## Preflight   <!-- created on first /afk:preflight run only — omit entirely until then -->
+<!-- lockstep copy: column shape `# | Step | Status | Cycle | Evidence` is owned
+     jointly by /afk:preflight (sole writer) and the mission-control renderer's
+     gates panel (skills/afk/mission-control/scripts/mc/panels/gates.py) — a
+     column rename here is a same-commit change in both places -->
+
+`/afk:preflight` is this section's sole writer (progress tracker + smoke gate
+above stay untouched by it); re-run skips rows already `green`, resuming at
+the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
+(counted across PF-2/PF-3/PF-7, not per row).
+
+| # | Step | Status | Cycle | Evidence |
+|---|------|--------|-------|----------|
+| 1 | PF-1 merge origin/master + ancestry guard, push | pending | — | — |
+| 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
+| 3 | PF-3 fresh-context review of the integrated diff | pending | 0/2 | — |
+| 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
+| 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |
+| 6 | PF-6 launch ci-wait (background) | pending | — | — |
+| 7 | PF-7 CI outcome routing (Draft→Ready on green) | pending | 0/2 | — |
+
+## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
 > Gate: /afk:smoke-test   Suite: 11700-payable/verification   Target env: local | staging
-> Run (ui-e2e): cd verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)
-> Run (api): cd verification/api && node --test
+> Run (ui-e2e): cd 11700-payable/verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)
+> Run (api): cd 11700-payable/verification/api && node --test
 > Source: ../VERIFICATION-PLAN.md   Built by: NNNN-smoke-e2e (UI) · NNNN-smoke-api (API) — terminal, blocked by all
 > Last run: — (date + target; maintained by /afk:smoke-test)
+
+Run history: <!-- append-only; one line per run, appended by /afk:smoke-test -->
 
 Integrated verification scenarios that decide "feature complete", seeded from
 `VERIFICATION-PLAN.md` (one row per scenario, both modalities). A `ui-e2e` row

@@ -1,6 +1,7 @@
 ---
 name: tdd
-description: Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
+description: Test-driven development with the red-green-refactor loop. Use when implementing features or fixes test-first, when the user mentions TDD, red-green-refactor, or integration-style tests, or when a caller mandates test-driven implementation.
+user-invocable: false
 ---
 
 # Test-Driven Development
@@ -50,16 +51,16 @@ When exploring the codebase, use the project's domain glossary so test names and
 
 Before writing any code:
 
-- [ ] Confirm with user what interface changes are needed
-- [ ] Confirm with user which behaviors to test (prioritize)
-- [ ] Identify opportunities for [deep modules](deep-modules.md) (small interface, deep implementation)
-- [ ] Design interfaces for [testability](interface-design.md)
+- [ ] Confirm what interface changes are needed
+- [ ] Confirm which behaviors to test (prioritize)
+- [ ] Identify opportunities for deep modules — small interface, deep implementation: few methods, simple params, complexity hidden inside. Avoid shallow modules (large interface, thin pass-through implementation).
+- [ ] Design interfaces for testability: accept dependencies instead of creating them inside; return results instead of producing side effects; keep the surface small (fewer methods and params = simpler tests).
 - [ ] List behaviors to test (not implementation steps)
-- [ ] Get user approval on the plan
+- [ ] Get the plan approved
 
-Ask: "What should the public interface look like? Which behaviors are most important to test?"
+**Interactive runs**: the user is the approver. Ask: "What should the public interface look like? Which behaviors are most important to test?" — and get explicit approval on the plan before coding. **You can't test everything** — confirm with the user exactly which behaviors matter most; focus testing effort on critical paths and complex logic, not every possible edge case.
 
-**You can't test everything.** Confirm with the user exactly which behaviors matter most. Focus testing effort on critical paths and complex logic, not every possible edge case.
+**When a subtask contract drives the work** (non-interactive): the contract's `## Acceptance` bullets ARE the approved behavior list and its `## Verification` tiers ARE the approved green-bar checks; interfaces fixed by the contract or its design refs count as confirmed. Proceed without asking anyone — there is no human gate.
 
 ### 2. Tracer Bullet
 
@@ -90,12 +91,15 @@ Rules:
 
 ### 4. Refactor
 
-After all tests pass, look for [refactor candidates](refactoring.md):
+After all tests pass, look for refactor candidates:
 
-- [ ] Extract duplication
-- [ ] Deepen modules (move complexity behind simple interfaces)
+- [ ] Duplication → extract function/class
+- [ ] Long methods → break into private helpers (keep tests on the public interface)
+- [ ] Shallow modules → combine or deepen (move complexity behind simple interfaces)
+- [ ] Feature envy → move logic to where the data lives
+- [ ] Primitive obsession → introduce value objects
+- [ ] Existing code the new code reveals as problematic
 - [ ] Apply SOLID principles where natural
-- [ ] Consider what new code reveals about existing code
 - [ ] Run tests after each refactor step
 
 **Never refactor while RED.** Get to GREEN first.
@@ -109,3 +113,7 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] Code is minimal for this test
 [ ] No speculative features added
 ```
+
+## Done
+
+Terminal condition: every planned behavior has a green test, the refactor pass (step 4) has run, and the full suite for the touched module is green.

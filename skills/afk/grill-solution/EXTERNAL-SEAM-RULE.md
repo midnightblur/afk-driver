@@ -5,7 +5,9 @@ wrong at the seam with a framework, a UI contract, or another layer's
 enforcement — the grill is sharp on seams between *our* modules and blind
 where our code meets things we don't own. Before locking any decision that
 crosses such a seam, **verify (don't assume)** the four things that pass
-existence checks and still ship broken:
+existence checks and still ship broken — like Grounding-rule
+verifications, these reads run in `afk-reader` subagents returning cited
+confirm/refute digests, per `DELEGATION.md` (plugin root):
 
 1. **Framework runtime behavior** — not the API signature, what it *does*
    at the pinned version: how it serializes your output, generates the
@@ -36,9 +38,10 @@ existence checks and still ship broken:
    path: per violation class, what the consumer gets, and whether a
    business refusal is distinguishable from a server fault (including the
    framework's own signal, e.g. MCP `isError`). State the **real** response
-   shape an API/MCP caller sees on each edge (e.g. a missing entity →
-   `200 + NULL_RESPONSE` not 404; an unauthorized role → `403
-   "no.authorized.vendor"`) — this is exactly what `/afk:to-sdd` records in
+   shape an API/MCP caller sees on each edge (a missing entity may return an
+   empty-success envelope rather than 404, a denial a coded 403 — the
+   harness's actual envelope conventions live in
+   `11700-payable/verification/api/AUTHORING.md`) — this is exactly what `/afk:to-sdd` records in
    the §3 API contract table and what `/afk:grill-verification` later turns
    into assertable API scenarios; a hand-wave here leaves the endpoint
    un-verifiable.

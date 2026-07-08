@@ -1,7 +1,6 @@
 ---
 name: fix
-description: Orchestrate fixing a verification-phase or reported bug end-to-end — pull ticket/repro context, delegate root-cause + regression test to /afk:diagnose, add proportional api/e2e coverage, run an escape analysis on the existing test that should have caught it, reconcile the load-bearing artifacts (PRD / SDD / ADRs / VERIFICATION-PLAN) in a feature-building session, and — for AFK-delivered features — hand off a structured workflow lesson so the AFK chain stops repeating the miss. Use when a verification finding, a human/QA bug report, or a Jira bug needs fixing — especially mid-flight on an unreleased AFK feature, where no plan survives contact and gaps surface during verification.
-
+description: Orchestrates fixing a verification-phase or reported bug — delegates root-cause and regression test to /afk:diagnose, adds proportional coverage, runs escape analysis, reconciles stale spec artifacts, and hands off a workflow lesson for AFK-delivered features. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
 # afk:fix — fix a bug and keep the source of truth true
@@ -19,10 +18,10 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 ## Phase 0 — Intake & classify
 
 1. **Source of the finding.**
-   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Extract repro steps, env, expected vs actual.
-   - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation.
-2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`mvu/afk/{ticket-id}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
-3. **Locate artifacts** (feature session only): `{service}/src/main/resources/specs/{year}r{release}/{ENH-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to the ticket fields — per `DELEGATION.md` (plugin root).
+   - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
+2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`kapteyn/development/{username}/{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
+3. **Locate artifacts** (feature session only): `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
 
@@ -46,6 +45,8 @@ Diagnose gave you the seam regression test. Decide whether a **higher tier** is 
 
 Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
 
+**Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug that came from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). The standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
+
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
 ## Phase 2.5 — Escape analysis (standing-suite-tier bugs only)
@@ -54,7 +55,7 @@ For a user-visible (`e2e/browser`) or backend-contract (`api`) bug, interrogate 
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
-A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance).
+A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance). The reads that only locate which artifacts need reconciling (PRD / SDD / ADRs / VERIFICATION-PLAN) go through an `afk-reader` returning a cited digest of what each asserts vs the fix, per `DELEGATION.md` (plugin root); the triage and routing stay here.
 
 | What the fix revealed | Stale artifact | Route to |
 |-----------------------|----------------|----------|
@@ -62,6 +63,7 @@ A fix on an unreleased feature can invalidate a load-bearing artifact. Triage wh
 | A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk:grill-solution` → `/afk:to-sdd` (superseding ADR under `adr/design/`) — this is a `design_conflict` |
 | The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
+| The bug could not be reproduced (diagnose built no loop) | none — nothing to reconcile yet | back to the reporter/human with the repro-attempt evidence (what was tried, what's needed); report `cannot_reproduce` |
 
 Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. If you can't reach truth this session, record the divergence and report `needs_artifact_sync`.
 
@@ -71,10 +73,11 @@ When the feature was built with AFK assistance (Phase 0 signals: AFK branch + `p
 
 ## Phase 4 — Report
 
-End with one structured line:
+End with the structured line plus one plain-terms sentence per the reporting protocol (`REPORTING.md` at the plugin root):
 
 ```
 OUTCOME: <status> — <one-line summary> [ticket: <KEY|none>]
+In plain terms: <one jargon-free sentence — what was broken, what's true now, what (if anything) still needs a human>
 ```
 
 | Status | Meaning / next action |
@@ -95,10 +98,8 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
 ## Hard rules
 
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (it resumes and drives commit + push + MR itself). Apply edits and stop.
-- **Never alter the DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup` / `PreDbMigration` / `db/changelog/*`.
+- **The target repo's CLAUDE.md chain binds here** — notably its DB-migration rules and its commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
-- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **handed off** (`/afk:handoff`), never self-applied — no `/afk:retro`, no in-session edit of any `SKILL.md` under the plugin repo.
+- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **handed off** (`/afk:handoff`), never self-applied — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).
-- **Cross-module edits carry a `// {TICKET-ID}:` marker comment** in the added hunks.
-- **No `--no-verify`, no `--force`, no global git config changes.**
 - Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted (diagnose Phase 6).

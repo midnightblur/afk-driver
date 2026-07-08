@@ -1,6 +1,6 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native, properly-formatted Jira content (ADF) — full PRD body inline, with any mermaid diagrams rendered to images and embedded so they're viewable in Jira. Use when the user runs `/afk:to-ticket` to publish or re-publish a finished `PRD.md` to its Jira parent — once `PRD.md` exists on disk and the parent ticket key is known. Idempotent: re-run whenever PRD.md changes and it updates in place. Preserves product-owner content already in the ticket unless it's barebone. Publishes PRD content only — never SDD or lower-level design. Requires an existing parent ticket. The one design-chain skill that writes to the tracker.
+description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded. Use when `PRD.md` exists on disk and the parent ticket key is known; idempotent — re-run whenever PRD.md changes. The one design-chain skill that writes to the tracker.
 ---
 
 # afk:to-ticket — publish the PRD into the Jira ticket
@@ -9,20 +9,18 @@ This skill publishes a finished `PRD.md`'s **content** into its Jira parent tick
 
 Tracker is **Jira Cloud** (`nakisa.atlassian.net`), so the description field is **ADF** and the work is done by bundled engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 
-## What it does / does not do
+## What it does / does not do (binding)
 
 - **Publishes full PRD content inline**, not a link or pointer — PRD body lives in the ticket description.
-- **Renders mermaid for Jira.** Each ```mermaid block is rendered to PNG **locally** (no diagram source leaves the network), attached to the issue, embedded inline as an ADF media node so it renders in the description.
+- **Renders mermaid for Jira, locally.** Each ```mermaid block is rendered to PNG **locally** — never via an external render service (mermaid.ink, kroki, …); no diagram source leaves the network — attached to the issue, embedded inline as an ADF media node so it renders in the description.
 - **Idempotent insert + update.** PRD lives inside an AFK-managed block (delimited by sentinel marker paragraphs). Re-running replaces that block and its figures in place — no duplicate sections, no piled-up attachments.
-- **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: if the existing description is barebone/low-value (empty, a placeholder like "TBD", or a short stub with no real structure), the managed block becomes the whole description.
+- **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: a barebone/low-value existing description is absorbed — the managed block becomes the whole description (full heuristic: [REFERENCE.md](REFERENCE.md), "Description merge model"). When the barebone call is borderline, default to preserving and surface it to the human.
 - **PRD content only.** Never publishes SDD, ADRs, or lower-level technical detail. Keep those out of `PRD.md`; this skill publishes whatever `PRD.md` contains, nothing more. (`## SDD` stays owned by `/afk:to-sdd`, which splices its own pointer section directly; the Design Brief is repo-only and never reaches the ticket — this skill touches neither.)
-- **Requires an existing parent.** Refuses without a parent key; does not create the Enhancement/Bug. Sets no labels, creates no branch.
+- **Requires an existing parent.** No parent key → stop; tell the human to create the Enhancement/Bug first — never create it here. Sets no labels, creates no branch.
 
 ## Prerequisites
 
-- **Python 3** with `markdown-it-py` (already present in this environment).
-- **Node + mermaid-cli** for diagram rendering. Engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`. First `npx` run downloads a headless Chromium (one-time, ~hundreds of MB) — if the PRD has no mermaid blocks, nothing renders and this isn't needed. To pre-install: `npm i -g @mermaid-js/mermaid-cli`.
-- **Jira Cloud creds.** Engine reads `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` from same-named OS env vars, else from the Jira MCP server's `env` block in `~/.claude.json`. Nothing hardcoded. (Attachment upload has no Jira MCP tool, so the engine talks to the REST API directly with these creds.)
+Register: `skills/afk/setup/MANIFEST.md` — this skill needs **P1/P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
 
 ## How to run
 
@@ -42,17 +40,11 @@ Tracker is **Jira Cloud** (`nakisa.atlassian.net`), so the description field is 
 
    Prints the plan and asks confirmation before the single `PUT` (pass `--yes` to skip the prompt in automated context). Note: each publish updates the description field → watchers notified per re-run (Jira only honours `notifyUsers=false` for project admins, so the engine doesn't send it) — re-run when the PRD has meaningfully changed, not idly.
 
+4. **Update the ticket index.** On a successful publish, upsert the `PRD` row of the PRD's sibling `INDEX.md` to `published to Jira {date}` per `skills/afk/to-prd/INDEX-FORMAT.md`.
+
+**Done when:** the `PUT` succeeded, every mermaid figure is attached + embedded, and the sibling `INDEX.md` `PRD` row reads `published to Jira {date}`.
+
 ADF mapping, the Mermaid-image method, and the description merge model are detailed in [REFERENCE.md](REFERENCE.md).
-
-## Hard rules
-
-- **Never overwrite product-owner content.** Only the managed block is yours. When the barebone heuristic is borderline, default to preserving and surface it to the human.
-- **PRD content only.** Do not pull SDD / ADR / design detail into the ticket.
-- **Require an existing parent.** No `parent_key` → stop; tell the human to create the Enhancement/Bug first. Never create it here.
-- **Render mermaid locally.** Never send diagram source to an external render service (mermaid.ink, kroki, …) — keep PRD content on-network.
-- **No labels, no branch.** Sets no labels, creates no branch; publishes content only.
-- **Dry-run before the first publish to any ticket that already has content**, so you see the preserve/absorb decision before it happens.
-- **Never hardcode creds.** They come from env or `~/.claude.json` at runtime.
 
 ## Next
 

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Independent multi-aspect review of one subtask's implementation — fresh subagents (one per concern, parallel) check the slice diff against the applicable CLAUDE.md chain, the subtask's spec/acceptance contract, and senior-engineer code-quality bars, then emit a ranked findings report + a verdict. Read-only; never commits, never auto-fixes. Use as a subtask's post-verification review gate once its tiers pass, or standalone via `/afk:review {NNNN-slug}` to audit a slice's work. Reports a structured verdict the caller gates on.
+description: Independent multi-aspect review of one subtask's implementation — fresh parallel subagents check the slice diff against the CLAUDE.md chain, the spec/acceptance contract, and code-quality bars, emitting a ranked findings report plus a verdict the caller gates on. Read-only. Use as the post-verification review gate, or standalone via `/afk:review {NNNN-slug}`.
 ---
 
 # afk:review — independently check the implementor's work
@@ -32,7 +32,7 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 
 ## Concerns (7)
 
-One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: the concern's checklist (below, verbatim), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — dedup handles it.
+One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: the concern's checklist (below, verbatim), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — dedup handles it. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
 
 | Concern | Asks | Default subagent reads |
 |---|---|---|
@@ -44,19 +44,17 @@ One subagent per concern, all spawned in a **single message** as parallel `Agent
 | `scope-and-impact` | Stayed inside `## Scope` globs, no forbidden patterns, no scope creep, no stray churn — **and** what's the blast radius of the changed symbols? | diff + contract + repo |
 | `refactor-safety` | Did the implementor touch **pre-existing** code — rename, re-signature, extract/move, edit a shared base/util/DTO — and is each medium/high-risk change behaviour-preserving, fully propagated, and warranted? | diff + repo |
 
-**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule below. A cross-class finding takes the class that drives the right fix (correctness/spec → `/afk:fix`; compliance/smell/scope/test → inline).
+**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule below. A cross-class finding takes the class that names the underlying cause.
 
 ### Checklists
 
-**`claude-md-compliance`** — load the resolved CLAUDE.md chain; for each documented rule, check the diff for a violation. The house landmines that recur in this repo (flag any the diff trips):
+**`claude-md-compliance`** — load the resolved CLAUDE.md chain; for each documented rule, check the diff for a violation. This concern enforces the target repo's CLAUDE.md chain — landmines documented there (e.g. the tenant/security test helpers, formatter discipline) live there, not here. The recurring landmines below are **not** homed in that chain — flag any the diff trips:
 - `@Transactional(rollbackFor=…)` must be repeated on **every** override, not just the base — a subclass override that calls `super.x()` bypasses the proxy and silently commits on a checked exception.
 - Cost Center and Profit Center must be sourced as a **pair** from one source — never mixed.
 - **Never** hand-write `UpgradeGroup_*.java`, `PreDbMigration`, or `db/changelog/*`; add JPA `@Entity` classes and let liquibase-hibernate7 pick them up. An `@Entity` in the diff with no passing pickup is a violation.
 - Jackson 3 / SB4: a new enum needs `@Skip` or `@GenerateEnumSwaggerSchema`; `@JsonDeserialize` annotations live under `tools.jackson.databind.annotation`; a `@Builder` DTO without `@NoArgsConstructor` breaks J3 creator visibility.
 - `*-ui` npm deps must be ≥30 days old and **exact-pinned** (incl. transitive) — no carets/tildes, no fresh-published versions.
-- Code touching tenant/security context in tests must use the Nakisa helpers (`@WithTenantContext`, `@WithSimpleSecurityContext`, `@WithDevTokenSecurityContext`) — plain JUnit setup fails.
 - The access boundary to verify is **company and/or vendor**, not tenant (build-per-tenant = single-tenant at runtime).
-- Match `eclipse-code-formatter.xml`; don't reformat untouched lines.
 - Cross-module edits (outside the home module) carry a `// {TICKET-ID}:` marker comment in the added hunks.
 - Commits start with `[{NNNN-slug}]`.
 - Any rule stated in a service/sub-package `CLAUDE.md` that the diff contradicts — quote the rule and the offending line.
@@ -68,6 +66,8 @@ One subagent per concern, all spawned in a **single message** as parallel `Agent
 **`code-quality`** — the senior-review lens. Dead/commented-out code, copy-paste duplication, methods doing too much, primitive obsession, leaky/ misplaced abstractions, unclear names, magic numbers/strings, swallowed exceptions, `System.out`/debug logging left in, hardcoded credentials/tokens/URLs, stray `TODO`/`FIXME`. Not style nits the formatter owns — substance.
 
 **`test-veracity`** — does the test prove the behaviour? A seam test must assert on the framework's **real** serialized output, not echo the DTO back. Flag tautological asserts (`assertEquals(x, x)`), asserts on mocks instead of results, happy-path-only coverage of a multi-branch acceptance bullet, missing negative/authz cases, and the repo's ApprovalTests `JsonApprovals.verifyJson(capturedSaveArg)` pattern where a hand-rolled field-by-field assert was used instead.
+
+*Mutation probe (gate mode, sampled).* Static reading can miss a test that runs the code but asserts nothing that matters; mutation testing catches that empirically. When the slice diff changes production Java in a module whose `## Verification` table declares a green `unit`/`integration` tier, run `bash tools/payable/ai-agents/plugins/workflow/hooks/mutation-probe.sh {module} {changed-classes-csv} [{covering-test-classes-csv}]` — one module per review (the one with the most changed production lines), `targetClasses` = only the classes the diff changed, `targetTests` = the test classes covering them (the sibling `*Test` by convention plus any test the diff touched). Read its one-line result: a `SURVIVED` mutant on a diff-changed line is a finding (`class: test`, severity `medium`; `high` when the mutant sits on a line satisfying an `## Acceptance` bullet); `NO_COVERAGE` on a diff-changed line likewise. `MUTATION: unavailable`/timeout is **no signal**: note it once in the report header and move on — never a finding, never a verdict input. Standalone mode skips the probe unless asked.
 
 **`scope-and-impact`** — confirm every changed path matches a `## Scope` glob (out-of-scope file = finding), no forbidden pattern (liquibase/UpgradeGroup), no unrelated churn (stray `package-lock.json` reflow, formatter-only diffs in untouched files). Then assess blast radius: for each changed public symbol (method/class signature, REST path, DTO field, event), search the repo for its callers/consumers (`Grep` the symbol name across the affected module + its `*-client`/`*-entities` siblings) and surface any caller the diff changed the contract for but did **not** update or cover with a test as a finding. A changed `*-client` DTO or endpoint signature with downstream consumers in other services is high severity.
 
@@ -96,7 +96,18 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 }
 ```
 
-`class` drives how the caller remediates (correctness/spec → diagnose-backed fix; compliance/smell/scope/test → inline fix). Severity rubric:
+`class` names the finding's cause and drives the caller's routing:
+
+| `class` | Means |
+|---|---|
+| `correctness` | a real bug — wrong behaviour on a reachable path |
+| `spec` | a requirement / acceptance bullet unmet or silently dropped |
+| `compliance` | a documented CLAUDE.md-chain rule broken |
+| `smell` | code-quality substance a senior reviewer would flag |
+| `scope` | an out-of-scope or unwarranted change riding the slice |
+| `test` | a test that doesn't prove the behaviour it claims to |
+
+Severity rubric:
 
 - **critical** — ships a wrong result, data corruption, security/authz hole, or violates a "Never …" hard rule.
 - **high** — an acceptance bullet unmet, a documented rule broken, a real bug on a reachable path, a broken direct caller.
@@ -105,19 +116,32 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 
 ## Verdict & output
 
-Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked) and the machine list alongside as `…-{base-short}.findings.json`. End with one line the caller parses:
+Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked) and the machine list alongside as `…-{base-short}.findings.json`. `{base-short}` is `git rev-parse --short` of the diff base: the `--base` ref when given; in the default mode, the parent commit of the slice's first `[{NNNN-slug}]` commit.
+
+**Update the rollup.** Upsert this subtask's row in `plan/review/INDEX.md` (create with the header row if missing) — the one place a human sees every subtask's latest review state without hunting per-base filenames:
+
+```
+| Subtask | Latest report | Verdict | crit/high/med/low | Open advisories |
+|---|---|---|---|---|
+| {NNNN-slug} | {NNNN-slug}-{base-short}.md | advisory | 0/0/2/1 | m: <one-line each, or "none"> |
+```
+
+One row per subtask, latest review wins the row; `Open advisories` lists the medium/low findings still unaddressed so they stop vanishing into MR bodies. Adversary reports (`{NNNN-slug}-adversary.md`) live in this directory too; when one exists, mention it in the row's `Latest report` cell.
+
+End with one line the caller parses, plus the plain-terms line per `REPORTING.md` (plugin root):
 
 ```
 REVIEW: <verdict> — crit=<n> high=<n> med=<n> low=<n> [findings: <path>]
+In plain terms: <one jargon-free sentence — the worst thing found and whether it blocks shipping>
 ```
 
-| Verdict | When | Caller (gate mode) |
-|---|---|---|
-| `clean` | zero findings | proceed to `done` |
-| `advisory` | only `medium`/`low` | note them in MR + Implementation Notes; proceed to `done` |
-| `blocking` | any `critical`/`high` | the caller gates — bounded remediate-and-re-review, then stops |
+| Verdict | When |
+|---|---|
+| `clean` | zero findings |
+| `advisory` | only `medium`/`low` findings |
+| `blocking` | any `critical`/`high` finding |
 
-Standalone mode stops here — print the verdict and the report path; gate nothing.
+What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
@@ -125,10 +149,9 @@ Standalone mode stops here — print the verdict and the report path; gate nothi
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer that's told "the author says this is fine" isn't a reviewer.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (the rule text, the failing input, the unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
 - **Parallel fan-out, single message.** Spawn all concern subagents at once; never sequential.
-- **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run.
+- **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run. **One carve-out:** the `test-veracity` concern's sampled mutation probe (its checklist owns the sampling rule) — it measures test *strength*, which no static read can, and fails open to "no signal".
 - **No new contract sections.** This skill only *reads* the plan; it owns no PLAN.md cell and no Implementation-Notes block. The caller records outcomes.
 
 ## See also
 
-- `skills/afk/fix/SKILL.md` — the diagnose-backed fix path for a `correctness`/`spec` blocking finding (fix + regression test).
 - The plugin `CLAUDE.md` — Section ownership invariants + the outcome-status lockstep.
