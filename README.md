@@ -571,6 +571,10 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   preserves product-owner prose outside the managed block. Publishes PRD content
   only — never the SDD/Brief. Refuses without `parent_key`; sets no label,
   creates no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`.
+  Also carries a standalone **meeting mode** (`scripts/publish_meeting.py`) —
+  records a meeting on **any** ticket as a collapsible `Meeting Summaries`
+  `expand`, idempotent per meeting (same title → update in place, new → newest
+  first), in a region disjoint from the PRD block; not part of the design chain.
 - **`/afk:to-subtasks`** — slices the PRD (+ SDD + ADRs when present) into the
   local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
   typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.

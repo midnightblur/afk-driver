@@ -1,13 +1,16 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded. Use when `PRD.md` exists on disk and the parent ticket key is known; idempotent — re-run whenever PRD.md changes. The one design-chain skill that writes to the tracker.
+description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded — or publish a meeting summary onto any ticket as a collapsible expand. Use when `PRD.md` exists on disk and the parent key is known, or when a meeting needs recording on a ticket. Idempotent — re-run to update in place. The one design-chain skill that writes to the tracker.
 ---
 
-# afk:to-ticket — publish the PRD into the Jira ticket
+# afk:to-ticket — publish into the Jira ticket
 
-This skill publishes a finished `PRD.md`'s **content** into its Jira parent ticket, **idempotent** — re-run whenever `PRD.md` changes → updates ticket in place rather than duplicating.
+Two independent capabilities, both writing native **ADF** to a **Jira Cloud** (`nakisa.atlassian.net`) issue description, both **idempotent** (re-run updates in place rather than duplicating):
 
-Tracker is **Jira Cloud** (`nakisa.atlassian.net`), so the description field is **ADF** and the work is done by bundled engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
+- **PRD mode** (below) — publish a finished `PRD.md`'s **content** into its parent Enhancement/Bug; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
+- **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
+
+The two engines share creds + the Markdown→ADF mapping but own **disjoint regions** of the description, so they never collide.
 
 ## What it does / does not do (binding)
 
@@ -52,3 +55,23 @@ The PRD is now live on the parent ticket. Then, per the design choice for this t
 
 - **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (those go next to the PRD on disk and into the `## SDD` section — not through this skill). Downstream plan slices in **cited mode**.
 - **`/afk:to-subtasks`** — for small features / bugs / refactors / tooling: slice the PRD straight into a local plan in **uncited mode** (human-gated).
+
+## Meeting mode — record a meeting on a ticket
+
+A second, standalone capability — **not** part of the PRD design chain. Publishes a **meeting summary** into any ticket's description as a collapsible `expand`, idempotent per meeting. Separate engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py); no PRD, no mermaid.
+
+The description grows a plain `Meeting Summaries` heading (created once, at the top) holding one collapsible `expand` per meeting, **newest first**. Re-publishing the same meeting (same expand title) updates it in place; a new meeting adds an expand; **everything else in the description — the PRD managed block, product-owner prose — is preserved verbatim.**
+
+### How to run
+
+1. **Get the meeting content** — a transcript (e.g. a `.vtt`) or notes. Bulk transcript reading is a delegation trigger (`DELEGATION.md`): pull out the substance, not the raw cues.
+2. **Synthesize the meeting body** into a Markdown file in the fixed shape (lead-in → Recordings → In Attendance → Documents → `# Summary` → `## 1. Decisions` / `## 2. Open questions` / `## 3. Meeting notes`). The exact template + the ADF/merge model live in [REFERENCE.md](REFERENCE.md) ("Meeting Summaries publish"). Record only what the source supports — never invent decisions; mark inferred attendee roles or unclear points as such.
+3. **Dry-run** — converts + plans, mutates nothing, writes the would-be ADF next to the body as `MEETING.adf.json`. The summary line's `action` reads `created` (new section) / `inserted` (new meeting) / `replaced` (same-title update) — confirm it matches your intent:
+
+   ```
+   python scripts/publish_meeting.py --parent <KEY> --title "<short name>" --date <YYYY-MM-DD> --meeting <path/to/MEETING.md> --dry-run
+   ```
+
+4. **Publish** — drop `--dry-run` (the engine prompts before the single `PUT`; pass `--yes` to skip the prompt in automated context).
+
+**Done when:** the `PUT` succeeded and the meeting reads as a collapsible section on the ticket. Recording a meeting edits a **shared** ticket's prose — show the synthesized summary to the human and get a go-ahead before the non-dry-run `PUT`, unless they've pre-authorized it.

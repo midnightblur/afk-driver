@@ -110,13 +110,13 @@ a token value — not even partially.
 ## P — Python
 
 ### P1 · Python 3
-- **Needed by:** `skills/afk/to-ticket/scripts/publish_prd.py`,
+- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3).
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
 
 ### P2 · markdown-it-py (the only pip package)
-- **Needed by:** `skills/afk/to-ticket/scripts/publish_prd.py` (PRD → ADF).
+- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py` (PRD / meeting body → ADF).
 - **Probe:** `python -c "import markdown_it"`
 - **Fix:** `auto:` `pip install markdown-it-py`
 
@@ -158,8 +158,9 @@ a token value — not even partially.
 ## S — Secrets
 
 ### S1 · Jira REST credentials — **secret**
-- **Needed by:** `skills/afk/to-ticket/scripts/publish_prd.py` (attachment
-  upload has no MCP tool, so it calls the REST API directly).
+- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
+  (attachment upload has no MCP tool, and both engines PUT the description via
+  REST directly rather than inline a large ADF through an MCP tool call).
 - **Probe:** presence-only, prints names not values; mirrors the engine's
   `load_creds` (OS env, else a recursive walk of `~/.claude.json` for a `jira`
   server's `env` block — top-level or project-scoped, utf-8):
