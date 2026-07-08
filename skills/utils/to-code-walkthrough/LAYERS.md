@@ -2,7 +2,7 @@
 
 Referenced from [SKILL.md](SKILL.md) step 9. Each block below is pasted **verbatim** into the matching layer agent's prompt. Sections are self-contained — agent sees only its own block + the source corpus paths + mermaid guidance (if applicable).
 
-All layers write caveman prose: drop articles (a/the), drop fillers (just/really/basically), fragments OK, arrows for causality (X -> Y). Technical terms (class names, file paths, framework keywords) verbatim from source — never paraphrase.
+All layers write caveman prose — compression rules per `skills/utils/caveman/SKILL.md`. Technical terms (class names, file paths, framework keywords) verbatim from source — never paraphrase.
 
 ---
 

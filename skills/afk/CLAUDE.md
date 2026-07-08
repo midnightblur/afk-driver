@@ -1,0 +1,3 @@
+## Mission control, preflight, render points
+
+`mission-control/` (read-only feature dashboard; extend a panel via `scripts/mc/panels/`, wired in `scripts/mission_control.py`) and `preflight/` (ship-gate ladder; extend by adding a step to its SKILL.md table, inside the shared fix-cap) are self-contained skill dirs — see each one's own SKILL.md for invocation. Render points (human-present lavish-axi visualization woven into individual skill files) are governed entirely by `../../LAVISH.md` (pin, playbook map, fallback, forbid-list) — edit a skill's render point there, not here. Full design: `tools/payable/ai-agents/spec/mission-control/`.

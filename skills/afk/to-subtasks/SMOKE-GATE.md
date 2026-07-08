@@ -97,8 +97,33 @@ reference data). Also see its sibling CLAUDE.md. Dependency-free; no install.
 <!-- the authoritative recipe is 11700-payable/verification/api/AUTHORING.md; do not duplicate it here -->
 ```
 
-If there is no `VERIFICATION-PLAN.md`, emit no gate and no build subtask — the
-per-subtask `api` / `e2e/browser` tiers are the only verification coverage. If the
-plan has UI journeys but its `## API Scenarios` is the "deferred" placeholder,
-emit only `NNNN-smoke-e2e`. (To add coverage later, run
+If the plan has UI journeys but its `## API Scenarios` is the "deferred"
+placeholder, emit only `NNNN-smoke-e2e`. (To add coverage later, run
 `/afk:grill-verification` → `/afk:to-verification-plan`, then re-run this skill.)
+
+## No `VERIFICATION-PLAN.md` → the minimal gate (never no gate)
+
+A feature without a verification plan still may not stamp complete on
+per-subtask tiers alone. Emit a `## Feature smoke gate (minimal)` section
+instead — no build subtasks, no scenario table, five fixed rows the gate skill
+executes as-is:
+
+```
+## Feature smoke gate (minimal)
+
+| # | Check | Command | Status |
+|---|-------|---------|--------|
+| 1 | compile | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make compile -DskipUi=true | |
+| 2 | app-start | bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
+| 3 | regression | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make test -DskipUi=true | |
+| 4 | existing ui-e2e suite | cd 11700-payable/verification/ui-e2e && npm run smoke (pre-existing scenarios still green) | |
+| 5 | existing api suite | cd 11700-payable/verification/api && node --test (pre-existing scenarios still green) | |
+
+Last run: —
+```
+
+`{changed modules}` = the union of every subtask's Scope-derived Maven modules.
+Rows 4–5 prove the feature broke nothing the suites already covered; they add no
+feature-specific scenarios — that coverage requires a real
+`VERIFICATION-PLAN.md` (upgrade any time: grill → plan → re-run this skill; the
+full gate then replaces the minimal section).

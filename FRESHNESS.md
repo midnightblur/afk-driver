@@ -1,0 +1,52 @@
+# FRESHNESS.md — no artifact goes stale
+
+Binding on every change to this plugin. A stale artifact is worse than a
+missing one — an agent trusts what it reads. This file owns the rule that keeps
+the plugin's *source* artifacts true; the *runtime* artifacts (plan/, INDEX.md,
+journal…) are governed by `CLAUDE.md` "Section ownership invariants" and are
+not re-registered here.
+
+## The same-commit rule
+
+Staleness is prevented at write time, not discovered later:
+
+1. **Dependency change** — a commit that adds, removes, or changes how any
+   skill/script/hook invokes an external tool, MCP server, env var, secret, or
+   sibling path updates `skills/afk/setup/MANIFEST.md` **in the same commit**.
+2. **Surface change** — a commit that adds, renames, or removes a skill, root
+   doc, hook, agent, or bundled script updates every surface the registry row
+   below names **in the same commit**.
+3. **Contract change** — lockstep pairs (plan grammar, gate shapes, verdict
+   sets) follow `CLAUDE.md` "Lockstep" — same-commit there too; this file does
+   not restate which pairs exist.
+
+## The safety net
+
+The rule can be missed; the catcher is **`/afk:setup audit`**
+(`skills/afk/setup/AUDIT.md`): structural consistency, dependency drift,
+pointer integrity, registry compliance. Run it after any batch of workflow
+edits and always before shipping plugin changes. The wiring gate
+(`hooks/wiring-gate.sh` + the `verify-seams` skill) complements it: freshness
+guards what *exists*, wiring guards what's *consumed*.
+
+## Artifact registry
+
+What must be touched when a given kind of change lands. Stewards write;
+everyone else points.
+
+| Artifact | Steward | Must be updated when… |
+|---|---|---|
+| `.claude-plugin/plugin.json` | plugin author | a skill or agent is added/renamed/removed; the chain's shape changes (description) |
+| `.claude-plugin/marketplace.json` | plugin author | the chain's shape changes (description) |
+| `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |
+| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move |
+| `GLOSSARY.md` (root) | plugin author | a methodology term is minted, renamed, or retired |
+| `REPORTING.md` | plugin author | any status-line / notification protocol change |
+| `DELEGATION.md` | plugin author | any delegation-doctrine change |
+| `LAVISH.md` | plugin author | the pin bumps; a render point (RP row) is added/removed; a playbook id changes; the fallback/forbid rules change — update the woven skill(s) in step |
+| `FRESHNESS.md` (this file) | plugin author | a new artifact class appears, or enforcement changes |
+| `skills/afk/setup/MANIFEST.md` | `/afk:setup` | any external-dependency change (rule 1) |
+| `skills/afk/setup/AUDIT.md` | `/afk:setup` | an artifact surface worth auditing appears/disappears |
+| `hooks/` (`hooks.json`, `wiring-gate.sh`, `maven-compile-gate.sh`, `ui-lint-gate.sh`, `java-format-gate.sh`, `app-start-gate.sh`, `maven-lock.sh`, `gate-cache.sh`, `gate-metrics.sh`, `gate-metrics-report.sh`, `mutation-probe.sh`, `README.md`) | plugin author | gate semantics change — update `hooks/README.md` + `CLAUDE.md` Reference (wiring gate also: `skills/utils/verify-seams`; app-start gate also: autopilot/execute skills that invoke it; metrics line shape also: `gate-metrics-report.sh` parser + any reader skill) in step |
+| `agents/*.md` | plugin author | an agent's tools/model/purpose change — update the skills that spawn it |
+| `skills/**/SKILL.md` + siblings | that skill | its behavior changes; per-skill lockstep partners per `CLAUDE.md` "Lockstep" |

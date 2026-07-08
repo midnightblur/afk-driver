@@ -47,10 +47,10 @@ For each ```mermaid block, in document order, the engine:
 
 This is the only method Jira Cloud actually renders inline in a description — it
 needs the Media-Services UUID (not the numeric attachment id) and `collection`
-may be the empty string. Verified against a real agent-authored ticket
-(P2P-1201): attachment `1230428` → content-URL 303 →
-`/file/308455ab-…/binary`, and the description's first media node carried
-exactly `id: 308455ab-…, collection: ""`. The undocumented community
+may be the empty string. Verified against a live Jira Cloud ticket: the
+attachment's content-URL 303 redirect yielded `/file/{uuid}/binary`, and the
+description's media node carried
+exactly that `{uuid}` with `collection: ""`. The undocumented community
 alternatives (external-URL media, guessed `jira-{id}-field-description`
 collections) render as broken placeholders — do not use them.
 

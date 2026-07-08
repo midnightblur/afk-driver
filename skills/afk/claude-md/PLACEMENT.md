@@ -43,13 +43,9 @@ Shared content lives at the **lowest common ancestor** covering all consumers.
 ## Worktree propagation (replaces the old shared layer)
 Branch-isolated worktrees must not strand a note in one checkout. The model is **in-repo
 per-directory notes, divergence solved by propagation** — NOT an out-of-repo `~/.claude/shared`
-`@import` layer.
+`@import` layer. Mechanics (fan-out invocation, current-worktree-first, dirty-sibling skip,
+`propagates: N worktrees` labels, baked write boundary) are owned by SKILL.md's Propagation +
+Safety sections — don't restate them here.
 - A cross-cutting principle for the worktree family → write the in-repo note once at its lowest
-  common ancestor; the fan-out (`scripts/fanout-shell.py` `propagateSteeringNote`) copies it into
-  every worktree. Branch/feature/module specific → that worktree's local `CLAUDE.md` only.
-- Propagation is **current-worktree-first** (must succeed) then best-effort siblings; a dirty
-  sibling is skipped + warned (never clobbered). Label cross-worktree edits `propagates: N worktrees`
-  (from the fan-out summary).
-- Writes are confined to the baked 11xxx boundary (`11xxx*/**` + `tools/payable/**`; never the neutral
-  root `CLAUDE.md` or root `GLOSSARY*`); out-of-boundary targets are refused fail-closed.
+  common ancestor and propagate. Branch/feature/module specific → that worktree's local `CLAUDE.md` only.
 - NEVER silently place a worktree-family principle in a single worktree → divergence; propagate it.

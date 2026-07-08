@@ -1,9 +1,9 @@
 ### Grill the access & validation policy (every feature)
 
 Almost every feature has an access boundary, and the boundary is the thing most
-often *assumed* and never *stated* — which is how a feature ships "done" with the
-backend correctly blocking a role while the UI happily lets that role in — the
-surface itself never gated, even though the API is. So for **every actor and every User Story**, grill the
+often *assumed* and never *stated* (why a one-sided guard ships broken: the
+both-sides doctrine in `../grill-solution/EXTERNAL-SEAM-RULE.md`, check 3).
+So for **every actor and every User Story**, grill the
 policy out loud — it is requirement-level (the *what*, not the *how*), and lands
 in the PRD's `## Access & validation policy` matrix that `/afk:to-prd` writes:
 

@@ -1,11 +1,9 @@
 ---
 name: prototype
-description: Interactively craft a feature's UI mockup with the user once the PRD's user stories are settled. Use when the user runs `/afk:prototype`, or wants to craft or settle a feature's UI mockup after the PRD exists and before the SDD locks decisions; skip for backend/API/refactor features with no net-new screens (self-gates `no_ui`). A conversational loop — it reads the PRD user stories, anchors to the real frontend's existing components and design tokens, writes self-contained HTML you open in a browser and refresh, and reshapes that HTML live as you react in plain language. Durable-lite: the won direction is captured as `PROTOTYPE.md` + the chosen HTML sibling to `PRD.md`, traceable to user stories so `/afk:grill-verification`'s UI journeys can trace to it; the losing scaffolding is thrown away. Local-first, with a frictionless opt-in push to a persistent, team-shareable `claude.ai/design` project for stakeholder review.
+description: Interactively craft a feature's UI mockup as self-contained HTML anchored to the real frontend's components and tokens. Use when the user runs `/afk:prototype`, or wants to craft or settle a feature's UI after the PRD exists and before the SDD locks decisions; self-gates `no_ui` for features with no net-new screens.
 ---
 
 # afk:prototype — craft the UI, conversationally
-
-An **interactive UI-crafting loop**: you and I shape a feature's screens together in a browser; the durable record falls out of the conversation. Local HTML is the canvas; your reactions steer; the won design is the artifact.
 
 Runs once the PRD's user stories are settled (something concrete to draw) and before the SDD locks decisions (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, this answers "what should this actually look like" against the *real* app, not in someone's head.
 
@@ -24,7 +22,7 @@ Optional. Run for a feature with **meaningful net-new UI** worth settling before
 
 ### 1. Read the stories and anchor to the real app
 
-Read `PRD.md` — User Stories and Acceptance Criteria are what the screen must serve. Then **anchor to the real frontend**: find the sibling frontend checkout's components, layout shell (header/sidebar/nav), and design tokens (the CSS / Tailwind config / component library it actually uses); read enough to mock *in that vocabulary* — the mockup must look like **your app**; a generic Tailwind page teaches nothing about whether the feature fits the product. Can't find the frontend? Say so, proceed with a neutral style, flag the missing anchor.
+Read `PRD.md` — User Stories and Acceptance Criteria are what the screen must serve. Then **anchor to the real frontend**: find the sibling frontend checkout's components, layout shell (header/sidebar/nav), and design tokens (the CSS / Tailwind config / component library it actually uses); read enough to mock *in that vocabulary* — the mockup must look like **your app**; a generic Tailwind page teaches nothing about whether the feature fits the product. Delegate that anchor read to an `afk-reader` subagent returning a vocabulary digest — component names, token values, layout idioms, each with file citations — per `DELEGATION.md` (plugin root); the crafting loop then mocks from the digest. Can't find the frontend? Say so, proceed with a neutral style, flag the missing anchor.
 
 ### 2. Open the canvas
 
@@ -50,7 +48,8 @@ Converge from divergence: once a direction wins, collapse to the single chosen m
 When the design feels right, the **won direction** becomes the artifact; losing scaffolding is thrown away.
 
 - Keep the **chosen HTML** as `…/{TICKET-ID}/prototype/<screen>.html`. Delete the losing variants and the switcher — they rot fast and confuse the next reader.
-- Write **`…/{TICKET-ID}/PROTOTYPE.md`** (sibling to `PRD.md`): screens settled, each traced to the User Stories it serves; key interactions / states; design decisions made and *why* (so `/afk:grill-solution` and `/afk:grill-verification` inherit them); any PRD gaps surfaced; a link to the chosen HTML. This — not the HTML, not the Claude Design project — is the **canonical record**.
+- Write **`…/{TICKET-ID}/PROTOTYPE.md`** (sibling to `PRD.md`): screens settled, each traced to the User Stories it serves; key interactions / states; design decisions made and *why* (so `/afk:grill-solution` and `/afk:grill-verification` inherit them); any PRD gaps surfaced; a link to the chosen HTML. (Canonicality: see Boundary.)
+- Upsert the `Prototype` row (`chosen {date}`) in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
 ### 5. Share — Claude Design push (opt-in)
 
@@ -70,6 +69,8 @@ OUTCOME: <status> — <one-line summary> [pushed: <url|no>]
 | `no_ui` | The feature has no net-new screens; nothing to prototype. |
 | `prd_gap` | A settled mockup surfaced a PRD gap worth a `/afk:to-prd` revisit; name it. |
 | `other` | Unexpected stop. |
+
+Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd_gap` — the gap is the actionable outcome; the mockup artifacts are still written.
 
 ## Boundary (Hard rules)
 

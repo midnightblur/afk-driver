@@ -261,12 +261,9 @@ erDiagram
 
 ## Common pitfalls
 
-- **Reserved words.** `end`, `state`, `class` w/ `:` syntax — careful in labels. Quote labels w/ special chars.
-- **Newlines in node text.** Use `<br/>` inside node text: `A[Line one<br/>Line two]`.
-- **Comments.** `%% comment` syntax — only at line start.
+- **Render-safety** (reserved words, label quoting, newlines via `<br/>`, `%%` comment placement, where Mermaid renders) — rules owned by `skills/utils/draw-charts/SKILL.md`; follow it.
 - **Theme.** Default Mermaid theme is fine. Don't inject `init` directives — added complexity for no payoff.
 - **Diagram size.** Renderers struggle past ~30 nodes / ~50 edges. Split.
-- **Editor preview.** Some MD viewers don't support Mermaid (e.g. plain GitHub gist). Note in closing line that renderer must support Mermaid.
 
 ---
 

@@ -14,5 +14,5 @@ when the user asks ("push it" / "share this"):
    shareable URL.
 
 First run only: if design scopes aren't granted, tell the user to run
-`/design-login` once, then retry — after that it's silent. The pushed project is a
-**persistent mirror**, never the source of truth (see Boundary).
+`/design-login` once, then retry — after that it's silent. (Canonicality of the
+pushed project: `SKILL.md` → Boundary.)

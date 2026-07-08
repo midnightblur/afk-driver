@@ -40,14 +40,13 @@ per-service glossaries and records how the services relate:
 
 ## Glossaries
 
-- [Payable](./11700-payable/GLOSSARY.md) — owns posting runs and payable invoices
-- [SAP Posting Bot](./11024-sap-posting-bot/GLOSSARY.md) — pushes posting runs to SAP
-- [SAP Sync Bot](./11022-sap-sync-bot/GLOSSARY.md) — reconciles SAP master data
+- [Billing](./10001-billing/GLOSSARY.md) — owns billing runs and invoices (hypothetical)
+- [Export Bot](./10002-export-bot/GLOSSARY.md) — pushes billing runs to the ERP (hypothetical)
 
 ## Relationships
 
-- **Payable → SAP Posting Bot**: SAP Posting Bot references Payable's `PostingRun`; it does not redefine it
-- **SAP Sync Bot ↔ Payable**: shared system-wide terms `CompanyCode`, `Money` live in the root `GLOSSARY.md`
+- **Billing → Export Bot**: Export Bot references Billing's `BillingRun`; it does not redefine it
+- **Export Bot ↔ Billing**: shared system-wide terms `CompanyCode`, `Money` live in the root `GLOSSARY.md`
 ```
 
 The layout:
