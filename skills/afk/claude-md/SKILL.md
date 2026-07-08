@@ -28,10 +28,10 @@ BOOTSTRAP done when: every emitted line passes the 4-gate inclusion bar and the 
 Unsure → **omit silently**. Pointer one-liners > explanations (`X in Y; gotcha: Z`).
 
 ## Placement
-See [PLACEMENT.md](PLACEMENT.md) — routes each candidate fact by scope + cohesion (place vs kind-of-file vs project-wide vs worktree-family).
+See [PLACEMENT.md](PLACEMENT.md) — routes each candidate fact by scope + cohesion (place vs kind-of-file vs project-wide).
 
 ## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
-Beyond CLAUDE.md/rules, this skill is the **sole writer** of each service's `{service}/STAPLES.md` — a registry of **staples**: delivered capabilities that became standing expectations (e.g. deep-linking, Excel import/export). A staple imposes an obligation on any **future** feature whose work matches its **Trigger**; the AFK chain consults it at grill/design/plan/review time, and only this skill writes it. The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: it's a **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, and has a real **Reference** exemplar (or an explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol and the cross-worktree fan-out (it's a per-directory in-repo steering note like any other). Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
+Beyond CLAUDE.md/rules, this skill is the **sole writer** of each service's `{service}/STAPLES.md` — a registry of **staples**: delivered capabilities that became standing expectations (e.g. deep-linking, Excel import/export). A staple imposes an obligation on any **future** feature whose work matches its **Trigger**; the AFK chain consults it at grill/design/plan/review time, and only this skill writes it. The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: it's a **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, and has a real **Reference** exemplar (or an explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol (it's a per-directory in-repo steering note like any other). Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
 
 ## Content style
 See [STYLE.md](STYLE.md) — compression, verbatim identifiers, generic-over-volatile, precision, leaf-file shape.
@@ -39,23 +39,11 @@ See [STYLE.md](STYLE.md) — compression, verbatim identifiers, generic-over-vol
 ## Audit
 See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`. Discovery-safety rules (scoping, excludes, CrowdStrike guard) live in AUDIT.md's Discovery section.
 
-## Propagation (cross-worktree fan-out)
-A captured learning must land **immediately in every one of the developer's worktrees** — branch isolation must not strand a note in one checkout. Model: **in-repo per-directory notes, divergence solved by propagation** (not an out-of-repo `~/.claude/shared` @import layer).
-
-After approval, authoring/updating a note **invokes the fan-out shell** [`scripts/fanout-shell.py`](scripts/fanout-shell.py) `propagateSteeringNote(path, content)`. It:
-- enumerates the developer's worktrees via `git worktree list --porcelain`;
-- reads each worktree's current target-file state and asks the pure planner ([`scripts/fanout-planner.py`](scripts/fanout-planner.py) `computeFanOutPlan`) for one decision per worktree — `write | skip(reason) | noop | refuse`;
-- executes **current-worktree-first** (the primary, which must succeed); siblings best-effort and independent — dirty-conflict sibling **skipped + warned** (never clobbered), already-equal file is no-op, sibling write failure warns and continues;
-- on `git worktree list` failure / single worktree, writes the **primary only** and warns;
-- returns a **reconcile summary** (written / noop / skipped+reason / refused) — surface it so the developer can reconcile any skipped (dirty) siblings.
-
-The boundary is **baked**, fail-closed (see Safety). Functional-core / imperative-shell: all decision logic in the pure planner, only the shell touches git and disk.
-
 ## Proposal protocol
-Group by target file. Per change: diff · one-line **why** · **placement rationale** (why here, not a level up/down) · moves as `src → dest` · cross-worktree edits tagged `propagates: N worktrees` (per the fan-out summary). Approval: **apply-all / by-file / by-number**. Write only approved (native Edit; Write for new files). No provenance markers — approval is the gate; treat human-authored lines with equal respect (propose cuts, never auto-cut).
+Group by target file. Per change: diff · one-line **why** · **placement rationale** (why here, not a level up/down) · moves as `src → dest`. Approval: **apply-all / by-file / by-number**. Write only approved (native Edit; Write for new files). No provenance markers — approval is the gate; treat human-authored lines with equal respect (propose cuts, never auto-cut).
 
 ## Safety
 - Never write without approval.
-- **Baked write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `("11???*/**", "tools/payable/**")`, the literal `BAKED_BOUNDARY` constant — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. The boundary is baked into the fan-out (`scripts/fanout-shell.py` `BAKED_BOUNDARY`), not a config file or per-call argument; any target outside it is **refused before any write**.
-- **Cross-worktree divergence is solved by propagation (see Propagation), never by a `~/.claude/shared` @import layer.**
+- **Write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11???*/**`, `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. Any target outside the boundary is **refused before any write**.
+- **In-repo per-directory notes, not an out-of-repo `~/.claude/shared` @import layer.** A note lands in the current checkout only; branch isolation is expected — do not attempt to spread it to sibling worktrees.
 - Discovery safety per [AUDIT.md](AUDIT.md) Discovery (never scan system roots).

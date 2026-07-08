@@ -69,8 +69,7 @@ a token value — not even partially.
   Stop hooks error on every turn.
 
 ### C2 · git
-- **Needed by:** the whole chain (worktrees, branches, push), `hooks/wiring-gate.sh`,
-  `skills/afk/claude-md/scripts/fanout-shell.py` (`git worktree list`).
+- **Needed by:** the whole chain (worktrees, branches, push), `hooks/wiring-gate.sh`.
 - **Probe:** `git --version`
 - **Fix:** `human:` install Git for Windows (also satisfies C1).
 

@@ -5,9 +5,8 @@ Per candidate fact, route by scope + cohesion. First match wins.
 ## Decision order
 1. Personal/uncommitted (sandbox URL, local creds)? → `CLAUDE.local.md` (gitignored).
 2. Applies to ALL your projects (personal pref)? → `~/.claude/CLAUDE.md`. (rare; flag — outside project scope)
-3. Cross-cutting working principle for this repo/worktree family? → write it as an **in-repo
-   per-directory note** at the lowest common ancestor and **propagate it across worktrees** via the
-   fan-out (see Worktree propagation). Do NOT route it out to `~/.claude/shared`.
+3. Cross-cutting working principle for this repo? → write it as an **in-repo per-directory note**
+   at the lowest common ancestor of the current checkout. Do NOT route it out to `~/.claude/shared`.
 4. About a *kind-of-file* regardless of location (every `*.repository.ts`, every migration, every
    `*.form.vue`)? → `.claude/rules/<topic>.md` with `paths:` glob.
 5. About one module/dir subtree? → that subdir's `CLAUDE.md`.
@@ -27,7 +26,7 @@ Pick by the natural unit of the knowledge, NOT by counting files.
 | `**/*.form.vue` | every form component |
 
 `.claude/rules/` files MUST declare `paths:`. Always-on cross-cutting topics live in an in-repo
-per-directory note that is **propagated** across worktrees (decision #3), not in `rules/`.
+per-directory note (decision #3), not in `rules/`.
 
 ## Dedup vs specialization
 Before adding to a child, read full root→child ancestor chain + applicable rules.
@@ -40,12 +39,8 @@ Shared content lives at the **lowest common ancestor** covering all consumers.
 - Two+ siblings repeat it → lift to nearest common parent (or root).
 - Only one subtree needs it → push down, strip from parent.
 
-## Worktree propagation (replaces the old shared layer)
-Branch-isolated worktrees must not strand a note in one checkout. The model is **in-repo
-per-directory notes, divergence solved by propagation** — NOT an out-of-repo `~/.claude/shared`
-`@import` layer. Mechanics (fan-out invocation, current-worktree-first, dirty-sibling skip,
-`propagates: N worktrees` labels, baked write boundary) are owned by SKILL.md's Propagation +
-Safety sections — don't restate them here.
-- A cross-cutting principle for the worktree family → write the in-repo note once at its lowest
-  common ancestor and propagate. Branch/feature/module specific → that worktree's local `CLAUDE.md` only.
-- NEVER silently place a worktree-family principle in a single worktree → divergence; propagate it.
+## In-repo notes, not a shared layer
+Cross-cutting principles live as **in-repo per-directory notes**, NOT an out-of-repo
+`~/.claude/shared` `@import` layer. A note is written to the current checkout at the lowest common
+ancestor of what it steers; branch/feature/module-specific guidance goes in that directory's local
+`CLAUDE.md`. The write boundary is owned by SKILL.md's Safety section — don't restate it here.

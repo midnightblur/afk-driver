@@ -59,7 +59,7 @@ commits, and proving test, unsatisfied rows flagged.
 - [ ] The service-root CLAUDE.md carries exactly ONE awareness sentence leading to that note
 - [ ] The staples registry was settled: a PRD-flagged candidate is registered in STAPLES.md, or an existing staple's Reference advanced/filled — or, if none applied, this is explicitly a no-op
 - [ ] Nothing added restates code; every line clears the /afk:claude-md inclusion bar
-- [ ] Written via /afk:claude-md; its cross-worktree propagation summary was surfaced
+- [ ] Written via /afk:claude-md
 - [ ] plan/TRACE.md exists: every PRD Acceptance Criterion has a row (subtask, commits, proving test), unsatisfied rows explicitly flagged
 
 ## Verification
