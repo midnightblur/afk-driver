@@ -12,6 +12,12 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-registry-gate.sh\"",
+            "timeout": 30,
+            "statusMessage": "Skill-registry gate..."
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/maven-compile-gate.sh\"",
             "timeout": 600,
             "statusMessage": "Maven compile gate..."
