@@ -589,7 +589,7 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
 - **`/afk:autopilot`** — the hands-off driver for the middle. Walks the plan in
   rank order (Blocked-by respected), one fresh subagent per subtask running
   `/afk:execute` in driven mode — **sized by the contract's `## Complexity`**
-  (`mechanical` slices get a fast/cheap agent, `complex` ones the strongest; a
+  (`mechanical` slices get `sonnet` at low effort, `complex` ones the strongest; a
   parked `mechanical` is retried once at `standard` before the park stands) —
   self-provisions the live app per slice, parks failed subtasks + dependents while
   independent subtasks continue (push notification with a plain-terms sentence on

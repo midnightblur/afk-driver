@@ -29,8 +29,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 ## Model selection
 
-- **haiku for facts** — binary/mechanical checks (anchor greps, exit-code probes, existence/validation) where a wrong answer is self-evident downstream.
-- **sonnet for digests** — the `afk-reader`/`afk-runner` default (set in their definitions): reads, searches, suite triage, and research whose digest the orchestrator treats as advisory and spot-checks via citations.
+- **sonnet for digests** — the `afk-reader`/`afk-runner` default (set in their definitions): reads, searches, mechanical checks, suite triage, and research whose digest the orchestrator treats as advisory and spot-checks via citations.
 - **inherit for verdicts and product code** — any child that writes production code, and any research whose verdict is acted on without re-checking (a confirm/refute gating a spec or publish step). A judge is never a cheaper model than the implementor it judges.
 - Callers override per-spawn (the Agent call's `model`) — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
 
