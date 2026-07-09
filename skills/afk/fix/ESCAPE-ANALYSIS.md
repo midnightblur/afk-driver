@@ -2,11 +2,11 @@
 
 A bug that reached the verification phase means a guard that *should* have stopped
 it didn't — or was never there. Phase 2 added the missing guard; this step
-interrogates the **existing** one that whiffed, because dropping a sibling next to
-a weak assertion just grows the suite without closing the hole.
+interrogates the **existing** one that whiffed — a sibling next to a weak assertion
+just grows the suite without closing the hole.
 
-Run only for bugs in a **standing-suite tier** — a user-visible flow (`e2e/browser`)
-or a backend contract (`api`). Skip for a pure unit/logic bug that never had a
+Run only for **standing-suite tier** bugs — a user-visible flow (`e2e/browser`)
+or a backend contract (`api`). Skip a pure unit/logic bug that never had a
 higher-tier scenario (Phase 2 already homed it).
 
 1. **Find the scenario that *should* have caught it.** Grep the catalogs for the
@@ -31,5 +31,5 @@ higher-tier scenario (Phase 2 already homed it).
    gold-plating — drop it). Re-run that scenario **red-then-green** to prove it now
    catches this exact bug.
 
-4. **Record the miss class.** It is the lesson — it names which guard failed and,
-   in Phase 3.5, which AFK stage under-specified it. Carry it into Phase 4's report.
+4. **Record the miss class.** The lesson — names which guard failed and,
+   in Phase 3.5, which AFK stage under-specified it. Carry into Phase 4's report.

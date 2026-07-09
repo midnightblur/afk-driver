@@ -5,7 +5,7 @@ description: Mirrors a service's live frontend into a team-shareable `claude.ai/
 
 # afk:design-system — mirror a service's live UI into a shared catalog
 
-One-time (then periodically refreshed) extraction of a service's real frontend into a hosted, team-accessible `claude.ai/design` catalog. Once it exists, a prototype run composes from the catalog instead of re-reading the frontend from scratch each time, and the whole team has one link showing what the app actually looks like.
+One-time (periodically refreshed) extraction of a service's real frontend into a hosted, team-accessible `claude.ai/design` catalog. A prototype run then composes from the catalog instead of re-reading the frontend each time; the team gets one link showing what the app looks like.
 
 **Per-service, not per-feature.** Run against a frontend checkout (`payable-ui`, the next service's UI, …), not a ticket. Output: a durable catalog many later features reference.
 
@@ -14,25 +14,25 @@ One-time (then periodically refreshed) extraction of a service's real frontend i
 - **Seeding** a new service with a real, running frontend worth mirroring.
 - **Refreshing** an existing catalog after the frontend's design tokens or core components drifted (mirror stale, not wrong by design).
 
-Skip for a service with no meaningful UI, or one whose look you don't intend to anchor prototypes to.
+Skip a service with no meaningful UI, or one you don't intend to anchor prototypes to.
 
 ## Arguments
 
-- `frontend_path` — the frontend checkout to mirror (e.g. `…/payable-ui`). `node_modules` must be installed.
-- `live_url` — URL of the **running app** (e.g. `http://proxy/dev/financial-org-structure/`). This skill profiles and verifies against the live render, not just source — so the URL is **required, not optional**. **If not supplied, ask before profiling** ("what URL is the running app at?"). Only if the user confirms no running instance is available do you fall back to code-only — then you MUST stamp every card and the README "fidelity: source-only, not verified against a live render" so the gap is never silently hidden.
+- `frontend_path` — frontend checkout to mirror (e.g. `…/payable-ui`). `node_modules` must be installed.
+- `live_url` — URL of the **running app** (e.g. `http://proxy/dev/financial-org-structure/`). This skill profiles and verifies against the live render, not just source — **required, not optional**. **If not supplied, ask before profiling** ("what URL is the running app at?"). Only if the user confirms no running instance exists do you fall back to code-only — then stamp every card and the README "fidelity: source-only, not verified against a live render" so the gap is never hidden.
 - `project` *(optional)* — an existing Claude Design project to refresh. Omit on first run; the skill reuses-or-creates the service's design-system project.
 
 ## The coverage model — archetype-complete
 
-A real app is dozens of routes and 100+ components. **Reduce the app to its repeating shapes** and cover each shape once; never emit one card per route:
+A real app is dozens of routes and 100+ components. **Reduce the app to its repeating shapes**; cover each shape once, never one card per route:
 
 - **Foundations** — extracted tokens: colour palette (brand, semantic, grey ramp, entity accents), type scale, spacing/shape. One card each.
-- **The full primitive + overlay library** — every reusable input, select, picker, toggle, table, dialog, menu, drawer, chip, notification the app's component layer exposes. This part you *do* cover exhaustively — it's what mockups compose from.
+- **The full primitive + overlay library** — every reusable input, select, picker, toggle, table, dialog, menu, drawer, chip, notification the app's component layer exposes. Cover exhaustively — it's what mockups compose from.
 - **The app-shell + navigation chrome** — the single layout shell (header, sidebar, page container), menu, breadcrumbs, tabs, page header, global search.
 - **Each page archetype, once** — list/management, detail, create/edit, dashboard, reports-hub + one representative report, approvals, bulk, admin, workspace. A reader drills into any specific screen from these.
-- **Each domain as one representative instance** — not all six domains' list pages; one, clearly labelled as the pattern the others follow.
+- **Each domain as one representative instance** — not all six domains' list pages; one, labelled as the pattern the others follow.
 
-Aim for a few dozen cards covering *everywhere reachable* by pattern, not a card-per-route. When you collapse N screens to one archetype, say so in that card's subtitle so the reader knows what it stands in for.
+Aim for a few dozen cards covering *everywhere reachable* by pattern, not a card-per-route. When you collapse N screens to one archetype, say so in that card's subtitle.
 
 ## Process
 
@@ -41,17 +41,17 @@ Aim for a few dozen cards covering *everywhere reachable* by pattern, not a card
 Two passes, both required:
 
 - **Code pass.** Enumerate the reachable UI — routes, pages, components, layouts — enough to see the archetypes (parallel `Explore` agents help on a large app). Identify the **framework + component library** (Quasar/Vue, MUI/React, Material/Angular, …) and **where the real design tokens live** — the theme config / SCSS variables / CSS custom properties / Tailwind config the app actually compiles. That file, not anything you compute, is ground truth for token *values*.
-- **Live pass.** Open `live_url` in a real browser (the `/run` or `verify` skill, Playwright, or a screenshot tool) and **walk the reachable screens** — the signature screen, each page archetype, the app shell, the dense components. Capture screenshots. This is where you see what the *running* app looks like, including whatever a shared/3rd-party component kit renders that never appears in local CSS. No `live_url` → see Arguments.
+- **Live pass.** Open `live_url` in a real browser (the `/run` or `verify` skill, Playwright, or a screenshot tool) and **walk the reachable screens** — signature screen, each page archetype, app shell, dense components. Capture screenshots. Here you see what the *running* app looks like, including whatever a shared/3rd-party component kit renders that never appears in local CSS. No `live_url` → see Arguments.
 
-When the two passes disagree, resolve per Boundary ("live render wins").
+When the passes disagree, resolve per Boundary ("live render wins").
 
 ### 2. Extract tokens as ground truth — and verify, don't eyeball
 
-Pull palette, type scale, spacing, radius, control heights from the real token source into a `tokens.css` mirror. **Do not trust hand-computed hex or "what the SCSS looks like it does"** — framework defaults and brand overrides interact in ways static reading misses. When two extractions disagree, resolve per Boundary ("live render wins").
+Pull palette, type scale, spacing, radius, control heights from the real token source into a `tokens.css` mirror. **Do not trust hand-computed hex or "what the SCSS looks like it does"** — framework defaults and brand overrides interact in ways static reading misses. Disagreement → resolve per Boundary ("live render wins").
 
 ### 3. Reduce to the card set
 
-Apply the coverage model above to the Step 1 profile: list foundations, component library, chrome, page archetypes, and one-per-domain representatives. This list *is* the catalog scope — write it down (a README in the catalog) before authoring.
+Apply the coverage model to the Step 1 profile: list foundations, component library, chrome, page archetypes, one-per-domain representatives. This list *is* the catalog scope — write it down (a README in the catalog) before authoring.
 
 ### 4. Author the cards — consistent, self-contained, verified
 
@@ -61,17 +61,17 @@ Each card is a **standalone HTML file, openable as `file://`** (inline CSS, no b
 <!-- @dsCard group="GROUP_NAME" -->
 ```
 
-The marker's `group` is how the catalog buckets cards (Foundations · Form controls · Actions · Data display · Overlays · Navigation · Patterns, or whatever shapes your service has). Keep a **shared boilerplate** — font import, body reset, heading/subtitle styles — identical across cards so the catalog reads as one system.
+The marker's `group` buckets cards (Foundations · Form controls · Actions · Data display · Overlays · Navigation · Patterns, or whatever shapes your service has). Keep a **shared boilerplate** — font import, body reset, heading/subtitle styles — identical across cards so the catalog reads as one system.
 
-Authoring a few dozen cards is parallel work: hand each builder agent an **identical "KIT"** — verified tokens, conventions (Step 5's findings), boilerplate — so independently-authored cards stay visually consistent instead of each agent re-deriving (and diverging on) the same hex. Spawn mechanics and each builder's return contract follow `DELEGATION.md` (plugin root).
+Authoring a few dozen cards is parallel work: hand each builder agent an **identical "KIT"** — verified tokens, conventions (Step 5's findings), boilerplate — so independently-authored cards stay consistent instead of each agent re-deriving (and diverging on) the same hex. Spawn mechanics + each builder's return contract follow `DELEGATION.md` (plugin root).
 
-**Fidelity check — compare each card to the LIVE app, side by side.** The reference is **a screenshot of the real running screen at `live_url`**, not the card's own render and not the framework's static CSS. For each high-risk card: screenshot the matching live screen (from Step 1's live pass, or navigate now), screenshot the card, and **diff them by eye** — header heights, control density, spacing, exact fill/underline/tooltip treatment, how a shared component kit actually paints. Fix the card to match the live pixel, then re-shoot. A card you never put next to the live app is **not verified — say so on it.**
+**Fidelity check — compare each card to the LIVE app, side by side.** Reference is **a screenshot of the real running screen at `live_url`**, not the card's own render, not the framework's static CSS. Per high-risk card: screenshot the matching live screen (from Step 1's live pass, or navigate now), screenshot the card, **diff by eye** — header heights, control density, spacing, exact fill/underline/tooltip treatment, how a shared component kit paints. Fix the card to the live pixel, re-shoot. A card never put next to the live app is **not verified — say so on it.**
 
-Typical catches (hypothetical): inputs using an *underline* variant where the card guessed a filled one; validation errors rendering as a tooltip instead of an inline message; a framework default (e.g. uppercased button labels) the app opts out of per-component. None reliably visible from the stylesheet source alone.
+Typical catches (hypothetical): inputs using an *underline* variant where the card guessed filled; validation errors as a tooltip instead of an inline message; a framework default (e.g. uppercased button labels) the app opts out of per-component. None reliably visible from stylesheet source alone.
 
-Spot-check at least the highest-risk cards (app shell + each page archetype + the densest components + anything a 3rd-party/internal component library styles); full-screen patterns reuse already-verified atoms.
+Spot-check at least the highest-risk cards (app shell + each page archetype + densest components + anything a 3rd-party/internal component library styles); full-screen patterns reuse already-verified atoms.
 
-*Secondary tool, not a substitute:* a local harness that mounts the framework's own production build (e.g. `quasar.umd.prod.js` + `quasar.prod.css` from `node_modules`) with the brand token vars renders an isolated component without clicking to its live screen. Useful for atoms — but it renders *your* markup against real framework CSS, so it still can't show what the live app's own component wrappers do (disagreements: see Boundary). The harness and screenshots are **dev-only** — never published.
+*Secondary tool, not a substitute:* a local harness mounting the framework's own production build (e.g. `quasar.umd.prod.js` + `quasar.prod.css` from `node_modules`) with brand token vars renders an isolated component without clicking to its live screen. Useful for atoms — but it renders *your* markup against real framework CSS, so it still can't show what the live app's own component wrappers do (disagreements: see Boundary). Harness and screenshots are **dev-only** — never published.
 
 ### 5. Publish to Claude Design (DesignSync)
 
@@ -79,7 +79,7 @@ To publish the catalog to Claude Design, follow [PUBLISH.md](PUBLISH.md).
 
 ### 6. Document and report
 
-Leave a **README in the catalog** recording: the scope decision (the archetype list and what each stands in for), the fidelity basis (**which `live_url` was walked, which cards were pixel-compared to it, and what that caught** — plus any cards still marked source-only), and **how to re-extract** (re-run this skill with `frontend_path` + `live_url` after a token/component change — don't hand-edit drift into the cards). Source of truth is the frontend code; the running app is the fidelity reference; the cards are a mirror of both.
+Leave a **README in the catalog** recording: the scope decision (archetype list + what each stands in for), the fidelity basis (**which `live_url` was walked, which cards were pixel-compared to it, what that caught** — plus any cards still marked source-only), and **how to re-extract** (re-run this skill with `frontend_path` + `live_url` after a token/component change — don't hand-edit drift into the cards). Source of truth: the frontend code; fidelity reference: the running app; the cards mirror both.
 
 End with the layered report per `REPORTING.md` (plugin root) — headline, one jargon-free `In plain terms:` sentence, then artifact pointers — stating the fidelity basis honestly:
 
@@ -100,10 +100,10 @@ Catalog: <catalog dir / README path> [· project: <url>]
 
 ## Boundary (Hard rules)
 
-- **The frontend code is the source of truth; the catalog is a mirror.** When the app's tokens or components change, re-extract — never hand-edit drift into the cards and never treat the hosted catalog as authoritative over the code.
-- **The live render wins for appearance; the code wins for token values.** The live rendered pixel wins over computed hex and over the static harness — verify against the LIVE app, not the SCSS. Never overclaim: do not write "matches the real app" / "verified against the app" unless you actually browsed it — reading `.vue`/SCSS is "faithful to the source", a weaker, different claim.
-- **Local-first, one egress.** The only network call is the Claude Design push; no Jira, no GitLab, no merge. The published project lives in the user's account and is a share/preview mirror — deleting it loses nothing in the repo.
-- **Archetype-complete, not screen-complete.** Cover every *shape* once; refuse to emit a card per route. Exhaustive only on the reusable component library.
+- **The frontend code is the source of truth; the catalog is a mirror.** When the app's tokens or components change, re-extract — never hand-edit drift into the cards, never treat the hosted catalog as authoritative over the code.
+- **The live render wins for appearance; the code wins for token values.** The live rendered pixel wins over computed hex and over the static harness — verify against the LIVE app, not the SCSS. Never overclaim: don't write "matches the real app" / "verified against the app" unless you actually browsed it — reading `.vue`/SCSS is "faithful to the source", a weaker, different claim.
+- **Local-first, one egress.** Only network call is the Claude Design push; no Jira, no GitLab, no merge. The published project lives in the user's account, a share/preview mirror — deleting it loses nothing in the repo.
+- **Archetype-complete, not screen-complete.** Cover every *shape* once; refuse a card per route. Exhaustive only on the reusable component library.
 
 ## Next
 

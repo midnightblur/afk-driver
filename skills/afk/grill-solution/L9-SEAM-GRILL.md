@@ -6,10 +6,10 @@ L1–L8 settle *what* the design is; L9 proves it **fits the code that exists**.
 
 For every point where the design touches existing code (calls it, extends it, is called by it, shares its data):
 
-1. **Signature/contract alignment.** Read the actual class/method/DTO the design assumes. Does the assumed call shape exist — parameters, return type, checked exceptions, nullability, transactional posture? A mismatch is a design change or an ADR-worthy extension, never a "the executor will adapt it".
-2. **Change impact.** Who else uses the seam (callers, listeners, mappers, generated companions)? Which of those flows change behaviour? Every impacted flow is named — "none" is a claim to verify, not assume.
-3. **House conventions.** The CLAUDE.md chain governing that code area binds the design: class-placement contracts, base-service chains, state-machine wiring, mapper/codegen rules, scoping/authz layers. A design step that violates one is reworked or gets an explicit exception ADR.
-4. **Must-do landmines.** What does the existing entry path (controller/listener/job) do that the design's new path would skip — validation, authz guards, events, auditing, balance/state bookkeeping? Every skipped obligation is either re-established on the new path or explicitly ruled out with rationale.
+1. **Signature/contract alignment.** Read the actual class/method/DTO the design assumes. Does the assumed call shape exist — parameters, return type, checked exceptions, nullability, transactional posture? A mismatch is a design change or an ADR-worthy extension, never "the executor will adapt it".
+2. **Change impact.** Who else uses the seam (callers, listeners, mappers, generated companions)? Which of those flows change behaviour? Name every impacted flow — "none" is a claim to verify, not assume.
+3. **House conventions.** The CLAUDE.md chain governing that code area binds the design: class-placement contracts, base-service chains, state-machine wiring, mapper/codegen rules, scoping/authz layers. A design step violating one is reworked or gets an explicit exception ADR.
+4. **Must-do landmines.** What does the existing entry path (controller/listener/job) do that the design's new path would skip — validation, authz guards, events, auditing, balance/state bookkeeping? Every skipped obligation is re-established on the new path or explicitly ruled out with rationale.
 
 Record each seam as a row: `seam | existing contract (verified where) | planned change | impacted flows | conventions/landmines | verdict`, where `verdict` ∈ `fits` | `extends (ADR-NNNN)` | `reworked` (lockstep with SDD §14 — same columns, same enum). These rows are the input for the SDD's §14 table.
 

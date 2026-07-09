@@ -1,8 +1,8 @@
 # Grill log format — `GRILL-LOG.md`
 
-The on-disk checkpoint of a grill's settled state, written in the ticket's spec folder (sibling to where the PRD lands). Grills settle decisions in conversation — and conversation is ephemeral: a compaction, a crash, or a multi-day pause loses the ledger, and "a lost ledger means re-verifying". The grill log is the insurance: update it **as decisions lock**, not at the end, so a resumed session (or a synthesis skill whose context lost the conversation) picks up from disk.
+On-disk checkpoint of a grill's settled state, written in the ticket's spec folder (sibling to where the PRD lands). Grills settle decisions in conversation, and conversation is ephemeral: a compaction, crash, or multi-day pause loses the ledger, and "a lost ledger means re-verifying". The grill log is the insurance: update it **as decisions lock**, not at the end, so a resumed session (or a synthesis skill whose context lost the conversation) picks up from disk.
 
-It is a checkpoint, not a document: terse rows, no prose, superseded rows overwritten in place. The synthesis skills remain the owners of the real artifacts — the log never substitutes for a PRD/SDD/verification plan, and it is deletable once the ticket ships.
+A checkpoint, not a document: terse rows, no prose, superseded rows overwritten in place. Synthesis skills own the real artifacts — the log never substitutes for a PRD/SDD/verification plan, and is deletable once the ticket ships.
 
 ## Ownership
 
@@ -38,4 +38,4 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Open: {what's still unsettled}
 ```
 
-Sections appear as their grill first runs; absent sections mean that grill hasn't run. Rows are overwritten as state changes — the log holds current state, not history (the conversation and the synthesized artifacts hold the history).
+Sections appear as their grill first runs; an absent section means that grill hasn't run. Rows are overwritten as state changes — the log holds current state, not history (the conversation and synthesized artifacts hold the history).

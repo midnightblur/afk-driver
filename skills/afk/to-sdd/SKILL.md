@@ -3,34 +3,34 @@ name: to-sdd
 description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision design ADRs, written next to the PRD. Use once the design decisions are settled in conversation and the user wants them materialized as artifacts. Does NOT interview — synthesizes what is already known. Local artifacts only — does not touch the issue tracker.
 ---
 
-From the current conversation context, the PRD, and codebase understanding, produce:
+From the conversation context, the PRD, and codebase understanding, produce:
 
 1. A single `SDD.md` organized layer-by-layer (L1 -> L9; L9 lands as §14), with **mandatory visualizations** per section.
-2. One design ADR per non-trivial decision under `adr/design/NNNN-kebab-title.md`, each with at least one diagram or table.
+2. One design ADR per non-trivial decision under `adr/design/NNNN-kebab-title.md`, each with ≥1 diagram or table.
 
-Do NOT interview — synthesize what you already know. If a critical-logic concern is unresolved, STOP and tell the user to run `/afk:grill-solution` first; do not invent decisions.
+Do NOT interview — synthesize what you know. Critical-logic concern unresolved → STOP, tell user to run `/afk:grill-solution` first; don't invent decisions.
 
-If the design conversation didn't survive into context (compaction, new session), read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints its locked layers and L9 seam verdicts there exactly for this synthesis.
+If the design conversation didn't survive into context (compaction, new session), read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints its locked layers and L9 seam verdicts there for this synthesis.
 
 ## Process
 
 1. **Locate the PRD** in the ticket spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). Read with `ctx_read` (mode=full). SDD lands in the SAME folder as the PRD; design ADRs in its `adr/design/` subfolder.
 
-2. **Re-read the ticket's existing ADRs** — design ADRs in sibling `adr/design/` (don't contradict prior design decisions) and requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Don't read or write repo-wide `docs/adr/` — all ADRs are ticket-local. To reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §12 Reversed Decisions. Never edit an `adr/requirements/` ADR — if a requirement decision blocks the design, that's a `design-conflict` to route back, not to overwrite here.
+2. **Re-read the ticket's existing ADRs** — design ADRs in sibling `adr/design/` (don't contradict prior design decisions) and requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Don't read or write repo-wide `docs/adr/` — all ADRs are ticket-local. To reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §12 Reversed Decisions. Never edit an `adr/requirements/` ADR — a requirement decision blocking the design is a `design-conflict` to route back, not overwrite here.
 
 3. **Use the project's domain glossary.** Match the vocabulary in the PRD and the relevant `GLOSSARY.md` (if present — start from root `GLOSSARY-MAP.md` to find the owning service's glossary).
 
-4. **Apply the triviality cutoff.** ADR-worthy = (non-obvious for the stack) AND (≥2 real alternatives) AND (reversal is expensive). Skip ADRs for "we use HTTPS / UTF-8 / JSON".
+4. **Apply the triviality cutoff.** ADR-worthy = (non-obvious for the stack) AND (≥2 real alternatives) AND (reversal expensive). Skip ADRs for "we use HTTPS / UTF-8 / JSON".
 
-5. **For layers with nothing project-specific to say, write one line: "Inherited / default."** Do NOT delete the section.
+5. **Layers with nothing project-specific to say → one line: "Inherited / default."** Do NOT delete the section.
 
 6. **Write SDD.md using the template below.** Each section's `Required visuals:` annotation is binding — can't produce the visual → section not done.
 
 7. **Refuse-to-publish gate.** Before writing `SDD.md` or any ADR, scan the draft (prose / table cells / diagram labels — NOT fenced real code) for executor-blocking markers. If any appear, do NOT write: list each offender with its §-location verbatim (`§4 L3 — row "events table"` reads `Retention: TBD`) and bounce to `/afk:grill-solution`.
 
-   Blocker tokens (this is the canonical set; `/afk:to-subtasks`'s refuse-to-slice gate re-scans it): `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`, `<TBD>` / `<TODO>` / `<placeholder>` / `<fill>` / `<\?>`, `\[\?\]`, `_?FILL[_-]?IN_?`, `\(decide later\)` / `\(unresolved\)` / `\(open\)`, and unsubstituted template literals (`<TICKET-ID>`, `<NNNN>`, `<service>`, `{Feature Name}`). Real generics (`<T>`), optional-type markers (`Foo?`), and a stray `?` in a signature are NOT blockers.
+   Blocker tokens (canonical set; `/afk:to-subtasks`'s refuse-to-slice gate re-scans it): `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`, `<TBD>` / `<TODO>` / `<placeholder>` / `<fill>` / `<\?>`, `\[\?\]`, `_?FILL[_-]?IN_?`, `\(decide later\)` / `\(unresolved\)` / `\(open\)`, and unsubstituted template literals (`<TICKET-ID>`, `<NNNN>`, `<service>`, `{Feature Name}`). Real generics (`<T>`), optional-type markers (`Foo?`), and a stray `?` in a signature are NOT blockers.
 
-   Also scan §13: a row with `Blocks executor? = yes` in L2-L7 or L9 is a blocker (L1/L8 may pass if scoped). Don't demote a blocker to a §13 row to sneak it past the gate — that defeats the purpose.
+   Also scan §13: a row with `Blocks executor? = yes` in L2-L7 or L9 is a blocker (L1/L8 may pass if scoped). Don't demote a blocker to a §13 row to sneak it past the gate.
 
 8. **Library-version pin cross-check.** Verify any version pin the SDD/ADR names (Spring Boot, Hibernate, Vue, axios, … — anything `\d+\.\d+`) against the build manifest before writing. The Grounding rule catches a library's *existence*; this catches a fictional *version* of a real library, which silently poisons every downstream behaviour assumption.
 
@@ -48,7 +48,7 @@ If the design conversation didn't survive into context (compaction, new session)
 
    Refuse-to-publish (same as Step 7) if any pin lacks a manifest citation or contradicts it.
 
-   This cross-check is pure research: delegate it to an `afk-reader` subagent returning a cited confirm/refute per pin — Step 8b's seam check is independent and runs as a parallel sibling in the same message — per `DELEGATION.md` (plugin root). The conversation synthesis itself stays inline.
+   This cross-check is pure research: delegate to an `afk-reader` subagent returning a cited confirm/refute per pin — Step 8b's seam check runs as a parallel sibling in the same message — per `DELEGATION.md` (plugin root). The conversation synthesis stays inline.
 
 8b. **Framework-seam cross-check.** Step 8 verifies the version pin; this verifies the *behavior* at that pin. For each §9b framework row, confirm what it does to our value (and which annotations it honors) against the framework source / docs (`get-api-docs` where available), not memory. Unverifiable → label `unverified premise`; if the design depends on it, it's a §13 blocker → bounce to `/afk:grill-solution`. Every framework row names a seam-test or the seam isn't done. Like Step 8, delegate per `DELEGATION.md` (a cited confirm/refute per §9b row).
 
@@ -56,11 +56,11 @@ If the design conversation didn't survive into context (compaction, new session)
 
 10. **Update the ticket index.** Upsert this skill's rows in the sibling `INDEX.md` (`SDD`, `Design ADRs`) per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-**Done when:** `SDD.md` + every design ADR are on disk, the Step 7 and Step 8/8b gates passed, and the `INDEX.md` rows are upserted.
+**Done when:** `SDD.md` + every design ADR on disk, Step 7 and Step 8/8b gates passed, `INDEX.md` rows upserted.
 
 ## Visualization rules
 
-**Every non-trivial layer ships with the visual that carries its signal** — a reviewer should grasp the design from shape, not prose. Skip the visual only where the layer is one-line "inherited/default."
+**Every non-trivial layer ships with the visual that carries its signal** — a reviewer grasps the design from shape, not prose. Skip the visual only where the layer is one-line "inherited/default."
 
 **Toolkit (use Mermaid for diagrams — never ASCII):**
 
@@ -80,12 +80,12 @@ If the design conversation didn't survive into context (compaction, new session)
 
 **Diagram quality rules:**
 - Label every node and edge. Unlabeled arrows = rejected.
-- Keep one diagram to one concern. If a diagram has >12 nodes, split it.
-- Caption every diagram with one sentence stating what to take away.
-- Tables must have units in the header (`Latency p95 (ms)`, not `Latency p95`).
+- One diagram, one concern. >12 nodes → split it.
+- Caption every diagram with one sentence stating the takeaway.
+- Tables need units in the header (`Latency p95 (ms)`, not `Latency p95`).
 - Numbers, not adjectives. "p95 < 200 ms" not "fast".
 
-Render safety (the Mermaid constructs that break renderers) is owned by `skills/utils/draw-charts/SKILL.md` — follow it for every diagram you write.
+Render safety (the Mermaid constructs that break renderers) is owned by `skills/utils/draw-charts/SKILL.md` — follow it for every diagram.
 
 ## SDD template
 
@@ -97,12 +97,12 @@ Write each design ADR using the template in [ADR-TEMPLATE.md](ADR-TEMPLATE.md).
 
 ## Hard rules
 
-- **No code or file paths in SDD/ADRs.** They rot. Exception: *verification citations* — §3 contract-source paths and §14's "verified where" column cite files as evidence of a checked fact, not as implementation guidance; those are required, not forbidden.
+- **No code or file paths in SDD/ADRs.** They rot. Exception: *verification citations* — §3 contract-source paths and §14's "verified where" column cite files as evidence of a checked fact, not implementation guidance; required, not forbidden.
 
 ## Next
 
-After the SDD + ADRs land, your choices:
+After the SDD + ADRs land:
 
-- **Run `/afk:to-design-brief` by default** — the tight 1-2 page digest (one money-shot diagram + 5-10 row decision table + stakeholder-impact table) is the fastest way any human catches up on this design later; skip it only when the user explicitly says so. Strict synthesis — no new decisions.
-- **Verification scenarios need the settled solution?** Run **`/afk:grill-verification`** *(optional)* to design the feature's verification scenarios against the now-settled design, then **`/afk:to-verification-plan`** to write `VERIFICATION-PLAN.md`. Now that the SDD exists, this run can design **both** modalities — the UI journeys **and** the API scenarios (which read the §3 API contract table above and the §9b below-the-UI seams). (If only the UI journeys were clear, an earlier post-`/afk:to-prd` run may have designed those and deferred the API scenarios — re-run both skills now; `/afk:to-verification-plan` appends the API section.) Its plan makes `/afk:to-subtasks` add the feature smoke-test gate + the per-modality build subtasks.
-- **Slicing time?** Run **`/afk:to-subtasks`** to slice the PRD + SDD + ADRs into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with typed `## Produces` / `## Consumes` and a per-subtask `## Seams` list. The slicing-time refuse gate re-runs the §13 / library-version checks defensively in case the SDD was hand-edited after this skill ran.
+- **Run `/afk:to-design-brief` by default** — the tight 1-2 page digest (one money-shot diagram + 5-10 row decision table + stakeholder-impact table) is the fastest way a human catches up on this design later; skip only when the user says so. Strict synthesis — no new decisions.
+- **Verification scenarios need the settled solution?** Run **`/afk:grill-verification`** *(optional)* to design verification scenarios against the settled design, then **`/afk:to-verification-plan`** to write `VERIFICATION-PLAN.md`. With the SDD present, this run designs **both** modalities — UI journeys **and** API scenarios (which read the §3 API contract table and the §9b below-the-UI seams). (If only the UI journeys were clear, an earlier post-`/afk:to-prd` run may have designed those and deferred the API scenarios — re-run both skills now; `/afk:to-verification-plan` appends the API section.) Its plan makes `/afk:to-subtasks` add the feature smoke-test gate + per-modality build subtasks.
+- **Slicing time?** Run **`/afk:to-subtasks`** to slice PRD + SDD + ADRs into a local execution plan (`plan/PLAN.md` + per-subtask contracts) with typed `## Produces` / `## Consumes` and a per-subtask `## Seams` list. The slicing-time refuse gate re-runs the §13 / library-version checks defensively in case the SDD was hand-edited after this skill ran.

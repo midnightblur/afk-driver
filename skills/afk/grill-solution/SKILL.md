@@ -3,11 +3,11 @@ name: grill-solution
 description: Interview the user relentlessly about the solution design top-down across 9 layers (L1 system topology -> L9 implementation seams), resolving each layer before descending. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd`.
 ---
 
-Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer choices aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
+Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer ones aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
 
-Ask questions one at a time. For each, give your recommended answer with the trade-off and the alternative you reject.
+Ask one at a time. For each, give your recommended answer with the trade-off and the alternative you reject.
 
-If a question can be answered from the codebase, PRD, a `PROTOTYPE.md` if one settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), existing ADRs, or the project glossary (start at root `GLOSSARY-MAP.md`, then owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
+If a question is answerable from the codebase, PRD, a `PROTOTYPE.md` if one settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), existing ADRs, or the project glossary (start at root `GLOSSARY-MAP.md`, then owning service's `GLOSSARY.md`), do that instead. Speak the design in the glossary's canonical vocabulary.
 
 The staples the PRD **accepted** (from `{service}/STAPLES.md`) are **binding design inputs**: realize each in the layer it belongs to, using the staple's registry **Reference** as the template, and weigh it with ≥2 alternatives like any other decision. A design that drops an accepted staple isn't exhausted.
 
@@ -26,7 +26,7 @@ Datastore per piece of state (RDBMS / document / KV / search / event store / obj
 Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced on both sides of the UI seam** (per [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md), check 3); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work.
 
 ### L5 — Domain model (tactical DDD)
-Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; if the design needs a term conflicting with or missing from `GLOSSARY.md`, flag it — a language gap to resolve in `/afk:grill-requirements`, not to silently coin here.
+Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; a term conflicting with or missing from `GLOSSARY.md` is a language gap to resolve in `/afk:grill-requirements`, not to silently coin here.
 
 ### L6 — Process / coordination
 Transaction boundaries per use case (what's in one txn, what's across), cross-aggregate strategy (saga / outbox / 2PC / accept-eventual), consistency model per read path (strong / read-after-write / eventual + staleness budget), ordering guarantees, concurrency control (optimistic version / pessimistic lock / CRDT), failure-and-recovery matrix per multi-step flow.
@@ -42,7 +42,7 @@ The assembled design proven against the code that exists: per-seam signature/con
 
 ## Executor latitude (the line below L9)
 
-Below the layers is **executor latitude** — NOT grilled here, NOT in SDD, NOT in ADR. The distinction: L9 reads **existing** code to verify the contracts the design lands on; latitude governs the **new** code the executor writes inside the design's boundaries:
+Below the layers is **executor latitude** — NOT grilled here, NOT in SDD, NOT in ADR. L9 reads **existing** code to verify the contracts the design lands on; latitude governs the **new** code the executor writes inside the design's boundaries:
 
 - File / package layout *within* a module the SDD already named.
 - Private helper extraction, internal naming.
@@ -57,7 +57,7 @@ If a question is below the line, don't ask it. Redirect: "that's executor latitu
 
 A decision is **ADR-worthy** when it clears the design-level three-part bar owned by `skills/afk/to-sdd/SKILL.md` (Step 4, "Apply the triviality cutoff"). Apply ADRs for: "Postgres over Mongo because we need cross-aggregate ACID", "async job + signed URL over sync HTTP because p99 render is 8s."
 
-A decision can be in the SDD without being an ADR. ADRs are the subset where the *why* is non-obvious enough to warrant a standalone record.
+A decision can be in the SDD without being an ADR — ADRs are the subset where the *why* is non-obvious enough to warrant a standalone record.
 
 ## Grilling protocol
 
@@ -65,8 +65,8 @@ For each layer L1 → L9:
 
 1. **State the layer and what it covers in one sentence.**
 2. **Probe: is anything in this layer non-trivial for THIS feature?** If no -> say so explicitly ("L1 inherited from the monolith — skipping") and move on.
-3. **Triage the layer's concerns per `skills/afk/grill-requirements/TRIAGE.md`, then ask each debate-class concern one question at a time** (confirm-class concerns batch at the layer boundary per that file; an override escalates back to debate). Recommend an answer. Force ≥2 alternatives — and for **L1–L3** decisions, present one deliberately different **third option** before settling: a different paradigm (event-driven vs sync, buy vs build, denormalize vs join), not a variant of the front-runner, with an honest cost. Two look-alike options is how the obvious answer wins unexamined. Capture the rationale before the next concern. **When the question's premise OR the user's answer references existing infrastructure, apply [GROUNDING-RULE.md](GROUNDING-RULE.md) before locking the decision in.** When a human is present, render each debate-class question per LAVISH.md (RP-1, playbook `comparison`) to lay the alternatives side by side — **mandatory, per LAVISH.md's binding "Primary path" rule** (the host's native question picker is not a substitute); only driven mode and a genuine render failure fall back to the prose recap above.
-4. **Before descending, restate the locked decisions** so the user can challenge. As each layer locks, checkpoint it (one row) into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` — a 9-layer grill is long; the log is what lets a paused or compacted session resume at the right layer with the locked set intact, and it records L9 seam verdicts until the SDD lands.
+3. **Triage the layer's concerns per `skills/afk/grill-requirements/TRIAGE.md`, then ask each debate-class concern one question at a time** (confirm-class concerns batch at the layer boundary per that file; an override escalates back to debate). Recommend an answer. Force ≥2 alternatives — and for **L1–L3** decisions, present one deliberately different **third option** before settling: a different paradigm (event-driven vs sync, buy vs build, denormalize vs join), not a variant of the front-runner, with an honest cost. Two look-alike options is how the obvious answer wins unexamined. Capture the rationale before the next concern. **When the question's premise OR the user's answer references existing infrastructure, apply [GROUNDING-RULE.md](GROUNDING-RULE.md) before locking in.** When a human is present, render each debate-class question per LAVISH.md (RP-1, playbook `comparison`) to lay the alternatives side by side — **mandatory, per LAVISH.md's binding "Primary path" rule** (the host's native question picker is not a substitute); only driven mode and a genuine render failure fall back to the prose recap above.
+4. **Before descending, restate the locked decisions** so the user can challenge. As each layer locks, checkpoint it (one row) into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` — a 9-layer grill is long; the log lets a paused or compacted session resume at the right layer with the locked set intact, and records L9 seam verdicts until the SDD lands.
 5. **Do not skip ahead.** If the user pulls toward L8 (the fun layer) before L3/L4/L6 are pinned, refuse: "Pin the datastore + sync-vs-async first — Strategy interface depends on whether it returns `T` or `Future<T>`."
 
 When the design crosses an external seam, run the checks in [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md).
@@ -93,9 +93,9 @@ Until all hold, keep grilling.
 ## Out of scope for this skill
 
 - Do NOT produce SDD or ADR documents. Pair with `/afk:to-sdd` to synthesize artifacts.
-- Do NOT descend into implementation (file paths, code snippets, library version pins, helper-function names). Reading existing code for the L9 seam walk is verification, not implementation — that stays in.
+- Do NOT descend into implementation (file paths, code snippets, library version pins, helper-function names). Reading existing code for the L9 seam walk is verification, not implementation — it stays in.
 - Do NOT grill below L9 (executor latitude).
 
 ## Next
 
-Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. If it finds a gap, it bounces you back to this skill.
+Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.

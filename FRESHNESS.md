@@ -1,10 +1,10 @@
 # FRESHNESS.md — no artifact goes stale
 
 Binding on every change to this plugin. A stale artifact is worse than a
-missing one — an agent trusts what it reads. This file owns the rule that keeps
-the plugin's *source* artifacts true; the *runtime* artifacts (plan/, INDEX.md,
-journal…) are governed by `CLAUDE.md` "Section ownership invariants" and are
-not re-registered here.
+missing one — an agent trusts what it reads. This file owns the rule keeping
+the plugin's *source* artifacts true; *runtime* artifacts (plan/, INDEX.md,
+journal…) are governed by `CLAUDE.md` "Section ownership invariants", not
+re-registered here.
 
 ## The same-commit rule
 

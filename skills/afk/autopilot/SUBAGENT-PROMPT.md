@@ -1,6 +1,6 @@
 # Per-subtask subagent prompt
 
-Spawn one general-purpose subagent per subtask with this prompt, placeholders filled. The subagent does not need skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics and the subagent's return contract follow `DELEGATION.md` (plugin root).
+Spawn one general-purpose subagent per subtask with this prompt, placeholders filled. The subagent needs no skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics + the subagent's return contract follow `DELEGATION.md` (plugin root).
 
 ```
 You are executing one subtask of a local plan, non-interactively.
@@ -36,4 +36,4 @@ Journal: plan/JOURNAL.md · Contract: plan/{NNNN-slug}.md
 OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-ID|none>]
 ```
 
-The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim. The report-block grammar above is owned by `/afk:execute` (Step 13) — a lockstep copy here because the orchestrator parses it; update both in the same commit.
+The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim. The report-block grammar above is owned by `/afk:execute` (Step 13) — lockstep copy here because the orchestrator parses it; update both in the same commit.

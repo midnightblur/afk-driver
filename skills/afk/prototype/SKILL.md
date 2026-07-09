@@ -5,7 +5,7 @@ description: Interactively craft a feature's UI mockup as self-contained HTML an
 
 # afk:prototype — craft the UI, conversationally
 
-Runs once the PRD's user stories are settled (something concrete to draw) and before the SDD locks decisions (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, this answers "what should this actually look like" against the *real* app, not in someone's head.
+Runs once the PRD's user stories are settled (something concrete to draw) and before the SDD locks decisions (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, answers "what should this actually look like" against the *real* app, not in someone's head.
 
 ## When it applies
 
@@ -28,7 +28,7 @@ Read `PRD.md` — User Stories and Acceptance Criteria are what the screen must 
 
 Write a **self-contained HTML file** — no build step, no framework runtime, real data shapes inlined as fixtures — to the ticket's `prototype/` working folder (sibling to `PRD.md`). Tell the user the path; **they open it in a browser and refresh as you edit.** That refresh loop is the entire UX — keep the file openable-as-`file://` always (inline the CSS, no imports needing a server).
 
-Screens to open with depends on how settled the direction is:
+Screens to open with depend on how settled the direction is:
 
 - **Direction unclear** → open with **2–3 structurally-different sketches** on one page, switchable by a `?variant=` param and a small floating bar. "Structurally different" = different layout, information hierarchy, primary affordance — *not* three recolours of the same card grid. Divergence is the point; if two come out similar, redo one.
 - **Direction roughly known** → go straight to a **single mockup** and refine.
@@ -38,8 +38,8 @@ Screens to open with depends on how settled the direction is:
 A **conversation**, not a spec hand-off:
 
 1. The user reacts in plain language — "table's too dense", "move the actions to a sidebar", "I want the header from A with the list from B", "what if approvals were a modal?".
-2. You **edit the HTML** to match and tell them to refresh.
-3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", "what's the empty state?", "what happens on reject?" — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may need to route back to `/afk:to-prd`.
+2. You **edit the HTML** to match, tell them to refresh.
+3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", "what's the empty state?", "what happens on reject?" — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may route back to `/afk:to-prd`.
 
 Converge from divergence: once a direction wins, collapse to the single chosen mockup and polish *that* — empty states, key interactions, real density. Keep it throwaway-grade (no tests, no real mutations — point actions at inline stubs); fidelity is in the *look and flow*, not working plumbing.
 
@@ -75,7 +75,7 @@ Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd
 ## Boundary (Hard rules)
 
 - **Local file is the source of truth.** `PROTOTYPE.md` + the in-repo HTML are canonical and version-controlled. The `claude.ai/design` project is an opt-in **share/preview mirror** in the user's account — delete it there, nothing in the repo is lost. Never treat the hosted copy as the record.
-- **Throwaway scaffolding, durable decision.** Variant files and the switcher are disposable, pruned on settle. The *decision* (which design, and why) survives, in `PROTOTYPE.md`.
+- **Throwaway scaffolding, durable decision.** Variant files and the switcher are disposable, pruned on settle. The *decision* (which design, and why) survives in `PROTOTYPE.md`.
 - **Touches no tracker, merges nothing.** Local-first like the rest of the design layer — no Jira, no GitLab, no branch. Only network egress is the **opt-in** Claude Design push, only when the user asks.
 - **Mock the look and flow, not the backend.** No real mutations, no real DB — inline fixtures, stubbed actions. The question is "what should this look / feel like", answered before the SDD; "does the backend work" is verification's job, far downstream.
 - **Anchor, don't invent a parallel design language.** Mock from the real frontend's components and tokens. A prototype that ignores the existing app produces a design engineering then has to throw away.
@@ -85,7 +85,7 @@ Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd
 A settled mockup feeds two downstream skills:
 
 - **`/afk:grill-solution`** — UX decisions captured in `PROTOTYPE.md` are inputs to the architecture interview (a modal vs a page, an inline edit vs a wizard — all have SDD consequences).
-- **`/afk:grill-verification`** — the mockup is the concrete screen its **UI journeys** trace to. Designing journeys against a real screen instead of an imagined one is the difference between a verification plan that holds and one that drifts.
+- **`/afk:grill-verification`** — the mockup is the concrete screen its **UI journeys** trace to. Designing journeys against a real screen instead of an imagined one separates a verification plan that holds from one that drifts.
 
 If the mockup surfaced a PRD gap, route back to `/afk:to-prd` first.
 

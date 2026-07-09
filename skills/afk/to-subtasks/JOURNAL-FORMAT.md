@@ -1,12 +1,12 @@
 # Journal format — `plan/JOURNAL.md`
 
-The append-only event log of a plan: one timestamped line per event, newest last. It exists so a human who wasn't watching can reconstruct exactly what happened, in order, without stitching together tracker cells, subtask notes, and git log. The tracker shows *current* state; the journal shows *history* — including states the tracker cannot hold (parked-by-inheritance, stranded rows, red runs that later went green).
+A plan's append-only event log: one timestamped line per event, newest last. Lets a human who wasn't watching reconstruct exactly what happened, in order, without stitching together tracker cells, subtask notes, and git log. The tracker shows *current* state; the journal shows *history* — including states the tracker cannot hold (parked-by-inheritance, stranded rows, red runs that later went green).
 
 ## Rules
 
 - **Append-only.** Writers add lines at the end; nobody edits or deletes a prior line. This is what makes multi-writer safe.
 - Seeded with the header line below when the plan is emitted; any writer finding the file missing creates it with the header first, then appends.
-- Timestamps are local, to the minute.
+- Timestamps local, to the minute.
 - Every line's trailing clause follows the plain-terms rule of `REPORTING.md` (plugin root): a reader without workflow vocabulary can follow the story from the journal alone.
 
 ## Header (line 1 of the file)
@@ -24,7 +24,7 @@ The append-only event log of a plan: one timestamped line per event, newest last
 - `{writer}` — the skill appending: `execute`, `autopilot`, `smoke-test`, `preflight`.
 - `{subject}` — a subtask id (`NNNN-slug`), `run`, or `gate`.
 - `{event}` — a short token from the writer's set below.
-- `{plain terms}` — one clause; jargon-free; may be omitted only when the event token is self-explanatory to a lay reader (it almost never is).
+- `{plain terms}` — one clause; jargon-free; omit only when the event token is self-explanatory to a lay reader (almost never).
 
 ## Event sets per writer
 
@@ -42,10 +42,10 @@ The append-only event log of a plan: one timestamped line per event, newest last
 renamed there is a same-commit change here):
 
 - `refused(no_green_smoke)` — the Step-0 refusal guard fired; nothing else
-  was written this run (the one event a refused run still logs, appended
-  before the guard's own "write nothing" rule takes effect — the guard
-  itself never creates the `## Preflight` section, but the refusal is still
-  worth a JOURNAL line so a human scanning history sees the attempt).
+  written this run (the one event a refused run still logs, appended before
+  the guard's own "write nothing" rule takes effect — the guard never creates
+  the `## Preflight` section, but the refusal is worth a JOURNAL line so a
+  human scanning history sees the attempt).
 - `PF-{n} green` — step `n` (1-7) completed; its `## Preflight` table row
   flipped to `green`.
 - `PF-{n} parked({reason})` — step `n` could not proceed; `{reason}` is one
@@ -53,9 +53,9 @@ renamed there is a same-commit change here):
   `review_blocking`, `orphan_artifact`, `ci_test_red`, `secret_hit`,
   `budget_exhausted`, `glab_flake` (per `skills/afk/preflight/SKILL.md`'s
   PF-1..7 routing table).
-- `fix-cycle {k}/2 on PF-{n}` — the shared fix-cycle counter incremented
-  (logged **before** the fix attempt, so a crash mid-fix still shows the
-  spent cycle on resume).
+- `fix-cycle {k}/2 on PF-{n}` — shared fix-cycle counter incremented (logged
+  **before** the fix attempt, so a crash mid-fix still shows the spent cycle
+  on resume).
 - `ci-wait launched (budget={s}s, interval={s}s)` — PF-6's background task
   started.
 - `ready` — PF-7 flipped the MR Draft → Ready on a green pipeline.

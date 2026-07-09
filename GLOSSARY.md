@@ -1,6 +1,6 @@
 # Workflow Glossary
 
-The AFK workflow's own vocabulary — pipeline stages, artifacts, modes, states, verdicts. This file is the one home for *methodology* terms; **domain** vocabulary stays in the target repo's glossaries (start at its `GLOSSARY-MAP.md`). Any skill, report, or artifact that uses one of these terms points here instead of redefining it. A status line may use these terms freely, but the plain-terms sentence that accompanies it (`REPORTING.md`) must stand alone without this file.
+The AFK workflow's own vocabulary — pipeline stages, artifacts, modes, states, verdicts. The one home for *methodology* terms; **domain** vocabulary stays in the target repo's glossaries (start at its `GLOSSARY-MAP.md`). Any skill, report, or artifact using one of these terms points here instead of redefining it. A status line may use these terms freely, but the accompanying plain-terms sentence (`REPORTING.md`) must stand alone without this file.
 
 Format follows the canonical glossary rules in `skills/utils/glossary/GLOSSARY-FORMAT.md` — one owner per term, tight definitions, opinionated `_Avoid_` lists.
 

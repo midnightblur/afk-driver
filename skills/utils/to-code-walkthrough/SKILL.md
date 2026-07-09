@@ -7,7 +7,7 @@ description: Generates a top-down narrative walkthrough (nine layers, TL;DR thro
 
 Top-down narrative walkthrough. Parallel per-layer agents. One markdown file. Mermaid for visuals. Caveman prose. Two modes: **MR** (URL) | **code** (path/symbol).
 
-Purpose: reader understands the change w/o opening the code. Reviewer skim before diving. Onboarder tours module fast.
+Purpose: reader understands the change w/o opening code. Reviewer skim before diving. Onboarder tours module fast.
 
 ## Inputs
 
@@ -17,7 +17,7 @@ Purpose: reader understands the change w/o opening the code. Reviewer skim befor
 - Filters: `skip L1,L2,...` | `only L3,L4,...`. Compose on preset.
 - `--list-layers` -> print layers + aliases + presets, exit (no input needed).
 - `--repo <path>` -> skip worktree prompt, use this path read-only.
-- `$CLAUDE_JOB_DIR` — working dir for everything this skill writes (fetched MR data, spec, the walkthrough). Use it when set; when unset, fall back to a temp dir (the bundled fetcher defaults the same way: `${CLAUDE_JOB_DIR:-/tmp}`).
+- `$CLAUDE_JOB_DIR` — working dir for everything this skill writes (fetched MR data, spec, walkthrough). Use when set; when unset, fall back to a temp dir (bundled fetcher defaults the same: `${CLAUDE_JOB_DIR:-/tmp}`).
 
 ## Layers (9)
 
@@ -74,7 +74,7 @@ Filter rules:
     Final caveman pass: aggregator scans for filler ("just", "really", "basically", "we can see that") and trims. Technical terms / mermaid blocks / code blocks **never** modified.
     Save to `$CLAUDE_JOB_DIR/walkthrough-{slug}-{YYYYMMDD-HHMMSS}.md`. Slug = `mr{IID}` (MR mode) or sanitized path/symbol (code mode, replace `/` and special chars w/ `-`).
 
-**Durable copy (opt-in).** `$CLAUDE_JOB_DIR` is a temp dir — the walkthrough is gone next session. When the subject maps to a ticket spec folder (the caller passed `save:{ticket-spec-dir}`, or the discovered spec lives at `specs/**/{KEY}/`), offer to copy the finished walkthrough to `{ticket-spec-dir}/walkthroughs/{same filename}` so future readers of that feature find it. Copy on yes; this is the one sanctioned write outside `$CLAUDE_JOB_DIR`.
+**Durable copy (opt-in).** `$CLAUDE_JOB_DIR` is a temp dir — walkthrough gone next session. When the subject maps to a ticket spec folder (caller passed `save:{ticket-spec-dir}`, or discovered spec lives at `specs/**/{KEY}/`), offer to copy the finished walkthrough to `{ticket-spec-dir}/walkthroughs/{same filename}` so future readers of that feature find it. Copy on yes; the one sanctioned write outside `$CLAUDE_JOB_DIR`.
 11. **Closing line:**
     ```
     Walkthrough: $CLAUDE_JOB_DIR/walkthrough-<slug>-<TS>.md
@@ -116,13 +116,13 @@ output_format:
 ## Hard rules
 
 - Static read only. Never run app / build / tests.
-- Never modify user's cwd / worktree. Read-only on user-owned repos. Writes only inside `$CLAUDE_JOB_DIR` — sole exception: the user-approved durable copy into a ticket's `walkthroughs/` dir (Aggregate step).
+- Never modify user's cwd / worktree. Read-only on user-owned repos. Writes only inside `$CLAUDE_JOB_DIR` — sole exception: user-approved durable copy into a ticket's `walkthroughs/` dir (Aggregate step).
 - Caveman prose throughout; technical terms + code + mermaid syntax verbatim.
 - Mermaid blocks only — never ASCII boxes/arrows for diagrams.
 - Each layer self-contained w/ stable anchor `L1..L9` for cross-ref.
 - Never invent symbols / files / line numbers. Cite paths from diff or repo verbatim.
 - Always parallel fan-out in single message — never sequential layer agents.
-- Aggregator never inserts judgments ("looks risky", "should refactor") — this skill narrates, it doesn't review.
+- Aggregator never inserts judgments ("looks risky", "should refactor") — this skill narrates, doesn't review.
 
 ## Edge cases
 
@@ -132,12 +132,12 @@ output_format:
 - MR has no spec -> L2 falls back to MR description + commits (mode flag `no-spec`).
 - Code mode w/ empty `path:` / `symbol:` -> exit w/ error.
 - Symbol matches multiple files -> list matches, ask which (or `path:<file>` to disambiguate).
-- Mermaid render failure (downstream) -> acceptable; note it in the walkthrough.
-- MR draft / WIP -> proceed (walkthrough is useful pre-merge).
+- Mermaid render failure (downstream) -> acceptable; note in the walkthrough.
+- MR draft / WIP -> proceed (walkthrough useful pre-merge).
 - MR closed/merged -> proceed (post-hoc tour still valuable).
 
 ## The bundled fetcher
 
-MR mode calls `scripts/fetch-mr.sh`, **bundled inside this skill** (sibling to `SKILL.md`, resolved relative to the skill's base dir), so the skill is self-contained — no dependency on a repo-root `scripts/` home or on any other skill. The helper needs only `glab` on PATH; it writes `mr.json` + `mr.diff` to `$CLAUDE_JOB_DIR`.
+MR mode calls `scripts/fetch-mr.sh`, **bundled inside this skill** (sibling to `SKILL.md`, resolved relative to the skill's base dir), so the skill is self-contained — no dependency on a repo-root `scripts/` home or any other skill. Needs only `glab` on PATH; writes `mr.json` + `mr.diff` to `$CLAUDE_JOB_DIR`.
 
 If `glab` is missing or unauthenticated, the fetcher exits non-zero with a clear hint (`glab auth login`). Code mode (`path:` / `symbol:` input) is fully standalone — no fetcher needed.

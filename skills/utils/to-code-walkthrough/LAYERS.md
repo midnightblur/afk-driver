@@ -1,6 +1,6 @@
 # Layer prompts
 
-Referenced from [SKILL.md](SKILL.md) step 9. Each block below is pasted **verbatim** into the matching layer agent's prompt. Sections are self-contained — agent sees only its own block + the source corpus paths + mermaid guidance (if applicable).
+Referenced from [SKILL.md](SKILL.md) step 9. Each block below is pasted **verbatim** into the matching layer agent's prompt. Sections self-contained — agent sees only its own block + source corpus paths + mermaid guidance (if applicable).
 
 All layers write caveman prose — compression rules per `skills/utils/caveman/SKILL.md`. Technical terms (class names, file paths, framework keywords) verbatim from source — never paraphrase.
 
@@ -8,7 +8,7 @@ All layers write caveman prose — compression rules per `skills/utils/caveman/S
 
 ## L1 `tldr`
 
-**Goal:** 3-5 bullets that answer "what changes, why, blast radius" in <60 seconds of reading.
+**Goal:** 3-5 bullets answering "what changes, why, blast radius" in <60 seconds of reading.
 
 **Read:** `mr_path` (title, description, source/target branches, file count, LOC). MR mode: also commit messages. Code mode: `target_paths` (count files + LOC).
 
@@ -66,7 +66,7 @@ All layers write caveman prose — compression rules per `skills/utils/caveman/S
 
 **Goal:** Surface non-obvious decisions. Patterns chosen. Alternatives implicitly rejected. ADR-worthy material.
 
-**Read:** `spec_path` (look for "Decisions" / "ADR" sections), `diff_path` (look for pattern markers — strategy classes, factory methods, event publishers, transactional boundaries), `repo_path` (sibling code to compare conventions — does this change ALIGN or DEVIATE).
+**Read:** `spec_path` (look for "Decisions" / "ADR" sections), `diff_path` (pattern markers — strategy classes, factory methods, event publishers, transactional boundaries), `repo_path` (sibling code to compare conventions — does this change ALIGN or DEVIATE).
 
 **Output structure:**
 ```
@@ -89,7 +89,7 @@ All layers write caveman prose — compression rules per `skills/utils/caveman/S
 - Deviates from: <prior pattern at path/to/prior.ext>, reason: <if stated in spec, cite; else "not stated">.
 ```
 
-**Caveman hits:** Each decision = one sentence + trade-off. Pattern callouts = name + path + role. No textbook definitions of patterns — assume reader knows GoF / DDD vocab.
+**Caveman hits:** Each decision = one sentence + trade-off. Pattern callouts = name + path + role. No textbook definitions — assume reader knows GoF / DDD vocab.
 
 **Skip:** line-by-line code review, judgments ("good / bad"), full pattern explanations.
 
@@ -139,7 +139,7 @@ flowchart LR
 
 **Skip:** class-level detail (L5), data shapes (L8).
 
-**Budget:** ~30 lines including diagram. See [DIAGRAMS.md](DIAGRAMS.md#flowchart-lr) for diagram tips.
+**Budget:** ~30 lines including diagram. See [DIAGRAMS.md](DIAGRAMS.md#flowchart-lr).
 
 ---
 
@@ -185,15 +185,15 @@ Only relationships shown. Member detail in linked source.
 
 **Skip:** Pure DTOs/POJOs (mention in L8), framework lifecycle classes, dependency-injection scaffolding.
 
-**Budget:** ~40 lines including diagram. See [DIAGRAMS.md](DIAGRAMS.md#classdiagram) for diagram tips. **Sparse** classDiagram — skip member listings unless signature is non-obvious.
+**Budget:** ~40 lines including diagram. See [DIAGRAMS.md](DIAGRAMS.md#classdiagram). **Sparse** classDiagram — skip member listings unless signature is non-obvious.
 
 ---
 
 ## L6 `logic`
 
-**Goal:** End-to-end flow for the primary scenario. Reader follows the trigger -> outcome path including decision points and side effects.
+**Goal:** End-to-end flow for the primary scenario. Reader follows trigger -> outcome path including decision points and side effects.
 
-**Read:** `diff_path` (trace what calls what), `repo_path` (follow into unchanged collaborators for context). For Deep preset: identify distinct scenarios from spec / MR description, emit one diagram each.
+**Read:** `diff_path` (trace what calls what), `repo_path` (follow into unchanged collaborators for context). Deep preset: identify distinct scenarios from spec / MR description, emit one diagram each.
 
 **Output structure (Standard — 1 diagram):**
 ```
@@ -240,7 +240,7 @@ sequenceDiagram
 - ...
 ```
 
-For Deep preset: repeat scenario block per distinct flow (e.g. checkout, refund, retry).
+Deep preset: repeat scenario block per distinct flow (e.g. checkout, refund, retry).
 
 **Caveman hits:** "Trigger:" / "Outcome:" / "Decision points:" / "Side effects:" labels stay. Prose between diagrams: one sentence per decision point + one phrase per side effect.
 
@@ -311,7 +311,7 @@ stateDiagram-v2
 
 ## L8 `data` (schema/DTO/event only)
 
-**Goal:** Show what data shapes change. NEW vs CHANGED vs DELETED. Foreign keys + indices + nullability called out. Auto-skipped when no data-shape files touched.
+**Goal:** What data shapes change. NEW vs CHANGED vs DELETED. Foreign keys + indices + nullability called out. Auto-skipped when no data-shape files touched.
 
 **Read:** `diff_path` (SQL migrations, entity classes, DTO classes, event classes), `repo_path` (existing entity definitions for diff context).
 
@@ -379,7 +379,7 @@ erDiagram
 
 **Goal:** Surface SURPRISING behavior, INVARIANTS, race conditions, known limitations. "Do not refactor X without reading Y."
 
-**Read:** `diff_path` (defensive checks, TODO/HACK/FIXME comments, transaction boundaries, retry / circuit-breaker config), `repo_path` (related test files for context on what's tested vs intentionally untested).
+**Read:** `diff_path` (defensive checks, TODO/HACK/FIXME comments, transaction boundaries, retry / circuit-breaker config), `repo_path` (related test files for context on tested vs intentionally untested).
 
 **Output structure:**
 ```
@@ -425,3 +425,4 @@ erDiagram
 - **`diff-only` repo:** L5/L7/L8/L9 add a one-line annotation at top: `*(diff-only mode — code beyond diff not consulted; relationships / state machines may be incomplete)*`.
 - **`no-spec` MR:** L2 leads with: `*(no PRD / spec discovered — context derived from MR description + commits)*`.
 - **Code mode (no MR):** L1 swaps "blast radius" for "scope" (file count + LOC). L2 swaps "stakeholder ask" for "module purpose". L6 emits one scenario per public entry point.
+

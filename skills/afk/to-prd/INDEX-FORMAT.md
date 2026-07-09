@@ -1,10 +1,10 @@
 # Ticket index format — `INDEX.md`
 
-The read-this-first dashboard of a ticket's spec folder. A human (or agent) landing on the feature cold opens this file and knows in one screen: what the feature is, which artifacts exist and in what state, and what order to read them in. It is an index — one line per artifact, no content that lives elsewhere.
+The read-this-first dashboard of a ticket's spec folder. A human/agent landing cold knows in one screen: what the feature is, which artifacts exist and in what state, what order to read them. One line per artifact, no content that lives elsewhere.
 
 ## Ownership
 
-Created by the PRD synthesis (which owns the summary paragraph and seeds **every** row). After that, each skill upserts **only its own row(s)** — never another skill's, never the summary. Rows for artifacts the feature never produces stay `—`. A skill finding no `INDEX.md` creates it from this template first (seeding all rows `—`), then fills its own.
+Created by PRD synthesis (owns the summary paragraph + seeds **every** row). After that each skill upserts **only its own row(s)** — never another's, never the summary. Rows for artifacts a feature never produces stay `—`. A skill finding no `INDEX.md` creates it from this template (all rows `—`), then fills its own.
 
 | Row | Owner |
 |---|---|
@@ -42,11 +42,11 @@ Created by the PRD synthesis (which owns the summary paragraph and seeds **every
 
 1. This file.
 2. DESIGN-BRIEF.md if present — the 1–2 page digest; else PRD.md's Problem Statement + User Stories.
-3. SDD.md §0 (what's locked vs free) + §1 (why this design exists) — full document only if you're implementing or reviewing design.
-4. plan/PLAN.md — the solution map and live progress tracker.
+3. SDD.md §0 (locked vs free) + §1 (why this design) — full document only if implementing or reviewing design.
+4. plan/PLAN.md — solution map + live progress tracker.
 5. plan/JOURNAL.md (tail) — what happened lately, in order.
 6. plan/review/INDEX.md — what the quality gates found.
-7. Looking back later: plan/TRACE.md (which commit satisfied which criterion), adr/ (why it's shaped this way).
+7. Later: plan/TRACE.md (which commit satisfied which criterion), adr/ (why it's shaped this way).
 ```
 
-The `State` cells above show the allowed values separated by `|` — a real index carries exactly one. The Reading order block is static boilerplate — copy it verbatim; it deliberately lists files that may not exist yet (they're `—` in the table).
+`State` cells show allowed values separated by `|` — a real index carries exactly one. The Reading order block is static boilerplate — copy verbatim; it deliberately lists files that may not exist yet (`—` in the table).

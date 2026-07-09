@@ -5,9 +5,9 @@ description: Orchestrates fixing a verification-phase or reported bug — delega
 
 # afk:fix — fix a bug and keep the source of truth true
 
-Run this yourself when a bug surfaces — typically during a feature's **verification phase** (agent- or human-found), or as ad-hoc fix on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the natural follow-up to a red feature smoke gate.
+Run when a bug surfaces — typically a feature's **verification phase** (agent- or human-found), or ad-hoc on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the follow-up to a red feature smoke gate.
 
-`fix` is a **thin orchestrator**; it does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, and **feature-session artifact reconciliation**.
+`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
 `fix` does **not** commit, push, or merge — see Hard rules.
 
@@ -18,17 +18,17 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 ## Phase 0 — Intake & classify
 
 1. **Source of the finding.**
-   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to the ticket fields — per `DELEGATION.md` (plugin root).
+   - **Jira bug** (key in arg or derivable from branch): `mcp__jira__jira_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** Decide **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`kapteyn/development/{username}/{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
+2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`kapteyn/development/{username}/{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
 
 Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop (failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked hypotheses, instrumentation, the fix, the **seam-level regression test**, cleanup + post-mortem.
 
-- For a ticketed or known-env bug, push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
-- If diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
+- Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
+- Diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
 
 Exit gate: root cause known, fix applied, seam regression test green (or seam-absence explicitly documented per diagnose Phase 5).
 
@@ -45,7 +45,7 @@ Diagnose gave you the seam regression test. Decide whether a **higher tier** is 
 
 Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
 
-**Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug that came from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). The standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
+**Corpus ratchet.** Any `api`/`e2e` scenario this phase adds is *permanent*: mark it with the catalog's corpus convention (see the matching `AUTHORING.md`) citing the ticket/finding it reproduces. A bug from an adversary-gate finding **always** gets a catalog scenario (the finding is a runtime repro by construction — its class row above never downgrades it to "no new e2e/api"). Standing suites thus accumulate every escaped bug and every adversary catch — each future feature inherits them as free checks.
 
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
@@ -55,7 +55,7 @@ For a user-visible (`e2e/browser`) or backend-contract (`api`) bug, interrogate 
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
-A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance). The reads that only locate which artifacts need reconciling (PRD / SDD / ADRs / VERIFICATION-PLAN) go through an `afk-reader` returning a cited digest of what each asserts vs the fix, per `DELEGATION.md` (plugin root); the triage and routing stay here.
+A fix on an unreleased feature can invalidate a load-bearing artifact. Triage what changed and **route to the owning skill** — never hand-edit across an ownership boundary (breaks Jira sync, ADR numbering, grill provenance). The reads that only locate which artifacts need reconciling (PRD / SDD / ADRs / VERIFICATION-PLAN) go through an `afk-reader` returning a cited digest of what each asserts vs the fix, per `DELEGATION.md` (plugin root); triage and routing stay here.
 
 | What the fix revealed | Stale artifact | Route to |
 |-----------------------|----------------|----------|
@@ -65,7 +65,7 @@ A fix on an unreleased feature can invalidate a load-bearing artifact. Triage wh
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
 | The bug could not be reproduced (diagnose built no loop) | none — nothing to reconcile yet | back to the reporter/human with the repro-attempt evidence (what was tried, what's needed); report `cannot_reproduce` |
 
-Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. If you can't reach truth this session, record the divergence and report `needs_artifact_sync`.
+Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. Can't reach truth this session → record the divergence and report `needs_artifact_sync`.
 
 ## Phase 3.5 — Workflow feedback (AFK-delivered features only)
 
@@ -89,7 +89,7 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
-When Phase 2.5 ran, add the **miss class** to the summary; when Phase 3.5 ran, append the **handoff doc path** so the workflow-improvement lesson isn't lost:
+Phase 2.5 ran → add the **miss class** to the summary; Phase 3.5 ran → append the **handoff doc path** so the workflow-improvement lesson isn't lost:
 
 ```
 OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
@@ -97,8 +97,8 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
 
 ## Hard rules
 
-- **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (it resumes and drives commit + push + MR itself). Apply edits and stop.
-- **The target repo's CLAUDE.md chain binds here** — notably its DB-migration rules and its commit rules.
+- **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
+- **The target repo's CLAUDE.md chain binds here** — notably its DB-migration and commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
 - **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **handed off** (`/afk:handoff`), never self-applied — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).

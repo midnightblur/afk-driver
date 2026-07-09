@@ -10,15 +10,15 @@ description: >
 
 # glossary — domain-vocabulary steward
 
-A **vocabulary-only steward**: it tends terminology and nothing else. No requirements grilling, no
-scope decisions, no PRD, no decision records. Reach for it when the *only* concern is the words. Always **propose → approve →
+A **vocabulary-only steward**: tends terminology and nothing else. No requirements grilling, no
+scope decisions, no PRD, no decision records. Reach for it when the *only* concern is words. Always **propose → approve →
 write**; never write unasked.
 
 ## The glossary setup (shared, not redefined here)
 
-This repo uses a **multi-context glossary** — a root `GLOSSARY-MAP.md` routing to per-service
-`GLOSSARY.md` files. Layout, format, rules, and routing are **canonical** in
-[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns that file; follow it exactly and do
+Multi-context glossary — root `GLOSSARY-MAP.md` routing to per-service
+`GLOSSARY.md` files. Layout, format, rules, routing are **canonical** in
+[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns that file; follow it exactly, do
 **not** restate its rules. Load only the glossaries the current work touches.
 
 ## Two modes (auto-detect)
@@ -29,21 +29,21 @@ This repo uses a **multi-context glossary** — a root `GLOSSARY-MAP.md` routing
 | **GRILL** | building or extending vocabulary mid-conversation | ask one vocabulary question at a time, recommend a canonical term, update the owning glossary inline as each resolves |
 
 Detect from intent: "fix / audit / dedup / reconcile the glossary" → AUDIT; "define / build / sharpen these
-terms" while terms are still fluid → GRILL. When both apply, audit what exists first, then grill the gaps.
+terms" while terms still fluid → GRILL. When both apply, audit what exists first, then grill the gaps.
 
 ### AUDIT
 
-1. Read `GLOSSARY-MAP.md` → locate the target service `GLOSSARY.md`. Read it inline; delegate the
-   code side of the scan to an `afk-reader` subagent that checks the relevant code against the
+1. Read `GLOSSARY-MAP.md` → locate target service `GLOSSARY.md`. Read it inline; delegate the
+   code side of the scan to an `afk-reader` subagent that checks relevant code against the
    glossary's terms and returns cited drift findings, per `DELEGATION.md` (plugin root).
 2. Diagnose vocabulary problems only:
-   - **Ambiguity** — one word used for several concepts.
-   - **Synonyms** — several words for one concept (pick a canonical, list the rest under `_Avoid_`).
-   - **Vague / overloaded** terms that need a precise canonical replacement.
-   - **Code drift** — glossary definition contradicts how the code actually behaves; surface it
-     ("glossary says cancellation = X, but the code cancels Y — which is right?").
-   - **Missing** — a domain term used in the conversation/code with no entry, or a **stale** definition.
-3. Propose fixes grouped per file, **cherry-pickable** — each change: the diff + a one-line *why*. For a
+   - **Ambiguity** — one word for several concepts.
+   - **Synonyms** — several words for one concept (pick a canonical, list rest under `_Avoid_`).
+   - **Vague / overloaded** terms needing a precise canonical replacement.
+   - **Code drift** — glossary definition contradicts how code actually behaves; surface it
+     ("glossary says cancellation = X, but code cancels Y — which is right?").
+   - **Missing** — a domain term used in conversation/code with no entry, or a **stale** definition.
+3. Propose fixes grouped per file, **cherry-pickable** — each change: diff + one-line *why*. For a
    moved/retired term, show `term → owner`.
 4. On approval, write inline per the shared format; update the `GLOSSARY-MAP.md` row when a glossary is
    created or term ownership shifts.
@@ -52,7 +52,7 @@ terms" while terms are still fluid → GRILL. When both apply, audit what exists
 
 Ask vocabulary questions **one at a time**, waiting for each answer; for every question give your
 recommended answer. When a term resolves, update the owning glossary **right there** — don't batch.
-If a question is answerable from the code, read the code instead of asking. Challenge conflicts against
+If a question is answerable from code, read the code instead of asking. Challenge conflicts against
 the existing glossary immediately; sharpen fuzzy language to a canonical term; stress-test boundaries
 between related concepts with concrete scenarios.
 
@@ -60,7 +60,7 @@ Done when every term surfaced in the conversation has an owning glossary entry o
 
 ## Boundaries (don't cross)
 
-- **Glossary is glossary only** — totally devoid of implementation details. Not a spec, not a scratchpad,
+- **Glossary is glossary only** — devoid of implementation details. Not a spec, not a scratchpad,
   not a home for decisions. Skip generic programming concepts (timeout, array, endpoint) unless they carry
   domain-specific meaning.
 - **Emit no decision records.** A requirement/solution decision that surfaces is for `/afk:to-prd` /
@@ -75,7 +75,7 @@ Discovery-safety rules (repo-root scoping, vendor/build/.git skips, CrowdStrike 
 
 ## Next
 
-- Terminology is sound but the *requirements* need stress-testing → [`/afk:grill-requirements`](../../afk/grill-requirements/SKILL.md).
+- Terminology sound but *requirements* need stress-testing → [`/afk:grill-requirements`](../../afk/grill-requirements/SKILL.md).
 - Ready to synthesize settled requirements into a PRD → `/afk:to-prd`.
 
-Glossary maintenance is **standalone** — it does not require running the AFK chain.
+Glossary maintenance is **standalone** — does not require running the AFK chain.

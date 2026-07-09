@@ -6,8 +6,8 @@
 
 ## UI Journeys
 
-Each is one integrated end-user browser flow that decides "feature works". Each
-traces to a PRD User Story and becomes one `Scenario` in the ui-e2e Gherkin catalog.
+Each is one integrated end-user browser flow deciding "feature works", traced to a
+PRD User Story, becoming one `Scenario` in the ui-e2e Gherkin catalog.
 
 | # | Journey (plain business language) | Actor | Traces to | Env-limited? |
 |---|-----------------------------------|-------|-----------|--------------|
@@ -28,9 +28,9 @@ traces to a PRD User Story and becomes one `Scenario` in the ui-e2e Gherkin cata
 > Deferred — needs the SDD's §3 endpoint contracts. Re-run /afk:grill-verification
 > after /afk:to-sdd, then /afk:to-verification-plan to append these.
 
-Each is one direct-REST check that proves a backend contract without the UI. Each
-traces to an SDD §3 endpoint (+ the PRD Acceptance Criterion it proves) and becomes
-one `node:test` *.test.mjs in verification/api/ (using ../core).
+Each is one direct-REST check proving a backend contract without the UI, traced to
+an SDD §3 endpoint (+ the PRD Acceptance Criterion it proves), becoming one
+`node:test` *.test.mjs in verification/api/ (using ../core).
 
 | # | Scenario (call → asserted contract) | Surface (method + path) | Traces to | Env-limited? |
 |---|-------------------------------------|-------------------------|-----------|--------------|
@@ -47,9 +47,9 @@ one `node:test` *.test.mjs in verification/api/ (using ../core).
 
 ## Aspect coverage
 
-One verdict per aspect: a triggered aspect points at the row(s) that prove it; a
-non-triggered one records why it's N/A. Role-based and data-scoped access each owe
-a proving row in **both** modalities.
+One verdict per aspect: triggered → points at the row(s) proving it; non-triggered
+→ records why it's N/A. Role-based and data-scoped access each owe a proving row in
+**both** modalities.
 
 <!-- aspect set below: lockstep copy — owned by skills/afk/grill-verification/SKILL.md (aspect table) -->
 
@@ -64,6 +64,6 @@ a proving row in **both** modalities.
 ## Gaps surfaced
 
 Gaps the scenario-walk exposed, for the human to fold back into the PRD/SDD.
-(Load-bearing gaps were routed back during /afk:grill-verification.)
+(Load-bearing gaps already routed back during /afk:grill-verification.)
 
 - <gap> — <which Story / endpoint / scenario exposed it>

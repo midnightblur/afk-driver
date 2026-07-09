@@ -1,34 +1,34 @@
 # Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
 The per-subtask `api` / `e2e/browser` tiers prove **one slice** in isolation. A
-feature with a `VERIFICATION-PLAN.md` also gets an **integrated smoke
-gate**: those cross-subtask scenarios — both
-modalities — run against a real running app as the final "feature complete"
-check, and reused afterward by CI / scheduled jobs / manual sanity runs. The gate
-that *runs* them is a separate skill (`/afk:smoke-test`); this skill **seeds** the
-gate and **emits the build subtasks** that author the specs.
+feature with a `VERIFICATION-PLAN.md` also gets an **integrated smoke gate**:
+those cross-subtask scenarios — both modalities — run against a real running app
+as the final "feature complete" check, reused afterward by CI / scheduled jobs /
+manual sanity runs. The gate that *runs* them is a separate skill
+(`/afk:smoke-test`); this skill **seeds** the gate and **emits the build
+subtasks** that author the specs.
 
 **The trigger is the artifact, not an ask.** If `VERIFICATION-PLAN.md` sits next
-to the PRD, the human already decided.
-Emit the gate section **and one build subtask per modality the plan carries**:
+to the PRD, the human already decided. Emit the gate section **and one build
+subtask per modality the plan carries**:
 
 - **The PLAN.md `## Feature smoke gate` section** (template below): seed one row
-  per scenario across **both** the plan's `## UI Journeys` and `## API Scenarios`
-  — its plain-language summary, the source it traces to (UI → PRD User Story;
-  API → SDD §3 row / PRD Acceptance Criterion), the spec it maps to, its
-  `Modality` (`ui-e2e` | `api`), and its `env-limited` flag carried over verbatim
-  (so `/afk:smoke-test` excludes those from its green verdict). Don't invent
+  per scenario across **both** `## UI Journeys` and `## API Scenarios` — its
+  plain-language summary, the source it traces to (UI → PRD User Story; API →
+  SDD §3 row / PRD Acceptance Criterion), the spec it maps to, its `Modality`
+  (`ui-e2e` | `api`), and its `env-limited` flag carried over verbatim (so
+  `/afk:smoke-test` excludes those from its green verdict). Don't invent
   scenarios here — `VERIFICATION-PLAN.md` is the source of truth.
 - **The terminal `NNNN-smoke-e2e` build subtask** (UI journeys) and, when the
   plan has real `## API Scenarios`, **the terminal `NNNN-smoke-api` build
   subtask** (API contracts) — Process step 3, using the base subtask contract
   with the fields below. The how-to-build recipes (layers, conventions, reference
-  data, verify-in-order, definition-of-done) are **not** restated here or anywhere
-  in this repo — they live canonically at
+  data, verify-in-order, definition-of-done) are **not** restated here or
+  anywhere in this repo — they live canonically at
   **`11700-payable/verification/ui-e2e/AUTHORING.md`** and
   **`11700-payable/verification/api/AUTHORING.md`**, versioned with the
-  verification code so they can't drift. Each subtask's job is to point the build
-  agent there and read it first. Both blocked by every other subtask.
+  verification code so they can't drift. Each subtask points the build agent
+  there and reads it first. Both blocked by every other subtask.
 
 ```
 ## Goal
@@ -98,9 +98,9 @@ placeholder, emit only `NNNN-smoke-e2e`. (To add coverage later, run
 ## No `VERIFICATION-PLAN.md` → the minimal gate (never no gate)
 
 A feature without a verification plan still may not stamp complete on
-per-subtask tiers alone. Emit a `## Feature smoke gate (minimal)` section
-instead — no build subtasks, no scenario table, five fixed rows the gate skill
-executes as-is:
+per-subtask tiers alone. Emit a `## Feature smoke gate (minimal)` section instead
+— no build subtasks, no scenario table, five fixed rows the gate skill executes
+as-is:
 
 ```
 ## Feature smoke gate (minimal)
@@ -116,8 +116,8 @@ executes as-is:
 Last run: —
 ```
 
-`{changed modules}` = the union of every subtask's Scope-derived Maven modules.
-Rows 4–5 prove the feature broke nothing the suites already covered; they add no
-feature-specific scenarios — that coverage requires a real
-`VERIFICATION-PLAN.md` (upgrade any time: grill → plan → re-run this skill; the
-full gate then replaces the minimal section).
+`{changed modules}` = union of every subtask's Scope-derived Maven modules. Rows
+4–5 prove the feature broke nothing the suites already covered; they add no
+feature-specific scenarios — that coverage requires a real `VERIFICATION-PLAN.md`
+(upgrade any time: grill → plan → re-run this skill; the full gate then replaces
+the minimal section).

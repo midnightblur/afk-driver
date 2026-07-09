@@ -1,6 +1,6 @@
 # Retro report format — `RETRO-{YYYY-MM-DD}.md`
 
-Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior one (the trail of retros is itself evidence of whether proposals worked).
+Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior (the trail of retros is itself evidence of whether proposals worked).
 
 ## Sections, in order
 
@@ -24,11 +24,11 @@ One row per feature:
 
 ### 2. Signals
 
-One `###` block per signal family that fired (recurring finding classes, park patterns, stall geography, grill-gap correlation, wiring debt — definitions in `SKILL.md`). Each block: the aggregate numbers, then the occurrence list — every occurrence cited as `{ticket} {NNNN-slug} — {source}: {line/id}`. A family with nothing ≥2 occurrences states `no recurring signal` and is one line.
+One `###` block per signal family that fired (recurring finding classes, park patterns, stall geography, grill-gap correlation, wiring debt — definitions in `SKILL.md`). Each block: aggregate numbers, then the occurrence list — every occurrence cited as `{ticket} {NNNN-slug} — {source}: {line/id}`. A family with nothing ≥2 occurrences states `no recurring signal`, one line.
 
 ### 3. Gate latency
 
-The verbatim output of `gate-metrics-report.sh` plus one sentence per gate whose p95 breaches the budget (`hooks/README.md` "Latency metrics & budget"), naming the dominant component (`lock_wait_ms`, `package_ms`, run count).
+Verbatim output of `gate-metrics-report.sh` plus one sentence per gate whose p95 breaches the budget (`hooks/README.md` "Latency metrics & budget"), naming the dominant component (`lock_wait_ms`, `package_ms`, run count).
 
 ### 4. Proposals (the load-bearing section)
 
@@ -45,4 +45,4 @@ At most 5, ranked by expected impact. Each:
 
 ### 5. Verdict on prior retro
 
-If a prior `RETRO-*.md` exists in the folder: for each of its proposals, one line — `applied` / `not applied` / `applied, signal gone` / `applied, signal persists` (the last one means the hypothesis was wrong — say so). If none exists: `first retro for this release.`
+If a prior `RETRO-*.md` exists in the folder: per proposal, one line — `applied` / `not applied` / `applied, signal gone` / `applied, signal persists` (the last means the hypothesis was wrong — say so). If none exists: `first retro for this release.`

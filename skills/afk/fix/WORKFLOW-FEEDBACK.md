@@ -3,11 +3,11 @@
 Phase 3 fixed *this feature's* artifacts. This step asks the next question:
 **which AFK stage let the bug through, and what should change so the next feature
 doesn't repeat it.** Run **only** when the feature was built with AFK assistance
-(the Phase 0 feature-building signals: AFK branch + `plan/PLAN.md`). For
-ad-hoc/maintenance bugs there is no AFK workflow to improve → skip.
+(Phase 0 feature-building signals: AFK branch + `plan/PLAN.md`). Ad-hoc/maintenance
+bugs have no AFK workflow to improve → skip.
 
-The lesson is **handed off, not self-applied.** We do **not** edit the AFK skills
-here and we do **not** run a retro — improving a workflow skill is a separate,
+The lesson is **handed off, not self-applied.** Do **not** edit the AFK skills
+here and do **not** run a retro — improving a workflow skill is a separate,
 reviewed change that the agent owning the plugin
 (`tools/payable/ai-agents/plugins/workflow/`) picks up.
 
@@ -28,7 +28,7 @@ reviewed change that the agent owning the plugin
      path, don't restage it.
    - **Miss class** — from Phase 2.5.
    - **Implicated stage + skill** — from the table.
-   - **Proposed change** — the concrete edit to that skill (a new grill question, a
+   - **Proposed change** — the concrete edit to that skill (new grill question,
      tighter slice-time check, a seam the SDD must pin, a narrower exclusion rule)
      that would have forced the guard to exist.
    - **Evidence** — the existing scenario file + the assertion that whiffed

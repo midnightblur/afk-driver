@@ -2,21 +2,19 @@
 
 Every plan ends with one terminal `NNNN-sync-harness` documentation subtask that
 updates the CLAUDE.md harness so the next agent discovers the shipped feature and
-how to use it, makes the final staples-registry call for the feature, **and emits
-the trace matrix** (`plan/TRACE.md`). Emit it for every feature — it is not gated
-on any artifact.
+how to use it, makes the final staples-registry call, **and emits the trace
+matrix** (`plan/TRACE.md`). Emit for every feature — not gated on any artifact.
 
 **The trace matrix.** Running last, this subtask is the one moment everything is
 known — which commits landed, which tests exist, which criteria they satisfy. It
 writes `plan/TRACE.md`: one table, one row per PRD Acceptance Criterion (and per
 accepted staple obligation), columns `Criterion (verbatim) | Subtask | Commits
 ([NNNN-slug]-prefixed short SHAs) | Proven by (test file / scenario name / gate
-row)`. Rows whose criterion nothing satisfied are listed with `— UNSATISFIED` —
-surfacing the gap is the point. Written once; a re-run overwrites. This is the
-artifact a human opens months later to answer "which commit satisfied which
-requirement".
+row)`. Rows nothing satisfied are listed `— UNSATISFIED` — surfacing the gap is
+the point. Written once; a re-run overwrites. The artifact a human opens months
+later to answer "which commit satisfied which requirement".
 
-It delegates the write to `/afk:claude-md`; the subtask only scopes that to this
+Delegates the write to `/afk:claude-md`; the subtask only scopes that to this
 feature's net diff and states the deliverables. `## Blocked by` lists every
 other subtask (including any `NNNN-smoke-*`) so it runs last, against the finished
 feature.
@@ -26,7 +24,7 @@ registry (`{service}/STAPLES.md`) — earlier stages only *raised* candidates. T
 subtask resolves them: (a) if the PRD flagged this feature as a **candidate new
 staple** and it genuinely became a standing expectation, register it; (b) if the
 feature is the new best exemplar of an **existing** staple, advance that staple's
-`Reference` (and fill a `TODO` Reference/Since the feature now satisfies). Both are
+`Reference` (and fill a `TODO` Reference/Since it now satisfies). Both are
 judgment calls surfaced to the human via `/afk:claude-md`'s propose→approve gate — no
 candidate ⇒ no registry change.
 

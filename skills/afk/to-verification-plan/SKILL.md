@@ -5,7 +5,7 @@ description: Synthesizes settled verification scenarios into `VERIFICATION-PLAN.
 
 # afk:to-verification-plan — synthesize the verification plan
 
-Synthesize the verification scenarios already settled in conversation into `VERIFICATION-PLAN.md` on disk. This is a **synthesis** skill — no re-interview; write down what was already settled. Scenarios not settled (key envelopes/click-paths still vague) → stop, route to `/afk:grill-verification` first.
+Synthesize the verification scenarios already settled in conversation into `VERIFICATION-PLAN.md` on disk. A **synthesis** skill — no re-interview; write down what was settled. Scenarios not settled (key envelopes/click-paths still vague) → stop, route to `/afk:grill-verification` first.
 
 The artifact catalogs both modalities:
 
@@ -16,7 +16,7 @@ Downstream: `/afk:to-subtasks` reads this plan to seed the `## Feature smoke gat
 
 ## When to invoke — and which modalities land
 
-Run once the verification scenarios are settled. What you can write depends on what's on disk:
+Run once verification scenarios are settled. What you can write depends on what's on disk:
 
 | On disk | UI journeys | API scenarios |
 |---------|-------------|---------------|
@@ -24,16 +24,16 @@ Run once the verification scenarios are settled. What you can write depends on w
 | PRD + SDD | ✅ write now | ✅ write now |
 
 - **API scenarios require the SDD.** Pre-SDD run writes UI journeys, leaves `## API Scenarios` as the deferred placeholder (below).
-- **Re-running appends, doesn't rewrite.** If `VERIFICATION-PLAN.md` already exists (UI journeys written pre-SDD), a post-SDD re-run **adds** the `## API Scenarios` section, leaves existing `## UI Journeys` untouched. Never clobber settled UI journeys.
+- **Re-running appends, doesn't rewrite.** `VERIFICATION-PLAN.md` already exists (UI journeys written pre-SDD) → a post-SDD re-run **adds** the `## API Scenarios` section, leaves existing `## UI Journeys` untouched. Never clobber settled UI journeys.
 
 ## Arguments
 
 - `prd_path` — the PRD (`.../{TICKET-ID}/PRD.md` or `tasks/{TICKET-ID}/PRD.md`). `VERIFICATION-PLAN.md` written as its sibling.
-- `sdd_path` *(optional)* — the sibling `SDD.md`. Present → write both modalities; absent → UI journeys only, API deferred.
+- `sdd_path` *(optional)* — sibling `SDD.md`. Present → both modalities; absent → UI journeys only, API deferred.
 
 ## Process
 
-1. **Confirm scenarios are settled.** If the settled scenarios didn't survive into this context (fresh session, compaction), first read the verification section of the ticket folder's `GRILL-LOG.md` — the checkpoint exists exactly for this. Each journey/scenario must have been walked to a concrete click-path or request → response envelope. Anything load-bearing still vague → stop; that's a `/afk:grill-verification` gap, not something to invent here.
+1. **Confirm scenarios are settled.** If they didn't survive into this context (fresh session, compaction), read the verification section of the ticket folder's `GRILL-LOG.md` — the checkpoint exists for this. Each journey/scenario must have been walked to a concrete click-path or request → response envelope. Anything load-bearing still vague → stop; a `/afk:grill-verification` gap, not something to invent here.
 
 2. **Detect prior state.** Check for an existing sibling `VERIFICATION-PLAN.md`. Present (UI written pre-SDD) + SDD now on disk → you're **appending** the API section; read the existing file, preserve `## UI Journeys` verbatim.
 
@@ -45,7 +45,7 @@ Run once the verification scenarios are settled. What you can write depends on w
 
 5. **Update the ticket index.** Upsert the `Verification plan` row in the sibling `INDEX.md` (`UI only (API deferred)` or `UI + API`) per `skills/afk/to-prd/INDEX-FORMAT.md`; create the file per that format if missing.
 
-6. **Print the result.** First reconcile counts: every scenario settled in the grill (in conversation or the `GRILL-LOG.md` checkpoint) appears as a row in the plan — count both sides; a silent drop is a failure. Then print the path and one line per scenario (modality, actor/surface, traces-to, env-limited?). State explicitly whether API scenarios were written or deferred.
+6. **Print the result.** First reconcile counts: every scenario settled in the grill (conversation or `GRILL-LOG.md` checkpoint) appears as a row in the plan — count both sides; a silent drop is a failure. Then print the path and one line per scenario (modality, actor/surface, traces-to, env-limited?). State explicitly whether API scenarios were written or deferred.
 
 ## `VERIFICATION-PLAN.md` (the artifact)
 
@@ -56,10 +56,10 @@ Write `VERIFICATION-PLAN.md` using the template in [VERIFICATION-PLAN-TEMPLATE.m
 ## Hard rules
 
 - **Carry env-limited flags through.** Both modalities — so the downstream gate excludes them from its green verdict.
-- **Persistence reverify (UI) / refetch (API).** The owning statement of this rule is the template's `**Persistence reverify**` / `**Persistence refetch**` lines ([VERIFICATION-PLAN-TEMPLATE.md](VERIFICATION-PLAN-TEMPLATE.md)) — emit them per the template on every journey/scenario; `n/a` only for the reasons the template states.
+- **Persistence reverify (UI) / refetch (API).** Owning statement is the template's `**Persistence reverify**` / `**Persistence refetch**` lines ([VERIFICATION-PLAN-TEMPLATE.md](VERIFICATION-PLAN-TEMPLATE.md)) — emit them per the template on every journey/scenario; `n/a` only for the reasons the template states.
 - **Every scenario traces to a source.** No orphan rows: UI → User Story; API → SDD §3 row + PRD Acceptance Criterion.
 - **The `## Aspect coverage` ledger is complete.** Every aspect has a verdict (triggered with proving rows, or N/A with a reason), satisfying the template's `## Aspect coverage` rules. A blank verdict is a grill gap to route back, not a row to leave empty.
-- **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). Touches no Jira, no GitLab.
+- **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). No Jira, no GitLab.
 
 ## Next
 

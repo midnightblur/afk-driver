@@ -1,17 +1,16 @@
 # MANIFEST.md — the external-dependency register
 
-One entry per external dependency of the workflow — CLIs, MCP servers, secrets,
-sibling checkouts, env toggles. This file is the **one home** for that fact set:
-skills point at an entry id (e.g. `MANIFEST.md · N2`) instead of restating
-install steps; the same-commit rule that keeps it true lives in `FRESHNESS.md`
-(plugin root).
+One entry per external dependency — CLIs, MCP servers, secrets, sibling
+checkouts, env toggles. The **one home** for that fact set: skills point at an
+entry id (e.g. `MANIFEST.md · N2`) instead of restating install steps; the
+same-commit rule keeping it true lives in `FRESHNESS.md` (plugin root).
 
-**Entry fields.** `Needed by` — which skills/scripts hit the dep · `Probe` —
-exit 0 = healthy · `Fix` — `auto:` the agent runs it; `human:` the agent guides,
+**Entry fields.** `Needed by` — skills/scripts hitting the dep · `Probe` — exit
+0 = healthy · `Fix` — `auto:` the agent runs it; `human:` the agent guides,
 never runs · `Notes`. Probes are POSIX-shell commands run from the
-**core-services repo root** (any worktree) unless prefixed `agent:` (an
-in-session check). Entries tagged **[deferred]** aren't needed until the named
-first use — report them as `deferred`, never as failures.
+**core-services repo root** (any worktree) unless prefixed `agent:` (in-session
+check). Entries tagged **[deferred]** aren't needed until the named first use —
+report as `deferred`, never as failures.
 
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
@@ -24,9 +23,9 @@ a token value — not even partially.
 - **Fix:** `human:` the bootstrap snippet in `README.md` §4 (marketplace add +
   install + `enabledPlugins`), then `/reload-plugins`.
 - **Notes:** may instead be enabled at project scope (`.claude/settings.json` /
-  `.claude/settings.local.json` in the repo) — a miss here + `/afk:*` skills
-  visible in-session is still healthy. Directory-source installs are
-  snapshotted: after any `git pull` that touched the plugin, `/reload-plugins`.
+  `.claude/settings.local.json`) — a miss here + `/afk:*` skills visible
+  in-session is still healthy. Directory-source installs are snapshotted: after
+  any `git pull` touching the plugin, `/reload-plugins`.
 
 ### H2 · Jira MCP server
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
@@ -46,7 +45,7 @@ a token value — not even partially.
 - **Probe:** `agent:` `ctx_read` is callable.
 - **Fix:** `human:` install lean-ctx per its own docs, or skip.
 - **Notes:** native Read/Grep are functional equivalents — skills degrade
-  gracefully; this dep costs nothing when absent.
+  gracefully; costs nothing when absent.
 
 ### H4 · Claude Design MCP *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,

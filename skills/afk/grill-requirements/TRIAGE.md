@@ -1,6 +1,6 @@
 # TRIAGE.md — debate vs confirm (batching the trivial tail)
 
-The one home for grill-question triage. A grill skill that batches points here;
+The one home for grill-question triage. Grill skills batch points here;
 this file names no caller.
 
 ## The rule
@@ -17,8 +17,8 @@ Before asking, classify every pending question in the current section/layer:
   existing pattern to copy.
 
 Confirms accumulate; at the section/layer boundary (never across layers),
-present them as **one batch** — per item: the question, the recommended
-answer, a one-line why.
+present them as **one batch** — per item: question, recommended
+answer, one-line why.
 
 ## Evidence pre-fill
 
@@ -46,7 +46,7 @@ presentation.
 
 ## Escalation and locking
 
-- Any item the user **overrides or questions** leaves the batch and becomes
+- Any item the user **overrides or questions** leaves the batch, becomes
   debate-class — re-grilled one-at-a-time before locking.
 - A batch-accepted item locks with its recommended rationale and checkpoints
   into `GRILL-LOG.md` like any other decision

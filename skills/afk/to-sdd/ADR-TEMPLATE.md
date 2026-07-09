@@ -21,7 +21,7 @@ The chosen approach in one paragraph.
 
 ## Alternatives Considered
 
-At least two. **Required visual:** comparison table OR `quadrantChart` plotting alternatives on two axes that mattered for THIS context.
+≥2. **Required visual:** comparison table OR `quadrantChart` plotting alternatives on two axes that mattered for THIS context.
 
 | Alternative | Pros | Cons | Reason rejected |
 |-------------|------|------|-----------------|

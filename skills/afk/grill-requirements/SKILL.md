@@ -5,11 +5,11 @@ description: Grilling session that challenges your plan against the existing dom
 
 ## What to do
 
-Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide a recommended answer.
+Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree, resolving decision dependencies one-by-one. Recommend an answer per question.
 
-Ask questions one at a time; wait for feedback on each before continuing.
+Ask one at a time; wait for feedback before continuing.
 
-If a question can be answered by exploring the codebase, explore it instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
+If a question is answerable by exploring the codebase, explore instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
 
 ## Domain awareness
 
@@ -19,21 +19,21 @@ During codebase exploration, also look for existing documentation. This repo use
 
 ### Challenge against the glossary
 
-When the user uses a term that conflicts with the existing language in the relevant `GLOSSARY.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When a term conflicts with the existing language in the relevant `GLOSSARY.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
 
 ### Sharpen fuzzy language
 
-When the user uses vague or overloaded terms, propose a precise canonical term. "You're saying 'account' — do you mean the Customer or the User? Those are different things."
+On vague or overloaded terms, propose a precise canonical term. "You're saying 'account' — the Customer or the User? Those are different things."
 
 ### Discuss concrete scenarios
 
-When domain relationships are discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about boundaries between concepts.
+When domain relationships are discussed, stress-test with specific scenarios probing edge cases, forcing the user to be precise about boundaries between concepts.
 
 ### Verify claims — maintain the claim ledger
 
-When the user states how something works — the existing behaviour, a constraint, an ownership boundary — verify it against the code before building requirements on it, per the discipline in [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling) — delegate the verification per `DELEGATION.md`. A contradiction is surfaced immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+When the user states how something works — existing behaviour, a constraint, an ownership boundary — verify against the code before building requirements on it, per [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling); delegate the verification per `DELEGATION.md`. Surface a contradiction immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
-Keep a running **claim ledger** in the conversation: every load-bearing claim gets one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it and update the row to `verified` against the actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. The ledger is what the PRD synthesis gates on — a lost ledger means re-verifying, not waving through.
+Keep a running **claim ledger** in the conversation: every load-bearing claim one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it, update the row to `verified` against actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. PRD synthesis gates on the ledger — a lost ledger means re-verifying, not waving through.
 
 **Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. When a human is present, render per LAVISH.md (RP-6, playbook `diagram`) for a shared view across every grill's `GRILL-LOG.md` section — **mandatory, per LAVISH.md's binding "Primary path" rule** (the host's native picker is not a substitute); only driven mode and a genuine render failure fall back to reading the log file directly.
 
@@ -46,7 +46,7 @@ Users ask for the solution they imagined, not always the one their problem needs
 
 ### Devil's-advocate pass (before synthesis)
 
-When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn per `DELEGATION.md`. Its brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings to the user as the final grill round; each finding is resolved or explicitly accepted before moving on.
+When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn per `DELEGATION.md`. Brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings as the final grill round; resolve or explicitly accept each before moving on.
 
 ### Grill the access & validation policy (every feature)
 
@@ -54,13 +54,13 @@ Grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md) — every run, whe
 
 ### Go through the staples (every feature)
 
-Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, resolve the user *in or out — and why?*, and record the rationale in the conversation — a matching staple must never be skipped silently. The in/out calls are confirm-class by default: batch them per [TRIAGE.md](TRIAGE.md) (a contested call escalates to debate). Then raise the mirror question: does this feature itself mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
+Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, resolve the user *in or out — and why?*, record the rationale in the conversation — a matching staple must never be skipped silently. In/out calls are confirm-class by default: batch them per [TRIAGE.md](TRIAGE.md) (a contested call escalates to debate). Then the mirror question: does this feature mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
 
 ### Update GLOSSARY.md inline
 
-When a term is resolved, update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if the term is system-wide — immediately. Don't batch these up — capture them as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
+When a term resolves, immediately update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if system-wide. Don't batch — capture as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
 
-`GLOSSARY.md` should be totally devoid of implementation details. Don't treat `GLOSSARY.md` as a spec, scratch pad, or repository for implementation decisions. It is a glossary and nothing else.
+`GLOSSARY.md` must be totally devoid of implementation details — not a spec, scratch pad, or repository for implementation decisions. A glossary and nothing else.
 
 ### Decision records come later — don't write them here
 
@@ -69,7 +69,7 @@ This skill builds *understanding*; it does not emit decision records. When a dec
 - **Requirement-level** decisions (how the feature must *behave*, what's in/out of scope) → recorded by **`/afk:to-prd`** as a requirements ADR.
 - **Solution-level** decisions (algorithm, pattern, technology) → recorded by **`/afk:to-sdd`** as a design ADR.
 
-The glossary is the one artifact this skill maintains — because it *is* the shared understanding being built, not a record of a decision.
+The glossary is the one artifact this skill maintains — it *is* the shared understanding being built, not a record of a decision.
 
 ## Next
 
@@ -82,4 +82,4 @@ Only declare the requirements decision tree exhausted when ALL hold:
 - Every requirement carries its pain; every restriction survived its counter-question.
 - The devil's-advocate pass ran with its findings resolved.
 
-Then run **`/afk:to-prd`** to synthesize the conversation into a PRD written to the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Then run **`/afk:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

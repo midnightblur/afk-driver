@@ -5,10 +5,10 @@ existing infrastructure — libraries, services, frameworks, datastores,
 caches, queues, auth providers, observability stacks, modules, schemas,
 build/deploy topology — do **not** accept it into the design. Verify
 against the codebase before letting it constrain a downstream decision.
-A fictional premise propagates into the SDD, then into ADRs, then into
+A fictional premise propagates into the SDD, then ADRs, then
 subtask `## Produces` contracts referencing types that don't exist —
-every downstream layer inherits the lie, and no preflight grep can
-catch it because the contracts are *internally* consistent with the
+every downstream layer inherits the lie, and no preflight grep
+catches it because the contracts are *internally* consistent with the
 fiction.
 
 **Trigger phrases.** When you hear (or are about to write) any of these,
@@ -43,12 +43,12 @@ context on the interview and acts on the digests.
 
 1. **Surface the gap explicitly.** Quote what the user said. Quote what
    the search found (or didn't find). No papering over.
-2. **Walk the user through three options.** (a) They were mistaken —
-   redo the question with the actual posture. (b) They're proposing to
-   introduce it as part of this feature — that becomes recorded new
+2. **Walk the user through three options.** (a) Mistaken —
+   redo the question with the actual posture. (b) Proposing to
+   introduce it as part of this feature — recorded new
    work (a requirement in a requirements-phase session; an L1/L2/L3
    decision with an ADR in a design-phase session), not a casual
-   reference. (c) They confused this service with a different repo /
+   reference. (c) Confused this service with a different repo /
    module — clarify scope, then verify in the right place.
 3. **Re-ask the original question** with the corrected premise. The
    answer changes when the premise changes.
@@ -73,7 +73,7 @@ claims are most common — the claim-type table above covers the how; e.g.:
   applied per seam.
 
 Verification is cheap (one `ctx_search` / `ctx_read`); a wrong premise
-is not. If you find yourself drafting an answer that references
-something specific in the codebase, **verify before you write it down**
-— this rule applies to your own drafts too, not just the user's
+is not. Drafting an answer that references
+something specific in the codebase — **verify before you write it down.**
+This rule applies to your own drafts too, not just the user's
 assertions.
