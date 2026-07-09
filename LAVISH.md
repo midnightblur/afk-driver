@@ -48,6 +48,21 @@ looks up only its own row here — this file does not enumerate which skill
 owns which RP. Playbook ids are upstream-defined (`lavish-axi playbook`); the
 ones this plugin uses are a subset of upstream's full set.
 
+## Item ids in artifacts (binding on every render point)
+
+The artifact HTML is agent-authored; enumerated-item ids in it (scenario
+`U1`/`A2`, finding `r-003`, proposal `P{n}`, subtask `NNNN-slug`) must
+self-resolve in-page:
+
+1. **Every id occurrence** carries the item's one-line definition as a hover
+   tooltip (`title=` / `<abbr>`).
+2. **One legend** (collapsible is fine) lists every id shown: id, one-line
+   definition, catalogue file path (the on-disk file that owns the id — same
+   catalogue REPORTING.md requires to exist).
+
+Decoding an id must never require leaving the page, opening another file, or
+remembering an earlier render.
+
 ## Fallback and forbidden operations
 
 **Human-present-only.** Rendering (and its blocking `poll`) is only ever
