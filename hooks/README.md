@@ -1,6 +1,6 @@
 # Harness gates
 
-Deterministic quality gates shipped with the afk plugin. Stop gates are wired in `hooks/hooks.json`; `app-start-gate.sh` is on-demand. All gates run against the repo the session works in (`git rev-parse --show-toplevel`); the Maven/format gates no-op outside a core-services-shaped checkout (no `all-modules-pom.xml` at root ⇒ silent allow).
+Deterministic quality gates shipped with the afk plugin. Stop gates and the `lavish-dark.sh` PreToolUse hook are wired in `hooks/hooks.json`; `app-start-gate.sh` is on-demand. All gates run against the repo the session works in (`git rev-parse --show-toplevel`); the Maven/format gates no-op outside a core-services-shaped checkout (no `all-modules-pom.xml` at root ⇒ silent allow).
 
 | Gate | Trigger | Blocks when | Typical cost |
 |---|---|---|---|
@@ -9,6 +9,7 @@ Deterministic quality gates shipped with the afk plugin. Stop gates are wired in
 | `maven-compile-gate.sh` | Stop hook, changed `.java` | any changed submodule fails `compile` (reactor, `--also-make`) | 30s–3min |
 | `ui-lint-gate.sh` | Stop hook, changed `.js/.ts/.vue` | ESLint errors in changed files (nearest `.eslintrc.*` workspace) | ~10s |
 | `java-format-gate.sh` | Stop hook, changed `.java` | changed file not conformant to the repo-root `eclipse-code-formatter.xml` (STRICT: touched legacy file ⇒ reformat whole file via the Fix command it prints) | ~5s/module |
+| `lavish-dark.sh` | PreToolUse hook on Bash/PowerShell, command is a `lavish-axi <file>` render | never blocks — forces dark mode on the artifact HTML before render (lavish-axi has no theme param): DaisyUI artifact ⇒ `data-theme="dark"` on `<html>`; otherwise ⇒ luminance-gated invert override; idempotent via marker comment; non-render subcommands and non-HTML args no-op | <1s (non-lavish commands: ~0s) |
 | `app-start-gate.sh` | on demand (NOT a Stop hook) | service fails to boot: `package --also-make` + `java -jar`, watches for `Started *Application` | 3–6min (`APP_START_REUSE=1` hit: ~0s) |
 | `mutation-probe.sh` | on demand (NOT a Stop hook) | never blocks — prints PIT mutation results (`ok` with survived/no-coverage mutants, or `unavailable`) for the review gate's test-strength signal | 2–15min |
 
