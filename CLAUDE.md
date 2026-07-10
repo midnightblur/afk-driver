@@ -99,7 +99,7 @@ The contract is enforced at three checkpoints — drift can't ship without surfa
 
 ## Conventions to keep
 
-- **Branch names** must match GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$` — the `kapteyn/development/{username}/{enh_id_lower}` pattern is load-bearing for `/afk:execute`'s push.
+- **Branch names** must match GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$` — the `kapteyn/development/{username}/{enh_id_lower}` pattern is load-bearing for `/afk:execute`'s push. Enforcement (**agent-only**): `hooks/branch-name-gate.sh` (a git `reference-transaction` hook) refuses **creation** of a new local branch that doesn't match `kapteyn/development/<username>/<slug>` — but only when `CLAUDECODE` is set (i.e. the branch is being created by an agent). Human-driven creation in your own terminal/IDE, and checkouts of existing/remote-tracking branches, are never blocked. Auto-installed on `SessionStart` (`hooks/install-git-hooks.sh --quiet`, idempotent + self-scoping) so enabling the plugin is the only opt-in; `/afk:setup` (register H5) and a manual installer run are fallbacks. Bypass one agent command with `AFK_SKIP_BRANCH_CHECK=1`; disable per clone with `git config afk.branchNameGate false`.
 - **Two ADR tiers, separate subfolders.** Requirement-level ADRs (what/why): `.../{TICKET-ID}/adr/requirements/NNNN-*.md`, owned by `/afk:to-prd`. Design-level ADRs (how): `.../{TICKET-ID}/adr/design/NNNN-*.md`, owned by `/afk:to-sdd`. Numbering local to each subfolder; tiers never share numbering. Retired repo-wide `docs/adr/` is gone — all ADRs ticket-local.
 
 ## Reference

@@ -54,6 +54,23 @@ a token value — not even partially.
 - **Fix:** `human:` one-time `/design-login` in Claude Code.
 - **Notes:** local-first skills — everything works without it except the push.
 
+### H5 · branch-name git hook *(optional)*
+- **Needed by:** branch-naming discipline for `/afk:execute`'s push — enforces
+  `kapteyn/development/<username>/<slug>` on **agent** new-branch creation only
+  (gate no-ops unless `CLAUDECODE` is set; human-driven creation is untouched).
+  Workflow `CLAUDE.md` "Conventions to keep". Not required for any skill to *run*.
+- **Probe:** `grep -q afk-branch-name-gate "$(git rev-parse --path-format=absolute --git-path hooks)/reference-transaction" 2>/dev/null`
+- **Fix:** `auto:` `bash tools/payable/ai-agents/plugins/workflow/hooks/install-git-hooks.sh`
+- **Notes:** normally auto-installs on `SessionStart` (`hooks/install-git-hooks.sh
+  --quiet`, wired in `hooks.json`) whenever the plugin is enabled in a
+  core-services checkout — this entry is the fallback for non-session / CI. One
+  `reference-transaction` hook in the shared (common) hooks dir covers every
+  worktree. Gates branch **creation** only — checkouts of existing/remote
+  branches pass untouched.
+  Bypass one command: `AFK_SKIP_BRANCH_CHECK=1`. Disable: `git config
+  afk.branchNameGate false`. The installer refuses to clobber a pre-existing
+  non-AFK hook of the same name.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
