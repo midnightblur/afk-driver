@@ -179,6 +179,19 @@ class TestCreds(unittest.TestCase):
         self.assertEqual((base, email, token),
                          ("https://env.atlassian.net", "env@x.test", "env-tok"))
 
+    def test_creds_merge_per_field(self):
+        # load_creds fills each missing field from the file independently:
+        # base comes from env here, email/token from the file.
+        os.environ["JIRA_BASE_URL"] = "https://env.atlassian.net"
+        for k in ("JIRA_EMAIL", "JIRA_API_TOKEN"):
+            os.environ.pop(k, None)
+        with tempfile.TemporaryDirectory() as home:
+            self._write_claude_json(home, "https://file.atlassian.net")
+            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
+                base, email, token = jira_core.load_creds()
+        self.assertEqual(base, "https://env.atlassian.net")  # env field kept
+        self.assertEqual((email, token), ("file@x.test", "file-tok"))  # file fills the rest
+
 
 # ---------------------------------------------------------------------------
 # REST client — attachment upload + media-UUID (no network; _req stubbed)
