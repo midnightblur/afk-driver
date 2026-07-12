@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Payload-shape unit tests for jira_core — no network.
 
-Covers the shared Jira machinery extracted from to-ticket's publish_prd.py:
-ADF conversion, multipart attachment-body construction, media-UUID extraction,
-and creds resolution. Every test that would otherwise touch the network stubs
-Jira._req; nothing here opens a socket.
+Covers the shared Jira machinery: ADF conversion, multipart attachment-body
+construction, media-UUID extraction, creds resolution, and PNG sizing. Every
+test that would otherwise touch the network stubs Jira._req; nothing here opens
+a socket.
 """
 
+import json
 import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 # jira_core lives one directory up (the scripts/ dir); make it importable no
 # matter what cwd `python -m unittest discover` runs from.
@@ -87,6 +90,16 @@ class TestMdToAdf(unittest.TestCase):
         self.assertEqual(nodes[0]["attrs"], {"language": "python"})
         self.assertEqual(nodes[0]["content"][0]["text"], "x = 1")
 
+    def test_code_fence_whitespace_only_info_does_not_crash(self):
+        # Regression: a fence opened with only whitespace after the backticks
+        # gives markdown-it a truthy-but-empty info string; the converter must
+        # treat it as no language, not raise IndexError and abort the publish.
+        for src in ("```  \nx = 1\n```", "```\t \nx = 1\n```"):
+            nodes = self.adf(src)
+            self.assertEqual(nodes[0]["type"], "codeBlock")
+            self.assertNotIn("attrs", nodes[0])  # no language attr
+            self.assertEqual(nodes[0]["content"][0]["text"], "x = 1")
+
     def test_table(self):
         nodes = self.adf("| a | b |\n|---|---|\n| 1 | 2 |")
         self.assertEqual(nodes[0]["type"], "table")
@@ -137,6 +150,34 @@ class TestCreds(unittest.TestCase):
 
     def test_walk_for_jira_env_absent(self):
         self.assertIsNone(jira_core._walk_for_jira_env({"other": {"x": 1}}))
+
+    def _write_claude_json(self, home, base):
+        cfg = {"mcpServers": {"jira": {"env": {
+            "JIRA_BASE_URL": base, "JIRA_EMAIL": "file@x.test",
+            "JIRA_API_TOKEN": "file-tok"}}}}
+        (Path(home) / ".claude.json").write_text(json.dumps(cfg), encoding="utf-8")
+
+    def test_falls_back_to_claude_json_when_env_absent(self):
+        for k in self._saved:
+            os.environ.pop(k, None)
+        with tempfile.TemporaryDirectory() as home:
+            self._write_claude_json(home, "https://file.atlassian.net")
+            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
+                base, email, token = jira_core.load_creds()
+        self.assertEqual((base, email, token),
+                         ("https://file.atlassian.net", "file@x.test", "file-tok"))
+
+    def test_env_overrides_claude_json_when_both_present(self):
+        os.environ["JIRA_BASE_URL"] = "https://env.atlassian.net"
+        os.environ["JIRA_EMAIL"] = "env@x.test"
+        os.environ["JIRA_API_TOKEN"] = "env-tok"
+        with tempfile.TemporaryDirectory() as home:
+            self._write_claude_json(home, "https://file.atlassian.net")
+            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
+                base, email, token = jira_core.load_creds()
+        # env wins over the file for every field
+        self.assertEqual((base, email, token),
+                         ("https://env.atlassian.net", "env@x.test", "env-tok"))
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +252,17 @@ class TestPngSize(unittest.TestCase):
             self.assertEqual(jira_core.png_size(png), (32, 16))
         finally:
             os.unlink(png)
+
+    def test_truncated_png_returns_none(self):
+        # Regression: a file carrying the PNG signature but shorter than the
+        # 24-byte header must return None (caller falls back), not raise.
+        with tempfile.NamedTemporaryFile("wb", suffix=".png", delete=False) as f:
+            f.write(b"\x89PNG\r\n\x1a\n\x00\x00")  # signature + 2 bytes = 10
+            p = f.name
+        try:
+            self.assertIsNone(jira_core.png_size(p))
+        finally:
+            os.unlink(p)
 
     def test_non_png_returns_none(self):
         with tempfile.NamedTemporaryFile("wb", suffix=".bin", delete=False) as f:

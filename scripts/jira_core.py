@@ -7,7 +7,7 @@ write to Jira: credential resolution, a thin REST client (incl. multipart
 attachment upload + the media-UUID 303-redirect trick), Markdown→ADF conversion,
 and PNG dimension reading for inline media nodes.
 
-Extracted verbatim from to-ticket's publish_prd.py; behavior is unchanged.
+Behavior matches the original inline implementation it was extracted from.
 Skill-specific concerns (sentinel-block/description merge, mermaid rendering)
 stay in the importing scripts.
 
@@ -144,7 +144,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 def png_size(path):
     with open(path, "rb") as f:
         head = f.read(24)
-    if head[:8] != b"\x89PNG\r\n\x1a\n":
+    # A truncated file may carry the signature yet lack the IHDR width/height;
+    # treat anything short of the 24-byte header as "unknown" so callers fall
+    # back rather than crashing on a struct.error.
+    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n":
         return None
     w, h = struct.unpack(">II", head[16:24])
     return int(w), int(h)
@@ -284,7 +287,12 @@ def _build_blocks(tokens, i, stop, fig_nodes):
             i += 1
         elif t == "fence" or t == "code_block":
             attrs = {}
-            lang = (tok.info or "").strip().split()[0] if tok.info else ""
+            # tok.info is the raw, untrimmed post-marker text; a fence opened
+            # with only whitespace after the backticks yields a truthy but
+            # empty-once-split info, so guard on the split result, not on
+            # tok.info itself (else [0] raises IndexError and aborts publish).
+            info_parts = (tok.info or "").strip().split()
+            lang = info_parts[0] if info_parts else ""
             if lang:
                 attrs["language"] = lang
             node = {"type": "codeBlock", "content": [{"type": "text", "text": tok.content.rstrip("\n")}]}
