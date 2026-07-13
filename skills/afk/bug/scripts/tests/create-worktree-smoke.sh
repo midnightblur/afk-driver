@@ -46,16 +46,18 @@ git -C "$REPO" init -q
 git -C "$REPO" config user.email smoke@test.local
 git -C "$REPO" config user.name  smoke-tester
 git -C "$REPO" config commit.gpgsign false
-# a config file that references the main-repo path, to prove path rewriting
-mkdir -p "$REPO/.claude"
+# config that references the main-repo path, to prove path rewriting (top-level + a nested
+# .claude/ file, so the recursive copy_dir_with_substitution path is exercised too).
+mkdir -p "$REPO/.claude/sub"
 REPO_WIN="$(cygpath -m "$REPO" 2>/dev/null || echo "$REPO")"
 printf '{"main":"%s/x"}\n' "$REPO_WIN" > "$REPO/.mcp.json"
+printf 'root=%s/nested\n' "$REPO_WIN" > "$REPO/.claude/sub/settings.local.json"
 echo "seed" > "$REPO/README.md"
 git -C "$REPO" add -A
 git -C "$REPO" commit -qm "seed"
 BASE_BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
 
-run_cwt() { AFK_SKIP_BRANCH_CHECK=1 bash "$CWT" "$@"; }
+run_cwt() { bash "$CWT" "$@"; }
 
 # --- Test 1 + 2: success + config rewrite -----------------------------------
 GOOD_BRANCH="kapteyn/development/tester/smoke-$$"
@@ -80,6 +82,16 @@ else
   bad ".mcp.json not cloned"
 fi
 
+# nested .claude/ file cloned + rewritten (exercises the recursive copy_dir_with_substitution)
+NESTED="$WT_PATH/.claude/sub/settings.local.json"
+if [[ -f "$NESTED" ]]; then
+  ok "nested .claude/ file cloned recursively"
+  WT_WIN2="$(cygpath -m "$WT_PATH" 2>/dev/null || echo "$WT_PATH")"
+  if grep -qF "$WT_WIN2/nested" "$NESTED"; then ok "nested file path rewritten"; else bad "nested file path not rewritten ($(cat "$NESTED"))"; fi
+else
+  bad "nested .claude/ file not cloned"
+fi
+
 # --- Test 4: teardown removes the worktree cleanly --------------------------
 # --force because the worktree carries cloned untracked config files (.mcp.json/.claude/...),
 # which plain `git worktree remove` refuses — that cloning is the whole point of the script.
@@ -96,6 +108,24 @@ if [[ $RC3 -ne 0 ]]; then ok "bad branch exits non-zero"; else bad "bad branch e
 if printf '%s' "$COMBINED3" | grep -q '^ERROR='; then ok "bad branch prints ERROR= line"; else bad "no ERROR= line (got: $COMBINED3)"; fi
 if printf '%s' "$COMBINED3" | grep -qF 'kapteyn/development'; then ok "ERROR names the gate pattern"; else bad "ERROR omits the pattern"; fi
 if [[ ! -d "$WT_PARENT/bad" ]]; then ok "no worktree created for bad branch"; else bad "worktree created despite bad branch"; fi
+
+# --- Test 5: a failure INSIDE a helper function still emits ERROR= (no bare death) ----------
+# Regression for the ERR-trap contract: without `set -E` the trap is not inherited into shell
+# functions, so a failure inside the perl path-rewrite would exit silently. Shadow perl with a
+# failing stub so substitute_paths (called on the repo-path-bearing .mcp.json) fails mid-copy;
+# the worktree add succeeds first, then the config copy trips the trap.
+STUBBIN="$TMP_ROOT/stubbin"
+mkdir -p "$STUBBIN"
+printf '#!/bin/sh\nexit 1\n' > "$STUBBIN/perl"
+chmod +x "$STUBBIN/perl"
+GOOD2="kapteyn/development/tester/smoke2-$$"
+OUT5="$( ( export PATH="$STUBBIN:$PATH"; run_cwt --branch "$GOOD2" --dir good2 --base "$BASE_BRANCH" \
+        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open ) 2>"$TMP_ROOT/err5.log" )"
+RC5=$?
+COMBINED5="$OUT5$(cat "$TMP_ROOT/err5.log")"
+if [[ $RC5 -ne 0 ]]; then ok "helper-internal failure exits non-zero"; else bad "helper-internal failure exited 0"; fi
+if printf '%s' "$COMBINED5" | grep -q '^ERROR='; then ok "helper-internal failure emits ERROR= (no bare set-e death)"; else bad "helper-internal failure was a bare death — no ERROR= line"; fi
+git -C "$REPO" worktree remove --force "$WT_PARENT/good2" >/dev/null 2>&1 || true
 
 # --- summary ----------------------------------------------------------------
 echo ""

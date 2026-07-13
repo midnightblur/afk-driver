@@ -2,9 +2,9 @@
 #
 # create-worktree - clone a git worktree for core-services with full dev-environment parity.
 #
-# Canonical worktree provisioner for this repo (humans and the /afk:bug fixer alike) — plain
-# `git worktree add` skips the .claude/.idea/.run/.mcp.json cloning + path rewriting below,
-# leaving a half-configured worktree with no hooks/gates/MCP config.
+# Canonical worktree provisioner for this repo (interactive and autonomous callers alike) —
+# plain `git worktree add` skips the .claude/.idea/.run/.mcp.json cloning + path rewriting
+# below, leaving a half-configured worktree with no hooks/gates/MCP config.
 #
 # Usage:
 #   create-worktree --branch <full-branch-name> --dir <worktree-dir-name> [options]
@@ -26,7 +26,7 @@
 #   --idea-bin <path> IDE launcher. Default: `ide_binary` from .claude/afk.local.json.
 #   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
 #   --no-npm          Skip `npm ci` at the new worktree root.
-#   --no-open         Skip launching the IDE on the new worktree (always set in fixer mode).
+#   --no-open         Skip launching the IDE on the new worktree (set by non-interactive callers).
 #
 # Output contract (machine-readable, always the LAST line):
 #   success  -> WORKTREE_PATH=<absolute path>
@@ -40,8 +40,11 @@ set -u
 # --- error contract: every failure path emits a single ERROR= line + non-zero exit --------
 error_exit() { echo "ERROR=$1" >&2; exit 1; }
 # safety net: any command that fails under set -e trips this instead of dying silently.
+# `set -E` (errtrace) is load-bearing — without it the ERR trap is NOT inherited into shell
+# functions / command substitutions, so a failure inside a helper (perl/cp/mkdir) would be a
+# bare death with no ERROR= line. -E guarantees every failure routes through error_exit.
 trap 'error_exit "unexpected failure near line $LINENO"' ERR
-set -e
+set -eE
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -94,12 +97,17 @@ read_config_key() {
   [[ -f "$cfg" ]] || return 0
   if command -v jq >/dev/null 2>&1; then
     jq -r --arg k "$key" '.[$k] // empty' "$cfg" 2>/dev/null || true
+  elif [[ -z "${JQ_WARNED:-}" ]]; then
+    # config present but unreadable — warn once so a configured value isn't silently ignored.
+    JQ_WARNED=1
+    echo -e "  ${YELLOW}jq not found — ignoring $cfg defaults; pass --parent/--idea-bin explicitly${NC}" >&2
   fi
 }
 
 # Resolve the main repo dir first (config lives under it).
 if [[ -z "$REPO_DIR" ]]; then
-  REPO_DIR="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  # sed (not awk $2) so a main-repo path containing spaces isn't truncated to its first word.
+  REPO_DIR="$(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -1)"
   [[ -n "$REPO_DIR" ]] || REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 fi
 [[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir (pass --repo)"
