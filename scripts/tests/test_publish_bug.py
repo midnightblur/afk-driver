@@ -61,6 +61,8 @@ class RecordingJira:
         self.calls = []          # list of (method, path, payload-or-None, headers)
         self.handler = handler   # fn(method, path) -> FakeResp | HTTPError | Exception
         self.base = "https://nakisa.example/jira"
+        self.resolved = []       # att_ids passed to resolve_media_uuid
+        self.embed_error = None  # if set, resolve_media_uuid raises it (degrade path)
 
     def _req(self, method, path, data=None, headers=None, follow=True):
         payload = json.loads(data) if data else None
@@ -73,10 +75,14 @@ class RecordingJira:
     # bug embed uses these two shared-client methods
     def upload_attachment(self, key, filepath):
         self.calls.append(("UPLOAD", f"/issue/{key}/attachments", os.path.basename(filepath), {}))
-        return "att-1"
+        return f"att-{os.path.basename(filepath)}"
 
     def resolve_media_uuid(self, att_id):
-        return "11111111-2222-3333-4444-555555555555"
+        self.resolved.append(att_id)
+        if self.embed_error is not None:
+            raise self.embed_error
+        # Echo the att_id so a wiring bug (wrong id passed) is observable.
+        return f"uuid-for-{att_id}"
 
     def update_description(self, key, adf):
         self.calls.append(("PUT", f"/rest/api/3/issue/{key}", {"fields": {"description": adf}}, {}))
@@ -156,35 +162,62 @@ class TestCreateBug(unittest.TestCase):
             return FakeResp(201, {"key": "P2P-777"})
         return FakeResp(200, {})
 
+    @staticmethod
+    def _png(path):
+        # 24-byte valid PNG header so png_size reads 1x1 without a real image
+        with open(path, "wb") as fh:
+            fh.write(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 +
+                     (1).to_bytes(4, "big") + (1).to_bytes(4, "big"))
+        return path
+
     def test_posts_issue_and_returns_key(self):
         j = RecordingJira(self._created)
         key = publish_bug.create_bug(j, "P2P", "totals", FIXTURE_BUNDLE,
                                      assignee_account_id="acc-1", labels=["afk-bug"])
         self.assertEqual(key, "P2P-777")
-        create = j.posts_to("/issue")
-        create = [c for c in create if c[0] == "POST" and c[1].endswith("/issue")]
+        create = [c for c in j.calls if c[0] == "POST" and c[1].endswith("/issue")]
         self.assertEqual(len(create), 1)
         fields = create[0][2]["fields"]
         self.assertEqual(fields["summary"], "totals")
         self.assertEqual(fields["issuetype"], {"name": "Bug"})
+        # §9b payload contract: JSON body carries the JSON content-type header.
+        self.assertEqual(create[0][3].get("Content-Type"), "application/json")
+
+    def test_no_key_in_response_surfaces_error(self):
+        # A 2xx create with no key must fail cleanly, not TypeError-crash.
+        j = RecordingJira(lambda m, p: FakeResp(201, b""))
+        with self.assertRaises(publish_bug.BugPublishError):
+            publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE)
 
     def test_screenshot_embedded_as_media_node(self):
         j = RecordingJira(self._created)
         with tempfile.TemporaryDirectory() as td:
-            png = os.path.join(td, "shot.png")
-            # 24-byte valid PNG header so png_size reads 1x1 without a real image
-            with open(png, "wb") as fh:
-                fh.write(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 +
-                         (1).to_bytes(4, "big") + (1).to_bytes(4, "big"))
+            png = self._png(os.path.join(td, "shot.png"))
             key = publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, screenshots=[png])
         self.assertEqual(key, "P2P-777")
         uploads = [c for c in j.calls if c[0] == "UPLOAD"]
         self.assertEqual(len(uploads), 1)
+        # the att_id from upload flows into resolve_media_uuid (wiring pinned)
+        self.assertEqual(j.resolved, ["att-shot.png"])
         puts = [c for c in j.calls if c[0] == "PUT"]
         self.assertTrue(puts, "description update with embedded media expected")
-        blob = json.dumps(puts[-1][2])
-        self.assertIn("mediaSingle", blob)
-        self.assertIn("11111111-2222-3333-4444-555555555555", blob)
+        media = puts[-1][2]["fields"]["description"]["content"][-1]
+        self.assertEqual(media["type"], "mediaSingle")
+        attrs = media["content"][0]["attrs"]
+        self.assertEqual(attrs["id"], "uuid-for-att-shot.png")
+        self.assertEqual((attrs["width"], attrs["height"]), (1, 1))
+
+    def test_embed_failure_degrades_ticket_kept(self):
+        # SDD §3 embed edge: a 303 with no media UUID must NOT abort create —
+        # the ticket is returned, the attachment stays listed, no inline node.
+        j = RecordingJira(self._created)
+        j.embed_error = RuntimeError("could not resolve media UUID")
+        with tempfile.TemporaryDirectory() as td:
+            png = self._png(os.path.join(td, "shot.png"))
+            key = publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, screenshots=[png])
+        self.assertEqual(key, "P2P-777")                  # ticket kept
+        self.assertEqual(len([c for c in j.calls if c[0] == "UPLOAD"]), 1)  # attached
+        self.assertEqual([c for c in j.calls if c[0] == "PUT"], [])  # no inline embed
 
 
 # ---------------------------------------------------------------------------
@@ -274,10 +307,12 @@ class TestRetry(unittest.TestCase):
 
         j = RecordingJira(handler)
         with mock.patch("publish_bug.time.sleep") as slept:
-            with self.assertRaises(publish_bug.BugPublishError):
+            with self.assertRaises(publish_bug.BugPublishError) as ctx:
                 publish_bug.transition_to_dev_pending(j, "P2P-1")
         self.assertEqual(seen["n"], 3)          # 1 attempt + 2 retries
         self.assertEqual(slept.call_count, 2)   # backoff between attempts
+        # never-swallowed: the exhausted transient failure still carries the body
+        self.assertIn("unavailable", str(ctx.exception))
 
     def test_5xx_then_success(self):
         seq = {"n": 0}
@@ -310,6 +345,29 @@ class TestComment(unittest.TestCase):
         posts = [c for c in j.calls if c[0] == "POST" and c[1].endswith("/comment")]
         self.assertEqual(len(posts), 1)
         self.assertEqual(posts[0][2]["body"]["type"], "doc")
+
+
+class TestCli(unittest.TestCase):
+    def test_missing_bundle_file_clean_exit(self):
+        # An operational input error (missing --bundle) exits non-zero with a
+        # clean ERROR message, not a raw traceback — and never touches Jira.
+        with self.assertRaises(SystemExit) as ctx:
+            publish_bug.main(["create", "--project", "P2P", "--summary", "x",
+                              "--bundle", "definitely-not-here.md", "--dry-run"])
+        self.assertNotEqual(ctx.exception.code, 0)
+        self.assertIn("ERROR", str(ctx.exception.code))
+
+    def test_create_dry_run_builds_payload_no_network(self):
+        with tempfile.TemporaryDirectory() as td:
+            bundle = os.path.join(td, "b.md")
+            with open(bundle, "w", encoding="utf-8") as fh:
+                fh.write("# Bug\n- fact (verified)\n")
+            # dry-run must not call load_creds / open a socket
+            with mock.patch("publish_bug.load_creds",
+                            side_effect=AssertionError("no network in dry-run")):
+                publish_bug.main(["create", "--project", "P2P", "--summary", "s",
+                                  "--bundle", bundle, "--fix-version", "2026.r1",
+                                  "--dry-run"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-publish_bug.py — deterministic Jira engine for /afk:bug's publisher.
+publish_bug.py — deterministic Jira engine for the bug-lifecycle publisher.
 
 Owns the bug-lifecycle REST calls (SDD §9b seam "Jira REST v3"): create a Bug
 from an on-disk evidence bundle (assignee, labels, optional FixVersion),
@@ -80,6 +80,11 @@ class FixVersionError(BugPublishError):
 # ============================================================================
 # REST plumbing — retry + never-swallow around the shared client's _req
 # ============================================================================
+def _sleep_backoff(attempt):
+    """Exponential backoff between transient-failure retries (SDD §5)."""
+    time.sleep(BACKOFF_BASE_SECONDS * (2 ** attempt))
+
+
 def _request(jira, method, path, payload=None, *, retries=JIRA_RETRIES):
     """Issue one JSON REST call via the shared client, with the SDD §5 retry
     posture. Returns parsed JSON (or None on an empty body). A 4xx is
@@ -94,16 +99,16 @@ def _request(jira, method, path, payload=None, *, retries=JIRA_RETRIES):
             body = resp.read()
             return json.loads(body) if body else None
         except urllib.error.HTTPError as e:
-            body = _read_error_body(e)
+            surfaced = _read_error_body(e)
             if e.code >= 500 and attempt < retries:
-                time.sleep(BACKOFF_BASE_SECONDS * (2 ** attempt))
+                _sleep_backoff(attempt)
                 attempt += 1
                 continue
             raise BugPublishError(
-                f"{method} {path} -> HTTP {e.code}: {body}") from e
+                f"{method} {path} -> HTTP {e.code}: {surfaced}") from e
         except urllib.error.URLError as e:
             if attempt < retries:
-                time.sleep(BACKOFF_BASE_SECONDS * (2 ** attempt))
+                _sleep_backoff(attempt)
                 attempt += 1
                 continue
             raise BugPublishError(f"{method} {path} -> network error: {e}") from e
@@ -167,8 +172,8 @@ def build_comment_payload(md_text):
 
 
 def _media_node(uuid, width, height):
-    """Inline media block — the only shape Jira Cloud renders (collection=""),
-    matching the PRD publisher's verified embed."""
+    """Inline media block — the only shape Jira Cloud renders inline
+    (collection="")."""
     return {
         "type": "mediaSingle", "attrs": {"layout": "center"},
         "content": [{"type": "media", "attrs": {
@@ -217,22 +222,42 @@ def create_bug(jira, project_key, summary, bundle_md, *,
         assignee_account_id=assignee_account_id, labels=labels,
         fix_version=fix_version)
     created = _request(jira, "POST", "/rest/api/3/issue", fields)
+    if not created or "key" not in created:
+        raise BugPublishError(
+            f"POST /rest/api/3/issue returned no ticket key: {created!r}")
     key = created["key"]
 
+    # Embed screenshots inline after create (the media UUID needs the key). The
+    # ticket already exists, so a failure here must NOT lose it — per SDD §3 the
+    # embed edge degrades to "comment without inline embed, paths listed" rather
+    # than aborting. Attachments are uploaded regardless, so they stay listed on
+    # the ticket even when the inline media node can't be built.
     media_nodes = _embed_screenshots(jira, key, screenshots or [])
     if media_nodes:
-        content = content + media_nodes
-        jira.update_description(key, description_doc(content))
+        try:
+            jira.update_description(key, description_doc(content + media_nodes))
+        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+            print(f"WARNING: could not embed screenshots inline into {key} "
+                  f"({e}); the attachments remain listed on the ticket.",
+                  file=sys.stderr)
     return key
 
 
 def _embed_screenshots(jira, key, screenshots):
+    """Upload + resolve each screenshot into an inline media node. A per-shot
+    failure (upload non-2xx, or a 303 whose Location carries no media UUID)
+    degrades: the attachment is still listed on the ticket, and we skip only its
+    inline node — the create never fails for a screenshot (SDD §3 embed edge)."""
     nodes = []
     for path in screenshots:
-        att_id = jira.upload_attachment(key, path)
-        uuid = jira.resolve_media_uuid(att_id)
-        width, height = png_size(path) or (800, 600)
-        nodes.append(_media_node(uuid, width, height))
+        try:
+            att_id = jira.upload_attachment(key, path)
+            uuid = jira.resolve_media_uuid(att_id)
+            width, height = png_size(path) or (800, 600)
+            nodes.append(_media_node(uuid, width, height))
+        except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as e:
+            print(f"WARNING: inline embed failed for {path} on {key} ({e}); "
+                  f"the attachment stays listed on the ticket.", file=sys.stderr)
     return nodes
 
 
@@ -361,7 +386,10 @@ def main(argv=None):
     args = _build_parser().parse_args(argv)
     try:
         args.func(args)
-    except BugPublishError as e:
+    except (BugPublishError, OSError) as e:
+        # BugPublishError = a surfaced Jira failure (with response body); OSError
+        # = an operational input error (missing --bundle / --screenshot file).
+        # Both exit non-zero with a clean message rather than a raw traceback.
         sys.exit(f"ERROR: {e}")
 
 
