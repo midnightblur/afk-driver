@@ -18,6 +18,7 @@ Cutting across **both** modalities: a fixed set of **verification aspects** — 
 | **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data | UI **and** API |
 | **Input validation** | user input **or** a workflow is involved | UI **and** API |
 | **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
+| **Deep-link / URL-state sync** | feature adds or reads URL-synced UI state (grid filters, `?tab=`, share/copy-link) | UI |
 | *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
 
 > The canonical miss this catches: an aspect proven in one modality but assumed in the other — e.g. role-based access enforced *below* the UI (backend `403`) but never *at* it (UI wide open).
@@ -56,6 +57,11 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
    - **Role-based access** — for every protected surface, walk the harness's role tiers and pin what each tier *sees* (the observable per tier). The **denied tier is a required row**, never optional. Tier set, driving mechanics, and reusable per-tier flows are canonical in `11700-payable/verification/ui-e2e/AUTHORING.md` — you specify the per-tier observable, not the flow.
    - **Data-scoped access** — a user scoped to one company/vendor sees only its rows on the relevant list/detail screen. Usually **`env-limited`** (needs two FOS-provisioned scoped users the smoke env may not have) — flag it now.
    - **Input validation** — the form refuses a violating input (inline field error + disabled submit), per the PRD validation policy.
+   - **Deep-link / URL-state sync** (when triggered) — cold-load-from-URL scenarios for the feature's URL-synced state. Each rule below is a distinct assertion or scenario variant, never folded into one checkbox:
+     - **Every filter input round-trips.** Each bound filter input in an in-scope grid template (`v-model="filter.X"`) gets a URL-mapping row or a recorded exclusion whose reason is *verified evidence* (the generated model / full inheritance chain checked), never an inference from hand-written source.
+     - **Content ≠ chrome.** A cold load asserting a deep-linked state asserts both the data (rows/content) AND the presenting control's own state — tab header active class/`aria-selected`, dropdown's rendered label non-blank — as two assertions. Correct content behind a desynced control is a real bug a content-only assert structurally cannot see.
+     - **Composite + degenerate variants.** A grid with ≥2 entity-ref filters gets one multi-ref composite deep link; an `IN`-based linked-entity filter gets a resolves-to-empty variant; an exact-match display-id resolver gets a duplicate-key data case. This bug class is invisible against clean, unique-per-row, single-filter scenarios.
+     - **Target class.** A scenario whose code path depends on the origin class (secure vs non-secure context — e.g. `navigator.clipboard` vs legacy fallback; `localhost` vs real hostname) records the target class it *requires*; the gate may not count it green on an incompatible target. Note it now, like `env-limited`.
 
    Journey shape and observables are debate-class — walked one at a time. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: batch them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate).
 
@@ -72,6 +78,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
 ## Hard rules
 
 - **Grill, don't assume.** If a journey's steps, an endpoint's envelope, or a definition-of-done can't be stated concretely, that's a gap to surface (step 5) — never invent the flow or contract to keep moving.
+- **Enumerate, don't sample.** A requirement quantified over a set ("every grid / every tab / every surface gets X") is covered only when the concrete instance set is enumerated from the codebase (including sibling components sharing the same shape) and every member has a proving row or a recorded, tracked exclusion. A passing representative sample silently narrows "the feature works" to "the one instance we tested works" — surface it as under-coverage.
 - **API needs the SDD.** No SDD → UI journeys only, API deferred; never fabricate endpoint contracts from the PRD alone. SDD §3 too vague to state an envelope → route back to `/afk:to-sdd`, don't guess.
 - **Design buildable scenarios.** Ground UI journeys in what `verification/ui-e2e` can drive and API scenarios in what `verification/api` + `../core` can issue (recipes: `verification/ui-e2e/AUTHORING.md`, `verification/api/AUTHORING.md`). Reuse existing flows/helpers. Never spec a scenario the suite can't perform.
 - **Every triggered aspect is covered, in every modality it owns.** Walk the aspect table; a triggered aspect with no proving row is a gap, a non-N/A aspect with no recorded reason is a skip. The denied-role UI row is mandatory for every protected surface; no-token/bad-token/role-scoping API assertions are mandatory for every protected endpoint (per SDD §9b bidirectional seam).

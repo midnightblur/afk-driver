@@ -668,8 +668,8 @@ tooling.)*
   `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (reviewed as code). Env-limited
   scenarios (e.g. `@sap`) are tagged and excluded from the green verdict. The same
   suites are reused by CI / scheduled / manual runs. Merges nothing, touches no
-  Jira. Reports `smoke_green` / `smoke_fail` / `env_unreachable` /
-  `preconditions_unmet` / `no_gate`.
+  Jira. Reports `smoke_green` / `smoke_fail` / `target_mismatch` /
+  `trace_incomplete` / `env_unreachable` / `preconditions_unmet` / `no_gate`.
 - **`/afk:preflight`** — the **feature-level ship gate**, chained by
   `/afk:autopilot` once the smoke gate is green, or run by hand to resume a parked
   feature. Refuses outright (writing nothing) without a green smoke gate. A

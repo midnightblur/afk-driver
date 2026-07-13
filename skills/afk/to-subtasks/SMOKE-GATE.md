@@ -16,8 +16,10 @@ subtask per modality the plan carries**:
   per scenario across **both** `## UI Journeys` and `## API Scenarios` — its
   plain-language summary, the source it traces to (UI → PRD User Story; API →
   SDD §3 row / PRD Acceptance Criterion), the spec it maps to, its `Modality`
-  (`ui-e2e` | `api`), and its `env-limited` flag carried over verbatim (so
-  `/afk:smoke-test` excludes those from its green verdict). Don't invent
+  (`ui-e2e` | `api`), its `env-limited` flag carried over verbatim (so
+  `/afk:smoke-test` excludes those from its green verdict), and its
+  `Requires target` class carried over verbatim (so `/afk:smoke-test` refuses
+  to count the row green on an incompatible target). Don't invent
   scenarios here — `VERIFICATION-PLAN.md` is the source of truth.
 - **The terminal `NNNN-smoke-e2e` build subtask** (UI journeys) and, when the
   plan has real `## API Scenarios`, **the terminal `NNNN-smoke-api` build
