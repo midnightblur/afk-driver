@@ -24,7 +24,7 @@ A bug's whole world is one gitignored directory under `.claude/bugs/` in the mai
 Three invariants hold across every subcommand and every run. They are the reason this pipeline is safe to leave unattended:
 
 1. **Capture is never lost.** The evidence bundle + ledger entry land on disk **before any external call** (Jira, git, network). A missing config, a Jira outage, a crash mid-publish — none of them can lose a capture. Guarded by capture writing to disk first, always.
-2. **At most one live fixer.** Across *all* bugs, only one may be in the `fixing` state at a time (LEDGER-FORMAT.md state S4). `dispatch` reads every non-terminal ledger entry before it spawns; if one is already `fixing`, the new request is `queued` (S3) instead. The guardian is the dispatch entry point itself.
+2. **At most one live fixer.** Across *all* bugs, only one may be in the `fixing` state (LEDGER-FORMAT.md S4) at a time. The guard fires at **every** entry into `fixing` — a fresh `dispatch`, a queue promotion, a `blocked` → `fixing` resume, and a `refuted` → `fixing` re-dispatch alike: read every non-terminal ledger entry first, and if any bug already holds S4, the incoming one waits (`queued` S3, or a pending resume) instead of entering. A bug a fixer left `blocked` (S5), or left `failed` while still recorded `fixing` (S4), still owns its worktree — it **holds the lane** until it resumes, is re-dispatched, or is purged; the guard never hands S4 to a second bug behind its back.
 3. **Single ledger writer.** Only the main interactive session writes any `state.json`. Publisher, fixer, and retester run as **subagents that only return results** — this session records them. No subagent prompt ever names a ledger path. Every write is a Catalog-A transition (an allowed edge in LEDGER-FORMAT.md's machine) plus one appended `history` event, never a silent field mutation.
 
 State tokens below (`captured`, `published`, `queued`, `fixing`, `blocked`, `fix-pushed`, `mr-ready`, `awaiting-retest`, `verified`, `refuted`) and every transition between them are defined and permitted **only** as LEDGER-FORMAT.md's state machine allows. A transition this file describes is legal only because that machine lists its edge.
@@ -58,12 +58,13 @@ Return the bug's directory / key and its state so the dev can get back to what t
 
 Hand a published bug to an autonomous fixer. Refused hands-off (above).
 
-1. **Enforce one live fixer (S3 vs S4).** Read every non-terminal ledger entry. One already `fixing` → write this bug `queued` (S3) and stop; it auto-promotes when the live fixer terminates (below). Capture stays available throughout (AC-006).
-2. **Resolve the base branch (AC-007).** The base is the current branch's open MR target. No open MR → **ask the dev**, showing merge-base candidates. Current branch is `master` or `rm-release/*` → it is itself the base.
-3. **Guard the base (AC-008).** The base branch must exist on `origin`; if it doesn't, refuse dispatch with the reason — a fixer worktree off a non-existent base is not created.
-4. **Create the fixer worktree (S4) (AC-009).** Read `worktreeBasePath` (K3) per [CONFIG.md](CONFIG.md); missing → dispatch refused naming the key (fail closed). Run `scripts/create-worktree` for a fix branch off the base, passing `--no-open` so the **IDE is not launched** (a human running the same script still gets the IDE by default). Parse the script's last line: `WORKTREE_PATH=<abs>` on success, `ERROR=<reason>` on failure (contract in `scripts/create-worktree`). Record `worktreePath` + `baseBranch` and write the `fixing` (S4) transition.
-5. **Spawn the fixer.** Spawn a subagent with [FIXER-PROMPT.md](FIXER-PROMPT.md), handing it the bug's `bundle.md` path, the worktree path, and the fix branch. It reproduces on the clean base first, fixes, tests, pushes, opens a Draft MR, babysits CI, and flips Ready — all inside its own worktree.
-6. **Record the fixer's result.** Parse **only** its trailing `BUGFIX:` line and transition the ledger accordingly (grammar below). Then **promote the queue**: if a bug is `queued` (S3), take the next one to `fixing` (S4) and dispatch it — the one-live-fixer invariant is preserved by doing this only after the previous fixer left S4.
+1. **Require a published bug (S2).** Dispatch operates only on a `published` (S2) bug. A bug still `captured` (S1) — e.g. publish was deferred by missing config — is **published first** (via the `capture` publish step); if it can't be published, dispatch is refused with the reason. Never transition `captured` → `fixing`: S1's only permitted edge is S2 (LEDGER-FORMAT.md).
+2. **Enforce one live fixer (S3 vs S4).** Read every non-terminal ledger entry (invariant 2). Any bug already holding the S4 lane (`fixing`, or a `blocked`/`failed` bug that has not left it) → write this bug `queued` (S3) and stop; it auto-promotes when the lane is freed (step 7). Capture stays available throughout (AC-006).
+3. **Resolve the base branch (AC-007).** The base is the current branch's open MR target. No open MR → **ask the dev**, showing merge-base candidates. Current branch is `master` or `rm-release/*` → it is itself the base.
+4. **Guard the base (AC-008).** The base branch must exist on `origin`; if it doesn't, refuse dispatch with the reason — a fixer worktree off a non-existent base is not created.
+5. **Create the fixer worktree (S4) (AC-009).** Read `worktreeBasePath` (K3) per [CONFIG.md](CONFIG.md); missing → dispatch refused naming the key (fail closed). Run `scripts/create-worktree` for a fix branch off the base, passing `--no-open` so the **IDE is not launched** (a human running the same script still gets the IDE by default). Parse the script's last line: `WORKTREE_PATH=<abs>` on success, `ERROR=<reason>` on failure (contract in `scripts/create-worktree`). Record `worktreePath` + `baseBranch` and write the `fixing` (S4) transition.
+6. **Spawn the fixer with its full input set.** Read `mrReviewer` (K2) per [CONFIG.md](CONFIG.md). Spawn a subagent with [FIXER-PROMPT.md](FIXER-PROMPT.md), filling **all** of the placeholders it declares: `{BUNDLE_PATH}` (the bug's `bundle.md`), `{WORKTREE_PATH}` + `{FIX_BRANCH}` (from step 5), `{BASE_BRANCH}` (the recorded base), and `{MR_REVIEWER}` (K2). K2 absent → fail closed per [CONFIG.md](CONFIG.md): pass no reviewer and the fixer leaves the MR Draft (dispatch and the fix still proceed — K2 gates only the Ready flip, not dispatch). The fixer reproduces on the clean base first, fixes, tests, pushes, opens a Draft MR, babysits CI, and flips Ready — all inside its own worktree.
+7. **Record the result, then promote.** Parse **only** the fixer's trailing `BUGFIX:` line and transition the ledger accordingly (grammar below). Then **promote the queue** — but only if that result actually moved the bug **out of** S4 (a `failed` bug stays in S4 and keeps the lane, so nothing is promoted behind it until a human resolves it, per invariant 2). When the lane is genuinely free and a bug is `queued` (S3), take the next one to `fixing` (S4) and dispatch it.
 
 ## `status`
 
@@ -82,7 +83,7 @@ Verify the fix actually resolved the bug once it lands in the dev's branch. Auto
 
 1. **Trigger on ancestry.** When a bug's `fixSha` becomes an ancestor of the dev's current `HEAD`, the bug is at `awaiting-retest` (S8). Own merges (the fast path below) reach S8 immediately; external pulls are reconciled by `status`.
 2. **Spawn the retester** with [RETEST-PROMPT.md](RETEST-PROMPT.md), handing it the bug's reproduction steps from `bundle.md`. It re-runs the repro **read-only** and returns the commands it ran plus their output as evidence — **no file edits**.
-3. **Spot-check, then transition.** This session inspects the returned evidence itself — `verified` (S9) requires the main agent's own spot-check of the evidence, not the subagent's bare claim. Pass → `verified` (S9): archive the whole bug directory under `done/` and remove the fixer worktree (LEDGER-FORMAT.md). Fail → `refuted` (S10): notify the dev with the evidence and offer to re-dispatch (S10 → S4).
+3. **Spot-check, then transition.** The retester returns one trailing `RETEST: <passed|failed>` line ([RETEST-PROMPT.md](RETEST-PROMPT.md) owns that grammar) plus its evidence; this session maps it: `passed` → `verified` (S9), `failed` → `refuted` (S10). But `verified` (S9) requires the main agent's own spot-check of the evidence, not the subagent's bare claim — a `passed` line whose evidence you cannot confirm, or a **missing/unparseable** `RETEST:` line, is treated as **not verified**: the bug stays `awaiting-retest` (S8), resumable, never advanced to a terminal state on a claim alone. On a confirmed pass → `verified` (S9): archive the whole bug directory under `done/` and remove the fixer worktree (LEDGER-FORMAT.md). On `failed` → `refuted` (S10): notify the dev with the evidence and offer to re-dispatch (S10 → S4).
 
 **Fast path (AC-016).** On **explicit per-instance dev confirmation only**, `retest` may first do a **local merge** of the fix branch into the dev's current branch — nothing else. No confirmation → no merge. The MR is **left untouched**, still open and targeting the source branch. The local merge lands the fix (→ S8) and retest proceeds as above.
 
@@ -103,26 +104,27 @@ BUGFIX: <status> — <summary>
 | `mr-ready` | Fix + regression tests green in the worktree, pushed, MR pipeline green, MR flipped Ready with reviewer (K2) assigned | `fixing` → `fix-pushed` → `mr-ready` (S4→S6→S7) |
 | `fix-pushed` | Fix + regression tests green, pushed, Draft MR open, but the pipeline is **not** green (red or CI budget exhausted) → MR stays Draft | `fixing` → `fix-pushed` (S4→S6) |
 | `blocked` | The fixer needs a dev decision — a structured question, **including** "only reproduces with work-in-progress" when the bug did not reproduce on the clean base (AC-010) | `fixing` → `blocked` (S4→S5); resumes to `fixing` on the dev's answer |
-| `failed` | Unrecoverable fixer error (the pipeline could not be run at all); the worktree is left for inspection | stays `fixing` (S4); surfaced + stranded-visible via `status` |
+| `failed` | Unrecoverable fixer error (the pipeline could not be run at all); the worktree is left for inspection | stays `fixing` (S4) and **holds the one-fixer lane** (invariant 2) — the queue behind it does not promote until a human re-dispatches or purges it; surfaced + stranded-visible via `status` |
 
 `<summary>` is one plain-terms clause. The fixer's own file ([FIXER-PROMPT.md](FIXER-PROMPT.md)) is the authority on *how* it earns each status; this table is the authority on the **token set** the orchestrator accepts. A returned token outside this set is a `failed` (unparseable result).
 
 ## Push notifications (SDD §5, REPORTING.md)
 
-The dev is often away while a bug is in flight, so three transitions push a notification (carrying subject + status + one plain-terms sentence, per REPORTING.md's push-notification rule — never a bare status token):
+The dev is often away while a bug is in flight, so the transitions that need a human push a notification (carrying subject + status + one plain-terms sentence, per REPORTING.md's push-notification rule — never a bare status token):
 
 - **`blocked` (S5)** — the fixer asked a question; the dev's answer resumes the same fixer with context intact.
 - **`refuted` (S10)** — retest failed; the fix did not resolve the bug; re-dispatch is offered.
 - **`mr-ready` (S7)** — the fix is pushed, green, and Ready for the dev to review and merge.
+- **park** — a `fix-pushed` (S6) outcome the fixer had to park because CI could not be confirmed green (pipeline red, or the CI budget elapsed): the fix is pushed and the MR is left Draft, waiting on the dev (SDD §5/§7 park event).
 
 Every terminal `/afk:bug` report follows the layered shape in REPORTING.md (plugin root): the structured headline, one `In plain terms:` sentence, then the pointer to the bug directory.
 
 ## Hard rules
 
-- **Capture before any external call.** No Jira/git/network call precedes the on-disk bundle + ledger write (invariant 1). A capture is never lost.
-- **One live fixer, ever.** `dispatch` never spawns a second fixer while one is `fixing`; the excess is `queued` (invariant 2).
-- **Single ledger writer.** Only this session writes `state.json`; subagents return results, this session records them; every write is an allowed Catalog-A edge + a `history` append (invariant 3). No subagent prompt names a ledger path.
-- **Never merge for the dev.** The pipeline delivers a Draft MR (and, on explicit per-instance confirmation, a local fast-path merge). The human owns the MR merge; the fixer never merges (AC-011).
-- **Fail closed on config (CONFIG.md).** A config-gated operation with its key missing reports the missing key and stops — never a placeholder, never a partial external side effect. Capture alone is never gated.
-- **Refuse hands-off capture + dispatch** (AC-019). `status`/`retest`/`purge` stay available.
-- **Point, never restate.** The state machine, bundle grammar, and config keys live in their format siblings; this file references them by path and never copies a table (DRY — one fact, one home).
+Bare pointers — each rule is stated once, above, at its point of use:
+
+- **Invariants 1–3** (capture-before-external, one-live-fixer, single-writer) hold everywhere — see "Binding invariants".
+- **Never merge for the dev** — the pipeline delivers a Draft MR (plus, on explicit per-instance confirm, a local fast-path merge); the human owns the merge, the fixer never merges (AC-011).
+- **Fail closed on config** — per [CONFIG.md](CONFIG.md); capture alone is never gated.
+- **Refuse hands-off `capture` + `dispatch`** (AC-019); `status`/`retest`/`purge` stay available.
+- **Point, never restate** — the state machine, bundle grammar, and config keys live in their format siblings ([LEDGER-FORMAT.md](LEDGER-FORMAT.md) / [BUNDLE-FORMAT.md](BUNDLE-FORMAT.md) / [CONFIG.md](CONFIG.md)); reference by path, never copy a table.

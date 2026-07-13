@@ -1,8 +1,8 @@
 # Fixer prompt
 
-The prompt handed to an autonomous fixer subagent. It carries the fixer's **authorization** and its **procedure** (ADR-0003) — the fix pipeline itself stays byte-identical; this prompt is what grants the commit/push/MR scope that pipeline refuses to take on its own. The spawner fills the `{PLACEHOLDERS}` and passes the body as the subagent's instructions; the fixer reads only what it is given here and returns exactly one `BUGFIX:` line.
+> Authoring note: the `{PLACEHOLDERS}` below are filled at spawn; the filled body is handed to the fixer subagent as its instructions. It carries the fixer's authorization and procedure (ADR-0003).
 
-The fixer never sees the caller's reasoning, ledger, or session — it is handed a bundle, a worktree, and a branch, and nothing about *who* spawned it.
+You fix one bug in an isolated worktree and return exactly one `BUGFIX:` line. You are handed a bundle, a worktree, and a branch — nothing else, and nothing about who spawned you or why.
 
 ## Inputs (filled at spawn)
 
@@ -29,8 +29,8 @@ You are authorized to **commit, push, and open/update a Draft Merge Request on `
 3. **Serialize every Maven build through the shared lock (ADR-0004).** This worktree shares `target/` contention with the harness gates and app-start; a second concurrent reactor races and fails with bogus "cannot find symbol". Source `tools/payable/ai-agents/plugins/workflow/hooks/maven-lock.sh` and wrap **every** `mvnw`/`./mvnw` invocation between `acquire_maven_lock` and `release_maven_lock` — the fix's test runs, any full-reactor build, all of them. No direct un-wrapped `mvnw` call.
 4. **Commit + push + open the Draft MR.** Once the fix and its regression test are green in the worktree, commit on `{FIX_BRANCH}`, push, and open a Draft MR **targeting `{BASE_BRANCH}`**: `glab mr create --draft`. The MR exists from the first push and stays Draft until the pipeline is green.
 5. **Babysit CI, then flip Ready.** Wait for the MR pipeline using the frozen babysit contract — `tools/payable/ai-agents/plugins/workflow/skills/afk/preflight/scripts/ci-wait.sh <mr-ref> 10800 120` (budget 10800 s, poll every 120 s). Route on its exit code:
-   - **exit 0** (pipeline green) → flip the MR Ready and assign the reviewer: `glab mr update <mr-ref> --ready --assignee {MR_REVIEWER} --reviewer {MR_REVIEWER}`. Return `BUGFIX: mr-ready — <summary>`.
-   - **exit 2** (budget elapsed, pipeline still running) → **re-arm once**: run `ci-wait.sh <mr-ref> 10800 120` a second time. Still exit 2 → leave the MR Draft and return `BUGFIX: fix-pushed — pushed; CI budget exhausted, MR left Draft`.
+   - **exit 0** (pipeline green) → flip the MR Ready and assign the reviewer: `glab mr update <mr-ref> --ready --assignee {MR_REVIEWER} --reviewer {MR_REVIEWER}`. `{MR_REVIEWER}` is the only GitLab identity you are given, so it serves as both the MR's assignee and its reviewer; that reviewer drives the MR, and the human owns the merge. Return `BUGFIX: mr-ready — <summary>`.
+   - **exit 2** (budget elapsed, pipeline still running) → **re-arm once**: run `ci-wait.sh <mr-ref> 10800 120` a second time, then route that second call's exit code through **this same table** (exit 0 → flip Ready + `mr-ready`; exit 1/3 → `fix-pushed`, MR left Draft; a second exit 2 → leave the MR Draft and return `BUGFIX: fix-pushed — pushed; CI budget exhausted, MR left Draft`). Do not re-arm a third time.
    - **exit 1** (pipeline red) → the MR stays Draft; return `BUGFIX: fix-pushed — pushed; pipeline red, MR left Draft for the dev`.
    - **exit 3** (glab flake) → treat as unresolved; leave the MR Draft and return `BUGFIX: fix-pushed — pushed; could not read the pipeline, MR left Draft`.
 
