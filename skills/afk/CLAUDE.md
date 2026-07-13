@@ -4,4 +4,4 @@
 
 ## Bug pipeline
 
-`bug/` is self-contained — extend a subcommand in its `SKILL.md`, add/rename a Catalog-A lifecycle state in its `LEDGER-FORMAT.md` (one home for both, keep in lockstep), extend a subagent contract in `FIXER-PROMPT.md`/`RETEST-PROMPT.md` rather than inline in `SKILL.md`. Invoke via `/afk:bug capture|dispatch|status|retest|purge`. Full design: `tasks/afk-bug/` (PRD.md, SDD.md, ADRs).
+`bug/` is self-contained — extend a subcommand in its `SKILL.md` (frozen subcommand set lives there), add/rename a Catalog-A lifecycle state in its `LEDGER-FORMAT.md` (one home for both, keep in lockstep), extend a subagent contract in `FIXER-PROMPT.md`/`RETEST-PROMPT.md` rather than inline in `SKILL.md`. Full design: `tasks/afk-bug/` (PRD.md, SDD.md, ADRs).
