@@ -170,7 +170,7 @@ copy_dir_with_substitution() {
   while IFS= read -r -d '' f; do
     rel="${f#"$src_dir"/}"
     copy_file_with_substitution "$f" "$dest_dir/$rel"
-  done < <(find "$src_dir" -type f -print0)
+  done < <(find "$src_dir" -type f -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
 }
 
 echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
