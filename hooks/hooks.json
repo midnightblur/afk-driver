@@ -42,6 +42,12 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/genericity-gate.sh\"",
+            "timeout": 30,
+            "statusMessage": "Genericity gate..."
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/maven-compile-gate.sh\"",
             "timeout": 600,
             "statusMessage": "Maven compile gate..."

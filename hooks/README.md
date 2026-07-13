@@ -6,6 +6,7 @@ Deterministic quality gates shipped with the afk plugin. Stop gates and the `lav
 |---|---|---|---|
 | `wiring-gate.sh` | Stop hook, any NEW file (worktree + unpushed commits) | new artifact has zero referrers and no IOU in `.claude/wiring-ious.md`; with `WIRING_FINAL=1`, open IOUs also block | ~1–5s |
 | `skill-registry-gate.sh` | Stop hook, this plugin's checkout present | a `skills/afk/*/SKILL.md`, `skills/utils/*/SKILL.md`, or `agents/*.md` isn't listed in `.claude-plugin/plugin.json`'s `skills`/`agents` array (invisible to the plugin loader), or an array entry points at a dir that no longer exists | <1s |
+| `genericity-gate.sh` | Stop hook, changed/untracked plugin `*.md` | an added line references a concrete ticket ID or a product source file/class (11700-payable, verification/ harness excluded) not listed in `genericity-allow.txt` — plugin prose must state the mechanism/pattern class, never the incident instance that motivated it | <1s |
 | `maven-compile-gate.sh` | Stop hook, changed `.java` | any changed submodule fails `compile` (reactor, `--also-make`) | 30s–3min |
 | `ui-lint-gate.sh` | Stop hook, changed `.js/.ts/.vue` | ESLint errors in changed files (nearest `.eslintrc.*` workspace) | ~10s |
 | `java-format-gate.sh` | Stop hook, changed `.java` | changed file not conformant to the repo-root `eclipse-code-formatter.xml` (STRICT: touched legacy file ⇒ reformat whole file via the Fix command it prints) | ~5s/module |
