@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# create-worktree - clone a git worktree for core-services with full dev-environment parity.
+#
+# Canonical worktree provisioner for this repo (humans and the /afk:bug fixer alike) — plain
+# `git worktree add` skips the .claude/.idea/.run/.mcp.json cloning + path rewriting below,
+# leaving a half-configured worktree with no hooks/gates/MCP config.
+#
+# Usage:
+#   create-worktree --branch <full-branch-name> --dir <worktree-dir-name> [options]
+#
+# Required:
+#   --branch <name>   Full git branch name. Pre-validated against the AFK branch-gate pattern
+#                     `^kapteyn/development/[a-z0-9][a-z0-9._-]*/.+$` before any git call.
+#                     If it already exists, the worktree attaches to it (--base ignored).
+#                     If it doesn't exist, --base is required to create it.
+#   --dir <name>      Worktree directory name, created under the base parent dir.
+#
+# Options:
+#   --base <branch>   Base branch to branch from when --branch doesn't exist yet.
+#   --track           Pass --track to `git worktree add` (use when the branch will be pushed).
+#   --repo <path>     Main repo dir. Default: first entry of `git worktree list` (the main
+#                     worktree), else the current toplevel.
+#   --parent <path>   Worktree parent dir. Default: `worktree_base_dir` from
+#                     .claude/afk.local.json, else ~/core-services-worktrees.
+#   --idea-bin <path> IDE launcher. Default: `ide_binary` from .claude/afk.local.json.
+#   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
+#   --no-npm          Skip `npm ci` at the new worktree root.
+#   --no-open         Skip launching the IDE on the new worktree (always set in fixer mode).
+#
+# Output contract (machine-readable, always the LAST line):
+#   success  -> WORKTREE_PATH=<absolute path>
+#   failure  -> ERROR=<reason>   (and a non-zero exit; never a bare set-e death)
+#
+# Per-dev config (.claude/afk.local.json, gitignored) supplies worktree_base_dir + ide_binary;
+# a CLI flag always overrides the config value.
+
+set -u
+
+# --- error contract: every failure path emits a single ERROR= line + non-zero exit --------
+error_exit() { echo "ERROR=$1" >&2; exit 1; }
+# safety net: any command that fails under set -e trips this instead of dying silently.
+trap 'error_exit "unexpected failure near line $LINENO"' ERR
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+BRANCH=""
+DIR_NAME=""
+BASE_BRANCH=""
+REPO_DIR=""
+WORKTREE_PARENT=""
+IDEA_BIN=""
+TRACK_FLAG=false
+CONFIGS_FLAG=true
+NPM_FLAG=true
+OPEN_FLAG=true
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --branch)     BRANCH="${2:-}"; shift 2 ;;
+    --dir)        DIR_NAME="${2:-}"; shift 2 ;;
+    --base)       BASE_BRANCH="${2:-}"; shift 2 ;;
+    --repo)       REPO_DIR="${2:-}"; shift 2 ;;
+    --parent)     WORKTREE_PARENT="${2:-}"; shift 2 ;;
+    --idea-bin)   IDEA_BIN="${2:-}"; shift 2 ;;
+    --track)      TRACK_FLAG=true; shift ;;
+    --no-configs) CONFIGS_FLAG=false; shift ;;
+    --no-npm)     NPM_FLAG=false; shift ;;
+    --no-open)    OPEN_FLAG=false; shift ;;
+    *) error_exit "unknown argument: $1" ;;
+  esac
+done
+
+# --- branch-name gate: pre-validate against the reference-transaction hook's pattern so a
+# non-conforming branch fails HERE with a contract line, not as an opaque hook veto mid-run.
+validate_branch_name() {
+  local name="$1"
+  local pattern='^kapteyn/development/[a-z0-9][a-z0-9._-]*/.+$'
+  [[ "$name" =~ $pattern ]]
+}
+
+[[ -n "$BRANCH" ]]   || error_exit "--branch is required"
+[[ -n "$DIR_NAME" ]] || error_exit "--dir is required"
+validate_branch_name "$BRANCH" || \
+  error_exit "branch '$BRANCH' does not match the required pattern ^kapteyn/development/[a-z0-9][a-z0-9._-]*/.+\$ — no worktree created"
+
+# --- per-dev config: .claude/afk.local.json supplies defaults; CLI flags override ----------
+read_config_key() {
+  local key="$1" cfg="$2"
+  [[ -f "$cfg" ]] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "$key" '.[$k] // empty' "$cfg" 2>/dev/null || true
+  fi
+}
+
+# Resolve the main repo dir first (config lives under it).
+if [[ -z "$REPO_DIR" ]]; then
+  REPO_DIR="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  [[ -n "$REPO_DIR" ]] || REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+[[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir (pass --repo)"
+[[ -d "$REPO_DIR/.git" || -f "$REPO_DIR/.git" ]] || error_exit "git repo not found at $REPO_DIR"
+
+CFG_FILE="$REPO_DIR/.claude/afk.local.json"
+if [[ -z "$WORKTREE_PARENT" ]]; then
+  WORKTREE_PARENT="$(read_config_key worktree_base_dir "$CFG_FILE")"
+  [[ -n "$WORKTREE_PARENT" ]] || WORKTREE_PARENT="${HOME}/core-services-worktrees"
+fi
+if [[ -z "$IDEA_BIN" ]]; then
+  IDEA_BIN="$(read_config_key ide_binary "$CFG_FILE")"
+fi
+
+DEST="$WORKTREE_PARENT/$DIR_NAME"
+[[ ! -d "$DEST" ]] || error_exit "worktree already exists at $DEST"
+
+# --- path variants for substitution (main repo -> worktree), covering how the main-repo path
+# appears in copied text files: Windows forward-slash, backslash, and JSON-escaped backslash.
+# Derived from the true Windows forms of REPO_DIR and DEST via cygpath (Git-Bash), so a custom
+# --parent is honoured. Filesystem ops below always use the posix $REPO_DIR / $DEST.
+REPO_DIR_FWD="$(cygpath -m "$REPO_DIR" 2>/dev/null || echo "$REPO_DIR")"
+DEST_DIR_FWD="$(cygpath -m "$DEST" 2>/dev/null || echo "$DEST")"
+REPO_DIR_BACK="${REPO_DIR_FWD//\//\\}"
+DEST_DIR_BACK="${DEST_DIR_FWD//\//\\}"
+REPO_DIR_BACK2="${REPO_DIR_BACK//\\/\\\\}"
+DEST_DIR_BACK2="${DEST_DIR_BACK//\\/\\\\}"
+
+# Rewrite $src's main-repo path references to the worktree path and write to $dest.
+# perl \Q...\E matches/replaces backslash-heavy Windows paths literally (sed would misread them).
+substitute_paths() {
+  local src="$1" dest="$2"
+  OLD1="$REPO_DIR_FWD" NEW1="$DEST_DIR_FWD" \
+  OLD2="$REPO_DIR_BACK" NEW2="$DEST_DIR_BACK" \
+  OLD3="$REPO_DIR_BACK2" NEW3="$DEST_DIR_BACK2" \
+  perl -pe '
+    s/\Q$ENV{OLD1}\E/$ENV{NEW1}/g;
+    s/\Q$ENV{OLD2}\E/$ENV{NEW2}/g;
+    s/\Q$ENV{OLD3}\E/$ENV{NEW3}/g;
+  ' "$src" > "$dest"
+}
+
+# Copy one file, rewriting main-repo path references if present. grep -I treats binaries as
+# non-matching, so they always fall through to a plain copy.
+copy_file_with_substitution() {
+  local src="$1" dest="$2"
+  mkdir -p "$(dirname "$dest")"
+  if grep -Iq -F -e "$REPO_DIR_FWD" -e "$REPO_DIR_BACK" -e "$REPO_DIR_BACK2" "$src" 2>/dev/null; then
+    substitute_paths "$src" "$dest"
+  else
+    cp "$src" "$dest"
+  fi
+}
+
+# Recursively copy a directory (incl. subfolders), rewriting paths file-by-file.
+copy_dir_with_substitution() {
+  local src_dir="$1" dest_dir="$2"
+  [[ -d "$src_dir" ]] || return 0
+  mkdir -p "$dest_dir"
+  while IFS= read -r -d '' f; do
+    rel="${f#"$src_dir"/}"
+    copy_file_with_substitution "$f" "$dest_dir/$rel"
+  done < <(find "$src_dir" -type f -print0)
+}
+
+echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
+git -C "$REPO_DIR" worktree prune
+
+echo -e "${YELLOW}Creating worktree at $DEST...${NC}" >&2
+mkdir -p "$WORKTREE_PARENT"
+
+BRANCH_EXISTS=false
+if git -C "$REPO_DIR" rev-parse --verify "$BRANCH" &>/dev/null; then
+  BRANCH_EXISTS=true
+fi
+
+if [[ "$BRANCH_EXISTS" == true ]]; then
+  git -C "$REPO_DIR" worktree add "$DEST" "$BRANCH" \
+    || error_exit "git worktree add failed for existing branch '$BRANCH'"
+else
+  [[ -n "$BASE_BRANCH" ]] \
+    || error_exit "branch '$BRANCH' does not exist and --base was not given"
+  git -C "$REPO_DIR" rev-parse --verify "$BASE_BRANCH" &>/dev/null \
+    || error_exit "base branch '$BASE_BRANCH' does not exist in $REPO_DIR"
+  if [[ "$TRACK_FLAG" == true ]]; then
+    git -C "$REPO_DIR" worktree add --track -b "$BRANCH" "$DEST" "$BASE_BRANCH" \
+      || error_exit "git worktree add --track failed for '$BRANCH'"
+  else
+    git -C "$REPO_DIR" worktree add -b "$BRANCH" "$DEST" "$BASE_BRANCH" \
+      || error_exit "git worktree add failed for '$BRANCH'"
+  fi
+fi
+
+if [[ "$CONFIGS_FLAG" == true ]]; then
+  if [[ -f "$REPO_DIR/.mcp.json" ]]; then
+    copy_file_with_substitution "$REPO_DIR/.mcp.json" "$DEST/.mcp.json"
+    echo -e "${GREEN}Copied .mcp.json${NC}" >&2
+  fi
+
+  if [[ -d "$REPO_DIR/.claude" ]]; then
+    copy_dir_with_substitution "$REPO_DIR/.claude" "$DEST/.claude"
+    echo -e "${GREEN}Copied .claude/${NC}" >&2
+  fi
+
+  CLAUDE_MD_COUNT=0
+  while IFS= read -r relpath; do
+    [[ -z "$relpath" ]] && continue
+    copy_file_with_substitution "$REPO_DIR/$relpath" "$DEST/$relpath"
+    CLAUDE_MD_COUNT=$((CLAUDE_MD_COUNT + 1))
+  done < <(git -C "$REPO_DIR" ls-files --others --ignored --exclude-standard | grep -E '(^|/)CLAUDE\.md$' || true)
+  if (( CLAUDE_MD_COUNT > 0 )); then
+    echo -e "${GREEN}Copied $CLAUDE_MD_COUNT CLAUDE.md file(s)${NC}" >&2
+  fi
+
+  if [[ -d "$REPO_DIR/.run" ]]; then
+    copy_dir_with_substitution "$REPO_DIR/.run" "$DEST/.run"
+    echo -e "${GREEN}Copied .run/${NC}" >&2
+  fi
+
+  if [[ -d "$REPO_DIR/.idea" ]]; then
+    copy_dir_with_substitution "$REPO_DIR/.idea" "$DEST/.idea"
+    # Mark this as a portable worktree project (IntelliJ uses .name if present)
+    echo "$DIR_NAME" > "$DEST/.idea/.name"
+    echo -e "${GREEN}Copied .idea/ (incl. subfolders like runConfigurations/dataSources)${NC}" >&2
+  fi
+fi
+
+if [[ "$NPM_FLAG" == true ]]; then
+  # One-root-npm-workspace convention: a single `npm ci` at the worktree root restores all UI.
+  echo -e "${YELLOW}Restoring UI deps (npm ci at worktree root)...${NC}" >&2
+  if [[ -f "$DEST/package-lock.json" ]]; then
+    ( cd "$DEST" && npm ci ) \
+      || echo -e "  ${RED}npm ci failed — worktree is usable; run it by hand at the root${NC}" >&2
+  else
+    echo -e "  ${YELLOW}No package-lock.json at worktree root — skipping npm ci${NC}" >&2
+  fi
+fi
+
+if [[ "$OPEN_FLAG" == true ]]; then
+  if [[ -n "$IDEA_BIN" ]]; then
+    echo -e "${YELLOW}Opening IDE...${NC}" >&2
+    "$IDEA_BIN" "$DEST" & disown 2>/dev/null || true
+  else
+    echo -e "  ${YELLOW}No ide_binary configured (afk.local.json) and no --idea-bin — skipping IDE launch${NC}" >&2
+  fi
+fi
+
+echo -e "${GREEN}Worktree ready: $DEST${NC}" >&2
+echo "WORKTREE_PATH=$DEST"
