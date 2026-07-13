@@ -39,19 +39,6 @@ a token value — not even partially.
   `env` block carrying the S1 variables.
 - **Notes:** host is Jira Cloud (`nakisa.atlassian.net`).
 
-### H6 · `.claude/afk.local.json` per-dev config
-- **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
-  and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
-- **Probe:** `python -c "import json,os,sys;p='.claude/afk.local.json';d=(json.load(open(p,encoding='utf-8')) if os.path.exists(p) else None);m=(['file missing'] if d is None else [k for k in ('jiraAssignee','mrReviewer','worktreeBasePath') if not d.get(k)]);print('missing: '+', '.join(m) if m else 'ok');sys.exit(1 if m else 0)"`
-- **Fix:** `human:` create `.claude/afk.local.json` per the hypothetical
-  example in `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
-  K3 `worktreeBasePath`).
-- **Notes:** gitignored, one file per checkout (`skills/afk/bug/CONFIG.md`
-  owns the key set + fail-closed matrix). K4 `ideBinary` is optional — its
-  absence never gates anything, so it's not probed. A missing file or missing
-  required key reports which and exits non-zero; capture itself reads no
-  config and is never blocked (PRD AC-001).
-
 ### H3 · lean-ctx MCP server *(optional)*
 - **Needed by:** `ctx_read`/`ctx_search`/`ctx_tree` calls in
   `skills/afk/execute` (cited-mode grep checkpoints), `skills/afk/grill-solution`
@@ -85,6 +72,35 @@ a token value — not even partially.
   Bypass one command: `AFK_SKIP_BRANCH_CHECK=1`. Disable: `git config
   afk.branchNameGate false`. The installer refuses to clobber a pre-existing
   non-AFK hook of the same name.
+
+### H6 · `.claude/afk.local.json` per-dev config
+- **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
+  and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
+- **Probe:**
+  ```
+  python3 -c "
+  import json, os, sys
+  from contextlib import suppress
+  p = '.claude/afk.local.json'
+  exists = os.path.exists(p)
+  d = None
+  if exists:
+      with suppress(Exception):
+          d = json.load(open(p, encoding='utf-8'))
+  if not exists:
+      print('missing: file not found'); sys.exit(1)
+  if not isinstance(d, dict):
+      print('missing: file present but not valid JSON (or not a JSON object)'); sys.exit(1)
+  m = [k for k in ('jiraAssignee', 'mrReviewer', 'worktreeBasePath') if not d.get(k)]
+  print(('missing: ' + ', '.join(m)) if m else 'ok')
+  sys.exit(1 if m else 0)
+  "
+  ```
+- **Fix:** `human:` create `.claude/afk.local.json` per the hypothetical
+  example in `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
+  K3 `worktreeBasePath`).
+- **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
+  owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
 
 ## C — Shell & core CLIs
 
