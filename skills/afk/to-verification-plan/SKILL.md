@@ -61,6 +61,7 @@ Write `VERIFICATION-PLAN.md` using the template in [VERIFICATION-PLAN-TEMPLATE.m
 - **Carry Requires-target flags through.** A scenario the grill flagged origin-class-sensitive keeps its target class — so the downstream gate never counts it green on a target that can't reach the asserted code path.
 - **Persistence reverify (UI) / refetch (API).** Owning statement is the template's `**Persistence reverify**` / `**Persistence refetch**` lines ([VERIFICATION-PLAN-TEMPLATE.md](VERIFICATION-PLAN-TEMPLATE.md)) — emit them per the template on every journey/scenario; `n/a` only for the reasons the template states.
 - **Every scenario traces to a source.** No orphan rows: UI → User Story; API → SDD §3 row + PRD Acceptance Criterion.
+- **Every source is covered.** The reverse trace also holds: every PRD User Story, every Acceptance Criterion, and every SDD §3 endpoint has ≥1 proving row — or an exclusion the human decided, recorded with its reason in `## Gaps surfaced`. A source silently left uncovered is a `/afk:grill-verification` gap to route back, not a plan to write.
 - **The `## Aspect coverage` ledger is complete.** Every aspect has a verdict (triggered with proving rows, or N/A with a reason), satisfying the template's `## Aspect coverage` rules. A blank verdict is a grill gap to route back, not a row to leave empty.
 - **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). No Jira, no GitLab.
 
