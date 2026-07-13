@@ -130,6 +130,33 @@ The tracker progression `pending → designing → developing → verifying → 
 **OUTCOME statuses**:
 The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `blocked_by`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
 
+## Bug pipeline
+
+**`/afk:bug`**:
+Interactive-only mid-task bug capture + autonomous fix pipeline, outside the per-feature chain. Five subcommands: `capture`/`dispatch`/`status`/`retest`/`purge`. Refuses `capture`/`dispatch` when invoked hands-off (driven/autopilot) — a human must be in the loop.
+_Avoid_: bug workflow (vague — this is one skill, not a chain)
+
+**Ledger**:
+The per-bug `state.json` under `.claude/bugs/` — the single source of truth for a bug's lifecycle state, written only by the main interactive session (single-writer invariant). Format: `skills/afk/bug/LEDGER-FORMAT.md`.
+
+**S1-S10 (bug lifecycle states)**:
+The ledger's state machine: `captured` (S1) → `published` (S2) → `queued` (S3) → `fixing` (S4) → `blocked` (S5) / `fix-pushed` (S6) → `mr-ready` (S7) → `awaiting-retest` (S8) → `verified` (S9, terminal) / `refuted` (S10, re-dispatchable). Full machine + allowed edges: `skills/afk/bug/LEDGER-FORMAT.md`.
+
+**Evidence bundle**:
+`bundle.md` — the human-readable dossier of a captured bug (confidence-labeled facts, reproduction steps, capture context). Format: `skills/afk/bug/BUNDLE-FORMAT.md`.
+
+**Publisher**:
+The subagent that runs `scripts/publish_bug.py` — the pipeline's Jira-writing actor (create/transition/comment/backfill on that one Bug ticket, ADR-0001).
+
+**Fixer**:
+The subagent spawned by `dispatch` into its own git worktree to reproduce, fix, test, push, and open a Draft MR — never merges. Returns exactly one trailing `BUGFIX:` line (grammar: `skills/afk/bug/SKILL.md`).
+
+**Retester**:
+The subagent spawned by `retest` to re-run a bug's reproduction read-only once its fix lands, returning evidence + a claimed `RETEST:` verdict the main session spot-checks before advancing the ledger.
+
+**One-live-fixer invariant**:
+At most one bug across the whole ledger may hold the `fixing` (S4) lane at a time; a second bug queues (S3) instead of dispatching.
+
 ## Gates & verdicts
 
 **Review gate**:

@@ -105,10 +105,13 @@ tracker) plus one `NNNN-slug.md` contract per subtask. A subtask's *id* is its
 filename stem. `/afk:execute` parses these files and writes back progress. No
 subtask becomes a Jira issue.
 
-**④ Only one skill touches the tracker.** `/afk:to-ticket` publishes the PRD body
-into the parent ticket. **Everything else stops at disk or GitLab** — including
-`/afk:to-sdd`, whose `SDD.md` + design ADRs are local only. `/afk:execute` pushes
-branches + Draft MRs to GitLab but writes no Jira.
+**④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
+into the parent ticket. `/afk:bug`'s publisher subagent is the pipeline's
+second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
+transition, evidence comments, on that ticket only (ADR-0001). **Everything
+else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
+design ADRs are local only. `/afk:execute` pushes branches + Draft MRs to
+GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
 verified, Draft MR — then **stops**. You review and merge out of band. Same for
@@ -836,7 +839,9 @@ edits never collide:
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
   home module.
 - **Re-run `/afk:to-ticket`** after the PRD changes (idempotent). The only
-  design-chain skill that writes to Jira.
+  design-chain skill that writes to Jira — the plugin's other Jira writer is
+  `/afk:bug`'s publisher subagent (Bug create + Dev-Pending transition +
+  evidence comments, that ticket only; ADR-0001), outside the design chain.
 - **Dev loop for this repo**: edit a `SKILL.md` → `/reload-plugins`. Nothing to
   build.
 

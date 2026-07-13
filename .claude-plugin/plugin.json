@@ -12,6 +12,7 @@
   "skills": [
     "./skills/afk/adversary",
     "./skills/afk/autopilot",
+    "./skills/afk/bug",
     "./skills/afk/claude-md",
     "./skills/afk/design-system",
     "./skills/afk/execute",
