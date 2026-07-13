@@ -30,12 +30,27 @@ a token value — not even partially.
 ### H2 · Jira MCP server
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
-  `skills/utils/to-code-walkthrough` (spec discovery).
+  `skills/utils/to-code-walkthrough` (spec discovery), the shared Jira lib
+  `scripts/jira_core.py` and `skills/afk/bug/scripts/publish_bug.py` (same
+  creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` a cheap `mcp__jira__jira_get` on a known key succeeds
   (or the `mcp__jira__*` tools are listed at all).
 - **Fix:** `human:` add a `jira` server to `~/.claude.json` `mcpServers` with an
   `env` block carrying the S1 variables.
 - **Notes:** host is Jira Cloud (`nakisa.atlassian.net`).
+
+### H6 · `.claude/afk.local.json` per-dev config
+- **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
+  and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
+- **Probe:** `python -c "import json,os,sys;p='.claude/afk.local.json';d=(json.load(open(p,encoding='utf-8')) if os.path.exists(p) else None);m=(['file missing'] if d is None else [k for k in ('jiraAssignee','mrReviewer','worktreeBasePath') if not d.get(k)]);print('missing: '+', '.join(m) if m else 'ok');sys.exit(1 if m else 0)"`
+- **Fix:** `human:` create `.claude/afk.local.json` per the hypothetical
+  example in `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
+  K3 `worktreeBasePath`).
+- **Notes:** gitignored, one file per checkout (`skills/afk/bug/CONFIG.md`
+  owns the key set + fail-closed matrix). K4 `ideBinary` is optional — its
+  absence never gates anything, so it's not probed. A missing file or missing
+  required key reports which and exits non-zero; capture itself reads no
+  config and is never blocked (PRD AC-001).
 
 ### H3 · lean-ctx MCP server *(optional)*
 - **Needed by:** `ctx_read`/`ctx_search`/`ctx_tree` calls in
@@ -122,16 +137,30 @@ a token value — not even partially.
   treats it as "no signal", never a failure. pitest-on-JDK25 compatibility is
   unverified upstream; the first real run on a machine is the empirical test.
 
+### C6 · perl (Git-Bash)
+- **Needed by:** `skills/afk/bug`'s create-worktree script (path-rewrite step —
+  SDD §9b seam "perl (Git-Bash)").
+- **Probe:** `command -v perl`
+- **Fix:** `human:` install Git for Windows (ships perl alongside C1's bash +
+  POSIX utils).
+- **Notes:** missing perl fails the worktree script's path-rewrite step before
+  first use (SDD §9b row "perl (Git-Bash)").
+
 ## P — Python
 
 ### P1 · Python 3
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
-  `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3).
+  `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3),
+  the shared Jira lib `scripts/jira_core.py` and
+  `skills/afk/bug/scripts/publish_bug.py` (ADR-0001).
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
 
 ### P2 · markdown-it-py (the only pip package)
-- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py` (PRD / meeting body → ADF).
+- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
+  (PRD / meeting body → ADF), the shared Jira lib `scripts/jira_core.py`
+  (imported by both `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`
+  for the same Markdown→ADF conversion; ADR-0001).
 - **Probe:** `python -c "import markdown_it"`
 - **Fix:** `auto:` `pip install markdown-it-py`
 
@@ -175,7 +204,9 @@ a token value — not even partially.
 ### S1 · Jira REST credentials — **secret**
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
   (attachment upload has no MCP tool, and both engines PUT the description via
-  REST directly rather than inline a large ADF through an MCP tool call).
+  REST directly rather than inline a large ADF through an MCP tool call),
+  the shared Jira lib `scripts/jira_core.py` and
+  `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
 - **Probe:** presence-only, prints names not values; mirrors the engine's
   `load_creds` (OS env, else a recursive walk of `~/.claude.json` for a `jira`
   server's `env` block — top-level or project-scoped, utf-8):
