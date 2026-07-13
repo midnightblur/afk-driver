@@ -140,7 +140,7 @@ _Avoid_: bug workflow (vague — this is one skill, not a chain)
 The per-bug `state.json` under `.claude/bugs/` — the single source of truth for a bug's lifecycle state, written only by the main interactive session (single-writer invariant). Format: `skills/afk/bug/LEDGER-FORMAT.md`.
 
 **S1-S10 (bug lifecycle states)**:
-The ledger's state machine: `captured` (S1) → `published` (S2) → `queued` (S3) → `fixing` (S4) → `blocked` (S5) / `fix-pushed` (S6) → `mr-ready` (S7) → `awaiting-retest` (S8) → `verified` (S9, terminal) / `refuted` (S10, re-dispatchable). Full machine + allowed edges: `skills/afk/bug/LEDGER-FORMAT.md`.
+The ledger's ten states (`captured`, `published`, `queued`, `fixing`, `blocked`, `fix-pushed`, `mr-ready`, `awaiting-retest`, `verified`, `refuted`). Their order, meanings, and every allowed transition edge live in one home: `skills/afk/bug/LEDGER-FORMAT.md`.
 
 **Evidence bundle**:
 `bundle.md` — the human-readable dossier of a captured bug (confidence-labeled facts, reproduction steps, capture context). Format: `skills/afk/bug/BUNDLE-FORMAT.md`.

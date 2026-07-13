@@ -746,6 +746,17 @@ tooling.)*
   instead hunts drift between the plugin's artifacts and reality (structural
   consistency, unregistered dependencies, dead pointers) — run that before shipping
   plugin changes (see `FRESHNESS.md`).
+- **`/afk:bug`** — mid-task bug capture + autonomous fix pipeline, outside the
+  per-feature chain and **interactive-only**. Five subcommands: `capture` writes
+  the evidence bundle + ledger entry to disk **before any external call**, then
+  files a Jira Bug (the plugin's second, narrowly-scoped Jira writer — see §2 ④);
+  `dispatch` spawns an autonomous fixer in its own worktree under a
+  one-live-fixer-across-all-bugs invariant and delivers a Draft MR the human
+  merges (the fixer never merges); `status` is read-only situational awareness;
+  `retest` re-runs the reproduction once the fix lands, read-only; `purge` is the
+  only cleanup path. Refuses `capture`/`dispatch` from a hands-off run. State
+  machine, evidence-bundle grammar, and config keys each have one home under
+  `skills/afk/bug/` (`LEDGER-FORMAT.md` / `BUNDLE-FORMAT.md` / `CONFIG.md`).
 
 ### Utility skills (not part of the AFK chain)
 
