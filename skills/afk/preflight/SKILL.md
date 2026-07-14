@@ -93,9 +93,9 @@ shared cap, else `park(PF-4: orphan_artifact)`).
 
 **PF-4b understanding — advisory artifact generation (never parks).** Reached
 only once PF-4 is `green`. Invoke **`/afk:understand {plan-dir}`** in auto mode
-(defaults: quiz 5, standard background depth); it synthesizes the feature's
-diff, journal, and review records into the checked-in understanding artifact
-and rides this ladder's existing commit/push authorization for its one
+(its own defaults — `skills/afk/understand/SKILL.md` M-1); it synthesizes the
+feature's diff, journal, and review records into the checked-in understanding
+artifact and rides this ladder's existing commit/push authorization for its one
 docs-only commit (ADR `adr/design/0001`; SDD §3).
 
 - **`generated`** → row `green`; record the committed artifact path in
@@ -107,9 +107,9 @@ docs-only commit (ADR `adr/design/0001`; SDD §3).
 
 This is the ladder's one **advisory** row: it sits **outside the shared fix
 cap** (PF-2/PF-3/PF-7), never consumes a cycle, and its only non-green outcome
-(`advisory-failed`) advances the ladder rather than blocking it — an explainer
-bug can never hold a verified ship hostage. On **resume**, an `advisory-failed`
-(non-`green`) row re-runs like any other non-green row (Resume rule above).
+(`advisory-failed`) advances the ladder rather than blocking it. On **resume**,
+an `advisory-failed` (non-`green`) row re-runs like any other non-green row
+(Resume rule above).
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
