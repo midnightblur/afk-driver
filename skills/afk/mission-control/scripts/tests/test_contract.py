@@ -6,6 +6,7 @@ idempotent re-render. Fixture layout below is executor latitude (SDD §0).
 from __future__ import annotations
 
 import http.client
+import re
 import shutil
 import subprocess
 import sys
@@ -80,6 +81,26 @@ _REVIEW_INDEX_TEXT = """| Subtask | Latest report | Verdict | crit/high/med/low 
 | 0001-sample | 0001-sample-abc123.md | clean | 0/0/0/0 | none |
 """
 
+# A well-formed understanding artifact — a frozen shell copy carrying the one
+# `afk-understanding` meta element (both fields populated), mirroring the shell
+# asset the panel parses. Toy data only.
+_UNDERSTANDING_GENERATED = "2026-07-14"
+_UNDERSTANDING_DIFF_RANGE = "abc1234..def5678"
+_UNDERSTANDING_HTML = (
+    "<!doctype html>\n"
+    '<html lang="en" data-theme="dark">\n'
+    "<head>\n"
+    '<meta charset="utf-8">\n'
+    '<meta name="afk-understanding"\n'
+    f'      data-generated="{_UNDERSTANDING_GENERATED}"\n'
+    f'      data-diff-range="{_UNDERSTANDING_DIFF_RANGE}"\n'
+    f'      content="generated={_UNDERSTANDING_GENERATED}; diff-range={_UNDERSTANDING_DIFF_RANGE}">\n'
+    "<title>Understanding &mdash; fixture</title>\n"
+    "</head>\n"
+    "<body><main>toy understanding artifact</main></body>\n"
+    "</html>\n"
+)
+
 _SUBTASK_TEXT = """# 0001-sample
 
 ## Produces
@@ -106,12 +127,18 @@ def _build_fixture(
     journal: bool = True,
     sdd: bool = True,
     review_index: bool = True,
+    understanding: bool = True,
     git_init: bool = True,
     git_commit: bool = True,
 ) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     if sdd:
         (base / "SDD.md").write_text(_SDD_TEXT, encoding="utf-8")
+
+    if understanding:
+        u_dir = base / "understanding"
+        u_dir.mkdir(parents=True, exist_ok=True)
+        (u_dir / "index.html").write_text(_UNDERSTANDING_HTML, encoding="utf-8")
 
     plan_dir = base / "plan"
     any_plan_section = plan_progress or plan_smoke or plan_preflight
@@ -152,6 +179,16 @@ def _build_fixture(
     return base
 
 
+def _panel_fragment(html_text: str, panel_id: str) -> str:
+    """The `<section …>…</section>` card for one panel (cards don't nest)."""
+    match = re.search(
+        r'<section[^>]*data-panel="' + re.escape(panel_id) + r'".*?</section>',
+        html_text,
+        re.DOTALL,
+    )
+    return match.group(0) if match else ""
+
+
 class MissionControlContractTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -187,6 +224,16 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertIn('data-panel="gates"', html_text)
         self.assertIn("PF-1 merge origin/master", html_text)
         self.assertIn("0001-sample-abc123.md", html_text)
+
+        # Understanding panel: repo-relative path as plain text + the two chips
+        # parsed from the afk-understanding meta header. No hyperlink.
+        self.assertIn('data-panel="understanding"', html_text)
+        self.assertIn("understanding/index.html", html_text)
+        self.assertIn(_UNDERSTANDING_GENERATED, html_text)
+        self.assertIn(_UNDERSTANDING_DIFF_RANGE, html_text)
+        understanding_card = _panel_fragment(html_text, "understanding")
+        self.assertNotIn("<a ", understanding_card)
+        self.assertNotIn("href", understanding_card)
 
         self.assertNotIn("mc-card-absent", html_text)
 
@@ -231,6 +278,11 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertIsInstance(panels["gates"], Absent)
         self.assertNotIsInstance(panels["progress"], Absent)
 
+        spec = _build_fixture(self.base / "no-understanding", understanding=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
     # A4 - page self-contained: zero external refs, opens via file://
     def test_page_self_contained(self):
         spec_dir = _build_fixture(self.base / "contained")
@@ -242,6 +294,12 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertNotRegex(html_text, r'(src|href)\s*=\s*"https?://')
         self.assertNotIn("<link", html_text)
         self.assertNotIn("<script src", html_text)
+
+        # The understanding panel's fragment is part of the self-contained page
+        # and carries no reference out (no external ref, no relocatable link).
+        understanding_card = _panel_fragment(html_text, "understanding")
+        self.assertIn("understanding/index.html", understanding_card)
+        self.assertNotRegex(understanding_card, r'(src|href)\s*=')
 
     # A5 - GET-only server; page has no mutating control
     def test_get_only_read_only(self):

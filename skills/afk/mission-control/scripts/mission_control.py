@@ -18,21 +18,23 @@ import sys
 from pathlib import Path
 
 from mc import server
-from mc.panels import design_map, diffs, gates, progress, timeline
+from mc.panels import design_map, diffs, gates, progress, timeline, understanding
 
 EXIT_OK = 0
 EXIT_PATH_FENCE = 2
 
 DEFAULT_PORT = 8420
 
-# ADR-0007: five independent parsers behind one registry; each yields
-# PanelVM | Absent(reason), never an exception (see mc/vm.py).
+# ADR-0007: independent parsers behind one registry; each yields
+# PanelVM | Absent(reason), never an exception (see mc/vm.py). Parser list
+# order is layout order — understanding trails the gates panel.
 PANEL_PARSERS = [
     progress.parse,
     timeline.parse,
     design_map.parse,
     diffs.parse,
     gates.parse,
+    understanding.parse,
 ]
 
 
