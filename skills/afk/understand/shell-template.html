@@ -193,9 +193,8 @@
     <p style="color:var(--muted);font-size:.85rem">Placeholder quiz (real artifact defaults to five questions).
     Take it or skip it — the score stays in your browser.</p>
     <!-- INJECTION SLOT 4 — quiz data. The generator replaces this JSON array with
-         the authored questions (one correct answer + three distractors, mandatory
-         explanation, randomized correct-answer position/length). Empty/absent ⇒ the
-         quiz engine renders nothing. -->
+         the authored questions, each item {q, opts, right, expl}, authored per
+         UNDERSTANDING-FORMAT.md "Quiz rules". Empty/absent ⇒ the quiz renders nothing. -->
     <script type="application/json" class="afku-quiz-data">
     [
       { "q": "Placeholder application-style question — replaced at generation?",
@@ -298,26 +297,31 @@
     var items;
     try { items = dataEl ? JSON.parse(dataEl.textContent) : []; }
     catch (e) { items = []; }
-    if (!Array.isArray(items) || !items.length) return;
+    if (!Array.isArray(items)) items = [];
+    // Only answerable items (a non-empty opts array) count toward the score total,
+    // so a malformed injected item can't render the "Score …" line unreachable.
+    var quiz = items.filter(function (it) { return it && Array.isArray(it.opts) && it.opts.length; });
+    if (!quiz.length) return;
 
     var scoreEl = root.querySelector('.afku-quiz-score');
     var score = 0, answered = 0;
-    items.forEach(function (item) {
+    quiz.forEach(function (item) {
+      var rightIdx = Number(item.right);  // tolerate a JSON string index; NaN ⇒ no option is "correct"
       var div = document.createElement('div'); div.className = 'afku-quiz-q';
-      var qt = document.createElement('div'); qt.className = 'afku-qtext'; qt.textContent = item.q; div.appendChild(qt);
-      (item.opts || []).forEach(function (opt, i) {
+      var qt = document.createElement('div'); qt.className = 'afku-qtext'; qt.textContent = item.q || ''; div.appendChild(qt);
+      item.opts.forEach(function (opt, i) {
         var b = document.createElement('button'); b.className = 'afku-quiz-opt'; b.textContent = opt;
         b.onclick = function () {
           if (div.classList.contains('answered')) return;
           div.classList.add('answered'); answered++;
-          if (i === item.right) { b.classList.add('right'); score++; }
+          if (i === rightIdx) { b.classList.add('right'); score++; }
           else {
             b.classList.add('wrong');
-            var correct = div.querySelectorAll('.afku-quiz-opt')[item.right];
+            var correct = div.querySelectorAll('.afku-quiz-opt')[rightIdx];
             if (correct) correct.classList.add('right');
           }
-          if (scoreEl && answered === items.length) {
-            scoreEl.textContent = 'Score: ' + score + ' / ' + items.length + ' — nothing was recorded.';
+          if (scoreEl && answered === quiz.length) {
+            scoreEl.textContent = 'Score: ' + score + ' / ' + quiz.length + ' — nothing was recorded.';
           }
         };
         div.appendChild(b);
