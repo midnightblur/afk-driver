@@ -1,6 +1,7 @@
 ---
 name: draw-charts
 description: Render-safe diagrams. Use when writing any Mermaid (or other) chart into a file or message — steers away from the few constructs that break renderers and render-checks before shipping.
+user-invocable: false
 ---
 
 Charts that render first time. Mermaid-first; grow as gotchas surface.
