@@ -62,14 +62,15 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 9. **Producer self-preflight on `## Produces` (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-10. **Status → `reviewing`; independent review gate.** Every tier green (Step 8) and `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it).
+10. **Status → `reviewing`; independent review gate.** Every tier green (Step 8) and `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across its concern roster — implementation concerns always, design-level concerns by diff-shape trigger — and is **read-only** — returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it).
 
     - **`clean`** → proceed to Step 11.
     - **`advisory`** (only `medium`/`low`) → don't block on nits. Findings already live in `plan/review/*.md`; add a brief MR note, then proceed to Step 11.
     - **`blocking`** (any `critical`/`high`) → remediate **by each finding's `class`**, then re-verify:
       - `correctness` / `spec` (incl. a behaviour-risk refactor) → route to **`/afk:fix`** (diagnose-backed; adds the regression / behaviour-pinning test the gate demanded).
-      - `compliance` / `smell` / `test` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
+      - `compliance` / `smell` / `test` / `design` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
       - `scope` → trim the out-of-scope change back inside the Scope globs; if the finding genuinely needs work **outside** Scope, stop with `blocked` per the Scope hard rule (not `review_fail`) so the human can re-slice.
+      - `pattern-debt` → no routing, never blocks — it lives in the review's debt ledger; leave it.
       - Commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and **re-run from Step 8** (tiers → preflight → this gate).
     - **Cap at 2 review cycles.** If the gate is still `blocking` after the second remediation, **stop with `review_fail`** — name the surviving `critical`/`high` findings and their `class`; do **not** mark the subtask `done`.
 
