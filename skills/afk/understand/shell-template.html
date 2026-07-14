@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<!--
+  afk:understand — shell template asset (checked in once, copied per generation).
+
+  This is BOILERPLATE only: the guided-tour chrome, the client-side quiz engine,
+  the CSS token family, and the named injection slots. The generator copies this
+  whole file, replaces the {{TOKENS}} and the injection slots (marked below), and
+  writes one self-contained artifact per feature. Shell updates never reach
+  already-shipped artifacts — an old artifact wanting a fix is regenerated.
+
+  Injection slots (the generator fills these; everything else is frozen chrome):
+    1. <meta name="afk-understanding">  — machine-readable header; two fields
+       (generated date, diff SHA range). Mission-control's ONLY parse target.
+    2. header chips + title/meta line   — elements carrying data-slot="…".
+    3. <template id="sections">          — the sections mount; the generator
+       REPLACES its children with the authored SEC-1..SEC-5 <section>s.
+    4. quiz data                         — a <script type="application/json"
+       class="afku-quiz-data"> inside the injected quiz section.
+
+  Genericity rule (UNDERSTANDING-FORMAT.md "Genericity rule"): no real feature,
+  ticket, product-symbol, or person name in this asset. All content below the
+  slots is obviously-hypothetical placeholder toy data, replaced at generation.
+  This HTML is NOT scanned by the markdown genericity hook — the rule is honoured
+  by hand here (SDD §14 accepted finding "Genericity enforcement gap").
+
+  Offline / self-contained: inline CSS/JS/SVG only. Zero external src/href request
+  targets anywhere (PRD AC-004; SDD §9b "Browser runtime" seam). Opens as file://.
+-->
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- INJECTION SLOT 1 — machine-readable meta header (afk-understanding grammar,
+     UNDERSTANDING-FORMAT.md#afk-understanding). Both fields mandatory; the
+     generator replaces the {{TOKENS}}. Mission-control parses only this element. -->
+<meta name="afk-understanding"
+      data-generated="{{GENERATED_DATE}}"
+      data-diff-range="{{DIFF_SHA_RANGE}}"
+      content="generated={{GENERATED_DATE}}; diff-range={{DIFF_SHA_RANGE}}">
+
+<title>Understanding — {{FEATURE_TITLE}}</title>
+<style>
+  /* ===== mission-control family tokens (shared plugin palette) ===== */
+  /* Shell owns the afku-* class prefix and the base element styles. The token
+     names below stay OUT of the --iw-* namespace so copied interactive-walkthrough
+     widgets (which scope their own tokens under .iwf/.iws/.iwg) never collide. */
+  :root {
+    --bg: #0b0e14; --surface: #12151c; --border: #22262f;
+    --text: #e6e6e6; --muted: #888; --heading-accent: #aab;
+    /* in-family slots the prototype defined (mission-control leaves these open) */
+    --accent: #6ea8fe; --ok: #4cc38a; --warn: #e5b567; --fail: #e5484d;
+    --code-bg: #0e1119; --kw: #c792ea; --str: #a5d6a7; --com: #676e7c; --typ: #82aaff; --num: #f78c6c;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); line-height: 1.55; }
+  h1 { font-size: 1.25rem; margin: 0; }
+  h2 { font-size: 1.05rem; margin: 0 0 .75rem; }
+  h3 { font-size: .9rem; color: var(--heading-accent); margin: 1.25rem 0 .5rem; text-transform: uppercase; letter-spacing: .04em; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.afku-page { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  header.afku-page .afku-meta { color: var(--muted); font-size: .8rem; }
+  .afku-chip { display: inline-block; padding: .1rem .55rem; border: 1px solid var(--border); border-radius: 999px; font-size: .72rem; color: var(--muted); }
+  .afku-chip.ok { color: var(--ok); border-color: var(--ok); }
+  .afku-chip.warn { color: var(--warn); border-color: var(--warn); }
+
+  .afku-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; }
+
+  .afku-prose p { margin: .6rem 0; }
+  .afku-prose ul { margin: .4rem 0; padding-left: 1.2rem; }
+  .afku-callout { border-left: 3px solid var(--accent); background: rgba(110,168,254,.07); padding: .6rem .9rem; border-radius: 0 6px 6px 0; margin: .8rem 0; font-size: .92rem; }
+  .afku-callout.warn { border-color: var(--warn); background: rgba(229,181,103,.07); }
+  details.afku-deep-bg { border: 1px solid var(--border); border-radius: 6px; padding: .5rem .9rem; margin: .8rem 0; }
+  details.afku-deep-bg summary { cursor: pointer; color: var(--heading-accent); font-size: .9rem; }
+  details.afku-deep-bg[open] summary { margin-bottom: .5rem; }
+
+  .afku-prose pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: .8rem 1rem; overflow-x: auto; font-size: .82rem; line-height: 1.5; }
+  code { font-family: ui-monospace, Consolas, "Cascadia Mono", monospace; }
+  .afku-prose p code, .afku-prose li code, .afku-prose td code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: .05rem .3rem; font-size: .85em; }
+  .afku-kw { color: var(--kw); } .afku-str { color: var(--str); } .afku-com { color: var(--com); font-style: italic; } .afku-typ { color: var(--typ); } .afku-num { color: var(--num); }
+  .afku-file-label { font-size: .75rem; color: var(--muted); font-family: ui-monospace, Consolas, monospace; margin: .9rem 0 .25rem; }
+  .afku-diff-add { background: rgba(76,195,138,.12); display: block; }
+  .afku-diff-del { background: rgba(229,72,77,.12); display: block; text-decoration: line-through; opacity: .7; }
+
+  .afku-dev { border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0; padding: .7rem 1rem; margin: .7rem 0; }
+  .afku-dev .afku-dev-head { font-weight: 600; font-size: .92rem; }
+  .afku-dev .afku-dev-src { color: var(--muted); font-size: .75rem; font-family: ui-monospace, Consolas, monospace; margin-top: .35rem; }
+
+  .afku-quiz-q { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; margin: .8rem 0; }
+  .afku-quiz-q .afku-qtext { font-weight: 600; margin-bottom: .6rem; }
+  .afku-quiz-opt { display: block; width: 100%; text-align: left; margin: .3rem 0; padding: .5rem .8rem; background: var(--code-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: .9rem; font-family: inherit; }
+  .afku-quiz-opt:hover { border-color: var(--accent); }
+  .afku-quiz-opt.right { border-color: var(--ok); color: var(--ok); }
+  .afku-quiz-opt.wrong { border-color: var(--fail); color: var(--fail); }
+  .afku-quiz-expl { display: none; margin-top: .5rem; font-size: .85rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: .5rem; }
+  .afku-quiz-q.answered .afku-quiz-expl { display: block; }
+  .afku-quiz-score { font-size: 1rem; margin-top: 1rem; color: var(--heading-accent); }
+
+  /* ===== guided tour layout ===== */
+  .afku-layout { max-width: 780px; margin: 0 auto; padding: 1.5rem; }
+  .afku-tour-progress { display: flex; gap: .4rem; margin-bottom: 1.2rem; }
+  .afku-tour-progress .afku-dot { flex: 1; height: 6px; border-radius: 3px; background: var(--border); cursor: pointer; }
+  .afku-tour-progress .afku-dot.done { background: var(--accent); }
+  .afku-tour-progress .afku-dot:hover { outline: 1px solid var(--accent); }
+  .afku-tour-nav { display: flex; justify-content: space-between; margin-top: 1.2rem; }
+  .afku-tour-nav button { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: .5rem 1.2rem; cursor: pointer; font-family: inherit; }
+  .afku-tour-nav button:hover { border-color: var(--accent); }
+  .afku-tour-nav button:disabled { opacity: .3; cursor: default; }
+  .afku-tour-step-label { color: var(--muted); font-size: .78rem; margin-bottom: .5rem; display: flex; justify-content: space-between; }
+  .afku-tour-step-label .hint { font-size: .72rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<!-- INJECTION SLOT 2 — page header: feature title, meta line, summary chips.
+     The generator replaces each {{TOKEN}}; add/remove chips as the feature needs
+     (smoke state, deviation count, quiz size are the settled three). -->
+<header class="afku-page">
+  <h1 data-slot="feature-title">Understanding — {{FEATURE_TITLE}}</h1>
+  <span class="afku-meta" data-slot="meta-line">{{META_LINE}}</span>
+  <span class="afku-chip ok" data-slot="smoke">{{SMOKE_CHIP}}</span>
+  <span class="afku-chip warn" data-slot="deviations">{{DEVIATIONS_CHIP}}</span>
+  <span class="afku-chip" data-slot="quiz">{{QUIZ_CHIP}}</span>
+</header>
+
+<!-- INJECTION SLOT 3 — sections mount. The generator REPLACES the children of
+     this <template> with the authored SEC-1..SEC-5 <section> elements (fixed
+     order, per UNDERSTANDING-FORMAT.md "Section shapes"). Each <section> needs
+     data-id + data-title; the tour renders one per step, in document order.
+
+     The placeholder sections below are OBVIOUSLY HYPOTHETICAL toy data present
+     only so the chrome is demonstrable when this asset is opened directly — the
+     generator discards them wholesale. -->
+<template id="sections">
+
+  <section data-id="background" data-title="Background" class="afku-card afku-prose">
+    <h2>1 · Background</h2>
+    <details class="afku-deep-bg">
+      <summary>System background — collapsed by default; skip if you know the area</summary>
+      <p><em>Placeholder.</em> The generator writes the collapsible system-context layer here — orientation
+      for a teammate new to the area, sourced from existing code and the SDD/PRD.</p>
+    </details>
+    <p><strong>Placeholder — background for this change.</strong> The generator writes the change-specific
+    layer here: what the local situation was before this feature and why it needed to change.</p>
+  </section>
+
+  <section data-id="intuition" data-title="Intuition" class="afku-card afku-prose">
+    <h2>2 · Intuition</h2>
+    <p><em>Placeholder.</em> One or two sentences capturing the essence of the change, before any code.</p>
+    <svg viewBox="0 0 640 140" style="width:100%;max-width:640px" role="img" aria-label="placeholder toy diagram">
+      <line x1="40" y1="70" x2="620" y2="70" stroke="#e5b567" stroke-dasharray="6 4" stroke-width="1.5"/>
+      <polyline points="40,30 180,50 320,90 460,60 560,40" fill="none" stroke="#6ea8fe" stroke-width="2.5"/>
+      <text x="40" y="125" fill="#888" font-size="11">toy value over time → (placeholder diagram)</text>
+    </svg>
+    <div class="afku-callout">Placeholder callout: the generator states the single mental model for the whole
+    change here. Interactive elements, when a flow shape matches, are copied inline from the
+    interactive-walkthrough widget catalog and re-run per step by this shell.</div>
+  </section>
+
+  <section data-id="walkthrough" data-title="Walkthrough" class="afku-card afku-prose">
+    <h2>3 · Walkthrough — by seam, not by file</h2>
+    <h3>Seam A · placeholder group</h3>
+    <p><em>Placeholder.</em> The generator groups the diff by seam/flow (never file/alphabetical order) and
+    writes a literate, syntax-highlighted walkthrough. Toy snippet:</p>
+    <div class="afku-file-label">module/path/PlaceholderType.example</div>
+<pre><code><span class="afku-kw">function</span> <span class="afku-typ">placeholder</span>(value) {
+<span class="afku-diff-add">  <span class="afku-com">// landed line — highlighted as a diff add</span></span>
+<span class="afku-diff-add">  <span class="afku-kw">return</span> value + <span class="afku-num">1</span>;</span>
+}</code></pre>
+    <h3>Skipped as trivial</h3>
+    <p style="color:var(--muted);font-size:.85rem">Placeholder: each mechanical/derivable changed file is
+    listed here individually with a one-clause reason (e.g. "lockfile — regenerated").</p>
+  </section>
+
+  <section data-id="deviations" data-title="Deviations" class="afku-card afku-prose">
+    <h2>4 · Where reality diverged from the plan</h2>
+    <p style="color:var(--muted);font-size:.85rem"><em>Placeholder — this section is present only when a notable
+    deviation exists, and is omitted entirely when the feature landed as planned.</em></p>
+    <div class="afku-dev">
+      <div class="afku-dev-head">D-0 · placeholder deviation</div>
+      <p>The generator writes one card per notable deviation, drawn only from the closed
+      notable-deviation enumeration, each carrying its source citation.</p>
+      <div class="afku-dev-src">source: placeholder (journal event / review finding / subtask)</div>
+    </div>
+  </section>
+
+  <section data-id="quiz" data-title="Quiz" class="afku-card afku-prose">
+    <h2>5 · Quiz — optional, self-scored, nothing recorded</h2>
+    <p style="color:var(--muted);font-size:.85rem">Placeholder quiz (real artifact defaults to five questions).
+    Take it or skip it — the score stays in your browser.</p>
+    <!-- INJECTION SLOT 4 — quiz data. The generator replaces this JSON array with
+         the authored questions (one correct answer + three distractors, mandatory
+         explanation, randomized correct-answer position/length). Empty/absent ⇒ the
+         quiz engine renders nothing. -->
+    <script type="application/json" class="afku-quiz-data">
+    [
+      { "q": "Placeholder application-style question — replaced at generation?",
+        "opts": ["Yes — the generator injects real questions", "No", "Only in standalone mode", "Never"],
+        "right": 0,
+        "expl": "Placeholder explanation. Every real question carries one, and no result is recorded anywhere." }
+    ]
+    </script>
+    <div class="afku-quiz-root"></div>
+    <div class="afku-quiz-score"></div>
+  </section>
+
+</template>
+
+<div class="afku-layout">
+  <div class="afku-tour-progress" id="afku-tour-dots"></div>
+  <div class="afku-tour-step-label">
+    <span id="afku-tour-label"></span>
+    <span class="hint">←/→ keys work · dots jump</span>
+  </div>
+  <div id="afku-tour-content"></div>
+  <div class="afku-tour-nav">
+    <button id="afku-tour-prev">← Back</button>
+    <button id="afku-tour-next">Next →</button>
+  </div>
+</div>
+
+<script>
+/*
+  Guided-tour chrome + quiz engine — frozen boilerplate. Reads whatever the
+  generator injected into <template id="sections">; makes no assumption about the
+  feature. Optional host hook: define window.__annotate(root) BEFORE this script
+  runs (e.g. a term-annotator) and it is called on each freshly-mounted step so
+  copied interactive-walkthrough widgets' annotations re-run on dynamic content.
+*/
+(function () {
+  var tpl = document.getElementById('sections');
+  var sections = Array.from(tpl.content.querySelectorAll('section'));
+  var step = 0;
+  var dots = document.getElementById('afku-tour-dots'),
+      label = document.getElementById('afku-tour-label'),
+      host = document.getElementById('afku-tour-content'),
+      prev = document.getElementById('afku-tour-prev'),
+      next = document.getElementById('afku-tour-next');
+
+  if (!sections.length) {
+    // No sections injected — leave the chrome inert rather than throw.
+    label.textContent = 'No sections.';
+    prev.disabled = next.disabled = true;
+    return;
+  }
+
+  sections.forEach(function (_, i) {
+    var d = document.createElement('div');
+    d.className = 'afku-dot';
+    d.title = sections[i].dataset.title || ('Step ' + (i + 1));
+    d.onclick = function () { step = i; render(); };
+    dots.appendChild(d);
+  });
+
+  // Cloned/injected <script> elements do not execute on insertion. Re-create the
+  // executable ones so copied interactive-walkthrough widgets initialize when
+  // their step is shown. Data scripts (type application/json) are left untouched.
+  function runScripts(root) {
+    Array.from(root.querySelectorAll('script')).forEach(function (old) {
+      var type = (old.getAttribute('type') || '').toLowerCase();
+      if (type && type !== 'text/javascript' && type !== 'module' && type !== 'application/javascript') return;
+      var s = document.createElement('script');
+      Array.from(old.attributes).forEach(function (a) { s.setAttribute(a.name, a.value); });
+      s.textContent = old.textContent;
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+
+  function render() {
+    host.innerHTML = '';
+    host.appendChild(sections[step].cloneNode(true));
+    wireQuiz(host);
+    runScripts(host);
+    if (typeof window.__annotate === 'function') { try { window.__annotate(host); } catch (e) {} }
+    label.textContent = 'Step ' + (step + 1) + ' of ' + sections.length + ' — ' + (sections[step].dataset.title || '');
+    Array.from(dots.children).forEach(function (d, i) { d.classList.toggle('done', i <= step); });
+    prev.disabled = step === 0;
+    next.disabled = step === sections.length - 1;
+    window.scrollTo(0, 0);
+  }
+
+  prev.onclick = function () { if (step > 0) { step--; render(); } };
+  next.onclick = function () { if (step < sections.length - 1) { step++; render(); } };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') prev.onclick();
+    if (e.key === 'ArrowRight') next.onclick();
+  });
+
+  // Client-side quiz: reads the injected JSON, scores locally, records nothing.
+  function wireQuiz(root) {
+    var qroot = root.querySelector('.afku-quiz-root');
+    if (!qroot) return;
+    var dataEl = root.querySelector('.afku-quiz-data');
+    var items;
+    try { items = dataEl ? JSON.parse(dataEl.textContent) : []; }
+    catch (e) { items = []; }
+    if (!Array.isArray(items) || !items.length) return;
+
+    var scoreEl = root.querySelector('.afku-quiz-score');
+    var score = 0, answered = 0;
+    items.forEach(function (item) {
+      var div = document.createElement('div'); div.className = 'afku-quiz-q';
+      var qt = document.createElement('div'); qt.className = 'afku-qtext'; qt.textContent = item.q; div.appendChild(qt);
+      (item.opts || []).forEach(function (opt, i) {
+        var b = document.createElement('button'); b.className = 'afku-quiz-opt'; b.textContent = opt;
+        b.onclick = function () {
+          if (div.classList.contains('answered')) return;
+          div.classList.add('answered'); answered++;
+          if (i === item.right) { b.classList.add('right'); score++; }
+          else {
+            b.classList.add('wrong');
+            var correct = div.querySelectorAll('.afku-quiz-opt')[item.right];
+            if (correct) correct.classList.add('right');
+          }
+          if (scoreEl && answered === items.length) {
+            scoreEl.textContent = 'Score: ' + score + ' / ' + items.length + ' — nothing was recorded.';
+          }
+        };
+        div.appendChild(b);
+      });
+      var ex = document.createElement('div'); ex.className = 'afku-quiz-expl'; ex.textContent = item.expl || ''; div.appendChild(ex);
+      qroot.appendChild(div);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
