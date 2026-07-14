@@ -22,6 +22,8 @@ Locate every in-scope feature with a `plan/` dir; skip those without one (nothin
 | `plan/JOURNAL.md` | event lines (grammar: `skills/afk/to-subtasks/JOURNAL-FORMAT.md`): parks + reasons, stranded rows, heartbeat cadence, first→last timestamp (wall-clock), review/adversary/smoke verdict lines, re-review counts per subtask (remediation cycles) |
 | `plan/PLAN.md` | subtask count, final Status column distribution, smoke-gate shape (full/minimal) + result |
 | `plan/review/INDEX.md` + `*.findings.json` | finding counts by `class` and `severity`, open advisories, verdict per subtask |
+| `plan/review/*.findings.json` × `*.outcomes.json` | per-`criterion` outcome rates — fixed vs dismissed vs deferred, joined on finding id |
+| `plan/review/PATTERN-DEBT.md` | baseline↔repo-pattern conflicts: criterion + overriding rule per row |
 | `plan/review/*-adversary.md` | adversary verdicts + finding classes |
 | `GRILL-LOG.md` | which decisions were settled at grill time (to correlate: did downstream failures trace to a gap a grill should have caught?) |
 | repo `.claude/metrics/gate-latency.jsonl` | gate p50/p95, red rates, `lock_wait_ms` share — summarize via `bash tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh` |
@@ -38,6 +40,8 @@ Aggregate across features, then rank. A signal needs **≥2 independent occurren
 3. **Stall geography** — where wall-clock goes: per-subtask duration outliers from journal timestamps, remediation-cycle counts, gate latency p95 vs budget (`hooks/README.md` "Latency metrics & budget"), `lock_wait_ms` share.
 4. **Grill-gap correlation** — downstream failures (parks, blocking findings, smoke reds) whose root cause was decidable at grill time. Each a missed staple/question candidate for the owning grill skill.
 5. **Wiring debt** — open IOUs older than the feature that minted them.
+6. **Criterion yield** — join each finding's `criterion` to its recorded outcome: a criterion whose findings are predominantly `dismissed` across features is a prune/reword candidate (proposal edits the owning `skills/afk/review/checklists/*.md`); a criterion that never fires is flagged as possible dead weight, never auto-pruned. This is what keeps the review catalog earning its cost instead of only growing.
+7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk:claude-md` (which owns those writes), not as a plugin edit.
 
 ## Output
 

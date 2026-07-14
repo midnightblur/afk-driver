@@ -37,7 +37,9 @@ Run once verification scenarios are settled. What you can write depends on what'
 
 2. **Detect prior state.** Check for an existing sibling `VERIFICATION-PLAN.md`. Present (UI written pre-SDD) + SDD now on disk → you're **appending** the API section; read the existing file, preserve `## UI Journeys` verbatim.
 
-3. **Write `VERIFICATION-PLAN.md`** sibling to the PRD (template below). Per scenario record its trace (UI → a PRD User Story; API → an SDD §3 endpoint + the PRD Acceptance Criterion it proves) and its **env-limited** flag (carried from the grill — `@sap`, GL-post-on-FOS, etc. — so the gate excludes it from the green verdict rather than reading it as failure). No SDD → `## API Scenarios` is the one-line deferred placeholder.
+3. **Write `VERIFICATION-PLAN.md`** sibling to the PRD (template below). Per scenario record its trace (UI → a PRD User Story; API → an SDD §3 endpoint + the PRD Acceptance Criterion it proves), its **env-limited** flag (carried from the grill — `@sap`, GL-post-on-FOS, etc. — so the gate excludes it from the green verdict rather than reading it as failure), and its **Requires target** class (carried from the grill — so the gate refuses to count it green on an incompatible target). No SDD → `## API Scenarios` is the one-line deferred placeholder.
+
+3a. **Write the `## Instance enumeration` section** per the template, for every requirement the grill enumerated over a set. Every enumerated member appears with its covering row or verified exclusion — a member the grill never settled is a `/afk:grill-verification` gap, route back; never fill the set in here yourself.
 
 3b. **Write the `## Aspect coverage` ledger.** Transcribe the per-aspect verdict the grill settled — triggered vs N/A-with-reason, proving row IDs, env-limited flag — per the template's `## Aspect coverage` rules (the template owns the both-modalities requirement). Don't invent a verdict the grill didn't settle — a missing verdict is a `/afk:grill-verification` gap, route back.
 
@@ -56,8 +58,10 @@ Write `VERIFICATION-PLAN.md` using the template in [VERIFICATION-PLAN-TEMPLATE.m
 ## Hard rules
 
 - **Carry env-limited flags through.** Both modalities — so the downstream gate excludes them from its green verdict.
+- **Carry Requires-target flags through.** A scenario the grill flagged origin-class-sensitive keeps its target class — so the downstream gate never counts it green on a target that can't reach the asserted code path.
 - **Persistence reverify (UI) / refetch (API).** Owning statement is the template's `**Persistence reverify**` / `**Persistence refetch**` lines ([VERIFICATION-PLAN-TEMPLATE.md](VERIFICATION-PLAN-TEMPLATE.md)) — emit them per the template on every journey/scenario; `n/a` only for the reasons the template states.
 - **Every scenario traces to a source.** No orphan rows: UI → User Story; API → SDD §3 row + PRD Acceptance Criterion.
+- **Every source is covered.** The reverse trace also holds: every PRD User Story, every Acceptance Criterion, and every SDD §3 endpoint has ≥1 proving row — or an exclusion the human decided, recorded with its reason in `## Gaps surfaced`. A source silently left uncovered is a `/afk:grill-verification` gap to route back, not a plan to write.
 - **The `## Aspect coverage` ledger is complete.** Every aspect has a verdict (triggered with proving rows, or N/A with a reason), satisfying the template's `## Aspect coverage` rules. A blank verdict is a grill gap to route back, not a row to leave empty.
 - **Local artifact only.** Writes `VERIFICATION-PLAN.md` (+ gap notes). No Jira, no GitLab.
 

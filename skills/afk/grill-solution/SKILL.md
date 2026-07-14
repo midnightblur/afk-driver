@@ -11,6 +11,8 @@ If a question is answerable from the codebase, PRD, a `PROTOTYPE.md` if one sett
 
 The staples the PRD **accepted** (from `{service}/STAPLES.md`) are **binding design inputs**: realize each in the layer it belongs to, using the staple's registry **Reference** as the template, and weigh it with ≥2 alternatives like any other decision. A design that drops an accepted staple isn't exhausted.
 
+**Design bars.** The `## Guardrails` digests in `skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md` (this plugin) are the bars the implementation is later reviewed against — hold each L4–L8 decision to them while it's still prose, the cheapest place to fix a shallow module or a missing failure story.
+
 ## The 9 layers (grill in this order)
 
 ### L1 — System / topology

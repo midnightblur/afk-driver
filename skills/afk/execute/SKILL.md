@@ -46,6 +46,8 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — entity classes fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
 
+   **Design to the review bars.** Read the `## Guardrails` digest of each design-level checklist in `tools/payable/ai-agents/plugins/workflow/skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md` — the bars this slice is later reviewed against. Holding the design to them now costs a rename; failing them at the gate costs a remediation cycle.
+
 5. **Status → `developing`; apply TDD.** Flip the tracker cell to `developing`, then use `/afk:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
 6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules).
@@ -62,16 +64,18 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 9. **Producer self-preflight on `## Produces` (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-10. **Status → `reviewing`; independent review gate.** Every tier green (Step 8) and `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it).
+10. **Status → `reviewing`; independent review gate.** Every tier green (Step 8) and `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across its concern roster — implementation concerns always, design-level concerns by diff-shape trigger — and is **read-only** — returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it).
 
     - **`clean`** → proceed to Step 11.
     - **`advisory`** (only `medium`/`low`) → don't block on nits. Findings already live in `plan/review/*.md`; add a brief MR note, then proceed to Step 11.
     - **`blocking`** (any `critical`/`high`) → remediate **by each finding's `class`**, then re-verify:
       - `correctness` / `spec` (incl. a behaviour-risk refactor) → route to **`/afk:fix`** (diagnose-backed; adds the regression / behaviour-pinning test the gate demanded).
-      - `compliance` / `smell` / `test` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
+      - `compliance` / `smell` / `test` / `design` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
       - `scope` → trim the out-of-scope change back inside the Scope globs; if the finding genuinely needs work **outside** Scope, stop with `blocked` per the Scope hard rule (not `review_fail`) so the human can re-slice.
+      - `pattern-debt` → no routing, never blocks — it lives in the review's debt ledger; leave it.
       - Commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and **re-run from Step 8** (tiers → preflight → this gate).
     - **Cap at 2 review cycles.** If the gate is still `blocking` after the second remediation, **stop with `review_fail`** — name the surviving `critical`/`high` findings and their `class`; do **not** mark the subtask `done`.
+    - **Record outcomes.** However the gate ends, write `plan/review/{NNNN-slug}-{base-short}.outcomes.json` mapping every finding id to `fixed` / `dismissed(<reason>)` / `deferred` (advisories consciously left open are `deferred`) — the per-criterion telemetry `/afk:retro` aggregates.
 
     Standalone, `/afk:review` also runs on its own (`/afk:review {NNNN-slug}`) to audit a slice without gating.
 
@@ -120,5 +124,7 @@ If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-M
 - **Cross-module edits need marker comments.** A ticket-prefixed line like `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the home module.
 - **No `--no-verify`, no `--force`, no global git config changes.**
 - **Stay inside Scope globs.** If work requires going outside, stop with detail on what was needed and why.
+- **Negative existence claims are verified, never inferred.** Before writing "backend field/symbol X doesn't exist" into code, a test, or a doc (e.g. an exclusion comment), check the **generated** artifacts — the generated TS models (`target/typescript/backendModels.ts`), the APT output under `target/generated-sources/annotations` — and the declaring class's **full inheritance chain**, not just its hand-written source. Cite the checked artifact where the claim lands. A plausible inference shipped as a documented, tested-for exclusion is worse than no exclusion.
+- **Sweep siblings of a pattern fix.** When a change fixes one instance of a repeated component/pattern (sibling grids, twin view/provider pairs), enumerate the siblings sharing the shape: apply the same fix to those inside Scope; name the out-of-scope ones in the outcome report as a surfaced gap. Never leave a twin silently unswept or "excluded" without the verified reason above.
 - **Run every subtask uniformly from its contract** — including one whose `## Goal` says to invoke another skill: invoke that skill as written; don't recognize a subtask by kind, hand-write its output, or reimplement what it delegates to.
 - **Only the tracker's Status column and the MR checklist block are yours.** In PLAN.md edit only the working subtask's `Status` cell + the `Last updated` date; in the MR only the checklist block. Everything else — including the subtask file, which round-trips verbatim — is not yours to touch.
