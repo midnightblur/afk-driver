@@ -78,7 +78,8 @@ implementation's own reasoning, with the cross-slice design roster that skill's
 `--feature` mode defines. Gate on its `REVIEW:` verdict line. `clean`/`advisory`
 → proceed. `blocking` → remediate by class within the shared cap
 (`correctness`/`spec` → `/afk:fix`; `compliance`/`smell`/`test`/`design` →
-inline fix; `pattern-debt` never blocks); still blocking after the cap →
+inline fix; `pattern-debt` never blocks; `scope` is unreachable — the
+`--feature` roster carries no scope concern); still blocking after the cap →
 `park(PF-3: review_blocking)`. However the step ends, record each finding's
 outcome in `plan/review/feature-{base-short}.outcomes.json`
 (`fixed` / `dismissed(<reason>)` / `deferred`) — the caller-side half of the

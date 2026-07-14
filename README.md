@@ -689,14 +689,20 @@ tooling.)*
 - **`tdd`** (agent-invoked, not in the `/` menu) — red-green-refactor doctrine,
   invoked from `/afk:execute` Step 5. Not run standalone.
 - **`/afk:review`** — the **independent post-verification review gate**. Fresh,
-  parallel subagents — one per concern (CLAUDE.md-compliance, spec-fidelity,
+  parallel subagents — one per concern, each briefed verbatim with its
+  book-derived checklist (`skills/afk/review/checklists/`). Seven
+  implementation/conformance concerns (claude-md-compliance, spec-fidelity,
   logic-correctness, code-quality, test-veracity, scope-and-impact,
-  refactor-safety) — check the slice diff against the applicable CLAUDE.md chain,
-  the spec/acceptance contract, and senior-engineer code-quality + refactor bars.
+  refactor-safety) always run; four design-level concerns (design-quality,
+  domain-alignment, resilience, api-contract) activate by diff-shape trigger, and
+  their findings pass an adversarial skeptic wave before they can gate.
   **Read-only**: returns a ranked findings report + a `clean`/`advisory`/`blocking`
-  verdict, never edits or commits. Reviewers never see the implementor's reasoning
-  — independence is the point. Invoked from `/afk:execute` Step 10 (the gate before
-  `done`); also runnable standalone as `/afk:review {NNNN-slug}` to audit any slice.
+  verdict (`pattern-debt` findings never gate — they feed the
+  `plan/review/PATTERN-DEBT.md` ledger), never edits or commits. Reviewers never
+  see the implementor's reasoning — independence is the point. Invoked from
+  `/afk:execute` Step 10 (the gate before `done`) and from `/afk:preflight` PF-3
+  as `/afk:review --feature` over the integrated diff; also runnable standalone
+  as `/afk:review {NNNN-slug}` to audit any slice.
 - **`/afk:adversary`** — the adversarial execution gate (`/afk:execute` Step 10.5).
   A fresh session probes the **running app** with scenarios derived from the
   contract + specs under a hard information diet (never the diff or the
