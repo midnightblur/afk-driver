@@ -34,6 +34,7 @@
     "./skills/afk/to-subtasks",
     "./skills/afk/to-ticket",
     "./skills/afk/to-verification-plan",
+    "./skills/afk/understand",
     "./skills/utils/caveman",
     "./skills/utils/diagnose",
     "./skills/utils/draw-charts",
