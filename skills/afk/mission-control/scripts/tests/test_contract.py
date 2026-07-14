@@ -101,6 +101,36 @@ _UNDERSTANDING_HTML = (
     "</html>\n"
 )
 
+# Malformed artifacts — present file, but the panel must return Absent (never
+# raise) per the lockstep format contract's well-formedness rule.
+_UNDERSTANDING_HTML_NO_META = (
+    "<!doctype html>\n"
+    '<html lang="en"><head><meta charset="utf-8">'
+    "<title>no meta</title></head><body><main>artifact without the header</main></body></html>\n"
+)
+_UNDERSTANDING_HTML_EMPTY_FIELDS = (
+    "<!doctype html>\n"
+    "<html><head>\n"
+    '<meta name="afk-understanding" data-generated="" data-diff-range="">\n'
+    "</head><body><main>empty fields</main></body></html>\n"
+)
+# content=-only variant — exercises the panel's fallback extraction when the
+# shell carries the fields on `content=` without the data-* attributes.
+_UNDERSTANDING_HTML_CONTENT_ONLY = (
+    "<!doctype html>\n"
+    "<html><head>\n"
+    '<meta name="afk-understanding" '
+    f'content="generated={_UNDERSTANDING_GENERATED}; diff-range={_UNDERSTANDING_DIFF_RANGE}">\n'
+    "</head><body><main>content-only</main></body></html>\n"
+)
+
+
+def _write_understanding(spec_dir: Path, html_text: str) -> None:
+    u_dir = spec_dir / "understanding"
+    u_dir.mkdir(parents=True, exist_ok=True)
+    (u_dir / "index.html").write_text(html_text, encoding="utf-8")
+
+
 _SUBTASK_TEXT = """# 0001-sample
 
 ## Produces
@@ -283,6 +313,19 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertIsInstance(panels["understanding"], Absent)
         self.assertNotIsInstance(panels["progress"], Absent)
 
+        # Present file but no afk-understanding meta element -> Absent, no raise
+        # (panels_for calls every parser; a raise would fail the comprehension).
+        spec = _build_fixture(self.base / "understanding-no-meta", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_NO_META)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+
+        # Meta present but both fields empty -> Absent (malformed header).
+        spec = _build_fixture(self.base / "understanding-empty-fields", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_EMPTY_FIELDS)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+
     # A4 - page self-contained: zero external refs, opens via file://
     def test_page_self_contained(self):
         spec_dir = _build_fixture(self.base / "contained")
@@ -300,6 +343,19 @@ class MissionControlContractTests(unittest.TestCase):
         understanding_card = _panel_fragment(html_text, "understanding")
         self.assertIn("understanding/index.html", understanding_card)
         self.assertNotRegex(understanding_card, r'(src|href)\s*=')
+
+    # Understanding panel: fields carried on `content=` only (no data-* attrs)
+    # still render via the fallback extraction.
+    def test_understanding_content_only_fallback(self):
+        from mc.panels import understanding as understanding_panel
+
+        spec = _build_fixture(self.base / "content-only", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_CONTENT_ONLY)
+
+        panel = understanding_panel.parse(spec)
+        self.assertNotIsInstance(panel, Absent)
+        self.assertIn(_UNDERSTANDING_GENERATED, panel.html)
+        self.assertIn(_UNDERSTANDING_DIFF_RANGE, panel.html)
 
     # A5 - GET-only server; page has no mutating control
     def test_get_only_read_only(self):

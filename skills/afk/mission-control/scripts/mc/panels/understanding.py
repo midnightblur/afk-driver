@@ -47,7 +47,10 @@ def parse(spec_dir: Path):
     if not artifact.is_file():
         return Absent(PANEL_ID, "understanding/index.html not found under the spec dir")
 
-    text = artifact.read_text(encoding="utf-8", errors="replace")
+    try:
+        text = artifact.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:  # unreadable / removed between the stat and the read
+        return Absent(PANEL_ID, f"understanding/index.html could not be read: {exc.strerror or exc}")
     meta_match = _META_RE.search(text)
     if meta_match is None:
         return Absent(PANEL_ID, "no afk-understanding meta header in understanding/index.html")
