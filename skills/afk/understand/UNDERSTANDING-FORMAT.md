@@ -10,7 +10,7 @@ No real feature, ticket, product-symbol, or person name appears in this format c
 
 ## Section shapes — SEC-1..SEC-5
 
-The artifact contains **four or five** sections in this fixed order (PRD Catalog A). SEC-1..3 and SEC-5 are always present when their preconditions hold; SEC-4 is present **exactly when** a notable deviation exists (omitted entirely when clean). Each section's **Rules** are pass/fail criteria the skeptic checks.
+The artifact contains **four or five** sections in this fixed order (PRD Catalog A). SEC-1, SEC-2, SEC-3, and SEC-5 are **always present** (SEC-5's quiz is generated every time — taking it is opt-in, per ADR-0002); SEC-4 is present **exactly when** a notable deviation exists (omitted entirely when clean — this is the only conditional section). Each section's **Rules** are pass/fail criteria the skeptic checks.
 
 ### SEC-1 — Background
 - **Content:** dual-depth. A collapsible **system-context layer** (orients a teammate new to the area) plus a **change-specific layer** (this feature's local context). Sourced from existing code and the SDD/PRD.
@@ -62,7 +62,7 @@ SEC-4 entries come **only** from this closed set — no editorial additions:
 
 Purely as-planned subtasks yield **no** entry; if none of the four exist, SEC-4 is absent. Guardian: skeptic verify.
 
-## Machine-readable meta-header grammar — `afk-understanding`
+## Machine-readable meta-header grammar — `afk-understanding` {#afk-understanding}
 
 The artifact embeds exactly one machine-readable meta element. **This is the mission-control panel's only parse target** — the panel reads nothing else from the artifact (SDD §4 row "Machine-readable header"; SDD §8 panel row). This grammar and the panel's parser are a **lockstep pair**: a change to the element name or its content fields is a same-commit change to the panel's parse code.
 
@@ -74,7 +74,7 @@ The artifact embeds exactly one machine-readable meta element. **This is the mis
 
 ## Interactive elements (SEC-2 / SEC-3)
 
-Interactive elements are sourced from the **interactive-walkthrough widget catalog** — the agent-invoked utils skill at `skills/utils/interactive-walkthrough/SKILL.md`, which ships three widget templates with fill-in DATA contracts: **flow slider** (linear flow), **branching simulator** (branching flow), **overlap gantt** (concurrent flow). When a flow shape in the change matches one of the three, **copy that widget inline** per that skill's contract (self-contained, theme-aware via CSS tokens + a `data-theme` override, unique element ids per instance, one `<style>` block per widget type per page). The shell must stamp `data-theme` so widgets follow the artifact's dark/light family.
+Interactive elements are sourced from the **interactive-walkthrough widget catalog** — the agent-invoked utils skill at `skills/utils/interactive-walkthrough/SKILL.md`, which owns the widget set, each widget's flow shape, and the copy-inline constraints. When a flow shape in the change matches a catalogued widget, **copy that widget inline per that skill's contract**. The shell must stamp `data-theme` so the copied widgets follow the artifact's dark/light family.
 
 Write **bespoke JS only when no catalogued widget fits the flow shape**, and only when it clears the interactivity-justification bar below (SDD §14 row "Interactive-walkthrough widget catalog").
 
