@@ -21,8 +21,8 @@ A plan's append-only event log: one timestamped line per event, newest last. Let
 {YYYY-MM-DD HH:mm} | {writer} | {subject} | {event} — {plain terms}
 ```
 
-- `{writer}` — the skill appending: `execute`, `autopilot`, `smoke-test`, `preflight`.
-- `{subject}` — a subtask id (`NNNN-slug`), `run`, or `gate`.
+- `{writer}` — the skill appending: `execute`, `autopilot`, `smoke-test`, `preflight`, `understand`.
+- `{subject}` — a subtask id (`NNNN-slug`), `run`, `gate`, or `understanding`.
 - `{event}` — a short token from the writer's set below.
 - `{plain terms}` — one clause; jargon-free; omit only when the event token is self-explanatory to a lay reader (almost never).
 
@@ -33,6 +33,7 @@ A plan's append-only event log: one timestamped line per event, newest last. Let
 | `execute` | `designing`, `developing`, `verifying`, `reviewing`, `done`; `pushed {short-sha}..{short-sha} ({n} commits)`; `review {verdict} crit={n} high={n} med={n} low={n}`; `adversary {verdict} …`; `parked({status})` |
 | `autopilot` | `run start ({n} runnable)`; `heartbeat {k}/{n} done, starting {NNNN-slug}`; `parked({status})`; `park-inherited(waiting on {ID})`; `stranded`; `run end ({k}/{n} done, {p} parked)` |
 | `smoke-test` | `smoke {verdict} ({passed}/{run} scenarios{, k skipped env-limited})` |
+| `understand` | `generated`; `failed({reason})` (subject token `understanding`; owned by `skills/afk/understand/SKILL.md`, the emitter — a token added or renamed there is a same-commit change here) |
 | `preflight` | `refused(no_green_smoke)`; `PF-{n} green`; `PF-{n} parked({reason})`; `fix-cycle {k}/2 on PF-{n}`; `ci-wait launched (budget={s}s, interval={s}s)`; `ready`; `done` — full grammar: "### Preflight events" below |
 
 ### Preflight events
