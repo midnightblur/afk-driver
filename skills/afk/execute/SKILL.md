@@ -46,6 +46,8 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — entity classes fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
 
+   **Design to the review bars.** Read the `## Guardrails` digest of each design-level checklist in `tools/payable/ai-agents/plugins/workflow/skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md` — the bars this slice is later reviewed against. Holding the design to them now costs a rename; failing them at the gate costs a remediation cycle.
+
 5. **Status → `developing`; apply TDD.** Flip the tracker cell to `developing`, then use `/afk:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
 6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules).
@@ -73,6 +75,7 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
       - `pattern-debt` → no routing, never blocks — it lives in the review's debt ledger; leave it.
       - Commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and **re-run from Step 8** (tiers → preflight → this gate).
     - **Cap at 2 review cycles.** If the gate is still `blocking` after the second remediation, **stop with `review_fail`** — name the surviving `critical`/`high` findings and their `class`; do **not** mark the subtask `done`.
+    - **Record outcomes.** However the gate ends, write `plan/review/{NNNN-slug}-{base-short}.outcomes.json` mapping every finding id to `fixed` / `dismissed(<reason>)` / `deferred` (advisories consciously left open are `deferred`) — the per-criterion telemetry `/afk:retro` aggregates.
 
     Standalone, `/afk:review` also runs on its own (`/afk:review {NNNN-slug}`) to audit a slice without gating.
 

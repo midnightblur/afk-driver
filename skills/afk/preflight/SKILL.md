@@ -71,14 +71,18 @@ merge-induced compile break) is fixable within the shared cycle cap below. A
 **semantic** red (a validation asserting something is actually wrong, not just
 malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
-**PF-3 — fresh-context review.** A review pass over the **integrated feature
-diff as a whole** (every subtask's changes together, not one slice) by a fresh
-context that hasn't seen the implementation's own reasoning — same independence
-principle as `/afk:review`'s per-subtask gate, scoped to the whole feature.
-`clean`/`advisory` → proceed. Any `critical`/`high` finding → remediate by
-class within the shared cap (`correctness`/`spec` → `/afk:fix`;
-`compliance`/`smell` → inline fix); still blocking after the cap →
-`park(PF-3: review_blocking)`.
+**PF-3 — fresh-context review.** Run **`/afk:review --feature`** against the
+merged tip — the integrated feature diff as a whole (every subtask's changes
+together, not one slice), reviewed by fresh contexts that haven't seen the
+implementation's own reasoning, with the cross-slice design roster that skill's
+`--feature` mode defines. Gate on its `REVIEW:` verdict line. `clean`/`advisory`
+→ proceed. `blocking` → remediate by class within the shared cap
+(`correctness`/`spec` → `/afk:fix`; `compliance`/`smell`/`test`/`design` →
+inline fix; `pattern-debt` never blocks); still blocking after the cap →
+`park(PF-3: review_blocking)`. However the step ends, record each finding's
+outcome in `plan/review/feature-{base-short}.outcomes.json`
+(`fixed` / `dismissed(<reason>)` / `deferred`) — the caller-side half of the
+review telemetry.
 
 **PF-4 — seam check.** Run `/afk:verify-seams final` over the whole feature —
 the orphan hunt classifying every produced artifact wired / weak / orphan,
