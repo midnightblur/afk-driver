@@ -775,8 +775,10 @@ any time, in any project.
 - **`/afk:diagnose`** — disciplined diagnosis loop for hard bugs / perf
   regressions (build a feedback loop → reproduce → hypothesise → instrument → fix
   → regression-test).
-- **`/afk:draw-charts`** — render-safe Mermaid/diagrams; steers around the
+- **`draw-charts`** — render-safe Mermaid/diagrams; steers around the
   constructs that break renderers and render-checks before shipping.
+  Agent-invoked, hidden from the `/` menu via `user-invocable: false` — skills
+  emitting charts load it; humans never call it directly.
 - **`/afk:glossary`** — domain-vocabulary steward; the vocabulary-only subset of
   `/afk:grill-requirements`. Audits an existing `GLOSSARY.md` for ambiguity,
   synonyms, vague terms, and code drift, or grills new terminology one question at
@@ -785,6 +787,13 @@ any time, in any project.
   writes after approval. Does not grill requirements or emit ADRs.
 - **`/afk:handoff`** — compact the current conversation into a handoff doc for a
   fresh agent to pick up.
+- **`interactive-walkthrough`** — embeddable HTML widgets for walking a human
+  through a process interactively: notched flow slider (linear), branching
+  simulator (decisions/forks), overlap gantt (concurrent lanes). Templates with
+  fill-in data contracts; theme-aware, self-contained, CSP-safe. Agent-invoked,
+  hidden from the `/` menu via `user-invocable: false` — skills emitting
+  interactive walkthrough pages load it. (Static diagrams stay with
+  `draw-charts`.)
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
   survives sessions.
 - **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR

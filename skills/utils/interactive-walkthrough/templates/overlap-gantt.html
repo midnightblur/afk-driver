@@ -1,0 +1,97 @@
+<!--
+  overlap-gantt — lane chart for CONCURRENT / PIPELINED work.
+
+  DATA CONTRACT — fill IWG:
+    cols  : number of time slots on the shared grid (columns)
+    unit  : OPTIONAL axis label per column, array of strings length `cols`
+            (omit for a bare grid)
+    lanes : array of {label, bars}, one lane per row
+              label : lane name (left column)
+              bars  : [{start, end, text, cls?}]
+                start/end : 1-based column span, inclusive (end >= start)
+                text      : text inside the bar (keep short)
+                cls       : OPTIONAL 'a'|'b'|'c' color class (default 'a') —
+                            use one class per feature/workstream so overlap
+                            reads by color
+
+  The grid scrolls horizontally inside its own wrapper if too wide — it never
+  widens the page.
+
+  MULTIPLE INSTANCES: duplicate the .iwg div + script block with a unique div id,
+  rename IWG, point the copy's script at the new id. One <style> only.
+-->
+<style>
+  .iwg{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;--iw-ink2:#5b6470;
+       --iw-line:#d8dce2;
+       --iw-a:#0b7285;--iw-b:#7048a8;--iw-c:#a8551a;
+       border:1px solid var(--iw-line);border-radius:10px;background:var(--iw-bg2);
+       padding:1rem 1.1rem;margin:1rem 0;font-size:.85rem;color:var(--iw-ink);
+       overflow-x:auto}
+  @media (prefers-color-scheme: dark){
+    .iwg{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;--iw-ink2:#9aa3b0;
+         --iw-line:#333a44;--iw-a:#5cc3d6;--iw-b:#b18ae8;--iw-c:#e09b5f}}
+  :root[data-theme="dark"] .iwg{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;
+       --iw-ink2:#9aa3b0;--iw-line:#333a44;--iw-a:#5cc3d6;--iw-b:#b18ae8;--iw-c:#e09b5f}
+  :root[data-theme="light"] .iwg{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;
+       --iw-ink2:#5b6470;--iw-line:#d8dce2;--iw-a:#0b7285;--iw-b:#7048a8;--iw-c:#a8551a}
+  .iwg-grid{display:grid;gap:.3rem .4rem;min-width:34rem;align-items:center}
+  .iwg-lane{font-weight:700;font-size:.78rem;white-space:nowrap;padding-right:.4rem}
+  .iwg-row{display:grid;gap:.15rem;grid-auto-rows:1.55rem}
+  .iwg-bar{border-radius:5px;color:var(--iw-bg);font-size:.72rem;font-weight:700;
+       display:flex;align-items:center;padding:0 .5rem;white-space:nowrap;
+       overflow:hidden;text-overflow:ellipsis}
+  .iwg-bar.a{background:var(--iw-a)} .iwg-bar.b{background:var(--iw-b)}
+  .iwg-bar.c{background:var(--iw-c)}
+  .iwg-axis{display:grid;gap:.15rem;font-size:.68rem;color:var(--iw-ink2);
+       text-align:center;margin-top:.15rem}
+</style>
+
+<div class="iwg" id="iwg-demo"><div class="iwg-grid"></div></div>
+
+<script>
+(function(){
+  // FILL ME — see data contract in the header comment. Sample (replace):
+  const IWG = {
+    cols: 8,
+    unit: ['t1','t2','t3','t4','t5','t6','t7','t8'],
+    lanes: [
+      {label:'You',     bars:[{start:1,end:2,text:'design A',cls:'a'},
+                              {start:3,end:4,text:'design B',cls:'b'},
+                              {start:5,end:5,text:'review A',cls:'a'},
+                              {start:6,end:7,text:'design C',cls:'c'}]},
+      {label:'Machine', bars:[{start:3,end:5,text:'build A',cls:'a'},
+                              {start:5,end:7,text:'build B',cls:'b'},
+                              {start:8,end:8,text:'build C',cls:'c'}]}
+    ]
+  };
+
+  const grid = document.querySelector('#iwg-demo .iwg-grid');
+  grid.style.gridTemplateColumns = 'max-content 1fr';
+  IWG.lanes.forEach(lane => {
+    const lbl = document.createElement('div');
+    lbl.className = 'iwg-lane'; lbl.textContent = lane.label;
+    grid.appendChild(lbl);
+    const row = document.createElement('div');
+    row.className = 'iwg-row';
+    row.style.gridTemplateColumns = 'repeat(' + IWG.cols + ',1fr)';
+    lane.bars.forEach(b => {
+      const bar = document.createElement('div');
+      bar.className = 'iwg-bar ' + (b.cls || 'a');
+      bar.style.gridColumn = b.start + ' / ' + (b.end + 1);
+      bar.textContent = b.text; bar.title = b.text;
+      row.appendChild(bar);
+    });
+    grid.appendChild(row);
+  });
+  if (IWG.unit){
+    grid.appendChild(document.createElement('div'));
+    const axis = document.createElement('div');
+    axis.className = 'iwg-axis';
+    axis.style.gridTemplateColumns = 'repeat(' + IWG.cols + ',1fr)';
+    IWG.unit.forEach(u => {
+      const c = document.createElement('div'); c.textContent = u; axis.appendChild(c);
+    });
+    grid.appendChild(axis);
+  }
+})();
+</script>
