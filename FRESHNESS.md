@@ -47,6 +47,7 @@ everyone else points.
 | `FRESHNESS.md` (this file) | plugin author | a new artifact class appears, or enforcement changes |
 | `skills/afk/setup/MANIFEST.md` | `/afk:setup` | any external-dependency change (rule 1) |
 | `skills/afk/setup/AUDIT.md` | `/afk:setup` | an artifact surface worth auditing appears/disappears |
+| `skills/afk/setup/scripts/setup_secrets.py` | `/afk:setup` | the set of entries it fixes, a prompt, or a written key/shape changes — update every `MANIFEST.md` entry whose `Fix` names it in the same commit (it writes the H2 registration, the S1 env block, and the H6 key set — those three own their shapes; this script only places them) |
 | `hooks/` (`hooks.json`, `wiring-gate.sh`, `maven-compile-gate.sh`, `ui-lint-gate.sh`, `java-format-gate.sh`, `app-start-gate.sh`, `maven-lock.sh`, `gate-cache.sh`, `gate-metrics.sh`, `gate-metrics-report.sh`, `mutation-probe.sh`, `README.md`) | plugin author | gate semantics change — update `hooks/README.md` + `CLAUDE.md` Reference (wiring gate also: `skills/utils/verify-seams`; app-start gate also: autopilot/execute skills that invoke it; metrics line shape also: `gate-metrics-report.sh` parser + any reader skill) in step |
 | `agents/*.md` | plugin author | an agent's tools/model/purpose change — update the skills that spawn it |
 | `skills/afk/bug/SKILL.md` + `FIXER-PROMPT.md` + `RETEST-PROMPT.md` | `/afk:bug` | the subcommand set, the `BUGFIX:`/`RETEST:` result grammars, or the S1-S10 ledger machine's allowed edges change — update both prompt siblings + `LEDGER-FORMAT.md` in the same commit |
