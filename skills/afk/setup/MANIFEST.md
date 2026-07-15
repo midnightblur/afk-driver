@@ -465,6 +465,16 @@ miss is `missing/broken` there, never on a default run.
 - **Notes:** registry half needs admin — the agent never elevates; re-probe
   after. New processes pick the flag up without a reboot.
 
+### W6 · hosts entry `127.0.0.1 proxy`
+- **Needed by:** local builds and any URL using the `proxy` hostname — it must
+  resolve to the local machine or those URLs fail DNS.
+- **Base probe:** `grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?proxy([[:space:]]|$)' /c/Windows/System32/drivers/etc/hosts`
+- **Base fix:** `human:` from an **elevated** prompt (the agent never elevates):
+  `Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "127.0.0.1 proxy"`
+  (PowerShell), then re-probe.
+- **Notes:** new processes pick the entry up immediately; a stale resolution
+  clears with `ipconfig /flushdns`.
+
 ## E — Env toggles (index only; no probes)
 
 Each var is documented at its consumer — this table is just the map.
