@@ -38,6 +38,7 @@ everyone else points.
 |---|---|---|
 | `.claude-plugin/plugin.json` | plugin author | a skill or agent is added/renamed/removed; the chain's shape changes (description) |
 | `.claude-plugin/marketplace.json` | plugin author | the chain's shape changes (description) |
+| `CHANGELOG.md` | plugin author | a dev-visible feature/enhancement/behavior change ships — add its dated one-liner **in the same commit** (audience + exclusions self-documented in its header; internal refactors and wording sweeps get no entry) |
 | `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |
 | `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move |
 | `GLOSSARY.md` (root) | plugin author | a methodology term is minted, renamed, or retired |
@@ -48,7 +49,7 @@ everyone else points.
 | `skills/afk/setup/MANIFEST.md` | `/afk:setup` | any external-dependency change (rule 1) |
 | `skills/afk/setup/AUDIT.md` | `/afk:setup` | an artifact surface worth auditing appears/disappears |
 | `skills/afk/setup/scripts/setup_secrets.py` | `/afk:setup` | the set of entries it fixes, a prompt, or a written key/shape changes — update every `MANIFEST.md` entry whose `Fix` names it in the same commit (it writes the H2 registration, the S1 env block, and the H6 key set — those three own their shapes; this script only places them) |
-| `hooks/` (`hooks.json`, `wiring-gate.sh`, `maven-compile-gate.sh`, `ui-lint-gate.sh`, `java-format-gate.sh`, `app-start-gate.sh`, `maven-lock.sh`, `gate-cache.sh`, `gate-metrics.sh`, `gate-metrics-report.sh`, `mutation-probe.sh`, `README.md`) | plugin author | gate semantics change — update `hooks/README.md` + `CLAUDE.md` Reference (wiring gate also: `skills/utils/verify-seams`; app-start gate also: autopilot/execute skills that invoke it; metrics line shape also: `gate-metrics-report.sh` parser + any reader skill) in step |
+| `hooks/` — **every** file in the dir (`hooks.json`, all `*.sh` gates/helpers/installers, `genericity-allow.txt`, `README.md`); deliberately not enumerated, an enumeration here goes stale the moment a gate is added | plugin author | gate semantics change — update `hooks/README.md` + `CLAUDE.md` Reference (wiring gate also: `skills/utils/verify-seams`; app-start gate also: autopilot/execute skills that invoke it; metrics line shape also: `gate-metrics-report.sh` parser + any reader skill) in step |
 | `agents/*.md` | plugin author | an agent's tools/model/purpose change — update the skills that spawn it |
 | `skills/afk/bug/SKILL.md` + `FIXER-PROMPT.md` + `RETEST-PROMPT.md` | `/afk:bug` | the subcommand set, the `BUGFIX:`/`RETEST:` result grammars, or the S1-S10 ledger machine's allowed edges change — update both prompt siblings + `LEDGER-FORMAT.md` in the same commit |
 | `skills/afk/bug/LEDGER-FORMAT.md` + `BUNDLE-FORMAT.md` + `CONFIG.md` | `/afk:bug` | the ledger schema/state machine, the bundle grammar, or the `afk.local.json` key set (K1-K4) changes — update `SKILL.md`'s pointers in step |

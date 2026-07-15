@@ -448,6 +448,9 @@ because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
 `/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
 `/afk:claude-md` writes it.
 
+What changed in the plugin itself lives in **`CHANGELOG.md`** at the plugin
+root — dated dev-facing one-liners, newest first. Skim it after every pull.
+
 The verification suites are **not** in this repo — they live in the core-services
 tree under `11700-payable/verification`, a multi-modal tree: `ui-e2e/` (Cucumber +
 Playwright browser module), `api/` (direct-REST `node:test` contracts), `core/`

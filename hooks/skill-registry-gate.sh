@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
-# Stop hook (ships with the afk plugin): skill-registry gate — every skill dir
-# under skills/afk/ and skills/utils/ (and every agent under agents/) must be
-# listed in .claude-plugin/plugin.json, or the plugin loader never registers
-# it and it's invisible in-session (silent, no error) — happened for
-# skills/afk/setup and skills/afk/retro (added in 331deb608a5, plugin.json
-# never updated; caught only when a human noticed the skill was missing).
+# Stop hook (ships with the afk plugin): registry gate — the plugin's three
+# machine-checkable registries must match disk. Three checks:
 #
-# Verdict:
-#   dir with SKILL.md / agent .md, listed in plugin.json   -> pass
-#   dir with SKILL.md / agent .md, NOT listed               -> orphan, exit 2
-#   plugin.json entry pointing at a dir that no longer exists -> stale, exit 2
+# A. plugin.json membership — every skill dir under skills/afk/ + skills/utils/
+#    (and every agent under agents/) is listed in .claude-plugin/plugin.json,
+#    or the plugin loader never registers it and it's invisible in-session
+#    (silent, no error) — happened for skills/afk/setup and skills/afk/retro
+#    (added in 331deb608a5, plugin.json never updated; caught only when a
+#    human noticed the skill was missing).
+# B. skill catalog — every skill name is mentioned in the plugin's CLAUDE.md
+#    and README.md (as /afk:<name>, `<name>`, or its skills/ path); an agent
+#    reading the harness never learns an uncatalogued skill exists — happened
+#    for seven skills/utils/ entries, caught only by an /afk:setup audit.
+# C. env-toggle register — every external all-caps env var read by hooks/*.sh
+#    (read but never assigned in hooks/, ambient vars excluded) appears in the
+#    dependency register skills/afk/setup/MANIFEST.md (§E) — happened for six
+#    gate toggles, caught only by an /afk:setup audit.
 #
-# Mechanical only: existence + membership. Doesn't validate SKILL.md content.
+# Verdict per check: membership present -> pass; missing -> exit 2 (with the
+# exact list + where to add it); plugin.json entry pointing at a dir that no
+# longer exists -> stale, exit 2.
+#
+# Mechanical only: existence + membership. Doesn't validate SKILL.md content,
+# catalog wording, or E-table row accuracy — /afk:setup audit judges those.
 # Disable: SKILL_REGISTRY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
@@ -70,19 +81,62 @@ stale_agents=$(comm -13 <(printf '%s\n' "$actual_agents") <(printf '%s\n' "$decl
 orphans=$(printf '%s\n%s\n' "$orphan_skills" "$orphan_agents" | sed '/^$/d')
 stale=$(printf '%s\n%s\n' "$stale_skills" "$stale_agents" | sed '/^$/d')
 
-if [ -n "$orphans" ] || [ -n "$stale" ]; then
+# ---- check B: every skill name catalogued in the plugin's CLAUDE.md + README.md
+# Accepted mention shapes: /afk:<name>, `<name>`, or its skills/(afk|utils)/<name> path.
+uncatalogued=""
+for doc in CLAUDE.md README.md; do
+  [ -f "$PLUGIN_DIR/$doc" ] || continue
+  while IFS= read -r s; do
+    [ -n "$s" ] || continue
+    name=${s##*/}
+    if ! grep -qE "(/afk:$name|\`$name\`|skills/(afk|utils)/$name)" "$PLUGIN_DIR/$doc"; then
+      uncatalogued="$uncatalogued  - $name (missing from $doc)"$'\n'
+    fi
+  done <<EOF
+$actual_skills
+EOF
+done
+
+# ---- check C: every external env var read by hooks/*.sh is in the setup register.
+# External = read ($VAR / ${VAR...}) somewhere in hooks/*.sh but assigned nowhere
+# in hooks/ (a self-default VAR=${VAR:-...} counts as a read, not an assignment).
+# Ambient OS/harness vars are not toggles and are excluded.
+REGISTER="$PLUGIN_DIR/skills/afk/setup/MANIFEST.md"
+ambient='PATH|HOME|USERPROFILE|TMPDIR|TEMP|TMP|PWD|OLDPWD|IFS|BASH_SOURCE|FUNCNAME|OSTYPE|JAVA_HOME|CLAUDECODE|CLAUDE_PLUGIN_ROOT'
+unregistered=""
+if [ -f "$REGISTER" ]; then
+  hook_reads=$(grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh 2>/dev/null \
+    | grep -oE '\$\{?[A-Z][A-Z0-9_]{2,}' \
+    | sed -E 's/^\$\{?//' | sort -u | grep -vE "^($ambient)$")
+  for v in $hook_reads; do
+    # assigned in hooks/ (comment lines stripped; self-defaults don't count) => internal
+    if grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh 2>/dev/null \
+        | grep -E "(^|[^A-Za-z0-9_\$])${v}=" | grep -vE "${v}=\"?\\\$\{${v}[:}-]" | grep -q .; then
+      continue
+    fi
+    grep -qE "(^|[^A-Za-z0-9_])${v}([^A-Za-z0-9_]|$)" "$REGISTER" \
+      || unregistered="$unregistered  - $v"$'\n'
+  done
+fi
+
+if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ]; then
   gate_metrics_emit skill-registry blocked "\"checked\":$n_checked"
   {
-    printf '[afk] Skill-registry gate: %s drifted from disk.\n' "$MANIFEST"
+    printf '[afk] Registry gate: a plugin registry drifted from disk.\n'
     if [ -n "$orphans" ]; then
-      printf 'On disk but NOT in plugin.json (invisible to the plugin loader — add them):\n'
+      printf 'On disk but NOT in plugin.json (invisible to the plugin loader — add to the "skills"/"agents" array, then /reload-plugins):\n'
       printf '%s\n' "$orphans" | sed 's/^/  - /'
     fi
     if [ -n "$stale" ]; then
       printf 'In plugin.json but no longer on disk (remove the entry):\n'
       printf '%s\n' "$stale" | sed 's/^/  - /'
     fi
-    printf 'Fix: edit the "skills"/"agents" array in %s, then /reload-plugins.\n' "$MANIFEST"
+    if [ -n "$uncatalogued" ]; then
+      printf 'Skill exists but is uncatalogued (add a /afk:<name> mention to the named doc — an agent reading the harness never learns it exists):\n%s' "$uncatalogued"
+    fi
+    if [ -n "$unregistered" ]; then
+      printf 'Env toggle read by hooks/*.sh but absent from the dependency register (add an E-table row in %s):\n%s' "$REGISTER" "$unregistered"
+    fi
   } >&2
   exit 2
 fi
