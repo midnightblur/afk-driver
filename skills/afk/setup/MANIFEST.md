@@ -149,12 +149,15 @@ a token value — not even partially.
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the core-services checkout (X1); JDK
   selection follows the core-services conventions (root `CLAUDE.md` there).
-- **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep -q "Java version: $want\."`
-  — the JDK the wrapper resolves must match the `.sdkmanrc` java pin.
+- **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep "Java version: $want\." | grep -qi amazon`
+  — the JDK the wrapper resolves must match the `.sdkmanrc` java pin **and** be
+  Amazon Corretto (the `amazon` vendor grep mirrors the pin's `-amzn` suffix —
+  change both together).
 - **Base fix:** `human:` with sdkman (Git Bash): `sdk env install` — installs the
-  pinned JDK + Maven straight from `.sdkmanrc`; without sdkman: install a JDK
-  matching the pin and point `JAVA_HOME` at it (README §Local build). Standalone
-  Maven is optional — the wrapper self-provisions its own.
+  pinned Corretto JDK + Maven straight from `.sdkmanrc`; without sdkman: install
+  the Amazon Corretto JDK matching the pin (`winget search corretto` for the
+  right package id) and point `JAVA_HOME` at it (README §Local build).
+  Standalone Maven is optional — the wrapper self-provisions its own.
 
 ### C5 · pitest (mutation probe) *(optional)* **[deferred: first review-gate mutation probe]**
 - **Needed by:** `hooks/mutation-probe.sh` (invoked by `skills/afk/review`'s
