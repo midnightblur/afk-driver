@@ -33,6 +33,15 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    even when the plain probe passes, and its fix is the entry's `Base fix:`.
    Batch independent probes. Classify each: `ok` · `missing/broken` · `deferred`
    (tagged **[deferred]**, first-use not yet reached — never a failure).
+   Section **O** (OpenAI Codex CLI) has its own gating rule: O1 missing →
+   the whole section reports `deferred (Codex not installed)` wholesale.
+   **Never classify on a stale environment.** A process inherits the environment
+   of the one that launched it, so a tool installed after this session started is
+   absent from its `PATH` though the machine is healthy. Before classifying any
+   probe `missing/broken`, re-run it against the OS-level `PATH`: still failing ⇒
+   genuinely `missing/broken`; passing ⇒ `needs-human: relaunch from a new
+   terminal` (relaunching from the pre-install terminal inherits the stale
+   environment again). Applies equally to step 5's re-probe.
 3. **Report before touching.** One table — entry id, name, status, planned
    action — so the human sees the whole picture before any install runs.
 4. **Fix.**
@@ -41,10 +50,17 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    - `human:` fixes — walk the human through interactively. For **secret**
      entries, follow the manifest's secrets discipline: presence checks only,
      never echo a value; you set no secret — the human places it, you re-probe.
+   - `human:` fixes naming [`scripts/setup_secrets.py`](scripts/setup_secrets.py) —
+     print the command for the human to run **in their own terminal**; never run
+     it yourself (it refuses an agent shell: no tty, and a secret typed into one
+     lands in the transcript). It prompts, validates against the tracker before
+     writing, and is idempotent — one run covers every entry naming it, so print
+     it once, not per entry. Then re-probe.
    - No fix / fix failed — record it; never improvise an install path the
      manifest doesn't name (a manifest gap → flag per step 1).
 5. **Re-probe** every entry you touched. A fix not flipping its probe to exit 0
-   is not fixed.
+   is not fixed (step 2's stale-environment rule applies here too — a
+   `PATH`-affecting install never reaches the running session).
 6. **Summarize** per `REPORTING.md` (plugin root): final table (`ok` / `fixed`
    / `deferred (until <first use>)` / `needs-human: <what>`), then one
    plain-terms sentence — is the workflow runnable now, and what still blocks

@@ -257,6 +257,21 @@ snapshotted — after a `git pull` that changes a `SKILL.md`, run `/reload-plugi
 Dev loop for *this* repo: edit a `SKILL.md` → `/reload-plugins`. No build step,
 no test suite, no Python package.
 
+### OpenAI Codex CLI (second supported runtime)
+
+The Claude plugin is canonical; a generated mirror makes the same chain run
+under Codex CLI — skills at `.agents/skills/` (afk-*), subagents at
+`.codex/agents/`, gates at `.codex/hooks.json`, first-turn memory via the
+AGENTS.md marker block. Generator + docs:
+`tools/payable/ai-agents/codex-sync/README.md`; provider vocabulary
+(invocation, spawn, model tiers, creds): `PROVIDERS.md` (plugin root);
+sync enforced by the `codex-drift-gate.sh` Stop gate. Codex-side install =
+`/afk:setup` section O (binary + login, generated layer, hook trust,
+`~/.codex/config.toml` merge, AGENTS.md block) — the section reports
+`deferred` wholesale on machines without Codex. Status: statically verified;
+not yet exercised against a live Codex install (assumptions listed in
+`codex-sync/README.md` "Known limitations").
+
 ---
 
 ## 5. Walkthrough: your first feature
@@ -447,6 +462,9 @@ because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
 `/afk:glossary`) and `STAPLES.md` (cross-cutting staples registry, stewarded by
 `/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
 `/afk:claude-md` writes it.
+
+What changed in the plugin itself lives in **`CHANGELOG.md`** at the plugin
+root — dated dev-facing one-liners, newest first. Skim it after every pull.
 
 The verification suites are **not** in this repo — they live in the core-services
 tree under `11700-payable/verification`, a multi-modal tree: `ui-e2e/` (Cucumber +

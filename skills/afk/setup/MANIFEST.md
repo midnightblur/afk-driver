@@ -45,12 +45,15 @@ a token value — not even partially.
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` a cheap `mcp__jira__jira_get` on a known key succeeds
   (or the `mcp__jira__*` tools are listed at all).
-- **Fix:** `human:` register the plugin-shipped server user-scoped —
-  `~/.claude.json` `mcpServers.jira` = `{ "type": "stdio", "command": "python",
+- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
+  does S1/H6/C3), then restart the session. By hand: register the
+  plugin-shipped server user-scoped — `~/.claude.json` `mcpServers.jira` =
+  `{ "type": "stdio", "command": "<abs path to the python interpreter>",
   "args": ["<abs path to>/tools/payable/ai-agents/plugins/workflow/mcp-servers/jira/server.py"],
-  "env": { …the S1 variables… } }` (or the equivalent
-  `claude mcp add --scope user jira -e JIRA_… -- python <that path>`), then
-  restart the session. Python deps: P3.
+  "env": { …the S1 variables… } }`, then restart. Python deps: P3.
+  **Absolute** interpreter, not bare `python`: a session whose environment
+  predates the interpreter's install can't resolve it on `PATH` (same trap as
+  the SKILL.md step-5 re-probe rule).
 - **Notes:** host is Jira Cloud (`nakisa.atlassian.net`). Server source ships
   in this plugin at `mcp-servers/jira/server.py` — registration MUST stay
   **user-scoped under the key `jira`**: bundling it as a plugin MCP server
@@ -114,8 +117,10 @@ a token value — not even partially.
   sys.exit(1 if m else 0)
   "
   ```
-- **Fix:** `human:` create `.claude/afk.local.json` per the hypothetical
-  example in `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
+- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
+  does H2/S1/C3; pre-fills K1 from the validated token's own account). By hand:
+  create `.claude/afk.local.json` per the hypothetical example in
+  `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
   K3 `worktreeBasePath`).
 - **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
   owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
@@ -146,7 +151,9 @@ a token value — not even partially.
 - **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host core-services pushes to>` — the token lives in glab's own store, never in
-  this plugin.
+  this plugin. `skills/afk/setup/scripts/setup_secrets.py` drives that login as
+  one of its steps (it shells out to `glab`; the token still never touches this
+  plugin).
 
 ### C4 · Maven wrapper + JDK
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
@@ -280,12 +287,20 @@ a token value — not even partially.
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
 - **Probe:** presence-only, prints names not values; mirrors the engine's
   `load_creds` (OS env, else a recursive walk of `~/.claude.json` for a `jira`
-  server's `env` block — top-level or project-scoped, utf-8):
+  server's `env` block — top-level or project-scoped, utf-8; `load_creds`
+  additionally falls back to `~/.codex/config.toml` `[mcp_servers.jira.env]`,
+  not probed here — any one populated source passes S1 via the env-var leg or
+  the Fix below):
   `python -c "import json,os,sys;w=lambda o:(o['jira']['env'] if isinstance(o,dict) and isinstance(o.get('jira'),dict) and isinstance(o['jira'].get('env'),dict) else next((r for r in (w(v) for v in (list(o.values()) if isinstance(o,dict) else o if isinstance(o,list) else [])) if r),None));p=os.path.expanduser('~/.claude.json');e=(w(json.load(open(p,encoding='utf-8'))) if os.path.exists(p) else None) or {};m=[k for k in ('JIRA_BASE_URL','JIRA_EMAIL','JIRA_API_TOKEN') if not (os.environ.get(k) or e.get(k))];print('missing: '+', '.join(m) if m else 'ok');sys.exit(1 if m else 0)"`
-- **Fix:** `human:` create an API token (Atlassian account → Security → API
-  tokens), then set `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` either as
-  OS env vars or in `~/.claude.json` → `mcpServers.jira.env` (one home
-  satisfies both this engine and H2).
+- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
+  prompts for the token without echoing it, validates it against the host before
+  writing, and places it in the H2 `env` block (also does H2/H6/C3). By hand:
+  create an API token (Atlassian account → Security → API tokens), then set
+  `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` either as OS env vars or in
+  `~/.claude.json` → `mcpServers.jira.env` (one home satisfies both this engine
+  and H2). Codex-side users may instead keep them in `~/.codex/config.toml`
+  `[mcp_servers.jira.env]` — `load_creds` reads all three (order: env →
+  claude.json → codex toml; PROVIDERS.md).
 
 ### S2 · GitLab token — **secret**
 - Held entirely by glab (C3). No plugin storage, nothing further to provision.
@@ -293,6 +308,65 @@ a token value — not even partially.
 ### S3 · verification-app auth token — **secret**
 - Minted at runtime by `11700-payable/verification/core`; provisioning lives in
   that tree's docs, not here. Nothing to set up until N3's first use.
+
+## O — OpenAI Codex CLI *(optional — the second supported agent runtime)*
+
+Gating rule: if O1 misses, report the **whole section** as
+`deferred (Codex not installed)` — never a failure. O2/O5 are also enforced
+provider-independently by the `codex-drift-gate.sh` Stop hook; here they exist
+so a Codex-side machine gets provisioned/repaired by the same doctor loop.
+
+### O1 · codex binary + login
+- **Needed by:** running any afk skill under Codex CLI (mirror layout:
+  `tools/payable/ai-agents/codex-sync/README.md`).
+- **Probe:** `command -v codex`
+- **Fix:** `human:` install OpenAI Codex CLI per its official docs, then
+  `codex login`. Skip entirely if this machine only runs Claude Code.
+
+### O2 · generated Codex layer current
+- **Needed by:** Codex skill discovery (`.agents/skills/`), subagent defs
+  (`.codex/agents/`), hook wiring (`.codex/hooks.json`).
+- **Probe:** `python tools/payable/ai-agents/codex-sync/generate.py --check`
+- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`,
+  then commit the regenerated artifacts if sources changed.
+
+### O3 · repo hooks trusted by Codex
+- **Needed by:** the Stop-gate suite + PreToolUse guards under Codex.
+- **Probe:** `test -f .codex/hooks.json` (file presence; trust state is not
+  probeable headlessly).
+- **Fix:** `auto:` O2's generator emits the file; `human:` approve the
+  hook-trust prompt Codex shows on first run in this repo.
+
+### O4 · `~/.codex/config.toml` — MCP servers + agent depth
+- **Needed by:** Jira MCP under Codex (S1 creds may live in its
+  `[mcp_servers.jira.env]`), IntelliJ MCP, and DELEGATION.md's 3-level
+  nesting (`[agents] max_depth = 3`).
+- **Probe:** presence-only, prints nothing secret; a malformed file reports
+  `unparseable` (fix it by hand — often unescaped Windows `\` paths):
+  ```sh
+  python - <<'PY'
+  import os, sys, tomllib
+  p = os.path.expanduser("~/.codex/config.toml")
+  try:
+      d = tomllib.loads(open(p, encoding="utf-8").read()) if os.path.exists(p) else {}
+  except Exception:
+      print("unparseable:", p); sys.exit(1)
+  m = [k for k in ("jira",) if k not in d.get("mcp_servers", {})]
+  if d.get("agents", {}).get("max_depth", 1) < 3:
+      m.append("agents.max_depth>=3")
+  print("missing: " + ", ".join(m) if m else "ok"); sys.exit(1 if m else 0)
+  PY
+  ```
+- **Fix:** `human:` merge `tools/payable/ai-agents/codex-sync/config-fragment.toml`
+  into `~/.codex/config.toml` (user-global — never auto-edited), making the
+  server paths absolute for this machine.
+
+### O5 · AGENTS.md harness block
+- **Needed by:** Codex first-turn context (`**/AGENTS.md` is gitignored —
+  GitNexus owns the file per-machine; the afk block rides the generator, not git).
+- **Probe:** `grep -q 'afk-harness:begin' AGENTS.md`
+- **Fix:** `auto:` run O2's generator (inserts/refreshes the marker block,
+  preserving non-block content byte-for-byte).
 
 ## X — Sibling state (assumed present, not shipped by this plugin)
 
@@ -371,7 +445,9 @@ miss is `missing/broken` there, never on a default run.
   (both halves required — the OS flag and git's own limit).
 - **Base fix:** `human:` from an **elevated** prompt:
   `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`,
-  then (no elevation needed) `git config --global core.longpaths true`.
+  then (no elevation needed) `git config --global core.longpaths true` — the
+  git half is also offered by `skills/afk/setup/scripts/setup_secrets.py`; the
+  registry half always stays with the human (the agent never elevates).
 - **Notes:** registry half needs admin — the agent never elevates; re-probe
   after. New processes pick the flag up without a reboot.
 
@@ -383,7 +459,17 @@ Each var is documented at its consumer — this table is just the map.
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json` | set by the harness; locates the Stop hook |
 | `CLAUDE_JOB_DIR` | `skills/utils/to-code-walkthrough` | working dir for MR fetch output |
-| `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` | `skills/afk/autopilot` | app-start-gate provisioning mode |
+| `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
+| `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
+| `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
+| `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
+| `CODEX_DRIFT_GATE_DISABLE` | `hooks/codex-drift-gate.sh` | disable the Codex-mirror drift gate |
+| `AFK_PROVIDER` | `hooks/lib/provider.sh` | force provider detection (`claude`\|`codex`), overriding auto-detect |
+| `CODEX_HOME` / `CODEX_THREAD_ID` / `CODEX_SANDBOX` | `hooks/lib/provider.sh` | set by the Codex CLI; auto-detect markers for the codex provider |
+| `CLAUDE_PLUGIN_DATA` | `hooks/lib/provider.sh` | set by the harness; provider-neutral plugin data dir |
+| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission |
+| `MAVEN_LOCK_DIR` | `hooks/maven-lock.sh` | relocate the cross-gate maven lock dir |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `hooks/mutation-probe.sh` | pitest version pin / probe timebox |
+| `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |

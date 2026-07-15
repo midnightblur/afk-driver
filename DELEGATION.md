@@ -21,17 +21,19 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 ## Spawn rules
 
-- **Independent children go in ONE message** (parallel Agent calls) — never sequential when there is no data dependency.
-- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit) and `afk-runner` (executes commands/suites, triages their output; writes only evidence files). Fall back to `general-purpose` only when the child must edit project files.
+- **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
+- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit) and `afk-runner` (executes commands/suites, triages their output; writes only evidence files). Fall back to a general-purpose child only when it must edit project files. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
 - **Hand a child paths + a task, never content.** Anything the child can read itself is not pasted into its prompt.
-- **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn.
+- **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. (Codex: requires the `max_depth` config from `codex-sync/config-fragment.toml`; at its default of 1, helper steps run inline — degraded, not broken.)
 - **Blind where the skill demands it.** A skill's information-diet rules (what the child must NOT see) override convenience; when a fresh perspective is the point, the child gets artifacts, never the run's reasoning.
 
 ## Model selection
 
-- **sonnet for digests** — the `afk-reader`/`afk-runner` default (set in their definitions): reads, searches, mechanical checks, suite triage, and research whose digest the orchestrator treats as advisory and spot-checks via citations.
-- **inherit for verdicts and product code** — any child that writes production code, and any research whose verdict is acted on without re-checking (a confirm/refute gating a spec or publish step). A judge is never a cheaper model than the implementor it judges.
-- Callers override per-spawn (the Agent call's `model`) — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
+Two tiers; the per-provider model names live in `PROVIDERS.md` ("Model tiers"):
+
+- **digest tier** — the `afk-reader`/`afk-runner` default: reads, searches, mechanical checks, suite triage, and research whose digest the orchestrator treats as advisory and spot-checks via citations.
+- **verdict tier for verdicts and product code** — any child that writes production code, and any research whose verdict is acted on without re-checking (a confirm/refute gating a spec or publish step). A judge is never a cheaper model than the implementor it judges.
+- Callers override per-spawn — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
 
 ## Return contract
 

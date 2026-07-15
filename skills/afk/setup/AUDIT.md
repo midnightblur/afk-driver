@@ -5,7 +5,7 @@ findings routed to the file that must change. The sweeps are repo-wide grep/read
 work: delegate to fresh subagents per `DELEGATION.md` (plugin root), keep only
 the digests.
 
-Run all four checks; report even when clean.
+Run all five checks; report even when clean.
 
 ## 1 · Structural consistency
 
@@ -59,6 +59,15 @@ exists, the update-trigger surfaces it names still exist. For each lockstep
 pair/triple named in `CLAUDE.md` "Lockstep": the sections the pair binds
 (emitter grammar ↔ parser expectation) are both still present. Route:
 `FRESHNESS.md` for dead rows; the drifted member for broken pairs.
+
+## 5 · Generated-layer sync (Codex mirror)
+
+Run `python tools/payable/ai-agents/codex-sync/generate.py --check` from the
+repo root. Any drift → finding (route: rerun the generator and commit — the
+listed canonical source changed without regeneration). Provider-independent:
+runs whether or not Codex CLI is installed; it audits repo artifacts, not the
+machine. Also spot-check that `hooks/lib/provider.sh` and the harness plugin's
+synced copy are byte-identical (the same `--check` covers it).
 
 ## Report
 

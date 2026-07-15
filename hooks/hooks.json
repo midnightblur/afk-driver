@@ -42,6 +42,12 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/codex-drift-gate.sh\"",
+            "timeout": 30,
+            "statusMessage": "Codex-drift gate..."
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/genericity-gate.sh\"",
             "timeout": 30,
             "statusMessage": "Genericity gate..."
