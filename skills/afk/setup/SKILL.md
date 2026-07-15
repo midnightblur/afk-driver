@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up or repair a developer's AFK-workflow environment — probes every external dependency (CLIs, MCP servers, secrets, sibling checkouts) against the manifest, fixes what it can, guides the rest. Use when installing the workflow on a machine (add `base` to also pin/provision the monorepo toolchain — git, JDK, Maven, Node/npm, Python, Docker — and workstation apps: IDEs, MySQL), after a git pull changed the plugin, when a workflow skill dies on a missing tool or credential — or as `audit` to catch dependency/doc drift before shipping plugin changes.
+description: Set up or repair a developer's AFK-workflow environment — probes every external dependency (CLIs, MCP servers, secrets, sibling checkouts) against the manifest, fixes what it can, guides the rest. Use when installing the workflow on a machine (add `base` to also pin/provision the monorepo toolchain — git, JDK, Maven, Node/npm, Python, Docker — and workstation apps/OS config: IDEs, MySQL, Windows long paths), after a git pull changed the plugin, when a workflow skill dies on a missing tool or credential — or as `audit` to catch dependency/doc drift before shipping plugin changes.
 ---
 
 # afk:setup — the workflow doctor
@@ -16,8 +16,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 - **`base`** (`/afk:setup base`) — the default run **plus** every entry's
   `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
   Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
-  plus the base-only workstation apps (section W — IDEs, MySQL Server +
-  Workbench). For fresh machines or after a toolchain pin bump.
+  plus the base-only workstation apps & OS config (section W — IDEs, MySQL
+  Server + Workbench, Windows long paths). For fresh machines or after a
+  toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
 

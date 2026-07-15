@@ -311,12 +311,12 @@ a token value — not even partially.
 - **Notes:** run via `node tools/nakisa-financial-suite/jwt/mint.mjs` (or the
   sibling `mint-jwt.cmd`); ships with the core-services checkout (X1).
 
-## W — Workstation apps (base-only)
+## W — Workstation apps & OS config (base-only)
 
-Human tooling, not skill dependencies — no skill invokes these, so entries here
-carry **only** base-tier fields and the default branch skips the section
-entirely. Probed and fixed under `/afk:setup base` alone; a miss is
-`missing/broken` there, never on a default run.
+Human tooling and machine settings, not skill dependencies — no skill invokes
+these, so entries here carry **only** base-tier fields and the default branch
+skips the section entirely. Probed and fixed under `/afk:setup base` alone; a
+miss is `missing/broken` there, never on a default run.
 
 ### W1 · Visual Studio Code
 - **Needed by:** the human (no skill invokes it).
@@ -344,6 +344,18 @@ entirely. Probed and fixed under `/afk:setup base` alone; a miss is
 - **Needed by:** the human (DB inspection; no skill invokes it).
 - **Base probe:** `winget list --id Oracle.MySQLWorkbench -e >/dev/null 2>&1`
 - **Base fix:** `auto:` `winget install --id Oracle.MySQLWorkbench -e`
+
+### W5 · Windows long paths enabled
+- **Needed by:** deep monorepo paths — the npm-workspace `node_modules` and
+  nested Maven modules blow past the 260-char MAX_PATH; checkouts and builds
+  fail with path-too-long errors otherwise.
+- **Base probe:** `reg query 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled 2>/dev/null | grep -q 0x1 && [ "$(git config --global --get core.longpaths)" = true ]`
+  (both halves required — the OS flag and git's own limit).
+- **Base fix:** `human:` from an **elevated** prompt:
+  `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`,
+  then (no elevation needed) `git config --global core.longpaths true`.
+- **Notes:** registry half needs admin — the agent never elevates; re-probe
+  after. New processes pick the flag up without a reboot.
 
 ## E — Env toggles (index only; no probes)
 

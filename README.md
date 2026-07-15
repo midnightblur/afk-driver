@@ -237,7 +237,8 @@ checkouts) against `skills/afk/setup/MANIFEST.md`, installs what it can, walks
 you through the rest (Jira token, `glab auth login`). On a fresh machine, run
 `/afk:setup base` instead — same run plus the version-pinned base toolchain
 (git, JDK + Maven per `.sdkmanrc`, Node 24/npm 11, Python, Docker) and the
-workstation apps (VS Code, IntelliJ, MySQL Server + Workbench). By hand?
+workstation apps & OS config (VS Code, IntelliJ, MySQL Server + Workbench,
+Windows long paths). By hand?
 `MANIFEST.md` is human-followable — every probe and fix is a copy-pasteable
 command.
 
@@ -771,8 +772,8 @@ tooling.)*
   install and post-`git pull` repair are the same run. As `/afk:setup base` it
   extends the sweep to the version-pinned base toolchain (git, JDK + Maven per
   `.sdkmanrc`, Node/npm workspace standard, Python, Docker) and the base-only
-  workstation apps (IDEs, MySQL Server + Workbench) via the manifest's base-tier
-  fields. As `/afk:setup audit` it
+  workstation apps & OS config (IDEs, MySQL Server + Workbench, Windows long
+  paths) via the manifest's base-tier fields. As `/afk:setup audit` it
   instead hunts drift between the plugin's artifacts and reality (structural
   consistency, unregistered dependencies, dead pointers) — run that before shipping
   plugin changes (see `FRESHNESS.md`).
