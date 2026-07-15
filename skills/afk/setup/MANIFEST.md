@@ -12,6 +12,16 @@ never runs · `Notes`. Probes are POSIX-shell commands run from the
 check). Entries tagged **[deferred]** aren't needed until the named first use —
 report as `deferred`, never as failures.
 
+**Base tier.** An entry may also carry `Base probe:` / `Base fix:` — exercised
+only by `/afk:setup base` (the default branch runs `Probe:`/`Fix:` alone).
+`Base probe:` tightens the health check to the monorepo's pinned toolchain
+version; `Base fix:` names the concrete install the plain `human:` fix leaves to
+the reader. Version pins are never restated here — probes read them from their
+one home (`.sdkmanrc` for JDK/Maven; core-services root `CLAUDE.md` states the
+Node 24 / npm 11 workspace standard). Under `base`, a version miss is
+`missing/broken` even when the plain probe passes. Section **W** is base-only —
+its entries have no plain `Probe:` and the default branch skips them.
+
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
 
@@ -119,6 +129,8 @@ a token value — not even partially.
 - **Needed by:** the whole chain (worktrees, branches, push), `hooks/wiring-gate.sh`.
 - **Probe:** `git --version`
 - **Fix:** `human:` install Git for Windows (also satisfies C1).
+- **Base fix:** `auto:` `winget install --id Git.Git -e` — ships bash + POSIX
+  utils + perl, so it also satisfies C1 and C6.
 
 ### C3 · glab (GitLab CLI), logged in — **secret**
 - **Needed by:** `skills/afk/execute` (push + Draft MR),
@@ -137,6 +149,12 @@ a token value — not even partially.
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the core-services checkout (X1); JDK
   selection follows the core-services conventions (root `CLAUDE.md` there).
+- **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep -q "Java version: $want\."`
+  — the JDK the wrapper resolves must match the `.sdkmanrc` java pin.
+- **Base fix:** `human:` with sdkman (Git Bash): `sdk env install` — installs the
+  pinned JDK + Maven straight from `.sdkmanrc`; without sdkman: install a JDK
+  matching the pin and point `JAVA_HOME` at it (README §Local build). Standalone
+  Maven is optional — the wrapper self-provisions its own.
 
 ### C5 · pitest (mutation probe) *(optional)* **[deferred: first review-gate mutation probe]**
 - **Needed by:** `hooks/mutation-probe.sh` (invoked by `skills/afk/review`'s
@@ -162,6 +180,18 @@ a token value — not even partially.
 - **Notes:** missing perl fails the worktree script's path-rewrite step before
   first use (SDD §9b row "perl (Git-Bash)").
 
+### C7 · Docker (engine + compose v2) **[deferred: first self-provisioned app env]**
+- **Needed by:** envstack (X3 — `envctl` builds/runs the app env),
+  `skills/afk/smoke-test` / `skills/afk/autopilot` / `skills/afk/adversary`
+  (live-app verification, X5), `build-scripts/build-docker-compose.py`.
+- **Probe:** `docker info >/dev/null && docker compose version >/dev/null`
+  (proves the daemon is *running* and compose v2 is present — a stopped Docker
+  Desktop fails this even when installed; start it and re-probe).
+- **Fix:** `human:` install Docker Desktop (WSL2 backend) and start it.
+- **Base fix:** `human:` `winget install --id Docker.DockerDesktop -e`, then
+  raise the WSL2 memory ceiling in `~/.wslconfig` — the default cap wedges the
+  engine under a full app env (all API calls 500); restart WSL after editing.
+
 ## P — Python
 
 ### P1 · Python 3
@@ -171,6 +201,8 @@ a token value — not even partially.
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001).
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
+- **Base fix:** `auto:` `winget install --id Python.Python.3.12 -e` (any Python 3
+  on PATH passes the probe — the pin here is just a working default).
 
 ### P2 · markdown-it-py (the only pip package)
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
@@ -188,6 +220,11 @@ a token value — not even partially.
   via `npx --no-install`; silently allows when unresolvable).
 - **Probe:** `node --version && npm --version`
 - **Fix:** `human:` install Node 24 (the core-services npm-workspace standard).
+- **Base probe:** `node --version | grep -q '^v24\.' && npm --version | grep -q '^11\.'`
+  — the Node 24 / npm 11 workspace standard (core-services root `CLAUDE.md`).
+- **Base fix:** `human:` via nvm: `nvm install 24 && nvm use 24` (npm 11 ships
+  with Node 24); nvm itself is optional — any install path that flips the base
+  probe green passes.
 
 ### N2 · mermaid-cli **[deferred: first PRD with a ```mermaid block, or first render-check]**
 - **Needed by:** `skills/afk/to-ticket` (diagram → PNG, rendered locally —
@@ -265,13 +302,48 @@ a token value — not even partially.
 
 ### X5 · running app + DB/broker infra **[deferred: verification time]**
 - No probe here — `/afk:autopilot` and `/afk:smoke-test` probe and self-provision
-  at run time via X3/X4. Listed so the full runtime surface is in one register.
+  at run time via X3/X4 (machine prerequisite: Docker, C7). Listed so the full
+  runtime surface is in one register.
 
 ### X6 · JWT minter (live-app auth) **[deferred: first live-app probe]**
 - **Needed by:** `skills/utils/diagnose` (mints the dev token for live-app probing).
 - **Probe:** `test -f tools/nakisa-financial-suite/jwt/mint.mjs`
 - **Notes:** run via `node tools/nakisa-financial-suite/jwt/mint.mjs` (or the
   sibling `mint-jwt.cmd`); ships with the core-services checkout (X1).
+
+## W — Workstation apps (base-only)
+
+Human tooling, not skill dependencies — no skill invokes these, so entries here
+carry **only** base-tier fields and the default branch skips the section
+entirely. Probed and fixed under `/afk:setup base` alone; a miss is
+`missing/broken` there, never on a default run.
+
+### W1 · Visual Studio Code
+- **Needed by:** the human (no skill invokes it).
+- **Base probe:** `command -v code`
+- **Base fix:** `auto:` `winget install --id Microsoft.VisualStudioCode -e`
+
+### W2 · IntelliJ IDEA
+- **Needed by:** the human; optionally referenced by `/afk:bug`'s `ideBinary`
+  key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
+- **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1`
+- **Base fix:** `human:` `winget install --id JetBrains.IntelliJIDEA.Ultimate -e`
+  (or via JetBrains Toolbox), then sign in with a license.
+
+### W3 · MySQL Server (local)
+- **Needed by:** the human — running services from the IDE against a local DB
+  instead of the envstack containers (which ship their own MySQL, C7/X3).
+- **Base probe:** `sc query type= service state= all | grep -qi "SERVICE_NAME: MySQL"`
+  (a MySQL Windows service exists — running or not).
+- **Base fix:** `human:` `winget install --id Oracle.MySQL -e`, then complete the
+  installer's server configuration (root password stays with the human).
+- **Notes:** not needed when all services run via envstack/docker-compose —
+  skip freely; a skip is `ok`, not `needs-human`.
+
+### W4 · MySQL Workbench
+- **Needed by:** the human (DB inspection; no skill invokes it).
+- **Base probe:** `winget list --id Oracle.MySQLWorkbench -e >/dev/null 2>&1`
+- **Base fix:** `auto:` `winget install --id Oracle.MySQLWorkbench -e`
 
 ## E — Env toggles (index only; no probes)
 

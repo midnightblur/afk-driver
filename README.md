@@ -234,8 +234,12 @@ That snippet is the only manual part — it can't be a skill because the plugin
 isn't loaded yet. **Then run `/afk:setup`** — the workflow doctor: probes every
 external dependency the chain needs (CLIs, MCP servers, secrets, sibling
 checkouts) against `skills/afk/setup/MANIFEST.md`, installs what it can, walks
-you through the rest (Jira token, `glab auth login`). By hand? `MANIFEST.md` is
-human-followable — every probe and fix is a copy-pasteable command.
+you through the rest (Jira token, `glab auth login`). On a fresh machine, run
+`/afk:setup base` instead — same run plus the version-pinned base toolchain
+(git, JDK + Maven per `.sdkmanrc`, Node 24/npm 11, Python, Docker) and the
+workstation apps (VS Code, IntelliJ, MySQL Server + Workbench). By hand?
+`MANIFEST.md` is human-followable — every probe and fix is a copy-pasteable
+command.
 
 After editing any `SKILL.md`, run **`/reload-plugins`** to pick up changes
 without restarting. Same after `git pull` — and if the pull changed the workflow
@@ -764,7 +768,11 @@ tooling.)*
 - **`/afk:setup`** — the workflow doctor. Probes every external dependency in
   `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling checkouts),
   fixes what it can, guides the human through the rest — idempotent, so first-time
-  install and post-`git pull` repair are the same run. As `/afk:setup audit` it
+  install and post-`git pull` repair are the same run. As `/afk:setup base` it
+  extends the sweep to the version-pinned base toolchain (git, JDK + Maven per
+  `.sdkmanrc`, Node/npm workspace standard, Python, Docker) and the base-only
+  workstation apps (IDEs, MySQL Server + Workbench) via the manifest's base-tier
+  fields. As `/afk:setup audit` it
   instead hunts drift between the plugin's artifacts and reality (structural
   consistency, unregistered dependencies, dead pointers) — run that before shipping
   plugin changes (see `FRESHNESS.md`).
