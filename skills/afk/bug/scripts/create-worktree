@@ -95,18 +95,14 @@ validate_branch_name "$BRANCH" || \
 read_config_key() {
   local key="$1" cfg="$2"
   [[ -f "$cfg" ]] || return 0
-  # jq is optional; node/python are the fallbacks (stdin feed avoids MSYS path translation).
-  if command -v jq >/dev/null 2>&1; then
-    jq -r --arg k "$key" '.[$k] // empty' "$cfg" 2>/dev/null || true
-  elif command -v node >/dev/null 2>&1; then
+  # node is the one JSON reader — guaranteed by this repo's toolchain (the script itself runs
+  # npm ci). stdin feed avoids MSYS path translation on the file argument.
+  if command -v node >/dev/null 2>&1; then
     node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s)[process.argv[1]]??"")))' "$key" < "$cfg" 2>/dev/null || true
-  elif command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
-    local py; py="$(command -v python3 || command -v python)"
-    "$py" -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1]) or "")' "$key" < "$cfg" 2>/dev/null || true
   elif [[ -z "${CFG_WARNED:-}" ]]; then
     # config present but unreadable — warn once so a configured value isn't silently ignored.
     CFG_WARNED=1
-    echo -e "  ${YELLOW}no jq/node/python found — ignoring $cfg defaults; pass --parent/--idea-bin explicitly${NC}" >&2
+    echo -e "  ${YELLOW}node not found — ignoring $cfg defaults; pass --parent/--idea-bin explicitly${NC}" >&2
   fi
 }
 
