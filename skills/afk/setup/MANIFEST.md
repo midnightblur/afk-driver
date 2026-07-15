@@ -97,9 +97,10 @@ a token value — not even partially.
 ### H6 · `.claude/afk.local.json` per-dev config
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
-- **Probe:**
+- **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
+  a Store stub that exits 49 while real `python` works)
   ```
-  python3 -c "
+  "$(command -v python || command -v python3)" -c "
   import json, os, sys
   from contextlib import suppress
   p = '.claude/afk.local.json'
@@ -206,9 +207,19 @@ a token value — not even partially.
   (proves the daemon is *running* and compose v2 is present — a stopped Docker
   Desktop fails this even when installed; start it and re-probe).
 - **Fix:** `human:` install Docker Desktop (WSL2 backend) and start it.
-- **Base fix:** `human:` `winget install --id Docker.DockerDesktop -e`, then
-  raise the WSL2 memory ceiling in `~/.wslconfig` — the default cap wedges the
-  engine under a full app env (all API calls 500); restart WSL after editing.
+- **Base probe:** `wsl.exe --status >/dev/null 2>&1` — the WSL2 runtime Docker
+  Desktop's backend requires. Absent WSL, Docker Desktop fails to start with a
+  **misleading** "virtualization support not detected" error even when firmware
+  virtualization is on (`Get-CimInstance Win32_Processor` shows
+  `VirtualizationFirmwareEnabled: True`) — probe WSL before blaming BIOS/IT.
+- **Base fix:** `human:` from an **elevated** prompt:
+  `wsl --install --no-distribution` (installs the WSL2 runtime + Virtual
+  Machine Platform; no Linux distro needed for Docker), then reboot — the
+  elevation stays with the human (the agent never elevates, as W5). Then
+  `winget install --id Docker.DockerDesktop -e`, then raise the WSL2 memory
+  ceiling in `~/.wslconfig` — the default cap wedges the engine under a full app
+  env (all API calls 500); restart WSL after editing. If Docker still won't
+  start after all that: `wsl --update` (elevated) to refresh the WSL kernel.
 
 ## P — Python
 
@@ -441,8 +452,11 @@ miss is `missing/broken` there, never on a default run.
 - **Needed by:** deep monorepo paths — the npm-workspace `node_modules` and
   nested Maven modules blow past the 260-char MAX_PATH; checkouts and builds
   fail with path-too-long errors otherwise.
-- **Base probe:** `reg query 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled 2>/dev/null | grep -q 0x1 && [ "$(git config --global --get core.longpaths)" = true ]`
-  (both halves required — the OS flag and git's own limit).
+- **Base probe:** `MSYS_NO_PATHCONV=1 reg query 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled 2>/dev/null | grep -q 0x1 && [ "$(git config --global --get core.longpaths)" = true ]`
+  (both halves required — the OS flag and git's own limit; the
+  `MSYS_NO_PATHCONV=1` prefix is load-bearing — without it Git Bash mangles
+  `/v` into a path and `reg query` errors, a false negative on a healthy
+  machine).
 - **Base fix:** `human:` from an **elevated** prompt:
   `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`,
   then (no elevation needed) `git config --global core.longpaths true` — the
