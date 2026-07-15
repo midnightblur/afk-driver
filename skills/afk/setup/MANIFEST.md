@@ -265,12 +265,17 @@ a token value — not even partially.
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
 - **Probe:** presence-only, prints names not values; mirrors the engine's
   `load_creds` (OS env, else a recursive walk of `~/.claude.json` for a `jira`
-  server's `env` block — top-level or project-scoped, utf-8):
+  server's `env` block — top-level or project-scoped, utf-8; `load_creds`
+  additionally falls back to `~/.codex/config.toml` `[mcp_servers.jira.env]`,
+  not probed here — any one populated source passes S1 via the env-var leg or
+  the Fix below):
   `python -c "import json,os,sys;w=lambda o:(o['jira']['env'] if isinstance(o,dict) and isinstance(o.get('jira'),dict) and isinstance(o['jira'].get('env'),dict) else next((r for r in (w(v) for v in (list(o.values()) if isinstance(o,dict) else o if isinstance(o,list) else [])) if r),None));p=os.path.expanduser('~/.claude.json');e=(w(json.load(open(p,encoding='utf-8'))) if os.path.exists(p) else None) or {};m=[k for k in ('JIRA_BASE_URL','JIRA_EMAIL','JIRA_API_TOKEN') if not (os.environ.get(k) or e.get(k))];print('missing: '+', '.join(m) if m else 'ok');sys.exit(1 if m else 0)"`
 - **Fix:** `human:` create an API token (Atlassian account → Security → API
   tokens), then set `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` either as
   OS env vars or in `~/.claude.json` → `mcpServers.jira.env` (one home
-  satisfies both this engine and H2).
+  satisfies both this engine and H2). Codex-side users may instead keep them in
+  `~/.codex/config.toml` `[mcp_servers.jira.env]` — `load_creds` reads all three
+  (order: env → claude.json → codex toml; PROVIDERS.md).
 
 ### S2 · GitLab token — **secret**
 - Held entirely by glab (C3). No plugin storage, nothing further to provision.

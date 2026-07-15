@@ -34,9 +34,9 @@ PRD.md contains, nothing more.
 Usage:
     python publish_prd.py --parent P2P-1220 --prd path/to/PRD.md [--dry-run] [--yes]
 
-Credentials are read from the Jira MCP server's env block in ~/.claude.json
-(JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN), or from same-named OS env vars
-if those are set (env vars win). Nothing is hardcoded.
+Credentials resolve as jira_core.load_creds documents (OS env vars win, then
+the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
+is hardcoded.
 """
 
 from __future__ import annotations
