@@ -62,6 +62,7 @@ the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
 | 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
 | 3 | PF-3 fresh-context review of the integrated diff | pending | 0/2 | — |
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
+| 4b | PF-4b understanding artifact (advisory, never parks) | pending | — | — |
 | 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |
 | 6 | PF-6 launch ci-wait (background) | pending | — | — |
 | 7 | PF-7 CI outcome routing (Draft→Ready on green) | pending | 0/2 | — |

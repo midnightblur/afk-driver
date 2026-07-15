@@ -6,6 +6,7 @@ idempotent re-render. Fixture layout below is executor latitude (SDD §0).
 from __future__ import annotations
 
 import http.client
+import re
 import shutil
 import subprocess
 import sys
@@ -80,6 +81,56 @@ _REVIEW_INDEX_TEXT = """| Subtask | Latest report | Verdict | crit/high/med/low 
 | 0001-sample | 0001-sample-abc123.md | clean | 0/0/0/0 | none |
 """
 
+# A well-formed understanding artifact — a frozen shell copy carrying the one
+# `afk-understanding` meta element (both fields populated), mirroring the shell
+# asset the panel parses. Toy data only.
+_UNDERSTANDING_GENERATED = "2026-07-14"
+_UNDERSTANDING_DIFF_RANGE = "abc1234..def5678"
+_UNDERSTANDING_HTML = (
+    "<!doctype html>\n"
+    '<html lang="en" data-theme="dark">\n'
+    "<head>\n"
+    '<meta charset="utf-8">\n'
+    '<meta name="afk-understanding"\n'
+    f'      data-generated="{_UNDERSTANDING_GENERATED}"\n'
+    f'      data-diff-range="{_UNDERSTANDING_DIFF_RANGE}"\n'
+    f'      content="generated={_UNDERSTANDING_GENERATED}; diff-range={_UNDERSTANDING_DIFF_RANGE}">\n'
+    "<title>Understanding &mdash; fixture</title>\n"
+    "</head>\n"
+    "<body><main>toy understanding artifact</main></body>\n"
+    "</html>\n"
+)
+
+# Malformed artifacts — present file, but the panel must return Absent (never
+# raise) per the lockstep format contract's well-formedness rule.
+_UNDERSTANDING_HTML_NO_META = (
+    "<!doctype html>\n"
+    '<html lang="en"><head><meta charset="utf-8">'
+    "<title>no meta</title></head><body><main>artifact without the header</main></body></html>\n"
+)
+_UNDERSTANDING_HTML_EMPTY_FIELDS = (
+    "<!doctype html>\n"
+    "<html><head>\n"
+    '<meta name="afk-understanding" data-generated="" data-diff-range="">\n'
+    "</head><body><main>empty fields</main></body></html>\n"
+)
+# content=-only variant — exercises the panel's fallback extraction when the
+# shell carries the fields on `content=` without the data-* attributes.
+_UNDERSTANDING_HTML_CONTENT_ONLY = (
+    "<!doctype html>\n"
+    "<html><head>\n"
+    '<meta name="afk-understanding" '
+    f'content="generated={_UNDERSTANDING_GENERATED}; diff-range={_UNDERSTANDING_DIFF_RANGE}">\n'
+    "</head><body><main>content-only</main></body></html>\n"
+)
+
+
+def _write_understanding(spec_dir: Path, html_text: str) -> None:
+    u_dir = spec_dir / "understanding"
+    u_dir.mkdir(parents=True, exist_ok=True)
+    (u_dir / "index.html").write_text(html_text, encoding="utf-8")
+
+
 _SUBTASK_TEXT = """# 0001-sample
 
 ## Produces
@@ -106,12 +157,18 @@ def _build_fixture(
     journal: bool = True,
     sdd: bool = True,
     review_index: bool = True,
+    understanding: bool = True,
     git_init: bool = True,
     git_commit: bool = True,
 ) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     if sdd:
         (base / "SDD.md").write_text(_SDD_TEXT, encoding="utf-8")
+
+    if understanding:
+        u_dir = base / "understanding"
+        u_dir.mkdir(parents=True, exist_ok=True)
+        (u_dir / "index.html").write_text(_UNDERSTANDING_HTML, encoding="utf-8")
 
     plan_dir = base / "plan"
     any_plan_section = plan_progress or plan_smoke or plan_preflight
@@ -152,6 +209,16 @@ def _build_fixture(
     return base
 
 
+def _panel_fragment(html_text: str, panel_id: str) -> str:
+    """The `<section …>…</section>` card for one panel (cards don't nest)."""
+    match = re.search(
+        r'<section[^>]*data-panel="' + re.escape(panel_id) + r'".*?</section>',
+        html_text,
+        re.DOTALL,
+    )
+    return match.group(0) if match else ""
+
+
 class MissionControlContractTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -187,6 +254,16 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertIn('data-panel="gates"', html_text)
         self.assertIn("PF-1 merge origin/master", html_text)
         self.assertIn("0001-sample-abc123.md", html_text)
+
+        # Understanding panel: repo-relative path as plain text + the two chips
+        # parsed from the afk-understanding meta header. No hyperlink.
+        self.assertIn('data-panel="understanding"', html_text)
+        self.assertIn("understanding/index.html", html_text)
+        self.assertIn(_UNDERSTANDING_GENERATED, html_text)
+        self.assertIn(_UNDERSTANDING_DIFF_RANGE, html_text)
+        understanding_card = _panel_fragment(html_text, "understanding")
+        self.assertNotIn("<a ", understanding_card)
+        self.assertNotIn("href", understanding_card)
 
         self.assertNotIn("mc-card-absent", html_text)
 
@@ -231,6 +308,24 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertIsInstance(panels["gates"], Absent)
         self.assertNotIsInstance(panels["progress"], Absent)
 
+        spec = _build_fixture(self.base / "no-understanding", understanding=False)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+        self.assertNotIsInstance(panels["progress"], Absent)
+
+        # Present file but no afk-understanding meta element -> Absent, no raise
+        # (panels_for calls every parser; a raise would fail the comprehension).
+        spec = _build_fixture(self.base / "understanding-no-meta", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_NO_META)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+
+        # Meta present but both fields empty -> Absent (malformed header).
+        spec = _build_fixture(self.base / "understanding-empty-fields", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_EMPTY_FIELDS)
+        panels = panels_for(spec)
+        self.assertIsInstance(panels["understanding"], Absent)
+
     # A4 - page self-contained: zero external refs, opens via file://
     def test_page_self_contained(self):
         spec_dir = _build_fixture(self.base / "contained")
@@ -242,6 +337,25 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertNotRegex(html_text, r'(src|href)\s*=\s*"https?://')
         self.assertNotIn("<link", html_text)
         self.assertNotIn("<script src", html_text)
+
+        # The understanding panel's fragment is part of the self-contained page
+        # and carries no reference out (no external ref, no relocatable link).
+        understanding_card = _panel_fragment(html_text, "understanding")
+        self.assertIn("understanding/index.html", understanding_card)
+        self.assertNotRegex(understanding_card, r'(src|href)\s*=')
+
+    # Understanding panel: fields carried on `content=` only (no data-* attrs)
+    # still render via the fallback extraction.
+    def test_understanding_content_only_fallback(self):
+        from mc.panels import understanding as understanding_panel
+
+        spec = _build_fixture(self.base / "content-only", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_CONTENT_ONLY)
+
+        panel = understanding_panel.parse(spec)
+        self.assertNotIsInstance(panel, Absent)
+        self.assertIn(_UNDERSTANDING_GENERATED, panel.html)
+        self.assertIn(_UNDERSTANDING_DIFF_RANGE, panel.html)
 
     # A5 - GET-only server; page has no mutating control
     def test_get_only_read_only(self):

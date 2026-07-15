@@ -172,11 +172,13 @@ graph LR
     Exec -.->|uses| Tdd[/tdd skill/]
     Exec -.->|review gate| Rev[/afk:review/]
     Exec -.->|adversarial gate| Adv[/afk:adversary/]
+    Smoke -->|smoke green · ship gate| PF[/afk:preflight/]
+    PF -.->|advisory row · post-ship understanding artifact| Und[/afk:understand/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Auto,Exec mand;
-    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv opt;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -232,8 +234,13 @@ That snippet is the only manual part — it can't be a skill because the plugin
 isn't loaded yet. **Then run `/afk:setup`** — the workflow doctor: probes every
 external dependency the chain needs (CLIs, MCP servers, secrets, sibling
 checkouts) against `skills/afk/setup/MANIFEST.md`, installs what it can, walks
-you through the rest (Jira token, `glab auth login`). By hand? `MANIFEST.md` is
-human-followable — every probe and fix is a copy-pasteable command.
+you through the rest (Jira token, `glab auth login`). On a fresh machine, run
+`/afk:setup base` instead — same run plus the version-pinned base toolchain
+(git, JDK + Maven per `.sdkmanrc`, Node 24/npm 11, Python, Docker) and the
+workstation apps & OS config (VS Code, IntelliJ, MySQL Server + Workbench,
+Windows long paths). By hand?
+`MANIFEST.md` is human-followable — every probe and fix is a copy-pasteable
+command.
 
 After editing any `SKILL.md`, run **`/reload-plugins`** to pick up changes
 without restarting. Same after `git pull` — and if the pull changed the workflow
@@ -413,6 +420,7 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
 ├── GLOSSARY.md                ← /afk:grill-requirements
 ├── walkthroughs/              ← /afk:to-code-walkthrough (optional durable copies)
+├── understanding/             ← /afk:understand    (post-ship self-contained interactive HTML explainer, one per feature)
 ├── adr/
 │   ├── requirements/NNNN-*.md ← /afk:to-prd   (what / why)
 │   └── design/NNNN-*.md       ← /afk:to-sdd   (how)
@@ -745,10 +753,27 @@ tooling.)*
   artifacts to a self-contained page; the skill only launches it and reports the
   served URL / output path. No daemonization: a crashed watcher's only recovery is
   relaunching the skill.
+- **`/afk:understand`** — generates one **self-contained interactive HTML
+  understanding artifact** per feature (`{spec-dir}/understanding/index.html`) —
+  dual-depth background, intuition, seam-ordered diff walkthrough, notable
+  plan-deviations, an opt-in quiz — synthesized from the feature's **actual diff**,
+  journal, and review records (the implementation *as built*, not the plan). Runs
+  two ways off one pipeline: **auto** (invoked non-interactively with defaults from
+  `/afk:preflight`'s advisory ladder row — never blocks a ship, ends in one
+  docs-only commit) and **standalone** (a human runs `/afk:understand {plan-dir}`
+  on a Ready or shipped feature; prompts for quiz size + depth, writes files,
+  commits nothing). Fully offline; surfaced by the ticket `INDEX.md` and the
+  mission-control dashboard's understanding panel. Section model, predicates, quiz
+  rules, and meta-header grammar are one-homed in its `UNDERSTANDING-FORMAT.md`;
+  the boilerplate chrome is the checked-in `shell-template.html`.
 - **`/afk:setup`** — the workflow doctor. Probes every external dependency in
   `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling checkouts),
   fixes what it can, guides the human through the rest — idempotent, so first-time
-  install and post-`git pull` repair are the same run. As `/afk:setup audit` it
+  install and post-`git pull` repair are the same run. As `/afk:setup base` it
+  extends the sweep to the version-pinned base toolchain (git, JDK + Maven per
+  `.sdkmanrc`, Node/npm workspace standard, Python, Docker) and the base-only
+  workstation apps & OS config (IDEs, MySQL Server + Workbench, Windows long
+  paths) via the manifest's base-tier fields. As `/afk:setup audit` it
   instead hunts drift between the plugin's artifacts and reality (structural
   consistency, unregistered dependencies, dead pointers) — run that before shipping
   plugin changes (see `FRESHNESS.md`).

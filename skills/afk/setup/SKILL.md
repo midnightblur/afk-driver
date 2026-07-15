@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up or repair a developer's AFK-workflow environment — probes every external dependency (CLIs, MCP servers, secrets, sibling checkouts) against the manifest, fixes what it can, guides the rest. Use when installing the workflow on a machine, after a git pull changed the plugin, when a workflow skill dies on a missing tool or credential — or as `audit` to catch dependency/doc drift before shipping plugin changes.
+description: Set up or repair a developer's AFK-workflow environment — probes every external dependency (CLIs, MCP servers, secrets, sibling checkouts) against the manifest, fixes what it can, guides the rest. Use when installing the workflow on a machine (add `base` to also pin/provision the monorepo toolchain — git, JDK, Maven, Node/npm, Python, Docker — and workstation apps/OS config: IDEs, MySQL, Windows long paths), after a git pull changed the plugin, when a workflow skill dies on a missing tool or credential — or as `audit` to catch dependency/doc drift before shipping plugin changes.
 ---
 
 # afk:setup — the workflow doctor
@@ -13,6 +13,12 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 ## Branches
 
 - **default** — check + fix the machine (below).
+- **`base`** (`/afk:setup base`) — the default run **plus** every entry's
+  `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
+  Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
+  plus the base-only workstation apps & OS config (section W — IDEs, MySQL
+  Server + Workbench, Windows long paths). For fresh machines or after a
+  toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
 
@@ -22,9 +28,11 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    dependency set; probe nothing outside it (a known dep missing from it is a
    FRESHNESS.md violation — flag it, then probe it anyway).
 2. **Probe everything.** Run every entry's `Probe:` — `sh:` probes from the
-   core-services repo root, `agent:` probes in-session. Batch independent
-   probes. Classify each: `ok` · `missing/broken` · `deferred` (tagged
-   **[deferred]**, first-use not yet reached — never a failure).
+   core-services repo root, `agent:` probes in-session. Under `base`, also run
+   every `Base probe:` where present — a version miss there is `missing/broken`
+   even when the plain probe passes, and its fix is the entry's `Base fix:`.
+   Batch independent probes. Classify each: `ok` · `missing/broken` · `deferred`
+   (tagged **[deferred]**, first-use not yet reached — never a failure).
 3. **Report before touching.** One table — entry id, name, status, planned
    action — so the human sees the whole picture before any install runs.
 4. **Fix.**

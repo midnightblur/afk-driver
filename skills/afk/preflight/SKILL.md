@@ -91,6 +91,26 @@ blocking on open IOUs in final mode. `wired`/`weak` → proceed. An orphan or a
 final-mode-blocking open IOU → same routing as PF-3 (remediate within the
 shared cap, else `park(PF-4: orphan_artifact)`).
 
+**PF-4b understanding — advisory artifact generation (never parks).** Reached
+only once PF-4 is `green`. Invoke **`/afk:understand {plan-dir}`** in auto mode
+(its own defaults — `skills/afk/understand/SKILL.md` M-1); it synthesizes the
+feature's diff, journal, and review records into the checked-in understanding
+artifact and rides this ladder's existing commit/push authorization for its one
+docs-only commit (ADR `adr/design/0001`; SDD §3).
+
+- **`generated`** → row `green`; record the committed artifact path in
+  `Evidence` (PF-5's evidence block names it); proceed to PF-5.
+- **`failed({reason})`** — or the `no_derivable_diff` refusal a live feature
+  branch never reaches in auto mode — → row **`advisory-failed`** and proceed
+  to PF-5 anyway. **Never `park`.** The skill has already written its own
+  journal event; no fix attempt, no counter increment, no MR-block change.
+
+This is the ladder's one **advisory** row: it sits **outside the shared fix
+cap** (PF-2/PF-3/PF-7), never consumes a cycle, and its only non-green outcome
+(`advisory-failed`) advances the ladder rather than blocking it. On **resume**,
+an `advisory-failed` (non-`green`) row re-runs like any other non-green row
+(Resume rule above).
+
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
    `--once` mode against this feature's spec folder (fronted by
@@ -108,7 +128,9 @@ shared cap, else `park(PF-4: orphan_artifact)`).
    block**; every other byte of the description — including the sibling block —
    round-trips verbatim (§9b two-writer invariant: each writer owns exactly one
    block). Content: PF table summary, the snapshot's committed path, a
-   `plan/JOURNAL.md` pointer.
+   `plan/JOURNAL.md` pointer, and — when PF-4b is `green` — the committed
+   understanding-artifact path (from that row's `Evidence`) so reviewers can
+   discover it (SDD §5 observability).
 
 **PF-6 — launch ci-wait.** Launch `scripts/ci-wait.sh {mr-ref} 5400 180
 [repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
@@ -128,7 +150,8 @@ mirrors it — a lockstep pair, keep both in sync):
 
 **PF-7 — CI outcome routing.**
 - **exit 0** → `glab` Draft→Ready flip on the MR; JOURNAL `done`; every PF
-  row green; report `success` (below) and stop.
+  row green (PF-4b may be `advisory-failed` — the one advisory row, never a
+  blocker); report `success` (below) and stop.
 - **exit 1** → inspect the pipeline log. Mechanical failure (compile/format/
   config, merge-induced) and cycles remaining → fix, push (**increment the
   shared cycle counter before the attempt**, not after), relaunch PF-6 — a
@@ -179,7 +202,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green; MR flipped Ready; ship snapshot committed. The human still merges out of band. |
+| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory, never blocks); MR flipped Ready; ship snapshot committed. The human still merges out of band. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |

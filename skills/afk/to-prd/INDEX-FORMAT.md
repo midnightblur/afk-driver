@@ -16,6 +16,7 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 | `Verification plan` | `/afk:to-verification-plan` |
 | `Plan` | `/afk:to-subtasks` |
 | `Smoke gate` | `/afk:smoke-test` |
+| `Understanding` | `/afk:understand` (upserts only its own row) |
 
 ## Template
 
@@ -37,6 +38,7 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 | Verification plan | VERIFICATION-PLAN.md | — | UI only (API deferred) | UI + API |
 | Plan | plan/PLAN.md | — | {n} subtasks, {cited|uncited} — live status in the plan's progress tracker |
 | Smoke gate | plan/PLAN.md | — | not run | red {date} | green {date} ({full|minimal} gate) |
+| Understanding | understanding/index.html | — | generated {date} |
 
 ## Reading order
 
@@ -46,7 +48,8 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 4. plan/PLAN.md — solution map + live progress tracker.
 5. plan/JOURNAL.md (tail) — what happened lately, in order.
 6. plan/review/INDEX.md — what the quality gates found.
-7. Later: plan/TRACE.md (which commit satisfied which criterion), adr/ (why it's shaped this way).
+7. understanding/index.html — the interactive explainer of what was actually built, once generated.
+8. Later: plan/TRACE.md (which commit satisfied which criterion), adr/ (why it's shaped this way).
 ```
 
 `State` cells show allowed values separated by `|` — a real index carries exactly one. The Reading order block is static boilerplate — copy verbatim; it deliberately lists files that may not exist yet (`—` in the table).
