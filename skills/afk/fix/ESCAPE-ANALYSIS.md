@@ -15,7 +15,9 @@ higher-tier scenario (Phase 2 already homed it).
    (`*.test.mjs`) for a contract. Either a scenario exercises this path, or you
    confirm none does.
 
-2. **Name the miss class** (exactly one):
+2. **Name the miss class** (exactly one — this table owns the set; the
+   miss-class → lesson-class mapping in `skills/afk/lessons/LEDGER-FORMAT.md`
+   is its lockstep partner):
 
    | Miss class | What it means | Right response |
    |-----------|---------------|----------------|

@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Orchestrates fixing a verification-phase or reported bug — delegates root-cause and regression test to /afk:diagnose, adds proportional coverage, runs escape analysis, reconciles stale spec artifacts, and hands off a workflow lesson for AFK-delivered features. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
+description: Orchestrates fixing a verification-phase or reported bug — delegates root-cause and regression test to /afk:diagnose, adds proportional coverage, runs escape analysis, reconciles stale spec artifacts, and records a workflow lesson for AFK-delivered features. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
 # afk:fix — fix a bug and keep the source of truth true
@@ -69,7 +69,7 @@ Doc right + code wrong → no artifact change. Reconcile only when the fix chang
 
 ## Phase 3.5 — Workflow feedback (AFK-delivered features only)
 
-When the feature was built with AFK assistance (Phase 0 signals: AFK branch + `plan/PLAN.md`), trace the miss to the AFK stage that under-specified the guard and **hand off** a structured workflow lesson via `/afk:handoff` (never self-applied) — full stage-mapping table, handoff payload, procedure in [WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). Ad-hoc/maintenance bugs have no AFK workflow to improve → skip. Report the handoff doc path in Phase 4.
+When the feature was built with AFK assistance (Phase 0 signals: AFK branch + `plan/PLAN.md`), trace the miss to the AFK stage that under-specified the guard and **record** a structured workflow lesson in the lesson ledger (never self-applied) — full stage-mapping table, lesson payload, procedure in [WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). Ad-hoc/maintenance bugs have no AFK workflow to improve → skip. Report the lesson id in Phase 4.
 
 ## Phase 4 — Report
 
@@ -89,10 +89,10 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
-Phase 2.5 ran → add the **miss class** to the summary; Phase 3.5 ran → append the **handoff doc path** so the workflow-improvement lesson isn't lost:
+Phase 2.5 ran → add the **miss class** to the summary; Phase 3.5 ran → append the **lesson id** so the workflow-improvement lesson isn't lost:
 
 ```
-OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
+OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 ```
 
 ## Hard rules
@@ -100,6 +100,6 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [handoff: <path>]
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
 - **The target repo's CLAUDE.md chain binds here** — notably its DB-migration and commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
-- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **handed off** (`/afk:handoff`), never self-applied — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
+- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).
 - Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted (diagnose Phase 6).

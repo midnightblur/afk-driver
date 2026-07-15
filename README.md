@@ -463,6 +463,11 @@ because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
 `/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
 `/afk:claude-md` writes it.
 
+One artifact lives in the **main checkout** (shared across every feature
+worktree): `.claude/lessons/LEDGER.jsonl` — the append-only workflow lesson
+ledger (grammar: `skills/afk/lessons/LEDGER-FORMAT.md`), captured into by the
+chain's detection points and stewarded by `/afk:lessons`.
+
 What changed in the plugin itself lives in **`CHANGELOG.md`** at the plugin
 root — dated dev-facing one-liners, newest first. Skim it after every pull.
 
@@ -752,6 +757,20 @@ tooling.)*
   lockstep-aware plugin edits for a human to apply. Read-only over everything it
   mines; the systemic counterpart of `/afk:fix`'s per-bug escape analysis. Run
   after a release's features ship, or periodically.
+- **`/afk:lessons`** — steward of the **workflow lesson ledger**, the
+  conclude-at-detection self-improvement loop. Detection points across the chain
+  (execute's review/adversary conclusions, `/afk:fix` Phase 3.5, `/afk:claude-md`
+  HARVEST, `/afk:glossary` GRILL) capture classified lessons — each with a drafted
+  durable edit — into the main-checkout `.claude/lessons/LEDGER.jsonl` the moment
+  they conclude: applied eagerly via the target's owning steward when a human
+  approves on the spot, recorded as `open` drafts otherwise (hands-off runs,
+  plugin-file targets). `/afk:execute` reads open lessons before designing so a
+  recorded mistake is never repeated; `/afk:preflight` PF-4c surfaces the open
+  count at the ship gate. Subcommands: `status` (default), `apply` (walk open
+  drafts propose → approve → write), `audit` (ledger hygiene). Grammar, class
+  enum, and the reword → relocate → checklist → gate escalation ladder:
+  `skills/afk/lessons/LEDGER-FORMAT.md`; capture protocol:
+  `skills/afk/lessons/CAPTURE.md`.
 - **`/afk:claude-md`** — steward of the three steering artifacts: `CLAUDE.md`
   files / `.claude/rules` across a project hierarchy, and the per-service
   `STAPLES.md` registry (its **sole** writer). Creates, audits, dedups, and

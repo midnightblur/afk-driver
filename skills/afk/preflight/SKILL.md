@@ -105,11 +105,21 @@ docs-only commit (ADR `adr/design/0001`; SDD §3).
   to PF-5 anyway. **Never `park`.** The skill has already written its own
   journal event; no fix attempt, no counter increment, no MR-block change.
 
-This is the ladder's one **advisory** row: it sits **outside the shared fix
-cap** (PF-2/PF-3/PF-7), never consumes a cycle, and its only non-green outcome
+This is an **advisory** row: it sits **outside the shared fix cap**
+(PF-2/PF-3/PF-7), never consumes a cycle, and its only non-green outcome
 (`advisory-failed`) advances the ladder rather than blocking it. On **resume**,
 an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 (Resume rule above).
+
+**PF-4c lessons — advisory open-drafts surface (never parks).** Run
+`bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
+from the repo root; set the row `green` with
+`Evidence: open lessons: <n> (grammar: skills/afk/lessons/LEDGER-FORMAT.md)`.
+This is how workflow-lesson drafts captured during hands-off runs reach the
+human at the ship gate: `<n> > 0` changes nothing mechanically — the count
+rides the PF table into the report and MR evidence block; applying the drafts
+is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b: outside
+the shared fix cap, no cycle, no fix attempt, no park.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
@@ -150,8 +160,8 @@ mirrors it — a lockstep pair, keep both in sync):
 
 **PF-7 — CI outcome routing.**
 - **exit 0** → `glab` Draft→Ready flip on the MR; JOURNAL `done`; every PF
-  row green (PF-4b may be `advisory-failed` — the one advisory row, never a
-  blocker); report `success` (below) and stop.
+  row green (PF-4b may be `advisory-failed` — advisory rows never block);
+  report `success` (below) and stop.
 - **exit 1** → inspect the pipeline log. Mechanical failure (compile/format/
   config, merge-induced) and cycles remaining → fix, push (**increment the
   shared cycle counter before the attempt**, not after), relaunch PF-6 — a
@@ -202,7 +212,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory, never blocks); MR flipped Ready; ship snapshot committed. The human still merges out of band. |
+| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |

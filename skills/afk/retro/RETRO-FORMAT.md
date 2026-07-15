@@ -24,7 +24,7 @@ One row per feature:
 
 ### 2. Signals
 
-One `###` block per signal family that fired (recurring finding classes, park patterns, stall geography, grill-gap correlation, wiring debt — definitions in `SKILL.md`). Each block: aggregate numbers, then the occurrence list — every occurrence cited as `{ticket} {NNNN-slug} — {source}: {line/id}`. A family with nothing ≥2 occurrences states `no recurring signal`, one line.
+One `###` block per signal family that fired (recurring finding classes, park patterns, stall geography, grill-gap correlation, wiring debt, criterion yield, pattern-debt recurrence, lesson closure & recurrence — definitions in `SKILL.md`). Each block: aggregate numbers, then the occurrence list — every occurrence cited as `{ticket} {NNNN-slug} — {source}: {line/id}`. A family with nothing ≥2 occurrences states `no recurring signal`, one line.
 
 ### 3. Gate latency
 
@@ -42,6 +42,8 @@ At most 5, ranked by expected impact. Each:
 - Partners: {every lockstep/registry file the edit must touch in the same commit, or "none"}
 - Expected effect: {the §2/§3 number this should move, and in which direction}
 ```
+
+A proposal that grades or escalates a ledger lesson cites its `L-NNNN` id in Evidence.
 
 ### 5. Verdict on prior retro
 

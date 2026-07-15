@@ -6,10 +6,10 @@ doesn't repeat it.** Run **only** when the feature was built with AFK assistance
 (Phase 0 feature-building signals: AFK branch + `plan/PLAN.md`). Ad-hoc/maintenance
 bugs have no AFK workflow to improve → skip.
 
-The lesson is **handed off, not self-applied.** Do **not** edit the AFK skills
+The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
-reviewed change that the agent owning the plugin
-(`tools/payable/ai-agents/plugins/workflow/`) picks up.
+reviewed change applied via `/afk:lessons apply` from the lesson ledger
+(format: `skills/afk/lessons/LEDGER-FORMAT.md`).
 
 1. **Trace the miss to a stage.** Map the Phase 2.5 miss class (or the Phase 3
    stale artifact) to the AFK stage that under-specified the guard:
@@ -22,7 +22,7 @@ reviewed change that the agent owning the plugin
    | `excluded` — env-tag policy hid a real regression | gate policy | `/afk:smoke-test` + `VERIFICATION-PLAN.md` tagging |
    | PRD asserted the wrong behavior | requirements | `/afk:grill-requirements` → `/afk:to-prd` |
 
-2. **Write the structured lesson** (the handoff payload — facts only, reference
+2. **Write the structured lesson** (the ledger payload — facts only, reference
    don't duplicate):
    - **Bug** — one line + ticket key; point at `/afk:diagnose`'s post-mortem by
      path, don't restage it.
@@ -34,9 +34,18 @@ reviewed change that the agent owning the plugin
    - **Evidence** — the existing scenario file + the assertion that whiffed
      (`path:line`), so the next agent can confirm before changing the skill.
 
-3. **Hand it off.** Invoke **`/afk:handoff`** with that payload and the focus
-   *"harden AFK skill `<name>` so a `<miss-class>` bug in `<flow>` can't recur."*
-   The handoff names the skill file(s) to edit under the plugin repo; the
-   lesson-application session edits those file(s) directly, loading
-   `/afk:writing-great-skills` first to hold the edit against the bar. Report
-   the handoff doc path in Phase 4.
+3. **Record it.** Append the lesson to the lesson ledger as `opened`, from the
+   repo root:
+
+   ```
+   bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
+     --class <mapped> --miss <phase-2.5 class> --target <implicated skill file> \
+     --summary "<the Bug line>" --draft "<the Proposed change>" \
+     --source <ticket key> --evidence <path:line> --writer fix
+   ```
+
+   `--class` maps from the miss class per the mapping table in
+   `skills/afk/lessons/LEDGER-FORMAT.md`; the `draft` must stand alone. The
+   draft is applied later — reviewed against `/afk:writing-great-skills` — via
+   `/afk:lessons apply`, never in this session. Report the minted lesson id in
+   Phase 4.

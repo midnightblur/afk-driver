@@ -183,5 +183,15 @@ _Avoid_: doctor (that is the fix-the-machine branch, not this one)
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).
 
 **Retro**:
-The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis.
+The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics, the lesson ledger — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis, and the safety net behind conclude-at-detection lesson capture.
 _Avoid_: postmortem (that is per-incident), audit (that is `/afk:setup audit`'s staleness hunt)
+
+**Lesson**:
+A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; escape analysis names a miss). Capture protocol: `skills/afk/lessons/CAPTURE.md`.
+_Avoid_: retro item (aggregation comes later), todo (a lesson carries its own drafted fix)
+
+**Lesson ledger**:
+`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded`), stewarded by `/afk:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
+
+**Escalation ladder**:
+The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.
