@@ -41,6 +41,7 @@
     "./skills/utils/glossary",
     "./skills/utils/handoff",
     "./skills/utils/interactive-walkthrough",
+    "./skills/utils/pitch",
     "./skills/utils/to-code-walkthrough",
     "./skills/utils/todo",
     "./skills/utils/verify-seams",

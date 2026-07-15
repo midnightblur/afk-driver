@@ -1,0 +1,1073 @@
+<title>AFK Workflow — Pitch &amp; Field Guide</title>
+<!-- afk-pitch-snapshot commit=15973f19a72c91cc4eb6928607ef75b63d19371f date=2026-07-14
+     Maintained by /afk:pitch (skills/utils/pitch). commit = the plugin HEAD this page's facts
+     were digested from; the skill diffs commit..HEAD to find undocumented changes, patches
+     the page, republishes to the artifact URL in its SKILL.md, then advances this marker. -->
+
+<style>
+  :root{
+    --bg:#f6f7f4; --bg2:#eceee8; --panel:#ffffff; --ink:#20242b; --ink2:#5a6170; --line:#d8dbd2;
+    --accent:#b05f0a; --accent-bg:#f4e3cb; --mono-bg:#eef0ea;
+    --ok:#2e7d51; --ok-bg:#ddeee4; --warn:#a4541c; --warn-bg:#f3e2d2; --bad:#b04038; --bad-bg:#f2dcda;
+    --rail-bg:#eff1eb;
+    --fb:#1f6e7d; --fb-bg:#d9ebee; --fc:#6b4fa0; --fc-bg:#e6def2;
+    --ff-display:"Segoe UI Variable Display","Segoe UI",-apple-system,"Helvetica Neue",sans-serif;
+    --ff-body:"Segoe UI Variable Text","Segoe UI",-apple-system,"Helvetica Neue",sans-serif;
+    --ff-mono:"Cascadia Code",ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12161d; --bg2:#171c25; --panel:#1b212c; --ink:#dde1e6; --ink2:#98a0ad; --line:#2c3440;
+      --accent:#e09a3e; --accent-bg:#3a2c17; --mono-bg:#141924;
+      --ok:#5cb586; --ok-bg:#1c3227; --warn:#d99a5f; --warn-bg:#382718; --bad:#d97c72; --bad-bg:#3a2220;
+      --rail-bg:#151a23;
+      --fb:#5fb6c6; --fb-bg:#15333a; --fc:#a68fd0; --fc-bg:#2a2140;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12161d; --bg2:#171c25; --panel:#1b212c; --ink:#dde1e6; --ink2:#98a0ad; --line:#2c3440;
+    --accent:#e09a3e; --accent-bg:#3a2c17; --mono-bg:#141924;
+    --ok:#5cb586; --ok-bg:#1c3227; --warn:#d99a5f; --warn-bg:#382718; --bad:#d97c72; --bad-bg:#3a2220;
+    --rail-bg:#151a23;
+    --fb:#5fb6c6; --fb-bg:#15333a; --fc:#a68fd0; --fc-bg:#2a2140;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f7f4; --bg2:#eceee8; --panel:#ffffff; --ink:#20242b; --ink2:#5a6170; --line:#d8dbd2;
+    --accent:#b05f0a; --accent-bg:#f4e3cb; --mono-bg:#eef0ea;
+    --ok:#2e7d51; --ok-bg:#ddeee4; --warn:#a4541c; --warn-bg:#f3e2d2; --bad:#b04038; --bad-bg:#f2dcda;
+    --rail-bg:#eff1eb;
+    --fb:#1f6e7d; --fb-bg:#d9ebee; --fc:#6b4fa0; --fc-bg:#e6def2;
+  }
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{transition:none!important} }
+  body{background:var(--bg);color:var(--ink);font-family:var(--ff-body);line-height:1.6;margin:0}
+  a{color:var(--accent);text-decoration:none}
+  a:hover,a:focus-visible{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  code,.mono{font-family:var(--ff-mono);font-size:.9em;background:var(--mono-bg);padding:.08em .35em;border-radius:3px}
+  h1,h2,h3,h4{font-family:var(--ff-display);text-wrap:balance;line-height:1.2}
+  h2{font-size:1.5rem;margin:0 0 .35rem;letter-spacing:-.015em}
+  h3{font-size:1.1rem;margin:1.6rem 0 .5rem}
+  p{max-width:70ch}
+  ul{max-width:75ch}
+
+  .layout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}
+  @media (max-width:900px){ .layout{grid-template-columns:minmax(0,1fr)} nav.rail{display:none} }
+
+  nav.rail{background:var(--rail-bg);border-right:1px solid var(--line);padding:1.6rem 1rem;position:sticky;top:0;height:100vh;overflow-y:auto;box-sizing:border-box}
+  nav.rail .brand{font-family:var(--ff-mono);font-weight:700;font-size:1.05rem;letter-spacing:.04em;margin-bottom:.2rem}
+  nav.rail .brand span{color:var(--accent)}
+  nav.rail .sub{font-size:.75rem;color:var(--ink2);margin-bottom:1.3rem}
+  nav.rail ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem}
+  nav.rail li a{display:block;padding:.32rem .55rem;border-radius:5px;color:var(--ink);font-size:.86rem}
+  nav.rail li a:hover{background:var(--bg2);text-decoration:none}
+  nav.rail li a .n{font-family:var(--ff-mono);font-size:.7rem;color:var(--ink2);margin-right:.45em}
+  nav.rail .depth{margin-top:1.4rem;font-size:.72rem;color:var(--ink2);border-top:1px solid var(--line);padding-top:.9rem;line-height:1.7}
+
+  main{padding:0 0 5rem;min-width:0}
+  .inner{max-width:960px;margin:0 auto;padding:0 2rem;box-sizing:border-box}
+  section{padding-top:2.6rem;border-top:1px solid var(--line);margin-top:2.6rem}
+  .track > section:first-of-type{border-top:none;margin-top:0}
+  .eyebrow{font-family:var(--ff-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem}
+  .lede{color:var(--ink2);font-size:1rem;max-width:66ch}
+
+  header.hero{padding:2.6rem 0 1.9rem;background:linear-gradient(180deg,var(--bg2),var(--bg))}
+  header.hero h1{font-size:clamp(1.7rem,3.6vw,2.4rem);margin:.2rem 0 .7rem;letter-spacing:-.02em;max-width:24ch}
+  header.hero .thesis{font-size:1.04rem;max-width:64ch}
+  .stats{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.4rem}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:.5rem .85rem;min-width:6.8rem}
+  .stat b{display:block;font-family:var(--ff-mono);font-size:1.3rem;font-variant-numeric:tabular-nums;color:var(--accent)}
+  .stat span{font-size:.7rem;color:var(--ink2);letter-spacing:.03em}
+
+  .switch{display:flex;gap:0;margin-top:1.8rem;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:max-content;max-width:100%;background:var(--panel)}
+  .switch button{font-family:var(--ff-display);font-size:.92rem;font-weight:600;padding:.6rem 1.3rem;border:none;background:transparent;color:var(--ink2);cursor:pointer;border-right:1px solid var(--line)}
+  .switch button:last-child{border-right:none}
+  .switch button small{display:block;font-family:var(--ff-body);font-weight:400;font-size:.7rem;letter-spacing:.02em}
+  .switch button[aria-pressed="true"]{background:var(--accent-bg);color:var(--accent)}
+  .switch button:hover{color:var(--ink)}
+
+  .track{display:none}
+  body[data-aud="dev"] .track.dev,
+  body[data-aud="dir"] .track.dir{display:block}
+  .railset{display:none}
+  body[data-aud="dev"] .railset.dev,
+  body[data-aud="dir"] .railset.dir{display:block}
+  .heroline{display:none;margin:0}
+  body[data-aud="dev"] .heroline.dev,
+  body[data-aud="dir"] .heroline.dir{display:block}
+
+  .phase-track{display:flex;gap:.9rem;overflow-x:auto;padding:1.2rem 0 1rem}
+  .phase{flex:0 0 195px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:.8rem;display:flex;flex-direction:column;gap:.45rem;position:relative}
+  .phase::after{content:"→";position:absolute;right:-.85rem;top:1rem;color:var(--ink2);font-size:1.05rem}
+  .phase:last-child::after{content:""}
+  .phase h3{margin:0;font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-family:var(--ff-mono)}
+  .phase .node{font-family:var(--ff-mono);font-size:.76rem;background:var(--mono-bg);border:1px solid var(--line);border-radius:5px;padding:.3rem .5rem;color:var(--ink)}
+  .phase .node.opt{border-style:dashed;color:var(--ink2)}
+  .phase .node.gate{border-color:var(--accent);background:var(--accent-bg)}
+  .phase .node.you{border-color:var(--ok);background:var(--ok-bg)}
+  .legend{display:flex;gap:1.1rem;font-size:.75rem;color:var(--ink2);flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:.4rem}
+  .sw{width:.85rem;height:.85rem;border-radius:3px;border:1px solid var(--line);background:var(--mono-bg);display:inline-block}
+  .sw.g{border-color:var(--accent);background:var(--accent-bg)} .sw.o{border-style:dashed}
+  .sw.y{border-color:var(--ok);background:var(--ok-bg)}
+
+  details.dive{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:.55rem 0;overflow:hidden}
+  details.dive summary{cursor:pointer;padding:.62rem 1rem;font-weight:600;display:flex;align-items:baseline;gap:.7rem;list-style:none;flex-wrap:wrap}
+  details.dive summary::-webkit-details-marker{display:none}
+  details.dive summary::before{content:"+";font-family:var(--ff-mono);color:var(--accent);width:1em}
+  details.dive[open] summary::before{content:"–"}
+  details.dive summary .cmd{font-family:var(--ff-mono);font-size:.82rem;color:var(--accent);font-weight:500}
+  details.dive summary .what{font-weight:400;font-size:.84rem;color:var(--ink2)}
+  details.dive .body{padding:.2rem 1rem 1rem 2.2rem;font-size:.9rem}
+  details.dive .body p{margin:.45rem 0}
+  details.dive .body ul{margin:.4rem 0;padding-left:1.1rem}
+  details.dive .body li{margin:.25rem 0}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin-top:1rem}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;background:var(--panel)}
+  th,td{text-align:left;padding:.55rem .8rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--ff-mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--ink2);background:var(--bg2)}
+  tr:last-child td{border-bottom:none}
+  td .mono{white-space:nowrap}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  pre.tree{background:var(--mono-bg);border:1px solid var(--line);border-radius:8px;padding:1rem 1.2rem;font-family:var(--ff-mono);font-size:.79rem;line-height:1.65;overflow-x:auto;margin-top:1rem}
+  pre.tree i{color:var(--ink2);font-style:normal}
+  pre.tree b{color:var(--accent);font-weight:600}
+  pre.tree .y{color:var(--ok);font-weight:600}
+
+  .timeline{list-style:none;margin:1.4rem 0 0;padding:0;border-left:2px solid var(--line);max-width:78ch}
+  .timeline li{position:relative;padding:0 0 1.3rem 1.5rem}
+  .timeline li::before{content:"";position:absolute;left:-6px;top:.45em;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .timeline li.you::before{background:var(--ok)}
+  .timeline .t{font-family:var(--ff-mono);font-size:.72rem;color:var(--ink2);letter-spacing:.05em;text-transform:uppercase}
+  .timeline h4{margin:.1rem 0 .25rem;font-size:.98rem}
+  .timeline p{font-size:.88rem;margin:.2rem 0;color:var(--ink2);max-width:68ch}
+  .timeline p b{color:var(--ink)}
+
+  .prob{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1.2rem}
+  .prob article{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:7px;padding:.9rem 1.05rem}
+  .prob article.good{border-left-color:var(--ok)}
+  .prob h3{margin:0 0 .35rem;font-size:.96rem}
+  .prob h4{margin:0 0 .35rem;font-size:.96rem}
+  .prob p{font-size:.86rem;margin:.3rem 0;color:var(--ink2)}
+  .prob .fix{color:var(--ink);font-size:.85rem;margin-top:.55rem}
+  .prob .fix b{color:var(--ok);font-weight:600}
+
+  .pill{display:inline-block;font-family:var(--ff-mono);font-size:.68rem;letter-spacing:.05em;border-radius:99px;padding:.12em .6em;vertical-align:middle}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+
+  .limits{padding-left:1.2rem}
+  .limits li{margin:.55rem 0;max-width:75ch}
+  .callout{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel);border-radius:7px;padding:.85rem 1.1rem;margin:1.2rem 0;font-size:.92rem;max-width:75ch}
+  .callout.good{border-left-color:var(--ok)}
+  footer{margin-top:4rem;padding-top:1.2rem;border-top:1px solid var(--line);font-size:.78rem;color:var(--ink2)}
+
+  /* --- run simulator --- */
+  .sim{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-top:1.3rem;overflow:hidden}
+  .sim-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.65rem 1.1rem;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .sim-head .where{font-family:var(--ff-mono);font-size:.72rem;color:var(--ink2);letter-spacing:.06em;text-transform:uppercase}
+  .sim-head .stepn{font-family:var(--ff-mono);font-size:.72rem;color:var(--accent);font-variant-numeric:tabular-nums}
+  .sim-trail{display:flex;flex-wrap:wrap;gap:.35rem;padding:.65rem 1.1rem;border-bottom:1px dashed var(--line)}
+  .sim-trail:empty{display:none}
+  .sim-trail .chip{font-family:var(--ff-mono);font-size:.67rem;background:var(--mono-bg);border:1px solid var(--line);border-radius:99px;padding:.1em .6em;color:var(--ink2)}
+  .sim-trail .chip.dec{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+  .sim-card{padding:1.05rem 1.3rem 1.25rem;min-height:15rem;box-sizing:border-box}
+  .sim-card .ptag{font-family:var(--ff-mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+  .sim-card h3{margin:.25rem 0 .45rem;font-size:1.22rem;font-family:var(--ff-mono);letter-spacing:0}
+  .sim-card .who{margin:0 0 .9rem}
+  .sim-row{display:grid;grid-template-columns:7.3rem 1fr;gap:.7rem;font-size:.89rem;padding:.5rem 0;border-top:1px dashed var(--line);margin:0}
+  .sim-row dt{font-family:var(--ff-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+  .sim-row dd{margin:0}
+  @media (max-width:640px){ .sim-row{grid-template-columns:1fr;gap:.15rem} }
+  .sim-q{font-size:1rem;font-weight:600;margin:.4rem 0 .2rem;max-width:60ch}
+  .sim-opts{display:grid;gap:.7rem;margin-top:.9rem;max-width:44rem}
+  .sim-opts button{text-align:left;background:var(--mono-bg);border:1px solid var(--line);border-radius:8px;padding:.7rem .95rem;cursor:pointer;font-family:var(--ff-body);color:var(--ink);font-size:.9rem}
+  .sim-opts button:hover{border-color:var(--accent)}
+  .sim-opts button b{display:block;font-size:.94rem;margin-bottom:.1rem}
+  .sim-opts button span{color:var(--ink2);font-size:.82rem}
+  .sim-nav{display:flex;gap:.8rem;justify-content:space-between;align-items:center;padding:.75rem 1.3rem;border-top:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
+  .sim-nav button{font-family:var(--ff-display);font-weight:600;font-size:.88rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:7px;padding:.45rem 1.2rem;cursor:pointer}
+  .sim-nav button.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+  .sim-nav button:disabled{opacity:.35;cursor:default}
+  .sim-note{font-size:.76rem;color:var(--ink2)}
+  .sim-card .parkbox{border:1px solid var(--warn);background:var(--warn-bg);border-radius:7px;padding:.6rem .8rem;font-size:.85rem;color:var(--ink);margin:.6rem 0 0;max-width:62ch}
+
+  /* --- pipelining gantt --- */
+  .ganttwrap{overflow-x:auto;margin-top:1.3rem;padding-bottom:.4rem}
+  .gantt{display:grid;grid-template-columns:6.4rem repeat(9,minmax(58px,1fr));gap:5px;min-width:760px;align-items:stretch}
+  .gantt .tick{grid-row:1;font-family:var(--ff-mono);font-size:.62rem;color:var(--ink2);text-align:center;align-self:end}
+  .gantt .lab{grid-column:1;font-family:var(--ff-mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);align-self:center}
+  .gantt .bar{border-radius:5px;padding:.36rem .5rem;font-family:var(--ff-mono);font-size:.67rem;line-height:1.35;border:1px solid var(--line)}
+  .bar.fa{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+  .bar.fb{background:var(--fb-bg);border-color:var(--fb);color:var(--fb)}
+  .bar.fc{background:var(--fc-bg);border-color:var(--fc);color:var(--fc)}
+  .bar.idle{background:transparent;border-style:dashed;color:var(--ink2)}
+  .gantt-cap{font-size:.78rem;color:var(--ink2);margin-top:.5rem;max-width:75ch}
+
+  /* --- flow sliders --- */
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:1.2rem 0;padding:1rem 1.25rem 1.15rem}
+  .flow-top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap}
+  .flow-top h3{margin:0;font-family:var(--ff-mono);font-size:.98rem;color:var(--accent)}
+  .flow-top .fstep{font-family:var(--ff-mono);font-size:.72rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .flow input[type=range]{width:100%;margin:.95rem 0 .15rem;accent-color:var(--accent);cursor:pointer}
+  .flow .ticks{display:flex;margin:0 0 .9rem}
+  .flow .ticks button{flex:1;background:none;border:none;border-top:3px solid var(--line);color:var(--ink2);font-family:var(--ff-mono);font-size:.62rem;cursor:pointer;padding:.28rem .1rem 0;letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .flow .ticks button.past{border-top-color:var(--accent-bg);color:var(--ink2)}
+  .flow .ticks button.on{border-top-color:var(--accent);color:var(--accent);font-weight:700}
+  .flow .fcard{min-height:7.5rem}
+  .flow .fcard h4{margin:.1rem 0 .3rem;font-size:1rem;font-family:var(--ff-mono)}
+  .flow .fcard .who{margin:0 0 .5rem}
+  .flow .fcard p{font-size:.88rem;margin:.3rem 0;max-width:74ch}
+  .flow .fcard .fnote{font-size:.8rem;color:var(--ink2);border-left:3px solid var(--warn);padding-left:.7rem;margin-top:.55rem}
+
+  /* --- compounding loop strip --- */
+  .loopstrip{display:flex;gap:.9rem;overflow-x:auto;padding:1.1rem 0 .6rem;align-items:stretch}
+  .loopstrip .lnode{flex:0 0 205px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:.75rem .85rem;position:relative;font-size:.82rem;color:var(--ink2)}
+  .loopstrip .lnode b{display:block;color:var(--ink);font-size:.86rem;margin-bottom:.25rem}
+  .loopstrip .lnode::after{content:"→";position:absolute;right:-.85rem;top:1rem;color:var(--ink2)}
+  .loopstrip .lnode:last-child::after{content:"⟲";color:var(--accent)}
+  .loopstrip .lnode.acc{border-color:var(--ok);background:var(--ok-bg)}
+
+  /* --- tooltips --- */
+  .tt{border-bottom:1px dotted var(--accent);cursor:help}
+  .stat[data-tip]{cursor:help}
+  .stat[data-tip] span{border-bottom:1px dotted var(--line);padding-bottom:1px}
+  #ttbox{position:fixed;display:none;z-index:99;background:var(--ink);color:var(--bg);padding:.6rem .85rem;border-radius:7px;font-size:.78rem;line-height:1.55;max-width:430px;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none;font-family:var(--ff-body)}
+  .tt-hint{font-size:.76rem;color:var(--ink2);margin-top:1rem}
+  .tt-hint b{border-bottom:1px dotted var(--accent);font-weight:400}
+</style>
+
+<div class="layout">
+<nav class="rail" aria-label="Sections">
+  <div class="brand">/afk:<span>workflow</span></div>
+  <div class="sub">agentic delivery pipeline<br>fin-core · payable team</div>
+
+  <div class="railset dev"><ul>
+    <li><a href="#d-feel"><span class="n">01</span>A feature, hands-off</a></li>
+    <li><a href="#d-sim"><span class="n">02</span>Simulate a run</a></li>
+    <li><a href="#d-flows"><span class="n">03</span>Inside the machines</a></li>
+    <li><a href="#d-overlap"><span class="n">04</span>Pipelining features</a></li>
+    <li><a href="#d-chain"><span class="n">05</span>The chain, fully</a></li>
+    <li><a href="#d-compound"><span class="n">06</span>The compounding loop</a></li>
+    <li><a href="#d-contract"><span class="n">07</span>Subtask contracts</a></li>
+    <li><a href="#d-gates"><span class="n">08</span>Gates &amp; hooks</a></li>
+    <li><a href="#d-cheat"><span class="n">09</span>Command cheat-sheet</a></li>
+    <li><a href="#d-limits"><span class="n">10</span>Sharp edges</a></li>
+  </ul></div>
+  <div class="railset dir"><ul>
+    <li><a href="#r-case"><span class="n">01</span>The case</a></li>
+    <li><a href="#r-quality"><span class="n">02</span>Quality mechanisms</a></li>
+    <li><a href="#r-speed"><span class="n">03</span>Throughput</a></li>
+    <li><a href="#r-govern"><span class="n">04</span>Governance &amp; audit</a></li>
+    <li><a href="#r-scale"><span class="n">05</span>Adoption &amp; scale</a></li>
+    <li><a href="#r-risk"><span class="n">06</span>Risks, honestly</a></li>
+  </ul></div>
+
+  <div class="depth">
+    <b>Two tracks, one page.</b><br>
+    Switch audience at the top — the page reshapes. Each track stands alone; nothing essential hides in another track.
+  </div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="inner">
+    <div class="eyebrow">Working session · pitch + field guide</div>
+    <h1>Ship features while away from keyboard — without trusting the agent.</h1>
+    <p class="thesis heroline dev">AFK is a Claude Code plugin that turns coding agents into a gated pipeline. This track is the <b>operator's manual</b>: what each command actually does, what the gates check, what lands in your repo, and where it bites.</p>
+    <p class="thesis heroline dir">AFK is process engineering for AI-assisted delivery: independent verification, a complete audit trail, and a workflow that measures and improves itself. This track covers <b>quality, throughput, governance, and what adoption costs</b>.</p>
+
+    <div class="switch" role="group" aria-label="Choose your track">
+      <button data-aud="dev" aria-pressed="true">Developers<small>the nitty-gritty</small></button>
+      <button data-aud="dir" aria-pressed="false">Directors<small>quality · speed · scale</small></button>
+    </div>
+
+    <div class="stats">
+      <div class="stat" tabindex="0" data-tip="A skill is a markdown playbook (invoked as /afk:name) that the agent loads and follows — versioned in the repo like code, so process changes go through review too. 25 form the delivery chain; 11 are general utilities."><b>36</b><span>skills (25 chain + 11 utils)</span></div>
+      <div class="stat" tabindex="0" data-tip="Shell scripts wired into the agent's lifecycle that block a session from ending until checks pass (compile, format, lint, wiring…). Unlike skills — which are instructions a model follows — scripts cannot be argued with."><b>10</b><span>mechanical gate scripts</span></div>
+      <div class="stat" tabindex="0" data-tip="Every code slice is reviewed by parallel fresh agents, one per concern. 7 always run: rulebook compliance (CLAUDE.md chain), spec fidelity (is it truly done), logic correctness, code quality (enumerated checks: dead code, duplication, god methods, leaky abstractions, naming, magic values, debug logs, hardcoded secrets, leftover TODOs), test veracity (do the tests assert anything real), scope &amp; impact, and refactor safety (did touching existing code break its other users). 4 more activate when the change triggers them: design quality, domain alignment, resilience, API contract. Each reviewer is deliberately blind to the implementor's reasoning and works from its own written checklist file, not vibes."><b>11</b><span>independent review concerns</span></div>
+      <div class="stat" tabindex="0" data-tip="The solution-design interview descends L1 (system topology) → contracts → data → … → L9 (implementation seams), settling each layer before the next. No architecture decision gets made implicitly, mid-code."><b>9</b><span>design layers (L1–L9)</span></div>
+      <div class="stat" tabindex="0" data-tip="Interfaces promised between subtasks are re-verified against the actual code at three moments: when the plan is sliced, before a consumer subtask starts, and before a producer subtask finishes."><b>3</b><span>contract-drift checkpoints</span></div>
+      <div class="stat" tabindex="0" data-tip="Deliberate blast-radius control: of 36 skills, only the PRD publisher and the bug filer may write to Jira — an agent mistake can mess up a draft on disk, never the team's tracker."><b>2</b><span>Jira writers, total</span></div>
+    </div>
+    <p class="tt-hint"><b>Dotted-underlined</b> terms and decisions carry explanations — hover or tap them (tiles above too).</p>
+  </div>
+</header>
+
+<div class="inner">
+
+<!-- ============================ DEV TRACK ============================ -->
+<div class="track dev">
+
+<section id="d-feel">
+  <div class="eyebrow">dev · 01</div>
+  <h2>What a feature feels like, hands-off</h2>
+  <p class="lede">The honest version of a real run — green dots are your moments, amber dots are the machine's. Your keyboard time concentrates at the start (interviews) and the end (code review). The middle runs without you.</p>
+  <ul class="timeline">
+    <li class="you"><span class="t">You · ~30–60 min</span><h4>Get grilled</h4><p><code>/afk:grill-requirements</code> interrogates your idea against the service's <code>GLOSSARY.md</code> and staples until the requirements tree is exhausted. Then <code>/afk:grill-solution</code> walks the design top-down through nine layers — L1 topology to L9 implementation seams — and refuses to descend until each layer is settled. Feels like a design review with a colleague who never lets a hand-wave through.</p></li>
+    <li><span class="t">Machine · minutes</span><h4>Synthesis</h4><p><code>/afk:to-prd</code> and <code>/afk:to-sdd</code> write PRD, SDD, and one ADR per decision into the spec folder. Pure synthesis — if it wasn't settled in the grill, it can't appear in the doc.</p></li>
+    <li class="you"><span class="t">You · ~15 min</span><h4>Approve the slicing</h4><p><code>/afk:to-subtasks</code> slices into <code>plan/NNNN-slug.md</code> contracts. In cited mode every claim in a contract must cite the SDD/ADRs; producer↔consumer seams get registered in <code>PLAN.md</code>. You sanity-check the cut and the dependency edges.</p></li>
+    <li><span class="t">Machine · hours, unattended</span><h4>Autopilot</h4><p><code>/afk:autopilot</code> spawns a <b>fresh subagent per subtask</b>: design intent → TDD (red before green) → every verification tier the contract declares → the review gate → the adversary gate → commit → push → Draft-MR update. A failing subtask is <b>parked with its dependents</b>; independent subtasks keep executing. You get a push notification with the park reason, not a dead session.</p></li>
+    <li><span class="t">Machine · gate</span><h4>Smoke, then preflight</h4><p><code>/afk:smoke-test</code> runs the feature's <code>ui-e2e</code> + <code>api</code> suites against a live app, scoped by feature tags. On green, <code>/afk:preflight</code> merges master in (never rebases), re-validates, runs a fresh integrated review and final seam check under a hard 2-cycle fix cap, then babysits CI to flip the MR from Draft to Ready.</p></li>
+    <li class="you"><span class="t">You · normal MR review</span><h4>Review with receipts</h4><p>The MR arrives with <code>JOURNAL.md</code> (what happened, in order), <code>plan/review/</code> (review + adversary reports), and <code>TRACE.md</code> (acceptance criterion → subtask → commit). Merge stays yours — no skill can do it.</p></li>
+  </ul>
+</section>
+
+<section id="d-sim">
+  <div class="eyebrow">dev · 02</div>
+  <h2>Simulate a run</h2>
+  <p class="lede">Click through a feature exactly in skill-execution order. At the fork points you make the same calls you'd make in a real run — your choices change the rest of the path (watch the trail chips).</p>
+  <div class="sim" id="afksim">
+    <div class="sim-head"><span class="where" id="sim-where">design</span><span class="stepn" id="sim-stepn"></span></div>
+    <div class="sim-trail" id="sim-trail"></div>
+    <div class="sim-card" id="sim-card"></div>
+    <div class="sim-nav">
+      <button id="sim-back">← Back</button>
+      <span class="sim-note" id="sim-note"></span>
+      <button id="sim-next" class="primary">Next →</button>
+    </div>
+  </div>
+</section>
+
+<section id="d-flows">
+  <div class="eyebrow">dev · 03</div>
+  <h2>Inside the machines</h2>
+  <p class="lede">The big simulation above shows the whole feature; these four sliders open up the individual engines. Drag the slider (or use arrow keys, or click a notch) to walk each flow step by step.</p>
+  <div class="flow" data-flow="execute"></div>
+  <div class="flow" data-flow="autopilot"></div>
+  <div class="flow" data-flow="preflight"></div>
+  <div class="flow" data-flow="bug"></div>
+</section>
+
+<section id="d-overlap">
+  <div class="eyebrow">dev · 04</div>
+  <h2>Pipelining features</h2>
+  <p class="lede">You are the interview-and-review stage; autopilot is the build stage. Like any pipeline, the stages overlap: while feature A builds unattended, you're already grilling feature B.</p>
+  <div class="ganttwrap"><div class="gantt" aria-label="Feature pipelining timeline">
+    <div class="tick" style="grid-column:2">t1</div><div class="tick" style="grid-column:3">t2</div><div class="tick" style="grid-column:4">t3</div><div class="tick" style="grid-column:5">t4</div><div class="tick" style="grid-column:6">t5</div><div class="tick" style="grid-column:7">t6</div><div class="tick" style="grid-column:8">t7</div><div class="tick" style="grid-column:9">t8</div><div class="tick" style="grid-column:10">t9</div>
+    <div class="lab" style="grid-row:2">You<br>(keyboard)</div>
+    <div class="bar fa" style="grid-row:2;grid-column:2/4">A · grill + design + slice</div>
+    <div class="bar fb" style="grid-row:2;grid-column:4/6">B · grill + design + slice</div>
+    <div class="bar fa" style="grid-row:2;grid-column:6/7">A · review + merge</div>
+    <div class="bar fc" style="grid-row:2;grid-column:7/8">C · grill + design</div>
+    <div class="bar fb" style="grid-row:2;grid-column:8/9">B · review + merge</div>
+    <div class="bar fc" style="grid-row:2;grid-column:10/11">C · review + merge</div>
+    <div class="lab" style="grid-row:3">Autopilot<br>(unattended)</div>
+    <div class="bar idle" style="grid-row:3;grid-column:2/4">idle — no plan yet</div>
+    <div class="bar fa" style="grid-row:3;grid-column:4/6">A · autopilot → smoke → preflight</div>
+    <div class="bar fb" style="grid-row:3;grid-column:6/8">B · autopilot → smoke → preflight</div>
+    <div class="bar fc" style="grid-row:3;grid-column:8/10">C · autopilot → smoke → preflight</div>
+  </div></div>
+  <p class="gantt-cap">Block widths illustrative. The steady state from t3 on: every slot, one feature is being designed or reviewed <em>by you</em> while another builds <em>without you</em> — including overnight, since autopilot parks failures instead of dying. Your keyboard leaves the critical path of the build; interviews and MR review become the only serial stages.</p>
+  <p>Two mechanics make the overlap safe rather than reckless: each autopilot subtask runs in a <b>fresh subagent</b> (no context bleed from whatever you're doing on feature B), and a parked feature <b>waits</b> — it never demands attention mid-grill; you pick up the park reason from the push notification when your interview is done.</p>
+</section>
+
+<section id="d-chain">
+  <div class="eyebrow">dev · 05</div>
+  <h2>The chain, fully</h2>
+  <p class="lede">Five phases, file-based handoffs — skills never pass state through conversation. Solid = mandatory spine, dashed = situational, amber = gates that can refuse. Every node expands.</p>
+  <div class="phase-track" aria-label="Pipeline phases">
+    <div class="phase"><h3>Design</h3>
+      <div class="node opt">/afk:grill-requirements</div>
+      <div class="node">/afk:to-prd</div>
+      <div class="node opt">/afk:prototype</div>
+      <div class="node opt">/afk:grill-solution</div>
+      <div class="node opt">/afk:to-sdd</div>
+    </div>
+    <div class="phase"><h3>Plan</h3>
+      <div class="node">/afk:to-ticket</div>
+      <div class="node opt">/afk:grill-verification</div>
+      <div class="node opt">/afk:to-verification-plan</div>
+      <div class="node">/afk:to-subtasks</div>
+    </div>
+    <div class="phase"><h3>Execute</h3>
+      <div class="node">/afk:autopilot</div>
+      <div class="node opt">/afk:execute (per subtask)</div>
+      <div class="node opt">tdd doctrine</div>
+    </div>
+    <div class="phase"><h3>Verify</h3>
+      <div class="node gate">/afk:review</div>
+      <div class="node gate">/afk:adversary</div>
+      <div class="node gate">/afk:smoke-test</div>
+      <div class="node opt">/afk:fix</div>
+    </div>
+    <div class="phase"><h3>Ship &amp; learn</h3>
+      <div class="node gate">/afk:preflight</div>
+      <div class="node opt">/afk:understand</div>
+      <div class="node opt">/afk:retro</div>
+      <div class="node opt">/afk:claude-md (sync-harness)</div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="sw"></span> mandatory spine</span>
+    <span><span class="sw o"></span> optional / situational</span>
+    <span><span class="sw g"></span> gate — may refuse</span>
+  </div>
+
+  <details class="dive"><summary><span class="cmd">/afk:grill-requirements</span><span class="what">stress-test the idea against the domain's own language</span></summary>
+    <div class="body"><p>Interview loop against the domain <code>GLOSSARY.md</code> and the staples registry. Terms crystallise into the glossary as they settle; every checkpoint appends to <code>GRILL-LOG.md</code> so synthesis skills can cite it later. Interrogation only — no design happens here.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:grill-solution</span><span class="what">the nine-layer architecture interview, strictly top-down</span></summary>
+    <div class="body"><p>Interrogates the solution design one layer at a time, refusing to descend until the current layer is settled — so a low-level choice (say, a table schema) can never quietly predetermine a higher-level one (which service owns the data). The nine layers, which also become the SDD's section structure:</p>
+    <ul>
+      <li><b>L1 — system topology:</b> where the feature sits among services, UIs, and external systems.</li>
+      <li><b>L2 — service boundaries &amp; integration:</b> which service owns what; the endpoints and contracts between them.</li>
+      <li><b>L3 — data architecture:</b> schema, storage, migration.</li>
+      <li><b>L4 — cross-cutting quality:</b> security, transactions, observability, error handling.</li>
+      <li><b>L5 — domain model:</b> entities, aggregates, invariants.</li>
+      <li><b>L6 — process &amp; coordination:</b> workflows, state machines, async jobs.</li>
+      <li><b>L7 — module decomposition:</b> packages and modules inside the service.</li>
+      <li><b>L8 — tactical patterns:</b> class-level design patterns and idioms.</li>
+      <li><b>L9 — implementation seams:</b> the exact places in existing code the change plugs into — each verified against the real codebase, not assumed.</li>
+    </ul>
+    <p>Questions are triaged into <i>debate</i> (alternatives worth weighing, asked one at a time) and <i>confirm</i> (safe defaults you accept or override in a batch) — so the interview is thorough without being exhausting. Settled decisions land in <code>GRILL-LOG.md</code>, ready for <code>/afk:to-sdd</code>.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:to-prd · /afk:to-sdd · /afk:to-design-brief</span><span class="what">synthesis skills — no new decisions allowed</span></summary>
+    <div class="body"><p><code>to-prd</code> writes <code>PRD.md</code> + <code>adr/requirements/NNNN-*.md</code> and seeds <code>INDEX.md</code>. <code>to-sdd</code> writes <code>SDD.md</code> + <code>adr/design/NNNN-*.md</code> (separate ADR numbering). <code>to-design-brief</code> compresses both into 1–2 pages for stakeholders. All disk-only; the single tracker writer on this side is <code>/afk:to-ticket</code>, which publishes the PRD into the Jira parent as native ADF with rendered diagrams — idempotent, re-run to update.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:prototype · /afk:design-system</span><span class="what">settle UI against the real frontend's tokens</span></summary>
+    <div class="body"><p><code>design-system</code> (one-time per service) mirrors the live frontend into a shareable catalog of real tokens + archetype cards, fidelity-checked against the running app. <code>prototype</code> then crafts the feature's mockup as standalone HTML anchored to those components; self-gates <code>no_ui</code> when there are no net-new screens.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:grill-verification · /afk:to-verification-plan</span><span class="what">design the tests before the code — two modalities</span></summary>
+    <div class="body"><p>Interviews the feature's verification scenarios in two separate modalities:</p>
+    <ul>
+      <li><b>UI journeys</b> (needs the PRD): browser flows proving user-facing behavior — actor and trigger, the concrete click-path, an <em>observable</em> definition of done, preconditions, alternate/error paths, and mandatory role-based / data-scope / input-validation rows (a "denied user" row is required, not optional).</li>
+      <li><b>API scenarios</b> (needs the SDD): direct-REST checks proving the backend contract for callers that bypass the UI — only in play once the endpoint contracts exist to test against.</li>
+    </ul>
+    <p><code>/afk:to-verification-plan</code> then synthesizes the settled scenarios into <code>VERIFICATION-PLAN.md</code>, sibling to the PRD/SDD — re-run it after the SDD lands to append the API side. Downstream, these scenarios become the executable Gherkin suites the smoke gate runs.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:to-subtasks</span><span class="what">slice into contracts; cited mode when an SDD exists</span></summary>
+    <div class="body"><p>Emits <code>plan/PLAN.md</code> (index, tracker, seam register, smoke-gate declaration) + one <code>NNNN-slug.md</code> per subtask. Cited mode: every contract claim cites SDD/ADRs. Uncited mode (no SDD) is human-gated. A terminal <code>NNNN-sync-harness</code> subtask, blocked by all others, folds durable learnings into CLAUDE.md via <code>/afk:claude-md</code>. Slicing-time contract checks live in <code>VALIDATION.md</code>.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:execute</span><span class="what">one subtask, end-to-end, stops at CR/merge</span></summary>
+    <div class="body"><p>Design intent → TDD → every declared verification tier → <code>review</code> gate → <code>adversary</code> gate → commit → push → Draft-MR + PLAN.md updates. Two things it will never do: merge, and mark its own review verdict. Branch naming is enforced by a git-native hook that only fires for agent-created branches.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:tdd</span><span class="what">the red-green-refactor doctrine every slice follows</span></summary>
+    <div class="body"><p>Four stages: <b>Planning</b> (interface and behavior list — human-approved when run interactively, auto-approved when a subtask contract already defines them) → <b>Tracer bullet</b> (one first test taken red→green to prove the whole test rig works) → <b>Incremental loop</b> (one behavior at a time: failing test, minimal code to green) → <b>Refactor</b> (only ever on green). Done means: every planned behavior green, refactor pass done, module suite green. The red-first rule is the point — a test that has never failed proves nothing.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:autopilot</span><span class="what">the plan driver: fresh contexts, park-and-continue</span></summary>
+    <div class="body"><p>Walks <code>PLAN.md</code> subtask-by-subtask, one fresh subagent each — no context bleed between slices. Provisions the live app for verification tiers that need it. Failure ⇒ park subtask + dependents, push-notify, continue independent work. Smoke-green ⇒ chains <code>/afk:preflight</code>. Sequential in v1 — no parallel subtasks yet.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:mission-control</span><span class="what">watch a run live — read-only, derived, never a second home for status</span></summary>
+    <div class="body"><p>Renders a per-feature HTML dashboard <em>derived</em> from the plan's existing artifacts — tracker, journal, gate verdicts, SDD diagrams, git diffs. Watch mode follows a live run; <code>--once</code> re-renders an already-finished feature retroactively (that frozen render is also what preflight commits as ship evidence). Deliberately a viewport, never a data store: agents keep writing the real artifacts, a renderer keeps the page true — so the dashboard can never disagree with the files. An Understanding panel tracks each feature's post-ship explainer artifact by parsing only its machine-readable header.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:review</span><span class="what">11 concerns, fresh eyes, skeptic-verified findings</span></summary>
+    <div class="body"><p>Parallel read-only subagents, one per concern. Seven always run — <code>claude-md-compliance</code> (violates a documented rule?), <code>spec-fidelity</code> (truly done — every acceptance bullet, every seam?), <code>logic-correctness</code> (bugs, edges, races), <code>code-quality</code> (the enumerated smells a senior dev would flag: dead code, duplication, god methods, leaky abstractions, poor naming, magic values, leftover debug logs, hardcoded secrets/tokens, TODOs left in), <code>test-veracity</code> (do the tests assert real output, or pass vacuously?), <code>scope-and-impact</code> (stayed in bounds; blast radius of changed symbols), <code>refactor-safety</code> (touched pre-existing code without breaking its other users?). Four more are trigger-activated when the change warrants a design-level look: <code>design-quality</code>, <code>domain-alignment</code>, <code>resilience</code>, <code>api-contract</code>. Each reviewer is deliberately blind to the implementor's reasoning and is handed exactly two documents: its own checklist file (one per concern under <code>review/checklists/</code>) plus a shared <code>PRECEDENCE.md</code> (baseline precedence, the pattern-debt rule, one-owner-per-smell, a mandatory open-question slot). Findings pass a skeptic check before they count; the caller gates on the verdict. Complemented by <code>mutation-probe.sh</code> for empirical test strength.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:adversary</span><span class="what">runtime probing on a hard information diet</span></summary>
+    <div class="body"><p>Fresh session, sees the contract and specs <em>only</em> — never the diff, never the implementor's tests. Designs attack scenarios, executes them against the live app, returns a classed verdict with reproducible evidence. Catches what static reading structurally can't.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:smoke-test · /afk:preflight</span><span class="what">feature gate, then ship gate</span></summary>
+    <div class="body"><p><code>smoke-test</code>: runs the feature's browser <code>ui-e2e</code> + direct-REST <code>api</code> suites against a running app; green on both stamps the feature complete in <code>PLAN.md</code>. <code>preflight</code>: 7-step ladder — refuse without smoke-green, merge master behind an ancestry guard, re-validate, fresh integrated review + final seam check (shared 2-cycle fix cap), generate the feature's understanding artifact (advisory row — can never block the ship), commit ship evidence, babysit CI, flip MR to Ready. CI-only failures and secret-detection hits always park for a human.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:understand</span><span class="what">the post-ship explainer — teach the team what actually landed</span></summary>
+    <div class="body"><p>Generates one team-shareable, fully offline interactive HTML artifact per feature, checked in at <code>{spec-dir}/understanding/index.html</code>. It explains the implementation <em>as built</em> — synthesized from the real diff (derived from the feature branch or the journal's pushed ranges, never guessed), the run journal, and the review records — not from the plan's intentions. Five sections: dual-depth background (skim or deep), the core intuition, a seam-ordered code walkthrough covering every changed file, <b>notable plan-deviations</b> (mined by joining review findings with their remediation outcomes, plus journal parks and pattern-debt rows), and an opt-in quiz.</p>
+    <p>Quality is gated the same way code is: mechanical checks first (fully offline, full-diff coverage, size cap, well-formed machine header), then a <b>fresh-context skeptic</b> that never saw the synthesis judges it against the format contract, with one revision allowed — then fail-soft rather than ship slop. Two modes: auto (runs inside preflight as an advisory step — a failure never blocks the ship; lands as one docs-only commit) and standalone (<code>/afk:understand {plan-dir}</code>, prompts for quiz size and depth, never commits). The mission-control dashboard's Understanding panel reads the artifact's machine header.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:bug · /afk:fix · /afk:diagnose</span><span class="what">the side door for bugs</span></summary>
+    <div class="body"><p><code>bug capture</code> snapshots a bug mid-task without losing your place and files it with evidence; <code>dispatch</code> hands it to an autonomous fixer in its own worktree that delivers a mergeable MR, auto-retested when the fix lands (10-state ledger under <code>.claude/bugs/</code>). <code>fix</code> orchestrates verification-phase bugs: root-cause via <code>diagnose</code>'s reproduce→minimise→hypothesise loop, proportional regression coverage, escape analysis, spec reconciliation.</p></div>
+  </details>
+  <details class="dive"><summary><span class="cmd">/afk:retro · /afk:claude-md · /afk:setup</span><span class="what">the workflow maintains itself</span></summary>
+    <div class="body"><p><code>retro</code> mines journals, review rollups, adversary reports, park reasons, and gate-latency metrics into ≤5 evidence-cited proposals written as concrete plugin edits. <code>claude-md</code> stewards CLAUDE.md, role sidecars, rules, and staples. <code>setup</code> is the environment doctor; its <code>audit</code> mode catches dependency/doc drift before plugin changes ship.</p></div>
+  </details>
+
+  <h3>The 11 utility skills</h3>
+  <p>Not chain stages — general-purpose tools that work in any session:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>/afk:diagnose</code></td><td>Disciplined debugging loop for hard bugs and perf regressions: reproduce → minimise → hypothesise → instrument → fix → regression-test. The bug fixer runs on this.</td></tr>
+      <tr><td><code>/afk:verify-seams</code></td><td>Independent orphan hunt over a change — verifies everything produced is actually consumed. Preflight runs it in <code>final</code> mode over the whole feature.</td></tr>
+      <tr><td><code>/afk:to-code-walkthrough</code></td><td>Top-down narrative walkthrough of a GitLab MR or code area — nine layers, TL;DR through footguns, with diagrams. For understanding someone else's change fast.</td></tr>
+      <tr><td><code>/afk:glossary</code></td><td>Vocabulary-only steward of the multi-context domain glossary (repo map + per-service files) — define/audit/dedup/harden terms; writes only after approval.</td></tr>
+      <tr><td><code>/afk:handoff</code></td><td>Compacts the current conversation into a handoff document another agent can pick up — continuity without dragging a bloated context along.</td></tr>
+      <tr><td><code>/afk:draw-charts</code></td><td>Render-safe diagrams — steers Mermaid away from the constructs that break renderers, and render-checks before shipping. Agent-invoked only (other skills load it whenever they emit a chart; not in the slash menu).</td></tr>
+      <tr><td><code>/afk:interactive-walkthrough</code></td><td>Embeddable interactive HTML widgets for explaining a process — notched flow slider, branching simulator, overlap gantt — as copy-in templates with fill-in data contracts; self-contained and theme-aware. Agent-invoked only (skills emitting an HTML page load it; not in the slash menu).</td></tr>
+      <tr><td><code>/afk:pitch</code></td><td>Steward of this very page — re-digests the plugin since the snapshot commit embedded in the page source, patches stale facts (skill/gate counts, chain shape, limitations), and republishes the shared artifact to the same URL.</td></tr>
+      <tr><td><code>/afk:todo</code></td><td>Per-project todo list that survives sessions.</td></tr>
+      <tr><td><code>/afk:caveman</code></td><td>Ultra-compressed communication mode (~75% fewer tokens, full technical accuracy) for when you're reading a lot of agent output.</td></tr>
+      <tr><td><code>/afk:writing-great-skills</code></td><td>The style guide for authoring skills themselves — the vocabulary and principles that make a skill predictable. Meta, but it's why the other 35 behave consistently.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="d-compound">
+  <div class="eyebrow">dev · 06</div>
+  <h2>The compounding loop — why it gets better every feature</h2>
+  <p class="lede">The core philosophy: every feature must leave the system smarter than it found it. Not as a nice-to-have — the plan's terminal subtask <em>is</em> banking the lessons, so a feature isn't done until its knowledge is. Three accumulators do the compounding.</p>
+
+  <div class="loopstrip" aria-label="The compounding loop">
+    <div class="lnode"><b>Feature enters</b>grill challenges it against everything already known</div>
+    <div class="lnode acc"><b>Glossary consulted</b>terms mean one thing; staples resolved in/out</div>
+    <div class="lnode"><b>Build &amp; ship</b>gates enforce the accumulated rules mechanically</div>
+    <div class="lnode acc"><b>Lessons banked</b>sync-harness: new terms, new staples, new CLAUDE.md rules</div>
+    <div class="lnode"><b>Next feature</b>starts with a richer vocabulary, more obligations pre-checked</div>
+  </div>
+
+  <h3>Glossary — shared language, earned once, reused forever</h3>
+  <p>Terms are defined at the exact moment they're settled during the requirements grill — the rule is explicit: <em>update the owning service's GLOSSARY.md as terms resolve; don't batch, capture as they happen</em>. And the glossary is pure vocabulary by rule — no implementation details, not a spec, not a scratchpad. The payoff compounds: once "credit hold" or "posting run" means exactly one thing, every future conversation — human↔human, human↔agent, agent↔agent — gets more precise <em>and shorter</em>. Nobody re-explains, nobody quietly means something different, and an agent reading the word inherits the whole settled meaning for free.</p>
+
+  <h3>Staples — cross-cutting obligations that can never be skipped silently</h3>
+  <p>A staple is a delivered capability that became a standing expectation — audit logging, change detection, permission enforcement — registered in the service's <code>STAPLES.md</code> as <b>Trigger → Obligation → Reference exemplar</b>. Two rules make the registry bite:</p>
+  <ul>
+    <li><b>Inbound:</b> every requirements grill reads the registry first, and for each active staple whose trigger matches the feature, you must resolve it <em>in or out — with a recorded rationale</em>. The grill's exit gate blocks until every matching staple is resolved; silent skipping is structurally impossible.</li>
+    <li><b>Outbound (the mirror question):</b> is <em>this</em> feature itself a new staple? If plausibly yes it's flagged as a candidate, and at delivery it gets registered — so every <em>future</em> feature will be asked about its implications, forever.</li>
+  </ul>
+  <p>That mirror question is the compounding step: each cross-cutting capability you ship becomes a question the process asks automatically from then on.</p>
+
+  <h3>The harness — knowledge lives where the work happens</h3>
+  <p>Project memory isn't a wiki nobody reads; it's a hierarchy of <code>CLAUDE.md</code> files (repo root → service → directory) that agents load <em>automatically, by proximity</em> — work under a directory and its rules are simply in context, no lookup step to forget. Role sidecars (<code>IMPL.md</code> / <code>TESTING.md</code> / <code>DEBUG.md</code>) hang off them and load on demand, so implementation lore doesn't bloat every session. The doctrine is <em>"steer, don't document"</em>: trust agents to read code; capture only what code won't reveal. A four-gate inclusion bar keeps it lean — a fact must be <b>non-obvious, durable, steering, and not duplicated in an ancestor file</b>; unsure → omit. And the rules you can't trust to be <em>followed</em> graduate into hooks: a convention becomes a script, and a script can't be ignored.</p>
+
+  <h3><code>/afk:claude-md</code> — the steward that closes the loop</h3>
+  <p>One skill is the sole writer of all of this memory — the CLAUDE.md chain, the sidecars, the rules, and every <code>STAPLES.md</code>. It never writes unasked: always propose → approve → write, so the accumulated instruction set stays curated, deduplicated ("one fact, one home"), and trusted. Most learnings arrive through the terminal <code>sync-harness</code> subtask every plan ends with — blocked by all other subtasks, so banking the lessons is literally the last gate before a feature is finished. Above it, <code>/afk:retro</code> and per-bug escape analysis feed the same loop at the process level: the workflow edits <em>itself</em> with the same propose-and-cite discipline it imposes on code.</p>
+</section>
+
+<section id="d-contract">
+  <div class="eyebrow">dev · 07</div>
+  <h2>Subtask contracts &amp; the seam register</h2>
+  <p class="lede">The core trick against integration drift: subtasks don't share context, so their only agreement is written down — and checked mechanically, three times.</p>
+  <p>Each <code>NNNN-slug.md</code> contract declares what the slice produces (classes, endpoints, events — by symbol name), what it consumes from other subtasks, its acceptance criteria, and which verification tiers apply. Producer/consumer pairs are registered as <b>seams</b> in <code>PLAN.md</code> and verified by grep against the actual tree at:</p>
+  <ul>
+    <li><b>Slicing</b> — do the declared seams reference symbols the SDD actually defines?</li>
+    <li><b>Consumer preflight</b> — before a consumer subtask starts: does the producer's symbol exist as declared?</li>
+    <li><b>Producer self-preflight</b> — before a producer finishes: does everything it promised exist under the promised name?</li>
+  </ul>
+  <p>For new-Java seams there's opt-in <b>seam materialization</b> — the interface is generated up front so the compiler enforces the contract; everything else stays on grep anchoring. Net effect, per the docs: <em>"never a silent integration surprise."</em></p>
+  <pre class="tree">plan/
+├─ PLAN.md          <i>subtask index · dependency edges · <b>seam register</b> · smoke gate</i>
+├─ 0001-entity.md   <i>produces: CreditHold entity + repo   tiers: unit</i>
+├─ 0002-service.md  <i>consumes: 0001  produces: CreditHoldService   tiers: unit, integration</i>
+├─ 0003-api.md      <i>consumes: 0002  produces: /api/v1/credit-holds   tiers: api, ui-e2e</i>
+├─ 000N-sync-harness.md <i>terminal — folds learnings into CLAUDE.md</i>
+├─ JOURNAL.md       <i>append-only event log</i>
+├─ TRACE.md         <i>acceptance criterion → subtask → commit</i>
+└─ review/          <i>review + adversary reports · INDEX.md rollup</i></pre>
+</section>
+
+<section id="d-gates">
+  <div class="eyebrow">dev · 08</div>
+  <h2>Gates &amp; hooks — the part that can't be persuaded</h2>
+  <p class="lede">Skills are prompts; gates are shell scripts wired into Claude Code's Stop hook. They fire on <em>every</em> session stop in the repo — chain or no chain — and block the turn until satisfied. Pass results are cached (clean stops stay cheap); every firing logs latency to a JSONL metrics stream that retro reads.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Gate</th><th>Fires</th><th>Refuses when…</th><th class="num">Cost</th></tr></thead>
+    <tbody>
+      <tr><td><code>wiring-gate.sh</code></td><td>Stop</td><td>a new artifact has zero referrers and no anchored IOU in <code>.claude/wiring-ious.md</code></td><td class="num">&lt;1 s</td></tr>
+      <tr><td><code>skill-registry-gate.sh</code></td><td>Stop</td><td>a skill exists on disk but is invisible to the plugin loader</td><td class="num">&lt;1 s</td></tr>
+      <tr><td><code>genericity-gate.sh</code></td><td>Stop</td><td>an added line of plugin prose names a concrete ticket or product source file — docs must state the mechanism, never the incident that motivated it</td><td class="num">&lt;1 s</td></tr>
+      <tr><td><code>maven-compile-gate.sh</code></td><td>Stop</td><td>touched modules (with <code>--also-make</code>) don't compile</td><td class="num">~1–3 min</td></tr>
+      <tr><td><code>java-format-gate.sh</code></td><td>Stop</td><td>diff violates the canonical formatter (strict, POM-less)</td><td class="num">seconds</td></tr>
+      <tr><td><code>ui-lint-gate.sh</code></td><td>Stop</td><td>touched UI workspaces fail lint</td><td class="num">seconds–min</td></tr>
+      <tr><td><code>app-start-gate.sh</code></td><td>on demand</td><td>the service won't boot to healthy (300 s timeout; default leaf: payable)</td><td class="num">3–6 min</td></tr>
+      <tr><td><code>mutation-probe.sh</code></td><td>on demand</td><td>tests survive mutations — i.e. run code but assert nothing</td><td class="num">varies</td></tr>
+      <tr><td><code>branch-name-gate.sh</code></td><td>git-native</td><td>an <em>agent-created</em> branch (detected via <code>CLAUDECODE</code>) breaks <code>kapteyn/development/{user}/{slug}</code></td><td class="num">instant</td></tr>
+      <tr><td><code>lavish-dark.sh</code></td><td>PreToolUse</td><td>(output-discipline steering hook)</td><td class="num">instant</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Supporting machinery: <code>gate-cache.sh</code> (pass caching), <code>gate-metrics.sh</code> (latency JSONL + report), <code>maven-lock.sh</code> (serializes concurrent reactor builds across sessions), <code>install-git-hooks.sh</code>. Delegation doctrine (<code>DELEGATION.md</code>) fixes two subagents — <code>afk-reader</code> (read-only cited digests) and <code>afk-runner</code> (run + triage, per-item verdicts) — and a two-tier model rule: cheap models for digests/checks, session model for verdicts/code.</p>
+</section>
+
+<section id="d-cheat">
+  <div class="eyebrow">dev · 09</div>
+  <h2>Command cheat-sheet</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Situation</th><th>Command</th></tr></thead>
+    <tbody>
+      <tr><td>First time on this machine / something's broken</td><td><code>/afk:setup</code> (repair) · <code>/afk:setup audit</code> (drift check)</td></tr>
+      <tr><td>New feature idea, nothing written</td><td><code>/afk:grill-requirements</code> → <code>/afk:to-prd</code></td></tr>
+      <tr><td>PRD exists, need the design</td><td><code>/afk:grill-solution</code> → <code>/afk:to-sdd</code></td></tr>
+      <tr><td>Design done, plan the work</td><td><code>/afk:grill-verification</code> → <code>/afk:to-verification-plan</code> → <code>/afk:to-subtasks</code></td></tr>
+      <tr><td>Plan exists, go hands-off</td><td><code>/afk:autopilot</code> — or <code>/afk:execute {NNNN-slug}</code> for one slice</td></tr>
+      <tr><td>Watch a run live</td><td><code>/afk:mission-control {spec-folder}</code> (read-only dashboard)</td></tr>
+      <tr><td>Found a bug while doing something else</td><td><code>/afk:bug capture</code> → later <code>/afk:bug dispatch</code> · <code>/afk:bug status</code></td></tr>
+      <tr><td>Verification finding / QA report needs fixing</td><td><code>/afk:fix</code> (wraps <code>/afk:diagnose</code>)</td></tr>
+      <tr><td>All subtasks done</td><td><code>/afk:smoke-test</code> → auto-chains <code>/afk:preflight</code></td></tr>
+      <tr><td>Features shipped, improve the workflow</td><td><code>/afk:retro</code> · <code>/afk:claude-md</code></td></tr>
+      <tr><td>Explain a shipped feature to the team</td><td><code>/afk:understand {plan-dir}</code> (also runs inside preflight, advisory)</td></tr>
+      <tr><td>Understand an unfamiliar MR or code area</td><td><code>/afk:to-code-walkthrough</code></td></tr>
+      <tr><td>This pitch page has gone stale</td><td><code>/afk:pitch</code></td></tr>
+      <tr><td>Terminology getting muddy</td><td><code>/afk:glossary</code> (define/audit/dedup terms)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="d-limits">
+  <div class="eyebrow">dev · 10</div>
+  <h2>Sharp edges you'll actually hit</h2>
+  <ul class="limits">
+    <li><span class="pill warn">v1</span> <b>Autopilot is sequential</b> — one subtask at a time even when the dependency graph would allow parallelism.</li>
+    <li><span class="pill warn">env</span> <b>Live app required</b> for adversary, smoke, and app-start tiers — you need a bootable local/dev instance; provisioning is part of autopilot but the environment is yours to own.</li>
+    <li><span class="pill warn">scope</span> <b>Executable smoke suites exist only in payable</b> (<code>11700-payable/verification/</code>); other services declare a minimal gate. <code>app-start-gate</code> defaults to the payable leaf.</li>
+    <li><span class="pill warn">env</span> <b>Single-identity e2e token minter</b> — every role mints the same user, so role-scoped data-visibility can't be proven end-to-end; use direct aspect tests instead.</li>
+    <li><span class="pill bad">gap</span> <b>Seam materialization is Java-new-code only</b> — existing-file and non-Java seams stay grep-anchored; a rename can still slip past until the next checkpoint.</li>
+    <li><span class="pill warn">policy</span> <b>Deliberate refusals:</b> bug pipeline won't run hands-off; preflight never auto-fixes CI-only failures or secret hits; fix budget is a hard 2-cycle cap. When it parks, that's the design working.</li>
+    <li><span class="pill ok">new</span> <b><code>/afk:understand</code> is freshly shipped</b> — built and reviewed, currently on its feature branch pending merge. Full coverage in "The chain, fully" above.</li>
+    <li><span class="pill warn">meta</span> <b>No test suite for the plugin itself</b> — dev loop is edit <code>SKILL.md</code> → <code>/reload-plugins</code> → dogfood; <code>setup audit</code> and retro are the drift catchers.</li>
+  </ul>
+</section>
+
+</div>
+
+<!-- ============================ DIRECTOR TRACK ============================ -->
+<div class="track dir">
+
+<section id="r-case">
+  <div class="eyebrow">directors · 01</div>
+  <h2>The case in one paragraph</h2>
+  <p class="lede">Coding agents are already fast; unmanaged, they're fast at producing plausible-looking work that fails in integration, review, or production. AFK is the management layer: it converts agent output into <b>gated, evidenced, auditable delivery</b> — the same idea as CI/CD, applied one level up, to the act of building itself.</p>
+  <div class="prob" style="margin-top:1.4rem">
+    <article class="good"><h4>Quality</h4><p>Nothing self-certifies. Every slice passes independent 7-concern review, adversarial runtime probing, and mechanical gates (compile, format, lint, wiring, mutation) that cannot be argued with. A feature is "done" only when its UI + API suites pass against a running app.</p></article>
+    <article class="good"><h4>Speed</h4><p>Human time concentrates where humans add value — requirements and design interviews, final code review. The build phase runs unattended, overnight-capable; one failure parks a slice, not the run.</p></article>
+    <article class="good"><h4>Auditability</h4><p>Every feature leaves a versioned folder: PRD, decision records, per-slice contracts, event journal, review + adversary reports, and a criterion→commit trace. "Why does it work this way" has a file, permanently.</p></article>
+    <article class="good"><h4>Self-improvement</h4><p>Three accumulators compound across features: a domain <b>glossary</b> (terms settled during requirements, so humans and agents communicate precisely with fewer words), a <b>staples registry</b> (cross-cutting obligations every new feature must explicitly resolve in-or-out — and each shipped capability adds itself to the list), and layered <b>instruction files</b> agents load automatically. Each feature banks its lessons before it may finish; a retro skill and per-bug escape analysis tune the process itself, on evidence, not anecdote.</p></article>
+  </div>
+</section>
+
+<section id="r-quality">
+  <div class="eyebrow">directors · 02</div>
+  <h2>How quality is enforced, not hoped for</h2>
+  <p class="lede">Three independent layers, each catching what the previous one structurally cannot.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Layer</th><th>Mechanism</th><th>Catches</th></tr></thead>
+    <tbody>
+      <tr><td><b>Mechanical</b></td><td>10 gate scripts on every session stop: compile, formatter, lint, orphan-artifact wiring, branch naming, app boot, mutation probe, doc genericity. Shell scripts — immune to persuasion.</td><td>The cheap, frequent failures: broken builds, dead code, tests that assert nothing.</td></tr>
+      <tr><td><b>Independent review</b></td><td>Fresh agents, blind to the implementor's reasoning, across 11 concerns (7 always-on + 4 trigger-activated design-level: design quality, domain alignment, resilience, API contract) — each working its own written checklist file (the code-quality concern alone checks dead code, duplication, god methods, leaky abstractions, naming, magic values, debug logs, hardcoded secrets, leftover TODOs); findings verified by a skeptic pass before they count.</td><td>Logic errors, spec deviations, quality erosion — the implementor grading its own homework is the failure mode this exists to kill.</td></tr>
+      <tr><td><b>Adversarial runtime</b></td><td>A separate agent probes the <em>running application</em>, seeing only the spec — never the code or the developer's tests — and must produce reproducible evidence.</td><td>What static reading can't see: actual runtime behavior, integration reality, the gap between built and asked-for.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Upstream of all three sits decision hygiene: requirements are interrogated against the team's domain glossary before anything is written, architecture is interviewed through nine layers before code, and every decision lands as a record with its rejected alternatives. Defects that trace to "we never actually decided that" get squeezed out at the source.</p>
+</section>
+
+<section id="r-speed">
+  <div class="eyebrow">directors · 03</div>
+  <h2>Where the throughput comes from</h2>
+  <ul>
+    <li><b>Unattended execution:</b> after the design interviews, the plan runs hands-off — one fresh agent per subtask, verification included, Draft MR maintained continuously. The engineer's calendar is blocked for interviews and final review, not for supervision.</li>
+    <li><b>Park-and-continue:</b> a failing subtask is parked with its dependents while independent work proceeds; the engineer is push-notified with the reason. One bad slice no longer costs a night of runtime.</li>
+    <li><b>No rework loops from drift:</b> producer/consumer seams between subtasks are declared and mechanically checked at three points — integration surprises, the classic multi-slice tax, are caught before they compound.</li>
+    <li><b>Bugs as throughput, not interrupts:</b> a captured bug dispatches to an autonomous fixer in an isolated worktree and comes back as a reviewable MR with auto-retest — engineers aren't context-switched off feature work.</li>
+    <li><b>Honest caveat:</b> the pipeline <em>front-loads</em> effort. Interviews and planning cost real hours before any code exists; the payoff is in reduced review churn, rework, and escaped defects. v1 executes subtasks sequentially, so wall-clock per feature has known headroom (parallel execution is the obvious next step).</li>
+  </ul>
+  <h3>The multiplier: one engineer, overlapping features</h3>
+  <p>Because the build phase needs no supervision, a single engineer runs features like a pipeline — designing feature B while feature A builds, reviewing A while B builds, and so on. The engineer's time stays on the two stages where judgment matters; machine time fills the gaps, including overnight.</p>
+  <div class="ganttwrap"><div class="gantt" aria-label="Feature pipelining timeline">
+    <div class="tick" style="grid-column:2">t1</div><div class="tick" style="grid-column:3">t2</div><div class="tick" style="grid-column:4">t3</div><div class="tick" style="grid-column:5">t4</div><div class="tick" style="grid-column:6">t5</div><div class="tick" style="grid-column:7">t6</div><div class="tick" style="grid-column:8">t7</div><div class="tick" style="grid-column:9">t8</div><div class="tick" style="grid-column:10">t9</div>
+    <div class="lab" style="grid-row:2">Engineer</div>
+    <div class="bar fa" style="grid-row:2;grid-column:2/4">A · design interviews</div>
+    <div class="bar fb" style="grid-row:2;grid-column:4/6">B · design interviews</div>
+    <div class="bar fa" style="grid-row:2;grid-column:6/7">A · review + merge</div>
+    <div class="bar fc" style="grid-row:2;grid-column:7/8">C · design interviews</div>
+    <div class="bar fb" style="grid-row:2;grid-column:8/9">B · review + merge</div>
+    <div class="bar fc" style="grid-row:2;grid-column:10/11">C · review + merge</div>
+    <div class="lab" style="grid-row:3">Machine</div>
+    <div class="bar idle" style="grid-row:3;grid-column:2/4">idle</div>
+    <div class="bar fa" style="grid-row:3;grid-column:4/6">A · unattended build + verification</div>
+    <div class="bar fb" style="grid-row:3;grid-column:6/8">B · unattended build + verification</div>
+    <div class="bar fc" style="grid-row:3;grid-column:8/10">C · unattended build + verification</div>
+  </div></div>
+  <p class="gantt-cap">Steady state from t3: two features in flight per engineer at all times — one in human stages, one building. The quality gates are what make this safe: an unattended build that fails <em>parks and notifies</em> rather than shipping anything, so overlap adds throughput without adding risk.</p>
+</section>
+
+<section id="r-govern">
+  <div class="eyebrow">directors · 04</div>
+  <h2>Governance &amp; blast radius</h2>
+  <ul>
+    <li><b>Humans keep the irreversible steps:</b> no skill can merge an MR. Code review and merge are explicitly human-owned; the pipeline stops at Ready.</li>
+    <li><b>Tracker write access is minimal:</b> exactly 2 of 36 skills may write to Jira (PRD publisher, bug filer). Everything else writes to disk and GitLab drafts — an agent cannot corrupt the tracker.</li>
+    <li><b>Refusal is a feature:</b> CI-only test failures and secret-detection hits always park for a human — never auto-fixed. Fix budgets are hard-capped (2 cycles at the ship gate), so an agent can't thrash indefinitely.</li>
+    <li><b>Complete audit trail:</b> spec folder per feature, versioned with the code: requirements, decisions with alternatives, per-slice contracts, event journal, review/adversary evidence, criterion→commit trace — plus a team-facing interactive explainer of what actually shipped, generated per feature. Compliance-grade answerability for "who decided, what was verified, when".</li>
+    <li><b>Environment doctor:</b> <code>/afk:setup</code> probes every external dependency against a manifest and repairs or guides; its audit mode catches drift before plugin changes ship — onboarding and upkeep are themselves automated.</li>
+  </ul>
+</section>
+
+<section id="r-scale">
+  <div class="eyebrow">directors · 05</div>
+  <h2>Adoption path &amp; what scales</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Step</th><th>Cost</th><th>What transfers as-is</th></tr></thead>
+    <tbody>
+      <tr><td><b>1 · Gates only</b></td><td class="num">days</td><td>The mechanical gates (compile, format, lint, wiring) + domain glossary are plain shell + markdown — they protect every Claude Code session in any service immediately, chain or no chain.</td></tr>
+      <tr><td><b>2 · Design chain</b></td><td class="num">1–2 wks practice</td><td>Grills, PRD/SDD/ADR synthesis, subtask slicing — service-agnostic today. Value even without autopilot: better-specified work for humans <em>or</em> agents.</td></tr>
+      <tr><td><b>3 · Full pipeline</b></td><td class="num">per-service setup</td><td>Requires per-service investment: executable verification suites (currently built out in payable only), a bootable app instance, and glossary/staples maturity. This is where a pilot team's effort goes.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The realistic scaling model: this is <b>proven on one team, one service</b> (payable), and dogfooded on its own tooling. The right next experiment is a second team adopting step 1–2 and building step 3 for their service — that run would tell us how much of the payable-specific setup generalizes and what the true per-service cost is.</p>
+  <p><b>Decision wanted from you:</b> is a second-team pilot worth sponsoring, and what evidence from the current setup would you need first — defect-escape comparison, cycle-time on AFK-delivered features, or a live walkthrough of a finished feature's audit trail?</p>
+</section>
+
+<section id="r-risk">
+  <div class="eyebrow">directors · 06</div>
+  <h2>Risks and limits, stated plainly</h2>
+  <ul class="limits">
+    <li><span class="pill warn">maturity</span> <b>v1, single-team.</b> Sequential execution; smoke suites exist for one service; some defaults are hardcoded to it. Generalization is designed for but unproven.</li>
+    <li><span class="pill warn">people</span> <b>The interviews are the load-bearing wall.</b> The pipeline's quality ceiling is set by how seriously the grills are taken; a team that rubber-stamps them gets well-documented mediocrity, faster.</li>
+    <li><span class="pill warn">cost</span> <b>Token and environment spend is real.</b> Multi-agent review, adversarial probing, and unattended runs consume model budget; live-app verification needs environments per developer.</li>
+    <li><span class="pill warn">env</span> <b>Environment coupling.</b> Built on one platform (Windows dev, GitLab, Jira, this monorepo's Maven/npm shape); a role-scoped test-identity limitation and an unbuilt test-data-provisioning capability (currently mid-design) bound what e2e can prove today.</li>
+    <li><span class="pill warn">meta</span> <b>The workflow itself has no test suite</b> — its own drift is caught by an audit mode and the retro loop, i.e. the same discipline it imposes, applied to itself.</li>
+    <li><span class="pill ok">counterweight</span> <b>Failure posture is conservative:</b> when uncertain, it parks and notifies a human rather than pressing on. The uncontrolled-agent scenario — silent bad merges to master — is structurally excluded (humans merge; agents can't).</li>
+  </ul>
+</section>
+
+</div>
+
+<footer>
+  Generated from the plugin's own docs (<code>tools/payable/ai-agents/plugins/workflow</code> — README, CLAUDE.md, GLOSSARY.md, hooks/README.md, skill frontmatter) · snapshot of <b>2026-07-14</b>. To refresh after the plugin evolves, ask Claude to re-digest the plugin and update this artifact in place — same URL. Deep-link a track with <code>#dev</code> or <code>#dir</code>.
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+(function(){
+  var body=document.body;
+  var buttons=document.querySelectorAll('.switch button');
+  function setAud(a,push){
+    body.setAttribute('data-aud',a);
+    buttons.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.aud===a));});
+    if(push){history.replaceState(null,'','#'+a);}
+  }
+  buttons.forEach(function(b){b.addEventListener('click',function(){setAud(b.dataset.aud,true);});});
+  var h=location.hash.replace('#','');
+  setAud(['dev','dir'].indexOf(h)>=0?h:'dev',false);
+  // allow section deep-links within a track: #d-*, #r-* pick the right track first
+  if(/^d-/.test(h))setAud('dev',false); if(/^r-/.test(h))setAud('dir',false);
+  if(h && document.getElementById(h)){document.getElementById(h).scrollIntoView();}
+})();
+</script>
+
+<script>
+(function(){
+  // Tooltip dictionary: terms/abbreviations first (specific before generic), then decision rationales.
+  var TERMS=[
+    {re:/Draft MR/, tip:'A merge request flagged "not ready": CI runs on it and colleagues can read the diff, but the merge button is disabled until someone flips it to Ready. The pipeline opens it at the first slice and keeps it current, so progress is always inspectable without any risk of a premature merge.'},
+    {re:/\bMRs?\b/, tip:'Merge Request — GitLab’s equivalent of a GitHub pull request: a branch proposed for review, discussion, and merge into master.'},
+    {re:/\bPRD\b/, tip:'Product Requirements Document — what the feature must do and why: scope, behavior, and the acceptance criteria that later define "done". Deliberately silent on how it will be built — that is the SDD’s job. Here it is PRD.md in the feature’s spec folder.'},
+    {re:/\bSDD\b/, tip:'Software Design Document — the technical "how": architecture, contracts, data model, structured by the nine design layers (L1–L9). Written only after the design interview has settled each decision, so it records agreements, not proposals.'},
+    {re:/\bADRs?\b/, tip:'Architecture Decision Record — one short file per decision, capturing three things: the context, the choice made, and the alternatives that were considered and rejected (with why). Months later, "is this behavior intentional?" and "can we change this safely?" are answered by reading one file instead of archaeology.'},
+    {re:/\bADF\b/, tip:'Atlassian Document Format — Jira’s native rich-text JSON. Publishing in ADF means the ticket shows real headings, tables, and embedded diagrams, instead of a wall of pasted markdown that nobody reads.'},
+    {re:/\bCI\b/, tip:'Continuous Integration — the GitLab pipeline that automatically compiles, tests, and packages every pushed branch. A red pipeline blocks the MR; "babysitting CI" means watching those jobs and reacting so a human doesn’t have to.'},
+    {re:/\bGherkin\b/, tip:'A plain-English test format: "Given an approved invoice … When the user posts it … Then a ledger entry exists". Readable by anyone, executable by the test runner — the test plan and the automated test are the same artifact.'},
+    {re:/\bBDD\b/, tip:'Behavior-Driven Development — specifying behavior as readable Given/When/Then scenarios that double as automated tests, so what QA reviews and what the machine executes cannot drift apart.'},
+    {re:/\bui-e2e\b/, tip:'The browser-driven end-to-end suite: an automated real browser clicking through the real UI against a running app — the closest automated stand-in for a human doing the flow.'},
+    {re:/\be2e\b/, tip:'End-to-end: exercises the real running system (a browser session or actual HTTP calls against a live app), as opposed to unit tests that check isolated code with everything around it faked.'},
+    {re:/fresh subagent/, tip:'Why fresh: each slice starts with a completely empty context — no half-memories, no assumptions, no leftover reasoning from the previous slice, so one slice’s confusion can’t contaminate the next. The cost is real (the agent re-reads the contract and specs every time) and deliberate: it forces the written files, not the chat history, to be the source of truth.'},
+    {re:/\bsubagents?\b/, tip:'A separate agent instance spawned with its own empty context and a single job; it reports back a result and disappears. Keeps the main session’s context small and gives each task unbiased fresh eyes.'},
+    {re:/\bseams?\b/, tip:'A declared boundary where one piece of code meets another: either a symbol (class, method, endpoint) one subtask promises to produce and another consumes, or the exact place where new code plugs into existing code. Seams are the riskiest lines of any plan — so they are written down and mechanically re-checked instead of assumed.'},
+    {re:/\bstaples?\b/i, tip:'The service’s registry of established patterns — "how we do X here" (e.g. how enums are exposed to the API docs, how services detect entity changes). The grills check new designs against it, so each feature reinforces the house style instead of inventing a parallel one.'},
+    {re:/\bglossary\b/i, tip:'GLOSSARY.md — the service’s domain vocabulary: one agreed meaning per term, updated as features settle terminology. The grills cite it so a word like "posting" or "hold" means exactly one thing to every human and agent touching the code.'},
+    {re:/\bgrill(?:ed|s|ing)?\b/i, tip:'An adversarial interview: the agent challenges your idea against the documented domain (glossary, staples, prior decisions), refuses hand-waves, and logs every settled point to a checkpoint file. Named for what it feels like — the friction is the feature: it is much cheaper to lose an argument here than in production.'},
+    {re:/Stop hook/, tip:'A Claude Code mechanism: a script that runs every time the agent tries to end its turn, and can refuse to let it stop — the agent is forced to fix the reported problem first. Because it is a shell script, not a prompt, it cannot be argued with.'},
+    {re:/\bworktrees?\b/, tip:'A second working copy of the same git repository — shares the history, but has its own files and its own checked-out branch. The bug fixer works there in full isolation, so your own checkout and half-done work are never disturbed.'},
+    {re:/escape analysis/, tip:'Run for every bug that slipped past the pipeline: which gate should have caught it, and what concrete change to that gate would have. The fix repairs the code; the escape analysis repairs the process — each escaped bug makes the next one less likely.'},
+    {re:/L1[–→-]L9|nine(?:-| )layers?/, tip:'The nine design layers, interviewed strictly top-down — L1 system topology (where the feature sits among services, UIs, external systems) · L2 service boundaries & integration (who owns what; endpoints and contracts between services) · L3 data architecture (schema, storage, migration) · L4 cross-cutting quality (security, transactions, observability, error handling) · L5 domain model (entities, aggregates, invariants) · L6 process & coordination (workflows, state machines, async jobs) · L7 module decomposition (packages inside the service) · L8 tactical patterns (class-level design) · L9 implementation seams (the exact places in existing code the change plugs into, each verified against the codebase). Each layer must be settled before descending — so a database decision can’t quietly predetermine the service boundary above it.'},
+    {re:/token minter/, tip:'The e2e harness helper that issues login tokens for test users, so automated suites can authenticate without driving a real login flow. Its current limitation: it issues the same single identity for every role, which is why role-based visibility can’t be proven through the UI.'},
+    {re:/\bsmoke\b/i, tip:'A smoke test sweeps the feature’s critical paths against a live running app — "does it fundamentally work, end to end". Distinct from unit coverage: it proves the assembled whole works, not that each part works in isolation. Here it is the gate that decides whether a feature may call itself complete.'},
+    {re:/\bIOUs?\b/, tip:'"I owe you" — a ledger entry declaring "this artifact’s consumer arrives in a named later step" (a specific plan step or ticket). The wiring gate accepts an anchored IOU in place of an existing consumer: a checkable promise, instead of either blocking legitimate staged work or letting dead code through.'},
+    {re:/spec folder/, tip:'One directory per ticket ({service}/…/specs/{release}/{TICKET}/) holding every artifact of the feature — PRD, design docs, decision records, plan, journal, review evidence. It is versioned in git with the code it describes, so the documentation branch-switches, diffs, and merges together with the code and cannot silently drift from it.'},
+    {re:/dogfood(?:ed|ing)?/, tip:'Using the tool to build the tool — the workflow’s own features go through the same pipeline it imposes on product code, so its weaknesses surface on its authors first, before anyone else adopts it.'},
+    {re:/design tokens/, tip:'The frontend’s named design values — colors, spacing, typography — extracted from the real app. Mockups built from the real tokens look like the actual product, so "approved mockup" translates 1:1 into implementation instead of dying in the gap between a Figma-ish sketch and the real component library.'},
+    {re:/\bAFK\b/, tip:'Away From Keyboard — the workflow’s namesake and goal: the build phase runs correctly while you are not watching it, because gates rather than supervision keep it honest.'},
+    {re:/\breactors?\b/, tip:'Maven’s multi-module build orchestrator (this repo has hundreds of modules). Two reactors building in the same repo concurrently corrupt each other’s outputs — hence a lock that serializes builds across agent sessions.'},
+    {re:/\bmonorepo\b/, tip:'One repository holding all ~50 services and their shared libraries. Convenient for cross-cutting changes, but it means one change can ripple across modules — which is why build scope, compile gates, and seam checks matter more than in a one-repo-per-service world.'},
+    {re:/\bautopilot\b/i, tip:'The hands-off driver: walks the plan subtask-by-subtask, unattended, spawning a fresh subagent per slice and provisioning the live app when a verification step needs one. Failures are parked, not fatal — the run continues on independent work.'},
+    {re:/\badversar(?:y|ial)\b/i, tip:'A fresh agent that attacks the running application knowing only the spec and contract — it is forbidden from reading the code diff or the implementor’s tests. The closest automated equivalent of an exploratory tester working from the requirements.'},
+    {re:/\bpreflight\b/i, tip:'The feature-level ship gate: refuses to run without a green smoke result, merges master in, re-runs all validations plus a fresh review, commits the ship evidence, then babysits CI until the MR can flip from Draft to Ready.'},
+    {re:/Claude Code/, tip:'Anthropic’s agentic coding tool — the environment all of this runs in. Skills (markdown playbooks), hooks (lifecycle scripts), and subagents are its native extension points; the AFK plugin is built entirely from them, no custom infrastructure.'},
+    {re:/verification tiers?/, tip:'The ladder of checks a subtask contract declares for itself — from unit tests up through integration tests, app-boot checks, and live API/browser scenarios. Each contract names which tiers apply to that slice; execution must pass every declared tier before the independent review gates even start.'},
+    {re:/\bwiring\b/i, tip:'The "done = consumed" rule: everything created — class, endpoint, event, config key — must have a named consumer that actually references it, or an explicit IOU saying when the consumer arrives. The wiring gate blocks any session from ending while it leaves unconsumed (dead-on-arrival) artifacts behind.'},
+    {re:/acceptance criteri(?:a|on)/i, tip:'The testable conditions in the PRD that define "done" for the feature. In this pipeline they are load-bearing: each criterion is traced to the subtask and commit that implements it (TRACE.md) and to the scenario that verifies it — an unimplemented criterion is mechanically visible, not just forgotten.'},
+    // decision rationales
+    {re:/never rebases/, tip:'Why merge, not rebase: rebasing replays your commits on top of the new master, creating rewritten history — which invalidates review comments, breaks anyone’s already-fetched copy of the branch, and makes "what did the agent actually do" unanswerable. Merging is noisier in the log but append-only: the audit trail and the open MR survive intact. For an audit-first workflow that trade is one-sided.'},
+    {re:/\bpark(?:ed|s|ing)?\b/i, tip:'Why park instead of retry: parking records the failure and its reason, freezes the subtask plus everything depending on it, and lets all independent work continue. The alternatives are both worse — a retry loop burns hours and budget on what is usually a systemic problem (wrong assumption, broken environment), and pressing on would build new slices on top of a known failure. A human triages the park with full evidence, once, instead of discovering a mess at the end.'},
+    {re:/2-cycle/, tip:'Why a hard cap of two fix cycles: empirically, if two attempts don’t reach green the cause is systemic, not a typo — further automated cycles tend to thrash (each fix breaking something else) while burning budget. Capping converts "agent flails for hours" into "human gets a clean handoff after 20 minutes". The cap is shared across the whole ship gate so fixes can’t balloon anywhere.'},
+    {re:/skeptic/, tip:'Why a skeptic pass: AI reviewers over-report — confident, plausible-sounding findings that don’t survive scrutiny. Every finding must first survive an independent agent actively trying to refute it. The cost is extra tokens per finding; the payoff is that the report you read contains few, high-confidence items — which is what keeps developers actually reading the reports.'},
+    {re:/information diet/, tip:'Why the blindfold: a tester who has seen the implementation unconsciously tests what was built. One who has only seen the spec tests what was asked — and the gap between those two is precisely the class of defect this gate exists to find. Same reason the reviewer agents don’t get the implementor’s reasoning: inherited assumptions are inherited blind spots.'},
+    {re:/uncited mode/, tip:'Without an SDD there is nothing to cite, so subtask-contract claims can’t be machine-checked against a design — instead a human must read and approve every contract before execution. A legitimate choice for small features; the trade is explicit: skip the design hours now, pay them back as manual contract review.'},
+    {re:/cited mode/, tip:'Why citations: every claim in a subtask contract must point at the SDD/ADR passage that justifies it. Two effects: the slicer cannot quietly invent design that was never agreed, and the contracts become mechanically checkable — a claim citing a passage that doesn’t say that is a detectable error, not a silent drift.'},
+    {re:/\b[Ss]ynthesis\b/, tip:'Why "synthesis only": all decision-making is confined to the interviews, where a human is in the room arguing back. Skills that write documents may only transcribe what was already settled — if it wasn’t agreed in the grill, it cannot appear in the doc. This is the line that keeps an unattended model from making load-bearing decisions alone.'},
+    {re:/no skill can merge|no skill can do it|humans only, by design/, tip:'Why humans merge: merging to master is the one irreversible, outward-facing step — everything before it is drafts and branches that can be discarded. Keeping it human preserves accountability (a person signed off) and provides a final checkpoint that no amount of green automation can waive. It also bounds the worst case: an agent failure can waste effort, but never silently land on master.'},
+    {re:/\b[Ss]equential\b/, tip:'Why sequential (for now): parallel subtasks would race on shared resources — one running app instance for verification, Maven build locks, one database. They could also both edit near the same code. Sequential is slower wall-clock but fully deterministic; parallel execution of independent subtasks is the acknowledged roadmap item, waiting on per-subtask environment isolation.'},
+    {re:/grep-anchored|by grep\b|grep anchoring/, tip:'Why grep: checking a seam by grep means literally searching the code for the promised symbol name — cheap, instant, works for any language and any artifact kind. The known weakness: a rename dodges it until the next checkpoint re-checks. That is why new Java seams can opt into "materialization" — generating the interface up front so the compiler itself enforces the contract, which is stronger but only possible for new, typed code.'},
+    {re:/ancestry guard/, tip:'A safety check before merging master into the feature branch: verifies the two branches sit in the expected historical relationship (master strictly ahead, no unexpected divergence or force-push in between). If the check fails, the merge could silently produce a misleading combined state — so the gate stops and asks a human instead of merging anyway.'},
+    {re:/\b[Ii]dempotent\b/, tip:'Safe to run repeatedly with the same outcome — a re-run updates the existing result in place instead of creating a duplicate. Matters especially for anything writing to Jira: publish twice, and the ticket is updated, not spammed with a second copy.'},
+    {re:/append-only/, tip:'The journal is never edited, only appended to — so the run’s history cannot be retroactively tidied up to look better than it was. What you read is the order things actually happened, including the failures and retries.'},
+    {re:/\bTDD\b/, tip:'Test-Driven Development: write the test first and watch it fail (red), then write code until it passes (green), then clean up. The failing-first step is the point — it proves the test can fail. A test written after the code has never been seen to fail, so it may be passing vacuously; that is exactly the failure mode agents are most prone to.'},
+    {re:/\bmutation\b/i, tip:'Mutation testing: deliberately corrupt the code (flip a condition, delete a statement) and re-run the test suite. Tests that still pass against broken code were not asserting anything real. It is an empirical measurement of test strength — a green-but-worthless suite fools a human reviewer easily, but cannot fool this probe.'}
+  ];
+
+  function wrapFirst(root,t){
+    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),n;
+    while((n=w.nextNode())){
+      var p=n.parentElement;
+      if(!p)continue;
+      if(p.closest('.tt,script,style,nav,.switch,code,pre,.cmd,.node,.chip,.brand,.sim-trail,button'))continue;
+      var m=n.nodeValue.match(t.re);
+      if(!m)continue;
+      var after=n.splitText(m.index);
+      after.splitText(m[0].length);
+      var s=document.createElement('span');
+      s.className='tt';s.setAttribute('data-tip',t.tip);s.setAttribute('tabindex','0');
+      s.textContent=m[0];
+      after.parentNode.replaceChild(s,after);
+      return true;
+    }
+    return false;
+  }
+  function annotate(root){TERMS.forEach(function(t){wrapFirst(root,t);});}
+  window.__annotate=annotate;
+  document.querySelectorAll('main section').forEach(annotate);
+
+  // floating tooltip (survives overflow containers, clamps to viewport)
+  var box=document.createElement('div');box.id='ttbox';box.setAttribute('role','tooltip');document.body.appendChild(box);
+  function show(el){
+    box.textContent=el.getAttribute('data-tip');box.style.display='block';
+    box.style.maxWidth=Math.min(430,window.innerWidth-24)+'px';
+    var r=el.getBoundingClientRect(),bb=box.getBoundingClientRect();
+    var x=Math.min(Math.max(8,r.left),window.innerWidth-bb.width-8);
+    var y=r.top-bb.height-8;if(y<8)y=r.bottom+8;
+    box.style.left=x+'px';box.style.top=y+'px';
+    el.setAttribute('aria-describedby','ttbox');
+  }
+  function hide(){box.style.display='none';}
+  document.addEventListener('mouseover',function(e){var t=e.target.closest&&e.target.closest('[data-tip]');if(t)show(t);});
+  document.addEventListener('mouseout',function(e){if(e.target.closest&&e.target.closest('[data-tip]'))hide();});
+  document.addEventListener('focusin',function(e){var t=e.target.closest&&e.target.closest('[data-tip]');if(t)show(t);});
+  document.addEventListener('focusout',function(e){if(e.target.closest&&e.target.closest('[data-tip]'))hide();});
+  window.addEventListener('scroll',hide,true);
+})();
+</script>
+
+<script>
+(function(){
+  var esc=function(s){return s;} // all strings authored here, no user input
+  var WHO={you:'<span class="pill ok">you, at the keyboard</span>',machine:'<span class="pill warn">machine, unattended</span>',gate:'<span class="pill bad">gate — may refuse</span>',both:'<span class="pill ok">you</span> <span class="pill warn">+ machine</span>'};
+
+  var NODES=[
+   {t:'step',ph:'design',cmd:'/afk:grill-requirements',who:'you',
+    goal:'Pressure-test the raw idea against the domain’s own language before anything is written.',
+    happens:'An interview loop challenges your plan against the service GLOSSARY.md and the staples registry — terminology, edge cases, conflicts with existing behavior — until the requirements tree is exhausted. Every settled point is checkpointed.',
+    result:'GRILL-LOG.md checkpoints · new/sharpened terms written into GLOSSARY.md. No design, no code — only settled requirements.'},
+   {t:'step',ph:'design',cmd:'/afk:to-prd',who:'machine',
+    goal:'Materialize the settled requirements as reviewable artifacts.',
+    happens:'Pure synthesis — it may not invent anything the grill didn’t settle. Seeds the spec folder for this ticket.',
+    result:'PRD.md · one ADR per requirement decision (adr/requirements/NNNN-*.md) · INDEX.md dashboard seeded.'},
+   {t:'step',ph:'plan',cmd:'/afk:to-ticket',who:'machine',
+    goal:'Put the PRD where stakeholders already look.',
+    happens:'Publishes the full PRD into the Jira parent ticket as native ADF, mermaid diagrams rendered and embedded. Idempotent — re-run to update in place.',
+    result:'Jira parent updated. (One of only two skills in the whole plugin allowed to write to Jira.)'},
+   {t:'dec',ph:'design',q:'Does this feature add or change any screens?',
+    opts:[
+      {label:'Yes — there’s new UI',desc:'Settle the look before the design doc locks decisions.',set:{ui:true},chip:'UI: yes'},
+      {label:'No — backend only',desc:'/afk:prototype would self-gate no_ui anyway; skip straight to solution design.',set:{ui:false},chip:'UI: no'}]},
+   {t:'step',ph:'design',cmd:'/afk:prototype',who:'you',cond:function(F){return F.ui;},
+    goal:'Settle the UI interactively, anchored to the real frontend.',
+    happens:'Crafts the mockup as self-contained HTML using the service’s actual design tokens and components (from the /afk:design-system catalog), iterating with you until the screens are agreed.',
+    result:'PROTOTYPE.md + prototype/*.html in the spec folder — the SDD will cite these instead of re-arguing the UI.'},
+   {t:'dec',ph:'design',q:'Is the architecture non-trivial — worth a full design pass?',
+    opts:[
+      {label:'Yes — grill the solution',desc:'Nine-layer interview, then a cited SDD. Unlocks cited-mode slicing: every subtask claim mechanically checkable.',set:{sdd:true},chip:'SDD: yes'},
+      {label:'No — small change, skip the SDD',desc:'Legitimate for small features — but slicing will run in uncited mode, and every subtask contract needs your explicit sign-off.',set:{sdd:false},chip:'SDD: skipped'}]},
+   {t:'step',ph:'design',cmd:'/afk:grill-solution',who:'you',cond:function(F){return F.sdd;},
+    goal:'Interrogate the design top-down, one layer at a time.',
+    happens:'L1 system topology → … → L9 implementation seams. The interview refuses to descend until the current layer is resolved — no decision gets made implicitly, mid-code, later.',
+    result:'Settled design decisions checkpointed in GRILL-LOG.md, ready for synthesis.'},
+   {t:'step',ph:'design',cmd:'/afk:to-sdd',who:'machine',cond:function(F){return F.sdd;},
+    goal:'Materialize the settled design.',
+    happens:'Synthesis only. Each significant decision becomes its own ADR with the alternatives that were rejected.',
+    result:'SDD.md · adr/design/NNNN-*.md. (Optionally /afk:to-design-brief for a 1–2 page stakeholder digest.)'},
+   {t:'dec',ph:'plan',q:'Design the verification scenarios now, with QA in the room?',
+    opts:[
+      {label:'Yes — grill verification',desc:'UI journeys (from the PRD) + API scenarios (from the SDD) become executable gate criteria.',set:{verif:true},chip:'verification: designed'},
+      {label:'Not this time',desc:'The feature still gets a minimal smoke gate, but no purpose-built scenario suites.',set:{verif:false},chip:'verification: minimal'}]},
+   {t:'step',ph:'plan',cmd:'/afk:grill-verification',who:'you',cond:function(F){return F.verif;},
+    goal:'Design the tests before the code exists.',
+    happens:'Two modalities interviewed separately: browser UI journeys and direct-REST API scenarios. This is the room where QA’s edge cases become gate criteria.',
+    result:'Settled scenarios in GRILL-LOG.md; /afk:to-verification-plan then writes VERIFICATION-PLAN.md sibling to the PRD/SDD.'},
+   {t:'step',ph:'plan',cmd:'/afk:to-subtasks',who:'both',
+    goal:'Slice the feature into independent, contracted slices.',
+    happens:function(F){return F.sdd
+      ?'Runs in cited mode: every claim in every subtask contract must cite the SDD/ADRs, and producer↔consumer seams are registered in PLAN.md for mechanical drift-checking. You approve the cut and the dependency edges.'
+      :'No SDD, so it runs in uncited mode: contracts carry uncited claims and each one is human-gated — you review and approve every subtask contract before execution may start.';},
+    result:function(F){return 'plan/PLAN.md (index · tracker · seam register · smoke-gate declaration) · one NNNN-slug.md contract per subtask · a terminal NNNN-sync-harness subtask.'+(F.sdd?'':' Expect more of your time here — the citations you skipped come back as manual review.');}},
+   {t:'dec',ph:'execute',q:'How do you want to drive execution?',
+    opts:[
+      {label:'/afk:autopilot — hands-off',desc:'Walk the whole plan unattended, fresh subagent per subtask, park-and-continue on failure. The AFK in AFK.',set:{auto:true},chip:'drive: autopilot'},
+      {label:'/afk:execute — one slice at a time',desc:'Same per-subtask rigor, but you review between slices. Good for your first runs or risky features.',set:{auto:false},chip:'drive: supervised'}]},
+   {t:'step',ph:'execute',cmd:function(F){return F.auto?'/afk:autopilot':'/afk:execute {NNNN-slug}';},who:'machine',
+    goal:'Build every slice with full rigor, no context bleed.',
+    happens:function(F){return (F.auto
+      ?'Autopilot walks PLAN.md in dependency order, spawning a fresh subagent per subtask and provisioning the live app for the tiers that need it. '
+      :'You launch each subtask yourself; each runs in a fresh context. ')
+      +'Per subtask: design intent → TDD (red before green) → every declared verification tier → review gate (up to 11 fresh-eyed concerns) → adversary gate (live-app probing, blind to the diff) → commit → push → Draft-MR + PLAN.md updates.';},
+    result:'Commits per slice on the feature branch · Draft MR kept current · JOURNAL.md event log · review + adversary reports under plan/review/.'},
+   {t:'step',ph:'execute',cmd:'⚠ subtask 0003 fails its gate',who:'machine',cond:function(F){return F.auto;},
+    goal:'(Simulated failure — this is the moment autopilot earns its keep.)',
+    happens:'The adversary finds a reproducible defect in slice 0003. Autopilot does not stop and does not “push through”: 0003 is parked with its park reason, its dependents are parked with it, and every independent subtask keeps executing.',
+    result:'Push notification to your phone with the park reason · PLAN.md shows the parked set · you fix later via /afk:fix or re-run — the rest of the feature kept building meanwhile.',park:true},
+   {t:'step',ph:'verify',cmd:'/afk:smoke-test',who:'gate',
+    goal:'The feature-completion stamp — earned, not declared.',
+    happens:function(F){return (F.verif
+      ?'Runs the feature’s browser ui-e2e suite and direct-REST api suite — the executable form of your VERIFICATION-PLAN — '
+      :'Runs the minimal smoke gate declared in PLAN.md ')
+      +'against a running app, scoped to the feature’s tags. Green on every suite is the only path forward.';},
+    result:'Feature stamped complete in PLAN.md — or a precise list of what failed. No green, no “done”.'},
+   {t:'step',ph:'ship',cmd:'/afk:preflight',who:'gate',
+    goal:'Make the branch shippable and hand CI-watching to the machine.',
+    happens:'Refuses without smoke-green. Merges master in (never rebases) behind an ancestry guard, re-runs validations, a fresh integrated review and a final seam check — all within a hard 2-cycle fix cap — commits ship evidence, then babysits CI in the background. CI-only failures and secret hits always park for you.',
+    result:'MR flipped from Draft to Ready · ship evidence committed · CI green.'},
+   {t:'step',ph:'ship',cmd:'code review → merge',who:'you',
+    goal:'The step no skill can take from you.',
+    happens:'You review the MR with receipts: JOURNAL.md for what happened, plan/review/ for what the gates found, TRACE.md for acceptance-criterion → subtask → commit. Then you merge — humans only, by design.',
+    result:'Feature on master. The terminal sync-harness subtask folds durable learnings into CLAUDE.md; /afk:retro mines the run’s exhaust later.'},
+   {t:'end'}
+  ];
+
+  var el=function(id){return document.getElementById(id);};
+  if(!el('afksim'))return;
+  var F={},hist=[],pos=-1;
+  function val(x){return typeof x==='function'?x(F):x;}
+  function passes(n){return !n.cond||n.cond(F);}
+  function nextIdx(from){var i=from+1;while(i<NODES.length&&!passes(NODES[i]))i++;return i;}
+  function stepCount(){var c=0;for(var i=0;i<=pos&&i<NODES.length;i++){if(NODES[i].t==='step'&&passes(NODES[i]))c++;}return c;}
+
+  function render(){
+    var n=NODES[pos],card=el('sim-card'),h='';
+    el('sim-where').textContent=n.ph||'done';
+    el('sim-back').disabled=hist.length===0;
+    var trail=el('sim-trail');trail.innerHTML='';
+    hist.forEach(function(s){var c=document.createElement('span');c.className='chip'+(s.dec?' dec':'');c.textContent=s.chip;trail.appendChild(c);});
+    if(n.t==='end'){
+      el('sim-stepn').textContent='run complete';
+      h='<div class="ptag">end of run</div><h3>Feature shipped.</h3>'
+       +'<dl class="sim-row"><dt>You typed</dt><dd>interview answers, a slicing approval, and one MR review. Everything else was produced, verified, and evidenced by the pipeline.</dd></dl>'
+       +'<dl class="sim-row"><dt>Left behind</dt><dd>PRD · ADRs · '+(F.sdd?'SDD · ':'')+(F.verif?'VERIFICATION-PLAN · ':'')+'subtask contracts · journal · review + adversary reports · criterion→commit trace — one folder, versioned with the code.</dd></dl>'
+       +'<dl class="sim-row"><dt>Try again</dt><dd>Different forks change the path: skip the SDD and watch slicing turn human-gated; choose supervised drive and the park event disappears.</dd></dl>';
+      el('sim-next').textContent='↺ Restart';
+      el('sim-note').textContent='';
+      card.innerHTML=h;if(window.__annotate)window.__annotate(card);return;
+    }
+    el('sim-next').textContent='Next →';
+    if(n.t==='dec'){
+      el('sim-stepn').textContent='decision';
+      el('sim-next').disabled=true;
+      el('sim-note').textContent='pick an option to continue';
+      h='<div class="ptag">fork · '+n.ph+'</div><p class="sim-q">'+n.q+'</p><div class="sim-opts">';
+      n.opts.forEach(function(o,i){h+='<button data-opt="'+i+'"><b>'+o.label+'</b><span>'+o.desc+'</span></button>';});
+      h+='</div>';
+      card.innerHTML=h;if(window.__annotate)window.__annotate(card);
+      card.querySelectorAll('button[data-opt]').forEach(function(b){
+        b.addEventListener('click',function(){
+          var o=n.opts[+b.dataset.opt];
+          hist.push({pos:pos,F:JSON.parse(JSON.stringify(F)),chip:o.chip,dec:true});
+          Object.keys(o.set).forEach(function(k){F[k]=o.set[k];});
+          pos=nextIdx(pos);render();
+        });
+      });
+      return;
+    }
+    // step
+    el('sim-next').disabled=false;
+    el('sim-note').textContent='';
+    el('sim-stepn').textContent='step '+stepCount();
+    h='<div class="ptag">'+n.ph+'</div><h3>'+val(n.cmd)+'</h3><p class="who">'+WHO[n.who]+'</p>'
+     +'<dl class="sim-row"><dt>Goal</dt><dd>'+val(n.goal)+'</dd></dl>'
+     +'<dl class="sim-row"><dt>What happens</dt><dd>'+val(n.happens)+'</dd></dl>'
+     +'<dl class="sim-row"><dt>Result</dt><dd>'+val(n.result)+'</dd></dl>';
+    if(n.park)h+='<div class="parkbox"><b>Park-and-continue:</b> the failure cost one slice, not the night.</div>';
+    card.innerHTML=h;if(window.__annotate)window.__annotate(card);
+  }
+
+  el('sim-next').addEventListener('click',function(){
+    var n=NODES[pos];
+    if(n.t==='end'){F={};hist=[];pos=nextIdx(-1);render();return;}
+    if(n.t==='step'){hist.push({pos:pos,F:JSON.parse(JSON.stringify(F)),chip:val(n.cmd),dec:false});pos=nextIdx(pos);render();}
+  });
+  el('sim-back').addEventListener('click',function(){
+    var s=hist.pop();if(!s)return;pos=s.pos;F=s.F;render();
+  });
+  pos=nextIdx(-1);render();
+})();
+</script>
+
+<script>
+(function(){
+  var WHO={you:'<span class="pill ok">you</span>',machine:'<span class="pill warn">machine</span>',gate:'<span class="pill bad">gate — may refuse</span>'};
+  var FLOWS={
+    execute:{title:'/afk:execute — one subtask, end to end',steps:[
+      {k:'contract',t:'1 · Read the contract',who:'machine',d:'Parses the subtask’s plan/NNNN-slug.md and PLAN.md. Hard guard: if any blocked-by prerequisite isn’t done, it refuses to start at all.'},
+      {k:'consume',t:'2 · Consumer preflight',who:'gate',d:'Cited mode: every symbol this slice consumes from other subtasks is grep-verified to actually exist as promised — before a line is written. A missing producer stops the slice here, not at integration time.'},
+      {k:'design',t:'3 · Design',who:'machine',d:'Status flips to designing. Plans the implementation strictly inside the contract’s Scope globs — files outside the declared scope are off-limits.'},
+      {k:'tdd',t:'4 · TDD build',who:'machine',d:'Status → developing; invokes /afk:tdd — failing test first (red), minimal code to green, one behavior at a time, refactor only on green.'},
+      {k:'commit',t:'5 · Commit + push',who:'machine',d:'Commits as "[NNNN-slug] message", pushes, and ticks this subtask’s box in the Draft MR’s checklist block — progress is visible in GitLab from the first slice.'},
+      {k:'verify',t:'6 · Verification tiers',who:'gate',d:'Status → verifying. Runs every tier the contract declared, in order: static → unit → integration → API → browser e2e. A red tier routes into /afk:fix, under a fix cap.'},
+      {k:'produce',t:'7 · Producer self-preflight',who:'gate',d:'Cited mode: everything the contract’s ## Produces section promised is grep-verified to now exist under the promised name — the slice can’t claim done while owing a symbol.'},
+      {k:'review',t:'8 · Review gate',who:'gate',d:'Status → reviewing; /afk:review runs the fresh-eyed concerns (7 always-on + up to 4 trigger-activated design-level ones), each against its own checklist file — code-quality alone checks dead code, duplication, god methods, leaky abstractions, naming, magic values, debug logs, hardcoded secrets, leftover TODOs. Clean or advisory → proceed; blocking findings are remediated by class, max 2 cycles, else the slice fails as review_fail.'},
+      {k:'advers.',t:'8.5 · Adversary gate',who:'gate',d:'/afk:adversary probes the running app from the contract alone (never the diff or the new tests). Findings route like review findings and share the same 2-cycle cap; an unreachable environment is retried at most twice, then parks.'},
+      {k:'done',t:'9 · Done — stop at the human line',who:'you',d:'Tracker row flips to done. The skill stops at code review / merge — that step is yours; no skill can take it.'},
+      {k:'outcome',t:'10 · Structured OUTCOME',who:'machine',d:'Reports one machine-parseable line: success / test_fail / build_fail / review_fail / adversary_fail / blocked_by / timeout. This is the interface autopilot drives on — no prose interpretation, no ambiguity.'}
+    ]},
+    autopilot:{title:'/afk:autopilot — the plan driver',steps:[
+      {k:'boot',t:'0 · Preconditions',who:'gate',d:'Clean worktree, valid plan — and the app must boot before anything runs (app-start-gate baseline must exit 0). No point building on an environment that can’t verify.'},
+      {k:'pick',t:'1 · Pick next subtask',who:'machine',d:'Walks PLAN.md in dependency order. Anything whose prerequisite isn’t done is parked "by inheritance" without a second look — dependents of a failure never waste a run.'},
+      {k:'spawn',t:'2 · Spawn fresh subagent',who:'machine',d:'One fresh subagent per subtask, sized by the contract’s declared complexity (mechanical / standard / complex), running /afk:execute in driven mode. No context bleeds between slices.'},
+      {k:'app',t:'3 · Provision the app',who:'machine',d:'After implementing, the subagent boots the live app for its verification tiers — reusing the already-warm instance when the slice touched no loaded code, so slices don’t pay a 3–6 min boot each.'},
+      {k:'route',t:'4 · Route the OUTCOME',who:'machine',d:'success → next subtask. Anything else → park the subtask (dependents follow by inheritance), push-notify you with the reason, and continue all independent work.',n:'Park-and-continue: one failure costs one slice, not the night.'},
+      {k:'clock',t:'5 · Wall-clock guard',who:'gate',d:'A subtask exceeding its time cap (default 90 min) is parked as timeout — a hung build or an agent going in circles can’t silently eat the run.'},
+      {k:'smoke',t:'6 · Smoke gate',who:'gate',d:'All non-parked subtasks done → /afk:smoke-test runs the feature’s browser ui-e2e + direct-REST api suites against the live app. Green on both is the only path to "feature complete".'},
+      {k:'chain',t:'7 · Chain preflight',who:'machine',d:'Smoke green → /afk:preflight is chained automatically; the warm app instance is stopped; an end-of-run AUTOPILOT report summarizes done / parked / evidence.'}
+    ]},
+    preflight:{title:'/afk:preflight — the PF-1…7 ship ladder',steps:[
+      {k:'guard',t:'0 · Refusal guard',who:'gate',d:'PLAN.md’s header must literally read "complete (smoke green …)". Anything else → refused(no_green_smoke), and the guard writes nothing to disk — a refused preflight leaves zero trace.'},
+      {k:'PF-1',t:'PF-1 · Merge & ancestry guard',who:'gate',d:'Merges master into the feature branch — never rebases. A merge conflict parks immediately, never auto-resolved; the ancestry guard verifies the branches sit in the expected relationship first.'},
+      {k:'PF-2',t:'PF-2 · Validations',who:'gate',d:'Re-runs the repo’s mandated validation suite on the integrated result — the feature merged with today’s master, not the branch it was built on. A semantic red parks; never auto-fixed.'},
+      {k:'PF-3',t:'PF-3 · Fresh-context review',who:'gate',d:'A brand-new review pass over the integrated feature diff as a whole — not per-slice. Slices that were individually fine can compose badly; this is where that shows. Blocking findings remediate within the shared 2-cycle cap, else park.'},
+      {k:'PF-4',t:'PF-4 · Final seam check',who:'gate',d:'/afk:verify-seams final over the whole feature: every produced artifact must be consumed, or covered by an IOU that is still valid in final mode. An orphan parks the ship.'},
+      {k:'PF-5',t:'PF-5 · Ship evidence',who:'machine',d:'Renders a frozen mission-control snapshot, commits it as plan/SHIP-SNAPSHOT.html (never re-derived — it’s the record of what shipped), and stamps the MR description’s evidence block via the GitLab API.'},
+      {k:'PF-6',t:'PF-6 · Launch ci-wait',who:'machine',d:'Launches a background CI watcher (90-minute budget, 3-minute polls) and ends the session. Babysitting CI needs no live agent burning tokens — the watcher’s exit code carries the verdict.'},
+      {k:'PF-7',t:'PF-7 · CI outcome routing',who:'gate',d:'Green → the MR flips Draft → Ready. A flake earns exactly one relaunch (counted against the cap before the attempt). A CI-only test red or a secret-detection hit parks immediately — never a fix attempt, because a red only CI can see means the local picture is wrong.'}
+    ]},
+    bug:{title:'/afk:bug — capture → fix → verified, on a 10-state ledger',steps:[
+      {k:'capture',t:'1 · Capture (S1→S2)',who:'you',d:'/afk:bug capture, mid-anything: the evidence bundle (repro, logs, screenshots) is written to disk first (S1 captured), then the Jira Bug is filed (S2 published). Capture never blocks what you were doing — that’s the design constraint it exists for.'},
+      {k:'dispatch',t:'2 · Dispatch (S3→S4)',who:'machine',d:'/afk:bug dispatch hands it to an autonomous fixer. One live fixer max (extras queue as S3); the fixer gets its own isolated worktree off a guarded base branch (S4 fixing) — your checkout is never touched.'},
+      {k:'fix',t:'3 · Fix (S4→S6)',who:'machine',d:'The fixer runs the /afk:diagnose discipline — reproduce → minimise → root-cause → fix → regression test — and pushes a Draft MR (S6 fix-pushed). A stuck fixer parks as S5 blocked instead of thrashing.'},
+      {k:'mr',t:'4 · MR ready (S7)',who:'you',d:'The fixer flips the MR to Ready (S7 mr-ready) for a normal human review and merge — same human line as everywhere else in the workflow.'},
+      {k:'retest',t:'5 · Auto-retest (S8)',who:'machine',d:'When the fix commit is detected on the target branch, the original captured repro re-runs automatically, read-only (S8 awaiting-retest) — the fix is judged against the exact evidence that defined the bug.'},
+      {k:'verdict',t:'6 · Verdict (S9 / S10)',who:'gate',d:'verified (S9) archives the bug; refuted (S10) offers a re-dispatch with the retest evidence attached. The ledger has no state in which a bug can silently fall through.'}
+    ]}
+  };
+  document.querySelectorAll('.flow[data-flow]').forEach(function(host){
+    var f=FLOWS[host.dataset.flow];if(!f)return;
+    host.innerHTML='<div class="flow-top"><h3>'+f.title+'</h3><span class="fstep"></span></div>'
+      +'<input type="range" min="0" max="'+(f.steps.length-1)+'" step="1" value="0" aria-label="Step slider: '+f.title+'">'
+      +'<div class="ticks"></div><div class="fcard"></div>';
+    var range=host.querySelector('input'),ticks=host.querySelector('.ticks'),card=host.querySelector('.fcard'),stepn=host.querySelector('.fstep');
+    f.steps.forEach(function(s,i){
+      var b=document.createElement('button');b.type='button';b.textContent=s.k;b.title=s.t;
+      b.addEventListener('click',function(){range.value=i;render();});
+      ticks.appendChild(b);
+    });
+    function render(){
+      var i=+range.value,s=f.steps[i];
+      stepn.textContent='step '+(i+1)+' / '+f.steps.length;
+      var bs=ticks.querySelectorAll('button');
+      bs.forEach(function(b,j){b.className=j===i?'on':(j<i?'past':'');});
+      card.innerHTML='<h4>'+s.t+'</h4><p class="who">'+WHO[s.who]+'</p><p>'+s.d+'</p>'+(s.n?'<p class="fnote">'+s.n+'</p>':'');
+      if(window.__annotate)window.__annotate(card);
+    }
+    range.addEventListener('input',render);
+    render();
+  });
+})();
+</script>
+

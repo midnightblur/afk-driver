@@ -810,6 +810,12 @@ any time, in any project.
   hidden from the `/` menu via `user-invocable: false` — skills emitting
   interactive walkthrough pages load it. (Static diagrams stay with
   `draw-charts`.)
+- **`/afk:pitch`** — steward of the AFK pitch/field-guide page. The checked-in
+  source (`skills/utils/pitch/afk-pitch.html`) carries a snapshot-commit marker;
+  the skill diffs marker→HEAD, patches stale facts (counts re-derived
+  empirically, never from prose), and republishes the claude.ai artifact to its
+  stable URL (one-homed in its `SKILL.md`; owner's account only). Manually
+  invoked — deliberately no automatic trigger.
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
   survives sessions.
 - **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR
