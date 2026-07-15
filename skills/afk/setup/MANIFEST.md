@@ -284,6 +284,65 @@ a token value — not even partially.
 - Minted at runtime by `11700-payable/verification/core`; provisioning lives in
   that tree's docs, not here. Nothing to set up until N3's first use.
 
+## O — OpenAI Codex CLI *(optional — the second supported agent runtime)*
+
+Gating rule: if O1 misses, report the **whole section** as
+`deferred (Codex not installed)` — never a failure. O2/O5 are also enforced
+provider-independently by the `codex-drift-gate.sh` Stop hook; here they exist
+so a Codex-side machine gets provisioned/repaired by the same doctor loop.
+
+### O1 · codex binary + login
+- **Needed by:** running any afk skill under Codex CLI (mirror layout:
+  `tools/payable/ai-agents/codex-sync/README.md`).
+- **Probe:** `command -v codex`
+- **Fix:** `human:` install OpenAI Codex CLI per its official docs, then
+  `codex login`. Skip entirely if this machine only runs Claude Code.
+
+### O2 · generated Codex layer current
+- **Needed by:** Codex skill discovery (`.agents/skills/`), subagent defs
+  (`.codex/agents/`), hook wiring (`.codex/hooks.json`).
+- **Probe:** `python tools/payable/ai-agents/codex-sync/generate.py --check`
+- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`,
+  then commit the regenerated artifacts if sources changed.
+
+### O3 · repo hooks trusted by Codex
+- **Needed by:** the Stop-gate suite + PreToolUse guards under Codex.
+- **Probe:** `test -f .codex/hooks.json` (file presence; trust state is not
+  probeable headlessly).
+- **Fix:** `auto:` O2's generator emits the file; `human:` approve the
+  hook-trust prompt Codex shows on first run in this repo.
+
+### O4 · `~/.codex/config.toml` — MCP servers + agent depth
+- **Needed by:** Jira MCP under Codex (S1 creds may live in its
+  `[mcp_servers.jira.env]`), IntelliJ MCP, and DELEGATION.md's 3-level
+  nesting (`[agents] max_depth = 3`).
+- **Probe:** presence-only, prints nothing secret; a malformed file reports
+  `unparseable` (fix it by hand — often unescaped Windows `\` paths):
+  ```sh
+  python - <<'PY'
+  import os, sys, tomllib
+  p = os.path.expanduser("~/.codex/config.toml")
+  try:
+      d = tomllib.loads(open(p, encoding="utf-8").read()) if os.path.exists(p) else {}
+  except Exception:
+      print("unparseable:", p); sys.exit(1)
+  m = [k for k in ("jira",) if k not in d.get("mcp_servers", {})]
+  if d.get("agents", {}).get("max_depth", 1) < 3:
+      m.append("agents.max_depth>=3")
+  print("missing: " + ", ".join(m) if m else "ok"); sys.exit(1 if m else 0)
+  PY
+  ```
+- **Fix:** `human:` merge `tools/payable/ai-agents/codex-sync/config-fragment.toml`
+  into `~/.codex/config.toml` (user-global — never auto-edited), making the
+  server paths absolute for this machine.
+
+### O5 · AGENTS.md harness block
+- **Needed by:** Codex first-turn context (`**/AGENTS.md` is gitignored —
+  GitNexus owns the file per-machine; the afk block rides the generator, not git).
+- **Probe:** `grep -q 'afk-harness:begin' AGENTS.md`
+- **Fix:** `auto:` run O2's generator (inserts/refreshes the marker block,
+  preserving non-block content byte-for-byte).
+
 ## X — Sibling state (assumed present, not shipped by this plugin)
 
 ### X1 · core-services checkout
