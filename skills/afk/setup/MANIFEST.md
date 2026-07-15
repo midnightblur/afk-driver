@@ -35,9 +35,17 @@ a token value — not even partially.
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` a cheap `mcp__jira__jira_get` on a known key succeeds
   (or the `mcp__jira__*` tools are listed at all).
-- **Fix:** `human:` add a `jira` server to `~/.claude.json` `mcpServers` with an
-  `env` block carrying the S1 variables.
-- **Notes:** host is Jira Cloud (`nakisa.atlassian.net`).
+- **Fix:** `human:` register the plugin-shipped server user-scoped —
+  `~/.claude.json` `mcpServers.jira` = `{ "type": "stdio", "command": "python",
+  "args": ["<abs path to>/tools/payable/ai-agents/plugins/workflow/mcp-servers/jira/server.py"],
+  "env": { …the S1 variables… } }` (or the equivalent
+  `claude mcp add --scope user jira -e JIRA_… -- python <that path>`), then
+  restart the session. Python deps: P3.
+- **Notes:** host is Jira Cloud (`nakisa.atlassian.net`). Server source ships
+  in this plugin at `mcp-servers/jira/server.py` — registration MUST stay
+  **user-scoped under the key `jira`**: bundling it as a plugin MCP server
+  renames the tools to `mcp__plugin_afk_jira__*` (and user scope shadows the
+  plugin entry anyway), breaking every `mcp__jira__*` reference.
 
 ### H3 · lean-ctx MCP server *(optional)*
 - **Needed by:** `ctx_read`/`ctx_search`/`ctx_tree` calls in
@@ -172,13 +180,20 @@ a token value — not even partially.
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
 
-### P2 · markdown-it-py (the only pip package)
+### P2 · markdown-it-py
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
   (PRD / meeting body → ADF), the shared Jira lib `scripts/jira_core.py`
   (imported by both `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`
   for the same Markdown→ADF conversion; ADR-0001).
 - **Probe:** `python -c "import markdown_it"`
 - **Fix:** `auto:` `pip install markdown-it-py`
+
+### P3 · mcp + httpx (Jira MCP server runtime)
+- **Needed by:** `mcp-servers/jira/server.py` (H2) — FastMCP host + HTTP client.
+- **Probe:** `python -c "import mcp, httpx"`
+- **Fix:** `auto:` `pip install mcp httpx`
+- **Notes:** missing deps surface as the `jira` server failing to connect at
+  session start, not as a skill error.
 
 ## N — Node toolchain
 
