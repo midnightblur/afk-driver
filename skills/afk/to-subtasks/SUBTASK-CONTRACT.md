@@ -70,7 +70,11 @@ a line citing a materialized Produces bullet carries the same trailing marker>
 
 ## Verification
 <tiered — one row per tier this subtask needs; static is always present.
-The implementor (/afk:execute) must turn EVERY listed tier green.>
+The implementor (/afk:execute) must turn EVERY listed tier green.
+api / e2e rows must drive the same interaction shape the real client uses —
+server-provided data round-trips verbatim; an input massaged solely to dodge a
+server rejection is forbidden (an unexpected failure on a faithful interaction
+is a candidate defect, not an input-shaping cue).>
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | `<compile/lint/type cmd>` + grep the ## Produces anchors | code builds; declared symbols present |
