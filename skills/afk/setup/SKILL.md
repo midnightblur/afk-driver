@@ -33,6 +33,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    even when the plain probe passes, and its fix is the entry's `Base fix:`.
    Batch independent probes. Classify each: `ok` · `missing/broken` · `deferred`
    (tagged **[deferred]**, first-use not yet reached — never a failure).
+   Section **O** (OpenAI Codex CLI) has its own gating rule: O1 missing →
+   the whole section reports `deferred (Codex not installed)` wholesale.
    **Never classify on a stale environment.** A process inherits the environment
    of the one that launched it, so a tool installed after this session started is
    absent from its `PATH` though the machine is healthy. Before classifying any

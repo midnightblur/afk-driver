@@ -105,12 +105,12 @@ REGISTER="$PLUGIN_DIR/skills/afk/setup/MANIFEST.md"
 ambient='PATH|HOME|USERPROFILE|TMPDIR|TEMP|TMP|PWD|OLDPWD|IFS|BASH_SOURCE|FUNCNAME|OSTYPE|JAVA_HOME|CLAUDECODE|CLAUDE_PLUGIN_ROOT'
 unregistered=""
 if [ -f "$REGISTER" ]; then
-  hook_reads=$(grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh 2>/dev/null \
+  hook_reads=$(grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh "$PLUGIN_DIR"/hooks/lib/*.sh 2>/dev/null \
     | grep -oE '\$\{?[A-Z][A-Z0-9_]{2,}' \
     | sed -E 's/^\$\{?//' | sort -u | grep -vE "^($ambient)$")
   for v in $hook_reads; do
     # assigned in hooks/ (comment lines stripped; self-defaults don't count) => internal
-    if grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh 2>/dev/null \
+    if grep -hvE '^[[:space:]]*#' "$PLUGIN_DIR"/hooks/*.sh "$PLUGIN_DIR"/hooks/lib/*.sh 2>/dev/null \
         | grep -E "(^|[^A-Za-z0-9_\$])${v}=" | grep -vE "${v}=\"?\\\$\{${v}[:}-]" | grep -q .; then
       continue
     fi

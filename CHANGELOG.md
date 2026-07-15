@@ -12,6 +12,7 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-07-15
 
+- Dual-provider support: the workflow now also runs under the OpenAI Codex CLI — a generated mirror (`.agents/skills/`, `.codex/`, AGENTS.md block) produced by `tools/payable/ai-agents/codex-sync/generate.py`, a `PROVIDERS.md` provider mapping, a provider shim for hooks (`hooks/lib/provider.sh`), Jira creds fallback to `~/.codex/config.toml`, `/afk:setup` section O for Codex provisioning, and a `codex-drift-gate.sh` Stop gate that keeps the mirror regenerated in the same commit.
 - `/afk:setup`'s human-gated fixes are now one script: run `skills/afk/setup/scripts/setup_secrets.py` from your own terminal — prompts for tracker + SCM credentials, validates before writing, never echoes a secret, idempotent.
 - The Jira MCP server now ships in-plugin (`mcp-servers/jira/server.py`) — no separate checkout; registered user-scoped under key `jira` (the setup script places it).
 - Wiring gate diffs new files against `origin/master` instead of your branch's upstream — other teams' merged files can no longer false-block your turn.
