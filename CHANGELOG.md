@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-16
+
+- `APP_START_SKIP_UI=false` now actually serves a frontend. It was a silent no-op: the default Maven profile leaves `*-ui` out of the reactor, so the UI never built, the app's `public/` stayed empty, and the instance booted serving nothing — a browser tier would pass against a page that wasn't there. `app-start-gate.sh` now runs the service's own `build_ui.sh` before packaging the leaf, and refuses to boot (exit 2) if the build leaves no `public/index.html`. Reaching for Maven's `-DskipUi=false -DpipelineBuild=true` instead would force every in-house UI lib to rebuild (`skipUi` is global) — needing a vite/rollup native binary that isn't pinned on all dev platforms, to remake a `dist/` that already exists. New env var: `CI_PROJECT_DIR` (optional, defaults to the repo root).
+
 ## 2026-07-15
 
 - Pass cache extended to all Stop gates: wiring, skill-registry, codex-drift, and genericity now skip their scans when the tree is unchanged since their last pass (`gate-cache.sh`, previously compile/lint/format only); wiring bypasses the cache in final mode.
