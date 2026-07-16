@@ -17,6 +17,14 @@ During codebase exploration, also look for existing documentation. This repo use
 
 ## During the session
 
+### Hunt glossary terms actively — verify early
+
+Standing obligations, from the first exchange:
+
+- **Scan every plan statement and user answer for candidate terms** — domain nouns, lifecycle states, actions, role names. Anything two people could read differently is a candidate.
+- **Draft your own definition first** (from the code, the plan, the conversation), then ask the user to **verify** it: "I take 'X' to mean … — correct?" A proposed-definition question beats an open "what does X mean?".
+- **Ask the verification question as soon as the candidate surfaces** — an unverified term poisons every question built on it; never batch term verification to the end of the session.
+
 ### Challenge against the glossary
 
 When a term conflicts with the existing language in the relevant `GLOSSARY.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
@@ -58,7 +66,9 @@ Read the service's staples registry `{service}/STAPLES.md` at the start, alongsi
 
 ### Update GLOSSARY.md inline
 
-When a term resolves, immediately update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if system-wide. Don't batch — capture as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
+When a term resolves (user-verified), immediately update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if system-wide. Don't batch — capture as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
+
+Grill-time definitions are *initial* — the executing skill revises an entry when implementation proves it wrong; never defer writing on that account.
 
 `GLOSSARY.md` must be totally devoid of implementation details — not a spec, scratch pad, or repository for implementation decisions. A glossary and nothing else.
 
@@ -76,10 +86,11 @@ The glossary is the one artifact this skill maintains — it *is* the shared und
 Only declare the requirements decision tree exhausted when ALL hold:
 
 - Every actor / user story / out-of-scope / non-functional concern settled.
+- Every candidate glossary term surfaced during the session has a **user-verified** entry in the owning `GLOSSARY.md`.
 - Every actor/story has a role policy with at least one denied role, a data-scope policy, and a validation policy.
 - Every `active` staple whose Trigger matches this feature is resolved in/out with a rationale.
 - The claim ledger is settled — every load-bearing claim verified or explicitly unverified-external.
 - Every requirement carries its pain; every restriction survived its counter-question.
 - The devil's-advocate pass ran with its findings resolved.
 
-Then run **`/afk:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Then **commit the session's glossary updates** as their own commit (glossary changes only — `{TICKET-ID}: glossary — <terms>`). Then run **`/afk:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

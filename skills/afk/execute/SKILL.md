@@ -89,7 +89,7 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
     Mandatory in driven mode; on by default interactively (only the human may skip it).
 
-11. **Update the tracker.** Set the subtask's PLAN.md row `Status` to `done`; stamp the `Last updated` date. The subtask file round-trips verbatim — this skill writes no per-run note anywhere; the run's signals live in the PLAN.md `Status`/`blocked(…)` cell, `plan/JOURNAL.md`, and `plan/review/*.md`.
+11. **Reconcile the glossary, then update the tracker.** If implementation revealed a domain term's actual semantics differ from its `GLOSSARY.md` definition (owning glossary located via `GLOSSARY-MAP.md`; format per `/afk:glossary`), update the entry and commit it separately: `[{NNNN-slug}] glossary: <terms>`. Then set the subtask's PLAN.md row `Status` to `done`; stamp the `Last updated` date. The subtask file round-trips verbatim — this skill writes no per-run note anywhere; the run's signals live in the PLAN.md `Status`/`blocked(…)` cell, `plan/JOURNAL.md`, and `plan/review/*.md`.
 
 12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. Anything the plan defines beyond a single subtask — a feature-level gate the human runs once all subtasks are `done` — is likewise not yours to trigger.
 
