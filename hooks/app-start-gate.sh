@@ -99,7 +99,14 @@ if [ "$skip_ui" = "false" ]; then
     echo "[app-start-gate] APP_START_SKIP_UI=false but no UI build script at $ui_build" >&2
     exit 3
   fi
-  echo "[app-start-gate] building UI via $ui_build — populates $mod/src/main/resources/public ..."
+  # Clear the SPA target FIRST. build_ui.sh ends with `cp -Rf dist/spa <public>`,
+  # and `cp -R <dir> <dest>` nests into <dest>/spa/ when <dest> already exists
+  # (vs. populating <dest> when it doesn't) — so a second gate run on a populated
+  # public/ would bury the fresh SPA one level deep and the app would serve the
+  # STALE build. Removing it makes every run a clean first-populate.
+  spa_root="$mod/src/main/resources/public"
+  rm -rf "$spa_root"
+  echo "[app-start-gate] building UI via $ui_build — populates $spa_root ..."
   # build_ui.sh runs the UI unit suite under `set -e`: a red suite fails the UI build
   # (and CI's), so it is a code failure here too, not an environment one.
   if ! bash "$ui_build" -c "${CI_PROJECT_DIR:-$repo_root}" > "$log" 2>&1; then
@@ -112,7 +119,6 @@ if [ "$skip_ui" = "false" ]; then
     } >&2
     exit 2
   fi
-  spa_root="$mod/src/main/resources/public"
   if [ ! -f "$spa_root/index.html" ]; then
     release_maven_lock
     gate_metrics_emit app-start code_failure "\"module\":\"$ui_mod\",\"phase\":\"ui\""
