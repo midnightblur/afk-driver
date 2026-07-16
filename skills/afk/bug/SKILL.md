@@ -1,6 +1,6 @@
 ---
 name: bug
-description: Capture a bug mid-task without losing your place, file it to Jira with its evidence, and hand it to an autonomous fixer that works in its own worktree and delivers a human-mergeable MR — then auto-retest once the fix lands. Use when a bug surfaces while you are doing something else (`/afk:bug capture`), when you want to dispatch a captured bug to an autonomous fixer (`/afk:bug dispatch`), or to check in-flight bugs (`/afk:bug status`).
+description: Capture a bug mid-task without losing your place, file it to Jira with its evidence, hand it to an autonomous fixer (own worktree, delivers a human-mergeable MR), and auto-retest once the fix lands. Use when a bug surfaces mid-task or to manage captured bugs — subcommands `capture` / `dispatch` / `status` / `retest` / `purge`.
 ---
 
 # afk:bug — mid-task bug capture + autonomous fix pipeline

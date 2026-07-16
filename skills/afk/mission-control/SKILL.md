@@ -1,6 +1,6 @@
 ---
 name: mission-control
-description: Launch (or relaunch) the read-only mission-control dashboard for one feature's spec folder — watch mode for a live run, `--once` for a retroactive render of an already-finished feature. Use when the user runs `/afk:mission-control {spec-folder}`, asks to "see the dashboard" / "view progress" for a feature, or the watcher has crashed and needs relaunching.
+description: Launch (or relaunch) the read-only mission-control dashboard for one feature's spec folder — watch mode for a live run, `--once` for a retroactive render. Use when the user runs `/afk:mission-control {spec-folder}`, asks to see the dashboard/progress for a feature, or the watcher crashed.
 ---
 
 # afk:mission-control — launch the feature dashboard

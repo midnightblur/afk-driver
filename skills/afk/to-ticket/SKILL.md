@@ -1,6 +1,6 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded — or publish a meeting summary onto any ticket as a collapsible expand. Use when `PRD.md` exists on disk and the parent key is known, or when a meeting needs recording on a ticket. Idempotent — re-run to update in place. The one design-chain skill that writes to the tracker.
+description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded — or publish a meeting summary onto any ticket as a collapsible expand. Use when `PRD.md` exists and the parent key is known, or to record a meeting on a ticket. Idempotent; the one design-chain skill writing to the tracker.
 ---
 
 # afk:to-ticket — publish into the Jira ticket

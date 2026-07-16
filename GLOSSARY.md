@@ -46,6 +46,9 @@ The `plan/` directory — `PLAN.md` (index: solution map, seam register, progres
 **Subtask contract**:
 One `plan/NNNN-slug.md` file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.
 
+**Context excerpts**:
+The contract's `## Context excerpts` section — verbatim, citation-tagged PRD/SDD/ADR quotes selected at slicing time; the executor's spec context, full parent docs opened only when the excerpts don't settle a question.
+
 **Journal**:
 `plan/JOURNAL.md` — the append-only, timestamped event log of everything that happened to a plan (status changes, parks, commits, verdicts). The "what happened while you were gone" artifact. Format: `skills/afk/to-subtasks/JOURNAL-FORMAT.md`.
 _Avoid_: log file (generic), history

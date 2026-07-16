@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-16
+
+- Token-lean runs, same gates: subtask contracts now carry `## Context excerpts` (slicing-time verbatim PRD/SDD/ADR quotes) so each executor works from its contract instead of re-reading the parent docs; execute's design-bar checklist reads and review's `refactor-safety` concern are trigger-gated by diff/slice shape; review materializes the diff once to a scratch file for all reviewers; `/afk:grill-verification` ingests sources via an `afk-reader` digest; maven-compile/ui-lint gates report triaged failure digests (full log to a file) instead of unbounded dumps.
+
 ## 2026-07-15
 
 - Pass cache extended to all Stop gates: wiring, skill-registry, codex-drift, and genericity now skip their scans when the tree is unchanged since their last pass (`gate-cache.sh`, previously compile/lint/format only); wiring bypasses the cache in final mode.

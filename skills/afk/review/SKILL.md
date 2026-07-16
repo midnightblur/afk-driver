@@ -1,6 +1,6 @@
 ---
 name: review
-description: Independent multi-aspect review of a subtask slice or an integrated feature diff — fresh parallel reviewers, one book-derived checklist per concern (implementation concerns always, design-level concerns trigger-activated by diff shape), an adversarial verify pass on design-level findings, emitting a ranked findings report plus a verdict the caller gates on. Read-only. Use as the post-verification review gate, standalone via `/afk:review {NNNN-slug}`, or on a whole feature via `/afk:review --feature`.
+description: Independent multi-aspect review of a subtask slice or an integrated feature diff — fresh parallel reviewers, one book-derived checklist per concern (implementation concerns always; design-level concerns and refactor-safety trigger-activated by diff shape), an adversarial verify pass on design-level findings, emitting a ranked findings report plus a verdict the caller gates on. Read-only. Use as the post-verification review gate, standalone via `/afk:review {NNNN-slug}`, or on a whole feature via `/afk:review --feature`.
 ---
 
 # afk:review — independently check the implementor's work
@@ -26,7 +26,7 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 
 Resolve these once, in the orchestrator, and hand each subagent only the paths it needs (don't paste the implementor's chat):
 
-1. **The slice diff.** This subtask's own commits (by `[{NNNN-slug}]` prefix, or the `--base` range) — **not** pre-filtered by Scope globs, so out-of-scope edits stay visible to `scope-and-impact`. The unit under review.
+1. **The slice diff.** This subtask's own commits (by `[{NNNN-slug}]` prefix, or the `--base` range) — **not** pre-filtered by Scope globs, so out-of-scope edits stay visible to `scope-and-impact`. The unit under review. **Materialize it once**: write the diff to a scratch file (`{scratchpad}/review-{basename}-{base-short}.diff`) and hand every subagent that path — never paste diff text into a prompt.
 2. **The subtask contract.** `plan/{NNNN-slug}.md` — `## Goal / Scope / Acceptance / Verification / Produces / Seams / Parent PRD / Parent SDD / Design refs`. In uncited mode the SDD-only sections are absent.
 3. **The parent spec.** The `## Parent PRD` file, and (cited mode) the `## Parent SDD` + cited `## Design refs` ADR sections.
 4. **The CLAUDE.md chain** for every touched file — walk each changed file's directory up to the repo root collecting `CLAUDE.md`, plus that service's root `CLAUDE.md`, the repo-root `CLAUDE.md`, any `.claude/rules/*.md`, and the nearest `GLOSSARY.md`. The rulebook the `claude-md-compliance` concern checks against.
@@ -35,7 +35,7 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 
 One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: `checklists/PRECEDENCE.md` **plus** the concern's `checklists/{concern}.md`, both pasted **verbatim** (the subagent has no other access to them), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — the checklist files' one-owner exclusions prevent most of it; dedup handles the rest. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
 
-Seven implementation/conformance concerns run on every review. Four **design-level** concerns activate by diff-shape trigger (below) — reviewer count scales with what the slice actually introduces.
+Six implementation/conformance concerns run on every review. Four **design-level** concerns plus `refactor-safety` activate by diff-shape trigger (below) — reviewer count scales with what the slice actually introduces.
 
 | Concern | Asks | Default subagent reads |
 |---|---|---|
@@ -53,12 +53,13 @@ Seven implementation/conformance concerns run on every review. Four **design-lev
 
 **Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule, the four design-level concerns→`design` (escalation and `pattern-debt` rules live in their checklist files + `PRECEDENCE.md`). A cross-class finding takes the class naming the underlying cause.
 
-### Trigger activation (design-level concerns, slice mode)
+### Trigger activation (slice mode)
 
 Before spawning, scan the slice diff — changed-file list + added hunks, cheap greps in the orchestrator, no subagent:
 
 | Concern | Activate when the diff contains |
 |---|---|
+| `refactor-safety` | any modified or deleted pre-existing line (a diff that is purely additions of new files has nothing to break) |
 | `design-quality` | a new class/interface/module, or changes spanning more than ~6 files |
 | `domain-alignment` | a new or modified `@Entity`, any `@Transactional`, or a new public service-layer method |
 | `resilience` | a new out-of-process call (HTTP client/JMS/RFC), repository query, endpoint, or scheduled job |
