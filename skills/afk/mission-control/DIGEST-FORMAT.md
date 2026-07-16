@@ -91,10 +91,16 @@ subtask ownership). Shape:
 Required per module: `id`, `name`, `responsibility`. Dependency direction is
 dependent → dependency (the arrow the SDD draws).
 
-`diagrams`: carry over the SDD's own mermaid blocks (`source` verbatim). When
-`mmdc` is on PATH (provisioned per `skills/afk/setup/MANIFEST.md` N2), also
-pre-render each to SVG and embed as `svg` — the shell inlines it; otherwise
-the shell shows the source. Never reference external files.
+`diagrams`: carry over the SDD's own mermaid blocks (`source` verbatim), and
+**always attempt** to pre-render each to SVG and embed as `svg` — the page has
+no mermaid engine, so a source-only diagram displays as raw text. Render via
+`mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli` (provisioned per
+`skills/afk/setup/MANIFEST.md` N2), with `-b white` (the white plate keeps the
+diagram legible in dark theme). The CLI emits every SVG with `id="my-svg"` —
+rewrite that token to a unique id per diagram (e.g. `mc-arch-dg{N}`) before
+embedding, or two inline SVGs cross-talk styles and marker refs. Render
+failure → keep `source` only (the shell falls back to showing it). Never
+reference external files.
 
 ### flows.json — journeys and processes, as steppable simulations
 
