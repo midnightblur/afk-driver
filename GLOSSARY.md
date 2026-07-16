@@ -74,8 +74,12 @@ The classification every grill question gets before it's asked (rule: `skills/af
 _Avoid_: quick questions (vague), survey (implies no escalation path)
 
 **Mission control**:
-The per-feature, read-only HTML dashboard *derived* from the plan's existing artifacts — tracker, journal, gate verdicts, SDD diagrams, git diffs. A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
+The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
 _Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
+
+**Design digest**:
+A committed, hash-stamped JSON synthesis of a feature's design docs (`plan/digests/*.json` — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by `/afk:mission-control build`; a manifest records every source file's hash, so source drift shows as a visible *stale* banner, never as silently current content. Carries design synthesis only — never status. Contract: `skills/afk/mission-control/DIGEST-FORMAT.md`.
+_Avoid_: cache (implies transparent freshness), summary file (undersells the schema contract)
 
 ## Design layers (L1–L9)
 

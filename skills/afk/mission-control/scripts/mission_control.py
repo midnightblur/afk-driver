@@ -1,41 +1,55 @@
 #!/usr/bin/env python3
-"""Mission-control renderer CLI (M5) — spec folder -> static dashboard.
+"""Mission-control renderer CLI (M5) — spec folder -> interactive dashboard.
 
-Usage: mission_control.py <spec_dir> [--once] [--port PORT]
+Usage: mission_control.py <spec_dir> [--once] [--port PORT] [--check-digests]
 
 Binding contract: SDD.md (this feature's own spec folder) §3 contract table
-row "MC renderer (M5)" and §8 module table row "M5 renderer". `spec_dir` is
-the feature's spec folder (containing `PRD.md` / `SDD.md` / `plan/`).
+row "MC renderer (M5)" and §8 module table row "M5 renderer", as amended by
+the two-layer rebuild ADR. `spec_dir` is the feature's spec folder
+(containing `PRD.md` / `SDD.md` / `plan/`).
 
-`EXIT_PATH_FENCE` and `PANEL_PARSERS` are this subtask's `## Produces`
-anchors, read by later subtasks (0004-mission-control-skill,
-0005-preflight-skill) in this plan.
+Two layers, one page: live sections are deterministic parses of the lockstep
+artifact formats (status truth); digest sections load the LLM-authored,
+hash-stamped `plan/digests/*.json` (design truth; contract:
+`DIGEST-FORMAT.md` in this skill directory). The renderer never builds a
+digest — `--check-digests` reports freshness for the skill's build mode.
+
+`EXIT_PATH_FENCE` is this feature's original `## Produces` anchor;
+`PANEL_PARSERS` is kept as an alias of `SECTION_PARSERS` for the same reason
+(historical plan anchors stay greppable).
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-from mc import server
-from mc.panels import design_map, diffs, gates, progress, timeline, understanding
+from mc import digests, server
+from mc.sections import architecture, diffs, digest_sections, gates, insights, progress, timeline
 
 EXIT_OK = 0
 EXIT_PATH_FENCE = 2
 
 DEFAULT_PORT = 8420
 
-# ADR-0007: independent parsers behind one registry; each yields
-# PanelVM | Absent(reason), never an exception (see mc/vm.py). Parser list
-# order is layout order — understanding trails the gates panel.
-PANEL_PARSERS = [
+# ADR-0007 (extended): independent parsers behind one registry; each yields
+# SectionVM | Absent(reason), never an exception (see mc/vm.py). Overview is
+# composed from these in mc/compose.py; nav order lives there too.
+SECTION_PARSERS = [
+    architecture.parse,
+    digest_sections.flows,
+    digest_sections.entities,
+    digest_sections.decisions,
+    digest_sections.critical_logic,
+    digest_sections.legend,
     progress.parse,
     timeline.parse,
-    design_map.parse,
-    diffs.parse,
     gates.parse,
-    understanding.parse,
+    insights.parse,
+    diffs.parse,
 ]
+PANEL_PARSERS = SECTION_PARSERS  # historical anchor alias (plan `## Produces`)
 
 
 def _find_repo_root(start: Path):
@@ -72,6 +86,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("spec_dir", help="path to the feature's spec folder (contains PRD.md/SDD.md/plan/)")
     parser.add_argument("--once", action="store_true", help="render once and exit (retroactive mode, AC-013)")
     parser.add_argument(
+        "--check-digests",
+        action="store_true",
+        help="print per-digest freshness as JSON and exit (read-only; for the skill's build mode)",
+    )
+    parser.add_argument(
         "--port",
         type=int,
         default=DEFAULT_PORT,
@@ -85,11 +104,15 @@ def main(argv=None) -> int:
     spec_dir = enforce_path_fence(args.spec_dir)
     out_dir = spec_dir / "plan" / "mission-control"
 
-    if args.once:
-        server.render_once(spec_dir, out_dir, PANEL_PARSERS, live_reload=False)
+    if args.check_digests:
+        print(json.dumps(digests.status(spec_dir), indent=2))
         return EXIT_OK
 
-    httpd = server.watch_and_serve(spec_dir, out_dir, args.port, PANEL_PARSERS)
+    if args.once:
+        server.render_once(spec_dir, out_dir, SECTION_PARSERS, live_reload=False)
+        return EXIT_OK
+
+    httpd = server.watch_and_serve(spec_dir, out_dir, args.port, SECTION_PARSERS)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

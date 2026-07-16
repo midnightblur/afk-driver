@@ -13,17 +13,25 @@ import re
 _HEADING_RE = re.compile(r"^(#+)\s+(.*)$")
 
 
-def extract_section(text: str, heading: str) -> "str | None":
+def extract_section(text: str, heading: str, prefix: bool = False) -> "str | None":
     """Return the body between a heading line matching `heading` (exact text
     after stripping the leading `#`s and surrounding whitespace) and the next
     heading of the same or shallower level. `None` if no such heading exists.
+
+    `prefix=True` matches a heading that *starts with* `heading` — real plans
+    decorate headings with trailing HTML comments or variant suffixes (e.g.
+    `## Preflight   <!-- created on first run -->`, `## Feature smoke gate
+    (minimal)`).
     """
     lines = text.splitlines()
     start = None
     start_level = None
     for index, line in enumerate(lines):
         match = _HEADING_RE.match(line)
-        if match and match.group(2).strip() == heading:
+        if not match:
+            continue
+        title = match.group(2).strip()
+        if title == heading or (prefix and title.startswith(heading)):
             start = index + 1
             start_level = len(match.group(1))
             break
@@ -43,9 +51,18 @@ def parse_table(block: str) -> list:
     """Parse the first GitHub-flavored markdown table found in `block` into a
     list of `dict`s keyed by header cell text. `[]` if no table is found.
     """
+    _, rows = parse_table_ordered(block)
+    return rows
+
+
+def parse_table_ordered(block: str) -> tuple:
+    """Like `parse_table` but also returns the header cells in column order:
+    `(headers, rows)` — the shell renders unknown table shapes generically and
+    needs the order the artifact declared. `([], [])` if no table is found.
+    """
     lines = [line for line in block.splitlines() if line.strip().startswith("|")]
     if len(lines) < 2:
-        return []
+        return [], []
     header = [cell.strip() for cell in lines[0].strip().strip("|").split("|")]
     rows = []
     for line in lines[2:]:
@@ -53,4 +70,4 @@ def parse_table(block: str) -> list:
         if len(cells) != len(header):
             continue
         rows.append(dict(zip(header, cells)))
-    return rows
+    return header, rows

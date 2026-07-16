@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission Control</title>
+<!--
+  Mission-control app shell. The renderer (mc/template.py) injects one JSON
+  blob into the #mc-data slot below; everything on screen is rendered from it
+  by the inline JS. No external requests, no forms, no mutating controls —
+  buttons are navigation/disclosure only (AC-012 read-only viewport).
+
+  Injection slots (lockstep with mc/template.py) — the mc-data JSON script
+  element below, and the MC_RELOAD comment marker before </body> (replaced by
+  watch mode's GET-only reload poller; empty in --once output). The literal
+  slot strings appear exactly once each so the injector's first-match replace
+  is unambiguous.
+-->
+<style>
+/* ---------- tokens (palette per the data-viz reference instance) ---------- */
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f0efec;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#008300; --s3:#e87ba4; --s4:#eda100;
+  --s5:#1baf7a; --s6:#eb6834; --s7:#4a3aa7; --s8:#e34948;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --good-text:#006300;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#242422;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+    --s1:#3987e5; --s3:#d55181; --s4:#c98500; --s5:#199e70;
+    --s6:#d95926; --s7:#9085e9; --s8:#e66767;
+    --good-text:#0ca30c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#242422;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --ring:rgba(255,255,255,.10);
+  --s1:#3987e5; --s3:#d55181; --s4:#c98500; --s5:#199e70;
+  --s6:#d95926; --s7:#9085e9; --s8:#e66767;
+  --good-text:#0ca30c;
+}
+
+/* ---------- layout ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--page);color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex}
+#mc-nav{width:220px;min-width:220px;background:var(--surface);
+  border-right:1px solid var(--grid);padding:.9rem .6rem;display:flex;
+  flex-direction:column;gap:.15rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+#mc-nav .brand{font-weight:700;font-size:.95rem;padding:.2rem .6rem .1rem}
+#mc-nav .spec{font-size:.72rem;color:var(--muted);padding:0 .6rem .7rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mc-nav button{display:flex;align-items:center;gap:.55rem;width:100%;
+  font:inherit;font-size:.86rem;text-align:left;background:none;color:var(--ink-2);
+  border:none;border-radius:7px;padding:.42rem .6rem;cursor:pointer}
+#mc-nav button:hover{background:var(--surface-2)}
+#mc-nav button.on{background:var(--surface-2);color:var(--ink);font-weight:600}
+#mc-nav .dot{width:8px;height:8px;border-radius:50%;flex:none}
+#mc-nav .key{margin-left:auto;font-size:.66rem;color:var(--muted)}
+#mc-nav .foot{margin-top:auto;font-size:.68rem;color:var(--muted);padding:.6rem}
+#mc-main{flex:1;min-width:0;padding:1.1rem 1.4rem 3rem;max-width:1200px}
+h1{font-size:1.15rem;margin:.1rem 0 .2rem}
+h2{font-size:.98rem;margin:1.2rem 0 .5rem}
+h3{font-size:.86rem;margin:.9rem 0 .4rem;color:var(--ink-2)}
+.mc-sub{color:var(--muted);font-size:.8rem;margin:0 0 .9rem}
+
+/* ---------- shared bits ---------- */
+.card{background:var(--surface);border:1px solid var(--grid);border-radius:10px;
+  padding:.85rem 1rem;margin:.6rem 0}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.6rem}
+.cardgrid .card{margin:0}
+.chip{display:inline-flex;align-items:center;gap:.3rem;border:1px solid var(--grid);
+  border-radius:99px;padding:.05rem .55rem;font-size:.72rem;color:var(--ink-2);
+  background:var(--surface);white-space:nowrap}
+.chip .swatch{width:7px;height:7px;border-radius:50%}
+.chip.ghost{border-style:dashed;color:var(--muted)}
+.banner{border:1px solid var(--grid);border-left:4px solid var(--warn);
+  border-radius:8px;padding:.5rem .8rem;font-size:.8rem;color:var(--ink-2);
+  background:var(--surface);margin:.4rem 0}
+.banner.missing{border-left-color:var(--baseline)}
+.banner.invalid{border-left-color:var(--crit)}
+.banner code{background:var(--surface-2);padding:0 .3rem;border-radius:4px}
+table.mc{width:100%;border-collapse:collapse;font-size:.8rem}
+table.mc th{color:var(--muted);font-weight:600;text-align:left}
+table.mc th,table.mc td{padding:.3rem .5rem;border-bottom:1px solid var(--grid);
+  vertical-align:top}
+table.mc tr:last-child td{border-bottom:none}
+table.mc td{font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.clamp{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.morelink{background:none;border:none;color:var(--s1);cursor:pointer;font:inherit;
+  font-size:.74rem;padding:0}
+details.mc{border:1px solid var(--grid);border-radius:8px;padding:.35rem .7rem;margin:.35rem 0;
+  background:var(--surface)}
+details.mc summary{cursor:pointer;font-size:.8rem;color:var(--ink-2);user-select:none}
+details.mc[open] summary{margin-bottom:.35rem}
+pre.mc{background:var(--surface-2);border-radius:8px;padding:.6rem .8rem;overflow-x:auto;
+  font-size:.74rem;line-height:1.45}
+.statrow{display:flex;flex-wrap:wrap;gap:.6rem;margin:.5rem 0}
+.stat{background:var(--surface);border:1px solid var(--grid);border-radius:10px;
+  padding:.55rem .9rem;min-width:110px}
+.stat .v{font-size:1.35rem;font-weight:700}
+.stat .l{font-size:.72rem;color:var(--muted)}
+.statuschip{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;
+  font-weight:600;border-radius:99px;padding:.06rem .6rem;border:1px solid var(--grid)}
+.statuschip .swatch{width:8px;height:8px;border-radius:50%}
+.empty{color:var(--muted);font-style:italic;font-size:.84rem}
+.srcnote{font-size:.7rem;color:var(--muted);margin-top:.5rem}
+a{color:var(--s1)}
+svg text{fill:var(--ink-2);font:11px system-ui,-apple-system,"Segoe UI",sans-serif}
+.graphwrap{overflow:auto;border:1px solid var(--grid);border-radius:10px;
+  background:var(--surface);padding:.4rem}
+.gnode{cursor:pointer}
+.gnode rect{fill:var(--surface-2);stroke:var(--baseline);rx:7}
+.gnode.sel rect{stroke:var(--s1);stroke-width:2}
+.gnode text{fill:var(--ink)}
+.gedge{fill:none;stroke:var(--baseline);stroke-width:1.4;marker-end:url(#mc-arrow)}
+.gedge.seam{stroke:var(--s6);stroke-dasharray:4 3}
+.detailpane{border-left:3px solid var(--s1)}
+
+/* ---------- tooltip ---------- */
+#mc-tip{position:fixed;z-index:99;max-width:340px;background:var(--surface);
+  color:var(--ink);border:1px solid var(--baseline);border-radius:8px;
+  padding:.45rem .7rem;font-size:.76rem;box-shadow:0 4px 14px rgba(0,0,0,.18);
+  pointer-events:none;display:none}
+#mc-tip .t{font-weight:700;margin-bottom:.15rem}
+[data-tip]{border-bottom:1px dotted var(--muted);cursor:help}
+
+/* ---------- phase stepper ---------- */
+.phases{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin:.5rem 0 .8rem}
+.phases .ph{display:flex;align-items:center;gap:.3rem;font-size:.74rem;color:var(--muted);
+  border:1px solid var(--grid);border-radius:99px;padding:.12rem .7rem;background:var(--surface)}
+.phases .ph.past{color:var(--ink-2);border-color:var(--baseline)}
+.phases .ph.now{color:var(--ink);font-weight:700;border-color:var(--s1);
+  box-shadow:inset 0 0 0 1px var(--s1)}
+.phases .sep{color:var(--baseline)}
+
+/* ---------- segmented progress bar ---------- */
+.segbar{display:flex;height:14px;border-radius:6px;overflow:hidden;gap:2px;
+  background:var(--surface);margin:.4rem 0}
+.segbar div{min-width:3px}
+.legendrow{display:flex;flex-wrap:wrap;gap:.5rem;font-size:.74rem;color:var(--ink-2)}
+.legendrow span{display:inline-flex;align-items:center;gap:.3rem}
+.legendrow .swatch{width:8px;height:8px;border-radius:2px}
+
+/* ---------- subtask ladder ---------- */
+.ladder{display:inline-flex;gap:3px;vertical-align:middle}
+.ladder i{width:9px;height:9px;border-radius:50%;background:var(--surface-2);
+  border:1px solid var(--grid)}
+.ladder i.hit{background:var(--s1);border-color:var(--s1)}
+.ladder i.here{background:var(--surface);border:2px solid var(--s1)}
+
+/* ---------- timeline ---------- */
+.tl-day{font-size:.76rem;font-weight:700;color:var(--muted);margin:.9rem 0 .2rem}
+.tl-ev{display:grid;grid-template-columns:44px 92px 1fr;gap:.6rem;padding:.34rem .2rem;
+  border-bottom:1px solid var(--grid);font-size:.8rem}
+.tl-ev:last-child{border-bottom:none}
+.tl-ev .ts{color:var(--muted);font-variant-numeric:tabular-nums}
+.tl-ev .who{color:var(--ink-2)}
+.filterrow{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}
+.filterrow button{font:inherit;font-size:.74rem;cursor:pointer;border-radius:99px;
+  border:1px solid var(--grid);background:var(--surface);color:var(--ink-2);
+  padding:.1rem .7rem}
+.filterrow button.on{border-color:var(--s1);color:var(--s1);font-weight:600}
+
+/* ---------- walkthrough widgets (adapted from interactive-walkthrough) ---------- */
+.iwf,.iws,.iwg{border:1px solid var(--grid);border-radius:10px;background:var(--surface);
+  padding:1rem 1.1rem;margin:.7rem 0;font-size:.92rem}
+.iwg{overflow-x:auto}
+.iwf input[type=range]{width:100%;accent-color:var(--s1);cursor:pointer;margin:0}
+.iwf-ticks{display:flex;justify-content:space-between;margin:.15rem 0 .8rem}
+.iwf-ticks button{background:none;border:none;padding:.1rem .25rem;cursor:pointer;
+  font:inherit;font-size:.72rem;color:var(--muted);border-radius:4px}
+.iwf-ticks button.on{color:var(--s1);font-weight:700}
+.iwf-ticks button.past{color:var(--ink)}
+.iwf-card,.iws-card{background:var(--surface-2);border:1px solid var(--grid);
+  border-radius:8px;padding:.85rem 1rem;min-height:5.5rem}
+.iwf-card h4,.iws-card h4{margin:0 0 .35rem;font-size:.95rem}
+.iwf-card p,.iws-card p{margin:0;color:var(--ink-2);line-height:1.5}
+.iwf-note{margin-top:.5rem !important;font-size:.8rem}
+.iwf-who,.iws-kind{display:inline-block;font-size:.66rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;border:1px solid var(--grid);
+  border-radius:99px;padding:.08rem .55rem;margin-left:.5rem;vertical-align:middle;
+  color:var(--muted)}
+.iwf-who.you{color:var(--s1);border-color:var(--s1)}
+.iwf-who.gate{color:var(--warn);border-color:var(--warn)}
+.iws-kind.dec{color:var(--s7);border-color:var(--s7)}
+.iws-trail{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;min-height:1.4rem}
+.iws-trail .chip.dec{color:var(--s7);border-color:var(--s7)}
+.iws-opts{display:grid;gap:.5rem;margin-top:.8rem}
+.iws-opts button{text-align:left;font:inherit;cursor:pointer;border-radius:8px;
+  border:1px solid var(--s7);background:none;color:var(--ink);padding:.55rem .8rem}
+.iws-opts button b{color:var(--s7)}
+.iws-opts button span{display:block;font-size:.78rem;color:var(--muted);margin-top:.15rem}
+.iws-nav{display:flex;gap:.5rem;margin-top:.8rem}
+.iws-nav button{font:inherit;cursor:pointer;border-radius:8px;padding:.4rem 1.1rem;
+  border:1px solid var(--grid);background:var(--surface);color:var(--ink)}
+.iws-nav button.primary{border-color:var(--s1);color:var(--s1);font-weight:700}
+.iws-nav button:disabled{opacity:.4;cursor:default}
+.iwg-grid{display:grid;gap:.3rem .4rem;min-width:34rem;align-items:center}
+.iwg-lane{font-weight:700;font-size:.78rem;white-space:nowrap;padding-right:.4rem}
+.iwg-row{display:grid;gap:2px;grid-auto-rows:1.55rem}
+.iwg-bar{border-radius:4px;color:var(--surface);font-size:.72rem;font-weight:700;
+  display:flex;align-items:center;padding:0 .5rem;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.iwg-axis{display:grid;gap:2px;font-size:.68rem;color:var(--muted);text-align:center;
+  margin-top:.15rem}
+@media (prefers-reduced-motion: no-preference){
+  .iwf-card,.iws-card{transition:opacity .12s}
+}
+
+/* ---------- insights ---------- */
+.insight{display:grid;grid-template-columns:14px 1fr;gap:.6rem;padding:.5rem .2rem;
+  border-bottom:1px solid var(--grid);font-size:.82rem}
+.insight:last-child{border-bottom:none}
+.insight .sev{width:10px;height:10px;border-radius:50%;margin-top:.32rem}
+.insight .hd{display:flex;flex-wrap:wrap;gap:.45rem;align-items:baseline}
+.insight .hd b{font-weight:600}
+.insight .meta{font-size:.7rem;color:var(--muted)}
+
+/* misc */
+.kicker{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted)}
+.searchbox{font:inherit;font-size:.82rem;background:var(--surface);color:var(--ink);
+  border:1px solid var(--grid);border-radius:8px;padding:.35rem .7rem;width:280px;max-width:100%}
+@media (max-width:760px){
+  body{flex-direction:column}
+  #mc-nav{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap}
+  #mc-nav .foot,#mc-nav .key{display:none}
+}
+</style>
+</head>
+<body>
+<nav id="mc-nav" aria-label="Sections"></nav>
+<main id="mc-main"><noscript>This dashboard renders from embedded JSON and needs JavaScript (local file, no network access).</noscript></main>
+<div id="mc-tip" role="tooltip"></div>
+<script id="mc-data" type="application/json">null</script>
+<script>
+"use strict";
+(function(){
+const MC = JSON.parse(document.getElementById("mc-data").textContent);
+if (!MC) { document.getElementById("mc-main").textContent = "No data injected."; return; }
+const SECTIONS = MC.sections, byId = {};
+SECTIONS.forEach(s => byId[s.id] = s);
+document.title = "Mission Control — " + (MC.meta.spec_name || "");
+
+/* ---------- tiny DOM helpers (textContent everywhere — no HTML injection) ---------- */
+function el(tag, attrs, ...kids){
+  const n = document.createElement(tag);
+  if (attrs) for (const k in attrs){
+    if (k === "class") n.className = attrs[k];
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), attrs[k]);
+    else if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+  }
+  for (const kid of kids){
+    if (kid === null || kid === undefined || kid === false) continue;
+    n.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return n;
+}
+const NBSP = " ";
+
+/* status/verdict/state → reserved status colors; in-flight → series blue */
+const STATUS_COLOR = {
+  done:"var(--good)", green:"var(--good)", complete:"var(--good)", clean:"var(--good)", pass:"var(--good)",
+  blocked:"var(--crit)", red:"var(--crit)", blocking:"var(--crit)", fail:"var(--crit)", failing:"var(--crit)", tainted:"var(--crit)",
+  advisory:"var(--warn)", stale:"var(--warn)", "in-progress":"var(--warn)", parked:"var(--warn)", findings:"var(--warn)", "env-limited":"var(--warn)", env_limited:"var(--warn)",
+  designing:"var(--s1)", developing:"var(--s1)", verifying:"var(--s1)", reviewing:"var(--s7)",
+  pending:"var(--muted)", missing:"var(--muted)", absent:"var(--muted)", invalid:"var(--crit)", ok:"var(--good)"
+};
+function statusColor(token){
+  token = String(token || "").toLowerCase().trim();
+  if (STATUS_COLOR[token]) return STATUS_COLOR[token];
+  const first = token.split(/[\s(]/)[0];
+  return STATUS_COLOR[first] || "var(--muted)";
+}
+function statusChip(token, extraTip){
+  const c = statusColor(token);
+  const chip = el("span", {class:"statuschip"},
+    el("i", {class:"swatch", style:"background:"+c}), token || "—");
+  const tip = legendTip(token) || extraTip;
+  if (tip) { chip.dataset.tip = tip; chip.dataset.tipTitle = token; }
+  return chip;
+}
+
+/* ---------- legend-backed tooltip engine ---------- */
+const LEGEND = {};
+(function(){
+  const leg = byId["legend"];
+  if (leg && leg.data && Array.isArray(leg.data.terms)){
+    leg.data.terms.forEach(t => {
+      LEGEND[t.term.toLowerCase()] = t;
+      (t.aliases || []).forEach(a => LEGEND[String(a).toLowerCase()] = t);
+    });
+  }
+})();
+function legendTip(term){
+  const hit = LEGEND[String(term || "").toLowerCase().trim()];
+  return hit ? hit.definition : null;
+}
+function term(text){ /* span that tooltips if the legend knows the word */
+  const s = el("span", null, text);
+  const tip = legendTip(text);
+  if (tip){ s.dataset.tip = tip; s.dataset.tipTitle = text; }
+  return s;
+}
+const tipBox = document.getElementById("mc-tip");
+function showTip(target){
+  const tip = target.dataset.tip; if (!tip) return;
+  tipBox.textContent = "";
+  if (target.dataset.tipTitle) tipBox.append(el("div", {class:"t"}, target.dataset.tipTitle));
+  tipBox.append(el("div", null, tip));
+  tipBox.style.display = "block";
+  const r = target.getBoundingClientRect(), tw = tipBox.offsetWidth;
+  let x = Math.min(r.left, window.innerWidth - tw - 12);
+  let y = r.bottom + 8;
+  if (y + tipBox.offsetHeight > window.innerHeight) y = r.top - tipBox.offsetHeight - 8;
+  tipBox.style.left = Math.max(6, x) + "px"; tipBox.style.top = Math.max(6, y) + "px";
+}
+document.addEventListener("mouseover", e => {
+  const t = e.target.closest("[data-tip]"); if (t) showTip(t); else tipBox.style.display = "none";
+});
+document.addEventListener("focusin", e => {
+  const t = e.target.closest("[data-tip]"); if (t) showTip(t);
+});
+document.addEventListener("scroll", () => tipBox.style.display = "none", true);
+
+/* subtask cross-reference chips (tooltip = title + status from live data) */
+const SUBTASKS = {};
+(function(){
+  const p = byId["progress"];
+  if (p && p.data) p.data.subtasks.forEach(s => SUBTASKS[s.id] = s);
+})();
+function subtaskRef(id){
+  const s = SUBTASKS[id];
+  const chip = el("span", {class:"chip"}, id);
+  if (s){
+    chip.prepend(el("i", {class:"swatch", style:"background:"+statusColor(s.status)}));
+    chip.dataset.tipTitle = id;
+    chip.dataset.tip = (s.title || "") + " — " + s.status + (s.sub_phase ? " (" + s.sub_phase + ")" : "");
+  }
+  return chip;
+}
+
+/* clamp long text with a "more" toggle (journal lines run to paragraphs) */
+function clampText(text, lines){
+  const wrap = el("div");
+  const body = el("div", {class:"clamp", style:"-webkit-line-clamp:"+(lines||2)}, text);
+  wrap.append(body);
+  if (String(text).length > 160){
+    const btn = el("button", {class:"morelink", onclick(){
+      const open = !body.classList.contains("clamp");
+      body.classList.toggle("clamp", open);
+      btn.textContent = open ? "more" : "less";
+    }}, "more");
+    wrap.append(btn);
+  }
+  return wrap;
+}
+
+function genericTable(columns, rows, statusCols){
+  const wrap = el("div", {class:"tablewrap"});
+  const t = el("table", {class:"mc"});
+  t.append(el("tr", null, ...columns.map(c => el("th", null, c))));
+  rows.forEach(r => {
+    t.append(el("tr", null, ...columns.map(c => {
+      const v = r[c] || "";
+      if ((statusCols || []).includes(c)) return el("td", null, statusChip(v));
+      return el("td", null, String(v).length > 220 ? clampText(v, 2) : v);
+    })));
+  });
+  wrap.append(t);
+  return wrap;
+}
+
+function freshnessNote(sec){
+  if (sec.kind !== "digest") return null;
+  if (sec.state === "ok"){
+    const b = sec.freshness && sec.freshness.built_at;
+    return b ? el("div", {class:"srcnote"}, "digest built " + b + " — sources unchanged") : null;
+  }
+  const cls = sec.state === "invalid" ? "invalid" : sec.state === "missing" ? "missing" : "";
+  const msg = sec.state === "missing"
+    ? "This section's digest hasn't been built. Run "
+    : sec.state === "invalid"
+      ? "This section's digest failed validation (" + sec.reason + "). Rebuild with "
+      : "Digest is STALE — " + sec.reason + ". Refresh with ";
+  return el("div", {class:"banner " + cls}, msg, el("code", null, "/afk:mission-control build"), ".");
+}
+
+/* ---------- layered DAG (shared by architecture + progress) ---------- */
+function layoutDag(nodes, edges){
+  const byIdN = {}; nodes.forEach(n => byIdN[n.id] = n);
+  const preds = {}, succs = {};
+  nodes.forEach(n => { preds[n.id] = []; succs[n.id] = []; });
+  edges.forEach(e => {
+    if (byIdN[e.from] && byIdN[e.to]){ succs[e.from].push(e.to); preds[e.to].push(e.from); }
+  });
+  const rank = {};
+  function rankOf(id, seen){
+    if (rank[id] !== undefined) return rank[id];
+    seen = seen || new Set();
+    if (seen.has(id)) return 0;            // cycle guard
+    seen.add(id);
+    const r = preds[id].length ? 1 + Math.max(...preds[id].map(p => rankOf(p, seen))) : 0;
+    rank[id] = r; return r;
+  }
+  nodes.forEach(n => rankOf(n.id));
+  const cols = [];
+  nodes.forEach(n => { (cols[rank[n.id]] = cols[rank[n.id]] || []).push(n); });
+  // order within a column by mean predecessor position (barycenter-lite)
+  cols.forEach((col, ci) => {
+    if (ci === 0) return;
+    const pos = {}; (cols[ci-1] || []).forEach((n, i) => pos[n.id] = i);
+    col.sort((a, b) => mean(preds[a.id].map(p => pos[p] ?? 0)) - mean(preds[b.id].map(p => pos[p] ?? 0)));
+  });
+  const W = 168, H = 46, GX = 64, GY = 14;
+  const placed = {};
+  cols.forEach((col, ci) => col.forEach((n, ri) => {
+    placed[n.id] = { x: ci * (W + GX), y: ri * (H + GY), node: n };
+  }));
+  const width = cols.length * (W + GX) - GX + 4;
+  const height = Math.max(...cols.map(c => c.length)) * (H + GY) - GY + 4;
+  return { placed, edges, width, height, W, H };
+}
+function mean(a){ return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; }
+
+function renderDag(layout, opts){
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "-2 -2 " + (layout.width + 4) + " " + (layout.height + 4));
+  svg.setAttribute("width", layout.width);
+  svg.setAttribute("height", layout.height);
+  const defs = document.createElementNS(svg.namespaceURI, "defs");
+  defs.innerHTML = '<marker id="mc-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--baseline)"/></marker>';
+  svg.append(defs);
+  layout.edges.forEach(e => {
+    const a = layout.placed[e.from], b = layout.placed[e.to];
+    if (!a || !b) return;
+    const x1 = a.x + layout.W, y1 = a.y + layout.H/2, x2 = b.x, y2 = b.y + layout.H/2;
+    const mid = (x1 + x2) / 2;
+    const p = document.createElementNS(svg.namespaceURI, "path");
+    p.setAttribute("d", `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`);
+    p.setAttribute("class", "gedge" + (e.seam ? " seam" : ""));
+    svg.append(p);
+  });
+  for (const id in layout.placed){
+    const pl = layout.placed[id], n = pl.node;
+    const g = document.createElementNS(svg.namespaceURI, "g");
+    g.setAttribute("class", "gnode");
+    g.setAttribute("transform", `translate(${pl.x},${pl.y})`);
+    const rect = document.createElementNS(svg.namespaceURI, "rect");
+    rect.setAttribute("width", layout.W); rect.setAttribute("height", layout.H);
+    rect.setAttribute("rx", 7);
+    if (n.color){ rect.style.stroke = n.color; rect.style.strokeWidth = "1.6"; }
+    g.append(rect);
+    const t1 = document.createElementNS(svg.namespaceURI, "text");
+    t1.setAttribute("x", 10); t1.setAttribute("y", 19);
+    t1.style.fontWeight = "600";
+    t1.textContent = trunc(n.label, 22);
+    g.append(t1);
+    if (n.sub){
+      const t2 = document.createElementNS(svg.namespaceURI, "text");
+      t2.setAttribute("x", 10); t2.setAttribute("y", 35);
+      t2.style.fill = "var(--muted)";
+      t2.textContent = trunc(n.sub, 24);
+      g.append(t2);
+    }
+    if (opts && opts.onSelect){
+      g.addEventListener("click", () => {
+        svg.querySelectorAll(".gnode.sel").forEach(x => x.classList.remove("sel"));
+        g.classList.add("sel");
+        opts.onSelect(n);
+      });
+    }
+    svg.append(g);
+  }
+  const wrap = el("div", {class:"graphwrap"});
+  wrap.append(svg);
+  return wrap;
+}
+function trunc(s, n){ s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+/* ================= section renderers ================= */
+const RENDER = {};
+
+/* ---- overview ---- */
+RENDER["overview"] = function(sec, root){
+  const d = sec.data, h = d.header || {};
+  root.append(el("h1", null, h.title || "Mission Control"));
+  const meta = [];
+  if (h.parent_ticket) meta.push("ticket " + h.parent_ticket);
+  if (h.mode) meta.push("mode " + h.mode);
+  if (h.branch) meta.push("branch " + h.branch);
+  root.append(el("p", {class:"mc-sub"}, meta.join("  ·  ")));
+
+  // phase ribbon
+  const ph = el("div", {class:"phases"});
+  const idx = d.phases.indexOf(d.phase);
+  d.phases.forEach((p, i) => {
+    if (i) ph.append(el("span", {class:"sep"}, "→"));
+    const n = el("span", {class:"ph " + (i < idx ? "past" : i === idx ? "now" : "")}, p);
+    const tip = legendTip(p); if (tip){ n.dataset.tip = tip; n.dataset.tipTitle = p; }
+    ph.append(n);
+  });
+  root.append(ph);
+  if (h.feature) root.append(el("div", {class:"card"},
+    el("span", {class:"kicker"}, "Feature gate" + NBSP), statusChip(h.feature.split(" ")[0]),
+    " ", el("span", {class:"mc-sub", style:"margin:0"}, h.feature)));
+
+  // stat tiles + segmented status bar
+  const counts = d.progress_counts || {}, total = d.subtask_total || 0;
+  const g = d.gate_summary || {};
+  const stats = el("div", {class:"statrow"});
+  stats.append(stat(counts.done || 0, "subtasks done of " + total));
+  if (g.preflight_total) stats.append(stat(g.preflight_green + "/" + g.preflight_total, "preflight steps green"));
+  if (g.smoke_rows) stats.append(stat(g.smoke_rows, "smoke scenarios (" + (g.smoke_variant || "gate") + ")"));
+  stats.append(stat((d.top_insights || []).length ? "!" : "0", "open insights — see Insights"));
+  root.append(stats);
+  if (total){
+    const bar = el("div", {class:"segbar"});
+    const leg = el("div", {class:"legendrow"});
+    (byId["progress"].data ? byId["progress"].data.ladder : Object.keys(counts)).forEach(st => {
+      const c = counts[st]; if (!c) return;
+      bar.append(el("div", {style:"flex:" + c + ";background:" + statusColor(st)}));
+      leg.append(el("span", null, el("i", {class:"swatch", style:"background:" + statusColor(st)}), st + " " + c));
+    });
+    const blocked = Object.keys(counts).filter(s => s.startsWith("blocked"));
+    blocked.forEach(st => {
+      bar.append(el("div", {style:"flex:" + counts[st] + ";background:" + statusColor("blocked")}));
+      leg.append(el("span", null, el("i", {class:"swatch", style:"background:var(--crit)"}), st + " " + counts[st]));
+    });
+    root.append(bar, leg);
+  }
+
+  // top insights
+  if ((d.top_insights || []).length){
+    root.append(el("h2", null, "What to look at first"));
+    const card = el("div", {class:"card"});
+    d.top_insights.forEach(i => card.append(renderInsight(i)));
+    card.append(el("div", {class:"srcnote"}, "full list in the Insights section"));
+    root.append(card);
+  }
+
+  // artifacts + digests + understanding
+  root.append(el("h2", null, "Feature artifacts"));
+  const inv = el("div", {class:"filterrow"});
+  const A = d.artifacts || {};
+  [["PRD", A.prd], ["SDD", A.sdd], ["Verification plan", A.verification_plan],
+   ["Grill log", A.grill_log], ["Prototype", A.prototype], ["Ticket index", A.index],
+   ["Plan", A.plan], ["Trace matrix", A.trace]].forEach(([label, present]) => {
+    inv.append(el("span", {class:"chip" + (present ? "" : " ghost")}, (present ? "✓ " : "— ") + label));
+  });
+  if (A.adr_requirements) inv.append(el("span", {class:"chip"}, "✓ ADRs: " + A.adr_requirements + " req"));
+  if (A.adr_design) inv.append(el("span", {class:"chip"}, "✓ ADRs: " + A.adr_design + " design"));
+  root.append(inv);
+
+  const dig = el("div", {class:"filterrow"});
+  for (const k in (d.digest_states || {})){
+    const st = d.digest_states[k];
+    dig.append(el("span", {class:"chip"},
+      el("i", {class:"swatch", style:"background:" + ({ok:"var(--good)", stale:"var(--warn)"}[st] || "var(--baseline)")}),
+      k + " digest: " + st));
+  }
+  if (dig.children.length){
+    root.append(el("h3", null, "Design digests"), dig);
+    const anyMissing = Object.values(d.digest_states).some(s => s !== "ok");
+    if (anyMissing) root.append(el("div", {class:"banner missing"},
+      "Design sections marked stale/missing render from the last build (or a hint). Refresh with ",
+      el("code", null, "/afk:mission-control build"), " — launch never spends tokens."));
+  }
+
+  if (d.understanding){
+    root.append(el("h3", null, "Understanding artifact"));
+    root.append(el("div", {class:"card"},
+      el("code", null, d.understanding.path), " ",
+      el("span", {class:"chip"}, "generated " + d.understanding.generated), " ",
+      el("span", {class:"chip"}, "diff " + d.understanding.diff_range),
+      el("div", {class:"srcnote"}, "open it from the repo — this dashboard never links relatively (snapshot copies relocate)")));
+  }
+  function stat(v, l){ return el("div", {class:"stat"}, el("div", {class:"v"}, v), el("div", {class:"l"}, l)); }
+};
+
+/* ---- architecture ---- */
+RENDER["architecture"] = function(sec, root){
+  root.append(el("h1", null, "Architecture"));
+  root.append(el("p", {class:"mc-sub"}, "modules, responsibilities, dependency direction — click a node for detail"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  const d = sec.data || {}, digest = d.digest, live = d.live || {};
+
+  if (digest && Array.isArray(digest.modules)){
+    const detail = el("div", {class:"card detailpane"}, el("span", {class:"empty"}, "click a module"));
+    const edges = [];
+    digest.modules.forEach(m => (m.depends_on || []).forEach(dep => edges.push({from:m.id, to:dep})));
+    // dependencies point left→right: dependent → dependency reads clearer flipped
+    const nodes = digest.modules.map(m => ({
+      id:m.id, label:m.id + " " + (m.name || ""), sub:trunc(m.responsibility, 40), m
+    }));
+    root.append(renderDag(layoutDag(nodes, edges), {onSelect(n){ showModule(n.m); }}));
+    root.append(el("div", {class:"srcnote"}, "arrows point dependent → dependency; no cycles is the invariant"));
+    root.append(detail);
+    function showModule(m){
+      detail.textContent = "";
+      detail.append(el("h3", {style:"margin-top:0"}, m.id + " — " + (m.name || "")));
+      detail.append(el("p", null, m.responsibility || ""));
+      const rows = [];
+      if (m.interface) rows.push(["Public interface", m.interface]);
+      if ((m.depends_on || []).length) rows.push(["Depends on", (m.depends_on || []).join(", ")]);
+      if ((m.seams || []).length) rows.push(["Seams", (m.seams || []).join(", ")]);
+      rows.forEach(([k, v]) => detail.append(el("div", null, el("span", {class:"kicker"}, k + ": "), v)));
+      if ((m.subtasks || []).length){
+        const row = el("div", {class:"filterrow"});
+        m.subtasks.forEach(s => row.append(subtaskRef(s)));
+        detail.append(el("div", null, el("span", {class:"kicker"}, "Built by:")), row);
+      }
+      if (m.detail) detail.append(el("details", {class:"mc"}, el("summary", null, "more"), el("p", null, m.detail)));
+    }
+    if (Array.isArray(digest.diagrams) && digest.diagrams.length){
+      const dd = el("details", {class:"mc"}, el("summary", null, "original SDD diagrams (" + digest.diagrams.length + ")"));
+      digest.diagrams.forEach(dg => {
+        dd.append(el("h3", null, dg.title || "diagram"));
+        if (dg.svg && dg.svg.trim().startsWith("<svg")){
+          const holder = el("div", {class:"tablewrap"});
+          holder.innerHTML = dg.svg;   // digest-authored, validated at build time
+          dd.append(holder);
+        } else if (dg.source){
+          dd.append(el("pre", {class:"mc"}, dg.source));
+        }
+      });
+      root.append(dd);
+    }
+    if (Array.isArray(digest.seams) && digest.seams.length){
+      root.append(el("h2", null, "External seams"));
+      root.append(genericTable(["boundary", "failure", "test"],
+        digest.seams.map(s => ({boundary:(s.id ? s.id + " — " : "") + (s.boundary || ""), failure:s.failure || "", test:s.test || ""})), []));
+    }
+  }
+
+  root.append(el("h2", null, "Plan-declared seams (live)"));
+  if ((live.seams || []).length){
+    const rows = live.seams.map(s => ({
+      "Seam":s.seam, "Implemented by":s.implemented_by, "Used by":s.used_by
+    }));
+    root.append(genericTable(["Seam", "Implemented by", "Used by"], rows, []));
+  } else root.append(el("div", {class:"empty"}, "no seam register in plan/PLAN.md"));
+
+  if ((live.anchors || []).length){
+    const dd = el("details", {class:"mc"}, el("summary", null, "Produces / Consumes anchors (" + live.anchors.length + ")"));
+    const rows = live.anchors.map(a => ({
+      "Subtask":a.subtask, "Kind":a.kind, "Where":a.file + "#" + a.anchor, "What":a.desc
+    }));
+    dd.append(genericTable(["Subtask", "Kind", "Where", "What"], rows, []));
+    root.append(dd);
+  }
+  if (live.solution_map){
+    root.append(el("details", {class:"mc"},
+      el("summary", null, "solution map (mermaid source from plan/PLAN.md)"),
+      el("pre", {class:"mc"}, live.solution_map)));
+  }
+  if (live.sdd_diagram_count) root.append(el("div", {class:"srcnote"},
+    live.sdd_diagram_count + " mermaid diagram(s) in SDD.md — digest build embeds them here"));
+};
+
+/* ---- flows ---- */
+RENDER["flows"] = function(sec, root){
+  root.append(el("h1", null, "Flows"));
+  root.append(el("p", {class:"mc-sub"}, "user journeys + logic/data flows — step through them"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  if (!sec.data || !Array.isArray(sec.data.flows)){ root.append(hint()); return; }
+  sec.data.flows.forEach(f => {
+    root.append(el("h2", null, f.title));
+    if (f.summary) root.append(el("p", {class:"mc-sub"}, f.summary));
+    if (f.kind === "linear") root.append(flowSlider(f.steps || []));
+    else if (f.kind === "branching") root.append(branchSim(f.nodes || []));
+    else if (f.kind === "concurrent") root.append(gantt(f.lanes ? f : (f.grid || {})));
+    else root.append(el("div", {class:"empty"}, "unknown flow kind: " + f.kind));
+  });
+  function hint(){ return el("div", {class:"empty"}, "no flows to show yet"); }
+};
+
+/* flow-slider (linear) — adapted from skills/utils/interactive-walkthrough */
+function flowSlider(steps){
+  const root = el("div", {class:"iwf"});
+  const range = el("input", {type:"range", min:0, max:Math.max(0, steps.length-1), value:0, step:1,
+    "aria-label":"Walk through the steps"});
+  const ticks = el("div", {class:"iwf-ticks"});
+  const card = el("div", {class:"iwf-card", "aria-live":"polite"});
+  root.append(range, ticks, card);
+  steps.forEach((s, i) => {
+    const b = el("button", {type:"button", title:s.t, onclick(){ range.value = i; render(); }},
+      (s.t || "").split("·")[0].trim() || String(i+1));
+    ticks.append(b);
+  });
+  function render(){
+    const i = +range.value, s = steps[i] || {};
+    card.textContent = "";
+    const h = el("h4", null, s.t || "");
+    if (s.who) h.append(el("span", {class:"iwf-who " + s.who}, s.who));
+    card.append(h, el("p", null, s.d || ""));
+    if (s.n) card.append(el("p", {class:"iwf-note"}, s.n));
+    [...ticks.children].forEach((b, j) => {
+      b.classList.toggle("on", j === i); b.classList.toggle("past", j < i);
+    });
+  }
+  range.addEventListener("input", render);
+  render();
+  return root;
+}
+
+/* branching simulator — adapted; d/next/opts are plain JSON (no functions) */
+function branchSim(nodesArr){
+  const nodes = {}; nodesArr.forEach(n => nodes[n.id] = n);
+  const root = el("div", {class:"iws"});
+  const trail = el("div", {class:"iws-trail", "aria-label":"Path taken so far"});
+  const card = el("div", {class:"iws-card", "aria-live":"polite"});
+  const nav = el("div", {class:"iws-nav"});
+  root.append(trail, card, nav);
+  let hist = [];
+  function enter(id, chip, dec){ hist.push({id, chip, dec:!!dec}); render(); }
+  function render(){
+    const cur = hist[hist.length-1], n = nodes[cur.id] || {h:"?", t:"end", d:"missing node " + cur.id};
+    trail.textContent = "";
+    hist.forEach(h => trail.append(el("span", {class:"chip" + (h.dec ? " dec" : "")}, h.chip)));
+    card.textContent = "";
+    const h4 = el("h4", null, n.h || "",
+      el("span", {class:"iws-kind" + (n.t === "dec" ? " dec" : "")},
+        n.t === "dec" ? "decision" : n.t === "end" ? "end" : "step"));
+    card.append(h4, el("p", null, n.d || ""));
+    nav.textContent = "";
+    if (n.t === "dec"){
+      const box = el("div", {class:"iws-opts"});
+      (n.opts || []).forEach(o => {
+        const b = el("button", {type:"button", onclick(){ enter(o.next, (n.h || "") + " → " + o.label, true); }},
+          el("b", null, o.label));
+        if (o.note) b.append(el("span", null, o.note));
+        box.append(b);
+      });
+      card.append(box);
+    }
+    const back = el("button", {type:"button", onclick(){ hist.pop(); render(); }}, "← Back");
+    back.disabled = hist.length <= 1;
+    nav.append(back);
+    if (n.t === "step" && n.next) nav.append(el("button", {type:"button", class:"primary",
+      onclick(){ enter(n.next, (nodes[n.next] || {h:n.next}).h, false); }}, "Next →"));
+    if (n.t === "end") nav.append(el("button", {type:"button",
+      onclick(){ hist = []; enter(nodesArr[0].id, nodesArr[0].h, false); }}, "↺ Restart"));
+  }
+  if (nodesArr.length) enter(nodesArr[0].id, nodesArr[0].h, false);
+  return root;
+}
+
+/* overlap gantt (concurrent) — adapted; bars colored by categorical slots */
+function gantt(data){
+  const root = el("div", {class:"iwg"});
+  const grid = el("div", {class:"iwg-grid"});
+  root.append(grid);
+  grid.style.gridTemplateColumns = "max-content 1fr";
+  const palette = ["var(--s1)", "var(--s7)", "var(--s6)", "var(--s5)"];
+  const clsColor = {a:palette[0], b:palette[1], c:palette[2], d:palette[3]};
+  (data.lanes || []).forEach(lane => {
+    grid.append(el("div", {class:"iwg-lane"}, lane.label));
+    const row = el("div", {class:"iwg-row"});
+    row.style.gridTemplateColumns = "repeat(" + (data.cols || 8) + ",1fr)";
+    (lane.bars || []).forEach(b => {
+      const bar = el("div", {class:"iwg-bar", title:b.text}, b.text);
+      bar.style.gridColumn = b.start + " / " + (b.end + 1);
+      bar.style.background = clsColor[b.cls || "a"] || palette[0];
+      row.append(bar);
+    });
+    grid.append(row);
+  });
+  if (data.unit){
+    grid.append(el("div"));
+    const axis = el("div", {class:"iwg-axis"});
+    axis.style.gridTemplateColumns = "repeat(" + (data.cols || 8) + ",1fr)";
+    data.unit.forEach(u => axis.append(el("div", null, u)));
+    grid.append(axis);
+  }
+  return root;
+}
+
+/* ---- entities ---- */
+RENDER["entities"] = function(sec, root){
+  root.append(el("h1", null, "Entities"));
+  root.append(el("p", {class:"mc-sub"}, "key data shapes, constraints, indexes"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  if (!sec.data || !Array.isArray(sec.data.entities)) return;
+  const grid = el("div", {class:"cardgrid"});
+  sec.data.entities.forEach(e => {
+    const card = el("div", {class:"card"});
+    card.append(el("h3", {style:"margin-top:0"}, e.name), el("p", {class:"mc-sub"}, e.essence || ""));
+    const fields = e.fields || [];
+    const essential = fields.filter(f => f.essential !== false);
+    card.append(fieldTable(essential));
+    if (fields.length > essential.length){
+      card.append(el("details", {class:"mc"},
+        el("summary", null, "all " + fields.length + " fields"), fieldTable(fields)));
+    }
+    if ((e.indexes || []).length) card.append(el("div", null,
+      el("span", {class:"kicker"}, "Indexes: "), e.indexes.join(" · ")));
+    if ((e.relations || []).length){
+      const row = el("div", {class:"filterrow"});
+      e.relations.forEach(r => row.append(el("span", {class:"chip"},
+        (r.kind || "→") + " " + r.to + (r.label ? " (" + r.label + ")" : ""))));
+      card.append(row);
+    }
+    if (e.retention || e.pii) card.append(el("div", {class:"srcnote"},
+      [e.retention ? "retention: " + e.retention : "", e.pii ? "PII: " + e.pii : ""].filter(Boolean).join(" · ")));
+    grid.append(card);
+  });
+  root.append(grid);
+  if (sec.data.notes) root.append(el("p", {class:"mc-sub"}, sec.data.notes));
+  function fieldTable(fields){
+    return genericTable(["field", "type", "constraint"],
+      fields.map(f => ({field:f.name, type:f.type || "", constraint:f.constraint || ""})), []);
+  }
+};
+
+/* ---- decisions (ADRs) ---- */
+RENDER["decisions"] = function(sec, root){
+  root.append(el("h1", null, "Decisions"));
+  root.append(el("p", {class:"mc-sub"}, "ADRs — requirement tier (what/why) and design tier (how)"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  if (!sec.data || !Array.isArray(sec.data.adrs)) return;
+  ["requirement", "design"].forEach(tier => {
+    const list = sec.data.adrs.filter(a => (a.tier || "").startsWith(tier));
+    if (!list.length) return;
+    root.append(el("h2", null, tier + " ADRs (" + list.length + ")"));
+    list.forEach(a => {
+      const card = el("div", {class:"card"});
+      const head = el("div", {class:"insight-hd", style:"display:flex;gap:.5rem;flex-wrap:wrap;align-items:baseline"});
+      head.append(el("span", {class:"chip"}, a.id));
+      head.append(el("b", null, a.title));
+      if (a.status) head.append(statusChip(a.status));
+      if (a.superseded_by) head.append(el("span", {class:"chip ghost"}, "superseded by " + a.superseded_by));
+      card.append(head, el("p", {style:"margin:.4rem 0 0"}, a.essence || ""));
+      const more = el("details", {class:"mc"}, el("summary", null, "decision · why · trade-offs"));
+      if (a.decision) more.append(el("p", null, el("span", {class:"kicker"}, "Decision: "), a.decision));
+      if (a.why) more.append(el("p", null, el("span", {class:"kicker"}, "Why: "), a.why));
+      if (a.tradeoffs) more.append(el("p", null, el("span", {class:"kicker"}, "Trade-offs: "), a.tradeoffs));
+      if (a.supersedes) more.append(el("p", null, el("span", {class:"kicker"}, "Supersedes: "), a.supersedes));
+      if (a.path) more.append(el("p", null, el("code", null, a.path)));
+      card.append(more);
+      root.append(card);
+    });
+  });
+};
+
+/* ---- critical logic ---- */
+RENDER["critical-logic"] = function(sec, root){
+  root.append(el("h1", null, "Critical logic"));
+  root.append(el("p", {class:"mc-sub"}, "invariants, budgets, gotchas — the things you must not break"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  if (!sec.data || !Array.isArray(sec.data.items)) return;
+  const icon = {invariant:"⚖", budget:"⏱", gotcha:"⚠"};
+  ["invariant", "budget", "gotcha"].forEach(kind => {
+    const list = sec.data.items.filter(i => i.kind === kind);
+    if (!list.length) return;
+    root.append(el("h2", null, (icon[kind] || "") + " " + kind + "s"));
+    const grid = el("div", {class:"cardgrid"});
+    list.forEach(i => {
+      const card = el("div", {class:"card"});
+      card.append(el("h3", {style:"margin-top:0"}, i.title), el("p", null, i.statement));
+      const more = el("details", {class:"mc"}, el("summary", null, "why · where enforced"));
+      if (i.why) more.append(el("p", null, el("span", {class:"kicker"}, "Why: "), i.why));
+      if (i.enforced_at) more.append(el("p", null, el("span", {class:"kicker"}, "Enforced at: "), i.enforced_at));
+      if (i.breaks_if) more.append(el("p", null, el("span", {class:"kicker"}, "Breaks if: "), i.breaks_if));
+      card.append(more);
+      grid.append(card);
+    });
+    root.append(grid);
+  });
+  const other = sec.data.items.filter(i => !icon[i.kind]);
+  if (other.length){
+    root.append(el("h2", null, "other"));
+    other.forEach(i => root.append(el("div", {class:"card"}, el("b", null, i.title), " — ", i.statement)));
+  }
+};
+
+/* ---- progress ---- */
+RENDER["progress"] = function(sec, root){
+  root.append(el("h1", null, "Progress"));
+  root.append(el("p", {class:"mc-sub"}, "per-subtask status with sub-phase detail; click a card to expand"));
+  const d = sec.data;
+  const ladder = d.ladder;
+
+  // DAG of Blocked-by edges (only when the plan declares any)
+  const edges = [];
+  d.subtasks.forEach(s => (s.blocked_by || []).forEach(b => edges.push({from:b, to:s.id})));
+  if (edges.length){
+    const nodes = d.subtasks.map(s => ({
+      id:s.id, label:s.id.slice(0, 4) + " " + trunc(s.title, 18), sub:s.status + (s.sub_phase ? " · " + s.sub_phase : ""),
+      color:statusColor(s.status), s
+    }));
+    root.append(renderDag(layoutDag(nodes, edges), {onSelect(n){
+      const target = document.getElementById("sub-" + n.id);
+      if (target){ target.open = true; target.scrollIntoView({behavior:"smooth", block:"center"}); }
+    }}));
+    root.append(el("div", {class:"srcnote"}, "arrows follow Blocked-by: prerequisite → dependent; node ring = status; click to jump"));
+  }
+
+  d.subtasks.forEach(s => {
+    const dd = el("details", {class:"mc", id:"sub-" + s.id});
+    const lad = el("span", {class:"ladder", "aria-label":"status ladder"});
+    const pos = ladder.indexOf(s.status);
+    ladder.forEach((st, i) => {
+      const dot = el("i", {class: s.status === "blocked" ? "" : i < pos ? "hit" : i === pos ? "here" : ""});
+      dot.dataset.tip = legendTip(st) || st; dot.dataset.tipTitle = st;
+      lad.append(dot);
+    });
+    const sum = el("summary", null,
+      el("b", null, s.num ? s.num + ". " : "", s.id), "  ", trunc(s.title, 60), "  ",
+      statusChip(s.status), " ", lad);
+    if (s.sub_phase) sum.append(" ", el("span", {class:"chip"}, s.sub_phase));
+    dd.append(sum);
+
+    const row = el("div", {class:"filterrow"});
+    if (s.complexity) row.append(el("span", {class:"chip"}, "complexity: " + s.complexity));
+    (s.tiers || []).forEach(t => row.append(el("span", {class:"chip"},
+      el("i", {class:"swatch", style:"background:var(--s1)"}), t)));
+    if (s.adversary) row.append(el("span", {class:"chip"}, "adversary probed"));
+    if (row.children.length) dd.append(row);
+
+    if ((s.blocked_by || []).length){
+      const br = el("div", {class:"filterrow"});
+      br.append(el("span", {class:"kicker", style:"align-self:center"}, "blocked by:"));
+      s.blocked_by.forEach(b => br.append(subtaskRef(b)));
+      dd.append(br);
+    }
+    if (s.review){
+      const r = s.review;
+      dd.append(el("div", null,
+        el("span", {class:"kicker"}, "Review: "), statusChip(r.verdict || "—"),
+        " ", r.counts ? "crit/high/med/low " + r.counts : "",
+        s.rounds ? " · settle round " + s.rounds : "",
+        r.report ? el("span", {class:"srcnote"}, "  (" + r.report + ")") : ""));
+      if (r.advisories && r.advisories.toLowerCase() !== "none")
+        dd.append(el("div", {style:"margin:.2rem 0"}, el("span", {class:"kicker"}, "Open advisories: "), clampText(r.advisories, 2)));
+    }
+    if ((s.verification || []).length){
+      const v = el("details", {class:"mc"}, el("summary", null, "verification tiers (" + s.verification.length + ")"));
+      v.append(genericTable(["tier", "check", "proves"],
+        s.verification.map(x => ({tier:x.tier, check:x.check, proves:x.proves})), []));
+      dd.append(v);
+    }
+    if ((s.commits || []).length){
+      const c = el("details", {class:"mc"}, el("summary", null, "commits (" + s.commits.length + ")"));
+      s.commits.forEach(cm => c.append(el("div", {style:"font-size:.78rem;padding:.15rem 0"},
+        el("code", null, cm.short), " ", cm.subject)));
+      dd.append(c);
+    }
+    if (s.latest_event) dd.append(el("div", {class:"srcnote"},
+      "last journal entry " + s.latest_event.ts + " — " + trunc(s.latest_event.event, 90)));
+    root.append(dd);
+  });
+};
+
+/* ---- timeline ---- */
+RENDER["timeline"] = function(sec, root){
+  root.append(el("h1", null, "Timeline"));
+  root.append(el("p", {class:"mc-sub"}, "the append-only journal, newest first"));
+  const d = sec.data;
+  let writerFilter = null;
+  const filters = el("div", {class:"filterrow"});
+  const allBtn = el("button", {class:"on", onclick(){ writerFilter = null; refresh(); }}, "all");
+  filters.append(allBtn);
+  d.writers.forEach(w => filters.append(el("button", {onclick(e){ writerFilter = w; refresh(e.target); }}, w)));
+  root.append(filters);
+  const list = el("div");
+  root.append(list);
+  function refresh(btn){
+    [...filters.children].forEach(b => b.classList.toggle("on", b === (btn || allBtn)));
+    list.textContent = "";
+    let day = null;
+    d.events.filter(e => !writerFilter || e.writer === writerFilter).forEach(e => {
+      const evDay = e.ts.slice(0, 10);
+      if (evDay !== day){ day = evDay; list.append(el("div", {class:"tl-day"}, day)); }
+      const evEl = el("div", {class:"tl-ev"},
+        el("span", {class:"ts"}, e.ts.slice(11)),
+        el("span", {class:"who"}, e.writer, " · ", SUBTASKS[e.subject] ? subtaskRef(e.subject) : el("span", null, e.subject)),
+        el("div", null,
+          el("span", {style:"color:" + eventColor(e.event) + ";font-weight:600"}, trunc(e.event, 120)),
+          e.plain ? clampText(e.plain, 2) : ""));
+      list.append(evEl);
+    });
+    if (!list.children.length) list.append(el("div", {class:"empty"}, "no events for this writer"));
+  }
+  function eventColor(ev){
+    ev = ev.toLowerCase();
+    if (/park|fail|red|conflict|blocked/.test(ev)) return "var(--crit)";
+    if (/green|done|clean|complete|ready/.test(ev)) return "var(--good-text)";
+    return "var(--ink)";
+  }
+  refresh();
+};
+
+/* ---- gates ---- */
+RENDER["gates"] = function(sec, root){
+  root.append(el("h1", null, "Gates"));
+  root.append(el("p", {class:"mc-sub"}, "smoke gate · preflight ladder · review rollup · adversary"));
+  const d = sec.data;
+
+  if (d.smoke){
+    root.append(el("h2", null, "Feature smoke gate", " ", el("span", {class:"chip"}, d.smoke.variant)));
+    if (d.smoke.last_run) root.append(el("div", {class:"card"},
+      el("span", {class:"kicker"}, "Last run: "), clampText(d.smoke.last_run, 3)));
+    if (d.smoke.rows.length){
+      const statusCol = d.smoke.columns.find(c => /status/i.test(c));
+      root.append(genericTable(d.smoke.columns, d.smoke.rows, statusCol ? [statusCol] : []));
+    }
+    if (d.smoke.run_history.length){
+      const h = el("details", {class:"mc"}, el("summary", null, "run history (" + d.smoke.run_history.length + ")"));
+      d.smoke.run_history.forEach(r => h.append(el("div", {style:"padding:.25rem 0;border-bottom:1px solid var(--grid)"}, clampText(r, 2))));
+      root.append(h);
+    }
+    if (d.smoke.meta.length){
+      const m = el("details", {class:"mc"}, el("summary", null, "gate configuration"));
+      d.smoke.meta.forEach(x => m.append(el("div", {style:"font-size:.76rem;padding:.1rem 0"}, x)));
+      root.append(m);
+    }
+  } else root.append(el("div", {class:"empty"}, "no smoke gate table yet"));
+
+  root.append(el("h2", null, "Preflight"));
+  if (d.preflight){
+    const statusCol = d.preflight.columns.find(c => /status/i.test(c));
+    root.append(genericTable(d.preflight.columns, d.preflight.rows, statusCol ? [statusCol] : []));
+  } else root.append(el("div", {class:"empty"}, "no ## Preflight table yet (created on the first preflight run)"));
+
+  root.append(el("h2", null, "Review rollup"));
+  if (d.review_rollup){
+    const statusCol = d.review_rollup.columns.find(c => /verdict/i.test(c));
+    root.append(genericTable(d.review_rollup.columns, d.review_rollup.rows, statusCol ? [statusCol] : []));
+  } else root.append(el("div", {class:"empty"}, "no plan/review/INDEX.md yet"));
+
+  if ((d.adversary || []).length){
+    root.append(el("h2", null, "Adversary"));
+    d.adversary.forEach(a => root.append(el("div", {class:"card"},
+      subtaskRef(a.subtask), " ",
+      a.verdict ? statusChip(a.verdict) : null,
+      a.verdict_text ? el("div", {style:"margin-top:.3rem"}, clampText(a.verdict_text, 2)) : null,
+      el("div", {class:"srcnote"}, "plan/review/" + a.file))));
+  }
+};
+
+/* ---- insights ---- */
+function renderInsight(i){
+  const sevColor = {act:"var(--crit)", know:"var(--warn)", note:"var(--baseline)"};
+  const node = el("div", {class:"insight"},
+    el("i", {class:"sev", style:"background:" + (sevColor[i.severity] || "var(--baseline)")}),
+    el("div", null,
+      el("div", {class:"hd"},
+        el("b", null, i.text),
+        SUBTASKS[i.subject] ? subtaskRef(i.subject) : (i.subject ? el("span", {class:"chip"}, i.subject) : null)),
+      i.detail ? clampText(i.detail, 2) : null,
+      el("div", {class:"meta"}, [i.ts, i.writer, i.source].filter(Boolean).join(" · "))));
+  return node;
+}
+RENDER["insights"] = function(sec, root){
+  root.append(el("h1", null, "Insights"));
+  root.append(el("p", {class:"mc-sub"}, "what the run wants you to know, mined from the artifacts — act ▸ know ▸ note"));
+  const items = sec.data.items || [];
+  if (!items.length){ root.append(el("div", {class:"empty"}, "nothing flagged — the artifacts carry no open parks, blockings, or advisories")); return; }
+  const labels = {act:"Act on this", know:"Worth knowing", note:"Noted for later"};
+  ["act", "know", "note"].forEach(sev => {
+    const list = items.filter(i => i.severity === sev);
+    if (!list.length) return;
+    root.append(el("h2", null, labels[sev] + " (" + list.length + ")"));
+    const card = el("div", {class:"card"});
+    list.forEach(i => card.append(renderInsight(i)));
+    root.append(card);
+  });
+};
+
+/* ---- diffs ---- */
+RENDER["diffs"] = function(sec, root){
+  root.append(el("h1", null, "Diffs"));
+  root.append(el("p", {class:"mc-sub"}, "the feature's commits, grouped by owning subtask"));
+  const d = sec.data;
+  d.groups.forEach(g => {
+    const dd = el("details", {class:"mc"});
+    const total = g.commits.reduce((n, c) => n + c.adds + c.dels, 0);
+    dd.append(el("summary", null,
+      g.id && SUBTASKS[g.id] ? subtaskRef(g.id) : el("b", null, g.label),
+      "  " + g.commits.length + " commit(s)",
+      total ? "  (+" + g.commits.reduce((n,c)=>n+c.adds,0) + " / −" + g.commits.reduce((n,c)=>n+c.dels,0) + ")" : ""));
+    g.commits.forEach(c => {
+      const cd = el("div", {style:"padding:.3rem 0;border-bottom:1px solid var(--grid)"},
+        el("code", null, c.hash), " ", c.subject,
+        c.adds + c.dels ? el("span", {class:"srcnote"}, "  +" + c.adds + " −" + c.dels) : null);
+      if ((c.files || []).length){
+        const fl = el("details", {class:"mc"}, el("summary", null, c.files.length + " file(s)"));
+        c.files.forEach(f => fl.append(el("div", {style:"font-size:.74rem"},
+          el("code", null, f.path), " +" + f.add + " −" + f.del)));
+        cd.append(fl);
+      }
+      dd.append(cd);
+    });
+    root.append(dd);
+  });
+  root.append(el("div", {class:"srcnote"}, "scanned the last " + d.scanned + " commits; repo history not owned by this feature is excluded"));
+};
+
+/* ---- legend ---- */
+RENDER["legend"] = function(sec, root){
+  root.append(el("h1", null, "Legend"));
+  root.append(el("p", {class:"mc-sub"}, "every IDed thing on this dashboard, defined — these definitions also power the hover tooltips"));
+  const note = freshnessNote(sec); if (note) root.append(note);
+  const terms = (sec.data && sec.data.terms) || [];
+  const search = el("input", {class:"searchbox", type:"search", placeholder:"filter terms…",
+    "aria-label":"filter terms", oninput(){ refresh(this.value.toLowerCase()); }});
+  root.append(search);
+  const holder = el("div");
+  root.append(holder);
+  function refresh(q){
+    holder.textContent = "";
+    const groups = {};
+    terms.filter(t => !q || t.term.toLowerCase().includes(q) || (t.definition || "").toLowerCase().includes(q))
+      .forEach(t => (groups[t.category || "general"] = groups[t.category || "general"] || []).push(t));
+    for (const cat in groups){
+      holder.append(el("h2", null, cat));
+      const card = el("div", {class:"card"});
+      groups[cat].forEach(t => card.append(el("div", {style:"padding:.3rem 0;border-bottom:1px solid var(--grid)"},
+        el("b", null, t.term), (t.aliases || []).length ? el("span", {class:"srcnote"}, "  (" + t.aliases.join(", ") + ")") : null,
+        el("div", {style:"color:var(--ink-2)"}, t.definition))));
+      holder.append(card);
+    }
+    if (!holder.children.length) holder.append(el("div", {class:"empty"}, "no matching terms"));
+  }
+  // live-derived legend entries always available even without the digest
+  if (Object.keys(SUBTASKS).length){
+    root.append(el("h2", null, "subtasks (live)"));
+    const card = el("div", {class:"card"});
+    Object.values(SUBTASKS).forEach(s => card.append(el("div", {style:"padding:.25rem 0;border-bottom:1px solid var(--grid)"},
+      el("b", null, s.id), " — ", s.title, "  ", statusChip(s.status))));
+    root.append(card);
+  }
+  refresh("");
+};
+
+/* ================= router + nav ================= */
+const NAV_KEYS = "123456789abc".split("");
+const nav = document.getElementById("mc-nav");
+const main = document.getElementById("mc-main");
+nav.append(el("div", {class:"brand"}, "Mission Control"));
+nav.append(el("div", {class:"spec", title:MC.meta.spec_name}, MC.meta.spec_name || ""));
+const FRESH_DOT = {ok:"var(--good)", stale:"var(--warn)", missing:"var(--baseline)", invalid:"var(--crit)", absent:"var(--baseline)"};
+SECTIONS.forEach((s, i) => {
+  const b = el("button", {onclick(){ location.hash = s.id; }},
+    el("i", {class:"dot", style:"background:" + (s.kind === "live" ? "var(--good)" : (FRESH_DOT[s.state] || "var(--baseline)"))}),
+    s.title,
+    el("span", {class:"key"}, NAV_KEYS[i] || ""));
+  b.dataset.section = s.id;
+  if (s.kind === "digest" && s.state !== "ok") b.dataset.tip = s.reason;
+  nav.append(b);
+});
+nav.append(el("div", {class:"foot"}, "read-only · derived from the plan artifacts · j/k or number keys to navigate"));
+
+function show(id){
+  const sec = byId[id] || SECTIONS[0];
+  nav.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.section === sec.id));
+  main.textContent = "";
+  if (sec.state === "absent"){
+    main.append(el("h1", null, sec.title));
+    main.append(el("div", {class:"banner missing"}, "Not available — " + sec.reason));
+    return;
+  }
+  try {
+    RENDER[sec.id](sec, main);
+  } catch (err){
+    main.append(el("div", {class:"banner invalid"}, "This section failed to render: " + err.message));
+  }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const idx = SECTIONS.findIndex(s => s.id === (location.hash.slice(1) || SECTIONS[0].id));
+  if (e.key === "j") location.hash = SECTIONS[Math.min(SECTIONS.length - 1, idx + 1)].id;
+  else if (e.key === "k") location.hash = SECTIONS[Math.max(0, idx - 1)].id;
+  else {
+    const ki = NAV_KEYS.indexOf(e.key);
+    if (ki >= 0 && SECTIONS[ki]) location.hash = SECTIONS[ki].id;
+  }
+});
+show(location.hash.slice(1) || SECTIONS[0].id);
+})();
+</script>
+<!--MC_RELOAD-->
+</body>
+</html>

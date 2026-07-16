@@ -795,14 +795,19 @@ tooling.)*
   archetype-complete standalone HTML cards, fidelity-checked against the running
   app — so `/afk:prototype` crafts against the real app instead of generic
   defaults. Re-run when the frontend's tokens/components drift.
-- **`/afk:mission-control`** — launches the read-only mission-control dashboard
-  for one feature's spec folder: watch mode (default) re-renders on artifact
-  change and serves the page on `127.0.0.1`; `--once` renders a retroactive page
-  for an already-finished feature and exits, no server. Fronts the bundled
-  renderer CLI (`scripts/mission_control.py`) — a pure function from the spec/plan
-  artifacts to a self-contained page; the skill only launches it and reports the
-  served URL / output path. No daemonization: a crashed watcher's only recovery is
-  relaunching the skill.
+- **`/afk:mission-control`** — launches the mission-control dashboard for one
+  feature's spec folder: an interactive, navigable single page (sidebar
+  sections, module/subtask DAGs, steppable flow simulations, page-wide
+  tooltips) with two layers. **Live** sections (overview, progress with
+  sub-phase detail, timeline, gates, insights, diffs) derive from the plan
+  artifacts on every render — watch mode (default) re-renders on artifact
+  change and serves on `127.0.0.1`; `--once` renders a retroactive page and
+  exits. **Digest** sections (architecture, flows, entities, decisions,
+  critical logic, legend) render committed, hash-stamped `plan/digests/*.json`
+  authored only by the skill's explicit `build` mode (schemas + digestibility
+  rules: `DIGEST-FORMAT.md`) — stale/unbuilt digests show an amber hint, and
+  launching never spends tokens. Read-only viewport; no daemonization: a
+  crashed watcher's only recovery is relaunching the skill.
 - **`/afk:understand`** — generates one **self-contained interactive HTML
   understanding artifact** per feature (`{spec-dir}/understanding/index.html`) —
   dual-depth background, intuition, seam-ordered diff walkthrough, notable

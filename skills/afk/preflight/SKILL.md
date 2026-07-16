@@ -34,7 +34,7 @@ gate that never ran.
 First run creates a `## Preflight` section in `PLAN.md` — skeleton in
 `skills/afk/to-subtasks/PLAN-TEMPLATE.md`, columns
 `# | Step | Status | Cycle | Evidence` (lockstep with the mission-control
-renderer's gates panel, `skills/afk/mission-control/scripts/mc/panels/gates.py`
+renderer's gates section, `skills/afk/mission-control/scripts/mc/sections/gates.py`
 — that parser is the shape's other lockstep half; a column rename here is a
 same-commit change there). One row per PF step below. This skill is the table's
 sole writer; every other reader (renderer, human, orchestrating driver) only

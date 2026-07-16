@@ -48,7 +48,7 @@ the date in the header; everything else in PLAN.md is yours to edit.
 ## Preflight   <!-- created on first /afk:preflight run only — omit entirely until then -->
 <!-- lockstep copy: column shape `# | Step | Status | Cycle | Evidence` is owned
      jointly by /afk:preflight (sole writer) and the mission-control renderer's
-     gates panel (skills/afk/mission-control/scripts/mc/panels/gates.py) — a
+     gates section (skills/afk/mission-control/scripts/mc/sections/gates.py) — a
      column rename here is a same-commit change in both places -->
 
 `/afk:preflight` is this section's sole writer (progress tracker + smoke gate
