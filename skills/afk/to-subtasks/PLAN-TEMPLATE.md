@@ -54,13 +54,15 @@ the date in the header; everything else in PLAN.md is yours to edit.
 `/afk:preflight` is this section's sole writer (progress tracker + smoke gate
 above stay untouched by it); re-run skips rows already `green`, resuming at
 the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
-(counted across PF-2/PF-3/PF-7, not per row).
+(counted across PF-2/PF-4/PF-7, not per row); PF-3's cell instead counts its
+review settle-loop rounds (cap 10 — owned by
+`skills/afk/review/SETTLEMENT.md`; lockstep copy here).
 
 | # | Step | Status | Cycle | Evidence |
 |---|------|--------|-------|----------|
 | 1 | PF-1 merge origin/master + ancestry guard, push | pending | — | — |
 | 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
-| 3 | PF-3 fresh-context review of the integrated diff | pending | 0/2 | — |
+| 3 | PF-3 fresh-context review of the integrated diff (settle loop) | pending | 0/10 | — |
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
 | 4b | PF-4b understanding artifact (advisory, never parks) | pending | — | — |
 | 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |

@@ -163,7 +163,13 @@ At most one bug across the whole ledger may hold the `fixing` (S4) lane at a tim
 ## Gates & verdicts
 
 **Review gate**:
-The independent post-verification code review (`clean` / `advisory` / `blocking`) run by fresh subagents, one per concern, that never see the implementor's reasoning. Per-subtask rollup: `plan/review/INDEX.md`.
+The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.
+
+**Settle loop**:
+The review gate's round-based caller protocol — review with fresh contexts, fix or dispute every finding (nits included), adjudicate disputes with fresh skeptics, repeat until a round yields nothing actionable. Roles, round structure, termination, and the referee's information diet: `skills/afk/review/SETTLEMENT.md`.
+
+**Stalemate**:
+The settle loop's failure exit — the hard round cap reached with findings still open. Always flagged to a human (`review_fail` / `park`): non-convergence at the cap signals a real defect being danced around, an unowned spec ambiguity, or a gamed loop — never routine.
 
 **Adversary gate**:
 A fresh session probing the running app under a hard information diet, trying to break the contract (`clean` / `findings` / `tainted` / `env_unreachable`). `tainted` = the session saw forbidden material (the diff, the implementor's tests) and must be respawned.
