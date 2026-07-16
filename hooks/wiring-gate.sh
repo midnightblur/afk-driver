@@ -56,6 +56,15 @@ fi
 new_files=$(printf '%s\n%s\n' "$worktree_new" "$committed_new" | sed '/^$/d' | sort -u)
 [ -z "$new_files" ] && exit 0
 
+# Pass cache (skip in final mode — a normal-mode pass with open IOUs must not
+# satisfy a final-mode run, which blocks on those same IOUs).
+. "$(dirname "${BASH_SOURCE[0]}")/gate-cache.sh"
+cache_key=""
+if [ "$FINAL" != "1" ]; then
+  cache_key=$(gate_cache_key wiring)
+  gate_cache_hit wiring "$cache_key" && exit 0
+fi
+
 . "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
 gate_metrics_begin
 n_new=$(printf '%s\n' "$new_files" | wc -l | tr -d '[:space:]')
@@ -153,4 +162,5 @@ if [ "$FINAL" = "1" ] && [ -n "$pending" ]; then
 fi
 
 gate_metrics_emit wiring pass "\"new_files\":$n_new"
+[ "$FINAL" != "1" ] && gate_cache_store wiring "$cache_key"
 exit 0

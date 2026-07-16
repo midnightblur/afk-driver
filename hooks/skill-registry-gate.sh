@@ -42,6 +42,10 @@ MANIFEST="$PLUGIN_DIR/.claude-plugin/plugin.json"
 # Not this plugin's checkout — nothing to gate.
 [ -f "$MANIFEST" ] || exit 0
 
+. "$(dirname "${BASH_SOURCE[0]}")/gate-cache.sh"
+cache_key=$(gate_cache_key skill-registry)
+gate_cache_hit skill-registry "$cache_key" && exit 0
+
 . "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
 
 # ---- actual dirs on disk (relative to PLUGIN_DIR, "./skills/afk/<name>" shape)
@@ -142,4 +146,5 @@ if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unre
 fi
 
 gate_metrics_emit skill-registry pass "\"checked\":$n_checked"
+gate_cache_store skill-registry "$cache_key"
 exit 0

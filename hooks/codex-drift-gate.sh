@@ -52,6 +52,10 @@ changed=$(
 )
 [ -z "$changed" ] && exit 0   # scope no-op
 
+. "$SCRIPT_DIR/gate-cache.sh"
+cache_key=$(gate_cache_key codex-drift)
+gate_cache_hit codex-drift "$cache_key" && exit 0
+
 . "$SCRIPT_DIR/gate-metrics.sh"
 gate_metrics_begin
 
@@ -71,4 +75,5 @@ if ! out=$("$py" "$GENERATOR" --check 2>&1); then
 fi
 
 gate_metrics_emit codex-drift pass
+gate_cache_store codex-drift "$cache_key"
 exit 0
