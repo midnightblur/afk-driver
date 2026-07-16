@@ -4,7 +4,9 @@
 #
 # Canonical worktree provisioner for this repo (interactive and autonomous callers alike) —
 # plain `git worktree add` skips the .claude/.idea/.run/.mcp.json cloning + path rewriting
-# below, leaving a half-configured worktree with no hooks/gates/MCP config.
+# below, leaving a half-configured worktree with no hooks/gates/MCP config, and skips the
+# per-worktree Maven repo (.mvn/maven.config -> <worktree>/.m2/repository), so its builds
+# would race concurrent worktrees on the shared ~/.m2.
 #
 # Usage:
 #   create-worktree --branch <full-branch-name> --dir <worktree-dir-name> [options]
@@ -27,6 +29,12 @@
 #   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
 #   --no-npm          Skip `npm ci` at the new worktree root.
 #   --no-open         Skip launching the IDE on the new worktree (set by non-interactive callers).
+#   --no-m2           Skip per-worktree Maven repo provisioning (worktree shares ~/.m2 —
+#                     concurrent builds may then race; see the .m2 block below).
+#   --m2-seed <path|none>
+#                     Seed source for the worktree's private Maven repo. Default: the
+#                     <localRepository> from ~/.m2/settings.xml if set, else ~/.m2/repository.
+#                     `none` provisions the isolated repo empty (Maven downloads on demand).
 #
 # Output contract (machine-readable, always the LAST line):
 #   success  -> WORKTREE_PATH=<absolute path>
@@ -61,6 +69,8 @@ TRACK_FLAG=false
 CONFIGS_FLAG=true
 NPM_FLAG=true
 OPEN_FLAG=true
+M2_FLAG=true
+M2_SEED=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -70,10 +80,12 @@ while [[ $# -gt 0 ]]; do
     --repo)       REPO_DIR="${2:-}"; shift 2 ;;
     --parent)     WORKTREE_PARENT="${2:-}"; shift 2 ;;
     --idea-bin)   IDEA_BIN="${2:-}"; shift 2 ;;
+    --m2-seed)    M2_SEED="${2:-}"; shift 2 ;;
     --track)      TRACK_FLAG=true; shift ;;
     --no-configs) CONFIGS_FLAG=false; shift ;;
     --no-npm)     NPM_FLAG=false; shift ;;
     --no-open)    OPEN_FLAG=false; shift ;;
+    --no-m2)      M2_FLAG=false; shift ;;
     *) error_exit "unknown argument: $1" ;;
   esac
 done
@@ -164,6 +176,26 @@ copy_file_with_substitution() {
   fi
 }
 
+# Seed a private Maven repo from $1 into $2, excluding mutable *-SNAPSHOT version dirs
+# (in-house snapshots must build in-reactor via --also-make; a stale seeded copy causes APT
+# 'Expected a DeclaredType, got <error>' false failures). robocopy (multi-threaded,
+# Windows built-in) when available; POSIX `cp -a` fallback. Non-zero return = seed failed —
+# caller downgrades to a warning, because an unseeded repo still isolates.
+seed_m2_repo() {
+  local src="$1" dst="$2" rc=0
+  if command -v robocopy >/dev/null 2>&1; then
+    # MSYS_NO_PATHCONV / MSYS2_ARG_CONV_EXCL stop Git-Bash rewriting /E-style flags into
+    # paths. robocopy exit codes 0-7 all mean success (1 = files copied).
+    MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
+      robocopy "$(cygpath -w "$src")" "$(cygpath -w "$dst")" \
+      /E /XD '*-SNAPSHOT' /MT:16 /R:0 /W:0 /NFL /NDL /NJH /NJS /NP >/dev/null 2>&1 || rc=$?
+    (( rc < 8 ))
+  else
+    cp -a "$src/." "$dst/" || return 1
+    find "$dst" -type d -name '*-SNAPSHOT' -prune -exec rm -rf {} + 2>/dev/null || true
+  fi
+}
+
 # Recursively copy a directory (incl. subfolders), rewriting paths file-by-file.
 copy_dir_with_substitution() {
   local src_dir="$1" dest_dir="$2"
@@ -234,6 +266,49 @@ if [[ "$CONFIGS_FLAG" == true ]]; then
     # Mark this as a portable worktree project (IntelliJ uses .name if present)
     echo "$DIR_NAME" > "$DEST/.idea/.name"
     echo -e "${GREEN}Copied .idea/ (incl. subfolders like runConfigurations/dataSources)${NC}" >&2
+  fi
+fi
+
+# --- per-worktree Maven repo: concurrent worktree builds must never share a writable local
+# repo — parallel installs of the same *-SNAPSHOT and in-place metadata rewrites corrupt each
+# other's builds. Maven 3.6 (the wrapper pin) has no read-only tail/chained repo, so isolation
+# means a full private repo per worktree, activated by .mvn/maven.config, which every ./mvnw
+# run (hooks, skills, manual builds) and IntelliJ (2019.2+ reads maven.config) picks up with
+# zero caller changes. .m2/ is already gitignored repo-wide; maven.config is kept out of
+# `git status` via the shared .git/info/exclude.
+if [[ "$M2_FLAG" == true ]]; then
+  if [[ "$DEST_DIR_FWD" == *' '* ]]; then
+    echo -e "  ${YELLOW}worktree path contains a space — Maven 3.6 maven.config can't quote it; skipping per-worktree .m2 (builds will share ~/.m2)${NC}" >&2
+  else
+    mkdir -p "$DEST/.m2/repository" "$DEST/.mvn"
+    printf -- '-Dmaven.repo.local=%s/.m2/repository\n' "$DEST_DIR_FWD" > "$DEST/.mvn/maven.config"
+    # info/ lives in the common git dir — one exclude entry covers main + every worktree.
+    COMMON_INFO="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO_DIR/.git")/info"
+    mkdir -p "$COMMON_INFO"
+    grep -qxF '.mvn/maven.config' "$COMMON_INFO/exclude" 2>/dev/null \
+      || echo '.mvn/maven.config' >> "$COMMON_INFO/exclude"
+    echo -e "${GREEN}Wrote .mvn/maven.config -> private Maven repo at $DEST_DIR_FWD/.m2/repository${NC}" >&2
+
+    if [[ "$M2_SEED" != "none" ]]; then
+      SEED_SRC="$M2_SEED"
+      if [[ -z "$SEED_SRC" ]]; then
+        SEED_SRC="$HOME/.m2/repository"
+        if [[ -f "$HOME/.m2/settings.xml" ]]; then
+          CUSTOM_LR="$(sed -n 's/.*<localRepository>[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*<\/localRepository>.*/\1/p' "$HOME/.m2/settings.xml" 2>/dev/null | head -1 || true)"
+          if [[ -n "${CUSTOM_LR:-}" ]]; then SEED_SRC="$CUSTOM_LR"; fi
+        fi
+      fi
+      if [[ -d "$SEED_SRC" ]]; then
+        echo -e "${YELLOW}Seeding private .m2 from $SEED_SRC (excluding *-SNAPSHOT)...${NC}" >&2
+        if seed_m2_repo "$SEED_SRC" "$DEST/.m2/repository"; then
+          echo -e "${GREEN}Private .m2 seeded${NC}" >&2
+        else
+          echo -e "  ${RED}.m2 seed copy failed — worktree is still isolated; Maven will download on demand${NC}" >&2
+        fi
+      else
+        echo -e "  ${YELLOW}No Maven repo at $SEED_SRC — private .m2 starts empty${NC}" >&2
+      fi
+    fi
   fi
 fi
 

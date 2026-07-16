@@ -12,6 +12,7 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-07-16
 
+- Worktrees stop competing over `~/.m2`: `create-worktree` now provisions a private per-worktree Maven repo — it writes `.mvn/maven.config` (`-Dmaven.repo.local=<worktree>/.m2/repository`, picked up automatically by every `./mvnw` run, the maven-invoking hooks, and IntelliJ) and seeds it from your local repo minus `*-SNAPSHOT` dirs (robocopy, `cp -a` fallback; dependency set changed — C8). Opt out with `--no-m2`; `--m2-seed <path|none>` overrides the seed source. Retrofit an existing worktree by writing the same one-line `.mvn/maven.config` in it.
 - Token-lean runs, same gates: subtask contracts now carry `## Context excerpts` (slicing-time verbatim PRD/SDD/ADR quotes) so each executor works from its contract instead of re-reading the parent docs; execute's design-bar checklist reads and review's `refactor-safety` concern are trigger-gated by diff/slice shape; review materializes the diff once to a scratch file for all reviewers; `/afk:grill-verification` ingests sources via an `afk-reader` digest; maven-compile/ui-lint gates report triaged failure digests (full log to a file) instead of unbounded dumps.
 
 ## 2026-07-15

@@ -223,6 +223,17 @@ a token value — not even partially.
 
 ## P — Python
 
+### C8 · robocopy (Windows built-in) *(optional)*
+- **Needed by:** `skills/afk/bug`'s create-worktree script (per-worktree Maven repo
+  seeding — multi-threaded copy of the dev's local repo minus `*-SNAPSHOT` dirs).
+- **Probe:** `command -v robocopy`
+- **Fix:** none needed on Windows (ships with the OS); no fix elsewhere — the script
+  falls back to `cp -a`.
+- **Notes:** fail-open — robocopy absent or the seed copy failing downgrades to the
+  `cp -a` fallback / an unseeded private repo with a warning; the isolation itself
+  (`.mvn/maven.config` → `<worktree>/.m2/repository`) is written regardless, so
+  concurrent worktree builds never share a writable local repo.
+
 ### P1 · Python 3
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3),
