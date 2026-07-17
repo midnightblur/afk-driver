@@ -1,0 +1,4 @@
+# Deliberate concrete references allowed in plugin prose (genericity-gate.sh).
+# One exact token per line; keep the reason next to it.
+P2P-1220   # the plugin's own parent ticket (CLAUDE.md / README provenance)
+P2P-9999   # placeholder key used in format examples (bug LEDGER-FORMAT.md)
