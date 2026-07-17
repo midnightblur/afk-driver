@@ -24,30 +24,29 @@ _Avoid_: Client, buyer, account
 
 ## Rules
 
-- **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others under `_Avoid_`.
+- **Be opinionated.** When multiple words exist for one concept, pick the best and list the others under `_Avoid_`.
 - **Keep definitions tight.** One or two sentences max. Define what it IS, not what it does.
-- **Only include terms specific to this service's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the service uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
-- **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
-- **One owner per term.** A term shared across services is defined once — in the service that owns it, or in the root `GLOSSARY.md` if it is genuinely system-wide. Other services reference it via the map's Relationships section rather than redefining it. Never let the same term carry two definitions.
+- **Only terms specific to this service's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the service uses them extensively. Before adding, ask: unique to this context, or general programming concept? Only the former belongs.
+- **Group terms under subheadings** when natural clusters emerge. All terms in one cohesive area → flat list is fine.
+- **One owner per term.** A term shared across services is defined once — in the service that owns it, or in root `GLOSSARY.md` if genuinely system-wide. Other services reference it via the map's Relationships section rather than redefining. Never let the same term carry two definitions.
 
 ## Multi-context layout
 
-This repo is always multi-context. A `GLOSSARY-MAP.md` at the root indexes the
-per-service glossaries and records how the services relate:
+Always multi-context. A root `GLOSSARY-MAP.md` indexes the
+per-service glossaries and records how services relate:
 
 ```md
 # Glossary Map
 
 ## Glossaries
 
-- [Payable](./11700-payable/GLOSSARY.md) — owns posting runs and payable invoices
-- [SAP Posting Bot](./11024-sap-posting-bot/GLOSSARY.md) — pushes posting runs to SAP
-- [SAP Sync Bot](./11022-sap-sync-bot/GLOSSARY.md) — reconciles SAP master data
+- [Billing](./10001-billing/GLOSSARY.md) — owns billing runs and invoices (hypothetical)
+- [Export Bot](./10002-export-bot/GLOSSARY.md) — pushes billing runs to the ERP (hypothetical)
 
 ## Relationships
 
-- **Payable → SAP Posting Bot**: SAP Posting Bot references Payable's `PostingRun`; it does not redefine it
-- **SAP Sync Bot ↔ Payable**: shared system-wide terms `CompanyCode`, `Money` live in the root `GLOSSARY.md`
+- **Billing → Export Bot**: Export Bot references Billing's `BillingRun`; it does not redefine it
+- **Export Bot ↔ Billing**: shared system-wide terms `CompanyCode`, `Money` live in the root `GLOSSARY.md`
 ```
 
 The layout:

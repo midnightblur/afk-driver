@@ -1,11 +1,18 @@
 {
   "name": "afk",
   "version": "0.0.0",
-  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + interactive executor (execute) + optional feature smoke gate (smoke-test, runs UI + API verification) for the Nakisa Jira/GitLab workflow. Run each stage yourself; no autonomous driver.",
+  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) + post-ship understanding artifact (understand: one self-contained interactive HTML explainer per feature) for the Nakisa Jira/GitLab workflow.",
   "author": {
     "name": "mvu"
   },
+  "agents": [
+    "./agents/afk-reader.md",
+    "./agents/afk-runner.md"
+  ],
   "skills": [
+    "./skills/afk/adversary",
+    "./skills/afk/autopilot",
+    "./skills/afk/bug",
     "./skills/afk/claude-md",
     "./skills/afk/design-system",
     "./skills/afk/execute",
@@ -13,8 +20,13 @@
     "./skills/afk/grill-requirements",
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",
+    "./skills/afk/lessons",
+    "./skills/afk/mission-control",
+    "./skills/afk/preflight",
     "./skills/afk/prototype",
+    "./skills/afk/retro",
     "./skills/afk/review",
+    "./skills/afk/setup",
     "./skills/afk/smoke-test",
     "./skills/afk/tdd",
     "./skills/afk/to-design-brief",
@@ -23,13 +35,17 @@
     "./skills/afk/to-subtasks",
     "./skills/afk/to-ticket",
     "./skills/afk/to-verification-plan",
+    "./skills/afk/understand",
     "./skills/utils/caveman",
-    "./skills/utils/create-skill",
     "./skills/utils/diagnose",
     "./skills/utils/draw-charts",
     "./skills/utils/glossary",
     "./skills/utils/handoff",
+    "./skills/utils/interactive-walkthrough",
+    "./skills/utils/settle-mr",
     "./skills/utils/to-code-walkthrough",
-    "./skills/utils/todo"
+    "./skills/utils/todo",
+    "./skills/utils/verify-seams",
+    "./skills/utils/writing-great-skills"
   ]
 }

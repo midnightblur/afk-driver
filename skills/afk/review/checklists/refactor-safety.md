@@ -1,0 +1,10 @@
+# refactor-safety — pre-existing code changed safely?
+
+Routes findings by cause: behaviour-preservation risk → `class: correctness`; unnecessary/out-of-scope refactor → `class: scope` (see routing rule below).
+
+Separate the **net-new** code from changes to **pre-existing** code; the latter is refactoring and carries behaviour-preservation risk green tiers don't catch (existing tests may have moved with the code). Identify each refactor in the diff — symbol/file rename, signature or return-type change, extracted/inlined method, logic moved between classes/modules, edits to a **shared base class / util / `*-client` DTO / `*-entities` / state-machine**, reworked control flow in an existing method, changed defaults or data structures — and rate its risk as blast radius × behaviour-change potential × test coverage:
+
+- **high** — a medium/high-blast refactor (base class, widely-called helper, cross-service `*-client` contract, or any symbol with callers outside the home module) with **no characterization/regression test** proving behaviour is preserved; or a signature/rename whose call sites are not **all** updated (`Grep` the old name — a stray hit is a break).
+- **medium** — an in-module refactor reworking behaviour-bearing code with thin coverage; or an **opportunistic** refactor outside the subtask's `## Goal`/`## Scope` (risk *and* scope creep — even if it reads cleaner, it shouldn't ride this slice; it belongs in its own change).
+
+Route findings by cause: behaviour-preservation risk → `class: correctness` (needs a behaviour-pinning test before the refactor is trusted — the `/afk:fix` path); unnecessary / out-of-scope refactor → `class: scope` (trim it out or split it into its own subtask). A refactor reaching into **another team's module** (other `11xxx`, or `16xxx`–`19xxx`) raises severity and must carry the `// {TICKET-ID}:` marker comment plus a reviewer note — flag its absence. When a refactor renames/moves a symbol, every call site must change in lockstep — a partial rename is high severity, not a nit.

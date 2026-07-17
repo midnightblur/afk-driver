@@ -5,10 +5,10 @@ existing infrastructure — libraries, services, frameworks, datastores,
 caches, queues, auth providers, observability stacks, modules, schemas,
 build/deploy topology — do **not** accept it into the design. Verify
 against the codebase before letting it constrain a downstream decision.
-A fictional premise propagates into the SDD, then into ADRs, then into
+A fictional premise propagates into the SDD, then ADRs, then
 subtask `## Produces` contracts referencing types that don't exist —
-every downstream layer inherits the lie, and no preflight grep can
-catch it because the contracts are *internally* consistent with the
+every downstream layer inherits the lie, and no preflight grep
+catches it because the contracts are *internally* consistent with the
 fiction.
 
 **Trigger phrases.** When you hear (or are about to write) any of these,
@@ -31,18 +31,25 @@ verify before continuing:
 | Configuration posture | `ctx_search` `application.yml` / `application.properties` / `*.env*` / framework-specific config files. |
 | Schema / table / sharding key | `ctx_search` migration files / changelog / DDL / JPA entity annotations. |
 | Existing pattern reuse ("we already use Strategy for X") | `ctx_search` for the named interface / abstract class. |
+| Existing behaviour ("the system does X when Y") | Find the code path: `ctx_search` the entry point, read the branch that decides; or run the existing test that pins it. |
 | Cross-repo / runtime topology / deploy posture | Often unverifiable from this repo alone — see "external claims" below. |
+
+Run these verifications in `afk-reader` subagents — parallel where the
+claims are independent — each returning a cited confirm/refute digest,
+per `DELEGATION.md` (plugin root); the grilling session keeps its
+context on the interview and acts on the digests.
 
 **How to handle a verification miss.**
 
 1. **Surface the gap explicitly.** Quote what the user said. Quote what
    the search found (or didn't find). No papering over.
-2. **Walk the user through three options.** (a) They were mistaken —
-   redo the question with the actual posture. (b) They're proposing to
-   introduce it as part of this feature — that becomes its own
-   L1/L2/L3 decision with an ADR, not a casual reference. (c) They
-   confused this service with a different repo / module — clarify
-   scope, then verify in the right place.
+2. **Walk the user through three options.** (a) Mistaken —
+   redo the question with the actual posture. (b) Proposing to
+   introduce it as part of this feature — recorded new
+   work (a requirement in a requirements-phase session; an L1/L2/L3
+   decision with an ADR in a design-phase session), not a casual
+   reference. (c) Confused this service with a different repo /
+   module — clarify scope, then verify in the right place.
 3. **Re-ask the original question** with the corrected premise. The
    answer changes when the premise changes.
 
@@ -54,24 +61,19 @@ evidence (link / screenshot / second pair of eyes) or proceed with the
 unverified label?"* Letting the user decide whether to chase external
 verification is fine; **pretending you verified is not**.
 
-**This rule binds across all 8 layers**, not just L1/L2 where infra
-claims are most common. Verification triggers at every layer:
+**This rule binds across all 9 layers**, not just L1/L2 where infra
+claims are most common — the claim-type table above covers the how; e.g.:
 
 - L1 ("we deploy multi-region") — check ops manifests / Terraform.
-- L2 ("payable-svc owns invoices") — check ownership in module roots.
-- L3 ("we shard payables by tenant_id") — check the sharding config
-  or DDL.
 - L4 ("we have an idempotency table") — `ctx_search` the schema.
-- L5 ("the Order aggregate lives in `core.order`") — verify the
-  package + the aggregate-root annotation/class.
 - L6 ("the order saga is implemented via outbox") — verify the
   outbox table + dispatcher.
-- L7 ("the API contract is in `openapi.yaml`") — `ctx_read` the file.
-- L8 ("we already use Strategy here for ExportFormat") — find the
-  interface.
+- L9 ("that service method takes a DTO and handles validation") — read
+  the actual signature and its entry path; the seam walk is this rule
+  applied per seam.
 
 Verification is cheap (one `ctx_search` / `ctx_read`); a wrong premise
-is not. If you find yourself drafting an answer that references
-something specific in the codebase, **verify before you write it down**
-— this rule applies to your own drafts too, not just the user's
+is not. Drafting an answer that references
+something specific in the codebase — **verify before you write it down.**
+This rule applies to your own drafts too, not just the user's
 assertions.

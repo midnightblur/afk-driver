@@ -7,13 +7,13 @@ description: Disciplined diagnosis loop for hard bugs and performance regression
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 
-**Be certain before you fix.** A fix on a wrong diagnosis wastes the fix *and* buries the bug deeper. Do not edit code to "try" a fix until the loop has **confirmed** the cause. Exhaust every tool below first — a guess is a last resort, taken only after you've said so explicitly and stated your confidence.
+**Be certain before you fix.** A fix on a wrong diagnosis wastes the fix *and* buries the bug deeper. Don't edit code to "try" a fix until the loop has **confirmed** the cause. Exhaust every tool below first — a guess is a last resort, taken only after you've said so explicitly and stated your confidence.
 
-When exploring the codebase, use the project's domain glossary to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
+When exploring the codebase, use the project's domain glossary for a clear mental model of the relevant modules, and check ADRs in the area you're touching.
 
 ## Phase 1 — Build a feedback loop
 
-**This is the skill.** Everything else is mechanical. If you have a fast, deterministic, agent-runnable pass/fail signal for the bug, you will find the cause — bisection, hypothesis-testing, and instrumentation all just consume that signal. If you don't have one, no amount of staring at code will save you.
+**This is the skill.** Everything else is mechanical. A fast, deterministic, agent-runnable pass/fail signal for the bug → you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume that signal. Without one, no amount of staring at code will save you.
 
 Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**
 
@@ -32,14 +32,18 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 
 Build the right feedback loop, and the bug is 90% fixed.
 
+Bulk executions inside the loop (failing-suite runs, builds, instrumented runs with long logs) run via an `afk-runner` subagent that returns only the distilled observations — the decisive lines, cited — per `DELEGATION.md` (plugin root); the hypothesise → instrument → conclude reasoning stays inline, because each decision needs the previous step's texture.
+
 ### Tools at your disposal (core-services)
+
+*Repo-specific — skip this list outside the core-services monorepo.*
 
 The list above is generic methods; these are the concrete instruments in this repo. Use every one that fits before settling for a guess.
 
-- **Live UI** — most bugs are only *real* once they reproduce in the running app. The app must be **built and running**: if you can't confirm a live build, ask the user to start/confirm it — never reproduce against stale output.
-- **Mint a token** — `node tools/nakisa-financial-suite/jwt/mint.mjs [roles…]` prints an `access-token` JWT to stdout (or run `tools/nakisa-financial-suite/jwt/mint-jwt.cmd` for the web minter). Local-stack HS256 only; pass it as the `access-token` header to call `/ui/v1/` & `/api/v1/` as any role without an expiring token.
+- **Live UI** — most bugs are only *real* once they reproduce in the running app. App must be **built and running**: can't confirm a live build → ask the user to start/confirm it — never reproduce against stale output.
+- **Mint a token** — `node tools/nakisa-financial-suite/jwt/mint.mjs [roles…]` prints an `access-token` JWT to stdout (or `tools/nakisa-financial-suite/jwt/mint-jwt.cmd` for the web minter). Local-stack HS256 only; pass it as the `access-token` header to call `/ui/v1/` & `/api/v1/` as any role without an expiring token.
 - **Query the DB** — confirm what actually persisted (row written? column null? FK set?) instead of inferring from logs; settles "the service says it saved" vs "the row is wrong" directly.
-- **IntelliJ MCP** (if connected) — breakpoint, inspect, and evaluate against a *running* service — the Phase-4 "one breakpoint beats ten logs" rule, live.
+- **IntelliJ MCP** (if connected) — breakpoint, inspect, evaluate against a *running* service — the Phase-4 "one breakpoint beats ten logs" rule, live.
 
 ### Iterate on the loop itself
 
@@ -53,11 +57,11 @@ A 30-second flaky loop is barely better than no loop. A 2-second deterministic l
 
 ### Non-deterministic bugs
 
-The goal is not a clean repro but a **higher reproduction rate**. Loop the trigger 100×, parallelise, add stress, narrow timing windows, inject sleeps. A 50%-flake bug is debuggable; 1% is not — keep raising the rate until it's debuggable.
+The goal is not a clean repro but a **higher reproduction rate**. Loop the trigger 100×, parallelise, add stress, narrow timing windows, inject sleeps. A 50%-flake bug is debuggable; 1% is not — keep raising the rate until it is.
 
 ### When you genuinely cannot build a loop
 
-Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** proceed to hypothesise without a loop.
+Stop and say so explicitly. List what you tried. Ask the user for: (a) access to whatever environment reproduces it, (b) a captured artifact (HAR file, log dump, core dump, screen recording with timestamps), or (c) permission to add temporary production instrumentation. Do **not** hypothesise without a loop.
 
 Do not proceed to Phase 2 until you have a loop you believe in.
 
@@ -76,15 +80,15 @@ Do not proceed until you reproduce the bug.
 
 ## Phase 3 — Hypothesise
 
-Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
+Generate **3–5 ranked hypotheses** before testing any. Single-hypothesis generation anchors on the first plausible idea.
 
-Each hypothesis must be **falsifiable**: state the prediction it makes.
+Each hypothesis must be **falsifiable**: state its prediction.
 
 > Format: "If <X> is the cause, then <changing Y> will make the bug disappear / <changing Z> will make it worse."
 
-If you cannot state the prediction, the hypothesis is a vibe — discard or sharpen it.
+Can't state the prediction → the hypothesis is a vibe; discard or sharpen it.
 
-**Show the ranked list to the user before testing.** They often have domain knowledge that re-ranks instantly ("we just deployed a change to #3"), or know hypotheses they've already ruled out. Cheap checkpoint, big time saver. Don't block on it — proceed with your ranking if the user is AFK.
+**Show the ranked list to the user before testing.** They often have domain knowledge that re-ranks instantly ("we just deployed a change to #3"), or know hypotheses already ruled out. Cheap checkpoint, big time saver. Don't block on it — proceed with your ranking if the user is AFK.
 
 ## Phase 4 — Instrument
 
@@ -96,17 +100,17 @@ Tool preference:
 2. **Targeted logs** at the boundaries that distinguish hypotheses.
 3. Never "log everything and grep".
 
-**Tag every debug log** with a unique prefix, e.g. `[DEBUG-a4f2]`. Cleanup at the end becomes a single grep. Untagged logs survive; tagged logs die.
+**Tag every debug log** with a unique prefix, e.g. `[DEBUG-a4f2]`. Cleanup becomes a single grep. Untagged logs survive; tagged logs die.
 
 **Perf branch.** For performance regressions, logs are usually wrong. Instead: establish a baseline measurement (timing harness, `performance.now()`, profiler, query plan), then bisect. Measure first, fix second.
 
 ## Phase 5 — Fix + regression test
 
-Write the regression test **before the fix** — but only if there is a **correct seam** for it.
+Write the regression test **before the fix** — but only if a **correct seam** exists for it.
 
 A correct seam is one where the test exercises the **real bug pattern** as it occurs at the call site. If the only available seam is too shallow (single-caller test when the bug needs multiple callers, unit test that can't replicate the chain that triggered the bug), a regression test there gives false confidence.
 
-**If no correct seam exists, that itself is the finding.** Note it. The codebase architecture is preventing the bug from being locked down. Flag this for the next phase.
+**If no correct seam exists, that itself is the finding.** Note it — the codebase architecture is preventing the bug from being locked down. Flag for the next phase.
 
 If a correct seam exists:
 
@@ -127,4 +131,4 @@ Required before declaring done:
 - [ ] For a UI-visible bug, the fix was confirmed **in the running UI** (re-mint token, re-drive the app) — not only by the test seam
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
 
-**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.
+**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), hand off to the `/improve-codebase-architecture` skill with the specifics if available; otherwise record the recommendation in the diagnosis notes. Make the recommendation **after** the fix is in, not before — you have more information now than at the start.

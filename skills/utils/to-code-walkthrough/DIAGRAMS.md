@@ -2,14 +2,14 @@
 
 Referenced from [SKILL.md](SKILL.md) step 9. Each section below is pasted **verbatim** into the matching layer agent's `mermaid_guidance` slot — only the section(s) relevant to that layer.
 
-All Mermaid blocks must use ` ```mermaid ` fence. Syntax verbatim — never paraphrase keywords. If unsure of a feature, omit it rather than guess (broken diagram renders nothing).
+All Mermaid blocks must use ` ```mermaid ` fence. Syntax verbatim — never paraphrase keywords. Unsure of a feature → omit rather than guess (broken diagram renders nothing).
 
 ---
 
 ## flowchart LR
 Used by: **L4 modules**, optionally **L3 architecture** (decision tree).
 
-**Purpose:** show modules + dependencies left-to-right. Boxes = modules / packages / services. Edges = "depends on" / "calls" / "publishes".
+**Purpose:** modules + dependencies left-to-right. Boxes = modules / packages / services. Edges = "depends on" / "calls" / "publishes".
 
 **Template:**
 ```mermaid
@@ -46,7 +46,7 @@ flowchart LR
 ## classDiagram
 Used by: **L5 classes**.
 
-**Purpose:** show relationships between key classes. **Sparse** — skip member listings unless the signature is the whole point.
+**Purpose:** relationships between key classes. **Sparse** — skip member listings unless the signature is the whole point.
 
 **Template:**
 ```mermaid
@@ -83,7 +83,7 @@ classDiagram
 - Cap at ~8 classes per diagram.
 
 **Don't:**
-- List every field / method (that's IDE territory).
+- List every field / method (IDE territory).
 - Show framework parents (Spring `ApplicationContext`, JPA `EntityManager`, etc).
 - Diagram pure DTOs / records — call out in prose instead.
 
@@ -261,12 +261,9 @@ erDiagram
 
 ## Common pitfalls
 
-- **Reserved words.** `end`, `state`, `class` w/ `:` syntax — careful in labels. Quote labels w/ special chars.
-- **Newlines in node text.** Use `<br/>` inside node text: `A[Line one<br/>Line two]`.
-- **Comments.** `%% comment` syntax — only at line start.
-- **Theme.** Default Mermaid theme is fine. Don't inject `init` directives — added complexity for no payoff.
+- **Render-safety** (reserved words, label quoting, newlines via `<br/>`, `%%` comment placement, where Mermaid renders) — rules owned by `skills/utils/draw-charts/SKILL.md`; follow it.
+- **Theme.** Default Mermaid theme is fine. Don't inject `init` directives — complexity for no payoff.
 - **Diagram size.** Renderers struggle past ~30 nodes / ~50 edges. Split.
-- **Editor preview.** Some MD viewers don't support Mermaid (e.g. plain GitHub gist). Note in closing line that renderer must support Mermaid.
 
 ---
 

@@ -1,0 +1,145 @@
+<!--
+  branching-simulator — Next/Back walkthrough for a BRANCHING flow.
+
+  DATA CONTRACT — fill IWS_NODES (array). Every node has:
+    id : unique string
+    t  : 'step' | 'dec' | 'end'
+    h  : heading shown on the card
+    d  : body text, string OR function (S) => string, where S is the state
+         object accumulated from earlier decisions (use for text that depends
+         on choices made upstream)
+  'step' nodes add:
+    next : id of the following node, string OR function (S) => id
+  'dec' nodes add (the reader picks one option; no Next button):
+    opts : [{label, note?, set?, next}]
+             label : button text
+             note  : one-line consequence shown under the label
+             set   : OPTIONAL object merged into state S when chosen
+             next  : id to jump to
+  'end' nodes: terminal — only Back / Restart shown.
+
+  The breadcrumb trail records every visited node (decisions show the chosen
+  label). Back pops real history, including state.
+
+  MULTIPLE INSTANCES: duplicate the .iws div + script block with a unique div id,
+  rename IWS_NODES, point the copy's script at the new id. One <style> only.
+-->
+<style>
+  .iws{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;--iw-ink2:#5b6470;
+       --iw-line:#d8dce2;--iw-acc:#0b7285;--iw-dec:#7048a8;
+       border:1px solid var(--iw-line);border-radius:10px;background:var(--iw-bg2);
+       padding:1rem 1.1rem;margin:1rem 0;font-size:.92rem;color:var(--iw-ink)}
+  @media (prefers-color-scheme: dark){
+    .iws{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;--iw-ink2:#9aa3b0;
+         --iw-line:#333a44;--iw-acc:#5cc3d6;--iw-dec:#b18ae8}}
+  :root[data-theme="dark"] .iws{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;
+       --iw-ink2:#9aa3b0;--iw-line:#333a44;--iw-acc:#5cc3d6;--iw-dec:#b18ae8}
+  :root[data-theme="light"] .iws{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;
+       --iw-ink2:#5b6470;--iw-line:#d8dce2;--iw-acc:#0b7285;--iw-dec:#7048a8}
+  .iws-trail{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem;min-height:1.4rem}
+  .iws-trail .chip{font-size:.7rem;border:1px solid var(--iw-line);border-radius:99px;
+       padding:.1rem .6rem;color:var(--iw-ink2);background:var(--iw-bg)}
+  .iws-trail .chip.dec{color:var(--iw-dec);border-color:var(--iw-dec)}
+  .iws-card{background:var(--iw-bg);border:1px solid var(--iw-line);border-radius:8px;
+       padding:.9rem 1rem;min-height:6rem}
+  .iws-card h4{margin:0 0 .4rem;font-size:.98rem}
+  .iws-card h4 .kind{font-size:.66rem;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;margin-left:.5rem;color:var(--iw-ink2)}
+  .iws-card h4 .kind.dec{color:var(--iw-dec)}
+  .iws-card p{margin:0;color:var(--iw-ink2);line-height:1.55}
+  .iws-opts{display:grid;gap:.5rem;margin-top:.8rem}
+  .iws-opts button{text-align:left;font:inherit;cursor:pointer;border-radius:8px;
+       border:1px solid var(--iw-dec);background:none;color:var(--iw-ink);padding:.55rem .8rem}
+  .iws-opts button b{color:var(--iw-dec)}
+  .iws-opts button span{display:block;font-size:.78rem;color:var(--iw-ink2);margin-top:.15rem}
+  .iws-nav{display:flex;gap:.5rem;margin-top:.8rem}
+  .iws-nav button{font:inherit;cursor:pointer;border-radius:8px;padding:.4rem 1.1rem;
+       border:1px solid var(--iw-line);background:var(--iw-bg);color:var(--iw-ink)}
+  .iws-nav button.primary{border-color:var(--iw-acc);color:var(--iw-acc);font-weight:700}
+  .iws-nav button:disabled{opacity:.4;cursor:default}
+  @media (prefers-reduced-motion: no-preference){
+    .iws-card{transition:opacity .12s}}
+</style>
+
+<div class="iws" id="iws-demo">
+  <div class="iws-trail" aria-label="Path taken so far"></div>
+  <div class="iws-card" aria-live="polite"></div>
+  <div class="iws-nav"></div>
+</div>
+
+<script>
+(function(){
+  // FILL ME — see data contract in the header comment. Sample (replace):
+  const IWS_NODES = [
+    {id:'start', t:'step', h:'Request received', d:'A change request arrives and is logged.', next:'triage'},
+    {id:'triage', t:'dec', h:'Is it urgent?', d:'Urgency decides the path: the fast lane skips scheduling but requires a post-hoc review.',
+      opts:[
+        {label:'Urgent', note:'fast lane — apply now, review after', set:{urgent:true},  next:'apply'},
+        {label:'Routine', note:'scheduled with the next batch',       set:{urgent:false}, next:'schedule'}]},
+    {id:'schedule', t:'step', h:'Scheduled', d:'The request joins the next batch window.', next:'apply'},
+    {id:'apply', t:'step', h:'Change applied',
+      d:function(S){ return 'The change is applied' + (S.urgent ? ' immediately; a reviewer is notified for the post-hoc check.' : ' in its batch window, pre-reviewed.'); },
+      next:'done'},
+    {id:'done', t:'end', h:'Complete', d:'The change is live and the log entry closed.'}
+  ];
+
+  const root  = document.getElementById('iws-demo');
+  const trail = root.querySelector('.iws-trail');
+  const card  = root.querySelector('.iws-card');
+  const nav   = root.querySelector('.iws-nav');
+  const byId  = {}; IWS_NODES.forEach(n => byId[n.id] = n);
+  // hist entries: {id, S (state snapshot BEFORE entering), chip}
+  let hist = [];
+  let S = {};
+
+  function val(x){ return typeof x === 'function' ? x(S) : x; }
+  function enter(id, chipLabel, isDec){
+    hist.push({id:id, S:Object.assign({}, S), chip:chipLabel, dec:!!isDec});
+    render();
+  }
+  function render(){
+    const cur = hist[hist.length - 1], n = byId[cur.id];
+    trail.innerHTML = hist.map(h =>
+      '<span class="chip' + (h.dec ? ' dec' : '') + '">' + h.chip + '</span>').join('');
+    card.innerHTML = '<h4>' + n.h
+      + '<span class="kind' + (n.t === 'dec' ? ' dec' : '') + '">'
+      + (n.t === 'dec' ? 'decision' : n.t === 'end' ? 'end' : 'step') + '</span></h4>'
+      + '<p>' + val(n.d) + '</p>';
+    nav.innerHTML = '';
+    if (n.t === 'dec'){
+      const box = document.createElement('div');
+      box.className = 'iws-opts';
+      n.opts.forEach(o => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = '<b>' + o.label + '</b>' + (o.note ? '<span>' + o.note + '</span>' : '');
+        b.addEventListener('click', () => {
+          if (o.set) Object.assign(S, o.set);
+          enter(val(o.next), n.h + ' → ' + o.label, true);
+        });
+        box.appendChild(b);
+      });
+      card.appendChild(box);
+    }
+    const back = document.createElement('button');
+    back.type = 'button'; back.textContent = '← Back';
+    back.disabled = hist.length <= 1;
+    back.addEventListener('click', () => { const h = hist.pop(); S = h.S; render(); });
+    nav.appendChild(back);
+    if (n.t === 'step'){
+      const nx = document.createElement('button');
+      nx.type = 'button'; nx.className = 'primary'; nx.textContent = 'Next →';
+      nx.addEventListener('click', () => enter(val(n.next), byId[val(n.next)].h, false));
+      nav.appendChild(nx);
+    }
+    if (n.t === 'end'){
+      const rs = document.createElement('button');
+      rs.type = 'button'; rs.textContent = '↺ Restart';
+      rs.addEventListener('click', () => { hist = []; S = {}; enter(IWS_NODES[0].id, IWS_NODES[0].h, false); });
+      nav.appendChild(rs);
+    }
+    if (window.__annotate) window.__annotate(card);
+  }
+  enter(IWS_NODES[0].id, IWS_NODES[0].h, false);
+})();
+</script>

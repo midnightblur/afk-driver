@@ -1,30 +1,42 @@
 ---
 name: execute
-description: Execute one subtask from a local plan end-to-end interactively — read its contract from plan/NNNN-slug.md, design, develop under TDD, run every declared verification tier, commit, push, update the Draft MR, and advance the subtask's row in PLAN.md — then stop at CR/Merge for the human. Use when the user runs `/afk:execute {NNNN-slug}` on the parent branch to build one planned subtask, or when `/afk:fix` routes a stuck verification tier back to it. You run this yourself; there is no autonomous driver and no Jira. Reports a structured outcome.
+description: Executes one subtask from a local plan end-to-end — design, TDD, every declared verification tier plus the review and adversarial gates, commit, push, Draft-MR and PLAN.md updates — then stops at CR/Merge. Use when the user runs `/afk:execute {NNNN-slug}` on the parent branch, or when an invoker requests DRIVEN mode.
 ---
 
-# afk:execute — run one subtask from the local plan interactively
+# afk:execute — run one subtask from the local plan
 
-Run this skill yourself, in a Claude Code session, against a **single subtask** from the plan `/afk:to-subtasks` emitted. No autonomous driver — invoke `/afk:execute {NNNN-slug}` from a session whose cwd is a worktree checked out on the parent ticket's branch.
+Run against a **single subtask** from the on-disk plan — interactively by default (`/afk:execute {NNNN-slug}`, cwd a worktree on the parent ticket's branch), or non-interactively when the invoker requests DRIVEN mode (below).
 
-Everything is **local**: contract, design docs, progress tracker all live on disk under the ticket's `plan/` directory. This skill writes no Jira. SCM is **GitLab** (`glab` CLI) — the only external surface it touches (push + Draft MR).
+Everything **local**: contract, design docs, progress tracker live on disk under the ticket's `plan/` directory. Writes no Jira. SCM is **GitLab** (`glab` CLI) — the only external surface touched (push + Draft MR).
 
 Before starting, ensure:
 
-- cwd is a clean worktree on the parent branch (`mvu/afk/{ticket-id}`). Create worktree + branch yourself if it doesn't exist yet.
-- A Draft MR for that branch exists (`glab mr create --draft` if not). The MR carries the auto-maintained subtask checklist block.
+- cwd is a clean worktree on the parent branch (`kapteyn/development/{username}/{enh_id_lower}`). Create worktree + branch yourself if absent.
+- A Draft MR for that branch exists (`glab mr create --draft` if not). Carries the auto-maintained subtask checklist block.
 
-Your job: take one subtask through `designing` → `developing` → `verifying` → `reviewing`, get **every declared verification tier green** and the independent review gate `clean`/`advisory`, commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 12.
+Job: take one subtask through `designing` → `developing` → `verifying` → `reviewing`, get **every declared verification tier green** and the independent review gate **settled** (every finding fixed or settled — `skills/afk/review/SETTLEMENT.md`), commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 12.
 
 ## Argument
 
-A single subtask id — its filename stem under `plan/`, e.g. `0003-export-registry` (`.md` optional). The plan lives at the ticket's `{…}/{TICKET-ID}/plan/` directory; locate it relative to the worktree, or pass the full path.
+A single subtask id — its filename stem under `plan/`, e.g. `0003-export-registry` (`.md` optional). Plan lives at the ticket's `{…}/{TICKET-ID}/plan/` directory; locate it relative to the worktree, or pass the full path.
+
+## Driven mode
+
+When the invocation says DRIVEN (invoker passes the flag plus a live-app base URL), run the identical contract with these deltas:
+
+- **No human available.** Never pause for input; convert any would-be question into the closest structured failure outcome (Step 13) and stop.
+- **Commit + push pre-authorized** by the invoker for this branch — the interactive no-auto-commit rule does not apply inside a driven run.
+- **Mandated tiers are hard.** No `env-limited` waivers of any kind; a tier that cannot go green — environmental or not — is `test_fail`, not a waiver. Only waivers pre-declared in `VERIFICATION-PLAN.md` exist.
+- **Step 10.5 (adversarial execution gate) mandatory.** On by default interactively too; only the human may skip it.
+- Live surfaces (`api`, `e2e/browser`, Step 10.5) run against the invoker-provisioned instance at the passed base URL — never a developer's own running instance.
 
 ## Process
 
-1. **Read the contract.** `ctx_read` `plan/{NNNN-slug}.md`; parse its sections against the subtask contract (`## Goal / Design refs / Scope / Seams / Acceptance / Produces / Consumes / Verification / Parent PRD / Parent SDD / Blocked by / Conflict procedure / Implementation Notes`). Read `plan/PLAN.md` for rank order, the `## Blocked by` graph, the seam register. Read the `## Parent PRD` file.
+**Journal as you go.** Every tracker status flip (Steps 3, 5, 8, 10, 11), every push (Step 7), every gate verdict (Steps 10, 10.5), and the terminal outcome (Step 13) also lands as one appended line in `plan/JOURNAL.md` — format `skills/afk/to-subtasks/JOURNAL-FORMAT.md`; create the file with its header first if missing. Append-only: never edit or delete a prior line. Lets a human who wasn't watching reconstruct the run.
 
-   **Blocked-by guard.** If any id in this subtask's `## Blocked by` isn't `done` in the tracker, stop with `blocked(blocked_by: …)` naming the laggards — don't start a subtask whose prerequisites haven't landed. The terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` build subtasks are `Blocked by` every slice.
+1. **Read the contract.** `ctx_read` `plan/{NNNN-slug}.md`; parse its sections against the subtask contract (`## Goal / Complexity / Design refs / Scope / Seams / Acceptance / Produces / Consumes / Verification / Context excerpts / Parent PRD / Parent SDD / Blocked by / Conflict procedure`; a missing `## Complexity` reads as `standard` — the field sizes the *spawning* orchestrator's dispatch, not this skill's behaviour; a missing `## Context excerpts` means an older plan — fall back to reading the parent docs below). Read `plan/PLAN.md` for rank order, `## Blocked by` graph, seam register. **`## Context excerpts` is your spec context** — the emitter selected the verbatim PRD/SDD/ADR passages this slice needs. Open the full `## Parent PRD` / `## Parent SDD` / cited ADRs **only** when a question the excerpts don't settle arises (an ambiguous Acceptance bullet, a seam the excerpts don't pin, a suspected excerpt-vs-source gap); that fallback read goes through an `afk-reader` digest per `DELEGATION.md` (plugin root).
+
+   **Blocked-by guard.** If any id in this subtask's `## Blocked by` isn't `done` in the tracker, stop with `blocked(blocked_by: …)` naming the laggards — don't start a subtask whose prerequisites haven't landed. Read the graph as-is; a subtask blocked by every other simply runs last.
 
    If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
@@ -32,7 +44,11 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 
 3. **Status → `designing`.** Set this subtask's `Status` cell in the PLAN.md progress tracker to `designing`; stamp the `Last updated` date. One-cell edit — preserve the rest of the table.
 
-4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — adding entity classes is fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
+4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — entity classes fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
+
+   **Design to the review bars.** For each design-level checklist in `tools/payable/ai-agents/plugins/workflow/skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md`, read its `## Guardrails` digest **only if the planned slice can hit its activation trigger** (trigger table: `skills/afk/review/SKILL.md`, judged from this contract's `## Scope` / `## Seams` / `## Produces`; unsure → read it). These are the bars the slice is later reviewed against — holding the design to them now costs a rename; failing them at the gate costs a remediation cycle.
+
+   **Hold the design against open lessons.** Run `bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh` from the repo root and honour every open lesson whose `target` overlaps this slice's Scope or tech surface (format: `skills/afk/lessons/LEDGER-FORMAT.md`) — a mistake repeated after its lesson is on file is a review finding waiting to happen.
 
 5. **Status → `developing`; apply TDD.** Flip the tracker cell to `developing`, then use `/afk:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
@@ -44,38 +60,54 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 
 8. **Status → `verifying`; run every Verification tier.** Flip the tracker cell to `verifying`. Run **every row** of the subtask's `## Verification` table — `static`, then `unit`, then `integration`, then `api`, then `e2e/browser` as present. Each row's command must go green:
    - **static** — the compile/lint/type command AND a grep of every `## Produces` anchor (declared symbols must exist).
-   - **unit / integration / api / e2e** — run the exact command. A seam-implementing subtask's seam-test (an integration/unit row) must assert on the framework's real output, not your DTO. An **api**-tier row hits the endpoint over REST (`node --test` against `11700-payable/verification/api`, using `../core`, or a disposable probe importing `../core`) and asserts the real envelope + the below-the-UI authz guard — needs a running backend. The terminal build subtasks run inside the in-tree `11700-payable/verification` module (paths relative to this same worktree — their specs land on this branch/MR like any other code): `NNNN-smoke-e2e`'s `static` tier is `cucumber-js --dry-run` (offline) and its `e2e/browser` tier (`npm run smoke`) needs a running app + the suite's env (auth/base-URL per `11700-payable/verification/ui-e2e/README.md`); `NNNN-smoke-api`'s `static` tier is `node --check` (offline) and its `api` tier (`node --test`) needs a running backend + a token (minted via `../core`). Bring those up before the tier, same as `/afk:smoke-test` does. If a tier fails, retry once with a targeted fix. Still red → **route to `/afk:fix`** (it wraps `/afk:diagnose` + proportional coverage, and on this unreleased feature reconciles any stale spec artifact), then re-run this subtask from Step 8. If `/afk:fix` returns `design_conflict`, follow the Step 13 `design_conflict` path instead. If it still can't get the tier green, stop with `test_fail` (or `build_fail` for a static/compile failure), naming the tier. Partial tier coverage is failure: a UI subtask whose e2e row is red is not `success`.
+   - **unit / integration / api / e2e** — run the exact command. A seam-implementing subtask's seam-test (an integration/unit row) must assert on the framework's real output, not your DTO. An **api**-tier row hits the endpoint over REST and asserts the real envelope + the below-the-UI authz guard — needs a running backend. Any tier whose command drives a live surface (`api`, `e2e/browser`) needs its runtime up first — bring up whatever that row's command requires (running backend, app, token/env) before running it, exactly as the tier's command specifies. On a tier fail, retry once with a targeted fix. Still red → **route to `/afk:fix`** (wraps `/afk:diagnose` + proportional coverage, and on this unreleased feature reconciles any stale spec artifact), then re-run this subtask from Step 8. If `/afk:fix` returns `design_conflict`, follow the Step 13 `design_conflict` path instead. If it still can't get the tier green, stop with `test_fail` (or `build_fail` for a static/compile failure), naming the tier. Partial tier coverage is failure: a UI subtask whose e2e row is red is not `success`.
+
+   Tiers with long output (suite runs, full builds) run via an `afk-runner` subagent per `DELEGATION.md` trigger 3 (plugin root); turn tiers green off its digest, dropping inline only for the focused fix-one-failure loop.
 
 9. **Producer self-preflight on `## Produces` (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-10. **Status → `reviewing`; independent review gate.** Every tier is green (Step 8) and the `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and run **`/afk:review {NNNN-slug}`** before declaring done. It spawns fresh, independent subagents (they never see your reasoning) across the seven concerns and is **read-only** — it returns one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]`.
+10. **Status → `reviewing`; review settle loop.** Every tier green (Step 8) and `## Produces` anchors confirmed (Step 9) — but green tiers don't prove the code honours the CLAUDE.md rules, covers the whole spec, or is free of risky refactoring. Flip the tracker cell to `reviewing` and gate through the settle loop (`skills/afk/review/SETTLEMENT.md` — round structure, fix-or-dispute, dispute adjudication, referee-kept termination; **you are its referee**). Per round, run **`/afk:review {NNNN-slug} --tag r{n}`** — it spawns fresh, independent subagents (they never see your reasoning) across its concern roster (full on the first round; delta rounds consolidate to its delta roster — that skill owns the scaling) and is **read-only** — returning one verdict line: `REVIEW: <verdict> — crit=… high=… med=… low=… [findings: <path>]` (grammar owned by `/afk:review` — lockstep copy here because this step parses it). The loop, not any single verdict, decides the gate: every actionable finding — `medium`/`low` included — is fixed or disputed per SETTLEMENT.md until a round comes back with nothing actionable.
+
+    - **Fix routing by `class`** (SETTLEMENT.md owns the loop; this table owns the routing):
+      - `correctness` / `spec` (incl. a behaviour-risk refactor) → route to **`/afk:fix`** (diagnose-backed; adds the regression / behaviour-pinning test the gate demanded).
+      - `compliance` / `smell` / `test` / `design` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
+      - `scope` → trim the out-of-scope change back inside the Scope globs; if the finding genuinely needs work **outside** Scope, stop with `blocked` per the Scope hard rule (not `review_fail`) so the human can re-slice.
+      - `pattern-debt` → no routing, never gates — it lives in the review's debt ledger; leave it.
+    - **Close each round**: commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and re-run only the **cheap re-verification** (SETTLEMENT.md step 7): the `static` tier (compile + `## Produces` anchor greps) plus the `unit`/`integration` rows covering the changed code — **never a live tier (`api`, `e2e/browser`) per round**. Then the next review round.
+    - **Settled** (a round yields nothing actionable — everything fixed or settled) → if any remediation commit landed during the loop, re-run the remaining declared live tiers (`api`, `e2e/browser`) **once** now — one expensive pass total, not per round; a red routes per Step 8. Then proceed to Step 10.5.
+    - **Stalemate** (SETTLEMENT.md's hard round cap reached with findings still open) → **stop with `review_fail`** — name the surviving findings and their `class`; do **not** mark the subtask `done`. Non-convergence at the cap is unusual — a human must look.
+    - **Record outcomes per round** as SETTLEMENT.md step 7 defines (`plan/review/{NNNN-slug}-{base-short}-r{n}.outcomes.json`) — the per-criterion telemetry `/afk:retro` aggregates. A concluded finding that exposed a doctrine gap — an instruction that existed but was ignored, or one that should exist — is captured as a workflow lesson in the same breath, per `skills/afk/lessons/CAPTURE.md`.
+
+    Standalone, `/afk:review` also runs on its own (`/afk:review {NNNN-slug}`) to audit a slice without gating.
+
+10.5. **Adversarial execution gate.** Green tiers + a clean static review still don't prove the running system honours the contract — the tiers were written by the same mind that wrote the code. Run **`/afk:adversary {NNNN-slug} {app-base-url}`** in a **fresh session/subagent that has not seen this run's reasoning, diff, or tests** (its information diet is its own hard rule). The app instance must serve this slice's code — bring it up via `tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh` if the invoker didn't provision one.
 
     - **`clean`** → proceed to Step 11.
-    - **`advisory`** (only `medium`/`low`) → don't block on nits. Carry the findings into Step 11's `## Implementation Notes` note and add a brief MR note, then proceed to Step 11.
-    - **`blocking`** (any `critical`/`high`) → remediate **by each finding's `class`**, then re-verify:
-      - `correctness` / `spec` (incl. a behaviour-risk refactor) → route to **`/afk:fix`** (diagnose-backed; it adds the regression / behaviour-pinning test the gate demanded).
-      - `compliance` / `smell` / `test` → fix **inline**: flip the cell back to `developing`, apply the fix within Scope, return.
-      - `scope` → trim the out-of-scope change back inside the Scope globs; if the finding genuinely needs work **outside** Scope, stop with `blocked` per the Scope hard rule (not `review_fail`) so the human can re-slice.
-      - Commit the remediation (`[{NNNN-slug}] review fix: …`), push, update the MR checklist, and **re-run from Step 8** (tiers → preflight → this gate).
-    - **Cap at 2 review cycles.** If the gate is still `blocking` after the second remediation, **stop with `review_fail`** — name the surviving `critical`/`high` findings and their `class`; do **not** mark the subtask `done`.
+    - **`findings`** with any `critical`/`high` → remediate by each finding's `class` with the same routing as Step 10 (`correctness`/`spec` → `/afk:fix`; `authz`/`robustness` → inline within Scope), commit, push, and **re-run from Step 8**. These cycles have their **own cap of 2** (the Step 10 settle loop keeps separate accounting); still `critical`/`high` after the cap → stop with `adversary_fail`. Findings only `medium`/`low` → treat like an advisory review (live in `plan/review/*.md`); add a brief MR note and proceed. **Corpus ratchet:** remediating a `critical`/`high` adversary finding includes landing its repro as a permanent scenario in the matching verification catalog (`api` or `ui-e2e` per the repro's modality, corpus convention per that catalog's `AUTHORING.md`) in the same remediation commit — the gate that caught it once must catch it forever, for every future feature. A remediated finding that exposed a doctrine gap is likewise captured as a workflow lesson per `skills/afk/lessons/CAPTURE.md` (the ratchet owns the test side; the lesson owns the doctrine side).
+    - **`tainted`** / **`env_unreachable`** → respawn fresh / restore the app, then re-run the gate; don't proceed around it. **Cap at 2 such re-run attempts**: still `tainted` after the second → stop with `adversary_fail` (name the taint); still `env_unreachable` → stop with `blocked(env_unreachable: …)` naming what wouldn't come up.
 
-    Standalone, `/afk:review` is also runnable on its own (`/afk:review {NNNN-slug}`) to audit a slice without gating.
+    Mandatory in driven mode; on by default interactively (only the human may skip it).
 
-11. **Update Implementation Notes + tracker.** Append one note to this subtask file's `## Implementation Notes (auto-maintained)` block (preserve any human prose around it) — include any `advisory` review findings from Step 10. Set the subtask's PLAN.md row `Status` to `done`; stamp the date.
+11. **Reconcile the glossary, then update the tracker.** If implementation revealed a domain term's actual semantics differ from its `GLOSSARY.md` definition (owning glossary located via `GLOSSARY-MAP.md`; format per `/afk:glossary`), update the entry and commit it separately: `[{NNNN-slug}] glossary: <terms>`. Then set the subtask's PLAN.md row `Status` to `done`; stamp the `Last updated` date. The subtask file round-trips verbatim — this skill writes no per-run note anywhere; the run's signals live in the PLAN.md `Status`/`blocked(…)` cell, `plan/JOURNAL.md`, and `plan/review/*.md`.
 
-12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. The **feature-level** smoke gate (integrated browser journeys against a running app) is likewise not yours — when the plan has a `## Feature smoke gate` and every subtask is `done`, the human runs `/afk:smoke-test`. The terminal `NNNN-smoke-e2e` / `NNNN-smoke-api` subtasks (which *build* those specs from `VERIFICATION-PLAN.md`, following the canonical recipes at `11700-payable/verification/ui-e2e/AUTHORING.md` and `11700-payable/verification/api/AUTHORING.md`) are normal subtasks you run like any other; the gate that *runs* them integrated is the separate skill.
+12. **Stop at CR/Merge — the human decides.** Do **not** merge the MR yourself. Leave the Draft MR updated and the subtask `done` in the tracker; report `success`. The human reviews the MR and merges out of band. Auto-merging is outside this skill's lane. Anything the plan defines beyond a single subtask — a feature-level gate the human runs once all subtasks are `done` — is likewise not yours to trigger.
 
 13. **Report the structured outcome.** End with a one-line outcome so the human (or an orchestrator) tells `success` from a structured failure at a glance. The same status drives the PLAN.md `Status` cell (`done` on success, `blocked(<status>: …)` otherwise):
 
     ```
+    In plain terms: <one jargon-free sentence — what happened and its consequence for the reader>
+    Journal: plan/JOURNAL.md · Contract: plan/{NNNN-slug}.md
     OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-ID|none>]
     ```
 
+    The plain-terms sentence and pointer lines follow the reporting protocol (`REPORTING.md` at the plugin root); the `OUTCOME:` line stays **last** so an orchestrator can parse the trailing line.
+
     | Status | Meaning / next action |
     |---|---|
-    | `success` | Every Verification tier green, the Step 10 review gate `clean`/`advisory`, code committed + pushed, MR updated, subtask `done`. The human handles CR/Merge. |
+    | `success` | Every Verification tier green, Step 10 settle loop settled (every finding fixed or settled), Step 10.5 adversarial gate `clean` (or medium/low-only findings, when the gate ran), code committed + pushed, MR updated, subtask `done`. Human handles CR/Merge. |
     | `test_fail` / `build_fail` | A Verification tier stayed red after one targeted retry **and** an `/afk:fix` pass (Step 8). Name the tier. |
-    | `review_fail` | Step 10: the independent review gate stayed `blocking` after two remediation cycles. Name the surviving `critical`/`high` findings + their `class`. Set this row `blocked(review_fail: …)`. |
+    | `review_fail` | Step 10: the review settle loop hit its hard round cap with findings still open — stalemate (`skills/afk/review/SETTLEMENT.md`). Unusual by construction; a human must look. Name the surviving findings + their `class`. Set this row `blocked(review_fail: …)`. |
+    | `adversary_fail` | Step 10.5: the adversarial execution gate still reports `critical`/`high` findings after its remediation cap. Name each finding + its `class` + repro path. Set this row `blocked(adversary_fail: …)`. |
     | `blocked_by` | Step 1: a `## Blocked by` prerequisite isn't `done` yet. Name the laggards; set this row `blocked(blocked_by: …)`. Run the prerequisites first. |
     | `timeout` | Exited on a wall-clock cap. |
     | `other` | Unexpected failure. |
@@ -88,9 +120,12 @@ If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-M
 
 ## Hard rules (inherited from core-services CLAUDE.md)
 
-- **Never alter DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup`, `PreDbMigration`, or `db/changelog/*` edits. Step 9's pickup check enforces this — `@Entity` without a passing pickup-verification run is `produces_drift`, not success.
+- **Never alter DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup`, `PreDbMigration`, or `db/changelog/*` edits. In cited mode Step 9's pickup check enforces this (`@Entity` without a passing pickup-verification run is `produces_drift`, not success); in uncited mode the guard is the static tier plus Step 4's diff check against the forbidden-pattern list.
 - **Never auto-commit outside this AFK lane.** This skill is the *only* context where the agent commits autonomously.
 - **Cross-module edits need marker comments.** A ticket-prefixed line like `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the home module.
 - **No `--no-verify`, no `--force`, no global git config changes.**
-- **Stay inside Scope globs.** If work requires going outside, stop with detail explaining what was needed and why.
-- **Only the tracker's Status column and the auto-maintained blocks are yours.** In PLAN.md edit only the working subtask's `Status` cell + the `Last updated` date; in the subtask file only the `## Implementation Notes` block; in the MR only the checklist block. Everything else round-trips verbatim.
+- **Stay inside Scope globs.** If work requires going outside, stop with detail on what was needed and why.
+- **Negative existence claims are verified, never inferred.** Before writing "backend field/symbol X doesn't exist" into code, a test, or a doc (e.g. an exclusion comment), check the **generated** artifacts — the generated TS models (`target/typescript/backendModels.ts`), the APT output under `target/generated-sources/annotations` — and the declaring class's **full inheritance chain**, not just its hand-written source. Cite the checked artifact where the claim lands. A plausible inference shipped as a documented, tested-for exclusion is worse than no exclusion.
+- **Sweep siblings of a pattern fix.** When a change fixes one instance of a repeated component/pattern (sibling grids, twin view/provider pairs), enumerate the siblings sharing the shape: apply the same fix to those inside Scope; name the out-of-scope ones in the outcome report as a surfaced gap. Never leave a twin silently unswept or "excluded" without the verified reason above.
+- **Run every subtask uniformly from its contract** — including one whose `## Goal` says to invoke another skill: invoke that skill as written; don't recognize a subtask by kind, hand-write its output, or reimplement what it delegates to.
+- **Only the tracker's Status column and the MR checklist block are yours.** In PLAN.md edit only the working subtask's `Status` cell + the `Last updated` date; in the MR only the checklist block. Everything else — including the subtask file, which round-trips verbatim — is not yours to touch.

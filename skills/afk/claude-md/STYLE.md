@@ -17,7 +17,7 @@ stale → wrong-but-authoritative. Keep CLAUDE.md to the durable principle; let 
 live where they're authoritative (`package.json`/lockfile, code, memory).
 - Bad: `pin foo-lib 1.60.0 (1.61.0 too young); 5 overrides`.
 - Good: `deps: exact pins + 30-day age floor; pin too-new transitives via overrides`.
-- Caveat to "Keep verbatim" above: the identifiers (paths, commands, flags, fields, env vars)
+- Caveat to "Keep verbatim" above: identifiers (paths, commands, flags, fields, env vars)
   are durable — keep them. Version numbers / counts attached to them are NOT — drop or generalize.
 
 ## Keep precise
@@ -29,7 +29,7 @@ live where they're authoritative (`package.json`/lockfile, code, memory).
 Emit the steering heading (`## …`) + body, nothing else. NO file-title line (`# CLAUDE.md — <dir>`),
 NO `Scope:` / `Inherits` preamble — the dir path already scopes it (progressive disclosure) and
 ancestors auto-load, so a title/Scope banner adds tokens, not steering (fails inclusion bar #3).
-Legacy repo leaf files that carry that banner are NOT the pattern to copy.
+Legacy leaf files carrying that banner are NOT the pattern to copy.
 
 ## Shape of a good line
 `<topic>: <non-obvious fact / pointer>. <gotcha if any>.`
@@ -44,4 +44,4 @@ Bad (obvious / verbose → drop):
 
 ## Block comments
 `<!-- ... -->` stripped from agent context (free) but visible to humans in raw file.
-Use sparingly for human-maintainer notes. Do NOT use for provenance (we don't track provenance).
+Use sparingly for human-maintainer notes. NOT for provenance (we don't track provenance).

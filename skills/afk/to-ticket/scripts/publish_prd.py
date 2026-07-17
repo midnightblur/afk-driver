@@ -8,7 +8,7 @@ byte-for-byte reproducible rather than eyeballed each run:
   1. Render every ```mermaid fenced block to a PNG locally (mmdc), so no
      diagram source ever leaves the network.
   2. Convert the PRD Markdown to ADF (Atlassian Document Format) via a fixed
-     element mapping (see md_to_adf below).
+     element mapping (see jira_core.md_to_adf_content).
   3. Upload each rendered PNG as an attachment, resolve its media UUID via the
      attachment content-URL 303 redirect, and embed it inline as an ADF media
      node (the only method Jira Cloud actually renders inline — verified
@@ -21,6 +21,12 @@ byte-for-byte reproducible rather than eyeballed each run:
   5. Re-running is idempotent: the prior managed block + prior afk-* figure
      attachments are replaced, not duplicated.
 
+The reusable Jira machinery — creds resolution, the REST client, Markdown→ADF
+conversion, attachment upload + media-UUID extraction, PNG sizing — lives in the
+plugin-root shared lib `scripts/jira_core.py` (ADR-0001). This script keeps only
+the PRD-specific concerns: mermaid rendering and the sentinel-block description
+merge.
+
 Only PRD content is published. SDD / ADR / lower-level technical detail is the
 caller's responsibility to keep out of PRD.md — this script publishes whatever
 PRD.md contains, nothing more.
@@ -28,27 +34,37 @@ PRD.md contains, nothing more.
 Usage:
     python publish_prd.py --parent P2P-1220 --prd path/to/PRD.md [--dry-run] [--yes]
 
-Credentials are read from the Jira MCP server's env block in ~/.claude.json
-(JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN), or from same-named OS env vars
-if those are set (env vars win). Nothing is hardcoded.
+Credentials resolve as jira_core.load_creds documents (OS env vars win, then
+the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
+is hardcoded.
 """
 
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 import re
-import struct
 import subprocess
 import sys
 import tempfile
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-from markdown_it import MarkdownIt
+# The shared Jira machinery lives at the plugin root (workflow/scripts/), five
+# directories up from this file (scripts/to-ticket/afk/skills/workflow).
+_PLUGIN_SCRIPTS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))), "scripts")
+if _PLUGIN_SCRIPTS not in sys.path:
+    sys.path.insert(0, _PLUGIN_SCRIPTS)
+
+from jira_core import (  # noqa: E402
+    FIG_TOKEN,
+    Jira,
+    load_creds,
+    md_to_adf_content,
+    png_size,
+)
 
 # ----------------------------------------------------------------------------
 # Managed-block sentinels. These delimit the region this script owns inside the
@@ -67,127 +83,25 @@ FIG_PREFIX = "afk-fig"  # attachment filenames: afk-fig{N}.png
 
 
 # ============================================================================
-# Credentials
-# ============================================================================
-def _walk_for_jira_env(obj):
-    if isinstance(obj, dict):
-        jira = obj.get("jira")
-        if isinstance(jira, dict) and isinstance(jira.get("env"), dict):
-            return jira["env"]
-        for v in obj.values():
-            r = _walk_for_jira_env(v)
-            if r:
-                return r
-    return None
-
-
-def load_creds():
-    base = os.environ.get("JIRA_BASE_URL")
-    email = os.environ.get("JIRA_EMAIL")
-    token = os.environ.get("JIRA_API_TOKEN")
-    if not (base and email and token):
-        cfg_path = Path.home() / ".claude.json"
-        env = None
-        if cfg_path.exists():
-            env = _walk_for_jira_env(json.loads(cfg_path.read_text(encoding="utf-8")))
-        if env:
-            base = base or env.get("JIRA_BASE_URL")
-            email = email or env.get("JIRA_EMAIL")
-            token = token or env.get("JIRA_API_TOKEN")
-    if not (base and email and token):
-        sys.exit("ERROR: could not resolve Jira creds (JIRA_BASE_URL/EMAIL/API_TOKEN "
-                 "from env or ~/.claude.json mcpServers.jira.env).")
-    return base.rstrip("/"), email, token
-
-
-class Jira:
-    def __init__(self, base, email, token):
-        self.base = base
-        self.auth = "Basic " + base64.b64encode(f"{email}:{token}".encode()).decode()
-
-    def _req(self, method, path, data=None, headers=None, follow=True):
-        url = path if path.startswith("http") else self.base + path
-        h = {"Authorization": self.auth, "Accept": "application/json"}
-        if headers:
-            h.update(headers)
-        req = urllib.request.Request(url, data=data, method=method, headers=h)
-        if follow:
-            return urllib.request.urlopen(req, timeout=60)
-        opener = urllib.request.build_opener(_NoRedirect)
-        return opener.open(req, timeout=60)
-
-    def get_issue(self, key, fields):
-        r = self._req("GET", f"/rest/api/3/issue/{key}?fields={fields}")
-        return json.loads(r.read())
-
-    def update_description(self, key, adf):
-        # notifyUsers=false would suppress watcher notifications, but Jira only
-        # honours it for project/system admins (else 403), so we don't send it.
-        body = json.dumps({"fields": {"description": adf}}).encode()
-        self._req("PUT", f"/rest/api/3/issue/{key}", data=body,
-                  headers={"Content-Type": "application/json"})
-
-    def delete_attachment(self, att_id):
-        try:
-            self._req("DELETE", f"/rest/api/3/attachment/{att_id}")
-        except urllib.error.HTTPError as e:
-            if e.code not in (204, 200, 404):
-                raise
-
-    def upload_attachment(self, key, filepath):
-        """Multipart upload. Returns the attachment id (str)."""
-        boundary = "----afkPrdBoundary7MA4YWxkTrZu0gW"
-        fname = os.path.basename(filepath)
-        with open(filepath, "rb") as f:
-            payload = f.read()
-        body = b"".join([
-            f"--{boundary}\r\n".encode(),
-            f'Content-Disposition: form-data; name="file"; filename="{fname}"\r\n'.encode(),
-            b"Content-Type: image/png\r\n\r\n",
-            payload, b"\r\n",
-            f"--{boundary}--\r\n".encode(),
-        ])
-        r = self._req("POST", f"/rest/api/3/issue/{key}/attachments", data=body,
-                      headers={"X-Atlassian-Token": "no-check",
-                               "Content-Type": f"multipart/form-data; boundary={boundary}"})
-        arr = json.loads(r.read())
-        return arr[0]["id"]
-
-    def resolve_media_uuid(self, att_id):
-        """GET attachment content, do NOT follow the 303; pull the UUID out of
-        the api.media.atlassian.com/file/{uuid}/binary Location header."""
-        try:
-            r = self._req("GET", f"/rest/api/3/attachment/content/{att_id}", follow=False)
-            loc = r.headers.get("Location", "")
-        except urllib.error.HTTPError as e:
-            loc = e.headers.get("Location", "")
-        m = re.search(r"/file/([0-9a-fA-F-]{36})", loc)
-        if not m:
-            raise RuntimeError(f"could not resolve media UUID for attachment {att_id} "
-                               f"(Location={loc!r})")
-        return m.group(1)
-
-
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, *a, **k):
-        return None
-
-
-# ============================================================================
-# PNG dimensions (read IHDR)
-# ============================================================================
-def png_size(path):
-    with open(path, "rb") as f:
-        head = f.read(24)
-    if head[:8] != b"\x89PNG\r\n\x1a\n":
-        return None
-    w, h = struct.unpack(">II", head[16:24])
-    return int(w), int(h)
-
-
-# ============================================================================
 # Mermaid rendering
 # ============================================================================
+MERMAID_RE = re.compile(r"^[ \t]*```+[ \t]*mermaid[ \t]*\n(.*?)\n[ \t]*```+[ \t]*$",
+                        re.DOTALL | re.MULTILINE)
+
+
+def extract_mermaid(md_text):
+    """Replace each ```mermaid block with a lone-paragraph placeholder token.
+    Returns (new_md, [mermaid_source, ...]) in document order."""
+    blocks = []
+
+    def repl(m):
+        idx = len(blocks)
+        blocks.append(m.group(1))
+        return f"\n\n{FIG_TOKEN.format(idx)}\n\n"
+
+    return MERMAID_RE.sub(repl, md_text), blocks
+
+
 def render_mermaid(source, out_png):
     """Render a mermaid source string to out_png via mmdc / npx mermaid-cli."""
     with tempfile.NamedTemporaryFile("w", suffix=".mmd", delete=False, encoding="utf-8") as t:
@@ -212,222 +126,6 @@ def render_mermaid(source, out_png):
     raise RuntimeError(
         "mermaid render failed. Install mermaid-cli (npm i -g @mermaid-js/mermaid-cli) "
         f"or ensure npx can fetch it. Last error: {getattr(last,'stderr',last)}")
-
-
-# ============================================================================
-# Markdown -> ADF
-# ============================================================================
-MERMAID_RE = re.compile(r"^[ \t]*```+[ \t]*mermaid[ \t]*\n(.*?)\n[ \t]*```+[ \t]*$",
-                        re.DOTALL | re.MULTILINE)
-# Placeholder inserted in place of a mermaid block. Plain ASCII so CommonMark
-# does not rewrite it (it replaces U+0000 with U+FFFD, so null sentinels break).
-FIG_TOKEN = "AFKMERMAIDFIGURE{}ENDFIGURE"
-
-
-def extract_mermaid(md_text):
-    """Replace each ```mermaid block with a lone-paragraph placeholder token.
-    Returns (new_md, [mermaid_source, ...]) in document order."""
-    blocks = []
-
-    def repl(m):
-        idx = len(blocks)
-        blocks.append(m.group(1))
-        return f"\n\n{FIG_TOKEN.format(idx)}\n\n"
-
-    return MERMAID_RE.sub(repl, md_text), blocks
-
-
-def _inline_to_adf(token):
-    """Convert one markdown-it `inline` token's children to ADF inline nodes."""
-    out = []
-    marks = []
-
-    def push_text(text):
-        if not text:
-            return
-        node = {"type": "text", "text": text}
-        ms = _adf_marks(marks)
-        if ms:
-            node["marks"] = ms
-        out.append(node)
-
-    for c in token.children or []:
-        t = c.type
-        if t == "text":
-            push_text(c.content)
-        elif t == "code_inline":
-            node = {"type": "text", "text": c.content,
-                    "marks": _adf_marks(marks + [{"type": "code"}])}
-            out.append(node)
-        elif t == "strong_open":
-            marks.append({"type": "strong"})
-        elif t == "strong_close":
-            _pop(marks, "strong")
-        elif t == "em_open":
-            marks.append({"type": "em"})
-        elif t == "em_close":
-            _pop(marks, "em")
-        elif t == "s_open":
-            marks.append({"type": "strike"})
-        elif t == "s_close":
-            _pop(marks, "strike")
-        elif t == "link_open":
-            href = dict(c.attrs).get("href", "")
-            # Jira ADF rejects link marks whose href is not an absolute URI it
-            # can render (relative repo paths, in-doc #anchors) with a generic
-            # INVALID_INPUT. Keep the link text, drop the unrenderable href.
-            if re.match(r"(?:https?|mailto):", href, re.I):
-                marks.append({"type": "link", "attrs": {"href": href}})
-        elif t == "link_close":
-            _pop(marks, "link")
-        elif t == "softbreak":
-            push_text(" ")
-        elif t == "hardbreak":
-            out.append({"type": "hardBreak"})
-        elif t == "image":
-            # rare in a PRD; degrade to the alt text as plain text
-            push_text(c.content or dict(c.attrs).get("alt", "") or "[image]")
-        # unknown inline types are dropped deterministically
-    return out or [{"type": "text", "text": ""}]
-
-
-def _adf_marks(marks):
-    """Copy the mark stack into ADF marks. Jira's `code` mark is exclusive — it
-    may only co-exist with `link`; combined with strong/em/strike it triggers a
-    generic INVALID_INPUT. So when `code` is present, drop the rest."""
-    ms = [dict(m) for m in marks]
-    if any(m["type"] == "code" for m in ms):
-        ms = [m for m in ms if m["type"] in ("code", "link")]
-    return ms
-
-
-def _pop(marks, mtype):
-    for i in range(len(marks) - 1, -1, -1):
-        if marks[i]["type"] == mtype:
-            marks.pop(i)
-            return
-
-
-def md_to_adf_content(md_text, fig_nodes):
-    """Return an ADF content array (list of block nodes). fig_nodes maps
-    placeholder index -> media block node (already built)."""
-    md = MarkdownIt("gfm-like", {"linkify": False, "html": False})
-    tokens = md.parse(md_text)
-    content, _ = _build_blocks(tokens, 0, None, fig_nodes)
-    return content
-
-
-def _build_blocks(tokens, i, stop, fig_nodes):
-    """Build a list of block nodes until a `stop` close-token is hit.
-    Returns (nodes, next_index)."""
-    nodes = []
-    while i < len(tokens):
-        tok = tokens[i]
-        t = tok.type
-        if stop and t == stop:
-            return nodes, i + 1
-
-        if t == "heading_open":
-            level = int(tok.tag[1])
-            inline = tokens[i + 1]
-            nodes.append({"type": "heading", "attrs": {"level": level},
-                          "content": _inline_to_adf(inline)})
-            i += 3  # open, inline, close
-        elif t == "paragraph_open":
-            inline = tokens[i + 1]
-            text = inline.content.strip()
-            m = re.fullmatch(r"AFKMERMAIDFIGURE(\d+)ENDFIGURE", text)
-            if m:  # a mermaid placeholder paragraph -> media block(s)
-                nodes.extend(fig_nodes.get(int(m.group(1)), []))
-            else:
-                nodes.append({"type": "paragraph", "content": _inline_to_adf(inline)})
-            i += 3
-        elif t == "bullet_list_open":
-            children, i = _build_list_items(tokens, i + 1, "bullet_list_close", fig_nodes)
-            nodes.append({"type": "bulletList", "content": children})
-        elif t == "ordered_list_open":
-            attrs = dict(tok.attrs)
-            node = {"type": "orderedList", "content": None}
-            if "start" in attrs and str(attrs["start"]) != "1":
-                node["attrs"] = {"order": int(attrs["start"])}
-            children, i = _build_list_items(tokens, i + 1, "ordered_list_close", fig_nodes)
-            node["content"] = children
-            nodes.append(node)
-        elif t == "blockquote_open":
-            children, i = _build_blocks(tokens, i + 1, "blockquote_close", fig_nodes)
-            nodes.append({"type": "blockquote", "content": children})
-        elif t == "hr":
-            nodes.append({"type": "rule"})
-            i += 1
-        elif t == "fence" or t == "code_block":
-            attrs = {}
-            lang = (tok.info or "").strip().split()[0] if tok.info else ""
-            if lang:
-                attrs["language"] = lang
-            node = {"type": "codeBlock", "content": [{"type": "text", "text": tok.content.rstrip("\n")}]}
-            if attrs:
-                node["attrs"] = attrs
-            nodes.append(node)
-            i += 1
-        elif t == "table_open":
-            node, i = _build_table(tokens, i + 1, fig_nodes)
-            nodes.append(node)
-        else:
-            i += 1  # skip tokens we don't map (e.g. stray inline)
-    return nodes, i
-
-
-def _build_list_items(tokens, i, stop, fig_nodes):
-    items = []
-    while i < len(tokens):
-        if tokens[i].type == stop:
-            return items, i + 1
-        if tokens[i].type == "list_item_open":
-            children, i = _build_blocks(tokens, i + 1, "list_item_close", fig_nodes)
-            if not children:
-                children = [{"type": "paragraph", "content": [{"type": "text", "text": ""}]}]
-            items.append({"type": "listItem", "content": children})
-        else:
-            i += 1
-    return items, i
-
-
-def _build_table(tokens, i, fig_nodes):
-    rows = []
-    is_header_section = False
-    while i < len(tokens):
-        t = tokens[i].type
-        if t == "table_close":
-            i += 1
-            break
-        if t == "thead_open":
-            is_header_section = True
-            i += 1
-        elif t == "thead_close":
-            is_header_section = False
-            i += 1
-        elif t == "tbody_open" or t == "tbody_close":
-            i += 1
-        elif t == "tr_open":
-            cells = []
-            i += 1
-            while tokens[i].type != "tr_close":
-                ct = tokens[i].type
-                if ct in ("th_open", "td_open"):
-                    cell_type = "tableHeader" if ct == "th_open" else "tableCell"
-                    inline = tokens[i + 1]
-                    cells.append({"type": cell_type, "attrs": {},
-                                  "content": [{"type": "paragraph",
-                                               "content": _inline_to_adf(inline)}]})
-                    i += 3  # open, inline, close
-                else:
-                    i += 1
-            rows.append({"type": "tableRow", "content": cells})
-            i += 1  # skip tr_close
-        else:
-            i += 1
-    return {"type": "table", "attrs": {"isNumberColumnEnabled": False, "layout": "default"},
-            "content": rows}, i
 
 
 # ============================================================================

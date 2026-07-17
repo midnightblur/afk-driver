@@ -238,7 +238,8 @@ you through the rest (Jira token, `glab auth login`). On a fresh machine, run
 `/afk:setup base` instead — same run plus the version-pinned base toolchain
 (git, JDK + Maven per `.sdkmanrc`, Node 24/npm 11, Python, Docker) and the
 workstation apps & OS config (VS Code, IntelliJ, MySQL Server + Workbench,
-Windows long paths). By hand?
+Windows long paths); those extras are offered as a pick list, so install only
+what you'll use. By hand?
 `MANIFEST.md` is human-followable — every probe and fix is a copy-pasteable
 command.
 
@@ -830,7 +831,8 @@ tooling.)*
   extends the sweep to the version-pinned base toolchain (git, JDK + Maven per
   `.sdkmanrc`, Node/npm workspace standard, Python, Docker) and the base-only
   workstation apps & OS config (IDEs, MySQL Server + Workbench, Windows long
-  paths) via the manifest's base-tier fields. As `/afk:setup audit` it
+  paths) via the manifest's base-tier fields — elective per item: the human
+  picks what to install from the pre-fix report. As `/afk:setup audit` it
   instead hunts drift between the plugin's artifacts and reality (structural
   consistency, unregistered dependencies, dead pointers) — run that before shipping
   plugin changes (see `FRESHNESS.md`).
@@ -976,5 +978,3 @@ render-point skills carry only a pointer to it).
 **Parent ticket:** P2P-1220 (Jira). For contributor-facing internals (the
 lockstep contract, three-checkpoint enforcement, tracker boundary), see
 [`CLAUDE.md`](CLAUDE.md).
-
-> Branch note: `create-skill` is this branch's pre-rename copy of skills/utils/writing-great-skills (renamed on master); superseded at the next master merge.

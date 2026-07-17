@@ -1,0 +1,89 @@
+<!--
+  flow-slider — notched slider walkthrough for a LINEAR sequence.
+
+  DATA CONTRACT — fill IWF_STEPS (array, in order), one object per step:
+    t   : short title shown on the card, e.g. "3 · Validate input"
+    who : actor label — e.g. "you" | "machine" | "gate" (styles the badge;
+          "you" = accent, "gate" = warn, anything else = neutral)
+    d   : the step's goal + result, 1-3 sentences (plain text or inline HTML)
+    n   : OPTIONAL footnote rendered smaller under d (caveats, timing)
+
+  MULTIPLE INSTANCES: duplicate the .iwf div + its script block, give the div a
+  unique id, rename IWF_STEPS in that copy (e.g. IWF_STEPS_2) and point the
+  script's first line at the new id. Keep only ONE copy of the <style> block.
+-->
+<style>
+  .iwf{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;--iw-ink2:#5b6470;
+       --iw-line:#d8dce2;--iw-acc:#0b7285;--iw-warn:#b0831a;
+       border:1px solid var(--iw-line);border-radius:10px;background:var(--iw-bg2);
+       padding:1rem 1.1rem;margin:1rem 0;font-size:.92rem;color:var(--iw-ink)}
+  @media (prefers-color-scheme: dark){
+    .iwf{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;--iw-ink2:#9aa3b0;
+         --iw-line:#333a44;--iw-acc:#5cc3d6;--iw-warn:#d9ab4a}}
+  :root[data-theme="dark"] .iwf{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;
+       --iw-ink2:#9aa3b0;--iw-line:#333a44;--iw-acc:#5cc3d6;--iw-warn:#d9ab4a}
+  :root[data-theme="light"] .iwf{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;
+       --iw-ink2:#5b6470;--iw-line:#d8dce2;--iw-acc:#0b7285;--iw-warn:#b0831a}
+  .iwf input[type=range]{width:100%;accent-color:var(--iw-acc);cursor:pointer;margin:0}
+  .iwf-ticks{display:flex;justify-content:space-between;margin:.15rem 0 .8rem}
+  .iwf-ticks button{background:none;border:none;padding:.1rem .25rem;cursor:pointer;
+       font:inherit;font-size:.72rem;color:var(--iw-ink2);border-radius:4px}
+  .iwf-ticks button.on{color:var(--iw-acc);font-weight:700}
+  .iwf-ticks button.past{color:var(--iw-ink)}
+  .iwf-card{background:var(--iw-bg);border:1px solid var(--iw-line);border-radius:8px;
+       padding:.85rem 1rem;min-height:5.5rem}
+  .iwf-card h4{margin:0 0 .35rem;font-size:.95rem}
+  .iwf-card p{margin:0;color:var(--iw-ink2);line-height:1.5}
+  .iwf-note{margin-top:.5rem !important;font-size:.8rem}
+  .iwf-who{display:inline-block;font-size:.68rem;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;border:1px solid var(--iw-line);border-radius:99px;
+       padding:.08rem .55rem;margin-left:.5rem;vertical-align:middle;color:var(--iw-ink2)}
+  .iwf-who.you{color:var(--iw-acc);border-color:var(--iw-acc)}
+  .iwf-who.gate{color:var(--iw-warn);border-color:var(--iw-warn)}
+  @media (prefers-reduced-motion: no-preference){
+    .iwf-card{transition:opacity .12s}}
+</style>
+
+<div class="iwf" id="iwf-demo">
+  <input type="range" min="0" max="0" value="0" step="1" aria-label="Walk through the steps">
+  <div class="iwf-ticks"></div>
+  <div class="iwf-card" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  // FILL ME — see data contract in the header comment. Sample (replace):
+  const IWF_STEPS = [
+    {t:'1 · Receive request', who:'machine', d:'The incoming request is parsed and queued. Goal: nothing is lost; result: a work item with an id.'},
+    {t:'2 · Validate',        who:'gate',    d:'Schema and permission checks run. Invalid input is rejected here — nothing downstream ever sees it.'},
+    {t:'3 · Process',         who:'machine', d:'The work item is executed. Result: an output artifact plus an audit entry.', n:'Long-running items report progress every 30 s.'},
+    {t:'4 · Confirm',         who:'you',     d:'A human reviews the output and approves or sends it back with a note.'}
+  ];
+
+  const root  = document.getElementById('iwf-demo');
+  const range = root.querySelector('input');
+  const ticks = root.querySelector('.iwf-ticks');
+  const card  = root.querySelector('.iwf-card');
+  range.max = IWF_STEPS.length - 1;
+  IWF_STEPS.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = s.t.split('·')[0].trim();
+    b.title = s.t;
+    b.addEventListener('click', () => { range.value = i; render(); });
+    ticks.appendChild(b);
+  });
+  function render(){
+    const i = +range.value, s = IWF_STEPS[i];
+    card.innerHTML = '<h4>' + s.t + '<span class="iwf-who ' + s.who + '">' + s.who + '</span></h4>'
+      + '<p>' + s.d + '</p>' + (s.n ? '<p class="iwf-note">' + s.n + '</p>' : '');
+    ticks.querySelectorAll('button').forEach((b, j) => {
+      b.classList.toggle('on', j === i);
+      b.classList.toggle('past', j < i);
+    });
+    if (window.__annotate) window.__annotate(card);
+  }
+  range.addEventListener('input', render);
+  render();
+})();
+</script>

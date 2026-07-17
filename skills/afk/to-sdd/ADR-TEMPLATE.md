@@ -6,7 +6,7 @@
 
 > Status: Proposed | Accepted | Superseded by ADR-MMMM
 > Date: {YYYY-MM-DD}
-> Layer: L1 | L2 | L3 | L4 | L5 | L6 | L7 | L8
+> Layer: L1 | L2 | L3 | L4 | L5 | L6 | L7 | L8 | L9
 > Context ticket: {TICKET-ID}
 
 ## Context
@@ -21,7 +21,7 @@ The chosen approach in one paragraph.
 
 ## Alternatives Considered
 
-At least two. **Required visual:** comparison table OR `quadrantChart` plotting alternatives on two axes that mattered for THIS context.
+≥2. **Required visual:** comparison table OR `quadrantChart` plotting alternatives on two axes that mattered for THIS context.
 
 | Alternative | Pros | Cons | Reason rejected |
 |-------------|------|------|-----------------|
