@@ -46,6 +46,9 @@ The `plan/` directory — `PLAN.md` (index: solution map, seam register, progres
 **Subtask contract**:
 One `plan/NNNN-slug.md` file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.
 
+**Context excerpts**:
+The contract's `## Context excerpts` section — verbatim, citation-tagged PRD/SDD/ADR quotes selected at slicing time; the executor's spec context, full parent docs opened only when the excerpts don't settle a question.
+
 **Journal**:
 `plan/JOURNAL.md` — the append-only, timestamped event log of everything that happened to a plan (status changes, parks, commits, verdicts). The "what happened while you were gone" artifact. Format: `skills/afk/to-subtasks/JOURNAL-FORMAT.md`.
 _Avoid_: log file (generic), history
@@ -71,8 +74,12 @@ The classification every grill question gets before it's asked (rule: `skills/af
 _Avoid_: quick questions (vague), survey (implies no escalation path)
 
 **Mission control**:
-The per-feature, read-only HTML dashboard *derived* from the plan's existing artifacts — tracker, journal, gate verdicts, SDD diagrams, git diffs. A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
+The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
 _Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
+
+**Design digest**:
+A committed, hash-stamped JSON synthesis of a feature's design docs (`plan/digests/*.json` — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by `/afk:mission-control build`; a manifest records every source file's hash, so source drift shows as a visible *stale* banner, never as silently current content. Carries design synthesis only — never status. Contract: `skills/afk/mission-control/DIGEST-FORMAT.md`.
+_Avoid_: cache (implies transparent freshness), summary file (undersells the schema contract)
 
 ## Design layers (L1–L9)
 
@@ -160,7 +167,13 @@ At most one bug across the whole ledger may hold the `fixing` (S4) lane at a tim
 ## Gates & verdicts
 
 **Review gate**:
-The independent post-verification code review (`clean` / `advisory` / `blocking`) run by fresh subagents, one per concern, that never see the implementor's reasoning. Per-subtask rollup: `plan/review/INDEX.md`.
+The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.
+
+**Settle loop**:
+The review gate's round-based caller protocol — review with fresh contexts, fix or dispute every finding (nits included), adjudicate disputes with fresh skeptics, repeat until a round yields nothing actionable. Roles, round structure, termination, and the referee's information diet: `skills/afk/review/SETTLEMENT.md`.
+
+**Stalemate**:
+The settle loop's failure exit — the hard round cap reached with findings still open. Always flagged to a human (`review_fail` / `park`): non-convergence at the cap signals a real defect being danced around, an unowned spec ambiguity, or a gamed loop — never routine.
 
 **Adversary gate**:
 A fresh session probing the running app under a hard information diet, trying to break the contract (`clean` / `findings` / `tainted` / `env_unreachable`). `tainted` = the session saw forbidden material (the diff, the implementor's tests) and must be respawned.

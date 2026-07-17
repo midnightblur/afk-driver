@@ -83,6 +83,19 @@ is a candidate defect, not an input-shaping cue).>
 | api | `<cmd, e.g. node --test verification/api/foo.test.mjs>` | endpoint contract direct over REST (no UI) — incl. below-the-UI authz |
 | e2e/browser | `<cmd, e.g. cd 11700-payable/verification/ui-e2e && npm run smoke>` | user-visible flow end-to-end |
 
+## Context excerpts
+<verbatim quotes from the PRD/SDD/ADRs this slice's implementor needs —
+selected at slicing time, when the emitter has the full sources open. Quotes
+only, never paraphrase; each block carries its citation tag. Include: the
+Acceptance bullets' source passages, the §8 interface rows this slice
+implements, the §9b seam rows it touches, binding ADR decision lines. The
+implementor works from these and opens the full parent doc only when a
+question the excerpts don't settle arises. Both modes; omit a source that
+doesn't exist.>
+> (PRD §X.Y) <quoted passage>
+> (SDD §8 row "<module>") <quoted signature/contract>
+> (ADR-NNNN) <quoted decision>
+
 ## Parent PRD
 <prd_path>
 

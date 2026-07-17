@@ -8,6 +8,10 @@
 #                 worktree really exists on disk
 #   2. config   — .claude/.mcp.json path references are cloned into the worktree and the
 #                 main-repo path is rewritten to the worktree path (AC-005 / PRD AC-009)
+#   2b. m2      — a private per-worktree Maven repo is provisioned: .mvn/maven.config points
+#                 at <worktree>/.m2/repository, the seed copies release artifacts but skips
+#                 *-SNAPSHOT dirs, maven.config lands in the shared info/exclude; --no-m2
+#                 skips all of it
 #   3. bad name — a non-conforming branch prints ERROR=<reason> incl. the gate pattern,
 #                 exits non-zero, and creates NO worktree (SDD §9b)
 #   4. teardown — the created worktree is removed cleanly
@@ -57,12 +61,19 @@ git -C "$REPO" add -A
 git -C "$REPO" commit -qm "seed"
 BASE_BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
 
+# fake Maven seed repo — proves .m2 seeding + *-SNAPSHOT exclusion without touching the
+# dev's real ~/.m2 (every invocation below passes --m2-seed so the default is never used)
+FAKE_M2="$TMP_ROOT/fake-m2"
+mkdir -p "$FAKE_M2/com/x/lib/1.0" "$FAKE_M2/com/x/lib/9.9-SNAPSHOT"
+echo jar > "$FAKE_M2/com/x/lib/1.0/lib-1.0.jar"
+echo jar > "$FAKE_M2/com/x/lib/9.9-SNAPSHOT/lib-9.9-SNAPSHOT.jar"
+
 run_cwt() { bash "$CWT" "$@"; }
 
 # --- Test 1 + 2: success + config rewrite -----------------------------------
 GOOD_BRANCH="kapteyn/development/tester/smoke-$$"
 OUT1="$(run_cwt --branch "$GOOD_BRANCH" --dir good --base "$BASE_BRANCH" \
-        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open 2>"$TMP_ROOT/err1.log")"
+        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --m2-seed "$FAKE_M2" 2>"$TMP_ROOT/err1.log")"
 RC1=$?
 
 LAST_LINE="$(printf '%s\n' "$OUT1" | tail -n1)"
@@ -92,6 +103,19 @@ else
   bad "nested .claude/ file not cloned"
 fi
 
+# --- Test 2b: per-worktree Maven repo — maven.config + seed minus snapshots --
+MVN_CFG="$WT_PATH/.mvn/maven.config"
+if [[ -f "$MVN_CFG" ]]; then
+  ok ".mvn/maven.config written"
+  WT_WIN3="$(cygpath -m "$WT_PATH" 2>/dev/null || echo "$WT_PATH")"
+  if grep -qxF -- "-Dmaven.repo.local=$WT_WIN3/.m2/repository" "$MVN_CFG"; then ok "maven.config points at the worktree's own .m2"; else bad "maven.config wrong (got: $(cat "$MVN_CFG"))"; fi
+else
+  bad ".mvn/maven.config missing"
+fi
+if [[ -f "$WT_PATH/.m2/repository/com/x/lib/1.0/lib-1.0.jar" ]]; then ok "release artifact seeded into private .m2"; else bad "release artifact not seeded"; fi
+if [[ ! -d "$WT_PATH/.m2/repository/com/x/lib/9.9-SNAPSHOT" ]]; then ok "*-SNAPSHOT dir excluded from seed"; else bad "*-SNAPSHOT dir was seeded"; fi
+if grep -qxF '.mvn/maven.config' "$REPO/.git/info/exclude" 2>/dev/null; then ok "maven.config listed in shared info/exclude"; else bad "maven.config not in info/exclude"; fi
+
 # --- Test 4: teardown removes the worktree cleanly --------------------------
 # --force because the worktree carries cloned untracked config files (.mcp.json/.claude/...),
 # which plain `git worktree remove` refuses — that cloning is the whole point of the script.
@@ -120,12 +144,24 @@ printf '#!/bin/sh\nexit 1\n' > "$STUBBIN/perl"
 chmod +x "$STUBBIN/perl"
 GOOD2="kapteyn/development/tester/smoke2-$$"
 OUT5="$( ( export PATH="$STUBBIN:$PATH"; run_cwt --branch "$GOOD2" --dir good2 --base "$BASE_BRANCH" \
-        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open ) 2>"$TMP_ROOT/err5.log" )"
+        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --no-m2 ) 2>"$TMP_ROOT/err5.log" )"
 RC5=$?
 COMBINED5="$OUT5$(cat "$TMP_ROOT/err5.log")"
 if [[ $RC5 -ne 0 ]]; then ok "helper-internal failure exits non-zero"; else bad "helper-internal failure exited 0"; fi
 if printf '%s' "$COMBINED5" | grep -q '^ERROR='; then ok "helper-internal failure emits ERROR= (no bare set-e death)"; else bad "helper-internal failure was a bare death — no ERROR= line"; fi
 git -C "$REPO" worktree remove --force "$WT_PARENT/good2" >/dev/null 2>&1 || true
+
+# --- Test 6: --no-m2 skips the private Maven repo ----------------------------
+GOOD3="kapteyn/development/tester/smoke3-$$"
+OUT6="$(run_cwt --branch "$GOOD3" --dir good3 --base "$BASE_BRANCH" \
+        --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --no-m2 2>"$TMP_ROOT/err6.log")"
+WT6="$(printf '%s\n' "$OUT6" | tail -n1)"; WT6="${WT6#WORKTREE_PATH=}"
+if [[ -d "$WT6" && ! -e "$WT6/.mvn/maven.config" && ! -d "$WT6/.m2" ]]; then
+  ok "--no-m2 leaves no maven.config / .m2 in the worktree"
+else
+  bad "--no-m2 still provisioned .m2 or maven.config (wt: $WT6)"
+fi
+git -C "$REPO" worktree remove --force "$WT6" >/dev/null 2>&1 || true
 
 # --- summary ----------------------------------------------------------------
 echo ""

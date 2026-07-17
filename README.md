@@ -495,20 +495,21 @@ stateDiagram-v2
     designing --> developing: plan within scope
     developing --> verifying: code + TDD done, pushed
     verifying --> reviewing: every tier green
-    reviewing --> done: review gate clean/advisory
+    reviewing --> done: review settle loop settled
     done --> [*]
 
     pending --> blocked: blocked_by or contract_mismatch
     designing --> blocked: design_conflict
     verifying --> blocked: test_fail, build_fail or produces_drift
-    reviewing --> blocked: review_fail (blocking after 2 cycles)
+    reviewing --> blocked: review_fail (settle-loop stalemate)
     blocked --> [*]
 
     note right of reviewing
         /afk:review fans out fresh subagents,
-        one per concern; blocking findings route
-        to /afk:fix (correctness/spec) or an
-        inline fix, capped at 2 cycles
+        one per concern; the gate loops
+        fix-or-dispute rounds (settle loop)
+        until nothing actionable remains;
+        a 10-round stalemate parks for a human
     end note
 ```
 
@@ -521,8 +522,8 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `success` | every tier green, pushed, MR updated, row `done` | review + merge the MR |
 | `blocked_by` | a `## Blocked by` prerequisite isn't `done` yet | run the prerequisites first |
 | `test_fail` / `build_fail` | a verification tier stayed red after one retry | fix the impl |
-| `review_fail` | the Step 10 review gate stayed `blocking` after two remediation cycles | address the surviving critical/high findings |
-| `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived the remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
+| `review_fail` | the Step 10 review settle loop hit its 10-round cap with findings still open (stalemate — unusual by construction) | read the open findings in `plan/review/` and judge them yourself |
+| `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived its remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
 | `design_conflict` | a binding SDD/ADR decision is wrong/infeasible | `/afk:grill-solution` → superseding ADR |
@@ -623,7 +624,9 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
 - **`/afk:autopilot`** — the hands-off driver for the middle. Walks the plan in
   rank order (Blocked-by respected), one fresh subagent per subtask running
   `/afk:execute` in driven mode — **sized by the contract's `## Complexity`**
-  (`mechanical` slices get `sonnet` at low effort, `complex` ones the strongest; a
+  (`mechanical` slices get the digest tier at low effort, `complex` ones the
+  implementation tier at high effort — never the frontier model; tier names per
+  provider in `PROVIDERS.md`; a
   parked `mechanical` is retried once at `standard` before the park stands) —
   self-provisions the live app per slice, parks failed subtasks + dependents while
   independent subtasks continue (push notification with a plain-terms sentence on
@@ -706,9 +709,11 @@ tooling.)*
   feature. Refuses outright (writing nothing) without a green smoke gate. A
   resumable, table-driven PF-1..7 ladder (`PLAN.md`'s `## Preflight` section, its
   sole writer; green rows skipped on re-run): merge `origin/master` behind an
-  ancestry guard (never rebase, never force-push), re-run validations, a fresh
-  review of the integrated feature diff, and a final `/afk:verify-seams final`
-  check — a shared 2-cycle fix cap across those three steps — then commit the
+  ancestry guard (never rebase, never force-push), re-run validations and a
+  final `/afk:verify-seams final` check — a shared 2-cycle fix cap across those
+  steps — settle a fresh review of the integrated feature diff through the
+  multi-round settle loop (`skills/afk/review/SETTLEMENT.md`; a 10-round
+  stalemate parks for a human), then commit the
   mission-control end-state snapshot, update the MR's own evidence marker block
   (sibling to `/afk:execute`'s checklist block; each writer touches only its own),
   and background-babysit CI (bundled `ci-wait.sh`: exit 0 green / 1 red / 2 budget
@@ -721,16 +726,25 @@ tooling.)*
   invoked from `/afk:execute` Step 5. Not run standalone.
 - **`/afk:review`** — the **independent post-verification review gate**. Fresh,
   parallel subagents — one per concern, each briefed verbatim with its
-  book-derived checklist (`skills/afk/review/checklists/`). Seven
+  book-derived checklist (`skills/afk/review/checklists/`). Six
   implementation/conformance concerns (claude-md-compliance, spec-fidelity,
-  logic-correctness, code-quality, test-veracity, scope-and-impact,
-  refactor-safety) always run; four design-level concerns (design-quality,
-  domain-alignment, resilience, api-contract) activate by diff-shape trigger, and
-  their findings pass an adversarial skeptic wave before they can gate.
+  logic-correctness, code-quality, test-veracity, scope-and-impact) run on every
+  full-unit review; refactor-safety and the four design-level concerns
+  (design-quality, domain-alignment, resilience, api-contract) activate by
+  diff-shape trigger, and design-level findings pass an adversarial skeptic wave
+  before they can gate.
   **Read-only**: returns a ranked findings report + a `clean`/`advisory`/`blocking`
   verdict (`pattern-debt` findings never gate — they feed the
   `plan/review/PATTERN-DEBT.md` ledger), never edits or commits. Reviewers never
-  see the implementor's reasoning — independence is the point. Invoked from
+  see the implementor's reasoning — independence is the point. In gate mode the
+  callers don't stop at one round: the settle loop
+  (`skills/afk/review/SETTLEMENT.md`) re-reviews with fresh contexts after every
+  remediation — each finding, nits included, fixed or disputed, disputes
+  adjudicated by fresh skeptics — until a round finds nothing actionable; a
+  hard 10-round stalemate flags a human. Rounds after the first read only the
+  remediation delta (full diff as context), consolidate the fan-out to one
+  delta-sweep reviewer plus signal-activated specialists, and re-verify with
+  compile + local tests only — no live surface runs inside the loop. Invoked from
   `/afk:execute` Step 10 (the gate before `done`) and from `/afk:preflight` PF-3
   as `/afk:review --feature` over the integrated diff; also runnable standalone
   as `/afk:review {NNNN-slug}` to audit any slice.
@@ -739,7 +753,8 @@ tooling.)*
   contract + specs under a hard information diet (never the diff or the
   implementor's tests). Verdict `clean` / `findings` (classed + severity-counted)
   / `tainted` / `env_unreachable`; reports land in `plan/review/`. Blocking
-  findings route by class like review findings, sharing the remediation cap.
+  findings route by class like review findings, under the gate's own 2-cycle
+  remediation cap.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
@@ -782,14 +797,19 @@ tooling.)*
   archetype-complete standalone HTML cards, fidelity-checked against the running
   app — so `/afk:prototype` crafts against the real app instead of generic
   defaults. Re-run when the frontend's tokens/components drift.
-- **`/afk:mission-control`** — launches the read-only mission-control dashboard
-  for one feature's spec folder: watch mode (default) re-renders on artifact
-  change and serves the page on `127.0.0.1`; `--once` renders a retroactive page
-  for an already-finished feature and exits, no server. Fronts the bundled
-  renderer CLI (`scripts/mission_control.py`) — a pure function from the spec/plan
-  artifacts to a self-contained page; the skill only launches it and reports the
-  served URL / output path. No daemonization: a crashed watcher's only recovery is
-  relaunching the skill.
+- **`/afk:mission-control`** — launches the mission-control dashboard for one
+  feature's spec folder: an interactive, navigable single page (sidebar
+  sections, module/subtask DAGs, steppable flow simulations, page-wide
+  tooltips) with two layers. **Live** sections (overview, progress with
+  sub-phase detail, timeline, gates, insights, diffs) derive from the plan
+  artifacts on every render — watch mode (default) re-renders on artifact
+  change and serves on `127.0.0.1`; `--once` renders a retroactive page and
+  exits. **Digest** sections (architecture, flows, entities, decisions,
+  critical logic, legend) render committed, hash-stamped `plan/digests/*.json`
+  authored only by the skill's explicit `build` mode (schemas + digestibility
+  rules: `DIGEST-FORMAT.md`) — stale/unbuilt digests show an amber hint, and
+  launching never spends tokens. Read-only viewport; no daemonization: a
+  crashed watcher's only recovery is relaunching the skill.
 - **`/afk:understand`** — generates one **self-contained interactive HTML
   understanding artifact** per feature (`{spec-dir}/understanding/index.html`) —
   dual-depth background, intuition, seam-ordered diff walkthrough, notable
@@ -856,6 +876,19 @@ any time, in any project.
   hidden from the `/` menu via `user-invocable: false` — skills emitting
   interactive walkthrough pages load it. (Static diagrams stay with
   `draw-charts`.)
+- **`/afk:settle-mr`** — review a GitLab MR (URL or IID) outside the AFK chain
+  and settle it through the review settle loop: checks out the MR head in a real
+  worktree, runs `/afk:review`'s concern machinery plus local gates CI doesn't
+  cover (format, UI lint, orphan hunt), and referees rounds per
+  `skills/afk/review/SETTLEMENT.md`. The MR itself is the ledger — every
+  finding posts as an inline discussion, fixes/disputes/adjudication verdicts
+  reply on the threads, and a managed summary comment carries the round
+  accounting, so any later session or another dev resumes from the MR alone.
+  Your own MR defaults to the auto-fix loop (fixer subagents read findings from
+  the MR threads, fix-or-dispute, commit+push per round until nothing
+  actionable remains); someone else's defaults to review-only, each
+  re-invocation a follow-up round over new commits and author replies
+  (pushback adjudicated by fresh skeptics). Never merges.
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
   survives sessions.
 - **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR

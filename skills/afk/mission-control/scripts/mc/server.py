@@ -12,15 +12,15 @@ import threading
 import time
 from pathlib import Path
 
-from . import template
+from . import compose, template
 
 _DEBOUNCE_DEFAULT = 2.0
 _POLL_INTERVAL = 0.5
 
 
 def render_once(spec_dir: Path, out_dir: Path, panel_parsers: list, live_reload: bool) -> str:
-    panels = [parser(spec_dir) for parser in panel_parsers]
-    html_text = template.render_page(panels, live_reload=live_reload)
+    mc_data = compose.build(spec_dir, panel_parsers)
+    html_text = template.render_page(mc_data, live_reload=live_reload)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "index.html").write_text(html_text, encoding="utf-8")
     return html_text

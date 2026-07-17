@@ -1,50 +1,24 @@
-"""Composes parsed panels into one self-contained `index.html` (ADR-0007,
-ADR-0006). Absent panels render as an empty-state card.
+"""Injects the composed MC_DATA into the static app-shell asset
+(`mc/assets/shell.html`). All artifact *parsing* stays in the tested Python
+view-model; the shell's JS only renders that data to DOM (two-layer design
+ADR — parsing server-side, presentation client-side).
 
-Deliberately a pure function of its `panels` argument only — no wall-clock,
-no environment lookups — so the page stays a pure function of the source
-artifacts end to end (requirement ADR-0005) and re-rendering an unchanged
-fixture is byte-identical (SDD §5 idempotency table).
+Deliberately a pure function of its arguments — no wall-clock, no
+environment lookups — so re-rendering an unchanged fixture is byte-identical
+(requirement ADR-0005; SDD §5 idempotency table).
 """
 from __future__ import annotations
 
-import html
+import json
+from pathlib import Path
 
-from .vm import Absent
+_SHELL_PATH = Path(__file__).resolve().parent / "assets" / "shell.html"
 
-_PAGE_TEMPLATE = """<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Mission Control</title>
-<style>
-{css}
-</style>
-</head>
-<body>
-<header><h1>Mission Control</h1></header>
-<main class="mc-grid">
-{cards}
-</main>
-{script}
-</body>
-</html>
-"""
-
-_CSS = """
-body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; margin: 0; background: #0b0e14; color: #e6e6e6; }
-header { padding: 1rem 1.5rem; border-bottom: 1px solid #22262f; }
-header h1 { margin: 0; font-size: 1.25rem; }
-.mc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; padding: 1.5rem; }
-.mc-card { background: #12151c; border: 1px solid #22262f; border-radius: 8px; padding: 1rem; }
-.mc-card h2 { margin-top: 0; font-size: 1rem; }
-.mc-empty-state { color: #888; font-style: italic; }
-.mc-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.mc-table th, .mc-table td { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid #22262f; }
-.mc-empty-sub { color: #888; font-size: 0.8rem; padding: 0.25rem 0; }
-.mc-gate-group { margin-bottom: 0.75rem; }
-.mc-gate-group h3 { margin: 0.25rem 0; font-size: 0.9rem; color: #aab; }
-"""
+# Injection slots in the shell asset (lockstep with mc/assets/shell.html):
+#   <script id="mc-data" type="application/json">null</script>  — MC_DATA JSON
+#   <!--MC_RELOAD-->                                            — reload script
+_DATA_SLOT = '<script id="mc-data" type="application/json">null</script>'
+_RELOAD_SLOT = "<!--MC_RELOAD-->"
 
 # Live-reload polling only — a GET-only fetch loop, no mutating control
 # (AC-012). Never injected into --once output, which must stay fully inert.
@@ -61,24 +35,15 @@ _RELOAD_SCRIPT = """<script>
 </script>"""
 
 
-def render_page(panels: list, live_reload: bool) -> str:
-    cards = "\n".join(_render_card(panel) for panel in panels)
-    script = _RELOAD_SCRIPT if live_reload else ""
-    return _PAGE_TEMPLATE.format(css=_CSS, cards=cards, script=script)
-
-
-def _render_card(panel) -> str:
-    if isinstance(panel, Absent):
-        title = html.escape(panel.panel_id.replace("_", " ").title())
-        return (
-            f'<section class="mc-card mc-card-absent" data-panel="{html.escape(panel.panel_id)}">'
-            f"<h2>{title}</h2>"
-            f'<div class="mc-empty-state">Absent &mdash; {html.escape(panel.reason)}</div>'
-            "</section>"
-        )
-    return (
-        f'<section class="mc-card" data-panel="{html.escape(panel.panel_id)}">'
-        f"<h2>{html.escape(panel.title)}</h2>"
-        f"{panel.html}"
-        "</section>"
+def render_page(mc_data: dict, live_reload: bool) -> str:
+    shell = _SHELL_PATH.read_text(encoding="utf-8")
+    payload = json.dumps(mc_data, ensure_ascii=True)
+    # `</` only occurs inside JSON strings; `<\/` is a legal JSON escape and
+    # keeps a literal `</script` in the data from terminating the element.
+    payload = payload.replace("</", "<\\/")
+    page = shell.replace(
+        _DATA_SLOT,
+        f'<script id="mc-data" type="application/json">{payload}</script>',
+        1,
     )
+    return page.replace(_RELOAD_SLOT, _RELOAD_SCRIPT if live_reload else "", 1)

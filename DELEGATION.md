@@ -29,10 +29,12 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 ## Model selection
 
-Two tiers; the per-provider model names live in `PROVIDERS.md` ("Model tiers"):
+Role-based tiers — the role decides the model, named explicitly per provider in `PROVIDERS.md` ("Model tiers"). "Inherit the session model" is never a tier: every spawn names its tier.
 
-- **digest tier** — the `afk-reader`/`afk-runner` default: reads, searches, mechanical checks, suite triage, and research whose digest the orchestrator treats as advisory and spot-checks via citations.
-- **verdict tier for verdicts and product code** — any child that writes production code, and any research whose verdict is acted on without re-checking (a confirm/refute gating a spec or publish step). A judge is never a cheaper model than the implementor it judges.
+- **frontier tier — judgment that shapes the work**: grilling, planning/slicing, code review and dispute adjudication, adversarial probes, and any verdict acted on without re-checking (a confirm/refute gating a spec, ship, or publish step). Best model available, explicitly. A judge is never a cheaper model than the implementor it judges.
+- **implementation tier — executing work the frontier tier laid out**: any child writing product code against a plan/contract/design authored at the frontier tier. One rung below frontier — never the frontier model itself (the frontier intelligence is already in the plan); one rung lower again when the slice is on the simpler side.
+- **digest tier** — the `afk-reader`/`afk-runner` default: reads, searches, suite triage, mechanical chores (bulk renames, format fixes, anchor greps — run these at low reasoning effort), and research whose digest the orchestrator treats as advisory and spot-checks via citations.
+- **Plugin/harness work is always frontier.** Any agent editing the AFK plugin or the harness it ships and stewards (skills, doctrine files, hooks, agent defs, the codex mirror/generator, CLAUDE.md steering artifacts) runs frontier-tier regardless of the edit's apparent size — a plugin defect multiplies into every run it drives.
 - Callers override per-spawn — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
 
 ## Return contract

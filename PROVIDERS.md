@@ -13,7 +13,7 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 | Spawn a subagent | Agent/Task tool with `subagent_type`: `afk-reader` / `afk-runner` / `general-purpose` / `Explore` | spawn agent `afk-reader` / `afk-runner` (defs in `.codex/agents/*.toml`); `general-purpose` → built-in `worker`, `Explore` → built-in `explorer` |
 | Parallel spawns "in one message" | parallel Agent calls in one message | parallel agent spawns in one step (`max_threads`, default 6) |
 | Nesting cap 3 (`DELEGATION.md`) | native | needs `[agents] max_depth = 3` in `~/.codex/config.toml` (provided by `codex-sync/config-fragment.toml`); at the default depth 1, helper spawns run inline — degraded, not broken |
-| Model tiers (see below) | digest = `sonnet`, verdict = inherit | digest = your configured cheap model / low reasoning effort, verdict = session model |
+| Model tiers (see below) | `fable` / `opus` / `sonnet` by tier — table below | `gpt-5.6-sol` / `-terra` by tier — table below |
 | Jira MCP tools `mcp__jira__*` | plugin-provided `mcp__jira__<tool>` | same server registered via `config.toml` `[mcp_servers.jira]`; tool prefix differs — match by tool name |
 | Agent-runtime env marker | `CLAUDECODE` | `AFK_PROVIDER=codex` (hard-set by generated hook commands; native `CODEX_*` markers unverified) |
 | Plugin root / data dirs | `CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA` | repo-relative paths / `~/.afk/data/<plugin>` (resolved by `hooks/lib/provider.sh`) |
@@ -23,14 +23,18 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 
 ## Model tiers (referenced by `DELEGATION.md` "Model selection")
 
-- **digest tier** — bulk reads, searches, mechanical checks, suite triage:
-  returns are advisory and citation-spot-checked. Claude: `sonnet` (set in the
-  `afk-reader`/`afk-runner` definitions). Codex: the cheap model / low
-  reasoning effort configured in your `config.toml`.
-- **verdict tier** — children writing product code, and any verdict acted on
-  without re-checking. Both providers: the session's own model. Escalate the
-  moment a digest stops being advisory; never judge with a cheaper model than
-  the implementor it judges.
+Tier *roles* are owned by `DELEGATION.md`; this table owns the per-provider
+*names*. Within a cell, "best available" degrades left to right — if the
+first-listed model is unavailable (plan, region, outage), use the next.
+
+| Tier | Claude Code | Codex CLI |
+|---|---|---|
+| **frontier** | `fable` (Fable 5); `opus` if Fable is unavailable | `gpt-5.6-sol` at high/xhigh reasoning; `gpt-5.5` if Sol is unavailable |
+| **implementation** | `opus` — never `fable`; `sonnet` for simpler slices | `gpt-5.6-terra` — never Sol; drop to medium effort for simpler slices |
+| **digest** | `sonnet` (set in the `afk-reader`/`afk-runner` definitions) | `gpt-5.6-terra` at low effort |
+
+Model names drift with provider releases — when a named model is retired or
+superseded, update this table (its `FRESHNESS.md` registry row), never a skill.
 
 ## Claude-only capabilities (documented limitations on Codex)
 

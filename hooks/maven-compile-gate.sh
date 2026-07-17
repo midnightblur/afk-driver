@@ -68,10 +68,17 @@ output=$(./mvnw -f all-modules-pom.xml --projects="$projects" --also-make compil
 rc=$?
 if [ "$rc" -ne 0 ]; then
   gate_metrics_emit maven-compile blocked "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$projects\""
+  # Full log to a file; surface only a triaged digest — an unbounded reactor
+  # dump re-enters the agent's context on every failed Stop.
+  log_file=$(mktemp -t maven-compile-gate.XXXXXX.log 2>/dev/null || echo /tmp/maven-compile-gate.$$.log)
+  printf '%s\n' "$output" > "$log_file"
+  digest=$(printf '%s\n' "$output" | grep -E '\[ERROR\]|Caused by:|error:' | head -40)
+  [ -z "$digest" ] && digest=$(printf '%s\n' "$output" | tail -40)
   {
     printf '[harness] Maven compile failed for changed modules — cannot finish.\n'
     printf 'Projects: %s\n\n' "$projects"
-    printf '%s\n' "$output"
+    printf '%s\n\n' "$digest"
+    printf '(digest — full log: %s)\n' "$log_file"
   } >&2
   exit 2
 fi

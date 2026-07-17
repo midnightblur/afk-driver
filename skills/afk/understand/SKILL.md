@@ -1,6 +1,6 @@
 ---
 name: understand
-description: Generates one self-contained interactive HTML understanding artifact for a shipped feature — dual-depth background, intuition, seam-ordered diff walkthrough, notable plan-deviations, opt-in quiz — synthesized from the feature's actual diff, journal, and review records. Use when a human runs `/afk:understand {plan-dir}` on a Ready or already-shipped feature, or when invoked non-interactively with defaults to document a feature at ship time.
+description: Generates one self-contained interactive HTML understanding artifact for a shipped feature — dual-depth background, intuition, seam-ordered diff walkthrough, plan-deviations, opt-in quiz — from the feature's actual diff, journal, and review records. Use via `/afk:understand {plan-dir}` on a Ready or shipped feature, or non-interactively with defaults at ship time.
 ---
 
 # afk:understand — post-ship feature understanding artifact
