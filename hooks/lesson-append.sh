@@ -83,7 +83,9 @@ if e["event"] == "opened":
         if g(var): e[key] = g(var)
 elif g("EV_NOTE"):
     e["note"] = g("EV_NOTE")
-print(json.dumps(e, ensure_ascii=False, separators=(",", ":")))
+# ensure_ascii stays ON: python -c stdout uses the console codepage on Windows,
+# so raw non-ASCII here would land as non-UTF-8 bytes in the ledger
+print(json.dumps(e, separators=(",", ":")))
 ' 2>/dev/null) || bail "json build failed (python unavailable?)"
 
 printf '%s\n' "$line" >> "$LESSON_LEDGER_FILE" 2>/dev/null || bail "append failed"
