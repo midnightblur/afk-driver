@@ -20,7 +20,9 @@ the reader. Version pins are never restated here — probes read them from their
 one home (`.sdkmanrc` for JDK/Maven; core-services root `CLAUDE.md` states the
 Node 24 / npm 11 workspace standard). Under `base`, a version miss is
 `missing/broken` even when the plain probe passes. Section **W** is base-only —
-its entries have no plain `Probe:` and the default branch skips them.
+its entries have no plain `Probe:` and the default branch skips them. The base
+tier is elective per item — the human picks what to install at report time
+(mechanics: `SKILL.md` step 3); the plain `Probe:`/`Fix:` surface never is.
 
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
@@ -452,7 +454,8 @@ miss is `missing/broken` there, never on a default run.
 - **Base fix:** `human:` `winget install --id Oracle.MySQL -e`, then complete the
   installer's server configuration (root password stays with the human).
 - **Notes:** not needed when all services run via envstack/docker-compose —
-  skip freely; a skip is `ok`, not `needs-human`.
+  deselect freely at the election; a skip is `skipped (user choice)`, never
+  `needs-human`.
 
 ### W4 · MySQL Workbench
 - **Needed by:** the human (DB inspection; no skill invokes it).
