@@ -13,6 +13,7 @@ today's date **in the same commit** — trigger owned by this file's
 ## 2026-07-17
 
 - `/afk:setup base` is now elective per item: the pre-fix report doubles as a pick list of every base-tier item needing action (toolchain pins + all workstation apps/OS config, including anything added to the register later), so you install only what you'll use — deselected items report `skipped (user choice)` instead of `needs-human`. The skill-load-bearing default surface stays mandatory.
+- New utility `/afk:review-qa-tests`: review a QA team's **manual** test cases (typically a spreadsheet) against the feature's requirements and annotate their sheet in place — missing scenarios as new rows (only the human columns filled, scoring left to QA), fixes to existing cases as threaded comments. Writes strictly at requirements/behaviour level: the QA reader is treated as **black-box** (nothing about code, bugs, or dev process reaches a comment), and a **manual reach** filter recommends dropping cases only automation can exercise (injected faults, multi-instance, true races). Ambiguities settle with you before anything is written. Ships an `EXCEL.md` recipe + a reusable `annotate_sheet.py` that writes real threaded comments (not legacy notes) and dodges the two orphan-relationship faults that make Excel prompt to repair.
 
 ## 2026-07-16
 

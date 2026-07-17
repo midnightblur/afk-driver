@@ -878,6 +878,15 @@ any time, in any project.
   hidden from the `/` menu via `user-invocable: false` — skills emitting
   interactive walkthrough pages load it. (Static diagrams stay with
   `draw-charts`.)
+- **`/afk:review-qa-tests`** — review a QA team's **manual** test cases (typically
+  a spreadsheet) against the feature's requirements and annotate their sheet in
+  place: missing scenarios as new rows, fixes to existing cases as threaded
+  comments. Writes strictly at requirements/behaviour level (nothing about code,
+  bugs, or dev process — the QA reader is treated as **black-box**), applies a
+  **manual reach** filter that recommends dropping cases only automation can
+  exercise, and settles ambiguities with you before writing. Excel
+  threaded-comment mechanics + a reusable `annotate_sheet.py` live in its
+  `EXCEL.md`.
 - **`/afk:settle-mr`** — review a GitLab MR (URL or IID) outside the AFK chain
   and settle it through the review settle loop: checks out the MR head in a real
   worktree, runs `/afk:review`'s concern machinery plus local gates CI doesn't
