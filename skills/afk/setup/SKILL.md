@@ -17,8 +17,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
   `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
   Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
   plus the base-only workstation apps & OS config (section W — IDEs, MySQL
-  Server + Workbench, Windows long paths, hosts entries). For fresh machines or after a
-  toolchain pin bump.
+  Server + Workbench, Windows long paths, hosts entries). The base tier is
+  **elective** — step 3 offers it as a pick list; deselected items report
+  `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
 
@@ -44,6 +45,17 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    environment again). Applies equally to step 5's re-probe.
 3. **Report before touching.** One table — entry id, name, status, planned
    action — so the human sees the whole picture before any install runs.
+   Under `base`, the table doubles as an **election**: offer every base-tier
+   item needing action (any entry classified by its `Base probe:`, plus every
+   section-W entry) as a multi-select — grouped by manifest section, all
+   selected by default, each option carrying the entry's one-line purpose so
+   the human can judge without opening the manifest. Deselected ⇒
+   `skipped (user choice)`: no fix, no re-probe, never `needs-human`. The
+   election covers the base tier only — the plain `Probe:`/`Fix:` surface is
+   skill-load-bearing, never elective (an entry carrying both tiers keeps its
+   plain fix even when its base item is deselected). Build the options from
+   the register at run time, never from a hardcoded list, so a new base-tier
+   entry is electable the day it lands.
 4. **Fix.**
    - `auto:` fixes — run them. Confirm first only for global installs
      (`npm i -g`, `pip install`) in an interactive session.
@@ -62,10 +74,10 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    is not fixed (step 2's stale-environment rule applies here too — a
    `PATH`-affecting install never reaches the running session).
 6. **Summarize** per `REPORTING.md` (plugin root): final table (`ok` / `fixed`
-   / `deferred (until <first use>)` / `needs-human: <what>`), then one
-   plain-terms sentence — is the workflow runnable now, and what still blocks
-   which stage.
+   / `deferred (until <first use>)` / `skipped (user choice)` /
+   `needs-human: <what>`), then one plain-terms sentence — is the workflow
+   runnable now, and what still blocks which stage.
 
-**Done when** every non-deferred entry probes `ok`, or the remainder are
+**Done when** every non-deferred, non-skipped entry probes `ok`, or the remainder are
 `needs-human` items named precisely (which secret, snippet, doc). Nothing else
 counts as done.

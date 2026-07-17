@@ -19,6 +19,15 @@ empty() {
   exit 0
 }
 
+# A ledger that EXISTS but can't be parsed must never masquerade as empty —
+# that silently hides every recorded lesson.
+unreadable() {
+  echo "lesson-digest: ledger parse failed: $LESSON_LEDGER_FILE" >&2
+  if [ "$MODE" = "--count" ]; then echo 0
+  else echo "ledger unreadable (parse failure, NOT an empty ledger): $LESSON_LEDGER_FILE"; fi
+  exit 0
+}
+
 [ "${LESSON_LEDGER_DISABLE:-0}" = "1" ] && empty
 
 if [ -z "${LESSON_LEDGER_FILE:-}" ]; then
@@ -27,12 +36,17 @@ if [ -z "${LESSON_LEDGER_FILE:-}" ]; then
 fi
 [ -f "$LESSON_LEDGER_FILE" ] || empty
 
-python - "$LESSON_LEDGER_FILE" "$MODE" <<'PY' 2>/dev/null || empty
+python - "$LESSON_LEDGER_FILE" "$MODE" <<'PY' || unreadable
 import json, sys
+
+# Windows pipes default stdout to the console codepage — force UTF-8 or
+# printing any recovered/non-ASCII character dies with UnicodeEncodeError
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 path, mode = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
 lessons, order = {}, []
-with open(path, encoding="utf-8") as f:
+# errors="replace": one stray non-UTF-8 byte must cost one character, not the whole ledger
+with open(path, encoding="utf-8", errors="replace") as f:
     for raw in f:
         raw = raw.strip()
         if not raw:
