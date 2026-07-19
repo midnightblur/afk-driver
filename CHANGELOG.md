@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-19
+
+- `/afk:to-ticket` no longer publishes the raw PRD: it first distills a requirements-level `TICKET.md` (User Stories + Acceptance Criteria mandatory; no technical depth, no repo-artifact references) and publishes that — Product Owner/QA-readable ticket descriptions.
+
 ## 2026-07-17
 
 - `/afk:setup base` is now elective per item: the pre-fix report doubles as a pick list of every base-tier item needing action (toolchain pins + all workstation apps/OS config, including anything added to the register later), so you install only what you'll use — deselected items report `skipped (user choice)` instead of `needs-human`. The skill-load-bearing default surface stays mandatory.

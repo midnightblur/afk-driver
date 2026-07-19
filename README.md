@@ -328,8 +328,9 @@ sequenceDiagram
    tree is exhausted. Maintains `GLOSSARY.md`; emits no decision records yet.
 2. **`/afk:to-prd`** — synthesizes the conversation into `PRD.md` plus
    requirement-level ADRs. **Local only** — nothing in Jira yet.
-3. **`/afk:to-ticket`** — publishes the PRD *content* into the **existing**
-   parent ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
+3. **`/afk:to-ticket`** — distills the PRD to a requirements-level ticket
+   description (`TICKET.md`) and publishes it into the **existing** parent
+   ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
    to attached PNGs. Idempotent — re-run when the PRD changes.
 4. **`/afk:prototype`** *(optional — only if net-new UI)* — crafts the screens
    with you interactively, anchored to the **real frontend's** components and
@@ -593,11 +594,14 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   requirement-level ADRs (decisions clearing the *hard-to-reverse + surprising +
   real-trade-off* bar) under `.../{TICKET-ID}/adr/requirements/`. **Local only**
   — does not touch the tracker.
-- **`/afk:to-ticket`** — publishes the full PRD **content** into its **existing**
-  parent ticket as native Jira ADF (headings, tables, code, Mermaid → attached
-  PNGs embedded inline). **Idempotent**: re-run on PRD change, updates in place,
-  preserves product-owner prose outside the managed block. Publishes PRD content
-  only — never the SDD/Brief. Refuses without `parent_key`; sets no label, creates
+- **`/afk:to-ticket`** — distills the PRD to a **requirements-level ticket
+  description** (`TICKET.md`: User Stories + Acceptance Criteria mandatory, no
+  technical depth, no repo-artifact references) and publishes it into its
+  **existing** parent ticket as native Jira ADF (headings, tables, Mermaid →
+  attached PNGs embedded inline). **Idempotent**: re-run on PRD change, updates
+  in place, preserves product-owner prose outside the managed block. Publishes
+  requirements-level content only — never the SDD/Brief. Refuses without
+  `parent_key`; sets no label, creates
   no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`. Also carries
   a standalone **meeting mode** (`scripts/publish_meeting.py`) — records a meeting
   on **any** ticket as a collapsible `Meeting Summaries` `expand`, idempotent per
@@ -928,8 +932,8 @@ Several Markdown surfaces carry mixed human + automated edits. Strict ownership 
 edits never collide:
 
 - **Parent Enhancement description** — PRD content (authored on disk by
-  `/afk:to-prd`) is published by `/afk:to-ticket` inside an AFK-managed sentinel
-  block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief is
+  `/afk:to-prd`) is distilled to a requirements-level ticket description and
+  published by `/afk:to-ticket` inside an AFK-managed sentinel block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief is
   **not** published to the ticket; other prose is the human's. Subtask progress is
   **not** spliced into the ticket — it lives in `plan/PLAN.md`.
 - **MR description** — the block bracketed by `<!-- afk:subtasks:start -->` /

@@ -38,7 +38,7 @@ The **on-disk location** is load-bearing — downstream skills (`/afk:to-sdd`, `
 
 Stops at the local PRD (+ requirement ADRs). Then, in order:
 
-- **`/afk:to-ticket`** — publish full PRD content into the **existing** parent ticket as native Jira formatting (mermaid rendered + embedded); idempotent, preserves product-owner content. Requires a parent key — doesn't create the ticket.
+- **`/afk:to-ticket`** — distill the PRD to a requirements-level ticket description and publish it into the **existing** parent ticket as native Jira formatting (mermaid rendered + embedded); idempotent, preserves product-owner content. Requires a parent key — doesn't create the ticket.
 - **`/afk:prototype`** *(optional)* — if the feature has meaningful net-new UI, craft the screens now against the **real frontend's** look, before the SDD locks decisions. Writes `PROTOTYPE.md` + chosen HTML sibling to the PRD; self-gates `no_ui` for backend-only. Feeds `/afk:grill-solution` and gives `/afk:grill-verification`'s UI journeys a concrete screen.
 - **`/afk:grill-solution`** — interview the architecture top-down L1 → L9.
 - **`/afk:to-sdd`** — synthesize SDD + design ADRs. Without an SDD the plan slices uncited (PRD-only).
