@@ -17,6 +17,7 @@
     "./skills/afk/design-system",
     "./skills/afk/execute",
     "./skills/afk/fix",
+    "./skills/afk/gc",
     "./skills/afk/grill-requirements",
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",

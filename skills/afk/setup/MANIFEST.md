@@ -489,6 +489,40 @@ miss is `missing/broken` there, never on a default run.
 - **Notes:** new processes pick the entry up immediately; a stale resolution
   clears with `ipconfig /flushdns`.
 
+### W7 · IntelliJ IDEA max heap ≥ 16384 MB
+- **Needed by:** the human — indexing the ~50-module monorepo plus a Maven
+  reimport blows past the stock 2 GB heap; the IDE thrashes or dies mid-import.
+- **Base probe:** every installed IDE config dir carries an explicit `-Xmx`
+  ≥ the target (default 16384 MB; the human may pick another value at the
+  election — probe against what they picked):
+  ```sh
+  XMX_TARGET=${XMX_TARGET:-16384}
+  python - "$XMX_TARGET" <<'PY'
+  import glob, os, re, sys
+  target = int(sys.argv[1])
+  dirs = glob.glob(os.path.join(os.environ["APPDATA"], "JetBrains", "IntelliJIdea*"))
+  if not dirs:
+      print("no IntelliJ config dir (W2 first)"); sys.exit(1)
+  bad = []
+  for d in dirs:
+      f = os.path.join(d, "idea64.exe.vmoptions")
+      m = re.search(r"^-Xmx(\d+)([mMgG])", open(f, encoding="utf-8-sig").read(), re.M) if os.path.exists(f) else None
+      mb = (int(m.group(1)) * (1024 if m.group(2) in "gG" else 1)) if m else 0
+      if mb < target: bad.append(f"{os.path.basename(d)}={mb or 'unset'}")
+  print("below target: " + ", ".join(bad) if bad else "ok"); sys.exit(1 if bad else 0)
+  PY
+  ```
+- **Base fix:** `auto:` ask the human for the value (default **16384**, offer it
+  as the pick), then for each config dir the probe named, upsert a single
+  `-Xmx{value}m` line in `%APPDATA%\JetBrains\IntelliJIdea*\idea64.exe.vmoptions`
+  — replace an existing `-Xmx` line in place, append when absent, leave every
+  other option untouched; create the file if missing.
+- **Notes:** takes effect on IDE restart. Config dir is per-IDE-version — a
+  version upgrade starts from stock unless the settings import carried it, so a
+  re-probe after upgrading is expected to flag the new dir. This is the IDE's
+  own heap (Help → Change Memory Settings), not the compiler build-process heap
+  (a per-project setting the human sets in Build Tools → Compiler).
+
 ## E — Env toggles (index only; no probes)
 
 Each var is documented at its consumer — this table is just the map.
