@@ -27,12 +27,13 @@ plugin-root shared lib `scripts/jira_core.py` (ADR-0001). This script keeps only
 the PRD-specific concerns: mermaid rendering and the sentinel-block description
 merge.
 
-Only PRD content is published. SDD / ADR / lower-level technical detail is the
-caller's responsibility to keep out of PRD.md — this script publishes whatever
-PRD.md contains, nothing more.
+This script publishes whatever the --prd markdown file contains, nothing more.
+Keeping the content at the right level (the skill's requirements-level TICKET.md
+distillation — no SDD / ADR / technical detail, no repo-artifact references) is
+the caller's responsibility.
 
 Usage:
-    python publish_prd.py --parent P2P-1220 --prd path/to/PRD.md [--dry-run] [--yes]
+    python publish_prd.py --parent P2P-1220 --prd path/to/TICKET.md [--dry-run] [--yes]
 
 Credentials resolve as jira_core.load_creds documents (OS env vars win, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing

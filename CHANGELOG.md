@@ -13,10 +13,12 @@ today's date **in the same commit** — trigger owned by this file's
 ## 2026-07-19
 
 - Grill sessions got faster, same rigor — agent work now overlaps your think-time instead of alternating with it: delegation doctrine adds a think-time overlap rule (background digests spawned before the turn yields — `DELEGATION.md`); confirm-batch evidence pre-fills as items accumulate instead of at the batch boundary (`TRIAGE.md`); the L9 seam walk fans out parallel draft seam rows and interviews only the mismatches, with compatibility auditors launching as each area locks; `/afk:grill-requirements` and `/afk:grill-solution` open with a parallel pre-brief digest (glossary, staples, ADRs, prior grill log) instead of mid-session reads; the devil's-advocate pass runs alongside the final confirm batch; lavish renders warm up at phase start and live artifacts re-render at question boundaries (`LAVISH.md`).
+- `/afk:to-ticket` no longer publishes the raw PRD: it first distills a requirements-level `TICKET.md` (User Stories + Acceptance Criteria mandatory; no technical depth, no repo-artifact references) and publishes that — Product Owner/QA-readable ticket descriptions.
 
 ## 2026-07-17
 
 - `/afk:setup base` is now elective per item: the pre-fix report doubles as a pick list of every base-tier item needing action (toolchain pins + all workstation apps/OS config, including anything added to the register later), so you install only what you'll use — deselected items report `skipped (user choice)` instead of `needs-human`. The skill-load-bearing default surface stays mandatory.
+- New utility `/afk:review-qa-tests`: review a QA team's **manual** test cases (typically a spreadsheet) against the feature's requirements and annotate their sheet in place — missing scenarios as new rows (only the human columns filled, scoring left to QA), fixes to existing cases as threaded comments. Writes strictly at requirements/behaviour level: the QA reader is treated as **black-box** (nothing about code, bugs, or dev process reaches a comment), and a **manual reach** filter recommends dropping cases only automation can exercise (injected faults, multi-instance, true races). Ambiguities settle with you before anything is written. Ships an `EXCEL.md` recipe + a reusable `annotate_sheet.py` that writes real threaded comments (not legacy notes) and dodges the two orphan-relationship faults that make Excel prompt to repair.
 
 ## 2026-07-16
 
