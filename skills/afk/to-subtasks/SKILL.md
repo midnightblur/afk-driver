@@ -6,6 +6,8 @@ description: Slices a PRD (and the SDD + ADRs when present) into a local plan/ d
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
 
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
+`plan/` is a **run artifact**: it lives from slicing to merge; after the
+feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
 
 ```
 {TICKET-ID}/

@@ -770,6 +770,15 @@ tooling.)*
   / `tainted` / `env_unreachable`; reports land in `plan/review/`. Blocking
   findings route by class like review findings, under the gate's own 2-cycle
   remediation cap.
+- **`/afk:gc`** — post-merge spec compaction. After a feature's MR merges, run
+  `/afk:gc {spec-folder}`: it proposes, and on approval deletes, the ticket
+  folder's run artifacts — the whole `plan/` (subtask contracts, journal,
+  review reports, ship snapshot), `GRILL-LOG.md`, publish intermediates —
+  keeping the evergreen docs (PRD, SDD, ADRs, VERIFICATION-PLAN, PROTOTYPE,
+  INDEX, understanding artifact). Git history is the archive; the ref to mine
+  is recorded in `INDEX.md`. Refuses before merge, on a dirty tree, and when
+  invoked hands-off. Keeps future repo greps clean — stale contracts and
+  settled findings stop surfacing as current truth.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a

@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-20
+
+- New skill `/afk:gc`: post-merge spec compaction. After a feature's MR merges, it proposes — and on your approval deletes — the ticket folder's run artifacts (whole `plan/`, `GRILL-LOG.md`, publish intermediates), keeping the evergreen docs (PRD/SDD/ADRs/VERIFICATION-PLAN/PROTOTYPE/INDEX/understanding) and recording the git archive ref in `INDEX.md`. Stops stale subtask contracts and settled review findings from surfacing in future sessions' greps as current truth. `plan/`'s lifespan (slicing → merge) is now declared in `/afk:to-subtasks`, and `/afk:preflight`'s success report points at the post-merge step.
+
 ## 2026-07-19
 
 - `/afk:setup base` now checks the IntelliJ IDE max heap (W7): every installed `IntelliJIdea*` config dir must set `-Xmx` ≥ 16384 MB (default target; pick your own at the election) — the stock 2 GB heap thrashes on a monorepo reimport. Fix upserts the `-Xmx` line in `idea64.exe.vmoptions`, leaving other options untouched.
