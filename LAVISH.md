@@ -31,6 +31,15 @@ goes through pinned `npx`:
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.
 
+**Warm-up.** At the start of an interactive phase with render points ahead,
+run one background render (`--no-open`) on the phase's artifact file so the
+first real render pays no `npx` resolution or server spin-up. Reuse one
+artifact file per phase — a render opens **or resumes** a session; a fresh
+file per question forfeits the resume.
+
+**Re-render cadence.** A continuously-updated artifact (ledger, log, matrix)
+re-renders at question/turn boundaries, never per row write.
+
 ## Render-point playbook map
 
 | RP | Playbook id |

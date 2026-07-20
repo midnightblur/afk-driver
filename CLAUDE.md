@@ -38,7 +38,7 @@ Followability artifacts + stewards: **ticket index** (`INDEX.md`, read-this-firs
 
 ## Context protection (binding on every skill)
 
-The orchestrating agent's context window is the run's scarcest resource. **`DELEGATION.md`** (plugin root) owns the doctrine: must-delegate triggers (bulk reads, repo-wide searches, suite/build runs, large diffs, external intake), spawn rules (parallel-in-one-message, named agent types, nesting cap), return contract (terse cited digest, bulk evidence to a file), and what must never be delegated (the human conversation, conversation synthesis, single-writer stamps). Skills point at it, never restate. A step matching a trigger delegates even where a skill's own prose predates the doctrine.
+The orchestrating agent's context window is the run's scarcest resource. **`DELEGATION.md`** (plugin root) owns the doctrine: must-delegate triggers (bulk reads, repo-wide searches, suite/build runs, large diffs, external intake), spawn rules (parallel-in-one-message, background think-time overlap in interactive phases, named agent types, nesting cap), return contract (terse cited digest, bulk evidence to a file), and what must never be delegated (the human conversation, conversation synthesis, single-writer stamps). Skills point at it, never restate. A step matching a trigger delegates even where a skill's own prose predates the doctrine.
 
 ## Freshness (binding on every change)
 

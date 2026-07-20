@@ -36,7 +36,8 @@ verify before continuing:
 
 Run these verifications in `afk-reader` subagents — parallel where the
 claims are independent — each returning a cited confirm/refute digest,
-per `DELEGATION.md` (plugin root); the grilling session keeps its
+per `DELEGATION.md` (plugin root; its think-time overlap rule applies —
+spawn before yielding the turn); the grilling session keeps its
 context on the interview and acts on the digests.
 
 **How to handle a verification miss.**

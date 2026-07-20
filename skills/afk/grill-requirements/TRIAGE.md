@@ -22,12 +22,14 @@ answer, one-line why.
 
 ## Evidence pre-fill
 
-Before a batch goes out, delegate (per `DELEGATION.md`, plugin root) a
-fresh-context subagent to ground each confirm item in repo evidence — the
-registry row, existing pattern, or config the recommendation rests on — and
-return, per item, the recommended answer plus **one citation**
-(`file:line` or registry row). The batch then presents question +
-recommended answer + citation, so the user scans instead of researches.
+Ground each confirm item as it accumulates — never wait for the batch to
+form: on classifying an item confirm, delegate (per `DELEGATION.md`, plugin
+root — in background, overlapping the interview) a fresh-context subagent
+to find the repo evidence the recommendation rests on — the registry row,
+existing pattern, or config — returning the recommended answer plus **one
+citation** (`file:line` or registry row). By the section/layer boundary
+the batch is ready with zero wait; it presents question + recommended
+answer + citation, so the user scans instead of researches.
 An item the subagent cannot cite, or whose evidence contradicts the
 recommendation, leaves the batch and becomes debate-class before
 presentation.

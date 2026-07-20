@@ -22,6 +22,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 ## Spawn rules
 
 - **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
+- **Overlap the human's think-time.** In an interactive phase, spawn delegations in background **before yielding the turn** — grounding for the pending question's premises, pre-fill for an accumulating batch, the likely next question's verification — so digests land while the human reads and types. Nothing locks in before its digest returns; only the waiting moves.
 - **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit) and `afk-runner` (executes commands/suites, triages their output; writes only evidence files). Fall back to a general-purpose child only when it must edit project files. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
 - **Hand a child paths + a task, never content.** Anything the child can read itself is not pasted into its prompt.
 - **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. (Codex: requires the `max_depth` config from `codex-sync/config-fragment.toml`; at its default of 1, helper steps run inline — degraded, not broken.)
