@@ -42,7 +42,7 @@ a token value — not even partially.
 ### H2 · Jira MCP server
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
-  `skills/utils/to-code-walkthrough` (spec discovery), the shared Jira lib
+  `skills/afk/understand` (MR-subject spec discovery), the shared Jira lib
   `scripts/jira_core.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` a cheap `mcp__jira__jira_get` on a known key succeeds
@@ -133,7 +133,7 @@ a token value — not even partially.
 ### C1 · bash (Git Bash on Windows) + POSIX utils
 - **Needed by:** the `hooks/*.sh` gate suite (the Stop hooks — wiring, Maven
   compile, UI lint, Java format — **fire every turn**; plus the on-demand
-  `app-start-gate.sh`), `skills/utils/to-code-walkthrough/scripts/fetch-mr.sh`,
+  `app-start-gate.sh`), `skills/afk/understand/scripts/fetch-mr.sh`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
 - **Probe:** `bash -c 'command -v awk && command -v sed && command -v grep' >/dev/null`
@@ -150,7 +150,7 @@ a token value — not even partially.
 
 ### C3 · glab (GitLab CLI), logged in — **secret**
 - **Needed by:** `skills/afk/execute` (push + Draft MR),
-  `skills/utils/to-code-walkthrough/scripts/fetch-mr.sh` (MR mode).
+  `skills/afk/understand/scripts/fetch-mr.sh` (MR subjects).
 - **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host core-services pushes to>` — the token lives in glab's own store, never in
@@ -496,7 +496,7 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json` | set by the harness; locates the Stop hook |
-| `CLAUDE_JOB_DIR` | `skills/utils/to-code-walkthrough` | working dir for MR fetch output |
+| `CLAUDE_JOB_DIR` | `skills/afk/understand` | working dir for MR fetch + mr/code-subject artifact output |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |

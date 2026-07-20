@@ -7,7 +7,7 @@
     {
       "name": "afk",
       "source": "./",
-      "description": "AFK skill chain — design (incl. optional interactive UI prototyping via prototype, and optional verification design — UI journeys + API scenarios — via grill-verification + to-verification-plan) + executor (execute, interactive or driven) + hands-off driver (autopilot) + feature smoke gate (smoke-test, full or minimal) + post-ship understanding artifact (understand — one self-contained interactive HTML explainer per feature) for the AFK Jira/GitLab workflow. Design stages run interactively; the implementation middle runs hands-off via autopilot or by hand."
+      "description": "AFK skill chain — design (incl. optional interactive UI prototyping via prototype, and optional verification design — UI journeys + API scenarios — via grill-verification + to-verification-plan) + executor (execute, interactive or driven) + hands-off driver (autopilot) + feature smoke gate (smoke-test, full or minimal) + code-learning artifact (understand — one self-contained interactive HTML explainer per feature, MR, or code area) for the AFK Jira/GitLab workflow. Design stages run interactively; the implementation middle runs hands-off via autopilot or by hand."
     }
   ]
 }

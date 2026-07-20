@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-20
+
+- `/afk:understand` is now the one-stop shop for **learning any piece of code** — it takes a shipped feature (`{plan-dir}`), a **GitLab MR URL**, or a **code area** (`path:`/`symbol:`) and produces the same self-contained interactive HTML learning artifact for each (`/afk:to-code-walkthrough` is retired; its MR fetcher, spec discovery, and size gates moved into understand). The artifact also became a much better teacher: learning objectives + key concepts & constraints up front, a one-sentence mental model re-invoked through walkthrough and recap, the walkthrough split into **one tour step per seam/flow group** (stated ordering rationale, plain-language overview before code), evidence-grounded "where you'd naturally go wrong" callouts, optional one-question checks per group, and a recap section — all enforced by five new skeptic criteria (jargon-before-use, ordering rationale, objectives/recap integrity, representation match, grounded misconceptions). Shell chrome gained resume-where-you-left-off, per-step reading-time hints, and an **ask-the-teacher** button that assembles a context-rich clipboard prompt for a live Claude Code session (page stays fully offline). The interactive-walkthrough widget catalog grew two teaching widgets: a **before/after comparator** and a **predict-then-reveal** pause.
+
 ## 2026-07-19
 
 - `/afk:prototype` now settles a **drivable** mockup, not a picture: every PRD User Story / Acceptance Criterion must be clickable in the HTML (simulated client-side against fixtures) or logged as a gap — enforced by a pre-settle **capability walk** — and a **fidelity pass** diffs the mockup side-by-side against the live app (or the `/afk:design-system` catalog), with the fidelity basis (`live-verified`/`catalog`/`source-only`) recorded in `PROTOTYPE.md`. Anchoring is layered: catalog first, live-DOM lifts second, source digest as fallback.

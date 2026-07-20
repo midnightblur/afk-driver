@@ -440,8 +440,7 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
 ├── GLOSSARY.md                ← /afk:grill-requirements
-├── walkthroughs/              ← /afk:to-code-walkthrough (optional durable copies)
-├── understanding/             ← /afk:understand    (post-ship self-contained interactive HTML explainer, one per feature)
+├── understanding/             ← /afk:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
 ├── adr/
 │   ├── requirements/NNNN-*.md ← /afk:to-prd   (what / why)
 │   └── design/NNNN-*.md       ← /afk:to-sdd   (how)
@@ -826,18 +825,29 @@ tooling.)*
   launching never spends tokens. Read-only viewport; no daemonization: a
   crashed watcher's only recovery is relaunching the skill.
 - **`/afk:understand`** — generates one **self-contained interactive HTML
-  understanding artifact** per feature (`{spec-dir}/understanding/index.html`) —
-  dual-depth background, intuition, seam-ordered diff walkthrough, notable
-  plan-deviations, an opt-in quiz — synthesized from the feature's **actual diff**,
-  journal, and review records (the implementation *as built*, not the plan). Runs
-  two ways off one pipeline: **auto** (invoked non-interactively with defaults from
-  `/afk:preflight`'s advisory ladder row — never blocks a ship, ends in one
-  docs-only commit) and **standalone** (a human runs `/afk:understand {plan-dir}`
-  on a Ready or shipped feature; prompts for quiz size + depth, writes files,
-  commits nothing). Fully offline; surfaced by the ticket `INDEX.md` and the
-  mission-control dashboard's understanding panel. Section model, predicates, quiz
-  rules, and meta-header grammar are one-homed in its `UNDERSTANDING-FORMAT.md`;
-  the boilerplate chrome is the checked-in `shell-template.html`.
+  learning artifact** for any code subject: a shipped **feature** (`{plan-dir}`,
+  artifact at `{spec-dir}/understanding/index.html`), a **GitLab MR** (URL, via
+  the bundled `scripts/fetch-mr.sh`), or an existing **code area**
+  (`path:`/`symbol:`). Built as a guided tour that teaches high-level → detail:
+  learning objectives + dual-depth background + key concepts & constraints,
+  a one-sentence mental model with toy-data intuition, a seam/flow-ordered
+  walkthrough (one tour step per group, plain-language overview before code,
+  evidence-grounded "where you'd naturally go wrong" callouts, optional
+  per-group check questions), notable plan-deviations (feature subjects), a
+  recap, and an opt-in quiz — synthesized from the **actual diff/code** (the
+  implementation *as built*, not the plan). Runs two ways off one pipeline:
+  **auto** (feature subjects only — invoked non-interactively with defaults from
+  `/afk:preflight`'s advisory ladder row, never blocks a ship, ends in one
+  docs-only commit) and **standalone** (a human runs `/afk:understand
+  {subject}`; prompts for quiz size + depth, writes files, commits nothing;
+  MR/code artifacts land in `$CLAUDE_JOB_DIR` with an opt-in durable copy into
+  the ticket's `understanding/`). Fully offline — the only "live teacher" hook
+  is an ask-the-teacher button that assembles a context-rich prompt for a
+  Claude Code session onto the clipboard. Surfaced by the ticket `INDEX.md` and
+  the mission-control dashboard's understanding panel. Subject families,
+  section model, predicates, quiz rules, and meta-header grammar are one-homed
+  in its `UNDERSTANDING-FORMAT.md`; the boilerplate chrome is the checked-in
+  `shell-template.html`.
 - **`/afk:setup`** — the workflow doctor. Probes every external dependency in
   `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling checkouts),
   fixes what it can, guides the human through the rest — idempotent, so first-time
@@ -916,10 +926,6 @@ any time, in any project.
   (pushback adjudicated by fresh skeptics). Never merges.
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
   survives sessions.
-- **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR
-  (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
-  Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
-  `scripts/fetch-mr.sh`); code mode is fully standalone.
 - **`writing-great-skills`** — the reference doctrine for authoring and editing
   skills (invocation choice, information hierarchy, progressive disclosure,
   leading words, failure modes); consulted whenever a skill is created, audited,
