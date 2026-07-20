@@ -334,9 +334,13 @@ sequenceDiagram
    to attached PNGs. Idempotent — re-run when the PRD changes.
 4. **`/afk:prototype`** *(optional — only if net-new UI)* — crafts the screens
    with you interactively, anchored to the **real frontend's** components and
-   tokens. Writes self-contained HTML you open and refresh while reshaping it in
-   plain language; on settle captures `PROTOTYPE.md` + the chosen HTML sibling to
-   the PRD. Self-gates `no_ui` for backend-only features. The won design feeds the
+   tokens (design-system catalog / live app / source, best evidence first).
+   Writes self-contained **drivable** HTML you open and refresh while reshaping
+   it in plain language — every PRD capability simulated client-side, so you
+   feel how the feature works, not just how it looks. Settle is gated on a
+   **capability walk** (every story clickable or its gap logged) and a
+   **fidelity pass** against the live app; then captures `PROTOTYPE.md` + the
+   chosen HTML sibling to the PRD. Self-gates `no_ui` for backend-only features. The won design feeds the
    next two steps and gives the verification UI journeys a concrete screen to
    trace to. Local-first; an opt-in push mirrors the mockup to `claude.ai/design`
    for stakeholder review.
@@ -654,13 +658,19 @@ tooling.)*
   never writes `STAPLES.md` (those come from `/afk:to-prd` and `/afk:claude-md`).
 - **`/afk:prototype`** *(after `/afk:to-prd`; only if net-new UI)* — an interactive
   UI-crafting loop, neither a grill nor a one-shot producer. Reads the PRD User
-  Stories, anchors to the **real frontend's** components + tokens, writes
-  self-contained HTML you open in a browser and **refresh** while reshaping it in
-  plain language. Converges from optional divergent sketches to one design.
-  **Self-gates `no_ui`** for backend/API/refactor features. **Durable-lite**: the
-  won direction becomes `PROTOTYPE.md` + the chosen HTML sibling to the PRD
-  (traceable to User Stories, so `/afk:grill-verification`'s UI journeys trace to
-  it); losing scaffolding discarded. **Local-first** — the in-repo files are
+  Stories as the mockup's **capability list**, anchors to the **real frontend**
+  (design-system catalog / live-app DOM + screenshots / source digest, best
+  evidence first), writes self-contained **drivable** HTML — every capability
+  simulated client-side against inline fixtures — that you open in a browser and
+  **refresh** while reshaping it in plain language. Converges from optional
+  divergent sketches to one design, then settles only through two gates: a
+  **capability walk** (every User Story/AC clickable in the mockup or logged as a
+  gap) and a **fidelity pass** (side-by-side vs the live app or catalog; fidelity
+  basis recorded in `PROTOTYPE.md`). **Self-gates `no_ui`** for
+  backend/API/refactor features. **Durable-lite**: the won direction becomes
+  `PROTOTYPE.md` + the chosen HTML sibling to the PRD (traceable to User Stories,
+  so `/afk:grill-verification`'s UI journeys trace to it); losing scaffolding
+  discarded. **Local-first** — the in-repo files are
   canonical; a **frictionless opt-in** push mirrors the mockup to a persistent,
   team-shareable `claude.ai/design` project (share-only, never the source of
   truth). Touches no tracker. Feeds `/afk:grill-solution` (UX decisions) and
