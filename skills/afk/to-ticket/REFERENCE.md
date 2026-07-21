@@ -69,6 +69,14 @@ The undocumented community alternatives (external-URL media, guessed
 - **Re-run** strips the prior managed block (markers inclusive) and its
   `afk-fig*.png` attachments, then re-inserts at the same position and re-renders
   the figures — so the ticket never accumulates duplicates.
+- **Re-publish delta comment.** With `--changes <md>`, after a successful
+  description `PUT` the engine posts the file as an issue comment
+  (`POST /rest/api/3/issue/{key}/comment`) via the same Markdown→ADF mapping.
+  ```mermaid is rejected in a changes file (comments can't embed media this
+  way). When no prior managed block existed (first publish) the comment is
+  skipped with a warning — there's no delta to record. The summary's `action`
+  line (`first publish` / `re-publish (managed block replaced)`) reports which
+  case the engine detected.
 
 ## Meeting Summaries publish (meeting mode)
 

@@ -19,7 +19,9 @@ byte-for-byte reproducible rather than eyeballed each run:
      description is barebone/low-value, the managed block becomes the whole
      description.
   5. Re-running is idempotent: the prior managed block + prior afk-* figure
-     attachments are replaced, not duplicated.
+     attachments are replaced, not duplicated. A re-publish may carry --changes,
+     a markdown requirements delta posted as an issue comment after the PUT so
+     the change history stays trackable (skipped on a first publish).
 
 The reusable Jira machinery — creds resolution, the REST client, Markdown→ADF
 conversion, attachment upload + media-UUID extraction, PNG sizing — lives in the
@@ -33,7 +35,8 @@ distillation — no SDD / ADR / technical detail, no repo-artifact references) i
 the caller's responsibility.
 
 Usage:
-    python publish_prd.py --parent P2P-1220 --prd path/to/TICKET.md [--dry-run] [--yes]
+    python publish_prd.py --parent P2P-1220 --prd path/to/TICKET.md \
+        [--changes path/to/TICKET-CHANGES.md] [--dry-run] [--yes]
 
 Credentials resolve as jira_core.load_creds documents (OS env vars win, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
@@ -153,8 +156,9 @@ def is_end_marker(node):
 
 
 def strip_managed_block(content):
-    """Remove [start_marker .. end_marker] inclusive. Returns (remainder, insert_index).
-    insert_index is where the block used to be (or len(remainder) if absent)."""
+    """Remove [start_marker .. end_marker] inclusive.
+    Returns (remainder, insert_index, had_block); insert_index is where the
+    block used to be (len(remainder) if absent)."""
     out, i, insert_at = [], 0, None
     while i < len(content):
         if is_start_marker(content[i]):
@@ -166,7 +170,7 @@ def strip_managed_block(content):
             continue
         out.append(content[i])
         i += 1
-    return out, (insert_at if insert_at is not None else len(out))
+    return out, (insert_at if insert_at is not None else len(out)), insert_at is not None
 
 
 PLACEHOLDER_RE = re.compile(r"^(tbd|todo|n/?a|none|see prd|to be (defined|determined)|\.+)$", re.I)
@@ -199,12 +203,12 @@ def marker_paragraph(text):
 
 def build_description(existing_adf, prd_content):
     existing = (existing_adf or {}).get("content", []) if isinstance(existing_adf, dict) else []
-    remainder, insert_at = strip_managed_block(existing)
+    remainder, insert_at, had_block = strip_managed_block(existing)
     managed = [marker_paragraph(MARK_START + START_NOTE), *prd_content, marker_paragraph(MARK_END)]
     if is_barebone(remainder):
         final = managed
         absorbed = bool(remainder)
-    elif insert_at == len(remainder):
+    elif not had_block:
         # No prior managed block: append at the end, separated by a rule so the
         # PO's content and the generated PRD are visually distinct.
         final = remainder + [{"type": "rule"}] + managed
@@ -214,7 +218,7 @@ def build_description(existing_adf, prd_content):
         # if any, lives in `remainder` outside the markers and is preserved).
         final = remainder[:insert_at] + managed + remainder[insert_at:]
         absorbed = False
-    return {"version": 1, "type": "doc", "content": final}, absorbed, len(remainder)
+    return {"version": 1, "type": "doc", "content": final}, absorbed, len(remainder), had_block
 
 
 # ============================================================================
@@ -227,6 +231,10 @@ def main():
     ap.add_argument("--dry-run", action="store_true",
                     help="convert + plan only; render no diagrams, mutate nothing, print ADF")
     ap.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
+    ap.add_argument("--changes",
+                    help="markdown file with the requirements delta of a re-publish; "
+                         "posted as an issue comment after the description PUT "
+                         "(skipped with a warning on a first publish)")
     args = ap.parse_args()
 
     prd_path = Path(args.prd)
@@ -234,6 +242,18 @@ def main():
         sys.exit(f"ERROR: PRD not found: {prd_path}")
     md_text = prd_path.read_text(encoding="utf-8")
     md_text, mermaid_blocks = extract_mermaid(md_text)
+
+    changes_adf = None
+    if args.changes:
+        changes_path = Path(args.changes)
+        if not changes_path.exists():
+            sys.exit(f"ERROR: changes file not found: {changes_path}")
+        changes_text = changes_path.read_text(encoding="utf-8")
+        if MERMAID_RE.search(changes_text):
+            sys.exit("ERROR: --changes cannot carry mermaid blocks (figures embed in "
+                     "descriptions only, not comments) — keep the delta textual.")
+        changes_adf = {"version": 1, "type": "doc",
+                       "content": md_to_adf_content(changes_text, {})}
 
     base, email, token = load_creds()
     jira = Jira(base, email, token)
@@ -275,18 +295,30 @@ def main():
                       f"({size[0]}x{size[1]}) -> media {media_uuid}")
 
     prd_content = md_to_adf_content(md_text, fig_nodes)
-    new_desc, absorbed, kept = build_description(existing_desc, prd_content)
+    new_desc, absorbed, kept, republish = build_description(existing_desc, prd_content)
+
+    if changes_adf and not republish:
+        print("WARNING: --changes given but no prior managed block on the ticket "
+              "(first publish) — no delta to record, comment will be skipped.")
+        changes_adf = None
 
     print(f"\nparent      : {args.parent} ({itype}) — {issue['fields']['summary']}")
     print(f"PRD source  : {prd_path}")
+    print(f"action      : {'re-publish (managed block replaced)' if republish else 'first publish'}")
     print(f"diagrams    : {len(mermaid_blocks)}")
     print(f"existing PO : {'absorbed (barebone)' if absorbed else f'{kept} node(s) preserved'}")
     print(f"ADF blocks  : {len(new_desc['content'])}")
+    print(f"changes     : {'comment planned from ' + args.changes if changes_adf else 'none'}")
 
     if args.dry_run:
         out = prd_path.with_suffix(".adf.json")
         out.write_text(json.dumps(new_desc, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"\n[dry-run] wrote ADF to {out} — nothing mutated.")
+        if changes_adf:
+            cout = changes_path.with_suffix(".adf.json")
+            cout.write_text(json.dumps(changes_adf, indent=2, ensure_ascii=False),
+                            encoding="utf-8")
+            print(f"[dry-run] wrote comment ADF to {cout}")
         return
 
     if not args.yes:
@@ -295,6 +327,9 @@ def main():
             sys.exit("aborted.")
     jira.update_description(args.parent, new_desc)
     print(f"\nDONE: {args.parent} description updated.")
+    if changes_adf:
+        cid = jira.add_comment(args.parent, changes_adf)
+        print(f"DONE: requirements-delta comment posted (id {cid}).")
 
 
 if __name__ == "__main__":

@@ -28,11 +28,15 @@ Read `PRD.md` — User Stories and Acceptance Criteria are the **capability list
 2. **The running app**, when reachable — the fidelity reference: screenshot the app shell and the page archetype nearest the feature (Step 4's fidelity pass diffs against these). Markup and computed styles lifted from the live DOM beat anything re-derived from source.
 3. **Frontend source** — find the sibling checkout's components, layout shell, and design tokens; delegate the read to an `afk-reader` subagent returning a vocabulary digest — component names, token values, layout idioms, each with file citations — per `DELEGATION.md` (plugin root); the crafting loop mocks from the digest.
 
+While anchoring, also map the feature's **neighborhood**: the existing screen(s) each story enters from, and the existing screens the new UI navigates to. Capture the app shell (global nav, header, breadcrumbs) and those neighbor pages in the anchor evidence — Step 2 embeds the shell and stubs the neighbors.
+
 The mockup must look like **your app** — a generic Tailwind page teaches nothing about whether the feature fits the product. No anchor available at all? Say so, proceed with a neutral style, flag the missing anchor.
 
 ### 2. Open the canvas
 
 Write a **self-contained HTML file** — no build step, no framework runtime, real data shapes inlined as fixtures, inline vanilla JS making the page **drivable**: clicks navigate, forms validate, actions mutate the in-page fixture state. The user must be able to *use* the feature, not inspect a picture of it. Write it to the ticket's `prototype/` working folder (sibling to `PRD.md`). Tell the user the path; **they open it in a browser and refresh as you edit.** That refresh loop is the entire UX — keep the file openable-as-`file://` always (inline the CSS, no imports needing a server).
+
+**In situ, not floating.** Every screen renders inside a replica of the real app shell — global nav, header, breadcrumbs, the correct nav item active — and the neighborhood is wired: Step 1's entry-point and navigation-target pages appear as **shallow stubs** (real layout, static fixture content, one level deep — links beyond the flow dead), so the user reaches each new screen by clicking from where they'd really start and leaves it to where they'd really land. Familiarity is the instrument: a user who feels at home in the prototype notices exactly what's off; a floating mockup hides the very seams — entry, navigation, shell fit — where gaps live.
 
 Screens to open with depend on how settled the direction is:
 
@@ -55,8 +59,8 @@ Converge from divergence: once a direction wins, collapse to the single chosen m
 
 When the design feels right, two gates before anything durable is written:
 
-- **Capability walk.** Drive every PRD User Story and Acceptance Criterion through the mockup by clicking — trigger the action, watch the state change, reach the states the story implies. Exhaustive: every story and AC either has an interactive path you just walked, or is logged in `PROTOTYPE.md` as not-demonstrated with a reason. A capability you couldn't click is a gap — build it or log it, never skip it silently.
-- **Fidelity pass.** Put the mockup **side by side** with Step 1's live screenshots (or catalog cards when no running app was reachable) and fix what differs — shell dimensions, control variants, density, spacing, type, exact component treatment. Live render wins, and fidelity claims are never overclaimed — doctrine per `skills/afk/design-system/SKILL.md` (Boundary).
+- **Capability walk.** Drive every PRD User Story and Acceptance Criterion through the mockup by clicking — each story started from its entry-point stub, never by opening the new screen directly — trigger the action, watch the state change, reach the states the story implies. Exhaustive: every story and AC either has an interactive path you just walked, or is logged in `PROTOTYPE.md` as not-demonstrated with a reason. A capability you couldn't click is a gap — build it or log it, never skip it silently.
+- **Fidelity pass.** Put the mockup **side by side** with Step 1's live screenshots (or catalog cards when no running app was reachable) and fix what differs — shell and nav chrome, dimensions, control variants, density, spacing, type, exact component treatment. Live render wins, and fidelity claims are never overclaimed — doctrine per `skills/afk/design-system/SKILL.md` (Boundary).
 
 Then the **won direction** becomes the artifact; losing scaffolding is thrown away.
 
@@ -91,7 +95,7 @@ Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd
 - **Throwaway scaffolding, durable decision.** Variant files and the switcher are disposable, pruned on settle. The *decision* (which design, and why) survives in `PROTOTYPE.md`.
 - **Touches no tracker, merges nothing.** Local-first like the rest of the design layer — no Jira, no GitLab, no branch. Only network egress is the **opt-in** Claude Design push, only when the user asks.
 - **Simulate the behavior, mock the backend.** Every interaction runs client-side against inline fixtures — actions respond, state transitions play out — but no real mutations, no real DB, no server. A static picture where the PRD promises behavior is an unfinished mockup. The question is "what is this like to *use*", answered before the SDD; "does the backend work" is verification's job, far downstream.
-- **Anchor, don't invent a parallel design language.** Mock from the real frontend's components and tokens. A prototype that ignores the existing app produces a design engineering then has to throw away.
+- **Anchor, don't invent a parallel design language.** Mock from the real frontend's components and tokens, in situ — inside the shell, entered from and exiting to its real neighbor pages. A prototype that ignores the existing app produces a design engineering then has to throw away. Neighbor stubs stay shallow: the prototype simulates the feature's neighborhood, never rebuilds the app.
 
 ## Next
 

@@ -602,7 +602,9 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   technical depth, no repo-artifact references) and publishes it into its
   **existing** parent ticket as native Jira ADF (headings, tables, Mermaid →
   attached PNGs embedded inline). **Idempotent**: re-run on PRD change, updates
-  in place, preserves product-owner prose outside the managed block. Publishes
+  in place, preserves product-owner prose outside the managed block, and posts
+  the requirements delta as an issue comment so change history stays trackable
+  on the ticket. Publishes
   requirements-level content only — never the SDD/Brief. Refuses without
   `parent_key`; sets no label, creates
   no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`. Also carries
@@ -660,7 +662,9 @@ tooling.)*
   Stories as the mockup's **capability list**, anchors to the **real frontend**
   (design-system catalog / live-app DOM + screenshots / source digest, best
   evidence first), writes self-contained **drivable** HTML — every capability
-  simulated client-side against inline fixtures — that you open in a browser and
+  simulated client-side against inline fixtures, rendered **in situ** (inside a
+  replica of the real app shell, entered from and exiting to shallow stubs of
+  its neighbor pages) — that you open in a browser and
   **refresh** while reshaping it in plain language. Converges from optional
   divergent sketches to one design, then settles only through two gates: a
   **capability walk** (every User Story/AC clickable in the mockup or logged as a
@@ -999,7 +1003,8 @@ edits never collide:
 - **Cross-module edits need a marker comment** — a ticket-prefixed line like
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
   home module.
-- **Re-run `/afk:to-ticket`** after the PRD changes (idempotent). The only
+- **Re-run `/afk:to-ticket`** after the PRD changes (idempotent; the re-publish
+  posts the requirements delta as a comment). The only
   design-chain skill that writes to Jira — the plugin's other Jira writer is
   `/afk:bug`'s publisher subagent (Bug create + Dev-Pending transition +
   evidence comments, that ticket only; ADR-0001), outside the design chain.
