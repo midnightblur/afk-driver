@@ -430,7 +430,7 @@ Every design artifact sits next to the code it describes, under the ticket's spe
 folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 
 ```text
-{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/
+{service}/specs/{year}r{release}/{TICKET-ID}/
 ├── INDEX.md                   ← /afk:to-prd creates; each skill upserts its row (read this first)
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
