@@ -24,6 +24,9 @@ Full = grills + SDD + verification design for complex features; lean = PRD → p
 **PRD**:
 Product Requirements Document — the *what and why* in business language; the most human-readable artifact in the chain.
 
+**Ticket description (`TICKET.md`)**:
+The requirements-level distillation of the PRD that `/afk:to-ticket` publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.
+
 **SDD**:
 Solution Design Document — the *how*, organized top-down by the L1–L9 design layers, one visualization per layer.
 

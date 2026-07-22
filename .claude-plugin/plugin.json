@@ -1,7 +1,7 @@
 {
   "name": "afk",
   "version": "0.0.0",
-  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) + post-ship understanding artifact (understand: one self-contained interactive HTML explainer per feature) for the Nakisa Jira/GitLab workflow.",
+  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) + code-learning artifact (understand: one self-contained interactive HTML explainer per feature, MR, or code area) for the Nakisa Jira/GitLab workflow.",
   "author": {
     "name": "mvu"
   },
@@ -17,6 +17,7 @@
     "./skills/afk/design-system",
     "./skills/afk/execute",
     "./skills/afk/fix",
+    "./skills/afk/gc",
     "./skills/afk/grill-requirements",
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",
@@ -42,8 +43,8 @@
     "./skills/utils/glossary",
     "./skills/utils/handoff",
     "./skills/utils/interactive-walkthrough",
+    "./skills/utils/review-qa-tests",
     "./skills/utils/settle-mr",
-    "./skills/utils/to-code-walkthrough",
     "./skills/utils/todo",
     "./skills/utils/verify-seams",
     "./skills/utils/writing-great-skills"

@@ -118,6 +118,13 @@ class Jira:
         self._req("PUT", f"/rest/api/3/issue/{key}", data=body,
                   headers={"Content-Type": "application/json"})
 
+    def add_comment(self, key, adf):
+        """POST an ADF doc as an issue comment. Returns the comment id (str)."""
+        body = json.dumps({"body": adf}).encode()
+        r = self._req("POST", f"/rest/api/3/issue/{key}/comment", data=body,
+                      headers={"Content-Type": "application/json"})
+        return json.loads(r.read()).get("id")
+
     def delete_attachment(self, att_id):
         try:
             self._req("DELETE", f"/rest/api/3/attachment/{att_id}")

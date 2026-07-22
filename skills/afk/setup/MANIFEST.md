@@ -42,7 +42,7 @@ a token value — not even partially.
 ### H2 · Jira MCP server
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
-  `skills/utils/to-code-walkthrough` (spec discovery), the shared Jira lib
+  `skills/afk/understand` (MR-subject spec discovery), the shared Jira lib
   `scripts/jira_core.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` a cheap `mcp__jira__jira_get` on a known key succeeds
@@ -133,7 +133,7 @@ a token value — not even partially.
 ### C1 · bash (Git Bash on Windows) + POSIX utils
 - **Needed by:** the `hooks/*.sh` gate suite (the Stop hooks — wiring, Maven
   compile, UI lint, Java format — **fire every turn**; plus the on-demand
-  `app-start-gate.sh`), `skills/utils/to-code-walkthrough/scripts/fetch-mr.sh`,
+  `app-start-gate.sh`), `skills/afk/understand/scripts/fetch-mr.sh`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
 - **Probe:** `bash -c 'command -v awk && command -v sed && command -v grep' >/dev/null`
@@ -150,7 +150,7 @@ a token value — not even partially.
 
 ### C3 · glab (GitLab CLI), logged in — **secret**
 - **Needed by:** `skills/afk/execute` (push + Draft MR),
-  `skills/utils/to-code-walkthrough/scripts/fetch-mr.sh` (MR mode).
+  `skills/afk/understand/scripts/fetch-mr.sh` (MR subjects).
 - **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host core-services pushes to>` — the token lives in glab's own store, never in
@@ -489,6 +489,40 @@ miss is `missing/broken` there, never on a default run.
 - **Notes:** new processes pick the entry up immediately; a stale resolution
   clears with `ipconfig /flushdns`.
 
+### W7 · IntelliJ IDEA max heap ≥ 16384 MB
+- **Needed by:** the human — indexing the ~50-module monorepo plus a Maven
+  reimport blows past the stock 2 GB heap; the IDE thrashes or dies mid-import.
+- **Base probe:** every installed IDE config dir carries an explicit `-Xmx`
+  ≥ the target (default 16384 MB; the human may pick another value at the
+  election — probe against what they picked):
+  ```sh
+  XMX_TARGET=${XMX_TARGET:-16384}
+  python - "$XMX_TARGET" <<'PY'
+  import glob, os, re, sys
+  target = int(sys.argv[1])
+  dirs = glob.glob(os.path.join(os.environ["APPDATA"], "JetBrains", "IntelliJIdea*"))
+  if not dirs:
+      print("no IntelliJ config dir (W2 first)"); sys.exit(1)
+  bad = []
+  for d in dirs:
+      f = os.path.join(d, "idea64.exe.vmoptions")
+      m = re.search(r"^-Xmx(\d+)([mMgG])", open(f, encoding="utf-8-sig").read(), re.M) if os.path.exists(f) else None
+      mb = (int(m.group(1)) * (1024 if m.group(2) in "gG" else 1)) if m else 0
+      if mb < target: bad.append(f"{os.path.basename(d)}={mb or 'unset'}")
+  print("below target: " + ", ".join(bad) if bad else "ok"); sys.exit(1 if bad else 0)
+  PY
+  ```
+- **Base fix:** `auto:` ask the human for the value (default **16384**, offer it
+  as the pick), then for each config dir the probe named, upsert a single
+  `-Xmx{value}m` line in `%APPDATA%\JetBrains\IntelliJIdea*\idea64.exe.vmoptions`
+  — replace an existing `-Xmx` line in place, append when absent, leave every
+  other option untouched; create the file if missing.
+- **Notes:** takes effect on IDE restart. Config dir is per-IDE-version — a
+  version upgrade starts from stock unless the settings import carried it, so a
+  re-probe after upgrading is expected to flag the new dir. This is the IDE's
+  own heap (Help → Change Memory Settings), not the compiler build-process heap
+  (a per-project setting the human sets in Build Tools → Compiler).
+
 ## E — Env toggles (index only; no probes)
 
 Each var is documented at its consumer — this table is just the map.
@@ -496,7 +530,7 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json` | set by the harness; locates the Stop hook |
-| `CLAUDE_JOB_DIR` | `skills/utils/to-code-walkthrough` | working dir for MR fetch output |
+| `CLAUDE_JOB_DIR` | `skills/afk/understand` | working dir for MR fetch + mr/code-subject artifact output |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |

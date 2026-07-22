@@ -31,14 +31,14 @@ Write `PRD.md` (+ any requirement ADRs) to the repo and stop. Publishing to a tr
 
 The **on-disk location** is load-bearing — downstream skills (`/afk:to-sdd`, `/afk:to-subtasks`) find the PRD by convention, not a tracker pointer. This is the owning home of the spec-folder path convention; others point here.
 
-- **PRD location.** `{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/PRD.md` for service-scoped work, or `tasks/{TICKET-ID}/PRD.md` for cross-cutting tooling (PRD's `## Service:` line = `tasks`). Service derives from the ticket/project key per the project mapping — e.g. `P2P` → `11700-payable`. `year` = calendar year; `release` = n-th release of that year (1-indexed).
+- **PRD location.** `{service}/specs/{year}r{release}/{TICKET-ID}/PRD.md` for service-scoped work, or `tasks/{TICKET-ID}/PRD.md` for cross-cutting tooling (PRD's `## Service:` line = `tasks`). Service derives from the ticket/project key per the project mapping — e.g. `P2P` → `11700-payable`. `year` = calendar year; `release` = n-th release of that year (1-indexed).
 - **`{TICKET-ID}`** = the parent ticket key (e.g. `P2P-1220`). This skill neither creates nor fetches it — the key comes from user/session context. If none yet, write under a provisional slug and rename the folder once it exists.
 
 ## Next
 
 Stops at the local PRD (+ requirement ADRs). Then, in order:
 
-- **`/afk:to-ticket`** — publish full PRD content into the **existing** parent ticket as native Jira formatting (mermaid rendered + embedded); idempotent, preserves product-owner content. Requires a parent key — doesn't create the ticket.
+- **`/afk:to-ticket`** — distill the PRD to a requirements-level ticket description and publish it into the **existing** parent ticket as native Jira formatting (mermaid rendered + embedded); idempotent, preserves product-owner content. Requires a parent key — doesn't create the ticket.
 - **`/afk:prototype`** *(optional)* — if the feature has meaningful net-new UI, craft the screens now against the **real frontend's** look, before the SDD locks decisions. Writes `PROTOTYPE.md` + chosen HTML sibling to the PRD; self-gates `no_ui` for backend-only. Feeds `/afk:grill-solution` and gives `/afk:grill-verification`'s UI journeys a concrete screen.
 - **`/afk:grill-solution`** — interview the architecture top-down L1 → L9.
 - **`/afk:to-sdd`** — synthesize SDD + design ADRs. Without an SDD the plan slices uncited (PRD-only).

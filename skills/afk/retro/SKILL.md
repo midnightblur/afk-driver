@@ -11,7 +11,7 @@ Every run of the chain leaves structured exhaust: journal events, park reasons, 
 
 ## Argument
 
-One or more of: a specs release folder (e.g. `{service}/src/main/resources/specs/{year}r{release}/`), individual ticket spec folders, or ticket ids to resolve. Default: newest release folder of the service in cwd. Optional `since:{YYYY-MM-DD}` filters journal events by date.
+One or more of: a specs release folder (e.g. `{service}/specs/{year}r{release}/`), individual ticket spec folders, or ticket ids to resolve. Default: newest release folder of the service in cwd. Optional `since:{YYYY-MM-DD}` filters journal events by date.
 
 ## What it mines (all read-only)
 

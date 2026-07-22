@@ -1,0 +1,90 @@
+<!--
+  before-after — two-state comparator for a STATE CHANGE (before → after).
+  Shows one state at a time; switching states highlights what changed and why.
+
+  DATA CONTRACT — fill IWB_DATA (one object):
+    title  : OPTIONAL heading above the toggle, e.g. "Posting flow: before vs after"
+    before : {label, html}  — label on the toggle (e.g. "Before"), html = the
+             state's content (code, prose, a small table — inline HTML)
+    after  : {label, html}  — same shape for the target state
+    notes  : OPTIONAL array of strings — "what changed & why" bullets, shown
+             only while AFTER is active (each 1 sentence)
+
+  MULTIPLE INSTANCES: duplicate the .iwb div + its script block, give the div a
+  unique id, rename IWB_DATA in that copy (e.g. IWB_DATA_2) and point the
+  script's first line at the new id. Keep only ONE copy of the <style> block.
+-->
+<style>
+  .iwb{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;--iw-ink2:#5b6470;
+       --iw-line:#d8dce2;--iw-acc:#0b7285;--iw-warn:#b0831a;
+       border:1px solid var(--iw-line);border-radius:10px;background:var(--iw-bg2);
+       padding:1rem 1.1rem;margin:1rem 0;font-size:.92rem;color:var(--iw-ink)}
+  @media (prefers-color-scheme: dark){
+    .iwb{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;--iw-ink2:#9aa3b0;
+         --iw-line:#333a44;--iw-acc:#5cc3d6;--iw-warn:#d9ab4a}}
+  :root[data-theme="dark"] .iwb{--iw-bg:#181b20;--iw-bg2:#14161a;--iw-ink:#e6e9ee;
+       --iw-ink2:#9aa3b0;--iw-line:#333a44;--iw-acc:#5cc3d6;--iw-warn:#d9ab4a}
+  :root[data-theme="light"] .iwb{--iw-bg:#ffffff;--iw-bg2:#f4f5f7;--iw-ink:#1c2025;
+       --iw-ink2:#5b6470;--iw-line:#d8dce2;--iw-acc:#0b7285;--iw-warn:#b0831a}
+  .iwb h4{margin:0 0 .6rem;font-size:.95rem}
+  .iwb-tabs{display:flex;gap:.4rem;margin-bottom:.7rem}
+  .iwb-tabs button{flex:1;background:var(--iw-bg);color:var(--iw-ink2);border:1px solid var(--iw-line);
+       border-radius:8px;padding:.4rem .8rem;cursor:pointer;font:inherit;font-size:.85rem}
+  .iwb-tabs button.on{color:var(--iw-acc);border-color:var(--iw-acc);font-weight:700}
+  .iwb-pane{background:var(--iw-bg);border:1px solid var(--iw-line);border-radius:8px;
+       padding:.85rem 1rem;overflow-x:auto}
+  .iwb-pane pre{margin:0;overflow-x:auto}
+  .iwb-notes{margin:.6rem 0 0;padding-left:1.2rem;color:var(--iw-ink2)}
+  .iwb-notes li{margin:.25rem 0}
+  .iwb-notes li::marker{color:var(--iw-warn)}
+  @media (prefers-reduced-motion: no-preference){
+    .iwb-pane{transition:opacity .12s}}
+</style>
+
+<div class="iwb" id="iwb-demo">
+  <h4></h4>
+  <div class="iwb-tabs" role="tablist"></div>
+  <div class="iwb-pane" aria-live="polite"></div>
+  <ul class="iwb-notes"></ul>
+</div>
+
+<script>
+(function(){
+  // FILL ME — see data contract in the header comment. Sample (replace):
+  const IWB_DATA = {
+    title: 'Total calculation: before vs after',
+    before: {label:'Before', html:'<pre><code>total = items.sum(price)</code></pre><p>Discounts applied later, per line — rounding drift accumulates.</p>'},
+    after:  {label:'After',  html:'<pre><code>total = round(items.sum(price - discount))</code></pre><p>Discount folded in before the single rounding step.</p>'},
+    notes: [
+      'Rounding now happens once, at the end — the drift class of bugs is gone.',
+      'Line items no longer carry a rounded price; readers of the old field must switch.'
+    ]
+  };
+
+  const root  = document.getElementById('iwb-demo');
+  const title = root.querySelector('h4');
+  const tabs  = root.querySelector('.iwb-tabs');
+  const pane  = root.querySelector('.iwb-pane');
+  const notes = root.querySelector('.iwb-notes');
+  if (IWB_DATA.title) title.textContent = IWB_DATA.title; else title.remove();
+  const states = [IWB_DATA.before, IWB_DATA.after];
+  states.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.textContent = s.label;
+    b.addEventListener('click', () => render(i));
+    tabs.appendChild(b);
+  });
+  function render(i){
+    pane.innerHTML = states[i].html;
+    notes.innerHTML = '';
+    if (i === 1) (IWB_DATA.notes || []).forEach(n => {
+      const li = document.createElement('li'); li.innerHTML = n; notes.appendChild(li);
+    });
+    tabs.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
+    if (window.__annotate) window.__annotate(pane);
+  }
+  render(0);
+})();
+</script>

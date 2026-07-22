@@ -328,14 +328,19 @@ sequenceDiagram
    tree is exhausted. Maintains `GLOSSARY.md`; emits no decision records yet.
 2. **`/afk:to-prd`** — synthesizes the conversation into `PRD.md` plus
    requirement-level ADRs. **Local only** — nothing in Jira yet.
-3. **`/afk:to-ticket`** — publishes the PRD *content* into the **existing**
-   parent ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
+3. **`/afk:to-ticket`** — distills the PRD to a requirements-level ticket
+   description (`TICKET.md`) and publishes it into the **existing** parent
+   ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
    to attached PNGs. Idempotent — re-run when the PRD changes.
 4. **`/afk:prototype`** *(optional — only if net-new UI)* — crafts the screens
    with you interactively, anchored to the **real frontend's** components and
-   tokens. Writes self-contained HTML you open and refresh while reshaping it in
-   plain language; on settle captures `PROTOTYPE.md` + the chosen HTML sibling to
-   the PRD. Self-gates `no_ui` for backend-only features. The won design feeds the
+   tokens (design-system catalog / live app / source, best evidence first).
+   Writes self-contained **drivable** HTML you open and refresh while reshaping
+   it in plain language — every PRD capability simulated client-side, so you
+   feel how the feature works, not just how it looks. Settle is gated on a
+   **capability walk** (every story clickable or its gap logged) and a
+   **fidelity pass** against the live app; then captures `PROTOTYPE.md` + the
+   chosen HTML sibling to the PRD. Self-gates `no_ui` for backend-only features. The won design feeds the
    next two steps and gives the verification UI journeys a concrete screen to
    trace to. Local-first; an opt-in push mirrors the mockup to `claude.ai/design`
    for stakeholder review.
@@ -425,7 +430,7 @@ Every design artifact sits next to the code it describes, under the ticket's spe
 folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 
 ```text
-{service}/src/main/resources/specs/{year}r{release}/{TICKET-ID}/
+{service}/specs/{year}r{release}/{TICKET-ID}/
 ├── INDEX.md                   ← /afk:to-prd creates; each skill upserts its row (read this first)
 ├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
 ├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
@@ -435,8 +440,7 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
 ├── GLOSSARY.md                ← /afk:grill-requirements
-├── walkthroughs/              ← /afk:to-code-walkthrough (optional durable copies)
-├── understanding/             ← /afk:understand    (post-ship self-contained interactive HTML explainer, one per feature)
+├── understanding/             ← /afk:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
 ├── adr/
 │   ├── requirements/NNNN-*.md ← /afk:to-prd   (what / why)
 │   └── design/NNNN-*.md       ← /afk:to-sdd   (how)
@@ -593,11 +597,16 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   requirement-level ADRs (decisions clearing the *hard-to-reverse + surprising +
   real-trade-off* bar) under `.../{TICKET-ID}/adr/requirements/`. **Local only**
   — does not touch the tracker.
-- **`/afk:to-ticket`** — publishes the full PRD **content** into its **existing**
-  parent ticket as native Jira ADF (headings, tables, code, Mermaid → attached
-  PNGs embedded inline). **Idempotent**: re-run on PRD change, updates in place,
-  preserves product-owner prose outside the managed block. Publishes PRD content
-  only — never the SDD/Brief. Refuses without `parent_key`; sets no label, creates
+- **`/afk:to-ticket`** — distills the PRD to a **requirements-level ticket
+  description** (`TICKET.md`: User Stories + Acceptance Criteria mandatory, no
+  technical depth, no repo-artifact references) and publishes it into its
+  **existing** parent ticket as native Jira ADF (headings, tables, Mermaid →
+  attached PNGs embedded inline). **Idempotent**: re-run on PRD change, updates
+  in place, preserves product-owner prose outside the managed block, and posts
+  the requirements delta as an issue comment so change history stays trackable
+  on the ticket. Publishes
+  requirements-level content only — never the SDD/Brief. Refuses without
+  `parent_key`; sets no label, creates
   no branch. Driven by `skills/afk/to-ticket/scripts/publish_prd.py`. Also carries
   a standalone **meeting mode** (`scripts/publish_meeting.py`) — records a meeting
   on **any** ticket as a collapsible `Meeting Summaries` `expand`, idempotent per
@@ -650,13 +659,21 @@ tooling.)*
   never writes `STAPLES.md` (those come from `/afk:to-prd` and `/afk:claude-md`).
 - **`/afk:prototype`** *(after `/afk:to-prd`; only if net-new UI)* — an interactive
   UI-crafting loop, neither a grill nor a one-shot producer. Reads the PRD User
-  Stories, anchors to the **real frontend's** components + tokens, writes
-  self-contained HTML you open in a browser and **refresh** while reshaping it in
-  plain language. Converges from optional divergent sketches to one design.
-  **Self-gates `no_ui`** for backend/API/refactor features. **Durable-lite**: the
-  won direction becomes `PROTOTYPE.md` + the chosen HTML sibling to the PRD
-  (traceable to User Stories, so `/afk:grill-verification`'s UI journeys trace to
-  it); losing scaffolding discarded. **Local-first** — the in-repo files are
+  Stories as the mockup's **capability list**, anchors to the **real frontend**
+  (design-system catalog / live-app DOM + screenshots / source digest, best
+  evidence first), writes self-contained **drivable** HTML — every capability
+  simulated client-side against inline fixtures, rendered **in situ** (inside a
+  replica of the real app shell, entered from and exiting to shallow stubs of
+  its neighbor pages) — that you open in a browser and
+  **refresh** while reshaping it in plain language. Converges from optional
+  divergent sketches to one design, then settles only through two gates: a
+  **capability walk** (every User Story/AC clickable in the mockup or logged as a
+  gap) and a **fidelity pass** (side-by-side vs the live app or catalog; fidelity
+  basis recorded in `PROTOTYPE.md`). **Self-gates `no_ui`** for
+  backend/API/refactor features. **Durable-lite**: the won direction becomes
+  `PROTOTYPE.md` + the chosen HTML sibling to the PRD (traceable to User Stories,
+  so `/afk:grill-verification`'s UI journeys trace to it); losing scaffolding
+  discarded. **Local-first** — the in-repo files are
   canonical; a **frictionless opt-in** push mirrors the mockup to a persistent,
   team-shareable `claude.ai/design` project (share-only, never the source of
   truth). Touches no tracker. Feeds `/afk:grill-solution` (UX decisions) and
@@ -756,6 +773,15 @@ tooling.)*
   / `tainted` / `env_unreachable`; reports land in `plan/review/`. Blocking
   findings route by class like review findings, under the gate's own 2-cycle
   remediation cap.
+- **`/afk:gc`** — post-merge spec compaction. After a feature's MR merges, run
+  `/afk:gc {spec-folder}`: it proposes, and on approval deletes, the ticket
+  folder's run artifacts — the whole `plan/` (subtask contracts, journal,
+  review reports, ship snapshot), `GRILL-LOG.md`, publish intermediates —
+  keeping the evergreen docs (PRD, SDD, ADRs, VERIFICATION-PLAN, PROTOTYPE,
+  INDEX, understanding artifact). Git history is the archive; the ref to mine
+  is recorded in `INDEX.md`. Refuses before merge, on a dirty tree, and when
+  invoked hands-off. Keeps future repo greps clean — stale contracts and
+  settled findings stop surfacing as current truth.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
@@ -812,18 +838,29 @@ tooling.)*
   launching never spends tokens. Read-only viewport; no daemonization: a
   crashed watcher's only recovery is relaunching the skill.
 - **`/afk:understand`** — generates one **self-contained interactive HTML
-  understanding artifact** per feature (`{spec-dir}/understanding/index.html`) —
-  dual-depth background, intuition, seam-ordered diff walkthrough, notable
-  plan-deviations, an opt-in quiz — synthesized from the feature's **actual diff**,
-  journal, and review records (the implementation *as built*, not the plan). Runs
-  two ways off one pipeline: **auto** (invoked non-interactively with defaults from
-  `/afk:preflight`'s advisory ladder row — never blocks a ship, ends in one
-  docs-only commit) and **standalone** (a human runs `/afk:understand {plan-dir}`
-  on a Ready or shipped feature; prompts for quiz size + depth, writes files,
-  commits nothing). Fully offline; surfaced by the ticket `INDEX.md` and the
-  mission-control dashboard's understanding panel. Section model, predicates, quiz
-  rules, and meta-header grammar are one-homed in its `UNDERSTANDING-FORMAT.md`;
-  the boilerplate chrome is the checked-in `shell-template.html`.
+  learning artifact** for any code subject: a shipped **feature** (`{plan-dir}`,
+  artifact at `{spec-dir}/understanding/index.html`), a **GitLab MR** (URL, via
+  the bundled `scripts/fetch-mr.sh`), or an existing **code area**
+  (`path:`/`symbol:`). Built as a guided tour that teaches high-level → detail:
+  learning objectives + dual-depth background + key concepts & constraints,
+  a one-sentence mental model with toy-data intuition, a seam/flow-ordered
+  walkthrough (one tour step per group, plain-language overview before code,
+  evidence-grounded "where you'd naturally go wrong" callouts, optional
+  per-group check questions), notable plan-deviations (feature subjects), a
+  recap, and an opt-in quiz — synthesized from the **actual diff/code** (the
+  implementation *as built*, not the plan). Runs two ways off one pipeline:
+  **auto** (feature subjects only — invoked non-interactively with defaults from
+  `/afk:preflight`'s advisory ladder row, never blocks a ship, ends in one
+  docs-only commit) and **standalone** (a human runs `/afk:understand
+  {subject}`; prompts for quiz size + depth, writes files, commits nothing;
+  MR/code artifacts land in `$CLAUDE_JOB_DIR` with an opt-in durable copy into
+  the ticket's `understanding/`). Fully offline — the only "live teacher" hook
+  is an ask-the-teacher button that assembles a context-rich prompt for a
+  Claude Code session onto the clipboard. Surfaced by the ticket `INDEX.md` and
+  the mission-control dashboard's understanding panel. Subject families,
+  section model, predicates, quiz rules, and meta-header grammar are one-homed
+  in its `UNDERSTANDING-FORMAT.md`; the boilerplate chrome is the checked-in
+  `shell-template.html`.
 - **`/afk:setup`** — the workflow doctor. Probes every external dependency in
   `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling checkouts),
   fixes what it can, guides the human through the rest — idempotent, so first-time
@@ -878,6 +915,15 @@ any time, in any project.
   hidden from the `/` menu via `user-invocable: false` — skills emitting
   interactive walkthrough pages load it. (Static diagrams stay with
   `draw-charts`.)
+- **`/afk:review-qa-tests`** — review a QA team's **manual** test cases (typically
+  a spreadsheet) against the feature's requirements and annotate their sheet in
+  place: missing scenarios as new rows, fixes to existing cases as threaded
+  comments. Writes strictly at requirements/behaviour level (nothing about code,
+  bugs, or dev process — the QA reader is treated as **black-box**), applies a
+  **manual reach** filter that recommends dropping cases only automation can
+  exercise, and settles ambiguities with you before writing. Excel
+  threaded-comment mechanics + a reusable `annotate_sheet.py` live in its
+  `EXCEL.md`.
 - **`/afk:settle-mr`** — review a GitLab MR (URL or IID) outside the AFK chain
   and settle it through the review settle loop: checks out the MR head in a real
   worktree, runs `/afk:review`'s concern machinery plus local gates CI doesn't
@@ -893,10 +939,6 @@ any time, in any project.
   (pushback adjudicated by fresh skeptics). Never merges.
 - **`/afk:todo`** — quick per-project todo list at `<cwd>/.claude/TODO.md` that
   survives sessions.
-- **`/afk:to-code-walkthrough`** — top-down narrative walkthrough of a GitLab MR
-  (`<MR-URL>`) or an existing code area (`path:` / `symbol:`); caveman prose +
-  Mermaid, no verdicts. MR mode needs `glab` on PATH (uses the bundled
-  `scripts/fetch-mr.sh`); code mode is fully standalone.
 - **`writing-great-skills`** — the reference doctrine for authoring and editing
   skills (invocation choice, information hierarchy, progressive disclosure,
   leading words, failure modes); consulted whenever a skill is created, audited,
@@ -919,8 +961,8 @@ Several Markdown surfaces carry mixed human + automated edits. Strict ownership 
 edits never collide:
 
 - **Parent Enhancement description** — PRD content (authored on disk by
-  `/afk:to-prd`) is published by `/afk:to-ticket` inside an AFK-managed sentinel
-  block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief is
+  `/afk:to-prd`) is distilled to a requirements-level ticket description and
+  published by `/afk:to-ticket` inside an AFK-managed sentinel block; `## SDD` (when present) is owned by `/afk:to-sdd`; the Design Brief is
   **not** published to the ticket; other prose is the human's. Subtask progress is
   **not** spliced into the ticket — it lives in `plan/PLAN.md`.
 - **MR description** — the block bracketed by `<!-- afk:subtasks:start -->` /
@@ -961,7 +1003,8 @@ edits never collide:
 - **Cross-module edits need a marker comment** — a ticket-prefixed line like
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
   home module.
-- **Re-run `/afk:to-ticket`** after the PRD changes (idempotent). The only
+- **Re-run `/afk:to-ticket`** after the PRD changes (idempotent; the re-publish
+  posts the requirements delta as a comment). The only
   design-chain skill that writes to Jira — the plugin's other Jira writer is
   `/afk:bug`'s publisher subagent (Bug create + Dev-Pending transition +
   evidence comments, that ticket only; ADR-0001), outside the design chain.

@@ -11,6 +11,8 @@ Ask one at a time; wait for feedback before continuing.
 
 If a question is answerable by exploring the codebase, explore instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
 
+**Open with a pre-brief.** Before the first question, spawn one parallel set of `afk-reader` digests (per `DELEGATION.md`): the plan/idea sources, root `GLOSSARY-MAP.md` + the owning service's `GLOSSARY.md`, `{service}/STAPLES.md`, and any existing `GRILL-LOG.md` (the resume point). Grill from the digests; open a source mid-session only when a walk needs wording a digest doesn't settle.
+
 ## Domain awareness
 
 During codebase exploration, also look for existing documentation. This repo uses a **multi-context glossary** (root `GLOSSARY-MAP.md` indexing a per-service `GLOSSARY.md`). Setup, routing, lazy-create rules, and write format are owned by **[`/afk:glossary`](../../utils/glossary/SKILL.md)** — its [`GLOSSARY-FORMAT.md`](../../utils/glossary/GLOSSARY-FORMAT.md) is canonical. Read `GLOSSARY-MAP.md` first to locate the owning glossary; follow `/afk:glossary` for everything about *how* the glossary is structured and written. This skill only adds the **grilling** that resolves terms in the first place.
@@ -55,7 +57,7 @@ Users ask for the solution they imagined, not always the one their problem needs
 
 ### Devil's-advocate pass (before synthesis)
 
-When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn per `DELEGATION.md`. Brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings as the final grill round; resolve or explicitly accept each before moving on.
+When the decision tree feels exhausted, spawn one fresh subagent over the settled requirement set (requirements + pains + restrictions + ledger; not the conversation); spawn per `DELEGATION.md`, in background alongside the final confirm batch so it attacks while the user answers — anything settled after the spawn gets a delta-check when its findings return. Brief: attack — which requirement solves a symptom instead of the pain, which restriction blocks a legitimate scenario, which pair of requirements conflicts, what adjacent pain went unaddressed. Surface its findings as the final grill round; resolve or explicitly accept each before moving on.
 
 ### Grill the access & validation policy (every feature)
 
@@ -63,7 +65,7 @@ Grill it per [ACCESS-POLICY-GRILL.md](ACCESS-POLICY-GRILL.md) — every run, whe
 
 ### Go through the staples (every feature)
 
-Read the service's staples registry `{service}/STAPLES.md` at the start, alongside `GLOSSARY.md`. For each `active` staple whose **Trigger** matches this feature, resolve the user *in or out — and why?*, record the rationale in the conversation — a matching staple must never be skipped silently. In/out calls are confirm-class by default: batch them per [TRIAGE.md](TRIAGE.md) (a contested call escalates to debate). Then the mirror question: does this feature mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
+The pre-brief digest carries the staples registry `{service}/STAPLES.md`. For each `active` staple whose **Trigger** matches this feature, resolve the user *in or out — and why?*, record the rationale in the conversation — a matching staple must never be skipped silently. In/out calls are confirm-class by default: batch them per [TRIAGE.md](TRIAGE.md) (a contested call escalates to debate). Then the mirror question: does this feature mint a **new** staple? If plausibly yes, flag it as a candidate — the authoritative call is made later, at delivery.
 
 ### Update GLOSSARY.md inline
 
