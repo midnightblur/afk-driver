@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-20
+
+- `/afk:grill-requirements` "Challenge the want" gains a third standing obligation: every validity change (new gate, admin mode/toggle, curation, removal) is walked over still-editable records created before the change or under the other setting — every record the change makes rejectable needs a named, role-reachable repair affordance, and "no silent migration" decisions must name that affordance in the same requirement. New exit-gate bullet enforces it.
+
 ## 2026-07-17
 
 - `/afk:setup base` is now elective per item: the pre-fix report doubles as a pick list of every base-tier item needing action (toolchain pins + all workstation apps/OS config, including anything added to the register later), so you install only what you'll use — deselected items report `skipped (user choice)` instead of `needs-human`. The skill-load-bearing default surface stays mandatory.
