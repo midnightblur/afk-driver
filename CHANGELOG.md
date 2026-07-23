@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-22
+
+- `/afk:grill-verification` now **resumes from `GRILL-LOG.md`** like the other two grills: its opening digest reads any existing checkpoint section, so the documented post-SDD re-run (design the deferred API scenarios) picks up the already-settled UI journeys and per-aspect verdicts from disk instead of re-walking them. It already wrote the section — only the read side was missing.
+
 ## 2026-07-21
 
 - Ticket spec folders moved out of the packaged-resources tree: the convention is now `{service}/specs/{year}r{release}/{TICKET-ID}/` (was `{service}/src/main/resources/specs/...`). Payable's specs migrated to `11700-payable/specs/`; every path-carrying skill (`/afk:to-prd`, `/afk:fix`, `/afk:retro`) and doc updated. Specs no longer risk shipping in a service jar, so payable's pom stops overriding Maven `<resources>` (which had silently dropped `descriptor.yaml` and application-property filtering).
