@@ -53,6 +53,7 @@ Users ask for the solution they imagined, not always the one their problem needs
 
 - **Every requirement records its pain.** Before accepting a requirement, elicit the underlying pain/value in one sentence ("what goes wrong today without this?"). A requirement whose pain can't be stated gets challenged, not recorded.
 - **Every restrictive rule pays for itself.** Whenever the plan says *disallow / only / never / prevent / must not*, ask the mandatory counter-question: "what legitimate scenario does this block, and how does the user recover when they hit it?" If a plausible legitimate scenario exists, the restriction needs an explicit trade-off decision — not a silent default to the safe-sounding option.
+- **Every validity change is walked over data that predates it.** When the plan adds or alters what's valid — a gate, an admin mode/toggle, a curation, a removal — walk records that are still editable but were created before the change or under the other setting. Every record the change makes rejectable needs a named repair path: which role sees the offending value, through what *rendered* affordance, itself valid under the setting where it renders. Two dead-end smells: an error instructing an action no rendered control offers; a repair only legal under the setting that hides its control. "No silent migration" is a legitimate decision, but the requirement making it names the repair affordance in the same breath — a change that can strand a record with no self-service repair is a requirement gap to resolve, not record.
 
 ### Devil's-advocate pass (before synthesis)
 
@@ -93,6 +94,7 @@ Only declare the requirements decision tree exhausted when ALL hold:
 - Every `active` staple whose Trigger matches this feature is resolved in/out with a rationale.
 - The claim ledger is settled — every load-bearing claim verified or explicitly unverified-external.
 - Every requirement carries its pain; every restriction survived its counter-question.
+- Every validity change was walked over pre-existing/in-flight data; every rejectable state has a named, role-reachable repair path.
 - The devil's-advocate pass ran with its findings resolved.
 
 Then **commit the session's glossary updates** as their own commit (glossary changes only — `{TICKET-ID}: glossary — <terms>`). Then run **`/afk:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

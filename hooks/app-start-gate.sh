@@ -21,7 +21,12 @@
 #      APP_START_PORT    (fixed port; default 0 = ephemeral probe)
 #      APP_START_KEEP    (1 = keep the instance running on success)
 #      APP_START_SKIP_UI (default true; set false to package the UI into the jar
-#                         so the instance serves the rebuilt frontend)
+#                         so the instance serves the rebuilt frontend — adds a
+#                         separate UI reactor pass, see "UI pass" below)
+#      CI_PROJECT_DIR    (only read when APP_START_SKIP_UI=false; the checkout
+#                         path the service's build_ui.sh resolves its workspace
+#                         from. Defaults to the repo root — set it only to build
+#                         a UI against a different checkout)
 #      APP_START_REUSE   (1 = if a kept instance from a prior run is still
 #                         alive on APP_START_PORT, reuse it as-is — no rebuild,
 #                         no reboot; falls through to a full boot otherwise)
@@ -35,6 +40,8 @@ set -u
 
 mod=${1:-11700-payable/payable}
 timeout_s=${APP_START_TIMEOUT:-300}
+skip_ui=${APP_START_SKIP_UI:-true}
+ui_mod="$mod-ui"
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$repo_root" || exit 3
@@ -72,9 +79,62 @@ gate_metrics_begin
 # Package under the shared maven lock — concurrent gate reactors race on target/.
 . "$(dirname "${BASH_SOURCE[0]}")/maven-lock.sh"
 acquire_maven_lock 900 || exit 3
+
+# UI pass (APP_START_SKIP_UI=false only) — runs the service's build_ui.sh directly,
+# BEFORE the leaf is packaged, because build_ui.sh copies the built SPA into the app
+# module's src/main/resources/public and the jar only picks it up if it's already there.
+#
+# Why not Maven: -DskipUi=false on the leaf reactor is a NO-OP (the default profile is
+# active on !pipelineBuild and leaves *-ui out of the reactor, so the UI never builds
+# and the jar silently serves no frontend — a browser tier would test a page that isn't
+# there). Adding -DpipelineBuild=true to pull *-ui in trades that for a worse bug:
+# skipUi is a GLOBAL property every in-house UI lib gates its own npm build on, so
+# -DskipUi=false force-rebuilds all of them — they build with vite/rollup, whose native
+# binary is not pinned for every dev platform, and their dist/ is already built anyway.
+# The service's own UI is the only one this gate needs; build_ui.sh builds exactly that.
+if [ "$skip_ui" = "false" ]; then
+  ui_build="$(dirname "$mod")/build_ui.sh"
+  if [ ! -f "$ui_build" ]; then
+    release_maven_lock
+    echo "[app-start-gate] APP_START_SKIP_UI=false but no UI build script at $ui_build" >&2
+    exit 3
+  fi
+  # Clear the SPA target FIRST. build_ui.sh ends with `cp -Rf dist/spa <public>`,
+  # and `cp -R <dir> <dest>` nests into <dest>/spa/ when <dest> already exists
+  # (vs. populating <dest> when it doesn't) — so a second gate run on a populated
+  # public/ would bury the fresh SPA one level deep and the app would serve the
+  # STALE build. Removing it makes every run a clean first-populate.
+  spa_root="$mod/src/main/resources/public"
+  rm -rf "$spa_root"
+  echo "[app-start-gate] building UI via $ui_build — populates $spa_root ..."
+  # build_ui.sh runs the UI unit suite under `set -e`: a red suite fails the UI build
+  # (and CI's), so it is a code failure here too, not an environment one.
+  if ! bash "$ui_build" -c "${CI_PROJECT_DIR:-$repo_root}" > "$log" 2>&1; then
+    release_maven_lock
+    gate_metrics_emit app-start code_failure "\"module\":\"$ui_mod\",\"phase\":\"ui\""
+    {
+      printf '[app-start-gate] UI BUILD FAILURE for %s — the instance would serve no frontend:\n' "$ui_mod"
+      grep -E '✕|FAIL |Tests:|error|ERROR' "$log" | head -15
+      printf 'Full log: %s\n' "$log"
+    } >&2
+    exit 2
+  fi
+  if [ ! -f "$spa_root/index.html" ]; then
+    release_maven_lock
+    gate_metrics_emit app-start code_failure "\"module\":\"$ui_mod\",\"phase\":\"ui\""
+    echo "[app-start-gate] UI build reported success but no $spa_root/index.html — refusing to boot a frontend-less instance" >&2
+    exit 2
+  fi
+  echo "[app-start-gate] UI built — SPA in $spa_root."
+fi
+
 echo "[app-start-gate] packaging $mod (reactor, --also-make)..."
+# -DskipUi=true unconditionally: this pass builds the app leaf only. When a UI was
+# requested it was already built by the UI pass above and now sits in public/ —
+# rebuilding it here would be a wasted (or, without the UI profile, silently
+# skipped) second pass.
 if ! ./mvnw -f all-modules-pom.xml -pl "$mod" --also-make package \
-    -DskipTests -DskipUi="${APP_START_SKIP_UI:-true}" -q > "$log" 2>&1; then
+    -DskipTests -DskipUi=true -q > "$log" 2>&1; then
   release_maven_lock
   gate_metrics_emit app-start code_failure "\"module\":\"$mod\",\"phase\":\"package\""
   {
