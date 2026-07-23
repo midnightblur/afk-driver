@@ -17,6 +17,7 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 | `Plan` | `/afk:to-subtasks` |
 | `Smoke gate` | `/afk:smoke-test` |
 | `Understanding` | `/afk:understand` (upserts only its own row) |
+| `Demo plan` | `/afk:to-demo-plan` |
 
 ## Template
 
@@ -39,6 +40,7 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 | Plan | plan/PLAN.md | — | {n} subtasks, {cited|uncited} — live status in the plan's progress tracker |
 | Smoke gate | plan/PLAN.md | — | not run | red {date} | green {date} ({full|minimal} gate) |
 | Understanding | understanding/index.html | — | generated {date} |
+| Demo plan | DEMO-PLAN.md | — | {n} beats / {n} min, written {date} |
 
 ## Reading order
 

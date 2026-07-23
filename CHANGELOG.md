@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-23
+
+- New skill `/afk:to-demo-plan`: turns a delivered feature into `DEMO-PLAN.md`, the script for the hour you spend showing it to **product owners and QA**. It reuses what the chain already settled — the PRD's pain + user stories, the verification plan's walked click-paths, the ADRs, the delivered diff — and lays them out as **beats** (what to *say*, the exact steps to *do*, the line to land, its minutes), each classed **show** (performed live) or **tell** (one sentence, so obvious behaviour never eats the clock). Ordered why → concepts → happy path → touch points → edges, with a **touch-point map** of everything the feature adds to / changes in / interacts with existing behaviour (every `changes` row must be shown — that's QA's regression scope), ≤3 decisions explained in consequence language, questions **pre-empted at the beat that raises them**, an explicit out-of-scope table, and a setup section so no beat depends on state nobody created. Budget: ≤60 min with ≥10 protected for questions. The plan demos *value*, not correctness — the gates already settled correctness. Repo-only; adds a `Demo plan` row to the ticket `INDEX.md`.
+
 ## 2026-07-22
 
 - `/afk:grill-verification` now **resumes from `GRILL-LOG.md`** like the other two grills: its opening digest reads any existing checkpoint section, so the documented post-SDD re-run (design the deferred API scenarios) picks up the already-settled UI journeys and per-aspect verdicts from disk instead of re-walking them. It already wrote the section — only the read side was missing.

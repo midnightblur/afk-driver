@@ -174,11 +174,12 @@ graph LR
     Exec -.->|adversarial gate| Adv[/afk:adversary/]
     Smoke -->|smoke green · ship gate| PF[/afk:preflight/]
     PF -.->|advisory row · post-ship understanding artifact| Und[/afk:understand/]
+    Smoke -.->|delivered · demo it to POs + QA| Demo[/afk:to-demo-plan/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Auto,Exec mand;
-    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und opt;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und,Demo opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -438,6 +439,7 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 ├── SDD.md                     ← /afk:to-sdd        (local only; not published to Jira)
 ├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
+├── DEMO-PLAN.md               ← /afk:to-demo-plan  (local only; the ≤1h beat-by-beat demo script for POs + QA)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
 ├── GLOSSARY.md                ← /afk:grill-requirements
 ├── understanding/             ← /afk:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
@@ -861,6 +863,20 @@ tooling.)*
   section model, predicates, quiz rules, and meta-header grammar are one-homed
   in its `UNDERSTANDING-FORMAT.md`; the boilerplate chrome is the checked-in
   `shell-template.html`.
+- **`/afk:to-demo-plan`** — turns a **delivered** feature into `DEMO-PLAN.md`, the
+  script for the hour you spend showing it to **product owners and QA**. Not a
+  proof run: the plan is built around the pain the PRD claimed and what the user
+  now does instead. Synthesizes PRD + ADRs + `VERIFICATION-PLAN.md` click-paths +
+  the delivered diff into **beats** (each with what to *say*, the exact steps to
+  *do*, the line to land, and its minutes), each classed **show** (performed live)
+  or **tell** (one sentence — obvious behaviour never eats the clock). Ordered
+  high-level → detail (why → concepts → happy path → touch points → edges), with
+  a **touch-point map** of everything the feature adds to / changes in / interacts
+  with existing behaviour (every `changes` row must be shown — it's QA's
+  regression scope), ≤3 decisions explained in consequence language, questions
+  **pre-empted at the beat that raises them**, an explicit out-of-scope table, and
+  a setup section so no beat depends on state nobody created. Budget: ≤60 min with
+  ≥10 protected for questions. **Repo-only.**
 - **`/afk:setup`** — the workflow doctor. Probes every external dependency in
   `skills/afk/setup/MANIFEST.md` (CLIs, MCP servers, secrets, sibling checkouts),
   fixes what it can, guides the human through the rest — idempotent, so first-time
