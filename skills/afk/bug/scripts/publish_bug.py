@@ -29,7 +29,8 @@ Usage:
     python publish_bug.py backfill   --key P2P-123 --project P2P --fix-version V [--dry-run]
 
 Credentials resolve exactly as jira_core.load_creds documents (env vars, then
-the Jira MCP env block in ~/.claude.json). Nothing is hardcoded.
+the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
+is hardcoded.
 """
 
 from __future__ import annotations

@@ -80,6 +80,6 @@ Neither section in `PLAN.md` → plan predates the minimal-gate rule; report `no
 
 ## Next
 
-Feature green → complete. Subtask MRs are still **Draft** and the human's to review + merge (`/afk:execute` left them that way on purpose). After the merges, the smoke suites stay under `11700-payable/verification` (`ui-e2e` + `api`) and are picked up by CI / scheduled verification / manual sanity runs from then on — re-run this skill (or the raw suites) whenever you want to re-confirm the system is sane.
+Feature green → complete; the feature is now demoable, so **`/afk:to-demo-plan`** can synthesize the ≤1h `DEMO-PLAN.md` for showing it to product owners + QA (its journeys are the ones just run). Subtask MRs are still **Draft** and the human's to review + merge (`/afk:execute` left them that way on purpose). After the merges, the smoke suites stay under `11700-payable/verification` (`ui-e2e` + `api`) and are picked up by CI / scheduled verification / manual sanity runs from then on — re-run this skill (or the raw suites) whenever you want to re-confirm the system is sane.
 
 Feature red → fix the failing scenario at its source (re-run `/afk:execute` on the owning subtask, `/afk:grill-verification` if the scenario itself was wrong, or `/afk:grill-solution` if a binding decision is wrong), then re-run `/afk:smoke-test`.

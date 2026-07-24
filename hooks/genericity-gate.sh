@@ -48,6 +48,10 @@ changed_md=$(
 )
 [ -z "$changed_md" ] && exit 0   # scope no-op
 
+. "$SCRIPT_DIR/gate-cache.sh"
+cache_key=$(gate_cache_key genericity)
+gate_cache_hit genericity "$cache_key" && exit 0
+
 . "$SCRIPT_DIR/gate-metrics.sh"
 gate_metrics_begin
 
@@ -127,4 +131,5 @@ if [ -n "$violations" ]; then
 fi
 
 gate_metrics_emit genericity pass
+gate_cache_store genericity "$cache_key"
 exit 0

@@ -11,7 +11,7 @@ Every run of the chain leaves structured exhaust: journal events, park reasons, 
 
 ## Argument
 
-One or more of: a specs release folder (e.g. `{service}/src/main/resources/specs/{year}r{release}/`), individual ticket spec folders, or ticket ids to resolve. Default: newest release folder of the service in cwd. Optional `since:{YYYY-MM-DD}` filters journal events by date.
+One or more of: a specs release folder (e.g. `{service}/specs/{year}r{release}/`), individual ticket spec folders, or ticket ids to resolve. Default: newest release folder of the service in cwd. Optional `since:{YYYY-MM-DD}` filters journal events by date.
 
 ## What it mines (all read-only)
 
@@ -28,6 +28,7 @@ Locate every in-scope feature with a `plan/` dir; skip those without one (nothin
 | `GRILL-LOG.md` | which decisions were settled at grill time (to correlate: did downstream failures trace to a gap a grill should have caught?) |
 | repo `.claude/metrics/gate-latency.jsonl` | gate p50/p95, red rates, `lock_wait_ms` share — summarize via `bash tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh` |
 | repo `.claude/wiring-ious.md` | open IOUs and their age (consumers that never arrived) |
+| main-checkout `.claude/lessons/LEDGER.jsonl` | per-lesson status trail (fold via `bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`; grammar: `skills/afk/lessons/LEDGER-FORMAT.md`): open-lesson age, `applied` lessons whose class/target recurs |
 
 Bulk reads are delegated per `DELEGATION.md` (plugin root): one subagent per feature returns the per-feature digest (the §1 table row data plus its raw signal lists); the orchestrator only aggregates and judges.
 
@@ -42,6 +43,7 @@ Aggregate across features, then rank. A signal needs **≥2 independent occurren
 5. **Wiring debt** — open IOUs older than the feature that minted them.
 6. **Criterion yield** — join each finding's `criterion` to its recorded outcome: a criterion whose findings are predominantly `dismissed` across features is a prune/reword candidate (proposal edits the owning `skills/afk/review/checklists/*.md`); a criterion that never fires is flagged as possible dead weight, never auto-pruned. This is what keeps the review catalog earning its cost instead of only growing.
 7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk:claude-md` (which owns those writes), not as a plugin edit.
+8. **Lesson closure & recurrence** — the safety net behind conclude-at-detection capture (single incidents belong to the detection points; this family only grades what they already recorded). An `applied` lesson whose signal (same class + target area) recurs in a later feature means the edit didn't stick → propose the **next rung of the escalation ladder** (`skills/afk/lessons/LEDGER-FORMAT.md`) as a new lesson superseding it, citing the recurrence. Lessons `open` longer than the feature that minted them are stall signals — surface them for `/afk:lessons apply`. Status transitions are applied via `/afk:lessons`, never stamped here (the ledger is one of the ledgers the read-only rule covers).
 
 ## Output
 

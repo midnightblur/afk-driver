@@ -22,12 +22,14 @@ answer, one-line why.
 
 ## Evidence pre-fill
 
-Before a batch goes out, delegate (per `DELEGATION.md`, plugin root) a
-fresh-context subagent to ground each confirm item in repo evidence — the
-registry row, existing pattern, or config the recommendation rests on — and
-return, per item, the recommended answer plus **one citation**
-(`file:line` or registry row). The batch then presents question +
-recommended answer + citation, so the user scans instead of researches.
+Ground each confirm item as it accumulates — never wait for the batch to
+form: on classifying an item confirm, delegate (per `DELEGATION.md`, plugin
+root — in background, overlapping the interview) a fresh-context subagent
+to find the repo evidence the recommendation rests on — the registry row,
+existing pattern, or config — returning the recommended answer plus **one
+citation** (`file:line` or registry row). By the section/layer boundary
+the batch is ready with zero wait; it presents question + recommended
+answer + citation, so the user scans instead of researches.
 An item the subagent cannot cite, or whose evidence contradicts the
 recommendation, leaves the batch and becomes debate-class before
 presentation.
@@ -36,9 +38,8 @@ presentation.
 
 - **Human present:** render per LAVISH.md (RP-7, playbook `input`) — one
   control per item (accept / pick listed alternative / write-in), one send
-  returns every answer. **Mandatory per LAVISH.md's binding "Primary path"
-  rule** — the host's native question/choice picker is not a substitute; only
-  driven mode and a genuine render failure use the fallback below.
+  returns every answer. **Mandatory per LAVISH.md's Primary-path rule**;
+  fallback (driven mode / render failure) per that file, else below.
 - **Markdown fallback / driven mode:** one numbered table in the
   conversation; the user answers all items in a single message
   (`1 yes · 2 no, use X · 3 yes`). Unanswered items are re-asked, never

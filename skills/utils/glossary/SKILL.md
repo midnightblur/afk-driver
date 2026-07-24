@@ -58,6 +58,8 @@ between related concepts with concrete scenarios.
 
 Done when every term surfaced in the conversation has an owning glossary entry or an explicit park.
 
+A resolved term that **corrects a misunderstanding a human had to clarify** is a `wrong-term` workflow lesson — record it per `skills/afk/lessons/CAPTURE.md` (`opened` then `applied` once the glossary write ships; `opened` alone otherwise).
+
 ## Boundaries (don't cross)
 
 - **Glossary is glossary only** — devoid of implementation details. Not a spec, not a scratchpad,

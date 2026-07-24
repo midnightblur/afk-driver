@@ -70,7 +70,11 @@ a line citing a materialized Produces bullet carries the same trailing marker>
 
 ## Verification
 <tiered — one row per tier this subtask needs; static is always present.
-The implementor (/afk:execute) must turn EVERY listed tier green.>
+The implementor (/afk:execute) must turn EVERY listed tier green.
+api / e2e rows must drive the same interaction shape the real client uses —
+server-provided data round-trips verbatim; an input massaged solely to dodge a
+server rejection is forbidden (an unexpected failure on a faithful interaction
+is a candidate defect, not an input-shaping cue).>
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | `<compile/lint/type cmd>` + grep the ## Produces anchors | code builds; declared symbols present |
@@ -78,6 +82,19 @@ The implementor (/afk:execute) must turn EVERY listed tier green.>
 | integration | `<cmd>` | cross-module wiring / persistence / framework pickup |
 | api | `<cmd, e.g. node --test verification/api/foo.test.mjs>` | endpoint contract direct over REST (no UI) — incl. below-the-UI authz |
 | e2e/browser | `<cmd, e.g. cd 11700-payable/verification/ui-e2e && npm run smoke>` | user-visible flow end-to-end |
+
+## Context excerpts
+<verbatim quotes from the PRD/SDD/ADRs this slice's implementor needs —
+selected at slicing time, when the emitter has the full sources open. Quotes
+only, never paraphrase; each block carries its citation tag. Include: the
+Acceptance bullets' source passages, the §8 interface rows this slice
+implements, the §9b seam rows it touches, binding ADR decision lines. The
+implementor works from these and opens the full parent doc only when a
+question the excerpts don't settle arises. Both modes; omit a source that
+doesn't exist.>
+> (PRD §X.Y) <quoted passage>
+> (SDD §8 row "<module>") <quoted signature/contract>
+> (ADR-NNNN) <quoted decision>
 
 ## Parent PRD
 <prd_path>

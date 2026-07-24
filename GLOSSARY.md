@@ -24,6 +24,9 @@ Full = grills + SDD + verification design for complex features; lean = PRD → p
 **PRD**:
 Product Requirements Document — the *what and why* in business language; the most human-readable artifact in the chain.
 
+**Ticket description (`TICKET.md`)**:
+The requirements-level distillation of the PRD that `/afk:to-ticket` publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.
+
 **SDD**:
 Solution Design Document — the *how*, organized top-down by the L1–L9 design layers, one visualization per layer.
 
@@ -45,6 +48,9 @@ The `plan/` directory — `PLAN.md` (index: solution map, seam register, progres
 
 **Subtask contract**:
 One `plan/NNNN-slug.md` file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.
+
+**Context excerpts**:
+The contract's `## Context excerpts` section — verbatim, citation-tagged PRD/SDD/ADR quotes selected at slicing time; the executor's spec context, full parent docs opened only when the excerpts don't settle a question.
 
 **Journal**:
 `plan/JOURNAL.md` — the append-only, timestamped event log of everything that happened to a plan (status changes, parks, commits, verdicts). The "what happened while you were gone" artifact. Format: `skills/afk/to-subtasks/JOURNAL-FORMAT.md`.
@@ -71,8 +77,12 @@ The classification every grill question gets before it's asked (rule: `skills/af
 _Avoid_: quick questions (vague), survey (implies no escalation path)
 
 **Mission control**:
-The per-feature, read-only HTML dashboard *derived* from the plan's existing artifacts — tracker, journal, gate verdicts, SDD diagrams, git diffs. A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
+The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
 _Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
+
+**Design digest**:
+A committed, hash-stamped JSON synthesis of a feature's design docs (`plan/digests/*.json` — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by `/afk:mission-control build`; a manifest records every source file's hash, so source drift shows as a visible *stale* banner, never as silently current content. Carries design synthesis only — never status. Contract: `skills/afk/mission-control/DIGEST-FORMAT.md`.
+_Avoid_: cache (implies transparent freshness), summary file (undersells the schema contract)
 
 ## Design layers (L1–L9)
 
@@ -160,7 +170,13 @@ At most one bug across the whole ledger may hold the `fixing` (S4) lane at a tim
 ## Gates & verdicts
 
 **Review gate**:
-The independent post-verification code review (`clean` / `advisory` / `blocking`) run by fresh subagents, one per concern, that never see the implementor's reasoning. Per-subtask rollup: `plan/review/INDEX.md`.
+The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.
+
+**Settle loop**:
+The review gate's round-based caller protocol — review with fresh contexts, fix or dispute every finding (nits included), adjudicate disputes with fresh skeptics, repeat until a round yields nothing actionable. Roles, round structure, termination, and the referee's information diet: `skills/afk/review/SETTLEMENT.md`.
+
+**Stalemate**:
+The settle loop's failure exit — the hard round cap reached with findings still open. Always flagged to a human (`review_fail` / `park`): non-convergence at the cap signals a real defect being danced around, an unowned spec ambiguity, or a gamed loop — never routine.
 
 **Adversary gate**:
 A fresh session probing the running app under a hard information diet, trying to break the contract (`clean` / `findings` / `tainted` / `env_unreachable`). `tainted` = the session saw forbidden material (the diff, the implementor's tests) and must be respawned.
@@ -183,5 +199,15 @@ _Avoid_: doctor (that is the fix-the-machine branch, not this one)
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).
 
 **Retro**:
-The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis.
+The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics, the lesson ledger — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis, and the safety net behind conclude-at-detection lesson capture.
 _Avoid_: postmortem (that is per-incident), audit (that is `/afk:setup audit`'s staleness hunt)
+
+**Lesson**:
+A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; escape analysis names a miss). Capture protocol: `skills/afk/lessons/CAPTURE.md`.
+_Avoid_: retro item (aggregation comes later), todo (a lesson carries its own drafted fix)
+
+**Lesson ledger**:
+`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded`), stewarded by `/afk:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
+
+**Escalation ladder**:
+The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.

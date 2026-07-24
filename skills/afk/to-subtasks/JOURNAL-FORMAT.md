@@ -34,7 +34,7 @@ A plan's append-only event log: one timestamped line per event, newest last. Let
 | `autopilot` | `run start ({n} runnable)`; `heartbeat {k}/{n} done, starting {NNNN-slug}`; `parked({status})`; `park-inherited(waiting on {ID})`; `stranded`; `run end ({k}/{n} done, {p} parked)` |
 | `smoke-test` | `smoke {verdict} ({passed}/{run} scenarios{, k skipped env-limited})` |
 | `understand` | `generated`; `failed({reason})` (subject token `understanding`; owned by `skills/afk/understand/SKILL.md`, the emitter — a token added or renamed there is a same-commit change here) |
-| `preflight` | `refused(no_green_smoke)`; `PF-{n} green`; `PF-{n} parked({reason})`; `fix-cycle {k}/2 on PF-{n}`; `ci-wait launched (budget={s}s, interval={s}s)`; `ready`; `done` — full grammar: "### Preflight events" below |
+| `preflight` | `refused(no_green_smoke)`; `PF-{n} green`; `PF-{n} parked({reason})`; `fix-cycle {k}/2 on PF-{n}`; `settle-round {k} on PF-3 — {verdict}`; `ci-wait launched (budget={s}s, interval={s}s)`; `ready`; `done` — full grammar: "### Preflight events" below |
 
 ### Preflight events
 
@@ -51,12 +51,14 @@ renamed there is a same-commit change here):
   flipped to `green`.
 - `PF-{n} parked({reason})` — step `n` could not proceed; `{reason}` is one
   of `merge_conflict`, `ancestry_guard_failed`, `semantic_red`,
-  `review_blocking`, `orphan_artifact`, `ci_test_red`, `secret_hit`,
+  `review_stalemate`, `orphan_artifact`, `ci_test_red`, `secret_hit`,
   `budget_exhausted`, `glab_flake` (per `skills/afk/preflight/SKILL.md`'s
   PF-1..7 routing table).
 - `fix-cycle {k}/2 on PF-{n}` — shared fix-cycle counter incremented (logged
   **before** the fix attempt, so a crash mid-fix still shows the spent cycle
   on resume).
+- `settle-round {k} on PF-3 — {verdict}` — one line per review settle-loop
+  round (round structure: `skills/afk/review/SETTLEMENT.md`).
 - `ci-wait launched (budget={s}s, interval={s}s)` — PF-6's background task
   started.
 - `ready` — PF-7 flipped the MR Draft → Ready on a green pipeline.

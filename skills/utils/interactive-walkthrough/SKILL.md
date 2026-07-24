@@ -18,6 +18,8 @@ only for *interactive* walkthroughs.
 | Linear sequence (steps always in the same order) | Notched slider — drag or click a notch to jump to any step; card shows the step's actor, goal, result | `templates/flow-slider.html` |
 | Branching (decisions, optional steps, states, failure exits) | Step simulator — Next/Back through nodes, decision nodes fork on the reader's choice, breadcrumb trail records the path | `templates/branching-simulator.html` |
 | Concurrent / pipelined (things overlapping in time or across lanes) | Overlap gantt — labeled lanes with positioned bars on a shared time grid | `templates/overlap-gantt.html` |
+| State change (a before → after the reader should compare) | Before/after comparator — tabbed two-state view; "what changed & why" notes light up on the after state | `templates/before-after.html` |
+| Point of likely surprise (behaviour readers predict wrongly) | Predict-then-reveal — reader commits to a prediction, then the actual behaviour + why appears; ungraded, nothing recorded | `templates/predict-reveal.html` |
 
 A branching flow with only one or two trivial forks reads better as a slider
 with the fork noted in the step card. A flow of ≤3 steps needs no widget —

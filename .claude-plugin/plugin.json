@@ -1,7 +1,7 @@
 {
   "name": "afk",
   "version": "0.0.0",
-  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) for the Nakisa Jira/GitLab workflow.",
+  "description": "AFK skill chain for Claude Code — design pipeline (grill-requirements → prd → optional prototype → to-ticket → grill-solution → sdd → design-brief → optional grill-verification + to-verification-plan → subtasks) + executor (execute, interactive or driven) + hands-off driver (autopilot: subagent per subtask, adversarial execution gate, park-and-continue) + feature smoke gate (smoke-test: full or minimal) + code-learning artifact (understand: one self-contained interactive HTML explainer per feature, MR, or code area) + stakeholder demo script (to-demo-plan: a minute-budgeted beat-by-beat plan for demoing a delivered feature to POs and QA) for the Nakisa Jira/GitLab workflow.",
   "author": {
     "name": "mvu"
   },
@@ -17,9 +17,11 @@
     "./skills/afk/design-system",
     "./skills/afk/execute",
     "./skills/afk/fix",
+    "./skills/afk/gc",
     "./skills/afk/grill-requirements",
     "./skills/afk/grill-solution",
     "./skills/afk/grill-verification",
+    "./skills/afk/lessons",
     "./skills/afk/mission-control",
     "./skills/afk/preflight",
     "./skills/afk/prototype",
@@ -28,6 +30,7 @@
     "./skills/afk/setup",
     "./skills/afk/smoke-test",
     "./skills/afk/tdd",
+    "./skills/afk/to-demo-plan",
     "./skills/afk/to-design-brief",
     "./skills/afk/to-prd",
     "./skills/afk/to-sdd",
@@ -41,7 +44,8 @@
     "./skills/utils/glossary",
     "./skills/utils/handoff",
     "./skills/utils/interactive-walkthrough",
-    "./skills/utils/to-code-walkthrough",
+    "./skills/utils/review-qa-tests",
+    "./skills/utils/settle-mr",
     "./skills/utils/todo",
     "./skills/utils/verify-seams",
     "./skills/utils/writing-great-skills"

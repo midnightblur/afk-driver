@@ -1,11 +1,16 @@
-"""The A-suite's home (subtask 0003-mc-renderer's ## Produces anchor):
-A1 full-fixture golden, A2 path-fence exit 2 + nothing written, A3
-absent-per-panel x5, A4 self-containment, A5 GET-only/read-only, A6
-idempotent re-render. Fixture layout below is executor latitude (SDD §0).
+"""The A-suite (drift alarm for the lockstep formats + the two-layer page):
+A1 full-fixture golden (asserted on the embedded mc-data JSON), A2 path-fence
+exit 2 + nothing written, A3 absent-per-section, A4 self-containment, A5
+GET-only/read-only (no form, no fetch in inert output), A6 idempotent
+re-render, A7 watch re-render, A8 digest staleness fence, A9 malformed
+digest degrades not crashes, A10 sub-phase derivation. Fixture layout is
+executor latitude (SDD §0).
 """
 from __future__ import annotations
 
+import hashlib
 import http.client
+import json
 import re
 import shutil
 import subprocess
@@ -41,28 +46,41 @@ flowchart TB
 ```
 """
 
+_PLAN_HEADER = """# Plan - fixture feature
+
+> Parent ticket: TIX-1   Mode: cited
+> Branch (for /afk:execute): dev/fixture
+> Feature: complete (smoke green 2026-07-07, target=local)
+"""
+
 _PROGRESS_SECTION = """## Progress tracker
 
-| # | Subtask | Title | Status |
-|---|---------|-------|--------|
-| 1 | 0001-sample | Sample subtask | done |
+| # | Subtask | Title | Status | Blocked by | Tiers | Seams |
+|---|---------|-------|--------|------------|-------|-------|
+| 1 | 0001-sample | Sample subtask | done | — | static, unit | — |
+| 2 | 0002-follow | Follow-up subtask | reviewing | 0001 | static | — |
 """
 
 _SEAM_SECTION = """## Seam register
 
 | # | Seam (SDD §9b row) | Implemented by | Used by |
 |---|--------------------|-----------------|---------|
-| 1 | "git binary" | 0001-sample | 0002-sample |
+| 1 | "git binary" | 0001-sample | 0002-follow |
 """
 
 _SMOKE_SECTION = """## Feature smoke gate
+
+> Gate: smoke   Suite: fixture
+> Last run: 2026-07-07, target=local - smoke green
+> Run history:
+> - 2026-07-06 local - smoke-failing, failing: S1
 
 | # | Scenario (integrated) | Modality | Status |
 |---|------------------------|----------|--------|
 | 1 | Sample scenario | api | pending |
 """
 
-_PREFLIGHT_SECTION = """## Preflight
+_PREFLIGHT_SECTION = """## Preflight   <!-- created on first run -->
 
 | # | Step | Status | Cycle | Evidence |
 |---|------|--------|-------|----------|
@@ -74,16 +92,16 @@ _JOURNAL_TEXT = (
     "(format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.\n\n"
     "2026-07-07 09:00 | execute | 0001-sample | done "
     "— fixture event for the timeline panel test\n"
+    "2026-07-07 09:30 | execute | 0002-follow | reviewing "
+    "— independent review spawned\n"
 )
 
 _REVIEW_INDEX_TEXT = """| Subtask | Latest report | Verdict | crit/high/med/low | Open advisories |
 |---|---|---|---|---|
 | 0001-sample | 0001-sample-abc123.md | clean | 0/0/0/0 | none |
+| 0002-follow | 0002-follow-abc123.md | advisory (cycle 2) | 0/0/1/0 | one medium kept |
 """
 
-# A well-formed understanding artifact — a frozen shell copy carrying the one
-# `afk-understanding` meta element (both fields populated), mirroring the shell
-# asset the panel parses. Toy data only.
 _UNDERSTANDING_GENERATED = "2026-07-14"
 _UNDERSTANDING_DIFF_RANGE = "abc1234..def5678"
 _UNDERSTANDING_HTML = (
@@ -100,22 +118,6 @@ _UNDERSTANDING_HTML = (
     "<body><main>toy understanding artifact</main></body>\n"
     "</html>\n"
 )
-
-# Malformed artifacts — present file, but the panel must return Absent (never
-# raise) per the lockstep format contract's well-formedness rule.
-_UNDERSTANDING_HTML_NO_META = (
-    "<!doctype html>\n"
-    '<html lang="en"><head><meta charset="utf-8">'
-    "<title>no meta</title></head><body><main>artifact without the header</main></body></html>\n"
-)
-_UNDERSTANDING_HTML_EMPTY_FIELDS = (
-    "<!doctype html>\n"
-    "<html><head>\n"
-    '<meta name="afk-understanding" data-generated="" data-diff-range="">\n'
-    "</head><body><main>empty fields</main></body></html>\n"
-)
-# content=-only variant — exercises the panel's fallback extraction when the
-# shell carries the fields on `content=` without the data-* attributes.
 _UNDERSTANDING_HTML_CONTENT_ONLY = (
     "<!doctype html>\n"
     "<html><head>\n"
@@ -124,21 +126,41 @@ _UNDERSTANDING_HTML_CONTENT_ONLY = (
     "</head><body><main>content-only</main></body></html>\n"
 )
 
-
-def _write_understanding(spec_dir: Path, html_text: str) -> None:
-    u_dir = spec_dir / "understanding"
-    u_dir.mkdir(parents=True, exist_ok=True)
-    (u_dir / "index.html").write_text(html_text, encoding="utf-8")
-
-
 _SUBTASK_TEXT = """# 0001-sample
 
+## Complexity
+standard
+
 ## Produces
-- scripts/sample.py#`SAMPLE_ANCHOR` — a fixture anchor for the design-map panel test
+- scripts/sample.py#`SAMPLE_ANCHOR` — a fixture anchor for the architecture live overlay
 
 ## Consumes
-- 0000-other scripts/other.py#`OTHER_ANCHOR` — a fixture consumed anchor
+- 0000-other scripts/other.py#OTHER_ANCHOR — a fixture consumed anchor
+
+## Verification
+| Tier | Check (command or method) | Proves |
+|------|---------------------------|--------|
+| static | grep SAMPLE_ANCHOR | anchor present |
 """
+
+# minimal valid digest per type (structural floor per mc/digests.DIGEST_SPECS)
+_DIGESTS = {
+    "architecture": {"modules": [{"id": "M1", "name": "core", "responsibility": "does the fixture work",
+                                  "depends_on": [], "subtasks": ["0001-sample"]}]},
+    "flows": {"flows": [{"id": "f1", "title": "happy path", "kind": "linear",
+                         "steps": [{"t": "1 · Start", "who": "you", "d": "kick it off"}]}]},
+    "entities": {"entities": [{"id": "E1", "name": "Sample", "essence": "the fixture entity",
+                               "fields": [{"name": "id", "type": "long", "essential": True}]}]},
+    "adrs": {"adrs": [{"id": "0001", "tier": "design", "title": "fixture decision",
+                       "essence": "decide the fixture way"}]},
+    "critical-logic": {"items": [{"id": "c1", "kind": "invariant", "title": "fixture invariant",
+                                  "statement": "the fixture must not break"}]},
+    "legend": {"terms": [{"term": "done", "definition": "the subtask finished every gate"}]},
+}
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _git(base: Path, args: list) -> None:
@@ -146,6 +168,25 @@ def _git(base: Path, args: list) -> None:
         ["git", "-C", str(base), *args], capture_output=True, text=True
     )
     assert result.returncode == 0, f"git {args} failed: {result.stderr}"
+
+
+def _write_understanding(spec_dir: Path, html_text: str) -> None:
+    u_dir = spec_dir / "understanding"
+    u_dir.mkdir(parents=True, exist_ok=True)
+    (u_dir / "index.html").write_text(html_text, encoding="utf-8")
+
+
+def _write_digests(spec_dir: Path, names=None, manifest_ok: bool = True) -> None:
+    d_dir = spec_dir / "plan" / "digests"
+    d_dir.mkdir(parents=True, exist_ok=True)
+    manifest = {}
+    for name in (names or _DIGESTS):
+        (d_dir / f"{name}.json").write_text(json.dumps(_DIGESTS[name]), encoding="utf-8")
+        source = spec_dir / "SDD.md"
+        digest_hash = _sha256(source) if (manifest_ok and source.is_file()) else "0" * 64
+        manifest[name] = {"sources": [{"path": "SDD.md", "sha256": digest_hash}],
+                          "built_at": "2026-07-07 09:00"}
+    (d_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def _build_fixture(
@@ -158,6 +199,8 @@ def _build_fixture(
     sdd: bool = True,
     review_index: bool = True,
     understanding: bool = True,
+    digests: bool = False,
+    digests_stale: bool = False,
     git_init: bool = True,
     git_commit: bool = True,
 ) -> Path:
@@ -166,9 +209,7 @@ def _build_fixture(
         (base / "SDD.md").write_text(_SDD_TEXT, encoding="utf-8")
 
     if understanding:
-        u_dir = base / "understanding"
-        u_dir.mkdir(parents=True, exist_ok=True)
-        (u_dir / "index.html").write_text(_UNDERSTANDING_HTML, encoding="utf-8")
+        _write_understanding(base, _UNDERSTANDING_HTML)
 
     plan_dir = base / "plan"
     any_plan_section = plan_progress or plan_smoke or plan_preflight
@@ -184,7 +225,7 @@ def _build_fixture(
             sections.append(_SMOKE_SECTION)
         if plan_preflight:
             sections.append(_PREFLIGHT_SECTION)
-        (plan_dir / "PLAN.md").write_text("# Plan\n\n" + "\n\n".join(sections) + "\n", encoding="utf-8")
+        (plan_dir / "PLAN.md").write_text(_PLAN_HEADER + "\n" + "\n\n".join(sections) + "\n", encoding="utf-8")
 
     if journal:
         (plan_dir / "JOURNAL.md").write_text(_JOURNAL_TEXT, encoding="utf-8")
@@ -196,6 +237,9 @@ def _build_fixture(
 
     if any_plan_section or journal or review_index:
         (plan_dir / "0001-sample.md").write_text(_SUBTASK_TEXT, encoding="utf-8")
+
+    if digests:
+        _write_digests(base, manifest_ok=not digests_stale)
 
     if git_init:
         _git(base, ["init", "-q"])
@@ -209,14 +253,25 @@ def _build_fixture(
     return base
 
 
-def _panel_fragment(html_text: str, panel_id: str) -> str:
-    """The `<section …>…</section>` card for one panel (cards don't nest)."""
+def _mc_data(html_text: str) -> dict:
     match = re.search(
-        r'<section[^>]*data-panel="' + re.escape(panel_id) + r'".*?</section>',
+        r'<script id="mc-data" type="application/json">(.*?)</script>',
         html_text,
         re.DOTALL,
     )
-    return match.group(0) if match else ""
+    assert match, "no mc-data blob in the page"
+    return json.loads(match.group(1).replace("<\\/", "</"))
+
+
+def _sections(html_text: str) -> dict:
+    return {s["id"]: s for s in _mc_data(html_text)["sections"]}
+
+
+def _parse_all(spec_dir: Path) -> dict:
+    return {
+        (vm.section_id): vm
+        for vm in (parser(spec_dir) for parser in mission_control.SECTION_PARSERS)
+    }
 
 
 class MissionControlContractTests(unittest.TestCase):
@@ -227,45 +282,51 @@ class MissionControlContractTests(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    # A1 - full fixture render -> exit 0, golden HTML per panel
+    # A1 - full fixture render -> exit 0, every section present + populated
     def test_full_fixture_golden(self):
-        spec_dir = _build_fixture(self.base / "feature", plan_preflight=True)
+        spec_dir = _build_fixture(self.base / "feature", plan_preflight=True, digests=True)
         out_dir = spec_dir / "plan" / "mission-control"
 
         exit_code = mission_control.main(["--once", str(spec_dir)])
-
         self.assertEqual(exit_code, mission_control.EXIT_OK)
-        html_text = (out_dir / "index.html").read_text(encoding="utf-8")
 
-        self.assertIn('data-panel="progress"', html_text)
-        self.assertIn("0001-sample", html_text)
-        self.assertIn("Sample subtask", html_text)
+        sections = _sections((out_dir / "index.html").read_text(encoding="utf-8"))
+        expected = ["overview", "architecture", "flows", "entities", "decisions",
+                    "critical-logic", "progress", "timeline", "gates", "insights",
+                    "diffs", "legend"]
+        self.assertEqual([s for s in expected if s in sections], expected)
+        for sid in expected:
+            self.assertNotEqual(sections[sid]["state"], "absent", sid)
 
-        self.assertIn('data-panel="timeline"', html_text)
-        self.assertIn("fixture event for the timeline panel test", html_text)
+        # live layer content
+        progress = sections["progress"]["data"]
+        self.assertEqual(len(progress["subtasks"]), 2)
+        self.assertEqual(progress["subtasks"][0]["id"], "0001-sample")
+        self.assertEqual(progress["subtasks"][0]["complexity"], "standard")
+        self.assertEqual(progress["subtasks"][0]["commits"][0]["subject"], "[0001-sample] fixture commit")
+        self.assertEqual(progress["subtasks"][1]["blocked_by"], ["0001-sample"])
 
-        self.assertIn('data-panel="design_map"', html_text)
-        self.assertIn("2 design diagram(s) in SDD.md", html_text)
-        self.assertIn("SAMPLE_ANCHOR", html_text)
+        timeline = sections["timeline"]["data"]
+        self.assertIn("fixture event for the timeline panel test",
+                      json.dumps(timeline["events"]))
 
-        self.assertIn('data-panel="diffs"', html_text)
-        self.assertIn("[0001-sample] fixture commit", html_text)
+        gates = sections["gates"]["data"]
+        self.assertEqual(gates["preflight"]["rows"][0]["Step"], "PF-1 merge origin/master")
+        self.assertEqual(gates["smoke"]["rows"][0]["Modality"], "api")
+        self.assertTrue(gates["smoke"]["last_run"].startswith("2026-07-07"))
+        self.assertEqual(len(gates["review_rollup"]["rows"]), 2)
 
-        self.assertIn('data-panel="gates"', html_text)
-        self.assertIn("PF-1 merge origin/master", html_text)
-        self.assertIn("0001-sample-abc123.md", html_text)
+        arch = sections["architecture"]["data"]
+        self.assertEqual(sections["architecture"]["state"], "ok")
+        self.assertEqual(arch["digest"]["modules"][0]["id"], "M1")
+        anchors = arch["live"]["anchors"]
+        self.assertIn("SAMPLE_ANCHOR", json.dumps(anchors))
+        self.assertEqual(arch["live"]["sdd_diagram_count"], 2)
 
-        # Understanding panel: repo-relative path as plain text + the two chips
-        # parsed from the afk-understanding meta header. No hyperlink.
-        self.assertIn('data-panel="understanding"', html_text)
-        self.assertIn("understanding/index.html", html_text)
-        self.assertIn(_UNDERSTANDING_GENERATED, html_text)
-        self.assertIn(_UNDERSTANDING_DIFF_RANGE, html_text)
-        understanding_card = _panel_fragment(html_text, "understanding")
-        self.assertNotIn("<a ", understanding_card)
-        self.assertNotIn("href", understanding_card)
-
-        self.assertNotIn("mc-card-absent", html_text)
+        overview = sections["overview"]["data"]
+        self.assertEqual(overview["header"]["parent_ticket"], "TIX-1")
+        self.assertEqual(overview["understanding"]["generated"], _UNDERSTANDING_GENERATED)
+        self.assertEqual(overview["understanding"]["diff_range"], _UNDERSTANDING_DIFF_RANGE)
 
     # A2 - path outside fence -> exit 2, nothing written
     def test_path_fence_exit_2(self):
@@ -278,57 +339,40 @@ class MissionControlContractTests(unittest.TestCase):
         finally:
             shutil.rmtree(outside, ignore_errors=True)
 
-    # A3 - missing source per panel -> Absent card, others golden, exit 0
-    def test_absent_state_per_panel(self):
-        def panels_for(spec_dir):
-            return {p.panel_id: p for p in (parser(spec_dir) for parser in mission_control.PANEL_PARSERS)}
-
-        spec = _build_fixture(self.base / "no-plan", plan_progress=False, plan_smoke=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["progress"], Absent)
-        self.assertNotIsInstance(panels["timeline"], Absent)
+    # A3 - missing source per live section -> Absent, others unaffected
+    def test_absent_state_per_section(self):
+        spec = _build_fixture(self.base / "no-plan", plan_progress=False, plan_smoke=False, review_index=False)
+        vms = _parse_all(spec)
+        self.assertIsInstance(vms["progress"], Absent)
+        self.assertNotIsInstance(vms["timeline"], Absent)
 
         spec = _build_fixture(self.base / "no-journal", journal=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["timeline"], Absent)
-        self.assertNotIsInstance(panels["progress"], Absent)
-
-        spec = _build_fixture(self.base / "no-sdd", sdd=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["design_map"], Absent)
-        self.assertNotIsInstance(panels["progress"], Absent)
+        vms = _parse_all(spec)
+        self.assertIsInstance(vms["timeline"], Absent)
+        self.assertNotIsInstance(vms["progress"], Absent)
 
         spec = _build_fixture(self.base / "no-commits", git_commit=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["diffs"], Absent)
-        self.assertNotIsInstance(panels["progress"], Absent)
+        vms = _parse_all(spec)
+        self.assertIsInstance(vms["diffs"], Absent)
+        self.assertNotIsInstance(vms["progress"], Absent)
 
         spec = _build_fixture(self.base / "no-gates", plan_smoke=False, plan_preflight=False, review_index=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["gates"], Absent)
-        self.assertNotIsInstance(panels["progress"], Absent)
+        vms = _parse_all(spec)
+        self.assertIsInstance(vms["gates"], Absent)
+        self.assertNotIsInstance(vms["progress"], Absent)
 
-        spec = _build_fixture(self.base / "no-understanding", understanding=False)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["understanding"], Absent)
-        self.assertNotIsInstance(panels["progress"], Absent)
-
-        # Present file but no afk-understanding meta element -> Absent, no raise
-        # (panels_for calls every parser; a raise would fail the comprehension).
-        spec = _build_fixture(self.base / "understanding-no-meta", understanding=False)
-        _write_understanding(spec, _UNDERSTANDING_HTML_NO_META)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["understanding"], Absent)
-
-        # Meta present but both fields empty -> Absent (malformed header).
-        spec = _build_fixture(self.base / "understanding-empty-fields", understanding=False)
-        _write_understanding(spec, _UNDERSTANDING_HTML_EMPTY_FIELDS)
-        panels = panels_for(spec)
-        self.assertIsInstance(panels["understanding"], Absent)
+        # digest sections without digests are missing-state, never Absent/crash
+        spec = _build_fixture(self.base / "no-digests")
+        vms = _parse_all(spec)
+        for sid in ("flows", "entities", "decisions", "critical-logic", "legend", "architecture"):
+            self.assertNotIsInstance(vms[sid], Absent, sid)
+            self.assertEqual(vms[sid].state, "missing", sid)
+        # architecture's live overlay still renders without the digest
+        self.assertTrue(vms["architecture"].data["live"]["seams"])
 
     # A4 - page self-contained: zero external refs, opens via file://
     def test_page_self_contained(self):
-        spec_dir = _build_fixture(self.base / "contained")
+        spec_dir = _build_fixture(self.base / "contained", digests=True)
         out_dir = spec_dir / "plan" / "mission-control"
 
         mission_control.main(["--once", str(spec_dir)])
@@ -338,31 +382,18 @@ class MissionControlContractTests(unittest.TestCase):
         self.assertNotIn("<link", html_text)
         self.assertNotIn("<script src", html_text)
 
-        # The understanding panel's fragment is part of the self-contained page
-        # and carries no reference out (no external ref, no relocatable link).
-        understanding_card = _panel_fragment(html_text, "understanding")
-        self.assertIn("understanding/index.html", understanding_card)
-        self.assertNotRegex(understanding_card, r'(src|href)\s*=')
-
-    # Understanding panel: fields carried on `content=` only (no data-* attrs)
-    # still render via the fallback extraction.
-    def test_understanding_content_only_fallback(self):
-        from mc.panels import understanding as understanding_panel
-
-        spec = _build_fixture(self.base / "content-only", understanding=False)
-        _write_understanding(spec, _UNDERSTANDING_HTML_CONTENT_ONLY)
-
-        panel = understanding_panel.parse(spec)
-        self.assertNotIsInstance(panel, Absent)
-        self.assertIn(_UNDERSTANDING_GENERATED, panel.html)
-        self.assertIn(_UNDERSTANDING_DIFF_RANGE, panel.html)
-
-    # A5 - GET-only server; page has no mutating control
+    # A5 - GET-only server; inert --once page has no form and no fetch at all
     def test_get_only_read_only(self):
         spec_dir = _build_fixture(self.base / "serve")
         out_dir = spec_dir / "plan" / "mission-control"
 
-        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.PANEL_PARSERS)
+        # inert retro output: no reload poller, no fetch, no form
+        mission_control.main(["--once", str(spec_dir)])
+        once_text = (out_dir / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("<form", once_text)
+        self.assertNotIn("fetch(", once_text)
+
+        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.SECTION_PARSERS)
         self.assertEqual(httpd.server_address[0], "127.0.0.1")
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
@@ -373,10 +404,12 @@ class MissionControlContractTests(unittest.TestCase):
             conn.request("GET", "/index.html")
             resp = conn.getresponse()
             self.assertEqual(resp.status, 200)
-            body = resp.read()
+            body = resp.read().decode("utf-8")
             conn.close()
-            self.assertNotIn(b"<button", body)
-            self.assertNotIn(b"onclick=", body)
+            self.assertNotIn("<form", body)
+            # watch mode's only network call is the GET reload-token poll
+            self.assertEqual(body.count("fetch("), 1)
+            self.assertIn("/__mc_token", body)
 
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
             conn.request("POST", "/index.html")
@@ -389,16 +422,25 @@ class MissionControlContractTests(unittest.TestCase):
             httpd.server_close()
             thread.join(timeout=5)
 
+    # A6 - unchanged fixture re-render -> byte-identical
+    def test_idempotent_rerender(self):
+        spec_dir = _build_fixture(self.base / "idem", digests=True)
+        out_dir = spec_dir / "plan" / "mission-control"
+
+        mission_control.main(["--once", str(spec_dir)])
+        first = (out_dir / "index.html").read_bytes()
+        mission_control.main(["--once", str(spec_dir)])
+        second = (out_dir / "index.html").read_bytes()
+
+        self.assertEqual(first, second)
+
     # A7 - watch mode detects an edit and re-renders, even when the feature's
-    # own spec_dir is literally named "mission-control" (regression: the
-    # watcher's self-exclusion previously matched on that bare path
-    # component, silently excluding every file whenever spec_dir itself was
-    # named "mission-control" and permanently disabling change detection).
+    # own spec_dir is literally named "mission-control" (regression guard)
     def test_watch_detects_edit_when_spec_dir_named_mission_control(self):
         spec_dir = _build_fixture(self.base / "mission-control")
         out_dir = spec_dir / "plan" / "mission-control"
 
-        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.PANEL_PARSERS, debounce=0.1)
+        httpd = server.watch_and_serve(spec_dir, out_dir, 0, mission_control.SECTION_PARSERS, debounce=0.1)
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
         try:
@@ -428,17 +470,68 @@ class MissionControlContractTests(unittest.TestCase):
             httpd.server_close()
             thread.join(timeout=5)
 
-    # A6 - unchanged fixture re-render -> byte-identical
-    def test_idempotent_rerender(self):
-        spec_dir = _build_fixture(self.base / "idem")
-        out_dir = spec_dir / "plan" / "mission-control"
+    # A8 - digest staleness fence: wrong source hash -> stale + reason; also
+    # surfaced by --check-digests
+    def test_digest_staleness_fence(self):
+        spec_dir = _build_fixture(self.base / "stale", digests=True, digests_stale=True)
+        vms = _parse_all(spec_dir)
+        for sid in ("flows", "architecture", "legend"):
+            self.assertEqual(vms[sid].state, "stale", sid)
+            self.assertIn("SDD.md", vms[sid].reason)
+        # stale still carries the old data — shown behind the banner
+        self.assertIsNotNone(vms["flows"].data)
 
-        mission_control.main(["--once", str(spec_dir)])
-        first = (out_dir / "index.html").read_bytes()
-        mission_control.main(["--once", str(spec_dir)])
-        second = (out_dir / "index.html").read_bytes()
+        from mc import digests as digests_mod
+        report = digests_mod.status(spec_dir)
+        self.assertEqual(report["flows"]["state"], "stale")
+        self.assertEqual(report["flows"]["stale_sources"], ["SDD.md"])
 
-        self.assertEqual(first, second)
+        # fixing the manifest hash flips everything to ok
+        _write_digests(spec_dir, manifest_ok=True)
+        vms = _parse_all(spec_dir)
+        self.assertEqual(vms["flows"].state, "ok")
+
+    # A9 - malformed digest -> invalid state, exit 0, other sections fine
+    def test_malformed_digest_degrades(self):
+        spec_dir = _build_fixture(self.base / "malformed", digests=True)
+        d_dir = spec_dir / "plan" / "digests"
+        (d_dir / "flows.json").write_text("{not json", encoding="utf-8")
+        (d_dir / "adrs.json").write_text(json.dumps({"adrs": [{"id": "0001"}]}), encoding="utf-8")
+
+        exit_code = mission_control.main(["--once", str(spec_dir)])
+        self.assertEqual(exit_code, mission_control.EXIT_OK)
+        sections = _sections(
+            (spec_dir / "plan" / "mission-control" / "index.html").read_text(encoding="utf-8"))
+        self.assertEqual(sections["flows"]["state"], "invalid")
+        self.assertEqual(sections["decisions"]["state"], "invalid")
+        self.assertIn("missing required string field", sections["decisions"]["reason"])
+        self.assertEqual(sections["entities"]["state"], "ok")
+
+    # A10 - sub-phase derivation: reviewing + round file + verdict-cell cycle
+    def test_sub_phase_derivation(self):
+        spec_dir = _build_fixture(self.base / "subphase")
+        review_dir = spec_dir / "plan" / "review"
+        (review_dir / "0002-follow-abc123-r2.outcomes.json").write_text(
+            json.dumps({"r-001": "fixed"}), encoding="utf-8")
+
+        vms = _parse_all(spec_dir)
+        subtasks = {s["id"]: s for s in vms["progress"].data["subtasks"]}
+        self.assertEqual(subtasks["0002-follow"]["rounds"], 2)
+        self.assertEqual(subtasks["0002-follow"]["sub_phase"], "settle round 2")
+        # done subtask summarizes its review verdict
+        self.assertIn("review clean", subtasks["0001-sample"]["sub_phase"])
+
+    # understanding meta fields carried on `content=` only still parse
+    def test_understanding_content_only_fallback(self):
+        from mc.sections import understanding as understanding_section
+
+        spec = _build_fixture(self.base / "content-only", understanding=False)
+        _write_understanding(spec, _UNDERSTANDING_HTML_CONTENT_ONLY)
+
+        card, reason = understanding_section.parse(spec)
+        self.assertEqual(reason, "")
+        self.assertEqual(card["generated"], _UNDERSTANDING_GENERATED)
+        self.assertEqual(card["diff_range"], _UNDERSTANDING_DIFF_RANGE)
 
 
 if __name__ == "__main__":

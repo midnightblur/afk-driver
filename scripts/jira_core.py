@@ -12,8 +12,10 @@ Skill-specific concerns (sentinel-block/description merge, mermaid rendering)
 stay in the importing scripts.
 
 Credentials are read from same-named OS env vars, or from the Jira MCP server's
-env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN); env
-vars win. Nothing is hardcoded.
+env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN), or
+from ~/.codex/config.toml [mcp_servers.jira.env]; resolution order env >
+claude.json > codex config.toml (per-provider map: plugin PROVIDERS.md).
+Nothing is hardcoded.
 """
 
 from __future__ import annotations
@@ -46,22 +48,46 @@ def _walk_for_jira_env(obj):
     return None
 
 
+def _codex_jira_env():
+    """Jira env block from ~/.codex/config.toml [mcp_servers.jira.env] (py3.11+;
+    older interpreters lack tomllib and just skip this fallback layer)."""
+    cfg_path = Path.home() / ".codex" / "config.toml"
+    if not cfg_path.exists():
+        return None
+    try:
+        import tomllib
+    except ImportError:
+        return None
+    try:
+        data = tomllib.loads(cfg_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return _walk_for_jira_env(data.get("mcp_servers") or data.get("mcpServers") or {})
+
+
 def load_creds():
     base = os.environ.get("JIRA_BASE_URL")
     email = os.environ.get("JIRA_EMAIL")
     token = os.environ.get("JIRA_API_TOKEN")
-    if not (base and email and token):
-        cfg_path = Path.home() / ".claude.json"
-        env = None
-        if cfg_path.exists():
-            env = _walk_for_jira_env(json.loads(cfg_path.read_text(encoding="utf-8")))
+    sources = []
+    cfg_path = Path.home() / ".claude.json"
+    if cfg_path.exists():
+        try:
+            sources.append(_walk_for_jira_env(json.loads(cfg_path.read_text(encoding="utf-8"))))
+        except Exception:
+            pass
+    sources.append(_codex_jira_env())
+    for env in sources:
+        if base and email and token:
+            break
         if env:
             base = base or env.get("JIRA_BASE_URL")
             email = email or env.get("JIRA_EMAIL")
             token = token or env.get("JIRA_API_TOKEN")
     if not (base and email and token):
         sys.exit("ERROR: could not resolve Jira creds (JIRA_BASE_URL/EMAIL/API_TOKEN "
-                 "from env or ~/.claude.json mcpServers.jira.env).")
+                 "from env, ~/.claude.json mcpServers.jira.env, or "
+                 "~/.codex/config.toml [mcp_servers.jira.env]).")
     return base.rstrip("/"), email, token
 
 
@@ -91,6 +117,13 @@ class Jira:
         body = json.dumps({"fields": {"description": adf}}).encode()
         self._req("PUT", f"/rest/api/3/issue/{key}", data=body,
                   headers={"Content-Type": "application/json"})
+
+    def add_comment(self, key, adf):
+        """POST an ADF doc as an issue comment. Returns the comment id (str)."""
+        body = json.dumps({"body": adf}).encode()
+        r = self._req("POST", f"/rest/api/3/issue/{key}/comment", data=body,
+                      headers={"Content-Type": "application/json"})
+        return json.loads(r.read()).get("id")
 
     def delete_attachment(self, att_id):
         try:

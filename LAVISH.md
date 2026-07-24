@@ -24,12 +24,22 @@ goes through pinned `npx`:
 | Render (open) | `npx lavish-axi@0.1.18 <file>` | open or resume a session, browser opens |
 | Render (no browser) | `npx lavish-axi@0.1.18 <file> --no-open` | same, skip opening the browser window |
 | Poll | `npx lavish-axi@0.1.18 poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
+| Poll + reply | `npx lavish-axi@0.1.18 poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
 | End | `npx lavish-axi@0.1.18 end <file>` | end a session the agent initiated |
 | Stop | `npx lavish-axi@0.1.18 stop` | shut down the background server |
 | Playbook | `npx lavish-axi@0.1.18 playbook [id]` | show guidance for one playbook, or list all |
 
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.
+
+**Warm-up.** At the start of an interactive phase with render points ahead,
+run one background render (`--no-open`) on the phase's artifact file so the
+first real render pays no `npx` resolution or server spin-up. Reuse one
+artifact file per phase — a render opens **or resumes** a session; a fresh
+file per question forfeits the resume.
+
+**Re-render cadence.** A continuously-updated artifact (ledger, log, matrix)
+re-renders at question/turn boundaries, never per row write.
 
 ## Render-point playbook map
 
@@ -42,6 +52,7 @@ never under `~/.claude/`.
 | RP-5 | `slides` |
 | RP-6 | `diagram` |
 | RP-7 | `input` |
+| RP-8 | `input` |
 
 A rendering skill knows its own RP id (assigned where it's woven in) and
 looks up only its own row here — this file does not enumerate which skill
@@ -62,6 +73,22 @@ self-resolve in-page:
 
 Decoding an id must never require leaving the page, opening another file, or
 remembering an earlier render.
+
+## Drivable artifacts (binding when the artifact is itself interactive)
+
+Some render points serve an artifact that is an interactive simulation —
+clicks navigate, forms validate, actions mutate in-page state — not a static
+decision surface. The editor's **annotation toggle** (top bar) switches the
+human between *driving* the artifact and *annotating* it; tell the user this
+at first render. Authoring rules:
+
+- **Live controls opt out of annotation**: any element with its own click
+  behavior carries `data-lavish-action`, so it stays drivable regardless of
+  the toggle. Embedded structured-feedback controls follow upstream
+  `playbook input` guidance (`window.lavish.queuePrompt(...)`).
+- **Portable always**: every `window.lavish.*` call is guarded
+  (`window.lavish?.`) — the fallback below opens the same file with no
+  server running, and the artifact must render and behave identically there.
 
 ## Fallback and forbidden operations
 

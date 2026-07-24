@@ -39,15 +39,31 @@ worktree_new=$(
   git status --porcelain -uall 2>/dev/null \
     | awk '/^(A[ MD]|\?\?)/ {print $NF}'
 )
-upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
-[ -z "$upstream" ] && git rev-parse --verify -q origin/master >/dev/null 2>&1 && upstream=origin/master
+# Base = the integration branch, NOT the branch's own upstream. Merging
+# origin/master into a feature branch puts master's commits ahead of
+# origin/<branch>, so basing on @{u} attributes every file master added since
+# the branch diverged to this change. 3-dot stays correct either way: post-merge
+# the merge-base IS master's tip (own additions only); pre-merge it diffs
+# merge-base->HEAD (master's newer files are absent from HEAD, so never "added").
+base=""
+git rev-parse --verify -q origin/master >/dev/null 2>&1 && base=origin/master
+[ -z "$base" ] && base=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
 committed_new=""
-if [ -n "$upstream" ]; then
-  committed_new=$(git diff --name-only --diff-filter=A "$upstream"...HEAD 2>/dev/null || true)
+if [ -n "$base" ]; then
+  committed_new=$(git diff --name-only --diff-filter=A "$base"...HEAD 2>/dev/null || true)
 fi
 
 new_files=$(printf '%s\n%s\n' "$worktree_new" "$committed_new" | sed '/^$/d' | sort -u)
 [ -z "$new_files" ] && exit 0
+
+# Pass cache (skip in final mode — a normal-mode pass with open IOUs must not
+# satisfy a final-mode run, which blocks on those same IOUs).
+. "$(dirname "${BASH_SOURCE[0]}")/gate-cache.sh"
+cache_key=""
+if [ "$FINAL" != "1" ]; then
+  cache_key=$(gate_cache_key wiring)
+  gate_cache_hit wiring "$cache_key" && exit 0
+fi
 
 . "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
 gate_metrics_begin
@@ -146,4 +162,5 @@ if [ "$FINAL" = "1" ] && [ -n "$pending" ]; then
 fi
 
 gate_metrics_emit wiring pass "\"new_files\":$n_new"
+[ "$FINAL" != "1" ] && gate_cache_store wiring "$cache_key"
 exit 0

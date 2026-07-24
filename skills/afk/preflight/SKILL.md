@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: The feature-level ship gate — refuses without a green smoke gate, merges master in (never rebases) behind an ancestry guard, re-runs validations + a fresh integrated review + a final seam check within a shared 2-cycle fix cap, commits ship evidence, and background-babysits CI to flip the Draft MR to Ready. Use when an invoker chains it after the smoke gate goes green, or to re-run `/afk:preflight {plan-dir}` by hand on a parked feature.
+description: The feature-level ship gate — refuses without a green smoke gate, merges master in (never rebases) behind an ancestry guard, re-runs validations + a final seam check within a shared 2-cycle fix cap, settles a fresh integrated review through the multi-round settle loop, commits ship evidence, and background-babysits CI to flip the Draft MR to Ready. Use when an invoker chains it after the smoke gate goes green, or to re-run `/afk:preflight {plan-dir}` by hand on a parked feature.
 ---
 
 # afk:preflight — the feature-level ship gate
@@ -34,7 +34,7 @@ gate that never ran.
 First run creates a `## Preflight` section in `PLAN.md` — skeleton in
 `skills/afk/to-subtasks/PLAN-TEMPLATE.md`, columns
 `# | Step | Status | Cycle | Evidence` (lockstep with the mission-control
-renderer's gates panel, `skills/afk/mission-control/scripts/mc/panels/gates.py`
+renderer's gates section, `skills/afk/mission-control/scripts/mc/sections/gates.py`
 — that parser is the shape's other lockstep half; a column rename here is a
 same-commit change there). One row per PF step below. This skill is the table's
 sole writer; every other reader (renderer, human, orchestrating driver) only
@@ -71,25 +71,34 @@ merge-induced compile break) is fixable within the shared cycle cap below. A
 **semantic** red (a validation asserting something is actually wrong, not just
 malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
-**PF-3 — fresh-context review.** Run **`/afk:review --feature`** against the
-merged tip — the integrated feature diff as a whole (every subtask's changes
-together, not one slice), reviewed by fresh contexts that haven't seen the
-implementation's own reasoning, with the cross-slice design roster that skill's
-`--feature` mode defines. Gate on its `REVIEW:` verdict line. `clean`/`advisory`
-→ proceed. `blocking` → remediate by class within the shared cap
-(`correctness`/`spec` → `/afk:fix`; `compliance`/`smell`/`test`/`design` →
-inline fix; `pattern-debt` never blocks; `scope` is unreachable — the
-`--feature` roster carries no scope concern); still blocking after the cap →
-`park(PF-3: review_blocking)`. However the step ends, record each finding's
-outcome in `plan/review/feature-{base-short}.outcomes.json`
-(`fixed` / `dismissed(<reason>)` / `deferred`) — the caller-side half of the
-review telemetry.
+**PF-3 — fresh-context review (settle loop).** Gate the merged tip through the
+review settle loop (`skills/afk/review/SETTLEMENT.md`; this ladder's session is
+the referee). Per round, run **`/afk:review --feature --tag r{n}`** — the
+integrated feature diff as a whole (every subtask's changes together, not one
+slice), reviewed by fresh contexts that haven't seen the implementation's own
+reasoning, with the cross-slice design roster that skill's `--feature` mode
+defines. Every actionable finding — `medium`/`low` included — is fixed or
+disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
+`compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
+`scope` is unreachable — the `--feature` roster carries no scope concern.
+Round-close cheap re-verification (SETTLEMENT.md step 7) is a reactor compile
+of the touched modules plus the local tests covering the fix — the full
+validation suite already ran at PF-2 and CI (PF-6/7) remains the expensive
+backstop. The
+loop keeps its own round accounting in this row's `Cycle` cell (`n/10`, cap
+owned by SETTLEMENT.md) — **outside** the shared mechanical fix cap below.
+Settled → proceed. Stalemate at the cap → `park(PF-3: review_stalemate)` —
+unusual by construction; a human must look. Record outcomes per round as
+SETTLEMENT.md step 7 defines
+(`plan/review/feature-{base-short}-r{n}.outcomes.json`) — the caller-side half
+of the review telemetry.
 
 **PF-4 — seam check.** Run `/afk:verify-seams final` over the whole feature —
 the orphan hunt classifying every produced artifact wired / weak / orphan,
 blocking on open IOUs in final mode. `wired`/`weak` → proceed. An orphan or a
-final-mode-blocking open IOU → same routing as PF-3 (remediate within the
-shared cap, else `park(PF-4: orphan_artifact)`).
+final-mode-blocking open IOU → remediate by class like a review finding
+(`correctness`/`spec` → `/afk:fix`, else inline) within the shared cap, else
+`park(PF-4: orphan_artifact)`.
 
 **PF-4b understanding — advisory artifact generation (never parks).** Reached
 only once PF-4 is `green`. Invoke **`/afk:understand {plan-dir}`** in auto mode
@@ -105,11 +114,22 @@ docs-only commit (ADR `adr/design/0001`; SDD §3).
   to PF-5 anyway. **Never `park`.** The skill has already written its own
   journal event; no fix attempt, no counter increment, no MR-block change.
 
-This is the ladder's one **advisory** row: it sits **outside the shared fix
-cap** (PF-2/PF-3/PF-7), never consumes a cycle, and its only non-green outcome
+This is an **advisory** row: it sits **outside the shared fix cap**
+(PF-2/PF-4/PF-7) and the PF-3 settle loop, never consumes a cycle, and its only
+non-green outcome
 (`advisory-failed`) advances the ladder rather than blocking it. On **resume**,
 an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 (Resume rule above).
+
+**PF-4c lessons — advisory open-drafts surface (never parks).** Run
+`bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
+from the repo root; set the row `green` with
+`Evidence: open lessons: <n> (grammar: skills/afk/lessons/LEDGER-FORMAT.md)`.
+This is how workflow-lesson drafts captured during hands-off runs reach the
+human at the ship gate: `<n> > 0` changes nothing mechanically — the count
+rides the PF table into the report and MR evidence block; applying the drafts
+is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b: outside
+the shared fix cap, no cycle, no fix attempt, no park.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
@@ -150,8 +170,8 @@ mirrors it — a lockstep pair, keep both in sync):
 
 **PF-7 — CI outcome routing.**
 - **exit 0** → `glab` Draft→Ready flip on the MR; JOURNAL `done`; every PF
-  row green (PF-4b may be `advisory-failed` — the one advisory row, never a
-  blocker); report `success` (below) and stop.
+  row green (PF-4b may be `advisory-failed` — advisory rows never block);
+  report `success` (below) and stop.
 - **exit 1** → inspect the pipeline log. Mechanical failure (compile/format/
   config, merge-induced) and cycles remaining → fix, push (**increment the
   shared cycle counter before the attempt**, not after), relaunch PF-6 — a
@@ -169,10 +189,12 @@ mirrors it — a lockstep pair, keep both in sync):
 
 ## Shared fix-cycle cap
 
-PF-2, PF-3, PF-7 share **one** counter, capped at **2** per preflight run (not
+PF-2, PF-4, PF-7 share **one** counter, capped at **2** per preflight run (not
 2 each). Increment **before** each attempt, so a crash mid-fix still counts the
 attempt on resume. Exhausted → the next would-be fix becomes a park at that
-step, naming which step hit the cap.
+step, naming which step hit the cap. PF-3 sits **outside** this counter — its
+settle loop keeps its own round accounting
+(`skills/afk/review/SETTLEMENT.md`).
 
 ## Hard rules
 
@@ -202,7 +224,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory, never blocks); MR flipped Ready; ship snapshot committed. The human still merges out of band. |
+| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |

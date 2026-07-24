@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Mirrors a service's live frontend into a team-shareable `claude.ai/design` catalog — real design tokens plus archetype-complete standalone HTML cards, fidelity-checked against the running app. Per-service setup, not part of the per-feature chain. Use when the user runs `/afk:design-system`, or to seed a new service's catalog or refresh it after the frontend's tokens/components drift.
+description: Mirrors a service's live frontend into a team-shareable `claude.ai/design` catalog — real design tokens plus archetype-complete standalone HTML cards, fidelity-checked against the running app. Per-service setup, not per-feature. Use on `/afk:design-system`, to seed a new service's catalog, or to refresh after token/component drift.
 ---
 
 # afk:design-system — mirror a service's live UI into a shared catalog

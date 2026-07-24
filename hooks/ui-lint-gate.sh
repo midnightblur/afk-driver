@@ -79,6 +79,12 @@ for ws in "${!ws_files[@]}"; do
   rc=$?
   if [ "$rc" -ne 0 ]; then
     fail=1
+    # Cap per-workspace output — an unbounded eslint dump re-enters the agent's
+    # context on every failed Stop. Tail keeps the problems-summary line.
+    total_lines=$(printf '%s\n' "$out" | wc -l)
+    if [ "$total_lines" -gt 40 ]; then
+      out=$(printf '%s\n' "$out" | head -35)$'\n'"… ($((total_lines - 35)) more lines — re-run: cd $ws && npx eslint <files>)"$'\n'$(printf '%s\n' "$out" | tail -2)
+    fi
     report+="Workspace: $ws"$'\n'"$out"$'\n\n'
   fi
 done

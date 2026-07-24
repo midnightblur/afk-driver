@@ -36,7 +36,7 @@ Usage:
         --meeting path/to/MEETING.md [--dry-run] [--yes]
 
 Credentials are resolved exactly as publish_prd.py does (OS env, else the Jira
-MCP server's env block in ~/.claude.json). Nothing is hardcoded.
+MCP env blocks in ~/.claude.json / ~/.codex/config.toml). Nothing is hardcoded.
 """
 
 from __future__ import annotations

@@ -17,6 +17,8 @@ Steer, don't document. Trust agents to read code; capture only what code won't r
 
 Auto-fire: **HARVEST only**, on durable signal → propose ONE item. AUDIT + BOOTSTRAP manual. Signal = same correction twice · gotcha found · pattern established · review catch code won't reveal. One-off / obvious-from-code / this-session-only → do NOT harvest.
 
+Lesson-ledger tie-in: a harvested signal that is a *workflow* lesson (bar + protocol: `skills/afk/lessons/CAPTURE.md`) also gets a ledger event via `hooks/lesson-append.sh` — `opened` then `applied` when the proposal is approved and written, `opened` alone when detected but declined or no human is present. Cross-session recurrence ("same correction twice" spanning sessions) is exactly what the ledger makes visible.
+
 BOOTSTRAP done when every emitted line passes the 4-gate inclusion bar and the proposal is approved before any write.
 
 ## Inclusion bar — every line passes ALL 4

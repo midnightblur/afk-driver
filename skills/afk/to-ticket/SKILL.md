@@ -1,24 +1,24 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — full PRD inline, mermaid diagrams rendered and embedded — or publish a meeting summary onto any ticket as a collapsible expand. Use when `PRD.md` exists on disk and the parent key is known, or when a meeting needs recording on a ticket. Idempotent — re-run to update in place. The one design-chain skill that writes to the tracker.
+description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — distilled to a requirements-level ticket description (User Stories + Acceptance Criteria mandatory), mermaid diagrams rendered and embedded — or publish a meeting summary onto any ticket as a collapsible expand. Use when `PRD.md` exists and the parent key is known, or to record a meeting on a ticket. Idempotent; the one design-chain skill writing to the tracker.
 ---
 
 # afk:to-ticket — publish into the Jira ticket
 
 Two independent capabilities, both writing native **ADF** to a **Jira Cloud** (`nakisa.atlassian.net`) issue description, both **idempotent** (re-run updates in place, never duplicates):
 
-- **PRD mode** (below) — publish a finished `PRD.md`'s **content** into its parent Enhancement/Bug; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
+- **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Bug; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 - **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
 
 The two engines share creds + the Markdown→ADF mapping but own **disjoint regions** of the description, so they never collide.
 
 ## What it does / does not do (binding)
 
-- **Publishes full PRD content inline**, not a link or pointer — PRD body lives in the ticket description.
+- **Publishes the distilled ticket description inline**, not a link or pointer, and not the raw PRD — the ticket's readers are the Product Owner and QA; content contract in "Distill `TICKET.md`" below.
 - **Renders mermaid for Jira, locally.** Each ```mermaid block rendered to PNG **locally** — never via an external render service (mermaid.ink, kroki, …); no diagram source leaves the network — attached to the issue, embedded inline as an ADF media node so it renders in the description.
-- **Idempotent insert + update.** PRD lives inside an AFK-managed block (delimited by sentinel marker paragraphs). Re-running replaces that block and its figures in place — no duplicate sections, no piled-up attachments.
+- **Idempotent insert + update.** The published description lives inside an AFK-managed block (delimited by sentinel marker paragraphs). Re-running replaces that block and its figures in place — no duplicate sections, no piled-up attachments. The description shows only current truth; **history lives in comments** — a re-publish posts the requirements delta as an issue comment (step 3) so readers can track how the requirements moved.
 - **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: a barebone/low-value existing description is absorbed — the managed block becomes the whole description (full heuristic: [REFERENCE.md](REFERENCE.md), "Description merge model"). Borderline barebone call → default to preserving and surface it to the human.
-- **PRD content only.** Never publishes SDD, ADRs, or lower-level technical detail. Keep those out of `PRD.md`; this skill publishes whatever `PRD.md` contains, nothing more. (`## SDD` stays owned by `/afk:to-sdd`, which splices its own pointer section directly; the Design Brief is repo-only and never reaches the ticket — this skill touches neither.)
+- **Requirements level only.** Never publishes SDD content, ADR documents, or any technical depth — the distill step strips them. (`## SDD` stays owned by `/afk:to-sdd`, which splices its own pointer section directly; the Design Brief is repo-only and never reaches the ticket — this skill touches neither.)
 - **Requires an existing parent.** No parent key → stop; tell the human to create the Enhancement/Bug first — never create it here. Sets no labels, creates no branch.
 
 ## Prerequisites
@@ -28,30 +28,34 @@ Register: `skills/afk/setup/MANIFEST.md` — needs **P1/P2** (Python 3 + `markdo
 ## How to run
 
 1. Confirm `PRD.md` is final and you know the parent key (e.g. `P2P-1220`).
-2. **Dry-run first** — converts + plans, renders nothing, mutates nothing, writes the would-be ADF next to the PRD as `PRD.adf.json` for inspection:
+2. **Distill `TICKET.md`** — synthesize the ticket description from `PRD.md`, written sibling to it. `TICKET.md` is a derived artifact: content changes start in `PRD.md`; re-derive whenever the PRD changed since the last publish. **Re-publish?** The on-disk `TICKET.md` is the last-published content (the done-criterion below guarantees it) — copy it aside before overwriting; it's the baseline for step 3's delta. Content contract:
+   - **Mandatory sections: User Stories and Acceptance Criteria** — carried from the PRD, trimmed to what the Product Owner and QA act on.
+   - Plus a problem/goal summary and the **system behavior** in plain domain language: what changes for the user, inputs → observable outcomes, edge-case behavior QA must exercise.
+   - **Strictly requirements and system behavior — no technical depth.** No implementation detail (class/endpoint/schema/module names, code references), no workflow vocabulary, no SDD/Design Brief content.
+   - **Never reference local repo artifacts** — no `PRD.md`/`SDD.md`/ADR file/`plan/` mentions, no repo paths; ticket readers have no repo access.
+   - An ADR decision worth surfacing (it changes what the user gets) appears **restated as a behavior/constraint statement** at the same requirements level — never as a document pointer.
+   - Keep a ```mermaid block only when it depicts user-visible flow or behavior; drop architecture/sequence internals.
+3. **Distill the delta (re-publish only)** — diff step 2's baseline against the new `TICKET.md` and write `TICKET-CHANGES.md` sibling to it; the engine posts it as an issue comment, the historical record of *what moved* that the silent in-place description replace doesn't give readers. Same audience and level as `TICKET.md` (requirements only, no repo artifacts). Shape: one lead-in line `**Requirements update — {YYYY-MM-DD}**`, then `**Added**` / `**Changed**` / `**Removed**` bullet groups (omit empty groups), each bullet naming a requirement-level change — a new user story, a tightened/relaxed acceptance criterion, a closed requirement gap, scope pulled in or cut — never a line-diff or wording churn. No ```mermaid (comments can't embed figures). Diff purely cosmetic (no requirement moved) → skip this step and publish without `--changes`.
+4. **Dry-run first** — converts + plans, renders nothing, mutates nothing, writes the would-be ADF next to the input as `TICKET.adf.json` (and the would-be comment as `TICKET-CHANGES.adf.json`) for inspection:
 
    ```
-   python scripts/publish_prd.py --parent <KEY> --prd <path/to/PRD.md> --dry-run
+   python scripts/publish_prd.py --parent <KEY> --prd <path/to/TICKET.md> [--changes <path/to/TICKET-CHANGES.md>] --dry-run
    ```
 
-   Read the summary line: how many diagrams, and whether existing ticket content will be **preserved** (`N node(s) preserved`) or **absorbed** (`barebone`). Says "barebone" but you know the PO wrote something real → STOP and inspect the ticket; don't overwrite their work — fix the heuristic call by leaving their content and adjusting, or publish into a fresh ticket.
-3. **Publish:**
+   Read the summary lines: `action` (`first publish` / `re-publish`), how many diagrams, and whether existing ticket content will be **preserved** (`N node(s) preserved`) or **absorbed** (`barebone`). Says "barebone" but you know the PO wrote something real → STOP and inspect the ticket; don't overwrite their work — fix the heuristic call by leaving their content and adjusting, or publish into a fresh ticket. Says `re-publish` but you skipped step 3 → confirm the diff really was cosmetic before proceeding.
+5. **Publish** — same command minus `--dry-run`:
 
-   ```
-   python scripts/publish_prd.py --parent <KEY> --prd <path/to/PRD.md>
-   ```
+   Prints the plan, asks confirmation before the single `PUT` (pass `--yes` to skip the prompt in automated context); on success the engine posts the `--changes` comment (skipped with a warning on a first publish — no delta to record). Each publish updates the description field → watchers notified per re-run (Jira only honours `notifyUsers=false` for project admins, so the engine doesn't send it) — re-run when the PRD meaningfully changed, not idly.
 
-   Prints the plan, asks confirmation before the single `PUT` (pass `--yes` to skip the prompt in automated context). Each publish updates the description field → watchers notified per re-run (Jira only honours `notifyUsers=false` for project admins, so the engine doesn't send it) — re-run when the PRD meaningfully changed, not idly.
+6. **Update the ticket index.** On a successful publish, upsert the `PRD` row of the PRD's sibling `INDEX.md` to `published to Jira {date}` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-4. **Update the ticket index.** On a successful publish, upsert the `PRD` row of the PRD's sibling `INDEX.md` to `published to Jira {date}` per `skills/afk/to-prd/INDEX-FORMAT.md`.
-
-**Done when:** the `PUT` succeeded, every mermaid figure attached + embedded, and the sibling `INDEX.md` `PRD` row reads `published to Jira {date}`.
+**Done when:** the `PUT` succeeded, every mermaid figure attached + embedded, `TICKET.md` on disk matches the published content, a re-publish with a real delta has its comment live on the ticket, and the sibling `INDEX.md` `PRD` row reads `published to Jira {date}`.
 
 ADF mapping, the Mermaid-image method, and the description merge model: [REFERENCE.md](REFERENCE.md).
 
 ## Next
 
-The PRD is now live on the parent ticket. Then, per the design choice for this ticket:
+The requirements-level ticket description is now live on the parent ticket. Then, per the design choice for this ticket:
 
 - **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (those go next to the PRD on disk and into the `## SDD` section — not through this skill). Downstream plan slices in **cited mode**.
 - **`/afk:to-subtasks`** — for small features / bugs / refactors / tooling: slice the PRD straight into a local plan in **uncited mode** (human-gated).
