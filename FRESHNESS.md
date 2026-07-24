@@ -45,6 +45,7 @@ everyone else points.
 | `REPORTING.md` | plugin author | any status-line / notification protocol change |
 | `DELEGATION.md` | plugin author | any delegation-doctrine change |
 | `LAVISH.md` | plugin author | the pin bumps; a render point (RP row) is added/removed; a playbook id changes; the fallback/forbid rules change — update the woven skill(s) in step |
+| `SPINOFF-TICKET.md` | plugin author | the spinoff protocol changes (kind set, candidate-row fields, link-debt, dedup) — update the woven grills, `to-ticket` spinoff mode, and `GRILL-LOG-FORMAT.md`'s spinoff-row grammar in step |
 | `FRESHNESS.md` (this file) | plugin author | a new artifact class appears, or enforcement changes |
 | `skills/afk/setup/MANIFEST.md` | `/afk:setup` | any external-dependency change (rule 1) |
 | `skills/afk/setup/AUDIT.md` | `/afk:setup` | an artifact surface worth auditing appears/disappears |

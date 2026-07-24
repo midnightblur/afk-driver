@@ -106,7 +106,8 @@ filename stem. `/afk:execute` parses these files and writes back progress. No
 subtask becomes a Jira issue.
 
 **④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
-into the parent ticket. `/afk:bug`'s publisher subagent is the pipeline's
+into the parent ticket and mints stub Enhancements for grill-deferred work
+(spinoff mode). `/afk:bug`'s publisher subagent is the pipeline's
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
 else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
@@ -613,7 +614,10 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   a standalone **meeting mode** (`scripts/publish_meeting.py`) — records a meeting
   on **any** ticket as a collapsible `Meeting Summaries` `expand`, idempotent per
   meeting (same title → update in place, new → newest first), in a region disjoint
-  from the PRD block; not part of the design chain.
+  from the PRD block; not part of the design chain. And a standalone **spinoff
+  mode** — mints a *new* stub Enhancement for work a grill deferred out of scope
+  (via the `jira_create` MCP tool; protocol in `SPINOFF-TICKET.md`), the one
+  create path `/afk:to-ticket` has; also outside the design chain.
 - **`/afk:to-subtasks`** — slices the PRD (+ SDD + ADRs when present) into the
   local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
   typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.
@@ -1030,9 +1034,11 @@ edits never collide:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, and `LAVISH.md` (the lavish-axi pin,
+`DELEGATION.md`, `FRESHNESS.md`, `LAVISH.md` (the lavish-axi pin,
 invocation shapes, render-point → playbook map, and fallback/forbid-list —
-render-point skills carry only a pointer to it).
+render-point skills carry only a pointer to it), and `SPINOFF-TICKET.md` (the
+spinoff protocol for capturing grill-deferred work as a tracked stub — grills
+carry only a pointer to it).
 
 **Parent ticket:** P2P-1220 (Jira). For contributor-facing internals (the
 lockstep contract, three-checkpoint enforcement, tracker boundary), see

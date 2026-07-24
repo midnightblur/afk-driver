@@ -75,6 +75,8 @@ For each layer L1 → L9:
 
 When the design crosses an external seam, run the checks in [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md).
 
+When a layer surfaces work that's real but out of this ticket's scope — a dependency blocking the design, an adjacent subsystem this feature won't touch — capture it as a **spinoff** per `SPINOFF-TICKET.md` (plugin root) rather than folding it into this design.
+
 ## Stop conditions
 
 Only declare the design exhausted when ALL hold:

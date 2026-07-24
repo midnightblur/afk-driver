@@ -21,6 +21,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Ledger: {claim} → verified ({where}) | refuted ({where}) | unverified-external (user acknowledged)
 - Staples: {staple} → in|out — {one-clause why}
 - Settled: {decision, one line each, as they lock}
+- Spinoffs: {spinoff row — grammar below}
 - Open: {what's still unsettled — the resume point}
 
 ## Solution grill
@@ -28,6 +29,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Locked: L1 {one-line decision} | inherited
 - … one row per layer as it locks (L1–L9)
 - Seams (L9): {seam} → {verdict: fits | extends (ADR-candidate) | reworked}
+- Spinoffs: {spinoff row — grammar below}
 - Open: {the layer under discussion + the live question}
 
 ## Verification grill
@@ -35,7 +37,23 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Aspect: {aspect} → triggered ({proving scenario ids}) | N/A ({reason}) | env-limited
 - Journeys settled: {ids/names, one line}
 - API scenarios: designed | deferred (pre-SDD)
+- Spinoffs: {spinoff row — grammar below}
 - Open: {what's still unsettled}
 ```
 
 Sections appear as their grill first runs; an absent section means that grill hasn't run. Rows are overwritten as state changes — the log holds current state, not history (the conversation and synthesized artifacts hold the history).
+
+## Spinoff row
+
+Deferred/adjacent work a grill spins off into its own ticket (protocol +
+field meanings: `SPINOFF-TICKET.md`, plugin root). One row per spinoff, under
+the recording grill's own section:
+
+```
+{kind} · {summary} → {status} — links: {rel} {target}, …
+```
+
+`kind` = deferred | adjacent · `status` = candidate | filed {KEY} |
+filed {KEY} · link-debt · `links` = each `{blocked-by|relates} {KEY}` the stub
+needs. A `filed {KEY}` row is the dedup guard on resume — never mint a second
+for the same spinoff.
