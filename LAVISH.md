@@ -53,6 +53,7 @@ re-renders at question/turn boundaries, never per row write.
 | RP-6 | `diagram` |
 | RP-7 | `input` |
 | RP-8 | `input` |
+| RP-9 | `table` |
 
 A rendering skill knows its own RP id (assigned where it's woven in) and
 looks up only its own row here — this file does not enumerate which skill

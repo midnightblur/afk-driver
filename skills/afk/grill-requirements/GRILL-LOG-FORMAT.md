@@ -29,6 +29,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 - Locked: L1 {one-line decision} | inherited
 - … one row per layer as it locks (L1–L9)
 - Seams (L9): {seam} → {verdict: fits | extends (ADR-candidate) | reworked}
+- Signoff: {signoff row — grammar below}
 - Spinoffs: {spinoff row — grammar below}
 - Open: {the layer under discussion + the live question}
 
@@ -42,6 +43,24 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 ```
 
 Sections appear as their grill first runs; an absent section means that grill hasn't run. Rows are overwritten as state changes — the log holds current state, not history (the conversation and synthesized artifacts hold the history).
+
+## Signoff row
+
+The register of human-locked design aspects (set, contract grades, and
+protocol: `skills/afk/grill-solution/HUMAN-SIGNOFF.md`). One row per aspect,
+under the solution grill's section, written the moment its outcome lands:
+
+```
+{HL-id} {aspect} → signed {YYYY-MM-DD} "{human's approving words, verbatim}" — covers {scope, one clause}
+{HL-id} {aspect} → changes-requested — {what they asked for}
+{HL-id} {aspect} → pending
+{HL-id} {aspect} → n/a — {reason the trigger didn't fire}
+```
+
+Only a human's own words fill the quote; an agent never writes a `signed` row
+for a signature it did not receive. A signed row is void the moment the aspect's
+design changes — set it back to `pending` and re-sign rather than leaving a row
+describing a design that moved.
 
 ## Spinoff row
 

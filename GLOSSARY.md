@@ -169,6 +169,13 @@ At most one bug across the whole ledger may hold the `fixing` (S4) lane at a tim
 
 ## Gates & verdicts
 
+**Human-locked aspect**:
+A design aspect the human decides and signs, never the agent and never the executor — entity design, API surface, authz + scoping, lifecycle + invariants, irreversible/outward side effects, changes to existing behaviour (HL-1..HL-6). Each carries a **contract grade**: the detail it must reach to be reviewable at all. Set + protocol: `skills/afk/grill-solution/HUMAN-SIGNOFF.md`.
+_Avoid_: approval (routine), locked decision (that is any settled design call)
+
+**Sign-off**:
+The human's own affirming answer to a human-locked aspect's question, recorded verbatim as a `signoff` row in `GRILL-LOG.md` and carried into SDD §0. Void the moment the aspect's design moves; `pending` or `changes-requested` means the design isn't exhausted and the SDD can't publish.
+
 **Review gate**:
 The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.
 

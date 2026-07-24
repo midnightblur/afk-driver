@@ -34,6 +34,11 @@ Legacy leaf files carrying that banner are NOT the pattern to copy.
 ## Shape of a good line
 `<topic>: <non-obvious fact / pointer>. <gotcha if any>.`
 
+**One line is the default; earn every line past it.** A rule = that line + at most a gotcha/exception
+clause. A `Bad → Good` block is last resort — only when the one-liner is genuinely ambiguous in prose;
+most rules ship without one. Propose the shortest form first — let the user ask for an example, never
+have to cut one.
+
 Good:
 - `Auth: token TTL checked in AuthFilter (uses <, off-by-one on expiry). Refresh path skips filter.`
 - `Migrations: Flyway V{n}__ naming. Never edit applied migration — add new. Baseline V1 in db/migration.`

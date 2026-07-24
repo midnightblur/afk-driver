@@ -24,7 +24,8 @@
 #   EXIT_OK=0                 pipeline reached "success"
 #   EXIT_RED=1                pipeline reached "failed" or "canceled"
 #   EXIT_BUDGET_EXHAUSTED=2   budget elapsed, pipeline still non-terminal (park != cancel — it keeps running)
-#   EXIT_FLAKE=3              3 consecutive glab read errors (auth/network flake — never a fix cycle)
+#   EXIT_FLAKE=3              pipeline unreadable — 3 consecutive glab read errors, or no
+#                             usable Python 3 (auth/network/env fault — never a fix cycle)
 set -u
 
 EXIT_OK=0
@@ -51,13 +52,38 @@ if [ -n "$REPO" ]; then
   repo_flag=(-R "$REPO")
 fi
 
+# Resolve a working Python 3 ONCE, by *executing* each candidate rather than
+# trusting `command -v`: on Windows `python3` is normally the Microsoft Store
+# stub, which is on PATH, prints its nag to stderr, and emits nothing on stdout
+# — indistinguishable from a glab read failure, so every poll counted as an
+# error and the run false-parked EXIT_FLAKE after 3 intervals. Execution
+# probing also rejects a `python` that is really Python 2. Candidate set and
+# the stub caveat mirror the dependency register (skills/afk/setup/MANIFEST.md
+# P1 / H6).
+PY=()
+resolve_python() {
+  local candidate
+  for candidate in "python3" "python" "py -3"; do
+    if [ "$($candidate -c 'print("afk")' 2>/dev/null)" = "afk" ]; then
+      PY=($candidate)
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! resolve_python; then
+  echo "ci-wait: no working Python 3 on PATH (tried: python3, python, py -3) — park (environment fault, no fix cycle spent; see skills/afk/setup/MANIFEST.md P1)" >&2
+  exit "$EXIT_FLAKE"
+fi
+
 # Reads the pipeline status for MR_REF via glab, one attempt. Prints the
 # GitLab pipeline status string ("success" | "failed" | "canceled" |
 # "running" | "pending" | "created" | "manual" | "skipped") or nothing on
 # any read/parse failure — the caller counts empty reads as flakes.
 read_status() {
   glab mr view "$MR_REF" "${repo_flag[@]}" -F json 2>/dev/null \
-    | python3 -c '
+    | "${PY[@]}" -c '
 import json
 import sys
 

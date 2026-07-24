@@ -348,7 +348,11 @@ sequenceDiagram
    for stakeholder review.
 5. **`/afk:grill-solution`** — top-down design interview across 9 layers (L1
    system topology → L8 tactical patterns); every non-trivial decision gets a
-   rationale and ≥2 weighed alternatives.
+   rationale and ≥2 weighed alternatives. Six aspects are **human-locked** —
+   entity design, API surface, authz + scoping, lifecycle + invariants,
+   irreversible/outward side effects, changes to existing behaviour — grilled to
+   a contract grade, packeted for your review, and **signed off by you** before
+   the design counts as done.
 6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs, and writes the parent ticket's `## SDD` pointer section.
 7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
@@ -686,10 +690,19 @@ tooling.)*
   `/afk:grill-verification` (the screen its journeys trace to).
 - **`/afk:grill-solution`** — top-down design interview across 9 layers (L1
   topology → L8 tactical patterns); every non-trivial decision gets a rationale +
-  ≥2 alternatives. Produces **no** documents — feeds `/afk:to-sdd`.
+  ≥2 alternatives. The **human-locked set** (`HUMAN-SIGNOFF.md`) — HL-1 entity
+  design, HL-2 API surface, HL-3 authz + data scoping, HL-4 lifecycle +
+  invariants, HL-5 irreversible/outward side effects, HL-6 changes to existing
+  behaviour — is never the agent's or the executor's call: each live aspect is
+  grilled to a stated contract grade, presented as a review packet (tables
+  verbatim + alternatives + blast radius + risks), and **explicitly signed off by
+  you, by id**, into `GRILL-LOG.md`; a signature is void once the design moves.
+  Produces **no** documents — feeds `/afk:to-sdd`.
 - **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
   ADRs under `adr/design/`, **local only — does not touch the tracker**. Mandates
-  per-layer visualizations (Mermaid, tables) so reviewers can scan vertically.
+  per-layer visualizations (Mermaid, tables) so reviewers can scan vertically,
+  carries the sign-off register into §0, and refuses to publish while a
+  human-locked aspect is unsigned (or a section outruns what was signed).
 - **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight 1-2 page
   `DESIGN-BRIEF.md` (one money-shot diagram, a decision digest, a
   stakeholder-impact table). **Repo-only**; shared with stakeholders out of band.
