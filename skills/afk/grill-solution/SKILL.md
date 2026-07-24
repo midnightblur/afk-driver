@@ -15,25 +15,27 @@ The staples the PRD **accepted** (from `{service}/STAPLES.md`) are **binding des
 
 **Design bars.** The `## Guardrails` digests in `skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md` (this plugin) are the bars the implementation is later reviewed against — hold each L4–L8 decision to them while it's still prose, the cheapest place to fix a shallow module or a missing failure story.
 
+**The human-locked set.** A handful of aspects — what gets persisted, what the API exposes, who is allowed through, what the domain refuses, what the feature does irreversibly, what existing behaviour it changes — are the human's call, not yours and never the executor's. Grill them to contract grade, then get an explicit signature per [HUMAN-SIGNOFF.md](HUMAN-SIGNOFF.md) before descending past the layer that owns each. Unsigned means unfinished.
+
 ## The 9 layers (grill in this order)
 
 ### L1 — System / topology
 Monolith vs microservices, sync vs event-driven backbone, multi-tenancy stance, deployment model (single / multi-region), runtime model (request/response, streaming, batch). Usually inherited; only ADR if THIS feature reverses a default.
 
 ### L2 — Service boundaries & integration
-Which service owns what, where the seam falls between this feature and the rest, integration style (REST / gRPC / message / shared DB — last almost always wrong), public-contract versioning posture, breaking-change policy.
+Which service owns what, where the seam falls between this feature and the rest, integration style (REST / gRPC / message / shared DB — last almost always wrong), public-contract versioning posture, breaking-change policy. Plus **every externally-callable surface this feature adds or changes**, endpoint by endpoint, to HL-2 contract grade — sign-off aspect.
 
 ### L3 — Data architecture
-Datastore per piece of state (RDBMS / document / KV / search / event store / object store), partitioning / sharding, replication topology, cache placement, schema-evolution policy, retention. Most expensive layer to get wrong — grill hard here. For every **new entity / table**, decide whether it is **Envers-audited** — a new audited entity triggers the mandatory audit-trail verification aspect (`/afk:grill-verification`), and the SDD §4 L3 state table records the `Audited?` verdict.
+Datastore per piece of state (RDBMS / document / KV / search / event store / object store), partitioning / sharding, replication topology, cache placement, schema-evolution policy, retention. Most expensive layer to get wrong — grill hard here. Plus **every entity this feature persists or alters**, field by field and relation by relation, to HL-1 contract grade — sign-off aspect; an executor left to infer the schema from a table name will invent one. An entity decided **Envers-audited** triggers the mandatory audit-trail verification aspect (`/afk:grill-verification`).
 
 ### L4 — Cross-cutting & quality attributes
-Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced on both sides of the UI seam** (per [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md), check 3); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work.
+Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced on both sides of the UI seam** (per [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md), check 3); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work. Authz + scoping together are HL-3 — sign-off aspect.
 
 ### L5 — Domain model (tactical DDD)
-Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; a term conflicting with or missing from `GLOSSARY.md` is a language gap to resolve in `/afk:grill-requirements`, not to silently coin here.
+Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; a term conflicting with or missing from `GLOSSARY.md` is a language gap to resolve in `/afk:grill-requirements`, not to silently coin here. Lifecycle states, their legal transitions, and the invariants with their guardians are HL-4 — sign-off aspect.
 
 ### L6 — Process / coordination
-Transaction boundaries per use case (what's in one txn, what's across), cross-aggregate strategy (saga / outbox / 2PC / accept-eventual), consistency model per read path (strong / read-after-write / eventual + staleness budget), ordering guarantees, concurrency control (optimistic version / pessimistic lock / CRDT), failure-and-recovery matrix per multi-step flow.
+Transaction boundaries per use case (what's in one txn, what's across), cross-aggregate strategy (saga / outbox / 2PC / accept-eventual), consistency model per read path (strong / read-after-write / eventual + staleness budget), ordering guarantees, concurrency control (optimistic version / pessimistic lock / CRDT), failure-and-recovery matrix per multi-step flow. Every irreversible or outward-facing side effect in those flows is HL-5 — sign-off aspect.
 
 ### L7 — Module / component decomposition
 Module split inside a service, public module interfaces (the testable seams), dependency direction (hex / onion / clean — pick one and apply), DI scopes, deep vs shallow module.
@@ -42,7 +44,7 @@ Module split inside a service, public module interfaces (the testable seams), de
 Strategy, Visitor, State Machine, Specification, Builder, Chain of Responsibility, Registry, Factory, Template Method, etc. Pattern choice ≠ implementation; it shapes the public seams executors implement against.
 
 ### L9 — Implementation seams & change impact
-The assembled design proven against the code that exists: per-seam signature/contract alignment, change impact on existing flows, house-convention compliance, must-do landmines (what the existing entry path does that a new path would skip) — then a parallel compatibility audit attacking the whole design vs the codebase. Run per [L9-SEAM-GRILL.md](L9-SEAM-GRILL.md); its seam rows become the SDD's §14.
+The assembled design proven against the code that exists: per-seam signature/contract alignment, change impact on existing flows, house-convention compliance, must-do landmines (what the existing entry path does that a new path would skip) — then a parallel compatibility audit attacking the whole design vs the codebase. Run per [L9-SEAM-GRILL.md](L9-SEAM-GRILL.md); its seam rows become the SDD's §14. Rows verdicted `extends` or `reworked` change behaviour someone already depends on — HL-6, sign-off aspect.
 
 ## Executor latitude (the line below L9)
 
@@ -56,6 +58,8 @@ Below the layers is **executor latitude** — NOT grilled here, NOT in SDD, NOT 
 - Library API call shape (when SDD has picked the library).
 
 If a question is below the line, don't ask it. Redirect: "that's executor latitude."
+
+Latitude's opposite pole is the human-locked set ([HUMAN-SIGNOFF.md](HUMAN-SIGNOFF.md)): decided by the human, binding on the executor, never reopened below the line.
 
 ## Triviality cutoff (avoid ADR fatigue)
 
@@ -71,9 +75,12 @@ For each layer L1 → L9:
 2. **Probe: is anything in this layer non-trivial for THIS feature?** If no -> say so explicitly ("L1 inherited from the monolith — skipping") and move on.
 3. **Triage the layer's concerns per `skills/afk/grill-requirements/TRIAGE.md`, then ask each debate-class concern one question at a time** (confirm-class concerns batch at the layer boundary per that file; an override escalates back to debate). Recommend an answer. Force ≥2 alternatives — and for **L1–L3** decisions, present one deliberately different **third option** before settling: a different paradigm (event-driven vs sync, buy vs build, denormalize vs join), not a variant of the front-runner, with an honest cost. Two look-alike options is how the obvious answer wins unexamined. Capture the rationale before the next concern. **When the question's premise OR the user's answer references existing infrastructure, apply [GROUNDING-RULE.md](GROUNDING-RULE.md) before locking in.** When a human is present, render each debate-class question per LAVISH.md (RP-1, playbook `comparison`) to lay the alternatives side by side — **mandatory per LAVISH.md's Primary-path rule**; fallback (driven mode / render failure) per that file, else the prose recap above.
 4. **Before descending, restate the locked decisions** so the user can challenge. As each layer locks, checkpoint it (one row) into this skill's section of the ticket folder's `GRILL-LOG.md` per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md` — a 9-layer grill is long; the log lets a paused or compacted session resume at the right layer with the locked set intact, and records L9 seam verdicts until the SDD lands.
-5. **Do not skip ahead.** If the user pulls toward L8 (the fun layer) before L3/L4/L6 are pinned, refuse: "Pin the datastore + sync-vs-async first — Strategy interface depends on whether it returns `T` or `Future<T>`."
+5. **Sign off the layer's human-locked aspects** — packet, ask, record — per [HUMAN-SIGNOFF.md](HUMAN-SIGNOFF.md), before descending. A layer whose aspect is unsigned or `changes-requested` is not locked, whatever else it settled.
+6. **Do not skip ahead.** If the user pulls toward L8 (the fun layer) before L3/L4/L6 are pinned, refuse: "Pin the datastore + sync-vs-async first — Strategy interface depends on whether it returns `T` or `Future<T>`."
 
 When the design crosses an external seam, run the checks in [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md).
+
+When a layer surfaces work that's real but out of this ticket's scope — a dependency blocking the design, an adjacent subsystem this feature won't touch — capture it as a **spinoff** per `SPINOFF-TICKET.md` (plugin root) rather than folding it into this design.
 
 ## Stop conditions
 
@@ -90,6 +97,7 @@ Only declare the design exhausted when ALL hold:
 - Every NFR has a number, not an adjective ("p95 < 200 ms", not "fast").
 - **Every claim about existing infrastructure verified against the codebase OR explicitly labelled "unverified premise" with the user's acknowledgement** (per the Grounding rule). A design built on a fictional premise isn't exhausted, it's poisoned.
 - **Every external seam has cleared the four checks** (per the External-seam rule): framework runtime behavior verified against the pin, every field contract sourced from its canonical truth, every relied-on invariant enforced on **both** sides of the UI seam (at the surface and below the new caller), every surface's failure affordance pinned — with a framework-seam test flagged wherever check 1 fired.
+- **Every human-locked aspect is `signed` or `n/a`** in the grill log, each signature the human's own words against a design that has not moved since (per the Human sign-off rule). A `pending` or `changes-requested` aspect — or a signature voided by later drift — means not exhausted, no matter how settled the rest is.
 - **L9 exhausted** per its exit criteria (every seam row verified + verdicted, every landmine handled, every compatibility-audit finding resolved or accepted).
 
 Until all hold, keep grilling.
@@ -102,4 +110,4 @@ Until all hold, keep grilling.
 
 ## Next
 
-Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.
+Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts — it carries the sign-off register into §0 and refuses to publish while a live aspect is unsigned. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.

@@ -23,6 +23,9 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | Pattern choice | ✅ | ❌ |
 | Module public interface | ✅ | ❌ |
 | API contract / schema | ✅ | ❌ |
+| Persisted schema — fields, relations, migration (§4) | ✅ | ❌ |
+| Lifecycle states + legal transitions (§6) | ✅ | ❌ |
+| Roles permitted/denied per surface (§5) | ✅ | ❌ |
 | Aggregate boundary | ✅ | ❌ |
 | Txn / idempotency strategy | ✅ | ❌ |
 | External-seam contract (§9b: framework I/O shape, field source-of-truth, enforcement point, failure surface) | ✅ | ❌ |
@@ -32,6 +35,14 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | Test fixture structure | ❌ | ✅ |
 
 **Conflict procedure.** Executor finds a binding decision wrong / infeasible / contradicting reality → exit the subtask with `design_conflict` status quoting the SDD section + the conflict. Route back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Never override silently.
+
+**Human sign-off register.** One row per human-locked aspect (the set, its contract grades, and the signing protocol: `skills/afk/grill-solution/HUMAN-SIGNOFF.md`), transcribed from the solution grill's log — never re-derived, never inferred. These aspects were decided by a human, not by the design conversation; the row is the proof.
+
+| Aspect | Section | Status | Signed by / date | Approved wording |
+|--------|---------|--------|------------------|------------------|
+| HL-n {aspect} | §n | signed \| n/a | {who} / {YYYY-MM-DD} | "{their words}" |
+
+A live aspect that is not `signed`, or whose section says something the signature didn't cover, makes this SDD unpublishable.
 
 ## §1 Context Summary
 
@@ -55,7 +66,9 @@ Which service owns what. Where the seam falls. Integration style. Versioning pos
 
 1. `flowchart LR` — services as nodes, edges labeled with integration style (REST / gRPC / async-event / shared DB) + the message name.
 2. `sequenceDiagram` — one per non-trivial cross-service interaction.
-3. **API contract table** — surface, method, request shape ref, response shape ref, error codes, version. Cite OpenAPI / proto file paths; don't inline schemas that will rot. This table is the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: state the **success envelope AND the real edge envelopes** the backend returns (a missing entity may be an empty-success envelope rather than 404, a denial a coded 403 — envelope conventions: `11700-payable/verification/api/AUTHORING.md`), plus the auth/role required (the below-the-UI guard, cross-referenced to its §9b seam). A row too vague to state its envelope is a §13 gap, not a publishable contract.
+3. **API contract table** — one row per surface this feature adds or changes, at HL-2 contract grade (`skills/afk/grill-solution/HUMAN-SIGNOFF.md`): method + path, auth + permitted roles (the below-the-UI guard, cross-referenced to its §9b seam), request fields with their validation, success envelope, each error envelope with its code and trigger, paging/filtering/sorting, idempotency posture, version, and — where the surface already exists — the verdict on existing callers (compatible / breaking). A **signed-off aspect**: this table and the §0 register describe the same design, or neither is publishable. Where a canonical schema artifact exists (OpenAPI / proto), cite its path for the field-by-field shape rather than inlining what will rot; where none exists, the fields belong here — an executor must not be left to invent the contract a human signed.
+
+   This table is also the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: the **success envelope AND the real edge envelopes** the backend returns (a missing entity may be an empty-success envelope rather than 404, a denial a coded 403 — envelope conventions: `11700-payable/verification/api/AUTHORING.md`). A row too vague to state its envelope is a §13 gap, not a publishable contract.
 
 ## §4 L3 — Data Architecture
 
@@ -71,8 +84,20 @@ For each piece of state.
    A new entity marked **Audited? = yes** makes the audit-trail
    verification aspect mandatory in `/afk:grill-verification`.
 
-2. `erDiagram` — cross-state relations (FK, reference-by-id, denormalization edges). Even single-table designs benefit from one entity box.
-3. **Cache topology diagram** (`flowchart`) if a cache is in play, showing read-through / write-behind / TTL per layer.
+2. **Entity design** — for every entity this feature persists or alters, at HL-1 contract grade (`skills/afk/grill-solution/HUMAN-SIGNOFF.md`). A **signed-off aspect**: what the §0 register signed is what stands here.
+
+   | Field | Type | Null? | Default | Unit / precision | Constraint | Indexed / unique | Note |
+   |-------|------|-------|---------|------------------|------------|------------------|------|
+
+   Plus, per entity: its identity (key + generation), and one relation row each —
+
+   | Relation | Target | Cardinality | Owning side | On delete / orphan | Fetch posture |
+   |----------|--------|-------------|-------------|--------------------|---------------|
+
+   **Migration & backfill** — for every altered entity, what happens to rows that already exist (new column's value for old rows, a widened/narrowed constraint, a dropped field's data) and whether the change is reversible. An altered entity with no migration line is an unpublishable §13 gap, not a silent "the ORM will handle it".
+
+3. `erDiagram` — cross-state relations (FK, reference-by-id, denormalization edges). Even single-table designs benefit from one entity box.
+4. **Cache topology diagram** (`flowchart`) if a cache is in play, showing read-through / write-behind / TTL per layer.
 
 ## §5 L4 — Cross-Cutting & Quality Attributes
 

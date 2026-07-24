@@ -10,7 +10,7 @@ From the conversation context, the PRD, and codebase understanding, produce:
 
 Do NOT interview — synthesize what you know. Critical-logic concern unresolved → STOP, tell user to run `/afk:grill-solution` first; don't invent decisions.
 
-If the design conversation didn't survive into context (compaction, new session), read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints its locked layers and L9 seam verdicts there for this synthesis.
+Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints its locked layers, its L9 seam verdicts, and its **human sign-off register** there, and that log (not your memory of the conversation) is the source for §0's register. It is also how synthesis survives a compaction or a new session.
 
 ## Process
 
@@ -31,6 +31,8 @@ If the design conversation didn't survive into context (compaction, new session)
    Blocker tokens (canonical set; `/afk:to-subtasks`'s refuse-to-slice gate re-scans it): `\bTBD\b`, `\bTODO\b`, `\bFIXME\b`, `\bXXX\b`, `\?\?\?`, `<TBD>` / `<TODO>` / `<placeholder>` / `<fill>` / `<\?>`, `\[\?\]`, `_?FILL[_-]?IN_?`, `\(decide later\)` / `\(unresolved\)` / `\(open\)`, and unsubstituted template literals (`<TICKET-ID>`, `<NNNN>`, `<service>`, `{Feature Name}`). Real generics (`<T>`), optional-type markers (`Foo?`), and a stray `?` in a signature are NOT blockers.
 
    Also scan §13: a row with `Blocks executor? = yes` in L2-L7 or L9 is a blocker (L1/L8 may pass if scoped). Don't demote a blocker to a §13 row to sneak it past the gate.
+
+7b. **Human sign-off gate.** Transcribe §0's sign-off register from the grill log's signoff rows, then refuse to write on any of: a live human-locked aspect not `signed` or `n/a`; a `signed` row without the human's own wording; a section (§3 endpoint, §4 entity, §5 authz, §6 lifecycle, §7 side effect, §14 seam) carrying design the signature didn't cover. Name the aspect and bounce to `/afk:grill-solution`. Never sign, infer a signature, or promote `pending` on the human's behalf — the set and protocol live in `skills/afk/grill-solution/HUMAN-SIGNOFF.md`.
 
 8. **Library-version pin cross-check.** Verify any version pin the SDD/ADR names (Spring Boot, Hibernate, Vue, axios, … — anything `\d+\.\d+`) against the build manifest before writing. The Grounding rule catches a library's *existence*; this catches a fictional *version* of a real library, which silently poisons every downstream behaviour assumption.
 
@@ -56,7 +58,7 @@ If the design conversation didn't survive into context (compaction, new session)
 
 10. **Update the ticket index.** Upsert this skill's rows in the sibling `INDEX.md` (`SDD`, `Design ADRs`) per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-**Done when:** `SDD.md` + every design ADR on disk, Step 7 and Step 8/8b gates passed, `INDEX.md` rows upserted.
+**Done when:** `SDD.md` + every design ADR on disk, Steps 7 / 7b / 8 / 8b gates passed, `INDEX.md` rows upserted.
 
 ## Visualization rules
 
