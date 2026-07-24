@@ -224,7 +224,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts. |
+| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |

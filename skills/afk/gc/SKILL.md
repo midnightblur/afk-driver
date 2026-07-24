@@ -1,9 +1,9 @@
 ---
 name: gc
-description: Post-merge spec compaction — deletes a shipped feature's run artifacts (plan/, grill logs, publish intermediates) from its ticket spec folder so future agent greps hit only current-truth docs; git history is the archive. Use via `/afk:gc {spec-folder}` after the feature's MR merged, never before.
+description: Post-merge cleanup — deletes a shipped feature's run artifacts (plan/, grill logs, publish intermediates) from its ticket spec folder and retires its dev worktree + local branch, so future agent greps hit only current-truth docs; git history is the archive. Use via `/afk:gc {spec-folder}` after the feature's MR merged, never before.
 ---
 
-# afk:gc — compact a shipped feature's spec folder
+# afk:gc — compact a shipped feature's spec folder, retire its worktree
 
 A shipped feature's spec folder accumulates run artifacts (subtask contracts,
 journals, review reports, grill logs) that are superseded the moment the MR
@@ -12,22 +12,33 @@ surface dead contracts and settled findings as if current. This skill deletes
 them **after ship**, keeping only the evergreen contract docs. Nothing is
 lost — git history is the archive; this skill records the ref to mine.
 
+The feature's **dev worktree** is superseded by the same event: a live
+checkout of a merged branch, holding pre-deletion copies of every run
+artifact and a private Maven repo, that a later session can wander into and
+read as current. Same trigger, same approval — retired here.
+
 ## Argument
 
 `spec-folder` — the ticket's spec directory (the one holding `PRD.md` /
 `plan/`). Required; never guessed from context.
 
-## Refusal guards (all three, before proposing anything)
+## Refusal guards (all four, before proposing anything)
 
 1. **Shipped only.** `plan/PLAN.md`'s `Feature:` header must read
    `complete (…)` **and** the feature's MR must be merged — verify live
    (`glab mr view` state `merged`, or the feature branch tip is an ancestor of
    `origin/master`). Anything else → refuse `refused(not_shipped)`, write
-   nothing.
+   nothing. Keep the MR's **source branch** — the feature branch — for
+   worktree discovery below.
 2. **Clean tree.** Uncommitted changes under `{spec-folder}` → refuse
    `refused(dirty_tree)`.
 3. **Interactive only.** Invoked hands-off (driven/autopilot) → refuse
    `refused(hands_off)` — deletion always gets a human eye.
+4. **Not standing in the target.** cwd's checkout is on the feature branch —
+   it *is* that worktree → refuse `refused(inside_target_worktree)`: a
+   worktree can't remove
+   itself, and the compaction commit would land on the dead feature branch.
+   Re-run from the main checkout on an up-to-date `master`.
 
 ## What is deleted vs kept
 
@@ -47,17 +58,58 @@ unrecognized stays.
   `understanding/`, fixture/reference docs, and any file not on the delete
   list.
 
+## Worktree retirement
+
+Second, independent item — never blocks the spec compaction; every check
+below fails to a **skip** with its reason, reported, not raised.
+
+**Discover.** The feature branch is guard 1's MR source branch. Find its
+worktree in `git worktree list --porcelain` (the entry whose `branch` is
+`refs/heads/{feature-branch}`). No entry → `absent`; nothing to retire.
+
+**Verify safe** (any miss → skip, worktree left untouched):
+
+- `git -C {wt} status --porcelain` non-empty → `dirty`. Uncommitted or
+  untracked work lives only there — the human decides its fate, not this
+  skill.
+- `git -C {wt} rev-list --count origin/master..HEAD` ≠ 0 → `unmerged`.
+  Commits the merge didn't carry (a stray fix, a post-MR commit) exist only
+  in that checkout.
+
+**Retire** (nothing in the compaction depends on it; it runs first only so
+`INDEX.md` records the real outcome):
+
+1. `git worktree remove {wt}` — **never `--force`**; force is exactly the
+   bypass the checks above exist to prevent. Refusal → skip
+   `remove_refused: {git's reason}`.
+2. `git branch -d {feature-branch}` — `-d`, never `-D`: merged-ness is proven,
+   so a refusal means that proof broke → skip `branch_kept: {reason}`, report
+   it (the worktree is already gone; the branch is the human's call).
+3. `git worktree prune` — drops registrations whose directory a human already
+   deleted by hand.
+
+Removing the directory also reclaims the worktree's private Maven repo;
+report the size measured before removal (`du -sh {wt}`).
+
+**Never**: the remote branch (the merge disposes of it, and deleting it is
+outward-facing), any worktree not on this feature's branch, and the fixer
+worktrees of the bug pipeline — those are `/afk:bug purge`'s.
+
 ## Process
 
-1. Run the guards. Enumerate the delete set (exact paths) + the keep set.
-2. **Propose → approve.** Show both lists and the recorded archive ref
-   (current `HEAD` short hash). No approval → stop, delete nothing.
-3. Delete, then update `INDEX.md`: rewrite rows whose artifact was deleted to
+1. Run the guards. Enumerate the delete set (exact paths) + the keep set, and
+   resolve the worktree (path, branch, size, safe-or-skip verdict).
+2. **Propose → approve, per item.** Show the two lists, the recorded archive
+   ref (current `HEAD` short hash), and the worktree to retire. The human may
+   approve either item alone. Neither approved → stop, delete nothing.
+3. Retire the worktree per the section above.
+4. Delete, then update `INDEX.md`: rewrite rows whose artifact was deleted to
    point at git history — `gc'd {YYYY-MM-DD}, ref {short-hash}` — and add one
    `> gc: compacted {YYYY-MM-DD} at {short-hash} — run artifacts live in git
-   history` line under the header. (Post-merge exception to per-skill row
-   ownership — the owning skills never touch their rows again after ship.)
-4. Commit the deletion (message: `afk-gc: {ticket-id} compact shipped spec
+   history` line under the header, suffixed `; worktree {dir} retired` when
+   step 3 removed it. (Post-merge exception to per-skill row ownership — the
+   owning skills never touch their rows again after ship.)
+5. Commit the deletion (message: `afk-gc: {ticket-id} compact shipped spec
    folder`) — the approval in step 2 covers this one commit. **Never pushes**;
    pushing stays the human's.
 
@@ -76,14 +128,19 @@ In plain terms: <one jargon-free sentence>
 
 | Status | Meaning |
 |---|---|
-| `success` | Delete set removed, `INDEX.md` updated, deletion committed; archive ref reported. |
-| `refused(not_shipped \| dirty_tree \| hands_off)` | A guard fired; nothing written. |
-| `aborted(no_approval)` | Human declined the proposal; nothing written. |
+| `success` | Every approved item done: delete set removed, `INDEX.md` updated, deletion committed, worktree retired; archive ref + worktree outcome reported. |
+| `refused(not_shipped \| dirty_tree \| hands_off \| inside_target_worktree)` | A guard fired; nothing written. |
+| `aborted(no_approval)` | Human declined both items; nothing written. |
+
+The headline names the worktree outcome — `retired` / `absent` /
+`skipped({dirty \| unmerged \| remove_refused \| branch_kept \| declined})` —
+and the plain-terms sentence says what the human still owns when it skipped.
 
 ## Boundary
 
 - **Post-merge only** — never part of the execute/preflight ladder; a feature
   in flight keeps its full plan/.
-- **Deletes only inside `{spec-folder}`** — never touches source, tests,
-  verification suites, or other tickets' folders.
-- **Never pushes, never touches the tracker.**
+- **Deletes only inside `{spec-folder}`** and the feature's own worktree —
+  never touches source, tests, verification suites, other tickets' folders, or
+  another branch's worktree.
+- **Never pushes, never deletes a remote branch, never touches the tracker.**

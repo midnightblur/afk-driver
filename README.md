@@ -792,15 +792,21 @@ tooling.)*
   / `tainted` / `env_unreachable`; reports land in `plan/review/`. Blocking
   findings route by class like review findings, under the gate's own 2-cycle
   remediation cap.
-- **`/afk:gc`** — post-merge spec compaction. After a feature's MR merges, run
+- **`/afk:gc`** — post-merge cleanup. After a feature's MR merges, run
   `/afk:gc {spec-folder}`: it proposes, and on approval deletes, the ticket
   folder's run artifacts — the whole `plan/` (subtask contracts, journal,
   review reports, ship snapshot), `GRILL-LOG.md`, publish intermediates —
   keeping the evergreen docs (PRD, SDD, ADRs, VERIFICATION-PLAN, PROTOTYPE,
   INDEX, understanding artifact). Git history is the archive; the ref to mine
-  is recorded in `INDEX.md`. Refuses before merge, on a dirty tree, and when
-  invoked hands-off. Keeps future repo greps clean — stale contracts and
-  settled findings stop surfacing as current truth.
+  is recorded in `INDEX.md`. Second, independent item: it **retires the
+  feature's dev worktree** — `git worktree remove` (never `--force`) plus the
+  local branch (`-d`, never `-D`) — but only after proving that checkout holds
+  nothing you'd lose (no uncommitted/untracked work, no commits missing from
+  `origin/master`); anything else skips with its reason, the compaction
+  unaffected. Remote branches and the bug pipeline's fixer worktrees are never
+  touched. Refuses before merge, on a dirty tree, when invoked hands-off, and
+  when run from inside the worktree it would remove. Keeps future repo greps
+  clean — stale contracts and settled findings stop surfacing as current truth.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
