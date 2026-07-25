@@ -947,6 +947,17 @@ any time, in any project.
   writes after approval. Does not grill requirements or emit ADRs.
 - **`/afk:handoff`** — compact the current conversation into a handoff doc for a
   fresh agent to pick up.
+- **`/afk:harvest`** — sweep the current session for lessons it taught and apply
+  them **before the session ends**. The manual counterpart to the chain's
+  automatic detection points: qualifies each correction/gotcha/established
+  pattern against the capture bar, skips what was already applied this run,
+  proposes one grouped round, then routes each approved edit through its owning
+  steward (`/afk:claude-md` for the CLAUDE.md tree, `/afk:glossary` for domain
+  terms, a delegated writer for a self-contained plugin edit) and records the
+  ledger events. Closes by naming what has to be reloaded for the edit to bind —
+  `/reload-plugins` for a plugin file, nothing for project memory. Interactive
+  only; writes no durable edit itself. **You invoke it — it never fires on its
+  own**, so it can't compete with `/afk:claude-md`'s auto-harvest.
 - **`interactive-walkthrough`** — embeddable HTML widgets for walking a human
   through a process interactively: notched flow slider (linear), branching
   simulator (decisions/forks), overlap gantt (concurrent lanes). Templates with
