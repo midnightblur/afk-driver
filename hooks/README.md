@@ -1,6 +1,20 @@
 # Harness gates
 
-Deterministic quality gates shipped with the afk plugin. Stop gates and the `lavish-dark.sh` PreToolUse hook are wired in `hooks/hooks.json`; `app-start-gate.sh` is on-demand. All gates run against the repo the session works in (`git rev-parse --show-toplevel`); the Maven/format gates no-op outside a core-services-shaped checkout (no `all-modules-pom.xml` at root ⇒ silent allow).
+Deterministic quality gates shipped with the afk plugin. Stop gates and the PreToolUse hooks (`lavish-dark.sh` plus the adopted harness guards below) are wired in `hooks/hooks.json`; `app-start-gate.sh` is on-demand. All gates run against the repo the session works in (`git rev-parse --show-toplevel`); the Maven/format gates no-op outside a core-services-shaped checkout (no `all-modules-pom.xml` at root ⇒ silent allow).
+
+**Adopted harness gates.** Four gates are registered here but live in
+`tools/payable/ai-agents/harness/hooks/` (their one home, shared with the
+`code-quality/` assets they read and the generated Codex layer that invokes the
+same scripts): `crowdstrike-guard.sh` + `explore-counter.sh` (PreToolUse) and
+`java-rules-gate.sh` + `i18n-parity-gate.sh` (Stop). `hooks.json` invokes them
+via `${CLAUDE_PROJECT_DIR}` (existence-guarded, so the plugin stays inert in a
+repo without them) rather than `${CLAUDE_PLUGIN_ROOT}` — directory-source
+plugins are snapshotted at install, and these gates must track the checkout,
+not the snapshot. Their escape hatch is the harness one: `.claude/.gate-disabled`
+(no `hooks/` segment). The standalone `payable-harness` plugin that used to
+carry them is retired (its `.claude-plugin/` manifests and `hooks/hooks.json`
+are deleted) — this plugin is the single registration surface; anyone still
+carrying an old `payable-harness` install should uninstall it.
 
 | Gate | Trigger | Blocks when | Typical cost |
 |---|---|---|---|
@@ -11,6 +25,10 @@ Deterministic quality gates shipped with the afk plugin. Stop gates and the `lav
 | `maven-compile-gate.sh` | Stop hook, changed `.java` | any changed submodule fails `compile` (reactor, `--also-make`) | 30s–3min |
 | `ui-lint-gate.sh` | Stop hook, changed `.js/.ts/.vue` | ESLint errors in changed files (nearest `.eslintrc.*` workspace) | ~10s |
 | `java-format-gate.sh` | Stop hook, changed `.java` | changed file not conformant to the repo-root `eclipse-code-formatter.xml` (STRICT: touched legacy file ⇒ reformat whole file via the Fix command it prints) | ~5s/module |
+| `…harness/hooks/java-rules-gate.sh` | Stop hook, changed `.java` | error-tier CSJ rule violation (standalone Checkstyle over changed files; rule table + severities: `tools/payable/ai-agents/harness/code-quality/RULES.md`; warning-tier findings print, never block; suppress a genuine exception with `// CSOK: <id> <reason>`) | ~5–15s |
+| `…harness/hooks/i18n-parity-gate.sh` | Stop hook, changed `**/i18n/<locale>/*.json` | a caption key **added** by this change to one locale is missing from a sibling locale (legacy drift ignored; checker: `harness/code-quality/i18n-parity.mjs`) | <5s |
+| `…harness/hooks/crowdstrike-guard.sh` | PreToolUse on Bash/PowerShell/Glob/Grep/lean-ctx | denies recursive walks of Windows system roots that trip CrowdStrike Falcon sensor-tamper alerts (rule: `harness/hooks/windows-safety.md`; debug bypass `CROWDSTRIKE_GUARD_OFF=1`) | <1s |
+| `…harness/hooks/explore-counter.sh` | PreToolUse on search-shaped tools (Grep/lean-ctx/IntelliJ search) | never blocks — tallies exploration calls per session and nudges delegation to an Explore agent at thresholds 3/6/10 | <1s |
 | `lavish-dark.sh` | PreToolUse hook on Bash/PowerShell, command is a `lavish-axi <file>` render | never blocks — forces dark mode on the artifact HTML before render (lavish-axi has no theme param): DaisyUI artifact ⇒ `data-theme="dark"` on `<html>`; otherwise ⇒ luminance-gated invert override; idempotent via marker comment; non-render subcommands and non-HTML args no-op | <1s (non-lavish commands: ~0s) |
 | `app-start-gate.sh` | on demand (NOT a Stop hook) | service fails to boot: `package --also-make` + `java -jar`, watches for `Started *Application` | 3–6min (`APP_START_REUSE=1` hit: ~0s) |
 | `mutation-probe.sh` | on demand (NOT a Stop hook) | never blocks — prints PIT mutation results (`ok` with survived/no-coverage mutants, or `unavailable`) for the review gate's test-strength signal | 2–15min |

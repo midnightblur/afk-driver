@@ -91,6 +91,18 @@ at first render. Authoring rules:
   (`window.lavish?.`) — the fallback below opens the same file with no
   server running, and the artifact must render and behave identically there.
 
+## Queue discipline (binding on every render point)
+
+One review = one queued prompt. Never queue per-item/per-click prompts — a
+long queue overflows the editor's queue panel (no scroll), hiding Send to
+Agent, and ending the session discards the whole queue (nothing persists
+server-side until `sendQueuedPrompts()`). Controls mark state locally in the
+page and persist marks to `localStorage` so they survive reload/session end;
+one send control composes a single compact summary of all marks and calls
+`window.lavish.queuePrompt(summary)` then `window.lavish.sendQueuedPrompts()`;
+pair it with a clipboard-copy control carrying the same summary as the
+out-of-band fallback.
+
 ## Fallback and forbidden operations
 
 **Human-present-only.** Rendering (and its blocking `poll`) is only ever

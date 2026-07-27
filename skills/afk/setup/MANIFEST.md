@@ -546,5 +546,6 @@ Each var is documented at its consumer — this table is just the map.
 | `MAVEN_LOCK_DIR` | `hooks/maven-lock.sh` | relocate the cross-gate maven lock dir |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `hooks/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
+| `CROWDSTRIKE_GUARD_OFF` | `harness/hooks/crowdstrike-guard.sh` (adopted gate — wired in this plugin's `hooks.json`) | debug bypass of the system-root scan guard |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |
 | `LESSON_LEDGER_FILE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | relocate the lesson ledger (default: main-checkout `.claude/lessons/LEDGER.jsonl`) |

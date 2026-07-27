@@ -15,10 +15,11 @@ Cutting across **both** modalities: a fixed set of **verification aspects** — 
 | Aspect | Trigger | Prove in |
 |--------|---------|----------|
 | **Role-based access** | always | UI **and** API |
-| **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data | UI **and** API |
+| **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data, or its UI consumes any dropdown/lookup/reference-data endpoint (including shared endpoints inherited from other surfaces) | UI **and** API |
 | **Input validation** | user input **or** a workflow is involved | UI **and** API |
 | **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
 | **Deep-link / URL-state sync** | feature adds or reads URL-synced UI state (grid filters, `?tab=`, share/copy-link) | UI |
+| **Accepted staples** | the PRD accepted staples from `{service}/STAPLES.md` | per staple's nature (usually UI) |
 | *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
 
 > The canonical miss this catches: an aspect proven in one modality but assumed in the other — e.g. role-based access enforced *below* the UI (backend `403`) but never *at* it (UI wide open).

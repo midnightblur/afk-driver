@@ -26,11 +26,23 @@ the feature adds or changes, drive the user through:
     (token minting per `11700-payable/verification/api/AUTHORING.md`).
   - **Data-scoped access** — a token/user scoped to one company/vendor gets
     only its rows; a cross-scope read is refused. Often `env-limited`
-    (needs scoped users).
+    (needs scoped users). Enumerate every dropdown/lookup/reference-data
+    endpoint the feature's UI consumes — including shared endpoints inherited
+    from other surfaces — and give each a scenario proving both role
+    authorization and company/vendor scoping with a non-full-access identity,
+    or a recorded N/A with the reason.
   - **Input validation** — a violating body returns the real rejection
     envelope (the contract's `400`/`422` shape), not a `500`.
   - **Envers audit** *(when the feature adds a new entity)* — after a write,
     the history/revisions surface returns the audited revision.
+- **New boundary over an existing pipeline** — when the endpoint wraps an
+  existing create/update pipeline in its own transaction boundary
+  (orchestrator / consume / bulk wrapper), re-prove the wrapped pipeline's
+  standard validation failures at the NEW surface: one negative scenario per
+  conditionally-required field absent, asserting the 4xx contract. A new
+  `@Transactional` boundary changes checked-exception rollback semantics — a
+  validation error that returned 400 at the old surface can surface as a 500
+  at the new one, so the wrapped pipeline's own scenarios don't cover it.
 - **Preconditions / data setup** — what must exist first (becomes the test's
   setup via `../core`).
 - **Env reachability** — same `env-limited` rule as UI (e.g. an endpoint that
