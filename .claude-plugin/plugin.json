@@ -43,6 +43,7 @@
     "./skills/utils/draw-charts",
     "./skills/utils/glossary",
     "./skills/utils/handoff",
+    "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-mr",

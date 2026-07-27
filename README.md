@@ -106,7 +106,8 @@ filename stem. `/afk:execute` parses these files and writes back progress. No
 subtask becomes a Jira issue.
 
 **④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
-into the parent ticket. `/afk:bug`'s publisher subagent is the pipeline's
+into the parent ticket and mints stub Enhancements for grill-deferred work
+(spinoff mode). `/afk:bug`'s publisher subagent is the pipeline's
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
 else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
@@ -347,7 +348,11 @@ sequenceDiagram
    for stakeholder review.
 5. **`/afk:grill-solution`** — top-down design interview across 9 layers (L1
    system topology → L8 tactical patterns); every non-trivial decision gets a
-   rationale and ≥2 weighed alternatives.
+   rationale and ≥2 weighed alternatives. Six aspects are **human-locked** —
+   entity design, API surface, authz + scoping, lifecycle + invariants,
+   irreversible/outward side effects, changes to existing behaviour — grilled to
+   a contract grade, packeted for your review, and **signed off by you** before
+   the design counts as done.
 6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs, and writes the parent ticket's `## SDD` pointer section.
 7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
@@ -613,7 +618,10 @@ Existing-file and non-Java seams keep grep-anchors — the fallback never goes a
   a standalone **meeting mode** (`scripts/publish_meeting.py`) — records a meeting
   on **any** ticket as a collapsible `Meeting Summaries` `expand`, idempotent per
   meeting (same title → update in place, new → newest first), in a region disjoint
-  from the PRD block; not part of the design chain.
+  from the PRD block; not part of the design chain. And a standalone **spinoff
+  mode** — mints a *new* stub Enhancement for work a grill deferred out of scope
+  (via the `jira_create` MCP tool; protocol in `SPINOFF-TICKET.md`), the one
+  create path `/afk:to-ticket` has; also outside the design chain.
 - **`/afk:to-subtasks`** — slices the PRD (+ SDD + ADRs when present) into the
   local `plan/`. **Cited mode** (SDD present) emits `## Design refs`, `## Seams`,
   typed `## Produces`/`## Consumes`, and a `## Conflict procedure` per subtask.
@@ -682,10 +690,19 @@ tooling.)*
   `/afk:grill-verification` (the screen its journeys trace to).
 - **`/afk:grill-solution`** — top-down design interview across 9 layers (L1
   topology → L8 tactical patterns); every non-trivial decision gets a rationale +
-  ≥2 alternatives. Produces **no** documents — feeds `/afk:to-sdd`.
+  ≥2 alternatives. The **human-locked set** (`HUMAN-SIGNOFF.md`) — HL-1 entity
+  design, HL-2 API surface, HL-3 authz + data scoping, HL-4 lifecycle +
+  invariants, HL-5 irreversible/outward side effects, HL-6 changes to existing
+  behaviour — is never the agent's or the executor's call: each live aspect is
+  grilled to a stated contract grade, presented as a review packet (tables
+  verbatim + alternatives + blast radius + risks), and **explicitly signed off by
+  you, by id**, into `GRILL-LOG.md`; a signature is void once the design moves.
+  Produces **no** documents — feeds `/afk:to-sdd`.
 - **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
   ADRs under `adr/design/`, **local only — does not touch the tracker**. Mandates
-  per-layer visualizations (Mermaid, tables) so reviewers can scan vertically.
+  per-layer visualizations (Mermaid, tables) so reviewers can scan vertically,
+  carries the sign-off register into §0, and refuses to publish while a
+  human-locked aspect is unsigned (or a section outruns what was signed).
 - **`/afk:to-design-brief`** — synthesizes PRD + SDD + ADRs into a tight 1-2 page
   `DESIGN-BRIEF.md` (one money-shot diagram, a decision digest, a
   stakeholder-impact table). **Repo-only**; shared with stakeholders out of band.
@@ -775,15 +792,21 @@ tooling.)*
   / `tainted` / `env_unreachable`; reports land in `plan/review/`. Blocking
   findings route by class like review findings, under the gate's own 2-cycle
   remediation cap.
-- **`/afk:gc`** — post-merge spec compaction. After a feature's MR merges, run
+- **`/afk:gc`** — post-merge cleanup. After a feature's MR merges, run
   `/afk:gc {spec-folder}`: it proposes, and on approval deletes, the ticket
   folder's run artifacts — the whole `plan/` (subtask contracts, journal,
   review reports, ship snapshot), `GRILL-LOG.md`, publish intermediates —
   keeping the evergreen docs (PRD, SDD, ADRs, VERIFICATION-PLAN, PROTOTYPE,
   INDEX, understanding artifact). Git history is the archive; the ref to mine
-  is recorded in `INDEX.md`. Refuses before merge, on a dirty tree, and when
-  invoked hands-off. Keeps future repo greps clean — stale contracts and
-  settled findings stop surfacing as current truth.
+  is recorded in `INDEX.md`. Second, independent item: it **retires the
+  feature's dev worktree** — `git worktree remove` (never `--force`) plus the
+  local branch (`-d`, never `-D`) — but only after proving that checkout holds
+  nothing you'd lose (no uncommitted/untracked work, no commits missing from
+  `origin/master`); anything else skips with its reason, the compaction
+  unaffected. Remote branches and the bug pipeline's fixer worktrees are never
+  touched. Refuses before merge, on a dirty tree, when invoked hands-off, and
+  when run from inside the worktree it would remove. Keeps future repo greps
+  clean — stale contracts and settled findings stop surfacing as current truth.
 - **`/afk:fix`** — thin orchestrator for fixing a verification-phase or reported
   bug: pulls ticket/repro context, delegates root-cause + regression test to
   `/afk:diagnose`, adds proportional `api`/`e2e` coverage, and — in a
@@ -924,6 +947,17 @@ any time, in any project.
   writes after approval. Does not grill requirements or emit ADRs.
 - **`/afk:handoff`** — compact the current conversation into a handoff doc for a
   fresh agent to pick up.
+- **`/afk:harvest`** — sweep the current session for lessons it taught and apply
+  them **before the session ends**. The manual counterpart to the chain's
+  automatic detection points: qualifies each correction/gotcha/established
+  pattern against the capture bar, skips what was already applied this run,
+  proposes one grouped round, then routes each approved edit through its owning
+  steward (`/afk:claude-md` for the CLAUDE.md tree, `/afk:glossary` for domain
+  terms, a delegated writer for a self-contained plugin edit) and records the
+  ledger events. Closes by naming what has to be reloaded for the edit to bind —
+  `/reload-plugins` for a plugin file, nothing for project memory. Interactive
+  only; writes no durable edit itself. **You invoke it — it never fires on its
+  own**, so it can't compete with `/afk:claude-md`'s auto-harvest.
 - **`interactive-walkthrough`** — embeddable HTML widgets for walking a human
   through a process interactively: notched flow slider (linear), branching
   simulator (decisions/forks), overlap gantt (concurrent lanes). Templates with
@@ -1030,9 +1064,11 @@ edits never collide:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, and `LAVISH.md` (the lavish-axi pin,
+`DELEGATION.md`, `FRESHNESS.md`, `LAVISH.md` (the lavish-axi pin,
 invocation shapes, render-point → playbook map, and fallback/forbid-list —
-render-point skills carry only a pointer to it).
+render-point skills carry only a pointer to it), and `SPINOFF-TICKET.md` (the
+spinoff protocol for capturing grill-deferred work as a tracked stub — grills
+carry only a pointer to it).
 
 **Parent ticket:** P2P-1220 (Jira). For contributor-facing internals (the
 lockstep contract, three-checkpoint enforcement, tracker boundary), see

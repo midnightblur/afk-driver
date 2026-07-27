@@ -50,6 +50,17 @@ Applying a ladder escalation (a retro proposed the next rung): append the new
 `opened` lesson at that rung and a `superseded` event (note = successor id) on
 the old one — per LEDGER-FORMAT.md's ladder rule.
 
+### Bind (closes every applied edit, whoever applied it)
+
+A durable edit that is not loaded is not in force. After any write, tell the
+human what it takes for that edit to bind:
+
+| Written | Binds |
+|---|---|
+| Plugin file (skill, checklist, doctrine, hook) | `/reload-plugins` — say so explicitly; until then the old text is what runs |
+| CLAUDE.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
+| Domain `GLOSSARY.md` | on next read; no action |
+
 ### `audit`
 
 Read-only hygiene report: malformed ledger lines, `applied` lessons whose

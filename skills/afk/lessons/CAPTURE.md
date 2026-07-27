@@ -34,8 +34,12 @@ as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
 |---|---|
 | Human present **and** target is CLAUDE.md / role sidecars / `.claude/rules` / `STAPLES.md` | Delegate to `/afk:claude-md` (its propose → approve → write). On approved write: append `opened` then `applied`. Declined: append `opened` then `rejected`. |
 | Human present **and** target is a domain `GLOSSARY.md` | Delegate to `/afk:glossary` — same handling. |
-| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | Append `opened` with the full draft. Plugin edits need `/afk:writing-great-skills` discipline plus lockstep/FRESHNESS obligations — applied in a dedicated `/afk:lessons apply` session, never mid-task. |
+| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | **Self-contained** → delegate to a writer subagent that loads `/afk:writing-great-skills`, makes the edit, and closes its FRESHNESS obligations; append `opened` then `applied`/`rejected`. Delegating keeps the invoking task's own context intact. **Not self-contained** → append `opened` alone; applied in a dedicated `/afk:lessons apply` session. |
 | No human (driven / hands-off) | Append `opened` with the full draft — the drafts surface at the ship gate's advisory row and via `/afk:lessons`. |
+
+**Self-contained** = one file, no `CLAUDE.md` "Lockstep" partner, no row in
+`FRESHNESS.md`'s registry. The bar exists because a half-written lockstep set
+ships a plugin that contradicts itself — worse than a lesson applied a day late.
 
 The detecting skill **never writes a durable edit itself** — eager application
 goes through the target's owning steward; the only thing a detection point
