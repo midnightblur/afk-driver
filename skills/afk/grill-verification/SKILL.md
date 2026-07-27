@@ -20,9 +20,12 @@ Cutting across **both** modalities: a fixed set of **verification aspects** — 
 | **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
 | **Deep-link / URL-state sync** | feature adds or reads URL-synced UI state (grid filters, `?tab=`, share/copy-link) | UI |
 | **Accepted staples** | the PRD accepted staples from `{service}/STAPLES.md` | per staple's nature (usually UI) |
+| **External-state gate recheck (TOCTOU)** | a gate's verdict depends on state owned by another system/service (org-structure lifecycle, holds, rates, permissions) | API (and UI where the guarded action is user-driven) |
 | *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
 
 > The canonical miss this catches: an aspect proven in one modality but assumed in the other — e.g. role-based access enforced *below* the UI (backend `403`) but never *at* it (UI wide open).
+>
+> A second canonical miss: the **time-of-check/time-of-use window** — a gate checked once at the earliest lifecycle point and never re-checked before the irreversible action it guards. For every external-state gate, walk: (1) at which lifecycle points the check re-runs; (2) what happens when the external state flips between a passing check and the irreversible action; (3) which scenario covers that window — or record the window as explicitly accepted.
 
 Role-based, data-scoped, and validation aspects trace to the PRD's **`## Access & validation policy`** matrix; the Envers aspect and the *mechanism* of role/scope enforcement come from the SDD (§5 L4 / §9b / §4 L3). An aspect becomes **real woven rows** in the UI/API tables below, plus a line in the `## Aspect coverage` ledger `/afk:to-verification-plan` writes — never designed in the abstract.
 
