@@ -1,6 +1,6 @@
 # code-quality — implementation-level smells
 
-The senior-review lens, line-by-line on the diff. Default `class: smell`; hardcoded secrets → `correctness`, severity `critical`. Baseline items follow PRECEDENCE.md (repo overrides → `pattern-debt`; hedge; skip linted territory).
+The senior-review lens, line-by-line on the diff. Default `class: smell`; hardcoded secrets → `correctness`, severity `critical`. Baseline items follow PRECEDENCE.md.
 **Not yours:** module shape (middle man, shotgun surgery, speculative generality, flag args) → `design-quality`; names vs domain glossary → `domain-alignment`; unbounded queries/N+1 → `resilience`; anything in test code → `test-veracity`.
 
 ## Reviewer checklist

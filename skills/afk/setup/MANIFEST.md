@@ -216,8 +216,7 @@ a token value — not even partially.
   `VirtualizationFirmwareEnabled: True`) — probe WSL before blaming BIOS/IT.
 - **Base fix:** `human:` from an **elevated** prompt:
   `wsl --install --no-distribution` (installs the WSL2 runtime + Virtual
-  Machine Platform; no Linux distro needed for Docker), then reboot — the
-  elevation stays with the human (the agent never elevates, as W5). Then
+  Machine Platform; no Linux distro needed for Docker), then reboot. Then
   `winget install --id Docker.DockerDesktop -e`, then raise the WSL2 memory
   ceiling in `~/.wslconfig` — the default cap wedges the engine under a full app
   env (all API calls 500); restart WSL after editing. If Docker still won't
@@ -432,7 +431,8 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
 Human tooling and machine settings, not skill dependencies — no skill invokes
 these, so entries here carry **only** base-tier fields and the default branch
 skips the section entirely. Probed and fixed under `/afk:setup base` alone; a
-miss is `missing/broken` there, never on a default run.
+miss is `missing/broken` there, never on a default run. Any fix marked
+**elevated prompt** stays with the human — the agent never elevates.
 
 ### W1 · Visual Studio Code
 - **Needed by:** the human (no skill invokes it).
@@ -474,16 +474,14 @@ miss is `missing/broken` there, never on a default run.
 - **Base fix:** `human:` from an **elevated** prompt:
   `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`,
   then (no elevation needed) `git config --global core.longpaths true` — the
-  git half is also offered by `skills/afk/setup/scripts/setup_secrets.py`; the
-  registry half always stays with the human (the agent never elevates).
-- **Notes:** registry half needs admin — the agent never elevates; re-probe
-  after. New processes pick the flag up without a reboot.
+  git half is also offered by `skills/afk/setup/scripts/setup_secrets.py`.
+- **Notes:** re-probe after. New processes pick the flag up without a reboot.
 
 ### W6 · hosts entry `127.0.0.1 proxy`
 - **Needed by:** local builds and any URL using the `proxy` hostname — it must
   resolve to the local machine or those URLs fail DNS.
 - **Base probe:** `grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?proxy([[:space:]]|$)' /c/Windows/System32/drivers/etc/hosts`
-- **Base fix:** `human:` from an **elevated** prompt (the agent never elevates):
+- **Base fix:** `human:` from an **elevated** prompt:
   `Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "127.0.0.1 proxy"`
   (PowerShell), then re-probe.
 - **Notes:** new processes pick the entry up immediately; a stale resolution

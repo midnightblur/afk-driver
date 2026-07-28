@@ -23,9 +23,8 @@ Staleness is prevented at write time, not discovered later:
 ## The safety net
 
 The rule can be missed; the catcher is **`/afk:setup audit`**
-(`skills/afk/setup/AUDIT.md`): structural consistency, dependency drift,
-pointer integrity, registry compliance. Run it after any batch of workflow
-edits and always before shipping plugin changes. The wiring gate
+(`skills/afk/setup/AUDIT.md` enumerates its checks). Run it after any batch of
+workflow edits and always before shipping plugin changes. The wiring gate
 (`hooks/wiring-gate.sh` + the `verify-seams` skill) complements it: freshness
 guards what *exists*, wiring guards what's *consumed*.
 
@@ -57,6 +56,9 @@ everyone else points.
 | `skills/afk/bug/SKILL.md` + `FIXER-PROMPT.md` + `RETEST-PROMPT.md` | `/afk:bug` | the subcommand set, the `BUGFIX:`/`RETEST:` result grammars, or the S1-S10 ledger machine's allowed edges change — update both prompt siblings + `LEDGER-FORMAT.md` in the same commit |
 | `skills/afk/bug/LEDGER-FORMAT.md` + `BUNDLE-FORMAT.md` + `CONFIG.md` | `/afk:bug` | the ledger schema/state machine, the bundle grammar, or the `afk.local.json` key set (K1-K4) changes — update `SKILL.md`'s pointers in step |
 | `skills/afk/bug/scripts/create-worktree` + `scripts/publish_bug.py` | `/afk:bug` | the `WORKTREE_PATH=`/`ERROR=` contract or the Jira create/transition/comment/backfill payloads change — update `SKILL.md` §`dispatch`/§`capture` in step |
+| `skills/afk/execute/scripts/` (`verify-contract.sh`, `plan-status.sh` + smoke tests) | `/afk:execute` | the `## Produces`/`## Consumes` bullet grammar or `[materialized]` marker (`skills/afk/to-subtasks/SUBTASK-CONTRACT.md`), the progress-tracker table shape (`PLAN-TEMPLATE.md`), or the status enum changes — scripts + `CITED-MODE.md`/`SKILL.md` invocations move in the same commit |
+| `skills/afk/to-subtasks/scripts/validate_plan.py` (+ smoke test) | `/afk:to-subtasks` | a mechanical validation rule (graph, anchor incl. its forbidden-token list, tier-mandate glob table, gate shape) changes — script is the owning home; `VALIDATION.md` carries only the residual judgment checks + exit-code contract |
+| `skills/afk/gc/scripts/gc-check.sh` (+ smoke test) | `/afk:gc` | a refusal guard, worktree verify-safe check, exit code, or the `AFK_DRIVEN` hands-off contract changes — update `SKILL.md`'s exit-code→action table in step |
 | `mcp-servers/jira/server.py` (Jira MCP server) | plugin author | the tool set, a tool's signature, or the env-var contract changes — update `skills/afk/setup/MANIFEST.md` H2/P3 in the same commit; registration stays user-scoped (key `jira`), never plugin-bundled (H2 Notes own the why) |
 | `scripts/jira_core.py` (shared Jira lib) | plugin author | creds resolution, ADF conversion, or attachment/media-UUID upload behavior changes — update both callers (`skills/afk/to-ticket/scripts/publish_prd.py`, `skills/afk/bug/scripts/publish_bug.py`) in the same commit |
 | `skills/afk/understand/SKILL.md` + `UNDERSTANDING-FORMAT.md` + `shell-template.html` + `scripts/fetch-mr.sh` | `/afk:understand` | the subject families / section model / predicates / quiz rules / **meta-header grammar** change — update the mission-control understanding parser (`skills/afk/mission-control/scripts/mc/sections/understanding.py`) in the same commit (lockstep pair); a journal event token is added/renamed — update `skills/afk/to-subtasks/JOURNAL-FORMAT.md` (writer row `understand`/subject `understanding`) same-commit; the skill dir is added/renamed/removed — update `plugin.json` skills array, `README.md` (§3 chain map, §7 artifact tree, §10 skill reference), `CLAUDE.md` skills catalog + journal writer list, and the marketplace description |

@@ -1,6 +1,6 @@
 ---
 name: gc
-description: Post-merge cleanup — deletes a shipped feature's run artifacts (plan/, grill logs, publish intermediates) from its ticket spec folder and retires its dev worktree + local branch, so future agent greps hit only current-truth docs; git history is the archive. Use via `/afk:gc {spec-folder}` after the feature's MR merged, never before.
+description: Post-merge cleanup — deletes a shipped feature's run artifacts (git history is the archive) and retires its dev worktree + local branch, keeping only evergreen docs. Use via /afk:gc {spec-folder} after the feature's MR merged, never before.
 ---
 
 # afk:gc — compact a shipped feature's spec folder, retire its worktree
@@ -22,23 +22,25 @@ read as current. Same trigger, same approval — retired here.
 `spec-folder` — the ticket's spec directory (the one holding `PRD.md` /
 `plan/`). Required; never guessed from context.
 
-## Refusal guards (all four, before proposing anything)
+## Guards & verify-safe — `scripts/gc-check.sh`
 
-1. **Shipped only.** `plan/PLAN.md`'s `Feature:` header must read
-   `complete (…)` **and** the feature's MR must be merged — verify live
-   (`glab mr view` state `merged`, or the feature branch tip is an ancestor of
-   `origin/master`). Anything else → refuse `refused(not_shipped)`, write
-   nothing. Keep the MR's **source branch** — the feature branch — for
-   worktree discovery below.
-2. **Clean tree.** Uncommitted changes under `{spec-folder}` → refuse
-   `refused(dirty_tree)`.
-3. **Interactive only.** Invoked hands-off (driven/autopilot) → refuse
-   `refused(hands_off)` — deletion always gets a human eye.
-4. **Not standing in the target.** cwd's checkout is on the feature branch —
-   it *is* that worktree → refuse `refused(inside_target_worktree)`: a
-   worktree can't remove
-   itself, and the compaction commit would land on the dead feature branch.
-   Re-run from the main checkout on an up-to-date `master`.
+Run first, from the main checkout, `origin/master` freshly fetched:
+
+```
+bash tools/payable/ai-agents/plugins/workflow/skills/afk/gc/scripts/gc-check.sh {spec-folder} [feature-branch]
+```
+
+Guard semantics, structured stdout, and exit codes live in the script's header
+comment (canonical). Route on exit code:
+
+| Exit | Verdict | Action |
+|---|---|---|
+| 0 | guards pass | proceed; stdout carries `FEATURE_BRANCH`, `ARCHIVE_REF`, and the worktree verdict (`safe` / `absent` / `dirty` / `unmerged(n)`) used below |
+| 1 | `refused(not_shipped)` | report, write nothing — feature not `complete (…)` or MR not proven merged |
+| 2 | `refused(dirty_tree)` | report, write nothing — uncommitted changes under `{spec-folder}` |
+| 3 | `refused(hands_off)` | report, write nothing — deletion always gets a human eye |
+| 4 | `refused(inside_target_worktree)` | report, write nothing — a worktree can't remove itself, and the compaction commit would land on the dead feature branch; re-run from the main checkout on an up-to-date `master` |
+| 5 / 6 | `error(usage \| branch_unresolved)` | not a refusal — fix the invocation (pass the feature branch explicitly) and re-run |
 
 ## What is deleted vs kept
 
@@ -60,27 +62,17 @@ unrecognized stays.
 
 ## Worktree retirement
 
-Second, independent item — never blocks the spec compaction; every check
-below fails to a **skip** with its reason, reported, not raised.
-
-**Discover.** The feature branch is guard 1's MR source branch. Find its
-worktree in `git worktree list --porcelain` (the entry whose `branch` is
-`refs/heads/{feature-branch}`). No entry → `absent`; nothing to retire.
-
-**Verify safe** (any miss → skip, worktree left untouched):
-
-- `git -C {wt} status --porcelain` non-empty → `dirty`. Uncommitted or
-  untracked work lives only there — the human decides its fate, not this
-  skill.
-- `git -C {wt} rev-list --count origin/master..HEAD` ≠ 0 → `unmerged`.
-  Commits the merge didn't carry (a stray fix, a post-MR commit) exist only
-  in that checkout.
+Second, independent item — never blocks the spec compaction. Discovery and
+verify-safe are `gc-check.sh`'s worktree verdict (above): retire only on
+`safe`; `absent` → nothing to retire; `dirty` / `unmerged` → skip with that
+reason, worktree left untouched — uncommitted or unmerged work exists only
+there, and its fate is the human's, not this skill's.
 
 **Retire** (nothing in the compaction depends on it; it runs first only so
 `INDEX.md` records the real outcome):
 
 1. `git worktree remove {wt}` — **never `--force`**; force is exactly the
-   bypass the checks above exist to prevent. Refusal → skip
+   bypass the verify-safe checks exist to prevent. Refusal → skip
    `remove_refused: {git's reason}`.
 2. `git branch -d {feature-branch}` — `-d`, never `-D`: merged-ness is proven,
    so a refusal means that proof broke → skip `branch_kept: {reason}`, report
@@ -89,7 +81,7 @@ worktree in `git worktree list --porcelain` (the entry whose `branch` is
    deleted by hand.
 
 Removing the directory also reclaims the worktree's private Maven repo;
-report the size measured before removal (`du -sh {wt}`).
+report the size (`WORKTREE_SIZE` from `gc-check.sh`).
 
 **Never**: the remote branch (the merge disposes of it, and deleting it is
 outward-facing), any worktree not on this feature's branch, and the fixer
@@ -97,10 +89,11 @@ worktrees of the bug pipeline — those are `/afk:bug purge`'s.
 
 ## Process
 
-1. Run the guards. Enumerate the delete set (exact paths) + the keep set, and
-   resolve the worktree (path, branch, size, safe-or-skip verdict).
+1. Run `scripts/gc-check.sh` (above); its stdout carries the worktree's path,
+   branch, size, and safe-or-skip verdict. Enumerate the delete set (exact
+   paths) + the keep set.
 2. **Propose → approve, per item.** Show the two lists, the recorded archive
-   ref (current `HEAD` short hash), and the worktree to retire. The human may
+   ref (`ARCHIVE_REF`), and the worktree to retire. The human may
    approve either item alone. Neither approved → stop, delete nothing.
 3. Retire the worktree per the section above.
 4. Delete, then update `INDEX.md`: rewrite rows whose artifact was deleted to

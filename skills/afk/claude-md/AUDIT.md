@@ -6,7 +6,7 @@ Manual. Scan project's CLAUDE.md / `.claude/rules` / shared layer; report + prop
 - Root = `git rev-parse --show-toplevel`, or cwd if not a repo.
 - Find within root only: `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `.claude/rules/**/*.md`,
   plus shared files referenced by `@import`.
-- Skip `node_modules`, `target`, `build`, `dist`, `.git`, vendor dirs. Honor `claudeMdExcludes`.
+- Skip `node_modules`, `target`, `build`, `dist`, `.git`, vendor dirs.
 - NEVER recurse from system roots (`C:\`, `C:\Windows`, `/`, `/c`). CrowdStrike guard.
   Use scoped tools (Glob under root, or ctx_tree/ctx_search with explicit path).
 

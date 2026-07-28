@@ -1,6 +1,6 @@
 ---
 name: settle-mr
-description: Review a GitLab MR and settle it through multi-round review→fix, the MR itself the ledger — by default auto-fixes your own MR round by round until nothing actionable remains; someone else's MR defaults to review-only with findings posted as inline discussions. Use when the user drops an MR URL or IID for review, wants an MR made ready, or asks to re-check an MR after fixes landed. For MRs outside the AFK chain; explanatory tours go to /afk:understand.
+description: Review a GitLab MR and settle it through the review settle loop, using the MR itself as the ledger. Use when the user drops an MR URL/IID for review, wants an MR made ready, or asks to re-check one after fixes landed. Outside the AFK chain; explanatory tours go to /afk:understand.
 ---
 
 # settle-mr — review a GitLab MR until it settles

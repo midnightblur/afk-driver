@@ -1,13 +1,13 @@
 ---
 name: review
-description: Independent multi-aspect review of a subtask slice or an integrated feature diff — fresh parallel reviewers, one book-derived checklist per concern, roster scaled by diff shape and settle-loop round, an adversarial verify pass on design-level findings, emitting a ranked findings report plus a verdict the caller gates on. Read-only. Use as the post-verification review gate, standalone via `/afk:review {NNNN-slug}`, or on a whole feature via `/afk:review --feature`.
+description: Independent read-only review of a subtask slice or feature diff — parallel per-concern reviewers rank findings into a clean/advisory/blocking verdict. Use as the post-verification gate before marking a subtask done, or standalone via /afk:review {NNNN-slug} or /afk:review --feature.
 ---
 
 # afk:review — independently check the implementor's work
 
 The implementor builds a subtask, gets every `## Verification` tier green, and is *about to* mark it `done`. Green tiers prove the code runs and the declared tests pass — they do **not** prove it honours the project's documented rules, covers everything the spec asked, or is free of things a senior engineer wouldn't ship. This skill is that second gate.
 
-It spawns **fresh subagents — one per concern, in parallel** — that see the diff, the contract, and the CLAUDE.md hierarchy, but **not** the implementor's reasoning. Independence is the point: the agent that wrote the code is the worst auditor of it. Strictly **read-only** — finds and ranks; never edits, commits, or fixes. The caller decides what to do with the verdict.
+One fresh subagent per concern, independent and strictly read-only (Hard rules below); the caller decides what to do with the verdict.
 
 Two entry points, same machinery:
 
@@ -36,7 +36,7 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 
 ## Concerns (11)
 
-One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: `checklists/PRECEDENCE.md` **plus** the concern's `checklists/{concern}.md`, both pasted **verbatim** (the subagent has no other access to them), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — the checklist files' one-owner exclusions prevent most of it; dedup handles the rest. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
+One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: `checklists/PRECEDENCE.md` pasted **verbatim**, **plus** the concern's `checklists/{concern}.md` pasted verbatim through the end of its `## Reviewer checklist` section — any trailing `## Guardrails` block excluded (its consumers are design-time, not reviewers; the subagent has no other access to these files) — the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — the checklist files' one-owner exclusions prevent most of it; dedup handles the rest. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
 
 Six implementation/conformance concerns run on every **full-unit** review. Four **design-level** concerns plus `refactor-safety` activate by diff-shape trigger (below) — reviewer count scales with what the slice actually introduces. **Delta rounds scale further** — the always-six consolidate into one sweep reviewer plus signal-activated specialists ("Delta-round roster" below).
 
@@ -82,7 +82,7 @@ The report header's activation line records the delta roster like any other run.
 
 ### Checklists
 
-One home per concern: `checklists/{concern}.md`, pasted verbatim into the reviewer's prompt together with `checklists/PRECEDENCE.md` (baseline precedence, the `pattern-debt` rule, one owner per smell, the mandatory open question). Each file states its default `class`, its escalations, and its "Not yours" exclusions. Design-level files also carry a `## Guardrails` digest for design-time consumers — reviewers work from the `## Reviewer checklist` section. The `test-veracity` file owns the sampled mutation-probe rule (gate mode only). `checklists/delta-sweep.md` is the delta-round consolidation reviewer's checklist — same mechanics, not one of the 11 concerns.
+One home per concern: `checklists/{concern}.md`, pasted into the reviewer's prompt (paste rule above) together with `checklists/PRECEDENCE.md` (baseline precedence, the `pattern-debt` rule, one owner per smell, the mandatory open question). Each file states its default `class`, its escalations, and its "Not yours" exclusions. Design-level files also carry a `## Guardrails` digest for design-time consumers. The `test-veracity` file owns the sampled mutation-probe rule (gate mode only). `checklists/delta-sweep.md` is the delta-round consolidation reviewer's checklist — same mechanics, not one of the 11 concerns.
 
 ## Findings contract
 
@@ -121,7 +121,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 
 ## Verify pass (design-level findings)
 
-Checklist-primed reviewers over-report, and design findings are the expensive-to-act-on ones — so they earn an adversarial check before they can gate. After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the CLAUDE.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
+After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the CLAUDE.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
 
 Severity rubric:
 
@@ -166,7 +166,7 @@ What the caller does with the verdict is the caller's policy; each blocking find
 - **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk:fix`) remediates.
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (rule text, failing input, unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
-- **Parallel fan-out, single message.** Spawn all active concern subagents at once; never sequential. The verify pass is a second single-message parallel wave.
+- **Verify pass fan-out.** The verify pass is a second single-message parallel wave.
 - **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run. **One carve-out:** the `test-veracity` concern's sampled mutation probe (its checklist owns the sampling rule) — it measures test *strength*, which no static read can, and fails open to "no signal".
 - **No new contract sections.** This skill only *reads* the plan; it owns no PLAN.md cell and no Implementation-Notes block. The caller records outcomes.
 

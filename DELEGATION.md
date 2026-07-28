@@ -1,6 +1,6 @@
 # Delegation protocol
 
-How AFK skills protect the orchestrating agent's context window. Binding on every skill. The orchestrator's context is the run's scarcest resource: any step that reads a lot but whose product is small runs in a subagent — orchestrator keeps the conclusion, never the inputs. Second dividend: a fresh child judges evidence without the run's accumulated bias.
+How AFK skills protect the orchestrating agent's context window. Binding on every skill. The orchestrator's context is the run's scarcest resource: any step that reads a lot but whose product is small runs in a subagent — orchestrator keeps the conclusion, never the inputs.
 
 ## Must-delegate triggers
 
@@ -24,7 +24,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 - **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
 - **Overlap the human's think-time.** In an interactive phase, spawn delegations in background **before yielding the turn** — grounding for the pending question's premises, pre-fill for an accumulating batch, the likely next question's verification — so digests land while the human reads and types. Nothing locks in before its digest returns; only the waiting moves.
 - **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit) and `afk-runner` (executes commands/suites, triages their output; writes only evidence files). Fall back to a general-purpose child only when it must edit project files. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
-- **Hand a child paths + a task, never content.** Anything the child can read itself is not pasted into its prompt.
+- **Hand a child paths + a task, never content** — nothing it can read itself.
 - **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. (Codex: requires the `max_depth` config from `codex-sync/config-fragment.toml`; at its default of 1, helper steps run inline — degraded, not broken.)
 - **Blind where the skill demands it.** A skill's information-diet rules (what the child must NOT see) override convenience; when a fresh perspective is the point, the child gets artifacts, never the run's reasoning.
 

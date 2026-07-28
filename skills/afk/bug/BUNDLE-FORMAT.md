@@ -85,13 +85,9 @@ file, while [C2] the on-screen count is correct.
 ## Facts
 - [C1] 41 rows shown, 40 rows in the CSV — see screenshots/grid-vs-csv.png
 - [C1] Unfiltered export is complete (100/100 rows)
-- [C2] The filtered row set is sliced before the writer sees it
 
 ## Reproduction
 1. Open the invoice grid, apply any filter yielding > 1 row.
 2. Export to CSV.
 3. Compare the last visible row against the file's last line.
-
-## Suspected cause
-- [C3] An exclusive upper bound in the filtered-range copy
 ```

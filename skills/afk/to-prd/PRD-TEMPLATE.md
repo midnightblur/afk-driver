@@ -7,12 +7,7 @@
 > - **Tables beat prose** for parallel structure. Reach for one at the third bullet of the same shape.
 > - **Reference by ID.** N items sharing a shape → ONE parameterized statement + catalog ref, not N clones.
 > - **An ADR is the home for its own rationale.** Where one exists, the PRD gives a one-line decision + link.
-> - **No padding.** State each thing once, plainly. No role-play quotes, no re-inverting Problem into
->   Solution, no meta-commentary about the sections. Drop any clause carrying no actionable fact.
-> - **Less is more — sacrifice grammar for concision.** Tighter is better: drop articles, filler, and
->   connective prose; write phrases and fragments, not full sentences, wherever meaning survives.
->   Precision and completeness are non-negotiable — a shorter PRD that loses a fact, boundary, or row
->   has failed. Compress the wording, never the content.
+> - Apply CLAUDE.md's Less-is-more doctrine — drop filler, keep every fact/boundary/row.
 >
 > Load-bearing on complex features: a rule/state/endpoint-heavy PRD triples when a set is stated as
 > stories AND acceptance criteria AND a catalog. State it once (the catalog); reference it elsewhere.

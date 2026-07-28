@@ -8,7 +8,7 @@ Takes PRD, SDD, per-decision ADRs; emits one `DESIGN-BRIEF.md` — a tight 1-2 p
 - **Technical stakeholders outside the implementing team** (security, ops, adjacent leads, reviewers): enough to grasp impact and ask the right questions without reading the full SDD.
 - **Humans pre-reading the SDD**.
 
-**Not** a third design document. A digest — every claim traces back to the PRD, SDD, or an ADR. Never introduces a new decision, alternative, or rationale.
+**Not** a third design document — a digest (see Hard rules).
 
 Do NOT interview. Brief section can't be filled from source docs → STOP, tell user to run `/afk:grill-solution` and re-emit the SDD; don't invent.
 
@@ -30,7 +30,7 @@ Do NOT interview. Brief section can't be filled from source docs → STOP, tell 
 
    Embed inline. Caption with one sentence stating the takeaway. **No more than one diagram.** If one diagram can't carry the shape, the SDD is the right artifact, not the brief.
 
-4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding diagram and tables. Draft runs long → compress; don't add sections. The brief is a **repo-only artifact** — it doesn't touch the Jira ticket: shared with stakeholders out of band (link the repo file, paste into a review thread), and the ticket description stays with its other owners (`## PRD` via `/afk:to-ticket`, `## SDD` via `/afk:to-sdd`). Human present → render per LAVISH.md (RP-5, playbook `slides`) for a digest-slides walkthrough before sharing; markdown fallback and driven mode use the written `DESIGN-BRIEF.md` instead.
+4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding diagram and tables. Draft runs long → compress; don't add sections. The brief is a **repo-only artifact** — it doesn't touch the Jira ticket: shared with stakeholders out of band (link the repo file, paste into a review thread); the ticket description's only other owner is the PRD-derived block via `/afk:to-ticket` — the SDD is disk-only, never published. Human present → render per LAVISH.md (RP-5, playbook `slides`) for a digest-slides walkthrough before sharing; markdown fallback and driven mode use the written `DESIGN-BRIEF.md` instead.
 
 5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 

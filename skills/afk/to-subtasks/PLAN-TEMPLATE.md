@@ -87,10 +87,13 @@ an `api` row traces to an SDD §3 row / PRD Acceptance Criterion and maps to a
 app and owns the Status column + the header `Feature:` line; the rows themselves
 are seeded here. An `env-limited` scenario (e.g. `@sap`, GL-post) carries that
 flag from `VERIFICATION-PLAN.md` — the gate excludes it from its green verdict.
+`Requires target` likewise carries over verbatim (`any` when the plan names no
+target class) — the gate records an incompatible-target row `target-mismatch`,
+never `pass`.
 
-| # | Scenario (integrated) | Modality | Traces to | Spec | Status |
-|---|-----------------------|----------|-----------|------|--------|
-| 1 | <journey in plain language> | ui-e2e | PRD User Story N | ui-e2e/features/<f>.feature ▸ "<scenario>" | pending |
-| 2 | <call → asserted envelope> | api | SDD §3 row "..." · PRD AC k | api/<f>.test.mjs ▸ "<test>" | pending |
-| 3 | <journey, env-gated> | ui-e2e | PRD User Story M | ui-e2e/features/<f>.feature ▸ "<scenario>" | env-limited |
+| # | Scenario (integrated) | Modality | Traces to | Spec | Requires target | Status |
+|---|-----------------------|----------|-----------|------|-----------------|--------|
+| 1 | <journey in plain language> | ui-e2e | PRD User Story N | ui-e2e/features/<f>.feature ▸ "<scenario>" | any | pending |
+| 2 | <call → asserted envelope> | api | SDD §3 row "..." · PRD AC k | api/<f>.test.mjs ▸ "<test>" | any | pending |
+| 3 | <journey, env-gated> | ui-e2e | PRD User Story M | ui-e2e/features/<f>.feature ▸ "<scenario>" | non-secure-context http origin | env-limited |
 ````

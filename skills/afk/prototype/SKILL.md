@@ -49,9 +49,9 @@ While diverging, each sketch needs only its primary flow drivable; the full capa
 
 A **conversation**, not a spec hand-off:
 
-1. The user reacts in plain language — "table's too dense", "move the actions to a sidebar", "I want the header from A with the list from B", "what if approvals were a modal?" — in chat, or pinned in the rendered session (element annotations, text selections, embedded feedback controls — delivered by `poll` per LAVISH.md). An element-pinned note beats prose when the screen has three tables; treat both channels as one conversation.
+1. The user reacts in plain language — "table's too dense" — in chat, or pinned in the rendered session (element annotations, text selections, embedded feedback controls — delivered by `poll` per LAVISH.md). An element-pinned note beats prose when the screen has three tables; treat both channels as one conversation.
 2. You **edit the HTML** to match; re-render per LAVISH.md (fallback: tell them to refresh).
-3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", "what's the empty state?", "what happens on reject?" — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may route back to `/afk:to-prd`.
+3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", etc. — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may route back to `/afk:to-prd`.
 
 Converge from divergence: once a direction wins, collapse to the single chosen mockup and polish *that* into the full simulation — every capability on Step 1's list drivable: state transitions, validation, empty/loading/error/success states, permission variants the stories imply, real density. A capability the user can't reach by clicking isn't demonstrated — build the interaction, not a caption describing it. Keep it throwaway-grade (no tests, no real mutations — point actions at inline stubs); fidelity is in the *look and the simulated behavior*, not working plumbing.
 

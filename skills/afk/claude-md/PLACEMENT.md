@@ -7,7 +7,8 @@ After picking the directory (steps below), ALSO route by audience — see "Audie
 1. Personal/uncommitted (sandbox URL, local creds)? → `CLAUDE.local.md` (gitignored).
 2. Applies to ALL your projects (personal pref)? → `~/.claude/CLAUDE.md`. (rare; flag — outside project scope)
 3. Cross-cutting working principle for this repo? → **in-repo per-directory note**
-   at the lowest common ancestor of the current checkout. Do NOT route out to `~/.claude/shared`.
+   at the lowest common ancestor of the current checkout. Do NOT route out to `~/.claude/shared`
+   (write boundary owned by SKILL.md's Safety section).
 4. About a *kind-of-file* regardless of location (every `*.repository.ts`, every migration, every
    `*.form.vue`)? → `.claude/rules/<topic>.md` with `paths:` glob.
 5. About one module/dir subtree? → that subdir's `CLAUDE.md`.
@@ -69,9 +70,3 @@ files:
   - `> **Diagnosing runtime behavior of this service? Read [DEBUG.md](DEBUG.md) first. Otherwise skip it.**`
 - A sidecar inherits its directory scope — dedup vs ancestor sidecars exactly like CLAUDE.md (lowest common ancestor).
 - HARVEST/AUDIT proposals must state the audience route alongside the placement rationale; AUDIT flags implementation-procedure content in a `CLAUDE.md` as a move candidate (`CLAUDE.md → IMPL.md`).
-
-## In-repo notes, not a shared layer
-Cross-cutting principles live as **in-repo per-directory notes**, NOT an out-of-repo
-`~/.claude/shared` `@import` layer. A note is written to the current checkout at the lowest common
-ancestor of what it steers; branch/feature/module-specific guidance goes in that directory's local
-`CLAUDE.md`. Write boundary owned by SKILL.md's Safety section — don't restate here.

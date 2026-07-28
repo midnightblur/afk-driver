@@ -29,7 +29,7 @@ higher-tier scenario (Phase 2 already homed it).
    | `dodged-failure` | The test's author hit a real failure while writing it and reshaped the input/steps to avoid it (payload diverges from the real client's shape; often an in-test comment admits it) | Restore the faithful interaction so the test goes red on the defect; the dodge is itself a reportable finding — the failure it hid was a bug at authoring time |
 
 3. **Act on the class — and revise Phase 2 if needed.** For `weak-assertion` /
-   `wrong-path` / `disabled`, prefer **fixing the existing scenario in place** over
+   `wrong-path` / `disabled/flaky`, prefer **fixing the existing scenario in place** over
    the new Phase 2 sibling (a redundant sibling asserting the same weak thing is
    gold-plating — drop it). Re-run that scenario **red-then-green** to prove it now
    catches this exact bug.

@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Adversarial execution verification of one subtask's slice against a LIVE app — designs attack scenarios from the contract and specs alone, never the diff or implementor tests, executes them, and returns a classed verdict with reproducible evidence. Use as an execution gate or standalone runtime probe, via `/afk:adversary {NNNN-slug} {app-base-url}`.
+description: Adversarial runtime probe of a subtask's live app — designs attack scenarios from the contract alone (never the diff or implementor tests), executes them, returns a classed clean/findings/tainted/env_unreachable verdict. Use as the execute Step 10.5 gate or standalone via /afk:adversary {NNNN-slug} {app-base-url}.
 ---
 
 # afk:adversary — prove the slice at runtime, blind to how it was built
@@ -42,7 +42,7 @@ ADVERSARY: <clean|findings|tainted|env_unreachable> — probed=<n> [crit=… hig
 In plain terms: <one jargon-free sentence — what the running app got wrong (or that it held up), and what it means for shipping>
 ```
 
-   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict states in plain terms that the session saw material it must not see and a fresh one is needed — the human should know the gate churned. Human present: render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
+   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict flags a diet breach — say so plainly. Human present: render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 

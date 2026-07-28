@@ -198,10 +198,6 @@ _Avoid_: no-mistakes (the upstream tool it derives from), pre-ship check (vague)
 **CI-babysit**:
 Preflight's tail — watching the pushed pipeline until green, auto-fixing only mechanical reds (format, config validations, merge-induced compile breaks, one flaky retry) within a bounded number of fix-push cycles; CI-only test failures and secret hits always escalate.
 
-**Drift audit**:
-The read-only `/afk:setup audit` pass that hunts staleness between the plugin's artifacts and reality — structural consistency, unregistered dependencies, dead pointers, registry compliance — and routes each finding to the file that must change.
-_Avoid_: doctor (that is the fix-the-machine branch, not this one)
-
 **Escape analysis**:
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).
 

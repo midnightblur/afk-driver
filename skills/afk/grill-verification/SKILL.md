@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interviews the user to design a feature's verification scenarios across two modalities — UI journeys (browser flows; need the PRD) and API scenarios (direct-REST contract checks; need the SDD). Use when the user runs `/afk:grill-verification` or wants to design or stress-test verification scenarios. Writes only its `GRILL-LOG.md` checkpoint section.
+description: Interviews the user to design a feature's verification scenarios — UI journeys (needs the PRD) and API scenarios (needs the SDD). Use when the user wants verification scenarios designed or stress-tested. Writes only its GRILL-LOG.md section.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user

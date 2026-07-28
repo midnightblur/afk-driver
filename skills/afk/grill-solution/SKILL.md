@@ -1,6 +1,6 @@
 ---
 name: grill-solution
-description: Interview the user relentlessly about the solution design top-down across 9 layers (L1 system topology -> L9 implementation seams), resolving each layer before descending. Use when user has a PRD and wants to design the system, get grilled on architecture, or mentions "grill-solution" / "architect-grill". Does NOT produce documents — pair with `/afk:to-sdd`.
+description: Grills the solution design top-down across L1–L9 (system topology to implementation seams), resolving each layer before descending. Use when a PRD exists and the user wants the architecture designed or grilled, or mentions grill-solution/architect-grill. Produces no documents — pair with /afk:to-sdd.
 ---
 
 Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer ones aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
@@ -79,8 +79,6 @@ For each layer L1 → L9:
 6. **Do not skip ahead.** If the user pulls toward L8 (the fun layer) before L3/L4/L6 are pinned, refuse: "Pin the datastore + sync-vs-async first — Strategy interface depends on whether it returns `T` or `Future<T>`."
 
 When the design crosses an external seam, run the checks in [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md).
-
-When a layer surfaces work that's real but out of this ticket's scope — a dependency blocking the design, an adjacent subsystem this feature won't touch — capture it as a **spinoff** per `SPINOFF-TICKET.md` (plugin root) rather than folding it into this design.
 
 When a layer surfaces work that's real but out of this ticket's scope — a dependency blocking the design, an adjacent subsystem this feature won't touch — capture it as a **spinoff** per `SPINOFF-TICKET.md` (plugin root) rather than folding it into this design.
 

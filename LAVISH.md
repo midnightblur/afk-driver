@@ -9,7 +9,7 @@ restate any of the below. This file names no caller skill.
 ## Pin and invocation
 
 **Pin: `lavish-axi@0.1.18`** — the only place this version string appears in
-the plugin. Bumping it is a one-line edit to this section only.
+the plugin.
 
 Chosen for the repo's dependency-age floor (exact pins, ≥30 days old):
 published 2026-05-27, 41 days old as of the 2026-07-07 seam verification

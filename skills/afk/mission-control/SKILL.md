@@ -60,8 +60,7 @@ before a ticket key is minted). Required.
 4. **Surface where to look.**
    - Watch mode: the renderer keeps running in the foreground (serving);
      report `http://127.0.0.1:{port}` for the user's browser. The process
-     lives only as long as its terminal session; this skill does not
-     background, detach, or daemonize it.
+     ends with its terminal (Boundary).
    - Retro mode: the renderer writes `{spec_dir}/plan/mission-control/index.html`
      and exits; report that path for the user to open via `file://`, and note
      its directory is gitignored (regenerate any time, never commit it —
@@ -69,10 +68,8 @@ before a ticket key is minted). Required.
 
 ## Watcher-crash recovery
 
-The watcher has exactly one recovery path: **relaunch this skill.** No
-daemonization, no process supervisor, no auto-restart (SDD §11 — "no
-daemonization/service-manager integration for the launcher; it lives as long
-as its terminal"). If the page stops updating or the served URL stops
+The watcher has exactly one recovery path: **relaunch this skill** (Boundary,
+"No daemonization"). If the page stops updating or the served URL stops
 responding, run `/afk:mission-control {spec-folder}` again; the re-render is a
 pure function of the current artifacts + digests, so nothing is lost.
 
@@ -84,11 +81,11 @@ pure function of the current artifacts + digests, so nothing is lost.
   page is never a second home for status).
 - **Build mode writes only `{spec_dir}/plan/digests/`** (digest files + the
   manifest). Watch/retro modes write only the gitignored render output.
-- **No daemonization.** Never background the watch-mode process past the
-  current session, register it as a service, or keep it alive after its
-  terminal closes. A crashed watcher is relaunched, not revived.
-- **Path fence is the renderer's, not this skill's, to relax.** An exit-2
-  path-fence rejection is reported as-is — never silently redirected to a
-  different directory.
+- **No daemonization** (SDD §11 — the launcher lives as long as its
+  terminal). Never background the watch-mode process past the current
+  session, register it as a service, or keep it alive after its terminal
+  closes. A crashed watcher is relaunched, not revived.
+- **Path fence is the renderer's, not this skill's, to relax** — an exit-2
+  rejection is handled per step 3, never worked around.
 
 [DIGEST-FORMAT.md]: DIGEST-FORMAT.md

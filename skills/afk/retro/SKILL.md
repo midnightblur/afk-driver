@@ -5,7 +5,7 @@ description: Cross-feature retrospective of the workflow itself — mines delive
 
 # afk:retro — make the workflow learn from its own exhaust
 
-Every run of the chain leaves structured exhaust: journal events, park reasons, review findings by class, adversary verdicts, remediation-cycle counts, gate latencies. Per-bug that exhaust is already consumed (escape analysis inside `/afk:fix`); nobody consumes it *across* features. This skill does: aggregates the exhaust of N delivered features into systemic signals — what the chain keeps getting wrong, where it stalls, what it costs — and turns the strongest into concrete, evidence-cited proposals to change the plugin. The systemic counterpart of the per-bug escape analysis.
+Every run of the chain leaves structured exhaust: journal events, park reasons, review findings by class, adversary verdicts, remediation-cycle counts, gate latencies. Per-bug that exhaust is already consumed (escape analysis inside `/afk:fix`); nobody consumes it *across* features. This skill does: aggregates the exhaust of N delivered features into systemic signals — what the chain keeps getting wrong, where it stalls, what it costs — and turns the strongest into concrete, evidence-cited proposals to change the plugin.
 
 **Read-only over everything it mines, including this plugin.** Writes exactly one artifact: its own retro report. Proposals are applied by a human (or a task the human cuts) — never by this skill.
 
@@ -26,7 +26,7 @@ Locate every in-scope feature with a `plan/` dir; skip those without one (nothin
 | `plan/review/PATTERN-DEBT.md` | baseline↔repo-pattern conflicts: criterion + overriding rule per row |
 | `plan/review/*-adversary.md` | adversary verdicts + finding classes |
 | `GRILL-LOG.md` | which decisions were settled at grill time (to correlate: did downstream failures trace to a gap a grill should have caught?) |
-| repo `.claude/metrics/gate-latency.jsonl` | gate p50/p95, red rates, `lock_wait_ms` share — summarize via `bash tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh` |
+| repo `.claude/metrics/gate-latency.jsonl` | per-gate runs / red count / p50 / p95 / max via `bash tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh` (aggregate percentiles only); dominant-component breakdown (`lock_wait_ms`, `package_ms`) by grepping those raw fields in the jsonl directly |
 | repo `.claude/wiring-ious.md` | open IOUs and their age (consumers that never arrived) |
 | main-checkout `.claude/lessons/LEDGER.jsonl` | per-lesson status trail (fold via `bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`; grammar: `skills/afk/lessons/LEDGER-FORMAT.md`): open-lesson age, `applied` lessons whose class/target recurs |
 
