@@ -1,6 +1,6 @@
 ---
 name: to-verification-plan
-description: Synthesizes settled verification scenarios into `VERIFICATION-PLAN.md` sibling to the PRD/SDD — UI journeys need the PRD, API scenarios the SDD (re-run post-SDD to append them). Use when the user runs `/afk:to-verification-plan` once scenarios are settled in conversation. Does not interview; local artifact only, no tracker.
+description: Synthesizes settled verification scenarios into VERIFICATION-PLAN.md beside the PRD/SDD; no interview, local only. Use on /afk:to-verification-plan once scenarios are settled.
 ---
 
 # afk:to-verification-plan — synthesize the verification plan

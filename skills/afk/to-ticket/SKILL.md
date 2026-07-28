@@ -1,6 +1,6 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — distilled to a requirements-level ticket description (User Stories + Acceptance Criteria mandatory), mermaid diagrams rendered and embedded; publish a meeting summary onto any ticket as a collapsible expand; or mint a stub Enhancement for deferred work a grill spun off out of scope. Use when `PRD.md` exists and the parent key is known, to record a meeting on a ticket, or to file a grill spinoff. Idempotent; the design chain's writer to the tracker.
+description: Publishes a finished PRD.md into its Jira parent as a requirements-level native-ADF ticket; also posts meeting summaries onto tickets and mints stub Enhancements for grill spinoffs. Use when PRD.md exists and the parent key is known.
 ---
 
 # afk:to-ticket — publish into the Jira ticket

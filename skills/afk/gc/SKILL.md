@@ -1,6 +1,6 @@
 ---
 name: gc
-description: Post-merge cleanup — deletes a shipped feature's run artifacts (git history is the archive) and retires its dev worktree + local branch, keeping only evergreen docs. Use via /afk:gc {spec-folder} after the feature's MR merged, never before.
+description: Post-merge cleanup — deletes a shipped feature's run artifacts and retires its worktree + local branch. Use via /afk:gc {spec-folder} only after the MR merged.
 ---
 
 # afk:gc — compact a shipped feature's spec folder, retire its worktree

@@ -1,6 +1,6 @@
 ---
 name: grill-requirements
-description: Grills a raw feature idea/plan against the domain glossary and staples registry before it becomes a PRD, updating GLOSSARY.md inline as terms crystallise. Use when the user has an idea or plan to stress-test, or terms to sharpen.
+description: Grills a raw feature idea against the domain glossary and staples before it becomes a PRD, updating GLOSSARY.md inline. Use to stress-test an idea/plan or sharpen terms.
 ---
 
 ## What to do

@@ -1,6 +1,6 @@
 ---
 name: execute
-description: Runs one subtask from an on-disk plan end-to-end — design, TDD, verification tiers, review + adversarial gates, commit, push, Draft-MR — stopping at CR/Merge. Use when the user runs /afk:execute {NNNN-slug} on the parent branch, or an invoker requests DRIVEN mode.
+description: Runs one plan subtask end-to-end — design, TDD, gates, commit, push, Draft-MR — stopping at CR/Merge. Use on /afk:execute {NNNN-slug}, or when an invoker requests DRIVEN mode.
 ---
 
 # afk:execute — run one subtask from the local plan

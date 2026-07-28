@@ -1,6 +1,6 @@
 ---
 name: to-design-brief
-description: Synthesize an existing PRD + SDD + ADRs into a tight 1-2 page DESIGN-BRIEF.md for technical stakeholders outside the team and humans pre-reading the SDD. Strict synthesis — no new decisions. Use when the user has a PRD + SDD and wants a digestible stakeholder briefing or a pre-SDD map.
+description: Synthesizes PRD + SDD + ADRs into a 1-2 page DESIGN-BRIEF.md for stakeholders outside the team; no new decisions. Use for a stakeholder briefing or pre-SDD map.
 ---
 
 Takes PRD, SDD, per-decision ADRs; emits one `DESIGN-BRIEF.md` — a tight 1-2 page synthesis aimed at:

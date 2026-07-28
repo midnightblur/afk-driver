@@ -1,6 +1,6 @@
 ---
 name: retro
-description: Cross-feature retrospective of the workflow itself — mines delivered plans' journals, review rollups, adversary reports, grill logs, park reasons, and the harness gate-latency metrics into systemic signals plus evidence-cited improvement proposals written as concrete plugin edits. Use when the user runs `/afk:retro` after features ship or on a periodic cadence.
+description: Cross-feature retrospective of the workflow itself — mines run artifacts into systemic signals and concrete plugin-edit proposals. Use on /afk:retro after features ship.
 ---
 
 # afk:retro — make the workflow learn from its own exhaust

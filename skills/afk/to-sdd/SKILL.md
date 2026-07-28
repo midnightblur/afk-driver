@@ -1,6 +1,6 @@
 ---
 name: to-sdd
-description: Turn the current conversation context into a Software Design Document (SDD) plus per-decision design ADRs, written next to the PRD. Use once the design decisions are settled in conversation and the user wants them materialized as artifacts. Does NOT interview — synthesizes what is already known. Local artifacts only — does not touch the issue tracker.
+description: Synthesizes settled design decisions into an SDD + design ADRs next to the PRD; no interview, local only. Use once design is settled and the user wants it materialized.
 ---
 
 From the conversation context, the PRD, and codebase understanding, produce:

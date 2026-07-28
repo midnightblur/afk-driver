@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Adversarial runtime probe of a subtask's live app — designs attack scenarios from the contract alone (never the diff or implementor tests), executes them, returns a classed clean/findings/tainted/env_unreachable verdict. Use as the execute Step 10.5 gate or standalone via /afk:adversary {NNNN-slug} {app-base-url}.
+description: Adversarial runtime probe of a subtask's live app, attacking from the contract alone. Use as the execute gate or via /afk:adversary {NNNN-slug} {app-base-url}.
 ---
 
 # afk:adversary — prove the slice at runtime, blind to how it was built

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Independent read-only review of a subtask slice or feature diff — parallel per-concern reviewers rank findings into a clean/advisory/blocking verdict. Use as the post-verification gate before marking a subtask done, or standalone via /afk:review {NNNN-slug} or /afk:review --feature.
+description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk:review {NNNN-slug} | --feature.
 ---
 
 # afk:review — independently check the implementor's work

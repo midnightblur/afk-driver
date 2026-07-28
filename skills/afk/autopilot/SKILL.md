@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Hands-off driver: walks a local plan subtask-by-subtask (fresh subagent each, failures parked with dependents) to a green feature smoke gate, chaining /afk:preflight on green. Use when the user runs /afk:autopilot on the parent branch with a local plan present.
+description: Hands-off driver — walks a local plan subtask-by-subtask to a green smoke gate, then chains /afk:preflight. Use when the user runs /afk:autopilot on the parent branch.
 ---
 
 # afk:autopilot — drive the whole plan hands-off

@@ -1,6 +1,6 @@
 ---
 name: claude-md
-description: Stewards CLAUDE.md, role sidecars (IMPL.md/TESTING.md/DEBUG.md), .claude/rules, and per-service STAPLES.md registries. Use when the user runs /claude-md, asks to create/update/audit/dedup project memory, register/advance a staple, or a durable learning (repeated correction, gotcha, established pattern) surfaces mid-session. Writes only after approval.
+description: Stewards CLAUDE.md, role sidecars, .claude/rules, and STAPLES.md. Use on /claude-md, for project-memory create/update/audit, staples, or when a durable learning surfaces mid-session.
 ---
 
 # claude-md — project-memory steward

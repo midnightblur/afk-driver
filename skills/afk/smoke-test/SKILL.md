@@ -1,6 +1,6 @@
 ---
 name: smoke-test
-description: Runs a feature's already-built verification suites (browser `ui-e2e` + direct-REST `api`) against a running app; only on green across both, stamps the feature complete in `PLAN.md`. Use when every subtask in a local plan is `done` and `PLAN.md` carries a smoke gate (full or minimal), or to re-verify feature sanity.
+description: Runs a feature's built verification suites (ui-e2e + api) against a running app; on green, stamps PLAN.md complete. Use when every subtask is done, or to re-verify feature sanity.
 ---
 
 # afk:smoke-test — the feature-level smoke gate

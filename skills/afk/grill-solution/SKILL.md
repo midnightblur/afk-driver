@@ -1,6 +1,6 @@
 ---
 name: grill-solution
-description: Grills the solution design top-down across L1–L9 (system topology to implementation seams), resolving each layer before descending. Use when a PRD exists and the user wants the architecture designed or grilled, or mentions grill-solution/architect-grill. Produces no documents — pair with /afk:to-sdd.
+description: Grills the solution design top-down L1–L9, one layer at a time. Use post-PRD to design or grill architecture ('grill-solution'/'architect-grill'). Pair with /afk:to-sdd.
 ---
 
 Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer ones aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).

@@ -1,6 +1,6 @@
 ---
 name: to-subtasks
-description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask; cited mode with an SDD, human-gated uncited without. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
+description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
 ---
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan

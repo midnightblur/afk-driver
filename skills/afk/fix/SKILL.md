@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Orchestrates fixing a verification-phase or reported bug — delegates root-cause and regression test to /afk:diagnose, adds proportional coverage, runs escape analysis, reconciles stale spec artifacts, and records a workflow lesson for AFK-delivered features. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
+description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
 # afk:fix — fix a bug and keep the source of truth true

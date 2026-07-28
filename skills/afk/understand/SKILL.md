@@ -1,6 +1,6 @@
 ---
 name: understand
-description: Generates one self-contained interactive HTML learning artifact for any code subject — a shipped feature (plan-dir), a GitLab MR (URL), or an existing code area (path:/symbol:) — objectives, dual-depth background, intuition, seam-ordered walkthrough with misconception callouts and per-group checks, recap, opt-in quiz. Use via `/afk:understand {subject}` when the user wants to learn, understand, or be walked through a feature, MR, or piece of code, or non-interactively with defaults at ship time.
+description: Generates an interactive HTML learning artifact for a shipped feature, a GitLab MR, or a code area. Use via /afk:understand {subject} when the user wants to learn or be walked through a feature, MR, or code.
 ---
 
 # afk:understand — the code-learning artifact

@@ -1,6 +1,6 @@
 ---
 name: mission-control
-description: Launch (or relaunch) the read-only mission-control dashboard for one feature's spec folder — watch mode for a live run, `--once` for a retroactive render, `build` to (re)build the LLM-authored design digests the page's design sections render from. Use when the user runs `/afk:mission-control {spec-folder} [build]`, asks to see the dashboard/progress for a feature, asks to refresh its design sections, or the watcher crashed.
+description: Read-only dashboard for a feature's spec folder (watch / --once / build). Use on /afk:mission-control, to see a feature's progress, or if the watcher crashed.
 ---
 
 # afk:mission-control — the feature dashboard

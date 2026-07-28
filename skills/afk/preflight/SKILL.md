@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: The feature-level ship gate — runs the PF-1..7 ladder (master merge, validations, integrated review settle, seam check, evidence, CI babysit) to flip a feature's Draft MR to Ready. Use when chained after a green smoke gate, or by hand to resume /afk:preflight {plan-dir} on a parked feature.
+description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk:preflight {plan-dir} on a parked feature.
 ---
 
 # afk:preflight — the feature-level ship gate

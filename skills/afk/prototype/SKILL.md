@@ -1,6 +1,6 @@
 ---
 name: prototype
-description: Interactively craft a feature's UI mockup as self-contained drivable HTML — every PRD capability simulated client-side, anchored to the real frontend's components and tokens. Use when the user runs `/afk:prototype`, or wants to craft or settle a feature's UI after the PRD exists and before the SDD locks decisions; self-gates `no_ui` for features with no net-new screens.
+description: Interactively craft a feature's UI mockup as self-contained drivable HTML anchored to the real frontend. Use on /afk:prototype after the PRD exists and before the SDD locks decisions.
 ---
 
 # afk:prototype — craft the UI, conversationally
