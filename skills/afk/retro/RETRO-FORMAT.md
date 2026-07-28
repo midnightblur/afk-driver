@@ -1,6 +1,6 @@
 # Retro report format — `RETRO-{YYYY-MM-DD}.md`
 
-Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior (the trail of retros is itself evidence of whether proposals worked).
+Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior (the trail of retros is itself evidence of whether proposals worked). Read `CONCISION.md` (plugin root) before writing; its bar applies throughout.
 
 ## Sections, in order
 

@@ -35,7 +35,7 @@ MUST NOT read: the slice diff, implementor's tests, review findings, any commit 
    - Otherwise `findings`, each: `class` (`correctness` | `spec` | `authz` | `robustness`), severity (`critical`/`high`/`medium`/`low`), the promise it breaks (citation), exact repro (request + actual vs expected response, or UI steps + observed state).
    - `env_unreachable` — the app at `{app-base-url}` can't be reached or provisioned, at start or mid-run, after the retry the caller's gate allows; report it instead of probing a dead instance.
 
-   Write the full report to `plan/review/{NNNN-slug}-adversary.md` (create `plan/review/` if missing; re-run overwrites — verdict line + journal carry history). Findings ranked most-severe first. End with:
+   Write the full report to `plan/review/{NNNN-slug}-adversary.md` (create `plan/review/` if missing; re-run overwrites — verdict line + journal carry history). Findings ranked most-severe first, prose per `CONCISION.md` (plugin root — read it before writing). End with:
 
 ```
 ADVERSARY: <clean|findings|tainted|env_unreachable> — probed=<n> [crit=… high=… med=… low=…] [report: <path>]

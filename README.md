@@ -748,11 +748,12 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `LAVISH.md` (the lavish-axi pin,
-invocation shapes, render-point → playbook map, and fallback/forbid-list —
-render-point skills carry only a pointer to it), and `SPINOFF-TICKET.md` (the
-spinoff protocol for capturing grill-deferred work as a tracked stub — grills
-carry only a pointer to it).
+`DELEGATION.md`, `FRESHNESS.md`, `CONCISION.md` (compact-artifact prose
+doctrine — writing skills carry only a pointer to it), `LAVISH.md` (the
+lavish-axi pin, invocation shapes, render-point → playbook map, and
+fallback/forbid-list — render-point skills carry only a pointer to it), and
+`SPINOFF-TICKET.md` (the spinoff protocol for capturing grill-deferred work as
+a tracked stub — grills carry only a pointer to it).
 
 **Parent ticket:** P2P-1220 (Jira). For contributor-facing internals (the
 lockstep contract, three-checkpoint enforcement, tracker boundary), see

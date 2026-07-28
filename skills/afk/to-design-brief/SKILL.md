@@ -30,7 +30,7 @@ Do NOT interview. Brief section can't be filled from source docs → STOP, tell 
 
    Embed inline. Caption with one sentence stating the takeaway. **No more than one diagram.** If one diagram can't carry the shape, the SDD is the right artifact, not the brief.
 
-4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding diagram and tables. Draft runs long → compress; don't add sections. The brief is a **repo-only artifact** — it doesn't touch the Jira ticket: shared with stakeholders out of band (link the repo file, paste into a review thread); the ticket description's only other owner is the PRD-derived block via `/afk:to-ticket` — the SDD is disk-only, never published. Human present → render per LAVISH.md (RP-5, playbook `slides`) for a digest-slides walkthrough before sharing; markdown fallback and driven mode use the written `DESIGN-BRIEF.md` instead.
+4. **Write the brief using the template below.** Hard length cap: 400-800 words excluding diagram and tables; read `CONCISION.md` (plugin root) first and apply it. Draft runs long → compress; don't add sections. The brief is a **repo-only artifact** — it doesn't touch the Jira ticket: shared with stakeholders out of band (link the repo file, paste into a review thread); the ticket description's only other owner is the PRD-derived block via `/afk:to-ticket` — the SDD is disk-only, never published. Human present → render per LAVISH.md (RP-5, playbook `slides`) for a digest-slides walkthrough before sharing; markdown fallback and driven mode use the written `DESIGN-BRIEF.md` instead.
 
 5. **Update the ticket index.** Upsert the `Design brief` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 

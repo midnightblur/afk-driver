@@ -16,7 +16,7 @@ Manual. Scan project's CLAUDE.md / `.claude/rules` / shared layer; report + prop
 2. **Contradiction** — parent vs child/rule conflict (parent: X; child: not-X) → flag + propose resolution.
 3. **Staleness** — verify referenced paths/commands/symbols still exist in code; flag dead hints.
    Flag volatile specifics (pinned versions, counts, dates, "current" dep lists) →
-   generalize to the durable rule (see STYLE.md "Stay generic").
+   generalize to the durable rule (`CONCISION.md` plugin root, "Stay generic").
 4. **Mechanical** — run `scripts/mechanical_check.py <root>`: size >200 lines, broken `@import` paths.
    Orphan shared files + dead file-refs = agent judgment (unreliable to script across repos).
 5. **Inclusion-bar sweep** — re-test each existing line vs the 4 gates; flag now-obvious / one-off /

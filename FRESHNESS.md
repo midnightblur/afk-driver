@@ -39,10 +39,11 @@ everyone else points.
 | `.claude-plugin/marketplace.json` | plugin author | the chain's shape changes (description) |
 | `CHANGELOG.md` | plugin author | a dev-visible feature/enhancement/behavior change ships — add its dated one-liner **in the same commit** (audience + exclusions self-documented in its header; internal refactors and wording sweeps get no entry) |
 | `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |
-| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move |
+| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move; renaming the "How to write these skill files" section also updates the pointer in `tools/payable/ai-agents/CLAUDE.md` |
 | `GLOSSARY.md` (root) | plugin author | a methodology term is minted, renamed, or retired |
 | `REPORTING.md` | plugin author | any status-line / notification protocol change |
 | `DELEGATION.md` | plugin author | any delegation-doctrine change |
+| `CONCISION.md` | plugin author | the artifact-prose doctrine (incl. its steering-notes section) or its exception list changes — the pointing emitters/templates and specialized bars (`PRD-TEMPLATE.md`, `REPORTING.md`) move in step |
 | `LAVISH.md` | plugin author | the pin bumps; a render point (RP row) is added/removed; a playbook id changes; the fallback/forbid rules change — update the woven skill(s) in step |
 | `SPINOFF-TICKET.md` | plugin author | the spinoff protocol changes (kind set, candidate-row fields, link-debt, dedup) — update the woven grills, `to-ticket` spinoff mode, and `GRILL-LOG-FORMAT.md`'s spinoff-row grammar in step |
 | `FRESHNESS.md` (this file) | plugin author | a new artifact class appears, or enforcement changes |

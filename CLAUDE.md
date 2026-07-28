@@ -28,6 +28,7 @@ These `SKILL.md` + sibling `.md` files are the program the agent runs — same e
 - **Less is more.** Cut every word carrying no fact the reader acts on. Sacrifice grammar for concision — drop articles, filler, connective prose; keep precision + completeness intact (a shorter file that loses a fact failed). No narration, motivation, "unlike X" cross-refs, or meta-commentary. State action + constraints, once.
 - **Minimal-first.** Start with the least instruction that can do the job; add detail only on observed failure, never preemptively. An over-specified instruction is a defect even when correct.
 - **Deterministic-first.** Mechanical work (validation, grep walks, table edits, format checks) goes in a script the skill invokes — never prose the agent re-derives per run.
+- **Compact artifacts.** Every markdown artifact a skill *writes at runtime* follows `CONCISION.md` (plugin root — the general bar plus a steering-notes section for the CLAUDE.md tree). Root docs are NOT auto-loaded at invocation, so each emitter/template carries an explicit *read-`CONCISION.md`-before-writing* instruction (never a restatement); specialized bars (status lines, glossary definitions, ticket bodies, PRD catalog mechanics) own only their deltas.
 
 ## Human followability (binding on every skill)
 
@@ -152,6 +153,7 @@ Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket desc
 - `skills/afk/CLAUDE.md` — how to invoke/extend mission control, preflight, and render points (the Mission Control, Preflight & Lavish adoption feature); same file also covers extending the `/afk:bug` pipeline (subcommands, lifecycle states, subagent prompts) and the `/afk:understand` artifact (format contract, shell template, dashboard panel).
 - `LAVISH.md` — one home for lavish-axi doctrine: exact pin, `npx` invocation shapes, render-point → playbook map, human-present-only + markdown-fallback rules, forbidden operations. Render-point skills carry only a pointer here.
 - `SPINOFF-TICKET.md` — one home for the spinoff protocol: capturing grill-deferred work as a tracked stub (candidate row → `/afk:to-ticket` spinoff-mode mint → link-debt → dedup). Grills carry only a pointer here.
+- `CONCISION.md` — one home for the compact-artifact prose doctrine every writing skill follows; emitters/templates carry only a pointer here.
 - `FRESHNESS.md` — same-commit rule + artifact registry keeping plugin artifacts fresh; `/afk:setup` is the dependency doctor (`skills/afk/setup/MANIFEST.md` register), `/afk:setup audit` the drift catcher.
 - `GLOSSARY.md` — workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts).
 - `REPORTING.md` — human-facing reporting protocol every status-emitting skill follows.

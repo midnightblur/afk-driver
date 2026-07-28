@@ -8,6 +8,8 @@ description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
 `plan/` is a **run artifact**: it lives from slicing to merge; after the
 feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
+Read `CONCISION.md` (plugin root) before emitting — its bar applies to
+everything written here.
 
 ```
 {TICKET-ID}/
