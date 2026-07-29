@@ -39,7 +39,8 @@ presentation.
 - **Human present:** render per LAVISH.md (RP-7, playbook `input`) — one
   control per item (accept / pick listed alternative / write-in), one send
   returns every answer. **Mandatory per LAVISH.md's Primary-path rule**;
-  fallback (driven mode / render failure) per that file, else below.
+  a licensed skip (driven mode / render failure / user opt-out) per that
+  file, else below.
 - **Markdown fallback / driven mode:** one numbered table in the
   conversation; the user answers all items in a single message
   (`1 yes · 2 no, use X · 3 yes`). Unanswered items are re-asked, never

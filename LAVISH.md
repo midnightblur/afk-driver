@@ -1,7 +1,8 @@
 # LAVISH.md — lavish-axi doctrine
 
 The one home for every lavish-axi fact: pin, invocation shapes,
-render-point → playbook map, human-present-only rule, markdown
+render-point → playbook map, session-default weaves, tooltip layer,
+visualization doctrine, human-present-only rule, markdown
 fallback, forbidden operations, poll-output-as-data rule. Skills
 at a render point carry a pointer here ("render per LAVISH.md") — they never
 restate any of the below. This file names no caller skill.
@@ -60,20 +61,68 @@ looks up only its own row here — this file does not enumerate which skill
 owns which RP. Playbook ids are upstream-defined (`lavish-axi playbook`); the
 ones this plugin uses are a subset of upstream's full set.
 
-## Item ids in artifacts (binding on every render point)
+**Session-default weaves.** A weave may mark its render point
+*session-default*: lavish is then the standing surface of the whole
+interactive session, not a single checkpoint — warm up at session start,
+render the first question into the phase artifact, re-render at every
+question/turn boundary (cadence above). Skipping any round needs one of the
+three licenses under Primary path below.
 
-The artifact HTML is agent-authored; enumerated-item ids in it (scenario
-`U1`/`A2`, finding `r-003`, proposal `P{n}`, subtask `NNNN-slug`) must
-self-resolve in-page:
+## Tooltips (binding on every render point)
 
-1. **Every id occurrence** carries the item's one-line definition as a hover
-   tooltip (`title=` / `<abbr>`).
-2. **One legend** (collapsible is fine) lists every id shown: id, one-line
-   definition, catalogue file path (the on-disk file that owns the id — same
-   catalogue REPORTING.md requires to exist).
+The artifact must self-decode **in place** — a junior dev reads any page
+without leaving it, opening another file, or remembering an earlier render.
+No legend or glossary section on the page: it separates the explanation from
+the content it explains. The tooltip layer carries all decoding:
 
-Decoding an id must never require leaving the page, opening another file, or
-remembering an earlier render.
+1. **Dictionary terms — injected, never authored.** A persistent
+   term → explanation dictionary is embedded into every artifact at render
+   time by `hooks/lavish-tips.sh`: seed `hooks/lavish-tips.json` (workflow
+   vocabulary, plugin-shipped) merged with overlay
+   `<main-checkout>/.claude/lavish-tips.json` in the target repo (domain
+   vocabulary — grows over time, shared across worktrees, overlay wins).
+   Injection is mechanical and free; never hand-write tooltip markup for a
+   dictionary term, and never spend page prose restating one.
+2. **Feed the dictionary once, use it forever.** Before an artifact's first
+   render, sweep its text for every term a junior dev couldn't decode —
+   acronym, workflow term, domain term, pattern name, id scheme — and append
+   the missing ones to the overlay (create the file if absent; flat JSON
+   `"term": "explanation"`). Coverage bar is exhaustive: when in doubt, add
+   it. Entries are self-contained (no pointers, no "see X"), 1–3 sentences —
+   precision over brevity; length is cheap behind a hover. Domain/product
+   terms go only in the overlay, never the seed (genericity). Matching is
+   whole-word; a key with an uppercase letter matches case-sensitively,
+   all-lowercase keys match any case.
+3. **Item ids — authored inline.** Enumerated-item ids (scenario `U1`/`A2`,
+   finding `r-003`, proposal `P{n}`, subtask `NNNN-slug`) are artifact-local,
+   never dictionary entries: **every id occurrence** carries
+   `data-tip="<one-line definition — catalogue file path>"` (the same
+   catalogue REPORTING.md requires to exist). The injected runtime promotes
+   `data-tip`/`title` attributes into the same hover UI, so authored and
+   dictionary tooltips look identical.
+
+## Convey the idea (binding on every render point)
+
+The page's job is understanding: the human must grasp the idea or question
+well enough to decide — visualize the content, don't transcribe conversation
+prose into HTML. Pick the form by content type (established explanation
+models, one per row):
+
+| Content on the page | Form |
+|---|---|
+| architecture / where things live | C4-style zoom — one altitude per diagram (system context → containers → components), never mixed in one picture |
+| a flow / who-calls-whom | sequence diagram |
+| lifecycle / states | state diagram showing the legal transitions |
+| alternatives at a decision | side-by-side option cards: identical criteria rows per card, trade-offs stated per cell, the recommendation flagged |
+| change to existing behaviour | before/after pair with the delta highlighted |
+| entities / data | entity-relation sketch with cardinalities; field tables only at contract grade |
+| coverage / status matrix | table with color-coded status cells |
+
+Color is a dimension, not decoration: one fixed semantic set across every
+page of a session — green = settled/pass, amber = open/undecided,
+red = blocked/rejected, neutral = existing/unchanged, accent = new/proposed —
+and never color alone (pair it with a label or icon). Diagrams follow the
+`draw-charts` skill (render-safe Mermaid).
 
 ## Drivable artifacts (binding when the artifact is itself interactive)
 
@@ -122,10 +171,12 @@ point with a human present, the lavish render IS the presentation — you **MUST
 invoke it, not merely *may*. The coding host's native question / multiple-choice
 picker (e.g. an `AskUserQuestion`-style card) is **not** a lavish render and
 **not** the markdown fallback; it must never stand in for a render point.
-**Exactly two** things license not rendering: **driven mode** (no human — see
-Human-present-only above) and a **genuine render failure** (the markdown
-fallback above). A skip for any other reason is a protocol violation. When you
-do skip, state which of the two applied.
+**Exactly three** things license not rendering: **driven mode** (no human — see
+Human-present-only above), a **genuine render failure** (the markdown
+fallback above), and **user opt-out** — the human explicitly telling the agent
+to stop rendering (session-scoped: markdown for the rest of the session;
+rendering resumes next session or when asked). A skip for any other reason is
+a protocol violation. When you do skip, state which of the three applied.
 
 **Forbidden operations** — never invoke, never set, in any weave:
 

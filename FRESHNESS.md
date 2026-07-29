@@ -44,7 +44,7 @@ everyone else points.
 | `REPORTING.md` | plugin author | any status-line / notification protocol change |
 | `DELEGATION.md` | plugin author | any delegation-doctrine change |
 | `CONCISION.md` | plugin author | the artifact-prose doctrine (incl. its steering-notes section) or its exception list changes — the pointing emitters/templates and specialized bars (`PRD-TEMPLATE.md`, `REPORTING.md`) move in step |
-| `LAVISH.md` | plugin author | the pin bumps; a render point (RP row) is added/removed; a playbook id changes; the fallback/forbid rules change — update the woven skill(s) in step |
+| `LAVISH.md` | plugin author | the pin bumps; a render point (RP row) is added/removed; a playbook id changes; the fallback/forbid/opt-out rules change — update the woven skill(s) in step; the tooltip-dictionary contract (paths, matching, injection) changes — `hooks/lavish-tips.sh` + `hooks/lavish-tips.json` + `hooks/README.md` move in step |
 | `SPINOFF-TICKET.md` | plugin author | the spinoff protocol changes (kind set, candidate-row fields, link-debt, dedup) — update the woven grills, `to-ticket` spinoff mode, and `GRILL-LOG-FORMAT.md`'s spinoff-row grammar in step |
 | `FRESHNESS.md` (this file) | plugin author | a new artifact class appears, or enforcement changes |
 | `skills/afk/setup/MANIFEST.md` | `/afk:setup` | any external-dependency change (rule 1) |
