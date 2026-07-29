@@ -121,11 +121,10 @@ def render_mermaid(source, out_png):
             subprocess.run(cmd, check=True, capture_output=True, text=True, shell=(os.name == "nt"))
             os.unlink(mmd)
             return out_png
-        except FileNotFoundError as e:
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            # shell=True on Windows turns a missing binary into a non-zero exit
+            # rather than FileNotFoundError, so every candidate must be tried.
             last = e
-        except subprocess.CalledProcessError as e:
-            last = e
-            break
     os.unlink(mmd)
     raise RuntimeError(
         "mermaid render failed. Install mermaid-cli (npm i -g @mermaid-js/mermaid-cli) "
