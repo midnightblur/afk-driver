@@ -1,6 +1,6 @@
 # code-quality — implementation-level smells
 
-The senior-review lens, line-by-line on the diff. Default `class: smell`; hardcoded secrets → `correctness`, severity `critical`. Baseline items follow PRECEDENCE.md (repo overrides → `pattern-debt`; hedge; skip linted territory).
+The senior-review lens, line-by-line on the diff. Default `class: smell`; hardcoded secrets → `correctness`, severity `critical`. Baseline items follow PRECEDENCE.md.
 **Not yours:** module shape (middle man, shotgun surgery, speculative generality, flag args) → `design-quality`; names vs domain glossary → `domain-alignment`; unbounded queries/N+1 → `resilience`; anything in test code → `test-veracity`.
 
 ## Reviewer checklist
@@ -28,6 +28,7 @@ Local hygiene:
 - **Deep nesting** (CC2) — new conditional nesting >3 levels → guard clauses, extraction, or a table-driven map.
 - **Hand-rolled library** (EJ-59) — reimplementing what the JDK or the repo's dependency set already provides (joins, retries, date math) → use the library.
 - **Comment deodorant** (Fowler) — new comment explaining *what* confusing code does, or repeating it → fix the code; keep only why/non-obvious comments. Never flag a comment's *presence*.
+- **Magic value without provenance** — a new numeric limit, fallback, or cap with no named constant and no comment citing the real constraint it derives from → name it and verify the actual limit it encodes (misattributed caps survive review otherwise). A user-configurable collection gets a validated max cap. Counter-calibration: a value used once and inherently fixed stays literal; evolving state (a status that merely happens to be X today) comes from data, never a constant.
 - **Debug artifacts** — `System.out`/`printStackTrace`, commented-out code, dead code, ownerless `TODO`/`FIXME` in the diff → delete.
 - **Hardcoded secrets/config** — credentials, tokens, host URLs, environment assumptions baked into code → config/secret store. This one is `class: correctness`, `critical`.
 

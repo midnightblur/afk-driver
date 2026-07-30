@@ -44,4 +44,10 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
    `11700-payable/verification/api/AUTHORING.md`) — exactly what `/afk:to-sdd` records in
    the §3 API contract table and what `/afk:grill-verification` later turns
    into assertable API scenarios; a hand-wave here leaves the endpoint
-   un-verifiable.
+   un-verifiable. When a decision migrates one status/signal to another at a
+   resolution seam, pin the **exact trigger** — which exception type or
+   null-return fires it, and which caller role can actually reach it (a
+   broad-access test role may bypass the guarded path entirely). "The ref is
+   unresolvable" conflates not-found (often a silent null) with access-denied
+   (the throwing path); a verification probe aimed at the unreachable half
+   asserts a contract that can never fire.

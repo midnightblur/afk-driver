@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interviews the user to design a feature's verification scenarios across two modalities — UI journeys (browser flows; need the PRD) and API scenarios (direct-REST contract checks; need the SDD). Use when the user runs `/afk:grill-verification` or wants to design or stress-test verification scenarios. Writes only its `GRILL-LOG.md` checkpoint section.
+description: Interviews the user to design a feature's verification scenarios — UI journeys (needs PRD) and API scenarios (needs SDD). Use to design or stress-test verification scenarios.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user
@@ -15,13 +15,17 @@ Cutting across **both** modalities: a fixed set of **verification aspects** — 
 | Aspect | Trigger | Prove in |
 |--------|---------|----------|
 | **Role-based access** | always | UI **and** API |
-| **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data | UI **and** API |
+| **Data-scoped access** (company / vendor) | feature reads/writes company- or vendor-scoped data, or its UI consumes any dropdown/lookup/reference-data endpoint (including shared endpoints inherited from other surfaces) | UI **and** API |
 | **Input validation** | user input **or** a workflow is involved | UI **and** API |
 | **Envers audit trail** | feature adds a new JPA entity / DB table | API (history/revisions surface) |
 | **Deep-link / URL-state sync** | feature adds or reads URL-synced UI state (grid filters, `?tab=`, share/copy-link) | UI |
+| **Accepted staples** | the PRD accepted staples from `{service}/STAPLES.md` | per staple's nature (usually UI) |
+| **External-state gate recheck (TOCTOU)** | a gate's verdict depends on state owned by another system/service (org-structure lifecycle, holds, rates, permissions) | API (and UI where the guarded action is user-driven) |
 | *situational* — concurrency, idempotency, pagination/sorting, state-machine transition guards, error-envelope shape | prompted; mark applies / N-A | per nature |
 
 > The canonical miss this catches: an aspect proven in one modality but assumed in the other — e.g. role-based access enforced *below* the UI (backend `403`) but never *at* it (UI wide open).
+>
+> A second canonical miss: the **time-of-check/time-of-use window** — a gate checked once at the earliest lifecycle point and never re-checked before the irreversible action it guards. For every external-state gate, walk: (1) at which lifecycle points the check re-runs; (2) what happens when the external state flips between a passing check and the irreversible action; (3) which scenario covers that window — or record the window as explicitly accepted.
 
 Role-based, data-scoped, and validation aspects trace to the PRD's **`## Access & validation policy`** matrix; the Envers aspect and the *mechanism* of role/scope enforcement come from the SDD (§5 L4 / §9b / §4 L3). An aspect becomes **real woven rows** in the UI/API tables below, plus a line in the `## Aspect coverage` ledger `/afk:to-verification-plan` writes — never designed in the abstract.
 
@@ -73,7 +77,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
 
 5. **Surface PRD/SDD gaps explicitly.** A primary output. When a walk exposes an ambiguous, missing, or contradictory detail, name it. Small → note it in conversation so `/afk:to-verification-plan` captures it in the plan's `## Gaps surfaced` section for the human to fold back. Load-bearing (scenario can't be designed without it) → **stop and route back**: a PRD gap to `/afk:grill-requirements` + `/afk:to-prd`; a technical / endpoint gap to `/afk:grill-solution` + `/afk:to-sdd`.
 
-6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. When a human is present, render per LAVISH.md (RP-3, playbook `table`) for the journey/scenario matrix recap — **mandatory per LAVISH.md's Primary-path rule**; fallback (driven mode / render failure) per that file, else the prose recap above.
+6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-3, playbook `table`): the journey/scenario matrix renders from the first walked journey and re-renders as rows settle, ending in this recap — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to the prose recap above.
 
 ## Hard rules
 

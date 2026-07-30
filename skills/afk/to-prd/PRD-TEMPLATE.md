@@ -1,22 +1,14 @@
 
-> **Concision doctrine — apply to every section.** Precise capture is non-negotiable; word count is.
-> Both come from **one fact, one home**: each fact (rule semantics, state meaning, endpoint contract,
-> decision rationale) is stated in exactly ONE place; elsewhere reference it by stable ID.
-> - **Enumerable domain data** (parallel things: rules, states, roles, value types, endpoints) → a
->   **catalog table**, one column per attribute. That table is its home — never re-narrate rows as prose.
-> - **Tables beat prose** for parallel structure. Reach for one at the third bullet of the same shape.
-> - **Reference by ID.** N items sharing a shape → ONE parameterized statement + catalog ref, not N clones.
+> **Concision doctrine — read `CONCISION.md` (plugin root) first; apply both to every section.**
+> Precise capture is non-negotiable; word count is. PRD-specific mechanics:
+> - **Catalog table** for enumerable domain data (parallel things: rules, states, roles, value types,
+>   endpoints): one column per attribute + a stable ID column. The table is that data's home — never
+>   re-narrate rows as prose; Stories/Criteria/Decisions reference rows by ID, not N clones.
 > - **An ADR is the home for its own rationale.** Where one exists, the PRD gives a one-line decision + link.
-> - **No padding.** State each thing once, plainly. No role-play quotes, no re-inverting Problem into
->   Solution, no meta-commentary about the sections. Drop any clause carrying no actionable fact.
-> - **Less is more — sacrifice grammar for concision.** Tighter is better: drop articles, filler, and
->   connective prose; write phrases and fragments, not full sentences, wherever meaning survives.
->   Precision and completeness are non-negotiable — a shorter PRD that loses a fact, boundary, or row
->   has failed. Compress the wording, never the content.
 >
 > Load-bearing on complex features: a rule/state/endpoint-heavy PRD triples when a set is stated as
-> stories AND acceptance criteria AND a catalog. State it once (the catalog); reference it elsewhere.
-> Precision is preserved because the catalog columns carry the exact per-item data.
+> stories AND acceptance criteria AND a catalog. State it once (the catalog); the catalog columns carry
+> the exact per-item data, so precision survives.
 
 ## Problem Statement
 

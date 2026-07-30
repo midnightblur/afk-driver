@@ -69,7 +69,7 @@ field meanings: `SPINOFF-TICKET.md`, plugin root). One row per spinoff, under
 the recording grill's own section:
 
 ```
-{kind} · {summary} → {status} — links: {rel} {target}, …
+{kind} · {summary} → {status} — pain: {one sentence} · why-out: {one clause} — links: {rel} {target}, …
 ```
 
 `kind` = deferred | adjacent · `status` = candidate | filed {KEY} |

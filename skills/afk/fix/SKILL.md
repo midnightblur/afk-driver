@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Orchestrates fixing a verification-phase or reported bug — delegates root-cause and regression test to /afk:diagnose, adds proportional coverage, runs escape analysis, reconciles stale spec artifacts, and records a workflow lesson for AFK-delivered features. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
+description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
 # afk:fix — fix a bug and keep the source of truth true
@@ -49,9 +49,9 @@ Tiers are the standard set: `static → unit → integration → api → e2e/bro
 
 **Verify:** re-run diagnose's loop plus every tier you added/touched — all green before proceeding. Remove all `[DEBUG-...]` instrumentation (grep the prefix).
 
-## Phase 2.5 — Escape analysis (standing-suite-tier bugs only)
+## Phase 2.5 — Escape analysis
 
-For a user-visible (`e2e/browser`) or backend-contract (`api`) bug, interrogate why the existing guard missed it and name the miss class — full procedure and miss-class table in [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md). Skip a pure unit/logic bug that never had a higher-tier scenario. Carry the miss class into Phase 4's report.
+Interrogate why the existing guard missed the bug and name the miss class — procedure + applicability: [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md). Carry the miss class into Phase 4's report.
 
 ## Phase 3 — Reconcile the source of truth (feature sessions only)
 
@@ -67,9 +67,9 @@ A fix on an unreleased feature can invalidate a load-bearing artifact. Triage wh
 
 Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. Can't reach truth this session → record the divergence and report `needs_artifact_sync`.
 
-## Phase 3.5 — Workflow feedback (AFK-delivered features only)
+## Phase 3.5 — Workflow feedback
 
-When the feature was built with AFK assistance (Phase 0 signals: AFK branch + `plan/PLAN.md`), trace the miss to the AFK stage that under-specified the guard and **record** a structured workflow lesson in the lesson ledger (never self-applied) — full stage-mapping table, lesson payload, procedure in [WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). Ad-hoc/maintenance bugs have no AFK workflow to improve → skip. Report the lesson id in Phase 4.
+Trace the miss to the AFK stage that under-specified the guard and **record** a structured workflow lesson in the lesson ledger (never self-applied) — procedure + applicability: [WORKFLOW-FEEDBACK.md](WORKFLOW-FEEDBACK.md). Report the lesson id in Phase 4.
 
 ## Phase 4 — Report
 

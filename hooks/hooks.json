@@ -20,6 +20,33 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-dark.sh\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-tips.sh\"",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Glob|Grep|mcp__lean-ctx__ctx_search|mcp__lean-ctx__ctx_tree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/crowdstrike-guard.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "timeout": 15,
+            "statusMessage": "crowdstrike-guard: checking for system-root recursive scan"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|mcp__lean-ctx__ctx_search|mcp__lean-ctx__ctx_semantic_search|mcp__intellij__search_in_files_by_regex|mcp__intellij__search_in_files_by_text|mcp__intellij__search_text|mcp__intellij__search_regex",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/explore-counter.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "timeout": 15,
+            "statusMessage": "explore-counter: tallying search calls"
           }
         ]
       }
@@ -69,6 +96,18 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/java-format-gate.sh\"",
             "timeout": 600,
             "statusMessage": "Java format gate..."
+          },
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/java-rules-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "timeout": 300,
+            "statusMessage": "java-rules-gate: checking changed .java against the CSJ rules"
+          },
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/i18n-parity-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "timeout": 60,
+            "statusMessage": "i18n-parity-gate: checking added caption keys across locales"
           }
         ]
       }

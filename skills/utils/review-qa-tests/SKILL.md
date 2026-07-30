@@ -1,11 +1,6 @@
 ---
 name: review-qa-tests
-description: >
-  Review a QA team's manual test cases for coverage and quality against the
-  feature's requirements, then annotate their sheet in place. Use when the user
-  shares a QA test-case / test-scenario spreadsheet and wants feedback, coverage
-  gaps found, weak cases sharpened, or missing cases added. Writes new cases as
-  rows and enhancements as threaded comments — all at requirements/behaviour level.
+description: Review a QA team's manual test cases against a feature's requirements and annotate their sheet in place — missing scenarios as new rows, fixes as threaded comments. Use when the user shares a QA test-case spreadsheet wanting coverage gaps found or weak cases sharpened.
 ---
 
 # review-qa-tests

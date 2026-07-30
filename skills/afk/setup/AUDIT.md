@@ -5,7 +5,7 @@ findings routed to the file that must change. The sweeps are repo-wide grep/read
 work: delegate to fresh subagents per `DELEGATION.md` (plugin root), keep only
 the digests.
 
-Run all five checks; report even when clean.
+Run all six checks; report even when clean.
 
 ## 1 · Structural consistency
 
@@ -68,6 +68,11 @@ listed canonical source changed without regeneration). Provider-independent:
 runs whether or not Codex CLI is installed; it audits repo artifacts, not the
 machine. Also spot-check that `hooks/lib/provider.sh` and the harness plugin's
 synced copy are byte-identical (the same `--check` covers it).
+
+## 6 · Glossary term usage
+
+Every `**Term**:` heading in the plugin-root `GLOSSARY.md` must have ≥1 consumer
+file using the term (grep the plugin); a zero-hit term → finding (route: `GLOSSARY.md`).
 
 ## Report
 

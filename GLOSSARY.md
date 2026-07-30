@@ -72,6 +72,10 @@ _Avoid_: prerequisites list (scattered inline — the failure the manifest retir
 **Freshness registry**:
 The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs.
 
+**Tooltip dictionary**:
+The persistent term → explanation map every lavish artifact inherits — plugin seed `hooks/lavish-tips.json` (workflow vocabulary) merged with the target repo's main-checkout overlay `.claude/lavish-tips.json` (domain vocabulary, grows over time). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is appending missing entries once. Doctrine: `LAVISH.md` "Tooltips".
+_Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
+
 **Grill triage (debate / confirm)**:
 The classification every grill question gets before it's asked (rule: `skills/afk/grill-requirements/TRIAGE.md`): *debate* — alternatives worth weighing, asked one at a time; *confirm* — a safe default the user accepts or overrides, batched at the section/layer boundary into one answer round. An overridden confirm escalates to debate.
 _Avoid_: quick questions (vague), survey (implies no escalation path)
@@ -197,10 +201,6 @@ _Avoid_: no-mistakes (the upstream tool it derives from), pre-ship check (vague)
 
 **CI-babysit**:
 Preflight's tail — watching the pushed pipeline until green, auto-fixing only mechanical reds (format, config validations, merge-induced compile breaks, one flaky retry) within a bounded number of fix-push cycles; CI-only test failures and secret hits always escalate.
-
-**Drift audit**:
-The read-only `/afk:setup audit` pass that hunts staleness between the plugin's artifacts and reality — structural consistency, unregistered dependencies, dead pointers, registry compliance — and routes each finding to the file that must change.
-_Avoid_: doctor (that is the fix-the-machine branch, not this one)
 
 **Escape analysis**:
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).

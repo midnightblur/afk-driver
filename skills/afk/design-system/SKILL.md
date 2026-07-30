@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Mirrors a service's live frontend into a team-shareable `claude.ai/design` catalog — real design tokens plus archetype-complete standalone HTML cards, fidelity-checked against the running app. Per-service setup, not per-feature. Use on `/afk:design-system`, to seed a new service's catalog, or to refresh after token/component drift.
+description: Mirrors a service's live frontend into a team-shareable claude.ai/design catalog. Use on /afk:design-system to seed a service's catalog or refresh after token/component drift.
 ---
 
 # afk:design-system — mirror a service's live UI into a shared catalog
@@ -41,7 +41,7 @@ Aim for a few dozen cards covering *everywhere reachable* by pattern, not a card
 Two passes, both required:
 
 - **Code pass.** Enumerate the reachable UI — routes, pages, components, layouts — enough to see the archetypes (parallel `Explore` agents help on a large app). Identify the **framework + component library** (Quasar/Vue, MUI/React, Material/Angular, …) and **where the real design tokens live** — the theme config / SCSS variables / CSS custom properties / Tailwind config the app actually compiles. That file, not anything you compute, is ground truth for token *values*.
-- **Live pass.** Open `live_url` in a real browser (the `/run` or `verify` skill, Playwright, or a screenshot tool) and **walk the reachable screens** — signature screen, each page archetype, app shell, dense components. Capture screenshots. Here you see what the *running* app looks like, including whatever a shared/3rd-party component kit renders that never appears in local CSS. No `live_url` → see Arguments.
+- **Live pass.** Open `live_url` in a real browser (Playwright/browser MCP, or a screenshot tool) and **walk the reachable screens** — signature screen, each page archetype, app shell, dense components. Capture screenshots. Here you see what the *running* app looks like, including whatever a shared/3rd-party component kit renders that never appears in local CSS. No `live_url` → see Arguments.
 
 When the passes disagree, resolve per Boundary ("live render wins").
 
@@ -65,13 +65,11 @@ The marker's `group` buckets cards (Foundations · Form controls · Actions · D
 
 Authoring a few dozen cards is parallel work: hand each builder agent an **identical "KIT"** — verified tokens, conventions (Step 5's findings), boilerplate — so independently-authored cards stay consistent instead of each agent re-deriving (and diverging on) the same hex. Spawn mechanics + each builder's return contract follow `DELEGATION.md` (plugin root).
 
-**Fidelity check — compare each card to the LIVE app, side by side.** Reference is **a screenshot of the real running screen at `live_url`**, not the card's own render, not the framework's static CSS. Per high-risk card: screenshot the matching live screen (from Step 1's live pass, or navigate now), screenshot the card, **diff by eye** — header heights, control density, spacing, exact fill/underline/tooltip treatment, how a shared component kit paints. Fix the card to the live pixel, re-shoot. A card never put next to the live app is **not verified — say so on it.**
-
-Typical catches (hypothetical): inputs using an *underline* variant where the card guessed filled; validation errors as a tooltip instead of an inline message; a framework default (e.g. uppercased button labels) the app opts out of per-component. None reliably visible from stylesheet source alone.
+**Fidelity check — compare each card to the LIVE app, side by side.** Reference is **a screenshot of the real running screen at `live_url`**, not the card's own render, not the framework's static CSS. Per high-risk card: screenshot the matching live screen (from Step 1's live pass, or navigate now), screenshot the card, **diff by eye** — header heights, control density, spacing, exact fill/underline/tooltip treatment, how a shared component kit paints. Fix the card to the live pixel, re-shoot. A card never put next to the live app is **not verified — say so on it.** Verify variant, style, and copy-transform mismatches against the live app — none reliably visible from stylesheet source alone.
 
 Spot-check at least the highest-risk cards (app shell + each page archetype + densest components + anything a 3rd-party/internal component library styles); full-screen patterns reuse already-verified atoms.
 
-*Secondary tool, not a substitute:* a local harness mounting the framework's own production build (e.g. `quasar.umd.prod.js` + `quasar.prod.css` from `node_modules`) with brand token vars renders an isolated component without clicking to its live screen. Useful for atoms — but it renders *your* markup against real framework CSS, so it still can't show what the live app's own component wrappers do (disagreements: see Boundary). Harness and screenshots are **dev-only** — never published.
+*Secondary tool, not a substitute:* a local harness mounting the framework's own production build from `node_modules` with brand token vars renders isolated atoms against real framework CSS without navigating to their live screens. It renders *your* markup — never what the live app's component wrappers do (disagreements: see Boundary) — and harness + screenshots are **dev-only**, never published.
 
 ### 5. Publish to Claude Design (DesignSync)
 

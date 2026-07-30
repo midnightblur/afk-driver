@@ -33,9 +33,6 @@ first-listed model is unavailable (plan, region, outage), use the next.
 | **implementation** | `opus` — never `fable`; `sonnet` for simpler slices | `gpt-5.6-terra` — never Sol; drop to medium effort for simpler slices |
 | **digest** | `sonnet` (set in the `afk-reader`/`afk-runner` definitions) | `gpt-5.6-terra` at low effort |
 
-Model names drift with provider releases — when a named model is retired or
-superseded, update this table (its `FRESHNESS.md` registry row), never a skill.
-
 ## Claude-only capabilities (documented limitations on Codex)
 
 - `claude.ai/design` push (prototype, design-system share mirrors): skip — the

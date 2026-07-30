@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: The feature-level ship gate — refuses without a green smoke gate, merges master in (never rebases) behind an ancestry guard, re-runs validations + a final seam check within a shared 2-cycle fix cap, settles a fresh integrated review through the multi-round settle loop, commits ship evidence, and background-babysits CI to flip the Draft MR to Ready. Use when an invoker chains it after the smoke gate goes green, or to re-run `/afk:preflight {plan-dir}` by hand on a parked feature.
+description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk:preflight {plan-dir} on a parked feature.
 ---
 
 # afk:preflight — the feature-level ship gate
@@ -128,8 +128,7 @@ from the repo root; set the row `green` with
 This is how workflow-lesson drafts captured during hands-off runs reach the
 human at the ship gate: `<n> > 0` changes nothing mechanically — the count
 rides the PF table into the report and MR evidence block; applying the drafts
-is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b: outside
-the shared fix cap, no cycle, no fix attempt, no park.
+is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
@@ -224,7 +223,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
+| `success` | Every PF row green (advisory rows may be `advisory-failed`); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |

@@ -1,6 +1,6 @@
 ---
 name: interactive-walkthrough
-description: Interactive HTML walkthrough widgets — notched flow slider, branching simulator, overlap gantt. Use when emitting an HTML page that walks a human through a sequential, branching, or concurrent process — copy the matching template and fill its data contract.
+description: Interactive HTML walkthrough widgets — notched flow slider, branching simulator, overlap gantt, before/after comparator, predict-then-reveal. Use when emitting an HTML page walking a human through a sequential, branching, concurrent, or state-change process, or a point readers predict wrong — copy the matching template and fill its data contract.
 user-invocable: false
 ---
 

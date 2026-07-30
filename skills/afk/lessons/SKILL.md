@@ -1,6 +1,6 @@
 ---
 name: lessons
-description: Steward of the workflow lesson ledger — the conclude-at-detection self-improvement loop's status/apply/audit surface. Use when the user runs `/afk:lessons`, asks what open workflow lessons exist, or wants drafted doc/skill/checklist/glossary edits reviewed and applied.
+description: Steward of the workflow lesson ledger — status/apply/audit. Use on /afk:lessons, to see open workflow lessons, or to review and apply drafted edits.
 ---
 
 # afk:lessons — apply what the workflow already learned

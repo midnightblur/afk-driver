@@ -1,6 +1,6 @@
 ---
 name: grill-requirements
-description: Grilling session that challenges your plan against the existing domain model, sharpens terminology, and updates the domain glossary (GLOSSARY.md) inline as terms crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+description: Grills a raw feature idea against the domain glossary and staples before it becomes a PRD, updating GLOSSARY.md inline. Use to stress-test an idea/plan or sharpen terms.
 ---
 
 ## What to do
@@ -43,9 +43,9 @@ When domain relationships are discussed, stress-test with specific scenarios pro
 
 When the user states how something works — existing behaviour, a constraint, an ownership boundary — verify against the code before building requirements on it, per [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) (trigger phrases, verify-by-claim-type, miss-handling); delegate the verification per `DELEGATION.md`. Surface a contradiction immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
-Keep a running **claim ledger** in the conversation: every load-bearing claim one line — `claim → verified (where) | refuted (where) | unverified-external (user acknowledged)`. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it, update the row to `verified` against actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. PRD synthesis gates on the ledger — a lost ledger means re-verifying, not waving through.
+Keep a running **claim ledger** in the conversation: every load-bearing claim one line, in the Ledger-row grammar of [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it, update the row to `verified` against actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. PRD synthesis gates on the ledger — a lost ledger means re-verifying, not waving through.
 
-**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. When a human is present, render per LAVISH.md (RP-6, playbook `diagram`) for a shared view across every grill's `GRILL-LOG.md` section — **mandatory per LAVISH.md's Primary-path rule**; fallback (driven mode / render failure) per that file, else read the log file directly.
+**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-6, playbook `diagram`): render from the first question and re-render at every question/turn boundary into one phase artifact carrying the round in play plus the shared view across every grill's `GRILL-LOG.md` section — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to markdown + reading the log directly.
 
 ### Challenge the want (find the real pain, not the perceived one)
 
@@ -85,8 +85,6 @@ This skill builds *understanding*; it does not emit decision records. When a dec
 
 - **Requirement-level** decisions (how the feature must *behave*, what's in/out of scope) → recorded by **`/afk:to-prd`** as a requirements ADR.
 - **Solution-level** decisions (algorithm, pattern, technology) → recorded by **`/afk:to-sdd`** as a design ADR.
-
-The glossary is the one artifact this skill maintains — it *is* the shared understanding being built, not a record of a decision.
 
 ## Next
 

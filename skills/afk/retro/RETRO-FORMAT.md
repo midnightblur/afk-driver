@@ -1,6 +1,6 @@
 # Retro report format — `RETRO-{YYYY-MM-DD}.md`
 
-Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior (the trail of retros is itself evidence of whether proposals worked).
+Written by `/afk:retro` into the release folder it analyzed. One file per run; a later run writes a new dated file, never edits a prior (the trail of retros is itself evidence of whether proposals worked). Read `CONCISION.md` (plugin root) before writing; its bar applies throughout.
 
 ## Sections, in order
 
@@ -28,7 +28,7 @@ One `###` block per signal family that fired (recurring finding classes, park pa
 
 ### 3. Gate latency
 
-Verbatim output of `gate-metrics-report.sh` plus one sentence per gate whose p95 breaches the budget (`hooks/README.md` "Latency metrics & budget"), naming the dominant component (`lock_wait_ms`, `package_ms`, run count).
+Verbatim output of `gate-metrics-report.sh` (per gate: runs, red count, p50/p95/max — aggregates only) plus one sentence per gate whose p95 breaches the budget (`hooks/README.md` "Latency metrics & budget"), naming the dominant component — from grepping the raw `lock_wait_ms`/`package_ms` fields in `.claude/metrics/gate-latency.jsonl`; the report does not break them out.
 
 ### 4. Proposals (the load-bearing section)
 

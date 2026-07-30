@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up, repair, or audit a developer's AFK-workflow environment — probes every external dependency (CLIs, MCP servers, secrets, sibling checkouts) against the manifest, fixes what it can, guides the rest. Use on first install (`base` also pins/provisions the monorepo toolchain + workstation apps/OS config), after a git pull changed the plugin, when a workflow skill dies on a missing tool or credential, or as `audit` to catch dependency/doc drift before shipping plugin changes.
+description: Sets up, repairs, or audits the AFK environment against its dependency manifest. Use on first install (base), after plugin updates, when a skill dies on a missing tool/credential, or as audit.
 ---
 
 # afk:setup — the workflow doctor
