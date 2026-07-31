@@ -2,3 +2,9 @@
 # One exact token per line; keep the reason next to it.
 P2P-1220   # the plugin's own parent ticket (CLAUDE.md / README provenance)
 P2P-9999   # placeholder key used in format examples (bug LEDGER-FORMAT.md)
+HL-1       # human-locked design aspects — the plugin's own notation, not tickets
+HL-2       # (set owned by skills/afk/grill-solution/HUMAN-SIGNOFF.md)
+HL-3
+HL-4
+HL-5
+HL-6
