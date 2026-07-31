@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-07-31
+
+- Wiring gate no longer flags **JS/TS test files** (`*.test.{js,mjs,ts,tsx}`, `*.spec.*`) as orphans — every JS runner discovers them by glob, so they have zero textual referrers by construction, exactly like the already-exempt `*.feature` and `*Test.java`. Writing a new api-verification or unit test stops blocking the turn, and the IOUs previously needed to paper over it (which could never auto-close, so they blocked `WIRING_FINAL=1` forever) can be deleted from `.claude/wiring-ious.md`.
+
 ## 2026-07-28
 
 - Lavish is now the **default surface for the grill skills** (`grill-requirements`, `grill-solution`, `grill-verification` + the confirm-batch round): every question/round renders into the session's page, from the first question — the only ways out are driven mode, a render failure, or **telling the agent to stop** (new session-scoped user opt-out in `LAVISH.md`). The on-page **legend is retired** in favor of an exhaustive **tooltip layer**: a persistent term → explanation dictionary (plugin seed `hooks/lavish-tips.json` — acronyms, L1–L9, HL-1..6, RP ids, workflow + architecture vocabulary — plus a growing per-repo overlay `.claude/lavish-tips.json` for domain terms) is injected **deterministically** into every artifact at render time by the new `lavish-tips.sh` hook, so hover explanations cost the LLM one definition ever, then ride every future page free; per-artifact item ids stay authored inline (`data-tip`) and share the same hover UI. `LAVISH.md` also gains a **visualization doctrine** — content-type → proven form (C4-altitude zoom for architecture, sequence/state diagrams, option cards, before/after pairs) with fixed color semantics. `/reload-plugins` to pick it up.

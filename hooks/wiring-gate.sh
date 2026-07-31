@@ -95,6 +95,10 @@ conventional() {
   esac
   case "$(basename "$1")" in
     *Test.java|*IT.java|*.approved.json|*.approved.txt) return 0 ;;
+    # JS/TS tests — every runner (node --test, vitest, jest, cucumber) discovers by glob,
+    # so a test file has zero textual referrers by construction.
+    *.test.js|*.test.mjs|*.test.ts|*.test.tsx|\
+    *.spec.js|*.spec.mjs|*.spec.ts|*.spec.tsx) return 0 ;;
   esac
   return 1
 }
