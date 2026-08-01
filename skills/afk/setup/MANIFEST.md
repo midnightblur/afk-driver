@@ -260,6 +260,13 @@ a token value — not even partially.
 - **Notes:** missing deps surface as the `jira` server failing to connect at
   session start, not as a skill error.
 
+### P4 · openpyxl
+- **Needed by:** `skills/utils/review-qa-tests/scripts/annotate_sheet.py` —
+  reads QA's `.xlsx` test sheet and writes the review annotations back into it
+  (`skills/utils/review-qa-tests/EXCEL.md`).
+- **Probe:** `python -c "import openpyxl"`
+- **Fix:** `auto:` `pip install openpyxl`
+
 ## N — Node toolchain
 
 ### N1 · node + npm + npx
@@ -528,10 +535,12 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json` | set by the harness; locates the Stop hook |
+| `CLAUDE_PROJECT_DIR` | `hooks/hooks.json` | set by the harness; locates the adopted harness gates in the target checkout (existence-guarded, so the plugin stays inert where they're absent) |
 | `CLAUDE_JOB_DIR` | `skills/afk/understand` | working dir for MR fetch + mr/code-subject artifact output |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
+| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk:gc` refuse deletion — it always gets a human eye |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
@@ -540,6 +549,8 @@ Each var is documented at its consumer — this table is just the map.
 | `CODEX_HOME` / `CODEX_THREAD_ID` / `CODEX_SANDBOX` | `hooks/lib/provider.sh` | set by the Codex CLI; auto-detect markers for the codex provider |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/provider.sh` | set by the harness; provider-neutral plugin data dir |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
+| `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates (maven-compile, java-format, ui-lint) for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission |
 | `MAVEN_LOCK_DIR` | `hooks/maven-lock.sh` | relocate the cross-gate maven lock dir |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `hooks/mutation-probe.sh` | pitest version pin / probe timebox |
