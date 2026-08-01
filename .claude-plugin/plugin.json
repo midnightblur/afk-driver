@@ -6,6 +6,7 @@
     "name": "mvu"
   },
   "agents": [
+    "./agents/afk-implementor.md",
     "./agents/afk-reader.md",
     "./agents/afk-runner.md"
   ],

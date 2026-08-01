@@ -12,6 +12,7 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-07-31
 
+- **Implementation-tier spawns are now pinned to Opus 4.8** via a new **`afk-implementor`** agent type (`agents/afk-implementor.md`, `model: claude-opus-4-8`) — `/afk:autopilot` routes `standard`/`complex` subtasks to it and `/afk:bug` spawns its fixer as it, so code-writing children stop drifting onto whatever the session model happens to be, while Opus-level *judgment* spawns (frontier tier: grills, planning/slicing, review, adversary, plugin/harness edits) keep the floating `opus` alias and follow the latest Opus. Requires a **session restart**, not `/reload-plugins`: agent definitions are scanned at session start. The mechanism matters — a pinned model reaches a child **only** through an agent definition's frontmatter; the Agent/Task tool's `model` argument is an enum (`sonnet|opus|haiku|fable`) that rejects pinned ids outright. Tier names + the verified pin-delivery rules: `PROVIDERS.md`; tier roles unchanged in `DELEGATION.md`.
 - Wiring gate no longer flags **JS/TS test files** (`*.test.{js,mjs,ts,tsx}`, `*.spec.*`) as orphans — every JS runner discovers them by glob, so they have zero textual referrers by construction, exactly like the already-exempt `*.feature` and `*Test.java`. Writing a new api-verification or unit test stops blocking the turn, and the IOUs previously needed to paper over it (which could never auto-close, so they blocked `WIRING_FINAL=1` forever) can be deleted from `.claude/wiring-ious.md`.
 
 ## 2026-07-28
