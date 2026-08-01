@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop hook (ships with the afk plugin): codex-drift gate — the generated
+# Stop gate (ships with the afk plugin): codex-drift gate — the generated
 # OpenAI Codex layer (.agents/skills, .codex, harness provider.sh sync,
 # AGENTS.md block, config-fragment.toml) must stay in sync with its canonical
 # sources (plugin skills/agents/hooks, project skills, root CLAUDE.md).
@@ -13,67 +13,71 @@
 
 set -u
 
-[ "${CODEX_DRIFT_GATE_DISABLE:-0}" = "1" ] && exit 0
+gate_codex_drift() {
+  [ "${CODEX_DRIFT_GATE_DISABLE:-0}" = "1" ] && return 0
+  [ -f .claude/hooks/.gate-disabled ] && return 0
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  local GENERATOR="tools/payable/ai-agents/codex-sync/generate.py"
+  [ -f "$GENERATOR" ] || return 0   # not this plugin's checkout
 
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-cd "$repo_root" || exit 0
+  # ---- scope: canonical sources + generated trees. Worktree/untracked changes
+  # come from the shared context (fork-free); committed-but-unpushed needs a diff.
+  local PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+  local -a scope_paths=(
+    "$PLUGIN_DIR/skills" "$PLUGIN_DIR/agents" "$PLUGIN_DIR/hooks" "$PLUGIN_DIR/.claude-plugin"
+    "tools/payable/ai-agents/harness/hooks" "tools/payable/ai-agents/harness/.claude-plugin"
+    "tools/payable/ai-agents/codex-sync" ".claude/skills" ".agents" ".codex"
+  )
+  local changed=""
+  gate_ctx_any AFK_CTX_CHANGED \
+    "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
+    "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
+    "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
+    ".claude/skills/*" ".agents/*" ".codex/*" && changed=1
+  if [ -z "$changed" ]; then
+    gate_ctx_mergebase
+    changed=$(git diff --name-only "$AFK_CTX_MERGEBASE" -- "${scope_paths[@]}" 2>/dev/null | head -1)
+  fi
+  [ -z "$changed" ] && return 0   # scope no-op
 
-[ -f .claude/hooks/.gate-disabled ] && exit 0
+  # Inputs are exactly the canonical sources and generated trees above.
+  local cache_key
+  cache_key=$(gate_cache_key codex-drift \
+    "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
+    "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
+    "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
+    ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.md")
+  gate_cache_hit codex-drift "$cache_key" && return 0
 
-GENERATOR="tools/payable/ai-agents/codex-sync/generate.py"
-[ -f "$GENERATOR" ] || exit 0   # not this plugin's checkout
+  gate_metrics_begin
 
-# ---- scope: canonical sources + generated trees, vs upstream + worktree + untracked
-upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
-[ -z "$upstream" ] && git rev-parse --verify -q origin/master >/dev/null 2>&1 && upstream=origin/master
-[ -z "$upstream" ] && upstream=HEAD
+  local py=python out
+  command -v python >/dev/null 2>&1 || py=python3
+  command -v "$py" >/dev/null 2>&1 || return 0   # no python — cannot check, fail open
 
-base=$(git merge-base "$upstream" HEAD 2>/dev/null || echo HEAD)
+  if ! out=$("$py" "$GENERATOR" --check 2>&1); then
+    gate_metrics_emit codex-drift blocked
+    {
+      echo "Codex-drift gate: generated Codex layer is out of sync with its canonical sources."
+      printf '%s\n' "$out"
+      echo
+      echo "Fix: python $GENERATOR   (then commit the regenerated artifacts with your change)"
+    } >&2
+    return 2
+  fi
 
-scope_paths=(
-  "tools/payable/ai-agents/plugins/workflow/skills"
-  "tools/payable/ai-agents/plugins/workflow/agents"
-  "tools/payable/ai-agents/plugins/workflow/hooks"
-  "tools/payable/ai-agents/plugins/workflow/.claude-plugin"
-  "tools/payable/ai-agents/harness/hooks"
-  "tools/payable/ai-agents/harness/.claude-plugin"
-  "tools/payable/ai-agents/codex-sync"
-  ".claude/skills"
-  ".agents"
-  ".codex"
-)
+  gate_metrics_emit codex-drift pass
+  gate_cache_store codex-drift "$cache_key"
+  return 0
+}
 
-changed=$(
-  { git diff --name-only "$base" -- "${scope_paths[@]}" 2>/dev/null
-    git ls-files --others --exclude-standard -- "${scope_paths[@]}" 2>/dev/null
-  } | head -1
-)
-[ -z "$changed" ] && exit 0   # scope no-op
-
-. "$SCRIPT_DIR/gate-cache.sh"
-cache_key=$(gate_cache_key codex-drift)
-gate_cache_hit codex-drift "$cache_key" && exit 0
-
-. "$SCRIPT_DIR/gate-metrics.sh"
-gate_metrics_begin
-
-py=python
-command -v python >/dev/null 2>&1 || py=python3
-command -v "$py" >/dev/null 2>&1 || exit 0   # no python — cannot check, fail open
-
-if ! out=$("$py" "$GENERATOR" --check 2>&1); then
-  gate_metrics_emit codex-drift blocked
-  {
-    echo "Codex-drift gate: generated Codex layer is out of sync with its canonical sources."
-    printf '%s\n' "$out"
-    echo
-    echo "Fix: python $GENERATOR   (then commit the regenerated artifacts with your change)"
-  } >&2
-  exit 2
+# ---- standalone invocation
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+  cd "$_root" || exit 0
+  . "$_d/gate-context.sh"; gate_ctx_build
+  . "$_d/gate-cache.sh"
+  . "$_d/gate-metrics.sh"
+  gate_codex_drift; exit $?
 fi
-
-gate_metrics_emit codex-drift pass
-gate_cache_store codex-drift "$cache_key"
-exit 0

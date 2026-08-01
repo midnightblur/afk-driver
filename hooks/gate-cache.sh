@@ -3,14 +3,19 @@
 # Stop gates (maven-compile, ui-lint, java-format, wiring, skill-registry,
 # codex-drift, genericity).
 #
-# A Stop hook fires on every turn end; the gated tree often hasn't changed
-# since the last green run. The cache remembers the last PASS per gate as a
-# hash over HEAD + every working-tree change (path + blob hash, deletions
-# included) — an identical tree skips the gate's real work entirely.
+# A Stop hook fires on every turn end; the gated tree often hasn't changed since
+# the last green run. The cache remembers the last PASS per gate as a hash over
+# HEAD + every working-tree change (path + blob hash, deletions included) — an
+# identical tree skips the gate's real work entirely.
+#
+# The hash itself is NOT computed here: it is the shared per-Stop tree digest
+# built once by gate-context.sh (AFK_CTX_TREE) and reused by every gate, so a
+# key costs a string concat rather than `git status` + two forks per changed
+# file. Every operation below is fork-free ($(<file), printf, [[ ]]).
 #
 # Contract for gates:
 #   key=$(gate_cache_key <gate>)              # after scope checks, before work
-#   gate_cache_hit <gate> "$key" && exit 0    # cache hit = silent allow,
+#   gate_cache_hit <gate> "$key" && return 0  # cache hit = silent allow,
 #                                             #   no metrics line (it's a no-op)
 #   gate_cache_store <gate> "$key"            # only on PASS
 #
@@ -22,28 +27,57 @@
 # Assumes cwd = repo root (all gates cd there first).
 
 gate_cache_key() {
-  # $1 = gate name. Key covers the full change set, not just the gate's file
-  # type — compile/format outcomes can depend on sibling edits (poms, resources).
-  {
-    printf '%s\n' "$1"
-    git rev-parse HEAD 2>/dev/null
-    git status --porcelain -uall 2>/dev/null | while IFS= read -r line; do
-      f=$(printf '%s' "$line" | awk '{print $NF}')
-      if [ -f "$f" ]; then
-        printf '%s %s\n' "$f" "$(git hash-object "$f" 2>/dev/null)"
-      else
-        printf '%s deleted\n' "$f"
-      fi
+  # $1 = gate name. Remaining args (optional) are globs bounding the gate's
+  # INPUTS, e.g. gate_cache_key genericity 'plugin/*.md' '11700-payable/*'.
+  #
+  # With no globs the key covers the whole change set — correct for a gate whose
+  # verdict can turn on any sibling edit (compile/format depend on poms and
+  # resources). With globs the key covers only the matching changes, so an edit
+  # the gate could not possibly care about no longer busts its cache. That is the
+  # difference between a gate running once per session and once per turn while a
+  # human works in the same checkout.
+  if [ "${AFK_CTX_READY:-0}" != "1" ]; then
+    . "$(dirname "${BASH_SOURCE[0]}")/gate-context.sh"
+    gate_ctx_build
+  fi
+  local gate=$1; shift
+  if [ "$#" -eq 0 ]; then
+    printf '%s:%s' "$gate" "$AFK_CTX_TREE"
+    return 0
+  fi
+  # Scoped key: HEAD + the in-scope (path, content-hash) pairs + in-scope
+  # deletions. Built with fork-free list matching; stored verbatim as the key.
+  local line path pat scoped=""
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    path=${line%%$'\t'*}
+    for pat in "$@"; do
+      # shellcheck disable=SC2254
+      case "$path" in
+        $pat) scoped+="$line"$'\n'; break ;;
+      esac
     done
-  } | git hash-object --stdin 2>/dev/null
+  done <<<"${AFK_CTX_HASHES:-}"
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    [ -f "$path" ] && continue           # live files are covered by the hash list
+    for pat in "$@"; do
+      # shellcheck disable=SC2254
+      case "$path" in
+        $pat) scoped+="$path"$'\t'"deleted"$'\n'; break ;;
+      esac
+    done
+  done <<<"${AFK_CTX_CHANGED:-}"
+  printf '%s:%s\n%s' "$gate" "$AFK_CTX_HEAD" "$scoped"
 }
 
 gate_cache_hit() {
   # $1 = gate name, $2 = key. True only when the stored last-pass key matches.
   [ "${GATE_CACHE_DISABLE:-0}" = "1" ] && return 1
   [ -n "${2:-}" ] || return 1
-  [ -f ".claude/hooks/.gate-cache/$1" ] || return 1
-  [ "$(cat ".claude/hooks/.gate-cache/$1" 2>/dev/null)" = "$2" ]
+  local f=".claude/hooks/.gate-cache/$1"
+  [ -f "$f" ] || return 1
+  [ "$(<"$f")" = "$2" ]
 }
 
 gate_cache_store() {
