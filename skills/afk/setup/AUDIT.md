@@ -68,7 +68,10 @@ mirror is gitignored per-machine; only `config-fragment.toml` + the provider.sh
 sync ride git, committed alongside their canonical source). Provider-independent:
 runs whether or not Codex CLI is installed; it audits repo artifacts, not the
 machine. Also spot-check that `hooks/lib/provider.sh` and the harness plugin's
-synced copy are byte-identical (the same `--check` covers it).
+synced copy are byte-identical (the same `--check` covers it). Then the
+distribution law: `git ls-files .agents .codex AGENTS.local.md CLAUDE.local.md`
+must print nothing — a tracked activation surface violates `PROVIDERS.md`
+"Distribution law" (route: untrack + gitignore).
 
 ## 6 · Glossary term usage
 
