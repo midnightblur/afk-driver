@@ -61,7 +61,7 @@ gate_codex_drift() {
       echo "Codex-drift gate: generated Codex layer is out of sync with its canonical sources."
       printf '%s\n' "$out"
       echo
-      echo "Fix: python $GENERATOR   (then commit the regenerated artifacts with your change)"
+      echo "Fix: python $GENERATOR   (root mirror is gitignored per-machine; commit only config-fragment.toml / provider.sh sync if they changed)"
     } >&2
     return 2
   fi

@@ -357,8 +357,9 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
 - **Needed by:** Codex skill discovery (`.agents/skills/`), subagent defs
   (`.codex/agents/`), hook wiring (`.codex/hooks.json`).
 - **Probe:** `python tools/payable/ai-agents/codex-sync/generate.py --check`
-- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`,
-  then commit the regenerated artifacts if sources changed.
+- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`
+  (repo-root mirror is gitignored per-machine — commit only
+  `config-fragment.toml`/provider.sh sync if they changed).
 
 ### O3 · repo hooks trusted by Codex
 - **Needed by:** the Stop-gate suite + PreToolUse guards under Codex.
@@ -392,8 +393,8 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
   server paths absolute for this machine.
 
 ### O5 · AGENTS.md harness block
-- **Needed by:** Codex first-turn context (`**/AGENTS.md` is gitignored —
-  GitNexus owns the file per-machine; the afk block rides the generator, not git).
+- **Needed by:** Codex first-turn context (root `/AGENTS.md` is gitignored —
+  the block rides the generator, not git).
 - **Probe:** `grep -q 'afk-harness:begin' AGENTS.md`
 - **Fix:** `auto:` run O2's generator (inserts/refreshes the marker block,
   preserving non-block content byte-for-byte).
