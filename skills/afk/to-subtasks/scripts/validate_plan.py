@@ -50,6 +50,14 @@ Checks + rule ids (one finding line per hit: `{file}: {RULE}: {detail}`):
   G-PARITY-UI/API     gate-table row count per modality != VERIFICATION-PLAN.md
                       scenario count (deferred API placeholder counts 0)
 
+(h) Review policy — PLAN.md header + optional `## Review` contract sections:
+  H-POLICY            PLAN.md `> Review policy:` value is neither lean nor full
+  H-POLICY-VALUE      a contract `policy:` value is neither lean nor full
+  H-OPT-IN-UNKNOWN    an `opt-in:` name is outside the deferrable-concern set
+                      (set + semantics: lockstep copy of
+                      skills/afk/review/SKILL.md "Gate policy")
+  H-REVIEW-LINE       a `## Review` line is neither `policy: …` nor `opt-in: …`
+
 Exit: 0 clean · 1 findings · 2 parse error (plan dir / PLAN.md / subtask file unreadable).
 Checks (c) acceptance citations, (d) seam coverage, (f) scope sanity are
 LLM judgment — deliberately not here (VALIDATION.md keeps them).
@@ -68,6 +76,10 @@ TIER_MANDATES = [
     (re.compile(r"-entities(/|$)", re.I), "integration", "E-TIER-INTEGRATION"),
     (re.compile(r"jms|listener|messaging", re.I), "integration", "E-TIER-INTEGRATION"),
 ]
+POLICY_TOKENS = {"lean", "full"}
+# Deferrable concerns: lockstep copy — owned by skills/afk/review/SKILL.md "Gate policy".
+DEFERRABLE = {"code-quality", "claude-md-compliance", "design-quality",
+              "resilience", "logic-correctness"}
 SUBTASK_RE = re.compile(r"^(\d{4})-([a-z0-9][a-z0-9-]*)\.md$")
 ID_RE = re.compile(r"\b\d{4}-[a-z0-9][a-z0-9-]*\b")
 EMDASH = "—"
@@ -309,6 +321,28 @@ def main():
             if missing:
                 flag(f"{sid}.md", "G-BLOCKEDBY",
                      f"## Blocked by misses implementation subtask(s): {', '.join(missing)}")
+
+    # ---- (h) review policy -------------------------------------------------
+    m = re.search(r"^>\s*Review policy:\s*([^\s<]+)", plan_text, re.M)
+    if m and m.group(1).lower() not in POLICY_TOKENS:
+        flag("PLAN.md", "H-POLICY", f"Review policy {m.group(1)!r} is neither lean nor full")
+    for sid, rank, secs, fname in subtasks:
+        for ln in (secs.get("Review") or "").splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            key, _, val = ln.partition(":")
+            key, val = key.strip().lower(), val.split(f" {EMDASH} ")[0].strip()
+            if key == "policy":
+                if val.lower() not in POLICY_TOKENS:
+                    flag(fname, "H-POLICY-VALUE", f"policy {val!r} is neither lean nor full")
+            elif key == "opt-in":
+                for name in [n.strip() for n in val.split(",") if n.strip()]:
+                    if name not in DEFERRABLE:
+                        flag(fname, "H-OPT-IN-UNKNOWN",
+                             f"opt-in {name!r} is not a deferrable concern")
+            else:
+                flag(fname, "H-REVIEW-LINE", f"unparseable ## Review line: {ln!r}")
 
     # ---- report -----------------------------------------------------------
     for line in findings:

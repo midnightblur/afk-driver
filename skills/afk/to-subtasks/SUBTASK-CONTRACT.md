@@ -18,6 +18,13 @@ is this file; a skill that routes on it points here.
                tricky domain logic, or high blast radius>
 mechanical | standard | complex
 
+## Review
+<optional — omit to take the plan-level default (PLAN.md header `Review policy:`).
+Either or both lines; policy semantics, deferrable-concern names, and resolution
+order: skills/afk/review/SKILL.md "Gate policy">
+policy: lean | full — overrides the plan default for this slice alone
+opt-in: <concern>, … — lean-deferred concerns to run at this slice's gate anyway
+
 ## Design refs
 <cited>
 - SDD: SDD.md#<anchor> — <one phrase on what it binds>

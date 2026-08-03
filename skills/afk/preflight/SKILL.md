@@ -77,7 +77,12 @@ the referee). Per round, run **`/afk:review --feature --tag r{n}`** — the
 integrated feature diff as a whole (every subtask's changes together, not one
 slice), reviewed by fresh contexts that haven't seen the implementation's own
 reasoning, with the cross-slice design roster that skill's `--feature` mode
-defines. Every actionable finding — `medium`/`low` included — is fixed or
+defines (widened per its "Gate policy" when the plan sliced lean). **Round 1
+also sweeps the slice gates' deferrals** (SETTLEMENT.md "Deferral rule"): every
+finding whose latest outcome across its slice's
+`plan/review/{NNNN-slug}-*.outcomes.json` rounds is `deferred`, resolved
+against its findings file, joins the actionable set unless the merged tip
+already fixed it. Every actionable finding — `medium`/`low` included — is fixed or
 disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
 `compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
 `scope` is unreachable — the `--feature` roster carries no scope concern.

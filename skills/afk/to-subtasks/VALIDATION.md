@@ -1,7 +1,7 @@
 # Validation checklist
 
-Checks (a) graph, (b) anchors, (e) tiers, (g) gate shape are **mechanical** —
-run the validator, fix every finding, re-run until clean:
+Checks (a) graph, (b) anchors, (e) tiers, (g) gate shape, (h) review policy are
+**mechanical** — run the validator, fix every finding, re-run until clean:
 
 ```
 python3 skills/afk/to-subtasks/scripts/validate_plan.py {plan-dir}   # Windows: py -3
@@ -10,8 +10,9 @@ python3 skills/afk/to-subtasks/scripts/validate_plan.py {plan-dir}   # Windows: 
 Exit 0 = clean · 1 = findings (one line each: file + rule id + detail) · 2 =
 the plan didn't parse (fix the emitted files, not the script). The script's
 header docstring is the canonical doc — the owning home of the contract-graph
-(a), anchor-quality (b), tier-mandate (e), and gate-shape (g) rules, incl. the
-forbidden-generic-token list and the Scope-glob → mandated-tier table.
+(a), anchor-quality (b), tier-mandate (e), gate-shape (g), and review-policy
+(h) rules, incl. the forbidden-generic-token list and the Scope-glob →
+mandated-tier table.
 
 Two (b)/(e) obligations stay with the emitter, beyond the script:
 
