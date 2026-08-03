@@ -43,6 +43,9 @@ The 1–2 page plain-language digest of PRD + SDD + ADRs (one diagram, a decisio
 `INDEX.md` in the ticket's spec folder — the read-this-first dashboard: one-paragraph feature summary, artifact table with states, recommended reading order. Format: `skills/afk/to-prd/INDEX-FORMAT.md`.
 _Avoid_: dashboard, status file
 
+**Feature glossary**:
+`GLOSSARY.md` in the ticket's spec folder — the feature's committed vocabulary (grammar: `skills/utils/glossary/GLOSSARY-FORMAT.md`); parsed into every lavish render's tooltip dictionary alongside this workflow glossary (`LAVISH.md` "Tooltips").
+
 **Plan**:
 The `plan/` directory — `PLAN.md` (index: solution map, seam register, progress tracker, smoke gate) plus one subtask contract per slice. A local contract, never Jira issues.
 
@@ -73,7 +76,7 @@ _Avoid_: prerequisites list (scattered inline — the failure the manifest retir
 The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs.
 
 **Tooltip dictionary**:
-The persistent term → explanation map every lavish artifact inherits — plugin seed `hooks/lavish-tips.json` (workflow vocabulary) merged with the target repo's main-checkout overlay `.claude/lavish-tips.json` (domain vocabulary, grows over time). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is appending missing entries once. Doctrine: `LAVISH.md` "Tooltips".
+The persistent term → explanation map every lavish artifact inherits — seed `hooks/lavish-tips.json` merged with the machine overlay, this workflow glossary, and the feature glossary (most specific wins). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is giving missing terms a committed glossary home once. Doctrine: `LAVISH.md` "Tooltips".
 _Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
 
 **Grill-question triage (debate / confirm)**:
