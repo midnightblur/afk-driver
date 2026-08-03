@@ -131,8 +131,10 @@ a token value — not even partially.
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
-- **Needed by:** the `hooks/*.sh` gate suite (the Stop hooks — wiring, Maven
-  compile, UI lint, Java format — **fire every turn**; plus the on-demand
+- **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
+  genericity, skill-registry, codex-drift via `stop-gates.sh` — **fire every
+  turn**; the commit gates — Maven compile, Java format, UI lint via
+  `precommit-gates.sh` — fire on agent-driven commits; plus the on-demand
   `app-start-gate.sh`), `skills/afk/understand/scripts/fetch-mr.sh`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
@@ -161,8 +163,9 @@ a token value — not even partially.
 ### C4 · Maven wrapper + JDK
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
   compile row (`skills/afk/to-subtasks/SMOKE-GATE.md`), the liquibase pickup
-  check (`skills/afk/to-subtasks`), and the Stop-hook gates
-  `hooks/maven-compile-gate.sh` / `hooks/java-format-gate.sh` plus
+  check (`skills/afk/to-subtasks`), and the commit gates
+  `hooks/maven-compile-gate.sh` / `hooks/java-format-gate.sh` (dispatched by
+  `precommit-gates.sh` on agent-driven commits) plus
   `hooks/app-start-gate.sh` (they no-op outside a core-services checkout).
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the core-services checkout (X1); JDK
@@ -392,10 +395,11 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
   into `~/.codex/config.toml` (user-global — never auto-edited), making the
   server paths absolute for this machine.
 
-### O5 · AGENTS.md harness block
-- **Needed by:** Codex first-turn context (root `/AGENTS.md` is gitignored —
-  the block rides the generator, not git).
-- **Probe:** `grep -q 'afk-harness:begin' AGENTS.md`
+### O5 · AGENTS.local.md harness block
+- **Needed by:** Codex first-turn context — the committed neutral `AGENTS.md`
+  routes here; `/AGENTS.local.md` is gitignored, the block rides the
+  generator, not git.
+- **Probe:** `grep -q 'afk-harness:begin' AGENTS.local.md`
 - **Fix:** `auto:` run O2's generator (inserts/refreshes the marker block,
   preserving non-block content byte-for-byte).
 

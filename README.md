@@ -258,12 +258,13 @@ no test suite, no Python package.
 The Claude plugin is canonical; a generated mirror makes the same chain run
 under Codex CLI — skills at `.agents/skills/` (afk-*), subagents at
 `.codex/agents/`, gates at `.codex/hooks.json`, first-turn memory via the
-AGENTS.md marker block. Generator + docs:
+AGENTS.local.md marker block (routed from the committed neutral AGENTS.md);
+all of these are gitignored per-machine — opt-in only. Generator + docs:
 `tools/payable/ai-agents/codex-sync/README.md`; provider vocabulary
 (invocation, spawn, model tiers, creds): `PROVIDERS.md` (plugin root);
 sync enforced by the `codex-drift-gate.sh` Stop gate. Codex-side install =
 `/afk:setup` section O (binary + login, generated layer, hook trust,
-`~/.codex/config.toml` merge, AGENTS.md block) — the section reports
+`~/.codex/config.toml` merge, AGENTS.local.md block) — the section reports
 `deferred` wholesale on machines without Codex. Status: statically verified;
 not yet exercised against a live Codex install (assumptions listed in
 `codex-sync/README.md` "Known limitations").
