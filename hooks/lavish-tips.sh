@@ -12,24 +12,23 @@
 # "Side-questions"). Deterministic — no LLM at injection time; the authoring
 # agent's only job is keeping the dictionary itself fed (LAVISH.md "Tooltips").
 #
-# Dictionary sources, merged in order (later wins):
+# Dictionary sources, all committed (a session resumes on any machine), merged
+# in order (later wins):
 #   1. seed     — lavish-tips.json next to this script (tooltip-only vocabulary
 #                 with no glossary home; Lockstep-sanctioned copies, owning
 #                 files win on conflict)
-#   2. overlay  — <main-checkout>/.claude/lavish-tips.json in the gated repo
-#                 (machine-local extras; legacy — committed glossaries below
-#                 are the canonical stores and win on conflict)
-#   3. workflow — ../GLOSSARY.md (committed workflow vocabulary), parsed from
+#   2. workflow — ../GLOSSARY.md (committed workflow vocabulary), parsed from
 #                 its canonical **Term**: entry grammar
-#   4. feature  — {spec-dir}/GLOSSARY.md (committed feature vocabulary), where
-#                 spec-dir comes from the artifact's
-#                 <meta name="afk-spec-dir" content="<repo-relative path>">,
-#                 resolved against the current worktree root
+#   3. feature  — {spec-dir}/LAVISH-TIPS.md (committed feature/session terms,
+#                 same **Term**: grammar — not a glossary: session-scoped ids
+#                 and ideas live here too), where spec-dir comes from the
+#                 artifact's <meta name="afk-spec-dir" content="<repo-relative
+#                 path>">, resolved against the current worktree root
 # Keys starting with "__" are metadata, ignored. A key with any uppercase
 # letter matches case-sensitively; all-lowercase keys match case-insensitively;
-# whole-word only (word chars and '-' bound the match). Glossary Title-Case
-# words are lowered so page-case usage still matches; ALL-CAPS/mixed tokens
-# (PRD, TICKET.md) stay case-sensitive.
+# whole-word only (word chars and '-' bound the match). Title-Case words are
+# lowered so page-case usage still matches; ALL-CAPS/mixed tokens (PRD,
+# TICKET.md, J8) stay case-sensitive.
 #
 # Re-injected (block replaced) on every render — the dictionary grows between
 # renders and a resumed artifact must pick up new entries. Idempotent via
@@ -48,13 +47,9 @@ esac
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 seed="$script_dir/lavish-tips.json"
 wf_glossary="$script_dir/../GLOSSARY.md"
-overlay=""
-if common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
-  overlay="$(dirname "$common")/.claude/lavish-tips.json"
-fi
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null || true)
 
-LAVISH_TIPS_INPUT="$input" LAVISH_TIPS_SEED="$seed" LAVISH_TIPS_OVERLAY="$overlay" \
+LAVISH_TIPS_INPUT="$input" LAVISH_TIPS_SEED="$seed" \
 LAVISH_TIPS_WF_GLOSSARY="$wf_glossary" LAVISH_TIPS_TOPLEVEL="$toplevel" python - <<'PYEOF'
 import json, os, re, sys
 
@@ -156,20 +151,17 @@ def parse_glossary(path):
 
 
 tips = {}
-for path in (os.environ.get("LAVISH_TIPS_SEED"), os.environ.get("LAVISH_TIPS_OVERLAY")):
-    if not path:
-        continue
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            tips.update({k: v for k, v in data.items()
-                         if not k.startswith("__") and isinstance(v, str) and v.strip()})
-    except Exception:
-        pass  # a broken overlay must never break a render
+try:
+    with open(os.environ["LAVISH_TIPS_SEED"], encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        tips.update({k: v for k, v in data.items()
+                     if not k.startswith("__") and isinstance(v, str) and v.strip()})
+except Exception:
+    pass  # a broken seed must never break a render
 
-# Committed glossaries are canonical: workflow-wide, then the feature's own
-# (declared by the artifact's afk-spec-dir meta), most specific wins.
+# Committed term stores: workflow glossary, then the feature's terms file
+# (declared by the artifact's afk-spec-dir meta) — most specific wins.
 tips.update(parse_glossary(os.environ.get("LAVISH_TIPS_WF_GLOSSARY", "")))
 toplevel = os.environ.get("LAVISH_TIPS_TOPLEVEL", "")
 m = re.search(
@@ -177,7 +169,7 @@ m = re.search(
     html, re.IGNORECASE)
 if m and toplevel:
     spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/")
-    tips.update(parse_glossary(os.path.join(toplevel, spec_dir, "GLOSSARY.md")))
+    tips.update(parse_glossary(os.path.join(toplevel, spec_dir, "LAVISH-TIPS.md")))
 
 if not tips:
     sys.exit(0)

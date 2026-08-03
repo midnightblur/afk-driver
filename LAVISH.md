@@ -80,42 +80,46 @@ the content it explains. The tooltip layer carries all decoding:
 
 1. **Dictionary terms — injected, never authored.** A persistent
    term → explanation dictionary is embedded into every artifact at render
-   time by `hooks/lavish-tips.sh`, merged later-wins from: seed
-   `hooks/lavish-tips.json` (tooltip-only vocabulary with no glossary home);
-   machine overlay `<main-checkout>/.claude/lavish-tips.json` (legacy,
-   machine-local extras); the committed **workflow glossary** (plugin
-   `GLOSSARY.md`); the committed **feature glossary** —
-   `GLOSSARY.md` in the feature's spec folder, found through the artifact's
-   `<meta name="afk-spec-dir" content="<repo-relative spec folder>">`, which
-   every artifact of a feature session must carry. Glossary entries parse
-   from the canonical `**Term**:` grammar
-   (`skills/utils/glossary/GLOSSARY-FORMAT.md`), so a glossary edit reaches
-   every future render — tooltips can't drift from the committed
-   definitions. Injection is mechanical and free; never hand-write tooltip
-   markup for a dictionary term, and never spend page prose restating one.
-2. **Feed the glossaries once, use them forever.** Before an artifact's
-   first render, sweep its text for every term a junior dev couldn't
-   decode — acronym, workflow term, domain term, pattern name, id scheme —
-   and give each missing one a committed home: feature/domain terms → the
-   feature glossary (create `{spec-dir}/GLOSSARY.md` if absent, same
-   grammar); workflow terms → the plugin glossary (plugin-editing sessions
-   only — from a feature session, note the gap instead). The machine
-   overlay takes only what belongs to neither (rare). Coverage bar is
-   exhaustive: when in doubt, add it. Entries are self-contained (no
-   pointers, no "see X"), 1–3 sentences — precision over brevity; length is
-   cheap behind a hover. Matching is whole-word; a key with an uppercase
-   letter matches case-sensitively, all-lowercase keys match any case
-   (glossary Title-Case lowers automatically).
-3. **Item ids — authored once, propagated by the runtime.** Enumerated-item
-   ids (scenario `U1`/`A2`, finding `r-003`, proposal `P{n}`, subtask
-   `NNNN-slug`) are artifact-local, never dictionary entries: **every id
-   occurrence** must resolve on hover. Author
-   `data-tip="<one-line definition — catalogue file path>"` (the same
-   catalogue REPORTING.md requires to exist) on each id's first occurrence;
-   the injected runtime promotes `data-tip`/`title` into the same hover UI
-   and re-serves that tip on every later bare occurrence of the same id, so
-   one authored tip covers the page. An id tipped nowhere on the page is an
-   authoring defect — the runtime can propagate a tip, not invent one.
+   time by `hooks/lavish-tips.sh`, merged later-wins from three **committed**
+   sources — every term lives in the workflow or in the feature spec, so a
+   session resumes on any machine: seed `hooks/lavish-tips.json`
+   (tooltip-only vocabulary with no glossary home); the **workflow glossary**
+   (plugin `GLOSSARY.md`); the **feature terms file** —
+   `LAVISH-TIPS.md` in the feature's spec folder, found through the
+   artifact's `<meta name="afk-spec-dir" content="<repo-relative spec
+   folder>">`, which every artifact of a feature session must carry. Both
+   parse from the canonical `**Term**:` entry grammar
+   (`skills/utils/glossary/GLOSSARY-FORMAT.md`), so an edit reaches every
+   future render — tooltips can't drift from the committed definitions.
+   Injection is mechanical and free; never hand-write tooltip markup for a
+   dictionary term, and never spend page prose restating one.
+2. **Feed the stores once, use them forever.** Before an artifact's first
+   render, sweep its text for every term a junior dev couldn't decode —
+   acronym, workflow term, domain term, pattern name, id scheme — and give
+   each missing one a committed home: feature-scoped, domain, and
+   session-scoped terms → the feature terms file (create
+   `{spec-dir}/LAVISH-TIPS.md` if absent — **not a glossary**: ideas that
+   live only as long as the feature belong here, real domain vocabulary
+   graduates to the service glossary via `/afk:glossary`); workflow terms →
+   the plugin glossary (plugin-editing sessions only — from a feature
+   session, note the gap instead). Coverage bar is exhaustive: when in
+   doubt, add it. Entries are self-contained (no pointers, no "see X"), 1–3
+   sentences — precision over brevity; length is cheap behind a hover.
+   Matching is whole-word; a key with an uppercase letter matches
+   case-sensitively, all-lowercase keys match any case (Title-Case lowers
+   automatically).
+3. **Item ids — catalogued or authored once, propagated by the runtime.**
+   Enumerated-item ids (scenario `U1`/`A2`, finding `r-003`, proposal
+   `P{n}`, subtask `NNNN-slug`): **every id occurrence** must resolve on
+   hover, tip text `<one-line definition — catalogue file path>` (the same
+   catalogue REPORTING.md requires to exist). Feature-scoped ids reused
+   across renders (scenario ids, subtask ids) go in the feature terms file
+   like any term; an id local to one artifact instead authors
+   `data-tip="…"` inline on its first occurrence. Either way the injected
+   runtime promotes `data-tip`/`title` into the same hover UI and re-serves
+   the tip on every bare occurrence, so one definition covers the page. An
+   id defined nowhere is an authoring defect — the runtime can propagate a
+   tip, not invent one.
 
 ## Convey the idea (binding on every render point)
 
