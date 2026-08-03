@@ -44,7 +44,9 @@ gate_ctx_build() {
 
   # -z (NUL-delimited) avoids git's quoting of unusual paths. Bash variables
   # cannot hold NUL, so status goes to a file and is read back with read -d ''.
-  local statfile=".claude/hooks/.gate-cache/.status"
+  # $$-suffixed: two sessions' Stop hooks in one checkout must not truncate each
+  # other's scratch mid-read (a torn read = a wrong change set for that Stop).
+  local statfile=".claude/hooks/.gate-cache/.status.$$"
   mkdir -p .claude/hooks/.gate-cache 2>/dev/null
   git status --porcelain -z -uall >"$statfile" 2>/dev/null || : >"$statfile"
 
@@ -64,6 +66,7 @@ gate_ctx_build() {
     esac
     [ -f "$path" ] && AFK_CTX_LIVE+="$path"$'\n'
   done <"$statfile"
+  rm -f "$statfile" 2>/dev/null
 
   # Tree digest: HEAD + (path, content-hash) for every live change + a marker per
   # deletion. --stdin-paths hashes ALL of them in a single call (was one fork per
@@ -88,8 +91,14 @@ gate_ctx_build() {
     AFK_CTX_HASHES+="${_paths[$_i]}"$'\t'"${_hashes[$_i]:-?}"$'\n'
   done
 
-  digest=$(printf '%s\n---\n%s\n---\n%s' \
-    "$AFK_CTX_HEAD" "$AFK_CTX_CHANGED" "$AFK_CTX_HASHES" \
+  # The wiring IOU ledger is gitignored, so `git status` never lists it — yet
+  # its content flips wiring verdicts (deleting a waive/IOU line must bust both
+  # the Stop stamp and wiring's pass cache). Fold it into the digest directly.
+  local ledger_body=""
+  [ -f .claude/wiring-ious.md ] && ledger_body=$(<.claude/wiring-ious.md)
+
+  digest=$(printf '%s\n---\n%s\n---\n%s\n---\n%s' \
+    "$AFK_CTX_HEAD" "$AFK_CTX_CHANGED" "$AFK_CTX_HASHES" "$ledger_body" \
     | git hash-object --stdin 2>/dev/null || true)
   AFK_CTX_TREE="${digest:-nodigest-$AFK_CTX_HEAD}"
 
@@ -144,8 +153,9 @@ gate_ctx_branch() {
 #
 # Content is read from the WORKING TREE (the gates shell out to Maven/ESLint,
 # which cannot see a staged-only version of a file); the staged list decides
-# WHICH files are judged. A file staged and then further edited is therefore
-# gated on its newer content — stricter, never laxer.
+# WHICH files are judged. When a gated file's staged copy differs from its
+# worktree copy the verdict would be about bytes the commit does not contain —
+# precommit-gates.sh refuses that commit up front rather than judging either.
 gate_ctx_build_staged() {
   [ "${AFK_CTX_READY:-0}" = "1" ] && return 0
 
@@ -155,7 +165,7 @@ gate_ctx_build_staged() {
 
   AFK_CTX_CHANGED=""; AFK_CTX_NEW=""; AFK_CTX_LIVE=""
   local entry st path
-  local statfile=".claude/hooks/.gate-cache/.staged"
+  local statfile=".claude/hooks/.gate-cache/.staged.$$"
   mkdir -p .claude/hooks/.gate-cache 2>/dev/null
   git diff --cached --name-status -z --diff-filter=ACMRT >"$statfile" 2>/dev/null || : >"$statfile"
   while IFS= read -r -d '' st; do
@@ -168,6 +178,7 @@ gate_ctx_build_staged() {
     [ "${st:0:1}" = "A" ] && AFK_CTX_NEW+="$path"$'\n'
     [ -f "$path" ] && AFK_CTX_LIVE+="$path"$'\n'
   done <"$statfile"
+  rm -f "$statfile" 2>/dev/null
 
   # Digest straight from the staged blob shas — no per-file hashing needed.
   AFK_CTX_TREE=$(git diff --cached --raw 2>/dev/null | git hash-object --stdin 2>/dev/null || true)

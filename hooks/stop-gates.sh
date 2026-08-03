@@ -59,12 +59,25 @@ PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
 # ---- rule 2: scope-driven dispatch. Each entry is "<gate>:<scope-test>", where
 # the scope test is fork-free and answers "could this gate have anything to say?"
 blocked=0
+crashed=0
 
 run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   local name=$1 fn="gate_${1//-/_}" rc=0
-  . "$SCRIPT_DIR/$name-gate.sh" || return 0
+  # A gate that cannot load or exits with anything but 0/2 has an UNKNOWN
+  # verdict. It must not block (old per-hook semantics: only exit 2 blocks) but
+  # it must not be silent either, and this Stop must not stamp all-green.
+  if ! . "$SCRIPT_DIR/$name-gate.sh"; then
+    printf '[afk] %s-gate.sh failed to load — gate skipped, verdict unknown.\n' "$name" >&2
+    crashed=1
+    return 0
+  fi
   "$fn"; rc=$?
-  [ "$rc" = "2" ] && blocked=1
+  case "$rc" in
+    0) ;;
+    2) blocked=1 ;;
+    *) printf '[afk] gate %s crashed (rc %s) — verdict unknown.\n' "$name" "$rc" >&2
+       crashed=1 ;;
+  esac
   return 0
 }
 
@@ -91,21 +104,37 @@ ctx_scoped() {
 # drift from disk if nothing on disk moved.
 ctx_scoped "$PLUGIN_DIR/*" && run_gate skill-registry
 
-# codex-drift — only when a canonical source or a generated tree moved.
+# codex-drift — only when a canonical source or a generated tree moved. Root
+# AGENTS.local.md / CLAUDE.md are checked outputs/inputs of the generator (they are
+# in the gate's cache key): omit them here and a hand-edit to either is invisible
+# until an unrelated change re-dispatches the gate.
 ctx_scoped \
   "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
   "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
   "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
-  ".claude/skills/*" ".agents/*" ".codex/*" \
+  ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.local.md" \
   && run_gate codex-drift
 
 # genericity — only when plugin prose moved.
 ctx_scoped "$PLUGIN_DIR/*.md" && run_gate genericity
 
+# Stamp writes are write-to-temp + rename: a concurrent session's Stop reading
+# the stamp mid-truncate would otherwise see a torn value (worst case an empty
+# "pass:" matching an empty digest).
+write_stamp() {
+  printf '%s\n' "$1" > "$STOP_STAMP.$$" 2>/dev/null \
+    && mv -f "$STOP_STAMP.$$" "$STOP_STAMP" 2>/dev/null
+  rm -f "$STOP_STAMP.$$" 2>/dev/null
+}
+
 if [ "$blocked" = "1" ]; then
-  printf 'blocked:%s\n' "$AFK_CTX_TREE" > "$STOP_STAMP" 2>/dev/null
+  write_stamp "blocked:$AFK_CTX_TREE"
   exit 2
 fi
 
-printf 'pass:%s\n' "$AFK_CTX_TREE" > "$STOP_STAMP" 2>/dev/null
+# A crashed gate means this Stop verified less than the full suite — leave the
+# old stamp in place so the next Stop re-runs everything.
+[ "$crashed" = "1" ] && exit 0
+
+write_stamp "pass:$AFK_CTX_TREE"
 exit 0

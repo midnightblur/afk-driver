@@ -43,6 +43,14 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$repo_root" || exit 0
 [ -f .claude/hooks/.gate-disabled ] && exit 0
 
+# Merge commits: the staged set is the whole other-side delta — content this
+# commit's author did not write and which was gated when it first landed. Gating
+# it here reactor-builds every module the other side touched (can outlive the
+# committing tool call) and format-blocks legacy files the author never opened.
+# Git itself runs no pre-commit for a conflictless merge; treat the conflicted
+# case the same.
+git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
+
 . "$SCRIPT_DIR/gate-context.sh"
 . "$SCRIPT_DIR/gate-cache.sh"
 . "$SCRIPT_DIR/gate-metrics.sh"
@@ -50,15 +58,44 @@ cd "$repo_root" || exit 0
 gate_ctx_build_staged
 [ -z "$AFK_CTX_CHANGED" ] && exit 0
 
+# The gates validate WORKTREE content (Maven/ESLint cannot read a staged-only
+# blob), so a gated file whose staged copy differs from its worktree copy would
+# be judged on bytes the commit does not contain — a broken staged blob could
+# land gated-green behind a fixed worktree. Refuse that commit up front.
+gated_paths=$(gate_ctx_filter AFK_CTX_LIVE '*.java' '*.js' '*.cjs' '*.mjs' '*.ts' '*.vue')
+if [ -n "$gated_paths" ]; then
+  declare -a gated_arr=()
+  while IFS= read -r p; do [ -n "$p" ] && gated_arr+=("$p"); done <<<"$gated_paths"
+  diverged=$(git diff --name-only -- "${gated_arr[@]}" 2>/dev/null)
+  if [ -n "$diverged" ]; then
+    {
+      printf '[afk] Commit blocked: staged copy differs from the worktree for gated file(s):\n'
+      printf '%s\n' "$diverged" | sed 's/^/  - /'
+      printf 'The code gates can only judge worktree content. Re-stage the current version\n'
+      printf '(git add <file>) or stash the unstaged edits, then commit again.\n'
+    } >&2
+    exit 2
+  fi
+fi
+
 # Bound the maven-lock wait on the commit path (see header).
 export AFK_MAVEN_LOCK_WAIT="${AFK_MAVEN_LOCK_WAIT:-240}"
 
 blocked=0
 run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   local name=$1 fn="gate_${1//-/_}" rc=0
-  . "$SCRIPT_DIR/$name-gate.sh" || return 0
+  # A gate that cannot load or crashes must not be a SILENT pass — say so, even
+  # though the commit path stays fail-open (matching the old per-hook semantics).
+  if ! . "$SCRIPT_DIR/$name-gate.sh"; then
+    printf '[afk] %s-gate.sh failed to load — this commit is NOT gated by it.\n' "$name" >&2
+    return 0
+  fi
   "$fn"; rc=$?
-  [ "$rc" = "2" ] && blocked=1
+  case "$rc" in
+    0) ;;
+    2) blocked=1 ;;
+    *) printf '[afk] gate %s crashed (rc %s) — this commit is NOT gated by it.\n' "$name" "$rc" >&2 ;;
+  esac
   return 0
 }
 

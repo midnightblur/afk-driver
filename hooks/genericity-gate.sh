@@ -57,7 +57,9 @@ gate_genericity() {
   local -A allow=()
   local t
   if [ -f "$ALLOW_FILE" ]; then
-    while IFS= read -r t; do
+    # `|| [ -n "$t" ]`: an unterminated final line must still register — a
+    # silently dropped token re-blocks something deliberately allowed.
+    while IFS= read -r t || [ -n "$t" ]; do
       case "$t" in ''|\#*) continue ;; esac
       t=${t%%[[:space:]]*}
       [ -n "$t" ] && allow["$t"]=1
@@ -86,14 +88,20 @@ gate_genericity() {
   if [ "${#tracked[@]}" -gt 0 ]; then
     while IFS= read -r line; do
       case "$line" in
-        '+++ b/'*) cur=${line#+++ b/} ;;
+        # A path containing a blank gets a trailing TAB in the +++ header —
+        # left in place it empties the awk content field for the whole file.
+        '+++ b/'*) cur=${line#+++ b/}; cur=${cur%$'\t'} ;;
+        # quotePath-escaped header (non-ASCII path): decoding the escapes is not
+        # worth it — drop attribution rather than crediting lines to the
+        # PREVIOUS file.
+        '+++ "b/'*) cur="" ;;
         '+++'*|'---'*) ;;
         '+'*) [ -n "$cur" ] && added_stream+="$cur"$'\t'"${line:1}"$'\n' ;;
       esac
     done < <(git diff -U0 "$AFK_CTX_MERGEBASE" -- "${tracked[@]}" 2>/dev/null)
   fi
   for f in ${untracked[@]+"${untracked[@]}"}; do
-    while IFS= read -r line; do
+    while IFS= read -r line || [ -n "$line" ]; do
       added_stream+="$f"$'\t'"$line"$'\n'
     done < "$f"
   done
@@ -117,25 +125,44 @@ gate_genericity() {
       2) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(file) ;;
       3) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(class) ;;
     esac
-  done < <(printf '%s' "$added_stream" | awk -F'\t' '
+  done < <(printf '%s' "$added_stream" | awk '
+    # Boundaries are checked against ABSOLUTE positions in the full line (pre/
+    # post computed from s, not the consumed remainder) — checking the remainder
+    # makes every post-consumption match look line-initial and defeats the left
+    # boundary. Both ends are word boundaries, matching the old per-line \b greps.
     {
-      file=$1; s=$2
-      t=s
-      while (match(t, /[A-Z][A-Z0-9]+-[0-9]+/)) {
-        if (RSTART==1 || substr(t,RSTART-1,1) !~ /[A-Za-z0-9_-]/)
-          print file "\t1\t" substr(t,RSTART,RLENGTH)
-        t=substr(t,RSTART+RLENGTH)
+      idx = index($0, "\t")
+      if (idx == 0) next
+      file = substr($0, 1, idx-1)
+      s = substr($0, idx+1)          # NOT $2: added lines may contain tabs
+
+      # class 1: Jira-shaped ticket IDs (prefix 2-10 chars, 1-6 digits)
+      rest = s
+      while (match(rest, /[A-Z][A-Z0-9]{1,9}-[0-9]{1,6}/)) {
+        pos = length(s) - length(rest) + RSTART
+        pre = (pos == 1) ? "" : substr(s, pos-1, 1)
+        post = substr(s, pos+RLENGTH, 1)
+        if (pre !~ /[A-Za-z0-9_]/ && post !~ /[A-Za-z0-9_]/)
+          print file "\t1\t" substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART+RLENGTH)
       }
-      t=s
-      while (match(t, /[A-Za-z][A-Za-z0-9_]*\.(vue|java|tsx|ts|mjs|js)/)) {
-        if (RSTART==1 || substr(t,RSTART-1,1) !~ /[A-Za-z0-9_.]/)
-          print file "\t2\t" substr(t,RSTART,RLENGTH)
-        t=substr(t,RSTART+RLENGTH)
+
+      # class 2: source-file references
+      rest = s
+      while (match(rest, /[A-Za-z][A-Za-z0-9_]*\.(vue|java|tsx|ts|mjs|js)/)) {
+        pos = length(s) - length(rest) + RSTART
+        pre = (pos == 1) ? "" : substr(s, pos-1, 1)
+        post = substr(s, pos+RLENGTH, 1)
+        if (pre !~ /[A-Za-z0-9_]/ && post !~ /[A-Za-z0-9_]/)
+          print file "\t2\t" substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART+RLENGTH)
       }
-      t=s
-      while (match(t, /`[A-Z][A-Za-z0-9]*`/)) {
-        print file "\t3\t" substr(t,RSTART+1,RLENGTH-2)
-        t=substr(t,RSTART+RLENGTH)
+
+      # class 3: backticked CamelCase (backticks are the boundaries)
+      rest = s
+      while (match(rest, /`[A-Z][A-Za-z0-9]*`/)) {
+        print file "\t3\t" substr(rest, RSTART+1, RLENGTH-2)
+        rest = substr(rest, RSTART+RLENGTH)
       }
     }')
 

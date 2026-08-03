@@ -61,11 +61,11 @@ install_hook() {
     return 0
   fi
 
-  # Present but not ours: never clobber.
+  # Present but not ours: never clobber. Say so even in --quiet mode — a silent
+  # skip leaves a machine permanently ungated with zero signal anywhere.
   if [ -e "$target" ]; then
+    echo "afk: pre-existing non-AFK $hook hook — $desc NOT installed ($target)." >&2
     [ "$QUIET" = 1 ] && return 0
-    echo "afk: refusing to overwrite an existing non-AFK hook:" >&2
-    echo "     $target" >&2
     echo "afk: inspect it and merge the delegation stub by hand, or remove it first." >&2
     rc=1
     return 0

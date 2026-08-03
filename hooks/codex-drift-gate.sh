@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop gate (ships with the afk plugin): codex-drift gate — the generated
 # OpenAI Codex layer (.agents/skills, .codex, harness provider.sh sync,
-# AGENTS.md block, config-fragment.toml) must stay in sync with its canonical
+# AGENTS.local.md block, config-fragment.toml) must stay in sync with its canonical
 # sources (plugin skills/agents/hooks, project skills, root CLAUDE.md).
 #
 # Fast path: no changed file intersects the canonical-source or generated
@@ -23,17 +23,21 @@ gate_codex_drift() {
   # ---- scope: canonical sources + generated trees. Worktree/untracked changes
   # come from the shared context (fork-free); committed-but-unpushed needs a diff.
   local PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+  # Root CLAUDE.md / AGENTS.local.md are generator input/output (both already in the
+  # cache key below): keep them in scope or a hand-edit to either never
+  # dispatches the gate.
   local -a scope_paths=(
     "$PLUGIN_DIR/skills" "$PLUGIN_DIR/agents" "$PLUGIN_DIR/hooks" "$PLUGIN_DIR/.claude-plugin"
     "tools/payable/ai-agents/harness/hooks" "tools/payable/ai-agents/harness/.claude-plugin"
     "tools/payable/ai-agents/codex-sync" ".claude/skills" ".agents" ".codex"
+    "CLAUDE.md" "AGENTS.local.md"
   )
   local changed=""
   gate_ctx_any AFK_CTX_CHANGED \
     "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
     "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
     "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
-    ".claude/skills/*" ".agents/*" ".codex/*" && changed=1
+    ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.local.md" && changed=1
   if [ -z "$changed" ]; then
     gate_ctx_mergebase
     changed=$(git diff --name-only "$AFK_CTX_MERGEBASE" -- "${scope_paths[@]}" 2>/dev/null | head -1)
@@ -46,7 +50,7 @@ gate_codex_drift() {
     "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
     "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
     "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
-    ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.md")
+    ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.local.md")
   gate_cache_hit codex-drift "$cache_key" && return 0
 
   gate_metrics_begin

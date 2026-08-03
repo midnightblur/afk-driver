@@ -82,9 +82,13 @@ gate_cache_hit() {
 
 gate_cache_store() {
   # $1 = gate name, $2 = key. Call only on PASS.
+  # Write-to-temp + rename: a concurrent session's gate_cache_hit reading the
+  # file mid-truncate must see old-or-new, never a torn key.
   [ "${GATE_CACHE_DISABLE:-0}" = "1" ] && return 0
   [ -n "${2:-}" ] || return 0
   mkdir -p .claude/hooks/.gate-cache 2>/dev/null || return 0
-  printf '%s\n' "$2" > ".claude/hooks/.gate-cache/$1" 2>/dev/null
+  local f=".claude/hooks/.gate-cache/$1"
+  printf '%s\n' "$2" > "$f.$$" 2>/dev/null && mv -f "$f.$$" "$f" 2>/dev/null
+  rm -f "$f.$$" 2>/dev/null
   return 0
 }
