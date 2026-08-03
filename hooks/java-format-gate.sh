@@ -46,6 +46,15 @@ gate_java_format() {
   gate_metrics_begin
   local mods_csv; mods_csv=$(printf '%s\n' "$submodules" | paste -sd, -)
 
+  # Serialize with other Maven-invoking gates — concurrent mvnw runs in one
+  # checkout race on target/ and the local-repo metadata. Same policy as
+  # maven-compile-gate.sh: on timeout, allow rather than block the commit.
+  . "$(dirname "${BASH_SOURCE[0]}")/maven-lock.sh"
+  local lock_t0 lock_wait_ms
+  lock_t0=$(gate_metrics_now_ms)
+  acquire_maven_lock "${AFK_MAVEN_LOCK_WAIT:-900}" || return 0
+  lock_wait_ms=$(( $(gate_metrics_now_ms) - lock_t0 ))
+
   local fail=0 report="" mod includes out rc
   while IFS= read -r mod; do
     [ -n "$mod" ] || continue
@@ -71,8 +80,11 @@ gate_java_format() {
     fi
   done <<<"$submodules"
 
+  # One release, one owner — explicit, not `trap … RETURN` (see maven-compile-gate.sh).
+  release_maven_lock
+
   if [ "$fail" -ne 0 ]; then
-    gate_metrics_emit java-format blocked "\"detail\":\"$mods_csv\""
+    gate_metrics_emit java-format blocked "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$mods_csv\""
     {
       printf '[harness] Java format gate failed — changed files must conform to eclipse-code-formatter.xml.\n'
       printf 'Policy is strict: a touched legacy file gets fully reformatted (owner-approved churn).\n'
@@ -82,7 +94,7 @@ gate_java_format() {
     return 2
   fi
 
-  gate_metrics_emit java-format pass "\"detail\":\"$mods_csv\""
+  gate_metrics_emit java-format pass "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$mods_csv\""
   gate_cache_store java-format "$cache_key"
   return 0
 }

@@ -60,8 +60,9 @@ gate_skill_registry() {
   done
 
   # ---- entries declared in plugin.json (python: no assumption about JSON layout)
-  local declared
-  declared=$(python -c "
+  local py=python declared
+  command -v python >/dev/null 2>&1 || py=python3    # python3-only machines: same fallback as codex-drift-gate.sh
+  declared=$("$py" -c "
 import json, sys
 try:
     m = json.load(open(sys.argv[1], encoding='utf-8'))

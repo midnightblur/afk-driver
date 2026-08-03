@@ -60,6 +60,7 @@ gate_genericity() {
     # `|| [ -n "$t" ]`: an unterminated final line must still register — a
     # silently dropped token re-blocks something deliberately allowed.
     while IFS= read -r t || [ -n "$t" ]; do
+      t=${t#"${t%%[![:space:]]*}"}    # leading whitespace would otherwise void the whole line
       case "$t" in ''|\#*) continue ;; esac
       t=${t%%[[:space:]]*}
       [ -n "$t" ] && allow["$t"]=1

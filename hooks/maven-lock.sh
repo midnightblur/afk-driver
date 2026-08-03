@@ -20,7 +20,10 @@
 #     strands; the steal covers that).
 
 MAVEN_LOCK_DIR="${MAVEN_LOCK_DIR:-.claude/hooks/.maven.lock}"
-_MAVEN_LOCK_HELD=0
+# Self-default, not plain init: two gates in one run each source this file, and
+# a re-source while the lock is held must not zero the flag (release/trap would
+# no-op and strand the lock for the 30-min steal window).
+_MAVEN_LOCK_HELD=${_MAVEN_LOCK_HELD:-0}
 
 acquire_maven_lock() {
   local timeout_s=${1:-900} waited=0

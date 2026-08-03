@@ -11,15 +11,22 @@
 # one place on a fixed, small fork budget (~8 spawns per Stop regardless of tree
 # size); every list is parsed with bash string ops, never awk/sed/grep per line.
 #
-# Exports (newline-separated lists, no trailing blank line):
+# Variables set (newline-separated lists, no trailing blank line):
 #   AFK_CTX_HEAD      HEAD sha ("" in an empty repo)
 #   AFK_CTX_BASE      integration base: origin/master, else @{u}, else HEAD
 #   AFK_CTX_MERGEBASE merge-base of AFK_CTX_BASE and HEAD (diff base)
 #   AFK_CTX_CHANGED   every changed/untracked path (rename -> new path only)
-#   AFK_CTX_NEW       added + untracked paths only
+#   AFK_CTX_NEW       added + untracked + rename/copy-target paths
 #   AFK_CTX_LIVE      AFK_CTX_CHANGED minus deletions (paths that exist on disk)
 #   AFK_CTX_TREE      content digest of HEAD + every working-tree change
 #   AFK_CTX_READY     1 once built — re-sourcing/rebuilding is a no-op
+#
+# Deliberately NOT exported. Every consumer is sourced into the same shell (or a
+# subshell, which inherits unexported variables); no exec'd program reads them.
+# Exported, the unbounded lists ride the environment of EVERY child — git, mvnw,
+# node — and a large change set (generated code, a big merge) can overflow the
+# Windows CreateProcess environment block, failing every native spawn the gates
+# make, in ways that look nothing like the actual cause.
 #
 # Per-gate cache keys are "<gate>:$AFK_CTX_TREE" (gate_cache_key, gate-cache.sh):
 # a pure string op, so no gate ever pays to derive its own key.
@@ -61,8 +68,11 @@ gate_ctx_build() {
       R*|C*) IFS= read -r -d '' _src || true ;;
     esac
     AFK_CTX_CHANGED+="$path"$'\n'
+    # Rename/copy targets count as NEW: the path is new under this name, and the
+    # wiring gate must ask whether anything references the NEW name — a rename
+    # whose referrers still say the old name is exactly an orphan.
     case "$st" in
-      'A '|'AM'|'AD'|'??') AFK_CTX_NEW+="$path"$'\n' ;;
+      'A '|'AM'|'AD'|'??'|R?|C?) AFK_CTX_NEW+="$path"$'\n' ;;
     esac
     [ -f "$path" ] && AFK_CTX_LIVE+="$path"$'\n'
   done <"$statfile"
@@ -103,8 +113,6 @@ gate_ctx_build() {
   AFK_CTX_TREE="${digest:-nodigest-$AFK_CTX_HEAD}"
 
   AFK_CTX_READY=1
-  export AFK_CTX_HEAD AFK_CTX_BASE AFK_CTX_MERGEBASE AFK_CTX_CHANGED \
-         AFK_CTX_NEW AFK_CTX_LIVE AFK_CTX_HASHES AFK_CTX_TREE AFK_CTX_READY
   return 0
 }
 
@@ -116,7 +124,6 @@ gate_ctx_build() {
 gate_ctx_mergebase() {
   [ -n "${AFK_CTX_MERGEBASE:-}" ] && return 0
   AFK_CTX_MERGEBASE=$(git merge-base "$AFK_CTX_BASE" HEAD 2>/dev/null || echo HEAD)
-  export AFK_CTX_MERGEBASE
   return 0
 }
 
@@ -142,7 +149,6 @@ gate_ctx_branch() {
     [ -n "$AFK_CTX_BRANCH" ] && AFK_CTX_BRANCH+=$'\n'
   fi
   AFK_CTX_BRANCH_READY=1
-  export AFK_CTX_BRANCH AFK_CTX_BRANCH_READY
   return 0
 }
 
@@ -175,7 +181,7 @@ gate_ctx_build_staged() {
       R*|C*) IFS= read -r -d '' path || break ;;   # rename/copy: second field is the new path
     esac
     AFK_CTX_CHANGED+="$path"$'\n'
-    [ "${st:0:1}" = "A" ] && AFK_CTX_NEW+="$path"$'\n'
+    case "${st:0:1}" in A|R|C) AFK_CTX_NEW+="$path"$'\n' ;; esac
     [ -f "$path" ] && AFK_CTX_LIVE+="$path"$'\n'
   done <"$statfile"
   rm -f "$statfile" 2>/dev/null
@@ -185,8 +191,6 @@ gate_ctx_build_staged() {
   AFK_CTX_TREE="staged:${AFK_CTX_TREE:-none}"
 
   AFK_CTX_READY=1
-  export AFK_CTX_HEAD AFK_CTX_BASE AFK_CTX_MERGEBASE AFK_CTX_CHANGED \
-         AFK_CTX_NEW AFK_CTX_LIVE AFK_CTX_TREE AFK_CTX_READY
   return 0
 }
 
