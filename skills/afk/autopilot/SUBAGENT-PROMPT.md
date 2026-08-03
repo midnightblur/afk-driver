@@ -1,6 +1,6 @@
 # Per-subtask subagent prompt
 
-Spawn one general-purpose subagent per subtask with this prompt, placeholders filled. The subagent needs no skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics + the subagent's return contract follow `DELEGATION.md` (plugin root).
+Spawn one subagent per subtask with this prompt, placeholders filled — agent type per the sizing rule in `SKILL.md` (implementation tier travels as the `afk-implementor` type, which carries the pinned model). The subagent needs no skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics + the subagent's return contract follow `DELEGATION.md` (plugin root).
 
 ```
 You are executing one subtask of a local plan, non-interactively.

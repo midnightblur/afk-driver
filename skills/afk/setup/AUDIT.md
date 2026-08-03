@@ -63,11 +63,15 @@ pair/triple named in `CLAUDE.md` "Lockstep": the sections the pair binds
 ## 5 · Generated-layer sync (Codex mirror)
 
 Run `python tools/payable/ai-agents/codex-sync/generate.py --check` from the
-repo root. Any drift → finding (route: rerun the generator and commit — the
-listed canonical source changed without regeneration). Provider-independent:
+repo root. Any drift → finding (route: rerun the generator — the repo-root
+mirror is gitignored per-machine; only `config-fragment.toml` + the provider.sh
+sync ride git, committed alongside their canonical source). Provider-independent:
 runs whether or not Codex CLI is installed; it audits repo artifacts, not the
 machine. Also spot-check that `hooks/lib/provider.sh` and the harness plugin's
-synced copy are byte-identical (the same `--check` covers it).
+synced copy are byte-identical (the same `--check` covers it). Then the
+distribution law: `git ls-files .agents .codex AGENTS.local.md CLAUDE.local.md`
+must print nothing — a tracked activation surface violates `PROVIDERS.md`
+"Distribution law" (route: untrack + gitignore).
 
 ## 6 · Glossary term usage
 

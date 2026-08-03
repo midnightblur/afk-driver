@@ -52,7 +52,7 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 5. **Status → `developing`; apply TDD.** `plan-status.sh {plan-dir} {NNNN-slug} developing`, then use `/afk:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
-6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules).
+6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules). **Every `git commit` in this skill runs the commit-time code gates** (maven-compile, java-format, ui-lint — `hooks/precommit-gates.sh`), so a commit touching `.java` takes minutes, not seconds: invoke it with an explicit **600000 ms tool timeout**. A commit that dies on the default timeout leaves the gates' verdict unknown and the work uncommitted — it is not a signal to retry with `--no-verify`. Same contract for every later commit in this skill (Steps 10, 11).
 
 7. **Push and update the Draft MR.** Push to the parent branch. Update the MR's auto-maintained checklist block (`<!-- afk:subtasks:start -->` … `<!-- afk:subtasks:end -->`) via `glab` so this subtask reads done — preserve everything outside the block verbatim.
 

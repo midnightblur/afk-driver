@@ -76,7 +76,7 @@ The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and 
 The persistent term → explanation map every lavish artifact inherits — plugin seed `hooks/lavish-tips.json` (workflow vocabulary) merged with the target repo's main-checkout overlay `.claude/lavish-tips.json` (domain vocabulary, grows over time). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is appending missing entries once. Doctrine: `LAVISH.md` "Tooltips".
 _Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
 
-**Grill triage (debate / confirm)**:
+**Grill-question triage (debate / confirm)**:
 The classification every grill question gets before it's asked (rule: `skills/afk/grill-requirements/TRIAGE.md`): *debate* — alternatives worth weighing, asked one at a time; *confirm* — a safe default the user accepts or overrides, batched at the section/layer boundary into one answer round. An overridden confirm escalates to debate.
 _Avoid_: quick questions (vague), survey (implies no escalation path)
 
