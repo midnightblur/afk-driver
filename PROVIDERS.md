@@ -21,6 +21,32 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 | Credentials (Jira scripts) | `~/.claude.json` `mcpServers.jira.env` | `~/.codex/config.toml` `[mcp_servers.jira.env]`, or exported env vars (resolution order: env → claude.json → codex toml) |
 | Pick up a skill edit | `/reload-plugins` | nothing for prose (pointers re-read canonical files each activation); `python tools/payable/ai-agents/codex-sync/generate.py` when frontmatter/structure changed |
 
+## Distribution law (binding on every plugin change)
+
+The plugin's blast radius is the opted-in dev, never the monorepo's other
+teams. Opt-in: Claude — install the plugin (`enabledPlugins`); Codex — run
+`tools/payable/ai-agents/codex-sync/generate.py` (or `/afk:setup`). Three
+rules sort every artifact a change ships:
+
+- **Activation surfaces never ride git.** Anything that makes an agent *act*
+  — hook wiring, agent defs, skill discovery, first-turn afk context —
+  exists only on opted-in machines: Claude via the plugin snapshot, Codex
+  via the gitignored root mirror (`.agents/`, `.codex/`, `AGENTS.local.md`).
+- **Committed prose is the one shared surface — inert and, at repo root,
+  neutral.** Plugin/harness markdown under `tools/payable/ai-agents/` and the
+  CLAUDE.md steering tree ride git; a repo-root file every agent auto-reads
+  must stay provider-neutral and carry no afk activation content.
+- **Provider parity.** What is committed / local / neutral for Claude is
+  committed / local / neutral for Codex. Root map: `CLAUDE.md` ↔ `AGENTS.md`
+  (committed neutral routers); `CLAUDE.local.md` ↔ `AGENTS.local.md`
+  (gitignored per-machine); plugin install ↔ generated mirror.
+
+Exception: generator outputs that are tooling, not activation
+(`codex-sync/config-fragment.toml`, the harness `hooks/lib/provider.sh`
+byte-copy) ride git. Sort any new artifact class by one test: *can it make an
+agent act on a machine whose dev never opted in?* — then it cannot be
+committed.
+
 ## Model tiers (referenced by `DELEGATION.md` "Model selection")
 
 Tier *roles* are owned by `DELEGATION.md`; this table owns the per-provider
