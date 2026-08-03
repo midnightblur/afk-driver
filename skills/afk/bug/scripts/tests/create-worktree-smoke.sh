@@ -59,6 +59,9 @@ printf 'root=%s/nested\n' "$REPO_WIN" > "$REPO/.claude/sub/settings.local.json"
 echo "seed" > "$REPO/README.md"
 git -C "$REPO" add -A
 git -C "$REPO" commit -qm "seed"
+# written AFTER the seed commit: .claude/* is gitignored in the real repo, so TODO.md only
+# ever reaches a worktree via the config-clone step — which must skip it (per-worktree state)
+echo "- [ ] per-worktree item" > "$REPO/.claude/TODO.md"
 BASE_BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
 
 # fake Maven seed repo — proves .m2 seeding + *-SNAPSHOT exclusion without touching the
@@ -102,6 +105,9 @@ if [[ -f "$NESTED" ]]; then
 else
   bad "nested .claude/ file not cloned"
 fi
+
+# per-worktree state must NOT be cloned (.claude/TODO.md is each worktree's own todo list)
+if [[ ! -e "$WT_PATH/.claude/TODO.md" ]]; then ok ".claude/TODO.md excluded from clone"; else bad ".claude/TODO.md was cloned into the worktree"; fi
 
 # --- Test 2b: per-worktree Maven repo — maven.config + seed minus snapshots --
 MVN_CFG="$WT_PATH/.mvn/maven.config"
