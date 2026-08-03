@@ -42,8 +42,11 @@ def run(plan_dir):
     return p.returncode, p.stdout + p.stderr
 
 
-def subtask(goal, scope, verification, produces=None, consumes=None, blocked="(none)"):
-    parts = [f"## Goal\n{goal}\n", "## Complexity\nstandard\n", f"## Scope\n{scope}\n"]
+def subtask(goal, scope, verification, produces=None, consumes=None, blocked="(none)", review=None):
+    parts = [f"## Goal\n{goal}\n", "## Complexity\nstandard\n"]
+    if review:
+        parts.append(f"## Review\n{review}\n")
+    parts.append(f"## Scope\n{scope}\n")
     if produces:
         parts.append(f"## Produces\n{produces}\n")
     if consumes:
@@ -88,8 +91,8 @@ def gate_table(ui_rows, api_rows):
             + rows)
 
 
-def plan_md(gate_section):
-    return ("# Execution Plan — Fixture\n\n> Parent ticket: T-1   Mode: cited\n\n"
+def plan_md(gate_section, policy=""):
+    return ("# Execution Plan — Fixture\n\n> Parent ticket: T-1   Mode: cited\n" + policy + "\n"
             "## Progress tracker\n\n| # | Subtask | Title | Status |\n|---|---|---|---|\n\n"
             + gate_section)
 
@@ -98,7 +101,8 @@ def build_clean(root):
     plan = os.path.join(root, "repo", "tasks", "T-1", "plan")
     os.makedirs(os.path.join(root, "repo", ".git"), exist_ok=True)
     write(os.path.join(root, "repo", "tasks", "T-1", "VERIFICATION-PLAN.md"), VP_FULL)
-    write(os.path.join(plan, "PLAN.md"), plan_md(gate_table(2, 1)))
+    write(os.path.join(plan, "PLAN.md"),
+          plan_md(gate_table(2, 1), policy="> Review policy: lean   <!-- lean | full -->\n"))
     write(os.path.join(plan, "0001-core.md"), subtask(
         "Core service.", "- 11700-payable/payable/src/**",
         STATIC + "\n| unit | `mvn test` | behavior |",
@@ -107,7 +111,8 @@ def build_clean(root):
         "Consumer.", "- 11700-payable/payable/src/**",
         STATIC,
         consumes="- 0001-core 11700-payable/src/Foo.java#FooServiceContractV1 — the contract",
-        blocked="0001-core"))
+        blocked="0001-core",
+        review="policy: full\nopt-in: code-quality, resilience"))
     write(os.path.join(plan, "0003-smoke-e2e.md"), subtask(
         "UI smoke specs.", "- 11700-payable/verification/ui-e2e/features/*.feature",
         STATIC + "\n| e2e/browser | `npm run smoke` | scenarios green |",
@@ -126,8 +131,9 @@ def build_dirty(root):
     plan = os.path.join(root, "repo", "tasks", "T-2", "plan")
     os.makedirs(os.path.join(root, "repo", ".git"), exist_ok=True)
     write(os.path.join(root, "repo", "tasks", "T-2", "VERIFICATION-PLAN.md"), VP_FULL)
-    # gate has 1 ui-e2e row but the plan has 2 -> G-PARITY-UI
-    write(os.path.join(plan, "PLAN.md"), plan_md(gate_table(1, 1)))
+    # gate has 1 ui-e2e row but the plan has 2 -> G-PARITY-UI; bogus policy -> H-POLICY
+    write(os.path.join(plan, "PLAN.md"),
+          plan_md(gate_table(1, 1), policy="> Review policy: strict\n"))
     # ambiguous anchor target: file exists, anchor greps twice
     write(os.path.join(root, "repo", "svc", "Dup.java"),
           "AmbiguousAnchorHere x\nAmbiguousAnchorHere y\n")
@@ -142,7 +148,9 @@ def build_dirty(root):
                   "- svc/Dup.java#AmbiguousAnchorHere — ambiguous"),
         consumes=("- 0002-beta svc/C.java#SomeLaterProducedThing — forward\n"
                   "- 0099-ghost svc/D.java#GhostProducedArtifact — orphan"),
-        blocked="(none)"))
+        blocked="(none)",
+        # H-POLICY-VALUE + H-OPT-IN-UNKNOWN (spec-fidelity is core, not deferrable) + H-REVIEW-LINE
+        review="policy: bogus\nopt-in: spec-fidelity\nstray prose line"))
     # 0002: produces the thing 0001 forward-consumes, marked materialized while the
     # consumer line isn't (A-MAT-DISAGREE on 0003's consume below is cleaner; here
     # collision partner) ; ui scope without e2e row (E-TIER-E2E); no static row (E-STATIC)
@@ -196,7 +204,8 @@ def main():
         for rule in ["A-FORWARD", "A-UNKNOWN-PRODUCER", "A-NOT-PRODUCED", "A-COLLISION",
                      "A-MAT-DISAGREE", "B-GENERIC", "B-SHORT", "B-AMBIGUOUS",
                      "B-MAT-UNRESOLVED", "E-STATIC", "E-TIER-E2E", "E-TIER-API",
-                     "E-TIER-INTEGRATION", "G-PARITY-UI", "G-BUILD-MISSING", "G-BLOCKEDBY"]:
+                     "E-TIER-INTEGRATION", "G-PARITY-UI", "G-BUILD-MISSING", "G-BLOCKEDBY",
+                     "H-POLICY", "H-POLICY-VALUE", "H-OPT-IN-UNKNOWN", "H-REVIEW-LINE"]:
             (ok if rule + ":" in out else bad)(f"dirty plan flags {rule}")
         for absent in ["G-NO-GATE", "G-PHANTOM-BUILD", "G-FULL-WITHOUT-PLAN", "SYNTAX"]:
             (ok if absent + ":" not in out else bad)(f"dirty plan does not flag {absent}")

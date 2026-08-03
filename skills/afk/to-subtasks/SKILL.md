@@ -68,15 +68,15 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
    - Mark the corresponding `## Produces` bullet and every `## Consumes` line citing it with the trailing `[materialized]` marker (grammar: [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)).
    Seams extending **existing** files, and non-Java seams, stay grep-anchor-only — the marker is never on them. Materialized files are **not committed by this skill** (see Hard rules): the human commits them with the plan on approval, exactly like the `plan/` files.
 
-4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` = zero-padded rank; `{slug}` = short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere). Fill `## Context excerpts` now, while the sources are open, per the contract's field rules ([SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)) — a missing load-bearing excerpt costs the executor a full parent-doc re-read.
+4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` = zero-padded rank; `{slug}` = short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere). Fill `## Context excerpts` now, while the sources are open, per the contract's field rules ([SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)) — a missing load-bearing excerpt costs the executor a full parent-doc re-read. Emit a `## Review` section only where a lean-deferred concern is much cheaper caught at this slice than at the feature gate (e.g. a slice whose pattern the following slices will imitate); the plan-level policy covers everything else.
 
-5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
+5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`, and the header `Review policy: lean` (the default — the human flips it to `full` at plan review when every slice warrants the full roster; semantics: `skills/afk/review/SKILL.md` "Gate policy"). `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
 
 6. **Validate the slice** (see "Validation"): the validator script to a clean exit plus the judgment checks — all must pass before the plan is emitted.
 
 7. **Update the ticket index.** Upsert this skill's row(s) in the ticket folder's `INDEX.md` (plan row: subtask count, mode, pointer to `plan/PLAN.md` for live status) per `skills/afk/to-prd/INDEX-FORMAT.md`. Create the file per that format if absent.
 
-8. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) for human review before execution. Flag every seam-touching subtask explicitly — those rows warrant a careful human read. Also state, one plain-language sentence per subtask, *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere. When a human is present, render per LAVISH.md (RP-2, playbook `plan`) for plan approval; markdown fallback and driven mode use the printed summary above.
+8. **Output.** Print the plan path, the review policy (+ any per-subtask `## Review` deviations), and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) for human review before execution. Flag every seam-touching subtask explicitly — those rows warrant a careful human read. Also state, one plain-language sentence per subtask, *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere. When a human is present, render per LAVISH.md (RP-2, playbook `plan`) for plan approval; markdown fallback and driven mode use the printed summary above.
 
 ## Subtask contract (`plan/NNNN-{slug}.md`)
 
@@ -112,7 +112,7 @@ Write `PLAN.md` (header, solution map, seam register, progress tracker, and the 
 
 ## Validation
 
-Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scripts/validate_plan.py {plan-dir}` covers the mechanical checks (a)/(b)/(e)/(g) and must exit clean; (c)/(d)/(f) are judgment checks. **Cited mode** owes (a)–(g); **uncited mode** (e)–(g). **(g)** always runs — it validates whichever gate shape the plan carries.
+Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scripts/validate_plan.py {plan-dir}` covers the mechanical checks (a)/(b)/(e)/(g)/(h) and must exit clean; (c)/(d)/(f) are judgment checks. **Cited mode** owes (a)–(h); **uncited mode** (e)–(h). **(g)** and **(h)** always run — they validate whichever gate shape and review policy the plan carries.
 
 ## Hard rules
 

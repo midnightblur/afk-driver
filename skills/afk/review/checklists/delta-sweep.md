@@ -1,6 +1,6 @@
 # delta-sweep — remediation-delta regression review (delta rounds only)
 
-The consolidated implementation reviewer for a settle-loop delta round — the always-six's highest-yield items at remediation-delta altitude. Not one of the 11 concerns; spawned only on delta rounds (SKILL.md "Delta-round roster"). Reviews the delta cold: no finding history, no round context. Each item below names its `class`; stamp `concern: delta-sweep`, `criterion` = the item name. Baseline items follow PRECEDENCE.md; when the orchestrator's prompt names co-spawned specialist concerns, their territory is theirs — skip it (one owner).
+The consolidated implementation reviewer for a settle-loop delta round — the full-roster always-set's highest-yield items at remediation-delta altitude. Not one of the 11 concerns; spawned only on delta rounds (SKILL.md "Delta-round roster"). Reviews the delta cold: no finding history, no round context. Each item below names its `class`; stamp `concern: delta-sweep`, `criterion` = the item name. Baseline items follow PRECEDENCE.md; when the orchestrator's prompt names co-spawned specialist concerns, their territory is theirs — skip it (one owner).
 **Not yours (always):** whole-unit altitude — acceptance completeness, module shape, domain vocabulary, resilience of pre-existing touchpoints, API-surface coherence — full-unit-round and specialist territory.
 
 ## Reviewer checklist

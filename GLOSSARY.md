@@ -183,6 +183,9 @@ The human's own affirming answer to a human-locked aspect's question, recorded v
 **Review gate**:
 The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.
 
+**Review policy (lean / full)**:
+The slice review gate's roster scale, stamped per plan (PLAN.md header, seeded `lean`) with per-contract `## Review` override. `full` = every implementation concern on every slice; `lean` = only concerns whose defects compound or are invisible at feature altitude run per slice — the rest defer to the feature-level review, which widens to cover them and sweeps the deferred findings. Split + resolution: `skills/afk/review/SKILL.md` "Gate policy".
+
 **Settle loop**:
 The review gate's round-based caller protocol — review with fresh contexts, fix or dispute every finding (nits included), adjudicate disputes with fresh skeptics, repeat until a round yields nothing actionable. Roles, round structure, termination, and the referee's information diet: `skills/afk/review/SETTLEMENT.md`.
 
