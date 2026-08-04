@@ -2,6 +2,8 @@
 
 Spawn one subagent per subtask with this prompt, placeholders filled — agent type per the sizing rule in `SKILL.md` (implementation tier travels as the `afk-implementor` type, which carries the pinned model). The subagent needs no skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics + the subagent's return contract follow `DELEGATION.md` (plugin root).
 
+`{WORKFLOW_SKILLS_DIR}` = `<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills`; `{WORKFLOW_HOOKS_DIR}` = the sibling `…/workflow/hooks`. `<main-checkout>` is the first entry of `git worktree list` (fill absolute paths). **Always the main checkout — never the worktree's own copy**: the worktree carries the plugin as of the feature's branch point, so a worktree-resolved path would run stale plugin files (`GLOSSARY.md` "Main checkout").
+
 ```
 You are executing one subtask of a local plan, non-interactively.
 
@@ -16,7 +18,7 @@ Context:
   provision the instance AFTER implementing, so it serves your changes;
   re-run the same command to pick up later changes:
   APP_START_KEEP=1 APP_START_PORT={PORT} [APP_START_SKIP_UI=false for UI slices]
-  bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {LEAF_MODULE}
+  bash {WORKFLOW_HOOKS_DIR}/app-start-gate.sh {LEAF_MODULE}
   The gate kills any prior subtask's instance on the port itself. If YOUR
   changes touched nothing the app loads — no file under a Maven module's
   src/, and no UI file when the instance serves the UI — add

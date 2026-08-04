@@ -43,8 +43,16 @@ The 1–2 page plain-language digest of PRD + SDD + ADRs (one diagram, a decisio
 `INDEX.md` in the ticket's spec folder — the read-this-first dashboard: one-paragraph feature summary, artifact table with states, recommended reading order. Format: `skills/afk/to-prd/INDEX-FORMAT.md`.
 _Avoid_: dashboard, status file
 
+**Feature terms file**:
+`LAVISH-TIPS.md` in the ticket's spec folder — the feature's committed term → explanation store (glossary entry grammar, but not a glossary: feature- and session-scoped ids and ideas live here); parsed into every lavish render's tooltip dictionary alongside this workflow glossary (`LAVISH.md` "Tooltips").
+_Avoid_: feature glossary (real domain vocabulary graduates to the service glossary)
+
 **Plan**:
 The `plan/` directory — `PLAN.md` (index: solution map, seam register, progress tracker, smoke gate) plus one subtask contract per slice. A local contract, never Jira issues.
+
+**Main checkout (`<main-checkout>`)**:
+The repo's primary checkout — the first entry of `git worktree list`, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from `<main-checkout>/tools/payable/ai-agents/plugins/workflow/…`, never from a worktree's copy — a worktree carries the plugin frozen at its branch point, stale the moment the plugin advances. Only plugin paths pin here; cwd stays wherever the work is (builds run in the worktree).
+_Avoid_: repo root as a plugin-path base (resolves to the worktree when cwd is one)
 
 **Subtask contract**:
 One `plan/NNNN-slug.md` file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.
@@ -73,7 +81,7 @@ _Avoid_: prerequisites list (scattered inline — the failure the manifest retir
 The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs.
 
 **Tooltip dictionary**:
-The persistent term → explanation map every lavish artifact inherits — plugin seed `hooks/lavish-tips.json` (workflow vocabulary) merged with the target repo's main-checkout overlay `.claude/lavish-tips.json` (domain vocabulary, grows over time). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is appending missing entries once. Doctrine: `LAVISH.md` "Tooltips".
+The persistent term → explanation map every lavish artifact inherits — seed `hooks/lavish-tips.json` merged with this workflow glossary and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
 _Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
 
 **Grill-question triage (debate / confirm)**:

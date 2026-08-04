@@ -23,10 +23,12 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 ## Step 2 — Preflight: verify Consumed contracts (cited mode)
 
 2. **Before any other work** — no status change, no commits, no verification
-   runs — run from the worktree root:
+   runs — run from the worktree root (`<main-checkout>` = first entry of
+   `git worktree list`; the script comes from the main checkout, never this
+   worktree's stale plugin copy — `GLOSSARY.md` "Main checkout"):
 
    ```
-   bash tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .
+   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .
    ```
 
    - Any miss (exit 1) → stop with `contract_mismatch` carrying the
@@ -48,7 +50,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 9. **Before declaring success**, run from the worktree root:
 
    ```
-   bash tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction produces --root .
+   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction produces --root .
    ```
 
    - Any miss (exit 1) on your own `## Produces` → `produces_drift`. Quote the

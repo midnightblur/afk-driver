@@ -69,7 +69,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
 
    Journey shape and observables are debate-class — walked one at a time. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: batch them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate).
 
-3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md).
+3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md). Settled API rows join the same RP-3 matrix artifact (step 6) as they land — one standing surface for the session, never a second file.
 
 4. **Check coverage.** Every User Story → ≥1 UI journey; every Acceptance Criterion → ≥1 proving scenario in some modality; every exposed endpoint → ≥1 API scenario; every scenario traces back to a Story / Acceptance Criterion / §3 row. Surface over-coverage (a scenario nothing asks for — is the spec missing it?) and under-coverage (a Story or endpoint with no demonstrable scenario — is it real?). UI and API are **complementary, not redundant**: the UI journey proves the user flow, the API scenario proves the contract a UI test can't see (raw envelope, below-the-UI guard).
 

@@ -127,8 +127,10 @@ an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 (Resume rule above).
 
 **PF-4c lessons — advisory open-drafts surface (never parks).** Run
-`bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
-from the repo root; set the row `green` with
+`bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
+from the repo root (`<main-checkout>` = first entry of `git worktree list` —
+plugin files always run from the main checkout; `GLOSSARY.md` "Main
+checkout"); set the row `green` with
 `Evidence: open lessons: <n> (grammar: skills/afk/lessons/LEDGER-FORMAT.md)`.
 This is how workflow-lesson drafts captured during hands-off runs reach the
 human at the ship gate: `<n> > 0` changes nothing mechanically — the count
@@ -156,8 +158,8 @@ is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
    understanding-artifact path (from that row's `Evidence`) so reviewers can
    discover it (SDD §5 observability).
 
-**PF-6 — launch ci-wait.** Launch `scripts/ci-wait.sh {mr-ref} 5400 180
-[repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
+**PF-6 — launch ci-wait.** Launch
+`<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/preflight/scripts/ci-wait.sh {mr-ref} 5400 180 [repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
 numbers, not invented per-run) as a background Bash task; append the launch to
 `plan/JOURNAL.md`. The calling session/turn ends here — whatever resumes it
 (human, orchestrator) picks up the routing below once the task exits.
