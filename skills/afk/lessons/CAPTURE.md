@@ -47,10 +47,12 @@ writes directly is a ledger event.
 
 ## The append
 
-From the target repo root:
+From the target repo root (`<main-checkout>` = first entry of `git worktree
+list` — plugin scripts always run from the main checkout, never a worktree's
+stale copy; `GLOSSARY.md` "Main checkout"):
 
 ```
-bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
+bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
   --class <class> --target <path> --summary "<one line>" \
   --draft "<the edit>" --writer <skill> \
   [--miss <class>] [--source <id>] [--evidence <path:line>]

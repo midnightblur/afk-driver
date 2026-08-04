@@ -102,13 +102,18 @@ as-is:
 | # | Check | Command | Status |
 |---|-------|---------|--------|
 | 1 | compile | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make compile -DskipUi=true | |
-| 2 | app-start | bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
+| 2 | app-start | bash {main checkout}/tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
 | 3 | regression | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make test -DskipUi=true | |
 | 4 | existing ui-e2e suite | cd 11700-payable/verification/ui-e2e && npm run smoke (pre-existing scenarios still green) | |
 | 5 | existing api suite | cd 11700-payable/verification/api && node --test (pre-existing scenarios still green) | |
 
 Last run: —
 ```
+
+`{main checkout}` fills at seeding time with the absolute path of the first
+entry of `git worktree list` — the persisted command must run the main
+checkout's plugin copy from any worktree, resolving nothing at gate time
+(`GLOSSARY.md` "Main checkout").
 
 `{changed modules}` = union of every subtask's Scope-derived Maven modules. Rows
 4–5 prove the feature broke nothing the suites already covered; they add no

@@ -41,8 +41,10 @@ before a ticket key is minted). Required.
 ## Process (watch / retro)
 
 1. **Freshness first.** Run
-   `python3 tools/payable/ai-agents/plugins/workflow/skills/afk/mission-control/scripts/mission_control.py {spec_dir} --check-digests`
-   (read-only, exit 0) and tell the user which digest sections are fresh,
+   `python3 <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/mission-control/scripts/mission_control.py {spec_dir} --check-digests`
+   (read-only, exit 0; `<main-checkout>` = first entry of `git worktree list`
+   — plugin scripts always run from the main checkout; `GLOSSARY.md` "Main
+   checkout") and tell the user which digest sections are fresh,
    stale, or unbuilt — with "run `/afk:mission-control {spec_dir} build` to
    refresh" when any aren't fresh. Never build uninvited.
 
