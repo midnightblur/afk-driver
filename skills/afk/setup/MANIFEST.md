@@ -24,6 +24,12 @@ its entries have no plain `Probe:` and the default branch skips them. The base
 tier is elective per item — the human picks what to install at report time
 (mechanics: `SKILL.md` step 3); the plain `Probe:`/`Fix:` surface never is.
 
+**Opt-in tier.** Entries tagged **[opt-in]** are user preferences, never
+load-bearing: a probe miss classifies `opt-in available`, never
+`missing/broken`. Offered at report time as an election on **every** branch,
+deselected by default; accept ⇒ run the fix, decline ⇒ `skipped (user choice)`
+(mechanics: `SKILL.md` step 3).
+
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
 
@@ -127,6 +133,28 @@ a token value — not even partially.
   K3 `worktreeBasePath`).
 - **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
   owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
+
+### H7 · plain-language replies (ASD-STE100) **[opt-in]**
+- **Needed by:** nothing — a user preference: every agent session of this user
+  (all projects, both providers) answers in Simplified Technical English,
+  easier to follow for non-native readers.
+- **Probe:** `grep -q 'afk:plain-language:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:plain-language:start' ~/.codex/AGENTS.md 2>/dev/null; }`
+- **Fix:** `auto:` append the sentinel block from
+  [`PLAIN-LANGUAGE.md`](PLAIN-LANGUAGE.md) (the one home) to the user-global
+  steering files — `~/.codex/AGENTS.md` only when Codex (O1) is installed —
+  creating a missing file, skipping one already carrying the sentinel:
+  ```sh
+  src=tools/payable/ai-agents/plugins/workflow/skills/afk/setup/PLAIN-LANGUAGE.md
+  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
+    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
+    grep -q 'afk:plain-language:start' "$f" 2>/dev/null && continue
+    mkdir -p "$(dirname "$f")"
+    { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
+  done
+  ```
+- **Notes:** user-global, per-machine — never rides git (file map:
+  `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
+  file(s); opt in any time by re-running `/afk:setup`.
 
 ## C — Shell & core CLIs
 

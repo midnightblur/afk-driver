@@ -10,6 +10,17 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-05
+
+- **Opt-in plain-language replies.** `/afk:setup` now carries an elective
+  (manifest H7, deselected by default, offered on every run): install a
+  Simplified Technical English (ASD-STE100) reply standard into your
+  user-global steering file (`~/.claude/CLAUDE.md`; also `~/.codex/AGENTS.md`
+  on Codex machines) so every agent session — all projects — answers in short,
+  plain, consistent English. Already set up? Re-run `/afk:setup` to opt in;
+  opt out by deleting the sentinel block. Standard text (one home):
+  `skills/afk/setup/PLAIN-LANGUAGE.md`.
+
 ## 2026-08-03
 
 - **Plugin files always run from the main checkout.** Every runtime skill/hook/script path across the plugin (autopilot spawn prompt, execute + cited-mode scripts, bug fixer prompt, lesson capture/digest, preflight ci-wait, smoke-gate template, mission-control, harvest) is now pinned to `<main-checkout>/tools/…` — an agent working in a worktree no longer executes the stale plugin copy frozen at the feature's branch point. Rule + term: `GLOSSARY.md` "Main checkout"; authoring convention in the plugin `CLAUDE.md`.

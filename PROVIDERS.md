@@ -19,6 +19,7 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 | Plugin root / data dirs | `CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA` | repo-relative paths / `~/.afk/data/<plugin>` (resolved by `hooks/lib/provider.sh`) |
 | Job scratch dir | `CLAUDE_JOB_DIR` | unset — skills fall back to a temp/scratch dir |
 | Credentials (Jira scripts) | `~/.claude.json` `mcpServers.jira.env` | `~/.codex/config.toml` `[mcp_servers.jira.env]`, or exported env vars (resolution order: env → claude.json → codex toml) |
+| User-global steering file (every session, all projects) | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
 | Pick up a skill edit | `/reload-plugins` | nothing for prose (pointers re-read canonical files each activation); `python tools/payable/ai-agents/codex-sync/generate.py` when frontmatter/structure changed |
 
 ## Distribution law (binding on every plugin change)

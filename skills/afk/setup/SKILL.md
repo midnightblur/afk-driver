@@ -33,7 +33,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    every `Base probe:` where present — a version miss there is `missing/broken`
    even when the plain probe passes, and its fix is the entry's `Base fix:`.
    Batch independent probes. Classify each: `ok` · `missing/broken` · `deferred`
-   (tagged **[deferred]**, first-use not yet reached — never a failure).
+   (tagged **[deferred]**, first-use not yet reached — never a failure) ·
+   `opt-in available` (tagged **[opt-in]**, a preference on offer — never a
+   failure; tag semantics in the manifest header).
    Section **O** (OpenAI Codex CLI) has its own gating rule: O1 missing →
    the whole section reports `deferred (Codex not installed)` wholesale.
    **Never classify on a stale environment.** A process inherits the environment
@@ -50,12 +52,15 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    section-W entry) as a multi-select — grouped by manifest section, all
    selected by default, each option carrying the entry's one-line purpose so
    the human can judge without opening the manifest. Deselected ⇒
-   `skipped (user choice)`: no fix, no re-probe, never `needs-human`. The
-   election covers the base tier only — the plain `Probe:`/`Fix:` surface is
-   skill-load-bearing, never elective (an entry carrying both tiers keeps its
-   plain fix even when its base item is deselected). Build the options from
-   the register at run time, never from a hardcoded list, so a new base-tier
-   entry is electable the day it lands.
+   `skipped (user choice)`: no fix, no re-probe, never `needs-human`. On
+   **every** branch, entries probing `opt-in available` join the election too,
+   **deselected by default** (a preference, not a repair) — accepted ⇒ run the
+   entry's fix in step 4, declined ⇒ `skipped (user choice)`. Beyond those two
+   groups nothing is elective — a load-bearing entry's plain `Probe:`/`Fix:`
+   surface always runs (an entry carrying both tiers keeps its plain fix even
+   when its base item is deselected). Build the options from the register at
+   run time, never from a hardcoded list, so a new base-tier or opt-in entry
+   is electable the day it lands.
 4. **Fix.**
    - `auto:` fixes — run them. Confirm first only for global installs
      (`npm i -g`, `pip install`) in an interactive session.
