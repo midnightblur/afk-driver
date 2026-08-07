@@ -10,6 +10,15 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-07
+
+- **Preflight merges the MR's target branch and resolves conflicts itself.**
+  PF-1 now merges the MR's target branch (`origin/master` only as fallback)
+  and resolves merge conflicts in place instead of parking — PF-2 validations
+  and the PF-3 fresh review verify the resolution; only a conflict encoding
+  contradictory design intent still parks. PF-3 passes the same base to
+  `/afk:review --feature`.
+
 ## 2026-08-05
 
 - **Opt-in plain-language replies.** `/afk:setup` now carries an elective

@@ -61,7 +61,7 @@ review settle-loop rounds (cap 10 — owned by
 
 | # | Step | Status | Cycle | Evidence |
 |---|------|--------|-------|----------|
-| 1 | PF-1 merge origin/master + ancestry guard, push | pending | — | — |
+| 1 | PF-1 merge target branch + ancestry guard, push | pending | — | — |
 | 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
 | 3 | PF-3 fresh-context review of the integrated diff (settle loop) | pending | 0/10 | — |
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |

@@ -52,16 +52,25 @@ Each step updates its table row (`Status` + `Evidence`) the moment it completes
 root), leave the MR Draft, leave every not-yet-reached row untouched.
 
 **PF-1 — merge & ancestry guard.**
-1. Record current `HEAD` (`git rev-parse HEAD`).
-2. `git merge origin/master` — **never** `rebase`, **never** `--force` push
+1. Resolve the merge source `{target}`: the MR's target branch
+   (`glab mr view` → target branch; `origin/master` when no MR resolves).
+   `git fetch origin {target}` first. Later PF steps reading a base
+   (`/afk:review --feature`'s `--base`) use this same `{target}`.
+2. Record current `HEAD` (`git rev-parse HEAD`).
+3. `git merge origin/{target}` — **never** `rebase`, **never** `--force` push
    (Hard rules below; binding requirement, not style).
-3. Merge conflict → `park(PF-1: merge_conflict)` immediately — never
-   auto-resolved, only a human untangles intent across two histories.
-4. On a clean merge, **ancestry guard**: `git merge-base --is-ancestor
-   {recorded-HEAD} HEAD` must succeed, confirming the pre-merge tip is still
-   reachable — no rewritten history. Guard failure → `park(PF-1:
+4. Merge conflict → resolve it in place, per conflicted file: read both
+   sides' intent (the feature's own diff vs the incoming commits), keep both
+   where disjoint, reconcile semantically where they overlap, complete the
+   merge commit. The resolution is verified downstream — PF-2 validates the
+   merged tip, PF-3 reviews it with fresh eyes. Only a conflict whose two
+   sides encode contradictory design intent no resolution can honor →
+   `park(PF-1: merge_conflict)`.
+5. **Ancestry guard** (clean and resolved merges alike): `git merge-base
+   --is-ancestor {recorded-HEAD} HEAD` must succeed, confirming the pre-merge
+   tip is still reachable — no rewritten history. Guard failure → `park(PF-1:
    ancestry_guard_failed)`, **before any push**.
-5. Only once the guard passes: push (plain `git push`, the now-fast-forwarded
+6. Only once the guard passes: push (plain `git push`, the now-fast-forwarded
    remote tracking branch).
 
 **PF-2 — validations.** Re-run the repo's mandated validation suite
@@ -73,7 +82,8 @@ malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
 **PF-3 — fresh-context review (settle loop).** Gate the merged tip through the
 review settle loop (`skills/afk/review/SETTLEMENT.md`; this ladder's session is
-the referee). Per round, run **`/afk:review --feature --tag r{n}`** — the
+the referee). Per round, run **`/afk:review --feature --tag r{n}`** (add
+`--base origin/{target}` when PF-1's merge source isn't `origin/master`) — the
 integrated feature diff as a whole (every subtask's changes together, not one
 slice), reviewed by fresh contexts that haven't seen the implementation's own
 reasoning, with the cross-slice design roster that skill's `--feature` mode

@@ -628,9 +628,10 @@ refactors, tooling.)*
 - **`/afk:smoke-test`** — feature-level completion gate: executes the
   already-built verification suites against a running app, stamps
   `Feature: complete` on green. Details: `skills/afk/smoke-test/SKILL.md`.
-- **`/afk:preflight`** — feature-level ship gate once smoke is green: master
-  merge, final validations + integrated review settle, CI babysit, Draft MR →
-  Ready. Details: `skills/afk/preflight/SKILL.md`.
+- **`/afk:preflight`** — feature-level ship gate once smoke is green:
+  target-branch merge (conflicts resolved in place), final validations +
+  integrated review settle, CI babysit, Draft MR → Ready. Details:
+  `skills/afk/preflight/SKILL.md`.
 
 ### Tooling
 

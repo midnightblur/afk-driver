@@ -71,7 +71,7 @@ Per-skill mechanics, refusal conditions, and formats live in each skill's own `S
 | `/afk:execute` | run one subtask end-to-end (TDD, tiers, review + adversary gates, Draft MR), stop at CR/Merge | `skills/afk/execute/SKILL.md` |
 | `/afk:autopilot` | hands-off plan walker, one fresh subagent per subtask, parks failures + dependents | `skills/afk/autopilot/SKILL.md` |
 | `/afk:smoke-test` | feature gate: execute the built suites vs a running app, stamp on green | `skills/afk/smoke-test/SKILL.md` |
-| `/afk:preflight` | ship gate after smoke-green: master merge, final review settle, CI babysit → MR Ready | `skills/afk/preflight/SKILL.md` |
+| `/afk:preflight` | ship gate after smoke-green: target-branch merge, final review settle, CI babysit → MR Ready | `skills/afk/preflight/SKILL.md` |
 | `/afk:review` | independent multi-concern review gate; read-only, settle-loop driven | `skills/afk/review/SKILL.md` |
 | `/afk:adversary` | adversarial live-app probe from contract + specs, blind to the diff | `skills/afk/adversary/SKILL.md` |
 | `tdd` *(agent)* | red-green-refactor doctrine for implementors | `skills/afk/tdd/SKILL.md` |
