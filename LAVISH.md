@@ -45,6 +45,15 @@ file per question forfeits the resume.
 **Re-render cadence.** A continuously-updated artifact (ledger, log, matrix)
 re-renders at question/turn boundaries, never per row write.
 
+**The page runtime lives in the file, so a rewrite drops it.** The tooltip
+dictionary and the dark-mode override are injected into the artifact HTML by
+`hooks/lavish-tips.sh` and `hooks/lavish-dark.sh`, which fire on a render **and
+on `lavish-axi poll <file>`**. Any Write/Edit that rewrites the artifact strips
+both, silently — nothing in the page or the transcript reports the loss. Both
+hooks are idempotent, so the next render or poll restores them; what you must
+never do is rewrite the artifact and then leave the human looking at it without
+one of those two commands in between.
+
 ## Render-point playbook map
 
 | RP | Playbook id |

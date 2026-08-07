@@ -39,6 +39,27 @@ today's date **in the same commit** — trigger owned by this file's
   opt out by deleting the sentinel block. Standard text (one home):
   `skills/afk/setup/PLAIN-LANGUAGE.md`.
 
+## 2026-08-07
+
+- **Lavish artifacts keep their tooltips and dark mode after a rewrite.** The
+  tooltip dictionary and the dark-mode override live inside the artifact HTML,
+  so any Write/Edit that rewrote the file stripped both — silently, with no
+  signal in the page or the transcript, leaving you looking at a white page
+  with no hover text. `lavish-axi poll <file>` now re-injects exactly as a
+  render does, so the runtime self-heals on the very next poll (and a rewrite
+  is always followed by a poll). Nothing to change in how you work.
+
+## 2026-08-05
+
+- **Opt-in plain-language replies.** `/afk:setup` now carries an elective
+  (manifest H7, deselected by default, offered on every run): install a
+  Simplified Technical English (ASD-STE100) reply standard into your
+  user-global steering file (`~/.claude/CLAUDE.md`; also `~/.codex/AGENTS.md`
+  on Codex machines) so every agent session — all projects — answers in short,
+  plain, consistent English. Already set up? Re-run `/afk:setup` to opt in;
+  opt out by deleting the sentinel block. Standard text (one home):
+  `skills/afk/setup/PLAIN-LANGUAGE.md`.
+
 ## 2026-08-03
 
 - **Plugin files always run from the main checkout.** Every runtime skill/hook/script path across the plugin (autopilot spawn prompt, execute + cited-mode scripts, bug fixer prompt, lesson capture/digest, preflight ci-wait, smoke-gate template, mission-control, harvest) is now pinned to `<main-checkout>/tools/…` — an agent working in a worktree no longer executes the stale plugin copy frozen at the feature's branch point. Rule + term: `GLOSSARY.md` "Main checkout"; authoring convention in the plugin `CLAUDE.md`.
