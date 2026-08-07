@@ -12,6 +12,13 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-07
 
+- **`/afk:gc` no longer refuses every shipped feature.** Its guard script read
+  the `Feature:` completion stamp with an anchored grep, but `PLAN.md` writes
+  that header as a blockquote (`> Feature: …`) — so a genuinely shipped feature
+  always came back `refused(not_shipped)`. The guard accepts both forms now, and
+  the smoke test builds its fixtures in the blockquote form so the real-world
+  shape is what gets exercised.
+
 - **PAYU007 now checks caption *values*, not just key counts.** The i18n parity
   Stop gate used to pass any key that existed in every locale — so an English
   string pasted into a translation, an apostrophe that silently kills every later

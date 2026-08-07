@@ -84,7 +84,10 @@ PLAN="$SPEC/plan/PLAN.md"
 [ -f "$PLAN" ] \
   || refuse not_shipped "no $PLAN — nothing proves the feature shipped" "$EXIT_NOT_SHIPPED"
 
-header="$(grep -m1 -E '^Feature:' "$PLAN" || true)"
+# The header is a blockquote line in PLAN-TEMPLATE.md (`> Feature: …`); accept the
+# bare form too, and strip the marker before matching.
+header="$(grep -m1 -E '^> ?Feature:' "$PLAN" || grep -m1 -E '^Feature:' "$PLAN" || true)"
+header="${header#> }"
 case "$header" in
   "Feature: complete ("*) : ;;
   *) refuse not_shipped "Feature header is '${header:-<missing>}', not 'complete (…)'" "$EXIT_NOT_SHIPPED" ;;

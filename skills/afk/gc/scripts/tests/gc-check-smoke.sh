@@ -53,9 +53,10 @@ git -C "$REPO" config user.email smoke@test.local
 git -C "$REPO" config user.name  smoke-tester
 git -C "$REPO" config commit.gpgsign false
 
-mk_spec() { # <name> <header>
+mk_spec() { # <name> <header-body>  — written in PLAN-TEMPLATE.md's blockquote form
   mkdir -p "$REPO/specs/$1/plan"
-  printf '%s\n\n## Progress tracker\n' "$2" > "$REPO/specs/$1/plan/PLAN.md"
+  printf '> %s   <!-- stamped by the smoke gate -->\n\n## Progress tracker\n' "$2" \
+    > "$REPO/specs/$1/plan/PLAN.md"
 }
 mk_spec tick-demo   'Feature: complete (smoke green 2026-07-01, target=local)'
 mk_spec tick-ahead  'Feature: complete (smoke green 2026-07-01, target=local)'
