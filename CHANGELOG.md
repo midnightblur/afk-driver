@@ -12,6 +12,15 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-07
 
+- **PAYU007 now checks caption *values*, not just key counts.** The i18n parity
+  Stop gate used to pass any key that existed in every locale — so an English
+  string pasted into a translation, an apostrophe that silently kills every later
+  `{n}`, and mojibake all shipped green. It now blocks on all three (over the
+  values a change adds or edits) and, repo-wide, on a backend `i18n/<locale>/`
+  folder missing from that service's `languages.json` — a whole bundle that never
+  loads. Per-check detail and the cognate allowlist:
+  `harness/code-quality/RULES.md`.
+
 - **Preflight merges the MR's target branch and resolves conflicts itself.**
   PF-1 now merges the MR's target branch (`origin/master` only as fallback)
   and resolves merge conflicts in place instead of parking — PF-2 validations
