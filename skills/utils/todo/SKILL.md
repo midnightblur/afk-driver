@@ -1,9 +1,6 @@
 ---
 name: todo
-description: >
-  Quick per-project todo list that survives sessions. Use when user
-  invokes `/todo`, asks to add a todo / remember something for later, or
-  asks what's open.
+description: Per-project todo list that survives sessions. Use for /todo, adding/remembering a task for later, or listing what's open.
 ---
 
 Per-project scratchpad for "do this next, but not now". Plain markdown file. Dead simple.
@@ -55,7 +52,7 @@ Delete the n-th open item entirely (mistake / no longer relevant). Confirm.
 
 ## Session-start check
 
-No-args invocation always means `list` (see Subcommands). Do NOT proactively read TODO.md every session without invocation — only when called. Keep cost zero when unused.
+No-args invocation always means `list` (see Subcommands). Do NOT proactively read TODO.md without invocation — zero cost when unused.
 
 ## Don'ts
 

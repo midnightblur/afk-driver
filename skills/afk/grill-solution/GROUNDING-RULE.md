@@ -76,5 +76,3 @@ claims are most common — the claim-type table above covers the how; e.g.:
 Verification is cheap (one `ctx_search` / `ctx_read`); a wrong premise
 is not. Drafting an answer that references
 something specific in the codebase — **verify before you write it down.**
-This rule applies to your own drafts too, not just the user's
-assertions.

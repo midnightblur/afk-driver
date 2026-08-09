@@ -1,18 +1,18 @@
 # Harness sync (always)
 
 Every plan ends with one terminal `NNNN-sync-harness` documentation subtask that
-updates the CLAUDE.md harness so the next agent discovers the shipped feature and
-how to use it, makes the final staples-registry call, **and emits the trace
-matrix** (`plan/TRACE.md`). Emit for every feature — not gated on any artifact.
+updates the CLAUDE.md harness so the next agent discovers the shipped feature,
+makes the final staples-registry call, **and emits the trace matrix**
+(`plan/TRACE.md`). Emitted for every feature — gated on no artifact.
 
-**The trace matrix.** Running last, this subtask is the one moment everything is
-known — which commits landed, which tests exist, which criteria they satisfy. It
+**The trace matrix.** Running last, everything is known — which commits landed,
+which tests exist, which criteria they satisfy. This subtask
 writes `plan/TRACE.md`: one table, one row per PRD Acceptance Criterion (and per
 accepted staple obligation), columns `Criterion (verbatim) | Subtask | Commits
 ([NNNN-slug]-prefixed short SHAs) | Proven by (test file / scenario name / gate
 row)`. Rows nothing satisfied are listed `— UNSATISFIED` — surfacing the gap is
-the point. Written once; a re-run overwrites. The artifact a human opens months
-later to answer "which commit satisfied which requirement".
+the point. Written once; a re-run overwrites. The artifact answering, months
+later, "which commit satisfied which requirement".
 
 Delegates the write to `/afk:claude-md`; the subtask only scopes that to this
 feature's net diff and states the deliverables. `## Blocked by` lists every

@@ -1,6 +1,6 @@
 ---
 name: to-demo-plan
-description: Demo script for a delivered feature — synthesizes its specs + diff into `DEMO-PLAN.md`: beat-by-beat say/do steps, minute-budgeted to an hour, show-vs-tell calls, touch points with existing behaviour, questions pre-empted, out-of-scope stated. Use when the user wants to demo a newly delivered feature to product owners, QA, or stakeholders.
+description: Demo script for a delivered feature — synthesizes its specs + diff into minute-budgeted DEMO-PLAN.md. Use when the user wants to demo a feature to POs, QA, or stakeholders.
 ---
 
 # afk:to-demo-plan — the demo script

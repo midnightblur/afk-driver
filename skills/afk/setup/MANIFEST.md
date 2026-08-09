@@ -24,6 +24,12 @@ its entries have no plain `Probe:` and the default branch skips them. The base
 tier is elective per item — the human picks what to install at report time
 (mechanics: `SKILL.md` step 3); the plain `Probe:`/`Fix:` surface never is.
 
+**Opt-in tier.** Entries tagged **[opt-in]** are user preferences, never
+load-bearing: a probe miss classifies `opt-in available`, never
+`missing/broken`. Offered at report time as an election on **every** branch,
+deselected by default; accept ⇒ run the fix, decline ⇒ `skipped (user choice)`
+(mechanics: `SKILL.md` step 3).
+
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
 
@@ -128,11 +134,35 @@ a token value — not even partially.
 - **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
   owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
 
+### H7 · plain-language replies (ASD-STE100) **[opt-in]**
+- **Needed by:** nothing — a user preference: every agent session of this user
+  (all projects, both providers) answers in Simplified Technical English,
+  easier to follow for non-native readers.
+- **Probe:** `grep -q 'afk:plain-language:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:plain-language:start' ~/.codex/AGENTS.md 2>/dev/null; }`
+- **Fix:** `auto:` append the sentinel block from
+  [`PLAIN-LANGUAGE.md`](PLAIN-LANGUAGE.md) (the one home) to the user-global
+  steering files — `~/.codex/AGENTS.md` only when Codex (O1) is installed —
+  creating a missing file, skipping one already carrying the sentinel:
+  ```sh
+  src=tools/payable/ai-agents/plugins/workflow/skills/afk/setup/PLAIN-LANGUAGE.md
+  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
+    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
+    grep -q 'afk:plain-language:start' "$f" 2>/dev/null && continue
+    mkdir -p "$(dirname "$f")"
+    { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
+  done
+  ```
+- **Notes:** user-global, per-machine — never rides git (file map:
+  `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
+  file(s); opt in any time by re-running `/afk:setup`.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
-- **Needed by:** the `hooks/*.sh` gate suite (the Stop hooks — wiring, Maven
-  compile, UI lint, Java format — **fire every turn**; plus the on-demand
+- **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
+  genericity, skill-registry, codex-drift via `stop-gates.sh` — **fire every
+  turn**; the commit gates — Maven compile, Java format, UI lint via
+  `precommit-gates.sh` — fire on agent-driven commits; plus the on-demand
   `app-start-gate.sh`), `skills/afk/understand/scripts/fetch-mr.sh`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
@@ -161,8 +191,9 @@ a token value — not even partially.
 ### C4 · Maven wrapper + JDK
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
   compile row (`skills/afk/to-subtasks/SMOKE-GATE.md`), the liquibase pickup
-  check (`skills/afk/to-subtasks`), and the Stop-hook gates
-  `hooks/maven-compile-gate.sh` / `hooks/java-format-gate.sh` plus
+  check (`skills/afk/to-subtasks`), and the commit gates
+  `hooks/maven-compile-gate.sh` / `hooks/java-format-gate.sh` (dispatched by
+  `precommit-gates.sh` on agent-driven commits) plus
   `hooks/app-start-gate.sh` (they no-op outside a core-services checkout).
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the core-services checkout (X1); JDK
@@ -216,8 +247,7 @@ a token value — not even partially.
   `VirtualizationFirmwareEnabled: True`) — probe WSL before blaming BIOS/IT.
 - **Base fix:** `human:` from an **elevated** prompt:
   `wsl --install --no-distribution` (installs the WSL2 runtime + Virtual
-  Machine Platform; no Linux distro needed for Docker), then reboot — the
-  elevation stays with the human (the agent never elevates, as W5). Then
+  Machine Platform; no Linux distro needed for Docker), then reboot. Then
   `winget install --id Docker.DockerDesktop -e`, then raise the WSL2 memory
   ceiling in `~/.wslconfig` — the default cap wedges the engine under a full app
   env (all API calls 500); restart WSL after editing. If Docker still won't
@@ -260,6 +290,13 @@ a token value — not even partially.
 - **Fix:** `auto:` `pip install mcp httpx`
 - **Notes:** missing deps surface as the `jira` server failing to connect at
   session start, not as a skill error.
+
+### P4 · openpyxl
+- **Needed by:** `skills/utils/review-qa-tests/scripts/annotate_sheet.py` —
+  reads QA's `.xlsx` test sheet and writes the review annotations back into it
+  (`skills/utils/review-qa-tests/EXCEL.md`).
+- **Probe:** `python -c "import openpyxl"`
+- **Fix:** `auto:` `pip install openpyxl`
 
 ## N — Node toolchain
 
@@ -351,8 +388,9 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
 - **Needed by:** Codex skill discovery (`.agents/skills/`), subagent defs
   (`.codex/agents/`), hook wiring (`.codex/hooks.json`).
 - **Probe:** `python tools/payable/ai-agents/codex-sync/generate.py --check`
-- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`,
-  then commit the regenerated artifacts if sources changed.
+- **Fix:** `auto:` `python tools/payable/ai-agents/codex-sync/generate.py`
+  (repo-root mirror is gitignored per-machine — commit only
+  `config-fragment.toml`/provider.sh sync if they changed).
 
 ### O3 · repo hooks trusted by Codex
 - **Needed by:** the Stop-gate suite + PreToolUse guards under Codex.
@@ -385,10 +423,11 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
   into `~/.codex/config.toml` (user-global — never auto-edited), making the
   server paths absolute for this machine.
 
-### O5 · AGENTS.md harness block
-- **Needed by:** Codex first-turn context (`**/AGENTS.md` is gitignored —
-  GitNexus owns the file per-machine; the afk block rides the generator, not git).
-- **Probe:** `grep -q 'afk-harness:begin' AGENTS.md`
+### O5 · AGENTS.local.md harness block
+- **Needed by:** Codex first-turn context — the committed neutral `AGENTS.md`
+  routes here; `/AGENTS.local.md` is gitignored, the block rides the
+  generator, not git.
+- **Probe:** `grep -q 'afk-harness:begin' AGENTS.local.md`
 - **Fix:** `auto:` run O2's generator (inserts/refreshes the marker block,
   preserving non-block content byte-for-byte).
 
@@ -432,7 +471,8 @@ so a Codex-side machine gets provisioned/repaired by the same doctor loop.
 Human tooling and machine settings, not skill dependencies — no skill invokes
 these, so entries here carry **only** base-tier fields and the default branch
 skips the section entirely. Probed and fixed under `/afk:setup base` alone; a
-miss is `missing/broken` there, never on a default run.
+miss is `missing/broken` there, never on a default run. Any fix marked
+**elevated prompt** stays with the human — the agent never elevates.
 
 ### W1 · Visual Studio Code
 - **Needed by:** the human (no skill invokes it).
@@ -474,16 +514,14 @@ miss is `missing/broken` there, never on a default run.
 - **Base fix:** `human:` from an **elevated** prompt:
   `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`,
   then (no elevation needed) `git config --global core.longpaths true` — the
-  git half is also offered by `skills/afk/setup/scripts/setup_secrets.py`; the
-  registry half always stays with the human (the agent never elevates).
-- **Notes:** registry half needs admin — the agent never elevates; re-probe
-  after. New processes pick the flag up without a reboot.
+  git half is also offered by `skills/afk/setup/scripts/setup_secrets.py`.
+- **Notes:** re-probe after. New processes pick the flag up without a reboot.
 
 ### W6 · hosts entry `127.0.0.1 proxy`
 - **Needed by:** local builds and any URL using the `proxy` hostname — it must
   resolve to the local machine or those URLs fail DNS.
 - **Base probe:** `grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?proxy([[:space:]]|$)' /c/Windows/System32/drivers/etc/hosts`
-- **Base fix:** `human:` from an **elevated** prompt (the agent never elevates):
+- **Base fix:** `human:` from an **elevated** prompt:
   `Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "127.0.0.1 proxy"`
   (PowerShell), then re-probe.
 - **Notes:** new processes pick the entry up immediately; a stale resolution
@@ -530,10 +568,12 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json` | set by the harness; locates the Stop hook |
+| `CLAUDE_PROJECT_DIR` | `hooks/hooks.json` | set by the harness; locates the adopted harness gates in the target checkout (existence-guarded, so the plugin stays inert where they're absent) |
 | `CLAUDE_JOB_DIR` | `skills/afk/understand` | working dir for MR fetch + mr/code-subject artifact output |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
+| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk:gc` refuse deletion — it always gets a human eye |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
@@ -542,8 +582,11 @@ Each var is documented at its consumer — this table is just the map.
 | `CODEX_HOME` / `CODEX_THREAD_ID` / `CODEX_SANDBOX` | `hooks/lib/provider.sh` | set by the Codex CLI; auto-detect markers for the codex provider |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/provider.sh` | set by the harness; provider-neutral plugin data dir |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
+| `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates (maven-compile, java-format, ui-lint) for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission |
 | `MAVEN_LOCK_DIR` | `hooks/maven-lock.sh` | relocate the cross-gate maven lock dir |
+| `AFK_MAVEN_LOCK_WAIT` | `hooks/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `hooks/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
 | `CROWDSTRIKE_GUARD_OFF` | `harness/hooks/crowdstrike-guard.sh` (adopted gate — wired in this plugin's `hooks.json`) | debug bypass of the system-root scan guard |

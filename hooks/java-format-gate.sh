@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Stop hook (ships with the afk plugin): Java format gate (STRICT).
-# Blocks the agent from finishing when any changed .java file does not conform
-# to the repo's canonical Eclipse formatter profile (eclipse-code-formatter.xml).
+# Commit gate (ships with the afk plugin): Java format gate (STRICT).
+# Blocks the commit when any changed .java file does not conform to the repo's
+# canonical Eclipse formatter profile (eclipse-code-formatter.xml).
+#
+# Runs at COMMIT time (precommit-gates.sh, installed by install-git-hooks.sh),
+# not on every turn end — see maven-compile-gate.sh for the rationale.
 #
 # Policy (owner-approved): strict on ALL changed files — touching a legacy file
 # means bringing the whole file into conformance. Fix by running the format goal
@@ -14,84 +17,95 @@
 #   - One validate invocation per submodule, restricted to the changed files
 #     via -Dformatter.includes (paths relative to the module's source roots).
 #
-# Exit 2 with stderr surfaces the violation back to the agent.
+# Exit 2 with stderr surfaces the violation back to the agent/committer.
 
 set -u
 
 FORMATTER_PLUGIN="net.revelc.code.formatter:formatter-maven-plugin:2.28.0"
 
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-cd "$repo_root" || exit 0
+gate_java_format() {
+  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ -f all-modules-pom.xml ] && [ -f eclipse-code-formatter.xml ] || return 0
 
-# Shared escape hatch with the other harness gates.
-if [ -f .claude/hooks/.gate-disabled ]; then
-  exit 0
-fi
+  local repo_root=$PWD
 
-# Not a core-services checkout — nothing to gate.
-[ -f all-modules-pom.xml ] && [ -f eclipse-code-formatter.xml ] || exit 0
+  local changed_java
+  changed_java=$(gate_ctx_filter AFK_CTX_LIVE '*.java')
+  [ -z "$changed_java" ] && return 0
 
-changed_java=$(
-  git status --porcelain 2>/dev/null \
-    | awk '$1 != "D" {print $NF}' \
-    | grep -E '\.java$' \
-    || true
-)
-[ -z "$changed_java" ] && exit 0
+  # Unique submodules, same derivation as maven-compile-gate.sh.
+  local submodules
+  submodules=$(printf '%s\n' "$changed_java" \
+    | sed -nE 's|^([0-9]+-[^/]+/[^/]+)/src/.*|\1|p' | sort -u)
+  [ -z "$submodules" ] && return 0
 
-# Unique submodules, same derivation as maven-compile-gate.sh.
-submodules=$(
-  printf '%s\n' "$changed_java" \
-    | sed -nE 's|^([0-9]+-[^/]+/[^/]+)/src/.*|\1|p' \
-    | sort -u
-)
-[ -z "$submodules" ] && exit 0
+  local cache_key
+  cache_key=$(gate_cache_key java-format)
+  gate_cache_hit java-format "$cache_key" && return 0
 
-# Content-hash pass cache: an unchanged tree that already passed skips the validate.
-. "$(dirname "${BASH_SOURCE[0]}")/gate-cache.sh"
-cache_key=$(gate_cache_key java-format)
-gate_cache_hit java-format "$cache_key" && exit 0
+  gate_metrics_begin
+  local mods_csv; mods_csv=$(printf '%s\n' "$submodules" | paste -sd, -)
 
-. "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
-gate_metrics_begin
-mods_csv=$(printf '%s\n' "$submodules" | paste -sd, -)
+  # Serialize with other Maven-invoking gates — concurrent mvnw runs in one
+  # checkout race on target/ and the local-repo metadata. Same policy as
+  # maven-compile-gate.sh: on timeout, allow rather than block the commit.
+  . "$(dirname "${BASH_SOURCE[0]}")/maven-lock.sh"
+  local lock_t0 lock_wait_ms
+  lock_t0=$(gate_metrics_now_ms)
+  acquire_maven_lock "${AFK_MAVEN_LOCK_WAIT:-900}" || return 0
+  lock_wait_ms=$(( $(gate_metrics_now_ms) - lock_t0 ))
 
-fail=0
-report=""
-while IFS= read -r mod; do
-  # Includes: file paths relative to the module's java source roots.
-  includes=$(
-    printf '%s\n' "$changed_java" \
-      | grep -F "$mod/src/" \
-      | sed -E 's#^.*/src/(main|test)/java/##' \
-      | { while IFS= read -r p; do [ -f "$repo_root/$mod/src/main/java/$p" ] || [ -f "$repo_root/$mod/src/test/java/$p" ] && printf '%s\n' "$p"; done; } \
-      | paste -sd, -
-  )
-  [ -z "$includes" ] && continue
+  local fail=0 report="" mod includes out rc
+  while IFS= read -r mod; do
+    [ -n "$mod" ] || continue
+    # Includes: file paths relative to the module's java source roots.
+    includes=$(
+      printf '%s\n' "$changed_java" \
+        | grep -F "$mod/src/" \
+        | sed -E 's#^.*/src/(main|test)/java/##' \
+        | { while IFS= read -r p; do [ -f "$repo_root/$mod/src/main/java/$p" ] || [ -f "$repo_root/$mod/src/test/java/$p" ] && printf '%s\n' "$p"; done; } \
+        | paste -sd, -
+    )
+    [ -z "$includes" ] && continue
 
-  out=$(./mvnw -f all-modules-pom.xml -pl "$mod" "$FORMATTER_PLUGIN:validate" \
-    -Dconfigfile="$repo_root/eclipse-code-formatter.xml" \
-    -Dformatter.includes="$includes" -q 2>&1)
-  rc=$?
-  if [ "$rc" -ne 0 ]; then
-    fail=1
-    report+="Module: $mod  (files: $includes)"$'\n'
-    report+="$(printf '%s\n' "$out" | grep -E '\[ERROR\]|has not been previously formatted' | head -10)"$'\n'
-    report+="Fix: ./mvnw -f all-modules-pom.xml -pl $mod $FORMATTER_PLUGIN:format -Dconfigfile=$repo_root/eclipse-code-formatter.xml -Dformatter.includes=$includes"$'\n\n'
+    out=$(./mvnw -f all-modules-pom.xml -pl "$mod" "$FORMATTER_PLUGIN:validate" \
+      -Dconfigfile="$repo_root/eclipse-code-formatter.xml" \
+      -Dformatter.includes="$includes" -q 2>&1)
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      fail=1
+      report+="Module: $mod  (files: $includes)"$'\n'
+      report+="$(printf '%s\n' "$out" | grep -E '\[ERROR\]|has not been previously formatted' | head -10)"$'\n'
+      report+="Fix: ./mvnw -f all-modules-pom.xml -pl $mod $FORMATTER_PLUGIN:format -Dconfigfile=$repo_root/eclipse-code-formatter.xml -Dformatter.includes=$includes"$'\n\n'
+    fi
+  done <<<"$submodules"
+
+  # One release, one owner — explicit, not `trap … RETURN` (see maven-compile-gate.sh).
+  release_maven_lock
+
+  if [ "$fail" -ne 0 ]; then
+    gate_metrics_emit java-format blocked "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$mods_csv\""
+    {
+      printf '[harness] Java format gate failed — changed files must conform to eclipse-code-formatter.xml.\n'
+      printf 'Policy is strict: a touched legacy file gets fully reformatted (owner-approved churn).\n'
+      printf 'Run the Fix command(s) below, review the diff, then commit.\n\n'
+      printf '%s' "$report"
+    } >&2
+    return 2
   fi
-done <<< "$submodules"
 
-if [ "$fail" -ne 0 ]; then
-  gate_metrics_emit java-format blocked "\"detail\":\"$mods_csv\""
-  {
-    printf '[harness] Java format gate failed — changed files must conform to eclipse-code-formatter.xml.\n'
-    printf 'Policy is strict: a touched legacy file gets fully reformatted (owner-approved churn).\n'
-    printf 'Run the Fix command(s) below, review the diff, then finish.\n\n'
-    printf '%s' "$report"
-  } >&2
-  exit 2
+  gate_metrics_emit java-format pass "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$mods_csv\""
+  gate_cache_store java-format "$cache_key"
+  return 0
+}
+
+# ---- standalone invocation (manual run; scope = working tree)
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+  cd "$_root" || exit 0
+  . "$_d/gate-context.sh"; gate_ctx_build
+  . "$_d/gate-cache.sh"
+  . "$_d/gate-metrics.sh"
+  gate_java_format; exit $?
 fi
-
-gate_metrics_emit java-format pass "\"detail\":\"$mods_csv\""
-gate_cache_store java-format "$cache_key"
-exit 0

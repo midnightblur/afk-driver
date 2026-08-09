@@ -57,15 +57,24 @@ SNIPPET = MARKER + """
 </script>
 """
 
-NON_RENDER = {"poll", "end", "stop", "playbook", "share", "setup", "update"}
+NON_RENDER = {"end", "stop", "playbook", "share", "setup", "update"}
+
+# `poll <file>` injects exactly as a render does — the subcommand token is
+# stepped over so the artifact argument behind it is still found. Any rewrite of
+# the artifact (Write/Edit) drops the marker silently, and a rewrite is always
+# followed by a poll, so re-injecting here is what makes dark mode self-heal
+# instead of relying on the authoring agent to remember a re-render. Free: the
+# marker check below returns early when the injection already survived.
+PASS_THROUGH = {"poll"}
 
 try:
     command = json.loads(os.environ["LAVISH_HOOK_INPUT"]).get("tool_input", {}).get("command", "")
 except Exception:
     sys.exit(0)
 
-# Tokenize the tail after the lavish-axi package token; a render command's
-# first non-flag token is the artifact file (non-render subcommands bail).
+# Tokenize the tail after the lavish-axi package token; the artifact file is the
+# first non-flag token that is not a pass-through subcommand (non-render
+# subcommands bail).
 m = re.search(r"lavish-axi(?:@[\w.\-]+)?\s+(.*)", command, re.DOTALL)
 if not m:
     sys.exit(0)
@@ -73,6 +82,8 @@ target = None
 for tok in re.findall(r'"([^"]+)"|\'([^\']+)\'|(\S+)', m.group(1)):
     tok = next(t for t in tok if t)
     if tok.startswith("-") or tok in ("&&", "||", ";", "|"):
+        continue
+    if tok in PASS_THROUGH:
         continue
     if tok in NON_RENDER:
         sys.exit(0)

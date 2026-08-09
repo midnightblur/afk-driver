@@ -1,6 +1,6 @@
 ---
 name: to-ticket
-description: Publish a finished PRD.md into its Jira parent Enhancement/Bug as native ADF — distilled to a requirements-level ticket description (User Stories + Acceptance Criteria mandatory), mermaid diagrams rendered and embedded; publish a meeting summary onto any ticket as a collapsible expand; or mint a stub Enhancement for deferred work a grill spun off out of scope. Use when `PRD.md` exists and the parent key is known, to record a meeting on a ticket, or to file a grill spinoff. Idempotent; the design chain's writer to the tracker.
+description: Publishes a finished PRD.md into its Jira parent as a requirements-level native-ADF ticket; also posts meeting summaries onto tickets and mints stub Enhancements for grill spinoffs. Use when PRD.md exists and the parent key is known.
 ---
 
 # afk:to-ticket — publish into the Jira ticket
@@ -16,10 +16,10 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 ## What it does / does not do (binding)
 
 - **Publishes the distilled ticket description inline**, not a link or pointer, and not the raw PRD — the ticket's readers are the Product Owner and QA; content contract in "Distill `TICKET.md`" below.
-- **Renders mermaid for Jira, locally.** Each ```mermaid block rendered to PNG **locally** — never via an external render service (mermaid.ink, kroki, …); no diagram source leaves the network — attached to the issue, embedded inline as an ADF media node so it renders in the description.
-- **Idempotent insert + update.** The published description lives inside an AFK-managed block (delimited by sentinel marker paragraphs). Re-running replaces that block and its figures in place — no duplicate sections, no piled-up attachments. The description shows only current truth; **history lives in comments** — a re-publish posts the requirements delta as an issue comment (step 3) so readers can track how the requirements moved.
+- **Renders mermaid locally** — never via an external render service; no diagram source leaves the network. Method: [REFERENCE.md](REFERENCE.md).
+- **Idempotent.** The published description lives inside an AFK-managed sentinel block; re-runs replace it and its figures in place (merge model: [REFERENCE.md](REFERENCE.md)). History lives in comments — a re-publish posts the requirements delta as an issue comment (step 3).
 - **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: a barebone/low-value existing description is absorbed — the managed block becomes the whole description (full heuristic: [REFERENCE.md](REFERENCE.md), "Description merge model"). Borderline barebone call → default to preserving and surface it to the human.
-- **Requirements level only.** Never publishes SDD content, ADR documents, or any technical depth — the distill step strips them. (`## SDD` stays owned by `/afk:to-sdd`, which splices its own pointer section directly; the Design Brief is repo-only and never reaches the ticket — this skill touches neither.)
+- **Requirements level only.** Never publishes SDD content, ADR documents, or any technical depth — the distill step strips them. (The SDD and Design Brief are disk-only — neither ever reaches the ticket.)
 - **Requires an existing parent (PRD mode).** No parent key → stop; tell the human to create the Enhancement/Bug first — PRD mode never creates it. Sets no labels, creates no branch. (Spinoff mode is the one create path — a *new* stub for deferred work, never the PRD's parent.)
 
 ## Prerequisites
@@ -58,7 +58,7 @@ ADF mapping, the Mermaid-image method, and the description merge model: [REFEREN
 
 The requirements-level ticket description is now live on the parent ticket. Then, per the design choice for this ticket:
 
-- **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (those go next to the PRD on disk and into the `## SDD` section — not through this skill). Downstream plan slices in **cited mode**.
+- **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (disk-only, next to the PRD — never published to the ticket). Downstream plan slices in **cited mode**.
 - **`/afk:to-subtasks`** — for small features / bugs / refactors / tooling: slice the PRD straight into a local plan in **uncited mode** (human-gated).
 
 ## Meeting mode — record a meeting on a ticket

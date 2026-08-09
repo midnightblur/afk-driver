@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-driven development with the red-green-refactor loop. Use when implementing features or fixes test-first, when the user mentions TDD, red-green-refactor, or integration-style tests, or when a caller mandates test-driven implementation.
+description: Runs the red-green-refactor TDD loop. Use when implementing test-first, or when a caller mandates it.
 user-invocable: false
 ---
 
@@ -14,22 +14,11 @@ user-invocable: false
 
 - Verify behavior through public interface, not implementation — describe _what_ the system does, not _how_.
 - Survive refactors → don't care about internal structure.
-- **Bad tests** couple to implementation: mock internal collaborators, test private methods, or verify through external means (e.g. querying a database directly instead of using the interface).
-
-See [tests.md](tests.md) for examples, [mocking.md](mocking.md) for mocking guidelines.
+- **Bad tests** couple to implementation — red-flag lists + examples: [tests.md](tests.md); mocking boundaries: [mocking.md](mocking.md).
 
 ## Anti-Pattern: Horizontal Slices
 
-**DO NOT write all tests first, then all implementation.** That's "horizontal slicing" — RED as "write all tests", GREEN as "write all code."
-
-Produces **Bad tests**:
-
-- Bulk-written tests test _imagined_ behavior, not _actual_
-- You test the _shape_ of things (data structures, function signatures) rather than user-facing behavior
-- Tests go insensitive to real changes — pass when behavior breaks, fail when behavior is fine
-- You outrun your headlights, committing to test structure before understanding the implementation
-
-**Correct approach**: vertical slices via tracer bullets. One test → one implementation → repeat. Each test responds to what the previous cycle taught you. Because you just wrote the code, you know exactly what behavior matters and how to verify it.
+**DO NOT write all tests first, then all implementation** — bulk-written tests test _imagined_ behavior and go insensitive to real changes; instead work vertical slices via tracer bullets: one test → one implementation → repeat, each test informed by what the last cycle taught.
 
 ```
 WRONG (horizontal):
@@ -58,7 +47,7 @@ Before writing any code:
 - [ ] List behaviors to test (not implementation steps)
 - [ ] Get the plan approved
 
-**Interactive runs**: the user is the approver. Ask: "What should the public interface look like? Which behaviors are most important to test?" — get explicit approval before coding. **You can't test everything** — confirm which behaviors matter most; focus on critical paths and complex logic, not every edge case.
+**Interactive runs**: the user is the approver. Ask: "What should the public interface look like? Which behaviors are most important to test?" — confirm priority behaviors with the user before coding.
 
 **When a subtask contract drives the work** (non-interactive): the contract's `## Acceptance` bullets ARE the approved behavior list and its `## Verification` tiers ARE the approved green-bar checks; interfaces fixed by the contract or its design refs count as confirmed. Proceed without asking — no human gate.
 
@@ -106,13 +95,7 @@ After all tests pass, look for refactor candidates:
 
 ## Checklist Per Cycle
 
-```
-[ ] Test describes behavior, not implementation
-[ ] Test uses public interface only
-[ ] Test would survive internal refactor
-[ ] Code is minimal for this test
-[ ] No speculative features added
-```
+Each cycle: test meets the good-test bars ([tests.md](tests.md) Characteristics); code minimal for this test, nothing speculative (§3 rules).
 
 ## Done
 

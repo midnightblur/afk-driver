@@ -1,6 +1,6 @@
 ---
 name: to-subtasks
-description: Slices a PRD (and the SDD + ADRs when present) into a local plan/ directory — a PLAN.md index plus one NNNN-slug.md contract per subtask; cited mode with an SDD, human-gated uncited mode without. Use when a PRD exists and the user wants to plan the work. No Jira.
+description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
 ---
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
@@ -8,6 +8,8 @@ description: Slices a PRD (and the SDD + ADRs when present) into a local plan/ d
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
 `plan/` is a **run artifact**: it lives from slicing to merge; after the
 feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
+Read `CONCISION.md` (plugin root) before emitting — its bar applies to
+everything written here.
 
 ```
 {TICKET-ID}/
@@ -19,7 +21,7 @@ feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
     …
 ```
 
-`PLAN.md` = human-facing index (solution map, seams, progress tracker). Per-subtask files = binding contracts `/afk:execute` parses. This skill (emitter) and `/afk:execute` (parser + progress writer) are lockstep — change a section here, change the parser there, same commit.
+`PLAN.md` = human-facing index (solution map, seams, progress tracker). Per-subtask files = binding contracts `/afk:execute` parses, lockstep with this emitter (see Hard rules).
 
 ## Two modes, set by what's on disk
 
@@ -43,7 +45,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 1. **Read the sources.** `ctx_read` the PRD (mode=full) and parent ticket description for context (target branch, components). Cited mode also reads `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md` (mode=signatures). The set `(SDD section IDs, §9b seam rows, ADR IDs)` is your **citation pool** — every cited subtask references ≥1 entry. Also check for a sibling `VERIFICATION-PLAN.md`; if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive the smoke gate + build subtasks (step 3). Delegate this read set + citation-pool build to an `afk-reader` subagent returning the pool with `file#anchor` citations — don't pull full sources into your own context, per `DELEGATION.md` (plugin root).
 
-2. **Refuse-to-slice gate (cited mode).** A plan built on an unstable SDD ships the instability into every subtask. Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk:grill-solution` + `/afk:to-sdd`:
+2. **Refuse-to-slice gate (cited mode).** Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk:grill-solution` + `/afk:to-sdd`:
    - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, §13 `Blocks executor? = yes` rule, and not-a-blocker exclusions.
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
 
@@ -66,15 +68,15 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
    - Mark the corresponding `## Produces` bullet and every `## Consumes` line citing it with the trailing `[materialized]` marker (grammar: [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)).
    Seams extending **existing** files, and non-Java seams, stay grep-anchor-only — the marker is never on them. Materialized files are **not committed by this skill** (see Hard rules): the human commits them with the plan on approval, exactly like the `plan/` files.
 
-4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` = zero-padded rank; `{slug}` = short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere). Fill `## Context excerpts` per the contract: the verbatim PRD/SDD/ADR passages this slice's implementor needs, selected now while the sources are open — a fresh executor works from the contract file alone and opens the full parent doc only on a gap, so a missing load-bearing excerpt costs a full re-read downstream.
+4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` = zero-padded rank; `{slug}` = short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere). Fill `## Context excerpts` now, while the sources are open, per the contract's field rules ([SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)) — a missing load-bearing excerpt costs the executor a full parent-doc re-read. Emit a `## Review` section only where a lean-deferred concern is much cheaper caught at this slice than at the feature gate (e.g. a slice whose pattern the following slices will imitate); the plan-level policy covers everything else.
 
-5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`. `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
+5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`, and the header `Review policy: lean` (the default — the human flips it to `full` at plan review when every slice warrants the full roster; semantics: `skills/afk/review/SKILL.md` "Gate policy"). `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
 
-6. **Validate the slice** (see "Validation"). Cited mode runs contract-graph + anchor-quality + Acceptance-citation + seam-coverage checks; all must pass before the plan is emitted. Uncited mode runs only the Verification-tier and Scope sanity checks.
+6. **Validate the slice** (see "Validation"): the validator script to a clean exit plus the judgment checks — all must pass before the plan is emitted.
 
 7. **Update the ticket index.** Upsert this skill's row(s) in the ticket folder's `INDEX.md` (plan row: subtask count, mode, pointer to `plan/PLAN.md` for live status) per `skills/afk/to-prd/INDEX-FORMAT.md`. Create the file per that format if absent.
 
-8. **Output.** Print the plan path and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) for human review before execution. Flag every seam-touching subtask explicitly — those rows warrant a careful human read. Also state, one plain-language sentence per subtask, *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere. When a human is present, render per LAVISH.md (RP-2, playbook `plan`) for plan approval; markdown fallback and driven mode use the printed summary above.
+8. **Output.** Print the plan path, the review policy (+ any per-subtask `## Review` deviations), and a one-line-per-subtask summary (id, title, tiers, seams touched, blocked-by) for human review before execution. Flag every seam-touching subtask explicitly — those rows warrant a careful human read. Also state, one plain-language sentence per subtask, *why the slice is cut there* (the boundary it follows) — the slicing rationale otherwise lives nowhere. When a human is present, render per LAVISH.md (RP-2, playbook `plan`) for plan approval and poll for the decisions. The artifact carries a **review-policy decision surface**: the plan-level `lean`/`full` choice as side-by-side option cards, each showing the roster it buys *this* plan (always / triggered / deferred — split: `skills/afk/review/SKILL.md` "Gate policy"), plus one deviation row per subtask (`policy:` override; `opt-in:` picks from the deferrable set) — marks composed and submitted as one summary per LAVISH.md queue discipline. Apply what comes back — rewrite the PLAN.md header and any deviating contract's `## Review` section, re-run validation — before declaring the plan emitted. Markdown fallback and driven mode use the printed summary above; the seeded defaults stand unless the human says otherwise.
 
 ## Subtask contract (`plan/NNNN-{slug}.md`)
 
@@ -94,7 +96,7 @@ A subtask that **implements** a §9b seam must carry the seam's test as a Verifi
 
 **A runtime-effect Acceptance bullet needs a runtime-effect test.** When an Acceptance bullet cites an observable runtime effect — "X happens within Y seconds of Z", or any live/watch/poll/reactive language — the unit/integration row covering it must name a check that **triggers the real condition and asserts the real observable outcome** at the seam (e.g. AC "file edit → page re-renders within ~7s" → the test edits a tracked file and polls for the re-render). A test that only starts the machinery and asserts surrounding shape/structure does not cover that bullet — the tier reads green while the promised behavior is unexercised.
 
-**Fixtures use the feature's real names.** When a subtask's deliverable runs against paths/directories/modules whose real name matches a literal string the implementation special-cases (e.g. a tool named "mission-control" whose own path-exclusion logic matches the substring `"mission-control"`), emit an explicit Acceptance bullet requiring the test fixture to use that real name, not a placeholder — a generic fixture name can never surface the collision.
+**Fixtures use the feature's real names.** When a subtask's deliverable runs against paths/directories/modules whose real name matches a literal string the implementation special-cases, emit an explicit Acceptance bullet requiring the test fixture to use that real name, not a placeholder — a generic fixture name can never surface the collision.
 
 ### Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
@@ -110,9 +112,7 @@ Write `PLAN.md` (header, solution map, seam register, progress tracker, and the 
 
 ## Validation
 
-Run before declaring the plan emitted. **Cited mode** runs (a)–(g); **uncited mode** runs (e), (f), (g). Check **(g)** always runs — it validates whichever gate shape the plan carries.
-
-Run the detailed checks (a)–(g) in [VALIDATION.md](VALIDATION.md).
+Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scripts/validate_plan.py {plan-dir}` covers the mechanical checks (a)/(b)/(e)/(g)/(h) and must exit clean; (c)/(d)/(f) are judgment checks. **Cited mode** owes (a)–(h); **uncited mode** (e)–(h). **(g)** and **(h)** always run — they validate whichever gate shape and review policy the plan carries.
 
 ## Hard rules
 

@@ -1,10 +1,6 @@
 # afk:execute — Cited mode (additional steps)
 
-These steps, the Conflict procedure, and the extra OUTCOME statuses apply **only**
-in Cited mode (non-empty `## Design refs` + a `## Parent SDD`). They extend the
-standard workflow in [SKILL.md](SKILL.md); step numbers below match the
-corresponding steps there. The non-cited workflow in [SKILL.md](SKILL.md) is
-complete on its own — run these in addition when the subtask is in Cited mode.
+Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); step numbers match [SKILL.md](SKILL.md), which is complete on its own without these.
 
 ## Step 1 — design/contract reconciliation (cited mode)
 
@@ -26,65 +22,59 @@ complete on its own — run these in addition when the subtask is in Cited mode.
 
 ## Step 2 — Preflight: verify Consumed contracts (cited mode)
 
-2. **Preflight: verify Consumed contracts (cited mode).** If `## Consumes` is
-   non-empty, every line is `{PRODUCER-ID} {file-path}#{grep-anchor} —
-   {description}`. For each:
-   - `ctx_read` `{file-path}` (relative to worktree root). Missing file →
-     producer hasn't landed what it promised → stop with `contract_mismatch`
-     (carry `{PRODUCER-ID}`) **before any other work** — no status change, no
-     commits, no verification runs.
-   - `ctx_search` `{grep-anchor}` in `{file-path}`. Absent → producer drifted →
-     same `contract_mismatch`.
-   - Lines marked `[materialized]` get the compiler on top of the grep: run
-     `./mvnw -f all-modules-pom.xml -pl {module-of-file-path} --also-make
-     test-compile -DskipUi=true` once (covering all such lines in that module).
-     A compile failure in the seam surface (consumed type or its
-     `{Seam}ContractTest`) → `contract_mismatch` — the compiler caught a
+2. **Before any other work** — no status change, no commits, no verification
+   runs — run from the worktree root (`<main-checkout>` = first entry of
+   `git worktree list`; the script comes from the main checkout, never this
+   worktree's stale plugin copy — `GLOSSARY.md` "Main checkout"):
+
+   ```
+   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .
+   ```
+
+   - Any miss (exit 1) → stop with `contract_mismatch` carrying the
+     `{PRODUCER-ID}`. Quote the offending bullet verbatim. **Do not retry, do
+     not auto-correct the producer** — fix the producer (re-run it or emit a
+     corrective subtask) first. Record on both subtask files; set both PLAN.md
+     rows via `scripts/plan-status.sh {plan-dir} {id}
+     'blocked(contract_mismatch: {PRODUCER-ID} …)'` — that row carries the
+     break for both subtasks.
+   - Bullets the script reports `[materialized]` get the compiler on top of
+     the grep: run `./mvnw -f all-modules-pom.xml -pl {module-of-file-path}
+     --also-make test-compile -DskipUi=true` once (covering all such lines in
+     that module). A compile failure in the seam surface (consumed type or its
+     `{Seam}ContractTest`) → same `contract_mismatch` — the compiler caught a
      signature drift the anchor string couldn't.
-   - Quote the offending bullet verbatim. **Do not retry, do not auto-correct the
-     producer.** A `contract_mismatch` halts on purpose: fix the producer
-     (re-run it or emit a corrective subtask) first. Set both rows in
-     PLAN.md to `blocked(contract_mismatch: …)` (naming the producer id) — that
-     row carries the break for both subtasks.
-
-## Step 6 — Honor `## Produces` (cited mode)
-
-   **Honor `## Produces` (cited mode).** Every declared artifact must exist on
-   the branch by success. Step 9 greps every declared anchor right before the
-   success exit and aborts with `produces_drift` if any are missing — drifting
-   from your own declared contract is not survivable mid-session. If the declared
-   signature turns out wrong, that's a `design_conflict`, not a license to change
-   it silently.
 
 ## Step 9 — Producer self-preflight on `## Produces` (cited mode)
 
-9. **Producer self-preflight on `## Produces` (cited mode).** Before declaring
-   success, verify every artifact you declared lands on the branch. For each
-   `{file-path}#{grep-anchor} — {contract}`:
-   - `ctx_read` `{file-path}`; missing → `produces_drift`, quote the bullet, do
-     not retry or amend silently.
-   - `ctx_search` `{grep-anchor}`; absent → implementation diverged from the
-     declared signature → `produces_drift`.
-   - **Materialized seams.** For each own `## Produces` bullet marked
-     `[materialized]`: its `{Seam}ContractTest` must be **enabled** — a
-     surviving `@Disabled("seam pending …")` on it is `produces_drift` (the
-     seam-test Verification row can't have legitimately gone green while
-     disabled; name the test file).
-   - **JPA-entity pickup (core-services Java).** If `{file-path}` ends `.java`
-     and contains `@Entity` / `@MappedSuperclass` / `@Embeddable`: a
-     class-declaration grep hit is necessary but not sufficient. Confirm the
-     class's package is reachable from the module's entity-scan config
-     (`@EntityScan` / `entityPackages` / `hibernate.archive.autodetection`), then
-     run the documented liquibase-hibernate7 pickup check (the subtask's
-     integration-tier `## Verification` row) and inspect the generated diff — if
-     it doesn't mention the new entity/column/table, the plugin isn't picking it
-     up → `produces_drift`, naming the entity and the empty diff path.
+9. **Before declaring success**, run from the worktree root:
 
-   Symmetric to Step 2's consumer-side preflight; without it, signature
-   drift surfaces only at the next consumer — on the wrong subtask.
+   ```
+   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction produces --root .
+   ```
+
+   - Any miss (exit 1) on your own `## Produces` → `produces_drift`. Quote the
+     bullet; **do not retry or amend silently**. Fix the impl OR re-emit the
+     slice with a corrected `## Produces`. A declared signature that turns out
+     wrong is `design_conflict`, never a license to change it silently.
+   - **Materialized bullets** (script reports the tag): the
+     `{Seam}ContractTest` must be **enabled** — a surviving
+     `@Disabled("seam pending …")` on it is `produces_drift` (the seam-test
+     Verification row can't have legitimately gone green while disabled; name
+     the test file).
+   - **JPA-entity pickup (core-services Java).** `{file-path}` ending `.java`
+     containing `@Entity` / `@MappedSuperclass` / `@Embeddable`: a grep hit is
+     necessary, not sufficient. Confirm the class's package is reachable from
+     the module's entity-scan config (`@EntityScan` / `entityPackages` /
+     `hibernate.archive.autodetection`), run the documented
+     liquibase-hibernate7 pickup check (the subtask's integration-tier
+     `## Verification` row), inspect the generated diff — no mention of the new
+     entity/column/table → `produces_drift`, naming the entity and the empty
+     diff path.
+
    `produces_drift` ("I didn't deliver the contract I declared, fix impl or
-   re-slice") is **not** `design_conflict` ("the binding contract is wrong, route
-   to grill-solution"). Pick the right one.
+   re-slice") is **not** `design_conflict` ("the binding contract is wrong,
+   route to grill-solution"). Pick the right one.
 
 ## Conflict procedure (cited mode)
 

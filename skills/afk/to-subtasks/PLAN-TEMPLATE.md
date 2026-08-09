@@ -8,6 +8,7 @@
 > Branch (for /afk:execute): mvu/afk/{ticket-id-lower}
 > Last updated: {YYYY-MM-DD} (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 ## Solution map
 
@@ -60,7 +61,7 @@ review settle-loop rounds (cap 10 — owned by
 
 | # | Step | Status | Cycle | Evidence |
 |---|------|--------|-------|----------|
-| 1 | PF-1 merge origin/master + ancestry guard, push | pending | — | — |
+| 1 | PF-1 merge target branch + ancestry guard, push | pending | — | — |
 | 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
 | 3 | PF-3 fresh-context review of the integrated diff (settle loop) | pending | 0/10 | — |
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
@@ -87,10 +88,13 @@ an `api` row traces to an SDD §3 row / PRD Acceptance Criterion and maps to a
 app and owns the Status column + the header `Feature:` line; the rows themselves
 are seeded here. An `env-limited` scenario (e.g. `@sap`, GL-post) carries that
 flag from `VERIFICATION-PLAN.md` — the gate excludes it from its green verdict.
+`Requires target` likewise carries over verbatim (`any` when the plan names no
+target class) — the gate records an incompatible-target row `target-mismatch`,
+never `pass`.
 
-| # | Scenario (integrated) | Modality | Traces to | Spec | Status |
-|---|-----------------------|----------|-----------|------|--------|
-| 1 | <journey in plain language> | ui-e2e | PRD User Story N | ui-e2e/features/<f>.feature ▸ "<scenario>" | pending |
-| 2 | <call → asserted envelope> | api | SDD §3 row "..." · PRD AC k | api/<f>.test.mjs ▸ "<test>" | pending |
-| 3 | <journey, env-gated> | ui-e2e | PRD User Story M | ui-e2e/features/<f>.feature ▸ "<scenario>" | env-limited |
+| # | Scenario (integrated) | Modality | Traces to | Spec | Requires target | Status |
+|---|-----------------------|----------|-----------|------|-----------------|--------|
+| 1 | <journey in plain language> | ui-e2e | PRD User Story N | ui-e2e/features/<f>.feature ▸ "<scenario>" | any | pending |
+| 2 | <call → asserted envelope> | api | SDD §3 row "..." · PRD AC k | api/<f>.test.mjs ▸ "<test>" | any | pending |
+| 3 | <journey, env-gated> | ui-e2e | PRD User Story M | ui-e2e/features/<f>.feature ▸ "<scenario>" | non-secure-context http origin | env-limited |
 ````

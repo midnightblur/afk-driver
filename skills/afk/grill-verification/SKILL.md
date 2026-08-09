@@ -1,6 +1,6 @@
 ---
 name: grill-verification
-description: Interviews the user to design a feature's verification scenarios across two modalities — UI journeys (browser flows; need the PRD) and API scenarios (direct-REST contract checks; need the SDD). Use when the user runs `/afk:grill-verification` or wants to design or stress-test verification scenarios. Writes only its `GRILL-LOG.md` checkpoint section.
+description: Interviews the user to design a feature's verification scenarios — UI journeys (needs PRD) and API scenarios (needs SDD). Use to design or stress-test verification scenarios.
 ---
 
 # afk:grill-verification — design the feature's verification scenarios with the user
@@ -69,7 +69,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
 
    Journey shape and observables are debate-class — walked one at a time. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: batch them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate).
 
-3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md).
+3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md). Settled API rows join the same RP-3 matrix artifact (step 6) as they land — one standing surface for the session, never a second file.
 
 4. **Check coverage.** Every User Story → ≥1 UI journey; every Acceptance Criterion → ≥1 proving scenario in some modality; every exposed endpoint → ≥1 API scenario; every scenario traces back to a Story / Acceptance Criterion / §3 row. Surface over-coverage (a scenario nothing asks for — is the spec missing it?) and under-coverage (a Story or endpoint with no demonstrable scenario — is it real?). UI and API are **complementary, not redundant**: the UI journey proves the user flow, the API scenario proves the contract a UI test can't see (raw envelope, below-the-UI guard).
 
@@ -77,7 +77,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
 
 5. **Surface PRD/SDD gaps explicitly.** A primary output. When a walk exposes an ambiguous, missing, or contradictory detail, name it. Small → note it in conversation so `/afk:to-verification-plan` captures it in the plan's `## Gaps surfaced` section for the human to fold back. Load-bearing (scenario can't be designed without it) → **stop and route back**: a PRD gap to `/afk:grill-requirements` + `/afk:to-prd`; a technical / endpoint gap to `/afk:grill-solution` + `/afk:to-sdd`.
 
-6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. When a human is present, render per LAVISH.md (RP-3, playbook `table`) for the journey/scenario matrix recap — **mandatory per LAVISH.md's Primary-path rule**; fallback (driven mode / render failure) per that file, else the prose recap above.
+6. **Settle the set.** When every Story has a journey, every exposed endpoint has a scenario (or API deferred for lack of an SDD), **every triggered aspect has a proving row or a recorded N/A reason**, and the user agrees the set is complete, recap the scenarios — modality, actor/surface, traces-to, env-limited?, plus per-aspect coverage verdict and whether API was designed or deferred — and hand off to `/afk:to-verification-plan` to write `VERIFICATION-PLAN.md`. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-3, playbook `table`): the journey/scenario matrix renders from the first walked journey and re-renders as rows settle, ending in this recap — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to the prose recap above.
 
 ## Hard rules
 

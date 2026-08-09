@@ -1,13 +1,13 @@
 ---
 name: review
-description: Independent multi-aspect review of a subtask slice or an integrated feature diff — fresh parallel reviewers, one book-derived checklist per concern, roster scaled by diff shape and settle-loop round, an adversarial verify pass on design-level findings, emitting a ranked findings report plus a verdict the caller gates on. Read-only. Use as the post-verification review gate, standalone via `/afk:review {NNNN-slug}`, or on a whole feature via `/afk:review --feature`.
+description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk:review {NNNN-slug} | --feature.
 ---
 
 # afk:review — independently check the implementor's work
 
 The implementor builds a subtask, gets every `## Verification` tier green, and is *about to* mark it `done`. Green tiers prove the code runs and the declared tests pass — they do **not** prove it honours the project's documented rules, covers everything the spec asked, or is free of things a senior engineer wouldn't ship. This skill is that second gate.
 
-It spawns **fresh subagents — one per concern, in parallel** — that see the diff, the contract, and the CLAUDE.md hierarchy, but **not** the implementor's reasoning. Independence is the point: the agent that wrote the code is the worst auditor of it. Strictly **read-only** — finds and ranks; never edits, commits, or fixes. The caller decides what to do with the verdict.
+One fresh subagent per concern, independent and strictly read-only (Hard rules below); the caller decides what to do with the verdict.
 
 Two entry points, same machinery:
 
@@ -19,9 +19,9 @@ Two entry points, same machinery:
 A single subtask id — its filename stem under `plan/`, e.g. `0003-export-registry` (`.md` optional) — or `--feature`. Optional:
 
 - `--base <ref>` — override the diff range. By default the slice diff is **this subtask's own commits**: every commit is prefixed `[{NNNN-slug}]` by convention, so the slice is the combined patch of the commits on this branch whose subject starts `[{NNNN-slug}]`. Isolates exactly this subtask's contribution — **including any file it touched outside its `## Scope` globs**, which lets `scope-and-impact` catch scope creep (a Scope-glob-filtered diff would hide it). `--base <ref>` falls back to `git diff <ref>...HEAD` for the edge case where the subtask's history isn't cleanly isolable by prefix (e.g. a squash or a hand-amended branch).
-- `--only <concerns>` / `--skip <concerns>` — narrow the concern set (names below); overrides trigger activation. Default: every active concern.
+- `--only <concerns>` / `--skip <concerns>` — narrow the concern set (names below); overrides gate policy and trigger activation. Default: every active concern.
 - `--tag <suffix>` — appended to every artifact basename this run writes (`{basename}-{base-short}-{tag}.md` / `.findings.json`, and the caller's matching `.outcomes.json`) so repeated gate-mode invocations over the same base don't overwrite each other. Naming only — the tag never appears in any reviewer prompt.
-- `--feature` — review the **integrated feature diff** instead of one slice: the diff is `git diff $(git merge-base origin/master HEAD)...HEAD` (or `--base`). Roster is fixed (triggers ignored): the four design-level concerns, briefed on what's invisible at slice altitude — change patterns emerging *across* subtasks (shotgun surgery/divergent change spanning slices), coupling drift between the touched modules, coherence of the integrated API surface and vocabulary — plus `logic-correctness` and `code-quality` over the whole diff. Reads the feature's PRD/SDD/ADRs and `plan/PLAN.md` in place of one subtask contract; report basename `feature` replaces `{NNNN-slug}`.
+- `--feature` — review the **integrated feature diff** instead of one slice: the diff is `git diff $(git merge-base origin/master HEAD)...HEAD` (or `--base`). Roster is fixed (triggers ignored): the four design-level concerns, briefed on what's invisible at slice altitude — change patterns emerging *across* subtasks (shotgun surgery/divergent change spanning slices), coupling drift between the touched modules, coherence of the integrated API surface and vocabulary — plus `logic-correctness` and `code-quality` over the whole diff — and `claude-md-compliance` when the plan's header reads `Review policy: lean` ("Gate policy" below): the one lean-deferrable concern the fixed roster doesn't already carry. Reads the feature's PRD/SDD/ADRs and `plan/PLAN.md` in place of one subtask contract; report basename `feature` replaces `{NNNN-slug}`.
 
 ## What the review reads
 
@@ -36,9 +36,9 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 
 ## Concerns (11)
 
-One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: `checklists/PRECEDENCE.md` **plus** the concern's `checklists/{concern}.md`, both pasted **verbatim** (the subagent has no other access to them), the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — the checklist files' one-owner exclusions prevent most of it; dedup handles the rest. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
+One subagent per concern, all spawned in a **single message** as parallel `Agent` calls (`subagent_type: general-purpose`). Each prompt is self-contained: `checklists/PRECEDENCE.md` pasted **verbatim**, **plus** the concern's `checklists/{concern}.md` pasted verbatim through the end of its `## Reviewer checklist` section — any trailing `## Guardrails` block excluded (its consumers are design-time, not reviewers; the subagent has no other access to these files) — the resolved paths from "What the review reads", and the findings contract. Concerns may overlap a line — the checklist files' one-owner exclusions prevent most of it; dedup handles the rest. Spawn mechanics and each reviewer's return contract follow `DELEGATION.md` (plugin root).
 
-Six implementation/conformance concerns run on every **full-unit** review. Four **design-level** concerns plus `refactor-safety` activate by diff-shape trigger (below) — reviewer count scales with what the slice actually introduces. **Delta rounds scale further** — the always-six consolidate into one sweep reviewer plus signal-activated specialists ("Delta-round roster" below).
+The roster scales twice. First by **gate policy** ("Gate policy" below): `full` runs the six implementation/conformance concerns on every **full-unit** review, the four design-level concerns plus `refactor-safety` behind diff-shape triggers (below); `lean` shrinks the always-set to the three concerns whose defects compound or are invisible at feature altitude and defers the rest to the feature-level review. Then **delta rounds scale further** — the always-set consolidates into one sweep reviewer plus signal-activated specialists ("Delta-round roster" below).
 
 | Concern | Asks | Default subagent reads |
 |---|---|---|
@@ -56,6 +56,17 @@ Six implementation/conformance concerns run on every **full-unit** review. Four 
 
 **Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule, the four design-level concerns→`design` (escalation and `pattern-debt` rules live in their checklist files + `PRECEDENCE.md`). A cross-class finding takes the class naming the underlying cause. `delta-sweep` has no single default — its checklist stamps `class` per item.
 
+### Gate policy (slice mode)
+
+Slice rosters scale by a per-plan **review policy**. Resolution, first hit wins: the contract's `## Review` `policy:` line → the PLAN.md header `> Review policy:` → `full` (absent everywhere — older plans keep full).
+
+- **`full`** — the six always-on concerns plus the trigger table below.
+- **`lean`** — always-on shrinks to **`spec-fidelity` + `scope-and-impact` + `test-veracity`**. `refactor-safety`, `api-contract`, `domain-alignment` keep their trigger rows; `logic-correctness` activates only on the lean trigger: the slice has a downstream consumer (a later contract's `## Consumes` cites this id, or the seam register lists it under *Used by*) or its `## Complexity` is `complex`. Everything else — `code-quality`, `claude-md-compliance`, `design-quality`, `resilience`, untriggered `logic-correctness` — **defers to the feature-level review**.
+
+One criterion decides the split: **does the defect compound if caught late?** Scope creep and per-slice acceptance are invisible at feature altitude; a weak test poisons every later gate that trusts green tiers; a wrong producer contract, refactor, or entity shape propagates into every dependent — those review per slice. A smell, a documented-rule breach, a module-shape or resilience gap costs the same fixed at the feature gate, whose roster already covers the deferred set (`--feature` above; under a lean plan it also gains `claude-md-compliance`). Deferral is routing, never dropping — a deferred concern is recorded in the report header and the caller's later gate sweeps deferred findings back in (`SETTLEMENT.md` "Deferral rule").
+
+A contract's `## Review` section (grammar: `skills/afk/to-subtasks/SUBTASK-CONTRACT.md`) overrides per slice: its `policy:` line replaces the plan default; its `opt-in:` line forces named deferred concerns onto this slice's roster as if always-on.
+
 ### Trigger activation (slice mode)
 
 Before spawning, scan the slice diff — changed-file list + added hunks, cheap greps in the orchestrator, no subagent:
@@ -68,13 +79,15 @@ Before spawning, scan the slice diff — changed-file list + added hunks, cheap 
 | `resilience` | a new out-of-process call (HTTP client/JMS/RFC), repository query, endpoint, or scheduled job |
 | `api-contract` | a touched `*-client`/`*-entities` module, public DTO, or controller signature |
 
-No trigger hit → skip the concern and record it in the report header (`activated: … · skipped: … (no trigger)`) — a skipped concern is auditable, never silent. `--only`/`--skip` override triggers; `--feature` ignores them (fixed roster).
+Under `lean`, the `design-quality` and `resilience` rows are suspended (those concerns defer instead) and `logic-correctness` uses the lean trigger ("Gate policy" above); the other rows apply under either policy.
+
+No trigger hit → skip the concern and record it in the report header (`activated: … · skipped: … (no trigger)`); a concern deferred by policy records `deferred: … (→ feature gate)` in the same line — skipped or deferred is auditable, never silent. `--only`/`--skip` override triggers; `--feature` ignores them (fixed roster).
 
 ### Delta-round roster (settle-loop delta rounds)
 
-On a delta round (`--base` + `--tag` together — see "Delta rounds" above), the always-six do **not** all respawn — a small remediation doesn't warrant six specialists each re-reading the contract and rule chain. The roster:
+On a delta round (`--base` + `--tag` together — see "Delta rounds" above), the always-set does **not** all respawn — a small remediation doesn't warrant a specialist per concern each re-reading the contract and rule chain. The roster:
 
-1. **`delta-sweep`** — always, one reviewer, `checklists/delta-sweep.md`: the always-six's highest-yield items condensed to a remediation-delta lens. Not a 12th concern — a delta-round consolidation; its prompt names any co-spawned specialists so one-owner exclusions hold.
+1. **`delta-sweep`** — always, one reviewer, `checklists/delta-sweep.md`: the full-roster always-set's highest-yield items condensed to a remediation-delta lens. Not a 12th concern — a delta-round consolidation; its prompt names any co-spawned specialists so one-owner exclusions hold.
 2. **Fix-owner specialists** — every concern that owned a `critical`/`high` finding remediated since the previous round runs in full: the lens that demanded the fix re-examines the territory. Roster selection is orchestrator metadata — the reviewer is spawned cold, its prompt carrying no finding history or round context.
 3. **Delta triggers** — the design-level table above, scanned on the delta, plus: `test-veracity` when the delta touches test code; `claude-md-compliance` when the delta touches a directory whose CLAUDE.md chain no prior round collected; `scope-and-impact` only when the orchestrator's **own** Scope-glob/forbidden-pattern grep over the delta hits (run that check inline first — it's a grep, not an agent); `logic-correctness` + `code-quality` when the delta exceeds ~150 changed lines or ~6 files (below that, the sweep owns their territory).
 
@@ -82,7 +95,7 @@ The report header's activation line records the delta roster like any other run.
 
 ### Checklists
 
-One home per concern: `checklists/{concern}.md`, pasted verbatim into the reviewer's prompt together with `checklists/PRECEDENCE.md` (baseline precedence, the `pattern-debt` rule, one owner per smell, the mandatory open question). Each file states its default `class`, its escalations, and its "Not yours" exclusions. Design-level files also carry a `## Guardrails` digest for design-time consumers — reviewers work from the `## Reviewer checklist` section. The `test-veracity` file owns the sampled mutation-probe rule (gate mode only). `checklists/delta-sweep.md` is the delta-round consolidation reviewer's checklist — same mechanics, not one of the 11 concerns.
+One home per concern: `checklists/{concern}.md`, pasted into the reviewer's prompt (paste rule above) together with `checklists/PRECEDENCE.md` (baseline precedence, the `pattern-debt` rule, one owner per smell, the mandatory open question). Each file states its default `class`, its escalations, and its "Not yours" exclusions. Design-level files also carry a `## Guardrails` digest for design-time consumers. The `test-veracity` file owns the sampled mutation-probe rule (gate mode only). `checklists/delta-sweep.md` is the delta-round consolidation reviewer's checklist — same mechanics, not one of the 11 concerns.
 
 ## Findings contract
 
@@ -121,7 +134,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 
 ## Verify pass (design-level findings)
 
-Checklist-primed reviewers over-report, and design findings are the expensive-to-act-on ones — so they earn an adversarial check before they can gate. After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the CLAUDE.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
+After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the CLAUDE.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
 
 Severity rubric:
 
@@ -132,7 +145,7 @@ Severity rubric:
 
 ## Verdict & output
 
-Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked; `--feature` mode uses basename `feature`; `--tag` appends `-{tag}`) and the machine list alongside as `…-{base-short}.findings.json`. The report header carries the activation line (`activated: … · skipped: …`) and the verify-pass stamp. `{base-short}` is `git rev-parse --short` of the diff base: the `--base` ref when given; in default mode, the parent commit of the slice's first `[{NNNN-slug}]` commit.
+Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked, prose per `CONCISION.md` at the plugin root — read it before writing; `--feature` mode uses basename `feature`; `--tag` appends `-{tag}`) and the machine list alongside as `…-{base-short}.findings.json`. The report header carries the policy + activation line (`policy: … · activated: … · skipped: … · deferred: …`) and the verify-pass stamp. `{base-short}` is `git rev-parse --short` of the diff base: the `--base` ref when given; in default mode, the parent commit of the slice's first `[{NNNN-slug}]` commit.
 
 **Update the rollup.** Upsert this subtask's row in `plan/review/INDEX.md` (create with the header row if missing) — the one place a human sees every subtask's latest review state without hunting per-base filenames:
 
@@ -166,7 +179,7 @@ What the caller does with the verdict is the caller's policy; each blocking find
 - **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk:fix`) remediates.
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (rule text, failing input, unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
-- **Parallel fan-out, single message.** Spawn all active concern subagents at once; never sequential. The verify pass is a second single-message parallel wave.
+- **Verify pass fan-out.** The verify pass is a second single-message parallel wave.
 - **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run. **One carve-out:** the `test-veracity` concern's sampled mutation probe (its checklist owns the sampling rule) — it measures test *strength*, which no static read can, and fails open to "no signal".
 - **No new contract sections.** This skill only *reads* the plan; it owns no PLAN.md cell and no Implementation-Notes block. The caller records outcomes.
 

@@ -20,6 +20,8 @@ reviewed change applied via `/afk:lessons apply` from the lesson ledger
    | `weak-assertion` — subtask Acceptance/Verification too loose | slicing | `/afk:to-subtasks` |
    | `wrong-path` — seam/fixture not pinned | architecture | `/afk:grill-solution` → `/afk:to-sdd` (§9b seams) |
    | `excluded` — env-tag policy hid a real regression | gate policy | `/afk:smoke-test` + `VERIFICATION-PLAN.md` tagging |
+   | `disabled/flaky` — a built guard was left skipped/quarantined | execution TDD discipline | `/afk:execute` (TDD step) + `tdd` skill |
+   | `dodged-failure` — an authoring dodge survived review | review gate | `skills/afk/review/checklists/` (test concern) |
    | PRD asserted the wrong behavior | requirements | `/afk:grill-requirements` → `/afk:to-prd` |
 
 2. **Write the structured lesson** (the ledger payload — facts only, reference
@@ -35,10 +37,11 @@ reviewed change applied via `/afk:lessons apply` from the lesson ledger
      (`path:line`), so the next agent can confirm before changing the skill.
 
 3. **Record it.** Append the lesson to the lesson ledger as `opened`, from the
-   repo root:
+   repo root (`<main-checkout>` = first entry of `git worktree list` — plugin
+   scripts always run from the main checkout; `GLOSSARY.md` "Main checkout"):
 
    ```
-   bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
+   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
      --class <mapped> --miss <phase-2.5 class> --target <implicated skill file> \
      --summary "<the Bug line>" --draft "<the Proposed change>" \
      --source <ticket key> --evidence <path:line> --writer fix

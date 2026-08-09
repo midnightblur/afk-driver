@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
+description: Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when the user reports a bug, says something is broken/failing, or describes a performance regression.
 ---
 
 # Diagnose
@@ -30,8 +30,6 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 9. **Differential loop.** Run the same input through old-version vs new-version (or two configs) and diff outputs.
 10. **HITL bash script.** Last resort. If a human must click, drive _them_ with `scripts/hitl-loop.template.sh` so the loop is still structured. Captured output feeds back to you.
 
-Build the right feedback loop, and the bug is 90% fixed.
-
 Bulk executions inside the loop (failing-suite runs, builds, instrumented runs with long logs) run via an `afk-runner` subagent that returns only the distilled observations — the decisive lines, cited — per `DELEGATION.md` (plugin root); the hypothesise → instrument → conclude reasoning stays inline, because each decision needs the previous step's texture.
 
 ### Tools at your disposal (core-services)
@@ -53,7 +51,7 @@ Treat the loop as a product. Once you have _a_ loop, ask:
 - Can I make the signal sharper? (Assert on the specific symptom, not "didn't crash".)
 - Can I make it more deterministic? (Pin time, seed RNG, isolate filesystem, freeze network.)
 
-A 30-second flaky loop is barely better than no loop. A 2-second deterministic loop is a debugging superpower.
+A 2-second deterministic loop is a debugging superpower; a 30-second flaky one barely beats none.
 
 ### Non-deterministic bugs
 
@@ -131,4 +129,4 @@ Required before declaring done:
 - [ ] For a UI-visible bug, the fix was confirmed **in the running UI** (re-mint token, re-drive the app) — not only by the test seam
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
 
-**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), hand off to the `/improve-codebase-architecture` skill with the specifics if available; otherwise record the recommendation in the diagnosis notes. Make the recommendation **after** the fix is in, not before — you have more information now than at the start.
+**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), hand off to the `/improve-codebase-architecture` skill with the specifics if available; otherwise record the recommendation in the diagnosis notes. Make the recommendation **after** the fix is in, not before.

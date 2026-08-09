@@ -1,5 +1,7 @@
 # SDD template
 
+Before filling any section, read `CONCISION.md` (plugin root) and apply it throughout — compact by default, no fact dropped.
+
 <sdd-template>
 
 # SDD — {Feature Name}

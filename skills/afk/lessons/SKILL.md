@@ -1,6 +1,6 @@
 ---
 name: lessons
-description: Steward of the workflow lesson ledger — the conclude-at-detection self-improvement loop's status/apply/audit surface. Use when the user runs `/afk:lessons`, asks what open workflow lessons exist, or wants drafted doc/skill/checklist/glossary edits reviewed and applied.
+description: Steward of the workflow lesson ledger — status/apply/audit. Use on /afk:lessons, to see open workflow lessons, or to review and apply drafted edits.
 ---
 
 # afk:lessons — apply what the workflow already learned
@@ -17,7 +17,9 @@ capture belongs to the detection points.
 
 ### `status`
 
-Run `bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`
+Run `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`
+(`<main-checkout>` = first entry of `git worktree list` — `GLOSSARY.md` "Main
+checkout")
 from the repo root and report per `REPORTING.md` (plugin root):
 
 ```
@@ -40,7 +42,7 @@ Walk `open` lessons newest-first; for each, route by `target`:
   `FRESHNESS.md` same-commit obligations of every file touched.
 
 Per outcome, append the transition via
-`bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh`:
+`bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh`:
 `applied --id <id> --note "<file / commit>"` on a written edit,
 `rejected --id <id> --note "<reason>"` on a decline. A lesson the human defers
 stays `open` — no event. Approval is per-lesson (apply-all / by-number also

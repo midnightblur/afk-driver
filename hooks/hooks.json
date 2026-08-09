@@ -20,6 +20,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-dark.sh\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-tips.sh\"",
+            "timeout": 15
           }
         ]
       },
@@ -52,45 +57,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/wiring-gate.sh\"",
-            "timeout": 60,
-            "statusMessage": "Wiring gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-registry-gate.sh\"",
-            "timeout": 30,
-            "statusMessage": "Skill-registry gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/codex-drift-gate.sh\"",
-            "timeout": 30,
-            "statusMessage": "Codex-drift gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/genericity-gate.sh\"",
-            "timeout": 30,
-            "statusMessage": "Genericity gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/maven-compile-gate.sh\"",
-            "timeout": 600,
-            "statusMessage": "Maven compile gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ui-lint-gate.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-gates.sh\"",
             "timeout": 300,
-            "statusMessage": "UI lint gate..."
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/java-format-gate.sh\"",
-            "timeout": 600,
-            "statusMessage": "Java format gate..."
+            "statusMessage": "AFK gates..."
           },
           {
             "type": "command",

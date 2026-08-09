@@ -1,12 +1,8 @@
 # Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
-The per-subtask `api` / `e2e/browser` tiers prove **one slice** in isolation. A
-feature with a `VERIFICATION-PLAN.md` also gets an **integrated smoke gate**:
-those cross-subtask scenarios — both modalities — run against a real running app
-as the final "feature complete" check, reused afterward by CI / scheduled jobs /
-manual sanity runs. The gate that *runs* them is a separate skill
-(`/afk:smoke-test`); this skill **seeds** the gate and **emits the build
-subtasks** that author the specs.
+This skill **seeds** the gate section and **emits the build subtasks** that
+author its specs; running them is `/afk:smoke-test`'s job (the per-subtask-tier
+vs integrated-gate story lives in `skills/afk/smoke-test/SKILL.md`).
 
 **The trigger is the artifact, not an ask.** If `VERIFICATION-PLAN.md` sits next
 to the PRD, the human already decided. Emit the gate section **and one build
@@ -24,22 +20,19 @@ subtask per modality the plan carries**:
 - **The terminal `NNNN-smoke-e2e` build subtask** (UI journeys) and, when the
   plan has real `## API Scenarios`, **the terminal `NNNN-smoke-api` build
   subtask** (API contracts) — Process step 3, using the base subtask contract
-  with the fields below. The how-to-build recipes (layers, conventions, reference
-  data, verify-in-order, definition-of-done) are **not** restated here or
-  anywhere in this repo — they live canonically at
+  with the fields below. Build recipes live canonically at
   **`11700-payable/verification/ui-e2e/AUTHORING.md`** and
-  **`11700-payable/verification/api/AUTHORING.md`**, versioned with the
-  verification code so they can't drift. Each subtask points the build agent
-  there and reads it first. Both blocked by every other subtask.
+  **`11700-payable/verification/api/AUTHORING.md`** (versioned with the
+  verification code) — pointed at, never restated. Both blocked by every other
+  subtask.
 
 ```
 ## Goal
-Author the integrated browser smoke specs for {Feature} into the existing
-11700-payable/verification/ui-e2e module, one Scenario per VERIFICATION-PLAN.md UI
-journey, so /afk:smoke-test can run them as the gate. FOLLOW THE CANONICAL RECIPE:
-read 11700-payable/verification/ui-e2e/AUTHORING.md first — it is the authoritative
-how-to (layer rules, conventions, reference data, verify steps, definition-of-done).
-Also see its siblings README.md (run/env) + CLAUDE.md.
+Author the integrated browser smoke specs for {Feature}: one Scenario per
+VERIFICATION-PLAN.md UI journey in 11700-payable/verification/ui-e2e, run by
+/afk:smoke-test as the gate. Read 11700-payable/verification/ui-e2e/AUTHORING.md
+first (layer rules, conventions, definition-of-done) + sibling README/CLAUDE.md;
+author accordingly.
 
 ## Scope
 - 11700-payable/verification/ui-e2e/features/*.feature   # new Scenarios / a new feature file
@@ -63,13 +56,12 @@ Also see its siblings README.md (run/env) + CLAUDE.md.
 
 ```
 ## Goal
-Author the integrated API smoke specs for {Feature} into the existing
-11700-payable/verification/api module, one node:test *.test.mjs scenario per
-VERIFICATION-PLAN.md API scenario (using ../core for auth/base-URL/poll), so
-/afk:smoke-test can run them as the gate. FOLLOW THE CANONICAL RECIPE: read
-11700-payable/verification/api/AUTHORING.md first — it is the authoritative how-to
-(request shape, asserting the real envelope incl. error/empty, below-the-UI authz,
-reference data). Also see its sibling CLAUDE.md. Dependency-free; no install.
+Author the integrated API smoke specs for {Feature}: one node:test *.test.mjs per
+VERIFICATION-PLAN.md API scenario (using ../core for auth/base-URL/poll) in
+11700-payable/verification/api, run by /afk:smoke-test as the gate. Read
+11700-payable/verification/api/AUTHORING.md first (request shape, real envelope
+incl. error/empty, below-the-UI authz, definition-of-done) + sibling CLAUDE.md;
+author accordingly. Dependency-free; no install.
 
 ## Scope
 - 11700-payable/verification/api/*.test.mjs      # new node:test scenarios / a new test file
@@ -110,13 +102,18 @@ as-is:
 | # | Check | Command | Status |
 |---|-------|---------|--------|
 | 1 | compile | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make compile -DskipUi=true | |
-| 2 | app-start | bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
+| 2 | app-start | bash {main checkout}/tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
 | 3 | regression | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make test -DskipUi=true | |
 | 4 | existing ui-e2e suite | cd 11700-payable/verification/ui-e2e && npm run smoke (pre-existing scenarios still green) | |
 | 5 | existing api suite | cd 11700-payable/verification/api && node --test (pre-existing scenarios still green) | |
 
 Last run: —
 ```
+
+`{main checkout}` fills at seeding time with the absolute path of the first
+entry of `git worktree list` — the persisted command must run the main
+checkout's plugin copy from any worktree, resolving nothing at gate time
+(`GLOSSARY.md` "Main checkout").
 
 `{changed modules}` = union of every subtask's Scope-derived Maven modules. Rows
 4–5 prove the feature broke nothing the suites already covered; they add no

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop hook (ships with the afk plugin): genericity gate — prose added to this
+# Stop gate (ships with the afk plugin): genericity gate — prose added to this
 # plugin's *.md files must stay generic, never feature- or incident-specific.
 # The doctrine (plugin CLAUDE.md "generic, never feature-specific") existed and
 # was still violated by an agent hardening the harness after an incident —
@@ -17,119 +17,207 @@
 #   added lines clean                          -> pass
 #   any hit not in hooks/genericity-allow.txt  -> exit 2, listing file:token
 #
+# Cost shape: ONE batched diff for every changed file (was one per file), and the
+# product-symbol universe (a repo-wide git ls-files, the gate's most expensive
+# call) is built only when the added lines actually contain a candidate token —
+# ordinary prose edits never pay for it.
+#
 # Deliberate references (e.g. the plugin's own parent ticket) go in
 # hooks/genericity-allow.txt — one exact token per line, comment with reason.
 # Disable: GENERICITY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
 
-[ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && exit 0
+gate_genericity() {
+  [ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && return 0
+  [ -f .claude/hooks/.gate-disabled ] && return 0
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  local PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+  [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout
+  local ALLOW_FILE="$PLUGIN_DIR/hooks/genericity-allow.txt"
 
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-cd "$repo_root" || exit 0
+  # ---- scope: plugin .md changed vs the integration base, or untracked.
+  local changed_md
+  gate_ctx_mergebase
+  changed_md=$(
+    { git diff --name-only "$AFK_CTX_MERGEBASE" -- "$PLUGIN_DIR/*.md" "$PLUGIN_DIR/**/*.md" 2>/dev/null
+      gate_ctx_filter AFK_CTX_NEW "$PLUGIN_DIR/*.md"
+    } | sort -u
+  )
+  [ -z "$changed_md" ] && return 0   # scope no-op
 
-[ -f .claude/hooks/.gate-disabled ] && exit 0
+  # Inputs: the plugin's own prose, the allow-list, and the product-symbol
+  # inventory (a new product file can turn a previously clean token into a hit).
+  local cache_key
+  cache_key=$(gate_cache_key genericity "$PLUGIN_DIR/*.md" "$ALLOW_FILE" "11700-payable/*")
+  gate_cache_hit genericity "$cache_key" && return 0
 
-PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
-[ -d "$PLUGIN_DIR/skills" ] || exit 0   # not this plugin's checkout
+  gate_metrics_begin
 
-# ---- scope: plugin .md files changed vs upstream (committed-unpushed + worktree) or untracked
-upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
-[ -z "$upstream" ] && git rev-parse --verify -q origin/master >/dev/null 2>&1 && upstream=origin/master
-[ -z "$upstream" ] && upstream=HEAD
-
-base=$(git merge-base "$upstream" HEAD 2>/dev/null || echo HEAD)
-changed_md=$(
-  { git diff --name-only "$base" -- "$PLUGIN_DIR/*.md" "$PLUGIN_DIR/**/*.md" 2>/dev/null
-    git ls-files --others --exclude-standard -- "$PLUGIN_DIR" 2>/dev/null | grep -E '\.md$'
-  } | sort -u
-)
-[ -z "$changed_md" ] && exit 0   # scope no-op
-
-. "$SCRIPT_DIR/gate-cache.sh"
-cache_key=$(gate_cache_key genericity)
-gate_cache_hit genericity "$cache_key" && exit 0
-
-. "$SCRIPT_DIR/gate-metrics.sh"
-gate_metrics_begin
-
-ALLOW_FILE="$PLUGIN_DIR/hooks/genericity-allow.txt"
-allow_tokens=""
-[ -f "$ALLOW_FILE" ] && allow_tokens=$(grep -vE '^\s*(#|$)' "$ALLOW_FILE" | awk '{print $1}')
-
-is_allowed() { printf '%s\n' "$allow_tokens" | grep -Fxq -- "$1"; }
-
-# Internal notation prefixes that are NOT Jira tickets (ADRs, acceptance
-# criteria, user stories, render points, preflight steps, encodings, specs).
-NOTATION_PREFIXES='ADR|AC|US|RP|PF|UTF|RFC|ISO|JEP|JDK|HHH'
-
-# ---- product-symbol universe (tracked source under 11700-payable, minus the
-# verification harness the plugin legitimately documents)
-prod_files=$(git ls-files '11700-payable/*' ':!11700-payable/verification/*' 2>/dev/null \
-  | grep -E '\.(java|vue|ts|tsx|js|mjs)$' | sed 's#.*/##' | sort -u)
-prod_classes=$(printf '%s\n' "$prod_files" | sed 's/\.[a-z]*$//' | sort -u)
-
-violations=""
-
-while IFS= read -r f; do
-  [ -f "$f" ] || continue
-  if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
-    added=$(git diff -U0 "$base" -- "$f" 2>/dev/null | grep '^+' | grep -v '^+++' | cut -c2-)
-  else
-    added=$(cat "$f")
+  local -A allow=()
+  local t
+  if [ -f "$ALLOW_FILE" ]; then
+    # `|| [ -n "$t" ]`: an unterminated final line must still register — a
+    # silently dropped token re-blocks something deliberately allowed.
+    while IFS= read -r t || [ -n "$t" ]; do
+      t=${t#"${t%%[![:space:]]*}"}    # leading whitespace would otherwise void the whole line
+      case "$t" in ''|\#*) continue ;; esac
+      t=${t%%[[:space:]]*}
+      [ -n "$t" ] && allow["$t"]=1
+    done < "$ALLOW_FILE"
   fi
-  [ -z "$added" ] && continue
 
-  # 1. ticket IDs
-  while IFS= read -r tok; do
-    [ -z "$tok" ] && continue
-    prefix=${tok%%-*}
-    printf '%s' "$prefix" | grep -qE "^($NOTATION_PREFIXES)$" && continue
-    is_allowed "$tok" && continue
-    violations="$violations$f: ticket ID \`$tok\`\n"
-  done <<EOF
-$(printf '%s\n' "$added" | grep -oE '\b[A-Z][A-Z0-9]{1,9}-[0-9]{1,6}\b' | sort -u)
-EOF
+  # Internal notation prefixes that are NOT Jira tickets (ADRs, acceptance
+  # criteria, user stories, render points, preflight steps, encodings, specs).
+  local NOTATION_PREFIXES='ADR|AC|US|RP|PF|UTF|RFC|ISO|JEP|JDK|HHH'
 
-  # 2. source-file references resolving to product files
-  while IFS= read -r tok; do
-    [ -z "$tok" ] && continue
-    printf '%s\n' "$prod_files" | grep -Fxq -- "$tok" || continue
-    is_allowed "$tok" && continue
-    violations="$violations$f: product source file \`$tok\`\n"
-  done <<EOF
-$(printf '%s\n' "$added" | grep -oE '\b[A-Za-z][A-Za-z0-9_]*\.(vue|java|ts|tsx|js|mjs)\b' | sort -u)
-EOF
+  # ---- added lines per file: ONE diff for every tracked file, plus a fork-free
+  # read of each untracked one.
+  local -a tracked=() untracked=()
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && [ -f "$f" ] || continue
+    if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then tracked+=("$f"); else untracked+=("$f"); fi
+  done <<<"$changed_md"
 
-  # 3. backticked CamelCase tokens naming a product class
-  while IFS= read -r tok; do
-    [ -z "$tok" ] && continue
-    printf '%s\n' "$prod_classes" | grep -Fxq -- "$tok" || continue
-    is_allowed "$tok" && continue
-    violations="$violations$f: product class \`$tok\`\n"
-  done <<EOF
-$(printf '%s\n' "$added" | grep -oE '`[A-Z][A-Za-z0-9]*`' | tr -d '\`' | sort -u)
-EOF
-done <<EOF2
-$changed_md
-EOF2
+  # ---- added lines as one "<path>\t<line>" stream. One diff covers every
+  # tracked file; the per-file split is bash string work, untracked files are
+  # read whole. Keeping it a single stream is what lets the harvest below be one
+  # pass — a per-file (let alone per-line) scan costs a subprocess each, and a
+  # long-lived branch has dozens of changed prose files.
+  local added_stream="" line cur=""
+  if [ "${#tracked[@]}" -gt 0 ]; then
+    while IFS= read -r line; do
+      case "$line" in
+        # A path containing a blank gets a trailing TAB in the +++ header —
+        # left in place it empties the awk content field for the whole file.
+        '+++ b/'*) cur=${line#+++ b/}; cur=${cur%$'\t'} ;;
+        # quotePath-escaped header (non-ASCII path): decoding the escapes is not
+        # worth it — drop attribution rather than crediting lines to the
+        # PREVIOUS file.
+        '+++ "b/'*) cur="" ;;
+        '+++'*|'---'*) ;;
+        '+'*) [ -n "$cur" ] && added_stream+="$cur"$'\t'"${line:1}"$'\n' ;;
+      esac
+    done < <(git diff -U0 "$AFK_CTX_MERGEBASE" -- "${tracked[@]}" 2>/dev/null)
+  fi
+  for f in ${untracked[@]+"${untracked[@]}"}; do
+    while IFS= read -r line || [ -n "$line" ]; do
+      added_stream+="$f"$'\t'"$line"$'\n'
+    done < "$f"
+  done
+  [ -z "$added_stream" ] && { gate_metrics_emit genericity pass; gate_cache_store genericity "$cache_key"; return 0; }
 
-if [ -n "$violations" ]; then
-  gate_metrics_emit genericity blocked
-  {
-    echo "Genericity gate: plugin prose must stay generic — never feature- or incident-specific."
-    echo "Added lines reference concrete tickets/product symbols:"
-    printf '%b' "$violations" | sort -u
-    echo
-    echo "Fix: restate the rule in terms of the mechanism/pattern class, not the instance that"
-    echo "motivated it. If a reference is deliberate (plugin's own ticket, a format example),"
-    echo "add the exact token to $ALLOW_FILE with a reason comment."
-  } >&2
-  exit 2
+  local violations="" tok file kind pfx
+  local -a cand_file=() cand_tok=() cand_kind=()
+  local -A seen=()
+
+  # Token harvest: ONE pass over the whole stream, emitting "<file>\t<class>\t<token>".
+  # Classes: 1 = ticket ID, 2 = source-file reference, 3 = backticked CamelCase.
+  while IFS=$'\t' read -r file kind tok; do
+    [ -n "$tok" ] || continue
+    [ -n "${seen["$file:$kind:$tok"]:-}" ] && continue
+    seen["$file:$kind:$tok"]=1
+    [ -n "${allow[$tok]:-}" ] && continue
+    case "$kind" in
+      1) pfx=${tok%%-*}
+         [[ "$pfx" =~ ^($NOTATION_PREFIXES)$ ]] && continue
+         violations="$violations$file: ticket ID \`$tok\`"$'\n' ;;
+      2) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(file) ;;
+      3) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(class) ;;
+    esac
+  done < <(printf '%s' "$added_stream" | awk '
+    # Boundaries are checked against ABSOLUTE positions in the full line (pre/
+    # post computed from s, not the consumed remainder) — checking the remainder
+    # makes every post-consumption match look line-initial and defeats the left
+    # boundary. Both ends are word boundaries, matching the old per-line \b greps.
+    {
+      idx = index($0, "\t")
+      if (idx == 0) next
+      file = substr($0, 1, idx-1)
+      s = substr($0, idx+1)          # NOT $2: added lines may contain tabs
+
+      # class 1: Jira-shaped ticket IDs (prefix 2-10 chars, 1-6 digits)
+      rest = s
+      while (match(rest, /[A-Z][A-Z0-9]{1,9}-[0-9]{1,6}/)) {
+        pos = length(s) - length(rest) + RSTART
+        pre = (pos == 1) ? "" : substr(s, pos-1, 1)
+        post = substr(s, pos+RLENGTH, 1)
+        if (pre !~ /[A-Za-z0-9_]/ && post !~ /[A-Za-z0-9_]/)
+          print file "\t1\t" substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART+RLENGTH)
+      }
+
+      # class 2: source-file references
+      rest = s
+      while (match(rest, /[A-Za-z][A-Za-z0-9_]*\.(vue|java|tsx|ts|mjs|js)/)) {
+        pos = length(s) - length(rest) + RSTART
+        pre = (pos == 1) ? "" : substr(s, pos-1, 1)
+        post = substr(s, pos+RLENGTH, 1)
+        if (pre !~ /[A-Za-z0-9_]/ && post !~ /[A-Za-z0-9_]/)
+          print file "\t2\t" substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART+RLENGTH)
+      }
+
+      # class 3: backticked CamelCase (backticks are the boundaries)
+      rest = s
+      while (match(rest, /`[A-Z][A-Za-z0-9]*`/)) {
+        print file "\t3\t" substr(rest, RSTART+1, RLENGTH-2)
+        rest = substr(rest, RSTART+RLENGTH)
+      }
+    }')
+
+  if [ "${#cand_tok[@]}" -gt 0 ]; then
+    local -A prod_file=() prod_class=()
+    local n
+    local stem
+    while IFS= read -r n; do
+      n=${n##*/}
+      [ -n "$n" ] || continue
+      case "$n" in *.vue|*.java|*.ts|*.tsx|*.js|*.mjs) ;; *) continue ;; esac
+      stem=${n%.*}
+      [ -n "$stem" ] || continue          # dotfile — no class name to resolve
+      prod_file["$n"]=1
+      prod_class["$stem"]=1
+    done < <(git ls-files '11700-payable/*' ':!11700-payable/verification/*' 2>/dev/null)
+
+    local i
+    for i in "${!cand_tok[@]}"; do
+      tok=${cand_tok[$i]}; file=${cand_file[$i]}
+      if [ "${cand_kind[$i]}" = "file" ]; then
+        [ -n "${prod_file[$tok]:-}" ] && violations="$violations$file: product source file \`$tok\`"$'\n'
+      else
+        [ -n "${prod_class[$tok]:-}" ] && violations="$violations$file: product class \`$tok\`"$'\n'
+      fi
+    done
+  fi
+
+  if [ -n "$violations" ]; then
+    gate_metrics_emit genericity blocked
+    {
+      echo "Genericity gate: plugin prose must stay generic — never feature- or incident-specific."
+      echo "Added lines reference concrete tickets/product symbols:"
+      printf '%s' "$violations" | sort -u
+      echo
+      echo "Fix: restate the rule in terms of the mechanism/pattern class, not the instance that"
+      echo "motivated it. If a reference is deliberate (plugin's own ticket, a format example),"
+      echo "add the exact token to $ALLOW_FILE with a reason comment."
+    } >&2
+    return 2
+  fi
+
+  gate_metrics_emit genericity pass
+  gate_cache_store genericity "$cache_key"
+  return 0
+}
+
+# ---- standalone invocation
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+  cd "$_root" || exit 0
+  . "$_d/gate-context.sh"; gate_ctx_build
+  . "$_d/gate-cache.sh"
+  . "$_d/gate-metrics.sh"
+  gate_genericity; exit $?
 fi
-
-gate_metrics_emit genericity pass
-gate_cache_store genericity "$cache_key"
-exit 0

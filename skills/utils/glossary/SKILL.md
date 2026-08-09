@@ -1,11 +1,12 @@
 ---
 name: glossary
 description: >
-  Vocabulary-only steward of the repo's multi-context domain glossary
-  (GLOSSARY-MAP.md + per-service GLOSSARY.md). Use when the user invokes
-  `/afk:glossary`, asks to define/audit/dedup/harden domain terms, or
-  mentions "domain model" / "DDD" terminology hygiene. Writes only after
-  approval; does NOT grill requirements, emit ADRs, or touch the tracker.
+  Vocabulary-only steward of the multi-context domain glossary
+  (GLOSSARY-MAP.md + per-service GLOSSARY.md) — distinct from the plugin-root
+  workflow GLOSSARY.md. Use when the user invokes /afk:glossary, asks to
+  define/audit/dedup/harden domain terms, or mentions "domain model"/"DDD"
+  terminology hygiene. Writes only after approval; never grills requirements,
+  emits ADRs, or touches the tracker.
 ---
 
 # glossary — domain-vocabulary steward
@@ -16,10 +17,9 @@ write**; never write unasked.
 
 ## The glossary setup (shared, not redefined here)
 
-Multi-context glossary — root `GLOSSARY-MAP.md` routing to per-service
-`GLOSSARY.md` files. Layout, format, rules, routing are **canonical** in
-[`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) — this skill owns that file; follow it exactly, do
-**not** restate its rules. Load only the glossaries the current work touches.
+Layout/format/rules canonical in [`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md)
+(this skill owns it) — follow exactly. Load only the glossaries the current
+work touches.
 
 ## Two modes (auto-detect)
 

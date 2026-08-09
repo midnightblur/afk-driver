@@ -1,6 +1,6 @@
 ---
 name: to-prd
-description: Turn the current conversation context into a PRD and write it to the repo as a local artifact (PRD.md + requirement ADRs). Does NOT touch any issue tracker. Use when user wants to create a PRD from the current context.
+description: Synthesize the current conversation into PRD.md + requirement ADRs on disk — no tracker write. Use once requirements are settled in conversation and the user wants them captured.
 ---
 
 Don't interview on requirements content — synthesize what you already know. (Step 2's module/tests check-in is the only exception.)

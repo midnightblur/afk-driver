@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: The feature-level ship gate — refuses without a green smoke gate, merges master in (never rebases) behind an ancestry guard, re-runs validations + a final seam check within a shared 2-cycle fix cap, settles a fresh integrated review through the multi-round settle loop, commits ship evidence, and background-babysits CI to flip the Draft MR to Ready. Use when an invoker chains it after the smoke gate goes green, or to re-run `/afk:preflight {plan-dir}` by hand on a parked feature.
+description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk:preflight {plan-dir} on a parked feature.
 ---
 
 # afk:preflight — the feature-level ship gate
@@ -52,16 +52,25 @@ Each step updates its table row (`Status` + `Evidence`) the moment it completes
 root), leave the MR Draft, leave every not-yet-reached row untouched.
 
 **PF-1 — merge & ancestry guard.**
-1. Record current `HEAD` (`git rev-parse HEAD`).
-2. `git merge origin/master` — **never** `rebase`, **never** `--force` push
+1. Resolve the merge source `{target}`: the MR's target branch
+   (`glab mr view` → target branch; `origin/master` when no MR resolves).
+   `git fetch origin {target}` first. Later PF steps reading a base
+   (`/afk:review --feature`'s `--base`) use this same `{target}`.
+2. Record current `HEAD` (`git rev-parse HEAD`).
+3. `git merge origin/{target}` — **never** `rebase`, **never** `--force` push
    (Hard rules below; binding requirement, not style).
-3. Merge conflict → `park(PF-1: merge_conflict)` immediately — never
-   auto-resolved, only a human untangles intent across two histories.
-4. On a clean merge, **ancestry guard**: `git merge-base --is-ancestor
-   {recorded-HEAD} HEAD` must succeed, confirming the pre-merge tip is still
-   reachable — no rewritten history. Guard failure → `park(PF-1:
+4. Merge conflict → resolve it in place, per conflicted file: read both
+   sides' intent (the feature's own diff vs the incoming commits), keep both
+   where disjoint, reconcile semantically where they overlap, complete the
+   merge commit. The resolution is verified downstream — PF-2 validates the
+   merged tip, PF-3 reviews it with fresh eyes. Only a conflict whose two
+   sides encode contradictory design intent no resolution can honor →
+   `park(PF-1: merge_conflict)`.
+5. **Ancestry guard** (clean and resolved merges alike): `git merge-base
+   --is-ancestor {recorded-HEAD} HEAD` must succeed, confirming the pre-merge
+   tip is still reachable — no rewritten history. Guard failure → `park(PF-1:
    ancestry_guard_failed)`, **before any push**.
-5. Only once the guard passes: push (plain `git push`, the now-fast-forwarded
+6. Only once the guard passes: push (plain `git push`, the now-fast-forwarded
    remote tracking branch).
 
 **PF-2 — validations.** Re-run the repo's mandated validation suite
@@ -73,11 +82,17 @@ malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
 **PF-3 — fresh-context review (settle loop).** Gate the merged tip through the
 review settle loop (`skills/afk/review/SETTLEMENT.md`; this ladder's session is
-the referee). Per round, run **`/afk:review --feature --tag r{n}`** — the
+the referee). Per round, run **`/afk:review --feature --tag r{n}`** (add
+`--base origin/{target}` when PF-1's merge source isn't `origin/master`) — the
 integrated feature diff as a whole (every subtask's changes together, not one
 slice), reviewed by fresh contexts that haven't seen the implementation's own
 reasoning, with the cross-slice design roster that skill's `--feature` mode
-defines. Every actionable finding — `medium`/`low` included — is fixed or
+defines (widened per its "Gate policy" when the plan sliced lean). **Round 1
+also sweeps the slice gates' deferrals** (SETTLEMENT.md "Deferral rule"): every
+finding whose latest outcome across its slice's
+`plan/review/{NNNN-slug}-*.outcomes.json` rounds is `deferred`, resolved
+against its findings file, joins the actionable set unless the merged tip
+already fixed it. Every actionable finding — `medium`/`low` included — is fixed or
 disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
 `compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
 `scope` is unreachable — the `--feature` roster carries no scope concern.
@@ -122,14 +137,15 @@ an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 (Resume rule above).
 
 **PF-4c lessons — advisory open-drafts surface (never parks).** Run
-`bash tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
-from the repo root; set the row `green` with
+`bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
+from the repo root (`<main-checkout>` = first entry of `git worktree list` —
+plugin files always run from the main checkout; `GLOSSARY.md` "Main
+checkout"); set the row `green` with
 `Evidence: open lessons: <n> (grammar: skills/afk/lessons/LEDGER-FORMAT.md)`.
 This is how workflow-lesson drafts captured during hands-off runs reach the
 human at the ship gate: `<n> > 0` changes nothing mechanically — the count
 rides the PF table into the report and MR evidence block; applying the drafts
-is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b: outside
-the shared fix cap, no cycle, no fix attempt, no park.
+is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
@@ -152,8 +168,8 @@ the shared fix cap, no cycle, no fix attempt, no park.
    understanding-artifact path (from that row's `Evidence`) so reviewers can
    discover it (SDD §5 observability).
 
-**PF-6 — launch ci-wait.** Launch `scripts/ci-wait.sh {mr-ref} 5400 180
-[repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
+**PF-6 — launch ci-wait.** Launch
+`<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/preflight/scripts/ci-wait.sh {mr-ref} 5400 180 [repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
 numbers, not invented per-run) as a background Bash task; append the launch to
 `plan/JOURNAL.md`. The calling session/turn ends here — whatever resumes it
 (human, orchestrator) picks up the routing below once the task exits.
@@ -224,7 +240,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green — PF-4b may be `advisory-failed` (advisory rows never block); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
+| `success` | Every PF row green (advisory rows may be `advisory-failed`); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |
