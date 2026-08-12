@@ -100,15 +100,15 @@ _Avoid_: cache (implies transparent freshness), summary file (undersells the sch
 
 The top-down ladder the solution grill and the SDD follow. One line each — this is the legend for SDD section titles:
 
-- **L1 — system topology**: where the feature sits among services, UIs, and external systems.
+- **L1 — system topology**: where the feature sits among services, UIs, and external systems, and the runtime model (request/response, event-driven, batch); usually inherited from the platform.
 - **L2 — service boundaries & integration**: which service owns what; the endpoints and contracts between them.
-- **L3 — data architecture**: schema, storage, migration.
-- **L4 — cross-cutting quality**: security, transactions, observability, error handling.
-- **L5 — domain model**: entities, aggregates, invariants.
-- **L6 — process & coordination**: workflows, state machines, async jobs.
-- **L7 — module decomposition**: packages and modules inside the service.
-- **L8 — tactical patterns**: class-level design patterns and idioms.
-- **L9 — implementation seams**: the exact places in existing code the change plugs into, each verified against the codebase.
+- **L3 — data architecture**: which datastore holds each piece of state — schema, storage, migration, retention; the most expensive layer to get wrong.
+- **L4 — cross-cutting quality**: security (authentication and authorization), transactions, observability, error handling, idempotency, rate limits.
+- **L5 — domain model**: entities, aggregates, invariants, and lifecycle states, named in the glossary's language.
+- **L6 — process & coordination**: workflows, state machines, transaction boundaries, async jobs, failure recovery.
+- **L7 — module decomposition**: packages and modules inside the service, their public interfaces, and dependency direction.
+- **L8 — tactical patterns**: class-level design patterns (Strategy, State Machine, Builder…) that shape the seams executors implement against.
+- **L9 — implementation seams**: the exact places in existing code the change plugs into, each verified against the codebase before the design is called done.
 
 ## Seams & contracts
 

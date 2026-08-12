@@ -12,6 +12,15 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-12
 
+- **Lavish tooltips cover the domain glossaries automatically.** The render
+  hook now merges the target repo's committed glossaries (root + every
+  `{service}/GLOSSARY.md`, the artifact's own service winning collisions) into
+  the tooltip dictionary, finds the feature terms file by walking up from the
+  artifact (no `afk-spec-dir` meta needed inside a spec folder), parses
+  bulleted and annotated glossary entries, and matches plurals ("MRs") and
+  hyphenated tails ("PRD-level") — no agent action required for any
+  glossary-defined term.
+
 - **Lavish pages name their browser tab.** Every rendered artifact now carries
   a `<title>` (`{page purpose} — {feature}`; LAVISH.md "Tab title"), and the
   render hook backfills untitled artifacts from filename + spec dir — so

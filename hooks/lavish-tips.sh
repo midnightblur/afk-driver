@@ -19,18 +19,28 @@
 #   1. seed     — lavish-tips.json next to this script (tooltip-only vocabulary
 #                 with no glossary home; Lockstep-sanctioned copies, owning
 #                 files win on conflict)
-#   2. workflow — ../GLOSSARY.md (committed workflow vocabulary), parsed from
-#                 its canonical **Term**: entry grammar
-#   3. feature  — {spec-dir}/LAVISH-TIPS.md (committed feature/session terms,
-#                 same **Term**: grammar — not a glossary: session-scoped ids
-#                 and ideas live here too), where spec-dir comes from the
-#                 artifact's <meta name="afk-spec-dir" content="<repo-relative
-#                 path>">, resolved against the current worktree root
+#   2. workflow — ../GLOSSARY.md (committed workflow vocabulary)
+#   3. domain   — the target repo's committed glossaries: root GLOSSARY.md plus
+#                 every top-level {service}/GLOSSARY.md (the set GLOSSARY-MAP.md
+#                 indexes); the artifact's own service (its first path segment)
+#                 parses last, so its bounded-context definitions win
+#                 cross-service collisions
+#   4. feature  — {spec-dir}/LAVISH-TIPS.md (committed feature/session terms —
+#                 not a glossary: session-scoped ids and ideas live here too);
+#                 spec-dir comes from the artifact's <meta name="afk-spec-dir"
+#                 content="<repo-relative path>"> or, absent, from the nearest
+#                 LAVISH-TIPS.md walking up from the artifact toward the repo
+#                 root — an artifact living in its spec folder needs no meta
+# All parse the canonical **Term**: entry grammar (GLOSSARY-FORMAT.md),
+# including "- **Term**:" bullets and a "**Term** *(annotation)*:" qualifier;
+# `Code:`/`Related:`/`Avoid:` metadata lines are dropped. A "Term — qualifier"
+# entry also serves the bare pre-dash term.
 # Keys starting with "__" are metadata, ignored. A key with any uppercase
 # letter matches case-sensitively; all-lowercase keys match case-insensitively;
-# whole-word only (word chars and '-' bound the match). Title-Case words are
-# lowered so page-case usage still matches; ALL-CAPS/mixed tokens (PRD,
-# TICKET.md, J8) stay case-sensitive.
+# whole-word only, but a plural tail ("MRs", "invoices") and a hyphen after the
+# term ("PRD-level") still match. Title-Case words are lowered so page-case
+# usage still matches; ALL-CAPS/mixed tokens (PRD, TICKET.md, J8) stay
+# case-sensitive.
 #
 # Re-injected (block replaced) on every render — the dictionary grows between
 # renders and a resumed artifact must pick up new entries. Idempotent via
@@ -110,22 +120,37 @@ def clean(text):
 
 def keys_for(term):
     # "Full path / Lean path" -> both; "Ticket description (`TICKET.md`)" ->
-    # base name + the parenthetical token. Title-Case words lower so page-case
+    # base name + the parenthetical token; "L3 — data architecture" -> full
+    # form + the bare pre-dash term. Title-Case words lower so page-case
     # usage matches; ALL-CAPS/mixed-case words stay case-sensitive.
     raw = term.replace("`", "").strip()
     out = set()
-    base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
-    for part in re.split(r"\s*/\s*", base):
+
+    def add(part):
         part = part.strip()
         if part:
             out.add(" ".join(
                 w.lower() if len(w) > 1 and w[1:].islower() else w
                 for w in part.split()))
+
+    base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+    for part in re.split(r"\s*/\s*", base):
+        add(part)
+        head = re.split(r"\s+—\s+", part)[0]
+        if head.strip() != part.strip():
+            add(head)
     for m in re.finditer(r"\(([^)]*)\)", raw):
         inner = m.group(1).strip()
         if re.fullmatch(r"[\w.\-]+", inner):
             out.add(inner)
     return out
+
+
+# Entry line: optional list bullet, bold term, optional italic parenthetical
+# qualifier ("**State** *(user-facing: "Status")*:"), then the definition.
+ENTRY_RE = re.compile(r"(?:[-*+]\s+)?\*\*(.+?)\*\*\s*(?:\*\([^)]*\)\*\s*)?:\s*(.*)$")
+# Trailing metadata lines the glossary grammar allows — never tooltip text.
+META_LINE_RE = re.compile(r"[`_]*(Avoid|Code|Related)[`_]*\s*:")
 
 
 def parse_glossary(path):
@@ -148,12 +173,12 @@ def parse_glossary(path):
 
     for line in lines:
         stripped = line.strip()
-        m = re.match(r"\*\*(.+?)\*\*\s*:\s*(.*)$", stripped)
+        m = ENTRY_RE.match(stripped)
         if m:
             flush()
             term, buf = m.group(1), ([m.group(2)] if m.group(2) else [])
             continue
-        if not stripped or stripped.startswith("#") or stripped.startswith("_Avoid_"):
+        if not stripped or stripped.startswith("#") or META_LINE_RE.match(stripped):
             flush()
             term, buf = None, []
             continue
@@ -173,16 +198,64 @@ try:
 except Exception:
     pass  # a broken seed must never break a render
 
-# Committed term stores: workflow glossary, then the feature's terms file
-# (declared by the artifact's afk-spec-dir meta) — most specific wins.
+# Committed term stores: workflow glossary, then the repo's domain glossaries,
+# then the feature's terms file — most specific wins.
 tips.update(parse_glossary(os.environ.get("LAVISH_TIPS_WF_GLOSSARY", "")))
 toplevel = os.environ.get("LAVISH_TIPS_TOPLEVEL", "")
+top = os.path.abspath(toplevel) if toplevel else ""
+abs_target = os.path.abspath(target)
+
+
+def under(child, parent):
+    return os.path.normcase(child).startswith(os.path.normcase(parent) + os.sep)
+
+
+# Domain glossaries — root GLOSSARY.md + every top-level {service}/GLOSSARY.md,
+# parsed unconditionally so domain terms never depend on an agent copying them
+# into a feature file. The artifact's own service parses last: its
+# bounded-context definitions win cross-service term collisions.
+if top:
+    own = ""
+    if under(abs_target, top):
+        own = os.path.relpath(abs_target, top).replace("\\", "/").split("/", 1)[0]
+    glossaries = []
+    if os.path.isfile(os.path.join(top, "GLOSSARY.md")):
+        glossaries.append(os.path.join(top, "GLOSSARY.md"))
+    try:
+        names = sorted(os.listdir(top))
+    except OSError:
+        names = []
+    for name in names:
+        g = os.path.join(top, name, "GLOSSARY.md")
+        if name != own and os.path.isfile(g):
+            glossaries.append(g)
+    if own and os.path.isfile(os.path.join(top, own, "GLOSSARY.md")):
+        glossaries.append(os.path.join(top, own, "GLOSSARY.md"))
+    for g in glossaries:
+        tips.update(parse_glossary(g))
+
 m = re.search(
     r"<meta\s+(?:name=\"afk-spec-dir\"\s+content=\"([^\"]+)\"|content=\"([^\"]+)\"\s+name=\"afk-spec-dir\")",
     html, re.IGNORECASE)
 spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/") if m else ""
-if spec_dir and toplevel:
-    tips.update(parse_glossary(os.path.join(toplevel, spec_dir, "LAVISH-TIPS.md")))
+# No meta: walk up from the artifact toward the repo root for the nearest
+# LAVISH-TIPS.md — an artifact living in its spec folder self-resolves.
+if not spec_dir and top and under(abs_target, top):
+    d = os.path.dirname(abs_target)
+    while True:
+        if os.path.isfile(os.path.join(d, "LAVISH-TIPS.md")):
+            rel = os.path.relpath(d, top).replace("\\", "/")
+            if rel != ".":
+                spec_dir = rel
+            break
+        if os.path.normcase(d) == os.path.normcase(top):
+            break
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+if spec_dir and top:
+    tips.update(parse_glossary(os.path.join(top, spec_dir, "LAVISH-TIPS.md")))
 
 # Tab-title backfill (LAVISH.md "Tab title"): an untitled artifact gets
 # "{filename stem} — {spec-dir tail}". A floor for concurrent-tab
@@ -247,14 +320,24 @@ block = MARK_START + """
   function rebuild() {
     keys = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
     keys.forEach(function (k) { if (k === k.toLowerCase()) ciMap[k] = dict[k]; });
-    re = new RegExp('(?<![\\\\w-])(?:' + keys.map(esc).join('|') + ')(?![\\\\w-])', 'gi');
+    re = new RegExp('(?<![\\\\w-])(?:' + keys.map(esc).join('|') + ')(?:e?s)?(?!\\\\w)', 'gi');
   }
   rebuild();
 
-  function tipFor(matched) {
-    if (Object.prototype.hasOwnProperty.call(dict, matched)) return dict[matched];
-    var lower = matched.toLowerCase();
+  function lookup(s) {
+    if (Object.prototype.hasOwnProperty.call(dict, s)) return dict[s];
+    var lower = s.toLowerCase();
     return Object.prototype.hasOwnProperty.call(ciMap, lower) ? ciMap[lower] : null;
+  }
+  // The wrap regex admits a plural tail; resolve "MRs"/"classes" to their
+  // singular key under the same case rules.
+  function tipFor(matched) {
+    var tip = lookup(matched);
+    if (tip === null && matched.length > 2 && /s$/i.test(matched)) {
+      tip = lookup(matched.slice(0, -1));
+      if (tip === null && /es$/i.test(matched)) tip = lookup(matched.slice(0, -2));
+    }
+    return tip;
   }
 
   function wrap(root) {

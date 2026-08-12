@@ -89,32 +89,37 @@ the content it explains. The tooltip layer carries all decoding:
 
 1. **Dictionary terms — injected, never authored.** A persistent
    term → explanation dictionary is embedded into every artifact at render
-   time by `hooks/lavish-tips.sh`, merged later-wins from three **committed**
-   sources — every term lives in the workflow or in the feature spec, so a
-   session resumes on any machine: seed `hooks/lavish-tips.json`
-   (tooltip-only vocabulary with no glossary home); the **workflow glossary**
-   (plugin `GLOSSARY.md`); the **feature terms file** —
+   time by `hooks/lavish-tips.sh`, merged later-wins from four **committed**
+   sources, so a session resumes on any machine: seed
+   `hooks/lavish-tips.json` (tooltip-only vocabulary with no glossary home);
+   the **workflow glossary** (plugin `GLOSSARY.md`); the **domain
+   glossaries** — the target repo's root `GLOSSARY.md` plus every top-level
+   `{service}/GLOSSARY.md`, the artifact's own service winning collisions —
+   parsed directly, no copying; the **feature terms file** —
    `LAVISH-TIPS.md` in the feature's spec folder, found through the
    artifact's `<meta name="afk-spec-dir" content="<repo-relative spec
-   folder>">`, which every artifact of a feature session must carry. Both
-   parse from the canonical `**Term**:` entry grammar
-   (`skills/utils/glossary/GLOSSARY-FORMAT.md`), so an edit reaches every
-   future render — tooltips can't drift from the committed definitions.
-   Injection is mechanical and free; never hand-write tooltip markup for a
-   dictionary term, and never spend page prose restating one.
-2. **Feed the stores once, use them forever.** Before an artifact's first
-   render, sweep its text for every term a junior dev couldn't decode —
-   acronym, workflow term, domain term, pattern name, id scheme — and give
-   each missing one a committed home: feature-scoped, domain, and
+   folder>">` or, absent the meta, by walking up from the artifact toward
+   the repo root (an artifact living in its spec folder needs no meta; one
+   living elsewhere must carry it). All parse the canonical `**Term**:`
+   entry grammar (`skills/utils/glossary/GLOSSARY-FORMAT.md`), so an edit
+   reaches every future render — tooltips can't drift from the committed
+   definitions. Injection is mechanical and free; never hand-write tooltip
+   markup for a dictionary term, and never spend page prose restating one.
+2. **Feed the stores once, use them forever.** Every glossary term already
+   injects automatically — the sweep covers only what has **no committed
+   home yet**. Before an artifact's first render, sweep its text for every
+   such term a junior dev couldn't decode — acronym, pattern name, id
+   scheme, session-scoped idea — and give each one a home: feature- and
    session-scoped terms → the feature terms file (create
    `{spec-dir}/LAVISH-TIPS.md` if absent — **not a glossary**: ideas that
-   live only as long as the feature belong here, real domain vocabulary
-   graduates to the service glossary via `/afk:glossary`); workflow terms →
-   the plugin glossary (plugin-editing sessions only — from a feature
-   session, note the gap instead). Coverage bar is exhaustive: when in
-   doubt, add it. Entries are self-contained (no pointers, no "see X"), 1–3
-   sentences — precision over brevity; length is cheap behind a hover.
-   Matching is whole-word; a key with an uppercase letter matches
+   live only as long as the feature belong here; real domain vocabulary
+   graduates to the service glossary via `/afk:glossary` and injects from
+   there); workflow terms → the plugin glossary (plugin-editing sessions
+   only — from a feature session, note the gap instead). Coverage bar is
+   exhaustive: when in doubt, add it. Entries are self-contained (no
+   pointers, no "see X"), 1–3 sentences — precision over brevity; length is
+   cheap behind a hover. Matching is whole-word with plural tails and a
+   trailing hyphen boundary included; a key with an uppercase letter matches
    case-sensitively, all-lowercase keys match any case (Title-Case lowers
    automatically).
 3. **Item ids — catalogued or authored once, propagated by the runtime.**
@@ -138,7 +143,7 @@ Concurrent sessions mean concurrent browser tabs: every artifact carries a
 distinguishable. Set it when the artifact file is created; the per-phase file
 resumes across renders, so retitle only when the page's subject changes. A
 missing title is backfilled at render by `hooks/lavish-tips.sh` (filename
-stem + `afk-spec-dir` tail) — a floor, not the authored name.
+stem + spec-folder tail, meta or discovered) — a floor, not the authored name.
 
 ## Convey the idea (binding on every render point)
 
