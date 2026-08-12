@@ -80,6 +80,12 @@ render the first question into the phase artifact, re-render at every
 question/turn boundary (cadence above). Skipping any round needs one of the
 three licenses under Primary path below.
 
+**Live-on-top order (binding on session-default artifacts).** The page
+orders by liveness, not chronology: the round in play at the top, open /
+undecided items below it, settled decisions at the bottom (newest settled
+first). The human must never scroll past decided history to reach the
+current question, however long the session.
+
 ## Tooltips (binding on every render point)
 
 The artifact must self-decode **in place** — a junior dev reads any page

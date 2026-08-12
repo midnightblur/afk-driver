@@ -12,6 +12,12 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-12
 
+- **Grill pages put the live question on top.** Session-default lavish
+  surfaces (the grills' standing artifacts) now order by liveness — current
+  round first, open items next, settled decisions at the bottom, newest
+  settled first — so a long session never scrolls past decided history to
+  reach the question (LAVISH.md "Live-on-top order").
+
 - **Lavish tooltips cover the domain glossaries automatically.** The render
   hook now merges the target repo's committed glossaries (root + every
   `{service}/GLOSSARY.md`, the artifact's own service winning collisions) into
