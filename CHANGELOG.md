@@ -10,6 +10,14 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-12
+
+- **Lavish pages name their browser tab.** Every rendered artifact now carries
+  a `<title>` (`{page purpose} — {feature}`; LAVISH.md "Tab title"), and the
+  render hook backfills untitled artifacts from filename + spec dir — so
+  concurrent sessions' tabs are distinguishable. Mission Control tabs show the
+  feature's plan title too.
+
 ## 2026-08-07
 
 - **`/afk:gc` no longer refuses every shipped feature.** Its guard script read

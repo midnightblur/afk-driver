@@ -8,8 +8,10 @@
 # floating tooltip — it also promotes author-side `title=`/`data-tip` attributes
 # (per-artifact item ids) into the same tooltip UI and propagates each authored
 # id-tip to every later bare occurrence of the same id (LAVISH.md "Tooltips"
-# rule 3), and (c) the floating "btw" side-question control (LAVISH.md
-# "Side-questions"). Deterministic — no LLM at injection time; the authoring
+# rule 3), (c) the floating "btw" side-question control (LAVISH.md
+# "Side-questions"), and (d) a backfilled <title> when the artifact has none
+# (LAVISH.md "Tab title") so concurrent tabs stay distinguishable.
+# Deterministic — no LLM at injection time; the authoring
 # agent's only job is keeping the dictionary itself fed (LAVISH.md "Tooltips").
 #
 # Dictionary sources, all committed (a session resumes on any machine), merged
@@ -178,11 +180,26 @@ toplevel = os.environ.get("LAVISH_TIPS_TOPLEVEL", "")
 m = re.search(
     r"<meta\s+(?:name=\"afk-spec-dir\"\s+content=\"([^\"]+)\"|content=\"([^\"]+)\"\s+name=\"afk-spec-dir\")",
     html, re.IGNORECASE)
-if m and toplevel:
-    spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/")
+spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/") if m else ""
+if spec_dir and toplevel:
     tips.update(parse_glossary(os.path.join(toplevel, spec_dir, "LAVISH-TIPS.md")))
 
-if not tips:
+# Tab-title backfill (LAVISH.md "Tab title"): an untitled artifact gets
+# "{filename stem} — {spec-dir tail}". A floor for concurrent-tab
+# distinguishability — an authored <title> is never touched.
+titled = False
+if not re.search(r"<title[\s>]", html, re.IGNORECASE):
+    stem = os.path.splitext(os.path.basename(target))[0]
+    tail = spec_dir.rsplit("/", 1)[-1] if spec_dir else ""
+    tag = "<title>" + (stem + " — " + tail if tail and tail != stem else stem) + "</title>"
+    if re.search(r"<head\b", html, re.IGNORECASE):
+        html = re.sub(r"(<head\b[^>]*>)", lambda mh: mh.group(1) + tag,
+                      html, count=1, flags=re.IGNORECASE)
+    else:
+        html = tag + "\n" + html
+    titled = True
+
+if not tips and not titled:
     sys.exit(0)
 
 # </script> inside a value would end our JSON script tag early.
@@ -385,8 +402,9 @@ block = MARK_START + """
 </script>
 """ + MARK_END
 
-# Dictionary text is UTF-8-heavy (—, →, ≥): a charset-less artifact would
-# garble it (browser default windows-1252). Declare one if absent.
+# Dictionary text and the backfilled title are UTF-8-heavy (—, →, ≥): a
+# charset-less artifact would garble them (browser default windows-1252).
+# Declare one if absent.
 if not re.search(r"<meta[^>]+charset", html, re.IGNORECASE):
     html = re.sub(r"(<head\b[^>]*>)", r'\1<meta charset="utf-8">',
                   html, count=1, flags=re.IGNORECASE) \
@@ -394,12 +412,13 @@ if not re.search(r"<meta[^>]+charset", html, re.IGNORECASE):
         else '<meta charset="utf-8">\n' + html
 
 # Replace a prior block (dictionary grows between renders), else inject fresh.
-pattern = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END), re.DOTALL)
-if pattern.search(html):
-    html = pattern.sub(lambda _: block, html, count=1)
-else:
-    m = re.search(r"</body\s*>", html, re.IGNORECASE)
-    html = html[: m.start()] + block + "\n" + html[m.start() :] if m else html + "\n" + block
+if tips:
+    pattern = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END), re.DOTALL)
+    if pattern.search(html):
+        html = pattern.sub(lambda _: block, html, count=1)
+    else:
+        m = re.search(r"</body\s*>", html, re.IGNORECASE)
+        html = html[: m.start()] + block + "\n" + html[m.start() :] if m else html + "\n" + block
 try:
     with open(target, "w", encoding="utf-8") as f:
         f.write(html)

@@ -130,6 +130,16 @@ the content it explains. The tooltip layer carries all decoding:
    id defined nowhere is an authoring defect — the runtime can propagate a
    tip, not invent one.
 
+## Tab title (binding on every render point)
+
+Concurrent sessions mean concurrent browser tabs: every artifact carries a
+`<title>` naming what the page is plus whose it is — `{page purpose} —
+{feature}` (spec-folder tail or ticket id) — so open tabs stay
+distinguishable. Set it when the artifact file is created; the per-phase file
+resumes across renders, so retitle only when the page's subject changes. A
+missing title is backfilled at render by `hooks/lavish-tips.sh` (filename
+stem + `afk-spec-dir` tail) — a floor, not the authored name.
+
 ## Convey the idea (binding on every render point)
 
 The page's job is understanding: the human must grasp the idea or question
