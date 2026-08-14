@@ -10,6 +10,25 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-14
+
+- **A Story can hold a PRD now.** `/afk:to-ticket` PRD mode accepted only an
+  Enhancement or a Bug as the parent, so publishing into a Story died on a type
+  guard after the distill work was already done. Story now joins the accepted
+  set, and the four places that restated the old pair were corrected with it.
+  Nothing else changes: same managed block, same idempotent re-publish, same
+  preservation of product-owner content outside the block.
+
+- **One language across the chain, no setup required.** Simplified Technical
+  English plus the glossaries' vocabulary is now plugin doctrine — `LANGUAGE.md`
+  at the plugin root is its one home, binding on replies *and* every artifact,
+  and every `SKILL.md` and agent file opens with a one-line pointer to it (new
+  registry-gate check D refuses a file that lacks the pointer). This replaces
+  the old opt-in that appended a block to `~/.claude/CLAUDE.md`: `/afk:setup`
+  no longer installs it and now **removes** the installed block (manifest H7,
+  a one-shot migration). Keep the standard for non-AFK sessions by writing your
+  own line in `~/.claude/CLAUDE.md`.
+
 ## 2026-08-12
 
 - **Grill pages put the live question on top.** Session-default lavish

@@ -3,6 +3,8 @@ name: to-subtasks
 description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
 
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
@@ -36,7 +38,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 - `prd_path` — the PRD (`.../{TICKET-ID}/PRD.md` or `tasks/{TICKET-ID}/PRD.md`).
 - `sdd_path` *(optional)* — defaults to PRD's sibling `SDD.md`. Present → cited mode.
-- `ticket_id` — parent Enhancement/Bug key (e.g. `P2P-1220`); labels the plan and eventual branch only. **Nothing written to Jira.**
+- `ticket_id` — parent Enhancement/Story/Bug key (e.g. `P2P-1220`); labels the plan and eventual branch only. **Nothing written to Jira.**
 - `skip_design_docs` *(optional, default false)* — human override to slice uncited even where an SDD might be warranted.
 - `materialize_seams` *(optional, cited mode only, default false)* — pre-create each new-Java seam's stub + contract test on the branch at slicing time (Process step 3.5), upgrading those contracts from grep-checked to compiler-checked.
 - `verification_plan_path` *(optional)* — defaults to PRD's sibling `VERIFICATION-PLAN.md`. Its presence is the smoke-gate trigger (Process step 3).

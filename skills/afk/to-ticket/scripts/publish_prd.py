@@ -261,8 +261,8 @@ def main():
     # Fetch existing description + attachments first (also validates the parent + type).
     issue = jira.get_issue(args.parent, "summary,issuetype,description,attachment")
     itype = issue["fields"]["issuetype"]["name"]
-    if itype not in ("Enhancement", "Bug"):
-        sys.exit(f"ERROR: parent {args.parent} is a {itype!r}; expected Enhancement or Bug.")
+    if itype not in ("Enhancement", "Story", "Bug"):
+        sys.exit(f"ERROR: parent {args.parent} is a {itype!r}; expected Enhancement, Story or Bug.")
     existing_desc = issue["fields"].get("description")
     existing_atts = issue["fields"].get("attachment", []) or []
 

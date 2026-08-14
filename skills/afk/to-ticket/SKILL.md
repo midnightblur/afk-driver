@@ -3,11 +3,13 @@ name: to-ticket
 description: Publishes a finished PRD.md into its Jira parent as a requirements-level native-ADF ticket; also posts meeting summaries onto tickets and mints stub Enhancements for grill spinoffs. Use when PRD.md exists and the parent key is known.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:to-ticket — publish into the Jira ticket
 
 Three independent modes writing to a **Jira Cloud** (`nakisa.atlassian.net`) tracker:
 
-- **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Bug as native **ADF**; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
+- **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Story/Bug as native **ADF**; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 - **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible ADF `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
 - **Spinoff mode** ([jump](#spinoff-mode--mint-a-stub-for-deferred-work)) — mint a **new** stub Enhancement for work a grill deferred out of scope; no engine — the `jira_create` MCP tool.
 
@@ -20,7 +22,7 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 - **Idempotent.** The published description lives inside an AFK-managed sentinel block; re-runs replace it and its figures in place (merge model: [REFERENCE.md](REFERENCE.md)). History lives in comments — a re-publish posts the requirements delta as an issue comment (step 3).
 - **Respects the product owner's content.** Anything **outside** the managed block is preserved verbatim. One exception: a barebone/low-value existing description is absorbed — the managed block becomes the whole description (full heuristic: [REFERENCE.md](REFERENCE.md), "Description merge model"). Borderline barebone call → default to preserving and surface it to the human.
 - **Requirements level only.** Never publishes SDD content, ADR documents, or any technical depth — the distill step strips them. (The SDD and Design Brief are disk-only — neither ever reaches the ticket.)
-- **Requires an existing parent (PRD mode).** No parent key → stop; tell the human to create the Enhancement/Bug first — PRD mode never creates it. Sets no labels, creates no branch. (Spinoff mode is the one create path — a *new* stub for deferred work, never the PRD's parent.)
+- **Requires an existing parent (PRD mode).** No parent key → stop; tell the human to create the Enhancement/Story/Bug first — PRD mode never creates it. Sets no labels, creates no branch. (Spinoff mode is the one create path — a *new* stub for deferred work, never the PRD's parent.)
 
 ## Prerequisites
 

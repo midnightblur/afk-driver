@@ -75,7 +75,9 @@ What makes it trustworthy while you're away:
   happened while you were away; every status line a skill reports is followed by
   one jargon-free `In plain terms:` sentence (`REPORTING.md`), and every piece of
   workflow vocabulary has one definition (`GLOSSARY.md` at the plugin root —
-  domain vocabulary stays in the target repo's glossaries).
+  domain vocabulary stays in the target repo's glossaries). Every skill writes in
+  the same plain language and the same terms, replies and artifacts alike
+  (`LANGUAGE.md` at the plugin root).
 - **Orchestrator keeps conclusions, not inputs.** Context-heavy work — bulk
   reads, repo-wide searches, suite runs, big diffs, tracker pulls — runs in fresh
   subagents that return terse cited digests (`DELEGATION.md` at the plugin root).
@@ -96,7 +98,7 @@ per subtask. The map in [§3](#3-the-chain-at-a-glance) shows where each fits.
 
 **② Artifacts on disk are the source of truth.** PRD, SDD, ADRs,
 `VERIFICATION-PLAN.md`, and the execution plan all live as files next to the code
-they describe. Jira holds **only** the parent Enhancement/Bug — and only two
+they describe. Jira holds **only** the parent Enhancement/Story/Bug — and only two
 skills ever write to it (see ④).
 
 **③ The plan is a local contract, not Jira issues.** `/afk:to-subtasks` emits a
@@ -130,7 +132,7 @@ graph LR
         PLAN["plan/: PLAN.md + NNNN-slug.md"]
     end
     subgraph jira_store [Jira - parent ticket only]
-        TICKET["Enhancement or Bug: PRD body"]
+        TICKET["Enhancement, Story or Bug: PRD body"]
     end
     subgraph gl_store [GitLab]
         MR[Branch + Draft MR]
@@ -750,7 +752,9 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `CONCISION.md` (compact-artifact prose
+`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (Simplified Technical English +
+glossary vocabulary, binding on replies and artifacts alike — every skill and
+agent file carries only a pointer to it), `CONCISION.md` (compact-artifact prose
 doctrine — writing skills carry only a pointer to it), `LAVISH.md` (the
 lavish-axi pin, invocation shapes, render-point → playbook map, and
 fallback/forbid-list — render-point skills carry only a pointer to it), and
