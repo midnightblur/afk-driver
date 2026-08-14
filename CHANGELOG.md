@@ -10,7 +10,37 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-12
+
+- **Grill pages put the live question on top.** Session-default lavish
+  surfaces (the grills' standing artifacts) now order by liveness — current
+  round first, open items next, settled decisions at the bottom, newest
+  settled first — so a long session never scrolls past decided history to
+  reach the question (LAVISH.md "Live-on-top order").
+
+- **Lavish tooltips cover the domain glossaries automatically.** The render
+  hook now merges the target repo's committed glossaries (root + every
+  `{service}/GLOSSARY.md`, the artifact's own service winning collisions) into
+  the tooltip dictionary, finds the feature terms file by walking up from the
+  artifact (no `afk-spec-dir` meta needed inside a spec folder), parses
+  bulleted and annotated glossary entries, and matches plurals ("MRs") and
+  hyphenated tails ("PRD-level") — no agent action required for any
+  glossary-defined term.
+
+- **Lavish pages name their browser tab.** Every rendered artifact now carries
+  a `<title>` (`{page purpose} — {feature}`; LAVISH.md "Tab title"), and the
+  render hook backfills untitled artifacts from filename + spec dir — so
+  concurrent sessions' tabs are distinguishable. Mission Control tabs show the
+  feature's plan title too.
+
 ## 2026-08-07
+
+- **`/afk:gc` no longer refuses every shipped feature.** Its guard script read
+  the `Feature:` completion stamp with an anchored grep, but `PLAN.md` writes
+  that header as a blockquote (`> Feature: …`) — so a genuinely shipped feature
+  always came back `refused(not_shipped)`. The guard accepts both forms now, and
+  the smoke test builds its fixtures in the blockquote form so the real-world
+  shape is what gets exercised.
 
 - **PAYU007 now checks caption *values*, not just key counts.** The i18n parity
   Stop gate used to pass any key that existed in every locale — so an English

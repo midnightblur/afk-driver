@@ -497,6 +497,8 @@ const RENDER = {};
 RENDER["overview"] = function(sec, root){
   const d = sec.data, h = d.header || {};
   root.append(el("h1", null, h.title || "Mission Control"));
+  /* concurrent features mean concurrent MC tabs — name this one's tab */
+  if (h.title) document.title = h.title + " — Mission Control";
   const meta = [];
   if (h.parent_ticket) meta.push("ticket " + h.parent_ticket);
   if (h.mode) meta.push("mode " + h.mode);
