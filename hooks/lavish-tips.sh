@@ -1,0 +1,512 @@
+#!/usr/bin/env bash
+# lavish-tips.sh — PreToolUse hook (Bash/PowerShell): inject the page runtime
+# into lavish-axi artifacts.
+#
+# Intercepts a `npx lavish-axi@<ver> <file>` RENDER command and embeds, into the
+# artifact HTML on disk, (a) the merged tooltip dictionary, (b) a self-contained
+# hover runtime that wraps every dictionary term in the page and serves a
+# floating tooltip — it also promotes author-side `title=`/`data-tip` attributes
+# (per-artifact item ids) into the same tooltip UI and propagates each authored
+# id-tip to every later bare occurrence of the same id (LAVISH.md "Tooltips"
+# rule 3), (c) the floating "btw" side-question control (LAVISH.md
+# "Side-questions"), and (d) a backfilled <title> when the artifact has none
+# (LAVISH.md "Tab title") so concurrent tabs stay distinguishable.
+# Deterministic — no LLM at injection time; the authoring
+# agent's only job is keeping the dictionary itself fed (LAVISH.md "Tooltips").
+#
+# Dictionary sources, all committed (a session resumes on any machine), merged
+# in order (later wins):
+#   1. seed     — lavish-tips.json next to this script (tooltip-only vocabulary
+#                 with no glossary home; Lockstep-sanctioned copies, owning
+#                 files win on conflict)
+#   2. workflow — ../GLOSSARY.md (committed workflow vocabulary)
+#   3. domain   — the target repo's committed glossaries: root GLOSSARY.md plus
+#                 every top-level {service}/GLOSSARY.md (the set GLOSSARY-MAP.md
+#                 indexes); the artifact's own service (its first path segment)
+#                 parses last, so its bounded-context definitions win
+#                 cross-service collisions
+#   4. feature  — {spec-dir}/LAVISH-TIPS.md (committed feature/session terms —
+#                 not a glossary: session-scoped ids and ideas live here too);
+#                 spec-dir comes from the artifact's <meta name="afk-spec-dir"
+#                 content="<repo-relative path>"> or, absent, from the nearest
+#                 LAVISH-TIPS.md walking up from the artifact toward the repo
+#                 root — an artifact living in its spec folder needs no meta
+# All parse the canonical **Term**: entry grammar (GLOSSARY-FORMAT.md),
+# including "- **Term**:" bullets and a "**Term** *(annotation)*:" qualifier;
+# `Code:`/`Related:`/`Avoid:` metadata lines are dropped. A "Term — qualifier"
+# entry also serves the bare pre-dash term.
+# Keys starting with "__" are metadata, ignored. A key with any uppercase
+# letter matches case-sensitively; all-lowercase keys match case-insensitively;
+# whole-word only, but a plural tail ("MRs", "invoices") and a hyphen after the
+# term ("PRD-level") still match. Title-Case words are lowered so page-case
+# usage still matches; ALL-CAPS/mixed tokens (PRD, TICKET.md, J8) stay
+# case-sensitive.
+#
+# Re-injected (block replaced) on every render — the dictionary grows between
+# renders and a resumed artifact must pick up new entries. Idempotent via
+# start/end markers. Never blocks: always exits 0.
+
+set -u
+
+input=$(cat)
+
+# Fast bail: virtually every command is not a lavish render.
+case "$input" in
+  *lavish-axi*) ;;
+  *) exit 0 ;;
+esac
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+seed="$script_dir/lavish-tips.json"
+wf_glossary="$script_dir/../GLOSSARY.md"
+toplevel=$(git rev-parse --show-toplevel 2>/dev/null || true)
+
+LAVISH_TIPS_INPUT="$input" LAVISH_TIPS_SEED="$seed" \
+LAVISH_TIPS_WF_GLOSSARY="$wf_glossary" LAVISH_TIPS_TOPLEVEL="$toplevel" python - <<'PYEOF'
+import json, os, re, sys
+
+MARK_START = "<!-- afk-lavish-tips:start -->"
+MARK_END = "<!-- afk-lavish-tips:end -->"
+
+NON_RENDER = {"end", "stop", "playbook", "share", "setup", "update"}
+
+# `poll <file>` injects exactly as a render does — the subcommand token is
+# stepped over so the artifact argument behind it is still found. Any rewrite of
+# the artifact (Write/Edit) drops the block silently, and a rewrite is always
+# followed by a poll, so re-injecting here is what makes the runtime self-heal
+# instead of relying on the authoring agent to remember a re-render. Free: the
+# block is replaced wholesale below, never appended twice.
+PASS_THROUGH = {"poll"}
+
+try:
+    command = json.loads(os.environ["LAVISH_TIPS_INPUT"]).get("tool_input", {}).get("command", "")
+except Exception:
+    sys.exit(0)
+
+# Tokenize the tail after the lavish-axi package token; the artifact file is the
+# first non-flag token that is not a pass-through subcommand (non-render
+# subcommands bail).
+m = re.search(r"lavish-axi(?:@[\w.\-]+)?\s+(.*)", command, re.DOTALL)
+if not m:
+    sys.exit(0)
+target = None
+for tok in re.findall(r'"([^"]+)"|\'([^\']+)\'|(\S+)', m.group(1)):
+    tok = next(t for t in tok if t)
+    if tok.startswith("-") or tok in ("&&", "||", ";", "|"):
+        continue
+    if tok in PASS_THROUGH:
+        continue
+    if tok in NON_RENDER:
+        sys.exit(0)
+    target = tok
+    break
+if not target or not re.search(r"\.html?$", target, re.IGNORECASE):
+    sys.exit(0)
+
+try:
+    with open(target, encoding="utf-8") as f:
+        html = f.read()
+except OSError:
+    sys.exit(0)
+
+
+def clean(text):
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)  # links -> label
+    text = text.replace("`", "")
+    text = re.sub(r"(\*\*|\*|__)", "", text)
+    text = re.sub(r"(?<![\w])_|_(?![\w])", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def keys_for(term):
+    # "Full path / Lean path" -> both; "Ticket description (`TICKET.md`)" ->
+    # base name + the parenthetical token; "L3 — data architecture" -> full
+    # form + the bare pre-dash term. Title-Case words lower so page-case
+    # usage matches; ALL-CAPS/mixed-case words stay case-sensitive.
+    raw = term.replace("`", "").strip()
+    out = set()
+
+    def add(part):
+        part = part.strip()
+        if part:
+            out.add(" ".join(
+                w.lower() if len(w) > 1 and w[1:].islower() else w
+                for w in part.split()))
+
+    base = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+    for part in re.split(r"\s*/\s*", base):
+        add(part)
+        head = re.split(r"\s+—\s+", part)[0]
+        if head.strip() != part.strip():
+            add(head)
+    for m in re.finditer(r"\(([^)]*)\)", raw):
+        inner = m.group(1).strip()
+        if re.fullmatch(r"[\w.\-]+", inner):
+            out.add(inner)
+    return out
+
+
+# Entry line: optional list bullet, bold term, optional italic parenthetical
+# qualifier ("**State** *(user-facing: "Status")*:"), then the definition.
+ENTRY_RE = re.compile(r"(?:[-*+]\s+)?\*\*(.+?)\*\*\s*(?:\*\([^)]*\)\*\s*)?:\s*(.*)$")
+# Trailing metadata lines the glossary grammar allows — never tooltip text.
+META_LINE_RE = re.compile(r"[`_]*(Avoid|Code|Related)[`_]*\s*:")
+
+
+def parse_glossary(path):
+    # Canonical glossary entry grammar (GLOSSARY-FORMAT.md): "**Term**:" then
+    # definition lines until a blank line; "_Avoid_"/heading lines excluded.
+    entries = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return entries
+    term, buf = None, []
+
+    def flush():
+        if term and buf:
+            definition = clean(" ".join(buf))
+            if definition:
+                for k in keys_for(term):
+                    entries[k] = definition
+
+    for line in lines:
+        stripped = line.strip()
+        m = ENTRY_RE.match(stripped)
+        if m:
+            flush()
+            term, buf = m.group(1), ([m.group(2)] if m.group(2) else [])
+            continue
+        if not stripped or stripped.startswith("#") or META_LINE_RE.match(stripped):
+            flush()
+            term, buf = None, []
+            continue
+        if term is not None:
+            buf.append(stripped)
+    flush()
+    return entries
+
+
+tips = {}
+try:
+    with open(os.environ["LAVISH_TIPS_SEED"], encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        tips.update({k: v for k, v in data.items()
+                     if not k.startswith("__") and isinstance(v, str) and v.strip()})
+except Exception:
+    pass  # a broken seed must never break a render
+
+# Committed term stores: workflow glossary, then the repo's domain glossaries,
+# then the feature's terms file — most specific wins.
+tips.update(parse_glossary(os.environ.get("LAVISH_TIPS_WF_GLOSSARY", "")))
+toplevel = os.environ.get("LAVISH_TIPS_TOPLEVEL", "")
+top = os.path.abspath(toplevel) if toplevel else ""
+abs_target = os.path.abspath(target)
+
+
+def under(child, parent):
+    return os.path.normcase(child).startswith(os.path.normcase(parent) + os.sep)
+
+
+# Domain glossaries — root GLOSSARY.md + every top-level {service}/GLOSSARY.md,
+# parsed unconditionally so domain terms never depend on an agent copying them
+# into a feature file. The artifact's own service parses last: its
+# bounded-context definitions win cross-service term collisions.
+if top:
+    own = ""
+    if under(abs_target, top):
+        own = os.path.relpath(abs_target, top).replace("\\", "/").split("/", 1)[0]
+    glossaries = []
+    if os.path.isfile(os.path.join(top, "GLOSSARY.md")):
+        glossaries.append(os.path.join(top, "GLOSSARY.md"))
+    try:
+        names = sorted(os.listdir(top))
+    except OSError:
+        names = []
+    for name in names:
+        g = os.path.join(top, name, "GLOSSARY.md")
+        if name != own and os.path.isfile(g):
+            glossaries.append(g)
+    if own and os.path.isfile(os.path.join(top, own, "GLOSSARY.md")):
+        glossaries.append(os.path.join(top, own, "GLOSSARY.md"))
+    for g in glossaries:
+        tips.update(parse_glossary(g))
+
+m = re.search(
+    r"<meta\s+(?:name=\"afk-spec-dir\"\s+content=\"([^\"]+)\"|content=\"([^\"]+)\"\s+name=\"afk-spec-dir\")",
+    html, re.IGNORECASE)
+spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/") if m else ""
+# No meta: walk up from the artifact toward the repo root for the nearest
+# LAVISH-TIPS.md — an artifact living in its spec folder self-resolves.
+if not spec_dir and top and under(abs_target, top):
+    d = os.path.dirname(abs_target)
+    while True:
+        if os.path.isfile(os.path.join(d, "LAVISH-TIPS.md")):
+            rel = os.path.relpath(d, top).replace("\\", "/")
+            if rel != ".":
+                spec_dir = rel
+            break
+        if os.path.normcase(d) == os.path.normcase(top):
+            break
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+if spec_dir and top:
+    tips.update(parse_glossary(os.path.join(top, spec_dir, "LAVISH-TIPS.md")))
+
+# Tab-title backfill (LAVISH.md "Tab title"): an untitled artifact gets
+# "{filename stem} — {spec-dir tail}". A floor for concurrent-tab
+# distinguishability — an authored <title> is never touched.
+titled = False
+if not re.search(r"<title[\s>]", html, re.IGNORECASE):
+    stem = os.path.splitext(os.path.basename(target))[0]
+    tail = spec_dir.rsplit("/", 1)[-1] if spec_dir else ""
+    tag = "<title>" + (stem + " — " + tail if tail and tail != stem else stem) + "</title>"
+    if re.search(r"<head\b", html, re.IGNORECASE):
+        html = re.sub(r"(<head\b[^>]*>)", lambda mh: mh.group(1) + tag,
+                      html, count=1, flags=re.IGNORECASE)
+    else:
+        html = tag + "\n" + html
+    titled = True
+
+if not tips and not titled:
+    sys.exit(0)
+
+# </script> inside a value would end our JSON script tag early.
+dict_json = json.dumps(tips, ensure_ascii=False).replace("</", "<\\/")
+
+block = MARK_START + """
+<style>
+  .afk-tip { border-bottom: 1px dotted currentColor; cursor: help; }
+  #afk-tip-box {
+    position: fixed; z-index: 2147483647; max-width: 340px; padding: 8px 10px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35); pointer-events: none;
+    opacity: 0; transition: opacity .12s; white-space: normal;
+  }
+  #afk-btw {
+    position: fixed; right: 14px; bottom: 14px; z-index: 2147483646;
+    font: 12.5px/1.4 system-ui, sans-serif; text-align: right;
+  }
+  #afk-btw button {
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: inherit;
+  }
+  #afk-btw button:hover { border-color: rgba(255,255,255,.5); }
+  #afk-btw-panel {
+    position: absolute; bottom: calc(100% + 6px); right: 0; width: 300px;
+    background: #111827; border: 1px solid rgba(255,255,255,.25); border-radius: 8px;
+    padding: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.35); text-align: left;
+  }
+  #afk-btw-q {
+    width: 100%; min-height: 64px; box-sizing: border-box; resize: vertical;
+    background: #0b0f19; color: #f3f4f6; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 6px; padding: 6px; font: inherit;
+  }
+  #afk-btw-panel > div { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+</style>
+<script id="afk-tips-dict" type="application/json">""" + dict_json + """</script>
+<script>
+(function () {
+  var el = document.getElementById('afk-tips-dict');
+  var dict; try { dict = JSON.parse(el.textContent); } catch (e) { return; }
+  if (!Object.keys(dict).length) return;
+  var ciMap = {}, keys, re;
+  var esc = function (s) { return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'); };
+  function rebuild() {
+    keys = Object.keys(dict).sort(function (a, b) { return b.length - a.length; });
+    keys.forEach(function (k) { if (k === k.toLowerCase()) ciMap[k] = dict[k]; });
+    re = new RegExp('(?<![\\\\w-])(?:' + keys.map(esc).join('|') + ')(?:e?s)?(?!\\\\w)', 'gi');
+  }
+  rebuild();
+
+  function lookup(s) {
+    if (Object.prototype.hasOwnProperty.call(dict, s)) return dict[s];
+    var lower = s.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(ciMap, lower) ? ciMap[lower] : null;
+  }
+  // The wrap regex admits a plural tail; resolve "MRs"/"classes" to their
+  // singular key under the same case rules.
+  function tipFor(matched) {
+    var tip = lookup(matched);
+    if (tip === null && matched.length > 2 && /s$/i.test(matched)) {
+      tip = lookup(matched.slice(0, -1));
+      if (tip === null && /es$/i.test(matched)) tip = lookup(matched.slice(0, -2));
+    }
+    return tip;
+  }
+
+  function wrap(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        re.lastIndex = 0;
+        var p = n.parentElement;
+        if (!p || p.closest('script,style,noscript,textarea,.afk-tip,#afk-tip-box,#afk-btw')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+      var text = node.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text))) {
+        var tip = tipFor(m[0]);
+        if (tip === null) continue;
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var span = document.createElement('span');
+        span.className = 'afk-tip';
+        span.setAttribute('data-afk-tip', tip);
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last === 0) return;
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  // Author-side tooltips (item ids etc.): promote title=/data-tip into the same UI.
+  function promote(root) {
+    root.querySelectorAll('[title],[data-tip]').forEach(function (elx) {
+      if (elx.id === 'afk-tip-box') return;
+      var t = elx.getAttribute('data-tip') || elx.getAttribute('title');
+      if (!t) return;
+      elx.setAttribute('data-afk-tip', t);
+      elx.removeAttribute('title');
+      if (!elx.hasAttribute('data-lavish-action')) elx.classList.add('afk-tip');
+    });
+  }
+
+  // Id-tip propagation (LAVISH.md Tooltips rule 3): an id tipped once serves
+  // every later bare occurrence — harvest single-token authored tips into the
+  // dictionary so wrap() covers the rest of the page.
+  function harvest(root) {
+    var dirty = false;
+    root.querySelectorAll('[data-afk-tip]').forEach(function (elx) {
+      if (elx.closest('#afk-btw,#afk-tip-box')) return;
+      var token = (elx.textContent || '').trim();
+      if (!/^[A-Za-z][\\w.-]{0,23}$/.test(token)) return;
+      if (Object.prototype.hasOwnProperty.call(dict, token)) return;
+      dict[token] = elx.getAttribute('data-afk-tip');
+      dirty = true;
+    });
+    if (dirty) rebuild();
+  }
+
+  var box;
+  function ensureBox() {
+    if (!box) { box = document.createElement('div'); box.id = 'afk-tip-box'; document.body.appendChild(box); }
+    return box;
+  }
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target && e.target.closest && e.target.closest('[data-afk-tip]');
+    if (!t) { if (box) box.style.opacity = '0'; return; }
+    var b = ensureBox();
+    b.textContent = t.getAttribute('data-afk-tip');
+    var r = t.getBoundingClientRect(), bw = b.offsetWidth, bh = b.offsetHeight;
+    var x = Math.max(6, Math.min(r.left, window.innerWidth - bw - 6));
+    var y = r.top - bh - 8;
+    if (y < 6) y = r.bottom + 8;
+    b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.opacity = '1';
+  });
+  window.addEventListener('scroll', function () { if (box) box.style.opacity = '0'; }, true);
+
+  var mo;
+  function scan() {
+    if (mo) mo.disconnect();
+    promote(document.body);
+    harvest(document.body);
+    wrap(document.body);
+    if (mo) mo.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Side-question control (LAVISH.md "Side-questions"): rides the normal
+  // queue with a [btw] / [btw:subagent] prefix; absent when the artifact is
+  // opened standalone (no window.lavish, nobody listening).
+  var btwTries = 0;
+  function btw() {
+    if (document.getElementById('afk-btw')) return;
+    if (!window.lavish || !document.body) { if (btwTries++ < 20) setTimeout(btw, 250); return; }
+    var host = document.createElement('div');
+    host.id = 'afk-btw';
+    host.setAttribute('data-lavish-ui', 'afk-btw');
+    host.setAttribute('data-lavish-action', 'btw');
+    host.innerHTML =
+      '<div id="afk-btw-panel" hidden><textarea id="afk-btw-q" data-lavish-action="btw"' +
+      ' placeholder="Quick question about this page..."></textarea>' +
+      '<div><button type="button" id="afk-btw-here" data-lavish-action="btw"' +
+      ' title="Answered by the reviewing agent in this session">Ask here</button>' +
+      '<button type="button" id="afk-btw-side" data-lavish-action="btw"' +
+      ' title="A fresh background agent answers - cheaper, main review keeps going">Ask side agent</button></div></div>' +
+      '<button type="button" id="afk-btw-open" data-lavish-action="btw"' +
+      ' title="Side-question: answered without derailing the review">btw?</button>';
+    document.body.appendChild(host);
+    var panel = host.querySelector('#afk-btw-panel');
+    var q = host.querySelector('#afk-btw-q');
+    host.querySelector('#afk-btw-open').addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) q.focus();
+    });
+    function ask(prefix) {
+      var text = q.value.trim();
+      if (!text || !window.lavish) return;
+      window.lavish.queuePrompt(prefix + ' ' + text, { tag: 'btw' });
+      window.lavish.sendQueuedPrompts();
+      q.value = '';
+      panel.hidden = true;
+    }
+    host.querySelector('#afk-btw-here').addEventListener('click', function () { ask('[btw]'); });
+    host.querySelector('#afk-btw-side').addEventListener('click', function () { ask('[btw:subagent]'); });
+  }
+
+  function start() {
+    var pending;
+    mo = new MutationObserver(function (recs) {
+      var ours = recs.every(function (r) {
+        return (box && (r.target === box || box.contains(r.target))) ||
+               (r.target && r.target.closest && r.target.closest('#afk-btw'));
+      });
+      if (ours) return;
+      clearTimeout(pending); pending = setTimeout(scan, 300);
+    });
+    btw();
+    scan();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
+""" + MARK_END
+
+# Dictionary text and the backfilled title are UTF-8-heavy (—, →, ≥): a
+# charset-less artifact would garble them (browser default windows-1252).
+# Declare one if absent.
+if not re.search(r"<meta[^>]+charset", html, re.IGNORECASE):
+    html = re.sub(r"(<head\b[^>]*>)", r'\1<meta charset="utf-8">',
+                  html, count=1, flags=re.IGNORECASE) \
+        if re.search(r"<head\b", html, re.IGNORECASE) \
+        else '<meta charset="utf-8">\n' + html
+
+# Replace a prior block (dictionary grows between renders), else inject fresh.
+if tips:
+    pattern = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END), re.DOTALL)
+    if pattern.search(html):
+        html = pattern.sub(lambda _: block, html, count=1)
+    else:
+        m = re.search(r"</body\s*>", html, re.IGNORECASE)
+        html = html[: m.start()] + block + "\n" + html[m.start() :] if m else html + "\n" + block
+try:
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(html)
+except OSError:
+    pass
+sys.exit(0)
+PYEOF
+exit 0
