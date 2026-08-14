@@ -3,6 +3,8 @@ name: to-design-brief
 description: Synthesizes PRD + SDD + ADRs into a 1-2 page DESIGN-BRIEF.md for stakeholders outside the team; no new decisions. Use for a stakeholder briefing or pre-SDD map.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 Takes PRD, SDD, per-decision ADRs; emits one `DESIGN-BRIEF.md` — a tight 1-2 page synthesis aimed at:
 
 - **Technical stakeholders outside the implementing team** (security, ops, adjacent leads, reviewers): enough to grasp impact and ask the right questions without reading the full SDD.

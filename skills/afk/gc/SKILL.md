@@ -3,6 +3,8 @@ name: gc
 description: Post-merge cleanup — deletes a shipped feature's run artifacts and retires its worktree + local branch. Use via /afk:gc {spec-folder} only after the MR merged.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:gc — compact a shipped feature's spec folder, retire its worktree
 
 A shipped feature's spec folder accumulates run artifacts (subtask contracts,

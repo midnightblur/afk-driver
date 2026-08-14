@@ -3,6 +3,8 @@ name: grill-requirements
 description: Grills a raw feature idea against the domain glossary and staples before it becomes a PRD, updating GLOSSARY.md inline. Use to stress-test an idea/plan or sharpen terms.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 ## What to do
 
 Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree, resolving decision dependencies one-by-one. Recommend an answer per question.

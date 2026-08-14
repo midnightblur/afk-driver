@@ -3,6 +3,8 @@ name: understand
 description: Generates an interactive HTML learning artifact for a shipped feature, a GitLab MR, or a code area. Use via /afk:understand {subject} when the user wants to learn or be walked through a feature, MR, or code.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:understand — the code-learning artifact
 
 Generate one **team-shareable, self-contained interactive HTML** file per subject — a frozen copy of the shell template asset with an authored section payload and machine-readable header injected. It teaches the code **as it is** (the real diff / the real files), not the plan.

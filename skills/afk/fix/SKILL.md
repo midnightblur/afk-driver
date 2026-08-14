@@ -3,6 +3,8 @@ name: fix
 description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:fix — fix a bug and keep the source of truth true
 
 Run when a bug surfaces — typically a feature's **verification phase** (agent- or human-found), or ad-hoc on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the follow-up to a red feature smoke gate.

@@ -3,6 +3,8 @@ name: writing-great-skills
 description: Reference for writing and editing skills well — the vocabulary and principles that make a skill predictable. Use when creating, editing, auditing, or reviewing a skill (SKILL.md and siblings).
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 A skill exists to wrangle determinism out of a stochastic system. **Predictability** is the root virtue; every lever below serves it.
 
 **Bold terms** are defined in [`GLOSSARY.md`](GLOSSARY.md); look them up there for the full meaning.

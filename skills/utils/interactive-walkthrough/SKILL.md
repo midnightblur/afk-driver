@@ -4,6 +4,8 @@ description: Interactive HTML walkthrough widgets — notched flow slider, branc
 user-invocable: false
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # Interactive walkthrough widgets
 
 Embeddable, self-contained HTML+CSS+JS widgets for explaining a process to a

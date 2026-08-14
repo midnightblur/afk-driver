@@ -9,6 +9,8 @@ description: >
   emits ADRs, or touches the tracker.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # glossary — domain-vocabulary steward
 
 A **vocabulary-only steward**: tends terminology and nothing else. No requirements grilling, no

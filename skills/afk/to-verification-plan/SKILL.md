@@ -3,6 +3,8 @@ name: to-verification-plan
 description: Synthesizes settled verification scenarios into VERIFICATION-PLAN.md beside the PRD/SDD; no interview, local only. Use on /afk:to-verification-plan once scenarios are settled.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:to-verification-plan — synthesize the verification plan
 
 Synthesize the verification scenarios already settled in conversation into `VERIFICATION-PLAN.md` on disk (read `CONCISION.md`, plugin root, before writing — its bar applies). A **synthesis** skill — no re-interview; write down what was settled. Scenarios not settled (key envelopes/click-paths still vague) → stop, route to `/afk:grill-verification` first.

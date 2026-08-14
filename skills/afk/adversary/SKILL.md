@@ -3,6 +3,8 @@ name: adversary
 description: Adversarial runtime probe of a subtask's live app, attacking from the contract alone. Use as the execute gate or via /afk:adversary {NNNN-slug} {app-base-url}.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:adversary — prove the slice at runtime, blind to how it was built
 
 Static review checks what the code says; this gate checks what the running system **does**. Power comes from an enforced information diet: scenarios derive from what the contract promises, so they can't inherit the implementation's blind spots.

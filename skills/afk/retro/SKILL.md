@@ -3,6 +3,8 @@ name: retro
 description: Cross-feature retrospective of the workflow itself — mines run artifacts into systemic signals and concrete plugin-edit proposals. Use on /afk:retro after features ship.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:retro — make the workflow learn from its own exhaust
 
 Every run of the chain leaves structured exhaust: journal events, park reasons, review findings by class, adversary verdicts, remediation-cycle counts, gate latencies. Per-bug that exhaust is already consumed (escape analysis inside `/afk:fix`); nobody consumes it *across* features. This skill does: aggregates the exhaust of N delivered features into systemic signals — what the chain keeps getting wrong, where it stalls, what it costs — and turns the strongest into concrete, evidence-cited proposals to change the plugin.

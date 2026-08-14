@@ -3,6 +3,8 @@ name: review
 description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk:review {NNNN-slug} | --feature.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:review — independently check the implementor's work
 
 The implementor builds a subtask, gets every `## Verification` tier green, and is *about to* mark it `done`. Green tiers prove the code runs and the declared tests pass — they do **not** prove it honours the project's documented rules, covers everything the spec asked, or is free of things a senior engineer wouldn't ship. This skill is that second gate.
