@@ -183,11 +183,15 @@ HTML in its context (`DELEGATION.md`). Who does what:
   authors a **page brief** — what the page says this round — and hands it to
   the child. The brief is conversation synthesis and is never delegated
   (`DELEGATION.md` "Never delegate"); turning it into HTML is.
-- **Child**: `afk-implementor`, spawned per `DELEGATION.md`. Prompt carries
-  the brief, the artifact path, this file's path, the render point's playbook
-  id, and `skills/utils/draw-charts` for diagrams. The child reads the
-  existing artifact and patches it — the on-disk file is the state, so a
-  fresh child per round needs no memory of prior rounds.
+- **Child**: one **page-writer** per session — an `afk-implementor` spawned
+  at the first render point and **continued** every later round (spawn +
+  continuation vocabulary: `PROVIDERS.md`), so it keeps the page's structure
+  and style in its own context; never a fresh spawn per round. The first
+  spawn carries the artifact path, this file's path, the render point's
+  playbook id, and `skills/utils/draw-charts` for diagrams; every round after
+  hands only the brief. The on-disk artifact stays the durable state: a lost
+  child, or a provider without continuation, gets a fresh spawn that reads
+  the artifact — degraded, not broken.
 - **Page brief contract** — delta-shaped, never a full-page dump:
   1. New/changed round content verbatim (question, options, trade-offs) — the
      child cannot see the conversation.
