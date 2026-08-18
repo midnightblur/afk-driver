@@ -9,8 +9,13 @@
 # (per-artifact item ids) into the same tooltip UI and propagates each authored
 # id-tip to every later bare occurrence of the same id (LAVISH.md "Tooltips"
 # rule 3), (c) the floating "btw" side-question control (LAVISH.md
-# "Side-questions"), and (d) a backfilled <title> when the artifact has none
-# (LAVISH.md "Tab title") so concurrent tabs stay distinguishable.
+# "Side-questions"), (d) a backfilled <title> when the artifact has none
+# (LAVISH.md "Tab title") so concurrent tabs stay distinguishable, and (e) the
+# session-nav chrome — sticky section rail with per-state counts, settled cards
+# collapsed to their heading (expansions persisted per artifact in
+# localStorage), floating jump-to-current control, changed-this-round dots —
+# built from the authored data-afk-item/-state/-fresh anatomy (LAVISH.md "Page
+# anatomy"); a page without that markup gets no chrome.
 # Deterministic — no LLM at injection time; the authoring
 # agent's only job is keeping the dictionary itself fed (LAVISH.md "Tooltips").
 #
@@ -308,6 +313,36 @@ block = MARK_START + """
     border-radius: 6px; padding: 6px; font: inherit;
   }
   #afk-btw-panel > div { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+  #afk-nav {
+    position: fixed; top: 14px; right: 14px; z-index: 2147483645; width: 236px;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; font: 12.5px/1.45 system-ui, sans-serif; text-align: left;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  #afk-nav-head { display: flex; align-items: center; gap: 6px; padding: 7px 10px; cursor: pointer; user-select: none; }
+  #afk-nav-head b { flex: 1; font-weight: 600; }
+  #afk-nav-list { max-height: 62vh; overflow-y: auto; padding: 0 6px 6px; }
+  #afk-nav.afk-min { width: auto; }
+  #afk-nav.afk-min #afk-nav-list { display: none; }
+  .afk-nav-g { margin: 4px 0 2px; padding: 2px 4px; font-weight: 600; opacity: .75; cursor: pointer; user-select: none; }
+  .afk-nav-row { display: block; padding: 3px 4px 3px 10px; border-radius: 5px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .afk-nav-row:hover { background: rgba(255,255,255,.08); }
+  .afk-nav-row.afk-cur { background: rgba(59,130,246,.25); }
+  .afk-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; margin-right: 5px; vertical-align: 1px; }
+  #afk-jump {
+    position: fixed; left: 14px; bottom: 14px; z-index: 2147483645; display: none;
+    background: #111827; color: #f3f4f6; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font: 12.5px/1.4 system-ui, sans-serif;
+  }
+  #afk-jump:hover { border-color: rgba(255,255,255,.5); }
+  .afk-collapsed > *:not(:first-child) { display: none !important; }
+  .afk-caret { cursor: pointer; }
+  .afk-caret::after { content: "▸"; margin-left: 6px; opacity: .55; }
+  .afk-caret.afk-open::after { content: "▾"; }
+  [data-afk-fresh] { box-shadow: -3px 0 0 0 #f59e0b; }
+  [data-afk-item] { scroll-margin-top: 10px; }
+  .afk-flash { outline: 2px solid #f59e0b; outline-offset: 2px; }
 </style>
 <script id="afk-tips-dict" type="application/json">""" + dict_json + """</script>
 <script>
@@ -346,7 +381,7 @@ block = MARK_START + """
         if (!n.nodeValue || n.nodeValue.length > 50000 || !re.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
         re.lastIndex = 0;
         var p = n.parentElement;
-        if (!p || p.closest('script,style,noscript,textarea,.afk-tip,#afk-tip-box,#afk-btw')) return NodeFilter.FILTER_REJECT;
+        if (!p || p.closest('script,style,noscript,textarea,.afk-tip,#afk-tip-box,#afk-btw,#afk-nav,#afk-jump')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
@@ -390,7 +425,7 @@ block = MARK_START + """
   function harvest(root) {
     var dirty = false;
     root.querySelectorAll('[data-afk-tip]').forEach(function (elx) {
-      if (elx.closest('#afk-btw,#afk-tip-box')) return;
+      if (elx.closest('#afk-btw,#afk-tip-box,#afk-nav')) return;
       var token = (elx.textContent || '').trim();
       if (!/^[A-Za-z][\\w.-]{0,23}$/.test(token)) return;
       if (Object.prototype.hasOwnProperty.call(dict, token)) return;
@@ -421,6 +456,7 @@ block = MARK_START + """
   var mo;
   function scan() {
     if (mo) mo.disconnect();
+    if (navRefresh) navRefresh();
     promote(document.body);
     harvest(document.body);
     wrap(document.body);
@@ -466,17 +502,154 @@ block = MARK_START + """
     host.querySelector('#afk-btw-side').addEventListener('click', function () { ask('[btw:subagent]'); });
   }
 
+  // Session-nav chrome (LAVISH.md "Page anatomy"): a sticky section rail with
+  // per-state counts, settled cards collapsed to their heading, and a floating
+  // jump-to-current control — built from the authored data-afk-item /
+  // data-afk-state / data-afk-fresh grammar. A page without that markup gets
+  // no chrome.
+  var navRefresh = null;
+  function navChrome() {
+    if (document.getElementById('afk-nav')) return;
+    if (!document.querySelector('[data-afk-item]')) return;
+    var LS = 'afk-nav:' + location.pathname;
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) {}
+    function save() { try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {} }
+    function items() { return [].slice.call(document.querySelectorAll('[data-afk-item]')); }
+    function st(el) {
+      var s = el.getAttribute('data-afk-state');
+      return s === 'current' || s === 'settled' || s === 'blocked' ? s : 'open';
+    }
+    function label(el) {
+      var h = el.firstElementChild;
+      var t = ((h && h.textContent) || el.getAttribute('data-afk-item') || '').replace(/\\s+/g, ' ').trim();
+      return t.length > 64 ? t.slice(0, 61) + '…' : t;
+    }
+    function setCollapsed(el, on) {
+      if (st(el) === 'current') on = false;
+      el.classList.toggle('afk-collapsed', on);
+      var h = el.firstElementChild;
+      if (h && st(el) !== 'current') { h.classList.add('afk-caret'); h.classList.toggle('afk-open', !on); }
+    }
+    function applyDefaults() {
+      items().forEach(function (el) {
+        var id = el.getAttribute('data-afk-item'), s = st(el);
+        if (s === 'current') { setCollapsed(el, false); return; }
+        if (el.hasAttribute('data-afk-nav-done')) return;
+        el.setAttribute('data-afk-nav-done', '1');
+        var expanded = Object.prototype.hasOwnProperty.call(store, id) ? !!store[id] : s !== 'settled';
+        setCollapsed(el, !expanded);
+        var h = el.firstElementChild;
+        if (h) {
+          h.setAttribute('data-lavish-action', 'afk-collapse');
+          h.addEventListener('click', function () {
+            var wasCollapsed = el.classList.contains('afk-collapsed');
+            setCollapsed(el, !wasCollapsed);
+            store[id] = wasCollapsed ? 1 : 0; save();
+          });
+        }
+      });
+    }
+    function goTo(el) {
+      setCollapsed(el, false);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('afk-flash');
+      setTimeout(function () { el.classList.remove('afk-flash'); }, 1600);
+    }
+    var nav = document.createElement('div');
+    nav.id = 'afk-nav';
+    nav.setAttribute('data-lavish-ui', 'afk-nav');
+    nav.setAttribute('data-lavish-action', 'afk-nav');
+    nav.innerHTML = '<div id="afk-nav-head" role="button" tabindex="0"><b>On this page</b><span>–</span></div><div id="afk-nav-list"></div>';
+    document.body.appendChild(nav);
+    nav.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.click) { e.preventDefault(); e.target.click(); }
+    });
+    if (store['__min']) nav.classList.add('afk-min');
+    nav.querySelector('#afk-nav-head').addEventListener('click', function () {
+      nav.classList.toggle('afk-min');
+      store['__min'] = nav.classList.contains('afk-min') ? 1 : 0; save();
+    });
+    var GROUPS = [['current', 'Now'], ['open', 'Open'], ['blocked', 'Blocked'], ['settled', 'Settled']];
+    // Rebuild replaces the rail's nodes, so unforced refreshes (mutation-driven
+    // rescans) skip when the item set is unchanged — unrelated page mutations
+    // must not churn the rail a user is about to click.
+    var navSig = null;
+    function rebuildNav(force) {
+      var els = items();
+      var sig = els.map(function (el) {
+        return el.getAttribute('data-afk-item') + '|' + st(el) + '|' +
+          (el.hasAttribute('data-afk-fresh') ? 1 : 0) + '|' + label(el);
+      }).join(';');
+      if (!force && sig === navSig) return;
+      navSig = sig;
+      applyDefaults();
+      var list = nav.querySelector('#afk-nav-list');
+      list.textContent = '';
+      GROUPS.forEach(function (g) {
+        var members = els.filter(function (el) { return st(el) === g[0]; });
+        if (!members.length) return;
+        var gk = '__g:' + g[0];
+        var open = Object.prototype.hasOwnProperty.call(store, gk) ? !!store[gk] : g[0] !== 'settled';
+        var head = document.createElement('div');
+        head.className = 'afk-nav-g';
+        head.textContent = (open ? '▾ ' : '▸ ') + g[1] + (g[0] === 'current' ? '' : ' (' + members.length + ')');
+        head.setAttribute('data-lavish-action', 'afk-nav');
+        head.setAttribute('role', 'button');
+        head.setAttribute('tabindex', '0');
+        head.addEventListener('click', function () { store[gk] = open ? 0 : 1; save(); rebuildNav(true); });
+        list.appendChild(head);
+        if (!open) return;
+        members.forEach(function (el) {
+          var row = document.createElement('div');
+          row.className = 'afk-nav-row' + (g[0] === 'current' ? ' afk-cur' : '');
+          row.setAttribute('data-lavish-action', 'afk-nav');
+          row.setAttribute('role', 'button');
+          row.setAttribute('tabindex', '0');
+          if (el.hasAttribute('data-afk-fresh')) {
+            var dot = document.createElement('span');
+            dot.className = 'afk-dot';
+            dot.setAttribute('data-afk-tip', 'Changed in the round just applied');
+            row.appendChild(dot);
+          }
+          row.appendChild(document.createTextNode(label(el)));
+          row.addEventListener('click', function () { goTo(el); });
+          list.appendChild(row);
+        });
+      });
+    }
+    var jump = document.createElement('button');
+    jump.type = 'button';
+    jump.id = 'afk-jump';
+    jump.setAttribute('data-lavish-action', 'afk-nav');
+    jump.textContent = '↑ Current question';
+    jump.addEventListener('click', function () {
+      var cur = document.querySelector('[data-afk-state="current"]');
+      if (cur) goTo(cur);
+    });
+    document.body.appendChild(jump);
+    var cur = document.querySelector('[data-afk-state="current"]');
+    if (cur && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        jump.style.display = entries[0].isIntersecting ? 'none' : 'block';
+      }).observe(cur);
+    }
+    rebuildNav(true);
+    navRefresh = function () { rebuildNav(false); };
+  }
+
   function start() {
     var pending;
     mo = new MutationObserver(function (recs) {
       var ours = recs.every(function (r) {
         return (box && (r.target === box || box.contains(r.target))) ||
-               (r.target && r.target.closest && r.target.closest('#afk-btw'));
+               (r.target && r.target.closest && r.target.closest('#afk-btw,#afk-nav,#afk-jump'));
       });
       if (ours) return;
       clearTimeout(pending); pending = setTimeout(scan, 300);
     });
     btw();
+    navChrome();
     scan();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

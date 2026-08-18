@@ -12,6 +12,14 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-18
 
+- **Lavish session pages gain navigation chrome**: every session-default
+  artifact now gets — injected at render, zero authoring cost — a sticky
+  "On this page" rail (Now / Open / Blocked / Settled with counts), settled
+  cards collapsed to their heading line, a floating jump-to-current-question
+  control, and changed-this-round markers. Long grill sessions stop
+  requiring scrolling past decided history. Page-writers emit the small
+  `data-afk-item`/`-state`/`-fresh` markup grammar (`LAVISH.md` "Page
+  anatomy"); pages without it render as before.
 - **Render-point pages are authored by a persistent page-writer child**: at
   every lavish render point the orchestrator now hands page markup to one
   per-session `afk-implementor` page-writer — continued each round, not

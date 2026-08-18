@@ -86,6 +86,30 @@ undecided items below it, settled decisions at the bottom (newest settled
 first). The human must never scroll past decided history to reach the
 current question, however long the session.
 
+**Page anatomy (binding on session-default artifacts).** Navigation chrome
+is injected at render by `hooks/lavish-tips.sh` (lockstep with the grammar
+below): a sticky section rail with per-state counts, settled cards
+collapsed to their heading line, a floating jump-to-current control, and
+changed-this-round markers. The chrome is mechanical and free — never
+author a nav bar, table of contents, back-to-top link, or collapse
+behaviour by hand. It builds only from this markup:
+
+- Every round/item card is one element carrying `data-afk-item="<id>"`
+  (stable item id — Tooltips rule 3) and
+  `data-afk-state="current|open|blocked|settled"` (the session's semantic
+  color set, as attributes). Exactly one card is `current` per render.
+- A card's **first child** is its one-line heading — the rail label and the
+  only thing visible when collapsed; detail follows as sibling elements,
+  never nested inside the heading.
+- Cards the just-applied round changed carry `data-afk-fresh`; the
+  page-writer moves these markers on every patch — a stale marker lies.
+- The answer surface (send control, or the current question's inputs) sits
+  inside the `current` card, so the jump control always lands on it.
+
+A page without `data-afk-item` markup gets no chrome — degraded, not
+broken; content sections that are not round/item cards (a legend-free
+intro, a diagram) simply carry no `data-afk-*` attributes.
+
 ## Tooltips (binding on every render point)
 
 The artifact must self-decode **in place** — a junior dev reads any page
