@@ -752,10 +752,9 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (Simplified Technical English +
-glossary vocabulary, binding on replies and artifacts alike — every skill and
-agent file carries only a pointer to it), `CONCISION.md` (compact-artifact prose
-doctrine — writing skills carry only a pointer to it), `LAVISH.md` (the
+`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (the writing doctrine — which
+words, whose terms, how much — binding on replies and artifacts alike; every
+skill, agent, and emitter file carries only a pointer to it), `LAVISH.md` (the
 lavish-axi pin, invocation shapes, render-point → playbook map, and
 fallback/forbid-list — render-point skills carry only a pointer to it), and
 `SPINOFF-TICKET.md` (the spinoff protocol for capturing grill-deferred work as

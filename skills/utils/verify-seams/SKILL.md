@@ -4,7 +4,7 @@ description: Independent orphan hunt over a change — verify everything produce
 user-invocable: false
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Catch the producer-without-consumer failure: work that is locally correct but dead at the seam — a file nothing reads, an endpoint nothing calls, an event nothing subscribes to, a config key nothing loads, a DTO field never mapped. Compilers and unit tests are blind to it; this skill isn't.
 

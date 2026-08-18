@@ -17,9 +17,9 @@
 #    dependency register skills/afk/setup/MANIFEST.md (§E) — happened for six
 #    gate toggles, caught only by an /afk:setup audit.
 # D. language pointer — every SKILL.md + agents/*.md names LANGUAGE.md (the one
-#    home for the language doctrine: Simplified Technical English + glossary
-#    vocabulary). Root docs are not auto-loaded, so a file missing the pointer
-#    runs blind to the doctrine, which is exactly how it drifted before.
+#    home for the writing doctrine). Root docs are not auto-loaded, so a file
+#    missing the pointer runs blind to the doctrine, which is exactly how it
+#    drifted before.
 #
 # Verdict per check: membership present -> pass; missing -> exit 2 (with the
 # exact list + where to add it); plugin.json entry pointing at a dir that no

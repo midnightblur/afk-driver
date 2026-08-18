@@ -4,7 +4,7 @@ description: Sweep this session for the lessons it taught and apply them before 
 disable-model-invocation: true
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # harvest — this session's lessons, applied before it ends
 

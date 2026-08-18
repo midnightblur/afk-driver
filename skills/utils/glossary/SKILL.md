@@ -9,7 +9,7 @@ description: >
   emits ADRs, or touches the tracker.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # glossary — domain-vocabulary steward
 

@@ -1,6 +1,6 @@
 # SDD template
 
-Before filling any section, read `CONCISION.md` (plugin root) and apply it throughout — compact by default, no fact dropped.
+Before filling any section, read `LANGUAGE.md` (plugin root) and apply it throughout — compact by default, no fact dropped.
 
 <sdd-template>
 

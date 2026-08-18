@@ -3,7 +3,7 @@ name: todo
 description: Per-project todo list that survives sessions. Use for /todo, adding/remembering a task for later, or listing what's open.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Per-project scratchpad for "do this next, but not now". Plain markdown file. Dead simple.
 

@@ -3,7 +3,7 @@ name: design-system
 description: Mirrors a service's live frontend into a team-shareable claude.ai/design catalog. Use on /afk:design-system to seed a service's catalog or refresh after token/component drift.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:design-system — mirror a service's live UI into a shared catalog
 

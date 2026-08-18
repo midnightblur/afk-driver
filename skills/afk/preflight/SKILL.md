@@ -3,7 +3,7 @@ name: preflight
 description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk:preflight {plan-dir} on a parked feature.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:preflight — the feature-level ship gate
 

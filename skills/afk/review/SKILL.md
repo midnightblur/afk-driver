@@ -3,7 +3,7 @@ name: review
 description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk:review {NNNN-slug} | --feature.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:review — independently check the implementor's work
 
@@ -147,7 +147,7 @@ Severity rubric:
 
 ## Verdict & output
 
-Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked, prose per `CONCISION.md` at the plugin root — read it before writing; `--feature` mode uses basename `feature`; `--tag` appends `-{tag}`) and the machine list alongside as `…-{base-short}.findings.json`. The report header carries the policy + activation line (`policy: … · activated: … · skipped: … · deferred: …`) and the verify-pass stamp. `{base-short}` is `git rev-parse --short` of the diff base: the `--base` ref when given; in default mode, the parent commit of the slice's first `[{NNNN-slug}]` commit.
+Write the full report to `plan/review/{NNNN-slug}-{base-short}.md` (human-readable, ranked, prose per `LANGUAGE.md` at the plugin root — read it before writing; `--feature` mode uses basename `feature`; `--tag` appends `-{tag}`) and the machine list alongside as `…-{base-short}.findings.json`. The report header carries the policy + activation line (`policy: … · activated: … · skipped: … · deferred: …`) and the verify-pass stamp. `{base-short}` is `git rev-parse --short` of the diff base: the `--base` ref when given; in default mode, the parent commit of the slice's first `[{NNNN-slug}]` commit.
 
 **Update the rollup.** Upsert this subtask's row in `plan/review/INDEX.md` (create with the header row if missing) — the one place a human sees every subtask's latest review state without hunting per-base filenames:
 

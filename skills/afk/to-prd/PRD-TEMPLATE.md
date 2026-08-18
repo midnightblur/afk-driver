@@ -1,5 +1,5 @@
 
-> **Concision doctrine — read `CONCISION.md` (plugin root) first; apply both to every section.**
+> **Concision doctrine — read `LANGUAGE.md` (plugin root) first; apply it to every section.**
 > Precise capture is non-negotiable; word count is. PRD-specific mechanics:
 > - **Catalog table** for enumerable domain data (parallel things: rules, states, roles, value types,
 >   endpoints): one column per attribute + a stable ID column. The table is that data's home — never

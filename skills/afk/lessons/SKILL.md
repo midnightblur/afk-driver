@@ -3,7 +3,7 @@ name: lessons
 description: Steward of the workflow lesson ledger — status/apply/audit. Use on /afk:lessons, to see open workflow lessons, or to review and apply drafted edits.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:lessons — apply what the workflow already learned
 

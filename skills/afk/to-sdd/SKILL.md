@@ -3,7 +3,7 @@ name: to-sdd
 description: Synthesizes settled design decisions into an SDD + design ADRs next to the PRD; no interview, local only. Use once design is settled and the user wants it materialized.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 From the conversation context, the PRD, and codebase understanding, produce:
 

@@ -6,7 +6,7 @@ description: >
   Use when user mentions "caveman", or asks to be brief / use less tokens.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

@@ -3,7 +3,7 @@ name: claude-md
 description: Stewards CLAUDE.md, role sidecars, .claude/rules, and STAPLES.md. Use on /claude-md, for project-memory create/update/audit, staples, or when a durable learning surfaces mid-session.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # claude-md — project-memory steward
 
@@ -38,7 +38,7 @@ See [PLACEMENT.md](PLACEMENT.md) — routes by scope/cohesion, then audience. Th
 This skill is the **sole writer** of each service's `{service}/STAPLES.md` (what a staple is + how the chain consults it: plugin-root `CLAUDE.md` "Staples registry"). The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, real **Reference** exemplar (or explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol. Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
 
 ## Content style
-Read `CONCISION.md` (plugin root) — the artifact bar plus its "Steering notes" section (generic-over-volatile, one-line shape, leaf-file shape) — and apply it to every note written.
+Read `LANGUAGE.md` (plugin root) — the concision bar (§3) plus its "Steering notes" section — and apply it to every note written.
 
 ## Audit
 See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`. Discovery-safety rules (scoping, excludes, CrowdStrike guard) live in AUDIT.md's Discovery section.

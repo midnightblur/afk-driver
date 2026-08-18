@@ -3,7 +3,7 @@ name: autopilot
 description: Hands-off driver — walks a local plan subtask-by-subtask to a green smoke gate, then chains /afk:preflight. Use when the user runs /afk:autopilot on the parent branch.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:autopilot — drive the whole plan hands-off
 

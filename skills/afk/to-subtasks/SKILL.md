@@ -3,14 +3,14 @@ name: to-subtasks
 description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
 
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
 `plan/` is a **run artifact**: it lives from slicing to merge; after the
 feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
-Read `CONCISION.md` (plugin root) before emitting — its bar applies to
+Read `LANGUAGE.md` (plugin root) before emitting — its bar applies to
 everything written here.
 
 ```

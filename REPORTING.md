@@ -24,9 +24,8 @@ Journal: plan/JOURNAL.md · Contract: plan/0004-credit-api.md
 
 - **The plain-terms sentence carries the consequence, not the code.** "The API changed and a later subtask still expects the old one" — never "produces drift occurred".
 - **No workflow jargon in the plain-terms sentence.** Status tokens, layer codes (L1–L9), mode names live in `GLOSSARY.md` (plugin root) — the sentence must not need it.
-- **Sentence shape and term choice follow `LANGUAGE.md`** (plugin root — Simplified Technical English, glossary terms verbatim, abbreviations expanded at first use). Reports carry no exemption.
+- **Sentence shape, term choice, and length follow `LANGUAGE.md`** (plugin root). Reports carry no exemption.
 - **Push notifications** carry subject + status + the plain-terms sentence. Never a bare status token — the human reads these on a phone, away from the repo.
-- **Numbers, not adjectives.** "3/9 done, 2 parked", never "most subtasks done".
 - **Never invent a status token.** Statuses are owned by each skill's grammar; broadening one is a lockstep change in that skill's own file.
 - **Findings lead with severity, ranked worst-first.** A findings list without severity counts in its headline is incomplete.
 - **Every item id resolves without memory.** An enumerated-item id (scenario `U1`/`A2`, finding `r-003`, proposal `P2`, subtask `NNNN-slug`) is legal only if its catalogue is already persisted on disk (`VERIFICATION-PLAN.md`, the review/adversary report, `RETRO-*.md`, `plan/`). Never mint a conversation-only id — enumerate, persist the catalogue, then refer. First mention of an id per report carries a ≤6-word gloss — `r-003 (PATCH drops rollbackFor)` — and the pointer layer names the catalogue path (`path`, or `path:line` when citing one item) so the terminal renders it clickable. Later mentions in the same report may use the bare id.

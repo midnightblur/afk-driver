@@ -10,6 +10,16 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-17
+
+- **One writing doctrine, one home.** `CONCISION.md` merged into `LANGUAGE.md`
+  (plugin root): which words (Simplified Technical English), whose terms
+  (glossaries), and how much (concision bar + steering-notes rules) now live in
+  one file, binding on every producing surface — current skills and any added
+  later. Every pointer (skill/agent pointer lines, emitter/template read-first
+  lines) retargeted, and pointers no longer restate any rule — they only name
+  the home. `/reload-plugins` to pick it up.
+
 ## 2026-08-14
 
 - **A Story can hold a PRD now.** `/afk:to-ticket` PRD mode accepted only an

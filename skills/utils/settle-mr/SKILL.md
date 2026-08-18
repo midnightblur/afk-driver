@@ -3,7 +3,7 @@ name: settle-mr
 description: Review a GitLab MR and settle it through the review settle loop, using the MR itself as the ledger. Use when the user drops an MR URL/IID for review, wants an MR made ready, or asks to re-check one after fixes landed. Outside the AFK chain; explanatory tours go to /afk:understand.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # settle-mr — review a GitLab MR until it settles
 

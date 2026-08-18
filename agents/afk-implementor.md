@@ -4,7 +4,7 @@ description: Implementation-tier executor for AFK skills. Use for any child writ
 model: claude-opus-4-8
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this agent produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this agent produces.
 
 You implement one unit of work against a **brief** you did not author — a subtask contract, a plan, a bug dossier.
 
