@@ -3,6 +3,8 @@ name: to-prd
 description: Synthesize the current conversation into PRD.md + requirement ADRs on disk — no tracker write. Use once requirements are settled in conversation and the user wants them captured.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 Don't interview on requirements content — synthesize what you already know. (Step 2's module/tests check-in is the only exception.)
 
 Write `PRD.md` (+ any requirement ADRs) to the repo and stop. Publishing to a tracker = separate **`/afk:to-ticket`**, run afterwards.

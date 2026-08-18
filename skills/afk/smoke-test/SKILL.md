@@ -3,6 +3,8 @@ name: smoke-test
 description: Runs a feature's built verification suites (ui-e2e + api) against a running app; on green, stamps PLAN.md complete. Use when every subtask is done, or to re-verify feature sanity.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:smoke-test — the feature-level smoke gate
 
 Each subtask's own `## Verification` tiers prove **one slice** works in isolation, in a dev worktree — a per-subtask `api` row when it exposes an endpoint, an `e2e/browser` row when it touches UI, each green before that subtask is `done`.

@@ -3,6 +3,8 @@ name: execute
 description: Runs one plan subtask end-to-end — design, TDD, gates, commit, push, Draft-MR — stopping at CR/Merge. Use on /afk:execute {NNNN-slug}, or when an invoker requests DRIVEN mode.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:execute — run one subtask from the local plan
 
 Run against a **single subtask** from the on-disk plan — interactively by default (`/afk:execute {NNNN-slug}`, cwd a worktree on the parent ticket's branch), or non-interactively when the invoker requests DRIVEN mode (below).

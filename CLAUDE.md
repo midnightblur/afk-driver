@@ -6,7 +6,7 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 
 The **`afk` Claude Code plugin** — a chain of skills built on [Matt Pocock's AFK workflow/skills](https://github.com/mattpocock/skills), adapted to Nakisa's Jira + GitLab + Maven monorepo. **AFK = "away from keyboard"** (definition: `GLOSSARY.md`) — **human-heavy at the edges, autonomous in the middle**: design (grills → PRD → SDD → plan) and final acceptance (CR/Merge, smoke verdict review) are interactive; implementation runs hands-off via **`/afk:autopilot`** (each stage can also run by hand). Chain: raw idea → grilled requirements → PRD → (optional) **UI mockup** (`/afk:prototype`) → architecture → SDD → (optional) **grilled verification scenarios** (`/afk:grill-verification` interviews → `/afk:to-verification-plan` writes `VERIFICATION-PLAN.md`: UI journeys + API scenarios) → **local execution plan** (`plan/` dir of subtask contracts, not Jira issues) → execution (`/afk:autopilot` hands-off, or `/afk:execute` per subtask) → **feature smoke gate** (`/afk:smoke-test` — full when a `VERIFICATION-PLAN.md` drove the plan, minimal otherwise; every plan has one).
 
-Repo contains only skills — workflow skills under `skills/afk/<name>/SKILL.md`, general-purpose utility skills (not AFK-chain) under `skills/utils/<name>/SKILL.md` — plus plugin manifests. The *work* the chain drives is Java/Maven in a sibling core-services checkout. Jira (`mcp__jira__*`) is written by exactly two skills: `/afk:to-ticket` publishes the design-chain PRD's requirements-level ticket description into the parent Enhancement/Bug and (spinoff mode) mints stub Enhancements for grill-deferred work, and `/afk:bug`'s publisher subagent creates a Bug + one Dev-Pending transition + evidence comments on that ticket only (ADR-0001); SDD, subtask plan, and progress live on disk. GitLab (`glab`) is SCM.
+Repo contains only skills — workflow skills under `skills/afk/<name>/SKILL.md`, general-purpose utility skills (not AFK-chain) under `skills/utils/<name>/SKILL.md` — plus plugin manifests. The *work* the chain drives is Java/Maven in a sibling core-services checkout. Jira (`mcp__jira__*`) is written by exactly two skills: `/afk:to-ticket` publishes the design-chain PRD's requirements-level ticket description into the parent Enhancement/Story/Bug and (spinoff mode) mints stub Enhancements for grill-deferred work, and `/afk:bug`'s publisher subagent creates a Bug + one Dev-Pending transition + evidence comments on that ticket only (ADR-0001); SDD, subtask plan, and progress live on disk. GitLab (`glab`) is SCM.
 
 No Python package, no test suite, no build step — edit a `SKILL.md`, run `/reload-plugins`; that's the dev loop.
 
@@ -33,8 +33,9 @@ These `SKILL.md` + sibling `.md` files are the program the agent runs — same e
 
 ## Human followability (binding on every skill)
 
-Speed is worthless if the human can't stay on top of it. Two plugin-root files govern this; skills point at them, never restate:
+Speed is worthless if the human can't stay on top of it. Three plugin-root files govern this; skills point at them, never restate:
 
+- **`LANGUAGE.md`** — the language every skill writes in: Simplified Technical English plus the glossaries' vocabulary, binding on replies *and* artifacts. Every `SKILL.md` and agent definition opens with a one-line pointer to it (enforced by `hooks/skill-registry-gate.sh` check D) — a new skill without that line fails the gate.
 - **`REPORTING.md`** — reporting protocol: every terminal status line followed by one jargon-free `In plain terms:` sentence + a pointer to the full story; notifications never carry a bare status token; abbreviations expand at first use. Any skill emitting `OUTCOME:` / `AUTOPILOT:` / `REVIEW:` / `ADVERSARY:` lines follows it.
 - **`GLOSSARY.md`** (plugin root) — one home for workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts, artifact names). Domain vocabulary stays in the target repo's glossaries. Point here for these terms.
 
@@ -156,6 +157,7 @@ Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket desc
 - `LAVISH.md` — one home for lavish-axi doctrine: exact pin, `npx` invocation shapes, render-point → playbook map, session-default weaves + user opt-out, tooltip layer (persistent dictionary, injected by `hooks/lavish-tips.sh`), visualization doctrine, human-present-only + markdown-fallback rules, forbidden operations. Render-point skills carry only a pointer here.
 - `SPINOFF-TICKET.md` — one home for the spinoff protocol: capturing grill-deferred work as a tracked stub (candidate row → `/afk:to-ticket` spinoff-mode mint → link-debt → dedup). Grills carry only a pointer here.
 - `CONCISION.md` — one home for the compact-artifact prose doctrine every writing skill follows; emitters/templates carry only a pointer here.
+- `LANGUAGE.md` — one home for the language doctrine (Simplified Technical English + glossary vocabulary) binding every reply and every artifact; each skill/agent file carries only its pointer line.
 - `FRESHNESS.md` — same-commit rule + artifact registry keeping plugin artifacts fresh; `/afk:setup` is the dependency doctor (`skills/afk/setup/MANIFEST.md` register), `/afk:setup audit` the drift catcher.
 - `GLOSSARY.md` — workflow-methodology vocabulary (L1–L9 legend, modes, states, verdicts).
 - `REPORTING.md` — human-facing reporting protocol every status-emitting skill follows.

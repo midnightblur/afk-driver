@@ -4,6 +4,8 @@ description: Runs the red-green-refactor TDD loop. Use when implementing test-fi
 user-invocable: false
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # Test-Driven Development
 
 ## Philosophy

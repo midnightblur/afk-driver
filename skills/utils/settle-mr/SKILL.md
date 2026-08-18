@@ -3,6 +3,8 @@ name: settle-mr
 description: Review a GitLab MR and settle it through the review settle loop, using the MR itself as the ledger. Use when the user drops an MR URL/IID for review, wants an MR made ready, or asks to re-check one after fixes landed. Outside the AFK chain; explanatory tours go to /afk:understand.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # settle-mr — review a GitLab MR until it settles
 
 Reviews an MR of the current repo against a real checkout of its head and settles it through the settle loop (`skills/afk/review/SETTLEMENT.md`) — this skill is the loop's **referee**, and **the MR is the ledger**: findings live as inline discussions, every fix, dispute, and adjudication verdict is a reply on its finding's thread, and a managed summary comment carries the round accounting. Any later session — or another dev — resumes from the MR alone; local files are scratch, never load-bearing.

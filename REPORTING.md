@@ -24,8 +24,7 @@ Journal: plan/JOURNAL.md · Contract: plan/0004-credit-api.md
 
 - **The plain-terms sentence carries the consequence, not the code.** "The API changed and a later subtask still expects the old one" — never "produces drift occurred".
 - **No workflow jargon in the plain-terms sentence.** Status tokens, layer codes (L1–L9), mode names live in `GLOSSARY.md` (plugin root) — the sentence must not need it.
-- **Abbreviations expand at first use** per report or artifact — "Product Requirements Document (PRD)" once, then abbreviate freely. Domain abbreviations too.
-- **Domain terms are canonical** per the target repo's glossaries (start at its `GLOSSARY-MAP.md`); workflow terms per the plugin `GLOSSARY.md`. Never coin a synonym for a term either glossary owns.
+- **Sentence shape and term choice follow `LANGUAGE.md`** (plugin root — Simplified Technical English, glossary terms verbatim, abbreviations expanded at first use). Reports carry no exemption.
 - **Push notifications** carry subject + status + the plain-terms sentence. Never a bare status token — the human reads these on a phone, away from the repo.
 - **Numbers, not adjectives.** "3/9 done, 2 parked", never "most subtasks done".
 - **Never invent a status token.** Statuses are owned by each skill's grammar; broadening one is a lockstep change in that skill's own file.

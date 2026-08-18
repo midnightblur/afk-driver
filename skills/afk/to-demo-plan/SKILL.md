@@ -3,6 +3,8 @@ name: to-demo-plan
 description: Demo script for a delivered feature — synthesizes its specs + diff into minute-budgeted DEMO-PLAN.md. Use when the user wants to demo a feature to POs, QA, or stakeholders.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:to-demo-plan — the demo script
 
 Takes a delivered feature's spec artifacts + its diff; emits one `DEMO-PLAN.md` — a script the presenter runs top-to-bottom in front of **product owners and QA**, inside one hour.

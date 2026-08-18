@@ -3,6 +3,8 @@ name: prototype
 description: Interactively craft a feature's UI mockup as self-contained drivable HTML anchored to the real frontend. Use on /afk:prototype after the PRD exists and before the SDD locks decisions.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # afk:prototype — craft the UI, conversationally
 
 Runs once the PRD's user stories are settled (something concrete to draw) and before the SDD locks decisions (a mockup can still cheaply reshape architecture vs expensively redoing it). For a brownfield app, answers "what should this actually look like **and feel like to use**" against the *real* app, not in someone's head. The user vets two things: the layout, and what the feature *does* — so the mockup is **drivable**, not a picture.

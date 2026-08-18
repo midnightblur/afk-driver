@@ -16,6 +16,10 @@
 #    (read but never assigned in hooks/, ambient vars excluded) appears in the
 #    dependency register skills/afk/setup/MANIFEST.md (§E) — happened for six
 #    gate toggles, caught only by an /afk:setup audit.
+# D. language pointer — every SKILL.md + agents/*.md names LANGUAGE.md (the one
+#    home for the language doctrine: Simplified Technical English + glossary
+#    vocabulary). Root docs are not auto-loaded, so a file missing the pointer
+#    runs blind to the doctrine, which is exactly how it drifted before.
 #
 # Verdict per check: membership present -> pass; missing -> exit 2 (with the
 # exact list + where to add it); plugin.json entry pointing at a dir that no
@@ -25,7 +29,7 @@
 # var (~200 subprocesses). Every input file is now read ONCE into a variable and
 # matched with bash patterns, so the whole gate costs a handful of spawns.
 #
-# Mechanical only: existence + membership. Doesn't validate SKILL.md content,
+# Mechanical only: existence + membership + the pointer line's presence. Doesn't validate SKILL.md content,
 # catalog wording, or E-table row accuracy — /afk:setup audit judges those.
 # Disable: SKILL_REGISTRY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
@@ -160,7 +164,14 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     done <<<"$hook_reads"
   fi
 
-  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ]; then
+  # ---- check D: every skill + agent file carries the LANGUAGE.md pointer line.
+  # One grep -L over the whole set (files WITHOUT a match), not a test per file.
+  local no_language
+  no_language=$(grep -L 'LANGUAGE\.md' "$PLUGIN_DIR"/skills/afk/*/SKILL.md \
+    "$PLUGIN_DIR"/skills/utils/*/SKILL.md "$PLUGIN_DIR"/agents/*.md 2>/dev/null \
+    | sed "s|^$PLUGIN_DIR/||")
+
+  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ]; then
     gate_metrics_emit skill-registry blocked "\"checked\":$n_checked"
     {
       printf '[afk] Registry gate: a plugin registry drifted from disk.\n'
@@ -177,6 +188,10 @@ for a in m.get('agents', []): print('AGENT\t' + a)
       fi
       if [ -n "$unregistered" ]; then
         printf 'Env toggle read by hooks/*.sh but absent from the dependency register (add an E-table row in %s):\n%s' "$REGISTER" "$unregistered"
+      fi
+      if [ -n "$no_language" ]; then
+        printf 'Skill/agent file missing the LANGUAGE.md pointer line (copy the one-liner any sibling SKILL.md carries right after its frontmatter):\n'
+        printf '%s\n' "$no_language" | sed 's/^/  - /'
       fi
     } >&2
     return 2

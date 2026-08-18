@@ -3,6 +3,8 @@ name: claude-md
 description: Stewards CLAUDE.md, role sidecars, .claude/rules, and STAPLES.md. Use on /claude-md, for project-memory create/update/audit, staples, or when a durable learning surfaces mid-session.
 ---
 
+> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+
 # claude-md — project-memory steward
 
 Steer, don't document. Trust agents to read code; capture only what code won't reveal. Always **propose → approve → write**. Never write unasked.
