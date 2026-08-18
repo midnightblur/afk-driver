@@ -702,9 +702,9 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   `skills/utils/settle-mr/SKILL.md`.
 - **`/afk:todo`** — per-project todo list that survives sessions. Details:
   `skills/utils/todo/SKILL.md`.
-- **`writing-great-skills`** — skill-authoring doctrine, consulted when
-  creating/auditing skills. Details:
-  `skills/utils/writing-great-skills/SKILL.md`.
+- **`writing-for-agents`** — doctrine for writing any document an agent
+  consumes (skills, harness markdowns), consulted when creating/auditing them.
+  Details: `skills/utils/writing-for-agents/SKILL.md`.
 - **`verify-seams`** — independent orphan hunt (everything produced is
   consumed); agent-invoked, `final` mode before shipping. Details:
   `skills/utils/verify-seams/SKILL.md`.

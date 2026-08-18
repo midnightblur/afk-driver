@@ -18,7 +18,7 @@ Plugin: `.claude-plugin/plugin.json` (manifest) + `.claude-plugin/marketplace.js
 
 These `SKILL.md` + sibling `.md` files are the program the agent runs — same engineering discipline. KISS, DRY, YAGNI, modularization, in English:
 
-- **Write with the doctrine loaded.** Before creating or editing any `SKILL.md` or sibling, invoke `skills/utils/writing-great-skills` and apply it while writing — doctrine at write time, not after-the-fact audits.
+- **Write with the doctrine loaded.** Before creating or editing any `SKILL.md` or sibling, invoke `skills/utils/writing-for-agents` and apply it while writing — doctrine at write time, not after-the-fact audits.
 - **Frontier model only.** Any session/agent editing this plugin or its harness runs the frontier model tier (`DELEGATION.md` "Model selection") — a plugin defect multiplies into every run the plugin drives.
 - **Opt-in boundary.** No artifact a change ships may affect a dev who hasn't opted into the plugin. What rides git vs stays per-machine, and the Claude ↔ Codex parity of that split: `PROVIDERS.md` "Distribution law" — binding on every change.
 - **Generic, never feature-specific.** State the *mechanism*, not a story. No war-stories, no worked examples from a real ticket/feature, no naming a concrete feature to illustrate a step. Unavoidable example → make it obviously hypothetical. Enforced by `hooks/genericity-gate.sh` (Stop gate: ticket IDs + product-symbol references in added plugin prose; deliberate references go in `hooks/genericity-allow.txt` with a reason).
@@ -95,7 +95,7 @@ Per-skill mechanics, refusal conditions, and formats live in each skill's own `S
 | `/afk:caveman` | ultra-compressed reply mode | `skills/utils/caveman/SKILL.md` |
 | `/afk:review-qa-tests` | review + annotate QA's manual test sheet against requirements | `skills/utils/review-qa-tests/SKILL.md` |
 | `/afk:settle-mr` | settle any GitLab MR through the review loop; the MR is the ledger | `skills/utils/settle-mr/SKILL.md` |
-| `/afk:writing-great-skills` | skill-authoring doctrine | `skills/utils/writing-great-skills/SKILL.md` |
+| `/afk:writing-for-agents` | agent-document writing doctrine (skills + harness markdowns) | `skills/utils/writing-for-agents/SKILL.md` |
 | `verify-seams` *(agent)* | orphan hunt: everything produced is consumed | `skills/utils/verify-seams/SKILL.md` |
 | `draw-charts` *(agent)* | render-safe diagram authoring | `skills/utils/draw-charts/SKILL.md` |
 | `interactive-walkthrough` *(agent)* | HTML walkthrough widget templates | `skills/utils/interactive-walkthrough/SKILL.md` |

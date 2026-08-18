@@ -1,21 +1,34 @@
-# Placement engine
+# Harness-markdown mechanics
+
+The harness-markdown branch of [`writing-for-agents`](SKILL.md): what changes when the document is project memory — a `CLAUDE.md`, a role sidecar (`IMPL.md`/`TESTING.md`/`DEBUG.md`), or a `.claude/rules` file. Everything else about writing it is the universal reference in `SKILL.md`. Writes go through the steward skill `/afk:claude-md` (modes, proposal protocol, write boundaries — `skills/afk/claude-md/SKILL.md`).
+
+## Inclusion bar — every line passes ALL 4
+
+1. **non-obvious** — not quickly derivable from code
+2. **durable** — will recur
+3. **steering** — changes what an agent does/decides
+4. **non-dup** — not already in an ancestor file
+
+Unsure → **omit silently**.
+
+## Placement engine
 
 Per candidate fact, route by scope + cohesion. First match wins.
 After picking the directory (steps below), ALSO route by audience — see "Audience routing" at the bottom.
 
-## Decision order
+### Decision order
 1. Personal/uncommitted (sandbox URL, local creds)? → `CLAUDE.local.md` (gitignored).
 2. Applies to ALL your projects (personal pref)? → `~/.claude/CLAUDE.md`. (rare; flag — outside project scope)
 3. Cross-cutting working principle for this repo? → **in-repo per-directory note**
    at the lowest common ancestor of the current checkout. Do NOT route out to `~/.claude/shared`
-   (write boundary owned by SKILL.md's Safety section).
+   (write boundary owned by the steward's Safety section, `skills/afk/claude-md/SKILL.md`).
 4. About a *kind-of-file* regardless of location (every `*.repository.ts`, every migration, every
    `*.form.vue`)? → `.claude/rules/<topic>.md` with `paths:` glob.
 5. About one module/dir subtree? → that subdir's `CLAUDE.md`.
 6. Project-wide, no tighter home? → root `CLAUDE.md` (`./CLAUDE.md` or `./.claude/CLAUDE.md`).
 7. Fails inclusion bar / obvious / one-off? → DROP.
 
-## Cohesion test (the 4-vs-5 tie-break)
+### Cohesion test (the 4-vs-5 tie-break)
 "What is this guidance ABOUT?"
 - a **place** (this module/dir does X, this service's quirk) → subdir `CLAUDE.md`
 - a **kind-of-file** anywhere (how to write any X) → `.claude/rules/`+`paths:`
@@ -30,13 +43,13 @@ Pick by the natural unit of the knowledge, NOT by counting files.
 `.claude/rules/` files MUST declare `paths:`. Always-on cross-cutting topics live in an in-repo
 per-directory note (decision #3), not in `rules/`.
 
-## Dedup vs specialization
+### Dedup vs specialization
 Before adding to a child, read full root→child ancestor chain + applicable rules.
 - **Dup** (child repeats parent) → don't add; in AUDIT, delete the child copy.
 - **Specialization** (child refines/overrides parent for this scope) → keep, phrase as **delta**:
   "Unlike root default, here X because Y." Not a dup.
 
-## Dedup direction (AUDIT)
+### Dedup direction (AUDIT)
 Shared content lives at the **lowest common ancestor** covering all consumers.
 - Two+ siblings repeat it → lift to nearest common parent (or root).
 - Only one subtree needs it → push down, strip from parent.

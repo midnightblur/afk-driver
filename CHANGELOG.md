@@ -10,6 +10,18 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-18
+
+- **`writing-great-skills` → `writing-for-agents`** (upstream mattpocock
+  rename adopted): the reference now covers any document an agent consumes —
+  skills AND harness markdowns (CLAUDE.md, sidecars, `.claude/rules`) — and
+  gains two levers (negation: prompt the positive; cache: the environment is a
+  source of truth). Packaging-specific mechanics load lazily:
+  `SKILL-MECHANICS.md` (invocation, descriptions, routers) and
+  `HARNESS-MECHANICS.md` (inclusion bar + placement engine, moved here from
+  `/afk:claude-md`, which slims to steward mechanics and points). Old
+  `GLOSSARY.md` merged into the skill body. `/reload-plugins` to pick it up.
+
 ## 2026-08-17
 
 - **One writing doctrine, one home.** `CONCISION.md` merged into `LANGUAGE.md`

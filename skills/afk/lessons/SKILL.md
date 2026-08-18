@@ -39,7 +39,7 @@ Walk `open` lessons newest-first; for each, route by `target`:
   protocol and write boundary govern.
 - **Domain `GLOSSARY.md`** → delegate to `/afk:glossary` — same shape.
 - **Plugin file (skill, checklist, doctrine, hook)** → propose → approve →
-  write **here**: load `/afk:writing-great-skills` first and hold the edit to
+  write **here**: load `/afk:writing-for-agents` first and hold the edit to
   its bar; honour the plugin `CLAUDE.md` "Lockstep" partners and the
   `FRESHNESS.md` same-commit obligations of every file touched.
 

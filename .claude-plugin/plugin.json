@@ -50,6 +50,6 @@
     "./skills/utils/settle-mr",
     "./skills/utils/todo",
     "./skills/utils/verify-seams",
-    "./skills/utils/writing-great-skills"
+    "./skills/utils/writing-for-agents"
   ]
 }

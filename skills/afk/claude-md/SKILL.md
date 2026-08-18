@@ -23,16 +23,8 @@ Lesson-ledger tie-in: a harvested signal that is a *workflow* lesson (bar + prot
 
 BOOTSTRAP done when every emitted line passes the 4-gate inclusion bar and the proposal is approved before any write.
 
-## Inclusion bar — every line passes ALL 4
-1. **non-obvious** — not quickly derivable from code
-2. **durable** — will recur
-3. **steering** — changes what an agent does/decides
-4. **non-dup** — not already in an ancestor file
-
-Unsure → **omit silently**.
-
-## Placement
-See [PLACEMENT.md](PLACEMENT.md) — routes by scope/cohesion, then audience. This skill stewards the role sidecars (`IMPL.md`/`TESTING.md`/`DEBUG.md`) alongside CLAUDE.md — same inclusion bar, same proposal protocol.
+## Inclusion bar + placement
+Read `skills/utils/writing-for-agents/HARNESS-MECHANICS.md` before proposing — every candidate line passes its 4-gate inclusion bar and routes by its placement engine (scope/cohesion, then audience). This skill stewards the role sidecars (`IMPL.md`/`TESTING.md`/`DEBUG.md`) alongside CLAUDE.md — same bar, same proposal protocol.
 
 ## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
 This skill is the **sole writer** of each service's `{service}/STAPLES.md` (what a staple is + how the chain consults it: plugin-root `CLAUDE.md` "Staples registry"). The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, real **Reference** exemplar (or explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol. Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
@@ -48,5 +40,5 @@ Group by target file. Per change: diff · one-line **why** · **placement ration
 
 ## Safety
 - **Write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11???*/**`, `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. Any target outside is **refused before any write**.
-- In-repo only — never `~/.claude/shared` (PLACEMENT.md #3).
+- In-repo only — never `~/.claude/shared` (placement decision #3, `skills/utils/writing-for-agents/HARNESS-MECHANICS.md`).
 - Discovery safety per [AUDIT.md](AUDIT.md) Discovery (never scan system roots).
