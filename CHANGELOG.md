@@ -12,6 +12,12 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-18
 
+- **PRD mermaid figures render on Windows again**: `/afk:to-ticket` resolves
+  `mmdc`/`npx` on `PATH` before running them, so a missing `mmdc` now falls
+  through to the `npx @mermaid-js/mermaid-cli` fallback instead of aborting the
+  publish. Under the old `shell=True` call a missing command exited non-zero
+  rather than raising, which killed the loop on the first candidate and left
+  every diagram unrendered on machines without a global mermaid-cli.
 - **Lavish session pages gain navigation chrome**: every session-default
   artifact now gets — injected at render, zero authoring cost — a sticky
   "On this page" rail (Now / Open / Blocked / Settled with counts), settled

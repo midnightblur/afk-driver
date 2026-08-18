@@ -49,6 +49,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -117,12 +118,17 @@ def render_mermaid(source, out_png):
     ]
     last = None
     for cmd in cmds:
+        # Resolve on PATH first. With shell=True on Windows a missing command exits
+        # non-zero instead of raising FileNotFoundError, so the CalledProcessError
+        # branch below used to break the loop and the npx fallback never ran.
+        exe = shutil.which(cmd[0])
+        if exe is None:
+            last = FileNotFoundError(f"{cmd[0]} is not on PATH")
+            continue
         try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True, shell=(os.name == "nt"))
+            subprocess.run([exe, *cmd[1:]], check=True, capture_output=True, text=True)
             os.unlink(mmd)
             return out_png
-        except FileNotFoundError as e:
-            last = e
         except subprocess.CalledProcessError as e:
             last = e
             break
