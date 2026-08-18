@@ -29,7 +29,7 @@ BOOTSTRAP done when every emitted line passes the 4-gate inclusion bar and the p
 3. **steering** — changes what an agent does/decides
 4. **non-dup** — not already in an ancestor file
 
-Unsure → **omit silently**. Pointer one-liners > explanations (`X in Y; gotcha: Z`).
+Unsure → **omit silently**.
 
 ## Placement
 See [PLACEMENT.md](PLACEMENT.md) — routes by scope/cohesion, then audience. This skill stewards the role sidecars (`IMPL.md`/`TESTING.md`/`DEBUG.md`) alongside CLAUDE.md — same inclusion bar, same proposal protocol.
