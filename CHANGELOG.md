@@ -12,6 +12,11 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-18
 
+- **Render-point pages are authored by a child agent**: at every lavish
+  render point the orchestrator now hands page markup to an
+  `afk-implementor` child against a delta-shaped page brief — HTML stays out
+  of the interview context; content decisions, render/poll, and feedback
+  handling stay with the orchestrator (`LAVISH.md` "Authoring delegation").
 - **`writing-great-skills` → `writing-for-agents`** (upstream mattpocock
   rename adopted): the reference now covers any document an agent consumes —
   skills AND harness markdowns (CLAUDE.md, sidecars, `.claude/rules`) — and
