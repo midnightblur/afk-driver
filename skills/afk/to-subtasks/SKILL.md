@@ -100,6 +100,8 @@ A subtask that **implements** a §9b seam must carry the seam's test as a Verifi
 
 **Fixtures use the feature's real names.** When a subtask's deliverable runs against paths/directories/modules whose real name matches a literal string the implementation special-cases, emit an explicit Acceptance bullet requiring the test fixture to use that real name, not a placeholder — a generic fixture name can never surface the collision.
 
+**A projection of an existing type declares what it drops.** When a subtask emits a **narrowed copy** of a type that already exists — an agent-facing input DTO, a wire/public DTO, an import or export template, a search projection — emit an Acceptance bullet requiring a field-by-field reconciliation against the source type and a written "dropped, and why" list for every field the copy omits. Any field whose requiredness is **conditional** — on a configuration, a rule setting, a per-company mode — is named individually and gets its own Verification row asserting the **generated/serialized** artifact really carries it. A dropped field is invisible to every test that exercises only the fields the projection kept, so the copy reads complete and green while a whole class of caller cannot make a single valid call.
+
 ### Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
 Seed the gate per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3. A `VERIFICATION-PLAN.md` drives the full gate + per-modality build subtasks; its absence drives the minimal gate (no build subtasks). Every plan gets exactly one of the two.

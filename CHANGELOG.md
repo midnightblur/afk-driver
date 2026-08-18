@@ -12,6 +12,19 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-18
 
+- **A field added to an existing entity now has to answer for the surfaces
+  already exposing it**: the SDD's entity-design section (§4 L3) gains a
+  *Surface reachability* line — per added/newly-mandatory field, one verdict per
+  programmatic surface (agent tool schemas, import/export templates, public API
+  DTOs), where "the feature touches no file under that surface" counts as the
+  symptom rather than the answer. `/afk:to-subtasks` gains the matching
+  slice-time rule: a subtask emitting a **narrowed copy** of an existing type
+  must reconcile field-by-field, write down what it dropped and why, and give
+  every conditionally-required field its own assertion against the generated
+  artifact. Both close the same escape — a projected input DTO silently missing
+  a field, which reads green in every test that exercises only the fields it
+  kept while no caller can make a valid call (lesson L-0039; payable's new
+  "MCP schema parity" staple is the service-side half).
 - **PRD mermaid figures render on Windows again**: `/afk:to-ticket` resolves
   `mmdc`/`npx` on `PATH` before running them, so a missing `mmdc` now falls
   through to the `npx @mermaid-js/mermaid-cli` fallback instead of aborting the
