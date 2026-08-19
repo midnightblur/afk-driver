@@ -12,6 +12,18 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-18
 
+- **The settle loop can now end on its own**: `SETTLEMENT.md` gains two rules —
+  a round's verdict may be written only after that round's sweep reports, and a
+  round whose findings all target review artifacts rather than main or test code
+  is remediated in place and closed, minting no further round. Together they stop
+  a slice with stable code from failing round after round on its own bookkeeping
+  (lessons L-0027, L-0028).
+- **`/afk:execute` reads the module's sidecars before it writes**: Step 5 now
+  loads the `IMPL.md` / `TESTING.md` a touched module's `CLAUDE.md` announces,
+  plus every matching `.claude/rules` file, before the TDD loop — the same
+  documents Step 10's compliance reviewer checks the diff against, read at write
+  time instead of found at the gate (lesson L-0024).
+
 - **A field added to an existing entity now has to answer for the surfaces
   already exposing it**: the SDD's entity-design section (§4 L3) gains a
   *Surface reachability* line — per added/newly-mandatory field, one verdict per
