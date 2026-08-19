@@ -28,7 +28,7 @@ These `SKILL.md` + sibling `.md` files are the program the agent runs — same e
 - **Single-writer artifacts** — one steward writes a shared on-disk artifact, every other skill reads (see "Section ownership invariants"; don't restate the map here).
 - **Less is more.** Cut every word carrying no fact the reader acts on. Sacrifice grammar for concision — drop articles, filler, connective prose; keep precision + completeness intact (a shorter file that loses a fact failed). No narration, motivation, "unlike X" cross-refs, or meta-commentary. State action + constraints, once.
 - **Minimal-first.** Start with the least instruction that can do the job; add detail only on observed failure, never preemptively. An over-specified instruction is a defect even when correct.
-- **Deterministic-first.** Mechanical work (validation, grep walks, table edits, format checks) goes in a script the skill invokes — never prose the agent re-derives per run.
+- **Deterministic-first.** Mechanical work (validation, grep walks, table edits, format checks) goes in a script the skill invokes — never prose the agent re-derives per run. A trigger must be deliverable: an instruction that fires on time passing, on a child's silence, or on an external state change names the mechanism whose exit or event delivers it (script, background watchdog, hook, notification) — a trigger the idle agent cannot receive is a defect even when the instruction is correct.
 - **Compact artifacts.** Every markdown artifact a skill *writes at runtime* follows `LANGUAGE.md` §3 (plugin root). Root docs are NOT auto-loaded at invocation, so each emitter/template carries an explicit *read-`LANGUAGE.md`-before-writing* instruction (never a restatement).
 
 ## Human followability (binding on every skill)
