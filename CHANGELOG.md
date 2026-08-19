@@ -10,6 +10,19 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-19
+
+- **A hung subtask subagent now wakes the orchestrator instead of stalling the
+  run until a human asks**: new `hooks/stall-watchdog.sh` runs in a background
+  shell beside every long-running child spawn and exits when the child's disk
+  activity goes stale (or a hard cap passes) — the exit re-invokes the waiting
+  orchestrator, making `/afk:autopilot`'s wall-clock guard enforceable. The
+  arm / fire → probe → park protocol, including killing the process tree a
+  stopped task leaves behind (a forked JVM holds its port and steals broker
+  messages), lives in `DELEGATION.md` "Stall watchdog"; a timeout park now
+  rides the same journal + push-notification path as any other park
+  (lesson L-0041).
+
 ## 2026-08-18
 
 - **The settle loop can now end on its own**: `SETTLEMENT.md` gains two rules —
