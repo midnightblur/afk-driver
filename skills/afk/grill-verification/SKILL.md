@@ -3,7 +3,7 @@ name: grill-verification
 description: Interviews the user to design a feature's verification scenarios — UI journeys (needs PRD) and API scenarios (needs SDD). Use to design or stress-test verification scenarios.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:grill-verification — design the feature's verification scenarios with the user
 

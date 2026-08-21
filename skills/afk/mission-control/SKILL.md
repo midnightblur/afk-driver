@@ -3,7 +3,7 @@ name: mission-control
 description: Read-only dashboard for a feature's spec folder (watch / --once / build). Use on /afk:mission-control, to see a feature's progress, or if the watcher crashed.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:mission-control — the feature dashboard
 

@@ -23,10 +23,19 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 - **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
 - **Overlap the human's think-time.** In an interactive phase, spawn delegations in background **before yielding the turn** — grounding for the pending question's premises, pre-fill for an accumulating batch, the likely next question's verification — so digests land while the human reads and types. Nothing locks in before its digest returns; only the waiting moves.
-- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit), `afk-runner` (executes commands/suites, triages their output; writes only evidence files), `afk-implementor` (writes product code against a contract authored upstream; carries the pinned implementation-tier model). Fall back to a general-purpose child only when none fits. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
+- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit), `afk-runner` (executes commands/suites, triages their output; writes only evidence files), `afk-implementor` (writes product code or a rendered artifact against a brief authored upstream; carries the pinned implementation-tier model). Fall back to a general-purpose child only when none fits. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
 - **Hand a child paths + a task, never content** — nothing it can read itself.
 - **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. (Codex: requires the `max_depth` config from `codex-sync/config-fragment.toml`; at its default of 1, helper steps run inline — degraded, not broken.)
 - **Blind where the skill demands it.** A skill's information-diet rules (what the child must NOT see) override convenience; when a fresh perspective is the point, the child gets artifacts, never the run's reasoning.
+
+## Stall watchdog
+
+Only completion re-invokes a waiting orchestrator. A hung child never completes, so a time cap held in prose cannot fire — the wake-up must come from outside. Arm every spawn whose child can run past ~15 min (subtask executors, suite/build runners, provisioning gates):
+
+- **Arm** — in the spawn's own message, start `<main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/stall-watchdog.sh` in a background shell, pointed at paths the child's work touches (usage, path guidance, defaults, exit codes: script header). Its exit wakes the orchestrator.
+- **On fire** — read the child's task-output tail. Still producing → re-arm and keep waiting. Silent → stop the child's task and take the invoking skill's park/fail path; never resume waiting on a fired watchdog.
+- **Stopping the task leaves its processes alive.** A forked JVM survives the task stop — it holds its port and consumes broker messages meant for later verification. Before successor work spawns: kill the pid tree the child recorded (`.claude/hooks/.app-instance-{port}`, shape: `hooks/app-start-gate.sh` header) and any process still listening on the child's port.
+- **Disarm** — on the child's normal completion, kill the watchdog's background task. A fire that lands for a completed child is a no-op.
 
 ## Model selection
 

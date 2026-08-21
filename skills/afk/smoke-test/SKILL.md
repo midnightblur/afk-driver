@@ -3,7 +3,7 @@ name: smoke-test
 description: Runs a feature's built verification suites (ui-e2e + api) against a running app; on green, stamps PLAN.md complete. Use when every subtask is done, or to re-verify feature sanity.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:smoke-test — the feature-level smoke gate
 

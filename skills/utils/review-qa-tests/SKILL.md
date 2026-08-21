@@ -3,7 +3,7 @@ name: review-qa-tests
 description: Review a QA team's manual test cases against a feature's requirements and annotate their sheet in place — missing scenarios as new rows, fixes as threaded comments. Use when the user shares a QA test-case spreadsheet wanting coverage gaps found or weak cases sharpened.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # review-qa-tests
 

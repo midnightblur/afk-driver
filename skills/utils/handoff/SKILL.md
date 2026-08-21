@@ -4,11 +4,11 @@ description: Compact the current conversation into a handoff document for anothe
 argument-hint: "What will the next session be used for?"
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to a path from `mktemp -t handoff-XXXXXX.md` (read the file before writing to it).
 
-Required sections: **goal** · **current state** · **next steps** · **artifact pointers** (paths/URLs to everything the next agent touches). Bar: a fresh agent needs no other context to take the next step — anything a next step depends on that only this conversation knows goes in the doc. Read `CONCISION.md` (plugin root) before writing; its bar applies throughout.
+Required sections: **goal** · **current state** · **next steps** · **artifact pointers** (paths/URLs to everything the next agent touches). Bar: a fresh agent needs no other context to take the next step — anything a next step depends on that only this conversation knows goes in the doc. Read `LANGUAGE.md` (plugin root) before writing; its bar applies throughout.
 
 Suggest the skills the next session should use, if any.
 

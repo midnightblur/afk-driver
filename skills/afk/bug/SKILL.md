@@ -3,7 +3,7 @@ name: bug
 description: Capture a bug mid-task without losing your place, file it to Jira, dispatch an autonomous fixer, auto-retest. Use on /afk:bug — capture / dispatch / status / retest / purge.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:bug — mid-task bug capture + autonomous fix pipeline
 

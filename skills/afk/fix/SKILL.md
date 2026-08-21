@@ -3,7 +3,7 @@ name: fix
 description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:fix — fix a bug and keep the source of truth true
 

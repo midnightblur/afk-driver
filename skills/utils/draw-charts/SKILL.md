@@ -4,7 +4,7 @@ description: Render-safe diagrams. Use when writing any Mermaid (or other) chart
 user-invocable: false
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Charts that render first time. Mermaid-first; grow as gotchas surface.
 

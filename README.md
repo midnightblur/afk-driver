@@ -702,9 +702,9 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   `skills/utils/settle-mr/SKILL.md`.
 - **`/afk:todo`** — per-project todo list that survives sessions. Details:
   `skills/utils/todo/SKILL.md`.
-- **`writing-great-skills`** — skill-authoring doctrine, consulted when
-  creating/auditing skills. Details:
-  `skills/utils/writing-great-skills/SKILL.md`.
+- **`writing-for-agents`** — doctrine for writing any document an agent
+  consumes (skills, harness markdowns), consulted when creating/auditing them.
+  Details: `skills/utils/writing-for-agents/SKILL.md`.
 - **`verify-seams`** — independent orphan hunt (everything produced is
   consumed); agent-invoked, `final` mode before shipping. Details:
   `skills/utils/verify-seams/SKILL.md`.
@@ -752,10 +752,9 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (Simplified Technical English +
-glossary vocabulary, binding on replies and artifacts alike — every skill and
-agent file carries only a pointer to it), `CONCISION.md` (compact-artifact prose
-doctrine — writing skills carry only a pointer to it), `LAVISH.md` (the
+`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (the writing doctrine — which
+words, whose terms, how much — binding on replies and artifacts alike; every
+skill, agent, and emitter file carries only a pointer to it), `LAVISH.md` (the
 lavish-axi pin, invocation shapes, render-point → playbook map, and
 fallback/forbid-list — render-point skills carry only a pointer to it), and
 `SPINOFF-TICKET.md` (the spinoff protocol for capturing grill-deferred work as

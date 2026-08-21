@@ -1,6 +1,6 @@
 # SDD template
 
-Before filling any section, read `CONCISION.md` (plugin root) and apply it throughout — compact by default, no fact dropped.
+Before filling any section, read `LANGUAGE.md` (plugin root) and apply it throughout — compact by default, no fact dropped.
 
 <sdd-template>
 
@@ -95,6 +95,8 @@ For each piece of state.
 
    | Relation | Target | Cardinality | Owning side | On delete / orphan | Fetch posture |
    |----------|--------|-------------|-------------|--------------------|---------------|
+
+   **Surface reachability** — for every field this feature **adds** to an existing entity, or makes mandatory/forbidden on one, state whether each programmatic surface already exposing that entity must change with it: the agent-facing tool schemas, the import/export templates, the public API DTOs. A field the domain now requires but a surface's schema cannot express makes that surface **unusable**, not merely incomplete — its callers fail on a field they were never shown. The verdict is one line per surface (`changes` / `no change, because …`); "the feature touches no file under that surface" is the symptom, not the answer. Where the service's `STAPLES.md` carries a matching staple, that staple's obligation is the standard this line is judged against.
 
    **Migration & backfill** — for every altered entity, what happens to rows that already exist (new column's value for old rows, a widened/narrowed constraint, a dropped field's data) and whether the change is reversible. An altered entity with no migration line is an unpublishable §13 gap, not a silent "the ORM will handle it".
 

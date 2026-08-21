@@ -3,7 +3,7 @@ name: grill-solution
 description: Grills the solution design top-down L1–L9, one layer at a time. Use post-PRD to design or grill architecture ('grill-solution'/'architect-grill'). Pair with /afk:to-sdd.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer ones aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
 

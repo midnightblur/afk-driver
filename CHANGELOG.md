@@ -10,6 +10,87 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-19
+
+- **A hung subtask subagent now wakes the orchestrator instead of stalling the
+  run until a human asks**: new `hooks/stall-watchdog.sh` runs in a background
+  shell beside every long-running child spawn and exits when the child's disk
+  activity goes stale (or a hard cap passes) — the exit re-invokes the waiting
+  orchestrator, making `/afk:autopilot`'s wall-clock guard enforceable. The
+  arm / fire → probe → park protocol, including killing the process tree a
+  stopped task leaves behind (a forked JVM holds its port and steals broker
+  messages), lives in `DELEGATION.md` "Stall watchdog"; a timeout park now
+  rides the same journal + push-notification path as any other park
+  (lesson L-0041).
+
+## 2026-08-18
+
+- **The settle loop can now end on its own**: `SETTLEMENT.md` gains two rules —
+  a round's verdict may be written only after that round's sweep reports, and a
+  round whose findings all target review artifacts rather than main or test code
+  is remediated in place and closed, minting no further round. Together they stop
+  a slice with stable code from failing round after round on its own bookkeeping
+  (lessons L-0027, L-0028).
+- **`/afk:execute` reads the module's sidecars before it writes**: Step 5 now
+  loads the `IMPL.md` / `TESTING.md` a touched module's `CLAUDE.md` announces,
+  plus every matching `.claude/rules` file, before the TDD loop — the same
+  documents Step 10's compliance reviewer checks the diff against, read at write
+  time instead of found at the gate (lesson L-0024).
+
+- **A field added to an existing entity now has to answer for the surfaces
+  already exposing it**: the SDD's entity-design section (§4 L3) gains a
+  *Surface reachability* line — per added/newly-mandatory field, one verdict per
+  programmatic surface (agent tool schemas, import/export templates, public API
+  DTOs), where "the feature touches no file under that surface" counts as the
+  symptom rather than the answer. `/afk:to-subtasks` gains the matching
+  slice-time rule: a subtask emitting a **narrowed copy** of an existing type
+  must reconcile field-by-field, write down what it dropped and why, and give
+  every conditionally-required field its own assertion against the generated
+  artifact. Both close the same escape — a projected input DTO silently missing
+  a field, which reads green in every test that exercises only the fields it
+  kept while no caller can make a valid call (lesson L-0039; payable's new
+  "MCP schema parity" staple is the service-side half).
+- **PRD mermaid figures render on Windows again**: `/afk:to-ticket` resolves
+  `mmdc`/`npx` on `PATH` before running them, so a missing `mmdc` now falls
+  through to the `npx @mermaid-js/mermaid-cli` fallback instead of aborting the
+  publish. Under the old `shell=True` call a missing command exited non-zero
+  rather than raising, which killed the loop on the first candidate and left
+  every diagram unrendered on machines without a global mermaid-cli.
+- **Lavish session pages gain navigation chrome**: every session-default
+  artifact now gets — injected at render, zero authoring cost — a sticky
+  "On this page" rail (Now / Open / Blocked / Settled with counts), settled
+  cards collapsed to their heading line, a floating jump-to-current-question
+  control, and changed-this-round markers. Long grill sessions stop
+  requiring scrolling past decided history. Page-writers emit the small
+  `data-afk-item`/`-state`/`-fresh` markup grammar (`LAVISH.md` "Page
+  anatomy"); pages without it render as before.
+- **Render-point pages are authored by a persistent page-writer child**: at
+  every lavish render point the orchestrator now hands page markup to one
+  per-session `afk-implementor` page-writer — continued each round, not
+  respawned — against a delta-shaped page brief; HTML stays out of the
+  interview context; content decisions, render/poll, and feedback handling
+  stay with the orchestrator (`LAVISH.md` "Authoring delegation";
+  continuation vocabulary in `PROVIDERS.md`).
+- **`writing-great-skills` → `writing-for-agents`** (upstream mattpocock
+  rename adopted): the reference now covers any document an agent consumes —
+  skills AND harness markdowns (CLAUDE.md, sidecars, `.claude/rules`) — and
+  gains two levers (negation: prompt the positive; cache: the environment is a
+  source of truth). Packaging-specific mechanics load lazily:
+  `SKILL-MECHANICS.md` (invocation, descriptions, routers) and
+  `HARNESS-MECHANICS.md` (inclusion bar + placement engine, moved here from
+  `/afk:claude-md`, which slims to steward mechanics and points). Old
+  `GLOSSARY.md` merged into the skill body. `/reload-plugins` to pick it up.
+
+## 2026-08-17
+
+- **One writing doctrine, one home.** `CONCISION.md` merged into `LANGUAGE.md`
+  (plugin root): which words (Simplified Technical English), whose terms
+  (glossaries), and how much (concision bar + steering-notes rules) now live in
+  one file, binding on every producing surface — current skills and any added
+  later. Every pointer (skill/agent pointer lines, emitter/template read-first
+  lines) retargeted, and pointers no longer restate any rule — they only name
+  the home. `/reload-plugins` to pick it up.
+
 ## 2026-08-14
 
 - **A Story can hold a PRD now.** `/afk:to-ticket` PRD mode accepted only an

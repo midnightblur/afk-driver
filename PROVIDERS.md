@@ -12,6 +12,7 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 | Invoke a project skill | `.claude/skills/<x>` via `/x` | `$<x>` |
 | Spawn a subagent | Agent/Task tool with `subagent_type`: `afk-reader` / `afk-runner` / `afk-implementor` / `general-purpose` / `Explore` | spawn agent `afk-reader` / `afk-runner` / `afk-implementor` (defs in `.codex/agents/*.toml`); `general-purpose` → built-in `worker`, `Explore` → built-in `explorer` |
 | Parallel spawns "in one message" | parallel Agent calls in one message | parallel agent spawns in one step (`max_threads`, default 6) |
+| Continue a spawned child (persistent child across rounds) | `SendMessage` to the child's id/name from the Agent tool result — same context, no respawn | no continuation — respawn fresh each round; the caller keeps durable state on disk, so this is degraded, not broken |
 | Nesting cap 3 (`DELEGATION.md`) | native | needs `[agents] max_depth = 3` in `~/.codex/config.toml` (provided by `codex-sync/config-fragment.toml`); at the default depth 1, helper spawns run inline — degraded, not broken |
 | Model tiers (see below) | `fable` / `opus` / `claude-opus-4-8` / `sonnet` by tier — table below | `gpt-5.6-sol` / `-terra` by tier — table below |
 | Jira MCP tools `mcp__jira__*` | plugin-provided `mcp__jira__<tool>` | same server registered via `config.toml` `[mcp_servers.jira]`; tool prefix differs — match by tool name |

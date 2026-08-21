@@ -90,7 +90,7 @@ An `applied` lesson whose signal recurs means the edit didn't stick. Escalate
 plus a `superseded` event on the old one — never by rewriting history:
 
 1. **Reword** — stronger leading word, checkable completion criterion
-   (`/afk:writing-great-skills` failure-modes bar).
+   (`/afk:writing-for-agents` levers).
 2. **Relocate** — move the line to where the acting agent demonstrably reads at
    the moment of the mistake.
 3. **Checklist criterion** — add it to the owning review checklist so the gate

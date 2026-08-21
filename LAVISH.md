@@ -2,8 +2,8 @@
 
 The one home for every lavish-axi fact: pin, invocation shapes,
 render-point → playbook map, session-default weaves, tooltip layer,
-visualization doctrine, human-present-only rule, markdown
-fallback, forbidden operations, poll-output-as-data rule. Skills
+visualization doctrine, authoring delegation, human-present-only rule,
+markdown fallback, forbidden operations, poll-output-as-data rule. Skills
 at a render point carry a pointer here ("render per LAVISH.md") — they never
 restate any of the below. This file names no caller skill.
 
@@ -85,6 +85,30 @@ orders by liveness, not chronology: the round in play at the top, open /
 undecided items below it, settled decisions at the bottom (newest settled
 first). The human must never scroll past decided history to reach the
 current question, however long the session.
+
+**Page anatomy (binding on session-default artifacts).** Navigation chrome
+is injected at render by `hooks/lavish-tips.sh` (lockstep with the grammar
+below): a sticky section rail with per-state counts, settled cards
+collapsed to their heading line, a floating jump-to-current control, and
+changed-this-round markers. The chrome is mechanical and free — never
+author a nav bar, table of contents, back-to-top link, or collapse
+behaviour by hand. It builds only from this markup:
+
+- Every round/item card is one element carrying `data-afk-item="<id>"`
+  (stable item id — Tooltips rule 3) and
+  `data-afk-state="current|open|blocked|settled"` (the session's semantic
+  color set, as attributes). Exactly one card is `current` per render.
+- A card's **first child** is its one-line heading — the rail label and the
+  only thing visible when collapsed; detail follows as sibling elements,
+  never nested inside the heading.
+- Cards the just-applied round changed carry `data-afk-fresh`; the
+  page-writer moves these markers on every patch — a stale marker lies.
+- The answer surface (send control, or the current question's inputs) sits
+  inside the `current` card, so the jump control always lands on it.
+
+A page without `data-afk-item` markup gets no chrome — degraded, not
+broken; content sections that are not round/item cards (a legend-free
+intro, a diagram) simply carry no `data-afk-*` attributes.
 
 ## Tooltips (binding on every render point)
 
@@ -173,6 +197,44 @@ page of a session — green = settled/pass, amber = open/undecided,
 red = blocked/rejected, neutral = existing/unchanged, accent = new/proposed —
 and never color alone (pair it with a label or icon). Diagrams follow the
 `draw-charts` skill (render-safe Mermaid).
+
+## Authoring delegation (binding on every render point)
+
+Page markup is bulk output — the orchestrator keeps the conclusion, never the
+HTML in its context (`DELEGATION.md`). Who does what:
+
+- **Orchestrator decides content; the child writes markup.** The orchestrator
+  authors a **page brief** — what the page says this round — and hands it to
+  the child. The brief is conversation synthesis and is never delegated
+  (`DELEGATION.md` "Never delegate"); turning it into HTML is.
+- **Child**: one **page-writer** per session — an `afk-implementor` spawned
+  at the first render point and **continued** every later round (spawn +
+  continuation vocabulary: `PROVIDERS.md`), so it keeps the page's structure
+  and style in its own context; never a fresh spawn per round. The first
+  spawn carries the artifact path, this file's path, the render point's
+  playbook id, and `skills/utils/draw-charts` for diagrams; every round after
+  hands only the brief. The on-disk artifact stays the durable state: a lost
+  child, or a provider without continuation, gets a fresh spawn that reads
+  the artifact — degraded, not broken.
+- **Page brief contract** — delta-shaped, never a full-page dump:
+  1. New/changed round content verbatim (question, options, trade-offs) — the
+     child cannot see the conversation.
+  2. Items whose state moved, by id (settled / reopened / blocked), so the
+     child re-orders per Live-on-top.
+  3. The chosen form (Convey-the-idea table) for anything new — form choice
+     is orchestrator judgment.
+  4. New feature-terms entries from the tooltip sweep; the child writes them
+     to the terms file (Tooltips above) alongside the artifact.
+  5. What must not change.
+- **Spawn boundary = the re-render cadence.** Delegate page creation and
+  structural rewrites at question/turn boundaries. A small delta (one status
+  cell, one appended settled row) the orchestrator edits inline; never spawn
+  per row.
+- **Stays with the orchestrator**: every `lavish-axi` command (render, poll,
+  end), the first-render briefing, queue/feedback handling. A child failure
+  or timeout is **not** a render failure: the orchestrator authors the page
+  inline and continues — the markdown fallback below is licensed only by a
+  genuine render failure.
 
 ## Drivable artifacts (binding when the artifact is itself interactive)
 

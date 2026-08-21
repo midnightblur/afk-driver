@@ -3,14 +3,14 @@ name: to-subtasks
 description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index + one NNNN-slug.md contract per subtask. Use when a PRD exists and the user wants an execution plan. Local only, no Jira.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:to-subtasks — slice a PRD (+ SDD/ADRs) into a local execution plan
 
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
 `plan/` is a **run artifact**: it lives from slicing to merge; after the
 feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
-Read `CONCISION.md` (plugin root) before emitting — its bar applies to
+Read `LANGUAGE.md` (plugin root) before emitting — its bar applies to
 everything written here.
 
 ```
@@ -99,6 +99,8 @@ A subtask that **implements** a §9b seam must carry the seam's test as a Verifi
 **A runtime-effect Acceptance bullet needs a runtime-effect test.** When an Acceptance bullet cites an observable runtime effect — "X happens within Y seconds of Z", or any live/watch/poll/reactive language — the unit/integration row covering it must name a check that **triggers the real condition and asserts the real observable outcome** at the seam (e.g. AC "file edit → page re-renders within ~7s" → the test edits a tracked file and polls for the re-render). A test that only starts the machinery and asserts surrounding shape/structure does not cover that bullet — the tier reads green while the promised behavior is unexercised.
 
 **Fixtures use the feature's real names.** When a subtask's deliverable runs against paths/directories/modules whose real name matches a literal string the implementation special-cases, emit an explicit Acceptance bullet requiring the test fixture to use that real name, not a placeholder — a generic fixture name can never surface the collision.
+
+**A projection of an existing type declares what it drops.** When a subtask emits a **narrowed copy** of a type that already exists — an agent-facing input DTO, a wire/public DTO, an import or export template, a search projection — emit an Acceptance bullet requiring a field-by-field reconciliation against the source type and a written "dropped, and why" list for every field the copy omits. Any field whose requiredness is **conditional** — on a configuration, a rule setting, a per-company mode — is named individually and gets its own Verification row asserting the **generated/serialized** artifact really carries it. A dropped field is invisible to every test that exercises only the fields the projection kept, so the copy reads complete and green while a whole class of caller cannot make a single valid call.
 
 ### Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 

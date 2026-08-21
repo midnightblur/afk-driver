@@ -3,7 +3,7 @@ name: to-prd
 description: Synthesize the current conversation into PRD.md + requirement ADRs on disk — no tracker write. Use once requirements are settled in conversation and the user wants them captured.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 Don't interview on requirements content — synthesize what you already know. (Step 2's module/tests check-in is the only exception.)
 

@@ -3,7 +3,7 @@ name: setup
 description: Sets up, repairs, or audits the AFK environment against its dependency manifest. Use on first install (base), after plugin updates, when a skill dies on a missing tool/credential, or as audit.
 ---
 
-> **Language:** read `LANGUAGE.md` (plugin root) first. It binds every reply, question, and artifact this skill produces — Simplified Technical English, glossary terms verbatim.
+> **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:setup — the workflow doctor
 

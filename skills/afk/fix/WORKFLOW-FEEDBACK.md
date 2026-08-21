@@ -49,6 +49,6 @@ reviewed change applied via `/afk:lessons apply` from the lesson ledger
 
    `--class` maps from the miss class per the mapping table in
    `skills/afk/lessons/LEDGER-FORMAT.md`; the `draft` must stand alone. The
-   draft is applied later — reviewed against `/afk:writing-great-skills` — via
+   draft is applied later — reviewed against `/afk:writing-for-agents` — via
    `/afk:lessons apply`, never in this session. Report the minted lesson id in
    Phase 4.
