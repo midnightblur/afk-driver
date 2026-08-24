@@ -10,6 +10,16 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-24
+
+- **Agents now trace load-bearing claims to code before stating them, or label
+  them `unverified: <reason>`**: new "Truth grounding" principle in
+  `harness/shared/core-services.md` (code over documents, cross every
+  boundary, absence needs exhaustive enumeration, check specifics at claim
+  time, label the unverified), pointed at from the `afk-reader` agent
+  definition and `DELEGATION.md`'s return contract. Grounded in a mined
+  catalog of 30+ retracted-claim incidents across 26 past sessions.
+
 ## 2026-08-19
 
 - **A hung subtask subagent now wakes the orchestrator instead of stalling the

@@ -51,5 +51,6 @@ Role-based tiers — the role decides the model, named explicitly per provider i
 
 - Return ends with a terse structured tail owned by the invoking skill's grammar (`OUTCOME:` line, findings JSON, verdict token — never a new token, per `REPORTING.md`). A skill defining no grammar gets the default: `OUTCOME: <ok|fail|blocked> — <one line>`.
 - Body ≤ ~30 lines. Every claim carries a citation — `file:line`, or command + exit code — so the orchestrator spot-checks without re-reading the child's inputs.
+- Load-bearing claims meet the truth-grounding bar (`tools/payable/ai-agents/harness/shared/core-services.md` § "Truth grounding") — absence claims exhaustively enumerated; the unchecked returned as `unverified: <reason>`, never as fact.
 - **Bulk evidence never rides the return.** Logs, traces, raw suite output go to a file (the run's artifact dir when the skill has one, else the scratchpad); the return carries the path.
 - Orchestrator acts on the digest. Re-reading what the child already read defeats the delegation; spot-checks go through the citations.
