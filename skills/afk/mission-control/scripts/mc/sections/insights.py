@@ -21,7 +21,7 @@ _JOURNAL_FLAGS = [
     # status tokens only (`park(reason)` / `PF-n parked(reason)`), not prose
     # mentioning parking — journal grammar: JOURNAL-FORMAT.md
     (re.compile(r"(?:^|\s)park(?:ed)?\(", re.IGNORECASE), _ACT, "park"),
-    (re.compile(r"design_conflict|contract_mismatch|produces_drift|adversary_fail|review_fail"), _ACT, "exit"),
+    (re.compile(r"design_conflict|contract_mismatch|produces_drift|adversary_fail|review_fail|needs_decision"), _ACT, "exit"),
     (re.compile(r"smoke[- ]failing", re.IGNORECASE), _ACT, "smoke-red"),
     (re.compile(r"refused", re.IGNORECASE), _KNOW, "refused"),
     (re.compile(r"review blocking", re.IGNORECASE), _KNOW, "review-blocking"),

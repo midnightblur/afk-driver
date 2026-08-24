@@ -144,13 +144,23 @@ A subtask that never started because something it is blocked by parked. Recorded
 A subtask whose executing subagent died mid-run, leaving its tracker row at an in-flight status. The journal line flagging it is the truth; the stale cell is not.
 
 **Driven mode**:
-`execute` run non-interactively under a driver: it never pauses to ask — a would-be question becomes the closest structured failure outcome.
+`execute` run non-interactively under a driver: it never pauses to ask — a decision point follows the decision protocol (`DECISIONS.md`, plugin root); only a parked fork becomes a structured failure outcome.
+
+**Decision point**:
+A fork mid-run where specs, contract, findings, or reality disagree and more than one defensible option exists. Classified per `DECISIONS.md` (plugin root): two-way doors are decided on the record; one-way doors and ties park.
+
+**Two-way door**:
+A decision reversible on the branch — undo is a revert plus rework; no migration, external write, or published contract survives it. A hands-off agent takes the recommended option itself and records it in the decision ledger. Opposite — **one-way door**: a wrong call outlives the feature, so the human decides.
+_Avoid_: reversible/irreversible decision (rotating synonym)
+
+**Decision ledger**:
+`plan/DECISIONS.md` — the append-only record of auto-taken two-way-door decisions (grammar: `DECISIONS.md`, plugin root). Executors honour recorded entries over the spec passages they quote; the end-of-run report lists new entries for the human's audit.
 
 **Status ladder**:
 The tracker progression `pending → designing → developing → verifying → reviewing → done` that `execute` advances one cell at a time.
 
 **OUTCOME statuses**:
-The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `blocked_by`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
+The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `blocked_by`, `needs_decision`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
 
 ## Bug pipeline
 

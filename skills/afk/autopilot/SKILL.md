@@ -46,16 +46,17 @@ Sequential by design: one subtask, one worktree, one app instance at a time. Do 
 - Every non-parked subtask `done` (including terminal `NNNN-smoke-*` / `NNNN-sync-harness` build subtasks) → run `/afk:smoke-test` against the self-provisioned instance. A parked terminal `NNNN-smoke-*` build subtask parks the feature gate too — the smoke suite is not run half-suited; report `smoke: not_run` with the park.
 - **On smoke-green** (`PLAN.md`'s `Feature:` header reads `complete (smoke green …)` or `complete (minimal gate, …)`) → invoke /afk:preflight `{plan-dir}`. The one added chain step (SDD §8 row "M2 autopilot chain edit", §14 row "autopilot skill chain") — the per-subtask `/afk:execute` tail (tiers → review → adversary → commit → push → Draft-MR checklist) stays untouched, and a human can still run `/afk:preflight {plan-dir}` by hand later (e.g. to resume a `parked(PF-n: …)` feature) — chaining it here doesn't retire the standalone entry point. Preflight's outcome (`success` / `refused(no_green_smoke)` / `parked(PF-n: …)` / `other`) folds into this run's report and, on `parked(PF-n: …)`, gets the same push notification + report treatment as a subtask park (per `REPORTING.md`) — smoke-red or smoke-`not_run` skips this step entirely (nothing to chain onto).
 - **Stop the warm instance.** At run end — green, red, or parked — read `.claude/hooks/.app-instance-{side port}` and kill the recorded pid tree (the stop command the gate printed); the instance never outlives the run. No state file or dead pid → nothing to do.
-- Send the end-of-run notification and report. Driven subtask runs draft workflow lessons nobody has approved yet (`skills/afk/lessons/CAPTURE.md`); read the open count via `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count` from the worktree root — a non-zero count tells the human `/afk:lessons apply` is worth a stop.
+- Send the end-of-run notification and report. Read `plan/DECISIONS.md` first: every entry whose `decision(D-{n})` journal line falls inside this run's window goes on the report's `decisions:` line (protocol: `DECISIONS.md`, plugin root) — the human audits hands-off decisions at run end, never mid-run. Driven subtask runs draft workflow lessons nobody has approved yet (`skills/afk/lessons/CAPTURE.md`); read the open count via `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count` from the worktree root — a non-zero count tells the human `/afk:lessons apply` is worth a stop.
 
 ```
-AUTOPILOT: <n_done>/<n_total> done, <n_parked> parked — smoke: <verdict|not_run> — preflight: <verdict|not_run>
+AUTOPILOT: <n_done>/<n_total> done, <n_parked> parked — smoke: <verdict|not_run> — preflight: <verdict|not_run> — decisions: <n>
 In plain terms: <one jargon-free sentence — what the human comes back to and what needs their decision first>
 parked: {NNNN-slug}(status — <plain-terms clause>), … [+ dependents by inheritance] [+ preflight: parked(PF-n: reason) if applicable]
+decisions: D-{n} (<≤6-word gloss>), … — auto-taken, each reversible on the branch; full entries: plan/DECISIONS.md (omit the line when 0)
 Journal: plan/JOURNAL.md · Reviews: plan/review/INDEX.md · Lessons: <n> open
 ```
 
-The report follows `REPORTING.md` (plugin root). Any park, any red smoke row, any waived scenario is in the report explicitly — the human must never discover state the report omitted. The journal carries the same events in order, so the report stays terse: the report is the triage view, the journal the reconstruction view.
+The report follows `REPORTING.md` (plugin root). Any park, any red smoke row, any waived scenario, and every auto-taken decision is in the report explicitly — the human must never discover state the report omitted. The journal carries the same events in order, so the report stays terse: the report is the triage view, the journal the reconstruction view.
 
 ## Hard rules
 

@@ -78,28 +78,38 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 
 ## Conflict procedure (cited mode)
 
-If the subtask has a `## Conflict procedure` block, follow it verbatim on a
+If the subtask has a `## Conflict procedure` block, follow it on a
 binding-contract violation. The canonical flow:
 
 1. Stop coding the moment you realize the SDD/ADR mandate is unimplementable or
    contradicts reality. Don't paper over it.
-2. Stage no code; commit nothing under the conflict.
-3. Report `design_conflict` quoting the SDD section + the conflict, and set the
-   tracker row to `blocked(design_conflict: …)`.
-4. Run `/afk:grill-solution` for a superseding ADR before re-running.
+2. Classify the fork per the decision protocol (`DECISIONS.md`, plugin root).
+   A **two-way door**: record the corrective call in `plan/DECISIONS.md` (its
+   `Supersedes:` line quotes the SDD/ADR passage it overrides), implement the
+   recorded call, continue — no park.
+3. A **one-way door or a tie**: stage no code; commit nothing under the
+   conflict. Report `design_conflict` quoting the SDD section + the conflict
+   and your recommendation, and set the tracker row to
+   `blocked(design_conflict: …)`.
+4. Run `/afk:grill-solution` for a superseding ADR before re-running a parked
+   conflict.
 
-**Do NOT silently override the SDD/ADR.** Substituting a different pattern or
-interface breaks the binding contract and produces work other subtasks can't
-integrate with.
+**Never override the SDD/ADR off the record.** An unrecorded substitution of a
+different pattern or interface breaks the binding contract and produces work
+other subtasks can't integrate with. The recorded two-way-door entry is the one
+sanctioned deviation channel — later slices read the ledger and build on the
+same call.
 
 ## Cited-mode OUTCOME statuses
 
 These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 13:
 
 - `design_conflict` — cited mode. A binding SDD/ADR decision is wrong,
-  infeasible, or contradicts reality. Name the SDD section / ADR + the
-  concrete conflict; route the human to `/afk:grill-solution` for a
-  superseding ADR before re-running.
+  infeasible, or contradicts reality, and the correction is a one-way door or
+  a tie (`DECISIONS.md`, plugin root — a two-way-door correction is recorded
+  in `plan/DECISIONS.md` and never parks). Name the SDD section / ADR + the
+  concrete conflict + your recommendation; route the human to
+  `/afk:grill-solution` for a superseding ADR before re-running.
 - `contract_mismatch` — cited mode. Step 2: an upstream `## Produces`
   artifact is missing or its anchor doesn't appear. Name the `{PRODUCER-ID}`
   and quote the bullet; record on both subtask files.

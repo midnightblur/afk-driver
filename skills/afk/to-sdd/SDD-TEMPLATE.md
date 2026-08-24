@@ -36,7 +36,7 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | Internal naming, control flow | ❌ | ✅ |
 | Test fixture structure | ❌ | ✅ |
 
-**Conflict procedure.** Executor finds a binding decision wrong / infeasible / contradicting reality → exit the subtask with `design_conflict` status quoting the SDD section + the conflict. Route back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Never override silently.
+**Conflict procedure.** Executor finds a binding decision wrong / infeasible / contradicting reality → classify per the decision protocol (`DECISIONS.md`, workflow plugin root): a two-way-door correction is recorded in `plan/DECISIONS.md` and implemented; a one-way door or a tie exits the subtask with `design_conflict` status quoting the SDD section + the conflict, routed back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Never override off the record.
 
 **Human sign-off register.** One row per human-locked aspect (the set, its contract grades, and the signing protocol: `skills/afk/grill-solution/HUMAN-SIGNOFF.md`), transcribed from the solution grill's log — never re-derived, never inferred. These aspects were decided by a human, not by the design conversation; the row is the proof.
 

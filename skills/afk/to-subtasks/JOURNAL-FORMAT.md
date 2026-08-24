@@ -30,7 +30,7 @@ A plan's append-only event log: one timestamped line per event, newest last. Let
 
 | Writer | Events |
 |---|---|
-| `execute` | `designing`, `developing`, `verifying`, `reviewing`, `done`; `pushed {short-sha}..{short-sha} ({n} commits)`; `review {verdict} crit={n} high={n} med={n} low={n}`; `adversary {verdict} …`; `parked({status})` |
+| `execute` | `designing`, `developing`, `verifying`, `reviewing`, `done`; `pushed {short-sha}..{short-sha} ({n} commits)`; `review {verdict} crit={n} high={n} med={n} low={n}`; `adversary {verdict} …`; `decision(D-{n})` (auto-taken two-way door — protocol + ledger grammar: `DECISIONS.md`, plugin root); `parked({status})` |
 | `autopilot` | `run start ({n} runnable)`; `heartbeat {k}/{n} done, starting {NNNN-slug}`; `parked({status})`; `park-inherited(waiting on {ID})`; `stranded`; `run end ({k}/{n} done, {p} parked)` |
 | `smoke-test` | `smoke {verdict} ({passed}/{run} scenarios{, k skipped env-limited})` |
 | `understand` | `generated`; `failed({reason})` (subject token `understanding`; owned by `skills/afk/understand/SKILL.md`, the emitter — a token added or renamed there is a same-commit change here) |

@@ -22,6 +22,15 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-19
 
+- **Hands-off runs now take reversible decisions themselves instead of parking
+  for you**: new plugin-root `DECISIONS.md` protocol — a mid-run fork (design
+  conflict, spec inconsistency, review remediation choice) with a clear,
+  branch-reversible winner is decided on the record (append-only
+  `plan/DECISIONS.md` entry + a `decision(D-n)` journal line) and the run
+  continues. One-way doors (migrations, external writes, human-locked aspects,
+  plan reshapes) and ties still park — now as `needs_decision` naming the fork
+  plus the agent's recommendation. `/afk:autopilot`'s end-of-run report lists
+  every auto-taken decision for audit; each is reversible on the branch.
 - **A hung subtask subagent now wakes the orchestrator instead of stalling the
   run until a human asks**: new `hooks/stall-watchdog.sh` runs in a background
   shell beside every long-running child spawn and exits when the child's disk

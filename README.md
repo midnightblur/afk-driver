@@ -449,6 +449,7 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 └── plan/                      ← /afk:to-subtasks
     ├── PLAN.md                  (index: solution map, seam register, progress tracker, smoke gate)
     ├── JOURNAL.md               (append-only event log — the "what happened while you were gone" file)
+    ├── DECISIONS.md              (append-only decision ledger — two-way doors taken hands-off, per root DECISIONS.md)
     ├── TRACE.md                 (end-of-feature rollup: acceptance criterion → subtask → commits → tests)
     ├── review/                  (review + adversary reports, INDEX.md rollup per subtask)
     └── NNNN-slug.md             (one contract per subtask)
@@ -533,7 +534,8 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived its remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
-| `design_conflict` | a binding SDD/ADR decision is wrong/infeasible | `/afk:grill-solution` → superseding ADR |
+| `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk:grill-solution` → superseding ADR |
+| `needs_decision` | a decision fork parked per the decision protocol (`DECISIONS.md`) — one-way door or tie, no closer status | read the fork + recommendation in the outcome, answer it, re-run (two-way doors never park — they're auto-taken and listed in `plan/DECISIONS.md`) |
 | `timeout` / `other` | wall-clock cap / unexpected | inspect and re-run |
 
 Every `OUTCOME:` line arrives with one jargon-free `In plain terms:` sentence and

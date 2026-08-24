@@ -114,8 +114,11 @@ doesn't exist.>
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality
-during implementation, exit `design_conflict` quoting the SDD section + the
-conflict. Do NOT override silently. Route back to `/afk:grill-solution` for a
+during implementation, classify per the decision protocol (`DECISIONS.md`,
+workflow plugin root): a two-way-door correction is recorded in
+`plan/DECISIONS.md` and implemented; a one-way door or a tie exits
+`design_conflict` quoting the SDD section + the conflict. Never override off
+the record. Parked conflicts route back to `/afk:grill-solution` for a
 superseding ADR.
 (omit this block in uncited mode)
 ```
