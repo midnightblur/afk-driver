@@ -97,7 +97,9 @@ against its findings file, joins the actionable set unless the merged tip
 already fixed it. Every actionable finding — `medium`/`low` included — is fixed or
 disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
 `compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
-`scope` is unreachable — the `--feature` roster carries no scope concern.
+`product-debt` never gates but owes a `## Known debt` home (`/afk:review`
+"Product-debt homes"), which PF-4d then enforces; `scope` is unreachable — the
+`--feature` roster carries no scope concern.
 Round-close cheap re-verification (SETTLEMENT.md step 7) is a reactor compile
 of the touched modules plus the local tests covering the fix — the full
 validation suite already ran at PF-2 and CI (PF-6/7) remains the expensive
@@ -160,11 +162,6 @@ exists and carries a `## Known debt` entry for it.
 - Any accepted `product-debt` finding with no home → land the entry via
   `/afk:claude-md` within the shared fix cap, then re-check; cap
   exhausted → `park(PF-4d: unhomed_product_debt)` naming each one.
-
-This is the one place the loop closes mechanically. Everything else
-about product-debt is a convention someone has to remember; this row is
-what makes forgetting it fail loudly, at the only moment where the run's
-own records still exist to check against.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
