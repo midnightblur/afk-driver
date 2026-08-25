@@ -29,6 +29,11 @@ Read `skills/utils/writing-for-agents/HARNESS-MECHANICS.md` before proposing —
 ## STAPLES.md — cross-cutting staples registry (this skill also stewards it)
 This skill is the **sole writer** of each service's `{service}/STAPLES.md` (what a staple is + how the chain consults it: plugin-root `CLAUDE.md` "Staples registry"). The file self-documents its entry format (`Status / Trigger / Obligation / Reference / Since`); keep new entries to that shape. Inclusion bar for a new staple: **cross-cutting** obligation (applies across features, keyed to a trigger), **durable**, real **Reference** exemplar (or explicit `TODO` until one ships). One-off feature behaviour is NOT a staple — it goes in the feature's own docs. Writes go through the same **propose → approve → write** protocol. Invoked to register/advance a staple most often by the terminal `NNNN-sync-harness` subtask at feature delivery, or standalone to promote one retroactively.
 
+## Known debt — the durable home for adjudicated shortcomings (this skill also stewards it)
+This skill is the **sole writer** of each `CLAUDE.md`'s optional `## Known debt` section: shortcomings that are real, understood, and deliberately not fixed, so the next agent on that ground does not re-propose a rejected fix. Placed at the nearest `CLAUDE.md` to the code, by the same scope/cohesion rule as any other line. Entry shape: one bolded sentence naming the shortcoming, then what was considered and **why it was rejected**, then the condition that would reopen it. A reason is mandatory — an entry that only names the flaw is a `// TODO:` at the wrong altitude, and belongs at the code site instead.
+
+Inclusion bar, beyond the standard four gates: the debt must be **adjudicated** (someone decided not to fix it, with a reason) and **durable** (it survives this feature). An open finding is not known debt, and neither is a one-line cleanup nobody has ruled on. `/afk:review` routes `product-debt` findings here; `/afk:preflight` PF-4d refuses to go green while an accepted one has no entry. Writes go through the same **propose → approve → write** protocol.
+
 ## Content style
 Read `LANGUAGE.md` (plugin root) — the concision bar (§3) plus its "Steering notes" section — and apply it to every note written.
 

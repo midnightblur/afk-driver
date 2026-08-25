@@ -66,6 +66,8 @@ review settle-loop rounds (cap 10 — owned by
 | 3 | PF-3 fresh-context review of the integrated diff (settle loop) | pending | 0/10 | — |
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
 | 4b | PF-4b understanding artifact (advisory, never parks) | pending | — | — |
+| 4c | PF-4c open workflow lessons (advisory, never parks) | pending | — | — |
+| 4d | PF-4d product-debt homed in its CLAUDE.md (shared cap) | pending | — | — |
 | 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |
 | 6 | PF-6 launch ci-wait (background) | pending | — | — |
 | 7 | PF-7 CI outcome routing (Draft→Ready on green) | pending | 0/2 | — |

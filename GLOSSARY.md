@@ -156,6 +156,13 @@ _Avoid_: reversible/irreversible decision (rotating synonym)
 **Decision ledger**:
 `plan/DECISIONS.md` — the append-only record of auto-taken two-way-door decisions (grammar: `DECISIONS.md`, plugin root). Executors honour recorded entries over the spec passages they quote; the end-of-run report lists new entries for the human's audit.
 
+**Pattern debt**:
+A review finding where a baseline catalog item and the target repo's own documented idiom disagree, and the repo wins. Never blocks. Recorded in `plan/review/PATTERN-DEBT.md`, which lives and dies with the run — the evidence trail for whether a documented pattern deserves revisiting, not a fact about the code.
+
+**Product debt**:
+A shortcoming in shipped product code that is real, adjudicated, and deliberately not fixed. Never blocks. Its home is the `## Known debt` section of the nearest `CLAUDE.md`, written by `/afk:claude-md`, so it reaches the next agent on that ground long after the run's `plan/` directory is gone. Distinguished from pattern debt by what it is about: pattern debt is about the review, product debt is about the code.
+_Avoid_: tech debt (too broad — this is the adjudicated, homed subset)
+
 **Status ladder**:
 The tracker progression `pending → designing → developing → verifying → reviewing → done` that `execute` advances one cell at a time.
 

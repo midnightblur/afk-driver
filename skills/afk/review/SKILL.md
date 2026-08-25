@@ -109,7 +109,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
   "concern": "claude-md-compliance",
   "criterion": "<checklist item name, e.g. 'Shallow Module (APoSD)', or 'open-question'>",
   "severity": "critical|high|medium|low",
-  "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt",
+  "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt|product-debt",
   "file": "11700-payable/.../Foo.java",
   "line": 42,
   "finding": "One-line headline.",
@@ -131,6 +131,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 | `test` | a test that doesn't prove the behaviour it claims to |
 | `design` | a design-level judgment call — module shape, domain boundary, resilience gap, contract-surface defect |
 | `pattern-debt` | the diff follows a documented repo pattern where the baseline catalog disagrees — never blocks, feeds the debt ledger |
+| `product-debt` | a real shortcoming in shipped product code, understood and deliberately not fixed — never blocks, routes to the code's own `CLAUDE.md` |
 
 `criterion` names the checklist item that produced the finding (`open-question` for the open-question slot) — the key for per-criterion outcome telemetry: the caller records each finding's remediation outcome as `plan/review/{basename}-{base-short}.outcomes.json` (`--tag` appends `-{tag}`) (`{"r-001": "fixed" | "dismissed(<reason>)" | "deferred"}` — the caller's own artifact in this directory, like the adversary's reports), and `/afk:retro` aggregates which criteria earn their keep.
 
@@ -168,11 +169,17 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 
 | Verdict | When |
 |---|---|
-| `clean` | zero findings (`pattern-debt` excluded — it never counts toward any verdict) |
+| `clean` | zero findings (`pattern-debt` and `product-debt` excluded — neither counts toward any verdict) |
 | `advisory` | only `medium`/`low` findings |
 | `blocking` | any `critical`/`high` finding |
 
 **Pattern-debt ledger.** Append each `pattern-debt` finding as one row to `plan/review/PATTERN-DEBT.md` (create with the header row if missing): `| date | source report | criterion | overriding repo rule | one-line conflict |`. The ledger is the evidence trail for evolving the documented pattern — a criterion recurring across features is a signal, not noise.
+
+**Product-debt homes.** `pattern-debt` and `product-debt` both name something known and unfixed, and they differ in what goes stale. Pattern-debt is about *this review* — a baseline criterion the repo's own idiom overrides — so its ledger belongs with the run and dies with it. Product-debt is about *the code*, and outlives every run that touches it.
+
+Classify a finding `product-debt` when all three hold: it is real, the obvious fix was considered and rejected for a stated reason, and the reason will not be obvious to the next reader. A finding nobody has adjudicated is not product-debt — it is an open finding.
+
+The home is the **nearest `CLAUDE.md` to the code**, under a `## Known debt` heading, written through `/afk:claude-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
 
 What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 

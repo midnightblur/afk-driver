@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-25
+
+- Reviews can now classify a finding `product-debt`: a real shortcoming in shipped code that was adjudicated and deliberately not fixed. Unlike `pattern-debt`, which is recorded under `plan/` and deleted with it at merge, product debt is written to a `## Known debt` section in the nearest `CLAUDE.md` — so the next agent on that ground reads why the obvious fix was rejected instead of proposing it again. `/afk:preflight` gains **PF-4d**, which refuses to go green while an accepted product-debt finding has no home.
+
 ## 2026-08-24
 
 - **Agents now trace load-bearing claims to code before stating them, or label

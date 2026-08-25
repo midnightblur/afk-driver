@@ -149,6 +149,23 @@ human at the ship gate: `<n> > 0` changes nothing mechanically — the count
 rides the PF table into the report and MR evidence block; applying the drafts
 is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
 
+**PF-4d product-debt homes — a real gate, not advisory.** Reached once
+PF-4c is `green`. Read every `plan/review/*.outcomes.json` for entries
+whose outcome is `settled(product-debt: <path>)`, plus any finding this
+run classified `product-debt`. For each, confirm the named `CLAUDE.md`
+exists and carries a `## Known debt` entry for it.
+
+- All homed (or none found) → row `green`, `Evidence: product-debt
+  homed: <n>`.
+- Any accepted `product-debt` finding with no home → land the entry via
+  `/afk:claude-md` within the shared fix cap, then re-check; cap
+  exhausted → `park(PF-4d: unhomed_product_debt)` naming each one.
+
+This is the one place the loop closes mechanically. Everything else
+about product-debt is a convention someone has to remember; this row is
+what makes forgetting it fail loudly, at the only moment where the run's
+own records still exist to check against.
+
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
    `--once` mode against this feature's spec folder (fronted by
@@ -207,8 +224,8 @@ mirrors it — a lockstep pair, keep both in sync):
 
 ## Shared fix-cycle cap
 
-PF-2, PF-4, PF-7 share **one** counter, capped at **2** per preflight run (not
-2 each). Increment **before** each attempt, so a crash mid-fix still counts the
+PF-2, PF-4, PF-4d, PF-7 share **one** counter, capped at **2** per preflight run
+(not 2 each). Increment **before** each attempt, so a crash mid-fix still counts the
 attempt on resume. Exhausted → the next would-be fix becomes a park at that
 step, naming which step hit the cap. PF-3 sits **outside** this counter — its
 settle loop keeps its own round accounting
