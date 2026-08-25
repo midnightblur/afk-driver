@@ -10,6 +10,15 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-25
+
+- **Lavish browser tabs now show the page's own title instead of "Lavish
+  Editor"**: `lavish-axi` pin bumped 0.1.36 → 0.1.43 (`LAVISH.md`) — the
+  editor shell now mirrors the artifact's `<title>` (`{title} · Lavish`) and
+  favicon into the tab, so concurrent review tabs are finally
+  distinguishable. Restart the background server (`npx lavish-axi@0.1.43
+  stop` with no session open) to pick up the new version.
+
 ## 2026-08-24
 
 - **Agents now trace load-bearing claims to code before stating them, or label

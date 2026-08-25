@@ -9,13 +9,14 @@ restate any of the below. This file names no caller skill.
 
 ## Pin and invocation
 
-**Pin: `lavish-axi@0.1.36`** — the only place this version string appears in
+**Pin: `lavish-axi@0.1.43`** — the only place this version string appears in
 the plugin.
 
 Chosen for the repo's dependency-age floor (exact pins, ≥30 days old):
-published 2026-07-03, 31 days old as of the 2026-08-03 CLI-surface
+published 2026-07-22, 34 days old as of the 2026-08-25 CLI-surface
 verification (registry `time` field checked directly against
-`registry.npmjs.org`). The background server keeps whatever version launched
+`registry.npmjs.org`; every invocation shape below re-verified against the
+0.1.43 `--help` surface). The background server keeps whatever version launched
 it — after a pin change, `stop` once no session is open so the next render
 starts the pinned version.
 
@@ -24,14 +25,14 @@ goes through pinned `npx`:
 
 | Shape | Command | Use |
 |---|---|---|
-| Render (open) | `npx lavish-axi@0.1.36 <file>` | open or resume a session, browser opens |
-| Render (no browser) | `npx lavish-axi@0.1.36 <file> --no-open` | same, skip opening the browser window |
-| Reopen | `npx lavish-axi@0.1.36 <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
-| Poll | `npx lavish-axi@0.1.36 poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
-| Poll + reply | `npx lavish-axi@0.1.36 poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
-| End | `npx lavish-axi@0.1.36 end <file>` | end a session the agent initiated |
-| Stop | `npx lavish-axi@0.1.36 stop` | shut down the background server |
-| Playbook | `npx lavish-axi@0.1.36 playbook [id]` | show guidance for one playbook, or list all |
+| Render (open) | `npx lavish-axi@0.1.43 <file>` | open or resume a session, browser opens |
+| Render (no browser) | `npx lavish-axi@0.1.43 <file> --no-open` | same, skip opening the browser window |
+| Reopen | `npx lavish-axi@0.1.43 <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
+| Poll | `npx lavish-axi@0.1.43 poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
+| Poll + reply | `npx lavish-axi@0.1.43 poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
+| End | `npx lavish-axi@0.1.43 end <file>` | end a session the agent initiated |
+| Stop | `npx lavish-axi@0.1.43 stop` | shut down the background server |
+| Playbook | `npx lavish-axi@0.1.43 playbook [id]` | show guidance for one playbook, or list all |
 
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.
@@ -170,7 +171,9 @@ the content it explains. The tooltip layer carries all decoding:
 Concurrent sessions mean concurrent browser tabs: every artifact carries a
 `<title>` naming what the page is plus whose it is — `{page purpose} —
 {feature}` (spec-folder tail or ticket id) — so open tabs stay
-distinguishable. Set it when the artifact file is created; the per-phase file
+distinguishable. The editor shell mirrors that `<title>` into the browser tab
+(`{title} · Lavish`) and adopts the artifact's favicon, reading both from the
+artifact's first 10 KB — keep the tag in `<head>`, near the top. Set it when the artifact file is created; the per-phase file
 resumes across renders, so retitle only when the page's subject changes. A
 missing title is backfilled at render by `hooks/lavish-tips.sh` (filename
 stem + spec-folder tail, meta or discovered) — a floor, not the authored name.
