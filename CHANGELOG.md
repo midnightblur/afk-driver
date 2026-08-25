@@ -12,6 +12,13 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-08-25
 
+- **`/afk:setup` offers two opt-in user preferences again** (deselected-by-
+  default election on every run — the manifest's opt-in tier is back): **H7**
+  installs the Simplified Technical English reply standard into the
+  user-global steering files, so sessions outside the plugin follow it too;
+  new **H8** installs a grilling-session render default — interactive
+  explain/ask rounds render through lavish (`LAVISH.md`, new RP-10) even when
+  no skill's own render point is in play.
 - **Lavish browser tabs now show the page's own title instead of "Lavish
   Editor"**: `lavish-axi` pin bumped 0.1.36 → 0.1.43 (`LAVISH.md`) — the
   editor shell now mirrors the artifact's `<title>` (`{title} · Lavish`) and
