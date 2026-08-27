@@ -73,6 +73,11 @@ claims are most common — the claim-type table above covers the how; e.g.:
   the actual signature and its entry path; the seam walk is this rule
   applied per seam.
 
+**A derived finding is a claim too.** A conflict, hole, or violation inferred
+from several facts is only as verified as its least-verified leg. Before
+presenting one to the human — in chat, a poll reply, or a rendered card —
+verify every leg, or present it as a hypothesis naming the unverified leg.
+
 Verification is cheap (one `ctx_search` / `ctx_read`); a wrong premise
 is not. Drafting an answer that references
 something specific in the codebase — **verify before you write it down.**

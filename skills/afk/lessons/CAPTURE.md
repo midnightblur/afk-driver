@@ -27,6 +27,10 @@ as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
 2. **Name the target** — the repo-relative file where the durable edit belongs.
 3. **Draft the edit** — the concrete line/wording change, self-contained in the
    `draft` field (never a pointer to a temp file).
+4. **Measure any worked example.** A worked example citing round numbers,
+   counts, or commits names the artifact it was measured from, and the
+   measurement is re-run when the lesson is applied. A worked example is the
+   part a later reader trusts most and verifies least.
 
 ## Route — eager when possible, drafted when not
 

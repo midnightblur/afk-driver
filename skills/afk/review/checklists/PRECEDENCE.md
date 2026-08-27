@@ -9,4 +9,9 @@ Rules binding every checklist item marked as **baseline** (book-derived catalog 
 5. **The open question.** After the checklist pass, add at most ONE finding answering: what is the most important problem in this diff that no checklist item covers? Mark it `concern: <yours>`, evidence-cited like any other; none is a fine answer.
 6. **Never stamp `product-debt`.** That class marks a shortcoming already adjudicated and deliberately left unfixed, and it is assigned by the gate's referee at settle time — never by a reviewer, who sees no adjudication history. It does not gate, so a reviewer reaching for it would be suppressing its own finding. Report what you found at the severity you judge; if the fix was already considered and rejected, the settle loop is where that surfaces.
 
+## Evidence method — binding on every finding, baseline or not
+
+- **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — you get the record's own answer back. Design a separate check: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found and name the pattern you used.
+- **Open the document, not its title.** Before overturning a cited rule, or asserting none exists, read the cited file and the `CLAUDE.md` that auto-loads for the directory under review. An accepted amendment can add a rule the document's title never mentions.
+
 Source-tag legend: Fowler = *Refactoring* 2nd ed. ch.3 · APoSD = Ousterhout, *A Philosophy of Software Design* · EJ = Bloch, *Effective Java* 3rd ed. item · CC2 = McConnell, *Code Complete 2* · DDD = Evans · Nygard = *Release It!* 2nd ed. · Newman = *Building Microservices* 2nd ed. · PoEAA = Fowler, *Patterns of Enterprise Application Architecture* · Meszaros = *xUnit Test Patterns* · Bloch-API = "How to Design a Good API" · Beck = four rules of simple design / *Tidy First?*

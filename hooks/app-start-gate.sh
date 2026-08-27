@@ -62,8 +62,27 @@ if [ "$port" != "0" ] && [ -f "$state_file" ]; then
     echo "[app-start-gate] killing prior kept instance pid=$prev_pid on port $port ..."
     [ -n "$prev_winpid" ] && taskkill //F //T //PID "$prev_winpid" >/dev/null 2>&1
     kill "$prev_pid" >/dev/null 2>&1
-    sleep 2
+    # Confirm it died. A recorded winpid can be wrong (its signature: pid and
+    # winpid identical), taskkill then misses silently, and the surviving java
+    # process keeps the boot jar locked. The next build dies in
+    # spring-boot:repackage on a rename failure, which reads as a code fault.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "$prev_pid" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$prev_pid" 2>/dev/null; then
+      # Fall back to whoever actually owns the port.
+      port_owner=$(netstat -ano 2>/dev/null | grep ":${port} .*LISTENING" | awk '{print $NF}' | head -1)
+      [ -n "${port_owner:-}" ] && taskkill //F //T //PID "$port_owner" >/dev/null 2>&1
+      sleep 2
+    fi
+    if kill -0 "$prev_pid" 2>/dev/null; then
+      echo "[app-start-gate] pid=$prev_pid survives on port $port and holds the boot jar; kill it by hand" >&2
+      exit 3
+    fi
   fi
+  # Only once nothing holds the port: a state file removed over a live process
+  # loses the only record of what to kill.
   rm -f "$state_file"
 fi
 

@@ -167,7 +167,7 @@ _Avoid_: tech debt (too broad — this is the adjudicated, homed subset)
 The tracker progression `pending → designing → developing → verifying → reviewing → done` that `execute` advances one cell at a time.
 
 **OUTCOME statuses**:
-The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `blocked_by`, `needs_decision`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
+The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `adversary_unrun`, `blocked_by`, `needs_decision`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
 
 ## Bug pipeline
 
