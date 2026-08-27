@@ -10,6 +10,22 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-08-27
+
+- **New `afk-runner-lite` subagent (Haiku) splits trigger-3 execution by
+  judgment, not by output size.** Checks whose verdict *is* the exit code —
+  formatter validate, linters, anchor greps, static-tier compiles — now route
+  to it; test suites, reactor builds, and live tiers stay on `afk-runner`
+  (Sonnet), because those verdicts turn a gate green. `/afk:settle-mr`'s Java
+  format + UI lint checks are the first callers. The cheap type never guesses:
+  a result needing interpretation comes back `blocked — needs_triage: …` and
+  the caller re-runs it on `afk-runner` — one wasted cheap call instead of a
+  wrong verdict. Requires a **session restart**, not `/reload-plugins` (agent
+  definitions are scanned at session start). Routing test + escalation rule:
+  `DELEGATION.md` "Runner split"; tier names: `PROVIDERS.md`. On Codex the
+  type exists but maps to the same Terra-at-low-effort as the digest tier —
+  nothing below Terra ships, so the split saves nothing there.
+
 ## 2026-08-25
 
 - **`/afk:setup` offers two opt-in user preferences again** (deselected-by-

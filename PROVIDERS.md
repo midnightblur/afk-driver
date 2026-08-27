@@ -10,11 +10,11 @@ vocabulary; on Codex, read this once per session and apply the mapping.
 |---|---|---|
 | Invoke a workflow skill `/afk:<x>` | `/afk:<x>` slash command | `$afk-<x>` skill mention (or the `/skills` picker); mirrors live in `.agents/skills/` |
 | Invoke a project skill | `.claude/skills/<x>` via `/x` | `$<x>` |
-| Spawn a subagent | Agent/Task tool with `subagent_type`: `afk-reader` / `afk-runner` / `afk-implementor` / `general-purpose` / `Explore` | spawn agent `afk-reader` / `afk-runner` / `afk-implementor` (defs in `.codex/agents/*.toml`); `general-purpose` → built-in `worker`, `Explore` → built-in `explorer` |
+| Spawn a subagent | Agent/Task tool with `subagent_type`: `afk-reader` / `afk-runner` / `afk-runner-lite` / `afk-implementor` / `general-purpose` / `Explore` | spawn agent `afk-reader` / `afk-runner` / `afk-runner-lite` / `afk-implementor` (defs in `.codex/agents/*.toml`); `general-purpose` → built-in `worker`, `Explore` → built-in `explorer` |
 | Parallel spawns "in one message" | parallel Agent calls in one message | parallel agent spawns in one step (`max_threads`, default 6) |
 | Continue a spawned child (persistent child across rounds) | `SendMessage` to the child's id/name from the Agent tool result — same context, no respawn | no continuation — respawn fresh each round; the caller keeps durable state on disk, so this is degraded, not broken |
 | Nesting cap 3 (`DELEGATION.md`) | native | needs `[agents] max_depth = 3` in `~/.codex/config.toml` (provided by `codex-sync/config-fragment.toml`); at the default depth 1, helper spawns run inline — degraded, not broken |
-| Model tiers (see below) | `fable` / `opus` / `claude-opus-4-8` / `sonnet` by tier — table below | `gpt-5.6-sol` / `-terra` by tier — table below |
+| Model tiers (see below) | `fable` / `opus` / `claude-opus-4-8` / `sonnet` / `haiku` by tier — table below | `gpt-5.6-sol` / `-terra` by tier — table below |
 | Jira MCP tools `mcp__jira__*` | plugin-provided `mcp__jira__<tool>` | same server registered via `config.toml` `[mcp_servers.jira]`; tool prefix differs — match by tool name |
 | Agent-runtime env marker | `CLAUDECODE` | `AFK_PROVIDER=codex` (hard-set by generated hook commands; native `CODEX_*` markers unverified) |
 | Plugin root / data dirs | `CLAUDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_DATA` | repo-relative paths / `~/.afk/data/<plugin>` (resolved by `hooks/lib/provider.sh`) |
@@ -60,6 +60,7 @@ first-listed model is unavailable (plan, region, outage), use the next.
 | **frontier** | `fable` (Fable 5); `opus` (alias — always the latest Opus, currently Opus 5) if Fable is unavailable | `gpt-5.6-sol` at high/xhigh reasoning; `gpt-5.5` if Sol is unavailable |
 | **implementation** | `claude-opus-4-8` (Opus 4.8) — **pinned**, carried by the `afk-implementor` agent type; one rung below the `opus` alias, never `fable`; `sonnet` for simpler slices | `gpt-5.6-terra` — never Sol; drop to medium effort for simpler slices |
 | **digest** | `sonnet` (set in the `afk-reader`/`afk-runner` definitions) | `gpt-5.6-terra` at low effort |
+| **deterministic** | `haiku` (set in the `afk-runner-lite` definition) | `gpt-5.6-terra` at low effort — **no distinct tier**: Codex ships nothing below Terra, so the runner split saves nothing there. The type still exists on Codex so the routing rule reads the same on both providers, and a later cheap Codex model needs only this cell changed. |
 
 Claude Code: only the **implementation** tier is version-pinned — code-writing
 children run Opus 4.8 while every Opus-level *judgment* spawn (frontier tier,
