@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "python",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp-servers/jira/server.py"
+      ]
+    }
+  }
+}

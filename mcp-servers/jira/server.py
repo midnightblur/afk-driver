@@ -3,11 +3,8 @@
 Tools: jira_get, jira_search, jira_transitions, jira_transition,
 jira_changelog, jira_comment, jira_attachments, jira_create, jira_edit.
 
-Registration: user-scoped `jira` entry in ~/.claude.json `mcpServers`
-(command: python, args: [<absolute path to this file>], env: the S1
-credential variables). MUST stay user-scoped under the key `jira` — a
-plugin-bundled MCP registration renames the tools to
-`mcp__plugin_afk_jira__*`, breaking every `mcp__jira__*` reference.
+Registration: plugin `.mcp.json` under the `jira` server name. Skills call
+the bare tool names because each harness adds its own prefix.
 
 Config via environment variables (the registration's `env` block):
   JIRA_BASE_URL   e.g. https://<site>.atlassian.net

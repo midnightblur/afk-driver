@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/crowdstrike-guard.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/crowdstrike-guard.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
             "timeout": 15,
             "statusMessage": "crowdstrike-guard: checking for system-root recursive scan"
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/explore-counter.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/explore-counter.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
             "timeout": 15,
             "statusMessage": "explore-counter: tallying search calls"
           }
@@ -63,13 +63,13 @@
           },
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/java-rules-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/java-rules-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
             "timeout": 300,
             "statusMessage": "java-rules-gate: checking changed .java against the CSJ rules"
           },
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/tools/payable/ai-agents/harness/hooks/i18n-parity-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/i18n-parity-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
             "timeout": 60,
             "statusMessage": "i18n-parity-gate: checking added caption keys across locales"
           }
