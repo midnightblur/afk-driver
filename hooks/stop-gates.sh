@@ -104,16 +104,10 @@ ctx_scoped() {
 # drift from disk if nothing on disk moved.
 ctx_scoped "$PLUGIN_DIR/*" && run_gate skill-registry
 
-# codex-drift — only when a canonical source or a generated tree moved. Root
-# AGENTS.local.md / CLAUDE.md are checked outputs/inputs of the generator (they are
-# in the gate's cache key): omit them here and a hand-edit to either is invisible
-# until an unrelated change re-dispatches the gate.
-ctx_scoped \
-  "$PLUGIN_DIR/skills/*" "$PLUGIN_DIR/agents/*" "$PLUGIN_DIR/hooks/*" \
-  "$PLUGIN_DIR/.claude-plugin/*" "tools/payable/ai-agents/harness/hooks/*" \
-  "tools/payable/ai-agents/harness/.claude-plugin/*" "tools/payable/ai-agents/codex-sync/*" \
-  ".claude/skills/*" ".agents/*" ".codex/*" "CLAUDE.md" "AGENTS.local.md" \
-  && run_gate codex-drift
+# native-contract — plugin prose, both native manifests, provider adapters and
+# local activation paths form one contract. A change to any member can make the
+# otherwise-shared plugin surface harness-specific.
+ctx_scoped "$PLUGIN_DIR/*" ".agents/*" ".codex/*" && run_gate native-contract
 
 # genericity — only when plugin prose moved.
 ctx_scoped "$PLUGIN_DIR/*.md" && run_gate genericity

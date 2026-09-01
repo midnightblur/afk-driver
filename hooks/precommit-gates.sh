@@ -11,7 +11,7 @@
 # on this path vs 900s for a manual run) rather than parking the commit for 15
 # minutes behind a sibling worktree's reactor.
 #
-# Why here and not on Stop. These three cost 30s-3min each; a Stop hook fires on
+# Why here and not on Stop. The code gates cost 30s-3min each; a Stop hook fires on
 # every turn end, so an interactive session paid a reactor build to answer a
 # question. Enforcement is not weakened — nothing reaches a branch without
 # passing them — it just moves to the boundary where the cost buys something.
@@ -99,15 +99,43 @@ run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   return 0
 }
 
-# Scope tests are fork-free; a commit with no .java / no UI files enters neither.
+# Scope tests are fork-free; a commit enters only gates relevant to its paths.
 if gate_ctx_any AFK_CTX_LIVE '*.java'; then
   run_gate java-format
   run_gate maven-compile
 fi
 gate_ctx_any AFK_CTX_LIVE '*.js' '*.cjs' '*.mjs' '*.ts' '*.vue' && run_gate ui-lint
 
+# The native plugin contract is cheap enough for Stop and commit. Commit-time
+# enforcement is independently required: a --no-hooks session must not be able
+# to land a harness-coupled plugin edit. It reads the live plugin tree; bypass
+# the pass cache here because the staged context intentionally omits unrelated
+# untracked plugin files that the whole-tree invariants must still see.
+PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+native_scope=0
+gate_ctx_any AFK_CTX_CHANGED \
+  "$PLUGIN_DIR/*" ".agents/*" ".codex/*" && native_scope=1
+# gate_ctx_build_staged deliberately omits deletions for the code gates. A
+# deleted skill/provider is contract-relevant, so collect all native deletions
+# in one batched diff rather than forking per path.
+if [ "$native_scope" = "0" ]; then
+  native_deleted=$(git diff --cached --name-only --diff-filter=D -- \
+    "$PLUGIN_DIR" ".agents" ".codex" 2>/dev/null)
+  [ -n "$native_deleted" ] && native_scope=1
+fi
+if [ "$native_scope" = "1" ]; then
+  _native_cache_disable=${GATE_CACHE_DISABLE-}
+  GATE_CACHE_DISABLE=1
+  run_gate native-contract
+  if [ -n "$_native_cache_disable" ]; then
+    GATE_CACHE_DISABLE=$_native_cache_disable
+  else
+    unset GATE_CACHE_DISABLE
+  fi
+fi
+
 if [ "$blocked" = "1" ]; then
-  printf '\n[afk] Commit blocked by a code gate. Fix the findings above, or commit with\n' >&2
+  printf '\n[afk] Commit blocked by an AFK gate. Fix the findings above, or commit with\n' >&2
   printf '      --no-verify (or AFK_SKIP_PRECOMMIT_GATES=1) if you are deliberately\n' >&2
   printf '      landing a known-red intermediate commit.\n' >&2
   exit 2

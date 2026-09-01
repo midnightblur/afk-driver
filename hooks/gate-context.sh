@@ -118,7 +118,7 @@ gate_ctx_build() {
 
 # gate_ctx_mergebase — populate AFK_CTX_MERGEBASE (merge-base of the integration
 # base and HEAD) on first use, then reuse. Only the diff-based gates (genericity,
-# codex-drift) need it, and only after their scope check passes, so a turn that
+# native-contract) need it, and only after their scope check passes, so a turn that
 # touches no prose never spawns it. Sets the variable rather than echoing it:
 # a $(...) call would compute it in a subshell and throw the memo away.
 gate_ctx_mergebase() {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sourced helper (ships with the afk plugin): content-hash pass cache for the
 # Stop gates (maven-compile, ui-lint, java-format, wiring, skill-registry,
-# codex-drift, genericity).
+# native-contract, genericity).
 #
 # A Stop hook fires on every turn end; the gated tree often hasn't changed since
 # the last green run. The cache remembers the last PASS per gate as a hash over

@@ -1,0 +1,28 @@
+# Native-contract prose exceptions. One tab-separated entry per exception:
+#   plugin-relative path glob<TAB>rule<TAB>line regex<TAB>reason
+#
+# Rules: claude-project-dir, claude-plugin-root, harness-env, harness-name,
+# harness-tool, mcp-prefix. Keep patterns line-specific; broad file waivers hide
+# new coupling in the same file.
+LAVISH.md	harness-name	lavish-axi setup hooks.*Claude Code, Codex, OpenCode, GitHub Copilot CLI	Third-party command capability names its supported runtimes.
+CLAUDE.md	claude-project-dir	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
+CLAUDE.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
+CHANGELOG.md	harness-name	on Codex machines\) so every agent session	Historical shipped behavior.
+CHANGELOG.md	harness-name	The distribution law is written doctrine.*Claude.*Codex parity	Historical shipped behavior.
+CHANGELOG.md	harness-name	Codex now has the same opt-in boundary	Historical shipped behavior.
+CHANGELOG.md	harness-name	/afk:understand.*live Claude Code session	Historical shipped behavior.
+CHANGELOG.md	harness-name	Model selection goes role-based.*Codex CLI equivalents	Historical shipped behavior.
+CHANGELOG.md	harness-name	Dual-provider support:.*OpenAI Codex CLI	Historical shipped behavior.
+CHANGELOG.md	claude-project-dir	setup.*registered.*CLAUDE_PROJECT_DIR	Historical shipped behavior.
+# /afk:setup's register and driver provision one machine per harness: section O
+# provisions a named CLI, so its entries name it. Keep each entry pinned to the
+# provisioning line it covers — never a whole-file waiver.
+skills/afk/setup/MANIFEST.md	harness-name	only when Codex \(O1\) is installed	Opt-in steering fix names the harness whose steering file it appends to.
+skills/afk/setup/MANIFEST.md	harness-name	^## O — OpenAI Codex CLI	Register section header names the harness the section provisions.
+skills/afk/setup/MANIFEST.md	harness-name	deferred \(Codex not installed\)	Section gating rule names the harness whose absence defers it.
+skills/afk/setup/MANIFEST.md	harness-name	running the native plugin under Codex CLI	Entry states which harness the dependency serves.
+skills/afk/setup/MANIFEST.md	harness-name	install or update Codex CLI	Human fix instruction names the CLI to install.
+skills/afk/setup/MANIFEST.md	harness-name	^### O5 · Codex agent TOML stubs	Entry title names the harness whose stub format it provisions.
+skills/afk/setup/MANIFEST.md	claude-plugin-root	`PLUGIN_ROOT` / `PLUGIN_DATA` \| `hooks/lib/providers/codex.sh`	Env-toggle index lists the variable names one adapter reads.
+skills/afk/setup/SKILL.md	harness-name	Section \*\*O\*\* \(OpenAI Codex CLI\)	Driver names the register section it gates.
+skills/afk/setup/SKILL.md	harness-name	deferred \(Codex not installed\)	Driver states the gated section's wholesale verdict.

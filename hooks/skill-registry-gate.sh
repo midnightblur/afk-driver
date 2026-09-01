@@ -2,7 +2,7 @@
 # Stop gate (ships with the afk plugin): registry gate — the plugin's three
 # machine-checkable registries must match disk. Three checks:
 #
-# A. plugin.json membership — every skill dir under skills/afk/ + skills/utils/
+# A. Claude plugin.json membership — every skill dir under skills/afk/ + skills/utils/
 #    (and every agent under agents/) is listed in .claude-plugin/plugin.json,
 #    or the plugin loader never registers it and it's invisible in-session
 #    (silent, no error) — happened for skills/afk/setup and skills/afk/retro
@@ -29,8 +29,9 @@
 # var (~200 subprocesses). Every input file is now read ONCE into a variable and
 # matched with bash patterns, so the whole gate costs a handful of spawns.
 #
-# Mechanical only: existence + membership + the pointer line's presence. Doesn't validate SKILL.md content,
-# catalog wording, or E-table row accuracy — /afk:setup audit judges those.
+# Mechanical only: existence + Claude-manifest membership + pointer presence.
+# native-contract-gate.sh owns twin-manifest parity and allowed frontmatter;
+# /afk:setup audit judges catalog wording and E-table row accuracy.
 # Disable: SKILL_REGISTRY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
@@ -65,7 +66,7 @@ gate_skill_registry() {
 
   # ---- entries declared in plugin.json (python: no assumption about JSON layout)
   local py=python declared
-  command -v python >/dev/null 2>&1 || py=python3    # python3-only machines: same fallback as codex-drift-gate.sh
+  command -v python >/dev/null 2>&1 || py=python3    # python3-only machines: same fallback as native-contract-gate.sh
   declared=$("$py" -c "
 import json, sys
 try:
