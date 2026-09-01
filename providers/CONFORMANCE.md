@@ -7,14 +7,14 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Field | Claude Code | Codex CLI |
 |---|---|---|
 | Date | 2026-09-01 | 2026-09-01 |
-| Version | 2.1.257 | 0.152.0 |
-| Install | Enabled plugin, this session; reload owed after this change | Pending native cache refresh |
+| Version | 2.1.257 | 0.152.0 (confirmed live, meets the minimum tested version) |
+| Install | Enabled plugin, this session; reload owed after this change | Marketplace registered, plugin installed and enabled; cache predates this change, so a refresh is owed |
 
 ## Probe ledger
 
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
-| Native manifest loads | pass 2026-09-01 | pending | Both manifests parse; the same 40 skill paths in each |
+| Native manifest loads | pass 2026-09-01 | partial 2026-09-01 | Both manifests parse with the same 40 skill paths. Second harness: marketplace registered and `afk@nak-marketplace` installed and enabled at 0.0.0, still through the legacy manifest path; acceptance of the new native manifest needs a live refresh |
 | 40 `/afk:<x>` skills load | pending reload | pending | Catalog counted from the manifest; a session started after this change re-counts the live catalog |
 | No generated mirror skills | n/a | pending | Generator and its outputs are deleted from the repository |
 | Shared hooks load and are trusted | pass 2026-09-01 | pending | Both hook surfaces fired live this session: a PreToolUse guard denial and a Stop gate block |
@@ -23,11 +23,11 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Stop gates block after a plugin edit | pass 2026-09-01 | pending | Live block at turn end; full suite green afterwards in 111s |
 | Shared Jira MCP tool is callable | pass 2026-09-01 | pending | Plugin-scoped tool returned an issue; the plugin `.mcp.json` path form still needs the second harness |
 | `afk-reader` returns a cited digest | pass 2026-09-01 | pending | Read-only child returned a two-line cited digest with file and line |
-| Agent sandbox and write boundaries | pending | pending | — |
-| Same-child continuation | pending | pending | — |
+| Agent sandbox and write boundaries | pass 2026-09-01 | pending | Read-only role asked to create a file: declined at role level, no write tool in its definition, file not created |
+| Same-child continuation | pass 2026-09-01 | pending | Follow-up reached the same child, which answered from its own context with zero tool calls |
 | Cache refresh after source-only change | n/a | pending | — |
 | Script-only hook change trust behavior | n/a | pending | — |
-| Disable or uninstall leaves repository inert | pending | pending | — |
+| Disable or uninstall leaves repository inert | pass (static) 2026-09-01 | pending | No activation surface is tracked: no `.agents/`, `.codex/` or local steering block in git, and the repository registers no plugin hook of its own. A live disable run is still owed |
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 
 ## Unresolved items
