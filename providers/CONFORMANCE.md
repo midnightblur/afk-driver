@@ -8,21 +8,21 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 |---|---|---|
 | Date | 2026-09-01 | 2026-09-01 |
 | Version | 2.1.257 | 0.152.0 |
-| Install | Pending final native reload | Pending final native cache refresh |
+| Install | Enabled plugin, this session; reload owed after this change | Pending native cache refresh |
 
 ## Probe ledger
 
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
-| Native manifest loads | pending | pending | — |
-| 40 `/afk:<x>` skills load | pending | pending | — |
-| No generated mirror skills | n/a | pending | — |
-| Shared hooks load and are trusted | pending | pending | — |
-| SessionStart envelope and environment names | pending | pending | — |
-| CrowdStrike guard denies a system-root recursive scan | pending | pending | — |
-| Stop gates block after a plugin edit | pending | pending | — |
-| Shared Jira MCP tool is callable | pending | pending | — |
-| `afk-reader` returns a cited digest | pending | pending | — |
+| Native manifest loads | pass 2026-09-01 | pending | Both manifests parse; the same 40 skill paths in each |
+| 40 `/afk:<x>` skills load | pending reload | pending | Catalog counted from the manifest; a session started after this change re-counts the live catalog |
+| No generated mirror skills | n/a | pending | Generator and its outputs are deleted from the repository |
+| Shared hooks load and are trusted | pass 2026-09-01 | pending | Both hook surfaces fired live this session: a PreToolUse guard denial and a Stop gate block |
+| SessionStart envelope and environment names | pass 2026-09-01 | pending | `hooks/tests/hook-smoke.sh` parses every fixture under both adapters; live capture on the second harness still owed |
+| CrowdStrike guard denies a system-root recursive scan | pass 2026-09-01 | pending | Live deny of an unscoped recursive command this session, plus the fixture case under both adapters |
+| Stop gates block after a plugin edit | pass 2026-09-01 | pending | Live block at turn end; full suite green afterwards in 111s |
+| Shared Jira MCP tool is callable | pass 2026-09-01 | pending | Plugin-scoped tool returned an issue; the plugin `.mcp.json` path form still needs the second harness |
+| `afk-reader` returns a cited digest | pass 2026-09-01 | pending | Read-only child returned a two-line cited digest with file and line |
 | Agent sandbox and write boundaries | pending | pending | — |
 | Same-child continuation | pending | pending | — |
 | Cache refresh after source-only change | n/a | pending | — |
