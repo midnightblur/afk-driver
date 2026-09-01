@@ -82,8 +82,8 @@ Changed-module list (drives Phase 2 and triggers): `git -C "$WT" diff --name-onl
 
 No double work with the MR pipeline: **never compile, run unit tests, or anything the CI build already enforces**; nothing that boots the app. Run in `$WT`, in parallel; failures become findings merged into the round-1 pool. Round n≥2 re-runs only the checks whose file set the delta touches.
 
-1. **Java format** (`class: compliance`) — per changed module: `./mvnw -f all-modules-pom.xml -pl <mod> net.revelc.code.formatter:formatter-maven-plugin:2.28.0:validate -Dconfigfile=$WT/eclipse-code-formatter.xml -Dformatter.includes=<changed files relative to module source roots>` (harness convention CI doesn't enforce). One `afk:afk-runner` subagent.
-2. **UI lint** (`class: compliance`) — only if the diff touches files under a dir with an ancestor `.eslintrc.*` (vite builds don't lint): `npm ci` at `$WT` root, then `npx --no-install eslint <changed ui files>` from the nearest eslintrc dir. eslint unresolvable → record "skipped (infra absent)", don't fail. One `afk:afk-runner` subagent.
+1. **Java format** (`class: compliance`) — per changed module: `./mvnw -f all-modules-pom.xml -pl <mod> net.revelc.code.formatter:formatter-maven-plugin:2.28.0:validate -Dconfigfile=$WT/eclipse-code-formatter.xml -Dformatter.includes=<changed files relative to module source roots>` (harness convention CI doesn't enforce). One `afk:afk-runner-lite` subagent (exit-code verdict — `DELEGATION.md` "Runner split").
+2. **UI lint** (`class: compliance`) — only if the diff touches files under a dir with an ancestor `.eslintrc.*` (vite builds don't lint): `npm ci` at `$WT` root, then `npx --no-install eslint <changed ui files>` from the nearest eslintrc dir. eslint unresolvable → record "skipped (infra absent)", don't fail. One `afk:afk-runner-lite` subagent (exit-code verdict — `DELEGATION.md` "Runner split").
 3. **Orphan hunt (wiring)** (`class: design`, medium) — one `afk:afk-reader` subagent: for each NEW public class/endpoint/config key in the diff, prove a consumer exists at MR head (grep `$WT`); default to "orphan" when reachability can't be proven.
 
 ## The rounds

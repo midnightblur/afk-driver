@@ -13,6 +13,47 @@ today's date **in the same commit** — trigger owned by this file's
 ## 2026-09-01
 
 - **The plugin is one native tree for every supported harness — no generator, no mirror.** Each harness discovers the same committed files through its own plugin mechanism (`.claude-plugin/` and `.codex-plugin/` manifests, shared `hooks/hooks.json`, shared `.mcp.json`, agent stubs copied unchanged), so a skill edit ships once and needs no regeneration step. `codex-sync/`, the drift gate, and the synced harness copy of `provider.sh` are gone; hook provider behavior now lives in one adapter per harness under `hooks/lib/providers/<id>.sh`. Harness-agnosticism is a standing requirement from now on: `CLAUDE.md` carries the rule, `PROVIDERS.md` carries the supported-harness registry, `CAPABILITIES.md` carries the capability matrix, `providers/CONFORMANCE.md` carries live proof plus the add-a-harness checklist, and `hooks/native-contract-gate.sh` blocks (Stop and commit) on harness vocabulary in skill prose, unsupported frontmatter, manifest/registry drift, a tracked generated mirror, or a missing adapter fixture.
+## 2026-08-27
+
+- **Fourteen recorded workflow lessons applied.** `/afk:review` gains two hard
+  rules that also reach every reviewer through `checklists/PRECEDENCE.md`: never
+  verify a claim by re-running the command the reviewed record quotes as its own
+  evidence, and open a cited document before overturning it. The settle loop
+  (`SETTLEMENT.md`) gains **scope escalation** — two consecutive
+  fix-one-leave-the-sibling findings widen the loop past the delta and add a
+  `consistency-sweep` reviewer — plus a park-report contract, and its
+  design-change carve-out no longer settles an observable runtime failure.
+  `/afk:preflight` PF-3 now routes all three settle-loop exits, not two.
+- **`/afk:execute` gains an `adversary_unrun` outcome.** A slice whose tiers are
+  green and whose findings are settled, but whose Step 10.5 gate never got to
+  run, is no longer reported as `review_fail` — it resumes at the gate instead of
+  re-running from the top, and a `complex` contract now reserves budget for that
+  gate up front. Two more execute rules: check a path before Write-creating at
+  it, and read every subagent verdict from the spawning call rather than waiting
+  on a notification that never arrives.
+- **`/afk:understand` teaches the right code.** Its diff base is the remote
+  target, never the local `master` ref no one fast-forwards; deviations mined
+  from the journal are now resolved against the code before they are taught; and
+  the shell template no longer quotes its own injection slots, which a slot
+  search used to match instead of the element.
+- **Two gates stop lying.** `app-start-gate.sh` confirms a prior instance
+  actually died before clearing its state file, and exits 3 (environment) naming
+  the survivor instead of reporting a locked jar as a code failure. The i18n
+  parity gate (PAYU007) scopes to the merger's own decisions during a merge, so
+  merging master no longer blocks the turn on other teams' captions.
+- **New `afk-runner-lite` subagent (Haiku) splits trigger-3 execution by
+  judgment, not by output size.** Checks whose verdict *is* the exit code —
+  formatter validate, linters, anchor greps, static-tier compiles — now route
+  to it; test suites, reactor builds, and live tiers stay on `afk-runner`
+  (Sonnet), because those verdicts turn a gate green. `/afk:settle-mr`'s Java
+  format + UI lint checks are the first callers. The cheap type never guesses:
+  a result needing interpretation comes back `blocked — needs_triage: …` and
+  the caller re-runs it on `afk-runner` — one wasted cheap call instead of a
+  wrong verdict. Requires a **session restart**, not `/reload-plugins` (agent
+  definitions are scanned at session start). Routing test + escalation rule:
+  `DELEGATION.md` "Runner split"; tier names: `PROVIDERS.md`. On Codex the
+  type exists but maps to the same Terra-at-low-effort as the digest tier —
+  nothing below Terra ships, so the split saves nothing there.
 
 ## 2026-08-25
 

@@ -8,18 +8,23 @@
   writes one self-contained artifact per feature. Shell updates never reach
   already-shipped artifacts — an old artifact wanting a fix is regenerated.
 
-  Injection slots (the generator fills these; everything else is frozen chrome):
-    1. <meta name="afk-understanding">  — machine-readable header; two fields
-       (generated date, diff SHA range). Mission-control's ONLY parse target.
-    2. header chips + title/meta line   — elements carrying data-slot="…", plus
-       the <header>'s data-source-hint (subject locator the ask-the-teacher
-       prompt embeds — plan-dir path, MR URL, or path:/symbol: argument).
-    3. <template id="sections">          — the sections mount; the generator
-       REPLACES its children with the authored SEC-1..SEC-6 <section>s. One
-       <section> = one tour step; SEC-3 emits ONE SECTION PER WALKTHROUGH
-       GROUP (UNDERSTANDING-FORMAT.md "Section shapes").
-    4. quiz data                         — a <script type="application/json"
-       class="afku-quiz-data"> + <div class="afku-quiz-root"> pair. The quiz
+  Injection slots (the generator fills these; everything else is frozen chrome).
+  Named in prose on purpose: a comment that quotes a slot's markup is matched by
+  any search hunting that slot, so the searcher finds this comment instead of the
+  element. Keep every slot name below unquoted.
+    1. the meta element named afk-understanding — machine-readable header; two
+       fields (generated date, diff SHA range). Mission-control's ONLY parse
+       target.
+    2. header chips + title/meta line — elements carrying a data-slot
+       attribute, plus the header element's data-source-hint (subject locator
+       the ask-the-teacher prompt embeds — plan-dir path, MR URL, or
+       path:/symbol: argument).
+    3. the sections mount — a template element whose id is sections; the
+       generator REPLACES its children with the authored SEC-1..SEC-6 section
+       elements. One section = one tour step; SEC-3 emits ONE SECTION PER
+       WALKTHROUGH GROUP (UNDERSTANDING-FORMAT.md "Section shapes").
+    4. quiz data — a script element of type application/json carrying class
+       afku-quiz-data, paired with a div of class afku-quiz-root. The quiz
        section carries the full quiz; any SEC-3 group section may carry the
        same pair with ONE question as its formative check.
 
@@ -299,7 +304,7 @@
 <script>
 /*
   Guided-tour chrome + quiz engine — frozen boilerplate. Reads whatever the
-  generator injected into <template id="sections">; makes no assumption about the
+  generator injected into the sections mount; makes no assumption about the
   feature. Optional host hook: define window.__annotate(root) BEFORE this script
   runs (e.g. a term-annotator) and it is called on each freshly-mounted step so
   copied interactive-walkthrough widgets' annotations re-run on dynamic content.

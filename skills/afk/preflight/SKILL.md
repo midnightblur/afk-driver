@@ -106,8 +106,15 @@ validation suite already ran at PF-2 and CI (PF-6/7) remains the expensive
 backstop. The
 loop keeps its own round accounting in this row's `Cycle` cell (`n/10`, cap
 owned by SETTLEMENT.md) — **outside** the shared mechanical fix cap below.
-Settled → proceed. Stalemate at the cap → `park(PF-3: review_stalemate)` —
-unusual by construction; a human must look. Record outcomes per round as
+Two consecutive rounds finding the same fix-one-leave-the-sibling shape widen
+the loop's scope past the delta — pass `--scope-escalated` from the next round
+(`SETTLEMENT.md` "Scope escalation").
+Settled → proceed. A ledger-only round → remediate in place and proceed; it
+closes the loop as settled and mints no further round (`SETTLEMENT.md`
+"Termination", third bullet — the termination test is that the latest sweep
+raised no finding against main or test code). Stalemate at the cap →
+`park(PF-3: review_stalemate)`, with the two facts `SETTLEMENT.md` "What the
+cap means" requires — unusual by construction; a human must look. Record outcomes per round as
 SETTLEMENT.md step 7 defines
 (`plan/review/feature-{base-short}-r{n}.outcomes.json`) — the caller-side half
 of the review telemetry.

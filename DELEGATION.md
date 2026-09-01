@@ -23,7 +23,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 - **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
 - **Overlap the human's think-time.** In an interactive phase, spawn delegations in background **before yielding the turn** — grounding for the pending question's premises, pre-fill for an accumulating batch, the likely next question's verification — so digests land while the human reads and types. Nothing locks in before its digest returns; only the waiting moves.
-- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit), `afk-runner` (executes commands/suites, triages their output; writes only evidence files), `afk-implementor` (writes product code or a rendered artifact against a brief authored upstream; carries the pinned implementation-tier model). Fall back to a general-purpose child only when none fits. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
+- **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit), `afk-runner` (executes commands/suites, triages their output; writes only evidence files), `afk-runner-lite` (the same, restricted to checks whose verdict *is* the exit code — see "Runner split" below), `afk-implementor` (writes product code or a rendered artifact against a brief authored upstream; carries the pinned implementation-tier model). Fall back to a general-purpose child only when none fits. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
 - **Continuation where the harness proves it** (`providers/CONFORMANCE.md`); disk handoff otherwise.
 - **Hand a child paths + a task, never content** — nothing it can read itself.
 - **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. When nesting is unavailable, helper work runs inline (`CAPABILITIES.md`).
@@ -45,8 +45,20 @@ Role-based tiers — the role decides the model, named explicitly per provider i
 - **frontier tier — judgment that shapes the work**: grilling, planning/slicing, code review and dispute adjudication, adversarial probes, and any verdict acted on without re-checking (a confirm/refute gating a spec, ship, or publish step). Best model available, explicitly. A judge is never a cheaper model than the implementor it judges.
 - **implementation tier — executing work the frontier tier laid out**: any child writing product code against a plan/contract/design authored at the frontier tier. One rung below frontier — never the frontier model itself (the frontier intelligence is already in the plan); one rung lower again when the slice is on the simpler side. Version-pinned, so it travels as the `afk-implementor` **agent type**, not a model argument (`PROVIDERS.md` "Pin delivery").
 - **digest tier** — the `afk-reader`/`afk-runner` default: reads, searches, suite triage, mechanical chores (bulk renames, format fixes, anchor greps — run these at low reasoning effort), and research whose digest the orchestrator treats as advisory and spot-checks via citations.
-- **Plugin/harness work is always frontier.** Any agent editing the AFK plugin or the harness it ships and stewards (skills, doctrine files, hooks, agent defs, provider stubs, steering artifacts) runs frontier-tier regardless of the edit's apparent size — a plugin defect multiplies into every run it drives.
+- **deterministic tier** — the `afk-runner-lite` default, one rung below digest: checks whose verdict *is* the exit code (see "Runner split" below). No judgment is asked of it, so no judgment is bought.
+- **Plugin/harness work is always frontier.** Any agent editing the AFK plugin or the harness it ships and stewards (skills, doctrine files, hooks, agent defs, provider adapters and stubs, steering artifacts) runs frontier-tier regardless of the edit's apparent size — a plugin defect multiplies into every run it drives.
 - Callers override per-spawn — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
+
+### Runner split
+
+Trigger 3 runs split across two types by one test: **does reading the result need judgment?**
+
+- **No** — the tool reports pass/fail itself and the exit code carries it: formatter validate, linters, anchor greps, static-tier compiles. → `afk-runner-lite` (deterministic tier).
+- **Yes** — the caller must be told *which* failure is causal, whether red means broken code or a broken environment, or turns a gate green off the answer: test suites, reactor builds, live-tier runs. → `afk-runner` (digest tier).
+
+Raw suite output is the largest input any run pays for, so the split is where the token saving actually sits. It is also where a wrong verdict costs the most, which is why the boundary is drawn at judgment and not at output size. A long log is not by itself lite work; a short one is not by itself judgment work.
+
+`afk-runner-lite` returns `blocked — needs_triage: …` rather than guess when a result crosses the line. On that return the caller re-runs the same command on `afk-runner` — one wasted cheap call, never a wrong verdict. A `needs_triage` return recurring for the same check means the check was routed wrong: move it to `afk-runner` in the calling skill.
 
 ## Return contract
 
