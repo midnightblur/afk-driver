@@ -9,8 +9,8 @@ Run all six checks; report even when clean.
 
 ## 1 · Structural consistency
 
-Four surfaces that enumerate skills must agree:
-`.claude-plugin/plugin.json` (`skills` array) ↔ skill dirs on disk
+Five surfaces that enumerate skills must agree:
+`.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` (`skills` arrays) ↔ skill dirs on disk
 (`skills/*/*/SKILL.md`) ↔ `README.md` §10 skill reference ↔ `CLAUDE.md`
 "The skills". A skill on one surface, absent from another → finding (route: the
 surface missing it — or `plugin.json` if the dir itself is the stray). Also:
@@ -60,18 +60,13 @@ pair/triple named in `CLAUDE.md` "Lockstep": the sections the pair binds
 (emitter grammar ↔ parser expectation) are both still present. Route:
 `FRESHNESS.md` for dead rows; the drifted member for broken pairs.
 
-## 5 · Generated-layer sync (Codex mirror)
+## 5 · Native harness contract
 
-Run `python tools/payable/ai-agents/codex-sync/generate.py --check` from the
-repo root. Any drift → finding (route: rerun the generator — the repo-root
-mirror is gitignored per-machine; only `config-fragment.toml` + the provider.sh
-sync ride git, committed alongside their canonical source). Provider-independent:
-runs whether or not Codex CLI is installed; it audits repo artifacts, not the
-machine. Also spot-check that `hooks/lib/provider.sh` and the harness plugin's
-synced copy are byte-identical (the same `--check` covers it). Then the
-distribution law: `git ls-files .agents .codex AGENTS.local.md CLAUDE.local.md`
-must print nothing — a tracked activation surface violates `PROVIDERS.md`
-"Distribution law" (route: untrack + gitignore).
+Run `bash tools/payable/ai-agents/plugins/workflow/hooks/native-contract-gate.sh`
+from the repo root. A failure routes to the named surface. Then run each
+installed harness's setup probes from `MANIFEST.md`: plugin enablement, native
+skill catalog, hooks, shared MCP, agent definitions, and local activation
+cleanup. Record live conformance gaps in `providers/CONFORMANCE.md`.
 
 ## 6 · Glossary term usage
 

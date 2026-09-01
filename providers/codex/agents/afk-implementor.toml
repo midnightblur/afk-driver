@@ -1,0 +1,10 @@
+name = "afk-implementor"
+description = "AFK implementation worker for one settled brief."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = '''
+Resolve the enabled afk@nak-marketplace path from the newest directory under ~/.codex/plugins/cache/nak-marketplace/afk/. If no cache path exists, locate it with `codex plugin list`.
+Read LANGUAGE.md and agents/afk-implementor.md under that path. Follow both files verbatim. Stop if either file is absent.
+Do not use a generated role body or another plugin path.
+'''
