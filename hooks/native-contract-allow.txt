@@ -26,3 +26,4 @@ skills/afk/setup/MANIFEST.md	harness-name	^### O5 · Codex agent TOML stubs	Entr
 skills/afk/setup/MANIFEST.md	claude-plugin-root	`PLUGIN_ROOT` / `PLUGIN_DATA` \| `hooks/lib/providers/codex.sh`	Env-toggle index lists the variable names one adapter reads.
 skills/afk/setup/SKILL.md	harness-name	Section \*\*O\*\* \(OpenAI Codex CLI\)	Driver names the register section it gates.
 skills/afk/setup/SKILL.md	harness-name	deferred \(Codex not installed\)	Driver states the gated section's wholesale verdict.
+CHANGELOG.md	harness-name	tier names: `PROVIDERS.md`. On Codex the	Historical shipped behavior.
