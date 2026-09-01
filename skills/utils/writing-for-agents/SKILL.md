@@ -12,6 +12,8 @@ Two branch files carry what changes with the packaging:
 - The document is a **skill** → read [`SKILL-MECHANICS.md`](SKILL-MECHANICS.md) for frontmatter, the invocation choice, and router skills.
 - The document is a **harness markdown** (`CLAUDE.md`, a role sidecar, a `.claude/rules` file) → read [`HARNESS-MECHANICS.md`](HARNESS-MECHANICS.md) for the inclusion bar and placement.
 
+Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.
+
 ## Context pointers
 
 A **context pointer** is a reference held in the agent's context that names some out-of-context material and encodes the condition for reaching it. A skill's description is one; a line in `CLAUDE.md` naming a doc is the same object. The pointer's _wording_, not its target, decides when the agent reaches the material — and how reliably. A must-have target behind a weakly worded pointer is a variance bug: sharpen the wording first, and inline the material only if sharpening fails.

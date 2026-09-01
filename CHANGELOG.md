@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-09-01
+
+- **The plugin is one native tree for every supported harness — no generator, no mirror.** Each harness discovers the same committed files through its own plugin mechanism (`.claude-plugin/` and `.codex-plugin/` manifests, shared `hooks/hooks.json`, shared `.mcp.json`, agent stubs copied unchanged), so a skill edit ships once and needs no regeneration step. `codex-sync/`, the drift gate, and the synced harness copy of `provider.sh` are gone; hook provider behavior now lives in one adapter per harness under `hooks/lib/providers/<id>.sh`. Harness-agnosticism is a standing requirement from now on: `CLAUDE.md` carries the rule, `PROVIDERS.md` carries the supported-harness registry, `CAPABILITIES.md` carries the capability matrix, `providers/CONFORMANCE.md` carries live proof plus the add-a-harness checklist, and `hooks/native-contract-gate.sh` blocks (Stop and commit) on harness vocabulary in skill prose, unsupported frontmatter, manifest/registry drift, a tracked generated mirror, or a missing adapter fixture.
+
 ## 2026-08-25
 
 - **`/afk:setup` offers two opt-in user preferences again** (deselected-by-

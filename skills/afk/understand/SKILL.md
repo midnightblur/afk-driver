@@ -67,7 +67,7 @@ Delegate every heavy read (diff/code digestion, journal/review mining, context g
 
 8. **Write (+ commit, feature auto mode).**
    - *feature:* write `understanding/index.html` and upsert the feature's `INDEX.md` `Understanding` row (`generated {date}`). **In auto mode**, land these two as ONE **docs-only commit** — path-guarded to the artifact directory + the ticket index file, nothing else in the commit — pushed under the invoker's existing authorization, **no rebase ever**. A push rejection → **advisory failure**: `failed(push_rejected)`, the commit is left local for the user to push (never force, never rebase). **In standalone mode**, write the files and **do not commit**.
-   - *mr / code:* write `${CLAUDE_JOB_DIR:-<temp dir>}/understanding-{slug}-{YYYYMMDD-HHMMSS}/index.html` (slug = `mr{IID}`, or the sanitized path/symbol). When the subject maps to a ticket spec folder (discovered spec at `specs/**/{KEY}/`, or the caller passed `save:{spec-dir}`), **offer** to copy it to `{spec-dir}/understanding/{slug}.html` so future readers find it — copy on yes; never commit.
+   - *mr / code:* write `<provider scratch dir>/understanding-{slug}-{YYYYMMDD-HHMMSS}/index.html` (slug = `mr{IID}`, or the sanitized path/symbol; scratch fallback: `CAPABILITIES.md`). When the subject maps to a ticket spec folder (discovered spec at `specs/**/{KEY}/`, or the caller passed `save:{spec-dir}`), **offer** to copy it to `{spec-dir}/understanding/{slug}.html` so future readers find it — copy on yes; never commit.
 
 9. **Journal and report.** Feature subjects: append the journal event (below). All subjects: emit the terminal report (below).
 
@@ -83,7 +83,7 @@ First hit wins:
 
 ## MR / code intake
 
-- **mr:** validate `glab` (`glab --version` + `glab auth status`; missing/unauth → `failed(glab_unavailable)` with the `glab auth login` hint). Fetch via the bundled [`scripts/fetch-mr.sh`](scripts/fetch-mr.sh) → `mr.json` + `mr.diff` in `${CLAUDE_JOB_DIR:-/tmp}`. **Spec discovery** (best-effort, enriches SEC-1): cascade against the MR description — ticket URL regex → markdown-link key → free-text key → commit messages; a key whose repo has `specs/**/{KEY}/PRD.md` → read it; else Jira MCP / WebFetch; all misses → proceed, SEC-1 falls back to the MR description + commits. Draft/closed/merged MRs all proceed.
+- **mr:** validate `glab` (`glab --version` + `glab auth status`; missing/unauth → `failed(glab_unavailable)` with the `glab auth login` hint). Fetch via the bundled [`scripts/fetch-mr.sh`](scripts/fetch-mr.sh) → `mr.json` + `mr.diff` in the provider scratch directory (`CAPABILITIES.md`). **Spec discovery** (best-effort, enriches SEC-1): cascade against the MR description — ticket URL regex → markdown-link key → free-text key → commit messages; a key whose repo has `specs/**/{KEY}/PRD.md` → read it; else Jira MCP / WebFetch; all misses → proceed, SEC-1 falls back to the MR description + commits. Draft/closed/merged MRs all proceed.
 - **code:** resolve the scope against the current repo (or a caller-named `--repo` path) **read-only**. Empty `path:`/`symbol:` → error out.
 - **Size gate (both):** diff lines (mr) or in-scope LOC (code): `<5000` silent, `5000–15000` warn and continue, `>15000` → `refused(scope_too_large)`.
 - **Hard rules (both):** static read only — never run app/build/tests; never modify the user's worktree; never invent symbols/files/line numbers — cite paths from the diff or repo verbatim.

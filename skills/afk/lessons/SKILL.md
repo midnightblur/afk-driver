@@ -61,7 +61,7 @@ human what it takes for that edit to bind:
 
 | Written | Binds |
 |---|---|
-| Plugin file (skill, checklist, doctrine, hook) | `/reload-plugins` — say so explicitly; until then the old text is what runs |
+| Plugin file (skill, checklist, doctrine, hook) | Refresh the enabled plugin per `PROVIDERS.md`; until then the old text runs |
 | CLAUDE.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
 | Domain `GLOSSARY.md` | on next read; no action |
 

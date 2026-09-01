@@ -24,8 +24,9 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 - **Independent children go in ONE message** (parallel spawns) — never sequential when there is no data dependency.
 - **Overlap the human's think-time.** In an interactive phase, spawn delegations in background **before yielding the turn** — grounding for the pending question's premises, pre-fill for an accumulating batch, the likely next question's verification — so digests land while the human reads and types. Nothing locks in before its digest returns; only the waiting moves.
 - **Named types first**: `afk-reader` (read-only digester — reads, searches, verifies; cannot edit), `afk-runner` (executes commands/suites, triages their output; writes only evidence files), `afk-implementor` (writes product code or a rendered artifact against a brief authored upstream; carries the pinned implementation-tier model). Fall back to a general-purpose child only when none fits. (Per-provider spawn vocabulary: `PROVIDERS.md`.)
+- **Continuation where the harness proves it** (`providers/CONFORMANCE.md`); disk handoff otherwise.
 - **Hand a child paths + a task, never content** — nothing it can read itself.
-- **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. (Codex: requires the `max_depth` config from `codex-sync/config-fragment.toml`; at its default of 1, helper steps run inline — degraded, not broken.)
+- **Nesting cap: three levels** — orchestrator → per-unit child → that child's helpers. Helpers do not spawn. When nesting is unavailable, helper work runs inline (`CAPABILITIES.md`).
 - **Blind where the skill demands it.** A skill's information-diet rules (what the child must NOT see) override convenience; when a fresh perspective is the point, the child gets artifacts, never the run's reasoning.
 
 ## Stall watchdog
@@ -44,7 +45,7 @@ Role-based tiers — the role decides the model, named explicitly per provider i
 - **frontier tier — judgment that shapes the work**: grilling, planning/slicing, code review and dispute adjudication, adversarial probes, and any verdict acted on without re-checking (a confirm/refute gating a spec, ship, or publish step). Best model available, explicitly. A judge is never a cheaper model than the implementor it judges.
 - **implementation tier — executing work the frontier tier laid out**: any child writing product code against a plan/contract/design authored at the frontier tier. One rung below frontier — never the frontier model itself (the frontier intelligence is already in the plan); one rung lower again when the slice is on the simpler side. Version-pinned, so it travels as the `afk-implementor` **agent type**, not a model argument (`PROVIDERS.md` "Pin delivery").
 - **digest tier** — the `afk-reader`/`afk-runner` default: reads, searches, suite triage, mechanical chores (bulk renames, format fixes, anchor greps — run these at low reasoning effort), and research whose digest the orchestrator treats as advisory and spot-checks via citations.
-- **Plugin/harness work is always frontier.** Any agent editing the AFK plugin or the harness it ships and stewards (skills, doctrine files, hooks, agent defs, the codex mirror/generator, CLAUDE.md steering artifacts) runs frontier-tier regardless of the edit's apparent size — a plugin defect multiplies into every run it drives.
+- **Plugin/harness work is always frontier.** Any agent editing the AFK plugin or the harness it ships and stewards (skills, doctrine files, hooks, agent defs, provider stubs, steering artifacts) runs frontier-tier regardless of the edit's apparent size — a plugin defect multiplies into every run it drives.
 - Callers override per-spawn — always upward. Escalate the moment a digest stops being advisory; never downgrade to save tokens on a verdict.
 
 ## Return contract

@@ -93,7 +93,7 @@ Creating an issue has a first-class MCP tool, so spinoff mode uses it directly �
 
 1. **Read the candidate** from the grill's `GRILL-LOG.md` spinoff row — kind, summary, pain, why-out, intended links.
 2. **Dedup.** Row already reads `filed {KEY}` → stop; the stub exists (`SPINOFF-TICKET.md`, dedup on resume).
-3. **Create** via `mcp__jira__jira_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, and a plain-text `description` carrying the pain + why-deferred/what-unblocks. Requirements-level, no repo-artifact references (ticket readers have no repo access).
+3. **Create** via `jira_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, and a plain-text `description` carrying the pain + why-deferred/what-unblocks. Requirements-level, no repo-artifact references (ticket readers have no repo access).
 4. **Record + link-debt.** The instant create returns, write `{KEY}` back onto the candidate row. `jira_create` (and `jira_edit`) **cannot set `issuelinks`**, so every intended `blocked-by`/`relates` link is **link-debt**: mark the row `filed {KEY} · link-debt` and tell the human which links to set by hand.
 
 **Done when:** the issue exists, its key is on the candidate row, and any unset links are surfaced as link-debt. **Human-present + user-directed only** (`SPINOFF-TICKET.md`) — never mint in a driven run.

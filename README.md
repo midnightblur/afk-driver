@@ -1,6 +1,6 @@
 # afk — the away-from-keyboard workflow
 
-Claude Code **plugin** that turns a raw feature idea into shipped, verified
+Agent **plugin** that turns a raw feature idea into shipped, verified
 code through a chain of skills — **human-heavy at the edges, autonomous in the
 middle**. Drive the design stages interactively; the implementation middle runs
 hands-off via `/afk:autopilot` (or by hand, one `/afk:execute` per subtask).
@@ -12,7 +12,7 @@ inherits a written contract, not a verbal hand-off.
 > Per-skill catalog + install snippet are further down as reference.
 
 **Credit & inspiration.** Directly inspired by and built upon
-[Matt Pocock's AFK Claude Code workflow and skills](https://github.com/mattpocock/skills).
+[Matt Pocock's AFK workflow and skills](https://github.com/mattpocock/skills).
 The original idea, the AFK framing, and several skill patterns come from his work
 — adapted and extended for a specific environment. Read the upstream source first.
 
@@ -91,7 +91,7 @@ What makes it trustworthy while you're away:
 Five ideas. Hold these and the rest follows.
 
 **① You invoke the stages; autopilot may drive the middle.** Each skill is a
-`/afk:<name>` slash command run in a Claude Code session. Design and acceptance
+`/afk:<name>` skill invoked in an agent session. Design and acceptance
 stages are interactive; the implementation middle runs hands-off via
 `/afk:autopilot` (one fresh subagent per subtask) or by hand, one `/afk:execute`
 per subtask. The map in [§3](#3-the-chain-at-a-glance) shows where each fits.
@@ -206,13 +206,16 @@ Start where your inputs land: raw idea → `/afk:grill-requirements`; existing P
 
 ## 4. Install
 
+The committed tree stays inert until a harness enables `afk@nak-marketplace`.
+
+### `.claude-plugin` harness
+
 ```text
-# inside Claude Code, from the core-services repo root
 /plugin marketplace add ./tools/payable/ai-agents/plugins/workflow
 /plugin install afk@nak-marketplace
 ```
 
-To auto-load on every Claude Code launch, add to `~/.claude/settings.json`:
+To auto-load, add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -227,62 +230,42 @@ To auto-load on every Claude Code launch, add to `~/.claude/settings.json`:
 }
 ```
 
-That snippet is the only manual part — it can't be a skill because the plugin
-isn't loaded yet. **Then run `/afk:setup`** — the workflow doctor: probes every
-external dependency the chain needs (CLIs, MCP servers, secrets, sibling
-checkouts) against `skills/afk/setup/MANIFEST.md`, installs what it can, walks
-you through the rest (Jira token, `glab auth login`). On a fresh machine, run
-`/afk:setup base` instead — same run plus the version-pinned base toolchain
-(git, JDK + Maven per `.sdkmanrc`, Node 24/npm 11, Python, Docker) and the
-workstation apps & OS config (VS Code, IntelliJ, MySQL Server + Workbench,
-Windows long paths); those extras are offered as a pick list, so install only
-what you'll use. By hand?
-`MANIFEST.md` is human-followable — every probe and fix is a copy-pasteable
-command.
+Run `/reload-plugins` after source changes.
 
-After editing any `SKILL.md`, run **`/reload-plugins`** to pick up changes
-without restarting. Same after `git pull` — and if the pull changed the workflow
-itself (new deps, new tools), re-run **`/afk:setup`**: idempotent, fixes exactly
-what the update broke, touches nothing else.
+### `.codex-plugin` harness
 
-**Teammate install**: the plugin ships inside `core-services`, so a `git pull`
-delivers it. Each developer enables it once at **local** scope with the snippet
-above (`/plugin marketplace add ./tools/payable/ai-agents/plugins/workflow` →
-`/plugin install afk@nak-marketplace`). Directory-source installs are
-snapshotted — after a `git pull` that changes a `SKILL.md`, run `/reload-plugins`
-(or re-add the marketplace) to refresh.
+```sh
+codex plugin marketplace add tools/payable/ai-agents/plugins/workflow
+codex plugin add afk@nak-marketplace
+```
 
-Dev loop for *this* repo: edit a `SKILL.md` → `/reload-plugins`. No build step,
-no test suite, no Python package.
+Then run `/afk:setup`. Section O enables native hooks, checks cache freshness,
+guides hook trust, copies the three unchanged agent TOML stubs, offers the
+per-directory steering fallback, and verifies the 40-skill catalog plus Jira.
+Restart after cache or agent-definition changes.
 
-### OpenAI Codex CLI (second supported runtime)
+### Shared setup and development
 
-The Claude plugin is canonical; a generated mirror makes the same chain run
-under Codex CLI — skills at `.agents/skills/` (afk-*), subagents at
-`.codex/agents/`, gates at `.codex/hooks.json`, first-turn memory via the
-AGENTS.local.md marker block (routed from the committed neutral AGENTS.md);
-all of these are gitignored per-machine — opt-in only. Generator + docs:
-`tools/payable/ai-agents/codex-sync/README.md`; provider vocabulary
-(invocation, spawn, model tiers, creds): `PROVIDERS.md` (plugin root);
-sync enforced by the `codex-drift-gate.sh` Stop gate. Codex-side install =
-`/afk:setup` section O (binary + login, generated layer, hook trust,
-`~/.codex/config.toml` merge, AGENTS.local.md block) — the section reports
-`deferred` wholesale on machines without Codex. Status: statically verified;
-not yet exercised against a live Codex install (assumptions listed in
-`codex-sync/README.md` "Known limitations").
+`/afk:setup` probes external dependencies against
+`skills/afk/setup/MANIFEST.md`. Use `/afk:setup base` for the pinned workstation
+toolchain. Use `/afk:setup audit` before shipping plugin changes.
+
+Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
+`hooks/native-contract-gate.sh`, then refresh the enabled plugin per
+`PROVIDERS.md`. Live support status is in `providers/CONFORMANCE.md`.
 
 ---
 
 ## 5. Walkthrough: your first feature
 
 A complete pass for a **complex** feature (one needing real design). Commands are
-slash commands you type in a Claude Code session; files are what appears on disk.
+skills you invoke in an agent session; files are what appears on disk.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev
-    participant CC as Claude Code (skills)
+    participant CC as Agent (skills)
     participant Disk as Disk
     participant Jira as Jira
     participant GL as GitLab

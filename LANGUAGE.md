@@ -26,6 +26,7 @@ pointer.
 ## 2. Ubiquitous language — whose terms
 
 - Workflow terms (stages, modes, states, verdicts, artifact names) come from `GLOSSARY.md` (plugin root), spelled as defined there.
+- Write every workflow skill reference as literal `/afk:<x>`. `PROVIDERS.md` owns invocation spelling.
 - Domain terms come from the target repo's glossaries (start at its `GLOSSARY-MAP.md`).
 - Never coin a synonym for a term a glossary owns; never redefine one inline — point at its home.
 - A recurring domain term with no entry is a gap: name it once, consistently, and route it to the glossary steward (`/afk:glossary`).

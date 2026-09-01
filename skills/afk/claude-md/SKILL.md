@@ -43,6 +43,8 @@ See [AUDIT.md](AUDIT.md). Surgical by default; full reorg only with `--deep`. Di
 ## Proposal protocol
 Group by target file. Per change: diff · one-line **why** · **placement rationale** (why here, not a level up/down) · moves as `src → dest`. Approval: **apply-all / by-file / by-number**. Write only approved (native Edit; Write for new files). No provenance markers — approval is the gate; treat human-authored lines with equal respect (propose cuts, never auto-cut).
 
+Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.
+
 ## Safety
 - **Write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11???*/**`, `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. Any target outside is **refused before any write**.
 - In-repo only — never `~/.claude/shared` (placement decision #3, `skills/utils/writing-for-agents/HARNESS-MECHANICS.md`).
