@@ -1,83 +1,91 @@
 #!/usr/bin/env bash
-# provider.sh — provider-abstraction shim for AFK hook scripts.
-#
-# One home for every provider-specific surface a hook touches: agent-runtime
-# detection, plugin root/data paths, the stdin hook-event envelope, and the
-# decision-output contracts. Hook scripts source this and call the afk_*
-# functions; gate LOGIC stays provider-free.
-#
-# Canonical copy: plugins/workflow/hooks/lib/provider.sh
-# Synced copy:    harness/hooks/lib/provider.sh   (byte-identical; plugins are
-# installed as snapshots, so a hook can't source across plugin roots at runtime.
-# codex-sync/generate.py re-emits the copy; its --check mode flags divergence.)
-#
-# Supported providers:
-#   claude — Claude Code. Detected via CLAUDE_PLUGIN_ROOT / CLAUDECODE.
-#   codex  — OpenAI Codex CLI. Detected via CODEX_HOME / CODEX_THREAD_ID /
-#            CODEX_SANDBOX (UNVERIFIED against a live Codex install — the CLI's
-#            hook-env contract isn't documented; until live-verified, set
-#            AFK_PROVIDER=codex explicitly, e.g. in .codex/hooks.json commands).
-#   unknown — neither marker present (manual shell run, CI).
-# Override everything: AFK_PROVIDER=claude|codex.
+# Registry and shared contracts for AFK hook provider adapters.
 
-# ---- detection --------------------------------------------------------------
+AFK_PROVIDER_CORE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+AFK_PROVIDER_NAMES=""
+
+for afk_adapter in "$AFK_PROVIDER_CORE_DIR"/providers/*.sh; do
+  [ -f "$afk_adapter" ] || continue
+  # shellcheck source=/dev/null
+  . "$afk_adapter"
+  afk_adapter_name=${afk_adapter##*/}
+  afk_adapter_name=${afk_adapter_name%.sh}
+  AFK_PROVIDER_NAMES="$AFK_PROVIDER_NAMES $afk_adapter_name"
+done
+unset afk_adapter afk_adapter_name
 
 afk_provider() {
+  local name detect priority selected="" selected_priority="" ambiguous=0
+
   if [ -n "${AFK_PROVIDER:-}" ]; then
-    printf '%s\n' "$AFK_PROVIDER"
-  elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || [ -n "${CLAUDECODE:-}" ]; then
-    printf 'claude\n'
-  elif [ -n "${CODEX_HOME:-}" ] || [ -n "${CODEX_THREAD_ID:-}" ] || [ -n "${CODEX_SANDBOX:-}" ]; then
-    printf 'codex\n'
-  else
+    case " $AFK_PROVIDER_NAMES " in
+      *" $AFK_PROVIDER "*) printf '%s\n' "$AFK_PROVIDER" ;;
+      *) printf 'unknown\n' ;;
+    esac
+    return 0
+  fi
+
+  for name in $AFK_PROVIDER_NAMES; do
+    detect="afk_${name}_detect"
+    priority="afk_${name}_priority"
+    command -v "$detect" >/dev/null 2>&1 || continue
+    "$detect" || continue
+    if command -v "$priority" >/dev/null 2>&1; then
+      priority=$("$priority")
+    else
+      priority=100
+    fi
+    if [ -z "$selected_priority" ] || [ "$priority" -lt "$selected_priority" ]; then
+      selected=$name
+      selected_priority=$priority
+      ambiguous=0
+    elif [ "$priority" -eq "$selected_priority" ]; then
+      ambiguous=1
+    fi
+  done
+
+  if [ "$ambiguous" -eq 1 ] || [ -z "$selected" ]; then
     printf 'unknown\n'
+  else
+    printf '%s\n' "$selected"
   fi
 }
 
-# True when ANY agent runtime is acting (vs a human shell). Used by gates that
-# must never get in a human's way (e.g. the git branch-name gate carries an
-# inlined Lockstep copy of this check — it can't source plugin files).
 afk_agent_session() {
   [ "$(afk_provider)" != "unknown" ]
 }
 
-# ---- paths ------------------------------------------------------------------
-
-# Plugin root: Claude injects CLAUDE_PLUGIN_ROOT; Codex invokes hooks by
-# repo-relative path with no env, so fall back to this file's location
-# (lib/ is one level under the plugin's hooks/ dir).
 afk_plugin_root() {
-  if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    printf '%s\n' "$CLAUDE_PLUGIN_ROOT"
-  else
-    (cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+  local provider function root=""
+  provider=$(afk_provider)
+  function="afk_${provider}_plugin_root"
+  if command -v "$function" >/dev/null 2>&1; then
+    root=$("$function")
   fi
+  if [ -z "$root" ]; then
+    root=$(cd "$AFK_PROVIDER_CORE_DIR/../.." && pwd)
+  fi
+  printf '%s\n' "$root"
 }
 
-# Writable per-plugin state dir (logs, counters). Claude provides
-# CLAUDE_PLUGIN_DATA; elsewhere use a neutral home-dir location.
 afk_plugin_data() {
-  local dir
-  if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
-    dir="$CLAUDE_PLUGIN_DATA"
-  else
+  local provider function dir=""
+  provider=$(afk_provider)
+  function="afk_${provider}_plugin_data"
+  if command -v "$function" >/dev/null 2>&1; then
+    dir=$("$function")
+  fi
+  if [ -z "$dir" ]; then
     dir="$HOME/.afk/data/$(basename "$(afk_plugin_root)")"
   fi
   mkdir -p "$dir" 2>/dev/null || true
   printf '%s\n' "$dir"
 }
 
-# ---- stdin envelope ---------------------------------------------------------
-
-# Slurp the hook-event JSON once into AFK_HOOK_INPUT (both providers deliver
-# the same core fields: hook_event_name, session_id, cwd, tool_name, tool_input).
 afk_hook_input() {
   AFK_HOOK_INPUT=$(cat)
 }
 
-# afk_hook_field <jq-path> — extract a field from the slurped envelope.
-# jq when available; grep/sed fallback for simple string fields ("a.b.c" paths,
-# no arrays), matching the pre-shim parsing style of crowdstrike-guard.sh.
 afk_hook_field() {
   local path="$1"
   if command -v jq >/dev/null 2>&1; then
@@ -91,18 +99,10 @@ afk_hook_field() {
   fi
 }
 
-# ---- decision output --------------------------------------------------------
-
-# JSON-escape a string for the no-jq fallback paths (quotes, backslashes,
-# real newlines/tabs). Messages may carry real newlines; jq handles them
-# natively, the fallback must escape them.
 afk__json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g' | awk 'NR>1{printf "\\n"}{printf "%s",$0}' | sed 's/\t/\\t/g'
 }
 
-# PreToolUse hard deny. Claude and Codex both accept the hookSpecificOutput
-# permissionDecision envelope (Codex schema researched 2026-07, unverified live
-# — if it diverges, this function is the only change point).
 afk_emit_deny() {
   local reason="$1"
   if command -v jq >/dev/null 2>&1; then
@@ -113,8 +113,6 @@ afk_emit_deny() {
   fi
 }
 
-# PreToolUse context injection (non-blocking system reminder). Same envelope
-# on both providers.
 afk_emit_context() {
   local msg="$1"
   if command -v jq >/dev/null 2>&1; then
@@ -125,8 +123,6 @@ afk_emit_context() {
   fi
 }
 
-# Stop-gate block: stderr + exit 2 is the confirmed-portable contract on both
-# providers (Claude documented; Codex documented 2026-07).
 afk_block_stop() {
   printf '%s\n' "$1" >&2
   exit 2

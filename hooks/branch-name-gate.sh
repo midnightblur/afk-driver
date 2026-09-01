@@ -22,15 +22,17 @@
 
 set -u
 
-# AGENT-ONLY. This gate keeps *agent*-created branches on-convention; it must
-# never get in a human's way. Agent runtimes mark the environment of every
-# process they spawn — Claude Code sets CLAUDECODE; Codex CLI markers
-# (CODEX_HOME/CODEX_THREAD_ID/CODEX_SANDBOX) are unverified live, and
-# AFK_PROVIDER is the explicit override. Branch creation from your own
-# terminal or IDE has no such marker — not gated; name branches however you
-# like. (Lockstep copy of afk_agent_session in hooks/lib/provider.sh — a git
-# hook runs outside the plugin, so it can't source that file.)
-[ -n "${CLAUDECODE:-}${AFK_PROVIDER:-}${CODEX_HOME:-}${CODEX_THREAD_ID:-}${CODEX_SANDBOX:-}" ] || exit 0
+# AGENT-ONLY. Keep this detection order aligned with hooks/lib/provider.sh.
+# This installed git hook cannot source the plugin file.
+afk_git_provider=unknown
+if [ -n "${AFK_PROVIDER:-}" ]; then
+  afk_git_provider=$AFK_PROVIDER
+elif [ -n "${PLUGIN_ROOT:-}" ]; then
+  afk_git_provider=codex
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || [ -n "${CLAUDECODE:-}" ]; then
+  afk_git_provider=claude
+fi
+[ "$afk_git_provider" != unknown ] || exit 0
 
 # Only the "prepared" phase of a ref transaction can veto it; "committed" and
 # "aborted" are informational (a non-zero exit there does nothing useful).

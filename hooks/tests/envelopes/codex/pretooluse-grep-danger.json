@@ -1,0 +1,12 @@
+{
+  "session_id": "codex-session",
+  "turn_id": "codex-turn",
+  "cwd": "/workspace/core-services",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Grep",
+  "tool_input": {
+    "pattern": "secret",
+    "path": "C:\\Windows"
+  },
+  "model": "gpt-5.6"
+}

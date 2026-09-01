@@ -1,0 +1,9 @@
+{
+  "session_id": "claude-session",
+  "cwd": "/workspace/core-services",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "find / -name scope_enforcer.py"
+  }
+}
