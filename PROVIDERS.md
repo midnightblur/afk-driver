@@ -64,6 +64,8 @@ Claude reads `agents/*.md` from the enabled plugin. Codex reads the unchanged fi
 
 Codex has no documented custom-agent tool allowlist or nesting-depth setting. Use sandbox plus role prohibitions. Root agents spawn; children run helper work inline when nesting is unavailable.
 
+Each adapter also names the exit code its harness reads a Stop block from (`afk_<provider>_stop_block_code`, default 2). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
+
 ## Credentials
 
 Jira reads exported `JIRA_*` variables first, then the supported user-config fallbacks. Never print secret values. The shared plugin `.mcp.json` starts the same server for each harness; tool prefixes vary, so skills use bare tool names. Its bootstrap does not depend on inherited environment: when a harness starts the MCP child with a filtered environment, it fills the `JIRA_*` values from the same chain the server documents — exported variables first, then a `jira` server's `env` block in `~/.claude.json`, then `[mcp_servers.jira.env]` in `~/.codex/config.toml`. It resolves the plugin root in order: the interpolated argument, `CLAUDE_PLUGIN_ROOT`, `PLUGIN_ROOT`, the checkout path under `$PWD`, then the newest plugin cache under the user's home — one harness interpolates the argument, another passes it through literally, and both reach the same server.

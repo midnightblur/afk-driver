@@ -8,6 +8,13 @@ Deterministic quality gates shipped with the afk plugin. All gates run against t
 - **Commit** — `precommit-gates.sh` runs native-contract plus the expensive code gates (maven-compile, java-format, ui-lint) from the `pre-commit` git hook that `install-git-hooks.sh` installs, for **agent-driven commits only**.
 - **PreToolUse / on demand** — unchanged (`lavish-*.sh`, the adopted guards, `app-start-gate.sh`, `mutation-probe.sh`).
 
+**A Stop block is a decision, not an exit code.** Gate findings are collected
+by `stop-gates.sh` and emitted once through `afk_block_stop` (`hooks/lib/provider.sh`):
+the text goes to stderr and to a `{"decision":"block","reason":…}` object on
+stdout, and the exit code comes from the active adapter. A harness that reads
+only one of those channels records a bare `exit 2` as a failed hook and lets the
+turn finish. The two adopted harness Stop gates use the same emitter.
+
 **Every hook entry goes through one launcher.** `hooks.json` commands are
 `python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh> [args]`
 (`--soft` before the kind pins the exit code to 0 for an advisory handler). A

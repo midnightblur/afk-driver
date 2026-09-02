@@ -123,7 +123,34 @@ afk_emit_context() {
   fi
 }
 
+# A Stop verdict has to reach the session, and harnesses read it differently:
+# one takes stderr with exit 2, another only honours a decision object on
+# stdout. Emit both, and let the adapter say which exit code its harness
+# reads a block from (afk_<provider>_stop_block_code, default 2).
+afk_emit_stop_block() {
+  # A gate that prints through a Windows text stream can leave CR bytes in the
+  # middle of the findings; they corrupt the decision value, not just the view.
+  local reason=${1//$'\r'/}
+  printf '%s\n' "$reason" >&2
+  if command -v jq >/dev/null 2>&1; then
+    jq -n --arg r "$reason" '{decision:"block",reason:$r}'
+  else
+    printf '{"decision":"block","reason":"%s"}\n' "$(afk__json_escape "$reason")"
+  fi
+}
+
+afk_stop_block_code() {
+  local provider function
+  provider=$(afk_provider)
+  function="afk_${provider}_stop_block_code"
+  if command -v "$function" >/dev/null 2>&1; then
+    "$function"
+  else
+    printf '2\n'
+  fi
+}
+
 afk_block_stop() {
-  printf '%s\n' "$1" >&2
-  exit 2
+  afk_emit_stop_block "$1"
+  exit "$(afk_stop_block_code)"
 }

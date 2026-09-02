@@ -146,6 +146,20 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
     fail "lavish-dark pass-through (rc=$rc)"
   fi
 
+  block_out=$(AFK_PROVIDER="$provider" bash -c \
+    '. "$1"; afk_emit_stop_block "gate said no"' _ "$shim" 2>/dev/null)
+  block_err=$(AFK_PROVIDER="$provider" bash -c \
+    '. "$1"; afk_emit_stop_block "gate said no"' _ "$shim" 2>&1 >/dev/null)
+  block_code=$(AFK_PROVIDER="$provider" bash -c \
+    '. "$1"; afk_stop_block_code' _ "$shim")
+  if printf '%s' "$block_out" | jq -e \
+      '.decision == "block" and (.reason | length > 0)' >/dev/null \
+      && [ "$block_err" = "gate said no" ] && [ -n "$block_code" ]; then
+    pass "stop block emits a decision, the findings, and an exit code"
+  else
+    fail "stop block emission (json=$block_out stderr=$block_err code=$block_code)"
+  fi
+
   out=$(AFK_PROVIDER="$provider" bash "$lavish_tips" \
     < "$provider_envelopes/pretooluse-bash-safe.json" 2>/dev/null)
   rc=$?

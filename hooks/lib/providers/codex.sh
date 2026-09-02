@@ -18,6 +18,10 @@ afk_codex_plugin_root() {
   fi
 }
 
+afk_codex_stop_block_code() {
+  printf '0\n'
+}
+
 afk_codex_plugin_data() {
   if [ -n "${PLUGIN_DATA:-}" ]; then
     printf '%s\n' "$PLUGIN_DATA"

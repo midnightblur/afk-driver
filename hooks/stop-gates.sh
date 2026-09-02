@@ -20,8 +20,10 @@
 # at commit/push time via precommit-gates.sh (installed by install-git-hooks.sh),
 # where the cost is paid once per commit instead of once per turn.
 #
-# Exit 2 with stderr blocks the agent from finishing; every gate is run (a block
-# in one does not hide findings in another). Escape hatch, per-gate disable vars,
+# A block is emitted once, at the end, through the provider shim: the findings
+# go to stderr AND to a stdout decision object, and the adapter picks the exit
+# code its harness reads a block from. Every gate is run first (a block in one
+# does not hide findings in another). Escape hatch, per-gate disable vars,
 # and the pass cache are unchanged — see hooks/README.md.
 # Disable the whole set: .claude/hooks/.gate-disabled in the gated repo.
 
@@ -33,6 +35,7 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$repo_root" || exit 0
 [ -f .claude/hooks/.gate-disabled ] && exit 0
 
+. "$SCRIPT_DIR/lib/provider.sh"
 . "$SCRIPT_DIR/gate-context.sh"
 . "$SCRIPT_DIR/gate-cache.sh"
 . "$SCRIPT_DIR/gate-metrics.sh"
@@ -60,6 +63,18 @@ PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
 # the scope test is fork-free and answers "could this gate have anything to say?"
 blocked=0
 crashed=0
+
+# Gate findings are the block reason, and a reason has to be a value, not a
+# stream: collect stderr here and replay it once the verdict is known.
+GATE_ERR=$(mktemp "${TMPDIR:-/tmp}/afk-stop.XXXXXX") || GATE_ERR=
+if [ -n "$GATE_ERR" ]; then
+  exec 3>&2 2>"$GATE_ERR"
+fi
+
+release_stderr() {
+  [ -n "$GATE_ERR" ] || return 0
+  exec 2>&3 3>&-
+}
 
 run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   local name=$1 fn="gate_${1//-/_}" rc=0
@@ -121,9 +136,19 @@ write_stamp() {
   rm -f "$STOP_STAMP.$$" 2>/dev/null
 }
 
+release_stderr
+
 if [ "$blocked" = "1" ]; then
   write_stamp "blocked:$AFK_CTX_TREE"
-  exit 2
+  reason=$(cat "$GATE_ERR" 2>/dev/null)
+  rm -f "$GATE_ERR" 2>/dev/null
+  afk_block_stop "$reason"
+fi
+
+# Not blocking: a crashed gate or an advisory line still has to be seen.
+if [ -n "$GATE_ERR" ]; then
+  cat "$GATE_ERR" >&2 2>/dev/null
+  rm -f "$GATE_ERR" 2>/dev/null
 fi
 
 # A crashed gate means this Stop verified less than the full suite — leave the

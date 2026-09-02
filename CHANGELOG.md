@@ -12,6 +12,8 @@ today's date **in the same commit** — trigger owned by this file's
 
 ## 2026-09-02
 
+- **A Stop block is emitted as a decision, so every harness honours it.** Gate findings now leave `stop-gates.sh` once, through the provider shim: the text on stderr and a `{"decision":"block","reason":…}` object on stdout, with the exit code named by the active adapter. A harness that reads only the decision object recorded the previous stderr-plus-exit-2 form as a failed hook and let the turn finish — a gate that blocks on one machine and is silent on another is worse than no gate. The two adopted harness Stop gates (Java rules, i18n parity) go through the same emitter.
+
 - **Every hook runs through one launcher.** A hook command string is parsed by whichever shell the harness picked, and `bash` on Windows often names the WSL stub, which cannot run these handlers — so a guard or gate reported a failed hook and no verdict. All commands are now `python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh>`: the launcher locates a real Git Bash, puts its toolchain on the child's PATH, resolves the handler under the plugin or the checkout, and forwards stdin and the exit code; native contract gate rule J refuses any other command shape. The no-`jq` envelope reader now tolerates whitespace too, which silently blanked every field on a pretty-printed envelope.
 
 - **The shared Jira server finds its own credentials.** A harness may start the MCP child with a filtered environment, leaving the server no values to authenticate with. Its bootstrap now reads them from the exported variables first, then a `jira` server `env` block in the user's harness config files — nothing secret is committed.
