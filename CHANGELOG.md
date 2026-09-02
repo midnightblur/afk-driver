@@ -10,6 +10,10 @@ Maintenance: a commit shipping a dev-visible change adds its one-liner under
 today's date **in the same commit** — trigger owned by this file's
 `FRESHNESS.md` registry row.
 
+## 2026-09-02
+
+- **Every hook runs through one launcher.** A hook command string is parsed by whichever shell the harness picked, and `bash` on Windows often names the WSL stub, which cannot run these handlers — so a guard or gate reported a failed hook and no verdict. All commands are now `python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh>`: the launcher locates a real Git Bash, puts its toolchain on the child's PATH, resolves the handler under the plugin or the checkout, and forwards stdin and the exit code; native contract gate rule J refuses any other command shape. The no-`jq` envelope reader now tolerates whitespace too, which silently blanked every field on a pretty-printed envelope.
+
 ## 2026-09-01
 
 - **Shell handlers are pinned to LF, and the shared MCP server finds itself.** A harness that copies this tree into its own plugin cache runs the hook scripts through a POSIX shell, where a CRLF checkout is unparseable — every guard and gate silently reported a failed handler instead of a verdict. A scoped `.gitattributes` pins `*.sh` to LF and the native contract gate now blocks a CR byte in any shell handler. The shared `.mcp.json` no longer depends on plugin-root interpolation: its bootstrap resolves the root from the passed argument, the plugin-root variables, the checkout under `$PWD`, then the newest plugin cache under the user's home, so every harness reaches the same server.

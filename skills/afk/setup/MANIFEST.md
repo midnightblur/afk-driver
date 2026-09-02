@@ -279,7 +279,10 @@ a token value — not even partially.
   concurrent worktree builds never share a writable local repo.
 
 ### P1 · Python 3
-- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
+- **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
+  runs through, so without it no gate or guard fires at all — the shared
+  `.mcp.json` bootstrap,
+  `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3),
   the shared Jira lib `scripts/jira_core.py` and
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001).
@@ -578,7 +581,8 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json`, `hooks/lib/providers/claude.sh` | compatibility root set by supported plugin hooks |
-| `CLAUDE_PROJECT_DIR` | `hooks/hooks.json` | optional fast project root; every use is written `${CLAUDE_PROJECT_DIR:-$(git -C "$PWD" rev-parse --show-toplevel)}` |
+| `CLAUDE_PROJECT_DIR` | `hooks/run-hook.py` | optional fast project root, read with the `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` fallback |
+| `AFK_BASH` / `GIT_BASH` | `hooks/run-hook.py` | POSIX shell the hook launcher runs handlers with, ahead of its own lookup |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |

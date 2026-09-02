@@ -156,6 +156,46 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
   fi
 done
 
+# The launcher every hooks.json command goes through. A handler that never
+# starts is the failure this covers: the harness reports a failed hook and no
+# gate verdict, so run the real command shape end to end.
+launcher="$workflow/hooks/run-hook.py"
+py=python
+command -v python >/dev/null 2>&1 || py=python3
+
+echo "== hook launcher =="
+out=$("$py" "$launcher" repo crowdstrike-guard.sh \
+  < "$envelopes/claude/pretooluse-bash-danger.json" 2>/dev/null)
+rc=$?
+if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
+    '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
+  pass "launcher runs a repository handler and carries its denial"
+else
+  fail "launcher repository handler (rc=$rc out=$out)"
+fi
+
+out=$("$py" "$launcher" repo afk-no-such-handler.sh 2>&1)
+rc=$?
+if [ "$rc" = 0 ] && [ -z "$out" ]; then
+  pass "launcher stays silent on an absent handler"
+else
+  fail "launcher absent handler (rc=$rc out=$out)"
+fi
+
+# PATH without a POSIX shell is the machine the probes ran on: the system
+# directory's WSL stub is the only thing named bash.
+py_abs=$(command -v "$py")
+out=$(env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
+  "$py_abs" "$launcher" repo crowdstrike-guard.sh \
+  < "$envelopes/claude/pretooluse-bash-danger.json" 2>/dev/null)
+rc=$?
+if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
+    '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
+  pass "launcher finds a shell when PATH carries only the WSL stub"
+else
+  fail "launcher shell lookup (rc=$rc out=$out)"
+fi
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

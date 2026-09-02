@@ -29,7 +29,7 @@ Shared hook matchers: *, Bash, PowerShell, Glob, Grep, mcp__lean-ctx__ctx_search
 - Events: `SessionStart`, `PreToolUse`, `Stop`.
 - Matchers: `*`, `Bash`, `PowerShell`, `Glob`, `Grep`, `mcp__lean-ctx__ctx_search`, `mcp__lean-ctx__ctx_tree`, `mcp__lean-ctx__ctx_semantic_search`, `mcp__intellij__search_in_files_by_regex`, `mcp__intellij__search_in_files_by_text`, `mcp__intellij__search_text`, `mcp__intellij__search_regex`.
 - Blocking: PreToolUse deny envelope; Stop stderr plus exit 2.
-- Commands keep `${CLAUDE_PLUGIN_ROOT}`. Repository hooks use `${CLAUDE_PROJECT_DIR:-$(git -C "$PWD" rev-parse --show-toplevel)}`.
+- Every hook command is `python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh>` — one form both a POSIX shell and PowerShell parse, and the launcher, not the command string, locates the shell and the repository root (`${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}`). Never put shell syntax or a bare `bash` in a command string: `bash` names the WSL stub on many Windows machines.
 
 ## Skill requirements
 

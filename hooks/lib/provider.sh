@@ -93,8 +93,8 @@ afk_hook_field() {
   else
     local leaf="${path##*.}"
     { printf '%s' "${AFK_HOOK_INPUT:-}" \
-      | grep -oE "\"${leaf}\":\"([^\"\\\\]|\\\\.)*\"" | head -1 \
-      | sed "s/^\"${leaf}\":\"//;s/\"\$//" \
+      | grep -oE "\"${leaf}\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" | head -1 \
+      | sed "s/^\"${leaf}\"[[:space:]]*:[[:space:]]*\"//;s/\"\$//" \
       | sed 's/\\"/"/g;s/\\\\/\\/g;s/\\n/ /g;s/\\t/ /g;s/\\r/ /g'; } || true
   fi
 }

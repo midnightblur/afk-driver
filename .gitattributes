@@ -3,3 +3,7 @@
 # CRLF-ify them on checkout; git-bash then fails on the shebang and `set` lines,
 # taking the whole hook surface (guards, Stop gates, provider shim) with it.
 *.sh text eol=lf
+
+# The hook launcher is executed by the same copied tree; keep it LF for the
+# same reason (gate rule I covers hooks/*.py).
+hooks/*.py text eol=lf

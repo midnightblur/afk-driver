@@ -8,6 +8,19 @@ Deterministic quality gates shipped with the afk plugin. All gates run against t
 - **Commit** — `precommit-gates.sh` runs native-contract plus the expensive code gates (maven-compile, java-format, ui-lint) from the `pre-commit` git hook that `install-git-hooks.sh` installs, for **agent-driven commits only**.
 - **PreToolUse / on demand** — unchanged (`lavish-*.sh`, the adopted guards, `app-start-gate.sh`, `mutation-probe.sh`).
 
+**Every hook entry goes through one launcher.** `hooks.json` commands are
+`python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh> [args]`
+(`--soft` before the kind pins the exit code to 0 for an advisory handler). A
+command string is parsed by whichever shell the harness picked — a POSIX shell
+on one, PowerShell on another — so it must carry no shell syntax; and a bare
+`bash` on Windows resolves to the WSL stub in the system directory, which cannot
+run these handlers. The launcher takes both problems: it locates a real Git Bash
+(`AFK_BASH`, `GIT_BASH`, a lookup relative to `git --exec-path`, the known
+install locations, then `PATH` minus the system directory), resolves the handler
+under the plugin or the checkout, forwards stdin and the exit code, and exits 0
+on an absent handler. Add a hook: add the entry in that shape — never a second
+launch mechanism.
+
 **Cost model — subprocess count, not algorithm.** On Windows/git-bash a spawn costs ~0.5–2s (MSYS fork emulation) against ~20–40ms for a native Windows spawn, and degrades under load. A gate's latency is therefore roughly `spawns × that number`, which is why the design rules below matter more than any per-gate cleverness:
 
 - The change set is derived **once per Stop** (`gate-context.sh`) and shared; no gate runs `git status` or hashes a file itself. Scope tests (`gate_ctx_filter` / `gate_ctx_any`) are bash pattern matches, so "no `.java` changed" costs nothing.
@@ -20,9 +33,10 @@ Deterministic quality gates shipped with the afk plugin. All gates run against t
 **Adopted harness gates.** Four gates are registered here but live in
 `tools/payable/ai-agents/harness/hooks/` (their one home, shared with the
 `code-quality/` assets they read): `crowdstrike-guard.sh` + `explore-counter.sh` (PreToolUse) and
-`java-rules-gate.sh` + `i18n-parity-gate.sh` (Stop). `hooks.json` invokes them
-via `${CLAUDE_PROJECT_DIR:-$(git -C "$PWD" rev-parse --show-toplevel)}`
-(existence-guarded, so the plugin stays inert in a repo without them) rather than `${CLAUDE_PLUGIN_ROOT}` — directory-source
+`java-rules-gate.sh` + `i18n-parity-gate.sh` (Stop). `hooks.json` invokes them as `run-hook.py repo <handler.sh>`,
+which resolves them under the checkout (`${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}`)
+and exits 0 when the repo or the handler is absent, so the plugin stays inert in a
+repo without them. They are not resolved under the plugin root: directory-source
 plugins are snapshotted at install, and these gates must track the checkout,
 not the snapshot. Their escape hatch is the harness one: `.claude/.gate-disabled`
 (no `hooks/` segment). The standalone `payable-harness` plugin that used to

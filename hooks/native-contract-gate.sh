@@ -17,8 +17,10 @@
 #      hooks/tests/envelopes/<provider>/;
 #   H. the PROVIDERS.md supported-harness registry and the adapters on disk are
 #      one list;
-#   I. every shell handler is LF-only, since a harness copies this tree verbatim
-#      into its plugin cache and runs it through a POSIX shell.
+#   I. every shell handler and hook launcher is LF-only, since a harness copies
+#      this tree verbatim into its plugin cache and runs it through a POSIX shell;
+#   J. every hooks.json command goes through hooks/run-hook.py, so no command
+#      string depends on a shell dialect or on a bare `bash`.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -254,6 +256,31 @@ if shared_matchers is not None:
                     )
 
 
+# J. One launch mechanism. A command string is parsed by whichever shell the
+# harness chose, and `bash` names the WSL stub on many Windows machines, so
+# every handler goes through the launcher and no command carries shell syntax.
+launcher = re.compile(
+    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.py"'
+    r'(?: --soft)? (?:plugin|repo) [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*$'
+)
+for event, groups in hook_map.items():
+    if not isinstance(groups, list):
+        continue
+    for index, group in enumerate(groups):
+        if not isinstance(group, dict):
+            continue
+        for handler in group.get("hooks", []) or []:
+            if not isinstance(handler, dict):
+                continue
+            command = handler.get("command", "")
+            if not isinstance(command, str) or not launcher.match(command):
+                problems.append(
+                    f"hooks/hooks.json: {event}[{index}] command must be "
+                    f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
+                    f"[--soft] plugin|repo <handler.sh> [args] - got {command!r}"
+                )
+
+
 # F. Generated mirrors/activation surfaces may exist locally, never in git.
 try:
     tracked_raw = subprocess.check_output(
@@ -302,7 +329,7 @@ else:
 # I. A CR byte in a shell handler is fatal wherever a POSIX shell runs it, and
 # the failure is silent: the harness reports a failed hook, never a gate verdict.
 # Judge the working tree, which is what a harness copies, not the index.
-for script in sorted(plugin.rglob("*.sh")):
+for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/*.py"))):
     try:
         if b"\r" in script.read_bytes():
             problems.append(

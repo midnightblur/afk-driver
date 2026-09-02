@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/install-git-hooks.sh\" --quiet || true",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin install-git-hooks.sh --quiet",
             "timeout": 15
           }
         ]
@@ -18,12 +18,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-dark.sh\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-dark.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/lavish-tips.sh\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-tips.sh",
             "timeout": 15
           }
         ]
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/crowdstrike-guard.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo crowdstrike-guard.sh",
             "timeout": 15,
             "statusMessage": "crowdstrike-guard: checking for system-root recursive scan"
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/explore-counter.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo explore-counter.sh",
             "timeout": 15,
             "statusMessage": "explore-counter: tallying search calls"
           }
@@ -57,19 +57,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-gates.sh\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin stop-gates.sh",
             "timeout": 300,
             "statusMessage": "AFK gates..."
           },
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/java-rules-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo java-rules-gate.sh",
             "timeout": 300,
             "statusMessage": "java-rules-gate: checking changed .java against the CSJ rules"
           },
           {
             "type": "command",
-            "command": "f=\"${CLAUDE_PROJECT_DIR:-$(git -C \"$PWD\" rev-parse --show-toplevel)}/tools/payable/ai-agents/harness/hooks/i18n-parity-gate.sh\"; [ ! -f \"$f\" ] || bash \"$f\"",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo i18n-parity-gate.sh",
             "timeout": 60,
             "statusMessage": "i18n-parity-gate: checking added caption keys across locales"
           }
