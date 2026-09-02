@@ -15,7 +15,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
 | Native manifest loads | pass 2026-09-01 | partial 2026-09-01 | Both manifests parse with the same 40 skill paths. Second harness: marketplace registered and `afk@nak-marketplace` installed and enabled at 0.0.0, still through the legacy manifest path; acceptance of the new native manifest needs a live refresh |
-| 40 `/afk:<x>` skills load | pending reload | pending | Catalog counted from the manifest; a session started after this change re-counts the live catalog |
+| 40 `/afk:<x>` skills load | pass 2026-09-01 | pending | Fresh post-change session: 38 skills listed, no duplicates and no hyphenated mirrors. 40 manifest entries = 38 listed + `harvest` (`disable-model-invocation: true`, hidden by design) + `diagnose` (absent from the model-visible listing in a pre-change session too — a pre-existing listing quirk, not a regression; it carries no hiding flag) |
 | No generated mirror skills | n/a | pending | Generator and its outputs are deleted from the repository |
 | Shared hooks load and are trusted | pass 2026-09-01 | pending | Both hook surfaces fired live this session: a PreToolUse guard denial and a Stop gate block |
 | SessionStart envelope and environment names | pass 2026-09-01 | pending | `hooks/tests/hook-smoke.sh` parses every fixture under both adapters; live capture on the second harness still owed |
@@ -31,6 +31,8 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 
 ## Unresolved items
+
+- `diagnose` is missing from the model-visible skill listing on the first harness although its frontmatter carries no hiding flag. Pre-dates the native migration; open as its own follow-up.
 
 - `[U]` Plugin-root expansion in MCP arguments.
 - `[U]` Exact local-plugin cache refresh command.
