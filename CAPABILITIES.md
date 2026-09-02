@@ -24,10 +24,10 @@ Use this table for every capability branch. Missing required capability stops th
 
 Shared hook events: SessionStart, PreToolUse, Stop
 
-Shared hook matchers: *, Bash, PowerShell, Glob, Grep, mcp__lean-ctx__ctx_search, mcp__lean-ctx__ctx_tree, mcp__lean-ctx__ctx_semantic_search, mcp__intellij__search_in_files_by_regex, mcp__intellij__search_in_files_by_text, mcp__intellij__search_text, mcp__intellij__search_regex
+Shared hook matchers: *, Bash, PowerShell, Glob, Grep, mcp__intellij__search_in_files_by_regex, mcp__intellij__search_in_files_by_text, mcp__intellij__search_text, mcp__intellij__search_regex
 
 - Events: `SessionStart`, `PreToolUse`, `Stop`.
-- Matchers: `*`, `Bash`, `PowerShell`, `Glob`, `Grep`, `mcp__lean-ctx__ctx_search`, `mcp__lean-ctx__ctx_tree`, `mcp__lean-ctx__ctx_semantic_search`, `mcp__intellij__search_in_files_by_regex`, `mcp__intellij__search_in_files_by_text`, `mcp__intellij__search_text`, `mcp__intellij__search_regex`.
+- Matchers: `*`, `Bash`, `PowerShell`, `Glob`, `Grep`, `mcp__intellij__search_in_files_by_regex`, `mcp__intellij__search_in_files_by_text`, `mcp__intellij__search_text`, `mcp__intellij__search_regex`.
 - Blocking: PreToolUse deny envelope; Stop emits the findings on stderr AND a `{"decision":"block","reason":…}` object on stdout, exiting with the code the adapter names (`afk_<provider>_stop_block_code`). One harness reads the stderr-plus-exit-2 form, another honours only the decision object, and a handler that emits just one of them is recorded as failed rather than as a verdict.
 - Every hook command is `python "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py" plugin|repo <handler.sh>` — one form both a POSIX shell and PowerShell parse, and the launcher, not the command string, locates the shell and the repository root (`${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}`). Never put shell syntax or a bare `bash` in a command string: `bash` names the WSL stub on many Windows machines.
 

@@ -56,16 +56,6 @@ a token value — not even partially.
   in this plugin at `mcp-servers/jira/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
 
-### H3 · lean-ctx MCP server *(optional)*
-- **Needed by:** `ctx_read`/`ctx_search`/`ctx_tree` calls in
-  `skills/afk/execute` (cited-mode grep checkpoints), `skills/afk/grill-solution`
-  (grounding), `skills/afk/to-subtasks` (anchor validation), `skills/afk/claude-md`,
-  `skills/afk/to-sdd`, `skills/afk/to-design-brief`, `skills/afk/grill-verification`.
-- **Probe:** `agent:` `ctx_read` is callable.
-- **Fix:** `human:` install lean-ctx per its own docs, or skip.
-- **Notes:** native Read/Grep are functional equivalents — skills degrade
-  gracefully; costs nothing when absent.
-
 ### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,
   `skills/afk/design-system/PUBLISH.md` (the opt-in share mirror only).

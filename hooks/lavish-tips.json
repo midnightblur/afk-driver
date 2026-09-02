@@ -118,7 +118,6 @@
   "skeptic pass": "A review pass whose reviewer is instructed to actively disbelieve the work and try to show it is wrong, rather than to confirm it looks right.",
   "e2e": "End-to-end — a test that drives the real application through a browser the way a person would, instead of testing one function in isolation.",
   "vacuous": "Describes a test that runs and passes without actually proving anything — for example one that checks a page loaded but never checks the thing the test was named for.",
-  "lean-ctx": "An optional helper that lets an agent read and search the codebase through a dedicated service instead of plain file reads and text search. Everything works without it; the built-in file tools do the same job.",
   "Codex": "OpenAI's command-line coding agent — a second runtime these same workflow skills can run under, as an alternative to Claude Code. Only relevant if you intend to drive the workflow from it.",
   "npm workspace": "A single shared setup where every browser project in the monorepo is installed together from one lock file at the repository root, rather than each project installing its own copies.",
   "gitignore": "The file listing paths git should pretend it cannot see, so generated or machine-local files are never accidentally committed.",

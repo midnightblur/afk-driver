@@ -18,7 +18,7 @@ Do NOT interview. Brief section can't be filled from source docs → STOP, tell 
 
 1. **Locate the source docs** in the ticket spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions") — sibling layout: `PRD.md`, `SDD.md`, `adr/requirements/NNNN-*.md` (requirement-level, from `/afk:to-prd`), `adr/design/NNNN-*.md` (design-level, from `/afk:to-sdd`). Brief lands at `.../{TICKET-ID}/DESIGN-BRIEF.md` (sibling).
 
-   Read PRD `ctx_read` mode=full. Read SDD mode=full. Read each ADR mode=signatures (title, decision, alternatives count, layer). Delegate this digestion to an `afk-reader` subagent returning a cited digest of the source docs, per `DELEGATION.md` (plugin root); the brief is written here, from that digest.
+   Read the PRD and SDD in full. Read each ADR at signature depth (title, decision, alternatives count, layer). Delegate this digestion to an `afk-reader` subagent returning a cited digest of the source docs, per `DELEGATION.md` (plugin root); the brief is written here, from that digest.
 
 2. **Refuse if the SDD is incomplete.** SDD §13 Open Questions non-empty with `Blocks executor? = yes` rows → do NOT emit a brief; design not stable enough to summarize. Tell the user to resolve via `/afk:grill-solution` first.
 

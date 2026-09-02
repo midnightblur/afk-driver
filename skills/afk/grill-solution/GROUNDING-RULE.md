@@ -26,12 +26,12 @@ verify before continuing:
 
 | Claim about | Verify with |
 |---|---|
-| Library / dep usage | `ctx_search` `pom.xml`, `build.gradle`, `package.json`, `requirements.txt`. Check the **pinned version**, not just the name. |
-| Service / module / class existence | `ctx_search` for the symbol declaration; `ctx_tree` the package. |
-| Configuration posture | `ctx_search` `application.yml` / `application.properties` / `*.env*` / framework-specific config files. |
-| Schema / table / sharding key | `ctx_search` migration files / changelog / DDL / JPA entity annotations. |
-| Existing pattern reuse ("we already use Strategy for X") | `ctx_search` for the named interface / abstract class. |
-| Existing behaviour ("the system does X when Y") | Find the code path: `ctx_search` the entry point, read the branch that decides; or run the existing test that pins it. |
+| Library / dep usage | Grep `pom.xml`, `build.gradle`, `package.json`, `requirements.txt`. Check the **pinned version**, not just the name. |
+| Service / module / class existence | Grep for the symbol declaration; Glob the package. |
+| Configuration posture | Grep `application.yml` / `application.properties` / `*.env*` / framework-specific config files. |
+| Schema / table / sharding key | Grep migration files / changelog / DDL / JPA entity annotations. |
+| Existing pattern reuse ("we already use Strategy for X") | Grep for the named interface / abstract class. |
+| Existing behaviour ("the system does X when Y") | Find the code path: Grep the entry point, read the branch that decides; or run the existing test that pins it. |
 | Cross-repo / runtime topology / deploy posture | Often unverifiable from this repo alone — see "external claims" below. |
 
 Run these verifications in `afk-reader` subagents — parallel where the
@@ -66,7 +66,7 @@ verification is fine; **pretending you verified is not**.
 claims are most common — the claim-type table above covers the how; e.g.:
 
 - L1 ("we deploy multi-region") — check ops manifests / Terraform.
-- L4 ("we have an idempotency table") — `ctx_search` the schema.
+- L4 ("we have an idempotency table") — Grep the schema.
 - L6 ("the order saga is implemented via outbox") — verify the
   outbox table + dispatcher.
 - L9 ("that service method takes a DTO and handles validation") — read
@@ -78,6 +78,6 @@ from several facts is only as verified as its least-verified leg. Before
 presenting one to the human — in chat, a poll reply, or a rendered card —
 verify every leg, or present it as a hypothesis naming the unverified leg.
 
-Verification is cheap (one `ctx_search` / `ctx_read`); a wrong premise
+Verification is cheap (one Grep / Read); a wrong premise
 is not. Drafting an answer that references
 something specific in the codebase — **verify before you write it down.**

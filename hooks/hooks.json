@@ -29,7 +29,7 @@
         ]
       },
       {
-        "matcher": "Bash|PowerShell|Glob|Grep|mcp__lean-ctx__ctx_search|mcp__lean-ctx__ctx_tree",
+        "matcher": "Bash|PowerShell|Glob|Grep",
         "hooks": [
           {
             "type": "command",
@@ -40,7 +40,7 @@
         ]
       },
       {
-        "matcher": "Grep|mcp__lean-ctx__ctx_search|mcp__lean-ctx__ctx_semantic_search|mcp__intellij__search_in_files_by_regex|mcp__intellij__search_in_files_by_text|mcp__intellij__search_text|mcp__intellij__search_regex",
+        "matcher": "Grep|mcp__intellij__search_in_files_by_regex|mcp__intellij__search_in_files_by_text|mcp__intellij__search_text|mcp__intellij__search_regex",
         "hooks": [
           {
             "type": "command",

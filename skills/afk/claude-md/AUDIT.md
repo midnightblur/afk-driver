@@ -8,7 +8,7 @@ Manual. Scan project's CLAUDE.md / `.claude/rules` / shared layer; report + prop
   plus shared files referenced by `@import`.
 - Skip `node_modules`, `target`, `build`, `dist`, `.git`, vendor dirs.
 - NEVER recurse from system roots (`C:\`, `C:\Windows`, `/`, `/c`). CrowdStrike guard.
-  Use scoped tools (Glob under root, or ctx_tree/ctx_search with explicit path).
+  Use scoped tools (Glob under root, or Grep with an explicit path).
 
 ## Checks (run all)
 1. **Duplication** — same guidance in 2+ files in a chain → lift to lowest-common-ancestor

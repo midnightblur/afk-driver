@@ -16,7 +16,7 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
 
 ## Process
 
-1. **Locate the PRD** in the ticket spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). Read with `ctx_read` (mode=full). SDD lands in the SAME folder as the PRD; design ADRs in its `adr/design/` subfolder.
+1. **Locate the PRD** in the ticket spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). Read it in full. SDD lands in the SAME folder as the PRD; design ADRs in its `adr/design/` subfolder.
 
 2. **Re-read the ticket's existing ADRs** — design ADRs in sibling `adr/design/` (don't contradict prior design decisions) and requirement ADRs in `adr/requirements/` (behavioural constraints you must honour, owned by `/afk:to-prd`). Don't read or write repo-wide `docs/adr/` — all ADRs are ticket-local. To reverse a prior **design** ADR, write a new one that explicitly **Supersedes** it and list it in §12 Reversed Decisions. Never edit an `adr/requirements/` ADR — a requirement decision blocking the design is a `design-conflict` to route back, not overwrite here.
 

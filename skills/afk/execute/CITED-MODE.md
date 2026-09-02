@@ -6,7 +6,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 
    **Cited mode** (non-empty `## Design refs` + a `## Parent SDD`): the SDD/ADRs
    constrain you.
-   - Read every cited SDD section and ADR via `ctx_read` BEFORE planning.
+   - Read every cited SDD section and ADR BEFORE planning.
    - Treat the SDD §8 public interface and cited ADR patterns as **frozen** —
      no invented signatures, no silent pattern substitution.
    - Treat `## Seams` rows as binding: a seam you `implement:` you also
