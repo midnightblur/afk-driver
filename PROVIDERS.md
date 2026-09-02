@@ -40,6 +40,7 @@ Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex
 - Skills, hooks, MCP registration, and agent definitions activate only through that harness.
 - Repository-root routers stay provider-neutral.
 - Never commit `.agents/`, `.codex/`, or generated local steering blocks.
+- Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
 - Copy Codex agent TOML stubs byte-for-byte into `~/.codex/agents/`; never render a mirror.
 - Add provider behavior only in `hooks/lib/providers/<name>.sh` and this file.
 - Add harness #N through the checklist in `providers/CONFORMANCE.md`; do not edit skill prose.
@@ -65,7 +66,7 @@ Codex has no documented custom-agent tool allowlist or nesting-depth setting. Us
 
 ## Credentials
 
-Jira reads exported `JIRA_*` variables first, then the supported user-config fallbacks. Never print secret values. The shared plugin `.mcp.json` starts the same server for each harness; tool prefixes vary, so skills use bare tool names.
+Jira reads exported `JIRA_*` variables first, then the supported user-config fallbacks. Never print secret values. The shared plugin `.mcp.json` starts the same server for each harness; tool prefixes vary, so skills use bare tool names. Its bootstrap resolves the plugin root in order: the interpolated argument, `CLAUDE_PLUGIN_ROOT`, `PLUGIN_ROOT`, the checkout path under `$PWD`, then the newest plugin cache under the user's home — one harness interpolates the argument, another passes it through literally, and both reach the same server.
 
 ## Optional capabilities
 

@@ -432,7 +432,9 @@ Gating rule: if O1 misses, report the whole section as
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 
 ### O8 · stale generated activation cleanup **[opt-in]**
-- **Needed by:** migration from the retired generated layer only.
+- **Needed by:** migration from the retired generated layer only. Run it after
+  uninstalling the plugin too: these paths are gitignored, so a harness removal
+  leaves them behind and a repository-root session still reads them.
 - **Probe:** `test ! -d .agents/skills -a ! -f .codex/hooks.json -a ! -d .codex/agents -a ! -f AGENTS.local.md`
 - **Fix:** `human:` offer removal of AFK-generated `.agents/skills/afk-*`,
   project `.codex/agents/`, project `.codex/hooks.json`, and only the AFK block

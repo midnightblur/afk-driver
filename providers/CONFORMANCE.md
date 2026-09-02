@@ -8,37 +8,33 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 |---|---|---|
 | Date | 2026-09-01 | 2026-09-01 |
 | Version | 2.1.257 | 0.152.0 (confirmed live, meets the minimum tested version) |
-| Install | Enabled plugin, this session; reload owed after this change | Marketplace registered, plugin installed and enabled; cache predates this change, so a refresh is owed |
+| Install | Enabled plugin, this session; reload owed after this change | Installed and enabled from a refreshed cache; re-probe owed for the three fixed failures |
 
 ## Probe ledger
 
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
-| Native manifest loads | pass 2026-09-01 | partial 2026-09-01 | Both manifests parse with the same 40 skill paths. Second harness: marketplace registered and `afk@nak-marketplace` installed and enabled at 0.0.0, still through the legacy manifest path; acceptance of the new native manifest needs a live refresh |
-| 40 `/afk:<x>` skills load | pass 2026-09-01 | pending | Fresh post-change session: 38 skills listed, no duplicates and no hyphenated mirrors. 40 manifest entries = 38 listed + `harvest` (`disable-model-invocation: true`, hidden by design) + `diagnose` (absent from the model-visible listing in a pre-change session too — a pre-existing listing quirk, not a regression; it carries no hiding flag) |
-| No generated mirror skills | n/a | pending | Generator and its outputs are deleted from the repository |
-| Shared hooks load and are trusted | pass 2026-09-01 | pending | Both hook surfaces fired live this session: a PreToolUse guard denial and a Stop gate block |
-| SessionStart envelope and environment names | pass 2026-09-01 | pending | `hooks/tests/hook-smoke.sh` parses every fixture under both adapters; live capture on the second harness still owed |
-| CrowdStrike guard denies a system-root recursive scan | pass 2026-09-01 | pending | Live deny of an unscoped recursive command this session, plus the fixture case under both adapters |
-| Stop gates block after a plugin edit | pass 2026-09-01 | pending | Live block at turn end; full suite green afterwards in 111s |
-| Shared Jira MCP tool is callable | pass 2026-09-01 | pending | Plugin-scoped tool returned an issue; the plugin `.mcp.json` path form still needs the second harness |
-| `afk-reader` returns a cited digest | pass 2026-09-01 | pending | Read-only child returned a two-line cited digest with file and line |
-| Agent sandbox and write boundaries | pass 2026-09-01 | pending | Read-only role asked to create a file: declined at role level, no write tool in its definition, file not created |
-| Same-child continuation | pass 2026-09-01 | pending | Follow-up reached the same child, which answered from its own context with zero tool calls |
-| Cache refresh after source-only change | n/a | pending | — |
-| Script-only hook change trust behavior | n/a | pending | — |
-| Disable or uninstall leaves repository inert | pass (static) 2026-09-01 | pending | No activation surface is tracked: no `.agents/`, `.codex/` or local steering block in git, and the repository registers no plugin hook of its own. A live disable run is still owed |
+| Native manifest loads | pass 2026-09-01 | pass 2026-09-01 | Second harness: remove + add refreshed the cache, which then carried `.codex-plugin/plugin.json` with no unknown-field warning |
+| 40 `/afk:<x>` skills load | pass 2026-09-01 (38 listed) | pass 2026-09-01 (40 listed) | Counts differ by harness listing rules, not by catalog: 40 manifest entries = 38 model-visible + `harvest` (`disable-model-invocation: true`) + `diagnose` (absent from the first harness's model-visible listing before this change too — its own open item). The second harness lists all 40, no duplicates, no hyphenated mirrors, and the `$`-prefixed form invokes one |
+| No generated mirror skills | n/a | pass 2026-09-01 | Zero hyphenated mirror names in the catalog |
+| Shared hooks load and are trusted | pass 2026-09-01 | FAIL 2026-09-01 | Handlers are registered and trusted, but every cached shell handler carried CRLF, so the shell could not parse one: `syntax error near unexpected token $'do\r'`. Fixed by a scoped `.gitattributes` pinning `*.sh` to LF plus gate rule I; awaiting re-probe |
+| SessionStart envelope and environment names | pass 2026-09-01 | pass 2026-09-01 | Second harness, instrumented capture: `CLAUDECODE` unset, `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA`/`PLUGIN_ROOT`/`PLUGIN_DATA` set, `CLAUDE_PROJECT_DIR` unset — the adapter order (native root before compatibility markers) is the correct one. Envelope keys carry the shared set plus `model`, `permission_mode`, `turn_id` |
+| CrowdStrike guard denies a system-root recursive scan | pass 2026-09-01 | FAIL 2026-09-01 | Second harness: no denial, the command reached the OS. Same CRLF root cause; awaiting re-probe |
+| Stop gates block after a plugin edit | pass 2026-09-01 | FAIL 2026-09-01 | Second harness: handlers reported failure and the turn exited 0 — no gate verdict. Same CRLF root cause; awaiting re-probe |
+| Shared Jira MCP tool is callable | pass 2026-09-01 | FAIL 2026-09-01 | Second harness left `${CLAUDE_PLUGIN_ROOT}` literal in the MCP arguments, so the server never started. Replaced with a self-locating bootstrap (resolution order in `PROVIDERS.md`); awaiting re-probe |
+| `afk-reader` returns a cited digest | pass 2026-09-01 | pass 2026-09-01 | Second harness: all four stubs copied byte-identical, each resolved its role Markdown through the plugin cache, and the read-only role refused the write |
+| Agent sandbox and write boundaries | pass 2026-09-01 | pass 2026-09-01 | Read-only role refused on both harnesses; the target file did not exist afterwards |
+| Same-child continuation | pass 2026-09-01 | pass 2026-09-01 | Both harnesses reached the same child with its nonce intact — `DELEGATION.md` may claim continuation on both |
+| Cache refresh after source-only change | n/a | pass 2026-09-01 | Minimum sequence: re-run the plugin add, then start a new session. Removal first is not required |
+| Script-only hook change trust behavior | n/a | pass 2026-09-01 | Editing a referenced script body left the trust hash unchanged and raised no new prompt — trust covers the handler definition, not the script it runs. Security consequence: an approved handler keeps running whatever its script later says, so the shell handlers are gated content, and the pre-commit and Stop gates are the control |
+| Disable or uninstall leaves repository inert | pass (static) 2026-09-01 | pass 2026-09-01 | Second harness: after removal, zero skills, agents, MCP tools or plugin hooks, and no tracked repository file was touched. Caveat: pre-native ignored mirrors survive on a machine that once had them — the setup register's stale-activation entry offers the cleanup |
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 
 ## Unresolved items
 
+- Four second-harness probes failed on two root causes, both fixed here and awaiting re-probe: shell handlers unparseable (CRLF), which took the guard denial and the Stop block with it, and the unexpanded plugin-root argument, which kept the Jira server from starting.
 - `diagnose` is missing from the model-visible skill listing on the first harness although its frontmatter carries no hiding flag. Pre-dates the native migration; open as its own follow-up.
 
-- `[U]` Plugin-root expansion in MCP arguments.
-- `[U]` Exact local-plugin cache refresh command.
-- `[U]` Instrumented hook environment on Codex.
-- `[U]` Script-only hook changes and handler trust hashes.
-- `[U]` Same-child continuation on Codex.
 
 ## Add harness #N
 

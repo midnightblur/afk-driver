@@ -18,7 +18,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `plugin_job_dir` | Native | No | Use plugin-data scratch space |
 | `question_cards` | Native | No | Ask one plain-text question |
 | `design_push` | Native | No | Keep local HTML canonical |
-| `reload` | Reload the enabled plugin | Refresh cache, then restart | Report stale cache |
+| `reload` | Reload the enabled plugin | Re-add the plugin, then start a new session | Report stale cache |
 
 ## Shared hook subset
 

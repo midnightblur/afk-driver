@@ -3,7 +3,9 @@
     "jira": {
       "command": "python",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/mcp-servers/jira/server.py"
+        "-c",
+        "import glob, os, runpy, sys\nrel = os.path.join(\"mcp-servers\", \"jira\", \"server.py\")\nroots = [a for a in sys.argv[1:] if a and \"${\" not in a]\nroots += [os.environ.get(\"CLAUDE_PLUGIN_ROOT\"), os.environ.get(\"PLUGIN_ROOT\")]\nroots.append(os.path.join(os.getcwd(), \"tools\", \"payable\", \"ai-agents\", \"plugins\", \"workflow\"))\nfor pat in (\"*\", \".*\"):\n    roots += sorted(glob.glob(os.path.join(os.path.expanduser(\"~\"), pat, \"plugins\", \"cache\", \"*\", \"afk\", \"*\")), reverse=True)\nfor root in roots:\n    if root and os.path.isfile(os.path.join(root, rel)):\n        runpy.run_path(os.path.join(root, rel), run_name=\"__main__\")\n        sys.exit(0)\nsys.exit(\"afk jira MCP: mcp-servers/jira/server.py not found. Pass the plugin root as an argument, or export CLAUDE_PLUGIN_ROOT or PLUGIN_ROOT.\")",
+        "${CLAUDE_PLUGIN_ROOT}"
       ]
     }
   }

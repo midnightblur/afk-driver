@@ -1,0 +1,5 @@
+# Every shell script here runs under git-bash, and a harness copies this tree
+# verbatim into its plugin cache. The repo default core.autocrlf=true would
+# CRLF-ify them on checkout; git-bash then fails on the shebang and `set` lines,
+# taking the whole hook surface (guards, Stop gates, provider shim) with it.
+*.sh text eol=lf

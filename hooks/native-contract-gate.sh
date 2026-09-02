@@ -16,7 +16,9 @@
 #   G. every hooks/lib/providers/*.sh adapter has envelope fixtures under
 #      hooks/tests/envelopes/<provider>/;
 #   H. the PROVIDERS.md supported-harness registry and the adapters on disk are
-#      one list.
+#      one list;
+#   I. every shell handler is LF-only, since a harness copies this tree verbatim
+#      into its plugin cache and runs it through a POSIX shell.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -295,6 +297,20 @@ else:
         problems.append(
             f"PROVIDERS.md: registry row {stale!r} has no hooks/lib/providers/{stale}.sh"
         )
+
+
+# I. A CR byte in a shell handler is fatal wherever a POSIX shell runs it, and
+# the failure is silent: the harness reports a failed hook, never a gate verdict.
+# Judge the working tree, which is what a harness copies, not the index.
+for script in sorted(plugin.rglob("*.sh")):
+    try:
+        if b"\r" in script.read_bytes():
+            problems.append(
+                f"{rel(script)}: CRLF line endings; shell handlers must be LF "
+                f"(see the .gitattributes rule)"
+            )
+    except OSError as exc:
+        problems.append(f"{rel(script)}: cannot read ({exc})")
 
 
 if problems:
