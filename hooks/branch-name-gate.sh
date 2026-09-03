@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Branch-name gate (ships with the afk plugin) — a GIT `reference-transaction`
-# hook, NOT a Claude Code Stop hook (those live in hooks.json). Opt-in per clone:
-#   bash tools/payable/ai-agents/plugins/workflow/hooks/install-git-hooks.sh
+# hook, NOT a Stop hook (those live in hooks.json). Opt-in per clone:
+#   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
 # (or `/afk-toolkit:setup`, register entry H5). Uninstall by removing the installed hook.
 #
-# Blocks creating a NEW local branch whose name doesn't match the AFK convention:
-#   kapteyn/development/<username>/<slug>
-# which is the pattern `/afk-toolkit:execute`'s push depends on (workflow/CLAUDE.md).
+# Blocks creating a NEW local branch whose name does not match
+# `git.branch-pattern` from the repository's `.afk/config.yaml`. The key empty or
+# absent turns the gate off — a repository with no branch convention is never
+# told it broke one.
 #
 # Deliberately narrow — ONLY new-branch creation is gated. Everything else is
 # left alone, so day-to-day git is never in the way:
@@ -42,8 +43,21 @@ fi
 [ "${AFK_SKIP_BRANCH_CHECK:-}" = "1" ] && exit 0
 [ "$(git config --bool afk.branchNameGate 2>/dev/null)" = "false" ] && exit 0
 
-# Required shape: kapteyn/development/<username>/<slug> (slug may contain slashes).
-pattern='^kapteyn/development/[a-z0-9][a-z0-9._-]*/.+$'
+# The pattern comes from the repository, and reading it costs a python call, so
+# it is read LAZILY: a `git fetch` transaction moving a hundred refs must not pay
+# for a configuration read it will never use. Empty pattern = gate off.
+pattern=""
+pattern_loaded=0
+load_pattern() {
+  [ "$pattern_loaded" = 1 ] && return 0
+  pattern_loaded=1
+  local here
+  here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  # shellcheck source=/dev/null
+  . "$here/lib/config.sh" 2>/dev/null || return 0
+  afk_config_load
+  pattern=${AFK_CFG_GIT_BRANCH_PATTERN:-}
+}
 
 block=""
 # git feeds one "<old-value> <new-value> <ref-name>" line per ref on stdin.
@@ -62,19 +76,26 @@ while read -r old new ref; do
   done
   [ -n "$tracked" ] && continue
 
-  # A genuinely new branch: enforce the convention.
+  # A genuinely new branch: enforce the convention, if the repository has one.
+  load_pattern
+  [ -z "$pattern" ] && continue
   printf '%s\n' "$branch" | grep -Eq "$pattern" && continue
   block="$branch"
 done
 
 [ -z "$block" ] && exit 0
 
-# Suggest a conforming name using the configured git user (best-effort).
+# Suggest a conforming name from the repository's own template (best-effort).
 user=$(git config user.name 2>/dev/null | tr '[:upper:] ' '[:lower:]--' | tr -cd 'a-z0-9-')
+example=${AFK_CFG_GIT_BRANCH_TEMPLATE:-}
+example=${example//\{user\}/${user:-username}}
+example=${example//\{ticket_lower\}/ticket-123-short-slug}
+example=${example//\{ticket\}/TICKET-123}
 {
-  echo "afk: refusing to CREATE branch '$block' — name breaks the AFK convention."
-  echo "afk:   required:  kapteyn/development/<username>/<slug>"
-  echo "afk:   example:   kapteyn/development/${user:-<username>}/p2p-1234-short-slug"
+  echo "afk: refusing to CREATE branch '$block' — the name breaks this repository's convention."
+  echo "afk:   required:  git.branch-pattern in .afk/config.yaml"
+  echo "afk:              $pattern"
+  [ -n "$example" ] && echo "afk:   example:   $example"
   echo "afk:"
   echo "afk: only NEW-branch creation is blocked; checking out existing or remote"
   echo "afk: branches is unaffected. Bypass once: AFK_SKIP_BRANCH_CHECK=1 <git cmd>."

@@ -55,7 +55,7 @@ root), leave the MR Draft, leave every not-yet-reached row untouched.
 
 **PF-1 — merge & ancestry guard.**
 1. Resolve the merge source `{target}`: the MR's target branch
-   (`glab mr view` → target branch; `origin/master` when no MR resolves).
+   (`afk_adapter forge change-view` → its `target`; `git.base-branch` when no change resolves).
    `git fetch origin {target}` first. Later PF steps reading a base
    (`/afk-toolkit:review --feature`'s `--base`) use this same `{target}`.
 2. Record current `HEAD` (`git rev-parse HEAD`).
@@ -182,7 +182,7 @@ exists and carries a `## Known debt` entry for it.
    (never re-derived afterward; nothing reads it back).
 3. Update the MR's **own** evidence marker block —
    `<!-- afk:preflight-evidence:start -->` … `<!-- afk:preflight-evidence:end
-   -->` — via `glab`, sibling to `/afk-toolkit:execute`'s pre-existing
+   -->` — via `afk_adapter forge change-update-body`, sibling to `/afk-toolkit:execute`'s pre-existing
    `<!-- afk:subtasks:start/end -->` checklist block. **Replace only this
    block**; every other byte of the description — including the sibling block —
    round-trips verbatim (§9b two-writer invariant: each writer owns exactly one
@@ -191,24 +191,30 @@ exists and carries a `## Known debt` entry for it.
    understanding-artifact path (from that row's `Evidence`) so reviewers can
    discover it (SDD §5 observability).
 
-**PF-6 — launch ci-wait.** Launch
-`<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/preflight/scripts/ci-wait.sh {mr-ref} 5400 180 [repo]` (budget 5400 s / 90 min, interval 180 s / 3 min — `SDD §10`-class
-numbers, not invented per-run) as a background Bash task; append the launch to
-`plan/JOURNAL.md`. The calling session/turn ends here — whatever resumes it
-(human, orchestrator) picks up the routing below once the task exits.
-`ci-wait.sh`'s exit-code contract is documented where it's bundled:
-`scripts/ci-wait.sh` (its own header comment is the canonical copy; this table
-mirrors it — a lockstep pair, keep both in sync):
+**PF-6 — launch the CI wait.** Launch the forge's `ci-wait` verb as a background
+Bash task, and append the launch to `plan/JOURNAL.md`:
+
+```
+. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh"
+afk_adapter forge ci-wait '{"id":"{change-ref}","budget":5400,"interval":180}'
+```
+
+Budget 5400 s / 90 min, interval 180 s / 3 min — fixed numbers, not invented
+per-run. The calling session/turn ends here; whatever resumes it (human,
+orchestrator) picks up the routing below once the task exits. The exit-code
+contract is the forge family's, documented in each
+`adapters/forge/<kind>/CONTRACT.md` (the canonical copy; this table mirrors it —
+a lockstep pair, keep both in sync):
 
 | Exit | Meaning |
 |---|---|
-| `0` (`EXIT_OK`) | pipeline reached `success` |
-| `1` (`EXIT_RED`) | pipeline reached `failed`/`canceled` |
-| `2` (`EXIT_BUDGET_EXHAUSTED`) | 90 min elapsed, pipeline still non-terminal — it keeps running; park ≠ cancel |
-| `3` (`EXIT_FLAKE`) | 3 consecutive `glab` read errors — auth/network flake |
+| `0` | pipeline reached `success` |
+| `1` | pipeline reached `failed`/`canceled` |
+| `2` | 90 min elapsed, pipeline still non-terminal — it keeps running; park ≠ cancel |
+| `3` | 3 consecutive unreadable status reads — auth/network flake, never a verdict |
 
 **PF-7 — CI outcome routing.**
-- **exit 0** → `glab` Draft→Ready flip on the MR; JOURNAL `done`; every PF
+- **exit 0** → `afk_adapter forge change-ready` flips the change Draft→Ready; JOURNAL `done`; every PF
   row green (PF-4b may be `advisory-failed` — advisory rows never block);
   report `success` (below) and stop.
 - **exit 1** → inspect the pipeline log. Mechanical failure (compile/format/
@@ -221,10 +227,10 @@ mirrors it — a lockstep pair, keep both in sync):
   likeliest "fix" is reshaping the test to pass, worse than waiting for the
   human).
 - **exit 2** → `park(PF-7: budget_exhausted)` — the pipeline keeps running.
-  Resume re-reads live pipeline status via `glab` **first**, so a pipeline
+  Resume re-reads live pipeline status via `afk_adapter forge ci-status` **first**, so a pipeline
   that finished green while parked completes instantly without a wasted
   relaunch.
-- **exit 3** → `park(PF-7: glab_flake)` — flakes never consume a fix cycle.
+- **exit 3** → `park(PF-7: forge_flake)` — flakes never consume a fix cycle.
 
 ## Shared fix-cycle cap
 

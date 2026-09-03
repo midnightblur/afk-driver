@@ -9,12 +9,12 @@ description: Runs one plan subtask end-to-end — design, TDD, gates, commit, pu
 
 Run against a **single subtask** from the on-disk plan — interactively by default (`/afk-toolkit:execute {NNNN-slug}`, cwd a worktree on the parent ticket's branch), or non-interactively when the invoker requests DRIVEN mode (below).
 
-Everything **local**: contract, design docs, progress tracker live on disk under the ticket's `plan/` directory. Writes no Jira. SCM is **GitLab** (`glab` CLI) — the only external surface touched (push + Draft MR).
+Everything **local**: contract, design docs, progress tracker live on disk under the ticket's `plan/` directory. Writes no tracker. The forge is the only external surface touched (push + Draft change), always through `afk_adapter forge …` — never a CLI by name.
 
 Before starting, ensure:
 
-- cwd is a clean worktree on the parent branch (`kapteyn/development/{username}/{enh_id_lower}`). Create worktree + branch yourself if absent.
-- A Draft MR for that branch exists (`glab mr create --draft` if not). Carries the auto-maintained subtask checklist block.
+- cwd is a clean worktree on the parent branch (named by `git.branch-template` in `.afk/config.yaml`). Create worktree + branch yourself if absent.
+- A Draft change for that branch exists (`afk_adapter forge change-create-draft` if not). Carries the auto-maintained subtask checklist block.
 
 Job: take one subtask through `designing` → `developing` → `verifying` → `reviewing`, get **every declared verification tier green** and the independent review gate **settled** (every finding fixed or settled — `skills/afk/review/SETTLEMENT.md`), commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 12.
 
@@ -54,9 +54,9 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 5. **Status → `developing`; read the module's sidecars, then apply TDD.** `plan-status.sh {plan-dir} {NNNN-slug} developing`. Read the sidecars the touched module's `CLAUDE.md` announces for the work ahead — `IMPL.md` before editing source, `TESTING.md` before writing or fixing tests — plus every `.claude/rules` file whose glob matches a file you will touch. Step 10's compliance reviewer checks the diff against those same documents. Before Write-creating a file at a path `## Scope` or `## Produces` names, confirm it does not exist with `git ls-files {path}` or `find {dir} -name {File}` — a directory-prefixed Glob silently misses in this repo, and Write does not refuse an overwrite. An existing file is content to **merge**: read it, keep its members verbatim, add the new ones. Then use `/afk-toolkit:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
-6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules). **Every `git commit` in this skill runs the commit-time code gates** (maven-compile, java-format, ui-lint — `hooks/precommit-gates.sh`), so a commit touching `.java` takes minutes, not seconds: invoke it with an explicit **600000 ms tool timeout**. A commit that dies on the default timeout leaves the gates' verdict unknown and the work uncommitted — it is not a signal to retry with `--no-verify`. Same contract for every later commit in this skill (Steps 10, 11).
+6. **Commit.** Each message starts with the subtask id in brackets: `[{NNNN-slug}] <message>`. Cross-module edits carry a marker comment in the added hunks (see Hard rules). **Every `git commit` in this skill runs the commit-time code gates the repository's `build-gates:` selects** (`hooks/precommit-gates.sh`), so a commit touching gated code takes minutes, not seconds: invoke it with an explicit **600000 ms tool timeout**. A commit that dies on the default timeout leaves the gates' verdict unknown and the work uncommitted — it is not a signal to retry with `--no-verify`. Same contract for every later commit in this skill (Steps 10, 11).
 
-7. **Push and update the Draft MR.** Push to the parent branch. Update the MR's auto-maintained checklist block (`<!-- afk:subtasks:start -->` … `<!-- afk:subtasks:end -->`) via `glab` so this subtask reads done — preserve everything outside the block verbatim.
+7. **Push and update the Draft change.** Push to the parent branch. Update the change's auto-maintained checklist block (`<!-- afk:subtasks:start -->` … `<!-- afk:subtasks:end -->`) via `afk_adapter forge change-update-body` so this subtask reads done — preserve everything outside the block verbatim.
 
 8. **Status → `verifying`; run every Verification tier.** `plan-status.sh {plan-dir} {NNNN-slug} verifying`. Run **every row** of the subtask's `## Verification` table — `static`, then `unit`, then `integration`, then `api`, then `e2e/browser` as present. Each row's command must go green:
    - **static** — the compile/lint/type command AND a grep of every `## Produces` anchor (declared symbols must exist).

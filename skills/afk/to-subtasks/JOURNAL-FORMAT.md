@@ -51,14 +51,14 @@ per it, so adding or renaming a preflight journal token is an edit here:
 - `PF-{n} parked({reason})` — step `n` could not proceed; `{reason}` is one
   of `merge_conflict`, `ancestry_guard_failed`, `semantic_red`,
   `review_stalemate`, `orphan_artifact`, `ci_test_red`, `secret_hit`,
-  `budget_exhausted`, `glab_flake` (per `skills/afk/preflight/SKILL.md`'s
+  `budget_exhausted`, `forge_flake` (per `skills/afk/preflight/SKILL.md`'s
   PF-1..7 routing table).
 - `fix-cycle {k}/2 on PF-{n}` — shared fix-cycle counter incremented (logged
   **before** the fix attempt, so a crash mid-fix still shows the spent cycle
   on resume).
 - `settle-round {k} on PF-3 — {verdict}` — one line per review settle-loop
   round (round structure: `skills/afk/review/SETTLEMENT.md`).
-- `ci-wait launched (budget={s}s, interval={s}s)` — PF-6's background task
+- `ci-wait launched (budget={s}s, interval={s}s)` — PF-6's background forge task
   started.
 - `ready` — PF-7 flipped the MR Draft → Ready on a green pipeline.
 - `done` — every `## Preflight` row is `green`; the run is terminal.

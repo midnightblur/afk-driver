@@ -13,6 +13,9 @@
     "change-state",
     "change-close",
     "change-fetch",
+    "thread-list",
+    "thread-reply",
+    "thread-resolve",
     "ci-status",
     "ci-wait",
     "auth-status"

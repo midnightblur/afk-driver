@@ -5,18 +5,22 @@
 # lockstep pair, keep both in sync). Judgment (propose → approve → retire →
 # delete) stays with the skill; this script only checks and reports.
 #
-# Usage (from the MAIN checkout root, origin/master freshly fetched):
+# Usage (from the MAIN checkout root, the integration base freshly fetched):
 #   bash skills/afk/gc/scripts/gc-check.sh <spec-folder> [feature-branch]
 #
 #   <spec-folder>     the ticket's spec directory (holds plan/PLAN.md) — never guessed
 #   [feature-branch]  the feature's local branch; omitted → inferred as the one
-#                     local `kapteyn/development/*/<spec-folder-basename-lowercase>*`
-#                     branch (exactly one match required)
+#                     local branch whose name contains the spec folder's
+#                     basename, lowercased (exactly one match required)
+#
+# The integration base is `git.base-branch` from .afk/config.yaml, and the
+# merged-state read goes through the configured forge adapter — this script
+# names neither a branch nor a forge CLI.
 #
 # Guards, in SKILL.md order (first failure wins, nothing later runs):
 #   1. shipped only  — plan/PLAN.md `Feature:` header reads `complete (…)` AND the
 #                      feature branch is proven merged: its tip is an ancestor of
-#                      origin/master, or `glab mr view <branch>` reports state merged
+#                      the integration base, or the forge reports its change merged
 #   2. clean tree    — no uncommitted changes under <spec-folder>
 #   3. interactive   — env AFK_DRIVEN unset/empty; a driven/autopilot invoker exports
 #                      AFK_DRIVEN=1, so a hands-off run can never pass this guard
@@ -29,14 +33,14 @@
 #   EXIT_DIRTY_TREE=2         guard 2 failed -> refused(dirty_tree)
 #   EXIT_HANDS_OFF=3          guard 3 failed -> refused(hands_off)
 #   EXIT_INSIDE_TARGET=4      guard 4 failed -> refused(inside_target_worktree)
-#   EXIT_USAGE=5              bad invocation / not a git checkout / no origin/master
+#   EXIT_USAGE=5              bad invocation / not a git checkout / no integration base
 #   EXIT_BRANCH_UNRESOLVED=6  feature branch neither given nor inferable (zero or
 #                             several matches) — pass it explicitly and re-run
 #
 # Stdout on exit 0 (structured, one KEY=value per line):
 #   GC_CHECK=pass
 #   SPEC_FOLDER=<path>            FEATURE_HEADER=<the Feature: line>
-#   FEATURE_BRANCH=<branch>       MERGED_VIA=ancestor|glab
+#   FEATURE_BRANCH=<branch>       MERGED_VIA=ancestor|forge
 #   ARCHIVE_REF=<HEAD short hash — the ref INDEX.md records>
 #   WORKTREE=<path>|absent        WORKTREE_SIZE=<du -sh>|-
 #   WORKTREE_VERDICT=safe|absent|dirty|unmerged(<n>)
@@ -76,8 +80,20 @@ BRANCH="${2:-}"
 [ -d "$SPEC" ] || fail usage "spec folder not found: $SPEC" "$EXIT_USAGE"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || fail usage "cwd is not a git checkout" "$EXIT_USAGE"
-git rev-parse --verify -q origin/master >/dev/null 2>&1 \
-  || fail usage "no origin/master ref — fetch first" "$EXIT_USAGE"
+# The integration base and the forge both come from the repository's
+# configuration; this script sources the same reader every gate uses.
+AFK_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}
+. "$AFK_ROOT/hooks/lib/config.sh"
+. "$AFK_ROOT/hooks/lib/adapter.sh"
+afk_config_load
+BASE=${AFK_CFG_GIT_BASE_BRANCH:-auto}
+if [ "$BASE" = "auto" ] || [ -z "$BASE" ]; then
+  for candidate in origin/main origin/master; do
+    git rev-parse --verify -q "$candidate" >/dev/null 2>&1 && { BASE=$candidate; break; }
+  done
+fi
+git rev-parse --verify -q "$BASE" >/dev/null 2>&1 \
+  || fail usage "no $BASE ref — fetch it first, or set git.base-branch in .afk/config.yaml" "$EXIT_USAGE"
 
 # --- Guard 1: shipped only --------------------------------------------------
 PLAN="$SPEC/plan/PLAN.md"
@@ -96,29 +112,33 @@ esac
 # Resolve the feature branch (arg 2, else infer from the spec-folder basename).
 if [ -z "$BRANCH" ]; then
   ticket="$(basename "$SPEC" | tr '[:upper:]' '[:lower:]')"
-  # prefix pattern, no glob — for-each-ref globs do not cross '/' components
-  matches="$(git for-each-ref 'refs/heads/kapteyn/development' --format='%(refname:short)' \
-    | grep -F -- "/$ticket" || true)"
+  # Any local branch whose name carries the ticket; the repository's branch
+  # convention is `git.branch-pattern`, not something to hard-code here.
+  matches="$(git for-each-ref 'refs/heads' --format='%(refname:short)' \
+    | grep -F -- "$ticket" || true)"
   count="$(printf '%s' "$matches" | grep -c . || true)"
   if [ "$count" -ne 1 ]; then
     fail branch_unresolved \
-      "expected exactly 1 local branch matching kapteyn/development/*/$ticket*, found $count — pass the feature branch explicitly" \
+      "expected exactly 1 local branch whose name contains '$ticket', found $count — pass the feature branch explicitly" \
       "$EXIT_BRANCH_UNRESOLVED"
   fi
   BRANCH="$matches"
 fi
 
-# Merged proof: branch tip ancestor of origin/master, else glab MR state merged.
+# Merged proof: branch tip ancestor of the integration base, else the forge
+# reports the branch's change merged. `forge: none` answers unsupported, which
+# leaves the ancestor test as the only proof — never a false "merged".
 tip="$(git rev-parse --verify -q "refs/heads/$BRANCH" \
   || git rev-parse --verify -q "refs/remotes/origin/$BRANCH" || true)"
 MERGED_VIA=""
-if [ -n "$tip" ] && git merge-base --is-ancestor "$tip" origin/master 2>/dev/null; then
+if [ -n "$tip" ] && git merge-base --is-ancestor "$tip" "$BASE" 2>/dev/null; then
   MERGED_VIA=ancestor
-elif glab mr view "$BRANCH" -F json 2>/dev/null | grep -Eq '"state": ?"merged"'; then
-  MERGED_VIA=glab
+elif afk_adapter forge change-state "{\"id\":\"$BRANCH\"}" 2>/dev/null \
+     | grep -Eq '"state": ?"merged"'; then
+  MERGED_VIA=forge
 else
   refuse not_shipped \
-    "branch '$BRANCH' is not an ancestor of origin/master and no merged MR found for it" \
+    "branch '$BRANCH' is not an ancestor of $BASE and the forge reports no merged change for it" \
     "$EXIT_NOT_SHIPPED"
 fi
 
@@ -157,7 +177,7 @@ else
   if [ -n "$(git -C "$wt" status --porcelain)" ]; then
     verdict=dirty
   else
-    ahead="$(git -C "$wt" rev-list --count origin/master..HEAD 2>/dev/null || echo '?')"
+    ahead="$(git -C "$wt" rev-list --count "$BASE"..HEAD 2>/dev/null || echo '?')"
     if [ "$ahead" = "0" ]; then
       verdict=safe
     else

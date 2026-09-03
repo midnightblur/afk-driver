@@ -51,7 +51,7 @@ a token value — not even partially.
 - **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
   known key succeeds.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/H6/C3), enable the plugin, then restart the session. Python deps: P3.
+  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3.
 - **Notes:** host is Jira Cloud (`nakisa.atlassian.net`). Server source ships
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
@@ -100,15 +100,15 @@ a token value — not even partially.
       print('missing: file not found'); sys.exit(1)
   if not isinstance(d, dict):
       print('missing: file present but not valid JSON (or not a JSON object)'); sys.exit(1)
-  m = [k for k in ('jiraAssignee', 'mrReviewer', 'worktreeBasePath') if not d.get(k)]
+  m = [k for k in ('trackerAssignee', 'mrReviewer', 'worktreeBasePath') if not d.get(k)]
   print(('missing: ' + ', '.join(m)) if m else 'ok')
   sys.exit(1 if m else 0)
   "
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does H2/S1/C3; pre-fills K1 from the validated token's own account). By hand:
+  does H2/S1/C3 or C3b, whichever the forge selects; pre-fills K1 from the validated token's own account). By hand:
   create `.claude/afk.local.json` per the hypothetical example in
-  `skills/afk/bug/CONFIG.md` (K1 `jiraAssignee`, K2 `mrReviewer`,
+  `skills/afk/bug/CONFIG.md` (K1 `trackerAssignee`, K2 `mrReviewer`,
   K3 `worktreeBasePath`).
 - **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
   owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
@@ -165,7 +165,7 @@ a token value — not even partially.
   genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every
   turn**; the commit gates — Maven compile, Java format, UI lint via
   `precommit-gates.sh` — fire on agent-driven commits; plus the on-demand
-  `app-start-gate.sh`), `skills/afk/understand/scripts/fetch-mr.sh`,
+  `app-start-gate.sh`), the forge adapters' `forge.sh`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
 - **Probe:** `bash -c 'command -v awk && command -v sed && command -v grep' >/dev/null`
@@ -180,15 +180,29 @@ a token value — not even partially.
 - **Base fix:** `auto:` `winget install --id Git.Git -e` — ships bash + POSIX
   utils + perl, so it also satisfies C1 and C6.
 
-### C3 · glab (GitLab CLI), logged in — **secret**
-- **Needed by:** `skills/afk/execute` (push + Draft MR),
-  `skills/afk/understand/scripts/fetch-mr.sh` (MR subjects).
+### C3 · glab (GitLab CLI), logged in — **secret** *(only when `forge: gitlab`)*
+- **Needed by:** `adapters/forge/gitlab/forge.sh` — every forge verb, so
+  `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
+  wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
+  `skills/afk/gc` (the merged proof).
 - **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
-  host core-services pushes to>` — the token lives in glab's own store, never in
+  host this repository pushes to>` — the token lives in glab's own store, never in
   this plugin. `skills/afk/setup/scripts/setup_secrets.py` drives that login as
   one of its steps (it shells out to `glab`; the token still never touches this
   plugin).
+
+### C3b · gh (GitHub CLI), logged in — **secret** *(only when `forge: github` or `tracker: github-issues`)*
+- **Needed by:** `adapters/forge/github/forge.sh` — every forge verb, so
+  `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
+  wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
+  `skills/afk/gc` (the merged proof); and
+  `adapters/tracker/github-issues/api.py` — every `tracker_*` operation.
+- **Probe:** `gh auth status` (exit 0 = logged in; prints no token).
+- **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
+  own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
+  drives that login when `forge: github` is configured (it shells out to `gh`;
+  the token still never touches this plugin).
 
 ### C4 · Maven wrapper + JDK
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
@@ -356,7 +370,7 @@ a token value — not even partially.
   `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
   prompts for the token without echoing it, validates it against the host before
-  writing, and places it in the H2 `env` block (also does H2/H6/C3). By hand:
+  writing, and places it in the H2 `env` block (also does H2/H6/C3 or C3b, whichever the forge selects). By hand:
   create an API token (Atlassian account → Security → API tokens), then set
   `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` through a source listed in
   `PROVIDERS.md`.
@@ -602,6 +616,8 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_MAVEN_*` | `adapters/build-gate/maven/maven-lib.sh` and the Maven gates | the `maven:` block exported by `hooks/lib/config.sh` — `reactor-pom`, `formatter-config`, `formatter-plugin`, `default-module`, `skip-ui-flag` |
 | `AFK_CFG_NPM_*` | `adapters/build-gate/npm/ui-lint-gate.sh` | the `npm:` block exported by `hooks/lib/config.sh` — `lint`, `workspace-root` |
 | `AFK_CFG_BUILD_GATES_*` | `hooks/lib/config.sh`, `hooks/lib/adapter.sh` | the `build-gates:` list (`_COUNT` plus indexed names) selecting which build-gate adapters load |
+| `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
+| `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
 | `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |

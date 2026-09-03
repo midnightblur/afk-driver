@@ -3,13 +3,15 @@
 # gc-check-smoke.sh — seam-test for gc-check.sh (the /afk-toolkit:gc guard battery).
 #
 # Runs entirely in a disposable temp git repo — never touches a real checkout,
-# branch, worktree, or glab remote (glab is stubbed where a path needs it).
+# branch, worktree, or forge remote. The sandbox commits its own
+# `.afk/config.yaml` (forge: gitlab), and the forge CLI underneath is stubbed
+# where a path needs it, so the forge dispatch is exercised without a network.
 # Asserts, per the exit-code contract in gc-check.sh's header:
 #   0 pass          — shipped header + merged branch + clean tree + interactive +
 #                     outside the target => GC_CHECK=pass, verdict safe;
 #                     branch inference and explicit-branch arg both work
-#   verdicts        — dirty worktree => dirty; committed-ahead worktree (glab
-#                     stubbed merged) => unmerged(1) via MERGED_VIA=glab;
+#   verdicts        — dirty worktree => dirty; committed-ahead worktree (the
+#                     forge CLI stubbed merged) => unmerged(1) via MERGED_VIA=forge;
 #                     removed worktree => absent — all still exit 0
 #   1 not_shipped   — non-complete Feature header; merged proof failing
 #   2 dirty_tree    — uncommitted change under the spec folder
@@ -76,7 +78,14 @@ git -C "$REPO" worktree add -q "$WT" "$FBRANCH"
 ahead_commit="$(git -C "$REPO" commit-tree 'HEAD^{tree}' -p HEAD -m ahead)"
 git -C "$REPO" branch kapteyn/development/tester/tick-ahead "$ahead_commit"
 
-# glab stubs
+# The sandbox opts in to the toolkit and names its forge; without this the
+# forge family resolves to `none` and the merged proof has no second source.
+mkdir -p "$REPO/.afk"
+printf 'schema: 1
+forge: gitlab
+' > "$REPO/.afk/config.yaml"
+
+# forge CLI stubs
 STUB_MERGED="$TMP_ROOT/stub-merged"; mkdir -p "$STUB_MERGED"
 printf '#!/bin/sh\necho "{\\"state\\": \\"merged\\"}"\n' > "$STUB_MERGED/glab"
 STUB_FAIL="$TMP_ROOT/stub-fail"; mkdir -p "$STUB_FAIL"
@@ -117,12 +126,12 @@ else
   bad "dirty worktree wrong (rc=$RC, $OUT)"
 fi
 
-# --- T6: committed-ahead worktree => unmerged(1), merged proof via glab stub --
+# --- T6: committed-ahead worktree => unmerged(1), merged proof via the forge --
 git -C "$WT" add -A
 git -C "$WT" commit -qm stray
 OUT="$( (cd "$REPO" && PATH="$STUB_MERGED:$PATH" bash "$GC" specs/tick-demo) )"; RC=$?
 if [[ $RC -eq 0 ]]; then ok "ahead worktree still exits 0"; else bad "ahead worktree exited $RC ($OUT)"; fi
-if grep -q '^MERGED_VIA=glab$' <<<"$OUT"; then ok "merged proof fell back to glab"; else bad "MERGED_VIA wrong ($OUT)"; fi
+if grep -q '^MERGED_VIA=forge$' <<<"$OUT"; then ok "merged proof fell back to the forge"; else bad "MERGED_VIA wrong ($OUT)"; fi
 if grep -q '^WORKTREE_VERDICT=unmerged(1)$' <<<"$OUT"; then ok "verdict unmerged(1)"; else bad "verdict wrong ($OUT)"; fi
 git -C "$WT" reset -q --hard origin/master   # branch back to merged state
 

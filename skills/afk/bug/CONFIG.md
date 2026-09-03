@@ -22,7 +22,7 @@ that govern operations depending on them.
 
 | ID | Key | Type | Meaning | Gates |
 |----|-----|------|---------|-------|
-| K1 | `jiraAssignee` | string | The dev's Jira account id — bug tickets are assigned to it | Jira publish |
+| K1 | `trackerAssignee` | string | The dev's Jira account id — bug tickets are assigned to it | Jira publish |
 | K2 | `mrReviewer` | string | GitLab user assigned as reviewer on the fix MR at Ready | MR Ready flip |
 | K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | (optional) interactive worktree open |
@@ -40,7 +40,7 @@ that govern operations depending on them.
 
 ```json
 {
-  "jiraAssignee": "557058:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "trackerAssignee": "557058:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   "mrReviewer": "some.reviewer",
   "worktreeBasePath": "C:/Users/dev/core-services-worktrees",
   "ideBinary": "C:/Program Files/JetBrains/IntelliJ IDEA/bin/idea64.exe"

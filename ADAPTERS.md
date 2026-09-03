@@ -62,10 +62,22 @@ tracker does not carry them.
 
 `change-view`, `change-diff`, `change-create-draft`, `change-ready`,
 `change-reviewers`, `change-update-body`, `change-comment`, `change-state`,
-`change-close`, `change-fetch`, `ci-status`, `ci-wait`, `auth-status`.
+`change-close`, `change-fetch`, `thread-list`, `thread-reply`, `thread-resolve`,
+`ci-status`, `ci-wait`, `auth-status`.
 
 Normalized object: `id`, `url`, `title`, `state`, `draft`, `source`, `target`,
-`pipeline.status`.
+`pipeline.status`. A forge's own field names never leave the adapter — a skill
+that read `iid` would break the day the repository moved.
+
+`ci-wait` is the one verb with an exit-code contract, because a caller routes on
+it rather than on a body: 0 the pipeline succeeded, 1 it failed or was cancelled,
+2 the budget ran out while it kept running (parking is not cancelling), 3 the
+status was unreadable three times running — a fault, never a verdict.
+
+The three `thread-*` verbs carry a review conversation: list the threads, reply
+inside one, resolve one. A kind that cannot resolve answers `unsupported` with
+the reason, and the referee leaves the thread open — visible — rather than
+resolving the wrong one.
 
 | Kind | Notes |
 |---|---|

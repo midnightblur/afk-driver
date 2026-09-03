@@ -14,7 +14,7 @@ Two modes:
 - **Settle (default)** — reviewer subagents find → findings post inline → fixer subagents fix or dispute, each reading its finding from the MR thread → commit + push per round → repeat until nothing actionable remains — never merging (full never-list: Hard rules).
 - **Review-only** — post findings and stop. Each later invocation is one more settle round, paced by the MR author: new commits are the round's delta, thread replies are the fix claims and disputes.
 
-Mode resolution: explicit flag wins; otherwise **settle** when the authenticated `glab` user is the MR author and the MR isn't cross-fork, **review-only** otherwise — announce which mode ran and why. `--settle` on someone else's MR pushes to their branch: stop and get the human's go-ahead first.
+Mode resolution: explicit flag wins; otherwise **settle** when the authenticated forge user (`afk_adapter forge auth-status`) is the change's author and the change isn't cross-fork, **review-only** otherwise — announce which mode ran and why. `--settle` on someone else's MR pushes to their branch: stop and get the human's go-ahead first.
 
 ## Argument
 
@@ -34,7 +34,7 @@ MR URL or bare IID. Optional:
 - **One inline discussion per finding**, body carrying its id (`r-NNN`), finding/why/fix, evidence in a `<details>`, and a trailing AI-review attribution line.
 - **Thread replies** record the rest: `Fixed — <what> (<short-sha>)`, dispute rationales, adjudication verdicts. `fixed` and `settled` threads get **resolved**; open findings stay unresolved.
 - **Summary comment** — one managed note, first line sentinel `<!-- afk:settle-mr:summary -->`, upserted every round (find by sentinel, `PUT` the note; `POST` when absent): round number, reviewed head, `REVIEW:` verdict line, fixed/settled/open counts. This is the referee's durable accounting — the next round's `--base` and the SETTLEMENT round cap read from here.
-- **Ledger reconstruction** (any invocation): fetch the summary comment + discussions (`glab api "projects/:id/merge_requests/<iid>/discussions?per_page=100"`, paginate); settle-change threads are identified by the attribution line. Unresolved = the open set; resolved via an accepted dispute = the settled set for SETTLEMENT step 2's filter.
+- **Ledger reconstruction** (any invocation): fetch the summary comment + discussions (`afk_adapter forge thread-list '{"id":"<change-ref>"}'` — it paginates to the end); settle-change threads are identified by the attribution line. Unresolved = the open set; resolved via an accepted dispute = the settled set for SETTLEMENT step 2's filter.
 - **Information diet** (SETTLEMENT's hard rule) applied here: reviewer and adjudicator prompts never contain the summary comment, the round count, or thread contents beyond what SETTLEMENT step 5 grants the adjudicator; fixers read their own finding's thread — the implementor side may see its dispute history, never the round accounting.
 
 ## Shared machinery (the DRY seam)
@@ -61,8 +61,8 @@ The loop protocol — round structure, fix-or-dispute, dispute adjudication, ter
 
 ## Phase 0 — fetch MR + spec
 
-1. `glab api "projects/:id/merge_requests/<iid>"` (run in `MAIN`; `glab` fills `:id` from the repo) → title, description, author, draft flag, `diff_refs` (base/start/head_sha), source/target branch. Save as `mr.json`.
-2. Raw diff: `glab api "projects/:id/merge_requests/<iid>/raw_diffs"` (fallback: `git diff base_sha...head_sha` after Phase 1) → `mr.diff`.
+1. `afk_adapter forge change-fetch '{"id":"<change-ref-or-url>","out_dir":"<job-dir>"}'` (run in `MAIN`) → `mr.json` + `mr.diff`, plus the normalized change object (id, url, title, state, draft, source, target, author, pipeline.status) on stdout.
+2. `mr.diff` is written by the same call; `git diff base...head` after Phase 1 is the fallback when the forge cannot serve it.
 3. Spec: extract the tracker key from title/source branch (`[A-Z][A-Z0-9]+-\d+`); `tracker_get` with full fields (summary, description, comments) → digest acceptance criteria into `spec.md`. No key → **no-spec mode**: the MR description is the only intent statement; `spec-fidelity` reviews scope-creep + description-vs-diff instead of acceptance bullets.
 
 ## Phase 1 — checkout the MR head
@@ -100,12 +100,10 @@ Run rounds per SETTLEMENT.md "The round", with the substitutions above. Every ro
 
 Script it (parse the diff → anchor → POST per finding). Rules that bite:
 
-- JSON body via `glab api -X POST -H "Content-Type: application/json" "projects/:id/merge_requests/<iid>/discussions" --input <file>`; `-f position[…]` form params silently degrade to a plain note.
-- `position` = `{position_type: "text", base_sha, start_sha, head_sha}` from the current `diff_refs` + `old_path, new_path` + line: added lines `new_line` only; context lines BOTH `old_line`+`new_line`; deleted lines `old_line` only.
-- **New files: `old_path` must equal `new_path`** (not `/dev/null`) or GitLab 500s.
-- Anchor fallback: exact line → nearest added line within 60 → context line. File not in diff → general note (no `position`) prefixed `file:line`.
-- Verify each created note's `type` is `DiffNote`; delete bad notes via `… /notes/<id> -X DELETE`.
-- Replies go inside the finding's existing discussion (`POST …/discussions/<id>/notes`); resolving is `PUT …/discussions/<id>?resolved=true`.
+- One inline comment per finding: `afk_adapter forge change-comment '{"id":"<change-ref>","file":"<path>","line":<n>,"text":"<finding>"}'`. The adapter owns the position payload and the forge's traps with it — see `adapters/forge/<kind>/CONTRACT.md` "Notes that bite".
+- The answer carries `"ok"`. `"ok": false` means the position was rejected and the comment landed as a plain note: treat that finding as UNANCHORED, not as posted-on-the-line.
+- Anchor fallback is the caller's: exact line → nearest added line within 60 → context line. File not in the diff → a plain comment (omit `file`/`line`) prefixed `file:line`.
+- Replies go inside the finding's existing thread (`thread-reply` with its `thread` id from `thread-list`); resolving is `thread-resolve`. A forge that answers `unsupported` for `thread-resolve` leaves the thread OPEN — say so in the summary rather than pretending it closed.
 
 ## Cleanup
 
