@@ -436,8 +436,15 @@ Gating rule: if O1 misses, report the whole section as
   `providers/codex/agents/afk-toolkit-afk-runner.toml`,
   `providers/codex/agents/afk-toolkit-afk-runner-lite.toml`.
 - **Probe:** each `providers/codex/agents/afk-toolkit-afk-*.toml` is present under
-  `~/.codex/agents/` with the same filename, and its `{{PLUGIN_ROOT}}` placeholder is
-  replaced by the installed plugin root that Codex plugin metadata reports.
+  `~/.codex/agents/` with the same filename, its `{{PLUGIN_ROOT}}` placeholder is
+  replaced by the installed plugin root that Codex plugin metadata reports, **and that
+  root exists on disk**.
+- **Upgrading the plugin breaks this row until setup runs again.** The root baked into
+  each stub carries the version, so installing any new version leaves all four stubs
+  naming a directory that no longer exists, and every agent spawn on that harness
+  fails. Re-run `/afk-toolkit:setup` after every version change on that harness — not
+  only when a changelog entry says the dependency set changed. The last clause of the
+  probe is what catches it.
 - **Fix:** `auto:` read the installed plugin root from Codex plugin metadata — the
   `[plugins."afk-toolkit@afk-toolkit"]` entry in `~/.codex/config.toml`, else the
   `Installed plugin root:` line of `codex plugin list`. Never list a cache directory
@@ -497,7 +504,10 @@ miss is `missing/broken` there, never on a default run. Any fix marked
 ### W2 · IntelliJ IDEA
 - **Needed by:** the human; optionally referenced by `/afk-toolkit:bug`'s `ideBinary`
   key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
-- **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1`
+- **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/Programs/IntelliJ IDEA"* >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/JetBrains/Toolbox/apps/intellij-idea"* >/dev/null 2>&1`
+  A package manager sees only what it installed. JetBrains Toolbox is the other
+  common route and leaves nothing in that list, so a Toolbox installation read as
+  absent and the row failed on a machine where the editor was running.
 - **Base fix:** `human:` `winget install --id JetBrains.IntelliJIDEA.Ultimate -e`
   (or via JetBrains Toolbox), then sign in with a license.
 
@@ -539,6 +549,11 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
+| `AFK_CFG_GITHUB_REMOTE` / `AFK_CFG_GITLAB_REMOTE` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | the git remote whose URL identifies the project, exported by `hooks/lib/config.sh` from `<kind>.remote`; unset lets the forge CLI derive the project from the checkout |
+| `AFK_CFG_OBSIDIAN_VAULT` | `adapters/notes/obsidian/notes.sh` | vault directory exported from `obsidian.vault`; an absent directory is answered `unavailable` rather than crashing |
+| `AFK_CFG_REPO_FILES_SPEC_DIR` | `adapters/notes/common.sh` | the spec-directory template exported from `repo-files.spec-dir`, with its placeholders expanded per note |
+| `CLAUDECODE` | `hooks/lib/providers/claude.sh`, `hooks/branch-name-gate.sh`, `hooks/native-contract-gate.sh`, `hooks/skill-registry-gate.sh` | a compatibility marker one harness sets; read only after the native root variable, never as the first thing tried |
+| `CLAUDE_JOB_DIR` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | per-job scratch directory that harness offers; where a forge verb writes a downloaded diff when the caller names no `out_dir` |
 | `AFK_CFG_MAVEN_*` | `adapters/build-gate/maven/maven-lib.sh` and the Maven gates | the `maven:` block exported by `hooks/lib/config.sh` — `reactor-pom`, `formatter-config`, `formatter-plugin`, `default-module`, `skip-ui-flag` |
 | `AFK_CFG_NPM_*` | `adapters/build-gate/npm/ui-lint-gate.sh` | the `npm:` block exported by `hooks/lib/config.sh` — `lint`, `workspace-root` |
 | `AFK_CFG_BUILD_GATES_*` | `hooks/lib/config.sh`, `hooks/lib/adapter.sh` | the `build-gates:` list (`_COUNT` plus indexed names) selecting which build-gate adapters load |

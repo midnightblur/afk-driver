@@ -52,3 +52,7 @@ CHANGELOG.md	harness-name	tools, while Claude Code — which does expand it — 
 # defect it warns about exists on one harness and not the other.
 CHANGELOG.md	harness-name	^- \*\*If you are on Codex CLI, 1\.0\.0 does not work	Compatibility notice names the affected harness.
 CHANGELOG.md	harness-name	at all and every skill that reads or writes a work item failed\. Claude Code is	Same notice names the unaffected harness.
+
+# The register's variable table is the one place a compatibility marker must be
+# named: it exists so a reader can find out what is read and in what order.
+skills/afk/setup/MANIFEST.md	harness-env	a compatibility marker one harness sets; read only after the native root variable	Variable table names the marker it is documenting.

@@ -18,6 +18,37 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-09-03
+
+Everything here was found by running the setup register's own audit against the
+previous release, on a machine that had been upgraded rather than freshly
+installed. That is a state the audit had never been asked about before.
+
+### Fixed
+
+- **Upgrading the plugin silently broke all four agents on the second harness.**
+  Setup bakes the installed plugin root into each agent stub, and that root
+  carries the version, so every new version leaves all four stubs naming a
+  directory that no longer exists. Nothing detected it: the stubs are valid
+  files with a plausible path, and the failure appears only when an agent is
+  spawned. The register's probe now also requires the baked root to exist, and
+  the row states the rule it needed all along — re-run setup after **every**
+  version change on that harness, not only when an entry says the dependency set
+  changed.
+- The IntelliJ row probed a package manager, which sees only what it installed.
+  JetBrains Toolbox is the other common route and leaves nothing in that list,
+  so the row failed on a machine where the editor was open at the time. The
+  probe now also looks where Toolbox and the standalone installer put it.
+
+### Documented
+
+- Six environment variables that the code reads and the register's variable
+  table never listed: the two forge remotes, the Obsidian vault, the repo-files
+  spec directory, the compatibility marker one harness sets, and the per-job
+  scratch directory a forge verb writes into. A variable that is read but not
+  registered is one nobody knows to set, and one nobody knows to look at when it
+  is wrong.
+
 ## [1.0.2] - 2026-09-03
 
 ### Changed
