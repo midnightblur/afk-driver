@@ -27,9 +27,27 @@ absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 - `github-issues.repo`
 - `github-issues.state-labels`
 
-Secrets are never read from a configuration file. The keys above name
-environment variables; the values come from the environment or the harness
-credential store.
+No credential is configured for this kind: it runs `gh`, so authentication is
+whatever `gh auth login` established.
+
+## What is modelled, not mapped
+
+GitHub Issues has no workflow engine and no attachment API, so three operations
+answer in a shape this contract fixes rather than pretending a field exists:
+
+| Operation | Shape here |
+|---|---|
+| `tracker_transitions` | the states in `github-issues.state-labels`; the transition id IS the state name. `unsupported` when the repository declared none |
+| `tracker_transition` | adds the target state's label and removes every other state label, so an issue is never in two states |
+| `tracker_attachments` | the asset URLs referenced in the issue body and its comments, with `"partial": true` — a file never referenced in text cannot be listed |
+
+`tracker_create` writes the work-item type and the opening state as labels, and
+a `parent` becomes a task-list line on the parent issue. `tracker_edit` writes
+title, body, milestone, labels and assignees; any other field is reported back
+in `ignored_fields` and NOT written.
+
+This kind does not carry the ADF publishing machinery, so the Jira publishing
+scripts stop with the missing names when `tracker: github-issues` is selected.
 
 ## Documented degradation
 

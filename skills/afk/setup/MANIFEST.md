@@ -46,14 +46,14 @@ a token value — not even partially.
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
   `skills/afk/understand` (MR-subject spec discovery), the shared Jira lib
-  `scripts/jira_core.py` and `skills/afk/bug/scripts/publish_bug.py` (same
+  `adapters/tracker/jira/api.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
-- **Probe:** `agent:` the plugin Jira server lists `jira_get`; a cheap call on a
+- **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
   known key succeeds.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does S1/H6/C3), enable the plugin, then restart the session. Python deps: P3.
 - **Notes:** host is Jira Cloud (`nakisa.atlassian.net`). Server source ships
-  in this plugin at `mcp-servers/jira/server.py`; `.mcp.json` is the shared
+  in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
 
 ### H4 · design-push service *(optional)* **[deferred: first `/afk-toolkit:prototype` or `/afk-toolkit:design-system` push]**
@@ -275,7 +275,7 @@ a token value — not even partially.
   `.mcp.json` bootstrap,
   `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/claude-md/scripts/*.py`, `tools/payable/envstack/envctl.py` (X3),
-  the shared Jira lib `scripts/jira_core.py` and
+  the shared Jira lib `adapters/tracker/jira/api.py` and
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001).
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
@@ -284,14 +284,14 @@ a token value — not even partially.
 
 ### P2 · markdown-it-py
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
-  (PRD / meeting body → ADF), the shared Jira lib `scripts/jira_core.py`
+  (PRD / meeting body → ADF), the shared Jira lib `adapters/tracker/jira/api.py`
   (imported by both `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`
   for the same Markdown→ADF conversion; ADR-0001).
 - **Probe:** `python -c "import markdown_it"`
 - **Fix:** `auto:` `pip install markdown-it-py`
 
 ### P3 · mcp + httpx (Jira MCP server runtime)
-- **Needed by:** `mcp-servers/jira/server.py` (H2) — FastMCP host + HTTP client.
+- **Needed by:** `mcp-servers/tracker/server.py` (H2) — FastMCP host + HTTP client.
 - **Probe:** `python -c "import mcp, httpx"`
 - **Fix:** `auto:` `pip install mcp httpx`
 - **Notes:** missing deps surface as the `jira` server failing to connect at
@@ -350,10 +350,10 @@ a token value — not even partially.
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
   (attachment upload has no MCP tool, and both engines PUT the description via
   REST directly rather than inline a large ADF through an MCP tool call),
-  the shared Jira lib `scripts/jira_core.py` and
+  the shared Jira lib `adapters/tracker/jira/api.py` and
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
 - **Probe:** presence-only through the shared resolver; prints no values:
-  `python -c "import sys;sys.path.insert(0,'tools/payable/ai-agents/plugins/workflow/scripts');from jira_core import load_creds;load_creds();print('ok')"`
+  `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
   prompts for the token without echoing it, validates it against the host before
   writing, and places it in the H2 `env` block (also does H2/H6/C3). By hand:
@@ -433,7 +433,7 @@ Gating rule: if O1 misses, report the whole section as
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists exactly 40 `afk:<name>` plugin skills,
-  no `afk-<name>` mirror, all three agent roles, and a callable `jira_get`.
+  no `afk-<name>` mirror, all three agent roles, and a callable `tracker_get`.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 
 ### O8 · stale generated activation cleanup **[opt-in]**

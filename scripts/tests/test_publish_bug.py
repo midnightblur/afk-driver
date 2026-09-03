@@ -22,17 +22,30 @@ import unittest
 import urllib.error
 from unittest import mock
 
-# publish_bug.py lives under the bug skill's scripts dir; jira_core lives at the
-# plugin-root scripts dir. Make both importable regardless of cwd.
+# publish_bug.py lives under the bug skill's scripts dir; tracker_api lives at
+# the plugin-root scripts dir. Make both importable regardless of cwd.
 _TESTS = os.path.dirname(os.path.abspath(__file__))
-_PLUGIN_SCRIPTS = os.path.dirname(_TESTS)                       # workflow/scripts
-_WORKFLOW = os.path.dirname(_PLUGIN_SCRIPTS)                    # workflow
+_PLUGIN_SCRIPTS = os.path.dirname(_TESTS)                       # <root>/scripts
+_WORKFLOW = os.path.dirname(_PLUGIN_SCRIPTS)                    # <root>
 _BUG_SCRIPTS = os.path.join(_WORKFLOW, "skills", "afk", "bug", "scripts")
 for _p in (_PLUGIN_SCRIPTS, _BUG_SCRIPTS):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import publish_bug  # noqa: E402
+# publish_bug resolves the CONFIGURED tracker at import time. This suite tests
+# the Jira publisher, so it names a configuration that selects Jira instead of
+# depending on whatever this repository happens to be set to — and it puts the
+# environment back, because a variable left set here would follow every other
+# test module in the same interpreter.
+_PRIOR_AFK_CONFIG = os.environ.get("AFK_CONFIG")
+os.environ["AFK_CONFIG"] = os.path.join(_TESTS, "samples", "monorepo-config.yaml")
+try:
+    import publish_bug  # noqa: E402
+finally:
+    if _PRIOR_AFK_CONFIG is None:
+        os.environ.pop("AFK_CONFIG", None)
+    else:
+        os.environ["AFK_CONFIG"] = _PRIOR_AFK_CONFIG
 
 
 def _http_error(code, body):
@@ -53,7 +66,7 @@ class FakeResp:
 
 
 class RecordingJira:
-    """Stands in for jira_core.Jira. Records every _req call; returns a scripted
+    """Stands in for the adapter's Jira client. Records every _req call; returns a scripted
     response (FakeResp) or raises a scripted HTTPError, matched by call order or
     by a handler."""
 

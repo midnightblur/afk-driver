@@ -41,8 +41,16 @@ absent answers `unavailable` — never a silent skip.
 
 Nine operations, the same nine on every kind: `tracker_get`, `tracker_search`,
 `tracker_create`, `tracker_edit`, `tracker_comment`, `tracker_transition`,
-`tracker_transitions`, `tracker_attachments`, `tracker_changelog`. The MCP
-server `tracker` registers exactly these and routes them to the selected kind.
+`tracker_transitions`, `tracker_attachments`, `tracker_changelog`.
+`mcp-servers/tracker/server.py` registers exactly these and routes each to the
+selected kind's `api.py` `call(operation, payload)`. The registration lives in
+`.mcp.json` / `.mcp.codex.json` under the server name `tracker`, and passes the
+plugin root rather than searching for it.
+
+A publishing script that needs more than the nine — the ADF body machinery, the
+attachment upload — reaches the selected kind through `scripts/tracker_api.py`,
+which fails with the missing names and the configuration key when the configured
+tracker does not carry them.
 
 | Kind | Notes |
 |---|---|

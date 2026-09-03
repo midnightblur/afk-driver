@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Payload-shape unit tests for jira_core — no network.
+"""Payload-shape unit tests for the tracker/jira adapter — no network.
 
-Covers the shared Jira machinery: ADF conversion, multipart attachment-body
-construction, media-UUID extraction, creds resolution, and PNG sizing. Every
-test that would otherwise touch the network stubs Jira._req; nothing here opens
-a socket.
+Covers the machinery the adapter carries for the publishing skills: ADF
+conversion, multipart attachment-body construction, media-UUID extraction,
+creds resolution, and PNG sizing. Every test that would otherwise touch the
+network stubs Jira._req; nothing here opens a socket.
 """
 
 import json
@@ -15,11 +15,16 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-# jira_core lives one directory up (the scripts/ dir); make it importable no
-# matter what cwd `python -m unittest discover` runs from.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# The adapter is not on sys.path (adapters/ is not a package root), so load it
+# by file, the same way scripts/tracker_api.py does at run time.
+import importlib.util  # noqa: E402
 
-import jira_core  # noqa: E402
+_PLUGIN_ROOT = Path(os.path.abspath(__file__)).parents[2]
+_API = _PLUGIN_ROOT / "adapters" / "tracker" / "jira" / "api.py"
+_spec = importlib.util.spec_from_file_location("afk_tracker_jira", _API)
+api = importlib.util.module_from_spec(_spec)
+sys.modules["afk_tracker_jira"] = api
+_spec.loader.exec_module(api)
 
 
 class FakeResp:
@@ -38,7 +43,7 @@ class FakeResp:
 # ---------------------------------------------------------------------------
 class TestMdToAdf(unittest.TestCase):
     def adf(self, md, fig_nodes=None):
-        return jira_core.md_to_adf_content(md, fig_nodes or {})
+        return api.md_to_adf_content(md, fig_nodes or {})
 
     def test_heading(self):
         nodes = self.adf("# Title")
@@ -109,7 +114,7 @@ class TestMdToAdf(unittest.TestCase):
 
     def test_mermaid_placeholder_substitution(self):
         # A lone-paragraph placeholder token is replaced by the supplied fig node.
-        token = jira_core.FIG_TOKEN.format(0)
+        token = api.FIG_TOKEN.format(0)
         fig = [{"type": "mediaSingle", "attrs": {"layout": "center"},
                 "content": [{"type": "media", "attrs": {"type": "file", "id": "u"}}]}]
         nodes = self.adf(f"before\n\n{token}\n\nafter", fig_nodes={0: fig})
@@ -138,18 +143,18 @@ class TestCreds(unittest.TestCase):
         os.environ["JIRA_BASE_URL"] = "https://n.atlassian.net/"
         os.environ["JIRA_EMAIL"] = "me@x.test"
         os.environ["JIRA_API_TOKEN"] = "tok123"
-        base, email, token = jira_core.load_creds()
+        base, email, token = api.load_creds()
         self.assertEqual(base, "https://n.atlassian.net")
         self.assertEqual(email, "me@x.test")
         self.assertEqual(token, "tok123")
 
     def test_walk_for_jira_env_nested(self):
         cfg = {"mcpServers": {"jira": {"env": {"JIRA_BASE_URL": "https://n.test"}}}}
-        env = jira_core._walk_for_jira_env(cfg)
+        env = api._walk_for_jira_env(cfg)
         self.assertEqual(env, {"JIRA_BASE_URL": "https://n.test"})
 
     def test_walk_for_jira_env_absent(self):
-        self.assertIsNone(jira_core._walk_for_jira_env({"other": {"x": 1}}))
+        self.assertIsNone(api._walk_for_jira_env({"other": {"x": 1}}))
 
     def _write_claude_json(self, home, base):
         cfg = {"mcpServers": {"jira": {"env": {
@@ -162,8 +167,8 @@ class TestCreds(unittest.TestCase):
             os.environ.pop(k, None)
         with tempfile.TemporaryDirectory() as home:
             self._write_claude_json(home, "https://file.atlassian.net")
-            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
-                base, email, token = jira_core.load_creds()
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                base, email, token = api.load_creds()
         self.assertEqual((base, email, token),
                          ("https://file.atlassian.net", "file@x.test", "file-tok"))
 
@@ -173,8 +178,8 @@ class TestCreds(unittest.TestCase):
         os.environ["JIRA_API_TOKEN"] = "env-tok"
         with tempfile.TemporaryDirectory() as home:
             self._write_claude_json(home, "https://file.atlassian.net")
-            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
-                base, email, token = jira_core.load_creds()
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                base, email, token = api.load_creds()
         # env wins over the file for every field
         self.assertEqual((base, email, token),
                          ("https://env.atlassian.net", "env@x.test", "env-tok"))
@@ -187,8 +192,8 @@ class TestCreds(unittest.TestCase):
             os.environ.pop(k, None)
         with tempfile.TemporaryDirectory() as home:
             self._write_claude_json(home, "https://file.atlassian.net")
-            with mock.patch.object(jira_core.Path, "home", return_value=Path(home)):
-                base, email, token = jira_core.load_creds()
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                base, email, token = api.load_creds()
         self.assertEqual(base, "https://env.atlassian.net")  # env field kept
         self.assertEqual((email, token), ("file@x.test", "file-tok"))  # file fills the rest
 
@@ -198,7 +203,7 @@ class TestCreds(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class TestJiraClient(unittest.TestCase):
     def make(self):
-        return jira_core.Jira("https://n.atlassian.net", "me@x.test", "tok")
+        return api.Jira("https://n.atlassian.net", "me@x.test", "tok")
 
     def test_auth_header_is_basic_base64(self):
         import base64
@@ -262,7 +267,7 @@ class TestPngSize(unittest.TestCase):
             f.write(head + b"\x00" * 16)
             png = f.name
         try:
-            self.assertEqual(jira_core.png_size(png), (32, 16))
+            self.assertEqual(api.png_size(png), (32, 16))
         finally:
             os.unlink(png)
 
@@ -273,7 +278,7 @@ class TestPngSize(unittest.TestCase):
             f.write(b"\x89PNG\r\n\x1a\n\x00\x00")  # signature + 2 bytes = 10
             p = f.name
         try:
-            self.assertIsNone(jira_core.png_size(p))
+            self.assertIsNone(api.png_size(p))
         finally:
             os.unlink(p)
 
@@ -282,7 +287,7 @@ class TestPngSize(unittest.TestCase):
             f.write(b"not a png at all here")
             p = f.name
         try:
-            self.assertIsNone(jira_core.png_size(p))
+            self.assertIsNone(api.png_size(p))
         finally:
             os.unlink(p)
 

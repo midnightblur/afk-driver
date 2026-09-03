@@ -248,9 +248,9 @@ spaced=$(mktemp -d)/"afk toolkit root"
 mkdir -p "$spaced"
 cp -r "$workflow/hooks" "$spaced/hooks"
 cp "$workflow/.mcp.json" "$spaced/.mcp.json"
-mkdir -p "$spaced/mcp-servers/jira"
-printf 'print("fixture server")\n' > "$spaced/mcp-servers/jira/server.py"
-out=$("$py" -c "$("$py" -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['mcpServers']['jira']['args'][1])" "$spaced/.mcp.json")" "$spaced" 2>&1)
+mkdir -p "$spaced/mcp-servers/tracker"
+printf 'print("fixture server")\n' > "$spaced/mcp-servers/tracker/server.py"
+out=$("$py" -c "$("$py" -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['mcpServers']['tracker']['args'][1])" "$spaced/.mcp.json")" "$spaced" 2>&1)
 rc=$?
 if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "fixture server"; then
   pass "MCP launcher resolves a plugin root containing spaces"

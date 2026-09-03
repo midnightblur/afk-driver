@@ -8,7 +8,7 @@ byte-for-byte reproducible rather than eyeballed each run:
   1. Render every ```mermaid fenced block to a PNG locally (mmdc), so no
      diagram source ever leaves the network.
   2. Convert the PRD Markdown to ADF (Atlassian Document Format) via a fixed
-     element mapping (see jira_core.md_to_adf_content).
+     element mapping (see the tracker adapter's md_to_adf_content).
   3. Upload each rendered PNG as an attachment, resolve its media UUID via the
      attachment content-URL 303 redirect, and embed it inline as an ADF media
      node (the only method Jira Cloud actually renders inline — verified
@@ -25,7 +25,7 @@ byte-for-byte reproducible rather than eyeballed each run:
 
 The reusable Jira machinery — creds resolution, the REST client, Markdown→ADF
 conversion, attachment upload + media-UUID extraction, PNG sizing — lives in the
-plugin-root shared lib `scripts/jira_core.py` (ADR-0001). This script keeps only
+configured tracker adapter (`adapters/tracker/<kind>/api.py`). This script keeps only
 the PRD-specific concerns: mermaid rendering and the sentinel-block description
 merge.
 
@@ -38,7 +38,7 @@ Usage:
     python publish_prd.py --parent P2P-1220 --prd path/to/TICKET.md \
         [--changes path/to/TICKET-CHANGES.md] [--dry-run] [--yes]
 
-Credentials resolve as jira_core.load_creds documents (OS env vars win, then
+Credentials resolve as the adapter's load_creds documents (OS env vars win, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
 is hardcoded.
 """
@@ -55,21 +55,24 @@ import sys
 import tempfile
 from pathlib import Path
 
-# The shared Jira machinery lives at the plugin root (workflow/scripts/), five
-# directories up from this file (scripts/to-ticket/afk/skills/workflow).
+# The plugin root's scripts/ holds tracker_api, which resolves the CONFIGURED
+# tracker adapter — five directories up from this file
+# (scripts/to-ticket/afk/skills/workflow).
 _PLUGIN_SCRIPTS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))))), "scripts")
 if _PLUGIN_SCRIPTS not in sys.path:
     sys.path.insert(0, _PLUGIN_SCRIPTS)
 
-from jira_core import (  # noqa: E402
-    FIG_TOKEN,
-    Jira,
-    load_creds,
-    md_to_adf_content,
-    png_size,
-)
+from tracker_api import load as _load_tracker  # noqa: E402
+
+_tracker = _load_tracker(("FIG_TOKEN", "Jira", "load_creds",
+                          "md_to_adf_content", "png_size"))
+FIG_TOKEN = _tracker.FIG_TOKEN
+Jira = _tracker.Jira
+load_creds = _tracker.load_creds
+md_to_adf_content = _tracker.md_to_adf_content
+png_size = _tracker.png_size
 
 # ----------------------------------------------------------------------------
 # Managed-block sentinels. These delimit the region this script owns inside the

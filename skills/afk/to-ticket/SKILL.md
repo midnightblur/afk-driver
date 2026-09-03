@@ -11,7 +11,7 @@ Three independent modes writing to a **Jira Cloud** (`nakisa.atlassian.net`) tra
 
 - **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Story/Bug as native **ADF**; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 - **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible ADF `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
-- **Spinoff mode** ([jump](#spinoff-mode--mint-a-stub-for-deferred-work)) — mint a **new** stub Enhancement for work a grill deferred out of scope; no engine — the `jira_create` MCP tool.
+- **Spinoff mode** ([jump](#spinoff-mode--mint-a-stub-for-deferred-work)) — mint a **new** stub Enhancement for work a grill deferred out of scope; no engine — the `tracker_create` MCP tool.
 
 PRD and meeting mode both write **ADF** into an existing issue's description, are **idempotent** (re-run updates in place, never duplicates), and own **disjoint regions** so they never collide; their engines share creds + the Markdown→ADF mapping. Spinoff mode instead **creates** an issue — no description-region ownership, guarded against duplicates by the grill log (below).
 
@@ -93,7 +93,7 @@ Creating an issue has a first-class MCP tool, so spinoff mode uses it directly �
 
 1. **Read the candidate** from the grill's `GRILL-LOG.md` spinoff row — kind, summary, pain, why-out, intended links.
 2. **Dedup.** Row already reads `filed {KEY}` → stop; the stub exists (`SPINOFF-TICKET.md`, dedup on resume).
-3. **Create** via `jira_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, and a plain-text `description` carrying the pain + why-deferred/what-unblocks. Requirements-level, no repo-artifact references (ticket readers have no repo access).
-4. **Record + link-debt.** The instant create returns, write `{KEY}` back onto the candidate row. `jira_create` (and `jira_edit`) **cannot set `issuelinks`**, so every intended `blocked-by`/`relates` link is **link-debt**: mark the row `filed {KEY} · link-debt` and tell the human which links to set by hand.
+3. **Create** via `tracker_create` — `summary`, `issue_type: Enhancement`, `epic` (the parent epic), `fix_version`, and a plain-text `description` carrying the pain + why-deferred/what-unblocks. Requirements-level, no repo-artifact references (ticket readers have no repo access).
+4. **Record + link-debt.** The instant create returns, write `{KEY}` back onto the candidate row. `tracker_create` (and `tracker_edit`) **cannot set `issuelinks`**, so every intended `blocked-by`/`relates` link is **link-debt**: mark the row `filed {KEY} · link-debt` and tell the human which links to set by hand.
 
 **Done when:** the issue exists, its key is on the candidate row, and any unset links are surfaced as link-debt. **Human-present + user-directed only** (`SPINOFF-TICKET.md`) — never mint in a driven run.

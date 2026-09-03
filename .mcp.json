@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "jira": {
+    "tracker": {
       "command": "python",
       "args": [
         "-c",
-        "import os, runpy, sys\nrel = os.path.join('mcp-servers', 'jira', 'server.py')\nroots = [a for a in sys.argv[1:] if a and '${' not in a]\nroots += [os.environ.get('AFK_PLUGIN_ROOT'), os.environ.get('CLAUDE_PLUGIN_ROOT'), os.environ.get('PLUGIN_ROOT')]\nfor root in roots:\n    if root and os.path.isfile(os.path.join(root, rel)):\n        os.environ['AFK_PLUGIN_ROOT'] = root\n        runpy.run_path(os.path.join(root, rel), run_name='__main__')\n        sys.exit(0)\nsys.exit('afk tracker MCP: ' + rel + ' not found. Pass the plugin root as the first argument, or export CLAUDE_PLUGIN_ROOT (Claude) or PLUGIN_ROOT (Codex).')",
+        "import os, runpy, sys\nrel = os.path.join('mcp-servers', 'tracker', 'server.py')\nroots = [a for a in sys.argv[1:] if a and '${' not in a]\nroots += [os.environ.get('AFK_PLUGIN_ROOT'), os.environ.get('CLAUDE_PLUGIN_ROOT'), os.environ.get('PLUGIN_ROOT')]\nfor root in roots:\n    if root and os.path.isfile(os.path.join(root, rel)):\n        os.environ['AFK_PLUGIN_ROOT'] = root\n        runpy.run_path(os.path.join(root, rel), run_name='__main__')\n        sys.exit(0)\nsys.exit('afk tracker MCP: ' + rel + ' not found. Pass the plugin root as the first argument, or export CLAUDE_PLUGIN_ROOT (Claude) or PLUGIN_ROOT (Codex).')",
         "${CLAUDE_PLUGIN_ROOT}"
       ]
     }

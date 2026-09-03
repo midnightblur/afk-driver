@@ -8,7 +8,8 @@ embed screenshots inline (attach + media-UUID 303 trick), transition it to
 Dev-Pending, append lifecycle evidence comments (MR link / Ready / retest
 verdict), and backfill FixVersion once a non-blocking ask resolves.
 
-Builds on the plugin-root shared Jira lib `scripts/jira_core.py` (ADR-0001):
+Builds on the configured tracker adapter (`adapters/tracker/<kind>/api.py`,
+resolved by `scripts/tracker_api.py`):
 creds resolution, the REST client + auth, Markdown→ADF conversion, attachment
 upload and media-UUID extraction, PNG sizing. This script keeps only the
 bug-specific concerns — the create/transition/comment/backfill payloads and the
@@ -28,7 +29,7 @@ Usage:
     python publish_bug.py comment    --key P2P-123 --body "…" | --body-file f.md [--dry-run]
     python publish_bug.py backfill   --key P2P-123 --project P2P --fix-version V [--dry-run]
 
-Credentials resolve exactly as jira_core.load_creds documents (env vars, then
+Credentials resolve exactly as the adapter's load_creds documents (env vars, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing
 is hardcoded.
 """
@@ -43,20 +44,22 @@ import time
 import urllib.error
 from pathlib import Path
 
-# The shared Jira machinery lives at the plugin root (workflow/scripts/), five
-# directories up from this file (scripts/bug/afk/skills/workflow).
+# The plugin root's scripts/ holds tracker_api, which resolves the CONFIGURED
+# tracker adapter — five directories up from this file
+# (scripts/bug/afk/skills/workflow).
 _PLUGIN_SCRIPTS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__)))))), "scripts")
 if _PLUGIN_SCRIPTS not in sys.path:
     sys.path.insert(0, _PLUGIN_SCRIPTS)
 
-from jira_core import (  # noqa: E402
-    Jira,
-    load_creds,
-    md_to_adf_content,
-    png_size,
-)
+from tracker_api import load as _load_tracker  # noqa: E402
+
+_tracker = _load_tracker(("Jira", "load_creds", "md_to_adf_content", "png_size"))
+Jira = _tracker.Jira
+load_creds = _tracker.load_creds
+md_to_adf_content = _tracker.md_to_adf_content
+png_size = _tracker.png_size
 
 # Dev-Pending transition id — verified live against the P2P project this session
 # (SDD §3 consumed-contract table; PRD Further Notes). The plugin transitions the

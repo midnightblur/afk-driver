@@ -63,7 +63,7 @@ The loop protocol — round structure, fix-or-dispute, dispute adjudication, ter
 
 1. `glab api "projects/:id/merge_requests/<iid>"` (run in `MAIN`; `glab` fills `:id` from the repo) → title, description, author, draft flag, `diff_refs` (base/start/head_sha), source/target branch. Save as `mr.json`.
 2. Raw diff: `glab api "projects/:id/merge_requests/<iid>/raw_diffs"` (fallback: `git diff base_sha...head_sha` after Phase 1) → `mr.diff`.
-3. Spec: extract the tracker key from title/source branch (`[A-Z][A-Z0-9]+-\d+`); `jira_get` with full fields (summary, description, comments) → digest acceptance criteria into `spec.md`. No key → **no-spec mode**: the MR description is the only intent statement; `spec-fidelity` reviews scope-creep + description-vs-diff instead of acceptance bullets.
+3. Spec: extract the tracker key from title/source branch (`[A-Z][A-Z0-9]+-\d+`); `tracker_get` with full fields (summary, description, comments) → digest acceptance criteria into `spec.md`. No key → **no-spec mode**: the MR description is the only intent statement; `spec-fidelity` reviews scope-creep + description-vs-diff instead of acceptance bullets.
 
 ## Phase 1 — checkout the MR head
 

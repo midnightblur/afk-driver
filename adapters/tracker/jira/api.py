@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""
-jira_core — shared Jira Cloud machinery for the AFK workflow plugin.
+"""tracker/jira — the Jira Cloud adapter.
 
-One home (ADR-0001, afk-bug) for the reusable mechanics several skills need to
-write to Jira: credential resolution, a thin REST client (incl. multipart
-attachment upload + the media-UUID 303-redirect trick), Markdown→ADF conversion,
-and PNG dimension reading for inline media nodes.
+Two audiences, one module:
 
-Behavior matches the original inline implementation it was extracted from.
-Skill-specific concerns (sentinel-block/description merge, mermaid rendering)
-stay in the importing scripts.
+- `call(operation, payload)` answers the nine `tracker_*` operations for the
+  `tracker` MCP server (ADAPTERS.md). This is the interface every tracker kind
+  implements; a skill never sees Jira.
+- The publishing machinery several skills import directly: credential
+  resolution, a thin REST client (multipart attachment upload plus the
+  media-UUID 303-redirect trick), Markdown→ADF conversion, and PNG dimension
+  reading for inline media nodes.
 
-Credentials are read from same-named OS env vars, or from the Jira MCP server's
-env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN), or
-from ~/.codex/config.toml [mcp_servers.jira.env]; resolution order env >
-claude.json > codex config.toml (per-provider map: plugin PROVIDERS.md).
-Nothing is hardcoded.
+Credentials are read from same-named OS env vars, or from the tracker MCP
+server's env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL /
+JIRA_API_TOKEN), or from ~/.codex/config.toml [mcp_servers.tracker.env];
+resolution order env > claude.json > codex config.toml. The server was once
+registered as `jira`, so both names are accepted. Nothing is hardcoded.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ import re
 import struct
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -36,11 +37,18 @@ from markdown_it import MarkdownIt
 # ============================================================================
 # Credentials
 # ============================================================================
+# The MCP server that carries these credentials is registered as `tracker`; it
+# was `jira` before the adapter split, and an existing machine still holds that
+# registration, so both names resolve.
+SERVER_NAMES = ("tracker", "jira")
+
+
 def _walk_for_jira_env(obj):
     if isinstance(obj, dict):
-        jira = obj.get("jira")
-        if isinstance(jira, dict) and isinstance(jira.get("env"), dict):
-            return jira["env"]
+        for name in SERVER_NAMES:
+            server = obj.get(name)
+            if isinstance(server, dict) and isinstance(server.get("env"), dict):
+                return server["env"]
         for v in obj.values():
             r = _walk_for_jira_env(v)
             if r:
@@ -49,7 +57,7 @@ def _walk_for_jira_env(obj):
 
 
 def _codex_jira_env():
-    """Jira env block from ~/.codex/config.toml [mcp_servers.jira.env] (py3.11+;
+    """Jira env block from ~/.codex/config.toml [mcp_servers.tracker.env] (py3.11+;
     older interpreters lack tomllib and just skip this fallback layer)."""
     cfg_path = Path.home() / ".codex" / "config.toml"
     if not cfg_path.exists():
@@ -86,8 +94,8 @@ def load_creds():
             token = token or env.get("JIRA_API_TOKEN")
     if not (base and email and token):
         sys.exit("ERROR: could not resolve Jira creds (JIRA_BASE_URL/EMAIL/API_TOKEN "
-                 "from env, ~/.claude.json mcpServers.jira.env, or "
-                 "~/.codex/config.toml [mcp_servers.jira.env]).")
+                 "from env, ~/.claude.json mcpServers.tracker.env, or "
+                 "~/.codex/config.toml [mcp_servers.tracker.env]).")
     return base.rstrip("/"), email, token
 
 
@@ -392,3 +400,217 @@ def _build_table(tokens, i, fig_nodes):
             i += 1
     return {"type": "table", "attrs": {"isNumberColumnEnabled": False, "layout": "default"},
             "content": rows}, i
+
+
+# ============================================================================
+# The tracker contract — the nine operations every tracker kind answers
+# ============================================================================
+OPERATIONS = (
+    "tracker_get", "tracker_search", "tracker_create", "tracker_edit",
+    "tracker_comment", "tracker_transition", "tracker_transitions",
+    "tracker_attachments", "tracker_changelog",
+)
+
+DEFAULT_FIELDS = ("summary,status,issuetype,assignee,reporter,priority,"
+                  "created,updated,labels,components")
+SEARCH_FIELDS = ["summary", "status", "issuetype", "assignee", "priority",
+                 "created", "updated"]
+
+_CLIENT = None
+
+
+def client():
+    """The one REST client, built from the resolved credentials on first use."""
+    global _CLIENT
+    if _CLIENT is None:
+        _CLIENT = Jira(*load_creds())
+    return _CLIENT
+
+
+def _json(method, path, body=None, params=None):
+    """One REST call, answering parsed JSON or a described error — never raising
+    at the operation boundary: an MCP tool that throws tells the caller nothing
+    about what went wrong on the far side."""
+    if params:
+        query = urllib.parse.urlencode({k: v for k, v in params.items() if v not in (None, "")})
+        if query:
+            path = f"{path}?{query}"
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {"Content-Type": "application/json"} if data else None
+    try:
+        r = client()._req(method, path, data=data, headers=headers)
+    except urllib.error.HTTPError as e:
+        return {"error": True, "status": e.code, "body": e.read().decode("utf-8", "replace")[:2000]}
+    except Exception as e:  # network, DNS, timeout
+        return {"error": True, "reason": f"{type(e).__name__}: {e}"}
+    raw = r.read()
+    if not raw:
+        return {"ok": True}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return {"raw": raw.decode("utf-8", "replace")[:2000]}
+
+
+def _adf_text(text):
+    """Wrap plain text in Atlassian Document Format."""
+    return {"type": "doc", "version": 1,
+            "content": [{"type": "paragraph",
+                         "content": [{"type": "text", "text": text}]}]}
+
+
+def _default_project():
+    return os.environ.get("JIRA_DEFAULT_PROJECT", "")
+
+
+def _op_get(p):
+    key = p["ticket_key"]
+    return _json("GET", f"/rest/api/3/issue/{key}",
+                 params={"fields": p.get("fields") or DEFAULT_FIELDS})
+
+
+def _op_search(p):
+    return _json("POST", "/rest/api/3/search/jql", body={
+        "jql": p["query"],
+        "maxResults": int(p.get("max_results") or 50),
+        "fields": p.get("fields") or SEARCH_FIELDS,
+    })
+
+
+def _op_transitions(p):
+    return _json("GET", f"/rest/api/3/issue/{p['ticket_key']}/transitions")
+
+
+def _op_transition(p):
+    return _json("POST", f"/rest/api/3/issue/{p['ticket_key']}/transitions",
+                 body={"transition": {"id": p["transition_id"]}})
+
+
+def _op_changelog(p):
+    return _json("GET", f"/rest/api/3/issue/{p['ticket_key']}",
+                 params={"expand": "changelog"})
+
+
+def _op_comment(p):
+    return _json("POST", f"/rest/api/3/issue/{p['ticket_key']}/comment",
+                 body={"body": _adf_text(p["text"])})
+
+
+def _op_attachments(p):
+    data = _json("GET", f"/rest/api/3/issue/{p['ticket_key']}",
+                 params={"fields": "attachment"})
+    if not (isinstance(data, dict) and "fields" in data):
+        return data
+    return [{"id": a.get("id"), "filename": a.get("filename"),
+             "mimeType": a.get("mimeType"), "size": a.get("size"),
+             "created": a.get("created"),
+             "author": (a.get("author") or {}).get("displayName"),
+             "content": a.get("content")}
+            for a in (data.get("fields", {}).get("attachment") or [])]
+
+
+def _op_edit(p):
+    return _json("PUT", f"/rest/api/3/issue/{p['ticket_key']}",
+                 body={"fields": p["fields"]})
+
+
+def _op_create(p):
+    project = p.get("project") or _default_project()
+    if not project:
+        return {"error": True,
+                "message": "project is required (no JIRA_DEFAULT_PROJECT, and "
+                           "`jira.project` in .afk/config.yaml was not passed)"}
+
+    fields = {"project": {"key": project},
+              "issuetype": {"name": p["issue_type"]},
+              "summary": p["summary"]}
+    if p.get("description"):
+        fields["description"] = _adf_text(p["description"])
+    if p.get("parent"):
+        fields["parent"] = {"key": p["parent"]}
+    if p.get("fix_version"):
+        fields["fixVersions"] = [{"name": p["fix_version"]}]
+
+    created = _json("POST", "/rest/api/3/issue", body={"fields": fields})
+    key = created.get("key") if isinstance(created, dict) else None
+    if not key:
+        return created
+    result = {"key": key, "id": created.get("id")}
+
+    # Assignment and the opening transition are separate calls, and a failure in
+    # either must not lose the issue that was already created — each reports as
+    # a warning on the successful create.
+    assignee = p.get("assignee")
+    if assignee:
+        users = _json("GET", "/rest/api/3/user/assignable/search",
+                      params={"query": assignee, "project": project})
+        account_id = users[0]["accountId"] if isinstance(users, list) and users else None
+        if account_id:
+            _json("PUT", f"/rest/api/3/issue/{key}",
+                  body={"fields": {"assignee": {"accountId": account_id}}})
+            result["assignee"] = {"accountId": account_id, "query": assignee}
+        else:
+            result["assignee_warning"] = f"could not resolve '{assignee}'"
+
+    status = p.get("status")
+    if status:
+        trs = _json("GET", f"/rest/api/3/issue/{key}/transitions")
+        match = next((t["id"] for t in (trs.get("transitions") or [])
+                      if isinstance(trs, dict) and t.get("name", "").lower() == status.lower()), None)
+        if match:
+            _json("POST", f"/rest/api/3/issue/{key}/transitions",
+                  body={"transition": {"id": match}})
+            result["transitioned_to"] = status
+        else:
+            result["status_warning"] = f"no transition named '{status}'"
+    return result
+
+
+_DISPATCH = {
+    "tracker_get": _op_get,
+    "tracker_search": _op_search,
+    "tracker_create": _op_create,
+    "tracker_edit": _op_edit,
+    "tracker_comment": _op_comment,
+    "tracker_transition": _op_transition,
+    "tracker_transitions": _op_transitions,
+    "tracker_attachments": _op_attachments,
+    "tracker_changelog": _op_changelog,
+}
+
+
+def call(operation, payload=None):
+    """The one entry point every tracker adapter exposes."""
+    fn = _DISPATCH.get(operation)
+    if fn is None:
+        return {"unsupported": True, "operation": operation,
+                "reason": f"tracker/jira has no operation {operation}"}
+    try:
+        return fn(payload or {})
+    except KeyError as e:
+        return {"error": True, "operation": operation,
+                "reason": f"missing required argument {e}"}
+
+
+def main(argv):
+    if argv and argv[0] == "--check-creds":
+        # Presence only: load_creds exits with its own message when a variable
+        # is missing, and nothing here prints a value.
+        load_creds()
+        print("ok")
+        return 0
+    if argv and argv[0] == "--list-tools":
+        for name in OPERATIONS:
+            print(name)
+        return 0
+    if not argv:
+        print(json.dumps({"operations": list(OPERATIONS)}))
+        return 0
+    payload = json.loads(argv[1]) if len(argv) > 1 else {}
+    answer = call(argv[0], payload)
+    print(json.dumps(answer))
+    return 3 if isinstance(answer, dict) and answer.get("unsupported") else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
