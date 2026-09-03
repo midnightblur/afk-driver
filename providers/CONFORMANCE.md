@@ -62,6 +62,20 @@ for the old `afk@nak-marketplace` install whose four agents demonstrably work,
 so it is a counting rule in that listing, not a regression. Agent parity is
 proved by spawning, not by the inventory line.
 
+Two operational facts this round established, both of which change how the
+install is done rather than what is installed:
+
+- `codex plugin marketplace add` on an **already-added** marketplace does not
+  refetch: it says "already added" and keeps the old snapshot. Refreshing a
+  Git marketplace to a newer commit of the same ref needs
+  `codex plugin marketplace upgrade`, then a re-add of the plugin.
+- An isolated harness home (`CLAUDE_CONFIG_DIR` under a scratch directory) has
+  no credentials, so the session-level probes — the setup audit, spawning an
+  agent, calling a tracker tool from inside a session — cannot run there. They
+  are proved on the real install instead, which is where a user meets them; the
+  isolated homes prove installation, inventory and every adapter that runs as a
+  process.
+
 ### Every adapter kind, against its real service
 
 Every live object is named `afk-toolkit-proof-2026-09-03`.
