@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# gc-check-smoke.sh — seam-test for gc-check.sh (the /afk:gc guard battery).
+# gc-check-smoke.sh — seam-test for gc-check.sh (the /afk-toolkit:gc guard battery).
 #
 # Runs entirely in a disposable temp git repo — never touches a real checkout,
 # branch, worktree, or glab remote (glab is stubbed where a path needs it).

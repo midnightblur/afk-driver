@@ -32,7 +32,7 @@ gate_genericity() {
   [ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && return 0
   [ -f .claude/hooks/.gate-disabled ] && return 0
 
-  local PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+  local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout
   local ALLOW_FILE="$PLUGIN_DIR/hooks/genericity-allow.txt"
 
@@ -40,8 +40,8 @@ gate_genericity() {
   local changed_md
   gate_ctx_mergebase
   changed_md=$(
-    { git diff --name-only "$AFK_CTX_MERGEBASE" -- "$PLUGIN_DIR/*.md" "$PLUGIN_DIR/**/*.md" 2>/dev/null
-      gate_ctx_filter AFK_CTX_NEW "$PLUGIN_DIR/*.md"
+    { git diff --name-only "$AFK_CTX_MERGEBASE" -- "$PLUGIN_SCOPE*.md" "$PLUGIN_SCOPE**/*.md" 2>/dev/null
+      gate_ctx_filter AFK_CTX_NEW "$PLUGIN_SCOPE*.md"
     } | sort -u
   )
   [ -z "$changed_md" ] && return 0   # scope no-op
@@ -49,7 +49,7 @@ gate_genericity() {
   # Inputs: the plugin's own prose, the allow-list, and the product-symbol
   # inventory (a new product file can turn a previously clean token into a hit).
   local cache_key
-  cache_key=$(gate_cache_key genericity "$PLUGIN_DIR/*.md" "$ALLOW_FILE" "11700-payable/*")
+  cache_key=$(gate_cache_key genericity "$PLUGIN_SCOPE*.md" "$ALLOW_FILE" "11700-payable/*")
   gate_cache_hit genericity "$cache_key" && return 0
 
   gate_metrics_begin

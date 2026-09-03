@@ -1,6 +1,6 @@
 ---
 name: bug
-description: Capture a bug mid-task without losing your place, file it to Jira, dispatch an autonomous fixer, auto-retest. Use on /afk:bug — capture / dispatch / status / retest / purge.
+description: Capture a bug mid-task without losing your place, file it to Jira, dispatch an autonomous fixer, auto-retest. Use on /afk-toolkit:bug — capture / dispatch / status / retest / purge.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -39,7 +39,7 @@ Every heavy leg runs as a subagent so this session stays in control of the ledge
 - **Fixer** — spawned with [FIXER-PROMPT.md](FIXER-PROMPT.md); works only in its own worktree; returns exactly one trailing `BUGFIX:` line (grammar below).
 - **Retester** — spawned with [RETEST-PROMPT.md](RETEST-PROMPT.md); runs the reproduction read-only; returns evidence (commands + output) and a claimed verdict for this session to spot-check.
 
-**Authorization lives in the prompt, not the tool** (ADR-0003). A subagent prompt carries its own scope grant and procedure and is **blind to this skill** — it never references `/afk:bug`, this spine, or the ledger. The orchestrator parses **only** the subagent's trailing result line; everything above it is working notes. This session — never a subagent — records the outcome into `state.json`.
+**Authorization lives in the prompt, not the tool** (ADR-0003). A subagent prompt carries its own scope grant and procedure and is **blind to this skill** — it never references `/afk-toolkit:bug`, this spine, or the ledger. The orchestrator parses **only** the subagent's trailing result line; everything above it is working notes. This session — never a subagent — records the outcome into `state.json`.
 
 ## Refuse hands-off invocation (PRD AC-019)
 
@@ -119,7 +119,7 @@ The dev is often away while a bug is in flight, so the transitions that need a h
 - **`mr-ready` (S7)** — the fix is pushed, green, and Ready for the dev to review and merge.
 - **park** — a `fix-pushed` (S6) outcome the fixer had to park because CI could not be confirmed green (pipeline red, or the CI budget elapsed): the fix is pushed and the MR is left Draft, waiting on the dev (SDD §5/§7 park event).
 
-Every terminal `/afk:bug` report follows the layered shape in REPORTING.md (plugin root): the structured headline, one `In plain terms:` sentence, then the pointer to the bug directory.
+Every terminal `/afk-toolkit:bug` report follows the layered shape in REPORTING.md (plugin root): the structured headline, one `In plain terms:` sentence, then the pointer to the bug directory.
 
 ## Hard rules
 

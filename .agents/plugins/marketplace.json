@@ -1,0 +1,20 @@
+{
+  "name": "afk-toolkit",
+  "interface": {
+    "displayName": "AFK Toolkit"
+  },
+  "plugins": [
+    {
+      "name": "afk-toolkit",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

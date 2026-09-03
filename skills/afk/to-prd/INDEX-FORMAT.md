@@ -8,16 +8,16 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 
 | Row | Owner |
 |---|---|
-| Summary paragraph + `PRD` + `Requirement ADRs` | `/afk:to-prd` |
-| `PRD` status → `published to Jira {date}` | `/afk:to-ticket` |
-| `Prototype` | `/afk:prototype` |
-| `SDD` + `Design ADRs` | `/afk:to-sdd` |
-| `Design brief` | `/afk:to-design-brief` |
-| `Verification plan` | `/afk:to-verification-plan` |
-| `Plan` | `/afk:to-subtasks` |
-| `Smoke gate` | `/afk:smoke-test` |
-| `Understanding` | `/afk:understand` (upserts only its own row) |
-| `Demo plan` | `/afk:to-demo-plan` |
+| Summary paragraph + `PRD` + `Requirement ADRs` | `/afk-toolkit:to-prd` |
+| `PRD` status → `published to Jira {date}` | `/afk-toolkit:to-ticket` |
+| `Prototype` | `/afk-toolkit:prototype` |
+| `SDD` + `Design ADRs` | `/afk-toolkit:to-sdd` |
+| `Design brief` | `/afk-toolkit:to-design-brief` |
+| `Verification plan` | `/afk-toolkit:to-verification-plan` |
+| `Plan` | `/afk-toolkit:to-subtasks` |
+| `Smoke gate` | `/afk-toolkit:smoke-test` |
+| `Understanding` | `/afk-toolkit:understand` (upserts only its own row) |
+| `Demo plan` | `/afk-toolkit:to-demo-plan` |
 
 ## Template
 

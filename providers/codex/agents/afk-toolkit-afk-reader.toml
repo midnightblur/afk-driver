@@ -1,10 +1,12 @@
-name = "afk-reader"
+name = "afk-toolkit-afk-reader"
 description = "Read-only AFK digester; returns a short cited conclusion."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 developer_instructions = '''
-Resolve the enabled afk@nak-marketplace path from the newest directory under ~/.codex/plugins/cache/nak-marketplace/afk/. If no cache path exists, locate it with `codex plugin list`.
+The plugin root for this agent is:
+{{PLUGIN_ROOT}}
+Use that path verbatim. Do not search any cache directory and do not guess a path.
 Read LANGUAGE.md and agents/afk-reader.md under that path. Follow both files verbatim. Stop if either file is absent.
 Do not use a generated role body or another plugin path.
 '''

@@ -1,6 +1,6 @@
 ---
 name: fix
-description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
+description: Orchestrates a bug fix — root-cause via /afk-toolkit:diagnose, proportional coverage, escape analysis. Use when a verification finding, human/QA bug report, or Jira bug needs fixing.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -9,7 +9,7 @@ description: Orchestrates a bug fix — root-cause via /afk:diagnose, proportion
 
 Run when a bug surfaces — typically a feature's **verification phase** (agent- or human-found), or ad-hoc on released code. Also the **recovery path** when a verification tier stays red after its targeted retry, and the follow-up to a red feature smoke gate.
 
-`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
+`fix` is a **thin orchestrator**; does not re-implement diagnosis. `/afk-toolkit:diagnose` owns reproduce → root-cause → fix → seam regression test → cleanup. `fix` wraps that with **context intake**, **proportional higher-tier tests**, **feature-session artifact reconciliation**.
 
 `fix` does **not** commit, push, or merge — see Hard rules.
 
@@ -27,7 +27,7 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
 
-Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop (failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked hypotheses, instrumentation, the fix, the **seam-level regression test**, cleanup + post-mortem.
+Run **`/afk-toolkit:diagnose`**, handing it everything from intake (repro steps, env, exact captured symptom). Diagnose **owns**: the Phase-1 feedback loop (failing test / curl / **e2e/browser** / API replay / harness), 3–5 ranked hypotheses, instrumentation, the fix, the **seam-level regression test**, cleanup + post-mortem.
 
 - Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
 - Diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
@@ -61,10 +61,10 @@ A fix on an unreleased feature can invalidate a load-bearing artifact. Triage wh
 
 | What the fix revealed | Stale artifact | Route to |
 |-----------------------|----------------|----------|
-| A behavior the PRD specifies was wrong / changed | `PRD.md` + requirement ADR | `/afk:to-prd` → `/afk:to-ticket` (republish) |
-| A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk:grill-solution` → `/afk:to-sdd` (superseding ADR under `adr/design/`) — this is a `design_conflict` |
-| The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk:grill-verification` → `/afk:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
-| An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
+| A behavior the PRD specifies was wrong / changed | `PRD.md` + requirement ADR | `/afk-toolkit:to-prd` → `/afk-toolkit:to-ticket` (republish) |
+| A **frozen** SDD §8 interface / seam / design decision is wrong or infeasible | `SDD.md` + design ADR | `/afk-toolkit:grill-solution` → `/afk-toolkit:to-sdd` (superseding ADR under `adr/design/`) — this is a `design_conflict` |
+| The bug had **no verification scenario** that would catch it | `VERIFICATION-PLAN.md` + smoke gate | `/afk-toolkit:grill-verification` → `/afk-toolkit:to-verification-plan`; seed a `NNNN-smoke-*` subtask |
+| An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk-toolkit:execute` run; don't silently re-slice |
 | The bug could not be reproduced (diagnose built no loop) | none — nothing to reconcile yet | back to the reporter/human with the repro-attempt evidence (what was tried, what's needed); report `cannot_reproduce` |
 
 Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. Can't reach truth this session → record the divergence and report `needs_artifact_sync`.
@@ -87,7 +87,7 @@ In plain terms: <one jargon-free sentence — what was broken, what's true now, 
 | `fixed` | Root cause found, fix applied, regression test + any added tier green. |
 | `fixed_no_test` | Fix applied, no new test, naming the proportionality reason (e.g. caption fix) or the absent-seam finding from diagnose. |
 | `cannot_reproduce` | Diagnose couldn't build a loop; list what was tried and what's needed (env / artifact / instrumentation). |
-| `design_conflict` | Fix requires changing a frozen SDD/ADR decision; routed to `/afk:grill-solution`. |
+| `design_conflict` | Fix requires changing a frozen SDD/ADR decision; routed to `/afk-toolkit:grill-solution`. |
 | `needs_artifact_sync` | Fix landed but a load-bearing artifact is now stale and unreconciled; name it + the owning skill. |
 | `blocked` | Anything else; explain. |
 
@@ -102,6 +102,6 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
 - **The target repo's CLAUDE.md chain binds here** — notably its DB-migration and commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
-- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
+- **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk-toolkit:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).
 - Before declaring done, all `[DEBUG-...]` instrumentation removed and throwaway harnesses deleted (diagnose Phase 6).

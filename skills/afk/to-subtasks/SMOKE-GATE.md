@@ -1,7 +1,7 @@
 # Feature smoke gate (driven by `VERIFICATION-PLAN.md`)
 
 This skill **seeds** the gate section and **emits the build subtasks** that
-author its specs; running them is `/afk:smoke-test`'s job (the per-subtask-tier
+author its specs; running them is `/afk-toolkit:smoke-test`'s job (the per-subtask-tier
 vs integrated-gate story lives in `skills/afk/smoke-test/SKILL.md`).
 
 **The trigger is the artifact, not an ask.** If `VERIFICATION-PLAN.md` sits next
@@ -13,8 +13,8 @@ subtask per modality the plan carries**:
   plain-language summary, the source it traces to (UI → PRD User Story; API →
   SDD §3 row / PRD Acceptance Criterion), the spec it maps to, its `Modality`
   (`ui-e2e` | `api`), its `env-limited` flag carried over verbatim (so
-  `/afk:smoke-test` excludes those from its green verdict), and its
-  `Requires target` class carried over verbatim (so `/afk:smoke-test` refuses
+  `/afk-toolkit:smoke-test` excludes those from its green verdict), and its
+  `Requires target` class carried over verbatim (so `/afk-toolkit:smoke-test` refuses
   to count the row green on an incompatible target). Don't invent
   scenarios here — `VERIFICATION-PLAN.md` is the source of truth.
 - **The terminal `NNNN-smoke-e2e` build subtask** (UI journeys) and, when the
@@ -30,7 +30,7 @@ subtask per modality the plan carries**:
 ## Goal
 Author the integrated browser smoke specs for {Feature}: one Scenario per
 VERIFICATION-PLAN.md UI journey in 11700-payable/verification/ui-e2e, run by
-/afk:smoke-test as the gate. Read 11700-payable/verification/ui-e2e/AUTHORING.md
+/afk-toolkit:smoke-test as the gate. Read 11700-payable/verification/ui-e2e/AUTHORING.md
 first (layer rules, conventions, definition-of-done) + sibling README/CLAUDE.md;
 author accordingly.
 
@@ -58,7 +58,7 @@ author accordingly.
 ## Goal
 Author the integrated API smoke specs for {Feature}: one node:test *.test.mjs per
 VERIFICATION-PLAN.md API scenario (using ../core for auth/base-URL/poll) in
-11700-payable/verification/api, run by /afk:smoke-test as the gate. Read
+11700-payable/verification/api, run by /afk-toolkit:smoke-test as the gate. Read
 11700-payable/verification/api/AUTHORING.md first (request shape, real envelope
 incl. error/empty, below-the-UI authz, definition-of-done) + sibling CLAUDE.md;
 author accordingly. Dependency-free; no install.
@@ -87,7 +87,7 @@ author accordingly. Dependency-free; no install.
 
 If the plan has UI journeys but its `## API Scenarios` is the "deferred"
 placeholder, emit only `NNNN-smoke-e2e`. (To add coverage later, run
-`/afk:grill-verification` → `/afk:to-verification-plan`, then re-run this skill.)
+`/afk-toolkit:grill-verification` → `/afk-toolkit:to-verification-plan`, then re-run this skill.)
 
 ## No `VERIFICATION-PLAN.md` → the minimal gate (never no gate)
 

@@ -57,7 +57,8 @@ if [ "${GATE_CACHE_DISABLE:-0}" != "1" ] && [ -f "$STOP_STAMP" ]; then
   fi
 fi
 
-PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+PLUGIN_DIR=$(afk_plugin_dir)
+PLUGIN_SCOPE=$(afk_plugin_scope)
 
 # ---- rule 2: scope-driven dispatch. Each entry is "<gate>:<scope-test>", where
 # the scope test is fork-free and answers "could this gate have anything to say?"
@@ -117,15 +118,15 @@ ctx_scoped() {
 
 # skill-registry — only when something under the plugin moved. Registries cannot
 # drift from disk if nothing on disk moved.
-ctx_scoped "$PLUGIN_DIR/*" && run_gate skill-registry
+[ -n "$PLUGIN_DIR" ] && ctx_scoped "$PLUGIN_SCOPE*" && run_gate skill-registry
 
 # native-contract — plugin prose, both native manifests, provider adapters and
 # local activation paths form one contract. A change to any member can make the
 # otherwise-shared plugin surface harness-specific.
-ctx_scoped "$PLUGIN_DIR/*" ".agents/*" ".codex/*" && run_gate native-contract
+[ -n "$PLUGIN_DIR" ] && ctx_scoped "$PLUGIN_SCOPE*" ".agents/*" ".codex/*" && run_gate native-contract
 
 # genericity — only when plugin prose moved.
-ctx_scoped "$PLUGIN_DIR/*.md" && run_gate genericity
+[ -n "$PLUGIN_DIR" ] && ctx_scoped "$PLUGIN_SCOPE*.md" && run_gate genericity
 
 # Stamp writes are write-to-temp + rename: a concurrent session's Stop reading
 # the stamp mid-truncate would otherwise see a torn value (worst case an empty

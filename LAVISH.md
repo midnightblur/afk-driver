@@ -145,7 +145,7 @@ the content it explains. The tooltip layer carries all decoding:
    session-scoped terms → the feature terms file (create
    `{spec-dir}/LAVISH-TIPS.md` if absent — **not a glossary**: ideas that
    live only as long as the feature belong here; real domain vocabulary
-   graduates to the service glossary via `/afk:glossary` and injects from
+   graduates to the service glossary via `/afk-toolkit:glossary` and injects from
    there); workflow terms → the plugin glossary (plugin-editing sessions
    only — from a feature session, note the gap instead). Coverage bar is
    exhaustive: when in doubt, add it. Entries are self-contained (no

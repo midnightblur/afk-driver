@@ -13,7 +13,8 @@
 #
 # Variables set (newline-separated lists, no trailing blank line):
 #   AFK_CTX_HEAD      HEAD sha ("" in an empty repo)
-#   AFK_CTX_BASE      integration base: origin/master, else @{u}, else HEAD
+#   AFK_CTX_BASE      integration base: git.base-branch, else origin/main,
+#                     else origin/master, else @{u}, else HEAD
 #   AFK_CTX_MERGEBASE merge-base of AFK_CTX_BASE and HEAD (diff base)
 #   AFK_CTX_CHANGED   every changed/untracked path (rename -> new path only)
 #   AFK_CTX_NEW       added + untracked + rename/copy-target paths
@@ -40,11 +41,18 @@ gate_ctx_build() {
 
   AFK_CTX_HEAD=$(git rev-parse HEAD 2>/dev/null || true)
 
-  # Integration base. origin/master first: merging master into a feature branch
-  # puts master's commits ahead of the branch's own upstream, so basing on @{u}
-  # would attribute every file master added since the divergence to this change.
+  # Integration base. The consuming repository names it (`git.base-branch` in
+  # .afk/config.yaml); `auto` and an unset value fall back to origin/main, then
+  # origin/master, then the branch's own upstream, then HEAD. The named base
+  # comes first because merging the base into a feature branch puts the base's
+  # commits ahead of that branch's upstream, so basing on @{u} would attribute
+  # every file the base added since the divergence to this change.
   AFK_CTX_BASE=""
-  git rev-parse --verify -q origin/master >/dev/null 2>&1 && AFK_CTX_BASE=origin/master
+  if [ -n "${AFK_CFG_GIT_BASE_BRANCH:-}" ] && [ "${AFK_CFG_GIT_BASE_BRANCH}" != "auto" ]; then
+    git rev-parse --verify -q "$AFK_CFG_GIT_BASE_BRANCH" >/dev/null 2>&1       && AFK_CTX_BASE=$AFK_CFG_GIT_BASE_BRANCH
+  fi
+  [ -z "$AFK_CTX_BASE" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1 && AFK_CTX_BASE=origin/main
+  [ -z "$AFK_CTX_BASE" ] && git rev-parse --verify -q origin/master >/dev/null 2>&1 && AFK_CTX_BASE=origin/master
   [ -z "$AFK_CTX_BASE" ] && AFK_CTX_BASE=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
   [ -z "$AFK_CTX_BASE" ] && AFK_CTX_BASE=HEAD
   AFK_CTX_MERGEBASE=""     # lazy — only the diff-based gates need it (see below)

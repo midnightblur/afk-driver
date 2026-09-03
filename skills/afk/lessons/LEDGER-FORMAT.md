@@ -72,7 +72,7 @@ Transition event:
 
 ## Miss-class mapping
 
-`/afk:fix`'s escape analysis names a **miss class** (set owned by
+`/afk-toolkit:fix`'s escape analysis names a **miss class** (set owned by
 `skills/afk/fix/ESCAPE-ANALYSIS.md` — lockstep with this table). It rides the
 `miss` field verbatim; the lesson `class` derives from it:
 
@@ -90,7 +90,7 @@ An `applied` lesson whose signal recurs means the edit didn't stick. Escalate
 plus a `superseded` event on the old one — never by rewriting history:
 
 1. **Reword** — stronger leading word, checkable completion criterion
-   (`/afk:writing-for-agents` levers).
+   (`/afk-toolkit:writing-for-agents` levers).
 2. **Relocate** — move the line to where the acting agent demonstrably reads at
    the moment of the mistake.
 3. **Checklist criterion** — add it to the owning review checklist so the gate

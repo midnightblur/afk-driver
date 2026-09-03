@@ -1,13 +1,13 @@
 ---
 name: retro
-description: Cross-feature retrospective of the workflow itself — mines run artifacts into systemic signals and concrete plugin-edit proposals. Use on /afk:retro after features ship.
+description: Cross-feature retrospective of the workflow itself — mines run artifacts into systemic signals and concrete plugin-edit proposals. Use on /afk-toolkit:retro after features ship.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:retro — make the workflow learn from its own exhaust
 
-Every run of the chain leaves structured exhaust: journal events, park reasons, review findings by class, adversary verdicts, remediation-cycle counts, gate latencies. Per-bug that exhaust is already consumed (escape analysis inside `/afk:fix`); nobody consumes it *across* features. This skill does: aggregates the exhaust of N delivered features into systemic signals — what the chain keeps getting wrong, where it stalls, what it costs — and turns the strongest into concrete, evidence-cited proposals to change the plugin.
+Every run of the chain leaves structured exhaust: journal events, park reasons, review findings by class, adversary verdicts, remediation-cycle counts, gate latencies. Per-bug that exhaust is already consumed (escape analysis inside `/afk-toolkit:fix`); nobody consumes it *across* features. This skill does: aggregates the exhaust of N delivered features into systemic signals — what the chain keeps getting wrong, where it stalls, what it costs — and turns the strongest into concrete, evidence-cited proposals to change the plugin.
 
 **Read-only over everything it mines, including this plugin.** Writes exactly one artifact: its own retro report. Proposals are applied by a human (or a task the human cuts) — never by this skill.
 
@@ -36,7 +36,7 @@ Bulk reads are delegated per `DELEGATION.md` (plugin root): one subagent per fea
 
 ## Analysis — signals, not anecdotes
 
-Aggregate across features, then rank. A signal needs **≥2 independent occurrences** (different features, or different subtasks of one feature) — a single incident belongs to `/afk:fix`'s escape analysis, not a retro. The signal families:
+Aggregate across features, then rank. A signal needs **≥2 independent occurrences** (different features, or different subtasks of one feature) — a single incident belongs to `/afk-toolkit:fix`'s escape analysis, not a retro. The signal families:
 
 1. **Recurring finding classes** — which review/adversary `class`+concern combinations keep appearing. A class recurring across features means the *executor's* doctrine (or a target-repo CLAUDE.md rule) has a hole — caught downstream of where it should be prevented.
 2. **Park patterns** — which outcome statuses recur (`contract_mismatch`, `produces_drift`, `review_fail`…), on what kind of subtask. Recurring `contract_mismatch` implicates slicing (anchor quality); recurring `review_fail` implicates the executor's step doctrine.
@@ -44,8 +44,8 @@ Aggregate across features, then rank. A signal needs **≥2 independent occurren
 4. **Grill-gap correlation** — downstream failures (parks, blocking findings, smoke reds) whose root cause was decidable at grill time. Each a missed staple/question candidate for the owning grill skill.
 5. **Wiring debt** — open IOUs older than the feature that minted them.
 6. **Criterion yield** — join each finding's `criterion` to its recorded outcome: a criterion whose findings are predominantly `dismissed` across features is a prune/reword candidate (proposal edits the owning `skills/afk/review/checklists/*.md`); a criterion that never fires is flagged as possible dead weight, never auto-pruned. This is what keeps the review catalog earning its cost instead of only growing.
-7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk:claude-md` (which owns those writes), not as a plugin edit.
-8. **Lesson closure & recurrence** — the safety net behind conclude-at-detection capture (single incidents belong to the detection points; this family only grades what they already recorded). An `applied` lesson whose signal (same class + target area) recurs in a later feature means the edit didn't stick → propose the **next rung of the escalation ladder** (`skills/afk/lessons/LEDGER-FORMAT.md`) as a new lesson superseding it, citing the recurrence. Lessons `open` longer than the feature that minted them are stall signals — surface them for `/afk:lessons apply`. Status transitions are applied via `/afk:lessons`, never stamped here (the ledger is one of the ledgers the read-only rule covers).
+7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk-toolkit:claude-md` (which owns those writes), not as a plugin edit.
+8. **Lesson closure & recurrence** — the safety net behind conclude-at-detection capture (single incidents belong to the detection points; this family only grades what they already recorded). An `applied` lesson whose signal (same class + target area) recurs in a later feature means the edit didn't stick → propose the **next rung of the escalation ladder** (`skills/afk/lessons/LEDGER-FORMAT.md`) as a new lesson superseding it, citing the recurrence. Lessons `open` longer than the feature that minted them are stall signals — surface them for `/afk-toolkit:lessons apply`. Status transitions are applied via `/afk-toolkit:lessons`, never stamped here (the ledger is one of the ledgers the read-only rule covers).
 
 ## Output
 
@@ -64,5 +64,5 @@ Report: {path}
 - **Read-only everywhere except its own report file.** Never edit a plugin file, plan artifact, ledger, or metric file. Proposals propose; humans apply.
 - **Every claim cites.** A signal without its occurrences listed (feature + subtask + source line/id) is dropped. Numbers, not adjectives.
 - **Don't double-count re-runs.** A re-executed subtask contributes its final outcome once; earlier journal lines for the same subtask count as remediation cycles, not extra occurrences.
-- **No proposals about the target repo's code.** Product/code defects route to `/afk:fix`; this skill's proposals change the *workflow* (skills, doctrine files, gates, templates) only. Target-repo CLAUDE.md-rule gaps surface as input for `/afk:claude-md`, which owns those writes.
+- **No proposals about the target repo's code.** Product/code defects route to `/afk-toolkit:fix`; this skill's proposals change the *workflow* (skills, doctrine files, gates, templates) only. Target-repo CLAUDE.md-rule gaps surface as input for `/afk-toolkit:claude-md`, which owns those writes.
 - **Cap the fan-out.** One digest subagent per feature; no nested fan-out.

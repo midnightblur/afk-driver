@@ -111,19 +111,20 @@ gate_ctx_any AFK_CTX_LIVE '*.js' '*.cjs' '*.mjs' '*.ts' '*.vue' && run_gate ui-l
 # to land a harness-coupled plugin edit. It reads the live plugin tree; bypass
 # the pass cache here because the staged context intentionally omits unrelated
 # untracked plugin files that the whole-tree invariants must still see.
-PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+PLUGIN_DIR=$(afk_plugin_dir)
+PLUGIN_SCOPE=$(afk_plugin_scope)
 native_scope=0
 gate_ctx_any AFK_CTX_CHANGED \
-  "$PLUGIN_DIR/*" ".agents/*" ".codex/*" && native_scope=1
+  "$PLUGIN_SCOPE*" ".agents/*" ".codex/*" && native_scope=1
 # gate_ctx_build_staged deliberately omits deletions for the code gates. A
 # deleted skill/provider is contract-relevant, so collect all native deletions
 # in one batched diff rather than forking per path.
 if [ "$native_scope" = "0" ]; then
   native_deleted=$(git diff --cached --name-only --diff-filter=D -- \
-    "$PLUGIN_DIR" ".agents" ".codex" 2>/dev/null)
+    "${PLUGIN_DIR:-.}" ".agents" ".codex" 2>/dev/null)
   [ -n "$native_deleted" ] && native_scope=1
 fi
-if [ "$native_scope" = "1" ]; then
+if [ -n "$PLUGIN_DIR" ] && [ "$native_scope" = "1" ]; then
   _native_cache_disable=${GATE_CACHE_DISABLE-}
   GATE_CACHE_DISABLE=1
   run_gate native-contract

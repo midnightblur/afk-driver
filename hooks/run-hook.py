@@ -9,26 +9,37 @@ path, locates a real Git Bash, forwards stdin, stdout, stderr and the exit
 code, and stays silent when an optional handler is absent.
 
 Usage:
-    python run-hook.py [--soft] plugin|repo <handler.sh> [args...]
+    python run-hook.py [--soft] plugin <handler.sh> [args...]
+    python run-hook.py [--soft] repo-list <event>
 
-    plugin  handler under this plugin's own hooks/ directory
-    repo    handler under the repository harness hooks directory; absent
-            repository or handler exits 0
-    --soft  always exit 0 (advisory handlers that must never block a turn)
+    plugin     handler under this plugin's own hooks/ directory
+    repo-list  every repository-owned handler the consuming repository declares
+               for <event> in `.afk/hooks.json`; absent file or repository
+               exits 0
+    --soft     always exit 0 (advisory handlers that must never block a turn)
+
+`.afk/hooks.json` is a JSON array of objects, each with `event`
+(SessionStart|PreToolUse|Stop), `matcher` (a regular expression matched against
+the envelope tool name, or `*`), `timeout` (seconds), and `script` (a path
+relative to the repository root). A script path that resolves outside the
+repository root is refused. Handlers run in declaration order, each receives the
+original stdin envelope, and `AFK_PLUGIN_ROOT` names this plugin's root.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
-install locations, then PATH excluding the Windows system directory.
-"""
+install locations, then PATH excluding the Windows system directory.\n"""
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-REPO_HOOKS = "tools/payable/ai-agents/harness/hooks"
+REPO_HOOKS_MANIFEST = ".afk/hooks.json"
+EVENTS = {"SessionStart", "PreToolUse", "Stop"}
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
@@ -129,42 +140,118 @@ def shell_env(bash: Path) -> dict[str, str]:
     return env
 
 
+def repo_entries(root: Path, event: str) -> list[dict]:
+    """Repository-declared handlers for one event, in declaration order."""
+    manifest = root / REPO_HOOKS_MANIFEST
+    if not manifest.is_file():
+        return []
+    try:
+        declared = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as problem:
+        sys.stderr.write(f"run-hook.py: {REPO_HOOKS_MANIFEST}: {problem}\n")
+        return []
+    if not isinstance(declared, list):
+        sys.stderr.write(f"run-hook.py: {REPO_HOOKS_MANIFEST}: expected a JSON array\n")
+        return []
+    return [e for e in declared if isinstance(e, dict) and e.get("event") == event]
+
+
+def matches(matcher: object, tool: str) -> bool:
+    if not isinstance(matcher, str) or matcher in ("", "*"):
+        return True
+    try:
+        return re.fullmatch(matcher, tool) is not None
+    except re.error:
+        return False
+
+
+def resolved_script(root: Path, entry: dict) -> Path | None:
+    """The declared script, refused when it escapes the repository root."""
+    named = entry.get("script")
+    if not isinstance(named, str) or not named:
+        return None
+    candidate = (root / named).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        sys.stderr.write(
+            f"run-hook.py: {REPO_HOOKS_MANIFEST}: script escapes the repository root: {named}\n"
+        )
+        return None
+    return candidate if candidate.is_file() else None
+
+
 def main(argv: list[str]) -> int:
     soft = False
     while argv and argv[0] == "--soft":
         soft = True
         argv = argv[1:]
-    if len(argv) < 2 or argv[0] not in {"plugin", "repo"}:
+    if len(argv) < 2 or argv[0] not in {"plugin", "repo-list"}:
         sys.stderr.write(
-            "run-hook.py: usage: run-hook.py [--soft] plugin|repo <handler.sh> [args...]\n"
+            "run-hook.py: usage: run-hook.py [--soft] plugin <handler.sh> [args...]\n"
+            "run-hook.py: usage: run-hook.py [--soft] repo-list <event>\n"
         )
         return 0 if soft else 2
 
-    kind, handler, rest = argv[0], argv[1], argv[2:]
     bash = find_bash()
     if bash is None:
         sys.stderr.write(
-            f"run-hook.py: no POSIX shell found for {handler}. Install Git Bash, "
+            f"run-hook.py: no POSIX shell found for {argv[1]}. Install Git Bash, "
             "or point AFK_BASH at a bash executable.\n"
         )
         return 0 if soft else 1
     # The shell's own toolchain sits on this PATH, so git resolves here even
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
+    env["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
 
-    if kind == "plugin":
-        script = PLUGIN_ROOT / "hooks" / handler
-    else:
-        root = repo_root(env)
-        if root is None:
+    if argv[0] == "plugin":
+        script = PLUGIN_ROOT / "hooks" / argv[1]
+        if not script.is_file():
+            # An optional handler this checkout does not ship is not a failure.
             return 0
-        script = root / REPO_HOOKS / handler
-    if not script.is_file():
-        # An optional handler this checkout does not ship is not a failure.
+        completed = subprocess.run([str(bash), str(script), *argv[2:]], env=env)
+        return 0 if soft else completed.returncode
+
+    event = argv[1]
+    if event not in EVENTS:
+        sys.stderr.write(f"run-hook.py: unknown event: {event}\n")
+        return 0 if soft else 2
+    root = repo_root(env)
+    if root is None:
+        return 0
+    entries = repo_entries(root, event)
+    if not entries:
         return 0
 
-    completed = subprocess.run([str(bash), str(script), *rest], env=env)
-    return 0 if soft else completed.returncode
+    envelope = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
+    tool = ""
+    if envelope:
+        try:
+            parsed = json.loads(envelope.decode("utf-8", "replace"))
+            tool = str(parsed.get("tool_name") or "")
+        except ValueError:
+            tool = ""
+
+    failure = 0
+    for entry in entries:
+        if not matches(entry.get("matcher"), tool):
+            continue
+        script = resolved_script(root, entry)
+        if script is None:
+            continue
+        timeout = entry.get("timeout")
+        timeout = float(timeout) if isinstance(timeout, (int, float)) else None
+        try:
+            completed = subprocess.run(
+                [str(bash), str(script)], env=env, input=envelope, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            sys.stderr.write(f"run-hook.py: timed out: {entry.get('script')}\n")
+            continue
+        if completed.returncode and not failure:
+            failure = completed.returncode
+    return 0 if soft else failure
 
 
 if __name__ == "__main__":

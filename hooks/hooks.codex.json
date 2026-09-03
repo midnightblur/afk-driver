@@ -6,17 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin install-git-hooks.sh --quiet",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin install-git-hooks.sh --quiet",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin update-notice.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin update-notice.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
             "timeout": 60
           }
         ]
@@ -28,12 +28,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-dark.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-dark.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-tips.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-tips.sh",
             "timeout": 15
           }
         ]
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PreToolUse",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PreToolUse",
             "timeout": 60,
             "statusMessage": "repository PreToolUse hooks"
           }
@@ -56,13 +56,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" plugin stop-gates.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin stop-gates.sh",
             "timeout": 300,
             "statusMessage": "AFK gates..."
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo-list Stop",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list Stop",
             "timeout": 300,
             "statusMessage": "repository Stop gates"
           }

@@ -25,7 +25,7 @@ Full = grills + SDD + verification design for complex features; lean = PRD → p
 Product Requirements Document — the *what and why* in business language; the most human-readable artifact in the chain.
 
 **Ticket description (`TICKET.md`)**:
-The requirements-level distillation of the PRD that `/afk:to-ticket` publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.
+The requirements-level distillation of the PRD that `/afk-toolkit:to-ticket` publishes to the parent ticket — User Stories + Acceptance Criteria mandatory, system behavior in domain language, no technical depth, no repo-artifact references. Derived: content changes start in the PRD.
 
 **SDD**:
 Solution Design Document — the *how*, organized top-down by the L1–L9 design layers, one visualization per layer.
@@ -93,7 +93,7 @@ The per-feature, read-only HTML dashboard with two layers: *live* sections deriv
 _Avoid_: dashboard (generic), status page, live page (the artifacts are live; the page just follows)
 
 **Design digest**:
-A committed, hash-stamped JSON synthesis of a feature's design docs (`plan/digests/*.json` — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by `/afk:mission-control build`; a manifest records every source file's hash, so source drift shows as a visible *stale* banner, never as silently current content. Carries design synthesis only — never status. Contract: `skills/afk/mission-control/DIGEST-FORMAT.md`.
+A committed, hash-stamped JSON synthesis of a feature's design docs (`plan/digests/*.json` — architecture, flows, entities, decisions, critical logic, legend) that mission control's design sections render. Authored only by `/afk-toolkit:mission-control build`; a manifest records every source file's hash, so source drift shows as a visible *stale* banner, never as silently current content. Carries design synthesis only — never status. Contract: `skills/afk/mission-control/DIGEST-FORMAT.md`.
 _Avoid_: cache (implies transparent freshness), summary file (undersells the schema contract)
 
 ## Design layers (L1–L9)
@@ -160,7 +160,7 @@ _Avoid_: reversible/irreversible decision (rotating synonym)
 A review finding where a baseline catalog item and the target repo's own documented idiom disagree, and the repo wins. Never blocks. Recorded in `plan/review/PATTERN-DEBT.md`, which lives and dies with the run — the evidence trail for whether a documented pattern deserves revisiting, not a fact about the code.
 
 **Product debt**:
-A shortcoming in shipped product code that is real, adjudicated, and deliberately not fixed. Never blocks. Its home is the `## Known debt` section of the nearest `CLAUDE.md`, written by `/afk:claude-md` (`skills/afk/review/SKILL.md` "Product-debt homes"). Distinguished from pattern debt by what it is about: pattern debt is about the review, product debt is about the code.
+A shortcoming in shipped product code that is real, adjudicated, and deliberately not fixed. Never blocks. Its home is the `## Known debt` section of the nearest `CLAUDE.md`, written by `/afk-toolkit:claude-md` (`skills/afk/review/SKILL.md` "Product-debt homes"). Distinguished from pattern debt by what it is about: pattern debt is about the review, product debt is about the code.
 _Avoid_: tech debt (too broad — this is the adjudicated, homed subset)
 
 **Status ladder**:
@@ -171,7 +171,7 @@ The structured result tokens of an `execute` run (`success`, `test_fail`, `build
 
 ## Bug pipeline
 
-**`/afk:bug`**:
+**`/afk-toolkit:bug`**:
 Interactive-only mid-task bug capture + autonomous fix pipeline, outside the per-feature chain. Five subcommands: `capture`/`dispatch`/`status`/`retest`/`purge`. Refuses `capture`/`dispatch` when invoked hands-off (driven/autopilot) — a human must be in the loop.
 _Avoid_: bug workflow (vague — this is one skill, not a chain)
 
@@ -234,15 +234,15 @@ Preflight's tail — watching the pushed pipeline until green, auto-fixing only 
 The post-bug-fix question "which existing test should have caught this, and why didn't it" — answered with a named miss class (`no-scenario`, `weak-assertion`, `wrong-path`, `excluded`, `disabled/flaky`).
 
 **Retro**:
-The cross-feature retrospective (`/afk:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics, the lesson ledger — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis, and the safety net behind conclude-at-detection lesson capture.
-_Avoid_: postmortem (that is per-incident), audit (that is `/afk:setup audit`'s staleness hunt)
+The cross-feature retrospective (`/afk-toolkit:retro`) that mines delivered plans' exhaust — journals, review rollups, adversary verdicts, park reasons, gate-latency metrics, the lesson ledger — into recurring signals and evidence-cited proposals to change the *workflow*; read-only, a human applies the edits. The systemic counterpart of the per-bug escape analysis, and the safety net behind conclude-at-detection lesson capture.
+_Avoid_: postmortem (that is per-incident), audit (that is `/afk-toolkit:setup audit`'s staleness hunt)
 
 **Lesson**:
 A concluded workflow-improvement observation — classified, with a drafted durable edit — captured into the lesson ledger the moment it's detected and confirmable (a human confirms a finding, corrects a misunderstanding, clarifies a term; escape analysis names a miss). Capture protocol: `skills/afk/lessons/CAPTURE.md`.
 _Avoid_: retro item (aggregation comes later), todo (a lesson carries its own drafted fix)
 
 **Lesson ledger**:
-`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded`), stewarded by `/afk:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
+`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded`), stewarded by `/afk-toolkit:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
 
 **Escalation ladder**:
 The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.

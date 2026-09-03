@@ -10,11 +10,11 @@ CLAUDE.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallb
 CHANGELOG.md	harness-name	on Codex machines\) so every agent session	Historical shipped behavior.
 CHANGELOG.md	harness-name	The distribution law is written doctrine.*Claude.*Codex parity	Historical shipped behavior.
 CHANGELOG.md	harness-name	Codex now has the same opt-in boundary	Historical shipped behavior.
-CHANGELOG.md	harness-name	/afk:understand.*live Claude Code session	Historical shipped behavior.
+CHANGELOG.md	harness-name	/afk-toolkit:understand.*live Claude Code session	Historical shipped behavior.
 CHANGELOG.md	harness-name	Model selection goes role-based.*Codex CLI equivalents	Historical shipped behavior.
 CHANGELOG.md	harness-name	Dual-provider support:.*OpenAI Codex CLI	Historical shipped behavior.
 CHANGELOG.md	claude-project-dir	setup.*registered.*CLAUDE_PROJECT_DIR	Historical shipped behavior.
-# /afk:setup's register and driver provision one machine per harness: section O
+# /afk-toolkit:setup's register and driver provision one machine per harness: section O
 # provisions a named CLI, so its entries name it. Keep each entry pinned to the
 # provisioning line it covers — never a whole-file waiver.
 skills/afk/setup/MANIFEST.md	harness-name	only when Codex \(O1\) is installed	Opt-in steering fix names the harness whose steering file it appends to.
@@ -27,3 +27,14 @@ skills/afk/setup/MANIFEST.md	claude-plugin-root	`PLUGIN_ROOT` / `PLUGIN_DATA` \|
 skills/afk/setup/SKILL.md	harness-name	Section \*\*O\*\* \(OpenAI Codex CLI\)	Driver names the register section it gates.
 skills/afk/setup/SKILL.md	harness-name	deferred \(Codex not installed\)	Driver states the gated section's wholesale verdict.
 CHANGELOG.md	harness-name	tier names: `PROVIDERS.md`. On Codex the	Historical shipped behavior.
+# The Codex agent stubs carry an install-time placeholder literally spelled
+# {{PLUGIN_ROOT}}. It is a token this plugin substitutes, not a harness variable
+# the plugin reads, so the prose that documents it names it.
+FRESHNESS.md	claude-plugin-root	`/afk-toolkit:setup` copies them and resolves	Stub-freshness row names the placeholder setup substitutes.
+skills/afk/setup/MANIFEST.md	claude-plugin-root	its `\{\{PLUGIN_ROOT\}\}` placeholder is	Probe names the placeholder it checks for.
+skills/afk/setup/MANIFEST.md	claude-plugin-root	replace every `\{\{PLUGIN_ROOT\}\}` occurrence with that root	Fix names the placeholder it substitutes.
+skills/afk/setup/MANIFEST.md	claude-plugin-root	destination contains no `\{\{PLUGIN_ROOT\}\}`	Post-condition names the placeholder that must be gone.
+skills/afk/setup/MANIFEST.md	harness-name	installed plugin root that Codex plugin metadata reports	Entry states which harness's metadata supplies the root.
+skills/afk/setup/MANIFEST.md	harness-name	`Installed plugin root:` line of `codex plugin list`	Fix names the CLI whose output carries the root.
+skills/afk/setup/MANIFEST.md	harness-name	`\[plugins\."afk-toolkit@afk-toolkit"\]` entry in `~/.codex/config.toml`	Fix names the harness config file that records the root.
+skills/afk/setup/MANIFEST.md	harness-name	read the installed plugin root from Codex plugin metadata	Fix names the harness whose metadata supplies the root.

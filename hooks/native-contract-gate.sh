@@ -9,7 +9,7 @@
 #   B. SKILL.md top-level frontmatter uses only Agent Skills or documented Claude
 #      skill keys;
 #   C. skills on disk equal BOTH native manifests;
-#   D. every agents/*.md has a providers/codex/agents/*.toml stub;
+#   D. every agents/*.md has a providers/codex/agents/afk-toolkit-*.toml stub;
 #   E. hooks.json events/matchers stay inside CAPABILITIES.md's literal shared
 #      subset declarations;
 #   F. no generated activation/mirror tree is tracked;
@@ -31,13 +31,13 @@ gate_native_contract() {
   [ "${NATIVE_CONTRACT_GATE_DISABLE:-0}" = "1" ] && return 0
   [ -f .claude/hooks/.gate-disabled ] && return 0
 
-  local PLUGIN_DIR="tools/payable/ai-agents/plugins/workflow"
+  local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   local MANIFEST="$PLUGIN_DIR/.claude-plugin/plugin.json"
   [ -f "$MANIFEST" ] || return 0
 
   local cache_key
   cache_key=$(gate_cache_key native-contract \
-    "$PLUGIN_DIR/*" ".agents/*" ".codex/*")
+    "$PLUGIN_SCOPE*" ".agents/*" ".codex/*")
   gate_cache_hit native-contract "$cache_key" && return 0
 
   gate_metrics_begin
@@ -198,7 +198,7 @@ for manifest_rel in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
 
 # D. Each native agent definition needs a Codex TOML pointer/stub twin.
 for agent in sorted(plugin.glob("agents/*.md")):
-    stub = plugin / "providers/codex/agents" / f"{agent.stem}.toml"
+    stub = plugin / "providers/codex/agents" / f"afk-toolkit-{agent.stem}.toml"
     if not stub.is_file():
         problems.append(f"{rel(agent)}: missing {rel(stub)}")
 
@@ -261,7 +261,9 @@ if shared_matchers is not None:
 # every handler goes through the launcher and no command carries shell syntax.
 launcher = re.compile(
     r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.py"'
-    r'(?: --soft)? (?:plugin|repo) [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*$'
+    r'(?: --soft)?'
+    r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
+    r'| repo-list (?:SessionStart|PreToolUse|Stop))$'
 )
 for event, groups in hook_map.items():
     if not isinstance(groups, list):
@@ -277,7 +279,7 @@ for event, groups in hook_map.items():
                 problems.append(
                     f"hooks/hooks.json: {event}[{index}] command must be "
                     f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] plugin|repo <handler.sh> [args] - got {command!r}"
+                    f"[--soft] plugin <handler.sh> [args] | repo-list <event> - got {command!r}"
                 )
 
 
@@ -292,9 +294,11 @@ except (OSError, subprocess.CalledProcessError) as exc:
     tracked = []
 for path in tracked:
     normalized = path.replace("\\", "/").strip("/")
-    if normalized.startswith("tools/payable/ai-agents/codex-sync/"):
-        problems.append(f"{path}: tracked generated mirror tooling is forbidden")
-    elif normalized.startswith(".agents/") or normalized.startswith(".codex/"):
+    if normalized == ".agents/plugins/marketplace.json":
+        # The one committed exception: a Codex marketplace manifest has to live
+        # here for `codex plugin marketplace add` to find this repository.
+        continue
+    if normalized.startswith(".agents/") or normalized.startswith(".codex/"):
         problems.append(f"{path}: tracked harness activation surface is forbidden")
 
 

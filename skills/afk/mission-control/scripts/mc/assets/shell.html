@@ -395,7 +395,7 @@ function freshnessNote(sec){
     : sec.state === "invalid"
       ? "This section's digest failed validation (" + sec.reason + "). Rebuild with "
       : "Digest is STALE — " + sec.reason + ". Refresh with ";
-  return el("div", {class:"banner " + cls}, msg, el("code", null, "/afk:mission-control build"), ".");
+  return el("div", {class:"banner " + cls}, msg, el("code", null, "/afk-toolkit:mission-control build"), ".");
 }
 
 /* ---------- layered DAG (shared by architecture + progress) ---------- */
@@ -578,7 +578,7 @@ RENDER["overview"] = function(sec, root){
     const anyMissing = Object.values(d.digest_states).some(s => s !== "ok");
     if (anyMissing) root.append(el("div", {class:"banner missing"},
       "Design sections marked stale/missing render from the last build (or a hint). Refresh with ",
-      el("code", null, "/afk:mission-control build"), " — launch never spends tokens."));
+      el("code", null, "/afk-toolkit:mission-control build"), " — launch never spends tokens."));
   }
 
   if (d.understanding){

@@ -347,7 +347,7 @@ def _cmd_backfill(args):
 
 
 def _build_parser():
-    p = argparse.ArgumentParser(description="Jira Bug lifecycle publisher for /afk:bug.")
+    p = argparse.ArgumentParser(description="Jira Bug lifecycle publisher for /afk-toolkit:bug.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("create", help="create a Bug from an evidence bundle")

@@ -3,7 +3,7 @@ name: glossary
 description: >
   Vocabulary-only steward of the multi-context domain glossary
   (GLOSSARY-MAP.md + per-service GLOSSARY.md) — distinct from the plugin-root
-  workflow GLOSSARY.md. Use when the user invokes /afk:glossary, asks to
+  workflow GLOSSARY.md. Use when the user invokes /afk-toolkit:glossary, asks to
   define/audit/dedup/harden domain terms, or mentions "domain model"/"DDD"
   terminology hygiene. Writes only after approval; never grills requirements,
   emits ADRs, or touches the tracker.
@@ -67,8 +67,8 @@ A resolved term that **corrects a misunderstanding a human had to clarify** is a
 - **Glossary is glossary only** — devoid of implementation details. Not a spec, not a scratchpad,
   not a home for decisions. Skip generic programming concepts (timeout, array, endpoint) unless they carry
   domain-specific meaning.
-- **Emit no decision records.** A requirement/solution decision that surfaces is for `/afk:to-prd` /
-  `/afk:to-sdd` — note it in the conversation, don't record it here.
+- **Emit no decision records.** A requirement/solution decision that surfaces is for `/afk-toolkit:to-prd` /
+  `/afk-toolkit:to-sdd` — note it in the conversation, don't record it here.
 - **One owner per term** — per [`GLOSSARY-FORMAT.md`](./GLOSSARY-FORMAT.md) Rules.
 - **Never write without approval.** Group changes; approval is **apply-all / by-file / by-term**.
 
@@ -79,7 +79,7 @@ Discovery-safety rules (repo-root scoping, vendor/build/.git skips, CrowdStrike 
 
 ## Next
 
-- Terminology sound but *requirements* need stress-testing → [`/afk:grill-requirements`](../../afk/grill-requirements/SKILL.md).
-- Ready to synthesize settled requirements into a PRD → `/afk:to-prd`.
+- Terminology sound but *requirements* need stress-testing → [`/afk-toolkit:grill-requirements`](../../afk/grill-requirements/SKILL.md).
+- Ready to synthesize settled requirements into a PRD → `/afk-toolkit:to-prd`.
 
 Glossary maintenance is **standalone** — does not require running the AFK chain.

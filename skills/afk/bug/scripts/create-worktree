@@ -198,7 +198,7 @@ seed_m2_repo() {
 
 # Recursively copy a directory (incl. subfolders), rewriting paths file-by-file.
 # Optional $3: a `find -name` pattern to skip — for per-worktree state that must NOT be
-# cloned into a fresh worktree (e.g. .claude/TODO.md, the /afk:todo list).
+# cloned into a fresh worktree (e.g. .claude/TODO.md, the /afk-toolkit:todo list).
 copy_dir_with_substitution() {
   local src_dir="$1" dest_dir="$2" skip_name="${3:-}"
   [[ -d "$src_dir" ]] || return 0

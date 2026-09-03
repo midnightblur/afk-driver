@@ -154,3 +154,39 @@ afk_block_stop() {
   afk_emit_stop_block "$1"
   exit "$(afk_stop_block_code)"
 }
+
+# The plugin tree's path RELATIVE to the current repository root, or the empty
+# string when the plugin is installed outside this repository. Standalone the
+# plugin repo IS the plugin root, so this prints ".". Gates that only judge the
+# toolkit's own tree treat "" as "not this plugin's checkout" and exit 0.
+afk_plugin_dir() {
+  local root plugin_top repo_top prefix
+  root=$(afk_plugin_root)
+  # Ask git for both roots: a bash `pwd` can render the same directory under a
+  # different mount alias (/tmp vs /c/Users/.../Temp on Windows), and two
+  # spellings of one path would compare unequal.
+  plugin_top=$(git -C "$root" rev-parse --show-toplevel 2>/dev/null) || { printf '
+'; return 0; }
+  repo_top=$(git rev-parse --show-toplevel 2>/dev/null) || { printf '
+'; return 0; }
+  [ "$plugin_top" = "$repo_top" ] || { printf '
+'; return 0; }
+  prefix=$(git -C "$root" rev-parse --show-prefix 2>/dev/null)
+  prefix=${prefix%/}
+  if [ -z "$prefix" ]; then printf '.
+'; else printf '%s
+' "$prefix"; fi
+}
+
+# The plugin tree as a PATH-GLOB PREFIX for change-scope tests and git
+# pathspecs: empty when the plugin repo is the repository being gated (every
+# path is already plugin-relative), "<rel>/" when the plugin sits inside a
+# larger repository.
+afk_plugin_scope() {
+  local dir
+  dir=$(afk_plugin_dir)
+  case "$dir" in
+    ""|".") printf '\n' ;;
+    *) printf '%s/\n' "$dir" ;;
+  esac
+}

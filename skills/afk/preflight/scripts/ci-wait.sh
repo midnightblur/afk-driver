@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci-wait.sh — CI-babysit background poll, bundled with the /afk:preflight
+# ci-wait.sh — CI-babysit background poll, bundled with the /afk-toolkit:preflight
 # skill (PF-6/PF-7). Design ADR: adr/design/0005-ci-babysit-background-poll.md
 # in the feature that specified it; the exit-code contract below is the
 # frozen public interface (see SKILL.md PF-6/PF-7) — any change here is a
@@ -15,11 +15,11 @@
 # Loops `glab mr view <mr-ref> -F json`, reading `.head_pipeline.status` (or
 # `.pipeline.status` as a fallback field name), until a terminal pipeline
 # state or the budget elapses. Launched as a background Bash task by
-# /afk:preflight PF-6; the caller session resumes on task completion and
+# /afk-toolkit:preflight PF-6; the caller session resumes on task completion and
 # routes on this exit code (PF-7).
 #
 # `EXIT_BUDGET_EXHAUSTED` is this script's `## Produces` anchor: the
-# exit-envelope carrier read by /afk:preflight PF-7 and by the SKILL.md
+# exit-envelope carrier read by /afk-toolkit:preflight PF-7 and by the SKILL.md
 # doc that mirrors this table.
 #   EXIT_OK=0                 pipeline reached "success"
 #   EXIT_RED=1                pipeline reached "failed" or "canceled"

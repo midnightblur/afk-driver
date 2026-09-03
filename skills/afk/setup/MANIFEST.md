@@ -13,7 +13,7 @@ check). Entries tagged **[deferred]** aren't needed until the named first use �
 report as `deferred`, never as failures.
 
 **Base tier.** An entry may also carry `Base probe:` / `Base fix:` — exercised
-only by `/afk:setup base` (the default branch runs `Probe:`/`Fix:` alone).
+only by `/afk-toolkit:setup base` (the default branch runs `Probe:`/`Fix:` alone).
 `Base probe:` tightens the health check to the monorepo's pinned toolchain
 version; `Base fix:` names the concrete install the plain `human:` fix leaves to
 the reader. Version pins are never restated here — probes read them from their
@@ -36,9 +36,9 @@ a token value — not even partially.
 ## H — Harness
 
 ### H1 · plugin installed + enabled
-- **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
-- **Probe:** `agent:` the active harness reports `afk@nak-marketplace` enabled
-  and lists `/afk:setup`.
+- **Needed by:** everything (`/afk-toolkit:*` skills, the Stop-hook gates).
+- **Probe:** `agent:` the active harness reports `afk-toolkit@afk-toolkit` enabled
+  and lists `/afk-toolkit:setup`.
 - **Fix:** `human:` use the active-harness bootstrap in `README.md` §4, then
   refresh the plugin per `PROVIDERS.md`.
 
@@ -56,7 +56,7 @@ a token value — not even partially.
   in this plugin at `mcp-servers/jira/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
 
-### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
+### H4 · design-push service *(optional)* **[deferred: first `/afk-toolkit:prototype` or `/afk-toolkit:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,
   `skills/afk/design-system/PUBLISH.md` (the opt-in share mirror only).
 - **Probe:** `agent:` DesignSync tools (`list_projects`, `write_files`) listed.
@@ -65,7 +65,7 @@ a token value — not even partially.
 - **Notes:** local-first skills — everything works without the optional push.
 
 ### H5 · branch-name git hook *(optional)*
-- **Needed by:** branch-naming discipline for `/afk:execute`'s push — enforces
+- **Needed by:** branch-naming discipline for `/afk-toolkit:execute`'s push — enforces
   `kapteyn/development/<username>/<slug>` on **agent** new-branch creation only;
   human-driven creation is untouched.
   Workflow `CLAUDE.md` "Conventions to keep". Not required for any skill to *run*.
@@ -128,12 +128,12 @@ a token value — not even partially.
     [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
     grep -q 'afk:plain-language:start' "$f" 2>/dev/null && continue
     mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
+    { [ -s "$f" ] && echo; sed -n '/afk-toolkit:plain-language:start/,/afk-toolkit:plain-language:end/p' "$src"; } >> "$f"
   done
   ```
 - **Notes:** user-global, per-machine — never rides git (file map:
   `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
-  file(s); opt in any time by re-running `/afk:setup`.
+  file(s); opt in any time by re-running `/afk-toolkit:setup`.
 
 ### H8 · lavish for grilling sessions **[opt-in]**
 - **Needed by:** nothing — a user preference: grilling sessions (agent
@@ -149,14 +149,14 @@ a token value — not even partially.
     [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
     grep -q 'afk:lavish-sessions:start' "$f" 2>/dev/null && continue
     mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk:lavish-sessions:start/,/afk:lavish-sessions:end/p' "$src"; } >> "$f"
+    { [ -s "$f" ] && echo; sed -n '/afk-toolkit:lavish-sessions:start/,/afk-toolkit:lavish-sessions:end/p' "$src"; } >> "$f"
   done
   ```
 - **Notes:** user-global, per-machine — never rides git (file map:
   `PROVIDERS.md`). The installed block self-guards: outside a repo carrying
   the plugin's `LAVISH.md` it is inert. Render doctrine (RP-10, session-default
   weave, fallback) stays in `LAVISH.md`. Opt out by deleting the sentinel
-  block; opt in any time by re-running `/afk:setup`.
+  block; opt in any time by re-running `/afk-toolkit:setup`.
 
 ## C — Shell & core CLIs
 
@@ -387,14 +387,14 @@ Gating rule: if O1 misses, report the whole section as
 
 ### O3 · native marketplace, plugin, and fresh cache
 - **Needed by:** native skills, hooks, and MCP registration.
-- **Probe:** `codex plugin marketplace list` names `nak-marketplace`; `codex
-  plugin list` reports `afk@nak-marketplace` installed and enabled; the newest
-  `~/.codex/plugins/cache/nak-marketplace/afk/*/` copy matches the source
-  manifests, `hooks/hooks.json`, and every `skills/*/*/SKILL.md` hash.
+- **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `codex
+  plugin list` reports `afk-toolkit@afk-toolkit` installed and enabled; the newest
+  installed plugin root that Codex plugin metadata reports matches the source
+  manifests, `hooks/hooks.codex.json`, and every `skills/*/*/SKILL.md` hash.
 - **Fix:** `auto:` when absent, run `codex plugin marketplace add
-  tools/payable/ai-agents/plugins/workflow`, then `codex plugin add
-  afk@nak-marketplace`. For a stale cache, ask first; after confirmation run
-  `codex plugin remove afk@nak-marketplace`, add it again, then restart.
+  midnightblur/afk-driver --ref v<toolkit-version>`, then `codex plugin add
+  afk-toolkit@afk-toolkit`. For a stale cache, ask first; after confirmation run
+  `codex plugin remove afk-toolkit@afk-toolkit`, add it again, then restart.
 
 ### O4 · current hook definitions trusted
 - **Needed by:** every handler in `hooks/hooks.json`.
@@ -404,12 +404,23 @@ Gating rule: if O1 misses, report the whole section as
   native hooks interface after all `hooks.json` edits land.
 
 ### O5 · Codex agent TOML stubs
-- **Needed by:** `afk-reader`, `afk-runner`, and `afk-implementor` roles.
-- **Probe:** each `providers/codex/agents/*.toml` is byte-identical to the same
-  filename under `~/.codex/agents/`.
-- **Fix:** `auto:` create missing destinations and copy each source unchanged.
-  Refuse to overwrite a different user file without confirmation. Verify hashes,
-  then start a new session.
+- **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, and `afk-implementor` roles.
+- **Sources (exactly these four, no others):**
+  `providers/codex/agents/afk-toolkit-afk-implementor.toml`,
+  `providers/codex/agents/afk-toolkit-afk-reader.toml`,
+  `providers/codex/agents/afk-toolkit-afk-runner.toml`,
+  `providers/codex/agents/afk-toolkit-afk-runner-lite.toml`.
+- **Probe:** each `providers/codex/agents/afk-toolkit-afk-*.toml` is present under
+  `~/.codex/agents/` with the same filename, and its `{{PLUGIN_ROOT}}` placeholder is
+  replaced by the installed plugin root that Codex plugin metadata reports.
+- **Fix:** `auto:` read the installed plugin root from Codex plugin metadata — the
+  `[plugins."afk-toolkit@afk-toolkit"]` entry in `~/.codex/config.toml`, else the
+  `Installed plugin root:` line of `codex plugin list`. Never list a cache directory
+  and never pick a "newest" directory. Create missing destinations, copy each
+  `providers/codex/agents/afk-toolkit-afk-*.toml` to `~/.codex/agents/` under the same
+  filename, and replace every `{{PLUGIN_ROOT}}` occurrence with that root verbatim.
+  Refuse to overwrite a different user file without confirmation. Verify each
+  destination contains no `{{PLUGIN_ROOT}}`, then start a new session.
 
 ### O6 · per-directory steering fallback **[opt-in]**
 - **Needed by:** nested `CLAUDE.md` files when no nearer `AGENTS.md` exists.
@@ -459,7 +470,7 @@ Gating rule: if O1 misses, report the whole section as
   revision has it.
 
 ### X5 · running app + DB/broker infra **[deferred: verification time]**
-- No probe here — `/afk:autopilot` and `/afk:smoke-test` probe and self-provision
+- No probe here — `/afk-toolkit:autopilot` and `/afk-toolkit:smoke-test` probe and self-provision
   at run time via X3/X4 (machine prerequisite: Docker, C7). Listed so the full
   runtime surface is in one register.
 
@@ -473,7 +484,7 @@ Gating rule: if O1 misses, report the whole section as
 
 Human tooling and machine settings, not skill dependencies — no skill invokes
 these, so entries here carry **only** base-tier fields and the default branch
-skips the section entirely. Probed and fixed under `/afk:setup base` alone; a
+skips the section entirely. Probed and fixed under `/afk-toolkit:setup base` alone; a
 miss is `missing/broken` there, never on a default run. Any fix marked
 **elevated prompt** stays with the human — the agent never elevates.
 
@@ -483,7 +494,7 @@ miss is `missing/broken` there, never on a default run. Any fix marked
 - **Base fix:** `auto:` `winget install --id Microsoft.VisualStudioCode -e`
 
 ### W2 · IntelliJ IDEA
-- **Needed by:** the human; optionally referenced by `/afk:bug`'s `ideBinary`
+- **Needed by:** the human; optionally referenced by `/afk-toolkit:bug`'s `ideBinary`
   key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
 - **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1`
 - **Base fix:** `human:` `winget install --id JetBrains.IntelliJIDEA.Ultimate -e`
@@ -576,7 +587,7 @@ Each var is documented at its consumer — this table is just the map.
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
-| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk:gc` refuse deletion — it always gets a human eye |
+| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk-toolkit:gc` refuse deletion — it always gets a human eye |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
@@ -585,6 +596,7 @@ Each var is documented at its consumer — this table is just the map.
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
 | `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates (maven-compile, java-format, ui-lint) for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission |

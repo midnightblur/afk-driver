@@ -1,6 +1,6 @@
 ---
 name: review
-description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk:review {NNNN-slug} | --feature.
+description: Independent read-only review of a subtask slice or feature diff → clean/advisory/blocking verdict. Use as the post-verification gate or via /afk-toolkit:review {NNNN-slug} | --feature.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -14,7 +14,7 @@ One fresh subagent per concern, independent and strictly read-only (Hard rules b
 Two entry points, same machinery:
 
 - **Gate mode** — invoked by the caller after all tiers green, before `done`. The caller gates through the settle loop in [SETTLEMENT.md](SETTLEMENT.md) — re-review after every remediation, fix-or-dispute per finding, referee-kept termination; that file owns the loop, the caller owns finding-class routing.
-- **Standalone** — `/afk:review {NNNN-slug}` from a worktree on the parent branch, to audit a slice's work on demand. Same report; no gating, no side effects.
+- **Standalone** — `/afk-toolkit:review {NNNN-slug}` from a worktree on the parent branch, to audit a slice's work on demand. Same report; no gating, no side effects.
 
 ## Argument
 
@@ -138,7 +138,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 | `pattern-debt` | the diff follows a documented repo pattern where the baseline catalog disagrees — never blocks, feeds the debt ledger |
 | `product-debt` | a real shortcoming in shipped product code, understood and deliberately not fixed — never blocks, routes to the code's own `CLAUDE.md` |
 
-`criterion` names the checklist item that produced the finding (`open-question` for the open-question slot) — the key for per-criterion outcome telemetry: the caller records each finding's remediation outcome as `plan/review/{basename}-{base-short}.outcomes.json` (`--tag` appends `-{tag}`) (`{"r-001": "fixed" | "dismissed(<reason>)" | "deferred"}` — the caller's own artifact in this directory, like the adversary's reports), and `/afk:retro` aggregates which criteria earn their keep.
+`criterion` names the checklist item that produced the finding (`open-question` for the open-question slot) — the key for per-criterion outcome telemetry: the caller records each finding's remediation outcome as `plan/review/{basename}-{base-short}.outcomes.json` (`--tag` appends `-{tag}`) (`{"r-001": "fixed" | "dismissed(<reason>)" | "deferred"}` — the caller's own artifact in this directory, like the adversary's reports), and `/afk-toolkit:retro` aggregates which criteria earn their keep.
 
 ## Verify pass (design-level findings)
 
@@ -184,13 +184,13 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 
 Classify a finding `product-debt` when all three hold: it is real, the obvious fix was considered and rejected for a stated reason, and the reason will not be obvious to the next reader. A finding nobody has adjudicated is not product-debt — it is an open finding.
 
-The home is the **nearest `CLAUDE.md` to the code**, under a `## Known debt` heading, written through `/afk:claude-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
+The home is the **nearest `CLAUDE.md` to the code**, under a `## Known debt` heading, written through `/afk-toolkit:claude-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk-toolkit:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk-toolkit:preflight` PF-4d reads.
 
 What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
-- **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk:fix`) remediates.
+- **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk-toolkit:fix`) remediates.
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
 - **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — the record's own grep returns the record's own answer, so agreement with the record carries no information, and two reviewers sharing that method do not corroborate each other. Design a separate check every time: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found instead of reporting a number, and state the pattern you used so a reader can see its blind spots. (`core-services.md` "Absence needs exhaustive enumeration" states this for one reviewer; this states it for the roster.)
 - **Open the document, not its title.** Before overturning a cited rule — or asserting that no rule, ADR, or contract states something — read the cited file, and re-read the `CLAUDE.md` that auto-loads for the directory under review. A title names a document's original concern; an accepted amendment can add a rule the title never mentions. Overturning a correct citation costs more than repeating a wrong one: it writes the error into the record and into the fix the finding drives.

@@ -15,7 +15,7 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
    surfaces errors. (Classic misses: a Jackson-2 value serialized by
    Jackson 3; a `@NotNull` that moves no schema.) A test on your own
    object can't cover this — only one asserting on the framework's real
-   output can; flag that test so `/afk:to-sdd` binds it.
+   output can; flag that test so `/afk-toolkit:to-sdd` binds it.
 2. **Contract source of truth** — required / immutable / constraint come
    from the canonical source, not a proxy. Here: UI vuelidate `*Form.vue`
    (required) and edit-mode `:readonly` (immutable), not DB `NOT NULL`.
@@ -32,7 +32,7 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
      design) the guard at the **UI surface**
      too — route guard, menu visibility, control visibility per role tier.
 
-   Both sides feed the §9b seam and become required `/afk:grill-verification`
+   Both sides feed the §9b seam and become required `/afk-toolkit:grill-verification`
    rows (a denied-tier UI row **and** a `403` API row) — neither alone is "done."
 4. **Failure affordance** — design the error contract, not just the happy
    path: per violation class, what the consumer gets, and whether a
@@ -41,8 +41,8 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
    shape an API/MCP caller sees on each edge (a missing entity may return an
    empty-success envelope rather than 404, a denial a coded 403 — the
    harness's actual envelope conventions live in
-   `11700-payable/verification/api/AUTHORING.md`) — exactly what `/afk:to-sdd` records in
-   the §3 API contract table and what `/afk:grill-verification` later turns
+   `11700-payable/verification/api/AUTHORING.md`) — exactly what `/afk-toolkit:to-sdd` records in
+   the §3 API contract table and what `/afk-toolkit:grill-verification` later turns
    into assertable API scenarios; a hand-wave here leaves the endpoint
    un-verifiable. When a decision migrates one status/signal to another at a
    resolution seam, pin the **exact trigger** — which exception type or

@@ -1,7 +1,7 @@
 {
-  "name": "afk",
-  "version": "0.0.0",
-  "description": "AFK skill chain for requirements, design, implementation, verification, review, and delivery workflows.",
+  "name": "afk-toolkit",
+  "version": "1.0.0",
+  "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters.",
   "skills": [
     "./skills/afk/adversary",
     "./skills/afk/autopilot",
@@ -39,11 +39,12 @@
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
     "./skills/utils/review-qa-tests",
+    "./skills/utils/settle-change",
     "./skills/utils/settle-mr",
     "./skills/utils/todo",
     "./skills/utils/verify-seams",
     "./skills/utils/writing-for-agents"
   ],
-  "hooks": "./hooks/hooks.json",
-  "mcpServers": "./.mcp.json"
+  "hooks": "./hooks/hooks.codex.json",
+  "mcpServers": "./.mcp.codex.json"
 }

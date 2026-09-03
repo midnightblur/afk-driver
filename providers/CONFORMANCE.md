@@ -15,7 +15,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
 | Native manifest loads | pass 2026-09-01 | pass 2026-09-01 | Second harness: remove + add refreshed the cache, which then carried `.codex-plugin/plugin.json` with no unknown-field warning |
-| 40 `/afk:<x>` skills load | pass 2026-09-01 (38 listed) | pass 2026-09-01 (40 listed) | Counts differ by harness listing rules, not by catalog: 40 manifest entries = 38 model-visible + `harvest` (`disable-model-invocation: true`) + `diagnose` (absent from the first harness's model-visible listing before this change too — its own open item). The second harness lists all 40, no duplicates, no hyphenated mirrors, and the `$`-prefixed form invokes one |
+| 40 `/afk-toolkit:<x>` skills load | pass 2026-09-01 (38 listed) | pass 2026-09-01 (40 listed) | Counts differ by harness listing rules, not by catalog: 40 manifest entries = 38 model-visible + `harvest` (`disable-model-invocation: true`) + `diagnose` (absent from the first harness's model-visible listing before this change too — its own open item). The second harness lists all 40, no duplicates, no hyphenated mirrors, and the `$`-prefixed form invokes one |
 | No generated mirror skills | n/a | pass 2026-09-01 | Zero hyphenated mirror names in the catalog |
 | Shared hooks load and are trusted | pass 2026-09-01 | pass 2026-09-02 (round 3) | Round 1 failed on CRLF in the cached handlers, round 2 on the shell a bare `bash` resolved to. With LF pinning and the launcher, the handlers run natively on both harnesses |
 | SessionStart envelope and environment names | pass 2026-09-01 | pass 2026-09-02 (round 2) | Second harness, instrumented capture: `CLAUDECODE` unset, `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA`/`PLUGIN_ROOT`/`PLUGIN_DATA` set, `CLAUDE_PROJECT_DIR` unset — the adapter order (native root before compatibility markers) is the correct one. Round 2 re-ran it against the refreshed cache and the three provider functions returned `provider=codex`, the native cache root, the native data path, exit 0. Envelope keys carry the shared set plus `model`, `permission_mode`, `turn_id` |
@@ -46,7 +46,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 4. Add a native manifest twin only when the harness cannot consume an existing manifest.
 5. Add unchanged agent-definition stubs when the harness cannot consume `agents/*.md`.
 6. Add one `CAPABILITIES.md` provider column and one `PROVIDERS.md` mapping column.
-7. Add one `/afk:setup` probe section.
+7. Add one `/afk-toolkit:setup` probe section.
 8. Run `hooks/tests/hook-smoke.sh` and `hooks/native-contract-gate.sh`.
 9. Install through the harness enable flag. Run every probe in this ledger.
 10. Record version, date, commands, verdicts, and unresolved capabilities here.

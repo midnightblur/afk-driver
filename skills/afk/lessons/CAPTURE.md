@@ -19,7 +19,7 @@ A **concluded** workflow lesson — the gap is confirmed, not suspected:
 - a documented instruction was demonstrably not followed.
 
 One-off, obvious-from-code, or this-session-only → **not a lesson** (same bar
-as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
+as `/afk-toolkit:claude-md`'s inclusion bar). When unsure, don't capture.
 
 ## Conclude it now
 
@@ -36,10 +36,10 @@ as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
 
 | Condition | Do |
 |---|---|
-| Human present **and** target is CLAUDE.md / role sidecars / `.claude/rules` / `STAPLES.md` | Delegate to `/afk:claude-md` (its propose → approve → write). On approved write: append `opened` then `applied`. Declined: append `opened` then `rejected`. |
-| Human present **and** target is a domain `GLOSSARY.md` | Delegate to `/afk:glossary` — same handling. |
-| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | **Self-contained** → delegate to a writer subagent that loads `/afk:writing-for-agents`, makes the edit, and closes its FRESHNESS obligations; append `opened` then `applied`/`rejected`. Delegating keeps the invoking task's own context intact. **Not self-contained** → append `opened` alone; applied in a dedicated `/afk:lessons apply` session. |
-| No human (driven / hands-off) | Append `opened` with the full draft — the drafts surface at the ship gate's advisory row and via `/afk:lessons`. |
+| Human present **and** target is CLAUDE.md / role sidecars / `.claude/rules` / `STAPLES.md` | Delegate to `/afk-toolkit:claude-md` (its propose → approve → write). On approved write: append `opened` then `applied`. Declined: append `opened` then `rejected`. |
+| Human present **and** target is a domain `GLOSSARY.md` | Delegate to `/afk-toolkit:glossary` — same handling. |
+| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | **Self-contained** → delegate to a writer subagent that loads `/afk-toolkit:writing-for-agents`, makes the edit, and closes its FRESHNESS obligations; append `opened` then `applied`/`rejected`. Delegating keeps the invoking task's own context intact. **Not self-contained** → append `opened` alone; applied in a dedicated `/afk-toolkit:lessons apply` session. |
+| No human (driven / hands-off) | Append `opened` with the full draft — the drafts surface at the ship gate's advisory row and via `/afk-toolkit:lessons`. |
 
 **Self-contained** = one file, no `CLAUDE.md` "Lockstep" partner, no row in
 `FRESHNESS.md`'s registry. The bar exists because a half-written lockstep set

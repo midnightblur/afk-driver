@@ -38,7 +38,7 @@ A plan's append-only event log: one timestamped line per event, newest last. Let
 
 ### Preflight events
 
-`/afk:preflight`'s event set — this file is its sole home; the emitter appends
+`/afk-toolkit:preflight`'s event set — this file is its sole home; the emitter appends
 per it, so adding or renaming a preflight journal token is an edit here:
 
 - `refused(no_green_smoke)` — the Step-0 refusal guard fired; nothing else

@@ -2,7 +2,7 @@
 
 > Parent ticket: {TICKET-ID}   Sources: [PRD](PRD.md){· [SDD](SDD.md)}
 > Suite: 11700-payable/verification   Built per: ui-e2e/AUTHORING.md · api/AUTHORING.md
-> Status: draft (built by NNNN-smoke-e2e / NNNN-smoke-api; run by /afk:smoke-test)
+> Status: draft (built by NNNN-smoke-e2e / NNNN-smoke-api; run by /afk-toolkit:smoke-test)
 
 ## UI Journeys
 
@@ -27,8 +27,8 @@ PRD User Story, becoming one `Scenario` in the ui-e2e Gherkin catalog.
 ## API Scenarios
 
 <present iff an SDD exists; otherwise this whole section is the one-line placeholder:>
-> Deferred — needs the SDD's §3 endpoint contracts. Re-run /afk:grill-verification
-> after /afk:to-sdd, then /afk:to-verification-plan to append these.
+> Deferred — needs the SDD's §3 endpoint contracts. Re-run /afk-toolkit:grill-verification
+> after /afk-toolkit:to-sdd, then /afk-toolkit:to-verification-plan to append these.
 
 Each is one direct-REST check proving a backend contract without the UI, traced to
 an SDD §3 endpoint (+ the PRD Acceptance Criterion it proves), becoming one
@@ -81,6 +81,6 @@ section only when no requirement quantifies over a set.
 ## Gaps surfaced
 
 Gaps the scenario-walk exposed, for the human to fold back into the PRD/SDD.
-(Load-bearing gaps already routed back during /afk:grill-verification.)
+(Load-bearing gaps already routed back during /afk-toolkit:grill-verification.)
 
 - <gap> — <which Story / endpoint / scenario exposed it>

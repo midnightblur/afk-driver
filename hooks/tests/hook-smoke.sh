@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Provider detection and native hook-envelope smoke tests.
+# Provider detection, native hook-envelope, launcher and native-twin smoke tests.
+#
+# Everything here is self-contained: the plugin ships no repository-owned
+# handler, so the repository-hook path is exercised against a throwaway fixture
+# repository built in this script.
 
 set -uo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 workflow=$(cd "$here/../.." && pwd)
-repo=$(git -C "$workflow" rev-parse --show-toplevel)
 envelopes="$here/envelopes"
 shim="$workflow/hooks/lib/provider.sh"
-guard="$repo/tools/payable/ai-agents/harness/hooks/crowdstrike-guard.sh"
-counter="$repo/tools/payable/ai-agents/harness/hooks/explore-counter.sh"
 lavish="$workflow/hooks/lavish-dark.sh"
 lavish_tips="$workflow/hooks/lavish-tips.sh"
 
@@ -38,8 +39,11 @@ assert_detect() {
   fi
 }
 
+echo "== provider detection =="
 AFK_PROVIDER_CASE=claude PLUGIN_ROOT_CASE=/codex CLAUDECODE_CASE=1 \
   assert_detect "AFK_PROVIDER override wins" claude
+AFK_PROVIDER_CASE=nonsense PLUGIN_ROOT_CASE= CLAUDECODE_CASE=1 \
+  assert_detect "unknown AFK_PROVIDER is reported, never guessed" unknown
 AFK_PROVIDER_CASE= PLUGIN_ROOT_CASE=/codex CLAUDE_PLUGIN_ROOT_CASE=/compat CLAUDECODE_CASE=1 \
   assert_detect "PLUGIN_ROOT wins over inherited CLAUDECODE" codex
 AFK_PROVIDER_CASE= PLUGIN_ROOT_CASE= CLAUDE_PLUGIN_ROOT_CASE=/claude CLAUDECODE_CASE= \
@@ -67,20 +71,6 @@ else
   fail "Claude root/data precedence (actual=$actual)"
 fi
 
-run_hook() {
-  local script=$1 fixture=$2 provider=$3 data=$4
-  if [ "$provider" = codex ]; then
-    out=$(AFK_PROVIDER= PLUGIN_ROOT="$workflow" PLUGIN_DATA="$data" \
-          CLAUDE_PLUGIN_ROOT="$workflow" CLAUDE_PLUGIN_DATA="$data" CLAUDECODE=1 \
-          CLAUDE_PROJECT_DIR="$repo" bash "$script" < "$fixture" 2>/dev/null)
-  else
-    out=$(AFK_PROVIDER= PLUGIN_ROOT= PLUGIN_DATA= \
-          CLAUDE_PLUGIN_ROOT="$workflow" CLAUDE_PLUGIN_DATA="$data" CLAUDECODE=1 \
-          CLAUDE_PROJECT_DIR="$repo" bash "$script" < "$fixture" 2>/dev/null)
-  fi
-  rc=$?
-}
-
 for adapter in "$workflow"/hooks/lib/providers/*.sh; do
   provider=${adapter##*/}
   provider=${provider%.sh}
@@ -98,44 +88,6 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
       *) fail "$event envelope parse (actual=$parsed)" ;;
     esac
   done
-
-  data_dir=$(mktemp -d)
-  run_hook "$guard" "$provider_envelopes/pretooluse-bash-danger.json" "$provider" "$data_dir"
-  if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
-      '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
-    pass "crowdstrike-guard denies system-root find"
-  else
-    fail "crowdstrike-guard deny (rc=$rc out=$out)"
-  fi
-
-  run_hook "$guard" "$provider_envelopes/pretooluse-bash-safe.json" "$provider" "$data_dir"
-  if [ "$rc" = 0 ] && [ -z "$out" ]; then
-    pass "crowdstrike-guard allows scoped find"
-  else
-    fail "crowdstrike-guard allow (rc=$rc out=$out)"
-  fi
-
-  run_hook "$guard" "$provider_envelopes/pretooluse-grep-danger.json" "$provider" "$data_dir"
-  if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
-      '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
-    pass "crowdstrike-guard denies Grep on system root"
-  else
-    fail "crowdstrike-guard Grep deny (rc=$rc out=$out)"
-  fi
-
-  ec_out=""
-  for _ in 1 2 3; do
-    run_hook "$counter" "$provider_envelopes/pretooluse-grep.json" "$provider" "$data_dir"
-    ec_out=$out
-    ec_rc=$rc
-  done
-  if [ "$ec_rc" = 0 ] && printf '%s' "$ec_out" | jq -e \
-      '.hookSpecificOutput.additionalContext | length > 0' >/dev/null; then
-    pass "explore-counter emits reminder at third search"
-  else
-    fail "explore-counter reminder (rc=$ec_rc out=$ec_out)"
-  fi
-  rm -rf "$data_dir"
 
   out=$(AFK_PROVIDER="$provider" bash "$lavish" \
     < "$provider_envelopes/pretooluse-bash-safe.json" 2>/dev/null)
@@ -170,38 +122,96 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
   fi
 done
 
-# The launcher every hooks.json command goes through. A handler that never
-# starts is the failure this covers: the harness reports a failed hook and no
-# gate verdict, so run the real command shape end to end.
+# ---- the launcher every hook command goes through.
 launcher="$workflow/hooks/run-hook.py"
 py=python
 command -v python >/dev/null 2>&1 || py=python3
 
 echo "== hook launcher =="
-out=$("$py" "$launcher" repo crowdstrike-guard.sh \
-  < "$envelopes/claude/pretooluse-bash-danger.json" 2>/dev/null)
+
+# A throwaway consuming repository: one declared PreToolUse handler that denies,
+# one declared Stop handler that blocks, and one path that escapes the root.
+fixture_repo=$(mktemp -d)
+git -C "$fixture_repo" init -q
+mkdir -p "$fixture_repo/.afk" "$fixture_repo/hooks"
+cat > "$fixture_repo/hooks/deny.sh" <<'FIXTURE'
+#!/usr/bin/env bash
+printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"fixture"}}\n'
+exit 0
+FIXTURE
+cat > "$fixture_repo/hooks/block.sh" <<'FIXTURE'
+#!/usr/bin/env bash
+echo "fixture stop finding" >&2
+exit 2
+FIXTURE
+cat > "$fixture_repo/.afk/hooks.json" <<'FIXTURE'
+[
+  {"event": "PreToolUse", "matcher": "Bash|PowerShell", "timeout": 15, "script": "hooks/deny.sh"},
+  {"event": "PreToolUse", "matcher": "Grep", "timeout": 15, "script": "hooks/escape.sh"},
+  {"event": "Stop", "matcher": "*", "timeout": 60, "script": "hooks/block.sh"}
+]
+FIXTURE
+python - "$fixture_repo" <<'PY'
+import json, sys
+root = sys.argv[1]
+path = root + "/.afk/hooks.json"
+data = json.load(open(path, encoding="utf-8"))
+data[1]["script"] = "../outside.sh"
+json.dump(data, open(path, "w", encoding="utf-8"), indent=2)
+PY
+
+out=$(cd "$fixture_repo" && "$py" "$launcher" repo-list PreToolUse \
+  < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
 rc=$?
 if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
     '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
-  pass "launcher runs a repository handler and carries its denial"
+  pass "launcher runs a declared repository handler and carries its decision"
 else
   fail "launcher repository handler (rc=$rc out=$out)"
 fi
 
-out=$("$py" "$launcher" repo afk-no-such-handler.sh 2>&1)
+out=$(cd "$fixture_repo" && "$py" "$launcher" repo-list PreToolUse \
+  < "$envelopes/claude/pretooluse-grep.json" 2>&1)
+rc=$?
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "escapes the repository root"; then
+  pass "launcher refuses a handler path outside the repository root"
+else
+  fail "launcher escape refusal (rc=$rc out=$out)"
+fi
+
+out=$(cd "$fixture_repo" && "$py" "$launcher" repo-list Stop \
+  < "$envelopes/claude/stop.json" 2>&1)
+rc=$?
+if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
+  pass "launcher carries a repository Stop handler's blocking exit code"
+else
+  fail "launcher stop exit code (rc=$rc out=$out)"
+fi
+
+out=$(cd "$fixture_repo" && "$py" "$launcher" plugin afk-no-such-handler.sh 2>&1)
 rc=$?
 if [ "$rc" = 0 ] && [ -z "$out" ]; then
-  pass "launcher stays silent on an absent handler"
+  pass "launcher stays silent on an absent plugin handler"
 else
   fail "launcher absent handler (rc=$rc out=$out)"
+fi
+
+bare_repo=$(mktemp -d)
+git -C "$bare_repo" init -q
+out=$(cd "$bare_repo" && "$py" "$launcher" repo-list Stop < "$envelopes/claude/stop.json" 2>&1)
+rc=$?
+if [ "$rc" = 0 ] && [ -z "$out" ]; then
+  pass "launcher exits 0 where the repository declares no hooks"
+else
+  fail "launcher no-manifest (rc=$rc out=$out)"
 fi
 
 # PATH without a POSIX shell is the machine the probes ran on: the system
 # directory's WSL stub is the only thing named bash.
 py_abs=$(command -v "$py")
-out=$(env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
-  "$py_abs" "$launcher" repo crowdstrike-guard.sh \
-  < "$envelopes/claude/pretooluse-bash-danger.json" 2>/dev/null)
+out=$(cd "$fixture_repo" && env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
+  "$py_abs" "$launcher" repo-list PreToolUse \
+  < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
 rc=$?
 if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
     '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
@@ -209,6 +219,52 @@ if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
 else
   fail "launcher shell lookup (rc=$rc out=$out)"
 fi
+
+rm -rf "$fixture_repo" "$bare_repo"
+
+# ---- native twins: same semantics, only the root variable differs.
+echo "== native twins =="
+twin() {
+  local label=$1 claude_file=$2 codex_file=$3
+  if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" <<'PY'
+import json, sys
+claude = json.load(open(sys.argv[1], encoding="utf-8"))
+codex = json.load(open(sys.argv[2], encoding="utf-8"))
+left = json.dumps(claude, sort_keys=True).replace("${CLAUDE_PLUGIN_ROOT}", "<ROOT>")
+right = json.dumps(codex, sort_keys=True).replace("${PLUGIN_ROOT}", "<ROOT>")
+sys.exit(0 if left == right else 1)
+PY
+  then
+    pass "$label twins are equal modulo the root variable"
+  else
+    fail "$label twin drift ($claude_file vs $codex_file)"
+  fi
+}
+twin hooks hooks/hooks.json hooks/hooks.codex.json
+twin mcp .mcp.json .mcp.codex.json
+
+# A plugin root containing spaces is the common Windows install path.
+spaced=$(mktemp -d)/"afk toolkit root"
+mkdir -p "$spaced"
+cp -r "$workflow/hooks" "$spaced/hooks"
+cp "$workflow/.mcp.json" "$spaced/.mcp.json"
+mkdir -p "$spaced/mcp-servers/jira"
+printf 'print("fixture server")\n' > "$spaced/mcp-servers/jira/server.py"
+out=$("$py" -c "$("$py" -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8'))['mcpServers']['jira']['args'][1])" "$spaced/.mcp.json")" "$spaced" 2>&1)
+rc=$?
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "fixture server"; then
+  pass "MCP launcher resolves a plugin root containing spaces"
+else
+  fail "MCP launcher spaced root (rc=$rc out=$out)"
+fi
+out=$(cd "$spaced" && "$py" hooks/run-hook.py plugin afk-no-such-handler.sh 2>&1)
+rc=$?
+if [ "$rc" = 0 ] && [ -z "$out" ]; then
+  pass "hook launcher runs from a plugin root containing spaces"
+else
+  fail "hook launcher spaced root (rc=$rc out=$out)"
+fi
+rm -rf "$(dirname "$spaced")"
 
 echo
 if [ "$fails" -gt 0 ]; then

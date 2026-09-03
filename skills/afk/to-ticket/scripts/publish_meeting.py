@@ -3,7 +3,7 @@
 publish_meeting.py — publish a meeting summary into a Jira Cloud issue as a
 collapsible ADF `expand`, idempotently.
 
-This is the meeting-mode engine behind /afk:to-ticket. Where publish_prd.py owns
+This is the meeting-mode engine behind /afk-toolkit:to-ticket. Where publish_prd.py owns
 the PRD body (sentinel-delimited managed block), this owns the "Meeting
 Summaries" region: a plain `Meeting Summaries` heading followed by one
 collapsible `expand` per meeting (the expand title is the meeting's key). It

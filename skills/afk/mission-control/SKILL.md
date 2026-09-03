@@ -1,6 +1,6 @@
 ---
 name: mission-control
-description: Read-only dashboard for a feature's spec folder (watch / --once / build). Use on /afk:mission-control, to see a feature's progress, or if the watcher crashed.
+description: Read-only dashboard for a feature's spec folder (watch / --once / build). Use on /afk-toolkit:mission-control, to see a feature's progress, or if the watcher crashed.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -47,7 +47,7 @@ before a ticket key is minted). Required.
    (read-only, exit 0; `<main-checkout>` = first entry of `git worktree list`
    — plugin scripts always run from the main checkout; `GLOSSARY.md` "Main
    checkout") and tell the user which digest sections are fresh,
-   stale, or unbuilt — with "run `/afk:mission-control {spec_dir} build` to
+   stale, or unbuilt — with "run `/afk-toolkit:mission-control {spec_dir} build` to
    refresh" when any aren't fresh. Never build uninvited.
 
 2. **Invoke the renderer.**
@@ -74,7 +74,7 @@ before a ticket key is minted). Required.
 
 The watcher has exactly one recovery path: **relaunch this skill** (Boundary,
 "No daemonization"). If the page stops updating or the served URL stops
-responding, run `/afk:mission-control {spec-folder}` again; the re-render is a
+responding, run `/afk-toolkit:mission-control {spec-folder}` again; the re-render is a
 pure function of the current artifacts + digests, so nothing is lost.
 
 ## Boundary (hard rules)

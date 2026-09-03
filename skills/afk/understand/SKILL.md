@@ -1,6 +1,6 @@
 ---
 name: understand
-description: Generates an interactive HTML learning artifact for a shipped feature, a GitLab MR, or a code area. Use via /afk:understand {subject} when the user wants to learn or be walked through a feature, MR, or code.
+description: Generates an interactive HTML learning artifact for a shipped feature, a GitLab MR, or a code area. Use via /afk-toolkit:understand {subject} when the user wants to learn or be walked through a feature, MR, or code.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -26,13 +26,13 @@ Ambiguous argument → ask. mr/code intake mechanics are in "MR / code intake" b
 The same pipeline runs both modes; they differ only in **prompting** and **commit behaviour** (PRD Catalog B).
 
 - **M-1 auto** — **feature subjects only**; invoked non-interactively with defaults: **quiz 5, standard background depth, zero prompts**. Ends in one committed, pushed docs-only commit (below). The invoking context has already authorized commit + push for this run; never open a prompt — convert any would-be question into a fail-soft outcome.
-- **M-2 standalone** — a human runs `/afk:understand {subject}` directly (the only mode for mr/code subjects). **Prompt up front** for quiz size and background depth, then generate. Writes the files and **never commits** — the working tree is the user's.
+- **M-2 standalone** — a human runs `/afk-toolkit:understand {subject}` directly (the only mode for mr/code subjects). **Prompt up front** for quiz size and background depth, then generate. Writes the files and **never commits** — the working tree is the user's.
 
 Downstream-blind: this skill never names or assumes which stage invoked it. What it needs (mode, defaults-vs-prompt, whether commit is pre-authorized) arrives at invocation.
 
 ## Public interface (SDD §8 row "understand skill spine") — implement unmodified
 
-`/afk:understand {subject}` with the outcome statuses of the §3 invocation contract table:
+`/afk-toolkit:understand {subject}` with the outcome statuses of the §3 invocation contract table:
 
 | Outcome | When |
 |---|---|

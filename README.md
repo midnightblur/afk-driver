@@ -3,7 +3,7 @@
 Agent **plugin** that turns a raw feature idea into shipped, verified
 code through a chain of skills — **human-heavy at the edges, autonomous in the
 middle**. Drive the design stages interactively; the implementation middle runs
-hands-off via `/afk:autopilot` (or by hand, one `/afk:execute` per subtask).
+hands-off via `/afk-toolkit:autopilot` (or by hand, one `/afk-toolkit:execute` per subtask).
 Each stage leaves a durable artifact on disk, so the next stage (and next human)
 inherits a written contract, not a verbal hand-off.
 
@@ -33,7 +33,7 @@ Adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
 5. [Walkthrough: your first feature](#5-walkthrough-your-first-feature) — end to end
 6. [Choosing your path](#6-choosing-your-path) — full chain vs. the lean path
 7. [Where everything lives](#7-where-everything-lives) — the artifact map
-8. [The subtask lifecycle](#8-the-subtask-lifecycle) — how `/afk:execute` works
+8. [The subtask lifecycle](#8-the-subtask-lifecycle) — how `/afk-toolkit:execute` works
 9. [The cited-mode contract](#9-the-cited-mode-contract) — how drift is caught
 10. [Skill reference](#10-skill-reference) — every skill, one paragraph each
 11. [Section-ownership invariants](#11-section-ownership-invariants) — don't let edits collide
@@ -48,8 +48,8 @@ Adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
 implement autonomously. Settle the *what* and *why*, walk away, come back to
 pushed, verified, review-gated Draft MRs.
 
-The middle **is** hands-off: `/afk:autopilot` walks the whole plan in dependency
-order, one fresh subagent per subtask (driven-mode `/afk:execute`),
+The middle **is** hands-off: `/afk-toolkit:autopilot` walks the whole plan in dependency
+order, one fresh subagent per subtask (driven-mode `/afk-toolkit:execute`),
 self-provisions the live app for `api`/`e2e`/adversarial verification, parks
 failures (and dependents) while independent work continues, ends at the feature
 smoke gate. Edges stay human: you approve requirements and design before the run,
@@ -64,7 +64,7 @@ What makes it trustworthy while you're away:
   re-derive intent from a chat log.
 - **Drift is caught mechanically, not in review.** When the design is settled
   (an SDD exists), the plan slices in *cited mode*: each subtask carries typed
-  `Produces`/`Consumes` anchors, and `/afk:execute` greps them before and after
+  `Produces`/`Consumes` anchors, and `/afk-toolkit:execute` greps them before and after
   it works. A signature that drifts from its contract halts the run — never
   reaches a human reviewer as a surprise.
 - **Human stays in the loop at the load-bearing seams.** Skills design, draft,
@@ -91,9 +91,9 @@ What makes it trustworthy while you're away:
 Five ideas. Hold these and the rest follows.
 
 **① You invoke the stages; autopilot may drive the middle.** Each skill is a
-`/afk:<name>` skill invoked in an agent session. Design and acceptance
+`/afk-toolkit:<name>` skill invoked in an agent session. Design and acceptance
 stages are interactive; the implementation middle runs hands-off via
-`/afk:autopilot` (one fresh subagent per subtask) or by hand, one `/afk:execute`
+`/afk-toolkit:autopilot` (one fresh subagent per subtask) or by hand, one `/afk-toolkit:execute`
 per subtask. The map in [§3](#3-the-chain-at-a-glance) shows where each fits.
 
 **② Artifacts on disk are the source of truth.** PRD, SDD, ADRs,
@@ -101,24 +101,24 @@ per subtask. The map in [§3](#3-the-chain-at-a-glance) shows where each fits.
 they describe. Jira holds **only** the parent Enhancement/Story/Bug — and only two
 skills ever write to it (see ④).
 
-**③ The plan is a local contract, not Jira issues.** `/afk:to-subtasks` emits a
+**③ The plan is a local contract, not Jira issues.** `/afk-toolkit:to-subtasks` emits a
 `plan/` directory: a `PLAN.md` index (solution map, seam register, live progress
 tracker) plus one `NNNN-slug.md` contract per subtask. A subtask's *id* is its
-filename stem. `/afk:execute` parses these files and writes back progress. No
+filename stem. `/afk-toolkit:execute` parses these files and writes back progress. No
 subtask becomes a Jira issue.
 
-**④ Only two skills touch the tracker.** `/afk:to-ticket` publishes the PRD body
+**④ Only two skills touch the tracker.** `/afk-toolkit:to-ticket` publishes the PRD body
 into the parent ticket and mints stub Enhancements for grill-deferred work
-(spinoff mode). `/afk:bug`'s publisher subagent is the pipeline's
+(spinoff mode). `/afk-toolkit:bug`'s publisher subagent is the pipeline's
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
-else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
-design ADRs are local only. `/afk:execute` pushes branches + Draft MRs to
+else stops at disk or GitLab** — including `/afk-toolkit:to-sdd`, whose `SDD.md` +
+design ADRs are local only. `/afk-toolkit:execute` pushes branches + Draft MRs to
 GitLab but writes no Jira.
 
-**⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
+**⑤ The human owns the merge.** `/afk-toolkit:execute` takes a subtask to a pushed,
 verified, Draft MR — then **stops**. You review and merge out of band. Same for
-the feature gate: `/afk:smoke-test` stamps a feature complete on green but merges
+the feature gate: `/afk-toolkit:smoke-test` stamps a feature complete on green but merges
 nothing.
 
 ```mermaid
@@ -137,8 +137,8 @@ graph LR
     subgraph gl_store [GitLab]
         MR[Branch + Draft MR]
     end
-    PRD -->|/afk:to-ticket| TICKET
-    PLAN -->|/afk:execute| MR
+    PRD -->|/afk-toolkit:to-ticket| TICKET
+    PLAN -->|/afk-toolkit:execute| MR
     classDef disk fill:#e8f0fe,stroke:#4285f4;
     classDef jira fill:#fff4e5,stroke:#fb8c00;
     classDef gl fill:#fde7f3,stroke:#e91e63;
@@ -153,30 +153,30 @@ graph LR
 
 ```mermaid
 graph LR
-    Grill[/afk:grill-requirements/] --> Prd[/afk:to-prd/] --> Ticket[/afk:to-ticket/] --> AG[/afk:grill-solution/] --> Sdd[/afk:to-sdd/]
-    Sdd -->|optional digest| Brief[/afk:to-design-brief/]
+    Grill[/afk-toolkit:grill-requirements/] --> Prd[/afk-toolkit:to-prd/] --> Ticket[/afk-toolkit:to-ticket/] --> AG[/afk-toolkit:grill-solution/] --> Sdd[/afk-toolkit:to-sdd/]
+    Sdd -->|optional digest| Brief[/afk-toolkit:to-design-brief/]
 
-    Prd -.->|optional UI mockup| Proto[/afk:prototype/]
+    Prd -.->|optional UI mockup| Proto[/afk-toolkit:prototype/]
     Proto -.->|PROTOTYPE.md feeds design| AG
 
-    Prd -.->|optional verification design| E2E[/afk:grill-verification/]
+    Prd -.->|optional verification design| E2E[/afk-toolkit:grill-verification/]
     Sdd -.->|optional verification design| E2E
-    E2E -->|interview settled| VPlan[/afk:to-verification-plan/]
+    E2E -->|interview settled| VPlan[/afk-toolkit:to-verification-plan/]
 
     Sdd --> Sub
     Brief --> Sub
     VPlan -->|VERIFICATION-PLAN.md| Sub
 
-    Sub -->|hands-off driver| Auto[/afk:autopilot/]
-    Auto -->|one fresh subagent per subtask| Exec[/afk:execute/]
+    Sub -->|hands-off driver| Auto[/afk-toolkit:autopilot/]
+    Auto -->|one fresh subagent per subtask| Exec[/afk-toolkit:execute/]
     Sub -.->|or run once per subtask by hand| Exec
-    Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk:smoke-test/]
+    Exec -->|all subtasks done · gate iff verification plan| Smoke[/afk-toolkit:smoke-test/]
     Exec -.->|uses| Tdd[/tdd skill/]
-    Exec -.->|review gate| Rev[/afk:review/]
-    Exec -.->|adversarial gate| Adv[/afk:adversary/]
-    Smoke -->|smoke green · ship gate| PF[/afk:preflight/]
-    PF -.->|advisory row · post-ship understanding artifact| Und[/afk:understand/]
-    Smoke -.->|delivered · demo it to POs + QA| Demo[/afk:to-demo-plan/]
+    Exec -.->|review gate| Rev[/afk-toolkit:review/]
+    Exec -.->|adversarial gate| Adv[/afk-toolkit:adversary/]
+    Smoke -->|smoke green · ship gate| PF[/afk-toolkit:preflight/]
+    PF -.->|advisory row · post-ship understanding artifact| Und[/afk-toolkit:understand/]
+    Smoke -.->|delivered · demo it to POs + QA| Demo[/afk-toolkit:to-demo-plan/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
@@ -184,35 +184,35 @@ graph LR
     class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und,Demo opt;
 ```
 
-The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
-`/afk:to-subtasks` → `/afk:autopilot` (or `/afk:execute` per subtask by hand).
+The **green** path is the mandatory spine: `/afk-toolkit:to-prd` → `/afk-toolkit:to-ticket` →
+`/afk-toolkit:to-subtasks` → `/afk-toolkit:autopilot` (or `/afk-toolkit:execute` per subtask by hand).
 Grey is optional design depth — add for complex features, skip for small ones
 (see [§6](#6-choosing-your-path)).
 
-Every plan `/afk:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
-subtask (blocked by all others) that `/afk:execute` runs last to sync the
+Every plan `/afk-toolkit:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
+subtask (blocked by all others) that `/afk-toolkit:execute` runs last to sync the
 CLAUDE.md harness for the shipped feature **and settle the staples registry**
-(`{service}/STAPLES.md`), delegating the write to `/afk:claude-md`.
+(`{service}/STAPLES.md`), delegating the write to `/afk-toolkit:claude-md`.
 
 **Staples.** A *staple* is a delivered capability that became a standing
 expectation (e.g. deep-linking, Excel import/export) — every future feature
 matching its trigger must consider adopting it, via the per-service `STAPLES.md`
 registry. Consult/capture loops + stewardship: CLAUDE.md "Staples registry".
 
-Start where your inputs land: raw idea → `/afk:grill-requirements`; existing PRD
-→ `/afk:grill-solution`; SDD in hand → `/afk:to-subtasks`.
+Start where your inputs land: raw idea → `/afk-toolkit:grill-requirements`; existing PRD
+→ `/afk-toolkit:grill-solution`; SDD in hand → `/afk-toolkit:to-subtasks`.
 
 ---
 
 ## 4. Install
 
-The committed tree stays inert until a harness enables `afk@nak-marketplace`.
+The committed tree stays inert until a harness enables `afk-toolkit@afk-toolkit`.
 
 ### `.claude-plugin` harness
 
 ```text
 /plugin marketplace add ./tools/payable/ai-agents/plugins/workflow
-/plugin install afk@nak-marketplace
+/plugin install afk-toolkit@afk-toolkit
 ```
 
 To auto-load, add to `~/.claude/settings.json`:
@@ -220,12 +220,12 @@ To auto-load, add to `~/.claude/settings.json`:
 ```json
 {
   "extraKnownMarketplaces": {
-    "nak-marketplace": {
+    "afk-toolkit": {
       "source": { "source": "directory", "path": "./tools/payable/ai-agents/plugins/workflow" }
     }
   },
   "enabledPlugins": {
-    "afk@nak-marketplace": true
+    "afk-toolkit@afk-toolkit": true
   }
 }
 ```
@@ -236,19 +236,19 @@ Run `/reload-plugins` after source changes.
 
 ```sh
 codex plugin marketplace add tools/payable/ai-agents/plugins/workflow
-codex plugin add afk@nak-marketplace
+codex plugin add afk-toolkit@afk-toolkit
 ```
 
-Then run `/afk:setup`. Section O enables native hooks, checks cache freshness,
+Then run `/afk-toolkit:setup`. Section O enables native hooks, checks cache freshness,
 guides hook trust, copies the three unchanged agent TOML stubs, offers the
 per-directory steering fallback, and verifies the 40-skill catalog plus Jira.
 Restart after cache or agent-definition changes.
 
 ### Shared setup and development
 
-`/afk:setup` probes external dependencies against
-`skills/afk/setup/MANIFEST.md`. Use `/afk:setup base` for the pinned workstation
-toolchain. Use `/afk:setup audit` before shipping plugin changes.
+`/afk-toolkit:setup` probes external dependencies against
+`skills/afk/setup/MANIFEST.md`. Use `/afk-toolkit:setup base` for the pinned workstation
+toolchain. Use `/afk-toolkit:setup audit` before shipping plugin changes.
 
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per
@@ -270,49 +270,49 @@ sequenceDiagram
     participant Jira as Jira
     participant GL as GitLab
 
-    Dev->>CC: /afk:grill-requirements
+    Dev->>CC: /afk-toolkit:grill-requirements
     CC-->>Dev: interview → exhausts requirement tree
     CC->>Disk: GLOSSARY.md
-    Dev->>CC: /afk:to-prd
+    Dev->>CC: /afk-toolkit:to-prd
     CC->>Disk: PRD.md + adr/requirements ADRs
-    Dev->>CC: /afk:to-ticket (parent_key)
+    Dev->>CC: /afk-toolkit:to-ticket (parent_key)
     CC->>Jira: PRD body (ADF, diagrams as PNGs)
-    Dev->>CC: /afk:prototype (optional, if net-new UI)
+    Dev->>CC: /afk-toolkit:prototype (optional, if net-new UI)
     CC-->>Dev: live HTML mockup loop (refresh + react)
     CC->>Disk: PROTOTYPE.md + chosen HTML
-    Dev->>CC: /afk:grill-solution
+    Dev->>CC: /afk-toolkit:grill-solution
     CC-->>Dev: L1→L9 design interview
-    Dev->>CC: /afk:to-sdd
+    Dev->>CC: /afk-toolkit:to-sdd
     CC->>Disk: SDD.md + adr/design ADRs
-    Dev->>CC: /afk:grill-verification (optional)
+    Dev->>CC: /afk-toolkit:grill-verification (optional)
     CC-->>Dev: two-modality scenario interview
-    Dev->>CC: /afk:to-verification-plan
+    Dev->>CC: /afk-toolkit:to-verification-plan
     CC->>Disk: VERIFICATION-PLAN.md (+ gap notes)
-    Dev->>CC: /afk:to-subtasks
+    Dev->>CC: /afk-toolkit:to-subtasks
     CC->>Disk: plan/PLAN.md + plan/NNNN-slug.md (cited)
     loop once per subtask, in dependency order
-        Dev->>CC: /afk:execute {NNNN-slug}
+        Dev->>CC: /afk-toolkit:execute {NNNN-slug}
         CC->>GL: commit + push + Draft MR checklist
         CC->>Disk: tracker row → done
         Dev->>GL: review + merge (out of band)
     end
-    Dev->>CC: /afk:smoke-test (iff gate exists)
+    Dev->>CC: /afk-toolkit:smoke-test (iff gate exists)
     CC->>GL: run integrated browser suite vs running app
     CC->>Disk: Feature: complete (on green)
 ```
 
 **Step by step:**
 
-1. **`/afk:grill-requirements`** — Claude interviews you about the idea,
+1. **`/afk-toolkit:grill-requirements`** — Claude interviews you about the idea,
    challenging it against the domain glossary until the requirements decision
    tree is exhausted. Maintains `GLOSSARY.md`; emits no decision records yet.
-2. **`/afk:to-prd`** — synthesizes the conversation into `PRD.md` plus
+2. **`/afk-toolkit:to-prd`** — synthesizes the conversation into `PRD.md` plus
    requirement-level ADRs. **Local only** — nothing in Jira yet.
-3. **`/afk:to-ticket`** — distills the PRD to a requirements-level ticket
+3. **`/afk-toolkit:to-ticket`** — distills the PRD to a requirements-level ticket
    description (`TICKET.md`) and publishes it into the **existing** parent
    ticket as native Jira formatting (ADF), rendering any Mermaid diagrams
    to attached PNGs. Idempotent — re-run when the PRD changes.
-4. **`/afk:prototype`** *(optional — only if net-new UI)* — crafts the screens
+4. **`/afk-toolkit:prototype`** *(optional — only if net-new UI)* — crafts the screens
    with you interactively, anchored to the **real frontend's** components and
    tokens (design-system catalog / live app / source, best evidence first).
    Writes self-contained **drivable** HTML you open and refresh while reshaping
@@ -324,39 +324,39 @@ sequenceDiagram
    next two steps and gives the verification UI journeys a concrete screen to
    trace to. Local-first; an opt-in push mirrors the mockup to `claude.ai/design`
    for stakeholder review.
-5. **`/afk:grill-solution`** — top-down design interview across 9 layers (L1
+5. **`/afk-toolkit:grill-solution`** — top-down design interview across 9 layers (L1
    system topology → L8 tactical patterns); every non-trivial decision gets a
    rationale and ≥2 weighed alternatives. Six aspects are **human-locked** —
    entity design, API surface, authz + scoping, lifecycle + invariants,
    irreversible/outward side effects, changes to existing behaviour — grilled to
    a contract grade, packeted for your review, and **signed off by you** before
    the design counts as done.
-6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
+6. **`/afk-toolkit:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
    ADRs. **Local only** — the SDD is never published to the ticket.
-7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
+7. **`/afk-toolkit:grill-verification`** *(optional but recommended)* — designs the
    feature's verification scenarios with you: the real end-user **browser
    journeys**, plus (once the SDD exists) the **API scenarios** that prove the
    backend contract for API/MCP callers who bypass the UI. **Interviews only** —
    walking them concretely routinely surfaces PRD/SDD gaps, a feature not a side
    effect.
-8. **`/afk:to-verification-plan`** — synthesizes that conversation into
+8. **`/afk-toolkit:to-verification-plan`** — synthesizes that conversation into
    `VERIFICATION-PLAN.md` (UI journeys now; API scenarios too once the SDD exists,
    else deferred and appended on a re-run).
-9. **`/afk:to-subtasks`** — slices everything into `plan/`. An SDD exists → slices
+9. **`/afk-toolkit:to-subtasks`** — slices everything into `plan/`. An SDD exists → slices
    **cited mode** (typed contracts). A `VERIFICATION-PLAN.md` exists → also seeds
    a `## Feature smoke gate` and a terminal build subtask per modality
    (`NNNN-smoke-e2e` for UI journeys, `NNNN-smoke-api` for API scenarios).
-10. **`/afk:autopilot`** — hands-off default for the middle: walks the whole plan
+10. **`/afk-toolkit:autopilot`** — hands-off default for the middle: walks the whole plan
     in dependency order, one fresh subagent per subtask (driven-mode
-    `/afk:execute`), self-provisions the live app, parks failures + dependents
+    `/afk-toolkit:execute`), self-provisions the live app, parks failures + dependents
     while independent work continues (push notification on every park), journals
     every event to `plan/JOURNAL.md`, ends at the smoke gate. Prefer this when the
-    plan is approved; or run **`/afk:execute {NNNN-slug}`** yourself once per
+    plan is approved; or run **`/afk-toolkit:execute {NNNN-slug}`** yourself once per
     subtask, in dependency order, from a worktree on the parent branch — it
     designs, develops under TDD, turns every verification tier green, pushes,
     updates the Draft MR, advances the tracker — then stops. Either way, you
     review and merge each MR.
-11. **`/afk:smoke-test`** — after every subtask is `done`, runs the integrated
+11. **`/afk-toolkit:smoke-test`** — after every subtask is `done`, runs the integrated
     verification suites — browser journeys **and** API contracts — against a
     running app and stamps `Feature: complete` on green across both.
 
@@ -375,10 +375,10 @@ graph TD
     B -->|No: bug, refactor, tooling, small enh| LEAN[Lean path]
     B -->|Yes| FULL[Full path]
 
-    LEAN --> L1["/afk:to-prd"]
-    L1 --> L2["/afk:to-ticket"]
-    L2 --> L3["/afk:to-subtasks - uncited mode"]
-    L3 --> L4["/afk:execute - once per subtask"]
+    LEAN --> L1["/afk-toolkit:to-prd"]
+    L1 --> L2["/afk-toolkit:to-ticket"]
+    L2 --> L3["/afk-toolkit:to-subtasks - uncited mode"]
+    L3 --> L4["/afk-toolkit:execute - once per subtask"]
 
     FULL --> F1["grill-requirements, to-prd, to-ticket"]
     F1 --> FP["prototype - optional, iff net-new UI"]
@@ -399,9 +399,9 @@ graph TD
 |---|---|---|
 | When | bug / refactor / tooling / small enhancement | new complex feature, new pattern, multi-module |
 | Design docs | none | SDD + ADRs |
-| UI prototype | none | optional via `/afk:prototype` (iff net-new UI) |
+| UI prototype | none | optional via `/afk-toolkit:prototype` (iff net-new UI) |
 | Slice mode | **uncited** (PRD-only, human-gated) | **cited** (typed `Produces`/`Consumes`, mechanically enforced) |
-| verification gate | usually none | optional via `/afk:grill-verification` → `/afk:to-verification-plan` (UI + API) |
+| verification gate | usually none | optional via `/afk-toolkit:grill-verification` → `/afk-toolkit:to-verification-plan` (UI + API) |
 
 **Mode is set by what's upstream**, not by a flag: PRD **with** an SDD → cited;
 PRD **alone** → uncited.
@@ -415,21 +415,21 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 
 ```text
 {service}/specs/{year}r{release}/{TICKET-ID}/
-├── INDEX.md                   ← /afk:to-prd creates; each skill upserts its row (read this first)
-├── PRD.md                     ← /afk:to-prd        (published to Jira by /afk:to-ticket)
-├── PROTOTYPE.md               ← /afk:prototype     (local; optional; canonical record of the won UI)
-├── prototype/                 ← /afk:prototype     (the chosen self-contained mockup HTML)
-├── SDD.md                     ← /afk:to-sdd        (local only; not published to Jira)
-├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
-├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
-├── DEMO-PLAN.md               ← /afk:to-demo-plan  (local only; the ≤1h beat-by-beat demo script for POs + QA)
+├── INDEX.md                   ← /afk-toolkit:to-prd creates; each skill upserts its row (read this first)
+├── PRD.md                     ← /afk-toolkit:to-prd        (published to Jira by /afk-toolkit:to-ticket)
+├── PROTOTYPE.md               ← /afk-toolkit:prototype     (local; optional; canonical record of the won UI)
+├── prototype/                 ← /afk-toolkit:prototype     (the chosen self-contained mockup HTML)
+├── SDD.md                     ← /afk-toolkit:to-sdd        (local only; not published to Jira)
+├── VERIFICATION-PLAN.md       ← /afk-toolkit:to-verification-plan (local only; UI journeys + API scenarios)
+├── DESIGN-BRIEF.md            ← /afk-toolkit:to-design-brief (local only; default on the full path)
+├── DEMO-PLAN.md               ← /afk-toolkit:to-demo-plan  (local only; the ≤1h beat-by-beat demo script for POs + QA)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
-├── GLOSSARY.md                ← /afk:grill-requirements
-├── understanding/             ← /afk:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
+├── GLOSSARY.md                ← /afk-toolkit:grill-requirements
+├── understanding/             ← /afk-toolkit:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
 ├── adr/
-│   ├── requirements/NNNN-*.md ← /afk:to-prd   (what / why)
-│   └── design/NNNN-*.md       ← /afk:to-sdd   (how)
-└── plan/                      ← /afk:to-subtasks
+│   ├── requirements/NNNN-*.md ← /afk-toolkit:to-prd   (what / why)
+│   └── design/NNNN-*.md       ← /afk-toolkit:to-sdd   (how)
+└── plan/                      ← /afk-toolkit:to-subtasks
     ├── PLAN.md                  (index: solution map, seam register, progress tracker, smoke gate)
     ├── JOURNAL.md               (append-only event log — the "what happened while you were gone" file)
     ├── DECISIONS.md              (append-only decision ledger — two-way doors taken hands-off, per root DECISIONS.md)
@@ -445,19 +445,19 @@ found). Six months later, add `plan/TRACE.md` (which commit satisfied which
 acceptance criterion) and the ADR folders (why it's shaped this way).
 
 **Two ADR tiers, separate subfolders, separate numbering** — requirement ADRs
-(`adr/requirements/`, owned by `/afk:to-prd`) never share numbering with design
-ADRs (`adr/design/`, owned by `/afk:to-sdd`).
+(`adr/requirements/`, owned by `/afk-toolkit:to-prd`) never share numbering with design
+ADRs (`adr/design/`, owned by `/afk-toolkit:to-sdd`).
 
 Two artifacts live at the **service root**, not the per-ticket spec folder,
 because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
-`/afk:glossary`) and `STAPLES.md` (cross-cutting staples registry, stewarded by
-`/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
-`/afk:claude-md` writes it.
+`/afk-toolkit:glossary`) and `STAPLES.md` (cross-cutting staples registry, stewarded by
+`/afk-toolkit:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
+`/afk-toolkit:claude-md` writes it.
 
 One artifact lives in the **main checkout** (shared across every feature
 worktree): `.claude/lessons/LEDGER.jsonl` — the append-only workflow lesson
 ledger (grammar: `skills/afk/lessons/LEDGER-FORMAT.md`), captured into by the
-chain's detection points and stewarded by `/afk:lessons`.
+chain's detection points and stewarded by `/afk-toolkit:lessons`.
 
 What changed in the plugin itself lives in **`CHANGELOG.md`** at the plugin
 root — dated dev-facing one-liners, newest first. Skim it after every pull.
@@ -476,7 +476,7 @@ a copy.
 
 ## 8. The subtask lifecycle
 
-`/afk:execute` runs **one** subtask per invocation. It owns exactly one cell of
+`/afk-toolkit:execute` runs **one** subtask per invocation. It owns exactly one cell of
 the `PLAN.md` progress tracker (the row it's working) — nothing else. The states:
 
 ```mermaid
@@ -496,7 +496,7 @@ stateDiagram-v2
     blocked --> [*]
 
     note right of reviewing
-        /afk:review fans out fresh subagents,
+        /afk-toolkit:review fans out fresh subagents,
         one per concern; the gate loops
         fix-or-dispute rounds (settle loop)
         until nothing actionable remains;
@@ -518,7 +518,7 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `adversary_unrun` | the run ended before the Step 10.5 gate could spawn — tiers green, findings settled, but nothing independent judged the slice | re-run the subtask; it resumes at the gate rather than from the top |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
-| `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk:grill-solution` → superseding ADR |
+| `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk-toolkit:grill-solution` → superseding ADR |
 | `needs_decision` | a decision fork parked per the decision protocol (`DECISIONS.md`) — one-way door or tie, no closer status | read the fork + recommendation in the outcome, answer it, re-run (two-way doors never park — they're auto-taken and listed in `plan/DECISIONS.md`) |
 | `timeout` / `other` | wall-clock cap / unexpected | inspect and re-run |
 
@@ -570,18 +570,18 @@ skill's own `SKILL.md` (+ siblings); nothing here restates them.
 
 ### Mandatory chain
 
-- **`/afk:to-prd`** — synthesize the conversation into `PRD.md` + requirement
+- **`/afk-toolkit:to-prd`** — synthesize the conversation into `PRD.md` + requirement
   ADRs; local only. Details: `skills/afk/to-prd/SKILL.md`.
-- **`/afk:to-ticket`** — publish the finished PRD into the existing Jira parent
+- **`/afk-toolkit:to-ticket`** — publish the finished PRD into the existing Jira parent
   as a requirements-level description; also meeting + spinoff modes. The design
   chain's only Jira writer ([§2 ④](#2-the-mental-model)). Details:
   `skills/afk/to-ticket/SKILL.md`.
-- **`/afk:to-subtasks`** — slice the PRD (+ SDD/ADRs when present) into the
+- **`/afk-toolkit:to-subtasks`** — slice the PRD (+ SDD/ADRs when present) into the
   local `plan/`; no Jira. Details: `skills/afk/to-subtasks/SKILL.md`.
-- **`/afk:execute`** — run one subtask end-to-end (TDD, verification tiers,
+- **`/afk-toolkit:execute`** — run one subtask end-to-end (TDD, verification tiers,
   review + adversary gates, commit/push/Draft MR), then stop at CR/Merge.
   Details: `skills/afk/execute/SKILL.md`.
-- **`/afk:autopilot`** — hands-off driver: walks the plan in dependency order,
+- **`/afk-toolkit:autopilot`** — hands-off driver: walks the plan in dependency order,
   one fresh subagent per subtask, parks failures + dependents, ends at the
   smoke gate. Details: `skills/afk/autopilot/SKILL.md`.
 
@@ -591,75 +591,75 @@ skill's own `SKILL.md` (+ siblings); nothing here restates them.
 patterns / non-trivial transactions or data; skip for small enhancements, bugs,
 refactors, tooling.)*
 
-- **`/afk:grill-requirements`** — interview a raw idea until the requirement
+- **`/afk-toolkit:grill-requirements`** — interview a raw idea until the requirement
   tree is exhausted; maintains `GLOSSARY.md`. Details:
   `skills/afk/grill-requirements/SKILL.md`.
-- **`/afk:prototype`** — interactively craft the feature's UI as drivable HTML
-  anchored to the real frontend; use iff net-new UI, after `/afk:to-prd`.
+- **`/afk-toolkit:prototype`** — interactively craft the feature's UI as drivable HTML
+  anchored to the real frontend; use iff net-new UI, after `/afk-toolkit:to-prd`.
   Details: `skills/afk/prototype/SKILL.md`.
-- **`/afk:grill-solution`** — top-down L1→L9 design interview; human-locked
+- **`/afk-toolkit:grill-solution`** — top-down L1→L9 design interview; human-locked
   aspects signed off by you. Details: `skills/afk/grill-solution/SKILL.md`.
-- **`/afk:to-sdd`** — synthesize the settled design into `SDD.md` + design
+- **`/afk-toolkit:to-sdd`** — synthesize the settled design into `SDD.md` + design
   ADRs; local only, never published to the ticket. Details:
   `skills/afk/to-sdd/SKILL.md`.
-- **`/afk:to-design-brief`** — distill PRD + SDD + ADRs into a 1-2 page
+- **`/afk-toolkit:to-design-brief`** — distill PRD + SDD + ADRs into a 1-2 page
   stakeholder brief; repo-only. Details: `skills/afk/to-design-brief/SKILL.md`.
-- **`/afk:grill-verification`** — interview to design UI journeys + API
+- **`/afk-toolkit:grill-verification`** — interview to design UI journeys + API
   scenarios; run after the PRD (UI), again after the SDD (API). Details:
   `skills/afk/grill-verification/SKILL.md`.
-- **`/afk:to-verification-plan`** — synthesize the settled scenarios into
+- **`/afk-toolkit:to-verification-plan`** — synthesize the settled scenarios into
   `VERIFICATION-PLAN.md`; repo-only. Details:
   `skills/afk/to-verification-plan/SKILL.md`.
 
 ### Feature gates
 
-- **`/afk:smoke-test`** — feature-level completion gate: executes the
+- **`/afk-toolkit:smoke-test`** — feature-level completion gate: executes the
   already-built verification suites against a running app, stamps
   `Feature: complete` on green. Details: `skills/afk/smoke-test/SKILL.md`.
-- **`/afk:preflight`** — feature-level ship gate once smoke is green:
+- **`/afk-toolkit:preflight`** — feature-level ship gate once smoke is green:
   target-branch merge (conflicts resolved in place), final validations +
   integrated review settle, CI babysit, Draft MR → Ready. Details:
   `skills/afk/preflight/SKILL.md`.
 
 ### Tooling
 
-- **`tdd`** — the red-green-refactor doctrine `/afk:execute` implements under;
+- **`tdd`** — the red-green-refactor doctrine `/afk-toolkit:execute` implements under;
   agent-invoked, not in the `/` menu. Details: `skills/afk/tdd/SKILL.md`.
-- **`/afk:review`** — independent multi-concern review gate; read-only, settled
+- **`/afk-toolkit:review`** — independent multi-concern review gate; read-only, settled
   through the multi-round settle loop; also standalone on any slice or
   `--feature`. Details: `skills/afk/review/SKILL.md`.
-- **`/afk:adversary`** — adversarial execution gate: probes the running app
+- **`/afk-toolkit:adversary`** — adversarial execution gate: probes the running app
   from contract + specs alone, blind to the diff. Details:
   `skills/afk/adversary/SKILL.md`.
-- **`/afk:fix`** — orchestrates a bug fix: diagnosis, proportional coverage,
+- **`/afk-toolkit:fix`** — orchestrates a bug fix: diagnosis, proportional coverage,
   escape analysis, spec reconciliation; for verification findings and reported
   bugs. Details: `skills/afk/fix/SKILL.md`.
-- **`/afk:gc`** — post-merge cleanup: deletes the feature's run artifacts +
+- **`/afk-toolkit:gc`** — post-merge cleanup: deletes the feature's run artifacts +
   retires its dev worktree; only after the MR merged. Details:
   `skills/afk/gc/SKILL.md`.
-- **`/afk:retro`** — cross-feature retrospective mining delivered runs' exhaust
+- **`/afk-toolkit:retro`** — cross-feature retrospective mining delivered runs' exhaust
   into evidence-cited plugin-edit proposals. Details:
   `skills/afk/retro/SKILL.md`.
-- **`/afk:lessons`** — steward of the workflow lesson ledger
+- **`/afk-toolkit:lessons`** — steward of the workflow lesson ledger
   (`status`/`apply`/`audit`). Details: `skills/afk/lessons/SKILL.md`.
-- **`/afk:claude-md`** — steward of CLAUDE.md harnesses, `.claude/rules`, and
+- **`/afk-toolkit:claude-md`** — steward of CLAUDE.md harnesses, `.claude/rules`, and
   the per-service `STAPLES.md` registry. Details:
   `skills/afk/claude-md/SKILL.md`.
-- **`/afk:design-system`** — per-service (not per-feature) `claude.ai/design`
+- **`/afk-toolkit:design-system`** — per-service (not per-feature) `claude.ai/design`
   catalog mirroring the live frontend; re-run on token/component drift.
   Details: `skills/afk/design-system/SKILL.md`.
-- **`/afk:mission-control`** — read-only per-feature dashboard: watch a live
+- **`/afk-toolkit:mission-control`** — read-only per-feature dashboard: watch a live
   run, `--once` retroactive render, `build` for design digests. Details:
   `skills/afk/mission-control/SKILL.md`.
-- **`/afk:understand`** — self-contained interactive HTML learning artifact for
+- **`/afk-toolkit:understand`** — self-contained interactive HTML learning artifact for
   a feature, MR, or code area. Details: `skills/afk/understand/SKILL.md`.
-- **`/afk:to-demo-plan`** — beat-by-beat ≤60-min demo script for a delivered
+- **`/afk-toolkit:to-demo-plan`** — beat-by-beat ≤60-min demo script for a delivered
   feature, for POs + QA; repo-only. Details:
   `skills/afk/to-demo-plan/SKILL.md`.
-- **`/afk:setup`** — workflow doctor: probes/fixes external dependencies;
+- **`/afk-toolkit:setup`** — workflow doctor: probes/fixes external dependencies;
   `base` adds the workstation tier, `audit` hunts plugin drift. Details:
   `skills/afk/setup/SKILL.md`.
-- **`/afk:bug`** — mid-task bug capture → Jira Bug → autonomous fixer worktree
+- **`/afk-toolkit:bug`** — mid-task bug capture → Jira Bug → autonomous fixer worktree
   → retest; interactive-only, outside the feature chain. Details:
   `skills/afk/bug/SKILL.md`.
 
@@ -667,26 +667,27 @@ refactors, tooling.)*
 
 General-purpose, under `skills/utils/`, invocable any time in any project.
 
-- **`/afk:caveman`** — ultra-compressed reply mode. Details:
+- **`/afk-toolkit:caveman`** — ultra-compressed reply mode. Details:
   `skills/utils/caveman/SKILL.md`.
-- **`/afk:diagnose`** — disciplined diagnosis loop for hard bugs / perf
+- **`/afk-toolkit:diagnose`** — disciplined diagnosis loop for hard bugs / perf
   regressions. Details: `skills/utils/diagnose/SKILL.md`.
 - **`draw-charts`** — render-safe diagram authoring; agent-invoked. Details:
   `skills/utils/draw-charts/SKILL.md`.
-- **`/afk:glossary`** — domain-vocabulary steward (`GLOSSARY-MAP.md` +
+- **`/afk-toolkit:glossary`** — domain-vocabulary steward (`GLOSSARY-MAP.md` +
   per-service `GLOSSARY.md`). Details: `skills/utils/glossary/SKILL.md`.
-- **`/afk:handoff`** — compact the conversation into a handoff doc for a fresh
+- **`/afk-toolkit:handoff`** — compact the conversation into a handoff doc for a fresh
   agent. Details: `skills/utils/handoff/SKILL.md`.
-- **`/afk:harvest`** — user-invoked whole-session lesson sweep, applied on the
+- **`/afk-toolkit:harvest`** — user-invoked whole-session lesson sweep, applied on the
   spot. Details: `skills/utils/harvest/SKILL.md`.
 - **`interactive-walkthrough`** — HTML walkthrough widget templates;
   agent-invoked. Details: `skills/utils/interactive-walkthrough/SKILL.md`.
-- **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
+- **`/afk-toolkit:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
-- **`/afk:settle-mr`** — settle any GitLab MR through the review loop, the MR
+- **`/afk-toolkit:settle-change`** — settle any forge change request through the review loop, the change
   itself the ledger; for MRs outside the AFK chain. Details:
-  `skills/utils/settle-mr/SKILL.md`.
-- **`/afk:todo`** — per-project todo list that survives sessions. Details:
+  `skills/utils/settle-change/SKILL.md`. `/afk-toolkit:settle-mr` stays as a
+  deprecated alias for one major version and forwards here.
+- **`/afk-toolkit:todo`** — per-project todo list that survives sessions. Details:
   `skills/utils/todo/SKILL.md`.
 - **`writing-for-agents`** — doctrine for writing any document an agent
   consumes (skills, harness markdowns), consulted when creating/auditing them.
@@ -704,14 +705,14 @@ Full map (including SDD-never-published, journal append-only, `plan/review/`
 co-writers): CLAUDE.md "Section ownership invariants". The three you'll meet
 first:
 
-- **Parent ticket description** — `/afk:to-ticket` writes only its AFK-managed
+- **Parent ticket description** — `/afk-toolkit:to-ticket` writes only its AFK-managed
   sentinel block (+ the disjoint Meeting Summaries region); the SDD is never
   published; other prose is the human's.
-- **MR description** — `/afk:execute` maintains only the
+- **MR description** — `/afk-toolkit:execute` maintains only the
   `<!-- afk:subtasks:start -->` / `<!-- afk:subtasks:end -->` block; everything
   outside preserved verbatim.
-- **Local plan (`plan/`)** — `/afk:execute` owns the working row's `Status`
-  cell; `/afk:smoke-test` a disjoint smoke-gate slice of the same `PLAN.md`.
+- **Local plan (`plan/`)** — `/afk-toolkit:execute` owns the working row's `Status`
+  cell; `/afk-toolkit:smoke-test` a disjoint smoke-gate slice of the same `PLAN.md`.
 
 > **Contributor rules.** Same-commit freshness: `FRESHNESS.md` (plugin root).
 > Emitter/parser lockstep on plan contract sections: CLAUDE.md "Lockstep".
@@ -722,17 +723,17 @@ first:
 
 - **Branch names** must match the GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`. The
   `kapteyn/development/{username}/{enh_id_lower}` pattern is load-bearing for
-  `/afk:execute`'s push.
-- **`/afk:execute` is the *only* place the agent commits autonomously.** No other
+  `/afk-toolkit:execute`'s push.
+- **`/afk-toolkit:execute` is the *only* place the agent commits autonomously.** No other
   context auto-commits. No `--no-verify`, no `--force`, no global git config
   changes.
 - **Never alter the DB directly.** Add JPA entities and let liquibase-hibernate7
-  pick them up; no hand-written `UpgradeGroup` / `db/changelog/*`. `/afk:execute`
+  pick them up; no hand-written `UpgradeGroup` / `db/changelog/*`. `/afk-toolkit:execute`
   Step 9 enforces this with a pickup-verification run.
 - **Cross-module edits need a marker comment** — a ticket-prefixed line like
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
   home module.
-- **Re-run `/afk:to-ticket`** after the PRD changes (idempotent; the re-publish
+- **Re-run `/afk-toolkit:to-ticket`** after the PRD changes (idempotent; the re-publish
   posts the requirements delta as a comment). Jira-writer boundary: [§2 ④](#2-the-mental-model).
 
 ---

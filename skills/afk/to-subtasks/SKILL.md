@@ -9,7 +9,7 @@ description: Slices a PRD (+ SDD/ADRs when present) into plan/ — PLAN.md index
 
 Emits a `plan/` directory sibling to the PRD — all on disk, no tracker writes.
 `plan/` is a **run artifact**: it lives from slicing to merge; after the
-feature's MR merges, `/afk:gc` compacts it away (git history is the archive).
+feature's MR merges, `/afk-toolkit:gc` compacts it away (git history is the archive).
 Read `LANGUAGE.md` (plugin root) before emitting — its bar applies to
 everything written here.
 
@@ -23,7 +23,7 @@ everything written here.
     …
 ```
 
-`PLAN.md` = human-facing index (solution map, seams, progress tracker). Per-subtask files = binding contracts `/afk:execute` parses, lockstep with this emitter (see Hard rules).
+`PLAN.md` = human-facing index (solution map, seams, progress tracker). Per-subtask files = binding contracts `/afk-toolkit:execute` parses, lockstep with this emitter (see Hard rules).
 
 ## Two modes, set by what's on disk
 
@@ -47,21 +47,21 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 1. **Read the sources.** Read the PRD (full) and parent ticket description for context (target branch, components). Cited mode also reads `SDD.md` (full) and every `adr/{requirements,design}/NNNN-*.md` (signature depth). The set `(SDD section IDs, §9b seam rows, ADR IDs)` is your **citation pool** — every cited subtask references ≥1 entry. Also check for a sibling `VERIFICATION-PLAN.md`; if present, read it (full) — its `## UI Journeys` and `## API Scenarios` drive the smoke gate + build subtasks (step 3). Delegate this read set + citation-pool build to an `afk-reader` subagent returning the pool with `file#anchor` citations — don't pull full sources into your own context, per `DELEGATION.md` (plugin root).
 
-2. **Refuse-to-slice gate (cited mode).** Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk:grill-solution` + `/afk:to-sdd`:
-   - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, §13 `Blocks executor? = yes` rule, and not-a-blocker exclusions.
+2. **Refuse-to-slice gate (cited mode).** Before slicing, scan the SDD + every ADR and **refuse on any hit** — print offenders, bounce to `/afk-toolkit:grill-solution` + `/afk-toolkit:to-sdd`:
+   - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk-toolkit:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, §13 `Blocks executor? = yes` rule, and not-a-blocker exclusions.
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
 
    Run both scans via `afk-reader` — the same child that built step 1's citation pool, or a second spawned in parallel in the same message — returning pass/fail + cited hits, per `DELEGATION.md` (plugin root).
 
    Uncited mode skips this gate — the human accepted the PRD as sole source of truth.
 
-3. **Slice into subtasks.** A good subtask is independently buildable (no dependency on an unlanded sibling except via `## Blocked by`), bounded by a clear Scope (one or two globs), verifiable on its own, sized for one `/afk:execute` sitting (~1 hour). Cited mode: **slice along SDD §8 module boundaries** — one subtask per module's public interface. Splitting a §8 module means the SDD is too coarse: bounce, don't invent a split contradicting §8. Aim for 4–10 subtasks; >10 means the PRD is too big or the slice too fine.
+3. **Slice into subtasks.** A good subtask is independently buildable (no dependency on an unlanded sibling except via `## Blocked by`), bounded by a clear Scope (one or two globs), verifiable on its own, sized for one `/afk-toolkit:execute` sitting (~1 hour). Cited mode: **slice along SDD §8 module boundaries** — one subtask per module's public interface. Splitting a §8 module means the SDD is too coarse: bounce, don't invent a split contradicting §8. Aim for 4–10 subtasks; >10 means the PRD is too big or the slice too fine.
 
-   **Detect the verification plan.** If a `VERIFICATION-PLAN.md` sits next to the PRD (from `/afk:grill-verification` → `/afk:to-verification-plan`), **automatically** append a **terminal** build subtask **per modality the plan carries** — `NNNN-smoke-e2e` for `## UI Journeys`, `NNNN-smoke-api` for `## API Scenarios` (omit when that section is the "deferred" placeholder) — each `## Blocked by` **every** other subtask, per the templates in [SMOKE-GATE.md](SMOKE-GATE.md). Specs land as reviewed `/afk:execute` work; the integrated gate that *runs* them is `/afk:smoke-test`, after these subtasks are `done` (not part of this skill). No `VERIFICATION-PLAN.md` → no build subtasks, but the plan still gets the **minimal** gate section per [SMOKE-GATE.md](SMOKE-GATE.md) — a plan never ships gate-less.
+   **Detect the verification plan.** If a `VERIFICATION-PLAN.md` sits next to the PRD (from `/afk-toolkit:grill-verification` → `/afk-toolkit:to-verification-plan`), **automatically** append a **terminal** build subtask **per modality the plan carries** — `NNNN-smoke-e2e` for `## UI Journeys`, `NNNN-smoke-api` for `## API Scenarios` (omit when that section is the "deferred" placeholder) — each `## Blocked by` **every** other subtask, per the templates in [SMOKE-GATE.md](SMOKE-GATE.md). Specs land as reviewed `/afk-toolkit:execute` work; the integrated gate that *runs* them is `/afk-toolkit:smoke-test`, after these subtasks are `done` (not part of this skill). No `VERIFICATION-PLAN.md` → no build subtasks, but the plan still gets the **minimal** gate section per [SMOKE-GATE.md](SMOKE-GATE.md) — a plan never ships gate-less.
 
    **Carry the accepted staples.** Each staple the PRD accepted (traceable to `{service}/STAPLES.md`) is an obligation, not a suggestion — turn it into Acceptance bullets on the owning subtask, and cited mode a `## Seams` row wherever the SDD named one (the staple's registry **Reference** is the exemplar to copy). A PRD-accepted staple appearing in no subtask is a slice gap — fix the slice, don't drop it.
 
-   **Always seed the harness-sync subtask.** For every feature, append a single terminal `NNNN-sync-harness` documentation subtask, `## Blocked by` **every** other subtask, per [HARNESS-SYNC.md](HARNESS-SYNC.md). It keeps the CLAUDE.md harness current so the next agent discovers the shipped feature, and makes the **final** staples-registry call (register a candidate new staple / advance an existing staple's Reference to this feature); delegates the write to `/afk:claude-md`. Emit unconditionally — not gated on any artifact.
+   **Always seed the harness-sync subtask.** For every feature, append a single terminal `NNNN-sync-harness` documentation subtask, `## Blocked by` **every** other subtask, per [HARNESS-SYNC.md](HARNESS-SYNC.md). It keeps the CLAUDE.md harness current so the next agent discovers the shipped feature, and makes the **final** staples-registry call (register a candidate new staple / advance an existing staple's Reference to this feature); delegates the write to `/afk-toolkit:claude-md`. Emit unconditionally — not gated on any artifact.
 
 3.5. **Materialize seams (cited mode, only when `materialize_seams=true`).** A grep-anchor is a *proxy* for a contract; the compiler is the real check. For every SDD §8/§9b seam whose home is a **new Java type** (not an edit to an existing file):
    - Write the **stub**: the interface/skeleton at the SDD §7/§8-declared package with the §8 signatures verbatim, body-less, carrying a `// {TICKET-ID}: seam stub — implemented by {NNNN-slug}` marker comment.
@@ -72,7 +72,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 4. **Write each subtask file** `plan/NNNN-{slug}.md` in rank order, using the contract below. `NNNN` = zero-padded rank; `{slug}` = short kebab title. The subtask's **id** is `NNNN-{slug}` — what `## Blocked by`, `## Consumes`, and the tracker reference (no Jira keys anywhere). Fill `## Context excerpts` now, while the sources are open, per the contract's field rules ([SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md)) — a missing load-bearing excerpt costs the executor a full parent-doc re-read. Emit a `## Review` section only where a lean-deferred concern is much cheaper caught at this slice than at the feature gate (e.g. a slice whose pattern the following slices will imitate); the plan-level policy covers everything else.
 
-5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`, and the header `Review policy: lean` (the default — the human flips it to `full` at plan review when every slice warrants the full roster; semantics: `skills/afk/review/SKILL.md` "Gate policy"). `/afk:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
+5. **Write `PLAN.md`** (the index) using the PLAN template below: solution map, seam register (cited), progress tracker seeded with every subtask at status `pending`, and the header `Review policy: lean` (the default — the human flips it to `full` at plan review when every slice warrants the full roster; semantics: `skills/afk/review/SKILL.md` "Gate policy"). `/afk-toolkit:execute` owns the tracker's status column from here on. Also seed `plan/JOURNAL.md` — the append-only event log the execution skills write to — with exactly this header line (lockstep copy — owned by [JOURNAL-FORMAT.md](JOURNAL-FORMAT.md)): `# Journal — append-only event log (format: skills/afk/to-subtasks/JOURNAL-FORMAT.md). Newest last.`
 
 6. **Validate the slice** (see "Validation"): the validator script to a clean exit plus the judgment checks — all must pass before the plan is emitted.
 
@@ -82,7 +82,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 ## Subtask contract (`plan/NNNN-{slug}.md`)
 
-Write each subtask file using the contract template in [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md) — `/afk:execute` parses its section headings exactly; keep them verbatim.
+Write each subtask file using the contract template in [SUBTASK-CONTRACT.md](SUBTASK-CONTRACT.md) — `/afk-toolkit:execute` parses its section headings exactly; keep them verbatim.
 
 ### Choosing verification tiers
 
@@ -108,7 +108,7 @@ Seed the gate per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3. A `V
 
 ### Harness sync (always)
 
-Every plan ends with a terminal `NNNN-sync-harness` documentation subtask that syncs the CLAUDE.md harness for the shipped feature (delegating the write to `/afk:claude-md`), `## Blocked by` every other subtask. Emit for every feature. See [HARNESS-SYNC.md](HARNESS-SYNC.md).
+Every plan ends with a terminal `NNNN-sync-harness` documentation subtask that syncs the CLAUDE.md harness for the shipped feature (delegating the write to `/afk-toolkit:claude-md`), `## Blocked by` every other subtask. Emit for every feature. See [HARNESS-SYNC.md](HARNESS-SYNC.md).
 
 ## PLAN.md (the index)
 
@@ -120,30 +120,30 @@ Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scri
 
 ## Hard rules
 
-- **No tracker writes.** This skill only writes files under `plan/` — one opt-in exception: `materialize_seams=true` also writes seam stubs + contract tests into the service modules (Process step 3.5). Creates no Jira issue, sets no label, opens no branch, **never commits** — materialized files land in the working tree for the human to review and commit with the plan (`/afk:execute` stays the only auto-commit lane).
-- **The plan round-trips.** `/afk:execute` parses these exact section headings; add/rename/reorder a section → update the `/afk:execute` parser in the same commit (lockstep).
+- **No tracker writes.** This skill only writes files under `plan/` — one opt-in exception: `materialize_seams=true` also writes seam stubs + contract tests into the service modules (Process step 3.5). Creates no Jira issue, sets no label, opens no branch, **never commits** — materialized files land in the working tree for the human to review and commit with the plan (`/afk-toolkit:execute` stays the only auto-commit lane).
+- **The plan round-trips.** `/afk-toolkit:execute` parses these exact section headings; add/rename/reorder a section → update the `/afk-toolkit:execute` parser in the same commit (lockstep).
 - **Don't fabricate Acceptance.** Every bullet traces to the PRD or (cited) the SDD/an ADR; cited bullets carry a resolving citation tag (validation (c)).
-- **Don't invent a public interface.** Cited interfaces come from SDD §8 verbatim; a missing one is a design gap → bounce to `/afk:grill-solution`.
+- **Don't invent a public interface.** Cited interfaces come from SDD §8 verbatim; a missing one is a design gap → bounce to `/afk-toolkit:grill-solution`.
 - **Verification is part of the plan, not an afterthought.** Every subtask declares the tiers it needs and the exact commands; `static` is mandatory, and the highest tier the change demands (up to e2e/browser) must be present.
 - **Seam-implementing subtasks carry the seam-test** as a Verification row asserting on the framework's real output, not our DTO.
 - **JPA-entity subtasks verify liquibase-hibernate7 pickup** (core-services Java only): a `## Produces` `.java` file with `@Entity` / `@MappedSuperclass` / `@Embeddable` must list an integration-tier row running the documented pickup check (`mvn -pl {module} compile liquibase:diff …` then grep the diff for the entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own the design needs no SDD.
-- **The smoke gate's shape is artifact-driven; its presence is not optional.** A `VERIFICATION-PLAN.md` drives the full gate (never half-emit — Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule; never invent scenarios without the plan); its absence drives the minimal gate. This skill only seeds + slices; running the gate is `/afk:smoke-test`'s job.
-- **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk:claude-md`; this skill only seeds it. Never omit.
+- **The smoke gate's shape is artifact-driven; its presence is not optional.** A `VERIFICATION-PLAN.md` drives the full gate (never half-emit — Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule; never invent scenarios without the plan); its absence drives the minimal gate. This skill only seeds + slices; running the gate is `/afk-toolkit:smoke-test`'s job.
+- **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk-toolkit:claude-md`; this skill only seeds it. Never omit.
 
 ## Design-doc optionality
 
 Not every ticket warrants an SDD; the human decides. New complex feature (≥2 modules / new pattern / non-trivial txn or data) → SDD **required**, refuse to slice cited-less unless `skip_design_docs=true`. Small enhancement / bug fix / refactor / tooling → uncited is fine. When no `SDD.md` is on disk and `skip_design_docs` is unset, **ask** before proceeding:
 
 > *No SDD found at `{path}`. Slice from the PRD alone (uncited), or pause and run
-> `/afk:grill-solution` + `/afk:to-sdd` first?*
+> `/afk-toolkit:grill-solution` + `/afk-toolkit:to-sdd` first?*
 
 Record the human's choice in the output so it's auditable.
 
 ## Next
 
-The plan is on disk. Review `PLAN.md` — especially the seam register and any seam-touching subtasks. Then work the subtasks one at a time, in rank order (respecting `## Blocked by`): in a session on the parent branch, run **`/afk:execute {NNNN-slug}`** for each. Each run advances that subtask's tracker status, drives it through design → develop → verify (every declared tier green), commits, pushes, updates the Draft MR — then stops at CR/Merge for you.
+The plan is on disk. Review `PLAN.md` — especially the seam register and any seam-touching subtasks. Then work the subtasks one at a time, in rank order (respecting `## Blocked by`): in a session on the parent branch, run **`/afk-toolkit:execute {NNNN-slug}`** for each. Each run advances that subtask's tracker status, drives it through design → develop → verify (every declared tier green), commits, pushes, updates the Draft MR — then stops at CR/Merge for you.
 
-If a `VERIFICATION-PLAN.md` drove a `## Feature smoke gate`, the terminal build subtasks author their specs last (each blocked by everything). Once **every** subtask is `done`, run **`/afk:smoke-test`** as the feature-completion gate: it runs the integrated scenarios against a running app and, only on green, stamps `Feature: complete` in PLAN.md. That suite then serves CI / scheduled / manual sanity runs.
+If a `VERIFICATION-PLAN.md` drove a `## Feature smoke gate`, the terminal build subtasks author their specs last (each blocked by everything). Once **every** subtask is `done`, run **`/afk-toolkit:smoke-test`** as the feature-completion gate: it runs the integrated scenarios against a running app and, only on green, stamps `Feature: complete` in PLAN.md. That suite then serves CI / scheduled / manual sanity runs.
 
 The plan's dead-last subtask is always `NNNN-sync-harness`: run it after the feature lands to sync the CLAUDE.md harness so the next agent discovers the feature.

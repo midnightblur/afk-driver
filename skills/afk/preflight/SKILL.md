@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk:preflight {plan-dir} on a parked feature.
+description: Feature-level ship gate ending with the Draft MR flipped Ready. Use chained after a green smoke gate, or to resume /afk-toolkit:preflight {plan-dir} on a parked feature.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -10,11 +10,11 @@ description: Feature-level ship gate ending with the Draft MR flipped Ready. Use
 Runs once per feature, after every subtask is `done` **and** the feature
 smoke gate is green. Definition: `GLOSSARY.md` (plugin root) — "Preflight" /
 "CI-babysit". Invoked automatically once the smoke gate goes green, or run by
-hand (`/afk:preflight {plan-dir}`) to resume a parked feature. Brings the
+hand (`/afk-toolkit:preflight {plan-dir}`) to resume a parked feature. Brings the
 branch up to date, gets the whole feature independently reviewed and
 seam-checked, records ship evidence, babysits CI until the Draft MR can flip to
 Ready — then **stops**. Never merges the MR (CR/Merge stays the human's, same
-boundary `/afk:execute` and `/afk:smoke-test` honor).
+boundary `/afk-toolkit:execute` and `/afk-toolkit:smoke-test` honor).
 
 ## Argument
 
@@ -57,7 +57,7 @@ root), leave the MR Draft, leave every not-yet-reached row untouched.
 1. Resolve the merge source `{target}`: the MR's target branch
    (`glab mr view` → target branch; `origin/master` when no MR resolves).
    `git fetch origin {target}` first. Later PF steps reading a base
-   (`/afk:review --feature`'s `--base`) use this same `{target}`.
+   (`/afk-toolkit:review --feature`'s `--base`) use this same `{target}`.
 2. Record current `HEAD` (`git rev-parse HEAD`).
 3. `git merge origin/{target}` — **never** `rebase`, **never** `--force` push
    (Hard rules below; binding requirement, not style).
@@ -84,7 +84,7 @@ malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
 **PF-3 — fresh-context review (settle loop).** Gate the merged tip through the
 review settle loop (`skills/afk/review/SETTLEMENT.md`; this ladder's session is
-the referee). Per round, run **`/afk:review --feature --tag r{n}`** (add
+the referee). Per round, run **`/afk-toolkit:review --feature --tag r{n}`** (add
 `--base origin/{target}` when PF-1's merge source isn't `origin/master`) — the
 integrated feature diff as a whole (every subtask's changes together, not one
 slice), reviewed by fresh contexts that haven't seen the implementation's own
@@ -95,9 +95,9 @@ finding whose latest outcome across its slice's
 `plan/review/{NNNN-slug}-*.outcomes.json` rounds is `deferred`, resolved
 against its findings file, joins the actionable set unless the merged tip
 already fixed it. Every actionable finding — `medium`/`low` included — is fixed or
-disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
+disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk-toolkit:fix`;
 `compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
-`product-debt` never gates but owes a `## Known debt` home (`/afk:review`
+`product-debt` never gates but owes a `## Known debt` home (`/afk-toolkit:review`
 "Product-debt homes"), which PF-4d then enforces; `scope` is unreachable — the
 `--feature` roster carries no scope concern.
 Round-close cheap re-verification (SETTLEMENT.md step 7) is a reactor compile
@@ -119,15 +119,15 @@ SETTLEMENT.md step 7 defines
 (`plan/review/feature-{base-short}-r{n}.outcomes.json`) — the caller-side half
 of the review telemetry.
 
-**PF-4 — seam check.** Run `/afk:verify-seams final` over the whole feature —
+**PF-4 — seam check.** Run `/afk-toolkit:verify-seams final` over the whole feature —
 the orphan hunt classifying every produced artifact wired / weak / orphan,
 blocking on open IOUs in final mode. `wired`/`weak` → proceed. An orphan or a
 final-mode-blocking open IOU → remediate by class like a review finding
-(`correctness`/`spec` → `/afk:fix`, else inline) within the shared cap, else
+(`correctness`/`spec` → `/afk-toolkit:fix`, else inline) within the shared cap, else
 `park(PF-4: orphan_artifact)`.
 
 **PF-4b understanding — advisory artifact generation (never parks).** Reached
-only once PF-4 is `green`. Invoke **`/afk:understand {plan-dir}`** in auto mode
+only once PF-4 is `green`. Invoke **`/afk-toolkit:understand {plan-dir}`** in auto mode
 (its own defaults — `skills/afk/understand/SKILL.md` M-1); it synthesizes the
 feature's diff, journal, and review records into the checked-in understanding
 artifact and rides this ladder's existing commit/push authorization for its one
@@ -156,7 +156,7 @@ checkout"); set the row `green` with
 This is how workflow-lesson drafts captured during hands-off runs reach the
 human at the ship gate: `<n> > 0` changes nothing mechanically — the count
 rides the PF table into the report and MR evidence block; applying the drafts
-is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
+is `/afk-toolkit:lessons apply`, never this ladder's job. Advisory like PF-4b.
 
 **PF-4d product-debt homes — a real gate, not advisory.** Reached once
 PF-4c is `green`. Read every `plan/review/*.outcomes.json` for entries
@@ -167,13 +167,13 @@ exists and carries a `## Known debt` entry for it.
 - All homed (or none found) → row `green`, `Evidence: product-debt
   homed: <n>`.
 - Any accepted `product-debt` finding with no home → land the entry via
-  `/afk:claude-md` within the shared fix cap, then re-check; cap
+  `/afk-toolkit:claude-md` within the shared fix cap, then re-check; cap
   exhausted → `park(PF-4d: unhomed_product_debt)` naming each one.
 
 **PF-5 — ship evidence.**
 1. Render the mission-control end-state snapshot: invoke the renderer CLI in
    `--once` mode against this feature's spec folder (fronted by
-   `/afk:mission-control {spec-folder} --once` — see that skill; it writes
+   `/afk-toolkit:mission-control {spec-folder} --once` — see that skill; it writes
    `{spec-folder}/plan/mission-control/index.html`, gitignored per
    `skills/afk/mission-control` doctrine).
 2. Copy that rendered file to a **tracked** path outside the gitignored
@@ -182,7 +182,7 @@ exists and carries a `## Known debt` entry for it.
    (never re-derived afterward; nothing reads it back).
 3. Update the MR's **own** evidence marker block —
    `<!-- afk:preflight-evidence:start -->` … `<!-- afk:preflight-evidence:end
-   -->` — via `glab`, sibling to `/afk:execute`'s pre-existing
+   -->` — via `glab`, sibling to `/afk-toolkit:execute`'s pre-existing
    `<!-- afk:subtasks:start/end -->` checklist block. **Replace only this
    block**; every other byte of the description — including the sibling block —
    round-trips verbatim (§9b two-writer invariant: each writer owns exactly one
@@ -248,7 +248,7 @@ settle loop keeps its own round accounting
 - **The `## Preflight` table is this skill's alone to write.** Everything else
   in `PLAN.md` (progress tracker, smoke gate) round-trips verbatim.
 - **The evidence marker block is this skill's alone to write.** Every other
-  byte of the MR description — including `/afk:execute`'s checklist block — is
+  byte of the MR description — including `/afk-toolkit:execute`'s checklist block — is
   preserved verbatim.
 - **No `--no-verify`, no global git config changes** (repo-wide hard rule,
   inherited here without exception).
@@ -263,7 +263,7 @@ Journal: {plan-dir}/JOURNAL.md
 
 | Status | Meaning |
 |---|---|
-| `success` | Every PF row green (advisory rows may be `advisory-failed`); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
+| `success` | Every PF row green (advisory rows may be `advisory-failed`); MR flipped Ready; ship snapshot committed. The human still merges out of band; after the merge, `/afk-toolkit:gc {spec-folder}` compacts the run artifacts and retires the feature's worktree. |
 | `refused(no_green_smoke)` | The Step-0 guard fired; quote the actual `Feature:` header line. Nothing was written. |
 | `parked(PF-{n}: {reason})` | A PF step could not proceed (see each step's routing above); the MR stays Draft. Re-run this skill once the human resolves `{reason}`. |
 | `other` | Unexpected failure — name it; leave the table as-is for the next resume. |
@@ -271,7 +271,7 @@ Journal: {plan-dir}/JOURNAL.md
 ## Boundary
 
 - **Feature-level only.** Chained once per feature after smoke-green, or run by
-  hand — never per-subtask; `/afk:execute`'s own per-subtask tail (tiers →
+  hand — never per-subtask; `/afk-toolkit:execute`'s own per-subtask tail (tiers →
   review → adversary → commit → push → Draft-MR checklist) is untouched.
 - **Never merges the MR.** Flips Draft → Ready on green and stops; CR/Merge is
   the human's call, same as every other AFK skill.

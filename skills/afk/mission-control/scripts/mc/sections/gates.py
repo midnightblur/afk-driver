@@ -3,7 +3,7 @@
 Sources: plan/PLAN.md `## Feature smoke gate` (both variants; shape owned by
 skills/afk/to-subtasks/PLAN-TEMPLATE.md + SMOKE-GATE.md), `## Preflight`
 (lockstep copy: column shape `# | Step | Status | Cycle | Evidence` owned
-jointly with /afk:preflight — the PLAN-TEMPLATE notes this parser by path),
+jointly with /afk-toolkit:preflight — the PLAN-TEMPLATE notes this parser by path),
 plan/review/INDEX.md (skills/afk/review/SKILL.md), and
 plan/review/*-adversary.md verdict lines.
 """

@@ -2,11 +2,11 @@
 # Branch-name gate (ships with the afk plugin) — a GIT `reference-transaction`
 # hook, NOT a Claude Code Stop hook (those live in hooks.json). Opt-in per clone:
 #   bash tools/payable/ai-agents/plugins/workflow/hooks/install-git-hooks.sh
-# (or `/afk:setup`, register entry H5). Uninstall by removing the installed hook.
+# (or `/afk-toolkit:setup`, register entry H5). Uninstall by removing the installed hook.
 #
 # Blocks creating a NEW local branch whose name doesn't match the AFK convention:
 #   kapteyn/development/<username>/<slug>
-# which is the pattern `/afk:execute`'s push depends on (workflow/CLAUDE.md).
+# which is the pattern `/afk-toolkit:execute`'s push depends on (workflow/CLAUDE.md).
 #
 # Deliberately narrow — ONLY new-branch creation is gated. Everything else is
 # left alone, so day-to-day git is never in the way:

@@ -36,7 +36,7 @@ This SDD and its accepted ADRs are **binding** on implementing agents and review
 | Internal naming, control flow | ❌ | ✅ |
 | Test fixture structure | ❌ | ✅ |
 
-**Conflict procedure.** Executor finds a binding decision wrong / infeasible / contradicting reality → classify per the decision protocol (`DECISIONS.md`, workflow plugin root): a two-way-door correction is recorded in `plan/DECISIONS.md` and implemented; a one-way door or a tie exits the subtask with `design_conflict` status quoting the SDD section + the conflict, routed back to `/afk:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Never override off the record.
+**Conflict procedure.** Executor finds a binding decision wrong / infeasible / contradicting reality → classify per the decision protocol (`DECISIONS.md`, workflow plugin root): a two-way-door correction is recorded in `plan/DECISIONS.md` and implemented; a one-way door or a tie exits the subtask with `design_conflict` status quoting the SDD section + the conflict, routed back to `/afk-toolkit:grill-solution` for a new ADR (Status: Accepted, Supersedes: NNNN). Never override off the record.
 
 **Human sign-off register.** One row per human-locked aspect (the set, its contract grades, and the signing protocol: `skills/afk/grill-solution/HUMAN-SIGNOFF.md`), transcribed from the solution grill's log — never re-derived, never inferred. These aspects were decided by a human, not by the design conversation; the row is the proof.
 
@@ -70,7 +70,7 @@ Which service owns what. Where the seam falls. Integration style. Versioning pos
 2. `sequenceDiagram` — one per non-trivial cross-service interaction.
 3. **API contract table** — one row per surface this feature adds or changes, at HL-2 contract grade (`skills/afk/grill-solution/HUMAN-SIGNOFF.md`): method + path, auth + permitted roles (the below-the-UI guard, cross-referenced to its §9b seam), request fields with their validation, success envelope, each error envelope with its code and trigger, paging/filtering/sorting, idempotency posture, version, and — where the surface already exists — the verdict on existing callers (compatible / breaking). A **signed-off aspect**: this table and the §0 register describe the same design, or neither is publishable. Where a canonical schema artifact exists (OpenAPI / proto), cite its path for the field-by-field shape rather than inlining what will rot; where none exists, the fields belong here — an executor must not be left to invent the contract a human signed.
 
-   This table is also the **source `/afk:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: the **success envelope AND the real edge envelopes** the backend returns (a missing entity may be an empty-success envelope rather than 404, a denial a coded 403 — envelope conventions: `11700-payable/verification/api/AUTHORING.md`). A row too vague to state its envelope is a §13 gap, not a publishable contract.
+   This table is also the **source `/afk-toolkit:grill-verification` reads to design the API verification scenarios** (direct-REST checks for API/MCP callers), so each row must be concrete enough to assert against: the **success envelope AND the real edge envelopes** the backend returns (a missing entity may be an empty-success envelope rather than 404, a denial a coded 403 — envelope conventions: `11700-payable/verification/api/AUTHORING.md`). A row too vague to state its envelope is a §13 gap, not a publishable contract.
 
 ## §4 L3 — Data Architecture
 
@@ -84,7 +84,7 @@ For each piece of state.
    |-------|-----------|--------------|-------------|-----------|--------------------------|------|-------------------|
 
    A new entity marked **Audited? = yes** makes the audit-trail
-   verification aspect mandatory in `/afk:grill-verification`.
+   verification aspect mandatory in `/afk-toolkit:grill-verification`.
 
 2. **Entity design** — for every entity this feature persists or alters, at HL-1 contract grade (`skills/afk/grill-solution/HUMAN-SIGNOFF.md`). A **signed-off aspect**: what the §0 register signed is what stands here.
 
@@ -110,7 +110,7 @@ For each piece of state.
 | Concern | Required visual |
 |---------|-----------------|
 | AuthN flow | `sequenceDiagram` showing token issuance + propagation |
-| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b and the both-sides doctrine in `skills/afk/grill-solution/EXTERNAL-SEAM-RULE.md` check 3)**. This table is what `/afk:grill-verification` reads to design the role-based aspect rows. |
+| AuthZ rules | table — surface × **permitted roles** × **denied roles** × **enforcement point (UI route/menu guard AND backend guard — both, cf. §9b and the both-sides doctrine in `skills/afk/grill-solution/EXTERNAL-SEAM-RULE.md` check 3)**. This table is what `/afk-toolkit:grill-verification` reads to design the role-based aspect rows. |
 | Data-scoping | table — scoped entity × scope (company / vendor — never tenant) × enforcement mechanism (e.g. AOP aspect + projection filter; company always-on vs vendor toggle) |
 | Idempotency | table — surface, key shape, dedup window, side-effect ledger |
 | Retry + timeout | table — call, attempts, backoff (numbers), timeout (ms) |
@@ -163,7 +163,7 @@ For each top use case from the PRD.
 ## §9b External Seams & Failure Affordance
 
 The seams where our code meets things we don't control — synthesized from
-the External-seam rule's four checks in `/afk:grill-solution`. Capture, in
+the External-seam rule's four checks in `/afk-toolkit:grill-solution`. Capture, in
 whatever table shape fits: each framework boundary (what it does to our
 value at the pinned version + the **seam-test** asserting on its real
 output), each field contract's canonical source of truth, each relied-on
@@ -175,7 +175,7 @@ say so in one line rather than deleting the section.
 **Required visual:** a table covering the seams present. The framework
 rows' **seam-test** entry is mandatory — a test on the framework's real
 output (serialized result / generated schema / surfaced error), not our
-objects; that name is what `/afk:to-subtasks` cites in `## Acceptance`. E.g.:
+objects; that name is what `/afk-toolkit:to-subtasks` cites in `## Acceptance`. E.g.:
 
 | Boundary | Framework @ pin | What it does to our value | Failure surface | Seam-test |
 |----------|-----------------|---------------------------|-----------------|-----------|
@@ -212,7 +212,7 @@ Bullet list. Cite PRD's Out of Scope and add design-level exclusions.
 | Question | Layer (L1-L9) | Blocks executor? | Owner | Target resolve date |
 |----------|---------------|------------------|-------|---------------------|
 
-If any row has `Blocks executor? = yes` in L2-L7 or L9, the design is NOT publishable — bounce back to `/afk:grill-solution`. L1 / L8 open questions may pass if scoped.
+If any row has `Blocks executor? = yes` in L2-L7 or L9, the design is NOT publishable — bounce back to `/afk-toolkit:grill-solution`. L1 / L8 open questions may pass if scoped.
 
 ## §14 L9 — Implementation Seams & Change Impact
 

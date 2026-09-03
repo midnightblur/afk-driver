@@ -67,7 +67,7 @@ Each criterion must:
 
 ## Access & validation policy
 
-The requirement-level access boundary, per capability/User Story so it is *stated* not assumed (the gap that ships a backend blocking a role while the UI lets it in). `/afk:grill-verification` reads this to design **role-based**, **data-scoped**, and **validation** aspects — every row must be concrete enough to become a denial/scoping scenario.
+The requirement-level access boundary, per capability/User Story so it is *stated* not assumed (the gap that ships a backend blocking a role while the UI lets it in). `/afk-toolkit:grill-verification` reads this to design **role-based**, **data-scoped**, and **validation** aspects — every row must be concrete enough to become a denial/scoping scenario.
 
 | Capability / User Story | Permitted role(s) | Denied role(s) | Data scope (entity → company/vendor, or "unscoped") | Key validation rules |
 |-------------------------|-------------------|----------------|------------------------------------------------------|----------------------|
