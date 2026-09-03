@@ -470,10 +470,16 @@ def _op_get(p):
 
 
 def _op_search(p):
+    # `fields` is a comma string on tracker_get and a list here, so accept both
+    # in both places: one adapter must not ask a caller to remember which verb
+    # takes which shape. A comma string reaches /search/jql as a 400 otherwise.
+    fields = p.get("fields") or SEARCH_FIELDS
+    if isinstance(fields, str):
+        fields = [f.strip() for f in fields.split(",") if f.strip()]
     return _json("POST", "/rest/api/3/search/jql", body={
         "jql": p["query"],
         "maxResults": int(p.get("max_results") or 50),
-        "fields": p.get("fields") or SEARCH_FIELDS,
+        "fields": fields,
     })
 
 

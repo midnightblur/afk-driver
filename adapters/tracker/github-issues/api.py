@@ -139,24 +139,44 @@ def _op_transitions(p):
     """The states this repository declared, as transitions. The id is the state
     name; there is no workflow engine underneath to give ids of its own."""
     labels = state_labels()
-    if not labels:
-        return {"unsupported": True, "operation": "tracker_transitions",
-                "reason": "tracker: github-issues — no `github-issues.state-labels` "
-                          "in .afk/config.yaml, so this repository has no states"}
     current = _op_get({"ticket_key": p["ticket_key"], "fields": "labels,state"})
-    held = {l.get("name") for l in (current.get("labels") or [])} if isinstance(current, dict) else set()
-    return {"transitions": [
+    current = current if isinstance(current, dict) else {}
+    held = {l.get("name") for l in (current.get("labels") or [])}
+    state = str(current.get("state") or "").lower()
+    # GitHub's own two states are always available; `state-labels` only adds the
+    # repository's workflow states on top of them.
+    transitions = [
+        {"id": "open", "name": "open", "native": True, "current": state == "open"},
+        {"id": "closed", "name": "closed", "native": True, "current": state == "closed"},
+    ]
+    transitions += [
         {"id": name, "name": name, "label": label, "current": label in held}
-        for name, label in labels.items()]}
+        for name, label in labels.items()]
+    answer = {"transitions": transitions}
+    if not labels:
+        answer["reason"] = ("tracker: github-issues — no `github-issues.state-labels` "
+                            "in .afk/config.yaml, so `open` and `closed` are the only states")
+    return answer
 
 
 def _op_transition(p):
     labels = state_labels()
     target = p["transition_id"]
+    # `open` and `closed` are GitHub's own issue states, not workflow labels, so
+    # they work whether or not the repository configured `state-labels`. An
+    # issue that cannot be closed is an issue nothing can finish.
+    if target in ("closed", "close", "open", "reopen"):
+        verb = "close" if target in ("closed", "close") else "reopen"
+        answer = _gh("issue", verb, _number(p["ticket_key"]), *_repo_args())
+        if isinstance(answer, dict) and (answer.get("error") or answer.get("unavailable")):
+            return answer
+        return {"ok": True, "ticket_key": _number(p["ticket_key"]),
+                "state": "closed" if verb == "close" else "open"}
     if target not in labels:
         return {"error": True, "reason":
                 f"tracker: github-issues — no state `{target}` in "
-                f"`github-issues.state-labels` (have: {', '.join(labels) or 'none'})"}
+                f"`github-issues.state-labels` (have: {', '.join(labels) or 'none'}); "
+                f"`open` and `closed` always work"}
     number = _number(p["ticket_key"])
     args = ["issue", "edit", number, *_repo_args(), "--add-label", labels[target]]
     # Exactly one state label at a time: leaving the previous one on makes the
@@ -220,6 +240,21 @@ def _op_edit(p):
     unknown = set(fields) - {"title", "body", "milestone", "labels",
                              "remove_labels", "assignees"}
     answer = _gh(*args)
+    # A GitHub label has to exist in the repository before it can be applied,
+    # and gh reports that as a bare "'<label>' not found". Say which label and
+    # why, rather than passing the tool's stderr through; creating the label
+    # here would change the repository's settings on a caller's behalf.
+    if isinstance(answer, dict) and answer.get("error"):
+        body = str(answer.get("body") or "")
+        for label in (fields.get("labels") or []) + (fields.get("remove_labels") or []):
+            if f"'{label}' not found" in body:
+                answer = dict(answer)
+                answer["operation"] = "tracker_edit"
+                answer["reason"] = (
+                    f"label `{label}` does not exist in {repo()} - GitHub labels "
+                    f"must be created in the repository before an issue can carry "
+                    f"one; nothing was written")
+                break
     if unknown and isinstance(answer, dict):
         answer = dict(answer)
         answer["ignored_fields"] = sorted(unknown)

@@ -38,6 +38,111 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 - `diagnose` is missing from the model-visible skill listing on the first harness although its frontmatter carries no hiding flag. Pre-dates the native migration; open as its own follow-up.
 
 
+## Adapter proofs (round 5, 2026-09-03)
+
+Round 5 is the first round run against a **release candidate installed from a
+marketplace**, not against a working tree, and the first that exercises every
+adapter kind against its real service. Both harnesses used isolated homes
+(`CLAUDE_CONFIG_DIR` and `CODEX_HOME` under a scratch directory), so the
+owner's own installs were untouched throughout.
+
+| Field | Claude Code | Codex CLI |
+|---|---|---|
+| Date | 2026-09-03 | 2026-09-03 |
+| Source | local directory marketplace on the candidate tree (`claude plugin marketplace add` has no `--ref`) | `codex plugin marketplace add midnightblur/afk-driver --ref rc/1.0.0` |
+| Install | `claude plugin install afk-toolkit@afk-toolkit --scope user -y` | `codex plugin add afk-toolkit@afk-toolkit` |
+| Inventory | 41 skills, 3 hook events, 1 MCP server (`tracker`) | installed, enabled, 1.0.0 |
+
+The Codex install confirms the S1.5 question live: the marketplace at
+`.agents/plugins/marketplace.json` in the **repository root** resolved, so no
+`plugins/<name>/` prefix was needed anywhere in this plan.
+
+`claude plugin details` prints `Agents (0)` for this plugin. It prints the same
+for the old `afk@nak-marketplace` install whose four agents demonstrably work,
+so it is a counting rule in that listing, not a regression. Agent parity is
+proved by spawning, not by the inventory line.
+
+### Every adapter kind, against its real service
+
+Every live object is named `afk-toolkit-proof-2026-09-03`.
+
+| Family / kind | Verbs proven | Object | Cleanup |
+|---|---|---|---|
+| defaults (no config at all) | `effective --json` = tracker `none`, forge `none`, notes `repo-files`, no build gates; `forge change-view` → `unsupported` exit 3; `tracker_create` → `unsupported` exit 3; `notes resolve` → `docs/afk/PROJ-1` | temporary Git repository | directory removed |
+| notes / repo-files | `resolve`, `note-create`, `note-read`, `note-update` (replace and append), `note-link`, `note-delete`; a `../..` name refused, exit 2 | temporary Git repository | file deleted, tree empty |
+| notes / obsidian | the same six against a scoped temporary vault; `note-link` answered a wikilink; the vault directory removed → `{"unavailable": true}` exit 4 | temporary vault | vault removed |
+| notes / notion | dispatch answered the instruction object for each declared verb and `unsupported` exit 3 for an undeclared one; live page created under the configured parent, fetched, local copy deleted | two Notion pages | **not archived — see unresolved** |
+| tracker / jira | all nine: `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | one issue in the live project | closed |
+| tracker / github-issues | `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | issue #6 on `midnightblur/afk-driver` | closed |
+| forge / github | `change-create-draft`, `change-view`, `change-diff`, `change-update-body`, `change-comment` (plain and inline), `thread-list`, `thread-reply`, `thread-resolve` (documented `unsupported`), `change-reviewers`, `change-ready`, `change-state`, `change-fetch`, `ci-status`, `ci-wait`, `change-close`, `auth-status` | pull requests 7 and 8 | both closed, both branches deleted |
+| forge / gitlab | the same set, with `thread-resolve` supported | one draft merge request on the monorepo | closed, branch deleted, pipeline canceled |
+| build-gate / maven | `gate-discover` → `java-format`, `maven-compile`; `java-format` blocked an unformatted file exit 2 and passed exit 0 once formatted; `maven-compile` exit 0 in 148 s with its metrics line | one tracked Java file staged in a disposable worktree | worktree restored |
+| build-gate / npm | `gate-discover` → `ui-lint`; exit 0 clean, exit 2 on a lint error, both with metrics lines | minimal workspace fixture | directory removed |
+
+`ci-wait` on the GitHub side returned `{"status":"success","elapsed":45}` — the
+release gate added in this release ran green on a real pull request, so
+`.github/workflows/release-gate.yml` is proven live and not only by its author.
+
+The npm row could not be proved against the monorepo's own UI workspace: that
+checkout carries a stale per-project `node_modules` beside the hoisted one, and
+the two ESLint copies crash each other before the gate is reached. That is a
+condition of the developer checkout, not of the adapter, so the row was proved
+against a minimal workspace fixture instead and the monorepo observation is
+recorded here rather than hidden.
+
+### What the live proofs found
+
+Every one of these was invisible to the gates, the fixtures and the unit tests,
+and every one is fixed in this release. They are listed because a proof round
+that finds nothing has usually proved nothing.
+
+1. `forge/none` and `tracker/none` still declared the `runner.type` of an early
+   skeleton, `instruction`. `forge: none` therefore answered the agent with a
+   file to read instead of refusing — the exact silent-degradation the `none`
+   kinds exist to prevent.
+2. The registry check could not see 1, because it only checked that the runner
+   entry existed. It now also requires `runner.type` to be `cli` or
+   `instruction` **and** to match the entry: an `instruction` entry must be a
+   Markdown procedure, a `cli` entry must not be.
+3. `instruction` dispatch answered any word at all, so a typo read back as a
+   supported verb. It now checks the kind's own operations list.
+4. Neither forge kind read `github.remote` / `gitlab.remote` — a key both
+   declared and both documented, and neither consumed. Both now resolve the
+   project from that remote's URL, through one shared
+   `adapters/forge/project_from_remote.py`. They also now load the
+   configuration at all: a forge script runs in its own process, so the
+   `AFK_CFG_*` view its caller had loaded was never inherited.
+5. An inline `change-comment` sent `commit_id` with a trailing carriage return
+   on Windows — `read` keeps the CR of a CRLF line — and every inline comment
+   failed with HTTP 422.
+6. The same path printed a raw Python traceback when `gh pr view` was asked for
+   a field it does not have.
+7. `reviewers: ["someone"]` reached both CLIs as the literal string
+   `['someone']`.
+8. `tracker_search` rejected the comma-separated `fields` string that
+   `tracker_get` requires, with a 400.
+9. `tracker/github-issues` could not close an issue at all unless the
+   repository had configured `state-labels`. `open` and `closed` are GitHub's
+   own states and are now always available.
+10. The same kind passed `gh`'s bare `'label' not found` through to the caller;
+    it now names the label and says GitHub labels must exist first.
+11. `glab mr close` refuses on a project that requires a passing pipeline
+    before merging — it reports the *merge* precondition for a *close*.
+    `change-close` now closes through the API, which has no such precondition.
+12. The UI lint gate's workspace walk stopped one directory short of the
+    repository root, and its `workspace-root` fallback could never match `.`.
+    A repository whose only ESLint configuration sits at its root gated
+    nothing and reported a pass.
+
+### Unresolved
+
+- The connected Notion MCP server exposes no archive or trash tool, so
+  `notes/notion`'s `note-delete` cannot archive its mirror. This is now
+  documented in that kind's `CONTRACT.md` and `NOTES.md` as a local delete plus
+  `notion.error`, rather than promised and silently skipped. The two proof
+  pages from this round are still in the workspace, retitled to say they are
+  safe to archive, and need one manual archive.
+
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.

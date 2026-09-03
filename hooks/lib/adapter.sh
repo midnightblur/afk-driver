@@ -84,9 +84,24 @@ afk_adapter() {
   if [ "$rtype" = "instruction" ]; then
     local py=python
     command -v python >/dev/null 2>&1 || py=python3
-    "$py" -c 'import json,sys; print(json.dumps({"instruction": sys.argv[1], "verb": sys.argv[2], "reason": "this kind is performed by the agent - read the instruction file"}))' \
-      "$dir/$entry" "${1:-}"
-    return 0
+    # A verb the kind does not declare is unsupported here exactly as it is for
+    # a `cli` kind. Handing back the instruction file for any word at all would
+    # tell a caller its typo is a supported operation.
+    "$py" -c '
+import json, sys
+manifest, entry, verb = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    ops = json.load(open(manifest, encoding="utf-8")).get("operations", [])
+except Exception:
+    ops = []
+if ops and verb not in ops:
+    print(json.dumps({"unsupported": True, "verb": verb,
+                      "reason": "not an operation of this kind; it has " + ", ".join(ops)}))
+    sys.exit(3)
+print(json.dumps({"instruction": entry, "verb": verb,
+                  "reason": "this kind is performed by the agent - read the instruction file"}))
+' "$dir/adapter.json" "$dir/$entry" "${1:-}"
+    return $?
   fi
   if [ -z "$entry" ] || [ ! -f "$dir/$entry" ]; then
     printf 'afk: %s adapter at %s declares no runnable entry in adapter.json\n' \

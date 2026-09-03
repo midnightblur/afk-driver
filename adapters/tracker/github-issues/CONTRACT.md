@@ -37,8 +37,8 @@ answer in a shape this contract fixes rather than pretending a field exists:
 
 | Operation | Shape here |
 |---|---|
-| `tracker_transitions` | the states in `github-issues.state-labels`; the transition id IS the state name. `unsupported` when the repository declared none |
-| `tracker_transition` | adds the target state's label and removes every other state label, so an issue is never in two states |
+| `tracker_transitions` | `open` and `closed` always, marked `native`, plus the states in `github-issues.state-labels`; the transition id IS the state name |
+| `tracker_transition` | `open`/`closed` (and the aliases `reopen`/`close`) move GitHub's own issue state. Any other id adds that state's label and removes every other state label, so an issue is never in two states |
 | `tracker_attachments` | the asset URLs referenced in the issue body and its comments, with `"partial": true` — a file never referenced in text cannot be listed |
 
 `tracker_create` writes the work-item type and the opening state as labels, and
@@ -53,3 +53,8 @@ scripts stop with the missing names when `tracker: github-issues` is selected.
 
 `tracker_attachments` cannot upload a binary: it returns the comment it wrote
 and the asset URL it was given. Rich text is Markdown, not ADF.
+
+A label has to exist in the repository before an issue can carry it, so
+`tracker_edit` with an unknown label answers `error` naming that label and
+writes nothing. This adapter never creates a label: that would change the
+repository's settings on a caller's behalf.

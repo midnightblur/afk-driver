@@ -17,6 +17,13 @@
 set -u
 
 FORGE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$FORGE_DIR/../../.." && pwd)}
+
+# The configuration this repository selected. A forge script runs in its own
+# process, so the AFK_CFG_* view the caller loaded is not inherited: load it here.
+# shellcheck source=/dev/null
+. "$PLUGIN_ROOT/hooks/lib/config.sh"
+afk_config_load
 
 verb=${1:-}
 payload=${2:-'{}'}
@@ -43,12 +50,34 @@ if value is None or value is False:
     value = ""
 elif value is True:
     value = "true"
+elif isinstance(value, (list, tuple)):
+    # Both CLIs take a repeated field as one comma-separated argument
+    # (`--add-reviewer a,b`). Printing the Python list here is how a caller ends
+    # up asking the forge for a user literally named "['a', 'b']".
+    value = ",".join(str(v) for v in value)
 print(value)
 ' "$1" "${2:-}"
 }
 
+
+# The project the change lives in. A `repo` in the payload wins. Otherwise
+# `github.remote` names a git remote in this checkout and its URL identifies
+# the project — the key exists so a repository with several remotes says which
+# one is the forge. Neither set means "let the CLI derive it from the checkout",
+# which is what it does inside a clone.
+resolve_repo() {
+  local explicit name url
+  explicit=$(arg repo)
+  if [ -n "$explicit" ]; then printf '%s\n' "$explicit"; return 0; fi
+  name=${AFK_CFG_GITHUB_REMOTE:-}
+  [ -n "$name" ] || return 0
+  url=$(git remote get-url "$name" 2>/dev/null) || return 0
+  [ -n "$url" ] || return 0
+  "$PY" "$FORGE_DIR/../project_from_remote.py" "$url"
+}
+
 REPO_FLAG=()
-_repo=$(arg repo)
+_repo=$(resolve_repo)
 [ -n "$_repo" ] && REPO_FLAG=(--repo "$_repo")
 
 VIEW_FIELDS=number,url,title,state,isDraft,headRefName,baseRefName,author,statusCheckRollup
@@ -238,11 +267,30 @@ change-comment)
   fi
   # An inline comment is a review comment on the head commit; `gh pr comment`
   # cannot place one, so it goes through the API with the commit id.
-  meta=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number,headRefOid,headRepository,baseRepository 2>/dev/null)
+  meta=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number,headRefOid 2>/dev/null)
   repo=$_repo
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
-  number=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("number",""))')
-  commit=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("headRefOid",""))')
+  # `gh` prints its field errors on stderr and nothing on stdout, so read the
+  # answer defensively: a traceback here would leave the caller with neither a
+  # comment nor a JSON object it can read. Take each field through its own
+  # command substitution, which strips the line ending; `read` would keep the
+  # carriage return of a CRLF line and send it to the API inside the value.
+  meta_field() {
+    printf '%s' "$meta" | "$PY" -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+sys.stdout.write(str(d.get(sys.argv[1], "")))
+' "$1"
+  }
+  number=$(meta_field number)
+  commit=$(meta_field headRefOid)
+  if [ -z "$number" ] || [ -z "$commit" ] || [ -z "$repo" ]; then
+    printf '{"error":true,"verb":"change-comment","reason":"could not resolve the change number, head commit and project needed for an inline comment on %s"}\n' "$ref"
+    exit 0
+  fi
   out=$(gh api -X POST "repos/$repo/pulls/$number/comments" \
         -f body="$text" -f commit_id="$commit" -f path="$file" \
         -F line="$line" -f side=RIGHT 2>&1) || {

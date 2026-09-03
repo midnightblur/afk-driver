@@ -21,7 +21,7 @@
     "auth-status"
   ],
   "runner": {
-    "type": "instruction",
+    "type": "cli",
     "entry": "forge.sh"
   },
   "configKeys": [

@@ -65,6 +65,48 @@ first released heading here.
   company's machine build. A repository contributes its own rows through
   `setup.extra`.
 
+### Fixed
+
+Found by running every adapter kind against its real service before the
+release, and each one was invisible to the gates, the fixtures and the tests.
+
+- `forge: none` and `tracker: none` answered with an agent instruction instead
+  of refusing: both still carried the `runner.type` of an early skeleton. The
+  registry check now also requires `runner.type` to match its entry, so a kind
+  cannot be mislabelled that way again.
+- Dispatch for an `instruction` kind answered any word at all, so a typo read
+  back as a supported verb. It now honours the kind's operations list.
+- `github.remote` and `gitlab.remote` were documented and declared but never
+  read: a forge always used the checkout's default project. Both kinds now
+  resolve the project from that remote's URL, and both now load the
+  configuration at all — a forge script runs in its own process and never
+  inherited its caller's view of it.
+- An inline `change-comment` failed with HTTP 422 on every Windows machine: the
+  commit id carried the carriage return of a CRLF line into the request.
+- The same path printed a Python traceback instead of an answer when the forge
+  CLI was asked for a field it does not have.
+- `reviewers: ["someone"]` reached both forge CLIs as the literal string
+  `['someone']`.
+- `tracker_search` rejected the comma-separated `fields` string that
+  `tracker_get` requires. Both verbs now take either shape.
+- `tracker: github-issues` could not close an issue unless the repository had
+  configured `state-labels`. `open` and `closed` are GitHub's own states and
+  are now always offered.
+- The same kind passed the forge CLI's bare `'label' not found` through; it now
+  names the label and says GitHub labels must exist before an issue can carry
+  one.
+- `change-close` on GitLab failed on any project that requires a passing
+  pipeline before merging, because `glab mr close` reports the *merge*
+  precondition. It now closes through the API.
+- The UI lint gate stopped its workspace walk one directory above the
+  repository root and its `workspace-root` fallback could never match `.`, so a
+  repository whose only ESLint configuration sits at its root was gated on
+  nothing and told the committer it had passed.
+- `notes: notion` promised an archive on `note-delete`. A Notion MCP server
+  that exposes no archive tool now produces a local delete plus `notion.error`,
+  and both the contract and the procedure say so.
+
+
 ## Pre-1.0 (monorepo era)
 
 The entries below are the plugin's history from before the extraction, grouped

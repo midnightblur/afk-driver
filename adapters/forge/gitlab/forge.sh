@@ -21,6 +21,12 @@ set -u
 FORGE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$FORGE_DIR/../../.." && pwd)}
 
+# The configuration this repository selected. A forge script runs in its own
+# process, so the AFK_CFG_* view the caller loaded is not inherited: load it here.
+# shellcheck source=/dev/null
+. "$PLUGIN_ROOT/hooks/lib/config.sh"
+afk_config_load
+
 verb=${1:-}
 payload=${2:-'{}'}
 
@@ -52,15 +58,34 @@ if value is None or value is False:
     value = ""
 elif value is True:
     value = "true"
+elif isinstance(value, (list, tuple)):
+    # Both CLIs take a repeated field as one comma-separated argument
+    # (`--add-reviewer a,b`). Printing the Python list here is how a caller ends
+    # up asking the forge for a user literally named "['a', 'b']".
+    value = ",".join(str(v) for v in value)
 print(value)
 ' "$1" "${2:-}"
 }
 
-# The repository the change lives in. `gitlab.remote` names the git remote whose
-# URL identifies it; `glab` derives the project from the checkout when it can,
-# so an empty answer here is normal and means "let glab decide".
+
+# The project the change lives in. A `repo` in the payload wins. Otherwise
+# `gitlab.remote` names a git remote in this checkout and its URL identifies
+# the project — the key exists so a repository with several remotes says which
+# one is the forge. Neither set means "let the CLI derive it from the checkout",
+# which is what it does inside a clone.
+resolve_repo() {
+  local explicit name url
+  explicit=$(arg repo)
+  if [ -n "$explicit" ]; then printf '%s\n' "$explicit"; return 0; fi
+  name=${AFK_CFG_GITLAB_REMOTE:-}
+  [ -n "$name" ] || return 0
+  url=$(git remote get-url "$name" 2>/dev/null) || return 0
+  [ -n "$url" ] || return 0
+  "$PY" "$FORGE_DIR/../project_from_remote.py" "$url"
+}
+
 repo_flag() {
-  local explicit; explicit=$(arg repo)
+  local explicit; explicit=$(resolve_repo)
   [ -n "$explicit" ] && { printf -- '-R\n%s\n' "$explicit"; return 0; }
   return 0
 }
@@ -368,7 +393,11 @@ thread-resolve)
   ;;
 
 change-close)
-  out=$(glab mr close "$(arg id)" "${REPO_FLAG[@]}" 2>&1) || {
+  # `glab mr close` refuses on a project that requires a passing pipeline before
+  # merging: it reports the MERGE precondition even though closing is not
+  # merging. Close through the API, which has no such precondition.
+  iid=$(arg id)
+  out=$(glab api -X PUT "projects/:id/merge_requests/$iid?state_event=close" 2>&1) || {
     printf '{"error":true,"verb":"change-close","reason":%s}\n' \
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
     exit 0

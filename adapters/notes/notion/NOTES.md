@@ -26,7 +26,7 @@ therefore never loses the note.
 | `note-create` | Write the file through `repo-files` first. Then create a child page of the work item's page (creating the work item page under `notion.parent-page-id` if it is the first note), titled the note's file name without `.md`, with the Markdown as its content. |
 | `note-read` | Read the local file through `repo-files`. Read Notion only when the caller asks for the published copy — it is the mirror, not the source. |
 | `note-update` | Update the local file through `repo-files`, then replace the mirrored page's content with the new Markdown. Never merge the two copies: the local file wins. |
-| `note-delete` | Delete the local file through `repo-files`, then archive the mirrored page. Notion archives rather than destroys, and that is the intended behaviour — say "archived" in the result. |
+| `note-delete` | Delete the local file through `repo-files`, then archive the mirrored page. Notion archives rather than destroys, and that is the intended behaviour — say "archived" in the result. Not every Notion MCP server exposes an archive or trash tool; when none is connected, answer the local `deleted: true` plus `notion.error` naming the missing tool, and say the page is still there. Never delete the page by some other means. |
 | `note-link` | Return both forms: the Markdown link `repo-files` gives, and the Notion page URL of the mirror. A caller writing into a repository file uses the first; one writing into a page uses the second. |
 
 ## Answer shape

@@ -14,7 +14,7 @@
     "tracker_changelog"
   ],
   "runner": {
-    "type": "instruction",
+    "type": "cli",
     "entry": "api.py"
   },
   "configKeys": [

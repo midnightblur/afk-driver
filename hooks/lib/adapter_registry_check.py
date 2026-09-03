@@ -53,12 +53,32 @@ def main(argv: list[str]) -> int:
                 findings.append(f"{name}: adapter.json does not parse ({exc})")
                 continue
 
-            # 1. the runner entry has to be on disk, whatever its type
-            entry = (manifest.get("runner") or {}).get("entry") or ""
+            # 1. the runner entry has to be on disk, and its type has to match
+            # what the entry IS: `instruction` means the agent reads the file,
+            # so it must be prose; `cli` means dispatch runs it, so it must not
+            # be. A `none` kind stubbed as `instruction` while carrying a real
+            # refusal script answers the agent instead of refusing, which is how
+            # this check was earned.
+            runner = manifest.get("runner") or {}
+            entry = runner.get("entry") or ""
+            rtype = runner.get("type") or ""
             if not entry:
                 findings.append(f"{name}: adapter.json declares no runner.entry")
             elif not (kind_dir / entry).is_file():
                 findings.append(f"{name}: runner.entry `{entry}` is not in {name}/")
+            if rtype not in ("cli", "instruction"):
+                findings.append(
+                    f"{name}: runner.type `{rtype}` is neither `cli` nor `instruction`")
+            elif entry:
+                is_md = entry.lower().endswith(".md")
+                if rtype == "instruction" and not is_md:
+                    findings.append(
+                        f"{name}: runner.type is `instruction`, so the agent reads "
+                        f"`{entry}` - but it is a script, not a Markdown procedure")
+                elif rtype == "cli" and is_md:
+                    findings.append(
+                        f"{name}: runner.type is `cli`, so dispatch runs `{entry}` - "
+                        f"but it is Markdown, not a script")
 
             # 2. CONTRACT.md has to name every operation
             contract = read(kind_dir / "CONTRACT.md")

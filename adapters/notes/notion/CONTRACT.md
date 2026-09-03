@@ -37,3 +37,7 @@ copy is written first, always).
   an unmirrored one.
 - `note-delete` archives the page rather than destroying it, because that is
   what Notion does; the answer says "archived".
+- A connected Notion MCP server that exposes no archive or trash tool (some
+  do not) makes `note-delete` a local-only delete: the answer carries
+  `deleted: true` with `notion.error`, and the page stays. Verified on the
+  claude.ai Notion server, 2026-09-03.

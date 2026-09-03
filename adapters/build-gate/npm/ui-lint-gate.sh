@@ -58,13 +58,25 @@ gate_ui_lint() {
       [ -n "$ws" ] && break
       [ "${dir%/*}" = "$dir" ] && dir="." || dir=${dir%/*}
     done
+    # The walk above stops one directory short of the repository root, so a
+    # repository whose only lint configuration sits at its root gated nothing.
+    if [ -z "$ws" ]; then
+      for rc_name in $AFK_NPM_LINT_CONFIGS; do
+        if [ -f "./$rc_name" ]; then ws="." ; break; fi
+      done
+    fi
     # A repository that lints from one hoisted root declares it; use it when the
     # file sits under it and carries no nearer configuration of its own.
     if [ -z "$ws" ] && [ -n "$ws_root" ] && [ -d "$ws_root" ]; then
-      case "$f" in "$ws_root"/*) ws="$ws_root" ;; esac
+      # `.` is every file's ancestor; the prefix test below would never match it.
+      if [ "$ws_root" = "." ]; then
+        ws="."
+      else
+        case "$f" in "$ws_root"/*) ws="$ws_root" ;; esac
+      fi
     fi
     [ -z "$ws" ] && continue
-    rel=${f#"$ws"/}
+    if [ "$ws" = "." ]; then rel=$f; else rel=${f#"$ws"/}; fi
     ws_files["$ws"]+="$rel"$'\n'
     n_gated=$((n_gated + 1))
   done <<<"$changed_ui"
