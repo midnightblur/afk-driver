@@ -9,8 +9,9 @@ family implementation in [`../common.sh`](../common.sh).
 
 ## Verbs
 
-The same six as `repo-files`, with the same payloads and the same answer
-fields. Two differences:
+`resolve`, `note-create`, `note-read`, `note-update`, `note-delete` and
+`note-link` — the same six as `repo-files`, with the same payloads and the same
+answer fields. Two differences:
 
 - `dir` and `path` are under `obsidian.vault`, not under the repository.
 - `note-link` answers a wikilink — `[[PRD|text]]` — not a Markdown link.

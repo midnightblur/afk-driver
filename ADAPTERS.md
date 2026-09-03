@@ -127,8 +127,12 @@ subprocess cost the single-process runner exists to avoid.
 ## Adding a kind
 
 1. `adapters/<family>/<kind>/adapter.json` + `CONTRACT.md` + the entry file.
+   `adapter.json` declares `operations`, `runner` (`type` `cli` or
+   `instruction`, plus `entry`), `configKeys`, and `register` — the register
+   row ids the kind's runtime needs, `[]` when it needs none.
 2. Add the kind to its enum in `CONFIG.md` and in `scripts/afk-config.py`.
-3. Add a register row in `skills/afk/setup/MANIFEST.md` for the runtime it needs.
+3. Add a register row in `skills/afk/setup/MANIFEST.md` for each id in
+   `register`.
 4. Add a row to the parity table in `README.md` and a probe under `hooks/tests/`.
 
 `skill-registry-gate.sh` fails until all four exist.

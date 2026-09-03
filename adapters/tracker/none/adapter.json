@@ -19,5 +19,6 @@
   },
   "configKeys": [
     "tracker"
-  ]
+  ],
+  "register": []
 }

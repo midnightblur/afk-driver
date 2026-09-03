@@ -12,9 +12,10 @@ performs the verb from that file.
 
 ## Verbs
 
-The same six as [`repo-files`](../repo-files/CONTRACT.md), with the same
-payloads. Each answer carries the `repo-files` fields plus a `notion` object
-holding `page` and `url`.
+`resolve`, `note-create`, `note-read`, `note-update`, `note-delete` and
+`note-link` — the same six as [`repo-files`](../repo-files/CONTRACT.md), with
+the same payloads. Each answer carries the `repo-files` fields plus a `notion`
+object holding `page` and `url`. `NOTES.md` states each one as a procedure.
 
 ## Configuration keys read
 

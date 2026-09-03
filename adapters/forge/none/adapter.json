@@ -26,5 +26,6 @@
   },
   "configKeys": [
     "forge"
-  ]
+  ],
+  "register": []
 }

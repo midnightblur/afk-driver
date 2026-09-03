@@ -1,16 +1,77 @@
 # Changelog
 
-What changed for **devs using the plugin** — one line per feature/enhancement
-you'd notice, grouped by date (no versions), newest first. Internal refactors,
-wording sweeps, and review-fix churn are deliberately omitted. After a `git
-pull`, skim the dates you missed, then `/reload-plugins` (and `/afk-toolkit:setup` if
-an entry says the dependency set changed).
+Every dev-visible change to the toolkit, newest first. The format is
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the versions are
+[SemVer](https://semver.org/spec/v2.0.0.html). Internal refactors, wording
+sweeps, and review-fix churn are deliberately omitted.
 
-Maintenance: a commit shipping a dev-visible change adds its one-liner under
-today's date **in the same commit** — trigger owned by this file's
-`FRESHNESS.md` registry row.
+After updating, skim the versions you missed, then reload the plugin (and run
+`/afk-toolkit:setup` if an entry says the dependency set changed). The
+SessionStart notice (`hooks/update-notice.sh`) prints these same sections when
+a newer tag exists.
 
-## 2026-09-02
+Maintenance: a commit shipping a dev-visible change adds its line under
+`## [Unreleased]` **in the same commit** — trigger owned by this file's
+`FRESHNESS.md` registry row. A release moves that section under its version
+heading, and `hooks/release-gate.sh` refuses a tag whose version is not the
+first released heading here.
+
+## [Unreleased]
+
+## [1.0.0] - 2026-09-03
+
+### Added
+
+- **The toolkit is a standalone plugin, installable from GitHub on Claude Code
+  and Codex CLI.** It was a directory inside one company's monorepo; it is now
+  `afk-toolkit@afk-toolkit`, a repository of its own, with the same skills,
+  agents, hooks and MCP server.
+- **Adapters.** Every external system the chain touches is a family with
+  interchangeable kinds: `tracker` (`jira`, `github-issues`, `none`), `forge`
+  (`gitlab`, `github`, `none`), `notes` (`repo-files`, `obsidian`, `notion`)
+  and `build-gate` (`maven`, `npm`). A skill asks for a verb of a family; the
+  configuration decides which directory answers. `ADAPTERS.md` is the map.
+- **`.afk/config.yaml`.** A consuming repository states its kinds, its branch
+  convention, its verification tiers, its build-gate settings and its own hook
+  manifest in one file, read by one module (`scripts/afk-config.py`) for skills
+  and hooks alike. `CONFIG.md` is the schema; `.afk/config.local.yaml` holds
+  per-developer values and is gitignored.
+- **Repository-owned hooks.** A repository declares its own gates in
+  `.afk/hooks.json` and the plugin runs them without knowing what they are.
+- **`hooks/release-gate.sh`** — a tag's version must equal both plugin
+  manifests, the marketplace entry, and the first released changelog heading.
+- **`hooks/update-notice.sh`** — a SessionStart notice when a newer tag exists,
+  budgeted 2 seconds per step, cached 24 hours, silent on every failure.
+
+### Changed
+
+- **The nine tracker tools are `tracker_*`, not `jira_*`,** and the MCP server
+  registers as `tracker`. It routes to the configured kind; the Jira adapter
+  still accepts a pre-rename `jira` credential registration.
+- **The forge is reached through 16 verbs** with the same field names on either
+  host, so `ci-wait`, change intake, review comments and the merged proof no
+  longer name a CLI. `ci-wait`'s exit codes are unchanged.
+- **Nothing in the toolkit names a repository any more** — not a service
+  directory, not a verification path, not a branch prefix, not a ticket key.
+  Paths into a repository come from its configuration; plugin paths are
+  `$AFK_PLUGIN_ROOT/…`, because the plugin is installed rather than checked out
+  beside the work.
+- **The per-developer key `jiraAssignee` is `trackerAssignee`.**
+
+### Removed
+
+- The register's section X (one repository's checkout, verification tree,
+  environment tooling and JWT minter) and four workstation rows describing one
+  company's machine build. A repository contributes its own rows through
+  `setup.extra`.
+
+## Pre-1.0 (monorepo era)
+
+The entries below are the plugin's history from before the extraction, grouped
+by date rather than version. Paths, ticket keys and tool names in them are as
+they were at the time.
+
+### 2026-09-02
 
 - **The retired lean-ctx helper is gone from every surface.** Its tool names left the crowdstrike-guard and explore-counter matchers and hook definitions, its optional setup dependency (H3) left the manifest, and skill prose reads/searches with the native Read/Grep/Glob vocabulary. Nothing changes for anyone who never installed it — it was optional and the file tools always did the same job. Re-approve the plugin hooks if your harness prompts (the definitions changed).
 
@@ -20,12 +81,12 @@ today's date **in the same commit** — trigger owned by this file's
 
 - **The shared Jira server finds its own credentials.** A harness may start the MCP child with a filtered environment, leaving the server no values to authenticate with. Its bootstrap now reads them from the exported variables first, then a `jira` server `env` block in the user's harness config files — nothing secret is committed.
 
-## 2026-09-01
+### 2026-09-01
 
 - **Shell handlers are pinned to LF, and the shared MCP server finds itself.** A harness that copies this tree into its own plugin cache runs the hook scripts through a POSIX shell, where a CRLF checkout is unparseable — every guard and gate silently reported a failed handler instead of a verdict. A scoped `.gitattributes` pins `*.sh` to LF and the native contract gate now blocks a CR byte in any shell handler. The shared `.mcp.json` no longer depends on plugin-root interpolation: its bootstrap resolves the root from the passed argument, the plugin-root variables, the checkout under `$PWD`, then the newest plugin cache under the user's home, so every harness reaches the same server.
 
 - **The plugin is one native tree for every supported harness — no generator, no mirror.** Each harness discovers the same committed files through its own plugin mechanism (`.claude-plugin/` and `.codex-plugin/` manifests, shared `hooks/hooks.json`, shared `.mcp.json`, agent stubs copied unchanged), so a skill edit ships once and needs no regeneration step. `codex-sync/`, the drift gate, and the synced harness copy of `provider.sh` are gone; hook provider behavior now lives in one adapter per harness under `hooks/lib/providers/<id>.sh`. Harness-agnosticism is a standing requirement from now on: `CLAUDE.md` carries the rule, `PROVIDERS.md` carries the supported-harness registry, `CAPABILITIES.md` carries the capability matrix, `providers/CONFORMANCE.md` carries live proof plus the add-a-harness checklist, and `hooks/native-contract-gate.sh` blocks (Stop and commit) on harness vocabulary in skill prose, unsupported frontmatter, manifest/registry drift, a tracked generated mirror, or a missing adapter fixture.
-## 2026-08-27
+### 2026-08-27
 
 - **Fourteen recorded workflow lessons applied.** `/afk-toolkit:review` gains two hard
   rules that also reach every reviewer through `checklists/PRECEDENCE.md`: never
@@ -67,7 +128,7 @@ today's date **in the same commit** — trigger owned by this file's
   type exists but maps to the same Terra-at-low-effort as the digest tier —
   nothing below Terra ships, so the split saves nothing there.
 
-## 2026-08-25
+### 2026-08-25
 
 - **`/afk-toolkit:setup` offers two opt-in user preferences again** (deselected-by-
   default election on every run — the manifest's opt-in tier is back): **H7**
@@ -90,7 +151,7 @@ today's date **in the same commit** — trigger owned by this file's
   rejected instead of proposing it again. `/afk-toolkit:preflight` gains **PF-4d**,
   which refuses to go green while an accepted product-debt finding has no home.
 
-## 2026-08-24
+### 2026-08-24
 
 - **Agents now trace load-bearing claims to code before stating them, or label
   them `unverified: <reason>`**: new "Truth grounding" principle in
@@ -100,7 +161,7 @@ today's date **in the same commit** — trigger owned by this file's
   definition and `DELEGATION.md`'s return contract. Grounded in a mined
   catalog of 30+ retracted-claim incidents across 26 past sessions.
 
-## 2026-08-19
+### 2026-08-19
 
 - **Hands-off runs now take reversible decisions themselves instead of parking
   for you**: new plugin-root `DECISIONS.md` protocol — a mid-run fork (design
@@ -122,7 +183,7 @@ today's date **in the same commit** — trigger owned by this file's
   rides the same journal + push-notification path as any other park
   (lesson L-0041).
 
-## 2026-08-18
+### 2026-08-18
 
 - **The settle loop can now end on its own**: `SETTLEMENT.md` gains two rules —
   a round's verdict may be written only after that round's sweep reports, and a
@@ -180,7 +241,7 @@ today's date **in the same commit** — trigger owned by this file's
   `/afk-toolkit:claude-md`, which slims to steward mechanics and points). Old
   `GLOSSARY.md` merged into the skill body. `/reload-plugins` to pick it up.
 
-## 2026-08-17
+### 2026-08-17
 
 - **One writing doctrine, one home.** `CONCISION.md` merged into `LANGUAGE.md`
   (plugin root): which words (Simplified Technical English), whose terms
@@ -190,7 +251,7 @@ today's date **in the same commit** — trigger owned by this file's
   lines) retargeted, and pointers no longer restate any rule — they only name
   the home. `/reload-plugins` to pick it up.
 
-## 2026-08-14
+### 2026-08-14
 
 - **A Story can hold a PRD now.** `/afk-toolkit:to-ticket` PRD mode accepted only an
   Enhancement or a Bug as the parent, so publishing into a Story died on a type
@@ -209,7 +270,7 @@ today's date **in the same commit** — trigger owned by this file's
   a one-shot migration). Keep the standard for non-AFK sessions by writing your
   own line in `~/.claude/CLAUDE.md`.
 
-## 2026-08-12
+### 2026-08-12
 
 - **Grill pages put the live question on top.** Session-default lavish
   surfaces (the grills' standing artifacts) now order by liveness — current
@@ -232,7 +293,7 @@ today's date **in the same commit** — trigger owned by this file's
   concurrent sessions' tabs are distinguishable. Mission Control tabs show the
   feature's plan title too.
 
-## 2026-08-07
+### 2026-08-07
 
 - **`/afk-toolkit:gc` no longer refuses every shipped feature.** Its guard script read
   the `Feature:` completion stamp with an anchored grep, but `PLAN.md` writes
@@ -257,7 +318,7 @@ today's date **in the same commit** — trigger owned by this file's
   contradictory design intent still parks. PF-3 passes the same base to
   `/afk-toolkit:review --feature`.
 
-## 2026-08-05
+### 2026-08-05
 
 - **Opt-in plain-language replies.** `/afk-toolkit:setup` now carries an elective
   (manifest H7, deselected by default, offered on every run): install a
@@ -268,7 +329,7 @@ today's date **in the same commit** — trigger owned by this file's
   opt out by deleting the sentinel block. Standard text (one home):
   `skills/afk/setup/PLAIN-LANGUAGE.md`.
 
-## 2026-08-07
+### 2026-08-07
 
 - **Lavish artifacts keep their tooltips and dark mode after a rewrite.** The
   tooltip dictionary and the dark-mode override live inside the artifact HTML,
@@ -278,7 +339,7 @@ today's date **in the same commit** — trigger owned by this file's
   render does, so the runtime self-heals on the very next poll (and a rewrite
   is always followed by a poll). Nothing to change in how you work.
 
-## 2026-08-05
+### 2026-08-05
 
 - **Opt-in plain-language replies.** `/afk-toolkit:setup` now carries an elective
   (manifest H7, deselected by default, offered on every run): install a
@@ -289,7 +350,7 @@ today's date **in the same commit** — trigger owned by this file's
   opt out by deleting the sentinel block. Standard text (one home):
   `skills/afk/setup/PLAIN-LANGUAGE.md`.
 
-## 2026-08-03
+### 2026-08-03
 
 - **Plugin files always run from the main checkout.** Every runtime skill/hook/script path across the plugin (autopilot spawn prompt, execute + cited-mode scripts, bug fixer prompt, lesson capture/digest, preflight ci-wait, smoke-gate template, mission-control, harvest) is now pinned to `<main-checkout>/tools/…` — an agent working in a worktree no longer executes the stale plugin copy frozen at the feature's branch point. Rule + term: `GLOSSARY.md` "Main checkout"; authoring convention in the plugin `CLAUDE.md`.
 - **`create-worktree` no longer clones `.claude/TODO.md`.** The `/afk-toolkit:todo` list is per-worktree state, not shared config — a fresh worktree now starts with an empty todo list instead of a stale copy of the source checkout's.
@@ -300,7 +361,7 @@ today's date **in the same commit** — trigger owned by this file's
 - **Gate-suite audit hardening.** An adversarial audit of the gate refactor confirmed a set of correctness holes, all fixed. Commit path: the code gates now **refuse a commit whose staged copy of a gated file differs from its worktree copy** (they judge worktree bytes, so a broken staged blob could land behind a fixed worktree — re-stage and retry) and **skip merge commits entirely** (the staged set is the other side's whole delta, gated when it first landed); `/afk-toolkit:settle-mr` round commits carry the same explicit-long-timeout instruction as execute/bug. Stop path: a gate that **crashes no longer reads as a silent pass** — the turn isn't blocked, but no all-green stamp is recorded and the crash is named on stderr; the short-circuit digest now **sees the gitignored wiring IOU ledger** (deleting an IOU/waive line used to stay invisible until an unrelated edit); hand-edits to root `CLAUDE.md`/`AGENTS.local.md` now dispatch the codex-drift gate. Concurrency: cache/stamp writes are atomic and context scratch files per-process (two sessions in one checkout can no longer tear each other's state), and the maven lock steals stale locks atomically, records its owner, and releases when its process dies. Genericity scan regained exact word-boundary semantics: hyphen-prefixed ticket IDs, ID ranges, and package-qualified file references are caught again; longer extensions no longer truncate into false product-file hits; content after a literal tab is scanned; a path with a blank no longer un-scans its whole file; the allowlist keeps an unterminated final line. The git-hook installer now says so when a pre-existing non-AFK hook blocks installation instead of silently leaving the machine ungated.
 - **Codex now has the same opt-in boundary and root-file layout as Claude.** Root `.agents/`, `.codex/`, and `AGENTS.local.md` are gitignored — per-machine activation surfaces, provisioned by `codex-sync/generate.py` (or `/afk-toolkit:setup`) at opt-in, so hooks fire and skills/agents surface **only** for devs who opted in; everyone else sees inert committed markdown under `tools/payable/ai-agents/`. The committed layer mirrors Claude's exactly: a **neutral root `AGENTS.md`** now rides git (Codex analog of root `CLAUDE.md` — routes any agent to `CLAUDE.md`, plus a read-if-present pointer to `AGENTS.local.md`, the Codex analog of `CLAUDE.local.md` and the new home of the generated afk block). `CLAUDE.local.md`, accidentally tracked since July, went back to per-machine — expect git to remove your local copy on pull if it was clean; restore it from your own machine's notes, not the repo. Two generated outputs still ride git because they're tooling, not activation: `codex-sync/config-fragment.toml` + the harness `hooks/lib/provider.sh` byte-copy. Codex devs: delete any stale local `AGENTS.md` (git will refuse the pull otherwise), pull, rerun the generator once per worktree — the drift gate reminds you; regenerate-and-commit churn on skill edits is gone.
 
-## 2026-07-31
+### 2026-07-31
 
 - **Gates no longer tax interactive work.** A turn that only talked now costs one short-circuit check instead of the whole suite, and the three expensive code gates (`maven-compile`, `java-format`, `ui-lint`) moved off Stop onto a **`pre-commit`** git hook — same enforcement, paid once per commit instead of once per question. What made this necessary: gate latency on Windows/git-bash is **subprocess count**, not algorithm (MSYS fork emulation runs ~0.5–2s per spawn against ~20–40ms native, and degrades under load), and the suite was spawning hundreds — a cache key that re-hashed the tree with two forks per changed file, recomputed independently by all seven gates; a registry gate re-grepping the same files once per skill and once per env var; a wiring gate running a full-monorepo scan **per new file**. Now: one Stop hook (`stop-gates.sh`) deriving the change set once (`gate-context.sh`) and entering a gate only when the change set holds a path it could possibly gate; per-gate pass caches keyed on **that gate's own inputs**, so editing a spec file no longer re-runs the plugin-registry gates; one batched repo scan for every wiring candidate; one `awk` pass for genericity whatever the diff's size. Measured on the same tree: full cold Stop 56–95s (was over 2min, with the genericity gate alone recorded at 12min), unchanged tree 7.5–12.5s, and design-chain artifacts (PRD/SDD/plan/ADR/journal files) no longer report as wiring orphans — they have no textual referrer by construction. Also fixed: two registry-gate false blocks (Windows Python's CRLF broke every `plugin.json` membership match; the gate flagged a variable named inside its own trailing comment). New env toggles `AFK_GATE_CTX_DISABLE`, `AFK_SKIP_PRECOMMIT_GATES`, `AFK_MAVEN_LOCK_WAIT`. **Restart the session** (hooks.json changed), and run a session in each existing checkout so `install-git-hooks.sh` adds the `pre-commit` hook. Cost model + the rules a new gate must follow: `hooks/README.md`.
 - **The wiring gate finishes on a long-lived branch.** It never did before: its candidate set is every file the branch *added*, committed ones included, and it ran a full-monorepo scan per candidate — on a design branch carrying 153 added files that is 133 scans at ~6.3s each, so it hit the 60s hook timeout, got killed, stored nothing, and started over on the very next turn, forever. That is why a long grilling session saw "wiring gate" burning for hours and no gate ever recorded a pass. One batched scan covers all 133 tokens in **9s**; whole gate **23s cold**, then cached. Two more per-candidate costs went with it: the framework-annotation probe now runs only on the handful the scan could not clear, and the IOU ledger is read once instead of grepped per candidate. The gate also stopped being scope-gated on worktree-new files — a branch whose new files are all *committed* was skipping it entirely. First completed run on that branch surfaced a genuine orphan the timeout had been hiding since 22 July.
@@ -311,7 +372,7 @@ today's date **in the same commit** — trigger owned by this file's
 - **`/afk-toolkit:setup` now installs `openpyxl`.** `/afk-toolkit:review-qa-tests` imports it to annotate QA's `.xlsx` sheet, but it was registered nowhere — so a fresh machine could pass the doctor green and still die at first use (`MANIFEST.md` P4). The same audit sweep registered two env toggles that were live but undocumented: `AFK_DRIVEN` (the hands-off marker `/afk-toolkit:gc` refuses on) and `CLAUDE_PROJECT_DIR` (harness-set, locates the adopted harness gates). Re-run `/afk-toolkit:setup`.
 - Wiring gate no longer flags **JS/TS test files** (`*.test.{js,mjs,ts,tsx}`, `*.spec.*`) as orphans — every JS runner discovers them by glob, so they have zero textual referrers by construction, exactly like the already-exempt `*.feature` and `*Test.java`. Writing a new api-verification or unit test stops blocking the turn, and the IOUs previously needed to paper over it (which could never auto-close, so they blocked `WIRING_FINAL=1` forever) can be deleted from `.claude/wiring-ious.md`.
 
-## 2026-07-28
+### 2026-07-28
 
 - Lavish is now the **default surface for the grill skills** (`grill-requirements`, `grill-solution`, `grill-verification` + the confirm-batch round): every question/round renders into the session's page, from the first question — the only ways out are driven mode, a render failure, or **telling the agent to stop** (new session-scoped user opt-out in `LAVISH.md`). The on-page **legend is retired** in favor of an exhaustive **tooltip layer**: a persistent term → explanation dictionary (plugin seed `hooks/lavish-tips.json` — acronyms, L1–L9, HL-1..6, RP ids, workflow + architecture vocabulary — plus a growing per-repo overlay `.claude/lavish-tips.json` for domain terms) is injected **deterministically** into every artifact at render time by the new `lavish-tips.sh` hook, so hover explanations cost the LLM one definition ever, then ride every future page free; per-artifact item ids stay authored inline (`data-tip`) and share the same hover UI. `LAVISH.md` also gains a **visualization doctrine** — content-type → proven form (C4-altitude zoom for architecture, sequence/state diagrams, option cards, before/after pairs) with fixed color semantics. `/reload-plugins` to pick it up.
 - Review checklists sharpened from a 365-day mine of two senior reviewers' MR comments (756 comments → 55 verified themes): `logic-correctness` gains a lifecycle & persistence block (state-constrained queries on revisioned entities, orphaned link rows, string-assembled SQL, persisted-identifier renames without migration); `code-quality` gains **magic value without provenance**. The bulk of the mine (~40 write-time standards: nullability, naming, validation placement, exceptions, REST/DTO conventions, DB-side work, entity columns, Vue idioms, background-job security) landed in the team harness shared docs + service rules, not the plugin.
@@ -324,47 +385,47 @@ today's date **in the same commit** — trigger owned by this file's
 - Eight ledger lessons applied as durable edits (`/afk-toolkit:lessons apply`): `/afk-toolkit:grill-verification` gains an **External-state gate recheck (TOCTOU)** aspect row + a time-of-check/time-of-use walk (for every gate resting on another system's state: where is it re-checked, what if the state flips before the irreversible action, which scenario covers the window), an **Accepted staples** aspect row (every staple the PRD accepted needs a proving scenario or recorded N/A), a widened **Data-scoped access** trigger + enumeration rule covering every dropdown/lookup/reference-data endpoint the UI consumes — including shared ones inherited from other surfaces — and a **new-transaction-boundary** rule in its API-scenario walk (an endpoint wrapping an existing pipeline in its own `@Transactional` re-proves the wrapped validation failures at the new surface, where a 400 can silently become a 500). `/afk-toolkit:grill-solution` L5 now pins **lifecycle-stage binding** of validation rules (check the state machine before adding a rule to a create/update path — progressive completion), and its external-seam rule requires pinning the **exact trigger** (exception vs null-return, and a caller role that can actually reach it) for any status migration at a resolution seam. `/afk-toolkit:settle-mr` fixers that touch tests self-apply the `test-veracity` checklist + nearest `TESTING.md` before returning. `LAVISH.md` gains **Queue discipline** — one review = one queued prompt; controls mark locally (localStorage), one send control composes a single summary. `/reload-plugins` to pick these up.
 - The afk plugin now carries the **whole gate suite** — the four gates that previously required the separate, rarely-installed `payable-harness` plugin (`java-rules-gate` CSJ code standards, `i18n-parity-gate` locale parity, `crowdstrike-guard`, `explore-counter`) are registered in this plugin's `hooks.json`, invoked in place from `tools/payable/ai-agents/harness/hooks/` so they track the checkout, not the plugin snapshot. The `payable-harness` plugin is **retired** (manifests + its `hooks.json` deleted; uninstall any old copy) — enabling `afk-toolkit@afk-toolkit` is the single opt-in. Notably this closes the gap where CSJ001 (no inline FQNs in Java) was documented and machine-checked but silently unenforced. `/reload-plugins` to pick it up.
 
-## 2026-07-24
+### 2026-07-24
 
 - New **`/afk-toolkit:harvest`** — harvest the lessons a session taught you and apply them on the spot, without waiting for the autonomous workflow. Until now the lesson loop only fired from inside the chain (execute's gates, `/afk-toolkit:fix`, `/afk-toolkit:claude-md`, `/afk-toolkit:glossary`), and anything targeting a **plugin file** was deliberately parked for a separate `/afk-toolkit:lessons apply` session. `/afk-toolkit:harvest` is the manual sweep: it walks the whole session, qualifies each correction/gotcha/established pattern against the same capture bar, drops what a detection point already applied this run, proposes one grouped round, and on your approval routes each edit through its owning steward — then tells you what to reload so the edit is actually in force (`/reload-plugins` for a plugin file; project memory is already live). You invoke it by name — it never fires on its own, so it can't compete with `/afk-toolkit:claude-md`'s auto-harvest over the same signal. Paired change in `skills/afk/lessons/CAPTURE.md`: a **self-contained** plugin edit — one file, no lockstep partner, no freshness registry row — may now be applied mid-task via a delegated writer instead of being parked; anything touching a lockstep set still waits, so a half-written contract can't ship. `/afk-toolkit:lessons` gains the matching **Bind** rule it was missing: after any applied edit — from `apply` or from a detection point — it now names what the edit needs to actually take effect, instead of leaving a freshly-written skill inert until you happen to reload.
 - `/afk-toolkit:gc` now cleans up the **worktree** too, not just the spec folder. After a merge it offers a second, independently-approved item: remove the feature's dev worktree (reclaiming its private Maven repo — the freed size is reported) and delete the local feature branch. It only does so once that checkout is proven to hold nothing you'd lose — no uncommitted or untracked work, no commits missing from `origin/master` — and never forces it (`worktree remove` without `--force`, `branch -d` never `-D`); any doubt skips with its reason and the spec compaction proceeds regardless. Remote branches are never deleted, and the bug pipeline's fixer worktrees stay `/afk-toolkit:bug purge`'s. New guard: running `/afk-toolkit:gc` from inside the worktree it would remove is refused (`inside_target_worktree`) — run it from the main checkout.
 - `/afk-toolkit:grill-solution` now treats six design aspects as **human-locked** — yours to decide, never the agent's and never the executor's: **entity design** (HL-1: every field, type, nullability, unit, key, relation with cardinality/owning side/delete behaviour, index, Envers verdict, retention, and the migration + backfill of existing rows), the **API surface** (HL-2: per endpoint — method + path, roles, request fields with validation, success and every error envelope, paging, idempotency, and the compatible-or-breaking verdict for an endpoint that already exists), **authz + data scoping** (HL-3), **lifecycle states, transitions and invariants** (HL-4), **irreversible or outward side effects** (HL-5), and **changes to existing behaviour** at the L9 seams (HL-6). Each live aspect is grilled to a stated **contract grade**, presented as its own review packet (the tables verbatim, alternatives, blast radius, risks — rendered via new **RP-9**), and signed off **by you, by id, in your own words**, recorded as `signoff` rows in `GRILL-LOG.md`; an aspect whose design later moves is void and re-signed. Unsigned = the design isn't exhausted. `/afk-toolkit:to-sdd` carries the register into **SDD §0** and gains a refuse-to-publish gate (Step 7b) for unsigned aspects; §3 and §4 now demand endpoint-level and field-level detail so what you signed is what an executor builds. Set + protocol: new `skills/afk/grill-solution/HUMAN-SIGNOFF.md`.
 - Grills can now **spin off deferred work** into its own Jira ticket without leaving the interview. When a walk surfaces work that's real but out of the current ticket's scope — a dependency to defer, an adjacent pain this feature won't fix — the grill records it as a **spinoff candidate** row in `GRILL-LOG.md`, and (human-present, on your say-so) mints it as a stub Enhancement under the parent epic via a new **`/afk-toolkit:to-ticket` spinoff mode**. Links the Jira API can't set (`blocked-by`/`relates`) are tracked as **link-debt** on the candidate row and surfaced for you to set by hand; resume-safe dedup never files the same spinoff twice. New plugin-root doctrine file `SPINOFF-TICKET.md` owns the protocol (woven into all three grills; `/afk-toolkit:grill-verification` records candidates only, its no-tracker rule intact). The "exactly two Jira writers" boundary holds — `/afk-toolkit:to-ticket` gains a mode, not a new writer.
 
-## 2026-07-23
+### 2026-07-23
 
 - New skill `/afk-toolkit:to-demo-plan`: turns a delivered feature into `DEMO-PLAN.md`, the script for the hour you spend showing it to **product owners and QA**. It reuses what the chain already settled — the PRD's pain + user stories, the verification plan's walked click-paths, the ADRs, the delivered diff — and lays them out as **beats** (what to *say*, the exact steps to *do*, the line to land, its minutes), each classed **show** (performed live) or **tell** (one sentence, so obvious behaviour never eats the clock). Ordered why → concepts → happy path → touch points → edges, with a **touch-point map** of everything the feature adds to / changes in / interacts with existing behaviour (every `changes` row must be shown — that's QA's regression scope), ≤3 decisions explained in consequence language, questions **pre-empted at the beat that raises them**, an explicit out-of-scope table, and a setup section so no beat depends on state nobody created. Budget: ≤60 min with ≥10 protected for questions. The plan demos *value*, not correctness — the gates already settled correctness. Repo-only; adds a `Demo plan` row to the ticket `INDEX.md`.
 
-## 2026-07-22
+### 2026-07-22
 
 - `/afk-toolkit:grill-verification` now **resumes from `GRILL-LOG.md`** like the other two grills: its opening digest reads any existing checkpoint section, so the documented post-SDD re-run (design the deferred API scenarios) picks up the already-settled UI journeys and per-aspect verdicts from disk instead of re-walking them. It already wrote the section — only the read side was missing.
 
-## 2026-07-21
+### 2026-07-21
 
 - Ticket spec folders moved out of the packaged-resources tree: the convention is now `{service}/specs/{year}r{release}/{TICKET-ID}/` (was `{service}/src/main/resources/specs/...`). Payable's specs migrated to `11700-payable/specs/`; every path-carrying skill (`/afk-toolkit:to-prd`, `/afk-toolkit:fix`, `/afk-toolkit:retro`) and doc updated. Specs no longer risk shipping in a service jar, so payable's pom stops overriding Maven `<resources>` (which had silently dropped `descriptor.yaml` and application-property filtering).
 - `/afk-toolkit:prototype` now renders through **lavish** (new RP-8): the mockup serves in the Lavish Editor, where the annotation toggle lets you drive the simulation as before *and* pin feedback to specific elements, select text, or hit embedded feedback controls — notes land back in the session via poll instead of being described in chat. Mockups stay fully portable (live controls marked `data-lavish-action`, `window.lavish` calls guarded — rules generalized into `LAVISH.md`'s new **Drivable artifacts** section, alongside the `poll --agent-reply` shape); plain-browser `file://` refresh remains the fallback.
 - `/afk-toolkit:to-ticket` re-publishes now leave a paper trail: when the ticket already carries a published description and the PRD changed (requirement gaps closed, scope added/cut), the skill distills the delta into `TICKET-CHANGES.md` and the engine posts it as an **issue comment** right after the description update (`--changes`; one confirmation gates both writes) — the description keeps showing current truth, comments record how the requirements moved. The dry-run summary gained an `action` line (`first publish` / `re-publish`), and a first publish skips the comment with a warning.
 - `/afk-toolkit:prototype` mockups now render **in situ**: every new screen sits inside a replica of the real app shell (nav, header, breadcrumbs, active item), and the feature's **neighbor pages** — where each story enters from and where it navigates to — appear as shallow drivable stubs, so you reach the new UI by clicking from where you'd really start. The capability walk drives each story from its entry-point stub, and the fidelity pass diffs shell + nav chrome too — familiarity is the instrument for spotting gaps.
 
-## 2026-07-20
+### 2026-07-20
 
 - `/afk-toolkit:grill-requirements` "Challenge the want" gains a third standing obligation: every validity change (new gate, admin mode/toggle, curation, removal) is walked over still-editable records created before the change or under the other setting — every record the change makes rejectable needs a named, role-reachable repair affordance, and "no silent migration" decisions must name that affordance in the same requirement. New exit-gate bullet enforces it.
 - `/afk-toolkit:understand` is now the one-stop shop for **learning any piece of code** — it takes a shipped feature (`{plan-dir}`), a **GitLab MR URL**, or a **code area** (`path:`/`symbol:`) and produces the same self-contained interactive HTML learning artifact for each (`/afk-toolkit:to-code-walkthrough` is retired; its MR fetcher, spec discovery, and size gates moved into understand). The artifact also became a much better teacher: learning objectives + key concepts & constraints up front, a one-sentence mental model re-invoked through walkthrough and recap, the walkthrough split into **one tour step per seam/flow group** (stated ordering rationale, plain-language overview before code), evidence-grounded "where you'd naturally go wrong" callouts, optional one-question checks per group, and a recap section — all enforced by five new skeptic criteria (jargon-before-use, ordering rationale, objectives/recap integrity, representation match, grounded misconceptions). Shell chrome gained resume-where-you-left-off, per-step reading-time hints, and an **ask-the-teacher** button that assembles a context-rich clipboard prompt for a live Claude Code session (page stays fully offline). The interactive-walkthrough widget catalog grew two teaching widgets: a **before/after comparator** and a **predict-then-reveal** pause.
 - New skill `/afk-toolkit:gc`: post-merge spec compaction. After a feature's MR merges, it proposes — and on your approval deletes — the ticket folder's run artifacts (whole `plan/`, `GRILL-LOG.md`, publish intermediates), keeping the evergreen docs (PRD/SDD/ADRs/VERIFICATION-PLAN/PROTOTYPE/INDEX/understanding) and recording the git archive ref in `INDEX.md`. Stops stale subtask contracts and settled review findings from surfacing in future sessions' greps as current truth. `plan/`'s lifespan (slicing → merge) is now declared in `/afk-toolkit:to-subtasks`, and `/afk-toolkit:preflight`'s success report points at the post-merge step.
 
-## 2026-07-19
+### 2026-07-19
 
 - `/afk-toolkit:setup base` now checks the IntelliJ IDE max heap (W7): every installed `IntelliJIdea*` config dir must set `-Xmx` ≥ 16384 MB (default target; pick your own at the election) — the stock 2 GB heap thrashes on a monorepo reimport. Fix upserts the `-Xmx` line in `idea64.exe.vmoptions`, leaving other options untouched.
 - `/afk-toolkit:prototype` now settles a **drivable** mockup, not a picture: every PRD User Story / Acceptance Criterion must be clickable in the HTML (simulated client-side against fixtures) or logged as a gap — enforced by a pre-settle **capability walk** — and a **fidelity pass** diffs the mockup side-by-side against the live app (or the `/afk-toolkit:design-system` catalog), with the fidelity basis (`live-verified`/`catalog`/`source-only`) recorded in `PROTOTYPE.md`. Anchoring is layered: catalog first, live-DOM lifts second, source digest as fallback.
 - Grill sessions got faster, same rigor — agent work now overlaps your think-time instead of alternating with it: delegation doctrine adds a think-time overlap rule (background digests spawned before the turn yields — `DELEGATION.md`); confirm-batch evidence pre-fills as items accumulate instead of at the batch boundary (`TRIAGE.md`); the L9 seam walk fans out parallel draft seam rows and interviews only the mismatches, with compatibility auditors launching as each area locks; `/afk-toolkit:grill-requirements` and `/afk-toolkit:grill-solution` open with a parallel pre-brief digest (glossary, staples, ADRs, prior grill log) instead of mid-session reads; the devil's-advocate pass runs alongside the final confirm batch; lavish renders warm up at phase start and live artifacts re-render at question boundaries (`LAVISH.md`).
 - `/afk-toolkit:to-ticket` no longer publishes the raw PRD: it first distills a requirements-level `TICKET.md` (User Stories + Acceptance Criteria mandatory; no technical depth, no repo-artifact references) and publishes that — Product Owner/QA-readable ticket descriptions.
 
-## 2026-07-17
+### 2026-07-17
 
 - `/afk-toolkit:setup base` is now elective per item: the pre-fix report doubles as a pick list of every base-tier item needing action (toolchain pins + all workstation apps/OS config, including anything added to the register later), so you install only what you'll use — deselected items report `skipped (user choice)` instead of `needs-human`. The skill-load-bearing default surface stays mandatory.
 - New utility `/afk-toolkit:review-qa-tests`: review a QA team's **manual** test cases (typically a spreadsheet) against the feature's requirements and annotate their sheet in place — missing scenarios as new rows (only the human columns filled, scoring left to QA), fixes to existing cases as threaded comments. Writes strictly at requirements/behaviour level: the QA reader is treated as **black-box** (nothing about code, bugs, or dev process reaches a comment), and a **manual reach** filter recommends dropping cases only automation can exercise (injected faults, multi-instance, true races). Ambiguities settle with you before anything is written. Ships an `EXCEL.md` recipe + a reusable `annotate_sheet.py` that writes real threaded comments (not legacy notes) and dodges the two orphan-relationship faults that make Excel prompt to repair.
 
-## 2026-07-16
+### 2026-07-16
 
 - `APP_START_SKIP_UI=false` now actually serves a frontend. It was a silent no-op: the default Maven profile leaves `*-ui` out of the reactor, so the UI never built, the app's `public/` stayed empty, and the instance booted serving nothing — a browser tier would pass against a page that wasn't there. `app-start-gate.sh` now runs the service's own `build_ui.sh` before packaging the leaf, refuses to boot (exit 2) if the build leaves no `public/index.html`, and clears the SPA target before each build so a reprovision serves the fresh UI rather than a stale copy nested one level deep (`cp -R` nests into `public/spa/` when `public/` already exists). Reaching for Maven's `-DskipUi=false -DpipelineBuild=true` instead would force every in-house UI lib to rebuild (`skipUi` is global) — needing a vite/rollup native binary that isn't pinned on all dev platforms, to remake a `dist/` that already exists. New env var: `CI_PROJECT_DIR` (optional, defaults to the repo root).
 - Lesson ledger made trustworthy on Windows: `lesson-digest.sh` no longer reports a parse-failed ledger as "no lessons recorded" (it now says `ledger unreadable` and tolerates stray non-UTF-8 bytes per line), and `lesson-append.sh` emits ASCII-safe JSON so console-codepage output can't corrupt the ledger again.
@@ -377,7 +438,7 @@ today's date **in the same commit** — trigger owned by this file's
 - Review gate goes multi-round: execute Step 10 and preflight PF-3 now settle the independent review through a fix-or-dispute settle loop (`skills/afk/review/SETTLEMENT.md`) — fresh re-review after every remediation, every finding (nits included) fixed or disputed, disputes adjudicated by fresh skeptics, and termination accounting (hard 10-round stalemate cap → flagged for a human) kept by the referee, never leaked into reviewer/adjudicator prompts. Rounds after the first review only the remediation delta (`--base` last-reviewed tip, full diff handed to reviewers as context) and stay cheap by construction: the reviewer fan-out consolidates to one `delta-sweep` reviewer plus signal-activated specialists (fix-owner concerns, delta triggers, or an oversized delta), and per-round re-verification is compile + local tests only — live tiers, mutation probe, and other expensive surfaces run once outside the loop. `/afk-toolkit:review` grew `--tag` for per-round artifact naming; the adversary gate now carries its own 2-cycle cap.
 - Token-lean runs, same gates: subtask contracts now carry `## Context excerpts` (slicing-time verbatim PRD/SDD/ADR quotes) so each executor works from its contract instead of re-reading the parent docs; execute's design-bar checklist reads and review's `refactor-safety` concern are trigger-gated by diff/slice shape; review materializes the diff once to a scratch file for all reviewers; `/afk-toolkit:grill-verification` ingests sources via an `afk-reader` digest; maven-compile/ui-lint gates report triaged failure digests (full log to a file) instead of unbounded dumps.
 
-## 2026-07-15
+### 2026-07-15
 
 - Pass cache extended to all Stop gates: wiring, skill-registry, codex-drift, and genericity now skip their scans when the tree is unchanged since their last pass (`gate-cache.sh`, previously compile/lint/format only); wiring bypasses the cache in final mode.
 - Glossary-first grilling: `/afk-toolkit:grill-requirements` now actively hunts candidate terms from the first exchange (draft-then-verify questions, asked as soon as a term surfaces), gates exit on a user-verified entry per term, and commits the glossary before `/afk-toolkit:to-prd`; `/afk-toolkit:execute` reconciles `GLOSSARY.md` post-subtask when implementation semantics diverge from the grill-time definition.
@@ -392,34 +453,34 @@ today's date **in the same commit** — trigger owned by this file's
 - `/afk-toolkit:setup base` grew two checks: JDK distribution pinned to Amazon Corretto, and Windows long paths (OS registry flag + `git core.longpaths`).
 - Registry gate now also blocks uncatalogued skills (no `CLAUDE.md`/`README.md` mention) and unregistered hook env toggles (no MANIFEST E-table row); seven previously undocumented toggles got registered.
 
-## 2026-07-14
+### 2026-07-14
 
 - `/afk-toolkit:setup base` — opt-in provisioning of the version-pinned monorepo toolchain (git, JDK, Maven, Node/npm, Python, Docker) plus workstation apps and OS config, for fresh machines and pin bumps.
 - `/afk-toolkit:understand` — post-ship interactive HTML explainer per feature (dual-depth background, seam-ordered diff walkthrough, opt-in quiz); auto-run from preflight's advisory row or standalone; surfaced in `INDEX.md` and a new mission-control panel.
 - New `interactive-walkthrough` utils skill (agent-invoked): embeddable HTML flow-slider / branching-simulator / overlap-gantt widgets; `draw-charts` became agent-invoked only.
 
-## 2026-07-13
+### 2026-07-13
 
 - `/afk-toolkit:bug` — mid-task bug pipeline: `capture` (evidence bundle + Jira Bug before anything else), `dispatch` (autonomous fixer in its own worktree → Draft MR you merge), `status` / `retest` / `purge`.
 - `/afk-toolkit:review` rebuilt multi-aspect: 11 book-derived concern checklists, diff-shape triggers for design-level concerns, adversarial skeptic pass before design findings gate, pattern-debt channel.
 - Genericity Stop gate: added plugin prose naming a concrete ticket or product symbol blocks the turn (deliberate references go in `hooks/genericity-allow.txt`).
 - Verification coverage is exhaustive by default — a subtask declares every applicable tier, not a sample.
 
-## 2026-07-11
+### 2026-07-11
 
 - Shared Jira library (`scripts/jira_core.py`): one engine for creds resolution, ADF conversion, and attachment/media upload behind both the PRD and Bug publishers.
 
-## 2026-07-10
+### 2026-07-10
 
 - Branch-name gate (git-level, agent-only): an agent creating an off-pattern local branch is refused at ref-update time; branches you create in your own terminal/IDE are never gated.
 
-## 2026-07-09
+### 2026-07-09
 
 - Skill-registry Stop gate: a skill dir missing from `plugin.json` blocks the turn — the drift that had silently hidden `/afk-toolkit:setup` and `/afk-toolkit:retro` (both re-registered).
 - Lavish artifacts render dark-mode deterministically (PreToolUse hook).
 - Delegation routing: mechanical slices route to Sonnet (Haiku tier dropped).
 
-## 2026-07-08
+### 2026-07-08
 
 - `/afk-toolkit:setup` — the workflow doctor: probes every entry of the new dependency register (`skills/afk/setup/MANIFEST.md`), fixes what it can, guides the rest; idempotent for first install and post-pull repair.
 - `/afk-toolkit:retro` — cross-feature retrospective mining journals, review rollups, and gate metrics into evidence-cited plugin-edit proposals.
@@ -429,19 +490,19 @@ today's date **in the same commit** — trigger owned by this file's
 - CLAUDE.md steward: role-scoped sidecars (`IMPL.md`/`TESTING.md`/`DEBUG.md`) keep CLAUDE.md decision-only.
 - Lavish render is mandatory at grill render points when a human is present.
 
-## 2026-07-07
+### 2026-07-07
 
 - `/afk-toolkit:mission-control` — read-only per-feature dashboard (watch mode or `--once` retroactive render).
 - `/afk-toolkit:preflight` — feature-level ship gate: merges master behind an ancestry guard, re-validates, integrated review, babysits CI, flips the Draft MR to Ready; chained from autopilot after smoke-green.
 - `LAVISH.md` + render points: human-present visualizations woven into the grill/design skills.
 
-## 2026-07-06
+### 2026-07-06
 
 - Wiring gate ships with the plugin: a new artifact with no consumer and no anchored IOU blocks the turn; `verify-seams` (agent-invoked) is the judgment tier.
 - Chain-wide skill audit shipped behavior fixes: park-on-timeout autopilot semantics, bounded adversary respawns, lockstep drift repairs.
 - `tdd` and `verify-seams` hidden from the `/` menu (agent-invoked only).
 
-## 2026-07-05
+### 2026-07-05
 
 - `/afk-toolkit:autopilot` — hands-off plan driver: fresh subagent per subtask, parks failures + dependents while independent work continues, ends at the smoke gate.
 - `/afk-toolkit:adversary` — live-app execution gate probing the running app under an information diet, wired into execute as Step 10.5.
@@ -449,19 +510,19 @@ today's date **in the same commit** — trigger owned by this file's
 - Delegation doctrine (`DELEGATION.md`) + named `afk-reader`/`afk-runner` subagents woven through the chain.
 - `writing-great-skills` adopted as the skill-authoring reference (`create-skill` retired).
 
-## 2026-07-03
+### 2026-07-03
 
 - Staples registry: per-service `STAPLES.md` (stewarded by `/afk-toolkit:claude-md`) with consult/capture loops threaded through grill → PRD → SDD → subtasks → review.
 
-## 2026-06-30
+### 2026-06-30
 
 - `/afk-toolkit:review` — independent post-verification review gate (findings contract, severity rubric), wired into execute Step 10.
 
-## 2026-06-29
+### 2026-06-29
 
 - Verification doctrine: persistence must be proven by API refetch, never by UI echo alone.
 
-## 2026-06-23
+### 2026-06-23
 
 - Plugin lands at `tools/payable/ai-agents/plugins/workflow`: core chain (grill-requirements → to-prd → to-ticket → grill-solution → to-sdd → to-subtasks → execute → smoke-test) plus `prototype`, `design-system`, the `claude-md` steward, and the `tdd` doctrine.
 - `/afk-toolkit:fix` — disciplined bug-fix orchestration: diagnose wrap, proportional test coverage, escape analysis of the test that should have caught it.

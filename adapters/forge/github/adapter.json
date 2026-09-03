@@ -28,5 +28,8 @@
     "forge",
     "github.remote",
     "git.base-branch"
+  ],
+  "register": [
+    "C3b"
   ]
 }

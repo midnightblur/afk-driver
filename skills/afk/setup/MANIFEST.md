@@ -158,6 +158,16 @@ a token value — not even partially.
   weave, fallback) stays in `LAVISH.md`. Opt out by deleting the sentinel
   block; opt in any time by re-running `/afk-toolkit:setup`.
 
+### H9 · Notion MCP server *(only when `notes: notion`)*
+- **Needed by:** `adapters/notes/notion` — every notes verb mirrors its local
+  copy to a Notion page through this server's tools.
+- **Probe:** `agent:` a Notion MCP tool is listed in this session's tool set.
+- **Fix:** `human:` connect a Notion MCP server in the harness, then restart the
+  session — MCP tools register at launch. The local Markdown copy is written
+  either way, so an unconnected server delays the mirror, never the note.
+- **Notes:** the page every work item is created under is
+  `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils

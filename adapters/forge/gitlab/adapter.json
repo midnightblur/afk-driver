@@ -28,5 +28,8 @@
     "forge",
     "gitlab.remote",
     "git.base-branch"
+  ],
+  "register": [
+    "C3"
   ]
 }

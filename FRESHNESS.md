@@ -37,7 +37,8 @@ everyone else points.
 |---|---|---|
 | `.claude-plugin/plugin.json` | plugin author | a skill or agent is added/renamed/removed; the chain's shape changes (description) |
 | `.claude-plugin/marketplace.json` | plugin author | the chain's shape changes (description) |
-| `CHANGELOG.md` | plugin author | a dev-visible feature/enhancement/behavior change ships — add its dated one-liner **in the same commit** (audience + exclusions self-documented in its header; internal refactors and wording sweeps get no entry) |
+| `CHANGELOG.md` | plugin author | a dev-visible feature/enhancement/behavior change ships — add its line under `## [Unreleased]` **in the same commit** (audience + exclusions self-documented in its header; internal refactors and wording sweeps get no entry). A release moves that section under its version heading, which `hooks/release-gate.sh` then requires to match the tag |
+| `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.claude-plugin/marketplace.json` | plugin author | a release — all three versions and the first released `CHANGELOG.md` heading change together, in one commit; `hooks/release-gate.sh` fails the tag otherwise |
 | `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |
 | `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move; renaming the "How to write these skill files" section also updates the pointer any consuming repository's own `CLAUDE.md` carries |
 | `GLOSSARY.md` (root) | plugin author | a methodology term is minted, renamed, or retired |

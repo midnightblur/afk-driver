@@ -14,5 +14,8 @@
     "build-gates",
     "npm.lint",
     "npm.workspace-root"
+  ],
+  "register": [
+    "N1"
   ]
 }

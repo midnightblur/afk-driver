@@ -1,0 +1,37 @@
+# The release gate, run where it cannot be skipped.
+#
+# A tag push is the moment the version becomes public, so the equality check
+# runs there; a pull request runs it too, against the version the branch
+# claims, so a manifest that drifted is caught before the tag exists.
+name: release-gate
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - '.claude-plugin/**'
+      - '.codex-plugin/**'
+      - 'CHANGELOG.md'
+      - 'hooks/release-gate.sh'
+
+jobs:
+  version-agreement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the version under test
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            # No tag yet: gate the version the branch's own manifest claims, so
+            # the four files still have to agree with each other.
+            echo "tag=v$(python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Version agreement
+        run: bash hooks/release-gate.sh "${{ steps.version.outputs.tag }}"

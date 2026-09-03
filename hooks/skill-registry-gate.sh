@@ -20,6 +20,13 @@
 #    home for the writing doctrine). Root docs are not auto-loaded, so a file
 #    missing the pointer runs blind to the doctrine, which is exactly how it
 #    drifted before.
+# E. adapter coherence — an adapter kind is described in four places, and a kind
+#    described in three of them is a kind nobody can select. For every
+#    adapters/<family>/<kind>/: adapter.json parses and its runner entry exists
+#    on disk; CONTRACT.md names every operation adapter.json declares; the kind
+#    appears in its family's enum in CONFIG.md; every configuration key it reads
+#    appears in CONFIG.md; and every register row it declares in `register`
+#    exists as a heading in the dependency register.
 #
 # Verdict per check: membership present -> pass; missing -> exit 2 (with the
 # exact list + where to add it); plugin.json entry pointing at a dir that no
@@ -172,7 +179,17 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     "$PLUGIN_DIR"/skills/utils/*/SKILL.md "$PLUGIN_DIR"/agents/*.md 2>/dev/null \
     | sed "s|^$PLUGIN_DIR/||")
 
-  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ]; then
+  # ---- check E: adapter.json <-> its entry <-> CONTRACT.md <-> CONFIG.md <->
+  # the register. One python pass over every adapter, so the cost is one spawn
+  # whatever the number of families.
+  local adapter_drift=""
+  if [ -d "$PLUGIN_DIR/adapters" ]; then
+    local _py=python
+    command -v python >/dev/null 2>&1 || _py=python3
+    adapter_drift=$("$_py" "$PLUGIN_DIR/hooks/lib/adapter_registry_check.py" "$PLUGIN_DIR" 2>&1)
+  fi
+
+  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ] || [ -n "$adapter_drift" ]; then
     gate_metrics_emit skill-registry blocked "\"checked\":$n_checked"
     {
       printf '[afk] Registry gate: a plugin registry drifted from disk.\n'
@@ -193,6 +210,10 @@ for a in m.get('agents', []): print('AGENT\t' + a)
       if [ -n "$no_language" ]; then
         printf 'Skill/agent file missing the LANGUAGE.md pointer line (copy the one-liner any sibling SKILL.md carries right after its frontmatter):\n'
         printf '%s\n' "$no_language" | sed 's/^/  - /'
+      fi
+      if [ -n "$adapter_drift" ]; then
+        printf 'Adapter described in some places but not all (ADAPTERS.md "Adding a kind" lists the four):\n'
+        printf '%s\n' "$adapter_drift" | sed 's/^/  - /'
       fi
     } >&2
     return 2

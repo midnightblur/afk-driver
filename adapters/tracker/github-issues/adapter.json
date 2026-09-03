@@ -21,5 +21,8 @@
     "tracker",
     "github-issues.repo",
     "github-issues.state-labels"
+  ],
+  "register": [
+    "C3b"
   ]
 }

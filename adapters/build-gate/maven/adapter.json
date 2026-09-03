@@ -18,5 +18,8 @@
     "maven.formatter-plugin",
     "maven.default-module",
     "maven.skip-ui-flag"
+  ],
+  "register": [
+    "C4"
   ]
 }

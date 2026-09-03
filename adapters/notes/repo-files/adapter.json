@@ -17,5 +17,9 @@
   "configKeys": [
     "notes",
     "repo-files.spec-dir"
+  ],
+  "register": [
+    "C2",
+    "P1"
   ]
 }

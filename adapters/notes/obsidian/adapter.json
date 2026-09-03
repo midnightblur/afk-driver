@@ -18,5 +18,6 @@
     "notes",
     "obsidian.vault",
     "repo-files.spec-dir"
-  ]
+  ],
+  "register": []
 }

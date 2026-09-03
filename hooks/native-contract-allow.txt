@@ -38,3 +38,5 @@ skills/afk/setup/MANIFEST.md	harness-name	installed plugin root that Codex plugi
 skills/afk/setup/MANIFEST.md	harness-name	`Installed plugin root:` line of `codex plugin list`	Fix names the CLI whose output carries the root.
 skills/afk/setup/MANIFEST.md	harness-name	`\[plugins\."afk-toolkit@afk-toolkit"\]` entry in `~/.codex/config.toml`	Fix names the harness config file that records the root.
 skills/afk/setup/MANIFEST.md	harness-name	read the installed plugin root from Codex plugin metadata	Fix names the harness whose metadata supplies the root.
+CHANGELOG.md	harness-name	installable from GitHub on Claude Code	Release entry states which harnesses the 1.0.0 install was proven on.
+CHANGELOG.md	harness-name	^  and Codex CLI\.\*\* It was a directory	Same release entry, continued on the next line.
