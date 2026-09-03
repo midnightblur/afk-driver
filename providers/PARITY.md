@@ -15,14 +15,14 @@ Three verdicts are used, and only three:
 - **not proven** — no run, and no gate that asserts it. Named here rather than
   quietly counted as green.
 
-**Totals: 96 rows — 25 proven, 45 covered, 26 not proven.**
+**Totals: 96 rows — 26 proven, 45 covered, 25 not proven.**
 
 The twenty-six are almost all of one kind, and it is worth saying plainly what
-kind: they are fixture runs that were never made. Nineteen are skills. Six are
+kind: they are fixture runs that were never made. Nineteen are skills. Five are
 gates or probes whose behaviour needs a seeded input to demonstrate — a
 surviving mutant, a missing translation key, a rule violation, a stalled child,
-an application that starts, a search counter driven past its threshold. The
-last is the render doctrine, which needs a grill session to exercise. Every one
+an application that starts. The last is the render doctrine, which needs a grill
+session to exercise. Every one
 of these items loads, registers, and passes the registry
 and contract gates on both harnesses. What has not been shown is that its output
 or its refusal is what the plan's row describes. That is the honest boundary of
@@ -136,8 +136,8 @@ this evidence, and the last section says what would close it.
 
 | Row | Verdict | Evidence |
 |---|---|---|
-| crowdstrike-guard.sh | proven | `ledger` both harnesses; it blocked four commands during this release, which is the strongest evidence a guard can offer |
-| explore-counter.sh | not proven | The counter was not driven past its threshold after the path fix |
+| crowdstrike-guard.sh | proven | `ledger` both harnesses; it blocked five commands during this release, which is the strongest evidence a guard can offer. Also driven through the real seam: a system-root command posted to `run-hook.py repo-list PreToolUse` in the consuming repository came back as a deny envelope |
+| explore-counter.sh | proven | Driven past its threshold through `run-hook.py repo-list PreToolUse` in the consuming repository: the fourth call returned the escalation context |
 | i18n-parity-gate.sh | not proven | No seeded missing key was run |
 | java-rules-gate.sh | not proven | No seeded rule violation was run |
 
@@ -164,7 +164,7 @@ this evidence, and the last section says what would close it.
 | adapters CONTRACT.md | covered | `gate` — the registry gate diffs verbs against `operations[]`, empty on every kind |
 | LICENSE | proven | Added in this release. It was missing: an owner decision that never landed on disk, and the row that found it |
 
-## What would close the twenty-six
+## What would close the twenty-five
 
 Each is one fixture run, and the fixtures are cheap: a temporary repository, a
 seeded input, one invocation, one look at the output. They were skipped because
@@ -181,5 +181,5 @@ gate that silently stopped working looks exactly like a gate with nothing to
 catch — which is precisely the defect round 5 found in the lint gate, and found
 only because something was seeded for it to catch.
 
-Anyone continuing this work should run the twenty-six before adding to them, and
-should start with the six gates.
+Anyone continuing this work should run the twenty-five before adding to them, and
+should start with the five gates.
