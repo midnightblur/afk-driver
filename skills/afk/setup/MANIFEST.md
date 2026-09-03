@@ -557,6 +557,8 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
+| `JIRA_DEFAULT_PROJECT` | `adapters/tracker/jira/api.py` | project key used when a caller names none; absent, a create is refused with a message naming this variable rather than guessing a project |
+| `GH_REPO` | `adapters/tracker/github-issues/api.py` | `owner/name` fallback when the configuration names no `repo`; the configuration wins where both are set |
 | `AFK_CFG_GITHUB_REMOTE` / `AFK_CFG_GITLAB_REMOTE` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | the git remote whose URL identifies the project, exported by `hooks/lib/config.sh` from `<kind>.remote`; unset lets the forge CLI derive the project from the checkout |
 | `AFK_CFG_OBSIDIAN_VAULT` | `adapters/notes/obsidian/notes.sh` | vault directory exported from `obsidian.vault`; an absent directory is answered `unavailable` rather than crashing |
 | `AFK_CFG_REPO_FILES_SPEC_DIR` | `adapters/notes/common.sh` | the spec-directory template exported from `repo-files.spec-dir`, with its placeholders expanded per note |

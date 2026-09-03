@@ -18,6 +18,28 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-09-03
+
+The audit's last three findings, from the run after the run that fixed the
+previous three. It has now stopped finding things.
+
+### Fixed
+
+- The glossary headed two terms with a spelling nothing uses. Every consumer
+  writes the class token — the hyphenated form that appears in a finding's
+  `class` field — and the glossary headed the entries with the prose form, so
+  the term-usage check found a definition with no consumers and could not tell
+  that apart from a term nobody needs. Both entries now lead with the token and
+  keep the prose form beside it.
+
+### Documented
+
+- Two more variables the shipped adapters read that the register's table never
+  listed: the default project key one tracker falls back to, and the
+  `owner/name` fallback the other uses when the configuration names no
+  repository. This is the second release to add missing rows to that table; the
+  drift check that keeps finding them is doing exactly what it is for.
+
 ## [1.0.4] - 2026-09-03
 
 Two probes that reported a healthy machine as broken. A register whose probes
