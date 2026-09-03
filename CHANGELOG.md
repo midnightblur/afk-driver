@@ -18,6 +18,27 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-09-03
+
+Two probes that reported a healthy machine as broken. A register whose probes
+cry wolf is worse than one row short: it teaches the reader to skim its failures.
+
+### Fixed
+
+- The agent-stub probe demanded that the baked plugin root match one exact
+  string. That harness reports its root two ways — a marketplace directory and a
+  versioned cache directory — and both are real, content-identical, and work.
+  The probe now asks the question that matters: does the baked path resolve to
+  the toolkit. It failed on a machine whose stubs were correct, which is exactly
+  the failure mode that makes the previous release's genuine version-drift catch
+  harder to see.
+- The editor probe missed a system-wide installation, having missed a Toolbox
+  installation in the previous release. Both times the editor was open while the
+  row reported it absent. The location is added, and so is the rule: a probe that
+  enumerates install locations is wrong until the next one is found, so a
+  negative means "not found where I looked", never "not installed", and the fix
+  is to add the location rather than to ask a human to install what they have.
+
 ## [1.0.3] - 2026-09-03
 
 Everything here was found by running the setup register's own audit against the

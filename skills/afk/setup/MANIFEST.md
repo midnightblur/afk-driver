@@ -437,8 +437,12 @@ Gating rule: if O1 misses, report the whole section as
   `providers/codex/agents/afk-toolkit-afk-runner-lite.toml`.
 - **Probe:** each `providers/codex/agents/afk-toolkit-afk-*.toml` is present under
   `~/.codex/agents/` with the same filename, its `{{PLUGIN_ROOT}}` placeholder is
-  replaced by the installed plugin root that Codex plugin metadata reports, **and that
-  root exists on disk**.
+  replaced by a plugin root that **exists on disk and contains `LANGUAGE.md` and
+  `agents/`**. That harness reports the root two ways — a marketplace directory and a
+  versioned cache directory — and both are real, content-identical, and work. The
+  probe asked for one exact string and therefore failed on a machine whose stubs were
+  correct. What matters is that the baked path resolves to the toolkit, not which of
+  its two names was written.
 - **Upgrading the plugin breaks this row until setup runs again.** The root baked into
   each stub carries the version, so installing any new version leaves all four stubs
   naming a directory that no longer exists, and every agent spawn on that harness
@@ -504,9 +508,13 @@ miss is `missing/broken` there, never on a default run. Any fix marked
 ### W2 · IntelliJ IDEA
 - **Needed by:** the human; optionally referenced by `/afk-toolkit:bug`'s `ideBinary`
   key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
-- **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/Programs/IntelliJ IDEA"* >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/JetBrains/Toolbox/apps/intellij-idea"* >/dev/null 2>&1`
-  A package manager sees only what it installed. JetBrains Toolbox is the other
-  common route and leaves nothing in that list, so a Toolbox installation read as
+- **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/Programs/IntelliJ IDEA"* >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/JetBrains/Toolbox/apps/intellij-idea"* >/dev/null 2>&1 || ls -d "$ProgramFiles/JetBrains/IntelliJ IDEA"* >/dev/null 2>&1`
+  A probe that enumerates install locations is wrong until the next one is found:
+  this row has now missed a Toolbox install and a system-wide install in turn, on
+  machines where the editor was open at the time. Treat a negative as "not found
+  where I looked", never as "not installed", and add the location rather than
+  asking the human to install what they already have. A package manager sees only
+  what it installed, so a Toolbox installation read as
   absent and the row failed on a machine where the editor was running.
 - **Base fix:** `human:` `winget install --id JetBrains.IntelliJIDEA.Ultimate -e`
   (or via JetBrains Toolbox), then sign in with a license.
