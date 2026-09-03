@@ -155,7 +155,22 @@ that finds nothing has usually proved nothing.
   documented in that kind's `CONTRACT.md` and `NOTES.md` as a local delete plus
   `notion.error`, rather than promised and silently skipped. The two proof
   pages from this round are still in the workspace, retitled to say they are
-  safe to archive, and need one manual archive.
+  safe to archive. Archive requested through the release owner, who has the
+  workspace tools this server does not expose.
+
+### Decisions the extraction plan did not name
+
+The plan required that a choice it was silent on be made consistently with its
+own boundary and recorded here.
+
+- The originating monorepo carried a second copy of the Jira MCP server, at
+  `tools/payable/ai-agents/harness/mcp-servers/jira/`, beside the copy inside
+  the plugin. Its only referrer was the harness README that the extraction
+  branch rewrites, and the setup register's own row already pointed at the
+  plugin copy. The boundary gives this toolkit the tracker MCP server together
+  with its Jira adapter, so the harness copy is residue of the era before that
+  line existed and the extraction branch deletes it. Nothing in the monorepo
+  reads it, and nothing here depends on the monorepo.
 
 ## Add harness #N
 
