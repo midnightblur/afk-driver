@@ -1,31 +1,38 @@
 #!/usr/bin/env bash
-# Commit gate (ships with the afk plugin): Java format gate (STRICT).
-# Blocks the commit when any changed .java file does not conform to the repo's
-# canonical Eclipse formatter profile (eclipse-code-formatter.xml).
+# build-gate/maven — Java format gate (STRICT).
+# Blocks the commit when any changed .java file does not conform to the
+# formatter profile the repository named in `maven.formatter-config`.
 #
-# Runs at COMMIT time (precommit-gates.sh, installed by install-git-hooks.sh),
-# not on every turn end — see maven-compile-gate.sh for the rationale.
+# Runs at COMMIT time (hooks/precommit-gates.sh, installed by
+# hooks/install-git-hooks.sh), not on every turn end — see maven-compile-gate.sh
+# for the rationale.
 #
-# Policy (owner-approved): strict on ALL changed files — touching a legacy file
-# means bringing the whole file into conformance. Fix by running the format goal
-# printed in the failure message, then re-verify.
+# Policy: strict on ALL changed files — touching a legacy file means bringing the
+# whole file into conformance. Fix by running the format goal printed in the
+# failure message, then re-verify.
 #
 # Scope rules:
-#   - Only runs in a core-services-shaped checkout (all-modules-pom.xml +
-#     eclipse-code-formatter.xml at root); silently allows anywhere else.
-#   - Only changed (non-deleted) .java files, grouped by Maven submodule.
-#   - One validate invocation per submodule, restricted to the changed files
-#     via -Dformatter.includes (paths relative to the module's source roots).
+#   - Only runs when `maven.reactor-pom`, `maven.formatter-plugin` and
+#     `maven.formatter-config` are all set and the two files exist; silently
+#     allows anywhere else.
+#   - Only changed (non-deleted) .java files, grouped by Maven module.
+#   - One validate invocation per module, restricted to the changed files via
+#     -Dformatter.includes (paths relative to the module's source roots).
 #
 # Exit 2 with stderr surfaces the violation back to the agent/committer.
 
 set -u
 
-FORMATTER_PLUGIN="net.revelc.code.formatter:formatter-maven-plugin:2.28.0"
-
 gate_java_format() {
   [ -f .claude/hooks/.gate-disabled ] && return 0
-  [ -f all-modules-pom.xml ] && [ -f eclipse-code-formatter.xml ] || return 0
+  . "$(dirname "${BASH_SOURCE[0]}")/maven-lib.sh"
+  afk_maven_available || return 0
+
+  local reactor plugin cfg
+  reactor=$(afk_maven_reactor)
+  plugin=${AFK_CFG_MAVEN_FORMATTER_PLUGIN:-}
+  cfg=${AFK_CFG_MAVEN_FORMATTER_CONFIG:-}
+  [ -n "$plugin" ] && [ -n "$cfg" ] && [ -f "$cfg" ] || return 0
 
   local repo_root=$PWD
 
@@ -33,10 +40,8 @@ gate_java_format() {
   changed_java=$(gate_ctx_filter AFK_CTX_LIVE '*.java')
   [ -z "$changed_java" ] && return 0
 
-  # Unique submodules, same derivation as maven-compile-gate.sh.
   local submodules
-  submodules=$(printf '%s\n' "$changed_java" \
-    | sed -nE 's|^([0-9]+-[^/]+/[^/]+)/src/.*|\1|p' | sort -u)
+  submodules=$(afk_maven_modules_of "$changed_java")
   [ -z "$submodules" ] && return 0
 
   local cache_key
@@ -68,15 +73,15 @@ gate_java_format() {
     )
     [ -z "$includes" ] && continue
 
-    out=$(./mvnw -f all-modules-pom.xml -pl "$mod" "$FORMATTER_PLUGIN:validate" \
-      -Dconfigfile="$repo_root/eclipse-code-formatter.xml" \
+    out=$(./mvnw -f "$reactor" -pl "$mod" "$plugin:validate" \
+      -Dconfigfile="$repo_root/$cfg" \
       -Dformatter.includes="$includes" -q 2>&1)
     rc=$?
     if [ "$rc" -ne 0 ]; then
       fail=1
       report+="Module: $mod  (files: $includes)"$'\n'
       report+="$(printf '%s\n' "$out" | grep -E '\[ERROR\]|has not been previously formatted' | head -10)"$'\n'
-      report+="Fix: ./mvnw -f all-modules-pom.xml -pl $mod $FORMATTER_PLUGIN:format -Dconfigfile=$repo_root/eclipse-code-formatter.xml -Dformatter.includes=$includes"$'\n\n'
+      report+="Fix: ./mvnw -f $reactor -pl $mod $plugin:format -Dconfigfile=$repo_root/$cfg -Dformatter.includes=$includes"$'\n\n'
     fi
   done <<<"$submodules"
 
@@ -86,8 +91,8 @@ gate_java_format() {
   if [ "$fail" -ne 0 ]; then
     gate_metrics_emit java-format blocked "\"lock_wait_ms\":$lock_wait_ms,\"detail\":\"$mods_csv\""
     {
-      printf '[harness] Java format gate failed — changed files must conform to eclipse-code-formatter.xml.\n'
-      printf 'Policy is strict: a touched legacy file gets fully reformatted (owner-approved churn).\n'
+      printf '[harness] Java format gate failed — changed files must conform to %s.\n' "$cfg"
+      printf 'Policy is strict: a touched legacy file gets fully reformatted.\n'
       printf 'Run the Fix command(s) below, review the diff, then commit.\n\n'
       printf '%s' "$report"
     } >&2
@@ -104,8 +109,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
   cd "$_root" || exit 0
-  . "$_d/gate-context.sh"; gate_ctx_build
-  . "$_d/gate-cache.sh"
-  . "$_d/gate-metrics.sh"
+  . "$_d/maven-lib.sh"
+  . "$AFK_MAVEN_HOOKS_DIR/lib/config.sh"; afk_config_load
+  . "$AFK_MAVEN_HOOKS_DIR/gate-context.sh"; gate_ctx_build
+  . "$AFK_MAVEN_HOOKS_DIR/gate-cache.sh"
+  . "$AFK_MAVEN_HOOKS_DIR/gate-metrics.sh"
   gate_java_format; exit $?
 fi

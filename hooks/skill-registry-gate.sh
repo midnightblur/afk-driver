@@ -208,6 +208,11 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
   cd "$_root" || exit 0
+  # provider.sh first: this gate resolves the plugin's own directory through
+  # afk_plugin_dir, and without it a manual run would scope to nothing and
+  # report a silent pass.
+  . "$_d/lib/provider.sh"
+  . "$_d/lib/config.sh"; afk_config_load
   . "$_d/gate-context.sh"; gate_ctx_build
   . "$_d/gate-cache.sh"
   . "$_d/gate-metrics.sh"

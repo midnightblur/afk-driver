@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Commit-time gate runner (ships with the afk plugin): the code gates that are
-# too expensive to run per conversational turn — maven-compile, java-format,
-# ui-lint. Invoked by the `pre-commit` git hook that install-git-hooks.sh
-# installs, and only for an AGENT-driven commit (see below); also runnable by hand:
-#   bash tools/payable/ai-agents/plugins/workflow/hooks/precommit-gates.sh
+# too expensive to run per conversational turn. WHICH gates those are is not
+# decided here — the repository's `build-gates:` list selects the build-gate
+# adapters, and each adapter reports the gates the change set needs. Invoked by
+# the `pre-commit` git hook that install-git-hooks.sh installs, and only for an
+# AGENT-driven commit (see below); also runnable by hand:
+#   bash "$AFK_PLUGIN_ROOT/hooks/precommit-gates.sh"
 #
 # Wall-clock matters here in a way it does not on Stop: an agent commits through
 # a tool call with its own timeout, and a hook that outlives it kills the commit.
@@ -62,7 +64,7 @@ afk_config_load
 gate_ctx_build_staged
 [ -z "$AFK_CTX_CHANGED" ] && exit 0
 
-# The gates validate WORKTREE content (Maven/ESLint cannot read a staged-only
+# The gates validate WORKTREE content (a build tool cannot read a staged-only
 # blob), so a gated file whose staged copy differs from its worktree copy would
 # be judged on bytes the commit does not contain — a broken staged blob could
 # land gated-green behind a fixed worktree. Refuse that commit up front.
@@ -86,15 +88,26 @@ fi
 export AFK_MAVEN_LOCK_WAIT="${AFK_MAVEN_LOCK_WAIT:-240}"
 
 blocked=0
-run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
-  local name=$1 fn="gate_${1//-/_}" rc=0
+# $1 = gate name; $2 = the build-gate kind that owns it, or "" for a gate this
+# runner owns itself (a file <name>-gate.sh beside this one).
+run_gate() {
+  local name=$1 kind=${2:-} fn="gate_${1//-/_}" rc=0
   # A gate that cannot load or crashes must not be a SILENT pass — say so, even
-  # though the commit path stays fail-open (matching the old per-hook semantics).
-  if ! . "$SCRIPT_DIR/$name-gate.sh"; then
-    printf '[afk] %s-gate.sh failed to load — this commit is NOT gated by it.\n' "$name" >&2
-    return 0
+  # though the commit path stays fail-open.
+  if [ -n "$kind" ]; then
+    afk_build_gate_run "$kind" "$name"; rc=$?
+    if [ "$rc" = "3" ] || [ "$rc" = "4" ]; then
+      printf '[afk] build gate %s/%s could not run — this commit is NOT gated by it.\n' \
+        "$kind" "$name" >&2
+      return 0
+    fi
+  else
+    if ! . "$SCRIPT_DIR/$name-gate.sh"; then
+      printf '[afk] %s-gate.sh failed to load — this commit is NOT gated by it.\n' "$name" >&2
+      return 0
+    fi
+    "$fn"; rc=$?
   fi
-  "$fn"; rc=$?
   case "$rc" in
     0) ;;
     2) blocked=1 ;;
@@ -103,12 +116,19 @@ run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   return 0
 }
 
-# Scope tests are fork-free; a commit enters only gates relevant to its paths.
-if gate_ctx_any AFK_CTX_LIVE '*.java'; then
-  run_gate java-format
-  run_gate maven-compile
-fi
-gate_ctx_any AFK_CTX_LIVE '*.js' '*.cjs' '*.mjs' '*.ts' '*.vue' && run_gate ui-lint
+# The selected build-gate adapters decide which of their gates this change set
+# needs; each one's scope test is fork-free, so a commit enters only the gates
+# its paths can possibly break. A repository with no `build-gates:` runs none.
+while IFS= read -r _bg_kind; do
+  [ -n "$_bg_kind" ] || continue
+  afk_build_gate_load "$_bg_kind" || continue
+  _bg_discover="afk_bg_${_bg_kind//-/_}_discover"
+  command -v "$_bg_discover" >/dev/null 2>&1 || continue
+  while IFS= read -r _bg_name; do
+    [ -n "$_bg_name" ] || continue
+    run_gate "$_bg_name" "$_bg_kind"
+  done < <("$_bg_discover")
+done < <(afk_config_list build-gates)
 
 # The native plugin contract is cheap enough for Stop and commit. Commit-time
 # enforcement is independently required: a --no-hooks session must not be able

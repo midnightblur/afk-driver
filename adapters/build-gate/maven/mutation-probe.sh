@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Mutation probe (ships with the afk plugin): runs PIT (pitest) scoped to the
+# build-gate/maven — mutation probe: runs PIT (pitest) scoped to the
 # classes a slice changed and reports which mutants its tests failed to kill.
 # A green test suite that kills no mutants proves nothing — this probe is the
 # oracle for test STRENGTH, consumed as an advisory signal by the review gate's
 # test-veracity concern. NOT a Stop hook; on demand only:
 #
-#   bash tools/payable/ai-agents/plugins/workflow/hooks/mutation-probe.sh \
+#   bash "$AFK_PLUGIN_ROOT/adapters/build-gate/maven/mutation-probe.sh" \
 #     <module> <targetClasses-csv> [targetTests-csv]
-#   e.g. … 11700-payable/payable com.nakisa.payable.service.FooService com.nakisa.payable.service.FooServiceTest
 #
 # Exit codes:
 #   0 = probe ran; summary + surviving mutants printed to stdout
@@ -50,10 +49,15 @@ timeout_s=${MUTATION_TIMEOUT:-900}
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$repo_root" || exit 3
-[ -f all-modules-pom.xml ] || { echo "MUTATION: unavailable — not a core-services checkout" ; exit 3; }
+
+. "$(dirname "${BASH_SOURCE[0]}")/maven-lib.sh"
+. "$AFK_MAVEN_HOOKS_DIR/lib/config.sh"
+afk_config_load
+reactor=$(afk_maven_reactor)
+afk_maven_available || { echo "MUTATION: unavailable — maven.reactor-pom names no POM in this checkout"; exit 3; }
 [ -f "$mod/pom.xml" ] || { echo "MUTATION: unavailable — no pom at $mod/pom.xml"; exit 3; }
 
-. "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
+. "$AFK_MAVEN_HOOKS_DIR/gate-metrics.sh"
 gate_metrics_begin
 
 # pitest rewrites target/ — serialize with the other Maven-invoking gates.
@@ -64,10 +68,12 @@ trap release_maven_lock EXIT
 log=$(mktemp "${TMPDIR:-/tmp}/mutation-probe-XXXXXX.log")
 rm -rf "$mod/target/pit-reports"
 
-mvn_cmd=(./mvnw -f all-modules-pom.xml -pl "$mod" --also-make test-compile
+mvn_cmd=(./mvnw -f "$reactor" -pl "$mod" --also-make test-compile
   "org.pitest:pitest-maven:${PITEST_VERSION}:mutationCoverage"
   -DtargetClasses="$target_classes"
-  -DoutputFormats=CSV -DtimestampedReports=false -DskipUi=true -q)
+  -DoutputFormats=CSV -DtimestampedReports=false -q)
+_skip_ui=$(afk_maven_skip_ui)
+[ -n "$_skip_ui" ] && mvn_cmd+=("$_skip_ui")
 [ -n "$target_tests" ] && mvn_cmd+=(-DtargetTests="$target_tests")
 
 if command -v timeout >/dev/null 2>&1; then

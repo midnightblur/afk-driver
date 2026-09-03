@@ -82,8 +82,8 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `obsidian` | map | `vault` |
 | `notion` | map | `parent-page-id` |
 | `artifacts` | map | `glossary-map`, `service-map` |
-| `maven` | map | `reactor-pom`, `formatter-config`, `formatter-plugin`, `default-module`, `skip-ui-flag` |
-| `npm` | map | `lint`, `workspace-root` |
+| `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`) |
+| `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace) |
 | `verification` | map | `tiers`, `env` |
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk-toolkit:setup` reads as extra register rows |

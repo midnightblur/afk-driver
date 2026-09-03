@@ -194,9 +194,10 @@ a token value — not even partially.
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
   compile row (`skills/afk/to-subtasks/SMOKE-GATE.md`), the liquibase pickup
   check (`skills/afk/to-subtasks`), and the commit gates
-  `hooks/maven-compile-gate.sh` / `hooks/java-format-gate.sh` (dispatched by
+  `adapters/build-gate/maven/maven-compile-gate.sh` / `adapters/build-gate/maven/java-format-gate.sh` (dispatched by
   `precommit-gates.sh` on agent-driven commits) plus
-  `hooks/app-start-gate.sh` (they no-op outside a core-services checkout).
+  `adapters/build-gate/maven/app-start-gate.sh` (all three no-op unless `maven`
+  is in `build-gates:` and `maven.reactor-pom` names a POM in this checkout).
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the core-services checkout (X1); JDK
   selection follows the core-services conventions (root `CLAUDE.md` there).
@@ -211,14 +212,14 @@ a token value — not even partially.
   Standalone Maven is optional — the wrapper self-provisions its own.
 
 ### C5 · pitest (mutation probe) *(optional)* **[deferred: first review-gate mutation probe]**
-- **Needed by:** `hooks/mutation-probe.sh` (invoked by `skills/afk/review`'s
+- **Needed by:** `adapters/build-gate/maven/mutation-probe.sh` (invoked by `skills/afk/review`'s
   test-veracity concern, sampled).
-- **Probe:** `test -f tools/payable/ai-agents/plugins/workflow/hooks/mutation-probe.sh && ./mvnw -v >/dev/null`
+- **Probe:** `test -f $AFK_PLUGIN_ROOT/adapters/build-gate/maven/mutation-probe.sh && ./mvnw -v >/dev/null`
 - **Fix:** `human:` pitest itself resolves from Maven Central at run time
   (version pinned via `PITEST_VERSION`, default in the script) — but JUnit 5
   test discovery needs `org.pitest:pitest-junit5-plugin` on the pitest maven
   **plugin** classpath, which cannot be injected from the CLI: add the
-  `<pluginManagement>` snippet from `hooks/mutation-probe.sh`'s header to the
+  `<pluginManagement>` snippet from `adapters/build-gate/maven/mutation-probe.sh`'s header to the
   service's parent POM once per service.
 - **Notes:** fail-open by design — without the POM entry (or on a
   JDK-compatibility miss) the probe exits 3 `unavailable` and the review gate
@@ -307,7 +308,7 @@ a token value — not even partially.
 
 ### N1 · node + npm + npx
 - **Needed by:** mermaid rendering (N2), the verification suites (N3), UI
-  builds the chain may trigger, and `hooks/ui-lint-gate.sh` (resolves eslint
+  builds the chain may trigger, and `adapters/build-gate/npm/ui-lint-gate.sh` (resolves eslint
   via `npx --no-install`; silently allows when unresolvable).
 - **Probe:** `node --version && npm --version`
 - **Fix:** `human:` install Node 24 (the core-services npm-workspace standard).
@@ -464,7 +465,7 @@ Gating rule: if O1 misses, report the whole section as
 ### X4 · app-start gate hook
 - **Needed by:** `skills/afk/autopilot` (self-provisioning),
   `skills/afk/execute` (app-dependent tiers), `skills/afk/to-subtasks/SMOKE-GATE.md`.
-- **Probe:** `test -f tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh`
+- **Probe:** `test -f $AFK_PLUGIN_ROOT/adapters/build-gate/maven/app-start-gate.sh`
 - **Fix:** `human:` pull a core-services revision that contains it — the gate
   suite ships in-plugin (tracked), so every checkout/worktree at such a
   revision has it.
@@ -585,8 +586,9 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDE_PROJECT_DIR` | `hooks/run-hook.py` | optional fast project root, read with the `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` fallback |
 | `AFK_BASH` / `GIT_BASH` | `hooks/run-hook.py` | POSIX shell the hook launcher runs handlers with, ahead of its own lookup |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
-| `APP_START_TIMEOUT` | `hooks/app-start-gate.sh` | boot timebox (seconds, default 300) |
-| `CI_PROJECT_DIR` | `hooks/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
+| `APP_START_TIMEOUT` | `adapters/build-gate/maven/app-start-gate.sh` | boot timebox (seconds, default 300) |
+| `APP_START_UI_BUILD` | `adapters/build-gate/maven/app-start-gate.sh` | the UI build script the gate runs when `APP_START_SKIP_UI=false`; defaults to `build_ui.sh` beside the service directory |
+| `CI_PROJECT_DIR` | `adapters/build-gate/maven/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
 | `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk-toolkit:gc` refuse deletion — it always gets a human eye |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
@@ -597,13 +599,16 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
+| `AFK_CFG_MAVEN_*` | `adapters/build-gate/maven/maven-lib.sh` and the Maven gates | the `maven:` block exported by `hooks/lib/config.sh` — `reactor-pom`, `formatter-config`, `formatter-plugin`, `default-module`, `skip-ui-flag` |
+| `AFK_CFG_NPM_*` | `adapters/build-gate/npm/ui-lint-gate.sh` | the `npm:` block exported by `hooks/lib/config.sh` — `lint`, `workspace-root` |
+| `AFK_CFG_BUILD_GATES_*` | `hooks/lib/config.sh`, `hooks/lib/adapter.sh` | the `build-gates:` list (`_COUNT` plus indexed names) selecting which build-gate adapters load |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
 | `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
-| `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates (maven-compile, java-format, ui-lint) for one commit |
+| `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission |
-| `MAVEN_LOCK_DIR` | `hooks/maven-lock.sh` | relocate the cross-gate maven lock dir |
-| `AFK_MAVEN_LOCK_WAIT` | `hooks/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
-| `PITEST_VERSION` / `MUTATION_TIMEOUT` | `hooks/mutation-probe.sh` | pitest version pin / probe timebox |
+| `MAVEN_LOCK_DIR` | `adapters/build-gate/maven/maven-lock.sh` | relocate the cross-gate maven lock dir |
+| `AFK_MAVEN_LOCK_WAIT` | `adapters/build-gate/maven/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
+| `PITEST_VERSION` / `MUTATION_TIMEOUT` | `adapters/build-gate/maven/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
 | `CROWDSTRIKE_GUARD_OFF` | `harness/hooks/crowdstrike-guard.sh` (adopted gate — wired in this plugin's `hooks.json`) | debug bypass of the system-root scan guard |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |

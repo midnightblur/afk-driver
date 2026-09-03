@@ -37,11 +37,11 @@ artifacts:
 maven:
   reactor-pom: all-modules-pom.xml
   formatter-config: eclipse-code-formatter.xml
-  formatter-plugin: "2.28.0"
+  formatter-plugin: "net.revelc.code.formatter:formatter-maven-plugin:2.28.0"
   default-module: 11700-payable/payable
   skip-ui-flag: -DskipUi=true
 npm:
-  lint: eslint
+  lint: npx --no-install eslint --no-error-on-unmatched-pattern
   workspace-root: .
 verification:
   tiers:

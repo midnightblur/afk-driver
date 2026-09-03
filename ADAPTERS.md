@@ -83,6 +83,13 @@ Maven `app-start`. A gate function exits 0 to pass and 2 to block, with its
 findings on stderr. `build-gates` selects which adapters load; the key absent
 means no build gates.
 
+This family is the one a repository selects a LIST of, so dispatch is by kind:
+`afk_build_gate_discover` asks every selected kind what the change set needs and
+`afk_build_gate_run <kind> <name>` runs one. Both SOURCE the kind's `gates.sh`
+into the caller's process — a gate reads the shared change set, pass cache and
+metrics the commit runner already built, and re-deriving them per gate is the
+subprocess cost the single-process runner exists to avoid.
+
 | Kind | Gates |
 |---|---|
 | [`maven`](adapters/build-gate/maven/CONTRACT.md) | compile, format, lock, app-start, mutation |

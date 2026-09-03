@@ -80,3 +80,71 @@ afk_adapter() {
     *) bash "$dir/$entry" "$@" ;;
   esac
 }
+
+# ---- build-gate: the one family a repository selects a LIST of, not one kind.
+#
+# A gate runs inside the caller's process, not a subprocess: the shared gate
+# context, the pass cache and the metrics file all live there, and re-deriving
+# them per gate is exactly the fork cost the single-process gate runner exists to
+# avoid. So dispatch here means "source the kind's gates.sh and call its
+# function", and the CLI form in each gates.sh serves the contract instead.
+
+# afk_build_gate_dir <kind> — the directory, or empty when the kind is unknown.
+afk_build_gate_dir() {
+  local dir="$(afk_adapter_root)/adapters/build-gate/$1"
+  [ -d "$dir" ] || {
+    printf 'afk: unknown build gate `%s` (set by `build-gates:` in .afk/config.yaml); no directory adapters/build-gate/%s\n' \
+      "$1" "$1" >&2
+    return 2
+  }
+  printf '%s\n' "$dir"
+}
+
+# afk_build_gate_load <kind> — source the kind's entry once.
+afk_build_gate_load() {
+  local kind=$1 dir loaded
+  loaded="AFK_BG_LOADED_$(printf '%s' "$kind" | tr '[:lower:]-' '[:upper:]_')"
+  [ "${!loaded:-0}" = "1" ] && return 0
+  dir=$(afk_build_gate_dir "$kind") || return 2
+  # shellcheck source=/dev/null
+  . "$dir/gates.sh" || return 2
+  eval "$loaded=1"
+}
+
+# afk_build_gate_discover — every gate name the SELECTED kinds need for the
+# current change set, one per line, in configuration order.
+afk_build_gate_discover() {
+  local kind fn
+  while IFS= read -r kind; do
+    [ -n "$kind" ] || continue
+    afk_build_gate_load "$kind" || continue
+    fn="afk_bg_${kind//-/_}_discover"
+    command -v "$fn" >/dev/null 2>&1 && "$fn"
+  done < <(afk_config_list build-gates)
+}
+
+# afk_build_gate_run <kind> <name> — run one gate. 0 pass, 2 block, 3 no such
+# gate in that kind, 4 the kind could not be loaded.
+afk_build_gate_run() {
+  local kind=$1 fn
+  afk_build_gate_load "$kind" || return 4
+  fn="afk_bg_${kind//-/_}_run"
+  command -v "$fn" >/dev/null 2>&1 || return 3
+  shift
+  "$fn" "$@"
+}
+
+# afk_build_gate_kind_of <name> — which selected kind owns a gate name.
+afk_build_gate_kind_of() {
+  local wanted=$1 kind fn n
+  while IFS= read -r kind; do
+    [ -n "$kind" ] || continue
+    afk_build_gate_load "$kind" || continue
+    fn="afk_bg_${kind//-/_}_discover"
+    command -v "$fn" >/dev/null 2>&1 || continue
+    while IFS= read -r n; do
+      [ "$n" = "$wanted" ] && { printf '%s\n' "$kind"; return 0; }
+    done < <("$fn")
+  done < <(afk_config_list build-gates)
+  return 1
+}

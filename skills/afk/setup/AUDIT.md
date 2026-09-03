@@ -46,7 +46,7 @@ disk — a dead pointer is a stale doc. Sweep two scopes:
   `hooks/...`, `agents/...`, `scripts/...`).
 - **External anchors:** paths into the core-services tree the skills lean on —
   at minimum `11700-payable/verification/{ui-e2e,api}/AUTHORING.md`,
-  `tools/payable/envstack/envctl.py` (`hooks/app-start-gate.sh` ships in-plugin
+  `tools/payable/envstack/envctl.py` (`adapters/build-gate/maven/app-start-gate.sh` ships in-plugin
   — first scope).
 
 Route: the citing file (fix the pointer) — unless the target genuinely moved,

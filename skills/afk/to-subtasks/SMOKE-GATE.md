@@ -102,7 +102,7 @@ as-is:
 | # | Check | Command | Status |
 |---|-------|---------|--------|
 | 1 | compile | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make compile -DskipUi=true | |
-| 2 | app-start | bash {main checkout}/tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh {leaf module} (exit 0) | |
+| 2 | app-start | bash $AFK_PLUGIN_ROOT/adapters/build-gate/maven/app-start-gate.sh {leaf module} (exit 0) | |
 | 3 | regression | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make test -DskipUi=true | |
 | 4 | existing ui-e2e suite | cd 11700-payable/verification/ui-e2e && npm run smoke (pre-existing scenarios still green) | |
 | 5 | existing api suite | cd 11700-payable/verification/api && node --test (pre-existing scenarios still green) | |

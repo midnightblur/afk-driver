@@ -35,7 +35,7 @@ Only completion re-invokes a waiting orchestrator. A hung child never completes,
 
 - **Arm** — in the spawn's own message, start `<main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/stall-watchdog.sh` in a background shell, pointed at paths the child's work touches (usage, path guidance, defaults, exit codes: script header). Its exit wakes the orchestrator.
 - **On fire** — read the child's task-output tail. Still producing → re-arm and keep waiting. Silent → stop the child's task and take the invoking skill's park/fail path; never resume waiting on a fired watchdog.
-- **Stopping the task leaves its processes alive.** A forked JVM survives the task stop — it holds its port and consumes broker messages meant for later verification. Before successor work spawns: kill the pid tree the child recorded (`.claude/hooks/.app-instance-{port}`, shape: `hooks/app-start-gate.sh` header) and any process still listening on the child's port.
+- **Stopping the task leaves its processes alive.** A forked JVM survives the task stop — it holds its port and consumes broker messages meant for later verification. Before successor work spawns: kill the pid tree the child recorded (`.claude/hooks/.app-instance-{port}`, shape: `adapters/build-gate/maven/app-start-gate.sh` header) and any process still listening on the child's port.
 - **Disarm** — on the child's normal completion, kill the watchdog's background task. A fire that lands for a completed child is a no-op.
 
 ## Model selection

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# App-start gate (ships with the afk plugin): boots a service's leaf app module
-# and verifies the Spring context actually starts. Proof-of-life for "the app
-# still runs" — catches bean-wiring, config, and classpath breakage that
+# build-gate/maven — app-start gate: boots a service's leaf application module
+# and verifies the application context actually starts. Proof-of-life for "the
+# app still runs" — catches bean-wiring, config, and classpath breakage that
 # compile + unit tiers miss.
 #
 # NOT a Stop hook (boot takes minutes). Invoked on demand by AFK verification
-# tiers or manually, from the repo root:
-#   bash tools/payable/ai-agents/plugins/workflow/hooks/app-start-gate.sh [service-leaf-module]
-# Default module: 11700-payable/payable
+# tiers, by `adapters/build-gate/maven/gates.sh app-start`, or by hand from the
+# repository root:
+#   bash "$AFK_PLUGIN_ROOT/adapters/build-gate/maven/app-start-gate.sh" [leaf-module]
+# The module defaults to `maven.default-module` from .afk/config.yaml.
 #
 # Exit codes:
 #   0 = context started ("Started *Application" seen); process is then killed —
@@ -27,6 +28,8 @@
 #                         path the service's build_ui.sh resolves its workspace
 #                         from. Defaults to the repo root — set it only to build
 #                         a UI against a different checkout)
+#      APP_START_UI_BUILD (path to the UI build script; default
+#                         "<parent of the module>/build_ui.sh")
 #      APP_START_REUSE   (1 = if a kept instance from a prior run is still
 #                         alive on APP_START_PORT, reuse it as-is — no rebuild,
 #                         no reboot; falls through to a full boot otherwise)
@@ -38,14 +41,23 @@
 
 set -u
 
-mod=${1:-11700-payable/payable}
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$repo_root" || exit 3
+
+. "$(dirname "${BASH_SOURCE[0]}")/maven-lib.sh"
+. "$AFK_MAVEN_HOOKS_DIR/lib/config.sh"
+afk_config_load
+
+mod=${1:-${AFK_CFG_MAVEN_DEFAULT_MODULE:-}}
 timeout_s=${APP_START_TIMEOUT:-300}
 skip_ui=${APP_START_SKIP_UI:-true}
 ui_mod="$mod-ui"
+reactor=$(afk_maven_reactor)
+skip_ui_arg=$(afk_maven_skip_ui)
 
-repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-cd "$repo_root" || exit 3
-[ -f all-modules-pom.xml ] || { echo "[app-start-gate] no all-modules-pom.xml at $repo_root — not a core-services checkout" >&2; exit 3; }
+[ -n "$reactor" ] || { echo "[app-start-gate] maven.reactor-pom is not set in .afk/config.yaml" >&2; exit 3; }
+[ -f "$reactor" ] || { echo "[app-start-gate] no $reactor at $repo_root — not the checkout .afk/config.yaml describes" >&2; exit 3; }
+[ -n "$mod" ] || { echo "[app-start-gate] no module given and maven.default-module is not set in .afk/config.yaml" >&2; exit 3; }
 [ -f "$mod/pom.xml" ] || { echo "[app-start-gate] no pom at $mod/pom.xml" >&2; exit 3; }
 
 # Fixed-port instance state: reuse or clear a kept instance from a prior run.
@@ -88,7 +100,7 @@ fi
 
 log=$(mktemp "${TMPDIR:-/tmp}/app-start-gate-XXXXXX.log")
 
-. "$(dirname "${BASH_SOURCE[0]}")/gate-metrics.sh"
+. "$AFK_MAVEN_HOOKS_DIR/gate-metrics.sh"
 gate_metrics_begin
 
 # Two-step boot, both reactor-based so parents/siblings resolve from source
@@ -103,16 +115,14 @@ acquire_maven_lock 900 || exit 3
 # BEFORE the leaf is packaged, because build_ui.sh copies the built SPA into the app
 # module's src/main/resources/public and the jar only picks it up if it's already there.
 #
-# Why not Maven: -DskipUi=false on the leaf reactor is a NO-OP (the default profile is
-# active on !pipelineBuild and leaves *-ui out of the reactor, so the UI never builds
-# and the jar silently serves no frontend — a browser tier would test a page that isn't
-# there). Adding -DpipelineBuild=true to pull *-ui in trades that for a worse bug:
-# skipUi is a GLOBAL property every in-house UI lib gates its own npm build on, so
-# -DskipUi=false force-rebuilds all of them — they build with vite/rollup, whose native
-# binary is not pinned for every dev platform, and their dist/ is already built anyway.
-# The service's own UI is the only one this gate needs; build_ui.sh builds exactly that.
+# Why not Maven: a repository that keeps its UI modules behind a profile leaves them
+# out of a leaf reactor, so the UI never builds and the jar silently serves no
+# frontend — a browser tier would test a page that is not there. Pulling every UI
+# module in instead force-rebuilds shared UI libraries whose dist/ is already built.
+# The service's own UI is the only one this gate needs; its build script builds
+# exactly that.
 if [ "$skip_ui" = "false" ]; then
-  ui_build="$(dirname "$mod")/build_ui.sh"
+  ui_build=${APP_START_UI_BUILD:-$(dirname "$mod")/build_ui.sh}
   if [ ! -f "$ui_build" ]; then
     release_maven_lock
     echo "[app-start-gate] APP_START_SKIP_UI=false but no UI build script at $ui_build" >&2
@@ -148,12 +158,12 @@ if [ "$skip_ui" = "false" ]; then
 fi
 
 echo "[app-start-gate] packaging $mod (reactor, --also-make)..."
-# -DskipUi=true unconditionally: this pass builds the app leaf only. When a UI was
-# requested it was already built by the UI pass above and now sits in public/ —
-# rebuilding it here would be a wasted (or, without the UI profile, silently
-# skipped) second pass.
-if ! ./mvnw -f all-modules-pom.xml -pl "$mod" --also-make package \
-    -DskipTests -DskipUi=true -q > "$log" 2>&1; then
+# The skip-UI flag unconditionally: this pass builds the app leaf only. When a UI
+# was requested it was already built by the UI pass above and now sits in the app
+# module's resources — rebuilding it here would be a wasted second pass.
+pkg_cmd=(./mvnw -f "$reactor" -pl "$mod" --also-make package -DskipTests -q)
+[ -n "$skip_ui_arg" ] && pkg_cmd+=("$skip_ui_arg")
+if ! "${pkg_cmd[@]}" > "$log" 2>&1; then
   release_maven_lock
   gate_metrics_emit app-start code_failure "\"module\":\"$mod\",\"phase\":\"package\""
   {

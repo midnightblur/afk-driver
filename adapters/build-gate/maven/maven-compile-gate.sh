@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Commit gate (ships with the afk plugin): Maven compile gate.
+# build-gate/maven — compile gate.
 # Blocks the commit when any changed Maven module fails to compile.
 #
-# Runs at COMMIT time (precommit-gates.sh, installed by install-git-hooks.sh),
-# not on every turn end: a reactor compile is minutes of work, and paying it per
-# conversational turn made interactive sessions unusable. Correctness is
-# unchanged — nothing reaches a branch without passing it.
+# Runs at COMMIT time (hooks/precommit-gates.sh, installed by
+# hooks/install-git-hooks.sh), not on every turn end: a reactor compile is
+# minutes of work, and paying it per conversational turn made interactive
+# sessions unusable. Correctness is unchanged — nothing reaches a branch without
+# passing it.
 #
 # Scope rules:
-#   - Only runs in a core-services-shaped checkout (all-modules-pom.xml at root);
-#     silently allows anywhere else.
+#   - Only runs when `maven.reactor-pom` names a POM that exists; silently allows
+#     anywhere else, so a repository with no Maven reactor is not gated.
 #   - Only runs when .java files are in scope (the shared gate context).
-#   - Lists ALL changed sub-modules in a single mvnw invocation so Maven's reactor
+#   - Lists ALL changed modules in a single mvnw invocation so Maven's reactor
 #     orders them by their inter-module dependencies.
-#   - --also-make: sibling modules build from source. Resolving them from ~/.m2
-#     produces false failures whenever installed artifacts lag HEAD (seen 2026-07-04:
-#     stale payable-client jar -> APT "Expected a DeclaredType, got <error>").
+#   - --also-make: sibling modules build from source. Resolving them from the
+#     local repository produces false failures whenever installed artifacts lag
+#     HEAD (stale sibling jar -> APT "Expected a DeclaredType, got <error>").
 #
 # Exit 2 with stderr surfaces the compile error back to the agent/committer.
 
@@ -23,19 +24,17 @@ set -u
 
 gate_maven_compile() {
   [ -f .claude/hooks/.gate-disabled ] && return 0
-  [ -f all-modules-pom.xml ] || return 0    # not a core-services checkout
+  . "$(dirname "${BASH_SOURCE[0]}")/maven-lib.sh"
+  afk_maven_available || return 0
 
-  local repo_root; repo_root=$PWD
+  local reactor; reactor=$(afk_maven_reactor)
 
   local changed_java
   changed_java=$(gate_ctx_filter AFK_CTX_LIVE '*.java')
   [ -z "$changed_java" ] && return 0
 
-  # Derive unique sub-module paths: "<numeric-prefixed-top>/<submodule>"
-  #   e.g. "11700-payable/payable-entities/src/.../Foo.java" -> "11700-payable/payable-entities"
   local submodules
-  submodules=$(printf '%s\n' "$changed_java" \
-    | sed -nE 's|^([0-9]+-[^/]+/[^/]+)/src/.*|\1|p' | sort -u)
+  submodules=$(afk_maven_modules_of "$changed_java")
   [ -z "$submodules" ] && return 0
 
   local projects; projects=$(printf '%s\n' "$submodules" | paste -sd, -)
@@ -50,14 +49,18 @@ gate_maven_compile() {
   . "$(dirname "${BASH_SOURCE[0]}")/maven-lock.sh"
   local lock_t0 lock_wait_ms
   lock_t0=$(gate_metrics_now_ms)
-  # Wait bound: the commit path shortens this (precommit-gates.sh) so a hook can
-  # never outlive the tool call driving the commit. On timeout the gate allows —
-  # blocking a commit because a sibling worktree is mid-build helps nobody.
+  # Wait bound: the commit path shortens this (hooks/precommit-gates.sh) so a
+  # hook can never outlive the tool call driving the commit. On timeout the gate
+  # allows — blocking a commit because a sibling worktree is mid-build helps nobody.
   acquire_maven_lock "${AFK_MAVEN_LOCK_WAIT:-900}" || return 0
   lock_wait_ms=$(( $(gate_metrics_now_ms) - lock_t0 ))
 
+  local -a cmd=(./mvnw -f "$reactor" --projects="$projects" --also-make compile -q)
+  local skip_ui; skip_ui=$(afk_maven_skip_ui)
+  [ -n "$skip_ui" ] && cmd+=("$skip_ui")
+
   local output rc
-  output=$(./mvnw -f all-modules-pom.xml --projects="$projects" --also-make compile -DskipUi=true -q 2>&1)
+  output=$("${cmd[@]}" 2>&1)
   rc=$?
   # Release the moment the reactor is done — explicitly, not via `trap … RETURN`.
   # Gates share one process now, and a RETURN trap fires again as the enclosing
@@ -93,8 +96,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
   cd "$_root" || exit 0
-  . "$_d/gate-context.sh"; gate_ctx_build
-  . "$_d/gate-cache.sh"
-  . "$_d/gate-metrics.sh"
+  . "$_d/maven-lib.sh"
+  . "$AFK_MAVEN_HOOKS_DIR/lib/config.sh"; afk_config_load
+  . "$AFK_MAVEN_HOOKS_DIR/gate-context.sh"; gate_ctx_build
+  . "$AFK_MAVEN_HOOKS_DIR/gate-cache.sh"
+  . "$AFK_MAVEN_HOOKS_DIR/gate-metrics.sh"
   gate_maven_compile; exit $?
 fi
