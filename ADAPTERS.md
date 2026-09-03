@@ -96,6 +96,15 @@ resolving the wrong one.
 | [`obsidian`](adapters/notes/obsidian/CONTRACT.md) | the same tree inside `obsidian.vault`, plus a wikilink index |
 | [`notion`](adapters/notes/notion/CONTRACT.md) | pages under `notion.parent-page-id` through the Notion MCP; local files stay canonical |
 
+`repo-files` and `obsidian` store the same tree and differ only in where it is
+rooted and how a link is written, so both state those two things and source the
+family implementation in [`adapters/notes/common.sh`](adapters/notes/common.sh).
+
+`notion` is the one kind whose runner type is `instruction` rather than `cli`:
+its tools live in an agent session, not in a script. Dispatch answers
+`{"instruction": "<file>", "verb": "<verb>"}` and the agent performs the verb
+from that file. Any kind of any family may declare `instruction` the same way.
+
 ## build-gate
 
 `gate-discover` (which gates the changed set needs), `gate-run <name>`, and for

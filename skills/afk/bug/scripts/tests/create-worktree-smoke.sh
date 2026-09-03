@@ -57,6 +57,14 @@ REPO_WIN="$(cygpath -m "$REPO" 2>/dev/null || echo "$REPO")"
 printf '{"main":"%s/x"}\n' "$REPO_WIN" > "$REPO/.mcp.json"
 printf 'root=%s/nested\n' "$REPO_WIN" > "$REPO/.claude/sub/settings.local.json"
 echo "seed" > "$REPO/README.md"
+# The branch gate reads the repository's own convention, so the fixture declares one.
+mkdir -p "$REPO/.afk"
+cat > "$REPO/.afk/config.yaml" <<'YAML'
+schema: 1
+git:
+  branch-pattern: '^team/development/[a-z0-9][a-z0-9._-]*/.+$'
+  branch-template: 'team/development/{user}/{ticket_lower}'
+YAML
 git -C "$REPO" add -A
 git -C "$REPO" commit -qm "seed"
 # written AFTER the seed commit: .claude/* is gitignored in the real repo, so TODO.md only
@@ -74,7 +82,7 @@ echo jar > "$FAKE_M2/com/x/lib/9.9-SNAPSHOT/lib-9.9-SNAPSHOT.jar"
 run_cwt() { bash "$CWT" "$@"; }
 
 # --- Test 1 + 2: success + config rewrite -----------------------------------
-GOOD_BRANCH="kapteyn/development/tester/smoke-$$"
+GOOD_BRANCH="team/development/tester/smoke-$$"
 OUT1="$(run_cwt --branch "$GOOD_BRANCH" --dir good --base "$BASE_BRANCH" \
         --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --m2-seed "$FAKE_M2" 2>"$TMP_ROOT/err1.log")"
 RC1=$?
@@ -136,7 +144,7 @@ RC3=$?
 COMBINED3="$OUT3$(cat "$TMP_ROOT/err3.log")"
 if [[ $RC3 -ne 0 ]]; then ok "bad branch exits non-zero"; else bad "bad branch exited 0"; fi
 if printf '%s' "$COMBINED3" | grep -q '^ERROR='; then ok "bad branch prints ERROR= line"; else bad "no ERROR= line (got: $COMBINED3)"; fi
-if printf '%s' "$COMBINED3" | grep -qF 'kapteyn/development'; then ok "ERROR names the gate pattern"; else bad "ERROR omits the pattern"; fi
+if printf '%s' "$COMBINED3" | grep -qF 'team/development'; then ok "ERROR names the gate pattern"; else bad "ERROR omits the pattern"; fi
 if [[ ! -d "$WT_PARENT/bad" ]]; then ok "no worktree created for bad branch"; else bad "worktree created despite bad branch"; fi
 
 # --- Test 5: a failure INSIDE a helper function still emits ERROR= (no bare death) ----------
@@ -148,7 +156,7 @@ STUBBIN="$TMP_ROOT/stubbin"
 mkdir -p "$STUBBIN"
 printf '#!/bin/sh\nexit 1\n' > "$STUBBIN/perl"
 chmod +x "$STUBBIN/perl"
-GOOD2="kapteyn/development/tester/smoke2-$$"
+GOOD2="team/development/tester/smoke2-$$"
 OUT5="$( ( export PATH="$STUBBIN:$PATH"; run_cwt --branch "$GOOD2" --dir good2 --base "$BASE_BRANCH" \
         --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --no-m2 ) 2>"$TMP_ROOT/err5.log" )"
 RC5=$?
@@ -158,7 +166,7 @@ if printf '%s' "$COMBINED5" | grep -q '^ERROR='; then ok "helper-internal failur
 git -C "$REPO" worktree remove --force "$WT_PARENT/good2" >/dev/null 2>&1 || true
 
 # --- Test 6: --no-m2 skips the private Maven repo ----------------------------
-GOOD3="kapteyn/development/tester/smoke3-$$"
+GOOD3="team/development/tester/smoke3-$$"
 OUT6="$(run_cwt --branch "$GOOD3" --dir good3 --base "$BASE_BRANCH" \
         --repo "$REPO" --parent "$WT_PARENT" --no-npm --no-open --no-m2 2>"$TMP_ROOT/err6.log")"
 WT6="$(printf '%s\n' "$OUT6" | tail -n1)"; WT6="${WT6#WORKTREE_PATH=}"

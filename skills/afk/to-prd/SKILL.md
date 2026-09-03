@@ -29,12 +29,12 @@ Write `PRD.md` (+ any requirement ADRs) to the repo and stop. Publishing to a tr
 
 **Done when:** `PRD.md`, every requirement ADR, and `INDEX.md` (summary + this skill's rows) are on disk; every accepted staple appears as an acceptance criterion; every `(unverified premise: …)` label is consolidated under `## Further Notes`.
 
-## Monorepo conventions (core-services)
+## Where a PRD lands
 
 The **on-disk location** is load-bearing — downstream skills (`/afk-toolkit:to-sdd`, `/afk-toolkit:to-subtasks`) find the PRD by convention, not a tracker pointer. This is the owning home of the spec-folder path convention; others point here.
 
-- **PRD location.** `{service}/specs/{year}r{release}/{TICKET-ID}/PRD.md` for service-scoped work, or `tasks/{TICKET-ID}/PRD.md` for cross-cutting tooling (PRD's `## Service:` line = `tasks`). Service derives from the ticket/project key per the project mapping — e.g. `P2P` → `11700-payable`. `year` = calendar year; `release` = n-th release of that year (1-indexed).
-- **`{TICKET-ID}`** = the parent ticket key (e.g. `P2P-1220`). This skill neither creates nor fetches it — the key comes from user/session context. If none yet, write under a provisional slug and rename the folder once it exists.
+- **PRD location.** The notes adapter decides it: `resolve` renders `repo-files.spec-dir` for this work item, and the PRD is `PRD.md` inside that directory. The service placeholder comes from `artifacts.service-map` — the ticket/project key maps to a service directory there.
+- **`{TICKET-ID}`** = the parent ticket key (e.g. `PROJ-1220`). This skill neither creates nor fetches it — the key comes from user/session context. If none yet, write under a provisional slug and rename the folder once it exists.
 
 ## Next
 

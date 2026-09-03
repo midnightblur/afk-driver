@@ -74,7 +74,7 @@ The requirement-level access boundary, per capability/User Story so it is *state
 | <capability> | <roles allowed> | <≥1 role blocked> | <which entity, by company and/or vendor — not values> | <required/bounds/transition, or "none"> |
 
 - **Every row names ≥1 denied role.** "Everyone may" is valid only when stated; a blank denied column is an unresolved requirement.
-- **Data scope is by company and/or vendor, never tenant** (build-per-tenant, single-tenant in dev — see core-services `CLAUDE.md`). Record *which entity* is scoped, not concrete values (FOS-configured at runtime).
+- **Data scope is by company and/or vendor, never tenant** (where the repository's own `CLAUDE.md` states a tenancy model, follow it). Record *which entity* is scoped, not concrete values (FOS-configured at runtime).
 - Enforcement *mechanism* and **Envers audit** are solution-level — SDD, not here.
 
 ## Implementation Decisions

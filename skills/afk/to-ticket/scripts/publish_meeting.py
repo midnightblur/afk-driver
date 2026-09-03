@@ -31,7 +31,7 @@ notes) into a Markdown file in the shape documented in REFERENCE.md
 contains, wrapped and merged — nothing more.
 
 Usage:
-    python publish_meeting.py --parent P2P-1220 \
+    python publish_meeting.py --parent PROJ-1220 \
         --title "Demo & QA" --date 2026-07-08 \
         --meeting path/to/MEETING.md [--dry-run] [--yes]
 
@@ -104,7 +104,7 @@ def build_description(existing_adf, expand_node, title):
 def main():
     ap = argparse.ArgumentParser(
         description="Publish a meeting summary into a Jira issue as a collapsible expand (ADF).")
-    ap.add_argument("--parent", required=True, help="Jira issue key, e.g. P2P-1220")
+    ap.add_argument("--parent", required=True, help="Jira issue key, e.g. PROJ-1220")
     ap.add_argument("--meeting", required=True, help="path to the meeting body Markdown")
     ap.add_argument("--title", required=True,
                     help="short meeting name; the expand key becomes '{date} — {title}'")

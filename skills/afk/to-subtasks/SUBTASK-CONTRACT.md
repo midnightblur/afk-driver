@@ -88,7 +88,7 @@ is a candidate defect, not an input-shaping cue).>
 | unit | `<unit test cmd, e.g. mvn -pl {module} test -Dtest=FooTest>` | unit behavior |
 | integration | `<cmd>` | cross-module wiring / persistence / framework pickup |
 | api | `<cmd, e.g. node --test verification/api/foo.test.mjs>` | endpoint contract direct over REST (no UI) — incl. below-the-UI authz |
-| e2e/browser | `<cmd, e.g. cd 11700-payable/verification/ui-e2e && npm run smoke>` | user-visible flow end-to-end |
+| e2e/browser | `<the `e2e/browser` tier command from verification.tiers>` | user-visible flow end-to-end |
 
 ## Context excerpts
 <verbatim quotes from the PRD/SDD/ADRs this slice's implementor needs —

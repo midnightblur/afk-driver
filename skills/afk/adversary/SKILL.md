@@ -16,7 +16,7 @@ Static review checks what the code says; this gate checks what the running syste
 
 ## Information diet (hard rule)
 
-MAY read: the subtask contract's `## Goal / Scope / Acceptance / Seams` + its cited PRD/SDD sections; SDD §3 endpoint contracts; `GLOSSARY.md`; verification harness docs (`11700-payable/verification/{core,api,ui-e2e}` READMEs) for auth/base-URL mechanics.
+MAY read: the subtask contract's `## Goal / Scope / Acceptance / Seams` + its cited PRD/SDD sections; SDD §3 endpoint contracts; `GLOSSARY.md`; verification harness docs (`the repository's verification suites/{core,api,ui-e2e}` READMEs) for auth/base-URL mechanics.
 
 MUST NOT read: the slice diff, implementor's tests, review findings, any commit of this branch. If any enters context, the verdict is tainted — report `tainted`; invoker respawns a fresh session.
 
@@ -31,7 +31,7 @@ MUST NOT read: the slice diff, implementor's tests, review findings, any commit 
    - **cross-effect** — the promise's side effects (balances, statuses, links) verified by a follow-up read, not trusted from the mutation response.
 
    Effort bound: ≤3 scenarios per promise × class cell; deepen a cell past that only when one of its scenarios surfaces a finding.
-3. **Execute against `{app-base-url}`** — REST via `11700-payable/verification/core` (token minting, fetch, poll). A browser-only promise: drive it with the ui-e2e harness's driver against the same instance. Create your own test data through public APIs (self-provision; never assume fixtures).
+3. **Execute against `{app-base-url}`** — REST via the suite's shared primitives (token minting, fetch, poll). A browser-only promise: drive it with the ui-e2e harness's driver against the same instance. Create your own test data through public APIs (self-provision; never assume fixtures).
 4. **Verdict.**
    - Every scenario behaves as promised → `clean`.
    - Otherwise `findings`, each: `class` (`correctness` | `spec` | `authz` | `robustness`), severity (`critical`/`high`/`medium`/`low`), the promise it breaks (citation), exact repro (request + actual vs expected response, or UI steps + observed state).
@@ -50,6 +50,6 @@ In plain terms: <one jargon-free sentence — what the running app got wrong (or
 
 - **Edits nothing**: no code, no specs, no plan files. The report is the only output.
 - **Runtime evidence only.** A finding without a reproduced request/response (or observed UI state) is a hypothesis — don't report it here.
-- **Repros written to be lifted.** State each finding's repro in the idiom of the standing verification catalogs (`11700-payable/verification/api/AUTHORING.md` for REST repros, `…/ui-e2e/AUTHORING.md` for browser repros — including their corpus conventions) so whoever remediates can land it there verbatim as a permanent scenario.
+- **Repros written to be lifted.** State each finding's repro in the idiom of the standing verification catalogs (the `api` suite's own authoring recipe for REST repros, `…/ui-e2e/AUTHORING.md` for browser repros — including their corpus conventions) so whoever remediates can land it there verbatim as a permanent scenario.
 - **Data hygiene.** Prefix created entities so they're identifiable; don't mutate or depend on pre-existing business data.
 - Findings carry a `class` so the caller can route remediation — the routing itself belongs to the caller, not here.

@@ -38,7 +38,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
 - `prd_path` — the PRD (`.../{TICKET-ID}/PRD.md` or `tasks/{TICKET-ID}/PRD.md`).
 - `sdd_path` *(optional)* — defaults to PRD's sibling `SDD.md`. Present → cited mode.
-- `ticket_id` — parent Enhancement/Story/Bug key (e.g. `P2P-1220`); labels the plan and eventual branch only. **Nothing written to Jira.**
+- `ticket_id` — parent Enhancement/Story/Bug key (e.g. `PROJ-1220`); labels the plan and eventual branch only. **Nothing written to the tracker.**
 - `skip_design_docs` *(optional, default false)* — human override to slice uncited even where an SDD might be warranted.
 - `materialize_seams` *(optional, cited mode only, default false)* — pre-create each new-Java seam's stub + contract test on the branch at slicing time (Process step 3.5), upgrading those contracts from grep-checked to compiler-checked.
 - `verification_plan_path` *(optional)* — defaults to PRD's sibling `VERIFICATION-PLAN.md`. Its presence is the smoke-gate trigger (Process step 3).
@@ -91,8 +91,8 @@ Pick the tiers the change demands — don't pad, don't under-cover:
 - **static** always present: compiles/lints and greps the `## Produces` anchors so declared symbols exist. A pure rename / config / docs subtask may be static-only.
 - **unit** whenever the subtask adds behavior worth asserting in isolation.
 - **integration** for cross-module wiring, persistence, or framework-pickup (e.g. liquibase-hibernate7 entity-pickup check for a JPA entity, or a §9b seam-test asserting on the framework's real serialized/generated output).
-- **api** when the subtask's contract is an **endpoint** an API/MCP caller hits directly — assert the real response envelope (success **and** error/empty) and the below-the-UI authz guard (no-token / bad-token / role-scoping), over REST, no browser. Author as a `node:test` `*.test.mjs` in `verification/api/` (using `../core` for auth/base-URL/poll), per `11700-payable/verification/api/AUTHORING.md` — or run a disposable probe that `import`s `../core` for an inner-loop check. A subtask exposing a protected endpoint must carry this tier; the UI test can't see the raw envelope or the guard a UI caller never trips.
-- **e2e/browser** for user-visible flows — a Cucumber+Playwright `Scenario` in `11700-payable/verification/ui-e2e` driving the actual UI. Backend-only omits this; a UI subtask must not.
+- **api** when the subtask's contract is an **endpoint** an API/MCP caller hits directly — assert the real response envelope (success **and** error/empty) and the below-the-UI authz guard (no-token / bad-token / role-scoping), over REST, no browser. Author it in the repository's `api` suite, using that suite's shared auth/base-URL/poll primitives, per its own authoring recipe. A subtask exposing a protected endpoint must carry this tier; the UI test can't see the raw envelope or the guard a UI caller never trips.
+- **e2e/browser** for user-visible flows — a scenario in the repository's `e2e/browser` suite driving the actual UI. Backend-only omits this; a UI subtask must not.
 
 A subtask that **implements** a §9b seam must carry the seam's test as a Verification row (unit or integration tier) asserting on the framework's real output, not our DTO — the only test covering the boundary.
 
@@ -126,7 +126,7 @@ Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scri
 - **Don't invent a public interface.** Cited interfaces come from SDD §8 verbatim; a missing one is a design gap → bounce to `/afk-toolkit:grill-solution`.
 - **Verification is part of the plan, not an afterthought.** Every subtask declares the tiers it needs and the exact commands; `static` is mandatory, and the highest tier the change demands (up to e2e/browser) must be present.
 - **Seam-implementing subtasks carry the seam-test** as a Verification row asserting on the framework's real output, not our DTO.
-- **JPA-entity subtasks verify liquibase-hibernate7 pickup** (core-services Java only): a `## Produces` `.java` file with `@Entity` / `@MappedSuperclass` / `@Embeddable` must list an integration-tier row running the documented pickup check (`mvn -pl {module} compile liquibase:diff …` then grep the diff for the entity/column) — not just a unit test against the entity in isolation.
+- **Generated-schema subtasks verify the pickup** (only where the repository generates its schema from the model): a `## Produces` `.java` file with `@Entity` / `@MappedSuperclass` / `@Embeddable` must list an integration-tier row running the documented pickup check (`mvn -pl {module} compile liquibase:diff …` then grep the diff for the entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own the design needs no SDD.
 - **The smoke gate's shape is artifact-driven; its presence is not optional.** A `VERIFICATION-PLAN.md` drives the full gate (never half-emit — Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule; never invent scenarios without the plan); its absence drives the minimal gate. This skill only seeds + slices; running the gate is `/afk-toolkit:smoke-test`'s job.
 - **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk-toolkit:claude-md`; this skill only seeds it. Never omit.

@@ -26,7 +26,7 @@ gate_metrics_now_ms() {
 
 gate_metrics_begin() { GATE_METRICS_T0=$(gate_metrics_now_ms); }
 
-# gate_metrics_emit <gate> <result> [extra-json-fields e.g. '"lock_wait_ms":120,"detail":"11700-payable/payable"']
+# gate_metrics_emit <gate> <result> [extra-json-fields e.g. '"lock_wait_ms":120,"detail":"the module"']
 gate_metrics_emit() {
   [ "${GATE_METRICS_DISABLE:-0}" = "1" ] && return 0
   [ -n "${GATE_METRICS_T0:-}" ] || return 0

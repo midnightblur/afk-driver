@@ -28,9 +28,9 @@ Locate every in-scope feature with a `plan/` dir; skip those without one (nothin
 | `plan/review/PATTERN-DEBT.md` | baseline↔repo-pattern conflicts: criterion + overriding rule per row |
 | `plan/review/*-adversary.md` | adversary verdicts + finding classes |
 | `GRILL-LOG.md` | which decisions were settled at grill time (to correlate: did downstream failures trace to a gap a grill should have caught?) |
-| repo `.claude/metrics/gate-latency.jsonl` | per-gate runs / red count / p50 / p95 / max via `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh` (aggregate percentiles only); dominant-component breakdown (`lock_wait_ms`, `package_ms`) by grepping those raw fields in the jsonl directly |
+| repo `.claude/metrics/gate-latency.jsonl` | per-gate runs / red count / p50 / p95 / max via `bash $AFK_PLUGIN_ROOT/hooks/gate-metrics-report.sh` (aggregate percentiles only); dominant-component breakdown (`lock_wait_ms`, `package_ms`) by grepping those raw fields in the jsonl directly |
 | repo `.claude/wiring-ious.md` | open IOUs and their age (consumers that never arrived) |
-| main-checkout `.claude/lessons/LEDGER.jsonl` | per-lesson status trail (fold via `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`; grammar: `skills/afk/lessons/LEDGER-FORMAT.md`): open-lesson age, `applied` lessons whose class/target recurs |
+| main-checkout `.claude/lessons/LEDGER.jsonl` | per-lesson status trail (fold via `bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --all`; grammar: `skills/afk/lessons/LEDGER-FORMAT.md`): open-lesson age, `applied` lessons whose class/target recurs |
 
 Bulk reads are delegated per `DELEGATION.md` (plugin root): one subagent per feature returns the per-feature digest (the §1 table row data plus its raw signal lists); the orchestrator only aggregates and judges.
 

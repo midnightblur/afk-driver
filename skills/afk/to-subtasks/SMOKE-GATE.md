@@ -20,35 +20,40 @@ subtask per modality the plan carries**:
 - **The terminal `NNNN-smoke-e2e` build subtask** (UI journeys) and, when the
   plan has real `## API Scenarios`, **the terminal `NNNN-smoke-api` build
   subtask** (API contracts) — Process step 3, using the base subtask contract
-  with the fields below. Build recipes live canonically at
-  **`11700-payable/verification/ui-e2e/AUTHORING.md`** and
-  **`11700-payable/verification/api/AUTHORING.md`** (versioned with the
-  verification code) — pointed at, never restated. Both blocked by every other
-  subtask.
+  with the fields below. Build recipes live canonically with the repository's
+  own verification code (its `AUTHORING.md`, `README.md` or `CLAUDE.md` beside
+  the suite) — pointed at, never restated. Both blocked by every other subtask.
+
+**Placeholders.** `{e2e-suite}` and `{api-suite}` are the suite directories the
+repository's `e2e/browser` and `api` tiers run in — read them out of
+`verification.tiers` in `.afk/config.yaml`, and fill them at seeding time so
+the persisted subtask carries a real path. `{e2e-command}` and `{api-command}`
+are those tiers' own command lines, filled the same way. A repository that
+declares neither tier gets neither build subtask.
 
 ```
 ## Goal
 Author the integrated browser smoke specs for {Feature}: one Scenario per
-VERIFICATION-PLAN.md UI journey in 11700-payable/verification/ui-e2e, run by
-/afk-toolkit:smoke-test as the gate. Read 11700-payable/verification/ui-e2e/AUTHORING.md
-first (layer rules, conventions, definition-of-done) + sibling README/CLAUDE.md;
+VERIFICATION-PLAN.md UI journey in {e2e-suite}, run by
+/afk-toolkit:smoke-test as the gate. Read that suite's authoring recipe first
+(layer rules, conventions, definition-of-done) + sibling README/CLAUDE.md;
 author accordingly.
 
 ## Scope
-- 11700-payable/verification/ui-e2e/features/*.feature   # new Scenarios / a new feature file
-- 11700-payable/verification/ui-e2e/steps/*.mjs          # only if a new step sentence is needed
-- 11700-payable/verification/ui-e2e/scenarios.mjs        # only if a genuinely new L2 action is needed
+- {e2e-suite}/features/*.feature   # new Scenarios / a new feature file
+- {e2e-suite}/steps/*.mjs          # only if a new step sentence is needed
+- {e2e-suite}/scenarios.mjs        # only if a genuinely new shared action is needed
 
 ## Acceptance
-- [ ] Authored per 11700-payable/verification/ui-e2e/AUTHORING.md (read first; followed, not improvised)
+- [ ] Authored per the suite's own authoring recipe (read first; followed, not improvised)
 - [ ] One Scenario per VERIFICATION-PLAN.md UI journey, each tracing to its PRD User Story
 - [ ] Env-limited journeys tagged + flagged env-limited in the gate table (not left to fail the gate)
 
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `cd 11700-payable/verification/ui-e2e && npx cucumber-js --dry-run` | every step resolves; 0 undefined / 0 ambiguous |
-| e2e/browser | `cd 11700-payable/verification/ui-e2e && npm run smoke` | the runnable (non-env-limited) scenarios go green locally |
+| static | the suite's own dry-run form (`{e2e-suite}`) | every step resolves; 0 undefined / 0 ambiguous |
+| e2e/browser | `{e2e-command}` | the runnable (non-env-limited) scenarios go green locally |
 
 ## Blocked by
 <every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
@@ -56,20 +61,20 @@ author accordingly.
 
 ```
 ## Goal
-Author the integrated API smoke specs for {Feature}: one node:test *.test.mjs per
-VERIFICATION-PLAN.md API scenario (using ../core for auth/base-URL/poll) in
-11700-payable/verification/api, run by /afk-toolkit:smoke-test as the gate. Read
-11700-payable/verification/api/AUTHORING.md first (request shape, real envelope
-incl. error/empty, below-the-UI authz, definition-of-done) + sibling CLAUDE.md;
-author accordingly. Dependency-free; no install.
+Author the integrated API smoke specs for {Feature}: one test per
+VERIFICATION-PLAN.md API scenario, using the suite's shared auth/base-URL/poll
+primitives, in {api-suite}, run by /afk-toolkit:smoke-test as the gate. Read
+that suite's authoring recipe first (request shape, real envelope incl.
+error/empty, below-the-UI authz, definition-of-done) + sibling CLAUDE.md;
+author accordingly.
 
 ## Scope
-- 11700-payable/verification/api/*.test.mjs      # new node:test scenarios / a new test file
-- 11700-payable/verification/api/helpers/*.mjs   # only if a new api-local helper is needed
-# do NOT edit ../core (shared, dependency-free); api must never import ui-e2e
+- {api-suite}/*.test.mjs      # new scenarios / a new test file
+- {api-suite}/helpers/*.mjs   # only if a new api-local helper is needed
+# do NOT edit the suite's shared primitives; the api suite must never import the e2e one
 
 ## Acceptance
-- [ ] Authored per 11700-payable/verification/api/AUTHORING.md (read first; followed, not improvised)
+- [ ] Authored per the suite's own authoring recipe (read first; followed, not improvised)
 - [ ] One scenario per VERIFICATION-PLAN.md API scenario, each tracing to its SDD §3 row / PRD AC
 - [ ] Asserts the REAL response envelope (success AND error/empty), not the idealized one
 - [ ] Below-the-UI authz covered where the endpoint is protected (no-token / bad-token / role-scoping)
@@ -78,8 +83,8 @@ author accordingly. Dependency-free; no install.
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `node --check` each new *.test.mjs (parses; ../core imports resolve) | specs load; no syntax/import error |
-| api | `cd 11700-payable/verification/api && node --test` | the runnable (non-env-limited) scenarios go green locally |
+| static | the suite's own parse check on each new spec file | specs load; no syntax/import error |
+| api | `{api-command}` | the runnable (non-env-limited) scenarios go green locally |
 
 ## Blocked by
 <every implementation subtask id — not the other NNNN-smoke-* build subtask, not NNNN-sync-harness>
@@ -101,11 +106,14 @@ as-is:
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make compile -DskipUi=true | |
-| 2 | app-start | bash $AFK_PLUGIN_ROOT/adapters/build-gate/maven/app-start-gate.sh {leaf module} (exit 0) | |
-| 3 | regression | ./mvnw -f all-modules-pom.xml --projects={changed modules} --also-make test -DskipUi=true | |
-| 4 | existing ui-e2e suite | cd 11700-payable/verification/ui-e2e && npm run smoke (pre-existing scenarios still green) | |
-| 5 | existing api suite | cd 11700-payable/verification/api && node --test (pre-existing scenarios still green) | |
+| 1 | compile | the `static` tier from `verification.tiers`, `{module}` = the changed modules | |
+| 2 | app-start | `bash $AFK_PLUGIN_ROOT/adapters/build-gate/<kind>/gates.sh app-start {leaf module}` (exit 0) — only where the selected build-gate kind offers it | |
+| 3 | regression | the `unit` tier from `verification.tiers`, same modules | |
+| 4 | existing e2e suite | `{e2e-command}` (pre-existing scenarios still green) | |
+| 5 | existing api suite | `{api-command}` (pre-existing scenarios still green) | |
+
+A row whose tier the repository does not declare is dropped at seeding time,
+not left in the table as an unrunnable command.
 
 Last run: —
 ```

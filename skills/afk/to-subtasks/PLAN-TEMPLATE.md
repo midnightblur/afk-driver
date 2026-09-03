@@ -74,9 +74,9 @@ review settle-loop rounds (cap 10 — owned by
 
 ## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
-> Gate: /afk-toolkit:smoke-test   Suite: 11700-payable/verification   Target env: local | staging
-> Run (ui-e2e): cd 11700-payable/verification/ui-e2e && npm run smoke   (full incl. env-limited: npm run smoke:all)
-> Run (api): cd 11700-payable/verification/api && node --test
+> Gate: /afk-toolkit:smoke-test   Suite: {verification suite dir}   Target env: local | staging
+> Run (e2e/browser): {the `e2e/browser` tier command from verification.tiers}
+> Run (api): {the `api` tier command from verification.tiers}
 > Source: ../VERIFICATION-PLAN.md   Built by: NNNN-smoke-e2e (UI) · NNNN-smoke-api (API) — terminal, blocked by all
 > Last run: — (date + target; maintained by /afk-toolkit:smoke-test)
 

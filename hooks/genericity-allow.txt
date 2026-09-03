@@ -1,7 +1,7 @@
 # Deliberate concrete references allowed in plugin prose (genericity-gate.sh).
 # One exact token per line; keep the reason next to it.
-P2P-1220   # the plugin's own parent ticket (CLAUDE.md / README provenance)
-P2P-9999   # placeholder key used in format examples (bug LEDGER-FORMAT.md)
+# A ticket id in an EXAMPLE does not belong here: use the reserved placeholder
+# prefix `PROJ` (`PROJ-123`), which the gate treats as notation.
 HL-1       # human-locked design aspects — the plugin's own notation, not tickets
 HL-2       # (set owned by skills/afk/grill-solution/HUMAN-SIGNOFF.md)
 HL-3

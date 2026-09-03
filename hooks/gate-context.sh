@@ -204,7 +204,7 @@ gate_ctx_build_staged() {
 
 # gate_ctx_filter <list-var-name> <pattern> [<pattern>...]
 # Echoes the lines of the named context list matching ANY glob pattern (bash
-# case globs, e.g. '*.java' '11700-payable/*'). Fork-free — this is what a gate
+# case globs, e.g. '*.java' 'src/*'). Fork-free — this is what a gate
 # uses instead of `git status | grep`.
 gate_ctx_filter() {
   local __list=${!1:-} line pat

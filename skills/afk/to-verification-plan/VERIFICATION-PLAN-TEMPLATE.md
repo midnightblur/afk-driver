@@ -1,7 +1,7 @@
 # Verification Plan — {Feature Name}
 
 > Parent ticket: {TICKET-ID}   Sources: [PRD](PRD.md){· [SDD](SDD.md)}
-> Suite: 11700-payable/verification   Built per: ui-e2e/AUTHORING.md · api/AUTHORING.md
+> Suite: the repository's verification suites   Built per: ui-e2e/AUTHORING.md · api/AUTHORING.md
 > Status: draft (built by NNNN-smoke-e2e / NNNN-smoke-api; run by /afk-toolkit:smoke-test)
 
 ## UI Journeys

@@ -24,7 +24,7 @@ Walk the session start to now. Qualify each candidate against the capture bar in
 [CAPTURE.md](../../afk/lessons/CAPTURE.md). Unsure → drop it.
 
 Then subtract what is already handled: run
-`bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --all`
+`bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --all`
 from the repo root (`<main-checkout>` = first entry of `git worktree list` —
 `GLOSSARY.md` "Main checkout") and drop any candidate whose `target` and substance already
 appear on an `applied` line — a detection point wrote that edit this run.

@@ -33,7 +33,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 Only completion re-invokes a waiting orchestrator. A hung child never completes, so a time cap held in prose cannot fire — the wake-up must come from outside. Arm every spawn whose child can run past ~15 min (subtask executors, suite/build runners, provisioning gates):
 
-- **Arm** — in the spawn's own message, start `<main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/stall-watchdog.sh` in a background shell, pointed at paths the child's work touches (usage, path guidance, defaults, exit codes: script header). Its exit wakes the orchestrator.
+- **Arm** — in the spawn's own message, start `${AFK_PLUGIN_ROOT}/hooks/stall-watchdog.sh` in a background shell, pointed at paths the child's work touches (usage, path guidance, defaults, exit codes: script header). Its exit wakes the orchestrator.
 - **On fire** — read the child's task-output tail. Still producing → re-arm and keep waiting. Silent → stop the child's task and take the invoking skill's park/fail path; never resume waiting on a fired watchdog.
 - **Stopping the task leaves its processes alive.** A forked JVM survives the task stop — it holds its port and consumes broker messages meant for later verification. Before successor work spawns: kill the pid tree the child recorded (`.claude/hooks/.app-instance-{port}`, shape: `adapters/build-gate/maven/app-start-gate.sh` header) and any process still listening on the child's port.
 - **Disarm** — on the child's normal completion, kill the watchdog's background task. A fire that lands for a completed child is a no-op.
@@ -64,6 +64,6 @@ Raw suite output is the largest input any run pays for, so the split is where th
 
 - Return ends with a terse structured tail owned by the invoking skill's grammar (`OUTCOME:` line, findings JSON, verdict token — never a new token, per `REPORTING.md`). A skill defining no grammar gets the default: `OUTCOME: <ok|fail|blocked> — <one line>`.
 - Body ≤ ~30 lines. Every claim carries a citation — `file:line`, or command + exit code — so the orchestrator spot-checks without re-reading the child's inputs.
-- Load-bearing claims meet the truth-grounding bar (`tools/payable/ai-agents/harness/shared/core-services.md` § "Truth grounding") — absence claims exhaustively enumerated; the unchecked returned as `unverified: <reason>`, never as fact.
+- Load-bearing claims meet the truth-grounding bar (`LANGUAGE.md` § "Truth grounding") — absence claims exhaustively enumerated; the unchecked returned as `unverified: <reason>`, never as fact.
 - **Bulk evidence never rides the return.** Logs, traces, raw suite output go to a file (the run's artifact dir when the skill has one, else the scratchpad); the return carries the path.
 - Orchestrator acts on the digest. Re-reading what the child already read defeats the delegation; spot-checks go through the citations.

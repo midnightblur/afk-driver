@@ -1,7 +1,7 @@
 {
   "session_id": "codex-session",
   "turn_id": "codex-turn",
-  "cwd": "/workspace/core-services",
+  "cwd": "/workspace/example-repo",
   "hook_event_name": "Stop",
   "model": "gpt-5.6"
 }

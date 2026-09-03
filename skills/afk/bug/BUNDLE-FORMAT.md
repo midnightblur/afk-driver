@@ -74,7 +74,7 @@ tagged with exactly one.
 # Bug: export CSV drops the last row when the grid is filtered
 
 ## Capture context
-- Branch: kapteyn/development/dev/export-tuning
+- Branch: team/development/dev/export-tuning
 - Dirty state: 2 uncommitted files (ExportService.java, grid-store.ts)
 - Found: 2026-01-10 14:30
 

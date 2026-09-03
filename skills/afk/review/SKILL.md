@@ -49,7 +49,7 @@ The roster scales twice. First by **gate policy** ("Gate policy" below): `full` 
 | `spec-fidelity` | Is it **truly done** — every `## Acceptance` bullet satisfied, every cited seam implemented, every `## Produces` anchor real, no requirement silently dropped? | diff + contract + PRD/SDD |
 | `logic-correctness` | Works for all reasonable inputs? Bugs, edges, null-handling, error paths, races. | diff (+ repo for context) |
 | `code-quality` | Smell / anti-pattern / "a senior dev wouldn't do this." Dead code, duplication, god methods, leaky abstractions, naming, magic values, debug logs, hardcoded secrets/tokens, TODO left in. | diff |
-| `test-veracity` | Do the new tests assert what matters — the framework's **real output**, not the DTO; not tautological; cover the acceptance, not just the happy path; use the Nakisa test helpers? | diff + contract |
+| `test-veracity` | Do the new tests assert what matters — the framework's **real output**, not the DTO; not tautological; cover the acceptance, not just the happy path; use the repository's own test helpers? | diff + contract |
 | `scope-and-impact` | Stayed inside `## Scope` globs, no forbidden patterns, no scope creep, no stray churn — **and** what's the blast radius of the changed symbols? | diff + contract + repo |
 | `refactor-safety` | Did the implementor touch **pre-existing** code — rename, re-signature, extract/move, edit a shared base/util/DTO — and is each medium/high-risk change behaviour-preserving, fully propagated, and warranted? | diff + repo |
 | `design-quality` | Module shape: shallow/pass-through layers, change-pattern smells (shotgun surgery, divergent change), coupling, speculative generality. | diff + repo + SDD/ADRs |
@@ -115,7 +115,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
   "criterion": "<checklist item name, e.g. 'Shallow Module (APoSD)', or 'open-question'>",
   "severity": "critical|high|medium|low",
   "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt|product-debt",
-  "file": "11700-payable/.../Foo.java",
+  "file": "services/billing/.../Foo.java",
   "line": 42,
   "finding": "One-line headline.",
   "why": "One sentence — the rule broken / input that fails / requirement missed.",
@@ -192,7 +192,7 @@ What the caller does with the verdict is the caller's policy; each blocking find
 
 - **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk-toolkit:fix`) remediates.
 - **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
-- **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — the record's own grep returns the record's own answer, so agreement with the record carries no information, and two reviewers sharing that method do not corroborate each other. Design a separate check every time: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found instead of reporting a number, and state the pattern you used so a reader can see its blind spots. (`core-services.md` "Absence needs exhaustive enumeration" states this for one reviewer; this states it for the roster.)
+- **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — the record's own grep returns the record's own answer, so agreement with the record carries no information, and two reviewers sharing that method do not corroborate each other. Design a separate check every time: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found instead of reporting a number, and state the pattern you used so a reader can see its blind spots. (`LANGUAGE.md` "Truth grounding" states this for one reviewer; this states it for the roster.)
 - **Open the document, not its title.** Before overturning a cited rule — or asserting that no rule, ADR, or contract states something — read the cited file, and re-read the `CLAUDE.md` that auto-loads for the directory under review. A title names a document's original concern; an accepted amendment can add a rule the title never mentions. Overturning a correct citation costs more than repeating a wrong one: it writes the error into the record and into the fix the finding drives.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (rule text, failing input, unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
 - **Verify pass fan-out.** The verify pass is a second single-message parallel wave.

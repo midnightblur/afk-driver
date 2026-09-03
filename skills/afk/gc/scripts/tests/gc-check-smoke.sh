@@ -41,7 +41,7 @@ fi
 TMP_ROOT="$(mktemp -d 2>/dev/null || mktemp -d -t gcchk)"
 REPO="$TMP_ROOT/main"
 WT="$TMP_ROOT/wt-tick-demo"
-FBRANCH="kapteyn/development/tester/tick-demo"
+FBRANCH="team/development/tester/tick-demo"
 
 cleanup() {
   git -C "$REPO" worktree prune >/dev/null 2>&1 || true
@@ -76,7 +76,7 @@ git -C "$REPO" worktree add -q "$WT" "$FBRANCH"
 
 # branch ahead of origin/master (ancestor proof must fail)
 ahead_commit="$(git -C "$REPO" commit-tree 'HEAD^{tree}' -p HEAD -m ahead)"
-git -C "$REPO" branch kapteyn/development/tester/tick-ahead "$ahead_commit"
+git -C "$REPO" branch team/development/tester/tick-ahead "$ahead_commit"
 
 # The sandbox opts in to the toolkit and names its forge; without this the
 # forge family resolves to `none` and the merged proof has no second source.

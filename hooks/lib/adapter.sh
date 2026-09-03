@@ -51,7 +51,7 @@ afk_adapter_dir() {
   printf '%s\n' "$dir"
 }
 
-# The executable each family dispatches through, relative to its adapter dir.
+# The entry each family dispatches through, relative to its adapter dir.
 afk_adapter_entry() {
   local family=$1 dir=$2 entry py=python
   command -v python >/dev/null 2>&1 || py=python3
@@ -62,11 +62,32 @@ afk_adapter_entry() {
   printf '%s\n' "$entry"
 }
 
+# How that entry is reached. `cli` (the default) means dispatch runs it; every
+# other type means dispatch cannot, and says so in its answer.
+afk_adapter_runner_type() {
+  local dir=$1 py=python
+  command -v python >/dev/null 2>&1 || py=python3
+  [ -f "$dir/adapter.json" ] || { printf 'cli\n'; return 0; }
+  "$py" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("runner",{}).get("type","cli"))' \
+    "$dir/adapter.json" 2>/dev/null
+}
+
 afk_adapter() {
-  local family=$1 dir entry
+  local family=$1 dir entry rtype
   shift || return 2
   dir=$(afk_adapter_dir "$family") || return 2
   entry=$(afk_adapter_entry "$family" "$dir")
+  rtype=$(afk_adapter_runner_type "$dir")
+  # An `instruction` kind has no script: its verbs are performed by the agent
+  # against tools only a session holds. Dispatch hands back the file that says
+  # how, so a caller never reads "no script" as "unsupported".
+  if [ "$rtype" = "instruction" ]; then
+    local py=python
+    command -v python >/dev/null 2>&1 || py=python3
+    "$py" -c 'import json,sys; print(json.dumps({"instruction": sys.argv[1], "verb": sys.argv[2], "reason": "this kind is performed by the agent - read the instruction file"}))' \
+      "$dir/$entry" "${1:-}"
+    return 0
+  fi
   if [ -z "$entry" ] || [ ! -f "$dir/$entry" ]; then
     printf 'afk: %s adapter at %s declares no runnable entry in adapter.json\n' \
       "$family" "$dir" >&2

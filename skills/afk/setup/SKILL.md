@@ -31,7 +31,7 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    dependency set; probe nothing outside it (a known dep missing from it is a
    FRESHNESS.md violation — flag it, then probe it anyway).
 2. **Probe everything.** Run every entry's `Probe:` — `sh:` probes from the
-   core-services repo root, `agent:` probes in-session. Under `base`, also run
+   repository root, `agent:` probes in-session. Under `base`, also run
    every `Base probe:` where present — a version miss there is `missing/broken`
    even when the plain probe passes, and its fix is the entry's `Base fix:`.
    Batch independent probes. Classify each: `ok` · `missing/broken` · `deferred`

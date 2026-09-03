@@ -51,8 +51,8 @@ _Avoid_: feature glossary (real domain vocabulary graduates to the service gloss
 The `plan/` directory — `PLAN.md` (index: solution map, seam register, progress tracker, smoke gate) plus one subtask contract per slice. A local contract, never Jira issues.
 
 **Main checkout (`<main-checkout>`)**:
-The repo's primary checkout — the first entry of `git worktree list`, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from `<main-checkout>/tools/payable/ai-agents/plugins/workflow/…`, never from a worktree's copy — a worktree carries the plugin frozen at its branch point, stale the moment the plugin advances. Only plugin paths pin here; cwd stays wherever the work is (builds run in the worktree).
-_Avoid_: repo root as a plugin-path base (resolves to the worktree when cwd is one)
+The repo's primary checkout — the first entry of `git worktree list`, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from the INSTALLED plugin root — `${AFK_PLUGIN_ROOT}` inside a hook, and the path `claude plugin details afk-toolkit@afk-toolkit` reports elsewhere — never from a path inside the checkout. The main checkout matters for the repository's own artifacts, above all `.claude/lessons/LEDGER.jsonl`, which every worktree appends to. Cwd stays wherever the work is.
+_Avoid_: a repository-relative plugin path (there is no plugin inside the repository)
 
 **Subtask contract**:
 One `plan/NNNN-slug.md` file — the binding scope, acceptance, and verification of a single slice; its id is the filename stem.

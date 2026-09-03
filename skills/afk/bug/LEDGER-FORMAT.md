@@ -93,15 +93,15 @@ seeing a `version` it predates falls back to the fields it knows.
 {
   "version": "1",
   "state": "fixing",
-  "ticketKey": "P2P-9999",
-  "worktreePath": "C:/Users/dev/core-services-worktrees/bugfix-p2p-9999",
-  "baseBranch": "kapteyn/development/dev/some-feature",
+  "ticketKey": "PROJ-9999",
+  "worktreePath": "C:/Users/dev/repo-worktrees/bugfix-proj-9999",
+  "baseBranch": "team/development/dev/some-feature",
   "mrUrl": null,
   "fixSha": null,
   "retest": null,
   "history": [
     { "ts": "2026-01-10 14:32", "event": "captured", "detail": "bundle + ledger written on disk before any external call" },
-    { "ts": "2026-01-10 14:41", "event": "published", "detail": "Jira Bug P2P-9999 created, assignee set, transitioned Dev-Pending" },
+    { "ts": "2026-01-10 14:41", "event": "published", "detail": "Jira Bug PROJ-9999 created, assignee set, transitioned Dev-Pending" },
     { "ts": "2026-01-10 14:58", "event": "fixing", "detail": "fixer spawned in its own worktree off the source branch" }
   ]
 }

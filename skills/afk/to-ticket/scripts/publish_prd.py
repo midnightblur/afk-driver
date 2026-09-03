@@ -35,7 +35,7 @@ distillation — no SDD / ADR / technical detail, no repo-artifact references) i
 the caller's responsibility.
 
 Usage:
-    python publish_prd.py --parent P2P-1220 --prd path/to/TICKET.md \
+    python publish_prd.py --parent PROJ-1220 --prd path/to/TICKET.md \
         [--changes path/to/TICKET-CHANGES.md] [--dry-run] [--yes]
 
 Credentials resolve as the adapter's load_creds documents (OS env vars win, then
@@ -235,7 +235,7 @@ def build_description(existing_adf, prd_content):
 # ============================================================================
 def main():
     ap = argparse.ArgumentParser(description="Publish a PRD.md into a Jira issue (ADF).")
-    ap.add_argument("--parent", required=True, help="Jira parent key, e.g. P2P-1220")
+    ap.add_argument("--parent", required=True, help="Jira parent key, e.g. PROJ-1220")
     ap.add_argument("--prd", required=True, help="path to PRD.md")
     ap.add_argument("--dry-run", action="store_true",
                     help="convert + plan only; render no diagrams, mutate nothing, print ADF")

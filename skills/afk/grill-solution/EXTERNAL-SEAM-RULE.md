@@ -41,7 +41,7 @@ confirm/refute digests, per `DELEGATION.md` (plugin root):
    shape an API/MCP caller sees on each edge (a missing entity may return an
    empty-success envelope rather than 404, a denial a coded 403 — the
    harness's actual envelope conventions live in
-   `11700-payable/verification/api/AUTHORING.md`) — exactly what `/afk-toolkit:to-sdd` records in
+   the `api` suite's own authoring recipe) — exactly what `/afk-toolkit:to-sdd` records in
    the §3 API contract table and what `/afk-toolkit:grill-verification` later turns
    into assertable API scenarios; a hand-wave here leaves the endpoint
    un-verifiable. When a decision migrates one status/signal to another at a

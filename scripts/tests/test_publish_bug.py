@@ -73,7 +73,7 @@ class RecordingJira:
     def __init__(self, handler=None):
         self.calls = []          # list of (method, path, payload-or-None, headers)
         self.handler = handler   # fn(method, path) -> FakeResp | HTTPError | Exception
-        self.base = "https://nakisa.example/jira"
+        self.base = "https://tracker.example/jira"
         self.resolved = []       # att_ids passed to resolve_media_uuid
         self.embed_error = None  # if set, resolve_media_uuid raises it (degrade path)
 
@@ -127,11 +127,11 @@ class TestCreateFields(unittest.TestCase):
     def test_full_create_fields_shape(self):
         desc = publish_bug.description_doc(publish_bug.bundle_to_adf(FIXTURE_BUNDLE))
         fields = publish_bug.build_create_fields(
-            "P2P", "totals off by one", desc,
+            "PROJ", "totals off by one", desc,
             assignee_account_id="acc-123", labels=["afk-bug", "mvu"],
             fix_version="2026.r1")
         f = fields["fields"]
-        self.assertEqual(f["project"], {"key": "P2P"})
+        self.assertEqual(f["project"], {"key": "PROJ"})
         self.assertEqual(f["summary"], "totals off by one")
         self.assertEqual(f["issuetype"], {"name": "Bug"})
         self.assertEqual(f["assignee"], {"accountId": "acc-123"})
@@ -141,7 +141,7 @@ class TestCreateFields(unittest.TestCase):
 
     def test_optional_fields_omitted(self):
         desc = publish_bug.description_doc(publish_bug.bundle_to_adf("# x"))
-        f = publish_bug.build_create_fields("P2P", "s", desc)["fields"]
+        f = publish_bug.build_create_fields("PROJ", "s", desc)["fields"]
         for k in ("assignee", "labels", "fixVersions"):
             self.assertNotIn(k, f)
 
@@ -172,7 +172,7 @@ class TestTransitionAndComment(unittest.TestCase):
 class TestCreateBug(unittest.TestCase):
     def _created(self, method, path):
         if method == "POST" and path.endswith("/issue"):
-            return FakeResp(201, {"key": "P2P-777"})
+            return FakeResp(201, {"key": "PROJ-777"})
         return FakeResp(200, {})
 
     @staticmethod
@@ -185,9 +185,9 @@ class TestCreateBug(unittest.TestCase):
 
     def test_posts_issue_and_returns_key(self):
         j = RecordingJira(self._created)
-        key = publish_bug.create_bug(j, "P2P", "totals", FIXTURE_BUNDLE,
+        key = publish_bug.create_bug(j, "PROJ", "totals", FIXTURE_BUNDLE,
                                      assignee_account_id="acc-1", labels=["afk-bug"])
-        self.assertEqual(key, "P2P-777")
+        self.assertEqual(key, "PROJ-777")
         create = [c for c in j.calls if c[0] == "POST" and c[1].endswith("/issue")]
         self.assertEqual(len(create), 1)
         fields = create[0][2]["fields"]
@@ -200,14 +200,14 @@ class TestCreateBug(unittest.TestCase):
         # A 2xx create with no key must fail cleanly, not TypeError-crash.
         j = RecordingJira(lambda m, p: FakeResp(201, b""))
         with self.assertRaises(publish_bug.BugPublishError):
-            publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE)
+            publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE)
 
     def test_screenshot_embedded_as_media_node(self):
         j = RecordingJira(self._created)
         with tempfile.TemporaryDirectory() as td:
             png = self._png(os.path.join(td, "shot.png"))
-            key = publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, screenshots=[png])
-        self.assertEqual(key, "P2P-777")
+            key = publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE, screenshots=[png])
+        self.assertEqual(key, "PROJ-777")
         uploads = [c for c in j.calls if c[0] == "UPLOAD"]
         self.assertEqual(len(uploads), 1)
         # the att_id from upload flows into resolve_media_uuid (wiring pinned)
@@ -227,8 +227,8 @@ class TestCreateBug(unittest.TestCase):
         j.embed_error = RuntimeError("could not resolve media UUID")
         with tempfile.TemporaryDirectory() as td:
             png = self._png(os.path.join(td, "shot.png"))
-            key = publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, screenshots=[png])
-        self.assertEqual(key, "P2P-777")                  # ticket kept
+            key = publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE, screenshots=[png])
+        self.assertEqual(key, "PROJ-777")                  # ticket kept
         self.assertEqual(len([c for c in j.calls if c[0] == "UPLOAD"]), 1)  # attached
         self.assertEqual([c for c in j.calls if c[0] == "PUT"], [])  # no inline embed
 
@@ -241,32 +241,32 @@ class TestFixVersion(unittest.TestCase):
         if method == "GET" and path.endswith("/versions"):
             return FakeResp(200, [{"name": "2026.r1"}, {"name": "2026.r2"}])
         if method == "POST" and path.endswith("/issue"):
-            return FakeResp(201, {"key": "P2P-9"})
+            return FakeResp(201, {"key": "PROJ-9"})
         return FakeResp(200, {})
 
     def test_unknown_fix_version_rejected_nothing_written(self):
         j = RecordingJira(self._versions)
         with self.assertRaises(publish_bug.FixVersionError) as ctx:
-            publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, fix_version="9.9.9")
+            publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE, fix_version="9.9.9")
         self.assertIn("9.9.9", str(ctx.exception))
         # nothing written: no issue POST happened
         self.assertEqual([c for c in j.calls if c[0] == "POST" and c[1].endswith("/issue")], [])
 
     def test_known_fix_version_accepted(self):
         j = RecordingJira(self._versions)
-        key = publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE, fix_version="2026.r1")
-        self.assertEqual(key, "P2P-9")
+        key = publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE, fix_version="2026.r1")
+        self.assertEqual(key, "PROJ-9")
 
     def test_backfill_unknown_rejected(self):
         j = RecordingJira(self._versions)
         with self.assertRaises(publish_bug.FixVersionError):
-            publish_bug.backfill_fix_version(j, "P2P-9", "P2P", "does-not-exist")
+            publish_bug.backfill_fix_version(j, "PROJ-9", "PROJ", "does-not-exist")
         self.assertEqual([c for c in j.calls if c[0] == "PUT"], [])
 
     def test_backfill_known_puts_fix_version(self):
         j = RecordingJira(self._versions)
-        publish_bug.backfill_fix_version(j, "P2P-9", "P2P", "2026.r2")
-        puts = [c for c in j.calls if c[0] == "PUT" and c[1].endswith("/issue/P2P-9")]
+        publish_bug.backfill_fix_version(j, "PROJ-9", "PROJ", "2026.r2")
+        puts = [c for c in j.calls if c[0] == "PUT" and c[1].endswith("/issue/PROJ-9")]
         self.assertEqual(len(puts), 1)
         self.assertEqual(puts[0][2]["fields"]["fixVersions"], [{"name": "2026.r2"}])
 
@@ -279,20 +279,20 @@ class TestFailureSurfaced(unittest.TestCase):
         body = json.dumps({"errors": {"fixVersions": "Version name is not valid"}})
         j = RecordingJira(lambda m, p: _http_error(400, body))
         with self.assertRaises(publish_bug.BugPublishError) as ctx:
-            publish_bug.create_bug(j, "P2P", "s", FIXTURE_BUNDLE)
+            publish_bug.create_bug(j, "PROJ", "s", FIXTURE_BUNDLE)
         self.assertIn("Version name is not valid", str(ctx.exception))
 
     def test_transition_failure_surfaced_not_swallowed(self):
         body = json.dumps({"errorMessages": ["transition not available"]})
         j = RecordingJira(lambda m, p: _http_error(400, body))
         with self.assertRaises(publish_bug.BugPublishError) as ctx:
-            publish_bug.transition_to_dev_pending(j, "P2P-1")
+            publish_bug.transition_to_dev_pending(j, "PROJ-1")
         self.assertIn("transition not available", str(ctx.exception))
 
     def test_comment_failure_surfaced(self):
         j = RecordingJira(lambda m, p: _http_error(404, "gone"))
         with self.assertRaises(publish_bug.BugPublishError):
-            publish_bug.append_evidence_comment(j, "P2P-1", "MR: x")
+            publish_bug.append_evidence_comment(j, "PROJ-1", "MR: x")
 
     def test_4xx_not_retried(self):
         seen = {"n": 0}
@@ -303,7 +303,7 @@ class TestFailureSurfaced(unittest.TestCase):
 
         j = RecordingJira(handler)
         with self.assertRaises(publish_bug.BugPublishError):
-            publish_bug.transition_to_dev_pending(j, "P2P-1")
+            publish_bug.transition_to_dev_pending(j, "PROJ-1")
         self.assertEqual(seen["n"], 1)  # deterministic 4xx: no retry
 
 
@@ -321,7 +321,7 @@ class TestRetry(unittest.TestCase):
         j = RecordingJira(handler)
         with mock.patch("publish_bug.time.sleep") as slept:
             with self.assertRaises(publish_bug.BugPublishError) as ctx:
-                publish_bug.transition_to_dev_pending(j, "P2P-1")
+                publish_bug.transition_to_dev_pending(j, "PROJ-1")
         self.assertEqual(seen["n"], 3)          # 1 attempt + 2 retries
         self.assertEqual(slept.call_count, 2)   # backoff between attempts
         # never-swallowed: the exhausted transient failure still carries the body
@@ -338,14 +338,14 @@ class TestRetry(unittest.TestCase):
 
         j = RecordingJira(handler)
         with mock.patch("publish_bug.time.sleep"):
-            publish_bug.transition_to_dev_pending(j, "P2P-1")
+            publish_bug.transition_to_dev_pending(j, "PROJ-1")
         self.assertEqual(seq["n"], 2)
 
     def test_backoff_is_exponential(self):
         j = RecordingJira(lambda m, p: _http_error(503, "x"))
         with mock.patch("publish_bug.time.sleep") as slept:
             with self.assertRaises(publish_bug.BugPublishError):
-                publish_bug.transition_to_dev_pending(j, "P2P-1")
+                publish_bug.transition_to_dev_pending(j, "PROJ-1")
         waits = [c.args[0] for c in slept.call_args_list]
         self.assertEqual(len(waits), 2)
         self.assertLess(waits[0], waits[1])  # grows
@@ -354,7 +354,7 @@ class TestRetry(unittest.TestCase):
 class TestComment(unittest.TestCase):
     def test_append_evidence_comment_posts_201(self):
         j = RecordingJira(lambda m, p: FakeResp(201, {"id": "10"}))
-        publish_bug.append_evidence_comment(j, "P2P-1", "MR opened: http://x")
+        publish_bug.append_evidence_comment(j, "PROJ-1", "MR opened: http://x")
         posts = [c for c in j.calls if c[0] == "POST" and c[1].endswith("/comment")]
         self.assertEqual(len(posts), 1)
         self.assertEqual(posts[0][2]["body"]["type"], "doc")
@@ -365,7 +365,7 @@ class TestCli(unittest.TestCase):
         # An operational input error (missing --bundle) exits non-zero with a
         # clean ERROR message, not a raw traceback — and never touches Jira.
         with self.assertRaises(SystemExit) as ctx:
-            publish_bug.main(["create", "--project", "P2P", "--summary", "x",
+            publish_bug.main(["create", "--project", "PROJ", "--summary", "x",
                               "--bundle", "definitely-not-here.md", "--dry-run"])
         self.assertNotEqual(ctx.exception.code, 0)
         self.assertIn("ERROR", str(ctx.exception.code))
@@ -378,7 +378,7 @@ class TestCli(unittest.TestCase):
             # dry-run must not call load_creds / open a socket
             with mock.patch("publish_bug.load_creds",
                             side_effect=AssertionError("no network in dry-run")):
-                publish_bug.main(["create", "--project", "P2P", "--summary", "s",
+                publish_bug.main(["create", "--project", "PROJ", "--summary", "s",
                                   "--bundle", bundle, "--fix-version", "2026.r1",
                                   "--dry-run"])
 

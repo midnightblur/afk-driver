@@ -6,7 +6,7 @@
 # metrics & budget").
 #
 # Usage (from the gated repo root):
-#   bash tools/payable/ai-agents/plugins/workflow/hooks/gate-metrics-report.sh [metrics-file]
+#   bash "$AFK_PLUGIN_ROOT/hooks/gate-metrics-report.sh" [metrics-file]
 # Default metrics file: .claude/metrics/gate-latency.jsonl
 
 set -u

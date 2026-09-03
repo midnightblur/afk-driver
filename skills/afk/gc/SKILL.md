@@ -29,7 +29,7 @@ read as current. Same trigger, same approval — retired here.
 Run first, from the main checkout, `origin/master` freshly fetched:
 
 ```
-bash tools/payable/ai-agents/plugins/workflow/skills/afk/gc/scripts/gc-check.sh {spec-folder} [feature-branch]
+bash $AFK_PLUGIN_ROOT/skills/afk/gc/scripts/gc-check.sh {spec-folder} [feature-branch]
 ```
 
 Guard semantics, structured stdout, and exit codes live in the script's header

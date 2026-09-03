@@ -16,11 +16,14 @@ inherits a written contract, not a verbal hand-off.
 The original idea, the AFK framing, and several skill patterns come from his work
 — adapted and extended for a specific environment. Read the upstream source first.
 
-Adapted for the Nakisa **Jira + GitLab + Maven** environment on Windows. The
-*work* the chain drives is Java/Maven inside a sibling core-services checkout;
-**this repo contains only the skills** (the AFK chain under
-`skills/afk/<name>/SKILL.md`, plus standalone utility skills under
-`skills/utils/<name>/SKILL.md`) and the plugin manifests.
+Every external system the chain touches is an **adapter**: a tracker, a forge,
+a notes store, a build gate. The consuming repository picks its kinds in
+`.afk/config.yaml` (`CONFIG.md`), and no skill names a vendor
+(`ADAPTERS.md`). **This repo contains only the toolkit** — the AFK chain under
+`skills/afk/<name>/SKILL.md`, standalone utility skills under
+`skills/utils/<name>/SKILL.md`, the adapters, the hooks, and the plugin
+manifests. The *work* the chain drives lives in whatever repository you run it
+in.
 
 ---
 
@@ -211,7 +214,7 @@ The committed tree stays inert until a harness enables `afk-toolkit@afk-toolkit`
 ### `.claude-plugin` harness
 
 ```text
-/plugin marketplace add ./tools/payable/ai-agents/plugins/workflow
+/plugin marketplace add midnightblur/afk-driver
 /plugin install afk-toolkit@afk-toolkit
 ```
 
@@ -221,7 +224,7 @@ To auto-load, add to `~/.claude/settings.json`:
 {
   "extraKnownMarketplaces": {
     "afk-toolkit": {
-      "source": { "source": "directory", "path": "./tools/payable/ai-agents/plugins/workflow" }
+      "source": { "source": "github", "repo": "midnightblur/afk-driver" }
     }
   },
   "enabledPlugins": {
@@ -235,7 +238,7 @@ Run `/reload-plugins` after source changes.
 ### `.codex-plugin` harness
 
 ```sh
-codex plugin marketplace add tools/payable/ai-agents/plugins/workflow
+codex plugin marketplace add midnightblur/afk-driver
 codex plugin add afk-toolkit@afk-toolkit
 ```
 
@@ -462,15 +465,13 @@ chain's detection points and stewarded by `/afk-toolkit:lessons`.
 What changed in the plugin itself lives in **`CHANGELOG.md`** at the plugin
 root — dated dev-facing one-liners, newest first. Skim it after every pull.
 
-The verification suites are **not** in this repo — they live in the core-services
-tree under `11700-payable/verification`, a multi-modal tree: `ui-e2e/` (Cucumber +
-Playwright browser module), `api/` (direct-REST `node:test` contracts), `core/`
-(shared, dependency-free auth/base-URL/poll primitives both import; `api → core`,
-`ui-e2e → core`, `core → nothing`). Authoring recipes are canonical at
-**`11700-payable/verification/ui-e2e/AUTHORING.md`** and
-**`11700-payable/verification/api/AUTHORING.md`** (versioned with the verification
-code so they can't drift). AFK skills only *point* at those recipes — never embed
-a copy.
+The verification suites are **not** in this repo — they live in the consuming
+repository, and `verification.tiers` in its `.afk/config.yaml` says how to run
+each tier. A skill names a tier KEY (`static`, `unit`, `integration`, `api`,
+`e2e/browser`), never a command. A repository that keeps authoring recipes for
+its own suites names them in its own `CLAUDE.md` and in the `setup.extra` files
+`/afk-toolkit:setup` reads; AFK skills only *point* at recipes — never embed a
+copy, because a copy drifts from the code it describes.
 
 ---
 
@@ -721,15 +722,15 @@ first:
 
 ## 12. Conventions & gotchas
 
-- **Branch names** must match the GitLab regex `^[a-z0-9][a-z0-9/\-\.]*$`. The
-  `kapteyn/development/{username}/{enh_id_lower}` pattern is load-bearing for
-  `/afk-toolkit:execute`'s push.
+- **Branch names** must match the repository's own `git.branch-pattern`, and a
+  new branch is named from its `git.branch-template`. A repository that
+  declares neither gets no branch gate.
 - **`/afk-toolkit:execute` is the *only* place the agent commits autonomously.** No other
   context auto-commits. No `--no-verify`, no `--force`, no global git config
   changes.
-- **Never alter the DB directly.** Add JPA entities and let liquibase-hibernate7
-  pick them up; no hand-written `UpgradeGroup` / `db/changelog/*`. `/afk-toolkit:execute`
-  Step 9 enforces this with a pickup-verification run.
+- **Never alter a schema by hand where the repository generates it.** Declare
+  the model and let the repository's migration tool pick it up; `/afk-toolkit:execute`
+  Step 9 runs the pickup verification the repository configures.
 - **Cross-module edits need a marker comment** — a ticket-prefixed line like
   `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
   home module.
@@ -747,6 +748,5 @@ fallback/forbid-list — render-point skills carry only a pointer to it), and
 `SPINOFF-TICKET.md` (the spinoff protocol for capturing grill-deferred work as
 a tracked stub — grills carry only a pointer to it).
 
-**Parent ticket:** P2P-1220 (Jira). For contributor-facing internals (the
-lockstep contract, three-checkpoint enforcement, tracker boundary), see
-[`CLAUDE.md`](CLAUDE.md).
+For contributor-facing internals (the lockstep contract, three-checkpoint
+enforcement, tracker boundary), see [`CLAUDE.md`](CLAUDE.md).

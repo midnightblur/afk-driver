@@ -42,7 +42,7 @@ that govern operations depending on them.
 {
   "trackerAssignee": "557058:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   "mrReviewer": "some.reviewer",
-  "worktreeBasePath": "C:/Users/dev/core-services-worktrees",
+  "worktreeBasePath": "C:/Users/dev/repo-worktrees",
   "ideBinary": "C:/Program Files/JetBrains/IntelliJ IDEA/bin/idea64.exe"
 }
 ```

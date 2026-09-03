@@ -60,9 +60,28 @@ Read cold by future agents AND human teammates, and long-lived — unlike run ar
 - **Match the target file's heading structure + density** — meaning density/heading depth, not replicating a redundant title/`Scope:` banner a legacy file happens to carry.
 - **Block comments** `<!-- … -->` are stripped from agent context (free) but visible to humans in the raw file. Sparingly, for human-maintainer notes — never provenance (we don't track provenance).
 
+## Truth grounding
+
+A claim the reader will act on is either traced or labelled. There is no third
+state.
+
+- **An absence claim is the strictest kind.** "X does not exist", "this never
+  happens", "nothing calls this" is legal only after an exhaustive enumeration
+  of where it could be — every boundary the call could cross, every name it
+  could go by. State what was enumerated.
+- **Anything unchecked is returned as `unverified: <reason>`**, never as fact
+  and never silently dropped. A reader must be able to see the edge of what was
+  checked.
+- **Cite where it was seen** — `path:line`, a command and its output, a
+  document and its section. A claim with no citation is an inference, and says
+  so.
+- **An inference is labelled as one**, in the same sentence, not in a footnote.
+
+This bar binds every agent report, every skill finding, and every reply.
+
 ## Scope, exceptions, specialized bars
 
 - Prose only. Code, code comments, commit messages, and test names keep their own conventions.
 - Verbatim identifiers — paths, commands, flags, field names, env vars, error strings — are never reworded or paraphrased to satisfy any rule here.
 - A user-invoked compression mode overrides sentence shape while active; §2 and §3 still bind.
-- Specialized bars own only their deltas: PRD catalog mechanics (`skills/afk/to-prd/PRD-TEMPLATE.md`), human-facing status lines (`REPORTING.md` — the `In plain terms:` sentence stays jargon-free prose, never compressed), glossary definitions (`skills/utils/glossary/SKILL.md` — definition depth is deliberate), Jira ticket bodies (`/afk-toolkit:to-ticket` — narrative documentation prose, never fragments).
+- Specialized bars own only their deltas: PRD catalog mechanics (`skills/afk/to-prd/PRD-TEMPLATE.md`), human-facing status lines (`REPORTING.md` — the `In plain terms:` sentence stays jargon-free prose, never compressed), glossary definitions (`skills/utils/glossary/SKILL.md` — definition depth is deliberate), tracker ticket bodies (`/afk-toolkit:to-ticket` — narrative documentation prose, never fragments).

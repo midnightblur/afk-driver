@@ -6,11 +6,14 @@
 # instruction alone demonstrably isn't enough, hence enforcement.
 #
 # Checks ADDED lines of changed/untracked plugin .md files for:
-#   1. Jira-shaped ticket IDs   (PREFIX-123) outside the notation allowlist
+#   1. tracker-shaped ticket IDs (PREFIX-123) outside the notation allowlist
 #   2. source-file references   (`Foo.vue` / `Foo.java` / `Foo.ts` ...) that
-#      resolve to a tracked product file under 11700-payable (verification/
-#      infra excluded — those are legitimate harness references)
-#   3. backticked CamelCase tokens naming a product class (same resolution)
+#      resolve to a file the gated repository tracks OUTSIDE the plugin's own
+#      tree — that is this gate's definition of "product code"
+#   3. backticked CamelCase tokens naming such a file's class (same resolution)
+#
+# `PROJ` is the reserved placeholder prefix: `PROJ-123` in an example is never
+# a real ticket, so it is a notation prefix rather than an allow-list entry.
 #
 # Verdict:
 #   no changed plugin .md                      -> silent pass (scope no-op)
@@ -49,7 +52,12 @@ gate_genericity() {
   # Inputs: the plugin's own prose, the allow-list, and the product-symbol
   # inventory (a new product file can turn a previously clean token into a hit).
   local cache_key
-  cache_key=$(gate_cache_key genericity "$PLUGIN_SCOPE*.md" "$ALLOW_FILE" "11700-payable/*")
+  # The product-symbol universe is every tracked path OUTSIDE the plugin tree,
+  # so a new product file can turn a previously clean token into a hit. When the
+  # plugin IS the repository there is no product tree and checks 2-3 are inert.
+  local PRODUCT_SCOPE=""
+  [ -n "$PLUGIN_SCOPE" ] && PRODUCT_SCOPE=":!$PLUGIN_SCOPE*"
+  cache_key=$(gate_cache_key genericity "$PLUGIN_SCOPE*.md" "$ALLOW_FILE" "${PRODUCT_SCOPE:-.}")
   gate_cache_hit genericity "$cache_key" && return 0
 
   gate_metrics_begin
@@ -69,7 +77,7 @@ gate_genericity() {
 
   # Internal notation prefixes that are NOT Jira tickets (ADRs, acceptance
   # criteria, user stories, render points, preflight steps, encodings, specs).
-  local NOTATION_PREFIXES='ADR|AC|US|RP|PF|UTF|RFC|ISO|JEP|JDK|HHH'
+  local NOTATION_PREFIXES='ADR|AC|US|RP|PF|PROJ|UTF|RFC|ISO|JEP|JDK|HHH'
 
   # ---- added lines per file: ONE diff for every tracked file, plus a fork-free
   # read of each untracked one.
@@ -122,6 +130,9 @@ gate_genericity() {
     case "$kind" in
       1) pfx=${tok%%-*}
          [[ "$pfx" =~ ^($NOTATION_PREFIXES)$ ]] && continue
+         # The changelog is dated history: an entry may name the ticket that
+         # motivated the change. Product files and classes still block there.
+         [ "${file##*/}" = "CHANGELOG.md" ] && continue
          violations="$violations$file: ticket ID \`$tok\`"$'\n' ;;
       2) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(file) ;;
       3) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(class) ;;
@@ -179,7 +190,7 @@ gate_genericity() {
       [ -n "$stem" ] || continue          # dotfile — no class name to resolve
       prod_file["$n"]=1
       prod_class["$stem"]=1
-    done < <(git ls-files '11700-payable/*' ':!11700-payable/verification/*' 2>/dev/null)
+    done < <(if [ -n "$PRODUCT_SCOPE" ]; then git ls-files -- . "$PRODUCT_SCOPE" 2>/dev/null; fi)
 
     local i
     for i in "${!cand_tok[@]}"; do

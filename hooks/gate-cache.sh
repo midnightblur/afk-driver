@@ -28,7 +28,7 @@
 
 gate_cache_key() {
   # $1 = gate name. Remaining args (optional) are globs bounding the gate's
-  # INPUTS, e.g. gate_cache_key genericity 'plugin/*.md' '11700-payable/*'.
+  # INPUTS, e.g. gate_cache_key genericity 'plugin/*.md' 'src/*'.
   #
   # With no globs the key covers the whole change set — correct for a gate whose
   # verdict can turn on any sibling edit (compile/format depend on poms and

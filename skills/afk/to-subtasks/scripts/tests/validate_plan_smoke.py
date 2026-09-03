@@ -104,25 +104,25 @@ def build_clean(root):
     write(os.path.join(plan, "PLAN.md"),
           plan_md(gate_table(2, 1), policy="> Review policy: lean   <!-- lean | full -->\n"))
     write(os.path.join(plan, "0001-core.md"), subtask(
-        "Core service.", "- 11700-payable/payable/src/**",
+        "Core service.", "- services/billing/billing/src/**",
         STATIC + "\n| unit | `mvn test` | behavior |",
-        produces="- 11700-payable/src/Foo.java#FooServiceContractV1 — the service contract"))
+        produces="- services/billing/src/Foo.java#FooServiceContractV1 — the service contract"))
     write(os.path.join(plan, "0002-consumer.md"), subtask(
-        "Consumer.", "- 11700-payable/payable/src/**",
+        "Consumer.", "- services/billing/billing/src/**",
         STATIC,
-        consumes="- 0001-core 11700-payable/src/Foo.java#FooServiceContractV1 — the contract",
+        consumes="- 0001-core services/billing/src/Foo.java#FooServiceContractV1 — the contract",
         blocked="0001-core",
         review="policy: full\nopt-in: code-quality, resilience"))
     write(os.path.join(plan, "0003-smoke-e2e.md"), subtask(
-        "UI smoke specs.", "- 11700-payable/verification/ui-e2e/features/*.feature",
+        "UI smoke specs.", "- services/billing/verification/ui-e2e/features/*.feature",
         STATIC + "\n| e2e/browser | `npm run smoke` | scenarios green |",
         blocked="0001-core, 0002-consumer"))
     write(os.path.join(plan, "0004-smoke-api.md"), subtask(
-        "API smoke specs.", "- 11700-payable/verification/api/*.test.mjs",
+        "API smoke specs.", "- services/billing/verification/api/*.test.mjs",
         STATIC + "\n| api | `node --test` | scenarios green |",
         blocked="0001-core, 0002-consumer"))
     write(os.path.join(plan, "0005-sync-harness.md"), subtask(
-        "Harness sync.", "- 11700-payable/**/CLAUDE.md", STATIC,
+        "Harness sync.", "- services/billing/**/CLAUDE.md", STATIC,
         blocked="0001-core, 0002-consumer, 0003-smoke-e2e, 0004-smoke-api"))
     return plan
 
@@ -140,7 +140,7 @@ def build_dirty(root):
     # 0001: consumes forward from 0002 (A-FORWARD) + unknown producer; generic + short anchors;
     # materialized bullet with missing file; entities scope without integration row
     write(os.path.join(plan, "0001-alpha.md"), subtask(
-        "Alpha.", "- 11700-payable/foo-entities/src/**",
+        "Alpha.", "- services/billing/foo-entities/src/**",
         STATIC,
         produces=("- svc/A.java#class — bad anchor\n"
                   "- svc/B.java#shortA — bad anchor\n"
@@ -156,14 +156,14 @@ def build_dirty(root):
     # collision partner) ; ui scope without e2e row (E-TIER-E2E); no static row (E-STATIC)
     write(os.path.join(root, "repo", "svc", "C.java"), "SomeLaterProducedThing once\n")
     write(os.path.join(plan, "0002-beta.md"), subtask(
-        "Beta.", "- 11700-payable/payable-ui/src/**",
+        "Beta.", "- services/billing/billing-ui/src/**",
         "| unit | `mvn test` | behavior |",
         produces="- svc/C.java#SomeLaterProducedThing — the thing [materialized]"))
     # 0003: collides with 0002 on the same file#anchor (A-COLLISION); consumes it
     # without the [materialized] marker (A-MAT-DISAGREE); consumes an anchor 0002
     # never produced (A-NOT-PRODUCED); controller scope without api row (E-TIER-API)
     write(os.path.join(plan, "0003-gamma.md"), subtask(
-        "Gamma.", "- 11700-payable/src/controller/**",
+        "Gamma.", "- services/billing/src/controller/**",
         STATIC,
         produces="- svc/C.java#SomeLaterProducedThing — collides",
         consumes=("- 0002-beta svc/C.java#SomeLaterProducedThing — no marker\n"
@@ -172,7 +172,7 @@ def build_dirty(root):
     # smoke-e2e present but Blocked-by misses 0002/0003 (G-BLOCKEDBY); no smoke-api
     # subtask while VP has real API scenarios (G-BUILD-MISSING)
     write(os.path.join(plan, "0004-smoke-e2e.md"), subtask(
-        "UI smoke specs.", "- 11700-payable/verification/ui-e2e/features/*.feature",
+        "UI smoke specs.", "- services/billing/verification/ui-e2e/features/*.feature",
         STATIC + "\n| e2e/browser | `npm run smoke` | green |",
         blocked="0001-alpha"))
     return plan
@@ -186,7 +186,7 @@ def build_minimal(root):
         "| # | Check | Command | Status |\n|---|-------|---------|--------|\n"
         "| 1 | compile | ./mvnw compile | |\n\nLast run: —\n"))
     write(os.path.join(plan, "0001-fix.md"), subtask(
-        "Small fix.", "- 11700-payable/payable/src/**", STATIC))
+        "Small fix.", "- services/billing/billing/src/**", STATIC))
     return plan
 
 

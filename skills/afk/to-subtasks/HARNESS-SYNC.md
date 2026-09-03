@@ -47,8 +47,8 @@ commits, and proving test, unsatisfied rows flagged.
 ## Scope
 - {service}/**/CLAUDE.md        # the affected service's CLAUDE.md chain (nearest leaf + service root)
 - {service}/STAPLES.md          # only if this feature mints a new staple or advances an existing one's Reference
-- 11???*/**/CLAUDE.md           # only the other 11xxx dirs the feature genuinely spans
-- tools/payable/**/CLAUDE.md    # only when the feature is harness / tooling itself
+- {other services}/**/CLAUDE.md # only the other service dirs the feature genuinely spans
+- {tooling dir}/**/CLAUDE.md    # only when the feature is tooling itself
 - {plan dir}/TRACE.md           # the trace matrix this subtask emits
 # docs only — NO source edits
 

@@ -28,7 +28,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
    worktree's stale plugin copy — `GLOSSARY.md` "Main checkout"):
 
    ```
-   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .
+   bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .
    ```
 
    - Any miss (exit 1) → stop with `contract_mismatch` carrying the
@@ -50,7 +50,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 9. **Before declaring success**, run from the worktree root:
 
    ```
-   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction produces --root .
+   bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction produces --root .
    ```
 
    - Any miss (exit 1) on your own `## Produces` → `produces_drift`. Quote the
@@ -62,7 +62,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
      `@Disabled("seam pending …")` on it is `produces_drift` (the seam-test
      Verification row can't have legitimately gone green while disabled; name
      the test file).
-   - **JPA-entity pickup (core-services Java).** `{file-path}` ending `.java`
+   - **Generated-schema pickup (only where the repository generates its schema).** `{file-path}` ending `.java`
      containing `@Entity` / `@MappedSuperclass` / `@Embeddable`: a grep hit is
      necessary, not sufficient. Confirm the class's package is reachable from
      the module's entity-scan config (`@EntityScan` / `entityPackages` /

@@ -10,8 +10,8 @@ or a backend contract (`api`). Skip a pure unit/logic bug that never had a
 higher-tier scenario (Phase 2 already homed it).
 
 1. **Find the scenario that *should* have caught it.** Grep the catalogs for the
-   flow/endpoint the bug lives on — `11700-payable/verification/ui-e2e`
-   (`*.feature` + steps) for a user-visible flow, `11700-payable/verification/api`
+   flow/endpoint the bug lives on — the repository's `e2e/browser` suite
+   (`*.feature` + steps) for a user-visible flow, the repository's `api` suite
    (`*.test.mjs`) for a contract. Either a scenario exercises this path, or you
    confirm none does.
 

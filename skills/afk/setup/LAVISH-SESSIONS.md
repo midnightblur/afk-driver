@@ -11,9 +11,8 @@ A grilling session is an interactive stretch of rounds: the agent explains or
 asks, the human answers, picks an option, or gives feedback — requirement
 interviews, design reviews, option picks, plan critiques.
 
-Scope: only inside a repo carrying
-`tools/payable/ai-agents/plugins/workflow/LAVISH.md` (resolve against the
-main checkout — the primary clone, not a worktree copy). Elsewhere this
+Scope: only inside a repository whose session has the afk-toolkit plugin
+enabled, so that `${AFK_PLUGIN_ROOT}/LAVISH.md` resolves. Elsewhere this
 section is inert.
 
 In scope, every grilling session is a session-default render point, RP-10:

@@ -13,17 +13,17 @@ the feature adds or changes, drive the user through:
 
 - **The call** — method + surface + request shape (auth role/token, path, body),
   in terms the `../core` REST client can issue (see
-  `11700-payable/verification/api/AUTHORING.md`).
+  the `api` suite's own authoring recipe).
 - **The asserted contract** — the success response envelope, **and** the contract
   edges this backend actually returns. Pin the real shape, not the ideal — actual
   edge envelopes (missing entity, unauthorized scope, …) are documented in
-  `11700-payable/verification/api/AUTHORING.md`. User can't state the envelope →
+  the `api` suite's own authoring recipe. User can't state the envelope →
   SDD §3 gap, surface it (the "Surface PRD/SDD gaps" step in `SKILL.md`).
 - **Aspects below the UI** — API/MCP callers bypass every UI guard, so this
   modality proves the aspects *at the contract*:
   - **Role-based access** — no-token and garbage-token rejection, plus
     role-scoping: a role *with* access accepted vs one *without* refused
-    (token minting per `11700-payable/verification/api/AUTHORING.md`).
+    (token minting per the `api` suite's own authoring recipe).
   - **Data-scoped access** — a token/user scoped to one company/vendor gets
     only its rows; a cross-scope read is refused. Often `env-limited`
     (needs scoped users). Enumerate every dropdown/lookup/reference-data

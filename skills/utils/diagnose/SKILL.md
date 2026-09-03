@@ -34,14 +34,14 @@ Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give
 
 Bulk executions inside the loop (failing-suite runs, builds, instrumented runs with long logs) run via an `afk-runner` subagent that returns only the distilled observations — the decisive lines, cited — per `DELEGATION.md` (plugin root); the hypothesise → instrument → conclude reasoning stays inline, because each decision needs the previous step's texture.
 
-### Tools at your disposal (core-services)
+### Tools at your disposal
 
-*Repo-specific — skip this list outside the core-services monorepo.*
+*The repository names its own instruments — its `CLAUDE.md` and its `setup.extra` files. Read those first; the classes below say what to look for.*
 
-The list above is generic methods; these are the concrete instruments in this repo. Use every one that fits before settling for a guess.
+The list above is generic methods; these are the classes of concrete instrument worth having. Use every one that fits before settling for a guess.
 
 - **Live UI** — most bugs are only *real* once they reproduce in the running app. App must be **built and running**: can't confirm a live build → ask the user to start/confirm it — never reproduce against stale output.
-- **Mint a token** — `node tools/nakisa-financial-suite/jwt/mint.mjs [roles…]` prints an `access-token` JWT to stdout (or `tools/nakisa-financial-suite/jwt/mint-jwt.cmd` for the web minter). Local-stack HS256 only; pass it as the `access-token` header to call `/ui/v1/` & `/api/v1/` as any role without an expiring token.
+- **Mint a token** — where the repository ships a token minter (its own docs name it), mint one and pass it as the auth header, so an endpoint can be called as any role without an expiring session token.
 - **Query the DB** — confirm what actually persisted (row written? column null? FK set?) instead of inferring from logs; settles "the service says it saved" vs "the row is wrong" directly.
 - **IntelliJ MCP** (if connected) — breakpoint, inspect, evaluate against a *running* service — the Phase-4 "one breakpoint beats ten logs" rule, live.
 

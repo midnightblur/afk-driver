@@ -26,7 +26,8 @@ repository root is refused. Handlers run in declaration order, each receives the
 original stdin envelope, and `AFK_PLUGIN_ROOT` names this plugin's root.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
-install locations, then PATH excluding the Windows system directory.\n"""
+install locations, then PATH excluding the Windows system directory.
+"""
 from __future__ import annotations
 
 import json

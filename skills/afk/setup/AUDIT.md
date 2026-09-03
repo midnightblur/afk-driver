@@ -24,7 +24,7 @@ patterns are a **floor, not the definition** — an unfamiliar tool name is what
 this check exists to catch, so the generic shapes are mandatory:
 
 - MCP tools: `mcp__[a-z_]+`
-- Known CLIs: `glab|mmdc|npx |npm |node |python|mvnw|envctl|bash `
+- Known CLIs: `glab|gh|mmdc|npx |npm |node |python|mvnw|bash `
 - **Generic command shapes:** any backticked invocation carrying flags
   (`` [a-z][a-z0-9_-]+ --[a-z-]+ ``) and any `scripts/*.{py,sh,mjs,cmd}`
   execution — a hit whose leading token is not a known CLI above is a candidate,
@@ -44,10 +44,10 @@ disk — a dead pointer is a stale doc. Sweep two scopes:
 
 - **In-plugin:** paths under the plugin root (sibling `.md`s, `skills/...`,
   `hooks/...`, `agents/...`, `scripts/...`).
-- **External anchors:** paths into the core-services tree the skills lean on —
-  at minimum `11700-payable/verification/{ui-e2e,api}/AUTHORING.md`,
-  `tools/payable/envstack/envctl.py` (`adapters/build-gate/maven/app-start-gate.sh` ships in-plugin
-  — first scope).
+- **External anchors:** paths into the consuming repository the skills lean on
+  — every one of them comes from `.afk/config.yaml` (a `verification.tiers`
+  command, a `verification.env` command, a `setup.extra` file), so the check is
+  that the configured path exists, not that a named path does.
 
 Route: the citing file (fix the pointer) — unless the target genuinely moved,
 then the finding names both sides.
@@ -62,7 +62,7 @@ pair/triple named in `CLAUDE.md` "Lockstep": the sections the pair binds
 
 ## 5 · Native harness contract
 
-Run `bash tools/payable/ai-agents/plugins/workflow/hooks/native-contract-gate.sh`
+Run `bash "$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh"`
 from the repo root. A failure routes to the named surface. Then run each
 installed harness's setup probes from `MANIFEST.md`: plugin enablement, native
 skill catalog, hooks, shared MCP, agent definitions, and local activation

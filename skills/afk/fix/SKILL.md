@@ -22,7 +22,7 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
 1. **Source of the finding.**
    - **Jira bug** (key in arg or derivable from branch): `tracker_get` with `fields=summary,status,priority,issuetype,labels,assignee,reporter,description,comment`. Delegate the pull to an `afk-reader` subagent returning a task-shaped bug digest — symptom, expected, repro hints, env, cited to ticket fields — per `DELEGATION.md` (plugin root).
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
-2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (`kapteyn/development/{username}/{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
+2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (matching `git.branch-pattern`) (`{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
@@ -42,8 +42,8 @@ Diagnose gave you the seam regression test. Decide whether a **higher tier** is 
 |-----------|-------------|-------|
 | Cosmetic / copy / caption / one-off layout | No new e2e/api — rely on the seam unit test or static check | — |
 | Logic / calculation / mapping / null-handling | Yes, at the seam | `unit` / `integration` |
-| Contract / envelope / authz / status-code | Yes — it's a backend contract | `api` → `11700-payable/verification/api` per `…/api/AUTHORING.md` |
-| User-visible flow that **escaped to the verification phase** | Yes — the journey had no guard | `e2e/browser` → `11700-payable/verification/ui-e2e` per `…/ui-e2e/AUTHORING.md` |
+| Contract / envelope / authz / status-code | Yes — it's a backend contract | `api` → the repository's `api` suite per `…/api/AUTHORING.md` |
+| User-visible flow that **escaped to the verification phase** | Yes — the journey had no guard | `e2e/browser` → the repository's `e2e/browser` suite per `…/ui-e2e/AUTHORING.md` |
 
 Tiers are the standard set: `static → unit → integration → api → e2e/browser`. Reference the AUTHORING recipes — **never embed** them; new scenarios land on the branch like code. A bug that slipped a feature's smoke gate means the **gate** had a gap → that scenario belongs in `VERIFICATION-PLAN.md` + a `NNNN-smoke-*` subtask (Phase 3), not just an inline test.
 

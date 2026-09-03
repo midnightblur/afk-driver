@@ -2,7 +2,7 @@
 
 Spawn one subagent per subtask with this prompt, placeholders filled — agent type per the sizing rule in `SKILL.md` (implementation tier travels as the `afk-implementor` type, which carries the pinned model). The subagent needs no skill-invocation support — it reads the skill files by path and follows them. Spawn mechanics + the subagent's return contract follow `DELEGATION.md` (plugin root).
 
-`{WORKFLOW_SKILLS_DIR}` = `<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills`; `{WORKFLOW_HOOKS_DIR}` = the sibling `…/workflow/hooks`. `<main-checkout>` is the first entry of `git worktree list` (fill absolute paths). **Always the main checkout — never the worktree's own copy**: the worktree carries the plugin as of the feature's branch point, so a worktree-resolved path would run stale plugin files (`GLOSSARY.md` "Main checkout").
+`{WORKFLOW_SKILLS_DIR}` = `$AFK_PLUGIN_ROOT/skills`; `{WORKFLOW_HOOKS_DIR}` = the sibling `…/workflow/hooks`. `<main-checkout>` is the first entry of `git worktree list` (fill absolute paths). **Always the main checkout — never the worktree's own copy**: the worktree carries the plugin as of the feature's branch point, so a worktree-resolved path would run stale plugin files (`GLOSSARY.md` "Main checkout").
 
 ```
 You are executing one subtask of a local plan, non-interactively.

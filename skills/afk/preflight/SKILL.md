@@ -75,9 +75,9 @@ root), leave the MR Draft, leave every not-yet-reached row untouched.
 6. Only once the guard passes: push (plain `git push`, the now-fast-forwarded
    remote tracking branch).
 
-**PF-2 — validations.** Re-run the repo's mandated validation suite
-(`build-scripts/run_validations.py` plus the reactor build, in core-services)
-against the merged tip. A **mechanical** red (formatter, config-validation,
+**PF-2 — validations.** Re-run the repository's mandated validation suite —
+the `static` tier of `verification.tiers`, plus whatever that repository's own
+`CLAUDE.md` names as mandatory — against the merged tip. A **mechanical** red (formatter, config-validation,
 merge-induced compile break) is fixable within the shared cycle cap below. A
 **semantic** red (a validation asserting something is actually wrong, not just
 malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
@@ -148,7 +148,7 @@ an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 (Resume rule above).
 
 **PF-4c lessons — advisory open-drafts surface (never parks).** Run
-`bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh --count`
+`bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --count`
 from the repo root (`<main-checkout>` = first entry of `git worktree list` —
 plugin files always run from the main checkout; `GLOSSARY.md` "Main
 checkout"); set the row `green` with

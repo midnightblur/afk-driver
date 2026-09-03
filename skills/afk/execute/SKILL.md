@@ -44,13 +44,13 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 2. **Preflight: verify Consumed contracts (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-3. **Status → `designing`.** `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/execute/scripts/plan-status.sh {plan-dir} {NNNN-slug} designing` (`<main-checkout>` = first entry of `git worktree list`; plugin files always run from the main checkout, never this worktree's stale copy — `GLOSSARY.md` "Main checkout") — sets the row's `Status` cell + stamps the header `Last updated` date, touching nothing else; every later status flip uses the same script.
+3. **Status → `designing`.** `bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/plan-status.sh {plan-dir} {NNNN-slug} designing` (`<main-checkout>` = first entry of `git worktree list`; plugin files always run from the main checkout, never this worktree's stale copy — `GLOSSARY.md` "Main checkout") — sets the row's `Status` cell + stamps the header `Last updated` date, touching nothing else; every later status flip uses the same script.
 
 4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — entity classes fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
 
-   **Design to the review bars.** For each design-level checklist in `<main-checkout>/tools/payable/ai-agents/plugins/workflow/skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md`, read its `## Guardrails` digest **only if the planned slice can hit its activation trigger** (trigger table: `skills/afk/review/SKILL.md`, judged from this contract's `## Scope` / `## Seams` / `## Produces`; unsure → read it). These are the bars the slice is later reviewed against — holding the design to them now costs a rename; failing them at the gate costs a remediation cycle.
+   **Design to the review bars.** For each design-level checklist in `$AFK_PLUGIN_ROOT/skills/afk/review/checklists/{design-quality,domain-alignment,resilience,api-contract}.md`, read its `## Guardrails` digest **only if the planned slice can hit its activation trigger** (trigger table: `skills/afk/review/SKILL.md`, judged from this contract's `## Scope` / `## Seams` / `## Produces`; unsure → read it). These are the bars the slice is later reviewed against — holding the design to them now costs a rename; failing them at the gate costs a remediation cycle.
 
-   **Hold the design against open lessons.** Run `bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-digest.sh` from the worktree root and honour every open lesson whose `target` overlaps this slice's Scope or tech surface (format: `skills/afk/lessons/LEDGER-FORMAT.md`) — a mistake repeated after its lesson is on file is a review finding waiting to happen.
+   **Hold the design against open lessons.** Run `bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh` from the worktree root and honour every open lesson whose `target` overlaps this slice's Scope or tech surface (format: `skills/afk/lessons/LEDGER-FORMAT.md`) — a mistake repeated after its lesson is on file is a review finding waiting to happen.
 
 5. **Status → `developing`; read the module's sidecars, then apply TDD.** `plan-status.sh {plan-dir} {NNNN-slug} developing`. Read the sidecars the touched module's `CLAUDE.md` announces for the work ahead — `IMPL.md` before editing source, `TESTING.md` before writing or fixing tests — plus every `.claude/rules` file whose glob matches a file you will touch. Step 10's compliance reviewer checks the diff against those same documents. Before Write-creating a file at a path `## Scope` or `## Produces` names, confirm it does not exist with `git ls-files {path}` or `find {dir} -name {File}` — a directory-prefixed Glob silently misses in this repo, and Write does not refuse an overwrite. An existing file is content to **merge**: read it, keep its members verbatim, add the new ones. Then use `/afk-toolkit:tdd`: failing test first, make it pass, refactor. The `## Verification` tiers are your green-bar checks (Step 8).
 
@@ -126,7 +126,7 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-## Hard rules (inherited from core-services CLAUDE.md)
+## Hard rules (inherited from the repository's own CLAUDE.md)
 
 - **Never alter DB directly.** Add JPA entities; let liquibase-hibernate7 pick them up. No hand-written `UpgradeGroup`, `PreDbMigration`, or `db/changelog/*` edits. In cited mode Step 9's pickup check enforces this (`@Entity` without a passing pickup-verification run is `produces_drift`, not success); in uncited mode the guard is the static tier plus Step 4's diff check against the forbidden-pattern list.
 - **Never auto-commit outside this AFK lane.** This skill is the *only* context where the agent commits autonomously.

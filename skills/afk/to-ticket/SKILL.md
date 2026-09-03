@@ -7,7 +7,7 @@ description: Publishes a finished PRD.md into its Jira parent as a requirements-
 
 # afk:to-ticket — publish into the Jira ticket
 
-Three independent modes writing to a **Jira Cloud** (`nakisa.atlassian.net`) tracker:
+Three independent modes writing to the configured tracker:
 
 - **PRD mode** (below) — distill a finished `PRD.md` into a requirements-level ticket description and publish it into the parent Enhancement/Story/Bug as native **ADF**; engine [`scripts/publish_prd.py`](./scripts/publish_prd.py).
 - **Meeting mode** ([jump](#meeting-mode--record-a-meeting-on-a-ticket)) — record a meeting on **any** ticket as a collapsible ADF `expand`; engine [`scripts/publish_meeting.py`](./scripts/publish_meeting.py).
@@ -30,7 +30,7 @@ Register: `skills/afk/setup/MANIFEST.md` — needs **P1/P2** (Python 3 + `markdo
 
 ## How to run
 
-1. Confirm `PRD.md` is final and you know the parent key (e.g. `P2P-1220`).
+1. Confirm `PRD.md` is final and you know the parent key (e.g. `PROJ-1220`).
 2. **Distill `TICKET.md`** — synthesize the ticket description from `PRD.md`, written sibling to it. `TICKET.md` is a derived artifact: content changes start in `PRD.md`; re-derive whenever the PRD changed since the last publish. **Re-publish?** The on-disk `TICKET.md` is the last-published content (the done-criterion below guarantees it) — copy it aside before overwriting; it's the baseline for step 3's delta. Content contract:
    - **Mandatory sections: User Stories and Acceptance Criteria** — carried from the PRD, trimmed to what the Product Owner and QA act on.
    - Plus a problem/goal summary and the **system behavior** in plain domain language: what changes for the user, inputs → observable outcomes, edge-case behavior QA must exercise.

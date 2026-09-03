@@ -60,7 +60,7 @@ def test_block_map_list_and_scalars():
         "  - npm\n"
         "git:\n"
         "  base-branch: origin/master\n"
-        "  branch-pattern: '^kapteyn/[a-z]+$'\n"
+        "  branch-pattern: '^team/[a-z]+$'\n"
         "jira:\n"
         "  transitions:\n"
         "    dev-pending: \"12463\"\n"
@@ -68,7 +68,7 @@ def test_block_map_list_and_scalars():
     document = cfg.parse(text, "t")
     assert document["schema"] == 1
     assert document["build-gates"] == ["maven", "npm"]
-    assert document["git"]["branch-pattern"] == "^kapteyn/[a-z]+$"
+    assert document["git"]["branch-pattern"] == "^team/[a-z]+$"
     # A quoted digit string stays a string: transition ids are opaque.
     assert document["jira"]["transitions"]["dev-pending"] == "12463"
 

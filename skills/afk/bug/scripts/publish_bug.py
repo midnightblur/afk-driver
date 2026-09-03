@@ -22,12 +22,12 @@ write; unknown → non-zero exit, nothing created. Transient (5xx / network)
 calls retry twice with exponential backoff before failing (SDD §5).
 
 Usage:
-    python publish_bug.py create   --project P2P --summary "…" --bundle bundle.md
+    python publish_bug.py create   --project PROJ --summary "…" --bundle bundle.md
                                     [--assignee ACCID] [--label L]... [--fix-version V]
                                     [--screenshot PNG]... [--dry-run]
-    python publish_bug.py transition --key P2P-123 [--dry-run]
-    python publish_bug.py comment    --key P2P-123 --body "…" | --body-file f.md [--dry-run]
-    python publish_bug.py backfill   --key P2P-123 --project P2P --fix-version V [--dry-run]
+    python publish_bug.py transition --key PROJ-123 [--dry-run]
+    python publish_bug.py comment    --key PROJ-123 --body "…" | --body-file f.md [--dry-run]
+    python publish_bug.py backfill   --key PROJ-123 --project PROJ --fix-version V [--dry-run]
 
 Credentials resolve exactly as the adapter's load_creds documents (env vars, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing

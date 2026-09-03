@@ -9,7 +9,7 @@ description: Mirrors a service's live frontend into a team-shareable claude.ai/d
 
 One-time (periodically refreshed) extraction of a service's real frontend into a hosted, team-accessible `claude.ai/design` catalog. A prototype run then composes from the catalog instead of re-reading the frontend each time; the team gets one link showing what the app looks like.
 
-**Per-service, not per-feature.** Run against a frontend checkout (`payable-ui`, the next service's UI, …), not a ticket. Output: a durable catalog many later features reference.
+**Per-service, not per-feature.** Run against one frontend checkout (a service's UI), not a ticket. Output: a durable catalog many later features reference.
 
 ## When it applies
 
@@ -20,7 +20,7 @@ Skip a service with no meaningful UI, or one you don't intend to anchor prototyp
 
 ## Arguments
 
-- `frontend_path` — frontend checkout to mirror (e.g. `…/payable-ui`). `node_modules` must be installed.
+- `frontend_path` — frontend checkout to mirror (e.g. `…/billing-ui`). `node_modules` must be installed.
 - `live_url` — URL of the **running app** (e.g. `http://proxy/dev/financial-org-structure/`). This skill profiles and verifies against the live render, not just source — **required, not optional**. **If not supplied, ask before profiling** ("what URL is the running app at?"). Only if the user confirms no running instance exists do you fall back to code-only — then stamp every card and the README "fidelity: source-only, not verified against a live render" so the gap is never hidden.
 - `project` *(optional)* — an existing Claude Design project to refresh. Omit on first run; the skill reuses-or-creates the service's design-system project.
 

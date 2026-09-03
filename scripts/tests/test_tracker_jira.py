@@ -224,13 +224,13 @@ class TestJiraClient(unittest.TestCase):
             f.write(b"\x89PNG\r\n\x1a\nDATA")
             png = f.name
         try:
-            att_id = j.upload_attachment("P2P-1", png)
+            att_id = j.upload_attachment("PROJ-1", png)
         finally:
             os.unlink(png)
 
         self.assertEqual(att_id, "9001")
         self.assertEqual(captured["method"], "POST")
-        self.assertTrue(captured["path"].endswith("/issue/P2P-1/attachments"))
+        self.assertTrue(captured["path"].endswith("/issue/PROJ-1/attachments"))
         self.assertEqual(captured["headers"]["X-Atlassian-Token"], "no-check")
         self.assertIn("multipart/form-data; boundary=",
                       captured["headers"]["Content-Type"])

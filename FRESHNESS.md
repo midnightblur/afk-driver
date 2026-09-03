@@ -39,7 +39,7 @@ everyone else points.
 | `.claude-plugin/marketplace.json` | plugin author | the chain's shape changes (description) |
 | `CHANGELOG.md` | plugin author | a dev-visible feature/enhancement/behavior change ships — add its dated one-liner **in the same commit** (audience + exclusions self-documented in its header; internal refactors and wording sweeps get no entry) |
 | `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |
-| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move; renaming the "How to write these skill files" section also updates the pointer in `tools/payable/ai-agents/CLAUDE.md` |
+| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move; renaming the "How to write these skill files" section also updates the pointer any consuming repository's own `CLAUDE.md` carries |
 | `GLOSSARY.md` (root) | plugin author | a methodology term is minted, renamed, or retired |
 | `REPORTING.md` | plugin author | any status-line / notification protocol change |
 | `DELEGATION.md` | plugin author | any delegation-doctrine change |

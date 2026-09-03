@@ -41,7 +41,7 @@ reviewed change applied via `/afk-toolkit:lessons apply` from the lesson ledger
    scripts always run from the main checkout; `GLOSSARY.md` "Main checkout"):
 
    ```
-   bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
+   bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh opened \
      --class <mapped> --miss <phase-2.5 class> --target <implicated skill file> \
      --summary "<the Bug line>" --draft "<the Proposed change>" \
      --source <ticket key> --evidence <path:line> --writer fix

@@ -46,6 +46,6 @@ Group by target file. Per change: diff · one-line **why** · **placement ration
 Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.
 
 ## Safety
-- **Write boundary (fail-closed).** Autonomous writes confined to 11xxx turf — `11???*/**`, `tools/payable/**` — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. Any target outside is **refused before any write**.
+- **Write boundary (fail-closed).** Autonomous writes confined to the service directories the feature touches — and **never** the neutral root `CLAUDE.md` or root `GLOSSARY*`. Any target outside is **refused before any write**.
 - In-repo only — never `~/.claude/shared` (placement decision #3, `skills/utils/writing-for-agents/HARNESS-MECHANICS.md`).
 - Discovery safety per [AUDIT.md](AUDIT.md) Discovery (never scan system roots).

@@ -56,7 +56,7 @@ list` — plugin scripts always run from the main checkout, never a worktree's
 stale copy; `GLOSSARY.md` "Main checkout"):
 
 ```
-bash <main-checkout>/tools/payable/ai-agents/plugins/workflow/hooks/lesson-append.sh opened \
+bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh opened \
   --class <class> --target <path> --summary "<one line>" \
   --draft "<the edit>" --writer <skill> \
   [--miss <class>] [--source <id>] [--evidence <path:line>]
