@@ -40,3 +40,10 @@ skills/afk/setup/MANIFEST.md	harness-name	`\[plugins\."afk-toolkit@afk-toolkit"\
 skills/afk/setup/MANIFEST.md	harness-name	read the installed plugin root from Codex plugin metadata	Fix names the harness whose metadata supplies the root.
 CHANGELOG.md	harness-name	installable from GitHub on Claude Code	Release entry states which harnesses the 1.0.0 install was proven on.
 CHANGELOG.md	harness-name	^  and Codex CLI\.\*\* It was a directory	Same release entry, continued on the next line.
+
+# The 1.0.1 fix IS a difference between two harnesses: one expands a
+# placeholder in an MCP registration and the other does not. A changelog entry
+# that would not say which is which cannot be acted on by the reader it is for.
+CHANGELOG.md	harness-name	^- \*\*The tracker MCP server never started on Codex CLI\.\*\* Codex expands neither	Release entry names the harness whose behaviour the defect depended on.
+CHANGELOG.md	claude-plugin-root	`\$\{PLUGIN_ROOT\}` nor `\$\{CLAUDE_PLUGIN_ROOT\}` inside an `args` entry	Entry names the two placeholders that were not expanded.
+CHANGELOG.md	harness-name	tools, while Claude Code — which does expand it — worked	Same entry names the harness where the defect did not appear.

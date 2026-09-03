@@ -29,8 +29,12 @@ from mcp.server.fastmcp import FastMCP
 def _plugin_root() -> Path:
     """The toolkit root. Passed by the registration; the environment is the
     fallback for a hand-started server. Never searched for — a cache scan finds
-    a stale copy as readily as the live one."""
-    if len(sys.argv) > 1 and sys.argv[1]:
+    a stale copy as readily as the live one.
+
+    A harness that does not expand the placeholder in its own registration hands
+    it over verbatim, so an argument still carrying `${` is not a path and is
+    skipped rather than resolved into a directory that cannot exist."""
+    if len(sys.argv) > 1 and sys.argv[1] and "${" not in sys.argv[1]:
         return Path(sys.argv[1]).resolve()
     for name in ("AFK_PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"):
         value = os.environ.get(name)

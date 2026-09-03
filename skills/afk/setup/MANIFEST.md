@@ -456,8 +456,10 @@ Gating rule: if O1 misses, report the whole section as
 
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.
-- **Probe:** `agent:` a new session lists exactly 40 `afk:<name>` plugin skills,
-  no `afk-<name>` mirror, all three agent roles, and a callable `tracker_get`.
+- **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
+  in `plugin.json` and no `afk-<name>` mirror, all three agent roles, and a
+  callable `tracker_get`. Count the manifest rather than a number written here:
+  a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 
 ### O8 · stale generated activation cleanup **[opt-in]**
@@ -550,6 +552,5 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_MAVEN_LOCK_WAIT` | `adapters/build-gate/maven/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `adapters/build-gate/maven/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
-| `CROWDSTRIKE_GUARD_OFF` | `harness/hooks/crowdstrike-guard.sh` (adopted gate — wired in this plugin's `hooks.json`) | debug bypass of the system-root scan guard |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |
 | `LESSON_LEDGER_FILE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | relocate the lesson ledger (default: main-checkout `.claude/lessons/LEDGER.jsonl`) |

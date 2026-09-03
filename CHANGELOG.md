@@ -18,6 +18,36 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-03
+
+### Fixed
+
+- **The tracker MCP server never started on Codex CLI.** Codex expands neither
+  `${PLUGIN_ROOT}` nor `${CLAUDE_PLUGIN_ROOT}` inside an `args` entry and
+  exports no equivalent variable, so the launcher received the placeholder
+  verbatim, could not find `mcp-servers/tracker/server.py`, and exited before
+  the handshake. Every session on that harness therefore had zero `tracker_*`
+  tools, while Claude Code — which does expand it — worked, which is how the
+  defect reached a release. The launcher now finds its own installed root when
+  no harness tells it, and the server ignores an argument that still carries an
+  unexpanded placeholder instead of resolving it into a directory that cannot
+  exist.
+
+### Changed
+
+- The setup register's O7 probe asked a new session for "exactly 40" plugin
+  skills. It ships 41. The probe now counts the manifest, because a number
+  written in prose is wrong the first time a skill is added.
+- `CLAUDE.md` listed four gate scripts under `hooks/` that live elsewhere: the
+  two PreToolUse guards belong to a consuming repository's own `.afk/hooks.json`
+  and ship with no plugin, and the app-start and mutation probes moved to
+  `adapters/build-gate/maven/` with the rest of the build-shaped gates.
+- `CLAUDE.md` still described the changelog as dated one-liners without
+  versions, which stopped being true when the release gate started enforcing
+  four-way version agreement.
+- Dropped the register row for `CROWDSTRIKE_GUARD_OFF`: it named a script this
+  plugin no longer carries.
+
 ## [1.0.0] - 2026-09-03
 
 ### Added
