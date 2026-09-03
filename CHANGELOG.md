@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+- afk-toolkit-proof-2026-09-03: disposable entry, proves the release gate runs on a pull request. Safe to delete.
+
 ## [1.0.0] - 2026-09-03
 
 ### Added
