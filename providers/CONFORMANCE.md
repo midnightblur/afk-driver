@@ -172,6 +172,75 @@ own boundary and recorded here.
   line existed and the extraction branch deletes it. Nothing in the monorepo
   reads it, and nothing here depends on the monorepo.
 
+### What installing on a real second harness found
+
+Round 5 installed on both harnesses but proved the tracker MCP server on only
+one, because the isolated Codex home could not authenticate far enough to reach
+a tool call. Installing v1.0.0 on the owner's real Codex CLI closed that gap and
+immediately failed: a session had no `tracker_*` tool at all.
+
+The evidence was the harness's own start-up log, not a deduction. It listed the
+server among the six it had registered, and one line later:
+
+```
+MCP server stderr (python): afk tracker MCP: mcp-servers\tracker\server.py
+not found. Pass the plugin root as the first argument, or export
+CLAUDE_PLUGIN_ROOT (Claude) or PLUGIN_ROOT (Codex).
+```
+
+Codex CLI expands no placeholder inside an `args` entry and exports no
+equivalent variable, so the launcher was handed `${PLUGIN_ROOT}` as a literal
+string. Claude Code does expand it, which is why every gate, all eighty tests
+and four earlier proof rounds passed: the failure needed the other harness to
+exist at all. Two bugs were stacked — the launcher could not locate itself, and
+the server resolved the unexpanded placeholder into a relative path rather than
+rejecting it. Both are fixed in v1.0.1.
+
+**Deviation from the plan, recorded because it is one.** The plan forbade a
+cache search at MCP start-up: a search can find a stale copy as readily as the
+live one, so the registration passes the root and the server never looks. One
+harness makes that impossible. The launcher therefore searches, and the search
+is bounded to the narrowest thing that still works:
+
+- an explicit first argument wins whenever it is present and is not an
+  unexpanded placeholder;
+- then `AFK_PLUGIN_ROOT`, `CLAUDE_PLUGIN_ROOT`, `PLUGIN_ROOT`, in that order;
+- only when all of those are absent does it look, and then only at four fixed
+  plugin-directory shapes one level under the user's home directory, each tried
+  with a dotted and an undotted harness segment because glob never matches a
+  leading dot.
+
+It never recurses, never starts from a filesystem root, and never leaves the
+user's home directory. The newest match of each shape wins, so a stale older
+version loses to the current one.
+
+`v1.0.2` states in the changelog that v1.0.0 does not work on Codex CLI and that
+a user on that harness needs v1.0.1 or later.
+
+### Marketplace pins, corrected by running the commands
+
+`claude plugin marketplace add --help` documents no ref option, and the round-5
+table recorded that it has none. It does: `<owner>/<repo>@<tag>` pins it, and the
+marketplace checkout then sits detached at that tag. Both harnesses pin.
+
+Neither `claude plugin marketplace update` nor `codex plugin marketplace upgrade`
+moves a marketplace off the tag it was pinned to — both refresh within the pin.
+Moving to a later release means removing the marketplace, adding it again at the
+new tag, and reinstalling the plugin. Round 5's note that `codex plugin
+marketplace add` does not refresh an already-added marketplace stands, and this
+is the fuller rule it was one case of.
+
+### The cutover, on the owner's own harnesses
+
+| | Claude Code | Codex CLI |
+|---|---|---|
+| `afk-toolkit` | 1.0.1, user scope, enabled | 1.0.1, installed and enabled |
+| Old `afk@nak-marketplace` | uninstalled, marketplace removed | uninstalled, marketplace removed |
+| Residue | none: no `nak-marketplace` string in settings, `known_marketplaces.json` or `installed_plugins.json` | none: eight `hooks.state` trust tables dropped by parsing the file and re-parsing the result, four agent stubs deleted only after each was confirmed to carry the old install's marker, and the plugin cache directory removed after its path was resolved and confirmed to sit under the harness's own cache |
+| Agent stubs | — | `afk-toolkit-afk-{implementor,reader,runner,runner-lite}.toml`, plugin root substituted; the unrelated `mr-reviewer.toml` carries no marker and was left alone |
+| Live tracker proof | round 5 | `tracker_get` on a real ticket in the configured project returns its summary and status; zero start failures in the session log, where there had been three |
+| Live agent proof | round 5 | `afk-toolkit-afk-reader` spawned and returned `LANGUAGE.md`'s first heading verbatim |
+
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.

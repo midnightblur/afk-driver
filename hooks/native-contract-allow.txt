@@ -47,3 +47,8 @@ CHANGELOG.md	harness-name	^  and Codex CLI\.\*\* It was a directory	Same release
 CHANGELOG.md	harness-name	^- \*\*The tracker MCP server never started on Codex CLI\.\*\* Codex expands neither	Release entry names the harness whose behaviour the defect depended on.
 CHANGELOG.md	claude-plugin-root	`\$\{PLUGIN_ROOT\}` nor `\$\{CLAUDE_PLUGIN_ROOT\}` inside an `args` entry	Entry names the two placeholders that were not expanded.
 CHANGELOG.md	harness-name	tools, while Claude Code — which does expand it — worked	Same entry names the harness where the defect did not appear.
+
+# A "which versions are safe" notice is useless without the harness name: the
+# defect it warns about exists on one harness and not the other.
+CHANGELOG.md	harness-name	^- \*\*If you are on Codex CLI, 1\.0\.0 does not work	Compatibility notice names the affected harness.
+CHANGELOG.md	harness-name	at all and every skill that reads or writes a work item failed\. Claude Code is	Same notice names the unaffected harness.

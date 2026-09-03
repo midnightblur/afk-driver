@@ -18,6 +18,32 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-03
+
+### Changed
+
+- **If you are on Codex CLI, 1.0.0 does not work — install 1.0.1 or later.** Its
+  tracker MCP server never started there, so a session had no `tracker_*` tool
+  at all and every skill that reads or writes a work item failed. Claude Code is
+  unaffected at any version. 1.0.1 says what went wrong; this entry says plainly
+  which versions are safe, because a reader deciding what to install should not
+  have to infer it from a defect report.
+
+### Documented
+
+- Why the tracker launcher searches for its own installed root, which the design
+  otherwise forbids: a search can find a stale copy as readily as the live one,
+  so the rule was that the registration passes the root and the server never
+  looks. One harness makes that impossible — it expands no placeholder in an
+  `args` entry and exports no equivalent variable, so there is nothing to pass.
+  The search is the narrowest thing that still works. An explicit argument, then
+  the environment, are tried first and win whenever either exists; only when both
+  are absent does it look, and then only at four fixed plugin-directory shapes
+  directly under the user's home directory. It never recurses, never starts from
+  a filesystem root, and never leaves the user's home directory. Recorded in
+  `providers/CONFORMANCE.md` under the round-5 decisions as a deviation from the
+  plan's rule, not as the intended design.
+
 ## [1.0.1] - 2026-09-03
 
 ### Fixed
