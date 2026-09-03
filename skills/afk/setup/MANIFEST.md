@@ -596,6 +596,7 @@ Each var is documented at its consumer — this table is just the map.
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
 | `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates (maven-compile, java-format, ui-lint) for one commit |

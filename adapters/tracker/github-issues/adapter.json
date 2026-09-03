@@ -1,0 +1,25 @@
+{
+  "kind": "github-issues",
+  "family": "tracker",
+  "name": "tracker/github-issues",
+  "operations": [
+    "tracker_get",
+    "tracker_search",
+    "tracker_create",
+    "tracker_edit",
+    "tracker_comment",
+    "tracker_transition",
+    "tracker_transitions",
+    "tracker_attachments",
+    "tracker_changelog"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "api.py"
+  },
+  "configKeys": [
+    "tracker",
+    "github-issues.repo",
+    "github-issues.state-labels"
+  ]
+}

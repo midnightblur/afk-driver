@@ -1,0 +1,22 @@
+{
+  "kind": "obsidian",
+  "family": "notes",
+  "name": "notes/obsidian",
+  "operations": [
+    "note-create",
+    "note-read",
+    "note-update",
+    "note-delete",
+    "note-link",
+    "resolve"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "notes.sh"
+  },
+  "configKeys": [
+    "notes",
+    "obsidian.vault",
+    "repo-files.spec-dir"
+  ]
+}

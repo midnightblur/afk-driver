@@ -1,0 +1,23 @@
+{
+  "kind": "none",
+  "family": "tracker",
+  "name": "tracker/none",
+  "operations": [
+    "tracker_get",
+    "tracker_search",
+    "tracker_create",
+    "tracker_edit",
+    "tracker_comment",
+    "tracker_transition",
+    "tracker_transitions",
+    "tracker_attachments",
+    "tracker_changelog"
+  ],
+  "runner": {
+    "type": "instruction",
+    "entry": "api.py"
+  },
+  "configKeys": [
+    "tracker"
+  ]
+}

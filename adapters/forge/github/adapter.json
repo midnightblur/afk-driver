@@ -1,0 +1,29 @@
+{
+  "kind": "github",
+  "family": "forge",
+  "name": "forge/github",
+  "operations": [
+    "change-view",
+    "change-diff",
+    "change-create-draft",
+    "change-ready",
+    "change-reviewers",
+    "change-update-body",
+    "change-comment",
+    "change-state",
+    "change-close",
+    "change-fetch",
+    "ci-status",
+    "ci-wait",
+    "auth-status"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "forge.sh"
+  },
+  "configKeys": [
+    "forge",
+    "github.remote",
+    "git.base-branch"
+  ]
+}

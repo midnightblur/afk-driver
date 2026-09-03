@@ -1,0 +1,18 @@
+{
+  "kind": "npm",
+  "family": "build-gate",
+  "name": "build-gate/npm",
+  "operations": [
+    "gate-discover",
+    "gate-run"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "gates.sh"
+  },
+  "configKeys": [
+    "build-gates",
+    "npm.lint",
+    "npm.workspace-root"
+  ]
+}

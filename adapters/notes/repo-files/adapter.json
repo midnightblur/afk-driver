@@ -1,0 +1,21 @@
+{
+  "kind": "repo-files",
+  "family": "notes",
+  "name": "notes/repo-files",
+  "operations": [
+    "note-create",
+    "note-read",
+    "note-update",
+    "note-delete",
+    "note-link",
+    "resolve"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "notes.sh"
+  },
+  "configKeys": [
+    "notes",
+    "repo-files.spec-dir"
+  ]
+}

@@ -1,0 +1,84 @@
+# Sample: a large monorepo with a Jira tracker, a GitLab forge, Maven and npm
+# build gates, and repository-owned hooks. This is the shape the extraction's
+# consuming repository commits at its own root; it is kept here as a parser and
+# schema fixture so a change to either fails a test rather than a live repo.
+schema: 1
+toolkit-version: "1.0.0"
+tracker: jira
+forge: gitlab
+notes: repo-files
+build-gates:
+  - maven
+  - npm
+jira:
+  project: P2P
+  issue-types:
+    feature: Enhancement
+    story: Story
+    bug: Bug
+  transitions:
+    dev-pending: "12463"
+  credentials-env:
+    - JIRA_BASE_URL
+    - JIRA_EMAIL
+    - JIRA_API_TOKEN
+gitlab:
+  remote: origin
+git:
+  base-branch: origin/master
+  branch-pattern: '^kapteyn/development/[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9/.-]*$'
+  branch-template: 'kapteyn/development/{user}/{ticket_lower}'
+repo-files:
+  spec-dir: '{service}/specs/{release}/{ticket}'
+artifacts:
+  glossary-map: GLOSSARY-MAP.md
+  service-map:
+    P2P: 11700-payable
+maven:
+  reactor-pom: all-modules-pom.xml
+  formatter-config: eclipse-code-formatter.xml
+  formatter-plugin: "2.28.0"
+  default-module: 11700-payable/payable
+  skip-ui-flag: -DskipUi=true
+npm:
+  lint: eslint
+  workspace-root: .
+verification:
+  tiers:
+    unit:
+      command: ./mvnw
+      args:
+        - -pl
+        - "{module}"
+        - --also-make
+        - test
+    api:
+      command: npm
+      args:
+        - run
+        - api
+        - --workspace
+        - 11700-payable/verification/api
+    e2e:
+      command: npm
+      args:
+        - run
+        - smoke
+        - --workspace
+        - 11700-payable/verification/ui-e2e
+        - --
+        - --tags
+        - "{tags}"
+  env:
+    up:
+      command: python
+      args:
+        - tools/payable/envstack/envctl.py
+        - up
+        - "{env}"
+        - --services
+        - payable
+repo-hooks: .afk/hooks.json
+setup:
+  extra:
+    - tools/payable/ai-agents/harness/SETUP-EXTRA.md

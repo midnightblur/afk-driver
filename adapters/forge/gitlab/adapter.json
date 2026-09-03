@@ -1,0 +1,29 @@
+{
+  "kind": "gitlab",
+  "family": "forge",
+  "name": "forge/gitlab",
+  "operations": [
+    "change-view",
+    "change-diff",
+    "change-create-draft",
+    "change-ready",
+    "change-reviewers",
+    "change-update-body",
+    "change-comment",
+    "change-state",
+    "change-close",
+    "change-fetch",
+    "ci-status",
+    "ci-wait",
+    "auth-status"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "forge.sh"
+  },
+  "configKeys": [
+    "forge",
+    "gitlab.remote",
+    "git.base-branch"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "kind": "maven",
+  "family": "build-gate",
+  "name": "build-gate/maven",
+  "operations": [
+    "gate-discover",
+    "gate-run",
+    "app-start"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "gates.sh"
+  },
+  "configKeys": [
+    "build-gates",
+    "maven.reactor-pom",
+    "maven.formatter-config",
+    "maven.formatter-plugin",
+    "maven.default-module",
+    "maven.skip-ui-flag"
+  ]
+}

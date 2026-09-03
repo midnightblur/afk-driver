@@ -1,0 +1,22 @@
+# afk-toolkit's own configuration. It is also the reference sample for the
+# documented YAML subset: block maps, block lists, quoted scalars, no flow
+# syntax. `no build gates` is expressed by omitting `build-gates` entirely.
+schema: 1
+toolkit-version: "1.0.0"
+tracker: github-issues
+forge: github
+notes: repo-files
+github-issues:
+  repo: midnightblur/afk-driver
+  state-labels:
+    dev-pending: "status:dev-pending"
+    in-review: "status:in-review"
+    done: "status:done"
+github:
+  remote: origin
+git:
+  base-branch: origin/main
+  branch-pattern: '^[a-z0-9][a-z0-9/._-]*$'
+  branch-template: 'feat/{ticket_lower}'
+repo-files:
+  spec-dir: 'docs/afk/{workId}'

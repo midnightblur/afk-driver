@@ -174,6 +174,8 @@ Exactly two Jira writers (ADR-0001): **`/afk-toolkit:to-ticket`** — parent-tic
 - `REPORTING.md` — human-facing reporting protocol every status-emitting skill follows.
 - `DECISIONS.md` — one home for the hands-off decision protocol: the two-way-door test (decide + record in the `plan/DECISIONS.md` ledger) vs park (one-way doors, ties — `needs_decision`/`design_conflict`), the ledger grammar, and the read/report duties. Skills carry only pointers.
 - `DELEGATION.md` — subagent-delegation protocol every context-heavy skill follows.
+- `CONFIG.md` — the consuming repository's contract: `.afk/config.yaml`, the supported YAML subset, the discovery order, and the `AFK_CFG_*` shell view. One reader owns it (`scripts/afk-config.py`); no skill and no gate parses the file.
+- `ADAPTERS.md` — the four adapter families (tracker, forge, notes, build-gate), their verbs, their answer shapes, and how to add a kind. Dispatch is `hooks/lib/adapter.sh`.
 - `CAPABILITIES.md` — shared capability contract and degradation rules.
 - `PROVIDERS.md` — enable flags, provider mappings, model tiers, credentials, and distribution law. Provider behavior lives in `hooks/lib/providers/`.
 - `providers/CONFORMANCE.md` — live proof, unresolved capabilities, and the add-harness checklist.

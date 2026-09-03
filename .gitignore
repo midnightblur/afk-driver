@@ -64,3 +64,8 @@ Thumbs.db
 *.pem
 *.key
 secrets/
+
+# Per-developer overlay of the repository's AFK configuration — non-secret
+# values only (tracker-assignee, forge-reviewer, worktree-base-path), but it is
+# per machine, so it never belongs in git. See CONFIG.md.
+.afk/config.local.yaml

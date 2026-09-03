@@ -1,0 +1,21 @@
+{
+  "kind": "notion",
+  "family": "notes",
+  "name": "notes/notion",
+  "operations": [
+    "note-create",
+    "note-read",
+    "note-update",
+    "note-delete",
+    "note-link",
+    "resolve"
+  ],
+  "runner": {
+    "type": "instruction",
+    "entry": "NOTES.md"
+  },
+  "configKeys": [
+    "notes",
+    "notion.parent-page-id"
+  ]
+}

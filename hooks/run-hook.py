@@ -140,9 +140,35 @@ def shell_env(bash: Path) -> dict[str, str]:
     return env
 
 
+def manifest_path(root: Path) -> Path:
+    """`.afk/hooks.json` unless the repository's config names another path.
+
+    The configuration reader is the plugin's own module, so this stays one
+    import rather than a subprocess on the hook path.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        named = module.get(module.load(root), "repo-hooks")
+    except Exception:
+        named = None
+    if not isinstance(named, str) or not named:
+        named = REPO_HOOKS_MANIFEST
+    candidate = (root / named).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return root / REPO_HOOKS_MANIFEST
+    return candidate
+
+
 def repo_entries(root: Path, event: str) -> list[dict]:
     """Repository-declared handlers for one event, in declaration order."""
-    manifest = root / REPO_HOOKS_MANIFEST
+    manifest = manifest_path(root)
     if not manifest.is_file():
         return []
     try:

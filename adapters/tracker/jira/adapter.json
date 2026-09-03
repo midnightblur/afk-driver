@@ -1,0 +1,27 @@
+{
+  "kind": "jira",
+  "family": "tracker",
+  "name": "tracker/jira",
+  "operations": [
+    "tracker_get",
+    "tracker_search",
+    "tracker_create",
+    "tracker_edit",
+    "tracker_comment",
+    "tracker_transition",
+    "tracker_transitions",
+    "tracker_attachments",
+    "tracker_changelog"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "api.py"
+  },
+  "configKeys": [
+    "tracker",
+    "jira.project",
+    "jira.issue-types",
+    "jira.transitions",
+    "jira.credentials-env"
+  ]
+}

@@ -36,11 +36,15 @@ cd "$repo_root" || exit 0
 [ -f .claude/hooks/.gate-disabled ] && exit 0
 
 . "$SCRIPT_DIR/lib/provider.sh"
+. "$SCRIPT_DIR/lib/config.sh"
+. "$SCRIPT_DIR/lib/adapter.sh"
 . "$SCRIPT_DIR/gate-context.sh"
 . "$SCRIPT_DIR/gate-cache.sh"
 . "$SCRIPT_DIR/gate-metrics.sh"
 
 gate_metrics_begin
+# One configuration read per Stop; every gate below reads the AFK_CFG_* names.
+afk_config_load
 gate_ctx_build
 # Fork-free line count of the change set (metrics detail only).
 n_changed=0

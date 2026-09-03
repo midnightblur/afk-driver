@@ -51,10 +51,14 @@ cd "$repo_root" || exit 0
 # case the same.
 git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
 
+. "$SCRIPT_DIR/lib/config.sh"
+. "$SCRIPT_DIR/lib/adapter.sh"
 . "$SCRIPT_DIR/gate-context.sh"
 . "$SCRIPT_DIR/gate-cache.sh"
 . "$SCRIPT_DIR/gate-metrics.sh"
 
+# One configuration read per commit; the build-gate adapters read it below.
+afk_config_load
 gate_ctx_build_staged
 [ -z "$AFK_CTX_CHANGED" ] && exit 0
 

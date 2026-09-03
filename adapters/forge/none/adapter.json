@@ -1,0 +1,27 @@
+{
+  "kind": "none",
+  "family": "forge",
+  "name": "forge/none",
+  "operations": [
+    "change-view",
+    "change-diff",
+    "change-create-draft",
+    "change-ready",
+    "change-reviewers",
+    "change-update-body",
+    "change-comment",
+    "change-state",
+    "change-close",
+    "change-fetch",
+    "ci-status",
+    "ci-wait",
+    "auth-status"
+  ],
+  "runner": {
+    "type": "instruction",
+    "entry": "forge.sh"
+  },
+  "configKeys": [
+    "forge"
+  ]
+}
