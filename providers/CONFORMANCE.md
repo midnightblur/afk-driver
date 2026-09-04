@@ -241,6 +241,22 @@ is the fuller rule it was one case of.
 | Live tracker proof | round 5 | `tracker_get` on a real ticket in the configured project returns its summary and status; zero start failures in the session log, where there had been three |
 | Live agent proof | round 5 | `afk-toolkit-afk-reader` spawned and returned `LANGUAGE.md`'s first heading verbatim |
 
+### H2, and why `unsupported` is not a failure
+
+`tracker_get` was proven against the real service on the second harness in the
+1.0.1 round: a call on a real ticket key returned its summary and status, with
+zero start failures in the session log where there had been three. That is the
+positive proof for `H2`, and it is not re-run per audit.
+
+A later audit ran from a working directory with no `.afk/config.yaml`, where the
+tracker resolves to `none` and `tracker_get` answers `unsupported`. It recorded
+that as a failed row. It is the opposite: a `none` adapter answering
+`unsupported` is the adapter contract doing its job, and the row had simply
+assumed a tracker exists. `H2` and `O7`'s tracker leg are conditional from 1.0.7,
+the way `C3` and `C3b` already were. The lesson generalizes past this row — an
+adapter family with a `none` member needs every probe that touches it to say
+what `none` means for that probe.
+
 ### What an upgrade does and does not invalidate
 
 Established by upgrading 1.0.5 → 1.0.6 on the second harness: marketplace

@@ -81,9 +81,11 @@ than part of the term. The script case-folds, drops that qualifier, and splits a
 multi-term heading, then requires a consumer for each part.
 
 A zero-hit term means no file uses that word. It is a prompt to look, not a
-verdict, and never on its own a reason to change `GLOSSARY.md`: check first
-whether prose spells the term differently. Report it as a finding (route:
-`GLOSSARY.md`) only once you have looked and the term really is unused.
+verdict, and never on its own a reason to delete an entry: check first whether
+prose spells the term differently. Where prose legitimately writes it shorter,
+the fix is an `_Also_:` line on that entry (`skills/utils/glossary/GLOSSARY-FORMAT.md`),
+not a looser check. Report it as a finding (route: `GLOSSARY.md`) only once you
+have looked and the term really is unused.
 
 `scripts/tests/test_glossary_usage.py` pins that normalization against the
 sixteen headings an earlier, exact-match check reported as unused while every

@@ -48,12 +48,49 @@ def terms_of(heading: str, qualifier: str | None = None) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+ALSO = re.compile(r"^_?Also_?:\s*(.+?)\s*$", re.M)
+
+
+def also_forms(body: str) -> list[str]:
+    """Shorter spellings an entry declares the codebase legitimately uses.
+
+    Prose often writes the distinctive part of a term and lets the sentence
+    carry the rest: `one-live-fixer` inside a list of invariants. That is
+    correct usage, not drift, and an entry says so with an `_Also_:` line
+    (comma-separated), the same metadata-line convention as `_Avoid_:`.
+    `_Avoid_:` is its opposite and never counts — those spellings are the ones
+    nobody should be using.
+    """
+    m = ALSO.search(body)
+    if not m:
+        return []
+    # A parenthetical explains why the spelling exists; it is not part of it,
+    # and it may itself contain commas, so drop it before splitting.
+    line = re.sub(r"\s*\([^)]*\)\s*", " ", m.group(1))
+    return [p.strip().casefold() for p in line.split(",") if p.strip()]
+
+
 def parse(glossary: str) -> dict[str, list[str]]:
     """Map each heading to the terms it defines, in file order."""
     found: dict[str, list[str]] = {}
     for m in HEADING.finditer(glossary):
         heading = m.group(2).strip()
         found.setdefault(heading, terms_of(heading, m.group(3)))
+    return found
+
+
+def parse_alternatives(glossary: str) -> dict[str, list[str]]:
+    """Map each heading to the spellings its entry declares under `_Also_:`.
+
+    An alternative satisfies the heading on its own; it is never an extra
+    requirement.
+    """
+    found: dict[str, list[str]] = {}
+    marks = list(HEADING.finditer(glossary))
+    for i, m in enumerate(marks):
+        heading = m.group(2).strip()
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(glossary)
+        found.setdefault(heading, also_forms(glossary[m.end():end]))
     return found
 
 
@@ -95,11 +132,16 @@ def main() -> int:
         print("no GLOSSARY.md under %s" % root, file=sys.stderr)
         return 2
 
-    headings = parse(glossary.read_text(encoding="utf-8"))
+    text = glossary.read_text(encoding="utf-8")
+    headings = parse(text)
+    alternatives = parse_alternatives(text)
     files = consumers(root, glossary)
 
     unused = []
     for heading, parts in headings.items():
+        alts = alternatives.get(heading, [])
+        if alts and any(used(a, files) for a in alts):
+            continue
         missing = [t for t in parts if not used(t, files)]
         if missing:
             unused.append((heading, missing))

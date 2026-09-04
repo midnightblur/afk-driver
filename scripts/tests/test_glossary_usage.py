@@ -7,8 +7,9 @@ false positives and would have reported more as the glossary grew. These are
 fixtures, not a snapshot of GLOSSARY.md: they must keep passing even after the
 glossary is rewritten, because what they pin is the normalization, not the terms.
 
-One of the sixteen is still reported, deliberately. See `test_trailing_category
-_noun_is_still_reported` for what that costs and why it is not worked around.
+Where prose legitimately writes a shorter spelling than the heading, the entry
+declares it under `_Also_:` and the check accepts it. `_Avoid_:` is the opposite
+and never counts — see the two tests under "declared shorter spellings".
 """
 import sys
 from pathlib import Path
@@ -21,9 +22,13 @@ import glossary_usage as gu  # noqa: E402
 def report(glossary_text, files):
     """Run the check over an in-memory glossary and consumer corpus."""
     headings = gu.parse(glossary_text)
+    alternatives = gu.parse_alternatives(glossary_text)
     corpus = "\n".join(files).casefold()
     unused = {}
     for heading, parts in headings.items():
+        alts = alternatives.get(heading, [])
+        if alts and any(a in corpus for a in alts):
+            continue
         missing = [t for t in parts if t not in corpus]
         if missing:
             unused[heading] = missing
@@ -82,23 +87,39 @@ def test_slash_inside_a_qualifier_does_not_split_the_term():
     assert report(g, ["grill-question triage runs first"]) == {}
 
 
-# ------------------------------------------------------ the one still reported
+# ------------------------------------------------- declared shorter spellings
 
-def test_trailing_category_noun_is_still_reported():
-    """`One-live-fixer invariant` is used as `one-live-fixer` in a list of
-    invariants, the category noun factored out into the sentence. The check
-    reports it.
-
-    It is left reported on purpose. A rule that strips a trailing category noun
-    would have to know which nouns are categories, and would then hide a term
-    that really is unused whenever it ends in one of them. The check's own
-    output says a zero-hit is a prompt to look rather than a verdict, and this
-    is what looking is for. Fixing it in the glossary is not available either:
-    the entry is correct as written.
-    """
-    g = "**One-live-fixer invariant**:\nDefinition.\n"
+def test_a_declared_shorter_spelling_satisfies_the_term():
+    """Prose often writes a term's distinctive part and lets the sentence carry
+    the rest: `one-live-fixer` inside a list of invariants. That is correct
+    usage, so the entry declares it and the check accepts it."""
+    g = ("**One-live-fixer invariant**:\n"
+         "Definition.\n"
+         "_Also_: one-live-fixer (prose names it inside a list of invariants)\n")
     prose = "Invariants 1-3 (capture-before-external, one-live-fixer, single-writer) hold"
-    assert report(g, [prose]) == {"One-live-fixer invariant": ["one-live-fixer invariant"]}
+    assert report(g, [prose]) == {}
+
+
+def test_an_alternative_is_never_an_extra_requirement():
+    """Declaring a spelling must not make the entry harder to satisfy."""
+    g = "**Sign-off**:\nDefinition.\n_Also_: signoff\n"
+    assert report(g, ["the reviewer records a sign-off"]) == {}
+    assert report(g, ["the reviewer records a signoff"]) == {}
+    assert report(g, ["nothing relevant"])
+
+
+def test_a_parenthetical_on_the_also_line_is_not_part_of_the_spelling():
+    g = "**Grep-anchor**:\nDefinition.\n_Also_: anchor (the short form, in seam prose)\n"
+    assert gu.also_forms(g) == ["anchor"]
+    assert report(g, ["leave an anchor at the seam"]) == {}
+
+
+def test_avoid_lines_are_not_alternatives():
+    """`_Avoid_:` lists the spellings nobody should use; counting one as a
+    consumer would let a term be satisfied by the very drift it warns against."""
+    g = "**Artifact registry**:\nDefinition.\n_Avoid_: freshness registry\n"
+    assert gu.also_forms("Definition.\n_Avoid_: freshness registry\n") == []
+    assert report(g, ["the freshness registry says"])
 
 
 # --------------------------------------------------------------- parsing shape
@@ -132,3 +153,32 @@ def test_backticked_heading_is_read_as_its_term():
 def test_terms_of_folds_case_and_drops_the_qualifier():
     assert gu.terms_of("Review policy (lean / full)") == ["review policy"]
     assert gu.terms_of("Cited mode / uncited mode") == ["cited mode", "uncited mode"]
+
+
+# ------------------------------------------------------------- the live pin
+
+def test_the_shipped_glossary_has_no_unconsumed_term():
+    """The check must report zero against the tree it ships in.
+
+    Unlike every fixture above, this one reads the real `GLOSSARY.md`, so it
+    fails when a new entry lands with no consumer — which is the point. A
+    failure here is not necessarily a bug in the check: read the reported term
+    first, and if prose legitimately writes it shorter, declare that under
+    `_Also_:` rather than loosening the rule.
+    """
+    root = Path(__file__).resolve().parents[2]
+    glossary = root / "GLOSSARY.md"
+    text = glossary.read_text(encoding="utf-8")
+    headings = gu.parse(text)
+    alternatives = gu.parse_alternatives(text)
+    files = gu.consumers(root, glossary)
+
+    unused = []
+    for heading, parts in headings.items():
+        alts = alternatives.get(heading, [])
+        if alts and any(gu.used(a, files) for a in alts):
+            continue
+        if [t for t in parts if not gu.used(t, files)]:
+            unused.append(heading)
+
+    assert unused == [], "no consumer found for: %s" % ", ".join(unused)

@@ -77,8 +77,9 @@ A delivered capability that became a standing expectation (registry: `{service}/
 `skills/afk/setup/MANIFEST.md` — the register of every external dependency the workflow needs (CLIs, MCP servers, secrets, sibling checkouts), one entry each with a runnable `Probe:` (exit 0 = healthy) and a `Fix:` (`auto:` runnable / `human:` guided). The one home for install steps; skills point at entry ids instead of restating them.
 _Avoid_: prerequisites list (scattered inline — the failure the manifest retires)
 
-**Freshness registry**:
-The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs.
+**Artifact registry**:
+The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs. One row is a *registry row*.
+_Avoid_: freshness registry (the file is `FRESHNESS.md`, but the table is the artifact registry)
 
 **Tooltip dictionary**:
 The persistent term → explanation map every lavish artifact inherits — seed `hooks/lavish-tips.json` merged with this workflow glossary and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
@@ -195,6 +196,7 @@ The subagent spawned by `retest` to re-run a bug's reproduction read-only once i
 
 **One-live-fixer invariant**:
 At most one bug across the whole ledger may hold the `fixing` (S4) lane at a time; a second bug queues (S3) instead of dispatching.
+_Also_: one-live-fixer (prose names it inside a list of invariants, the category noun carried by the sentence)
 
 ## Gates & verdicts
 

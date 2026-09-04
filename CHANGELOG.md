@@ -22,7 +22,8 @@ first released heading here.
 
 Four rows and checks that reported a healthy machine as broken, found by the
 first audit run from an interactive session on the second harness. One of them
-was shipped by 1.0.6 itself.
+was shipped by 1.0.6 itself, and fixing it made the check honest enough to find
+a real term-drift in the glossary the same day.
 
 ### Fixed
 
@@ -47,6 +48,22 @@ was shipped by 1.0.6 itself.
   anything that is not a recognised success, deliberately, so no status is named
   in that skill and none should be. The audit read the instruction, found no
   `adversary_fail` token in the skill, and reported drift that was not there.
+
+### Changed
+
+- `GLOSSARY.md` headed the `FRESHNESS.md` table as **Freshness registry**, a term
+  no doctrine file uses: `CLAUDE.md` and `FRESHNESS.md` say *artifact registry*
+  and *registry row*. A coined synonym, in the file that forbids coining
+  synonyms. The entry is now **Artifact registry**, keeps its body, names the
+  row, and lists the old heading under `_Avoid_:`.
+- A glossary entry may declare a legitimate shorter spelling under `_Also_:`
+  (`skills/utils/glossary/GLOSSARY-FORMAT.md`). Prose writes a term's
+  distinctive part and lets the sentence carry the rest — `one-live-fixer`
+  inside a list of invariants — and that is correct usage, not drift.
+  `_Also_:` records what readers do write, `_Avoid_:` what they should not; the
+  check accepts the first as a consumer and never the second. This is what
+  1.0.6 left reported for want of a way to say it, rather than a rule loosened
+  to make a report go away.
 
 ### Documentation
 
