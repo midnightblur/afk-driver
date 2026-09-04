@@ -243,9 +243,16 @@ codex plugin add afk-toolkit@afk-toolkit
 ```
 
 Then run `/afk-toolkit:setup`. Section O enables native hooks, checks cache freshness,
-guides hook trust, copies the three unchanged agent TOML stubs, offers the
-per-directory steering fallback, and verifies the 40-skill catalog plus Jira.
-Restart after cache or agent-definition changes.
+guides hook trust, copies the four agent TOML stubs, offers the per-directory
+steering fallback, and verifies the skill catalog `plugin.json` declares plus
+Jira. Restart after cache or agent-definition changes.
+
+The first session asks you to trust the plugin's hooks. Answer it once: the
+trust is keyed to the marketplace and the definitions, not to the installed
+path, so it survives an upgrade and the prompt returns only when a release
+changes `hooks/hooks.codex.json`. The four agent stubs are the opposite — they
+hold the installed root, which carries the version, so **every** upgrade needs
+`/afk-toolkit:setup` again to rewrite them.
 
 ### Shared setup and development
 

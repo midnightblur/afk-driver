@@ -18,6 +18,16 @@ first released heading here.
 
 ## [Unreleased]
 
+### Documentation
+
+- The README now says what the first-session hook-trust prompt costs on a
+  later upgrade: nothing, unless a release changes `hooks/hooks.codex.json`.
+  The agent stubs are the opposite and need `/afk-toolkit:setup` after every
+  upgrade. `providers/CONFORMANCE.md` records how that was established.
+- Two counts written into README prose have gone stale since they were
+  written: three agent stubs (there are four) and a 40-skill catalog. Both now
+  point at what declares them, the same correction `O7` got in 1.0.6.
+
 ## [1.0.6] - 2026-09-04
 
 The first audit run on the second harness. It found three things, and the

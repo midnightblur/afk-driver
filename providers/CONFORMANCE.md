@@ -241,6 +241,22 @@ is the fuller rule it was one case of.
 | Live tracker proof | round 5 | `tracker_get` on a real ticket in the configured project returns its summary and status; zero start failures in the session log, where there had been three |
 | Live agent proof | round 5 | `afk-toolkit-afk-reader` spawned and returned `LANGUAGE.md`'s first heading verbatim |
 
+### What an upgrade does and does not invalidate
+
+Established by upgrading 1.0.5 → 1.0.6 on the second harness: marketplace
+removed, re-added at the new tag, plugin reinstalled.
+
+| | Survived the upgrade | Why |
+|---|---|---|
+| Hook trust (8 `hooks.state` entries) | yes, all 8, hashes unchanged | the key is `<marketplace>:hooks/hooks.codex.json:<event>:<i>:<j>` and the value is a hash of the definition. Neither names the installed path, so a version bump that changes no hook definition changes no key and no hash. |
+| Agent TOML stubs (4) | no | each holds the installed plugin root, which carries the version, so every upgrade leaves them naming a directory that is gone (the 1.0.3 defect). `/afk-toolkit:setup` rewrites them. |
+
+So the two look alike at install time and behave oppositely afterwards. A
+release that touches `hooks/hooks.codex.json` will ask the human to trust the
+hooks again; one that does not, will not. Both facts are in the README beside
+the install block, because the cost of guessing wrong is a harness whose gates
+silently do not run.
+
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
