@@ -18,6 +18,51 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-09-04
+
+The first audit run on the second harness. It found three things, and the
+largest of them was the audit itself: a check that reported sixteen live
+glossary terms as unused. The 1.0.5 entry below says this programme had stopped
+finding things. That was written after one harness had been audited.
+
+### Fixed
+
+- The glossary check compared a heading's exact case, its trailing parenthetical
+  qualifier, and its slash-joined term list against a tree where nobody writes it
+  that way. Prose says `sign-off` where the heading says `Sign-off`, and
+  `review policy` where the heading says `Review policy (lean / full)`. Sixteen
+  terms were reported as having no consumer; every one of them was in use.
+  Acting on that report would have deleted sixteen live entries.
+  `scripts/glossary_usage.py` now normalizes before comparing and says in its own
+  output that a zero-hit is a prompt to look, not a verdict.
+  The 1.0.4 entry describes a probe that failed on a healthy machine; this is the
+  same disease in a check rather than a probe, and the 1.0.5 fix for the same row
+  pointed the wrong way — it corrected two headings so the grep could see them,
+  which makes the glossary serve the check instead of the reader. No glossary
+  entry is touched by this release.
+  One heading is still reported, deliberately: `One-live-fixer invariant`, which
+  prose writes as `one-live-fixer` with the category noun factored out into the
+  sentence. Stripping a trailing category noun would need the check to know which
+  nouns are categories, and would then hide a term that really is unused whenever
+  it ends in one.
+- `O7` required a session to list "all three agent roles". There are four, and
+  `O5` lists four. The row now points at `O5` instead of carrying a number, which
+  is what the row's own text asks of everyone else.
+
+### Added
+
+- `C9` and `C10` register `jq`, `timeout` and `curl` — external commands shipped
+  code runs and the manifest never listed. Both rows are optional, because that
+  is what they are: `hooks/lib/provider.sh` falls back to `grep` + `sed`,
+  `hooks/tests/hook-smoke.sh` skips, and `hooks/update-notice.sh` exits 0 in
+  silence. Required rows would raise a false alarm on every machine without them.
+  The 1.0.5 sweep that added the missing environment variables missed these
+  because it looked for variables, not commands.
+- `scripts/tests/test_glossary_usage.py` pins the normalization against the
+  sixteen headings the old check reported, as fixtures rather than as a snapshot
+  of the current glossary, with a negative test per rule so the fix cannot
+  regress into a check that reports nothing.
+
 ## [1.0.5] - 2026-09-03
 
 The audit's last three findings, from the run after the run that fixed the
