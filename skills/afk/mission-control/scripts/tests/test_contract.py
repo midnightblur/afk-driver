@@ -49,7 +49,7 @@ flowchart TB
 _PLAN_HEADER = """# Plan - fixture feature
 
 > Parent ticket: TIX-1   Mode: cited
-> Branch (for /afk-toolkit:execute): dev/fixture
+> Branch (for /afk:execute): dev/fixture
 > Feature: complete (smoke green 2026-07-07, target=local)
 """
 

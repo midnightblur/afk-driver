@@ -1,6 +1,6 @@
 ---
 name: gc
-description: Post-merge cleanup — deletes a shipped feature's run artifacts and retires its worktree + local branch. Use via /afk-toolkit:gc {spec-folder} only after the MR merged.
+description: Post-merge cleanup — deletes a shipped feature's run artifacts and retires its worktree + local branch. Use via /afk:gc {spec-folder} only after the MR merged.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -87,7 +87,7 @@ report the size (`WORKTREE_SIZE` from `gc-check.sh`).
 
 **Never**: the remote branch (the merge disposes of it, and deleting it is
 outward-facing), any worktree not on this feature's branch, and the fixer
-worktrees of the bug pipeline — those are `/afk-toolkit:bug purge`'s.
+worktrees of the bug pipeline — those are `/afk:bug purge`'s.
 
 ## Process
 

@@ -20,7 +20,7 @@
 # N of them is what made a many-new-file change unusable.
 #
 # Mechanical only: zero-referrer detection. Weak-consumer judgment (test-only
-# consumers, unreachable flows) belongs to /afk-toolkit:verify-seams, not this gate.
+# consumers, unreachable flows) belongs to /afk:verify-seams, not this gate.
 # Final mode: WIRING_FINAL=1 bash wiring-gate.sh  -> open IOUs block.
 # Disable: WIRING_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
@@ -226,7 +226,7 @@ gate_wiring() {
   return 0
 }
 
-# ---- standalone invocation (final mode, /afk-toolkit:preflight, manual runs)
+# ---- standalone invocation (final mode, /afk:preflight, manual runs)
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _d=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0

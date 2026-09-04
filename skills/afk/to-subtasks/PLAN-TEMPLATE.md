@@ -5,9 +5,9 @@
 
 > Parent ticket: {TICKET-ID}   Mode: cited | uncited
 > Sources: [PRD](../PRD.md){cited: · [SDD](../SDD.md) · [ADRs](../adr/)}
-> Branch (for /afk-toolkit:execute): mvu/afk/{ticket-id-lower}
-> Last updated: {YYYY-MM-DD} (status column maintained by /afk-toolkit:execute)
-> Feature: in-progress   <!-- /afk-toolkit:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
+> Branch (for /afk:execute): mvu/afk/{ticket-id-lower}
+> Last updated: {YYYY-MM-DD} (status column maintained by /afk:execute)
+> Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
 ## Solution map
@@ -42,17 +42,17 @@ flowchart LR
 | 3 | 0003-slug | … | pending | 0002-slug | static, unit, e2e | use §1 |
 
 Status values: `pending` → `designing` → `developing` → `verifying` → `reviewing` → `done`,
-or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk-toolkit:execute (progress-tracker status column) -->
-`/afk-toolkit:execute` advances the row it is working and writes
+or `blocked(<reason>)`. <!-- status set: lockstep copy — owned by /afk:execute (progress-tracker status column) -->
+`/afk:execute` advances the row it is working and writes
 the date in the header; everything else in PLAN.md is yours to edit.
 
-## Preflight   <!-- created on first /afk-toolkit:preflight run only — omit entirely until then -->
+## Preflight   <!-- created on first /afk:preflight run only — omit entirely until then -->
 <!-- lockstep copy: column shape `# | Step | Status | Cycle | Evidence` is owned
-     jointly by /afk-toolkit:preflight (sole writer) and the mission-control renderer's
+     jointly by /afk:preflight (sole writer) and the mission-control renderer's
      gates section (skills/afk/mission-control/scripts/mc/sections/gates.py) — a
      column rename here is a same-commit change in both places -->
 
-`/afk-toolkit:preflight` is this section's sole writer (progress tracker + smoke gate
+`/afk:preflight` is this section's sole writer (progress tracker + smoke gate
 above stay untouched by it); re-run skips rows already `green`, resuming at
 the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
 (counted across PF-2/PF-4/PF-7, not per row); PF-3's cell instead counts its
@@ -64,7 +64,7 @@ review settle-loop rounds (cap 10 — owned by
 | 1 | PF-1 merge target branch + ancestry guard, push | pending | — | — |
 | 2 | PF-2 validations (mechanical fix, shared cap) | pending | 0/2 | — |
 | 3 | PF-3 fresh-context review of the integrated diff (settle loop) | pending | 0/10 | — |
-| 4 | PF-4 seam check (`/afk-toolkit:verify-seams final`) | pending | — | — |
+| 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
 | 4b | PF-4b understanding artifact (advisory, never parks) | pending | — | — |
 | 4c | PF-4c open workflow lessons (advisory, never parks) | pending | — | — |
 | 4d | PF-4d product-debt homed in its CLAUDE.md (shared cap) | pending | — | — |
@@ -74,19 +74,19 @@ review settle-loop rounds (cap 10 — owned by
 
 ## Feature smoke gate   <!-- this FULL shape iff a VERIFICATION-PLAN.md exists; otherwise emit the "## Feature smoke gate (minimal)" section per SMOKE-GATE.md instead — never neither -->
 
-> Gate: /afk-toolkit:smoke-test   Suite: {verification suite dir}   Target env: local | staging
+> Gate: /afk:smoke-test   Suite: {verification suite dir}   Target env: local | staging
 > Run (e2e/browser): {the `e2e/browser` tier command from verification.tiers}
 > Run (api): {the `api` tier command from verification.tiers}
 > Source: ../VERIFICATION-PLAN.md   Built by: NNNN-smoke-e2e (UI) · NNNN-smoke-api (API) — terminal, blocked by all
-> Last run: — (date + target; maintained by /afk-toolkit:smoke-test)
+> Last run: — (date + target; maintained by /afk:smoke-test)
 
-Run history: <!-- append-only; one line per run, appended by /afk-toolkit:smoke-test -->
+Run history: <!-- append-only; one line per run, appended by /afk:smoke-test -->
 
 Integrated verification scenarios that decide "feature complete", seeded from
 `VERIFICATION-PLAN.md` (one row per scenario, both modalities). A `ui-e2e` row
 traces to a PRD User Story and maps to a `Scenario` in the ui-e2e Gherkin catalog;
 an `api` row traces to an SDD §3 row / PRD Acceptance Criterion and maps to a
-`node:test` in `verification/api`. `/afk-toolkit:smoke-test` runs them against a running
+`node:test` in `verification/api`. `/afk:smoke-test` runs them against a running
 app and owns the Status column + the header `Feature:` line; the rows themselves
 are seeded here. An `env-limited` scenario (e.g. `@sap`, GL-post) carries that
 flag from `VERIFICATION-PLAN.md` — the gate excludes it from its green verdict.

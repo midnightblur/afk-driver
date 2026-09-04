@@ -1,6 +1,6 @@
 ---
 name: grill-solution
-description: Grills the solution design top-down L1–L9, one layer at a time. Use post-PRD to design or grill architecture ('grill-solution'/'architect-grill'). Pair with /afk-toolkit:to-sdd.
+description: Grills the solution design top-down L1–L9, one layer at a time. Use post-PRD to design or grill architecture ('grill-solution'/'architect-grill'). Pair with /afk:to-sdd.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -28,13 +28,13 @@ Monolith vs microservices, sync vs event-driven backbone, multi-tenancy stance, 
 Which service owns what, where the seam falls between this feature and the rest, integration style (REST / gRPC / message / shared DB — last almost always wrong), public-contract versioning posture, breaking-change policy. Plus **every externally-callable surface this feature adds or changes**, endpoint by endpoint, to HL-2 contract grade — sign-off aspect.
 
 ### L3 — Data architecture
-Datastore per piece of state (RDBMS / document / KV / search / event store / object store), partitioning / sharding, replication topology, cache placement, schema-evolution policy, retention. Most expensive layer to get wrong — grill hard here. Plus **every entity this feature persists or alters**, field by field and relation by relation, to HL-1 contract grade — sign-off aspect; an executor left to infer the schema from a table name will invent one. An entity decided **Envers-audited** triggers the mandatory audit-trail verification aspect (`/afk-toolkit:grill-verification`).
+Datastore per piece of state (RDBMS / document / KV / search / event store / object store), partitioning / sharding, replication topology, cache placement, schema-evolution policy, retention. Most expensive layer to get wrong — grill hard here. Plus **every entity this feature persists or alters**, field by field and relation by relation, to HL-1 contract grade — sign-off aspect; an executor left to infer the schema from a table name will invent one. An entity decided **Envers-audited** triggers the mandatory audit-trail verification aspect (`/afk:grill-verification`).
 
 ### L4 — Cross-cutting & quality attributes
 Auth model (session / JWT / mTLS / OAuth flow); **authz model** (RBAC / ABAC / ReBAC) — for each protected surface, the permitted **and denied** role(s) **and where each guard is enforced on both sides of the UI seam** (per [EXTERNAL-SEAM-RULE.md](EXTERNAL-SEAM-RULE.md), check 3); **data-scoping** — which entities are company/vendor-scoped (never tenant — build-per-tenant, single-tenant in dev) and the enforcement mechanism (e.g. AOP aspect + projection query-filter; company always-on vs vendor toggle); observability stack (logs / metrics / traces / SLOs), retry + timeout policy, **idempotency strategy** (key shape, dedup window, side-effect ledger), rate-limit, secrets handling, feature-flag posture, sync vs async for long-running work. Authz + scoping together are HL-3 — sign-off aspect.
 
 ### L5 — Domain model (tactical DDD)
-Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; a term conflicting with or missing from `GLOSSARY.md` is a language gap to resolve in `/afk-toolkit:grill-requirements`, not to silently coin here. Lifecycle states, their legal transitions, and the invariants with their guardians are HL-4 — sign-off aspect. A validation/required-field rule binds to a named lifecycle stage (create vs a later transition): before adding one to a create/update path, check the entity's state-machine validation for an existing stage-specific rule — entities under progressive completion enforce the bare minimum at create and the rest at a later transition, so an early-stage duplicate of a later-stage rule both double-guards the invariant and breaks the draft contract.
+Aggregates, aggregate roots, invariants and their guardians, entities vs value objects, domain events, anti-corruption layers at boundaries. Every entity has exactly one owner aggregate; every invariant exactly one guardian. Name them in the glossary's terms; a term conflicting with or missing from `GLOSSARY.md` is a language gap to resolve in `/afk:grill-requirements`, not to silently coin here. Lifecycle states, their legal transitions, and the invariants with their guardians are HL-4 — sign-off aspect. A validation/required-field rule binds to a named lifecycle stage (create vs a later transition): before adding one to a create/update path, check the entity's state-machine validation for an existing stage-specific rule — entities under progressive completion enforce the bare minimum at create and the rest at a later transition, so an early-stage duplicate of a later-stage rule both double-guards the invariant and breaks the draft contract.
 
 ### L6 — Process / coordination
 Transaction boundaries per use case (what's in one txn, what's across), cross-aggregate strategy (saga / outbox / 2PC / accept-eventual), consistency model per read path (strong / read-after-write / eventual + staleness budget), ordering guarantees, concurrency control (optimistic version / pessimistic lock / CRDT), failure-and-recovery matrix per multi-step flow. Every irreversible or outward-facing side effect in those flows is HL-5 — sign-off aspect.
@@ -106,10 +106,10 @@ Until all hold, keep grilling.
 
 ## Out of scope for this skill
 
-- Do NOT produce SDD or ADR documents. Pair with `/afk-toolkit:to-sdd` to synthesize artifacts.
+- Do NOT produce SDD or ADR documents. Pair with `/afk:to-sdd` to synthesize artifacts.
 - Do NOT descend into implementation (file paths, code snippets, library version pins, helper-function names). Reading existing code for the L9 seam walk is verification, not implementation — it stays in.
 - Do NOT grill below L9 (executor latitude).
 
 ## Next
 
-Once the Stop conditions hold, run **`/afk-toolkit:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts — it carries the sign-off register into §0 and refuses to publish while a live aspect is unsigned. `/afk-toolkit:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.
+Once the Stop conditions hold, run **`/afk:to-sdd`** to synthesize the SDD + per-decision ADRs as artifacts — it carries the sign-off register into §0 and refuses to publish while a live aspect is unsigned. `/afk:to-sdd` does NOT interview — it synthesizes what was decided here. A gap bounces you back to this skill.

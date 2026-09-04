@@ -1,4 +1,4 @@
-# AUDIT.md — the drift audit (`/afk-toolkit:setup audit`)
+# AUDIT.md — the drift audit (`/afk:setup audit`)
 
 Hunts staleness between the plugin's artifacts and reality. Read-only — returns
 findings routed to the file that must change. The sweeps are repo-wide grep/read

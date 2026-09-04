@@ -1,6 +1,6 @@
 # Requirements ADR Format
 
-**Requirement-level** ADRs record how the feature must *behave* and what is in/out of scope (*what / why*) — not how it's built (*how* = design ADRs, `/afk-toolkit:to-sdd`). They live in ticket-local `adr/requirements/`, sibling to the PRD:
+**Requirement-level** ADRs record how the feature must *behave* and what is in/out of scope (*what / why*) — not how it's built (*how* = design ADRs, `/afk:to-sdd`). They live in ticket-local `adr/requirements/`, sibling to the PRD:
 
 ```
 {ticket spec folder}/          ← path convention: SKILL.md "Monorepo conventions"
@@ -9,7 +9,7 @@
     ├── requirements/        ← this skill (to-prd)
     │   ├── 0001-slug.md
     │   └── 0002-slug.md
-    └── design/              ← /afk-toolkit:to-sdd
+    └── design/              ← /afk:to-sdd
         └── 0001-slug.md
 ```
 
@@ -26,7 +26,7 @@ Numbering is local to `adr/requirements/`, starts at `0001`. Scan the folder for
 {1-3 sentences: context, what we decided, why.}
 ```
 
-That's it — a requirement ADR can be one paragraph. The value is recording *that* a behavioural decision was made and *why*. The `Layer: Requirements` line discriminates these from `/afk-toolkit:to-sdd`'s `Layer: L1–L9` design ADRs in the sibling folder.
+That's it — a requirement ADR can be one paragraph. The value is recording *that* a behavioural decision was made and *why*. The `Layer: Requirements` line discriminates these from `/afk:to-sdd`'s `Layer: L1–L9` design ADRs in the sibling folder.
 
 ## Optional sections
 

@@ -9,7 +9,7 @@ A harness is a CLI, never a model vendor. Add a row here first; the native contr
 | Harness | Native discovery | Adapter | Agent definitions | Conformance | Notes |
 |---|---|---|---|---|---|
 | `claude` | `.claude-plugin/plugin.json`, enabled by `enabledPlugins` | `hooks/lib/providers/claude.sh` | `agents/*.md`, read in place | pending 2026-09-01 | Reference harness for the shared hook subset |
-| `codex` | `.codex-plugin/plugin.json`, enabled through the native marketplace | `hooks/lib/providers/codex.sh` | `providers/codex/agents/afk-toolkit-afk-*.toml`, copied to `~/.codex/agents/` with `{{PLUGIN_ROOT}}` resolved | pending 2026-09-01 | Needs `features.hooks` and per-handler trust |
+| `codex` | `.codex-plugin/plugin.json`, enabled through the native marketplace | `hooks/lib/providers/codex.sh` | `providers/codex/agents/afk-afk-*.toml`, copied to `~/.codex/agents/` with `{{PLUGIN_ROOT}}` resolved | pending 2026-09-01 | Needs `features.hooks` and per-handler trust |
 
 Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE.md` owns the add-a-harness checklist.
 
@@ -17,8 +17,8 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 
 | Construct | Claude Code | Codex CLI |
 |---|---|---|
-| Enable plugin | `enabledPlugins` names `afk-toolkit@afk-toolkit` | Native marketplace plus enabled `afk-toolkit@afk-toolkit` |
-| Skill reference | `/afk-toolkit:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
+| Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
+| Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
 | Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, or `afk-implementor` | Same names from unchanged user TOML stubs |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |

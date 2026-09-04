@@ -96,6 +96,65 @@ def read_json(p: Path) -> dict:
     return {}
 
 
+DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary")
+
+
+def read_developer_block(p: Path) -> dict:
+    """The `developer:` mapping of a config overlay, or an empty dict.
+
+    Deliberately small: one flat block of `key: value` lines under one heading,
+    which is all this block is ever allowed to be. Anything richer belongs in
+    the repository's committed config, not in a per-developer overlay.
+    """
+    if not p.is_file():
+        return {}
+    out, inside = {}, False
+    for line in p.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line[:1].isspace():
+            inside = line.strip() == "developer:"
+            continue
+        if inside and ":" in line:
+            key, _, value = line.strip().partition(":")
+            value = value.strip().strip("'\"")
+            if key.strip() in DEVELOPER_KEYS and value:
+                out[key.strip()] = value
+    return out
+
+
+def write_developer_block(p: Path, values: dict) -> None:
+    """Replace the `developer:` block, leaving every other line untouched.
+
+    The overlay may hold keys this script knows nothing about, so it is edited
+    rather than rewritten.
+    """
+    lines = p.read_text(encoding="utf-8").splitlines() if p.is_file() else []
+    kept, skipping = [], False
+    for line in lines:
+        if not line[:1].isspace() and line.strip():
+            skipping = line.strip() == "developer:"
+            if skipping:
+                continue
+        elif skipping:
+            continue
+        kept.append(line)
+    while kept and not kept[-1].strip():
+        kept.pop()
+
+    block = ["developer:"]
+    for key in DEVELOPER_KEYS:
+        value = values.get(key)
+        if value:
+            needs_quotes = any(c in str(value) for c in ":#") or str(value).strip() != str(value)
+            block.append("  %s: %s" % (key, ('"%s"' % value) if needs_quotes else value))
+
+    body = "\n".join(kept + ([""] if kept else []) + block) + "\n"
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(body, encoding="utf-8")
+    tmp.replace(p)
+
+
 def write_json_atomic(p: Path, data: dict) -> None:
     """temp + replace: an interrupted run must never truncate the target."""
     tmp = p.with_suffix(p.suffix + ".afk-tmp")
@@ -251,14 +310,14 @@ else:
 # ------------------------------------------------------- per-dev config file
 head("Per-dev config")
 
-cfg_path = REPO / ".claude" / "afk.local.json"
+cfg_path = REPO / ".afk" / "config.local.yaml"
 cfg_path.parent.mkdir(parents=True, exist_ok=True)
-cfg = read_json(cfg_path)
+cfg = read_developer_block(cfg_path)
 if cfg:
     skip("Existing config — Enter keeps each current value.")
 
-cfg["trackerAssignee"] = ask("assignee account id", cfg.get("trackerAssignee") or account_id)
-cfg["mrReviewer"] = ask("MR reviewer (SCM username)", cfg.get("mrReviewer"))
+cfg["trackerAssignee"] = ask("assignee account id or email", cfg.get("trackerAssignee") or account_id)
+cfg["mrReviewer"] = ask("reviewer (forge username)", cfg.get("mrReviewer"))
 
 wt_default = cfg.get("worktreeBasePath") or (REPO.parent / f"{REPO.name}-worktrees").as_posix()
 wt = ask("worktree base path", wt_default).replace("\\", "/")
@@ -277,8 +336,8 @@ ide_default = cfg.get("ideBinary") or (ide.as_posix() if ide else None)
 if ide_default:
     cfg["ideBinary"] = ask("IDE binary (optional)", ide_default).replace("\\", "/")
 
-write_json_atomic(cfg_path, {k: cfg[k] for k in ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary") if cfg.get(k)})
-ok(f"wrote {cfg_path}")
+write_developer_block(cfg_path, {k: cfg[k] for k in ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary") if cfg.get(k)})
+ok(f"wrote the developer block in {cfg_path}")
 
 # ------------------------------------------------------------- forge CLI auth
 head("Forge CLI auth")

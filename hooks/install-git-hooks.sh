@@ -9,7 +9,7 @@
 #
 # Runs automatically on every session start (wired in hooks.json / hooks.codex.json
 # -> SessionStart), so enabling the plugin is the only opt-in a dev needs.
-# Also runnable by hand (and by `/afk-toolkit:setup`, register H5) for non-session / CI:
+# Also runnable by hand (and by `/afk:setup`, register H5) for non-session / CI:
 #   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
 #
 # Behaviour:

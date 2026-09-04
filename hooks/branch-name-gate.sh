@@ -2,7 +2,7 @@
 # Branch-name gate (ships with the afk plugin) — a GIT `reference-transaction`
 # hook, NOT a Stop hook (those live in hooks.json). Opt-in per clone:
 #   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
-# (or `/afk-toolkit:setup`, register entry H5). Uninstall by removing the installed hook.
+# (or `/afk:setup`, register entry H5). Uninstall by removing the installed hook.
 #
 # Blocks creating a NEW local branch whose name does not match
 # `git.branch-pattern` from the repository's `.afk/config.yaml`. The key empty or

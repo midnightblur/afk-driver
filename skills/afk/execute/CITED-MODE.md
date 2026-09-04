@@ -91,7 +91,7 @@ binding-contract violation. The canonical flow:
    conflict. Report `design_conflict` quoting the SDD section + the conflict
    and your recommendation, and set the tracker row to
    `blocked(design_conflict: …)`.
-4. Run `/afk-toolkit:grill-solution` for a superseding ADR before re-running a parked
+4. Run `/afk:grill-solution` for a superseding ADR before re-running a parked
    conflict.
 
 **Never override the SDD/ADR off the record.** An unrecorded substitution of a
@@ -109,7 +109,7 @@ These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 13:
   a tie (`DECISIONS.md`, plugin root — a two-way-door correction is recorded
   in `plan/DECISIONS.md` and never parks). Name the SDD section / ADR + the
   concrete conflict + your recommendation; route the human to
-  `/afk-toolkit:grill-solution` for a superseding ADR before re-running.
+  `/afk:grill-solution` for a superseding ADR before re-running.
 - `contract_mismatch` — cited mode. Step 2: an upstream `## Produces`
   artifact is missing or its anchor doesn't appear. Name the `{PRODUCER-ID}`
   and quote the bullet; record on both subtask files.

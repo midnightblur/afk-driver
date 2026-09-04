@@ -10,7 +10,7 @@
 #   the tag argument (leading `v` optional)
 #     == .claude-plugin/plugin.json      "version"
 #     == .codex-plugin/plugin.json       "version"
-#     == .claude-plugin/marketplace.json plugins[name == the plugin] .version
+#     == .claude-plugin/marketplace.json plugins[name == plugin.json's name] .version
 #     == CHANGELOG.md's FIRST released heading after `## [Unreleased]`
 #
 # The changelog heading is part of the equality on purpose: a release with no
@@ -35,20 +35,22 @@ if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-
   exit 1
 fi
 
-json_version() {   # json_version <file> <jq-ish path: "version" | "marketplace">
-  "$PY" - "$1" "$2" <<'PYEOF'
+json_version() {   # json_version <file> <mode: "version" | "marketplace"> [plugin name]
+  "$PY" - "$1" "$2" "${3:-}" <<'PYEOF'
 import json, sys
-path, mode = sys.argv[1], sys.argv[2]
+path, mode, plugin = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     doc = json.load(open(path, encoding="utf-8"))
-except Exception as exc:                       # a malformed manifest is a finding
+except Exception:                              # a malformed manifest is a finding
     print("", end="")
     sys.exit(0)
 if mode == "marketplace":
-    for entry in doc.get("plugins", []):
-        if entry.get("name") == doc.get("name"):
-            print(entry.get("version", ""), end="")
-            break
+    # The plugin's name, not the marketplace's — one marketplace may carry a
+    # plugin under a different name, and this one does.
+    entries = doc.get("plugins", [])
+    match = [e for e in entries if e.get("name") == plugin] or (entries if len(entries) == 1 else [])
+    if match:
+        print(match[0].get("version", ""), end="")
 else:
     print(doc.get("version", ""), end="")
 PYEOF
@@ -71,7 +73,8 @@ changelog_version() {
 
 CLAUDE_V=$(json_version "$ROOT/.claude-plugin/plugin.json" version)
 CODEX_V=$(json_version "$ROOT/.codex-plugin/plugin.json" version)
-MARKET_V=$(json_version "$ROOT/.claude-plugin/marketplace.json" marketplace)
+PLUGIN_NAME=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("name",""),end="")' "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)
+MARKET_V=$(json_version "$ROOT/.claude-plugin/marketplace.json" marketplace "$PLUGIN_NAME")
 CHANGE_V=$(changelog_version)
 
 fail=""

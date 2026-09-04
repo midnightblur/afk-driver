@@ -86,4 +86,4 @@ The room should leave sensing the feature was thought through — from evidence,
 
 ## Next
 
-Rehearse from the file, not from memory — the `Do` steps are the rehearsal. After the demo, questions the plan **didn't** pre-empt are the real signal: a requirements gap routes to `/afk-toolkit:to-prd` (re-publish with `/afk-toolkit:to-ticket` if the ticket is already published), a defect routes to `/afk-toolkit:bug capture`. Re-emit the plan when scope changes — a demo plan goes stale silently.
+Rehearse from the file, not from memory — the `Do` steps are the rehearsal. After the demo, questions the plan **didn't** pre-empt are the real signal: a requirements gap routes to `/afk:to-prd` (re-publish with `/afk:to-ticket` if the ticket is already published), a defect routes to `/afk:bug capture`. Re-emit the plan when scope changes — a demo plan goes stale silently.

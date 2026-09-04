@@ -1,6 +1,6 @@
 # Subtask contract (`plan/NNNN-{slug}.md`)
 
-`/afk-toolkit:execute` parses these section headings exactly. Keep them verbatim.
+`/afk:execute` parses these section headings exactly. Keep them verbatim.
 
 ```
 ## Goal
@@ -77,7 +77,7 @@ a line citing a materialized Produces bullet carries the same trailing marker>
 
 ## Verification
 <tiered — one row per tier this subtask needs; static is always present.
-The implementor (/afk-toolkit:execute) must turn EVERY listed tier green.
+The implementor (/afk:execute) must turn EVERY listed tier green.
 api / e2e rows must drive the same interaction shape the real client uses —
 server-provided data round-trips verbatim; an input massaged solely to dodge a
 server rejection is forbidden (an unexpected failure on a faithful interaction
@@ -118,7 +118,7 @@ during implementation, classify per the decision protocol (`DECISIONS.md`,
 workflow plugin root): a two-way-door correction is recorded in
 `plan/DECISIONS.md` and implemented; a one-way door or a tie exits
 `design_conflict` quoting the SDD section + the conflict. Never override off
-the record. Parked conflicts route back to `/afk-toolkit:grill-solution` for a
+the record. Parked conflicts route back to `/afk:grill-solution` for a
 superseding ADR.
 (omit this block in uncited mode)
 ```

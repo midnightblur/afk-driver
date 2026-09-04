@@ -17,7 +17,7 @@ relation the stub later needs:
 - **adjacent** — a neighbouring pain this feature exposes but won't fix → `relates`
 
 A **defect** discovered while grilling is not a spinoff — it routes to
-`/afk-toolkit:bug` (the sanctioned Bug writer, with reproduction-bundle discipline),
+`/afk:bug` (the sanctioned Bug writer, with reproduction-bundle discipline),
 not here.
 
 Not every tangent spins off. Only work the user confirms is worth tracking —
@@ -37,7 +37,7 @@ relation + target key), and **status** (`candidate` → `filed {KEY}` →
 ## Minting the stub
 
 Creating the ticket is a tracker write, so it goes through the sanctioned
-tracker-writer — `/afk-toolkit:to-ticket` spinoff mode — never the grill itself. The
+tracker-writer — `/afk:to-ticket` spinoff mode — never the grill itself. The
 grill hands it a candidate row; the mode owns the create mechanism and the
 link handling.
 

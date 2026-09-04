@@ -120,6 +120,33 @@ for line in sys.stdin.read().splitlines():
 print("\n".join(out).strip(), end="")
 ' "$INSTALLED" 2>/dev/null) || SECTIONS=""
 
-printf 'afk-toolkit %s is out (you have %s).\n' "$LATEST" "$INSTALLED"
+# A release that needs the reader to act before it works says so on a
+# `Migration:` line. The version number cannot carry that: a patch bump reads
+# as safe to take. Lift those lines above the body so they are not missed.
+MIGRATION=$(printf '%s' "$SECTIONS" | "$PY" -c '
+import re, sys, textwrap
+lines, out, taking = sys.stdin.read().splitlines(), [], False
+for line in lines:
+    m = re.match(r"^[-*\s]*\**Migration:\**\s*(.*)$", line)
+    if m:
+        taking = True
+        out.append(m.group(1))
+        continue
+    if taking:
+        # A wrapped bullet continues on indented lines; anything else ends it.
+        if line[:1].isspace() and line.strip():
+            out.append(line.strip())
+            continue
+        taking = False
+text = " ".join(p for p in " ".join(out).split(" ") if p)
+if text:
+    print("\n".join(textwrap.wrap(text, 74)), end="")
+' 2>/dev/null) || MIGRATION=""
+
+printf 'AFK Toolkit %s is out (you have %s).\n' "$LATEST" "$INSTALLED"
+if [ -n "$MIGRATION" ]; then
+  printf 'Action needed before it works:\n'
+  printf '%s\n' "$MIGRATION" | sed 's/^/  /'
+fi
 [ -n "$SECTIONS" ] && printf '%s\n' "$SECTIONS"
 exit 0

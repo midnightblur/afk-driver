@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gc-check.sh — mechanical guard battery for /afk-toolkit:gc, bundled with the skill.
+# gc-check.sh — mechanical guard battery for /afk:gc, bundled with the skill.
 # Encodes SKILL.md's refusal guards and worktree verify-safe checks; the skill
 # routes on this script's exit code (see SKILL.md "Guards & verify-safe" — a
 # lockstep pair, keep both in sync). Judgment (propose → approve → retire →

@@ -17,7 +17,7 @@ If a question is answerable by exploring the codebase, explore instead — run t
 
 ## Domain awareness
 
-During codebase exploration, also look for existing documentation. This repo uses a **multi-context glossary** (root `GLOSSARY-MAP.md` indexing a per-service `GLOSSARY.md`). Setup, routing, lazy-create rules, and write format are owned by **[`/afk-toolkit:glossary`](../../utils/glossary/SKILL.md)** — its [`GLOSSARY-FORMAT.md`](../../utils/glossary/GLOSSARY-FORMAT.md) is canonical. Read `GLOSSARY-MAP.md` first to locate the owning glossary; follow `/afk-toolkit:glossary` for everything about *how* the glossary is structured and written. This skill only adds the **grilling** that resolves terms in the first place.
+During codebase exploration, also look for existing documentation. This repo uses a **multi-context glossary** (root `GLOSSARY-MAP.md` indexing a per-service `GLOSSARY.md`). Setup, routing, lazy-create rules, and write format are owned by **[`/afk:glossary`](../../utils/glossary/SKILL.md)** — its [`GLOSSARY-FORMAT.md`](../../utils/glossary/GLOSSARY-FORMAT.md) is canonical. Read `GLOSSARY-MAP.md` first to locate the owning glossary; follow `/afk:glossary` for everything about *how* the glossary is structured and written. This skill only adds the **grilling** that resolves terms in the first place.
 
 ## During the session
 
@@ -75,7 +75,7 @@ The pre-brief digest carries the staples registry `{service}/STAPLES.md`. For ea
 
 ### Update GLOSSARY.md inline
 
-When a term resolves (user-verified), immediately update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if system-wide. Don't batch — capture as they happen. Use the format owned by `/afk-toolkit:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
+When a term resolves (user-verified), immediately update the owning service's `GLOSSARY.md` — or the root `GLOSSARY.md` if system-wide. Don't batch — capture as they happen. Use the format owned by `/afk:glossary` ([GLOSSARY-FORMAT.md](../../utils/glossary/GLOSSARY-FORMAT.md)), including the lazy-create-and-index rules for a missing map or service glossary.
 
 Grill-time definitions are *initial* — the executing skill revises an entry when implementation proves it wrong; never defer writing on that account.
 
@@ -85,8 +85,8 @@ Grill-time definitions are *initial* — the executing skill revises an entry wh
 
 This skill builds *understanding*; it does not emit decision records. When a decision worth recording crystallises during grilling (hard to reverse + surprising without context + a real trade-off), note it in the conversation so downstream synthesis skills capture it as an ADR:
 
-- **Requirement-level** decisions (how the feature must *behave*, what's in/out of scope) → recorded by **`/afk-toolkit:to-prd`** as a requirements ADR.
-- **Solution-level** decisions (algorithm, pattern, technology) → recorded by **`/afk-toolkit:to-sdd`** as a design ADR.
+- **Requirement-level** decisions (how the feature must *behave*, what's in/out of scope) → recorded by **`/afk:to-prd`** as a requirements ADR.
+- **Solution-level** decisions (algorithm, pattern, technology) → recorded by **`/afk:to-sdd`** as a design ADR.
 
 ## Next
 
@@ -101,4 +101,4 @@ Only declare the requirements decision tree exhausted when ALL hold:
 - Every validity change was walked over pre-existing/in-flight data; every rejectable state has a named, role-reachable repair path.
 - The devil's-advocate pass ran with its findings resolved.
 
-Then **commit the session's glossary updates** as their own commit (glossary changes only — `{TICKET-ID}: glossary — <terms>`). Then run **`/afk-toolkit:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk-toolkit:to-prd` does NOT re-interview — it synthesizes what was settled here.
+Then **commit the session's glossary updates** as their own commit (glossary changes only — `{TICKET-ID}: glossary — <terms>`). Then run **`/afk:to-prd`** to synthesize the conversation into a PRD in the ticket's spec folder (path convention: `skills/afk/to-prd/SKILL.md`, "Monorepo conventions"). `/afk:to-prd` does NOT re-interview — it synthesizes what was settled here.

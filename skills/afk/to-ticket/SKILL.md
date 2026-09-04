@@ -26,7 +26,7 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 
 ## Prerequisites
 
-Register: `skills/afk/setup/MANIFEST.md` — needs **P1/P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk-toolkit:setup`.
+Register: `skills/afk/setup/MANIFEST.md` — needs **P1/P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
 
 ## How to run
 
@@ -60,8 +60,8 @@ ADF mapping, the Mermaid-image method, and the description merge model: [REFEREN
 
 The requirements-level ticket description is now live on the parent ticket. Then, per the design choice for this ticket:
 
-- **`/afk-toolkit:grill-solution`** → **`/afk-toolkit:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (disk-only, next to the PRD — never published to the ticket). Downstream plan slices in **cited mode**.
-- **`/afk-toolkit:to-subtasks`** — for small features / bugs / refactors / tooling: slice the PRD straight into a local plan in **uncited mode** (human-gated).
+- **`/afk:grill-solution`** → **`/afk:to-sdd`** — for new complex features: interview the architecture, synthesize the SDD + design ADRs (disk-only, next to the PRD — never published to the ticket). Downstream plan slices in **cited mode**.
+- **`/afk:to-subtasks`** — for small features / bugs / refactors / tooling: slice the PRD straight into a local plan in **uncited mode** (human-gated).
 
 ## Meeting mode — record a meeting on a ticket
 

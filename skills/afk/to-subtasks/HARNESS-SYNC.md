@@ -14,7 +14,7 @@ row)`. Rows nothing satisfied are listed `— UNSATISFIED` — surfacing the gap
 the point. Written once; a re-run overwrites. The artifact answering, months
 later, "which commit satisfied which requirement".
 
-Delegates the write to `/afk-toolkit:claude-md`; the subtask only scopes that to this
+Delegates the write to `/afk:claude-md`; the subtask only scopes that to this
 feature's net diff and states the deliverables. `## Blocked by` lists every
 other subtask (including any `NNNN-smoke-*`) so it runs last, against the finished
 feature.
@@ -25,7 +25,7 @@ subtask resolves them: (a) if the PRD flagged this feature as a **candidate new
 staple** and it genuinely became a standing expectation, register it; (b) if the
 feature is the new best exemplar of an **existing** staple, advance that staple's
 `Reference` (and fill a `TODO` Reference/Since it now satisfies). Both are
-judgment calls surfaced to the human via `/afk-toolkit:claude-md`'s propose→approve gate — no
+judgment calls surfaced to the human via `/afk:claude-md`'s propose→approve gate — no
 candidate ⇒ no registry change.
 
 Emit exactly one, using the base subtask contract with the fields below:
@@ -33,7 +33,7 @@ Emit exactly one, using the base subtask contract with the fields below:
 ```
 ## Goal
 Sync the CLAUDE.md harness for {Feature} so the next agent discovers it and knows how to
-use/extend it, settle the staples registry, and emit the trace matrix. Run /afk-toolkit:claude-md scoped
+use/extend it, settle the staples registry, and emit the trace matrix. Run /afk:claude-md scoped
 to THIS feature's net diff (this branch vs the parent), capturing: (1) ONE lazily-loaded
 instruction in the nearest component/leaf CLAUDE.md — max 3 dense sentences on how to add/extend
 or invoke the feature, pointing at the key types + the spec dir; (2) ONE awareness sentence in the
@@ -56,8 +56,8 @@ commits, and proving test, unsatisfied rows flagged.
 - [ ] The how-to note lives in the nearest component/leaf CLAUDE.md, not the service root
 - [ ] The service-root CLAUDE.md carries exactly ONE awareness sentence leading to that note
 - [ ] The staples registry was settled: a PRD-flagged candidate is registered in STAPLES.md, or an existing staple's Reference advanced/filled — or, if none applied, this is explicitly a no-op
-- [ ] Nothing added restates code; every line clears the /afk-toolkit:claude-md inclusion bar
-- [ ] Written via /afk-toolkit:claude-md
+- [ ] Nothing added restates code; every line clears the /afk:claude-md inclusion bar
+- [ ] Written via /afk:claude-md
 - [ ] plan/TRACE.md exists: every PRD Acceptance Criterion has a row (subtask, commits, proving test), unsatisfied rows explicitly flagged
 
 ## Verification

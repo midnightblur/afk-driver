@@ -15,14 +15,14 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 ## Branches
 
 - **default** — check + fix the machine (below).
-- **`base`** (`/afk-toolkit:setup base`) — the default run **plus** every entry's
+- **`base`** (`/afk:setup base`) — the default run **plus** every entry's
   `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
   Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
   plus the base-only workstation apps & OS config (section W — IDEs, MySQL
   Server + Workbench, Windows long paths, hosts entries). The base tier is
   **elective** — step 3 offers it as a pick list; deselected items report
   `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
-- **`audit`** (`/afk-toolkit:setup audit`) — don't touch the machine; hunt drift between
+- **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
 
 ## Doctor loop

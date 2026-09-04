@@ -9,13 +9,13 @@
 #    (added in 331deb608a5, plugin.json never updated; caught only when a
 #    human noticed the skill was missing).
 # B. skill catalog — every skill name is mentioned in the plugin's CLAUDE.md
-#    and README.md (as /afk-toolkit:<name>, `<name>`, or its skills/ path); an agent
+#    and README.md (as /afk:<name>, `<name>`, or its skills/ path); an agent
 #    reading the harness never learns an uncatalogued skill exists — happened
-#    for seven skills/utils/ entries, caught only by an /afk-toolkit:setup audit.
+#    for seven skills/utils/ entries, caught only by an /afk:setup audit.
 # C. env-toggle register — every external all-caps env var read by hooks/*.sh
 #    (read but never assigned in hooks/, ambient vars excluded) appears in the
 #    dependency register skills/afk/setup/MANIFEST.md (§E) — happened for six
-#    gate toggles, caught only by an /afk-toolkit:setup audit.
+#    gate toggles, caught only by an /afk:setup audit.
 # D. language pointer — every SKILL.md + agents/*.md names LANGUAGE.md (the one
 #    home for the writing doctrine). Root docs are not auto-loaded, so a file
 #    missing the pointer runs blind to the doctrine, which is exactly how it
@@ -38,7 +38,7 @@
 #
 # Mechanical only: existence + Claude-manifest membership + pointer presence.
 # native-contract-gate.sh owns twin-manifest parity and allowed frontmatter;
-# /afk-toolkit:setup audit judges catalog wording and E-table row accuracy.
+# /afk:setup audit judges catalog wording and E-table row accuracy.
 # Disable: SKILL_REGISTRY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
@@ -113,7 +113,7 @@ for a in m.get('agents', []): print('AGENT\t' + a)
   done
 
   # ---- check B: every skill name catalogued in the plugin's CLAUDE.md + README.md.
-  # Accepted mention shapes: /afk-toolkit:<name>, `<name>`, or its skills/(afk|utils)/<name> path.
+  # Accepted mention shapes: /afk:<name>, `<name>`, or its skills/(afk|utils)/<name> path.
   # Each doc is read once; the per-skill test is a fork-free bash pattern match.
   local uncatalogued="" doc doc_body
   for doc in CLAUDE.md README.md; do
@@ -121,7 +121,7 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     doc_body=$(<"$PLUGIN_DIR/$doc")
     for s in ${actual_skills[@]+"${actual_skills[@]}"}; do
       name=${s##*/}
-      if [[ "$doc_body" != *"/afk-toolkit:$name"* \
+      if [[ "$doc_body" != *"/afk:$name"* \
          && "$doc_body" != *'`'"$name"'`'* \
          && "$doc_body" != *"skills/afk/$name"* \
          && "$doc_body" != *"skills/utils/$name"* ]]; then
@@ -202,7 +202,7 @@ for a in m.get('agents', []): print('AGENT\t' + a)
         printf '%s' "$stale" | sed 's/^/  - /'
       fi
       if [ -n "$uncatalogued" ]; then
-        printf 'Skill exists but is uncatalogued (add a /afk-toolkit:<name> mention to the named doc — an agent reading the harness never learns it exists):\n%s' "$uncatalogued"
+        printf 'Skill exists but is uncatalogued (add a /afk:<name> mention to the named doc — an agent reading the harness never learns it exists):\n%s' "$uncatalogued"
       fi
       if [ -n "$unregistered" ]; then
         printf 'Env toggle read by hooks/*.sh but absent from the dependency register (add an E-table row in %s):\n%s' "$REGISTER" "$unregistered"

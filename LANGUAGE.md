@@ -26,10 +26,10 @@ pointer.
 ## 2. Ubiquitous language — whose terms
 
 - Workflow terms (stages, modes, states, verdicts, artifact names) come from `GLOSSARY.md` (plugin root), spelled as defined there.
-- Write every workflow skill reference as literal `/afk-toolkit:<x>`. `PROVIDERS.md` owns invocation spelling.
+- Write every workflow skill reference as literal `/afk:<x>`. `PROVIDERS.md` owns invocation spelling.
 - Domain terms come from the target repo's glossaries (start at its `GLOSSARY-MAP.md`).
 - Never coin a synonym for a term a glossary owns; never redefine one inline — point at its home.
-- A recurring domain term with no entry is a gap: name it once, consistently, and route it to the glossary steward (`/afk-toolkit:glossary`).
+- A recurring domain term with no entry is a gap: name it once, consistently, and route it to the glossary steward (`/afk:glossary`).
 - Jargon stays out of the reader-facing plain-terms sentence — that sentence must stand alone without any glossary (`REPORTING.md`).
 
 ## 3. Concision — how much
@@ -84,4 +84,4 @@ This bar binds every agent report, every skill finding, and every reply.
 - Prose only. Code, code comments, commit messages, and test names keep their own conventions.
 - Verbatim identifiers — paths, commands, flags, field names, env vars, error strings — are never reworded or paraphrased to satisfy any rule here.
 - A user-invoked compression mode overrides sentence shape while active; §2 and §3 still bind.
-- Specialized bars own only their deltas: PRD catalog mechanics (`skills/afk/to-prd/PRD-TEMPLATE.md`), human-facing status lines (`REPORTING.md` — the `In plain terms:` sentence stays jargon-free prose, never compressed), glossary definitions (`skills/utils/glossary/SKILL.md` — definition depth is deliberate), tracker ticket bodies (`/afk-toolkit:to-ticket` — narrative documentation prose, never fragments).
+- Specialized bars own only their deltas: PRD catalog mechanics (`skills/afk/to-prd/PRD-TEMPLATE.md`), human-facing status lines (`REPORTING.md` — the `In plain terms:` sentence stays jargon-free prose, never compressed), glossary definitions (`skills/utils/glossary/SKILL.md` — definition depth is deliberate), tracker ticket bodies (`/afk:to-ticket` — narrative documentation prose, never fragments).

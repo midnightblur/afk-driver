@@ -6,9 +6,9 @@
   "description": "AFK Toolkit — harness-agnostic workflow skills, agents, hooks, and adapters for Claude Code and Codex CLI.",
   "plugins": [
     {
-      "name": "afk-toolkit",
+      "name": "afk",
       "source": "./",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters."
     }
   ]

@@ -39,8 +39,8 @@ write_fixture() {
 # Execution Plan — Fixture
 
 > Parent ticket: TCK-1   Mode: cited
-> Branch (for /afk-toolkit:execute): mvu/afk/tck-1
-> Last updated: 2026-01-01 (status column maintained by /afk-toolkit:execute)
+> Branch (for /afk:execute): mvu/afk/tck-1
+> Last updated: 2026-01-01 (status column maintained by /afk:execute)
 > Feature: in-progress
 
 ## Seam register
@@ -60,7 +60,7 @@ Status values: `pending` → … or `blocked(<reason>)`.
 
 ## Feature smoke gate (minimal)
 
-> Last run: — (maintained by /afk-toolkit:smoke-test)
+> Last run: — (maintained by /afk:smoke-test)
 
 | # | Scenario (integrated) | Modality | Traces to | Spec | Status |
 |---|-----------------------|----------|-----------|------|--------|
@@ -76,7 +76,7 @@ cp "$PLAN_DIR/PLAN.md" "$TMP_ROOT/before.md"
 OUT1="$(run_ps "$PLAN_DIR" 0001-alpha designing 2>&1)"; RC1=$?
 if [[ $RC1 -eq 0 ]]; then ok "valid flip exits 0"; else bad "valid flip exit ($RC1): $OUT1"; fi
 if grep -q '^| 1 | 0001-alpha | First | designing | — | static, unit | — |$' "$PLAN_DIR/PLAN.md"; then ok "Status cell set, row otherwise intact"; else bad "row wrong: $(grep 0001-alpha "$PLAN_DIR/PLAN.md")"; fi
-if grep -q "^> Last updated: $TODAY (status column maintained by /afk-toolkit:execute)\$" "$PLAN_DIR/PLAN.md"; then ok "Last updated stamped today, tail preserved"; else bad "Last updated wrong: $(grep 'Last updated' "$PLAN_DIR/PLAN.md")"; fi
+if grep -q "^> Last updated: $TODAY (status column maintained by /afk:execute)\$" "$PLAN_DIR/PLAN.md"; then ok "Last updated stamped today, tail preserved"; else bad "Last updated wrong: $(grep 'Last updated' "$PLAN_DIR/PLAN.md")"; fi
 CHANGED="$(diff "$TMP_ROOT/before.md" "$PLAN_DIR/PLAN.md" | grep -c '^<')"
 if [[ "$CHANGED" == 2 ]]; then ok "exactly 2 lines changed (row + date)"; else bad "changed-line count $CHANGED"; fi
 if grep -q '^| 2 | 0002-beta | Second | pending |' "$PLAN_DIR/PLAN.md"; then ok "other tracker row untouched"; else bad "other tracker row disturbed"; fi

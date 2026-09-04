@@ -8,7 +8,7 @@ bugs have no AFK workflow to improve → skip.
 
 The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
-reviewed change applied via `/afk-toolkit:lessons apply` from the lesson ledger
+reviewed change applied via `/afk:lessons apply` from the lesson ledger
 (format: `skills/afk/lessons/LEDGER-FORMAT.md`).
 
 1. **Trace the miss to a stage.** Map the Phase 2.5 miss class (or the Phase 3
@@ -16,17 +16,17 @@ reviewed change applied via `/afk-toolkit:lessons apply` from the lesson ledger
 
    | Phase 2.5 miss class / Phase 3 gap | Stage that under-specified it | Skill(s) to revisit |
    |------------------------------------|-------------------------------|---------------------|
-   | `no-scenario` — gate had no journey/contract for this path | verification design | `/afk-toolkit:grill-verification` → `/afk-toolkit:to-verification-plan` |
-   | `weak-assertion` — subtask Acceptance/Verification too loose | slicing | `/afk-toolkit:to-subtasks` |
-   | `wrong-path` — seam/fixture not pinned | architecture | `/afk-toolkit:grill-solution` → `/afk-toolkit:to-sdd` (§9b seams) |
-   | `excluded` — env-tag policy hid a real regression | gate policy | `/afk-toolkit:smoke-test` + `VERIFICATION-PLAN.md` tagging |
-   | `disabled/flaky` — a built guard was left skipped/quarantined | execution TDD discipline | `/afk-toolkit:execute` (TDD step) + `tdd` skill |
+   | `no-scenario` — gate had no journey/contract for this path | verification design | `/afk:grill-verification` → `/afk:to-verification-plan` |
+   | `weak-assertion` — subtask Acceptance/Verification too loose | slicing | `/afk:to-subtasks` |
+   | `wrong-path` — seam/fixture not pinned | architecture | `/afk:grill-solution` → `/afk:to-sdd` (§9b seams) |
+   | `excluded` — env-tag policy hid a real regression | gate policy | `/afk:smoke-test` + `VERIFICATION-PLAN.md` tagging |
+   | `disabled/flaky` — a built guard was left skipped/quarantined | execution TDD discipline | `/afk:execute` (TDD step) + `tdd` skill |
    | `dodged-failure` — an authoring dodge survived review | review gate | `skills/afk/review/checklists/` (test concern) |
-   | PRD asserted the wrong behavior | requirements | `/afk-toolkit:grill-requirements` → `/afk-toolkit:to-prd` |
+   | PRD asserted the wrong behavior | requirements | `/afk:grill-requirements` → `/afk:to-prd` |
 
 2. **Write the structured lesson** (the ledger payload — facts only, reference
    don't duplicate):
-   - **Bug** — one line + ticket key; point at `/afk-toolkit:diagnose`'s post-mortem by
+   - **Bug** — one line + ticket key; point at `/afk:diagnose`'s post-mortem by
      path, don't restage it.
    - **Miss class** — from Phase 2.5.
    - **Implicated stage + skill** — from the table.
@@ -49,6 +49,6 @@ reviewed change applied via `/afk-toolkit:lessons apply` from the lesson ledger
 
    `--class` maps from the miss class per the mapping table in
    `skills/afk/lessons/LEDGER-FORMAT.md`; the `draft` must stand alone. The
-   draft is applied later — reviewed against `/afk-toolkit:writing-for-agents` — via
-   `/afk-toolkit:lessons apply`, never in this session. Report the minted lesson id in
+   draft is applied later — reviewed against `/afk:writing-for-agents` — via
+   `/afk:lessons apply`, never in this session. Report the minted lesson id in
    Phase 4.

@@ -4,7 +4,7 @@ Use this table for every capability branch. Missing required capability stops th
 
 | Capability | Claude Code | Codex CLI | Required degradation |
 |---|---|---|---|
-| `skills` | Native plugin catalog; `/afk-toolkit:<x>` | Native plugin catalog; `afk:<x>` | Unsupported when absent |
+| `skills` | Native plugin catalog; `/afk:<x>` | Native plugin catalog; `afk:<x>` | Unsupported when absent |
 | `plugin_hooks` | Native | Native with `features.hooks` and handler trust | Run the named gate explicitly |
 | `hook_shell_match` | `Bash` and `PowerShell` | `Bash` covers shell and unified execution | Match the semantic tool class |
 | `hook_project_dir` | Optional injected root | No injected project-root contract | Resolve the Git root from `$PWD` |
@@ -38,7 +38,7 @@ Shared hook matchers: *, Bash, PowerShell, Glob, Grep, mcp__intellij__search_in_
 | Every skill | `skills` | `question_cards` |
 | Skills with completion gates | `plugin_hooks` | — |
 | Skills that delegate | `custom_agents`, `model_tiers` | `agent_tool_allowlist`, `parallel_agents`, `continuation`, `nesting` |
-| `/afk-toolkit:to-ticket`, `/afk-toolkit:bug` | `plugin_mcp` | — |
-| `/afk-toolkit:prototype`, `/afk-toolkit:design-system` | — | `design_push` |
+| `/afk:to-ticket`, `/afk:bug` | `plugin_mcp` | — |
+| `/afk:prototype`, `/afk:design-system` | — | `design_push` |
 
 Provider spellings, enable flags, and model names live in `PROVIDERS.md`. Live proofs and unresolved capabilities live in `providers/CONFORMANCE.md`.

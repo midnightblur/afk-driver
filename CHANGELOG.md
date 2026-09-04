@@ -18,6 +18,72 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-09-04
+
+The plugin is named `afk`. Skills are `/afk:fix` again, as they were before the
+extraction — the prefix is the plugin's name on both harnesses, so this is a
+rename and not an alias. The marketplace keeps the name `afk-toolkit`, and so
+does the product.
+
+- **Migration:** remove the marketplace, re-add it, install `afk@afk-toolkit`,
+  then run `/afk:setup`. On Codex, answer the hook-trust prompt once more — the
+  trust key carries the plugin name, so renaming it invalidates all eight
+  entries. Nothing carries over from a `afk-toolkit@afk-toolkit` install: uninstall
+  it first, or the two sit side by side and their skills collide.
+
+This is a breaking change in a patch release. There are no users yet, and the
+owner chose the number; the line above exists because a version number cannot
+say that on its own, and the session-start notice now prints it.
+
+### Changed
+
+- Plugin name `afk-toolkit` → `afk` in both `plugin.json` files and the
+  `plugins[]` entry of both marketplace manifests. Skill prefix `/afk-toolkit:` →
+  `/afk:`, install key `afk-toolkit@afk-toolkit` → `afk@afk-toolkit`, logical
+  agents `afk:afk-*`, Codex stubs `afk-afk-*.toml`. Unchanged, because they were
+  never the plugin's name: the marketplace, the `AFK_*` environment variables,
+  the `afk_` bash prefixes, `skills/afk/`, and the agent source filenames.
+- The tracker MCP launcher held one name for both the cache shape and the
+  marketplace shape. Those are now different names, so it carries both. A 1.0.7
+  install is not found by a 1.0.8 launcher, by design — the old shape is gone
+  rather than kept as a fallback.
+- The session-start notice lifts a `Migration:` line out of any newer changelog
+  entry and prints it under "Action needed before it works:" above the body. A
+  release that needs the reader to act says so in one line, and every future one
+  gets the same treatment for free.
+- Per-developer config moved from `.claude/afk.local.json` to a `developer:`
+  block in `.afk/config.local.yaml`, read through `scripts/afk-config.py` like
+  every other key. `skills/afk/bug/CONFIG.md` remains its contract, and the
+  fail-closed matrix is unchanged. `K1 trackerAssignee` now reads "account id or
+  email — the tracker adapter resolves it by user search", which is what the
+  adapter has always done.
+- `create-worktree` no longer carries its own JSON reader, and `setup_secrets.py`
+  writes the block by editing the overlay rather than rewriting it, so keys it
+  knows nothing about survive.
+- `H6` probes the key through `afk-config.py` instead of stat-ing a file.
+
+### Removed
+
+- `.claude/afk.local.json`. The extraction plan said migrate once and retire it;
+  the bug pipeline was still reading it.
+
+### Fixed
+
+- `native-contract-gate.sh` derived the expected Codex stub filename from a
+  hardcoded `afk-toolkit-` prefix. The gate that exists to catch harness
+  coupling carried the plugin's old name as a literal, and this rename is what
+  found it.
+- `release-gate.sh` found the marketplace's version row by matching a plugin
+  entry whose name equalled the marketplace's own name. That held only while the
+  two names were the same word. It now matches `plugin.json`'s name, and falls
+  back to the sole entry when a marketplace carries exactly one plugin. This
+  release is the first that could not be tagged without the fix.
+- Four `native-contract-allow.txt` rows quote CHANGELOG text to waive a
+  historical line. Renaming the identifiers rewrote the quotes while the
+  changelog kept the old spelling, so the waivers stopped matching. Any
+  allow-list that quotes an immutable record has this hazard; the rows are now
+  pinned to the historical spelling.
+
 ## [1.0.7] - 2026-09-04
 
 Four rows and checks that reported a healthy machine as broken, found by the

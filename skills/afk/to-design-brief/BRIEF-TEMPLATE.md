@@ -76,7 +76,7 @@ If a row's "What changes" is "(none)", omit the row.
 - **Auditing a specific decision?** → `adr/requirements/NNNN-*.md` (behaviour /
   scope) or `adr/design/NNNN-*.md` (solution — each cites its layer,
   alternatives, consequences)
-- **Disagree with a decision?** → run `/afk-toolkit:grill-solution` to draft a
+- **Disagree with a decision?** → run `/afk:grill-solution` to draft a
   superseding ADR; do not edit the existing one in place.
 
 </brief-template>

@@ -50,8 +50,15 @@ TOP_LEVEL = {
     "schema", "toolkit-version", "tracker", "forge", "notes", "build-gates",
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
-    "repo-hooks", "setup",
+    "repo-hooks", "setup", "developer",
 }
+
+# Per-developer values: whose machine this is, not what the repository is.
+# They belong in the gitignored `.afk/config.local.yaml` overlay, never in the
+# committed file — `trackerAssignee` and `mrReviewer` name a person, and the
+# paths are one machine's. Absence is a supported state: a key's consumer fails
+# closed and names the key (`skills/afk/bug/CONFIG.md`).
+DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary"}
 
 DEFAULTS: dict = {
     "schema": SCHEMA,
@@ -353,6 +360,20 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
         config.get("jira"), dict) else None
     if creds is not None and not isinstance(creds, list):
         problems.append("jira.credentials-env: must be a block list of variable NAMES")
+
+    developer = config.get("developer")
+    if developer is not None:
+        if not isinstance(developer, dict):
+            problems.append("developer: must be a mapping")
+        else:
+            for key in sorted(set(developer) - DEVELOPER_KEYS):
+                problems.append(
+                    f"developer.{key}: unknown key; expected one of "
+                    f"{', '.join(sorted(DEVELOPER_KEYS))}"
+                )
+            for key, value in developer.items():
+                if key in DEVELOPER_KEYS and not isinstance(value, str):
+                    problems.append(f"developer.{key}: must be a string")
 
     return problems
 

@@ -1,6 +1,6 @@
 # Harness-markdown mechanics
 
-The harness-markdown branch of [`writing-for-agents`](SKILL.md): what changes when the document is project memory — a `CLAUDE.md`, a role sidecar (`IMPL.md`/`TESTING.md`/`DEBUG.md`), or a `.claude/rules` file. Everything else about writing it is the universal reference in `SKILL.md`. Writes go through the steward skill `/afk-toolkit:claude-md` (modes, proposal protocol, write boundaries — `skills/afk/claude-md/SKILL.md`).
+The harness-markdown branch of [`writing-for-agents`](SKILL.md): what changes when the document is project memory — a `CLAUDE.md`, a role sidecar (`IMPL.md`/`TESTING.md`/`DEBUG.md`), or a `.claude/rules` file. Everything else about writing it is the universal reference in `SKILL.md`. Writes go through the steward skill `/afk:claude-md` (modes, proposal protocol, write boundaries — `skills/afk/claude-md/SKILL.md`).
 
 ## Inclusion bar — every line passes ALL 4
 

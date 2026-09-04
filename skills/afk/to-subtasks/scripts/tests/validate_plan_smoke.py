@@ -85,7 +85,7 @@ def gate_table(ui_rows, api_rows):
         n += 1
         rows += f"| {n} | call {n} | api | SDD §3 row \"x\" | api/f.test.mjs ▸ \"t{n}\" | any | pending |\n"
     return ("## Feature smoke gate\n\n"
-            "> Gate: /afk-toolkit:smoke-test\n> Last run: —\n\n"
+            "> Gate: /afk:smoke-test\n> Last run: —\n\n"
             "| # | Scenario (integrated) | Modality | Traces to | Spec | Requires target | Status |\n"
             "|---|-----------------------|----------|-----------|------|-----------------|--------|\n"
             + rows)

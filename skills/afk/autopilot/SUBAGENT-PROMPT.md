@@ -38,4 +38,4 @@ Journal: plan/JOURNAL.md · Contract: plan/{NNNN-slug}.md
 OUTCOME: <status> — <one-line summary> [producer: <PRODUCER-ID|none>]
 ```
 
-The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim. The report-block grammar above is owned by `/afk-toolkit:execute` (Step 13) — lockstep copy here because the orchestrator parses it; update both in the same commit.
+The orchestrator parses only the trailing `OUTCOME:` line; anything else in the subagent's report (including its plain-terms sentence) is carried into the run report verbatim. The report-block grammar above is owned by `/afk:execute` (Step 13) — lockstep copy here because the orchestrator parses it; update both in the same commit.

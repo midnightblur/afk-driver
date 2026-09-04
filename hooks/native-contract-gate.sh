@@ -9,7 +9,7 @@
 #   B. SKILL.md top-level frontmatter uses only Agent Skills or documented Claude
 #      skill keys;
 #   C. skills on disk equal BOTH native manifests;
-#   D. every agents/*.md has a providers/codex/agents/afk-toolkit-*.toml stub;
+#   D. every agents/*.md has a providers/codex/agents/afk-*.toml stub;
 #   E. hooks.json events/matchers stay inside CAPABILITIES.md's literal shared
 #      subset declarations;
 #   F. no generated activation/mirror tree is tracked;
@@ -198,7 +198,7 @@ for manifest_rel in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
 
 # D. Each native agent definition needs a Codex TOML pointer/stub twin.
 for agent in sorted(plugin.glob("agents/*.md")):
-    stub = plugin / "providers/codex/agents" / f"afk-toolkit-{agent.stem}.toml"
+    stub = plugin / "providers/codex/agents" / f"afk-{agent.stem}.toml"
     if not stub.is_file():
         problems.append(f"{rel(agent)}: missing {rel(stub)}")
 

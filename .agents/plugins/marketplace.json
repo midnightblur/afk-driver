@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "afk-toolkit",
+      "name": "afk",
       "source": {
         "source": "local",
         "path": "./"

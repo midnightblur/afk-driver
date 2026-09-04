@@ -5,7 +5,7 @@ often *assumed*, never *stated* (why a one-sided guard ships broken: the
 both-sides doctrine in `../grill-solution/EXTERNAL-SEAM-RULE.md`, check 3).
 For **every actor and every User Story**, grill the
 policy out loud — requirement-level (the *what*, not the *how*), landing
-in the PRD's `## Access & validation policy` matrix that `/afk-toolkit:to-prd` writes:
+in the PRD's `## Access & validation policy` matrix that `/afk:to-prd` writes:
 
 - **Role policy** — the permitted role(s) **and at least one role that must be
   denied** the capability. A story whose author can't name who is *denied* is a
@@ -25,5 +25,5 @@ in the PRD's `## Access & validation policy` matrix that `/afk-toolkit:to-prd` w
 
 These three are the requirement-level aspects. **Envers audit** (a new entity →
 must be audited) and the *mechanism* of role/scope enforcement are
-solution-level — leave them to `/afk-toolkit:grill-solution` + `/afk-toolkit:to-sdd`; flag
+solution-level — leave them to `/afk:grill-solution` + `/afk:to-sdd`; flag
 them in passing if they surface.

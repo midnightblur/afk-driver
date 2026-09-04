@@ -15,7 +15,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Probe | Claude Code | Codex CLI | Evidence |
 |---|---|---|---|
 | Native manifest loads | pass 2026-09-01 | pass 2026-09-01 | Second harness: remove + add refreshed the cache, which then carried `.codex-plugin/plugin.json` with no unknown-field warning |
-| 40 `/afk-toolkit:<x>` skills load | pass 2026-09-01 (38 listed) | pass 2026-09-01 (40 listed) | Counts differ by harness listing rules, not by catalog: 40 manifest entries = 38 model-visible + `harvest` (`disable-model-invocation: true`) + `diagnose` (absent from the first harness's model-visible listing before this change too — its own open item). The second harness lists all 40, no duplicates, no hyphenated mirrors, and the `$`-prefixed form invokes one |
+| 40 `/afk:<x>` skills load | pass 2026-09-01 (38 listed) | pass 2026-09-01 (40 listed) | Counts differ by harness listing rules, not by catalog: 40 manifest entries = 38 model-visible + `harvest` (`disable-model-invocation: true`) + `diagnose` (absent from the first harness's model-visible listing before this change too — its own open item). The second harness lists all 40, no duplicates, no hyphenated mirrors, and the `$`-prefixed form invokes one |
 | No generated mirror skills | n/a | pass 2026-09-01 | Zero hyphenated mirror names in the catalog |
 | Shared hooks load and are trusted | pass 2026-09-01 | pass 2026-09-02 (round 3) | Round 1 failed on CRLF in the cached handlers, round 2 on the shell a bare `bash` resolved to. With LF pinning and the launcher, the handlers run natively on both harnesses |
 | SessionStart envelope and environment names | pass 2026-09-01 | pass 2026-09-02 (round 2) | Second harness, instrumented capture: `CLAUDECODE` unset, `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA`/`PLUGIN_ROOT`/`PLUGIN_DATA` set, `CLAUDE_PROJECT_DIR` unset — the adapter order (native root before compatibility markers) is the correct one. Round 2 re-ran it against the refreshed cache and the three provider functions returned `provider=codex`, the native cache root, the native data path, exit 0. Envelope keys carry the shared set plus `model`, `permission_mode`, `turn_id` |
@@ -50,7 +50,7 @@ owner's own installs were untouched throughout.
 |---|---|---|
 | Date | 2026-09-03 | 2026-09-03 |
 | Source | local directory marketplace on the candidate tree (`claude plugin marketplace add` has no `--ref`) | `codex plugin marketplace add midnightblur/afk-driver --ref rc/1.0.0` |
-| Install | `claude plugin install afk-toolkit@afk-toolkit --scope user -y` | `codex plugin add afk-toolkit@afk-toolkit` |
+| Install | `claude plugin install afk@afk-toolkit --scope user -y` | `codex plugin add afk@afk-toolkit` |
 | Inventory | 41 skills, 3 hook events, 1 MCP server (`tracker`) | installed, enabled, 1.0.0 |
 
 The Codex install confirms the S1.5 question live: the marketplace at
@@ -237,9 +237,9 @@ is the fuller rule it was one case of.
 | `afk-toolkit` | 1.0.1, user scope, enabled | 1.0.1, installed and enabled |
 | Old `afk@nak-marketplace` | uninstalled, marketplace removed | uninstalled, marketplace removed |
 | Residue | none: no `nak-marketplace` string in settings, `known_marketplaces.json` or `installed_plugins.json` | none: eight `hooks.state` trust tables dropped by parsing the file and re-parsing the result, four agent stubs deleted only after each was confirmed to carry the old install's marker, and the plugin cache directory removed after its path was resolved and confirmed to sit under the harness's own cache |
-| Agent stubs | — | `afk-toolkit-afk-{implementor,reader,runner,runner-lite}.toml`, plugin root substituted; the unrelated `mr-reviewer.toml` carries no marker and was left alone |
+| Agent stubs | — | `afk-afk-{implementor,reader,runner,runner-lite}.toml`, plugin root substituted; the unrelated `mr-reviewer.toml` carries no marker and was left alone |
 | Live tracker proof | round 5 | `tracker_get` on a real ticket in the configured project returns its summary and status; zero start failures in the session log, where there had been three |
-| Live agent proof | round 5 | `afk-toolkit-afk-reader` spawned and returned `LANGUAGE.md`'s first heading verbatim |
+| Live agent proof | round 5 | `afk-afk-reader` spawned and returned `LANGUAGE.md`'s first heading verbatim |
 
 ### H2, and why `unsupported` is not a failure
 
@@ -265,7 +265,7 @@ removed, re-added at the new tag, plugin reinstalled.
 | | Survived the upgrade | Why |
 |---|---|---|
 | Hook trust (8 `hooks.state` entries) | yes, all 8, hashes unchanged | the key is `<marketplace>:hooks/hooks.codex.json:<event>:<i>:<j>` and the value is a hash of the definition. Neither names the installed path, so a version bump that changes no hook definition changes no key and no hash. |
-| Agent TOML stubs (4) | no | each holds the installed plugin root, which carries the version, so every upgrade leaves them naming a directory that is gone (the 1.0.3 defect). `/afk-toolkit:setup` rewrites them. |
+| Agent TOML stubs (4) | no | each holds the installed plugin root, which carries the version, so every upgrade leaves them naming a directory that is gone (the 1.0.3 defect). `/afk:setup` rewrites them. |
 
 So the two look alike at install time and behave oppositely afterwards. A
 release that touches `hooks/hooks.codex.json` will ask the human to trust the
@@ -281,7 +281,7 @@ silently do not run.
 4. Add a native manifest twin only when the harness cannot consume an existing manifest.
 5. Add unchanged agent-definition stubs when the harness cannot consume `agents/*.md`.
 6. Add one `CAPABILITIES.md` provider column and one `PROVIDERS.md` mapping column.
-7. Add one `/afk-toolkit:setup` probe section.
+7. Add one `/afk:setup` probe section.
 8. Run `hooks/tests/hook-smoke.sh` and `hooks/native-contract-gate.sh`.
 9. Install through the harness enable flag. Run every probe in this ledger.
 10. Record version, date, commands, verdicts, and unresolved capabilities here.

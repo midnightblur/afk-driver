@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# gc-check-smoke.sh — seam-test for gc-check.sh (the /afk-toolkit:gc guard battery).
+# gc-check-smoke.sh — seam-test for gc-check.sh (the /afk:gc guard battery).
 #
 # Runs entirely in a disposable temp git repo — never touches a real checkout,
 # branch, worktree, or forge remote. The sandbox commits its own

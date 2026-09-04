@@ -13,7 +13,7 @@ check). Entries tagged **[deferred]** aren't needed until the named first use �
 report as `deferred`, never as failures.
 
 **Base tier.** An entry may also carry `Base probe:` / `Base fix:` — exercised
-only by `/afk-toolkit:setup base` (the default branch runs `Probe:`/`Fix:` alone).
+only by `/afk:setup base` (the default branch runs `Probe:`/`Fix:` alone).
 `Base probe:` tightens the health check to the monorepo's pinned toolchain
 version; `Base fix:` names the concrete install the plain `human:` fix leaves to
 the reader. Version pins are never restated here — probes read them from their
@@ -36,9 +36,9 @@ a token value — not even partially.
 ## H — Harness
 
 ### H1 · plugin installed + enabled
-- **Needed by:** everything (`/afk-toolkit:*` skills, the Stop-hook gates).
-- **Probe:** `agent:` the active harness reports `afk-toolkit@afk-toolkit` enabled
-  and lists `/afk-toolkit:setup`.
+- **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
+- **Probe:** `agent:` the active harness reports `afk@afk-toolkit` enabled
+  and lists `/afk:setup`.
 - **Fix:** `human:` use the active-harness bootstrap in `README.md` §4, then
   refresh the plugin per `PROVIDERS.md`.
 
@@ -60,7 +60,7 @@ a token value — not even partially.
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
 
-### H4 · design-push service *(optional)* **[deferred: first `/afk-toolkit:prototype` or `/afk-toolkit:design-system` push]**
+### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,
   `skills/afk/design-system/PUBLISH.md` (the opt-in share mirror only).
 - **Probe:** `agent:` DesignSync tools (`list_projects`, `write_files`) listed.
@@ -69,7 +69,7 @@ a token value — not even partially.
 - **Notes:** local-first skills — everything works without the optional push.
 
 ### H5 · branch-name git hook *(optional)*
-- **Needed by:** branch-naming discipline for `/afk-toolkit:execute`'s push — enforces
+- **Needed by:** branch-naming discipline for `/afk:execute`'s push — enforces
   the repository's `git.branch-pattern` on **agent** new-branch creation only;
   human-driven creation is untouched.
   Workflow `CLAUDE.md` "Conventions to keep". Not required for any skill to *run*.
@@ -85,37 +85,31 @@ a token value — not even partially.
   afk.branchNameGate false`. The installer refuses to clobber a pre-existing
   non-AFK hook of the same name.
 
-### H6 · `.claude/afk.local.json` per-dev config
+### H6 · `developer:` per-dev config
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
 - **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
-  a Store stub that exits 49 while real `python` works)
+  a Store stub that exits 49 while real `python` works). Read through
+  `afk-config.py`, never by opening a file: it owns discovery and the overlay
+  rules, and the value may come from either config layer.
   ```
-  "$(command -v python || command -v python3)" -c "
-  import json, os, sys
-  from contextlib import suppress
-  p = '.claude/afk.local.json'
-  exists = os.path.exists(p)
-  d = None
-  if exists:
-      with suppress(Exception):
-          d = json.load(open(p, encoding='utf-8'))
-  if not exists:
-      print('missing: file not found'); sys.exit(1)
-  if not isinstance(d, dict):
-      print('missing: file present but not valid JSON (or not a JSON object)'); sys.exit(1)
-  m = [k for k in ('trackerAssignee', 'mrReviewer', 'worktreeBasePath') if not d.get(k)]
-  print(('missing: ' + ', '.join(m)) if m else 'ok')
-  sys.exit(1 if m else 0)
-  "
+  PY="$(command -v python || command -v python3)"
+  m=""
+  for k in trackerAssignee mrReviewer worktreeBasePath; do
+    v=$("$PY" "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get "developer.$k" 2>/dev/null)
+    [ -n "$v" ] || m="$m $k"
+  done
+  [ -z "$m" ] && echo ok || { echo "missing:$m"; exit 1; }
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does H2/S1/C3 or C3b, whichever the forge selects; pre-fills K1 from the validated token's own account). By hand:
-  create `.claude/afk.local.json` per the hypothetical example in
-  `skills/afk/bug/CONFIG.md` (K1 `trackerAssignee`, K2 `mrReviewer`,
+  add a `developer:` block to `.afk/config.local.yaml` per the hypothetical
+  example in `skills/afk/bug/CONFIG.md` (K1 `trackerAssignee`, K2 `mrReviewer`,
   K3 `worktreeBasePath`).
-- **Notes:** gitignored, one file per checkout — key set + fail-closed matrix
-  owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not probed.
+- **Notes:** the overlay is gitignored, one per checkout — key set + fail-closed
+  matrix owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not
+  probed. A repository may legitimately have none of this: the probe fails
+  closed and names the keys, and only the bug pipeline's gated operations care.
 
 ### H7 · plain-language replies (ASD-STE100) **[opt-in]**
 - **Needed by:** nothing — a user preference: every agent session of this user
@@ -132,12 +126,12 @@ a token value — not even partially.
     [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
     grep -q 'afk:plain-language:start' "$f" 2>/dev/null && continue
     mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk-toolkit:plain-language:start/,/afk-toolkit:plain-language:end/p' "$src"; } >> "$f"
+    { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
   done
   ```
 - **Notes:** user-global, per-machine — never rides git (file map:
   `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
-  file(s); opt in any time by re-running `/afk-toolkit:setup`.
+  file(s); opt in any time by re-running `/afk:setup`.
 
 ### H8 · lavish for grilling sessions **[opt-in]**
 - **Needed by:** nothing — a user preference: grilling sessions (agent
@@ -153,14 +147,14 @@ a token value — not even partially.
     [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
     grep -q 'afk:lavish-sessions:start' "$f" 2>/dev/null && continue
     mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk-toolkit:lavish-sessions:start/,/afk-toolkit:lavish-sessions:end/p' "$src"; } >> "$f"
+    { [ -s "$f" ] && echo; sed -n '/afk:lavish-sessions:start/,/afk:lavish-sessions:end/p' "$src"; } >> "$f"
   done
   ```
 - **Notes:** user-global, per-machine — never rides git (file map:
   `PROVIDERS.md`). The installed block self-guards: outside a repo carrying
   the plugin's `LAVISH.md` it is inert. Render doctrine (RP-10, session-default
   weave, fallback) stays in `LAVISH.md`. Opt out by deleting the sentinel
-  block; opt in any time by re-running `/afk-toolkit:setup`.
+  block; opt in any time by re-running `/afk:setup`.
 
 ### H9 · Notion MCP server *(only when `notes: notion`)*
 - **Needed by:** `adapters/notes/notion` — every notes verb mirrors its local
@@ -448,13 +442,13 @@ Gating rule: if O1 misses, report the whole section as
 ### O3 · native marketplace, plugin, and fresh cache
 - **Needed by:** native skills, hooks, and MCP registration.
 - **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `codex
-  plugin list` reports `afk-toolkit@afk-toolkit` installed and enabled; the newest
+  plugin list` reports `afk@afk-toolkit` installed and enabled; the newest
   installed plugin root that Codex plugin metadata reports matches the source
   manifests, `hooks/hooks.codex.json`, and every `skills/*/*/SKILL.md` hash.
 - **Fix:** `auto:` when absent, run `codex plugin marketplace add
   midnightblur/afk-driver --ref v<toolkit-version>`, then `codex plugin add
-  afk-toolkit@afk-toolkit`. For a stale cache, ask first; after confirmation run
-  `codex plugin remove afk-toolkit@afk-toolkit`, add it again, then restart.
+  afk@afk-toolkit`. For a stale cache, ask first; after confirmation run
+  `codex plugin remove afk@afk-toolkit`, add it again, then restart.
 
 ### O4 · current hook definitions trusted
 - **Needed by:** every handler in `hooks/hooks.json`.
@@ -466,11 +460,11 @@ Gating rule: if O1 misses, report the whole section as
 ### O5 · Codex agent TOML stubs
 - **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, and `afk-implementor` roles.
 - **Sources (exactly these four, no others):**
-  `providers/codex/agents/afk-toolkit-afk-implementor.toml`,
-  `providers/codex/agents/afk-toolkit-afk-reader.toml`,
-  `providers/codex/agents/afk-toolkit-afk-runner.toml`,
-  `providers/codex/agents/afk-toolkit-afk-runner-lite.toml`.
-- **Probe:** each `providers/codex/agents/afk-toolkit-afk-*.toml` is present under
+  `providers/codex/agents/afk-afk-implementor.toml`,
+  `providers/codex/agents/afk-afk-reader.toml`,
+  `providers/codex/agents/afk-afk-runner.toml`,
+  `providers/codex/agents/afk-afk-runner-lite.toml`.
+- **Probe:** each `providers/codex/agents/afk-afk-*.toml` is present under
   `~/.codex/agents/` with the same filename, its `{{PLUGIN_ROOT}}` placeholder is
   replaced by a plugin root that **exists on disk and contains `LANGUAGE.md` and
   `agents/`**. That harness reports the root two ways — a marketplace directory and a
@@ -481,14 +475,14 @@ Gating rule: if O1 misses, report the whole section as
 - **Upgrading the plugin breaks this row until setup runs again.** The root baked into
   each stub carries the version, so installing any new version leaves all four stubs
   naming a directory that no longer exists, and every agent spawn on that harness
-  fails. Re-run `/afk-toolkit:setup` after every version change on that harness — not
+  fails. Re-run `/afk:setup` after every version change on that harness — not
   only when a changelog entry says the dependency set changed. The last clause of the
   probe is what catches it.
 - **Fix:** `auto:` read the installed plugin root from Codex plugin metadata — the
-  `[plugins."afk-toolkit@afk-toolkit"]` entry in `~/.codex/config.toml`, else the
+  `[plugins."afk@afk-toolkit"]` entry in `~/.codex/config.toml`, else the
   `Installed plugin root:` line of `codex plugin list`. Never list a cache directory
   and never pick a "newest" directory. Create missing destinations, copy each
-  `providers/codex/agents/afk-toolkit-afk-*.toml` to `~/.codex/agents/` under the same
+  `providers/codex/agents/afk-afk-*.toml` to `~/.codex/agents/` under the same
   filename, and replace every `{{PLUGIN_ROOT}}` occurrence with that root verbatim.
   Refuse to overwrite a different user file without confirmation. Verify each
   destination contains no `{{PLUGIN_ROOT}}`, then start a new session.
@@ -524,7 +518,7 @@ Gating rule: if O1 misses, report the whole section as
 A repository states its own prerequisites — its checkout, its verification
 tree, its environment tooling, its credentials — in the files its
 `.afk/config.yaml` lists under `setup.extra`. Each is a Markdown file in this
-same row format; `/afk-toolkit:setup` reads them after the rows above and
+same row format; `/afk:setup` reads them after the rows above and
 probes them the same way. The toolkit ships no row for any one repository's
 state, because it cannot know it.
 
@@ -532,7 +526,7 @@ state, because it cannot know it.
 
 Human tooling and machine settings, not skill dependencies — no skill invokes
 these, so entries here carry **only** base-tier fields and the default branch
-skips the section entirely. Probed and fixed under `/afk-toolkit:setup base` alone; a
+skips the section entirely. Probed and fixed under `/afk:setup base` alone; a
 miss is `missing/broken` there, never on a default run. Any fix marked
 **elevated prompt** stays with the human — the agent never elevates.
 
@@ -542,7 +536,7 @@ miss is `missing/broken` there, never on a default run. Any fix marked
 - **Base fix:** `auto:` `winget install --id Microsoft.VisualStudioCode -e`
 
 ### W2 · IntelliJ IDEA
-- **Needed by:** the human; optionally referenced by `/afk-toolkit:bug`'s `ideBinary`
+- **Needed by:** the human; optionally referenced by `/afk:bug`'s `ideBinary`
   key (K4, `skills/afk/bug/CONFIG.md`) to open fixer worktrees.
 - **Base probe:** `winget list --id JetBrains.IntelliJIDEA.Ultimate -e >/dev/null 2>&1 || winget list --id JetBrains.IntelliJIDEA.Community -e >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/Programs/IntelliJ IDEA"* >/dev/null 2>&1 || ls -d "$LOCALAPPDATA/JetBrains/Toolbox/apps/intellij-idea"* >/dev/null 2>&1 || ls -d "$ProgramFiles/JetBrains/IntelliJ IDEA"* >/dev/null 2>&1`
   A probe that enumerates install locations is wrong until the next one is found:
@@ -583,7 +577,7 @@ Each var is documented at its consumer — this table is just the map.
 | `APP_START_TIMEOUT` | `adapters/build-gate/maven/app-start-gate.sh` | boot timebox (seconds, default 300) |
 | `APP_START_UI_BUILD` | `adapters/build-gate/maven/app-start-gate.sh` | the UI build script the gate runs when `APP_START_SKIP_UI=false`; defaults to `build_ui.sh` beside the service directory |
 | `CI_PROJECT_DIR` | `adapters/build-gate/maven/app-start-gate.sh` | checkout the service's `build_ui.sh` resolves its npm workspace from; read only when `APP_START_SKIP_UI=false`, defaults to the repo root |
-| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk-toolkit:gc` refuse deletion — it always gets a human eye |
+| `AFK_DRIVEN` | `skills/afk/gc/scripts/gc-check.sh` | exported `=1` by hands-off invokers; makes `/afk:gc` refuse deletion — it always gets a human eye |
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |

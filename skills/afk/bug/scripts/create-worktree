@@ -25,8 +25,8 @@
 #   --repo <path>     Main repo dir. Default: first entry of `git worktree list` (the main
 #                     worktree), else the current toplevel.
 #   --parent <path>   Worktree parent dir. Default: `worktreeBasePath` from
-#                     .claude/afk.local.json, else ~/repo-worktrees.
-#   --idea-bin <path> IDE launcher. Default: `ideBinary` from .claude/afk.local.json.
+#                     the `developer:` block, else ~/repo-worktrees.
+#   --idea-bin <path> IDE launcher. Default: `developer.ideBinary`.
 #   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
 #   --no-npm          Skip `npm ci` at the new worktree root.
 #   --no-open         Skip launching the IDE on the new worktree (set by non-interactive callers).
@@ -41,7 +41,8 @@
 #   success  -> WORKTREE_PATH=<absolute path>
 #   failure  -> ERROR=<reason>   (and a non-zero exit; never a bare set-e death)
 #
-# Per-dev config (.claude/afk.local.json, gitignored) supplies worktreeBasePath + ideBinary
+# Per-dev config (the `developer:` block of .afk/config.local.yaml, gitignored)
+# supplies worktreeBasePath + ideBinary
 # (key names owned by skills/afk/bug/CONFIG.md); a CLI flag always overrides the config value.
 
 set -u
@@ -117,19 +118,22 @@ load_branch_pattern
 validate_branch_name "$BRANCH" || \
   error_exit "branch '$BRANCH' does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created"
 
-# --- per-dev config: .claude/afk.local.json supplies defaults; CLI flags override ----------
+# --- per-dev config: the `developer:` block supplies defaults; CLI flags override ----------
+# Read through afk-config.py, which owns discovery and the overlay rules, so this script
+# never learns where configuration lives or what format it is in.
 read_config_key() {
-  local key="$1" cfg="$2"
-  [[ -f "$cfg" ]] || return 0
-  # node is the one JSON reader — guaranteed by this repo's toolchain (the script itself runs
-  # npm ci). stdin feed avoids MSYS path translation on the file argument.
-  if command -v node >/dev/null 2>&1; then
-    node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s)[process.argv[1]]??"")))' "$key" < "$cfg" 2>/dev/null || true
-  elif [[ -z "${CFG_WARNED:-}" ]]; then
-    # config present but unreadable — warn once so a configured value isn't silently ignored.
-    CFG_WARNED=1
-    echo -e "  ${YELLOW}node not found — ignoring $cfg defaults; pass --parent/--idea-bin explicitly${NC}" >&2
-  fi
+  local key="$1" repo="$2"
+  local script="${AFK_PLUGIN_ROOT:-}/scripts/afk-config.py"
+  [[ -n "${AFK_PLUGIN_ROOT:-}" && -f "$script" ]] || {
+    if [[ -z "${CFG_WARNED:-}" ]]; then
+      CFG_WARNED=1
+      echo -e "  ${YELLOW}AFK_PLUGIN_ROOT unset — ignoring developer defaults; pass --parent/--idea-bin explicitly${NC}" >&2
+    fi
+    return 0
+  }
+  local py=python
+  command -v python >/dev/null 2>&1 || py=python3
+  ( cd "$repo" && "$py" "$script" get "developer.$key" 2>/dev/null ) || true
 }
 
 # Resolve the main repo dir first (config lives under it).
@@ -141,13 +145,12 @@ fi
 [[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir (pass --repo)"
 [[ -d "$REPO_DIR/.git" || -f "$REPO_DIR/.git" ]] || error_exit "git repo not found at $REPO_DIR"
 
-CFG_FILE="$REPO_DIR/.claude/afk.local.json"
 if [[ -z "$WORKTREE_PARENT" ]]; then
-  WORKTREE_PARENT="$(read_config_key worktreeBasePath "$CFG_FILE")"
+  WORKTREE_PARENT="$(read_config_key worktreeBasePath "$REPO_DIR")"
   [[ -n "$WORKTREE_PARENT" ]] || WORKTREE_PARENT="${HOME}/repo-worktrees"
 fi
 if [[ -z "$IDEA_BIN" ]]; then
-  IDEA_BIN="$(read_config_key ideBinary "$CFG_FILE")"
+  IDEA_BIN="$(read_config_key ideBinary "$REPO_DIR")"
 fi
 
 DEST="$WORKTREE_PARENT/$DIR_NAME"
@@ -212,7 +215,7 @@ seed_m2_repo() {
 
 # Recursively copy a directory (incl. subfolders), rewriting paths file-by-file.
 # Optional $3: a `find -name` pattern to skip — for per-worktree state that must NOT be
-# cloned into a fresh worktree (e.g. .claude/TODO.md, the /afk-toolkit:todo list).
+# cloned into a fresh worktree (e.g. .claude/TODO.md, the /afk:todo list).
 copy_dir_with_substitution() {
   local src_dir="$1" dest_dir="$2" skip_name="${3:-}"
   [[ -d "$src_dir" ]] || return 0
@@ -345,7 +348,7 @@ if [[ "$OPEN_FLAG" == true ]]; then
     # DEST_DIR_FWD (cygpath -m) — a native IDE binary can't resolve a /c/... POSIX path.
     "$IDEA_BIN" "$DEST_DIR_FWD" & disown 2>/dev/null || true
   else
-    echo -e "  ${YELLOW}No ideBinary configured (afk.local.json) and no --idea-bin — skipping IDE launch${NC}" >&2
+    echo -e "  ${YELLOW}No developer.ideBinary configured and no --idea-bin — skipping IDE launch${NC}" >&2
   fi
 fi
 

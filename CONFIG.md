@@ -86,7 +86,8 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace) |
 | `verification` | map | `tiers`, `env` |
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
-| `setup` | map | `extra`: repository files `/afk-toolkit:setup` reads as extra register rows |
+| `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `config.local.yaml`, never the committed file: two of them name a person and the others name one machine's paths. Each key's consumer fails closed and names the key when it is absent (`skills/afk/bug/CONFIG.md`). |
 
 ### Path templates
 

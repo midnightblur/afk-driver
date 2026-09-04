@@ -9,6 +9,6 @@ description: Deprecated alias for settle-change. Review a forge change request (
 
 Print this line once, then continue:
 
-> `/afk-toolkit:settle-mr` is the old name. The skill is now `/afk-toolkit:settle-change`. The alias is removed in the next major version.
+> `/afk:settle-mr` is the old name. The skill is now `/afk:settle-change`. The alias is removed in the next major version.
 
 Then read `skills/utils/settle-change/SKILL.md` from the plugin root and follow it verbatim with the same arguments. Add nothing of your own; this file holds no behaviour.

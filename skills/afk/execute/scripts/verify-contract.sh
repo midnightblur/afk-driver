@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # verify-contract.sh — deterministic grep-check of a subtask contract's
-# `## Produces` / `## Consumes` bullets, bundled with the /afk-toolkit:execute skill
+# `## Produces` / `## Consumes` bullets, bundled with the /afk:execute skill
 # (Step 2 consumer preflight + Step 9 producer self-preflight — CITED-MODE.md).
 # Bullet grammar owned by skills/afk/to-subtasks/SUBTASK-CONTRACT.md:
 #   ## Produces:  - {file-path}#{grep-anchor} — {contract}            [materialized]?

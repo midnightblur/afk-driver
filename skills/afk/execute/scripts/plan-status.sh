@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# plan-status.sh — single-writer helper for /afk-toolkit:execute: sets ONE subtask row's
+# plan-status.sh — single-writer helper for /afk:execute: sets ONE subtask row's
 # Status cell in PLAN.md's `## Progress tracker` table and stamps the header
 # `> Last updated:` date with today, preserving every other byte of the file.
 # Table shape owned by skills/afk/to-subtasks/PLAN-TEMPLATE.md; the allowed

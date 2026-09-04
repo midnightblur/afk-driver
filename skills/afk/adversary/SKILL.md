@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Adversarial runtime probe of a subtask's live app, attacking from the contract alone. Use as the execute gate or via /afk-toolkit:adversary {NNNN-slug} {app-base-url}.
+description: Adversarial runtime probe of a subtask's live app, attacking from the contract alone. Use as the execute gate or via /afk:adversary {NNNN-slug} {app-base-url}.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.

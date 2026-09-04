@@ -11,7 +11,7 @@ disable-model-invocation: true
 The **manual** detection point: a deliberate whole-session sweep that captures
 lessons *and* applies them, while the context that earned them is still live.
 
-Scope is **this session**. Drafts of any age or origin belong to `/afk-toolkit:lessons`
+Scope is **this session**. Drafts of any age or origin belong to `/afk:lessons`
 — that skill for "what has the workflow learned and not absorbed?", this one for
 "what did the last hour teach, and can it bind before I lose it?".
 
@@ -43,7 +43,7 @@ could apply without asking what you meant.
 ## 3. Propose
 
 **One round**, grouped by target file. Per item: the edit · one-line **why** ·
-its route. Approval granularity per `/afk-toolkit:claude-md`'s proposal protocol.
+its route. Approval granularity per `/afk:claude-md`'s proposal protocol.
 **Never write unapproved.**
 
 Done when every drafted item is approved, declined, or deferred — none left
@@ -62,11 +62,11 @@ item silently skipped.
 ## 5. Record and bind
 
 Append each outcome per CAPTURE.md's "The append", then close per
-[`/afk-toolkit:lessons`](../../afk/lessons/SKILL.md)'s Bind table — it owns what a
+[`/afk:lessons`](../../afk/lessons/SKILL.md)'s Bind table — it owns what a
 written edit needs before it is in force.
 
 Anything left `opened` — a defer, or a plugin edit too entangled to apply
-mid-task — is the ledger's now. Say so and name `/afk-toolkit:lessons apply`.
+mid-task — is the ledger's now. Say so and name `/afk:lessons apply`.
 
 Report per [REPORTING.md](../../../REPORTING.md), citing captured ids as
 `[lesson: L-NNNN]`.

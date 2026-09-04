@@ -1,6 +1,6 @@
 ---
 name: prototype
-description: Interactively craft a feature's UI mockup as self-contained drivable HTML anchored to the real frontend. Use on /afk-toolkit:prototype after the PRD exists and before the SDD locks decisions.
+description: Interactively craft a feature's UI mockup as self-contained drivable HTML anchored to the real frontend. Use on /afk:prototype after the PRD exists and before the SDD locks decisions.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -26,7 +26,7 @@ Optional. Run for a feature with **meaningful net-new UI** worth settling before
 
 Read `PRD.md` — User Stories and Acceptance Criteria are the **capability list** the mockup must demonstrate; Step 4's capability walk gates settle on it. Then **anchor to the real frontend** — use every layer available, best evidence first:
 
-1. **Design-system catalog** (`/afk-toolkit:design-system` output), when the service has one — the component vocabulary: copy its verified tokens and card markup verbatim; never re-derive what a fidelity-checked card already settled.
+1. **Design-system catalog** (`/afk:design-system` output), when the service has one — the component vocabulary: copy its verified tokens and card markup verbatim; never re-derive what a fidelity-checked card already settled.
 2. **The running app**, when reachable — the fidelity reference: screenshot the app shell and the page archetype nearest the feature (Step 4's fidelity pass diffs against these). Markup and computed styles lifted from the live DOM beat anything re-derived from source.
 3. **Frontend source** — find the sibling checkout's components, layout shell, and design tokens; delegate the read to an `afk-reader` subagent returning a vocabulary digest — component names, token values, layout idioms, each with file citations — per `DELEGATION.md` (plugin root); the crafting loop mocks from the digest.
 
@@ -53,7 +53,7 @@ A **conversation**, not a spec hand-off:
 
 1. The user reacts in plain language — "table's too dense" — in chat, or pinned in the rendered session (element annotations, text selections, embedded feedback controls — delivered by `poll` per LAVISH.md). An element-pinned note beats prose when the screen has three tables; treat both channels as one conversation.
 2. You **edit the HTML** to match; re-render per LAVISH.md (fallback: tell them to refresh).
-3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", etc. — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may route back to `/afk-toolkit:to-prd`.
+3. Repeat. Ask the questions a designer would when the prompt is thin — "where does this open from?", etc. — and answer them *in the mockup*, not in prose. Walking a real screen routinely surfaces PRD gaps (a state with no story, an action with no outcome); name it when it does — it may route back to `/afk:to-prd`.
 
 Converge from divergence: once a direction wins, collapse to the single chosen mockup and polish *that* into the full simulation — every capability on Step 1's list drivable: state transitions, validation, empty/loading/error/success states, permission variants the stories imply, real density. A capability the user can't reach by clicking isn't demonstrated — build the interaction, not a caption describing it. Keep it throwaway-grade (no tests, no real mutations — point actions at inline stubs); fidelity is in the *look and the simulated behavior*, not working plumbing.
 
@@ -67,7 +67,7 @@ When the design feels right, two gates before anything durable is written:
 Then the **won direction** becomes the artifact; losing scaffolding is thrown away.
 
 - Keep the **chosen HTML** as `…/{TICKET-ID}/prototype/<screen>.html`. Delete the losing variants and the switcher — they rot fast and confuse the next reader.
-- Write **`…/{TICKET-ID}/PROTOTYPE.md`** (sibling to `PRD.md`): screens settled; the **capability coverage table** (each User Story / AC → the interactive path demonstrating it, or the logged gap + reason); the **fidelity basis** (`live-verified` against which URL / `catalog` / `source-only`); design decisions made and *why* (so `/afk-toolkit:grill-solution` and `/afk-toolkit:grill-verification` inherit them); any PRD gaps surfaced; a link to the chosen HTML. (Canonicality: see Boundary.)
+- Write **`…/{TICKET-ID}/PROTOTYPE.md`** (sibling to `PRD.md`): screens settled; the **capability coverage table** (each User Story / AC → the interactive path demonstrating it, or the logged gap + reason); the **fidelity basis** (`live-verified` against which URL / `catalog` / `source-only`); design decisions made and *why* (so `/afk:grill-solution` and `/afk:grill-verification` inherit them); any PRD gaps surfaced; a link to the chosen HTML. (Canonicality: see Boundary.)
 - Upsert the `Prototype` row (`chosen {date}`) in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
 ### 5. Share — Claude Design push (opt-in)
@@ -86,7 +86,7 @@ OUTCOME: <status> — <one-line summary> [pushed: <url|no>]
 |---|---|
 | `crafted` | A mockup passed both settle gates; `PROTOTYPE.md` + chosen HTML written. |
 | `no_ui` | The feature has no net-new screens; nothing to prototype. |
-| `prd_gap` | A settled mockup surfaced a PRD gap worth a `/afk-toolkit:to-prd` revisit; name it. |
+| `prd_gap` | A settled mockup surfaced a PRD gap worth a `/afk:to-prd` revisit; name it. |
 | `other` | Unexpected stop. |
 
 Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd_gap` — the gap is the actionable outcome; the mockup artifacts are still written.
@@ -103,11 +103,11 @@ Precedence: a run that both settles a mockup and surfaces a PRD gap reports `prd
 
 A settled mockup feeds two downstream skills:
 
-- **`/afk-toolkit:grill-solution`** — UX decisions captured in `PROTOTYPE.md` are inputs to the architecture interview (a modal vs a page, an inline edit vs a wizard — all have SDD consequences).
-- **`/afk-toolkit:grill-verification`** — the mockup is the concrete screen its **UI journeys** trace to. Designing journeys against a real screen instead of an imagined one separates a verification plan that holds from one that drifts.
+- **`/afk:grill-solution`** — UX decisions captured in `PROTOTYPE.md` are inputs to the architecture interview (a modal vs a page, an inline edit vs a wizard — all have SDD consequences).
+- **`/afk:grill-verification`** — the mockup is the concrete screen its **UI journeys** trace to. Designing journeys against a real screen instead of an imagined one separates a verification plan that holds from one that drifts.
 
-If the mockup surfaced a PRD gap, route back to `/afk-toolkit:to-prd` first.
+If the mockup surfaced a PRD gap, route back to `/afk:to-prd` first.
 
 ---
 
-Visual extraction of the existing frontend into a shared, team-accessible `claude.ai/design` catalog lives in **`/afk-toolkit:design-system`**. Run it once per service to seed the catalog Step 1 anchors to first; Step 5's share push lands ticket mockups as cards in the same project.
+Visual extraction of the existing frontend into a shared, team-accessible `claude.ai/design` catalog lives in **`/afk:design-system`**. Run it once per service to seed the catalog Step 1 anchors to first; Step 5's share push lands ticket mockups as cards in the same project.
