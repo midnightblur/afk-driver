@@ -27,6 +27,11 @@
 #    appears in its family's enum in CONFIG.md; every configuration key it reads
 #    appears in CONFIG.md; and every register row it declares in `register`
 #    exists as a heading in the dependency register.
+# F. skill frontmatter — every SKILL.md frontmatter loads as YAML and names
+#    its own directory. A harness that cannot parse it drops the skill in
+#    silence: the catalog is one shorter than the manifest and nothing says
+#    why. `/afk:diagnose` was invisible on one harness for nine releases
+#    because its description was an unquoted scalar containing `": "`.
 #
 # Verdict per check: membership present -> pass; missing -> exit 2 (with the
 # exact list + where to add it); plugin.json entry pointing at a dir that no
@@ -189,7 +194,16 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     adapter_drift=$("$_py" "$PLUGIN_DIR/hooks/lib/adapter_registry_check.py" "$PLUGIN_DIR" 2>&1)
   fi
 
-  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ] || [ -n "$adapter_drift" ]; then
+  # ---- check F: every SKILL.md frontmatter parses and names its directory.
+  # One python pass over every skill, next to check E's, for the same reason.
+  local frontmatter_drift=""
+  if [ -f "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" ]; then
+    local _pyf=python
+    command -v python >/dev/null 2>&1 || _pyf=python3
+    frontmatter_drift=$("$_pyf" "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" "$PLUGIN_DIR" 2>&1)
+  fi
+
+  if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ] || [ -n "$adapter_drift" ] || [ -n "$frontmatter_drift" ]; then
     gate_metrics_emit skill-registry blocked "\"checked\":$n_checked"
     {
       printf '[afk] Registry gate: a plugin registry drifted from disk.\n'
@@ -214,6 +228,10 @@ for a in m.get('agents', []): print('AGENT\t' + a)
       if [ -n "$adapter_drift" ]; then
         printf 'Adapter described in some places but not all (ADAPTERS.md "Adding a kind" lists the four):\n'
         printf '%s\n' "$adapter_drift" | sed 's/^/  - /'
+      fi
+      if [ -n "$frontmatter_drift" ]; then
+        printf 'Skill frontmatter a harness cannot load — it drops the skill silently (quote a value carrying ": ", or fix the named field):\n'
+        printf '%s\n' "$frontmatter_drift" | sed 's/^/  - /'
       fi
     } >&2
     return 2

@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when the user reports a bug, says something is broken/failing, or describes a performance regression.
+description: "Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when the user reports a bug, says something is broken/failing, or describes a performance regression."
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.

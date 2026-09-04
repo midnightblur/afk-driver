@@ -61,3 +61,7 @@ skills/afk/setup/MANIFEST.md	harness-env	a compatibility marker one harness sets
 CHANGELOG.md	harness-name	then run `/afk:setup`\. On Codex, answer the hook-trust prompt	Migration line names the harness whose prompt the reader must answer.
 CHANGELOG.md	harness-name	agents `afk:afk-\*`, Codex stubs `afk-afk-\*\.toml`	Rename entry names the harness whose stub filenames changed.
 CHANGELOG.md	harness-name	^- `native-contract-gate\.sh` derived the expected Codex stub filename	Fix entry names the harness whose stub filename the gate derives.
+# 1.0.9 fixed a defect that existed only on one harness and was visible only by
+# comparing the two catalogs, so the entry has to name both.
+CHANGELOG.md	harness-name	^- \*\*`/afk:diagnose` was missing from the Claude Code catalog	Entry names the harness whose catalog dropped the skill.
+CHANGELOG.md	harness-name	^  short of a manifest that listed it. Codex parsed the same file	Same entry names the harness that parsed the file correctly.

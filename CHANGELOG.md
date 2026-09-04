@@ -18,6 +18,25 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-09-04
+
+### Fixed
+
+- **`/afk:diagnose` was missing from the Claude Code catalog, and had been since
+  it shipped.** Its description was a plain YAML scalar containing `": "`, which
+  YAML reads as a nested mapping, so the frontmatter did not load. The harness
+  said nothing: no error, no warning — the skill was simply absent, one entry
+  short of a manifest that listed it. Codex parsed the same file and showed the
+  skill, which is why the two catalogs disagreed. The description is now quoted;
+  nothing else about the skill changed.
+- The registry gate gained **check F**: every `SKILL.md` frontmatter must load as
+  YAML and name its own directory. Nine releases of gates passed over this file,
+  because every one of them checked that the skill was listed, catalogued,
+  pointed at `LANGUAGE.md` — not that a harness could read it. A silent drop has
+  no symptom to grep for, so the check parses instead. It uses PyYAML when
+  present and falls back to the two plain-scalar rules a description realistically
+  breaks, so a machine without PyYAML still catches this one.
+
 ## [1.0.8] - 2026-09-04
 
 The plugin is named `afk`. Skills are `/afk:fix` again, as they were before the
