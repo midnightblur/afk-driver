@@ -70,8 +70,24 @@ cleanup. Record live conformance gaps in `providers/CONFORMANCE.md`.
 
 ## 6 · Glossary term usage
 
-Every `**Term**:` heading in the plugin-root `GLOSSARY.md` must have ≥1 consumer
-file using the term (grep the plugin); a zero-hit term → finding (route: `GLOSSARY.md`).
+`python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py" "$AFK_PLUGIN_ROOT"` — every
+`**Term**:` heading in the plugin-root `GLOSSARY.md` must have ≥1 consumer file
+using the term.
+
+Do not grep the heading string. A heading is written for a reader: prose writes
+`sign-off` where the heading writes `Sign-off`, one heading can head several
+terms, and a trailing parenthetical names the variants the entry covers rather
+than part of the term. The script case-folds, drops that qualifier, and splits a
+multi-term heading, then requires a consumer for each part.
+
+A zero-hit term means no file uses that word. It is a prompt to look, not a
+verdict, and never on its own a reason to change `GLOSSARY.md`: check first
+whether prose spells the term differently. Report it as a finding (route:
+`GLOSSARY.md`) only once you have looked and the term really is unused.
+
+`scripts/tests/test_glossary_usage.py` pins that normalization against the
+sixteen headings an earlier, exact-match check reported as unused while every
+one of them was in use.
 
 ## Report
 

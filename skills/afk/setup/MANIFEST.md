@@ -293,6 +293,33 @@ a token value — not even partially.
   (`.mvn/maven.config` → `<worktree>/.m2/repository`) is written regardless, so
   concurrent worktree builds never share a writable local repo.
 
+### C9 · jq *(optional)*
+- **Needed by:** `hooks/lib/provider.sh` — reads a field out of the hook payload
+  and builds every hook answer (`block`, `ask`, the plain success shape), so the
+  whole gate suite runs through it; `hooks/tests/hook-smoke.sh` asserts on those
+  answers.
+- **Probe:** `command -v jq`
+- **Fix:** none needed — `provider.sh` falls back to `grep` + `sed` for both
+  reading and writing, and `hook-smoke.sh` prints `SKIP: jq not on PATH` and
+  exits 0.
+- **Base fix:** `auto:` `winget install --id jqlang.jq -e`
+- **Notes:** fail-open, and the fallback is not a lesser path — it is the one
+  most machines take. Registered because shipped code names the binary, not
+  because a gate needs it. `--jq` in `adapters/forge/github/forge.sh` is a `gh`
+  flag with its own JSON engine, not this dependency.
+
+### C10 · timeout + curl *(optional)*
+- **Needed by:** `hooks/update-notice.sh` only — `timeout` budgets each of its
+  two network steps at 2 seconds, `curl` fetches a release's `CHANGELOG.md` when
+  `git archive --remote` cannot.
+- **Probe:** `command -v timeout && command -v curl`
+- **Fix:** none needed — both ship with Git for Windows (C1). Absent, the
+  session-start notice stays silent.
+- **Notes:** fail-open by construction. That hook is documented to never block,
+  never slow a session start, and never need a dependency the toolkit does not
+  already require; every failure path exits 0 without output. A missed notice
+  about a newer release is the entire cost.
+
 ### P1 · Python 3
 - **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
   runs through, so without it no gate or guard fires at all — the shared
@@ -468,7 +495,7 @@ Gating rule: if O1 misses, report the whole section as
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
-  in `plugin.json` and no `afk-<name>` mirror, all three agent roles, and a
+  in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
   callable `tracker_get`. Count the manifest rather than a number written here:
   a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
