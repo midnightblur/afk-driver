@@ -103,6 +103,26 @@ def test_trailing_category_noun_is_still_reported():
 
 # --------------------------------------------------------------- parsing shape
 
+def test_files_that_talk_about_the_check_are_not_consumers():
+    """A term named in a release note or in this file is being discussed, not used.
+
+    Counting them makes the check blind to exactly the terms it most recently
+    reported: name one in a fixture, and it has a consumer forever after. That
+    happened to `One-live-fixer invariant` the day the check shipped — this file
+    and the 1.0.6 changelog entry both name it, and the check went quiet.
+    """
+    assert "scripts/tests/test_glossary_usage.py" in gu.NOT_A_CONSUMER
+    assert "CHANGELOG.md" in gu.NOT_A_CONSUMER
+
+
+def test_the_exclusion_is_by_exact_relative_path():
+    """Never a suffix or basename match: a repository's own `CHANGELOG.md`
+    under some other directory is ordinary prose and must still count."""
+    for entry in gu.NOT_A_CONSUMER:
+        assert not entry.startswith("*") and not entry.startswith("/"), entry
+        assert "\\" not in entry, entry
+
+
 def test_backticked_heading_is_read_as_its_term():
     assert gu.parse("**`pattern-debt`** (pattern debt):\nDefinition.\n") == {
         "pattern-debt": ["pattern-debt"]

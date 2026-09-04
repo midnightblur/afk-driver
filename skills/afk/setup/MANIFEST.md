@@ -42,14 +42,18 @@ a token value — not even partially.
 - **Fix:** `human:` use the active-harness bootstrap in `README.md` §4, then
   refresh the plugin per `PROVIDERS.md`.
 
-### H2 · Jira MCP server
+### H2 · Jira MCP server *(only when the resolved `tracker` is not `none`)*
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
   `skills/afk/understand` (MR-subject spec discovery), the shared Jira lib
   `adapters/tracker/jira/api.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
-  known key succeeds.
+  known key succeeds. Resolve the tracker first (`scripts/afk-config.py get
+  tracker`): `none` — including the case of a working directory with no
+  `.afk/config.yaml` — makes this row **n/a**, not a failure. `tracker_get`
+  answering `unsupported` under `tracker: none` is the adapter contract working,
+  and `O7`'s `tracker_get` leg is n/a for the same reason.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
@@ -285,9 +289,13 @@ a token value — not even partially.
 ### C8 · robocopy (Windows built-in) *(optional)*
 - **Needed by:** `skills/afk/bug`'s create-worktree script (per-worktree Maven repo
   seeding — multi-threaded copy of the dev's local repo minus `*-SNAPSHOT` dirs).
-- **Probe:** `command -v robocopy`
+- **Probe:** `command -v robocopy || test -x "${SYSTEMROOT:-/c/Windows}/System32/Robocopy.exe"`
 - **Fix:** none needed on Windows (ships with the OS); no fix elsewhere — the script
   falls back to `cp -a`.
+- **Notes on the probe:** `command -v` reads `PATH`, and a shell whose `PATH`
+  omits `System32` reported this built-in as absent. The file test is the
+  authority on Windows; the `PATH` lookup stays first because it is what the
+  script itself will use.
 - **Notes:** fail-open — robocopy absent or the seed copy failing downgrades to the
   `cp -a` fallback / an unseeded private repo with a warning; the isolation itself
   (`.mvn/maven.config` → `<worktree>/.m2/repository`) is written regardless, so
@@ -496,7 +504,8 @@ Gating rule: if O1 misses, report the whole section as
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
   in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
-  callable `tracker_get`. Count the manifest rather than a number written here:
+  callable `tracker_get` (n/a under `tracker: none`, per `H2` — the catalog and
+  role legs still stand on their own). Count the manifest rather than a number written here:
   a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 

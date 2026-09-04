@@ -24,6 +24,13 @@ HEADING = re.compile(r"^\*\*(`?)([^*`]+?)\1\*\*(?:\s*\(([^)]*)\))?\s*:", re.M)
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".pytest_cache"}
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".ico", ".woff", ".woff2"}
 
+# Files that name a term in order to talk about this check, rather than using
+# the vocabulary. Counting them makes the check blind to exactly the terms it
+# most recently reported: name one in a test fixture or a release note, and it
+# has a consumer forever after. Both of these did that to `One-live-fixer
+# invariant` the day the check shipped.
+NOT_A_CONSUMER = {"CHANGELOG.md", "scripts/tests/test_glossary_usage.py"}
+
 
 def terms_of(heading: str, qualifier: str | None = None) -> list[str]:
     """The terms a consumer would type, given a glossary heading.
@@ -68,7 +75,10 @@ def consumers(root: Path, glossary: Path) -> list[Path]:
             continue
         if p.suffix.lower() in SKIP_SUFFIXES:
             continue
-        if SKIP_DIRS.intersection(p.relative_to(root).parts):
+        rel = p.relative_to(root)
+        if SKIP_DIRS.intersection(rel.parts):
+            continue
+        if rel.as_posix() in NOT_A_CONSUMER:
             continue
         out.append(p)
     return out

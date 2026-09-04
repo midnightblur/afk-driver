@@ -18,6 +18,36 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-09-04
+
+Four rows and checks that reported a healthy machine as broken, found by the
+first audit run from an interactive session on the second harness. One of them
+was shipped by 1.0.6 itself.
+
+### Fixed
+
+- The glossary check counted files that name a term in order to *talk about the
+  check* — its own test fixtures and this changelog. So the term 1.0.6 reported,
+  `One-live-fixer invariant`, acquired two consumers the day it was reported and
+  the check went quiet about it. Any term the check names in a release note
+  would have been silenced the same way, permanently. `CHANGELOG.md` and
+  `scripts/tests/test_glossary_usage.py` no longer count as consumers.
+- `H2` assumed a tracker exists. Run in a working directory with no
+  `.afk/config.yaml`, the tracker resolves to `none`, `tracker_get` answers
+  `unsupported` — the adapter contract working exactly as designed — and the row
+  called it a failure. It is now conditional, and says so, as `C3` and `C3b`
+  already were. `O7`'s `tracker_get` leg inherited the same assumption and the
+  same fix; its catalog and role legs stand on their own.
+- `C8` probed a Windows built-in with `command -v`, which reads `PATH`. A shell
+  whose `PATH` omits `System32` reported `robocopy` as absent on a machine that
+  ships it. The probe now falls back to a file test, which is the authority on
+  Windows.
+- `CLAUDE.md` told a maintainer that broadening the execute outcome status set
+  means editing the autopilot park handling. It does not: autopilot parks on
+  anything that is not a recognised success, deliberately, so no status is named
+  in that skill and none should be. The audit read the instruction, found no
+  `adversary_fail` token in the skill, and reported drift that was not there.
+
 ### Documentation
 
 - The README now says what the first-session hook-trust prompt costs on a
