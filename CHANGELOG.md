@@ -18,6 +18,22 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-09-05
+
+### Removed
+
+- **`artifacts.glossary-map`.** The key was documented and validated, and
+  nothing read it: every skill that needs the domain glossary reads a root
+  `GLOSSARY-MAP.md`, the name `/afk:glossary` fixes in
+  `skills/utils/glossary/GLOSSARY-FORMAT.md`. A key that configures a name the
+  toolkit does not honour is a second home for one decision.
+
+### Migration
+
+- Delete `artifacts.glossary-map` from `.afk/config.yaml`; `validate` now
+  rejects it. Keep the file at the root as `GLOSSARY-MAP.md` — that is where
+  every skill looks. `artifacts.service-map` is unchanged.
+
 ## [1.0.17] - 2026-09-05
 
 ### Fixed

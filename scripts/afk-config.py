@@ -95,7 +95,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "repo-files": {"spec-dir"},
     "obsidian": {"vault"},
     "notion": {"parent-page-id"},
-    "artifacts": {"glossary-map", "service-map"},
+    "artifacts": {"service-map"},
     "maven": {
         "reactor-pom", "formatter-config", "formatter-plugin", "default-module",
         "skip-ui-flag", "worktree-repo", "worktree-seed", "worktree-seed-exclude",

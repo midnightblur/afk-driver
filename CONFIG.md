@@ -95,7 +95,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `repo-files` | map | `spec-dir` template |
 | `obsidian` | map | `vault` |
 | `notion` | map | `parent-page-id` |
-| `artifacts` | map | `glossary-map`, `service-map` |
+| `artifacts` | map | `service-map` |
 | `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`), `worktree-repo` (`isolated` \| `shared`), `worktree-seed` (`auto` \| `none` \| a path), `worktree-seed-exclude` (globs the seed skips, default `*-SNAPSHOT`) |
 | `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace, also where a new worktree installs), `worktree-install` (`ci` \| `none`), `worktree-command` (argv words restoring the dependencies, default `npm ci`) |
 | `verification` | map | `tiers`, `env` |
@@ -103,6 +103,10 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
 | `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee` and `mrReviewer` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
+
+The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
+as a root `GLOSSARY-MAP.md` (`skills/utils/glossary/GLOSSARY-FORMAT.md`), and one
+decision has one home.
 
 Every map in the table is validated one level down: a child key that is not
 listed is refused, named by its full dotted path. Below that level the names
