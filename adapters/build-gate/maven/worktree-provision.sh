@@ -69,7 +69,9 @@ FINGERPRINT=$(printf '%s\n%s\n%s\n' "$REPO_MODE" "$SEED" "$EXCLUDES" \
 
 DONE=""; SKIPPED=""; WARNINGS=""; STATUS=provisioned
 add() { local var=$1 item=$2; eval "$var=\"\${$var}\${$var:+,}\$item\""; }
-quoted() { printf '%s' "$1" | sed 's/"/\\"/g'; }
+# A Windows path carries backslashes, and an unescaped one makes the answer
+# invalid JSON — the caller then reads no status at all. Backslash first.
+quoted() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 
 answer() {
   printf '{"kind":"maven","status":"%s","fingerprint":"%s","done":[%s],"skipped":[%s],"warnings":[%s]}\n' \

@@ -197,12 +197,19 @@ maven:
   worktree-seed: $FAKE_M2"
 WT2B="$(new_worktree twob)"
 mkdir -p "$WT2B/.mvn"
-printf -- '-Dmaven.repo.local=%s/elsewhere
--Dsome.other.flag=1
-' "$TMP_ROOT" > "$WT2B/.mvn/maven.config"
+# A Windows local repository, backslashes and all: that is what the answer has to
+# survive quoting, and a POSIX temp path would never catch it.
+printf -- '-Dmaven.repo.local=C:\\Users\\someone\\.m2-other\n-Dsome.other.flag=1\n' > "$WT2B/.mvn/maven.config"
 OUT6B="$(bash "$PROVISION" --source "$REPO" --worktree "$WT2B" 2>"$TMP_ROOT/err6b.log")"
 printf '%s' "$OUT6B" | grep -q '"status":"degraded"' && ok "a foreign local repository reports degraded" || bad "foreign repository not reported (got: $OUT6B)"
-if grep -qxF -- "-Dmaven.repo.local=$TMP_ROOT/elsewhere" "$WT2B/.mvn/maven.config"    && grep -qxF -- "-Dsome.other.flag=1" "$WT2B/.mvn/maven.config"; then
+# The answer must stay parseable JSON even when a path it quotes carries
+# backslashes — a Windows local repository is the normal case, not the exotic one.
+if printf '%s' "$OUT6B" | "${AFK_PY:-python}" -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null; then
+  ok "the answer is valid JSON with a backslash path in it"
+else
+  bad "answer is not valid JSON: $OUT6B"
+fi
+if grep -qF -- "m2-other" "$WT2B/.mvn/maven.config"    && grep -qxF -- "-Dsome.other.flag=1" "$WT2B/.mvn/maven.config"; then
   ok "the developer's maven.config is left exactly as it was"
 else
   bad "maven.config was rewritten: $(cat "$WT2B/.mvn/maven.config")"
