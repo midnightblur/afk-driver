@@ -18,6 +18,21 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-09-05
+
+### Changed
+
+- **The writing doctrine caps noun clusters and governs coined compounds.**
+  `LANGUAGE.md` section 1 caps a noun cluster at 3 words and says to unstack it
+  with a preposition or a verb. Section 2 adds two rules: a multi-word compound
+  naming a concept is a term, so register it in a glossary or write the concept
+  out as a phrase rather than coining one mid-document, and a registered
+  compound carries a 3-5 word gloss at first use in every document. Section 3
+  and `CLAUDE.md` no longer say to drop articles for concision - an article or
+  preposition marking a noun-to-noun relation is what tells the reader which
+  noun is the head, and dropping it is how the noun stacks were built. The
+  reply-standard install block carries the same rules.
+
 ### Added
 
 - **The gitlab forge contract records two ways an MR edit goes wrong** —
@@ -28,6 +43,11 @@ first released heading here.
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
   running git in either detaches a checkout the CLI owns.
+
+### Migration
+
+- Re-run `/afk:setup` H7 to refresh the user-global reply-standard block: the
+  install block gained the noun-cluster cap and the two coined-term rules.
 
 ## [1.0.14] - 2026-09-05
 
