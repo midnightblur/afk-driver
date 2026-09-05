@@ -18,6 +18,13 @@ first released heading here.
 
 ## [Unreleased]
 
+### Added
+
+- **README section 4 gained "Upgrading a pinned install"** — the order the pin
+  has to move in on each harness, and how to ask which version is live. Reading
+  the marketplace clone or the version cache answers a different question, and
+  running git in either detaches a checkout the CLI owns.
+
 ## [1.0.14] - 2026-09-05
 
 ### Removed

@@ -254,6 +254,43 @@ changes `hooks/hooks.codex.json`. The four agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
+### Upgrading a pinned install
+
+Both harnesses record an installed version, and a pin is stated in more than
+one file. Move them in this order, or the command refuses:
+
+1. **Bump the ref where the harness declares it.** Claude reads
+   `~/.claude/settings.json` -> `extraKnownMarketplaces.afk-toolkit.source.ref`;
+   the `.codex-plugin` harness reads `~/.codex/config.toml` ->
+   `[marketplaces.afk-toolkit] ref`.
+   Adding a marketplace at a ref the settings file still contradicts fails with
+   "its network source differs from the one declared for it in settings".
+2. **Re-add the marketplace at the new tag.**
+   `claude plugin marketplace add <owner>/<repo>@<tag> --scope user`, or
+   `codex plugin marketplace upgrade afk-toolkit`.
+3. **Update the plugin.** `claude plugin update afk@afk-toolkit`, or
+   `codex plugin add afk@afk-toolkit`. On Claude, `plugin install` answers
+   "already installed" and changes nothing — `update` is the verb that moves a
+   version.
+4. Run `/afk:setup` to rewrite the `.codex-plugin` agent stubs, which hold the
+   versioned root, then restart the harness.
+
+**Checking which version is live.** Ask the harness, never the directories:
+
+```sh
+claude plugin list            # the version the harness loads
+```
+
+and, for the path and commit behind it, the registry file the harness writes:
+`~/.claude/plugins/installed_plugins.json` -> `afk@afk-toolkit[].installPath`,
+`.version`, `.gitCommitSha`.
+
+`~/.claude/plugins/marketplaces/<name>` is a clone the CLI manages, and
+`~/.claude/plugins/cache/<market>/<plugin>/` keeps every version ever
+installed, so a `git log` in the first or an `ls` of the second answers a
+question nobody asked: both can show a version the harness does not load.
+Running git in either one also detaches a checkout the CLI believes it owns.
+
 ### Configuring a repository
 
 A repository the toolkit runs in needs one committed file, `.afk/config.yaml`.
