@@ -805,7 +805,10 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (the writing doctrine — which
+`DELEGATION.md`, `FRESHNESS.md`, `INVESTIGATION.md` (when reading code is
+finished — question types, the boundary catalog, the closure and counter-search
+rules, the coverage ledger; a code-reading step points at it, never restates
+it), `LANGUAGE.md` (the writing doctrine — which
 words, whose terms, how much — binding on replies and artifacts alike; every
 skill, agent, and emitter file carries only a pointer to it), `LAVISH.md` (the
 lavish-axi pin, invocation shapes, render-point → playbook map, and

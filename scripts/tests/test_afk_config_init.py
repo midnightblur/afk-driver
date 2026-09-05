@@ -113,6 +113,19 @@ def test_the_scaffold_writes_an_empty_string_not_an_empty_scalar(tmp_path):
     assert config["git"]["branch-pattern"] == ""
 
 
+def test_the_scaffold_leaves_the_investigation_block_as_a_todo(tmp_path):
+    """No repository can answer its own boundary instances, so none is guessed.
+
+    A guessed pattern that validates would silently under-enumerate; a commented
+    block makes the human write the ones their repository actually has.
+    """
+    repo = make_repo(tmp_path, "inv")
+    text, config = scaffold_of(repo)
+    assert "# investigation:" in text
+    assert "#       judgment-only: true" in text
+    assert "investigation" not in config
+
+
 # ---------------------------------------------------------------- writing
 
 def test_init_writes_the_file_and_refuses_to_overwrite(tmp_path):
@@ -183,6 +196,54 @@ def test_an_explicit_worktree_base_still_wins(tmp_path):
 
 
 # ------------------------------------------------------------- validation
+
+def test_the_investigation_block_is_optional():
+    """Absent means "the scripts run their defaults only", not a problem."""
+    assert ac.validate({"schema": ac.SCHEMA}) == []
+
+
+def test_an_investigation_boundary_needs_a_class_and_one_method():
+    base = {"schema": ac.SCHEMA}
+    ok = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "listener", "class": "B11", "pattern": "@Listener"},
+    ]}})
+    assert ok == []
+
+    no_method = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "listener", "class": "B11"},
+    ]}})
+    assert any("needs a `pattern`" in p for p in no_method)
+
+    bad_class = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "listener", "class": "B99", "pattern": "@Listener"},
+    ]}})
+    assert any("B99" in p for p in bad_class)
+
+
+def test_a_judgment_only_boundary_carries_a_site_not_a_pattern():
+    base = {"schema": ac.SCHEMA}
+    ok = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "message-name", "class": "B4",
+         "judgment-only": True, "site": "tools/name-builder.txt"},
+    ]}})
+    assert ok == []
+
+    no_site = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "message-name", "class": "B4", "judgment-only": True},
+    ]}})
+    assert any("site" in p for p in no_site)
+
+    both = ac.validate({**base, "investigation": {"boundaries": [
+        {"name": "message-name", "class": "B4", "judgment-only": True,
+         "site": "tools/name-builder.txt", "pattern": "x"},
+    ]}})
+    assert any("not a `pattern`" in p for p in both)
+
+
+def test_an_unknown_investigation_key_is_refused():
+    problems = ac.validate({"schema": ac.SCHEMA, "investigation": {"generatd": ["t"]}})
+    assert any("generatd" in p for p in problems)
+
 
 def test_a_committed_team_default_block_is_now_an_unknown_key():
     base = {"schema": ac.SCHEMA}

@@ -82,3 +82,22 @@ repo-hooks: .afk/hooks.json
 setup:
   extra:
     - docs/afk/SETUP-EXTRA.md
+investigation:
+  boundaries:
+    - name: event-listener
+      class: B11
+      pattern: '@\w*EventListener\b'
+    - name: interface-client
+      class: B10
+      pattern: 'serviceBaseUrl\('
+      paths:
+        - 'services/*/ui/src'
+    - name: message-name
+      class: B4
+      judgment-only: true
+      site: tools/messaging/name-builder.txt
+      note: built by concatenation at start-up; a search cannot enumerate it
+  generated:
+    - target/generated-sources
+  reactor:
+    - pom.xml

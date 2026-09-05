@@ -55,6 +55,17 @@ Followability artifacts + stewards: **ticket index** (`INDEX.md`, read-this-firs
 
 The orchestrating agent's context window is the run's scarcest resource. **`DELEGATION.md`** (plugin root) owns the doctrine: must-delegate triggers (bulk reads, repo-wide searches, suite/build runs, large diffs, external intake), spawn rules (parallel-in-one-message, background think-time overlap in interactive phases, named agent types, nesting cap), return contract (terse cited digest, bulk evidence to a file), and what must never be delegated (the human conversation, conversation synthesis, single-writer stamps). Skills point at it, never restate. A step matching a trigger delegates even where a skill's own prose predates the doctrine.
 
+## Investigation (binding on every code-reading step)
+
+A question about existing code is finished when its boundaries are closed, not
+when a grep returns. **`INVESTIGATION.md`** (plugin root) owns the doctrine:
+the five question types, the boundary catalog B1–B14, the completion checklist
+per question type, node dispositions and boundary verdicts, the closure rule,
+the counter-search and proportionality rules, the coverage-ledger semantics, and
+the reply shape. Repository-specific boundary instances live in the target
+repository's `investigation:` config block (`CONFIG.md`). Skills point there,
+never restate.
+
 ## Freshness (binding on every change)
 
 No plugin-source artifact may go stale — an agent trusts what it reads. **`FRESHNESS.md`** (plugin root) owns the doctrine: **same-commit rule** (a change adding/removing/changing an external dependency updates the dependency register `skills/afk/setup/MANIFEST.md` in the same commit; a change adding/renaming/removing a skill or plugin artifact updates every surface its registry row names in the same commit) and **artifact registry** (plugin-source artifact → steward → update triggers). Drift catcher: **`/afk:setup audit`** (`skills/afk/setup/AUDIT.md`) — run before shipping plugin changes. Skills point here, never restate. (Runtime artifacts — plan/, INDEX.md, journal — governed by "Section ownership invariants" below.)
@@ -174,6 +185,7 @@ Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket desc
 - `REPORTING.md` — human-facing reporting protocol every status-emitting skill follows.
 - `DECISIONS.md` — one home for the hands-off decision protocol: the two-way-door test (decide + record in the `plan/DECISIONS.md` ledger) vs park (one-way doors, ties — `needs_decision`/`design_conflict`), the ledger grammar, and the read/report duties. Skills carry only pointers.
 - `DELEGATION.md` — subagent-delegation protocol every context-heavy skill follows.
+- `INVESTIGATION.md` — one home for the code-investigation completion doctrine: question types, boundary catalog, closure and counter-search rules, coverage-ledger semantics. Skills carry only pointers.
 - `CONFIG.md` — the consuming repository's contract: `.afk/config.yaml`, the supported YAML subset, the discovery order, and the `AFK_CFG_*` shell view. One reader owns it (`scripts/afk-config.py`); no skill and no gate parses the file.
 - `ADAPTERS.md` — the four adapter families (tracker, forge, notes, build-gate), their verbs, their answer shapes, and how to add a kind. Dispatch is `hooks/lib/adapter.sh`.
 - `CAPABILITIES.md` — shared capability contract and degradation rules.

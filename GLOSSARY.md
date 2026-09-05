@@ -198,6 +198,23 @@ The subagent spawned by `retest` to re-run a bug's reproduction read-only once i
 At most one bug across the whole ledger may hold the `fixing` (S4) lane at a time; a second bug queues (S3) instead of dispatching.
 _Also_: one-live-fixer (prose names it inside a list of invariants, the category noun carried by the sentence)
 
+## Investigation
+
+**Boundary (investigation)**:
+One of the 14 generic ways a reference to a symbol can cross code (B1–B14) — textual, type dispatch, reflection, string-keyed identity, serialized shape, generated code, build graph, config, persistence, interface clients, async, tests, documents, external. Catalog + per-class enumeration method: `INVESTIGATION.md` (plugin root); a repository's own instances live in its `investigation:` config block (`CONFIG.md`).
+_Avoid_: seam (that is where new code meets existing code, a design term)
+
+**Closure**:
+The completion criterion of a code investigation — no node in the work queue is unchecked and every applicable boundary carries a verdict. Transitive expansion runs while the changed facet propagates, never to a time, turn, or token budget. Rule: `INVESTIGATION.md`.
+_Avoid_: done, exhaustive (unbounded), full coverage (that is a test metric)
+
+**Frontier**:
+A boundary deliberately not crossed, recorded with its reason — another repository, unbuilt generated output, an external consumer. Distinct from `unverified`, which is a boundary that should have been crossed and was not. Neither is ever reported as an absence.
+
+**Coverage ledger**:
+The two-file record of one investigation — `<slug>.coverage.json` (six tables: `run`, `boundaries`, `nodes`, `queries`, `claims`, `counter_checks`) plus a short `REPORT.md` beside it. `frontier` and `unverified` are statuses inside those tables. Semantics + location rule: `INVESTIGATION.md`.
+_Avoid_: coverage report (that is a test-coverage artifact)
+
 ## Gates & verdicts
 
 **Human-locked aspect**:

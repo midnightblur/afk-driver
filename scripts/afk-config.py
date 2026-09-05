@@ -52,7 +52,7 @@ TOP_LEVEL = {
     "schema", "toolkit-version", "tracker", "forge", "notes", "build-gates",
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
-    "repo-hooks", "setup", "developer", "worktree",
+    "repo-hooks", "setup", "developer", "worktree", "investigation",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -73,6 +73,15 @@ DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinar
 # worktree would then run without hooks, MCP registration or run configurations.
 WORKTREE_COPY_DEFAULT = (".mcp.json", ".claude", ".run", ".idea")
 WORKTREE_KEYS = {"copy", "copy-personal", "copy-ignored-claude-md"}
+
+# Investigation boundaries: this repository's instances of the generic boundary
+# classes `INVESTIGATION.md` owns. Declarative only — a `pattern` is a regular
+# expression a search reads, never a command, so nothing here can execute.
+INVESTIGATION_KEYS = {"boundaries", "generated", "reactor"}
+INVESTIGATION_BOUNDARY_KEYS = {
+    "name", "class", "pattern", "judgment-only", "site", "paths", "note",
+}
+INVESTIGATION_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 
 # Per-kind worktree provisioning. Flat, like every other `maven.` / `npm.` key.
 MAVEN_WORKTREE_REPO = ("isolated", "shared")
@@ -323,6 +332,68 @@ def _choice(problems: list[str], config: dict, key: str, allowed: tuple[str, ...
         problems.append(f"{key}: {value!r} is not one of {', '.join(allowed)}")
 
 
+def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
+    """Each entry names one boundary and exactly one way to enumerate it.
+
+    A boundary with no enumeration method is the failure this block exists to
+    prevent: it would be silently skipped, and a skipped boundary reads as an
+    absence. Refuse it at configuration time instead.
+    """
+    for index, entry in enumerate(boundaries):
+        where = f"investigation.boundaries[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{where}: must be a mapping")
+            continue
+        for key in sorted(set(entry) - INVESTIGATION_BOUNDARY_KEYS):
+            problems.append(
+                f"{where}.{key}: unknown key; expected one of "
+                f"{', '.join(sorted(INVESTIGATION_BOUNDARY_KEYS))}"
+            )
+        name = entry.get("name")
+        if not isinstance(name, str) or not name.strip():
+            problems.append(f"{where}.name: required, a short identifier")
+        klass = entry.get("class")
+        if klass not in INVESTIGATION_CLASSES:
+            problems.append(
+                f"{where}.class: {klass!r} is not one of "
+                f"{INVESTIGATION_CLASSES[0]}..{INVESTIGATION_CLASSES[-1]}"
+            )
+        judgment = entry.get("judgment-only")
+        if judgment is not None and not isinstance(judgment, bool):
+            problems.append(f"{where}.judgment-only: must be true or false")
+        pattern = entry.get("pattern")
+        if pattern is not None and not isinstance(pattern, str):
+            problems.append(f"{where}.pattern: must be a search expression")
+        site = entry.get("site")
+        if site is not None and not isinstance(site, str):
+            problems.append(f"{where}.site: must be a repository-relative path")
+        if judgment is True:
+            if pattern is not None:
+                problems.append(
+                    f"{where}: a judgment-only boundary carries a `site`, not a `pattern`"
+                )
+            if not isinstance(site, str) or not site.strip():
+                problems.append(
+                    f"{where}.site: required when `judgment-only: true` — name the "
+                    "file an agent has to read"
+                )
+        elif not isinstance(pattern, str) or not pattern.strip():
+            problems.append(
+                f"{where}: needs a `pattern`, or `judgment-only: true` with a `site`"
+            )
+        paths = entry.get("paths")
+        if paths is not None:
+            if not isinstance(paths, list):
+                problems.append(f"{where}.paths: must be a block list of globs")
+            else:
+                for glob in paths:
+                    if not isinstance(glob, str) or not glob.strip():
+                        problems.append(f"{where}.paths: {glob!r} is not a glob")
+        note = entry.get("note")
+        if note is not None and not isinstance(note, str):
+            problems.append(f"{where}.note: must be a string")
+
+
 def validate(config: dict, root: Path | None = None) -> list[str]:
     problems: list[str] = []
 
@@ -424,6 +495,36 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                 value = worktree.get(flag)
                 if value is not None and not isinstance(value, bool):
                     problems.append(f"worktree.{flag}: must be true or false")
+
+    investigation = config.get("investigation")
+    if investigation is not None:
+        if not isinstance(investigation, dict):
+            problems.append("investigation: must be a mapping")
+        else:
+            for key in sorted(set(investigation) - INVESTIGATION_KEYS):
+                problems.append(
+                    f"investigation.{key}: unknown key; expected one of "
+                    f"{', '.join(sorted(INVESTIGATION_KEYS))}"
+                )
+            for key in ("generated", "reactor"):
+                value = investigation.get(key)
+                if value is None:
+                    continue
+                if not isinstance(value, list):
+                    problems.append(
+                        f"investigation.{key}: must be a block list; express `none` "
+                        "by omitting the key"
+                    )
+                    continue
+                for entry in value:
+                    if not isinstance(entry, str) or not entry.strip():
+                        problems.append(f"investigation.{key}: {entry!r} is not a path")
+            boundaries = investigation.get("boundaries")
+            if boundaries is not None:
+                if not isinstance(boundaries, list):
+                    problems.append("investigation.boundaries: must be a block list")
+                else:
+                    _investigation_boundaries(problems, boundaries)
 
     maven = config.get("maven") if isinstance(config.get("maven"), dict) else {}
     repo_mode = maven.get("worktree-repo")
@@ -663,6 +764,26 @@ def scaffold(root: Path) -> str:
             lines.append("  # default-module: TODO      # the module the gates build when a")
             lines.append("  # change names none; omit to build the whole reactor.")
         lines.append("")
+
+    lines += [
+        "# Investigation boundaries: how a reference to a symbol hides in THIS",
+        "# repository. A class left undeclared is reported `unverified(no method)`,",
+        "# never as an absence. Classes B1 .. B14: `INVESTIGATION.md` in the plugin.",
+        "# investigation:",
+        "#   boundaries:",
+        "#     - name: TODO            # a short identifier",
+        "#       class: TODO           # B1 .. B14",
+        "#       pattern: TODO         # regex a search reads; never a command",
+        "#     - name: TODO",
+        "#       class: TODO",
+        "#       judgment-only: true   # a search cannot enumerate it",
+        "#       site: TODO            # the file an agent has to read instead",
+        "#   generated:                # build output; absent output is `frontier`",
+        "#     - TODO",
+        "#   reactor:                  # aggregator manifests the build graph uses",
+        "#     - TODO",
+        "",
+    ]
 
     lines += [
         "# Who work is assigned to, and who reviews it, are NOT configured here:",

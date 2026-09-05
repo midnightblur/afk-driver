@@ -20,10 +20,30 @@ first released heading here.
 
 ### Added
 
+- **`INVESTIGATION.md` — when reading code is finished.** The plugin had a bar
+  for a single claim and no completion criterion for a whole investigation, so
+  a partial read produced a cited, internally consistent, wrong answer. The new
+  root doctrine defines completion as closure over a 14-class boundary catalog:
+  five question types, a completion checklist per type, node dispositions and
+  boundary verdicts, the closure, counter-search, and proportionality rules, and
+  the coverage-ledger semantics. Every code-reading step points at it.
+- **Optional `investigation:` block in `.afk/config.yaml`.** A repository
+  declares its own boundary instances — `boundaries` (name, class, and either a
+  search pattern or a judgment-only site), `generated` output, and `reactor`
+  manifests. Declarative only: a pattern is never a command. Absent means the
+  generic defaults run alone, and a class with no method is reported
+  `unverified(no method)`, never as an absence. `/afk:setup` scaffolds it as a
+  commented block.
 - **README section 4 gained "Upgrading a pinned install"** — the order the pin
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
   running git in either detaches a checkout the CLI owns.
+
+### Changed
+
+- **The frontier model tier now names one model per harness column**
+  (`PROVIDERS.md` "Model tiers"). A research-preview model is never a tier; a
+  skill that needs one names it for that usage alone.
 
 ## [1.0.14] - 2026-09-05
 

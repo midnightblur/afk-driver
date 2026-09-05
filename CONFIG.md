@@ -102,6 +102,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
 | `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
+| `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee` and `mrReviewer` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
 
 ### Path templates
@@ -151,6 +152,41 @@ matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
 refused. `hooks/run-hook.py` runs the matching entries in declaration order and
 exports `AFK_PLUGIN_ROOT` to each.
+
+### Investigation boundaries
+
+`investigation` declares this repository's instances of the generic boundary
+classes B1–B14 that `INVESTIGATION.md` (plugin root) owns. Declarative only: a
+`pattern` is a regular expression handed to `git grep`, never a command.
+
+```yaml
+investigation:
+  boundaries:
+    - name: event-listener
+      class: B11
+      pattern: '@\w*EventListener'
+    - name: interface-client
+      class: B10
+      paths:
+        - '*-ui/src'
+      pattern: 'serviceBaseUrl\('
+    - name: message-name
+      class: B4
+      judgment-only: true
+      site: path/to/the/site/that/builds/the/name
+      note: built by concatenation at start-up; a search cannot enumerate it
+  generated:
+    - target/generated-sources
+  reactor:
+    - pom.xml
+```
+
+Each `boundaries` entry needs `name` and `class` (`B1`–`B14`), then exactly one
+enumeration method: `pattern`, or `judgment-only: true` with the `site` an agent
+must read. `paths` (block list of globs) narrows the search; `note` carries the
+gotcha. `generated` lists build output directories or files — absent output is
+reported `frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
+manifests the build-graph class (B7) parses.
 
 ## Secrets
 
