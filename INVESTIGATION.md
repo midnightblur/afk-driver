@@ -26,7 +26,7 @@ a verdict.
 
 | # | Class | How a reference hides | Deterministic? |
 |---|---|---|---|
-| B1 | Textual reference | none | yes — search every name form |
+| B1 | Textual reference | none | yes — search every **name form**: simple name, fully qualified name, import alias, wire or serialized name |
 | B2 | Type dispatch | bound by parameter or supertype, the subtype never named | partly — search declaration and parameter forms, then read the dispatch site |
 | B3 | Reflection / scan | classpath scan, name-to-class lookup, annotation processing | judgment-only — read the scanning site, decide what it reaches |
 | B4 | String-keyed identity | config key, permission string, message name, bean name, route, service name — a rename breaks silently | partly — search the literal key forms, read the site that builds them |
@@ -57,25 +57,35 @@ Each list is the minimum. A question with no method for a listed item records
 `unverified`, and the answer carries it.
 
 - **Q1** — B1, B2, B10, B11 close the entry-point set. Per hop: file:line, the
-  guard that decides, the transaction boundary, the identity or scoping context.
-  Every effect enumerated: writes (B9), outbound messages and calls (B4, B11),
-  files and logs. Terminal states and failure paths (caught, rethrown, retried,
-  fallback). Config the path reads (B8), tests pinning each hop (B12), documents
+  guard that decides, the transformation the hop applies, the transaction
+  boundary, the identity or scoping context. Every effect enumerated: writes
+  (B9), outbound messages and calls (B4, B11), files and logs. Terminal states
+  and every failure path: caught, rethrown, retried, timed out, rolled back,
+  fallback. Every variant the path takes: profile, role, scope, lifecycle state,
+  flag. Config the path reads (B8), tests pinning each hop (B12), documents
   asserting the behaviour (B13).
-- **Q2** — every name form listed; B1–B7, B10–B11 each with a verdict; the
+- **Q2** — every name form (B1) listed; B1–B7, B10–B11 each with a verdict; the
   transitive set carried to the depth the facet propagates (see Closure). The
   result is a list of sites, never a count.
-- **Q3** — Q2, plus per site: the facet relied on (name · signature · serialized
-  shape · behaviour · ordering · config key), which change kinds break it,
+- **Q3** — Q2, plus per site: the facet relied on (name · signature ·
+  serialized field · route · schema · behaviour · ordering · config key ·
+  cached value · authorization or data scope), which change kinds break it,
   whether a test pins it (`unguarded` when none), and a verdict of `breaks` ·
-  `unchanged(cited)` · `unverified`. B4 and B6 are checked explicitly.
+  `unchanged(cited)` · `unverified`. B4 and B6 are checked explicitly. Two
+  cross-site items close the question: schema and migration effects (B9), and
+  deployment order — which side has to ship first for the other to keep working.
 - **Q4** — every branch, guard, and exception on the Q1 path, plus per hop:
-  null and empty, concurrency and transaction boundary, partial failure and
-  retry, authorization and data scoping, ordering, size and paging, time and
-  time zone, tenant or profile, flag state. Each case is covered by code
-  (cited), covered by a test (cited), or a gap.
-- **Q5** — every name form and B1–B13 enumerated with the method stated,
-  generated output (B6) and the full inheritance chain included. The answer is
+  null and empty, bounds and precision, lifecycle state, concurrency and
+  transaction boundary, partial failure, retry and duplicate delivery,
+  rollback, stale cache, unavailable dependency, configuration failure,
+  authorization and data scoping, ordering, size and paging, time and time
+  zone, tenant or profile, flag state. Each case is covered by code (cited),
+  covered by a test (cited), or a gap.
+- **Q5** — every name form (B1) and B1–B13 enumerated with the method stated,
+  generated output (B6) and the full inheritance chain included. Message names
+  and configuration keys (B4, B8) are searched as literals, not as symbols.
+  When history is in scope, historical names too — the symbol's renames, and
+  the deletions a content search over the log finds. The answer is
   `absent(closed over B1–B13, frontier: B14)` or `unverified` — never a bare no.
 
 ## Closure

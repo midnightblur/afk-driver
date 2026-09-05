@@ -240,6 +240,38 @@ def test_a_judgment_only_boundary_carries_a_site_not_a_pattern():
     assert any("not a `pattern`" in p for p in both)
 
 
+def test_every_investigation_path_stays_inside_the_repository():
+    """A path pointing out of the repository would cover somewhere else."""
+    base = {"schema": ac.SCHEMA}
+
+    def problems_for(block):
+        return ac.validate({**base, "investigation": block})
+
+    boundary = {"name": "n", "class": "B4", "judgment-only": True}
+    assert problems_for({"boundaries": [{**boundary, "site": "tools/builder.txt"}]}) == []
+    assert problems_for({"generated": ["target/generated-sources"]}) == []
+    assert problems_for({"reactor": ["modules/pom.xml"]}) == []
+    assert problems_for({"boundaries": [
+        {"name": "n", "class": "B10", "pattern": "x", "paths": ["services/*/ui"]},
+    ]}) == []
+
+    for block, needle in (
+        ({"boundaries": [{**boundary, "site": "/etc/passwd"}]}, "absolute"),
+        ({"boundaries": [{**boundary, "site": "C:\tools\builder.txt"}]}, "absolute"),
+        ({"boundaries": [{**boundary, "site": "../other/builder.txt"}]}, "escapes"),
+        ({"generated": ["/var/build"]}, "absolute"),
+        ({"generated": ["../sibling/target"]}, "escapes"),
+        ({"reactor": ["/opt/pom.xml"]}, "absolute"),
+        ({"reactor": ["../other/pom.xml"]}, "escapes"),
+        ({"boundaries": [{"name": "n", "class": "B10", "pattern": "x",
+                          "paths": ["../other/src"]}]}, "escapes"),
+        ({"boundaries": [{"name": "n", "class": "B10", "pattern": "x",
+                          "paths": ["/srv/src"]}]}, "absolute"),
+    ):
+        found = problems_for(block)
+        assert any(needle in problem for problem in found), (block, found)
+
+
 def test_an_unknown_investigation_key_is_refused():
     problems = ac.validate({"schema": ac.SCHEMA, "investigation": {"generatd": ["t"]}})
     assert any("generatd" in p for p in problems)

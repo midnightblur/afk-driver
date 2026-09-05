@@ -201,7 +201,7 @@ _Also_: one-live-fixer (prose names it inside a list of invariants, the category
 ## Investigation
 
 **Boundary (investigation)**:
-One of the 14 generic ways a reference to a symbol can cross code (B1–B14) — textual, type dispatch, reflection, string-keyed identity, serialized shape, generated code, build graph, config, persistence, interface clients, async, tests, documents, external. Catalog + per-class enumeration method: `INVESTIGATION.md` (plugin root); a repository's own instances live in its `investigation:` config block (`CONFIG.md`).
+One of the 14 generic ways a reference to a symbol can cross code (B1–B14). Catalog, per-class enumeration method, and verdict set: `INVESTIGATION.md` (plugin root); a repository's own instances live in its `investigation:` config block (`CONFIG.md`).
 _Avoid_: seam (that is where new code meets existing code, a design term)
 
 **Closure**:
@@ -212,7 +212,7 @@ _Avoid_: done, exhaustive (unbounded), full coverage (that is a test metric)
 A boundary deliberately not crossed, recorded with its reason — another repository, unbuilt generated output, an external consumer. Distinct from `unverified`, which is a boundary that should have been crossed and was not. Neither is ever reported as an absence.
 
 **Coverage ledger**:
-The two-file record of one investigation — `<slug>.coverage.json` (six tables: `run`, `boundaries`, `nodes`, `queries`, `claims`, `counter_checks`) plus a short `REPORT.md` beside it. `frontier` and `unverified` are statuses inside those tables. Semantics + location rule: `INVESTIGATION.md`.
+The two-file record of one investigation — a JSON file carrying the complete denominator, plus a short markdown report beside it. `frontier` and `unverified` are statuses inside it, never separate files. Table set, semantics, and location rule: `INVESTIGATION.md`.
 _Avoid_: coverage report (that is a test-coverage artifact)
 
 ## Gates & verdicts

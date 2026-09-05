@@ -164,7 +164,7 @@ investigation:
   boundaries:
     - name: event-listener
       class: B11
-      pattern: '@\w*EventListener'
+      pattern: '@\w*EventListener\b'
     - name: interface-client
       class: B10
       paths:
@@ -183,8 +183,8 @@ investigation:
 
 Each `boundaries` entry needs `name` and `class` (`B1`–`B14`), then exactly one
 enumeration method: `pattern`, or `judgment-only: true` with the `site` an agent
-must read. `paths` (block list of globs) narrows the search; `note` carries the
-gotcha. `generated` lists build output directories or files — absent output is
+must read. `paths` narrows the search: a block list of git pathspecs (a glob or
+a directory prefix) passed after `git grep --`. `note` carries the gotcha. `generated` lists build output directories or files — absent output is
 reported `frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
 manifests the build-graph class (B7) parses.
 

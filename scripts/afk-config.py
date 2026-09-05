@@ -332,6 +332,19 @@ def _choice(problems: list[str], config: dict, key: str, allowed: tuple[str, ...
         problems.append(f"{key}: {value!r} is not one of {', '.join(allowed)}")
 
 
+def _relative_path(problems: list[str], where: str, value: str) -> None:
+    """Every path this block holds is repository-relative.
+
+    An absolute path, a drive-letter path, or a `..` segment would point an
+    investigation at a file outside the repository it is enumerating: the
+    coverage it then reports would be of somewhere else.
+    """
+    if value.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", value):
+        problems.append(f"{where}: {value!r} is absolute; paths are repository-relative")
+    elif ".." in value.replace("\\", "/").split("/"):
+        problems.append(f"{where}: {value!r} escapes the repository")
+
+
 def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
     """Each entry names one boundary and exactly one way to enumerate it.
 
@@ -367,6 +380,8 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
         site = entry.get("site")
         if site is not None and not isinstance(site, str):
             problems.append(f"{where}.site: must be a repository-relative path")
+        elif isinstance(site, str) and site.strip():
+            _relative_path(problems, f"{where}.site", site)
         if judgment is True:
             if pattern is not None:
                 problems.append(
@@ -388,7 +403,9 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
             else:
                 for glob in paths:
                     if not isinstance(glob, str) or not glob.strip():
-                        problems.append(f"{where}.paths: {glob!r} is not a glob")
+                        problems.append(f"{where}.paths: {glob!r} is not a pathspec")
+                    else:
+                        _relative_path(problems, f"{where}.paths", glob)
         note = entry.get("note")
         if note is not None and not isinstance(note, str):
             problems.append(f"{where}.note: must be a string")
@@ -519,6 +536,8 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                 for entry in value:
                     if not isinstance(entry, str) or not entry.strip():
                         problems.append(f"investigation.{key}: {entry!r} is not a path")
+                    else:
+                        _relative_path(problems, f"investigation.{key}", entry)
             boundaries = investigation.get("boundaries")
             if boundaries is not None:
                 if not isinstance(boundaries, list):
@@ -774,6 +793,8 @@ def scaffold(root: Path) -> str:
         "#     - name: TODO            # a short identifier",
         "#       class: TODO           # B1 .. B14",
         "#       pattern: TODO         # regex a search reads; never a command",
+        "#       paths:                # optional: repository-relative pathspecs",
+        "#         - TODO",
         "#     - name: TODO",
         "#       class: TODO",
         "#       judgment-only: true   # a search cannot enumerate it",
