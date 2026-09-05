@@ -4,7 +4,7 @@
 # Two forms, one implementation — see adapters/build-gate/maven/gates.sh for the
 # reason the commit runner sources this rather than executing it.
 #   sourced  — defines afk_bg_npm_discover / afk_bg_npm_run
-#   executed — bash gates.sh gate-discover | gate-run <name>
+#   executed — bash gates.sh gate-discover | gate-run <name> | worktree-provision <json>
 #
 # Gate names: ui-lint.
 
@@ -51,8 +51,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
       # shellcheck source=/dev/null
       . "$_hooks/gate-metrics.sh"
       shift; afk_bg_npm_run "$@"; exit $? ;;
+    worktree-provision)
+      shift; bash "$AFK_BG_NPM_DIR/worktree-provision.sh" "$@"; exit $? ;;
     *)
-      printf '{"unsupported": true, "reason": "build-gate/npm verbs: gate-discover, gate-run <name>"}\n'
+      printf '{"unsupported": true, "reason": "build-gate/npm verbs: gate-discover, gate-run <name>, worktree-provision <json>"}\n'
       exit 3 ;;
   esac
 fi

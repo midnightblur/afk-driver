@@ -96,13 +96,14 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `obsidian` | map | `vault` |
 | `notion` | map | `parent-page-id` |
 | `artifacts` | map | `glossary-map`, `service-map` |
-| `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`) |
-| `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace) |
+| `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`), `worktree-repo` (`isolated` \| `shared`), `worktree-seed` (`auto` \| `none` \| a path), `worktree-seed-exclude` (globs the seed skips, default `*-SNAPSHOT`) |
+| `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace, also where a new worktree installs), `worktree-install` (`ci` \| `none`), `worktree-command` (argv words restoring the dependencies, default `npm ci`) |
 | `verification` | map | `tiers`, `env` |
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
 | `tracker-defaults` | map | `assignee` — the account id or email work is assigned to when a developer set none. A team fact, so it is committed. |
 | `forge-defaults` | map | `reviewer` — the forge username reviewing a change when a developer set none. A team fact, so it is committed. |
+| `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. All optional. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. Resolve with `afk-config.py resolve <key>`, which applies developer value, then the committed default above, then (for `worktreeBasePath`) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
 
 ### Path templates
@@ -110,6 +111,20 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 `repo-files.spec-dir` and `git.branch-template` expand a fixed placeholder set:
 `{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`.
 An unknown placeholder is left alone rather than guessed.
+
+### Worktree provisioning
+
+`scripts/create-worktree` copies what `worktree.copy` names, then runs
+`scripts/worktree-provision`, which asks every selected build gate to provision
+the new worktree for itself. What each one does, and the keys it reads, is in
+its own `adapters/build-gate/<kind>/CONTRACT.md`.
+
+Provisioning is recorded in the worktree's git admin directory, never in its
+tree, so it never appears in `git status` and never blocks `git worktree
+remove`. A second run does nothing; a run against a worktree that already has
+the state adopts it instead of redoing it, which is how a worktree made before
+this existed is brought forward. `--force` redoes it; `--skip-build-gate <kind>`
+leaves one alone.
 
 ### Verification tiers
 
@@ -149,7 +164,7 @@ gitignored `.afk/config.local.yaml` when one checkout needs a different value.
 
 The subset, the discovery order and the agreement between the three views are
 pinned by `scripts/tests/test_afk_config.py`; the scaffolder and the
-developer-value resolution order by `scripts/tests/test_afk_config_init.py`; `scripts/tests/samples/monorepo-config.yaml`
+developer-value resolution order by `scripts/tests/test_afk_config_init.py`; worktree copying and provisioning by `scripts/tests/create-worktree-smoke.sh` and `scripts/tests/worktree-provision-smoke.sh`; `scripts/tests/samples/monorepo-config.yaml`
 is the large-repository fixture it validates.
 
 ## The shell view

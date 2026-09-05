@@ -53,7 +53,7 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer",
-    "tracker-defaults", "forge-defaults",
+    "tracker-defaults", "forge-defaults", "worktree",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -77,6 +77,16 @@ DEVELOPER_FALLBACKS = {
     "mrReviewer": "forge-defaults.reviewer",
 }
 
+# What a new worktree carries over from the checkout it was cut from. These are
+# personal, untracked files a fresh `git worktree add` would leave behind — the
+# worktree would then run without hooks, MCP registration or run configurations.
+WORKTREE_COPY_DEFAULT = (".mcp.json", ".claude", ".run", ".idea")
+WORKTREE_KEYS = {"copy", "copy-personal", "copy-ignored-claude-md"}
+
+# Per-kind worktree provisioning. Flat, like every other `maven.` / `npm.` key.
+MAVEN_WORKTREE_REPO = ("isolated", "shared")
+NPM_WORKTREE_INSTALL = ("ci", "none")
+
 DEFAULTS: dict = {
     "schema": SCHEMA,
     "tracker": "none",
@@ -84,6 +94,11 @@ DEFAULTS: dict = {
     "notes": "repo-files",
     "git": {"base-branch": "auto", "branch-pattern": ""},
     "repo-files": {"spec-dir": "docs/afk/{workId}"},
+    "worktree": {
+        "copy": list(WORKTREE_COPY_DEFAULT),
+        "copy-personal": True,
+        "copy-ignored-claude-md": True,
+    },
 }
 
 
@@ -389,6 +404,72 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
             problems.append(f"{block}.{extra}: unknown key; expected `{key}`")
         if key in value and not isinstance(value[key], str):
             problems.append(f"{block}.{key}: must be a string")
+
+    worktree = config.get("worktree")
+    if worktree is not None:
+        if not isinstance(worktree, dict):
+            problems.append("worktree: must be a mapping")
+        else:
+            for key in sorted(set(worktree) - WORKTREE_KEYS):
+                problems.append(
+                    f"worktree.{key}: unknown key; expected one of "
+                    f"{', '.join(sorted(WORKTREE_KEYS))}"
+                )
+            copy = worktree.get("copy")
+            if copy is not None:
+                if not isinstance(copy, list):
+                    problems.append(
+                        "worktree.copy: must be a block list; express `copy nothing` "
+                        "with `copy-personal: false`"
+                    )
+                elif not copy:
+                    # An empty list reads as "I configured this" while meaning the
+                    # same as the flag. One way to say a thing.
+                    problems.append(
+                        "worktree.copy: an empty list is refused; use `copy-personal: false`"
+                    )
+                else:
+                    for entry in copy:
+                        if not isinstance(entry, str) or not entry.strip():
+                            problems.append(f"worktree.copy: {entry!r} is not a path")
+                        elif entry.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", entry):
+                            problems.append(
+                                f"worktree.copy: {entry!r} is absolute; entries are "
+                                "repository-relative"
+                            )
+                        elif ".." in entry.replace("\\", "/").split("/"):
+                            problems.append(
+                                f"worktree.copy: {entry!r} escapes the repository"
+                            )
+            for flag in ("copy-personal", "copy-ignored-claude-md"):
+                value = worktree.get(flag)
+                if value is not None and not isinstance(value, bool):
+                    problems.append(f"worktree.{flag}: must be true or false")
+
+    maven = config.get("maven") if isinstance(config.get("maven"), dict) else {}
+    repo_mode = maven.get("worktree-repo")
+    if repo_mode is not None and repo_mode not in MAVEN_WORKTREE_REPO:
+        problems.append(
+            f"maven.worktree-repo: {repo_mode!r} is not one of "
+            f"{', '.join(MAVEN_WORKTREE_REPO)}"
+        )
+    seed = maven.get("worktree-seed")
+    if seed is not None and not isinstance(seed, str):
+        problems.append("maven.worktree-seed: must be `auto`, `none`, or a path")
+    excludes = maven.get("worktree-seed-exclude")
+    if excludes is not None and not isinstance(excludes, list):
+        problems.append("maven.worktree-seed-exclude: must be a block list of globs")
+
+    npm = config.get("npm") if isinstance(config.get("npm"), dict) else {}
+    install = npm.get("worktree-install")
+    if install is not None and install not in NPM_WORKTREE_INSTALL:
+        problems.append(
+            f"npm.worktree-install: {install!r} is not one of "
+            f"{', '.join(NPM_WORKTREE_INSTALL)}"
+        )
+    command = npm.get("worktree-command")
+    if command is not None and (not isinstance(command, list) or not command):
+        problems.append("npm.worktree-command: must be a non-empty block list of argv words")
 
     developer = config.get("developer")
     if developer is not None:

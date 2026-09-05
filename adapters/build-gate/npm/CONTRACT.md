@@ -1,11 +1,13 @@
 # build-gate/npm — capability contract
 
-npm gates: lint, run in the nearest workspace of each staged file.
+npm gates: lint, run in the nearest workspace of each staged file, plus
+worktree provisioning.
 
 ## Verbs
 
 - `gate-discover`
 - `gate-run`
+- `worktree-provision`
 
 Every verb takes its arguments as JSON on the command line or on stdin, and
 answers with one JSON object on stdout. A verb this adapter does not implement
@@ -17,6 +19,8 @@ absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 - `build-gates`
 - `npm.lint`
 - `npm.workspace-root`
+- `npm.worktree-install`
+- `npm.worktree-command`
 
 Secrets are never read from a configuration file. The keys above name
 environment variables; the values come from the environment or the harness
@@ -33,6 +37,28 @@ configuration; with none, `npm.workspace-root` is used when it is an ancestor.
 `npm.lint` is a command and its fixed arguments, split on whitespace, with the
 changed files appended; it defaults to
 `npx --no-install eslint --no-error-on-unmatched-pattern`.
+
+## worktree-provision
+
+A fresh worktree has no `node_modules`, so every UI command in it fails until
+something restores the dependencies. `worktree-provision.sh` runs the
+repository's own install command in `npm.workspace-root`, and only when there is
+a lockfile there to install from.
+
+| Key | Values | Effect |
+|---|---|---|
+| `npm.worktree-install` | `ci` (default), `none` | `none` installs nothing |
+| `npm.worktree-command` | argv words, default `npm ci` | the command that restores the dependencies |
+| `npm.workspace-root` | path, default the worktree root | where the lockfile and the install live |
+
+Already-current dependencies are adopted, not reinstalled: npm writes
+`node_modules/.package-lock.json` after an install, so a copy of it no older than
+the lockfile is npm's own statement that the tree matches.
+
+Answers `{"kind":"npm","status":…,"fingerprint":…,"done":[…],"skipped":[…],"warnings":[…]}`.
+`status` is `provisioned`, `adopted`, or `skipped`. Exit 0 for all of those, 2 for
+an invalid payload, 4 when the install command failed — the worktree is still a
+usable checkout, so that is a warning with the command to re-run, not a failure.
 
 `gates.sh` is both the CLI entry above and the library the commit runner sources.
 

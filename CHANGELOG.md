@@ -18,6 +18,47 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-09-04
+
+Cutting a worktree wrote one build system's private local repository and ran one
+build system's install, in a script every repository runs. A repository that
+builds with neither got both; a repository that needs something else got
+nothing. Both halves now belong to the build gate that understands them.
+
+- **Migration:** nothing to do. Worktrees you already have are adopted on the
+  next run — the state they carry is recognised and kept, not redone. The old
+  flags still work: `--no-npm` and `--no-m2` mean `--skip-build-gate npm` /
+  `--skip-build-gate maven` and say so once; `--m2-seed` is ignored, and its
+  value belongs in `maven.worktree-seed` in `.afk/config.yaml`.
+
+### Added
+
+- `scripts/worktree-provision` — asks every selected build gate to provision a
+  worktree for itself, and does nothing a second time. What it did is recorded
+  in the worktree's git admin directory, never in its tree, so it never shows up
+  in `git status` and never blocks `git worktree remove`. A worktree that
+  already carries the state is **adopted**, which is how worktrees made before
+  this release come forward without a migration step.
+- The `worktree-provision` verb on both build-gate adapters, with the keys each
+  one reads: `maven.worktree-repo`, `maven.worktree-seed`,
+  `maven.worktree-seed-exclude`; `npm.worktree-install`, `npm.worktree-command`.
+  Each adapter's `CONTRACT.md` is the description of what it does.
+- A `worktree:` configuration block — `copy`, `copy-personal`,
+  `copy-ignored-claude-md` — so a repository whose personal files are somewhere
+  else changes a key instead of a script.
+- Two smoke tests, both in a disposable temp repository with stub build tools:
+  `scripts/tests/create-worktree-smoke.sh` and
+  `scripts/tests/worktree-provision-smoke.sh`.
+
+### Changed
+
+- `create-worktree` moved from `skills/afk/bug/scripts/` to `scripts/`: three
+  skills already called it, and a shared script living inside one skill's
+  directory said the wrong thing about who owns it.
+- `genericity-gate.sh` gained check 0: a generic script under `scripts/` naming
+  a build system blocks. The doctrine was already written down and was still
+  violated, which is the same reason every other check in that gate exists.
+
 ### Fixed
 
 - The scaffold wrote `branch-pattern:` with nothing after it, which parses as

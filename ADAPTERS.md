@@ -107,10 +107,11 @@ from that file. Any kind of any family may declare `instruction` the same way.
 
 ## build-gate
 
-`gate-discover` (which gates the changed set needs), `gate-run <name>`, and for
-Maven `app-start`. A gate function exits 0 to pass and 2 to block, with its
-findings on stderr. `build-gates` selects which adapters load; the key absent
-means no build gates.
+`gate-discover` (which gates the changed set needs), `gate-run <name>`,
+`worktree-provision <json>` (give a new worktree what this build system needs),
+and for Maven `app-start`. A gate function exits 0 to pass and 2 to block, with
+its findings on stderr. `build-gates` selects which adapters load; the key
+absent means no build gates.
 
 This family is the one a repository selects a LIST of, so dispatch is by kind:
 `afk_build_gate_discover` asks every selected kind what the change set needs and
@@ -119,10 +120,19 @@ into the caller's process — a gate reads the shared change set, pass cache and
 metrics the commit runner already built, and re-deriving them per gate is the
 subprocess cost the single-process runner exists to avoid.
 
+`worktree-provision` is the exception to that sourcing: `scripts/worktree-provision`
+runs each kind as a SUBPROCESS, because it provisions a DIFFERENT checkout than
+the one the caller is in, and a sourced adapter would carry the caller's
+directory and change set into it. It answers one JSON object — `status` (
+`provisioned`, `adopted`, `skipped`, `degraded`), a `fingerprint` over the
+inputs that decide the outcome, and what it did, skipped or warned about. Exit
+0 succeeded, 2 refused (invalid or unsafe input), 3 the kind has no such verb,
+4 the worktree is usable but something did not finish.
+
 | Kind | Gates |
 |---|---|
-| [`maven`](adapters/build-gate/maven/CONTRACT.md) | compile, format, lock, app-start, mutation |
-| [`npm`](adapters/build-gate/npm/CONTRACT.md) | lint |
+| [`maven`](adapters/build-gate/maven/CONTRACT.md) | compile, format, lock, app-start, mutation, worktree-provision |
+| [`npm`](adapters/build-gate/npm/CONTRACT.md) | lint, worktree-provision |
 
 ## Adding a kind
 

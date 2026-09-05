@@ -1,12 +1,16 @@
 #!/bin/bash
 #
-# create-worktree - clone a git worktree with full dev-environment parity.
+# create-worktree - cut a git worktree that is ready to work in.
 #
-# Canonical worktree provisioner for this repo (interactive and autonomous callers alike) —
-# plain `git worktree add` skips the .claude/.idea/.run/.mcp.json cloning + path rewriting
-# below, leaving a half-configured worktree with no hooks/gates/MCP config, and skips the
-# per-worktree Maven repo (.mvn/maven.config -> <worktree>/.m2/repository), so its builds
-# would race concurrent worktrees on the shared ~/.m2.
+# `git worktree add` gives a checkout and nothing else: none of the personal,
+# untracked files the old checkout had, and nothing the repository's build system
+# needs. This adds both — it copies the files `worktree.copy` names (rewriting the
+# old checkout path inside them), then hands the worktree to `worktree-provision`,
+# which runs the selected build gates' own provisioning.
+#
+# It knows nothing about any build system. Everything build-specific lives in
+# adapters/build-gate/<kind>/worktree-provision.sh, and the genericity gate holds
+# this file to that.
 #
 # Usage:
 #   create-worktree --branch <full-branch-name> --dir <worktree-dir-name> [options]
@@ -29,15 +33,16 @@
 #                     sibling directory `<main-checkout>-worktrees` derived
 #                     from git.
 #   --idea-bin <path> IDE launcher. Default: `developer.ideBinary`.
-#   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
-#   --no-npm          Skip `npm ci` at the new worktree root.
+#   --no-configs      Skip copying the files `worktree.copy` names.
 #   --no-open         Skip launching the IDE on the new worktree (set by non-interactive callers).
-#   --no-m2           Skip per-worktree Maven repo provisioning (worktree shares ~/.m2 —
-#                     concurrent builds may then race; see the .m2 block below).
-#   --m2-seed <path|none>
-#                     Seed source for the worktree's private Maven repo. Default: the
-#                     <localRepository> from ~/.m2/settings.xml if set, else ~/.m2/repository.
-#                     `none` provisions the isolated repo empty (Maven downloads on demand).
+#   --skip-build-gate <kind>
+#                     Leave that build gate's provisioning alone. Repeatable.
+#   --force-provision Provision again even where a marker says it is already done.
+#
+# Deprecated, still accepted so existing callers keep working:
+#   --no-npm          => --skip-build-gate npm
+#   --no-m2           => --skip-build-gate maven
+#   --m2-seed <path>  => the seed key its adapter documents, set in .afk/config.yaml
 #
 # Output contract (machine-readable, always the LAST line):
 #   success  -> WORKTREE_PATH=<absolute path>
@@ -72,10 +77,11 @@ WORKTREE_PARENT=""
 IDEA_BIN=""
 TRACK_FLAG=false
 CONFIGS_FLAG=true
-NPM_FLAG=true
 OPEN_FLAG=true
-M2_FLAG=true
-M2_SEED=""
+FORCE_PROVISION=false
+SKIP_GATES=()
+
+deprecated() { echo -e "  ${YELLOW}$1${NC}" >&2; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -85,12 +91,20 @@ while [[ $# -gt 0 ]]; do
     --repo)       REPO_DIR="${2:-}"; shift 2 ;;
     --parent)     WORKTREE_PARENT="${2:-}"; shift 2 ;;
     --idea-bin)   IDEA_BIN="${2:-}"; shift 2 ;;
-    --m2-seed)    M2_SEED="${2:-}"; shift 2 ;;
+    --skip-build-gate) SKIP_GATES+=("${2:-}"); shift 2 ;;
     --track)      TRACK_FLAG=true; shift ;;
     --no-configs) CONFIGS_FLAG=false; shift ;;
-    --no-npm)     NPM_FLAG=false; shift ;;
     --no-open)    OPEN_FLAG=false; shift ;;
-    --no-m2)      M2_FLAG=false; shift ;;
+    --force-provision) FORCE_PROVISION=true; shift ;;
+    --no-npm)
+      deprecated "--no-npm is deprecated; use --skip-build-gate npm"
+      SKIP_GATES+=("npm"); shift ;;
+    --no-m2)
+      deprecated "--no-m2 is deprecated; use --skip-build-gate maven"
+      SKIP_GATES+=("maven"); shift ;;
+    --m2-seed)
+      deprecated "--m2-seed is deprecated and ignored; set the seed key in .afk/config.yaml"
+      shift 2 ;;
     *) error_exit "unknown argument: $1" ;;
   esac
 done
@@ -98,15 +112,18 @@ done
 # --- branch-name gate: pre-validate against the reference-transaction hook's pattern so a
 # non-conforming branch fails HERE with a contract line, not as an opaque hook veto mid-run.
 BRANCH_PATTERN=""
+PLUGIN_ROOT="${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+export AFK_PLUGIN_ROOT="$PLUGIN_ROOT"
+PY_BIN=python
+command -v python >/dev/null 2>&1 || PY_BIN=python3
+
 # The convention belongs to the repository the worktree is being cut FROM, so the
 # reader runs with that repository as its working directory - not the caller's.
 load_branch_pattern() {
-  local root repo py=python
-  command -v python >/dev/null 2>&1 || py=python3
-  root="${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
+  local repo
   repo="${REPO_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-  [[ -f "$root/scripts/afk-config.py" ]] || return 0
-  BRANCH_PATTERN="$(cd "$repo" && "$py" "$root/scripts/afk-config.py" get git.branch-pattern 2>/dev/null)"
+  [[ -f "$PLUGIN_ROOT/scripts/afk-config.py" ]] || return 0
+  BRANCH_PATTERN="$(cd "$repo" && "$PY_BIN" "$PLUGIN_ROOT/scripts/afk-config.py" get git.branch-pattern 2>/dev/null)"
 }
 
 validate_branch_name() {
@@ -126,20 +143,18 @@ validate_branch_name "$BRANCH" || \
 # never learns where configuration lives or what format it is in.
 read_config_key() {
   local key="$1" repo="$2"
-  local script="${AFK_PLUGIN_ROOT:-}/scripts/afk-config.py"
-  [[ -n "${AFK_PLUGIN_ROOT:-}" && -f "$script" ]] || {
+  local script="$PLUGIN_ROOT/scripts/afk-config.py"
+  [[ -f "$script" ]] || {
     if [[ -z "${CFG_WARNED:-}" ]]; then
       CFG_WARNED=1
-      echo -e "  ${YELLOW}AFK_PLUGIN_ROOT unset — ignoring developer defaults; pass --parent/--idea-bin explicitly${NC}" >&2
+      echo -e "  ${YELLOW}No afk-config.py under $PLUGIN_ROOT — ignoring developer defaults; pass --parent/--idea-bin explicitly${NC}" >&2
     fi
     return 0
   }
-  local py=python
-  command -v python >/dev/null 2>&1 || py=python3
   # `resolve`, not `get`: it applies the whole chain — the developer's own
   # value, then the repository's committed default, then the derived one —
   # so this script never learns the order.
-  ( cd "$repo" && "$py" "$script" resolve "$key" 2>/dev/null ) || true
+  ( cd "$repo" && "$PY_BIN" "$script" resolve "$key" 2>/dev/null ) || true
 }
 
 # Resolve the main repo dir first (config lives under it).
@@ -169,6 +184,24 @@ fi
 
 DEST="$WORKTREE_PARENT/$DIR_NAME"
 [[ ! -d "$DEST" ]] || error_exit "worktree already exists at $DEST"
+
+# --- what to carry over. One list, read from configuration, so a repository whose personal
+# files live elsewhere changes a config key instead of this script.
+# shellcheck source=/dev/null
+source "$PLUGIN_ROOT/hooks/lib/config.sh"
+COPY_ENTRIES=()
+COPY_PERSONAL=true
+COPY_CLAUDE_MD=true
+if [[ -f "$PLUGIN_ROOT/scripts/afk-config.py" ]]; then
+  pushd "$REPO_DIR" >/dev/null
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] && COPY_ENTRIES+=("$entry")
+  done < <(afk_config_list worktree.copy || true)
+  afk_config_load
+  COPY_PERSONAL="${AFK_CFG_WORKTREE_COPY_PERSONAL:-true}"
+  COPY_CLAUDE_MD="${AFK_CFG_WORKTREE_COPY_IGNORED_CLAUDE_MD:-true}"
+  popd >/dev/null
+fi
 
 # --- path variants for substitution (main repo -> worktree), covering how the main-repo path
 # appears in copied text files: Windows forward-slash, backslash, and JSON-escaped backslash.
@@ -204,26 +237,6 @@ copy_file_with_substitution() {
     substitute_paths "$src" "$dest"
   else
     cp "$src" "$dest"
-  fi
-}
-
-# Seed a private Maven repo from $1 into $2, excluding mutable *-SNAPSHOT version dirs
-# (in-house snapshots must build in-reactor via --also-make; a stale seeded copy causes APT
-# 'Expected a DeclaredType, got <error>' false failures). robocopy (multi-threaded,
-# Windows built-in) when available; POSIX `cp -a` fallback. Non-zero return = seed failed —
-# caller downgrades to a warning, because an unseeded repo still isolates.
-seed_m2_repo() {
-  local src="$1" dst="$2" rc=0
-  if command -v robocopy >/dev/null 2>&1; then
-    # MSYS_NO_PATHCONV / MSYS2_ARG_CONV_EXCL stop Git-Bash rewriting /E-style flags into
-    # paths. robocopy exit codes 0-7 all mean success (1 = files copied).
-    MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
-      robocopy "$(cygpath -w "$src")" "$(cygpath -w "$dst")" \
-      /E /XD '*-SNAPSHOT' /MT:16 /R:0 /W:0 /NFL /NDL /NJH /NJS /NP >/dev/null 2>&1 || rc=$?
-    (( rc < 8 ))
-  else
-    cp -a "$src/." "$dst/" || return 1
-    find "$dst" -type d -name '*-SNAPSHOT' -prune -exec rm -rf {} + 2>/dev/null || true
   fi
 }
 
@@ -268,93 +281,46 @@ else
   fi
 fi
 
-if [[ "$CONFIGS_FLAG" == true ]]; then
-  if [[ -f "$REPO_DIR/.mcp.json" ]]; then
-    copy_file_with_substitution "$REPO_DIR/.mcp.json" "$DEST/.mcp.json"
-    echo -e "${GREEN}Copied .mcp.json${NC}" >&2
-  fi
-
-  if [[ -d "$REPO_DIR/.claude" ]]; then
-    copy_dir_with_substitution "$REPO_DIR/.claude" "$DEST/.claude" "TODO.md"
-    echo -e "${GREEN}Copied .claude/ (minus TODO.md — per-worktree state)${NC}" >&2
-  fi
-
-  CLAUDE_MD_COUNT=0
-  while IFS= read -r relpath; do
-    [[ -z "$relpath" ]] && continue
-    copy_file_with_substitution "$REPO_DIR/$relpath" "$DEST/$relpath"
-    CLAUDE_MD_COUNT=$((CLAUDE_MD_COUNT + 1))
-  done < <(git -C "$REPO_DIR" ls-files --others --ignored --exclude-standard | grep -E '(^|/)CLAUDE\.md$' || true)
-  if (( CLAUDE_MD_COUNT > 0 )); then
-    echo -e "${GREEN}Copied $CLAUDE_MD_COUNT CLAUDE.md file(s)${NC}" >&2
-  fi
-
-  if [[ -d "$REPO_DIR/.run" ]]; then
-    copy_dir_with_substitution "$REPO_DIR/.run" "$DEST/.run"
-    echo -e "${GREEN}Copied .run/${NC}" >&2
-  fi
-
-  if [[ -d "$REPO_DIR/.idea" ]]; then
-    copy_dir_with_substitution "$REPO_DIR/.idea" "$DEST/.idea"
-    # Mark this as a portable worktree project (IntelliJ uses .name if present)
-    echo "$DIR_NAME" > "$DEST/.idea/.name"
-    echo -e "${GREEN}Copied .idea/ (incl. subfolders like runConfigurations/dataSources)${NC}" >&2
-  fi
-fi
-
-# --- per-worktree Maven repo: concurrent worktree builds must never share a writable local
-# repo — parallel installs of the same *-SNAPSHOT and in-place metadata rewrites corrupt each
-# other's builds. Maven 3.6 (the wrapper pin) has no read-only tail/chained repo, so isolation
-# means a full private repo per worktree, activated by .mvn/maven.config, which every ./mvnw
-# run (hooks, skills, manual builds) and IntelliJ (2019.2+ reads maven.config) picks up with
-# zero caller changes. .m2/ is already gitignored repo-wide; maven.config is kept out of
-# `git status` via the shared .git/info/exclude.
-if [[ "$M2_FLAG" == true ]]; then
-  if [[ "$DEST_DIR_FWD" == *' '* ]]; then
-    echo -e "  ${YELLOW}worktree path contains a space — Maven 3.6 maven.config can't quote it; skipping per-worktree .m2 (builds will share ~/.m2)${NC}" >&2
-  else
-    mkdir -p "$DEST/.m2/repository" "$DEST/.mvn"
-    printf -- '-Dmaven.repo.local=%s/.m2/repository\n' "$DEST_DIR_FWD" > "$DEST/.mvn/maven.config"
-    # info/ lives in the common git dir — one exclude entry covers main + every worktree.
-    COMMON_INFO="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO_DIR/.git")/info"
-    mkdir -p "$COMMON_INFO"
-    grep -qxF '.mvn/maven.config' "$COMMON_INFO/exclude" 2>/dev/null \
-      || echo '.mvn/maven.config' >> "$COMMON_INFO/exclude"
-    echo -e "${GREEN}Wrote .mvn/maven.config -> private Maven repo at $DEST_DIR_FWD/.m2/repository${NC}" >&2
-
-    if [[ "$M2_SEED" != "none" ]]; then
-      SEED_SRC="$M2_SEED"
-      if [[ -z "$SEED_SRC" ]]; then
-        SEED_SRC="$HOME/.m2/repository"
-        if [[ -f "$HOME/.m2/settings.xml" ]]; then
-          CUSTOM_LR="$(sed -n 's/.*<localRepository>[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*<\/localRepository>.*/\1/p' "$HOME/.m2/settings.xml" 2>/dev/null | head -1 || true)"
-          if [[ -n "${CUSTOM_LR:-}" ]]; then SEED_SRC="$CUSTOM_LR"; fi
-        fi
+if [[ "$CONFIGS_FLAG" == true && "$COPY_PERSONAL" == true ]]; then
+  for entry in ${COPY_ENTRIES+"${COPY_ENTRIES[@]}"}; do
+    entry_src="$REPO_DIR/$entry"
+    if [[ -f "$entry_src" ]]; then
+      copy_file_with_substitution "$entry_src" "$DEST/$entry"
+      echo -e "${GREEN}Copied $entry${NC}" >&2
+    elif [[ -d "$entry_src" ]]; then
+      # TODO.md is the /afk:todo list — per-worktree state, never cloned.
+      copy_dir_with_substitution "$entry_src" "$DEST/$entry" "TODO.md"
+      echo -e "${GREEN}Copied $entry/${NC}" >&2
+      if [[ "$entry" == ".idea" ]]; then
+        # Mark this as a portable worktree project (IntelliJ uses .name if present)
+        echo "$DIR_NAME" > "$DEST/.idea/.name"
       fi
-      if [[ -d "$SEED_SRC" ]]; then
-        echo -e "${YELLOW}Seeding private .m2 from $SEED_SRC (excluding *-SNAPSHOT)...${NC}" >&2
-        if seed_m2_repo "$SEED_SRC" "$DEST/.m2/repository"; then
-          echo -e "${GREEN}Private .m2 seeded${NC}" >&2
-        else
-          echo -e "  ${RED}.m2 seed copy failed — worktree is still isolated; Maven will download on demand${NC}" >&2
-        fi
-      else
-        echo -e "  ${YELLOW}No Maven repo at $SEED_SRC — private .m2 starts empty${NC}" >&2
-      fi
+    fi
+  done
+
+  if [[ "$COPY_CLAUDE_MD" == true ]]; then
+    # Ignored CLAUDE.md files are personal instructions git will never carry over.
+    CLAUDE_MD_COUNT=0
+    while IFS= read -r relpath; do
+      [[ -z "$relpath" ]] && continue
+      copy_file_with_substitution "$REPO_DIR/$relpath" "$DEST/$relpath"
+      CLAUDE_MD_COUNT=$((CLAUDE_MD_COUNT + 1))
+    done < <(git -C "$REPO_DIR" ls-files --others --ignored --exclude-standard | grep -E '(^|/)CLAUDE\.md$' || true)
+    if (( CLAUDE_MD_COUNT > 0 )); then
+      echo -e "${GREEN}Copied $CLAUDE_MD_COUNT CLAUDE.md file(s)${NC}" >&2
     fi
   fi
 fi
 
-if [[ "$NPM_FLAG" == true ]]; then
-  # One-root-npm-workspace convention: a single `npm ci` at the worktree root restores all UI.
-  echo -e "${YELLOW}Restoring UI deps (npm ci at worktree root)...${NC}" >&2
-  if [[ -f "$DEST/package-lock.json" ]]; then
-    ( cd "$DEST" && npm ci ) \
-      || echo -e "  ${RED}npm ci failed — worktree is usable; run it by hand at the root${NC}" >&2
-  else
-    echo -e "  ${YELLOW}No package-lock.json at worktree root — skipping npm ci${NC}" >&2
-  fi
-fi
+# --- hand the worktree to the build gates. Their provisioning is theirs: this script only
+# says which worktree it is, and which gates the caller asked to leave alone.
+PROVISION_ARGS=(--source "$REPO_DIR" --worktree "$DEST")
+for gate in ${SKIP_GATES+"${SKIP_GATES[@]}"}; do
+  PROVISION_ARGS+=(--skip-build-gate "$gate")
+done
+[[ "$FORCE_PROVISION" == true ]] && PROVISION_ARGS+=(--force)
+bash "$PLUGIN_ROOT/scripts/worktree-provision" "${PROVISION_ARGS[@]}" >/dev/null \
+  || echo -e "  ${RED}Provisioning did not finish — the worktree is usable; see the lines above${NC}" >&2
 
 if [[ "$OPEN_FLAG" == true ]]; then
   if [[ -n "$IDEA_BIN" ]]; then

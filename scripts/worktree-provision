@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# worktree-provision — run each selected build gate's worktree provisioning.
+#
+# Generic: it knows about adapters, markers and idempotency, and nothing about
+# what any particular build system needs. Every build command lives under
+# adapters/build-gate/<kind>/, which the genericity gate enforces.
+#
+#   worktree-provision --source <main checkout> --worktree <path>
+#                      [--force] [--dry-run] [--skip-build-gate <kind>]...
+#
+# Run it on a worktree that already exists and it adopts what is there rather
+# than redoing it — that is the migration path for worktrees made before this
+# existed, and for any worktree made by a plain `git worktree add`.
+#
+# Markers live in the worktree's git admin directory, never in its tree, so they
+# never show up in `git status` and never block `git worktree remove`.
+
+set -u
+
+SOURCE=""
+WORKTREE=""
+FORCE=false
+DRY_RUN=false
+SKIP=""
+
+die() { printf '%s\n' "afk: worktree-provision: $1" >&2; exit 2; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --source)           SOURCE=${2:-}; shift 2 ;;
+    --worktree)         WORKTREE=${2:-}; shift 2 ;;
+    --skip-build-gate)  SKIP="$SKIP ${2:-}"; shift 2 ;;
+    --force)            FORCE=true; shift ;;
+    --dry-run)          DRY_RUN=true; shift ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[ -n "$WORKTREE" ] || die "--worktree is required"
+[ -d "$WORKTREE" ] || die "no such worktree: $WORKTREE"
+if [ -z "$SOURCE" ]; then
+  SOURCE=$(git -C "$WORKTREE" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -1)
+  [ -n "$SOURCE" ] || die "--source is required (could not read the main checkout from $WORKTREE)"
+fi
+[ -d "$SOURCE" ] || die "no such source checkout: $SOURCE"
+git -C "$WORKTREE" rev-parse --git-dir >/dev/null 2>&1 || die "not a git worktree: $WORKTREE"
+
+PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+export AFK_PLUGIN_ROOT="$PLUGIN_ROOT"
+AFK_PY=python
+command -v python >/dev/null 2>&1 || AFK_PY=python3
+export AFK_PY
+
+# One config read for the whole run: the adapters see the same AFK_CFG_* the
+# gates do, so a value cannot mean one thing here and another there.
+# shellcheck source=/dev/null
+. "$PLUGIN_ROOT/hooks/lib/config.sh"
+cd "$SOURCE" || die "cannot enter $SOURCE"
+afk_config_load
+# The adapters are subprocesses, and config.sh exports plain shell variables:
+# without this they would see none of the repository's configuration.
+for name in $(compgen -v AFK_CFG_); do export "${name?}"; done
+
+KINDS=$(afk_config_list build-gates 2>/dev/null || true)
+if [ -z "$KINDS" ]; then
+  # Not an error, and the behaviour this release exists to fix: a repository
+  # that selects no build gate gets no build-system provisioning at all.
+  printf '%s\n' "afk: no build-gates selected — nothing to provision" >&2
+  exit 0
+fi
+
+WORKTREE_ABS=$(cd "$WORKTREE" && pwd)
+SOURCE_ABS=$(cd "$SOURCE" && pwd)
+WORKTREE_NATIVE=$(cygpath -m "$WORKTREE_ABS" 2>/dev/null || printf '%s' "$WORKTREE_ABS")
+
+TOOLKIT_VERSION=$("$AFK_PY" -c '
+import json, sys
+print(json.load(open(sys.argv[1], encoding="utf-8")).get("version", "unknown"), end="")' \
+  "$PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null || printf 'unknown')
+
+payload() {   # payload <dry_run>
+  "$AFK_PY" -c '
+import json, sys
+print(json.dumps({
+    "source": sys.argv[1],
+    "worktree": sys.argv[2],
+    "worktree_native": sys.argv[3],
+    "dry_run": sys.argv[4] == "true",
+}), end="")' "$SOURCE_ABS" "$WORKTREE_ABS" "$WORKTREE_NATIVE" "$1"
+}
+
+field() {   # field <json> <name>
+  printf '%s' "$1" | "$AFK_PY" -c '
+import json, sys
+try:
+    doc = json.loads(sys.stdin.read())
+except ValueError:
+    sys.exit(0)
+value = doc.get(sys.argv[1], "")
+print(value if isinstance(value, str) else json.dumps(value), end="")' "$2" 2>/dev/null
+}
+
+overall=0
+for kind in $KINDS; do
+  case " $SKIP " in
+    *" $kind "*)
+      printf '%s\n' "afk: $kind: skipped (--skip-build-gate)" >&2
+      continue ;;
+  esac
+
+  # adapter.json names gates.sh as the entry; a kind that does not implement the
+  # verb answers exit 3, which is a skip, not a failure.
+  adapter="$PLUGIN_ROOT/adapters/build-gate/$kind/gates.sh"
+  if [ ! -f "$adapter" ]; then
+    # Exit 3's meaning, without spawning anything: this kind has no such verb.
+    printf '%s\n' "afk: $kind: no worktree provisioning (unsupported)" >&2
+    continue
+  fi
+
+  MARKER=$(git -C "$WORKTREE_ABS" rev-parse --git-path "afk/provisioned/$kind" 2>/dev/null)
+  [ -n "$MARKER" ] || die "cannot resolve the marker path for $kind"
+
+  if [ -f "$MARKER" ] && [ "$FORCE" = false ]; then
+    # Ask the adapter what it WOULD do, then compare. A rerun must never repeat
+    # a multi-gigabyte seed or an install because someone ran the script twice.
+    out=$(bash "$adapter" worktree-provision "$(payload true)" 2>/dev/null) || true
+    new_fp=$(field "$out" fingerprint)
+    old_fp=$(sed -n 's/^fingerprint=//p' "$MARKER" | head -1)
+    old_status=$(sed -n 's/^status=//p' "$MARKER" | head -1)
+    if [ -n "$new_fp" ] && [ "$new_fp" = "$old_fp" ]; then
+      printf '%s\n' "afk: $kind: already ${old_status:-provisioned} — unchanged" >&2
+    else
+      printf '%s\n' "afk: $kind: config or lockfile changed since provisioning; re-run with --force to redo it" >&2
+    fi
+    continue
+  fi
+
+  if [ "$DRY_RUN" = true ]; then
+    out=$(bash "$adapter" worktree-provision "$(payload true)" 2>/dev/null) || true
+    printf '%s\n' "afk: $kind: would run — $(field "$out" status)" >&2
+    printf '%s\n' "$out"
+    continue
+  fi
+
+  [ "$FORCE" = true ] && rm -f "$MARKER" 2>/dev/null || true
+  rc=0
+  out=$(bash "$adapter" worktree-provision "$(payload false)") || rc=$?
+  case "$rc" in
+    0) : ;;
+    3) printf '%s\n' "afk: $kind: unsupported — skipped" >&2; continue ;;
+    2)
+      printf '%s\n' "afk: $kind: refused to provision (invalid configuration or unsafe input)" >&2
+      exit 2 ;;
+    *)
+      # 4 and anything else: the worktree still works, so say so and carry on.
+      printf '%s\n' "afk: $kind: provisioning did not complete; the worktree is still usable" >&2
+      overall=4 ;;
+  esac
+
+  status=$(field "$out" status)
+  fingerprint=$(field "$out" fingerprint)
+  [ -n "$status" ] || status=provisioned
+  if [ -n "$fingerprint" ]; then
+    mkdir -p "$(dirname "$MARKER")" 2>/dev/null || true
+    printf 'status=%s\nfingerprint=%s\ntoolkit=%s\n' "$status" "$fingerprint" "$TOOLKIT_VERSION" > "$MARKER"
+  fi
+  printf '%s\n' "afk: $kind: $status" >&2
+  printf '%s\n' "$out"
+done
+
+exit "$overall"

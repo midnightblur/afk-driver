@@ -71,7 +71,7 @@ Never review from diff text alone — reviewers must navigate real MR-head code 
 
 ```bash
 git -C "$MAIN" fetch origin "merge-requests/<iid>/head:review/mr-<iid>"
-"$AFK_PLUGIN_ROOT/skills/afk/bug/scripts/create-worktree" --branch "review/mr-<iid>" --dir "mr-<iid>-review" --no-npm --no-open
+"$AFK_PLUGIN_ROOT/scripts/create-worktree" --branch "review/mr-<iid>" --dir "mr-<iid>-review" --skip-build-gate npm --no-open
 ```
 
 `WORKTREE_PATH` from the last line = `WT`. The fetch-into-local-branch works for cross-fork MRs too (the MR ref always exists on origin). Verify `git -C "$WT" rev-parse HEAD` == `diff_refs.head_sha`; if the MR moved since Phase 0, re-fetch `mr.json` + `mr.diff` so anchors match. Settle mode additionally sets the worktree branch to track the MR's **source branch**, the push target.

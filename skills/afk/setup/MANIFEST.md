@@ -257,8 +257,8 @@ a token value — not even partially.
   unverified upstream; the first real run on a machine is the empirical test.
 
 ### C6 · perl (Git-Bash)
-- **Needed by:** `skills/afk/bug`'s create-worktree script (path-rewrite step —
-  SDD §9b seam "perl (Git-Bash)").
+- **Needed by:** `scripts/create-worktree` (path-rewrite step — SDD §9b seam
+  "perl (Git-Bash)").
 - **Probe:** `command -v perl`
 - **Fix:** `human:` install Git for Windows (ships perl alongside C1's bash +
   POSIX utils).
@@ -289,8 +289,9 @@ a token value — not even partially.
 ## P — Python
 
 ### C8 · robocopy (Windows built-in) *(optional)*
-- **Needed by:** `skills/afk/bug`'s create-worktree script (per-worktree Maven repo
-  seeding — multi-threaded copy of the dev's local repo minus `*-SNAPSHOT` dirs).
+- **Needed by:** `adapters/build-gate/maven/worktree-provision.sh` (per-worktree
+  local-repository seeding — multi-threaded copy of the dev's local repository
+  minus `*-SNAPSHOT` dirs).
 - **Probe:** `command -v robocopy || test -x "${SYSTEMROOT:-/c/Windows}/System32/Robocopy.exe"`
 - **Fix:** none needed on Windows (ships with the OS); no fix elsewhere — the script
   falls back to `cp -a`.

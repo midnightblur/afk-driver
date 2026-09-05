@@ -4,7 +4,8 @@
   "name": "build-gate/npm",
   "operations": [
     "gate-discover",
-    "gate-run"
+    "gate-run",
+    "worktree-provision"
   ],
   "runner": {
     "type": "cli",
@@ -13,7 +14,9 @@
   "configKeys": [
     "build-gates",
     "npm.lint",
-    "npm.workspace-root"
+    "npm.workspace-root",
+    "npm.worktree-install",
+    "npm.worktree-command"
   ],
   "register": [
     "N1"

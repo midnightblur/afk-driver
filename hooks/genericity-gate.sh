@@ -6,6 +6,8 @@
 # instruction alone demonstrably isn't enough, hence enforcement.
 #
 # Checks ADDED lines of changed/untracked plugin .md files for:
+#   0. build-system commands in the generic worktree scripts (scripts/*), whose
+#      whole design is that every such command lives in a build-gate adapter
 #   1. tracker-shaped ticket IDs (PREFIX-123) outside the notation allowlist
 #   2. source-file references   (`Foo.vue` / `Foo.java` / `Foo.ts` ...) that
 #      resolve to a file the gated repository tracks OUTSIDE the plugin's own
@@ -38,6 +40,29 @@ gate_genericity() {
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout
   local ALLOW_FILE="$PLUGIN_DIR/hooks/genericity-allow.txt"
+
+  # ---- check 0: the generic scripts stay generic.
+  # scripts/ holds the harness-side scripts every consuming repository runs,
+  # whatever it builds with. A build command here would make one build system the
+  # built-in one, which is exactly what the build-gate adapters exist to prevent.
+  local script_hits="" sf sline
+  for sf in "$PLUGIN_DIR"/scripts/create-worktree "$PLUGIN_DIR"/scripts/worktree-provision "$PLUGIN_DIR"/scripts/*.sh; do
+    [ -f "$sf" ] || continue
+    while IFS= read -r sline; do
+      [ -n "$sline" ] || continue
+      script_hits+="${sf#"$PLUGIN_DIR/"}:$sline"$'\n'
+    done < <(grep -nvE '^[[:space:]]*#' "$sf" 2>/dev/null | grep -E 'mvnw?[[:space:]]|maven\.config|\.m2/|npm (ci|install)|robocopy' 2>/dev/null)
+  done
+  if [ -n "$script_hits" ]; then
+    {
+      echo "Genericity gate: the generic scripts must name no build system."
+      printf '%s' "$script_hits" | sort -u
+      echo
+      echo "Fix: move the command into adapters/build-gate/<kind>/, and let the script"
+      echo "dispatch to whichever build gates the repository selected."
+    } >&2
+    return 2
+  fi
 
   # ---- scope: plugin .md changed vs the integration base, or untracked.
   local changed_md

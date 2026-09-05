@@ -10,6 +10,7 @@
 #                bash gates.sh gate-discover
 #                bash gates.sh gate-run <name>
 #                bash gates.sh app-start [module]
+#                bash gates.sh worktree-provision <json>
 #
 # Gate names: java-format, maven-compile. `app-start` is a verb, not a gate: it
 # boots the application and is never part of a commit.
@@ -49,6 +50,10 @@ afk_bg_maven_app_start() {
   bash "$AFK_BG_MAVEN_DIR/app-start-gate.sh" "$@"
 }
 
+afk_bg_maven_worktree_provision() {
+  bash "$AFK_BG_MAVEN_DIR/worktree-provision.sh" "$@"
+}
+
 # ---- CLI form
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _hooks="${AFK_PLUGIN_ROOT:-$(cd "$AFK_BG_MAVEN_DIR/../../.." && pwd)}/hooks"
@@ -73,8 +78,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
       shift; afk_bg_maven_run "$@"; exit $? ;;
     app-start)
       shift; afk_bg_maven_app_start "$@"; exit $? ;;
+    worktree-provision)
+      shift; afk_bg_maven_worktree_provision "$@"; exit $? ;;
     *)
-      printf '{"unsupported": true, "reason": "build-gate/maven verbs: gate-discover, gate-run <name>, app-start [module]"}\n'
+      printf '{"unsupported": true, "reason": "build-gate/maven verbs: gate-discover, gate-run <name>, app-start [module], worktree-provision <json>"}\n'
       exit 3 ;;
   esac
 fi

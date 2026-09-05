@@ -5,7 +5,8 @@
   "operations": [
     "gate-discover",
     "gate-run",
-    "app-start"
+    "app-start",
+    "worktree-provision"
   ],
   "runner": {
     "type": "cli",
@@ -17,7 +18,10 @@
     "maven.formatter-config",
     "maven.formatter-plugin",
     "maven.default-module",
-    "maven.skip-ui-flag"
+    "maven.skip-ui-flag",
+    "maven.worktree-repo",
+    "maven.worktree-seed",
+    "maven.worktree-seed-exclude"
   ],
   "register": [
     "C4"

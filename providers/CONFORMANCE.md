@@ -273,6 +273,20 @@ hooks again; one that does not, will not. Both facts are in the README beside
 the install block, because the cost of guessing wrong is a harness whose gates
 silently do not run.
 
+## Design-silent choices — worktree provisioning (1.0.11)
+
+Where the agreed design did not say, these are the choices taken and the reason,
+so a later reader does not re-open them as accidents.
+
+| Choice | Taken | Why |
+|---|---|---|
+| How a kind is invoked | `gates.sh worktree-provision '<json>'`, not the script file | `adapter.json`'s `runner` is the declared entry for every other verb; a second, undeclared entry path would make the descriptor untrue. A kind without the verb answers exit 3, which the driver already treats as a skip. |
+| Where the copy defaults live | `afk-config.py` `DEFAULTS` | the list is then in the configuration view every reader shares, so `afk-config.py get` and the shell view agree with the script. Per-kind defaults stay in their adapter, which is the only thing that knows them. |
+| How an adapter sees configuration | the driver exports every `AFK_CFG_*` before dispatch | adapters run as subprocesses here, and the shell view exports plain variables that a subprocess would not inherit. |
+| The flag name on `create-worktree` | `--force-provision` | its own `--force` would read as forcing the worktree itself, which it does not do. |
+| When a marker is written | only when the adapter returned a fingerprint | a marker with nothing to compare against would suppress a later run without being able to say whether anything changed. |
+| Per-worktree state in a copied directory | still excluded by name (`TODO.md`) | it is the toolkit's own per-worktree state, not build state, so it does not belong to any adapter. |
+
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
