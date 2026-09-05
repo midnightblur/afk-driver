@@ -18,6 +18,16 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/afk:setup` H7 can refresh an installed reply-standard block.** It skipped
+  any steering file that already carried the sentinel, so a release changing
+  the block left every machine on the old text and the migration line asking
+  people to re-run it could not work. A file without the sentinel still gets
+  the block appended; one that has it gets the lines between the sentinels
+  replaced by `skills/afk/setup/scripts/install_block.py`, which keeps the
+  file's own line endings and everything written around the block.
+
 ## [1.0.15] - 2026-09-05
 
 ### Changed

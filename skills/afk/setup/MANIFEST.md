@@ -130,22 +130,31 @@ a token value — not even partially.
   (all projects, both providers) answers in Simplified Technical English, not
   only the AFK-plugin sessions `LANGUAGE.md` §1 already binds.
 - **Probe:** `grep -q 'afk:plain-language:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:plain-language:start' ~/.codex/AGENTS.md 2>/dev/null; }`
-- **Fix:** `auto:` append the sentinel block from
-  [`PLAIN-LANGUAGE.md`](PLAIN-LANGUAGE.md) (the one home) to the user-global
-  steering files — `~/.codex/AGENTS.md` only when Codex (O1) is installed —
-  creating a missing file, skipping one already carrying the sentinel:
+- **Fix:** `auto:` write the sentinel block from
+  [`PLAIN-LANGUAGE.md`](PLAIN-LANGUAGE.md) (the one home) into the user-global
+  steering files — `~/.codex/AGENTS.md` only when Codex (O1) is installed.
+  A file without the sentinel gets the block appended; a file that already
+  carries one gets it REPLACED, because a release that changes the block leaves
+  every machine holding the old text. Only the lines between the sentinels are
+  touched, so anything the human wrote around them survives:
   ```sh
   src=$AFK_PLUGIN_ROOT/skills/afk/setup/PLAIN-LANGUAGE.md
   for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
     [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
-    grep -q 'afk:plain-language:start' "$f" 2>/dev/null && continue
     mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
+    if grep -q 'afk:plain-language:start' "$f" 2>/dev/null; then
+      python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" "$src" "$f"
+    else
+      { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
+    fi
   done
   ```
 - **Notes:** user-global, per-machine — never rides git (file map:
   `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
-  file(s); opt in any time by re-running `/afk:setup`.
+  file(s); opt in any time by re-running `/afk:setup`. Re-running it is also how
+  a machine picks up a release that changed the block — the probe cannot see a
+  stale block, so a release changing `PLAIN-LANGUAGE.md` says so in its
+  `CHANGELOG.md` migration line.
 
 ### H8 · lavish for grilling sessions **[opt-in]**
 - **Needed by:** nothing — a user preference: grilling sessions (agent
