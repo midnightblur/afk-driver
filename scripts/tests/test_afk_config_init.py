@@ -101,6 +101,18 @@ def test_a_forge_we_do_not_know_is_none_not_a_guess(tmp_path):
     assert config["forge"] == "none"
 
 
+def test_the_scaffold_writes_an_empty_string_not_an_empty_scalar(tmp_path):
+    """`branch-pattern:` with nothing after it parses as None, not "".
+
+    Both read as "gate off" today, so this is about the file saying what the
+    schema documents rather than about behaviour.
+    """
+    repo = make_repo(tmp_path, "q")
+    text, config = scaffold_of(repo)
+    assert '  branch-pattern: ""' in text
+    assert config["git"]["branch-pattern"] == ""
+
+
 # ---------------------------------------------------------------- writing
 
 def test_init_writes_the_file_and_refuses_to_overwrite(tmp_path):

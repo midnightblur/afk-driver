@@ -591,7 +591,7 @@ def scaffold(root: Path) -> str:
     lines += [
         "  # branch-pattern is a regex every work branch must match. Empty means",
         "  # anything is allowed; fill it in to make the branch-name gate bite.",
-        "  branch-pattern: """,
+        '  branch-pattern: ""',
         "",
         "repo-files:",
         "  spec-dir: docs/afk/{workId}",

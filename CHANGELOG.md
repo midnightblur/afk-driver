@@ -18,6 +18,14 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The scaffold wrote `branch-pattern:` with nothing after it, which parses as
+  null rather than the empty string the schema documents. Both read as "the
+  branch-name gate is off", so nothing behaved differently; the file now says
+  what it means. Found by reading the scaffold `init` produced on a real
+  repository, after v1.0.10 was tagged.
+
 ## [1.0.10] - 2026-09-04
 
 Configuring a repository was the part of adoption nobody had written down. The
