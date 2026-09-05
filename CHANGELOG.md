@@ -18,14 +18,16 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-09-05
+
 ### Fixed
 
-- A build-gate answer carrying a Windows path was not valid JSON: the
-  backslashes were emitted raw, so the caller read no status and wrote no
-  marker, and the same worktree was provisioned again on the next run. Only
-  answers that quote a path were affected — the warning paths, which is exactly
-  where a Windows local repository shows up. Backslashes are now escaped before
-  the quotes; a smoke assertion parses an answer holding one.
+- **Adapter answers quoting a Windows path were not valid JSON**, so the driver
+  read no status and wrote no marker, and a degraded worktree was re-provisioned
+  on every run. The backslashes went out raw. Only answers that quote a path
+  were affected — the warning paths, which on Windows is where every path is a
+  Windows path. Backslashes are now escaped before the quotes, and a smoke
+  assertion parses an answer holding one.
 
 ## [1.0.12] - 2026-09-05
 
