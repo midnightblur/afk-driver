@@ -20,6 +20,15 @@ first released heading here.
 
 ### Fixed
 
+- **`change-update-body` no longer publishes a draft change.** `glab mr update
+  --description` clears the draft flag as a side effect, so editing a body made
+  the change reviewable and dropped its title prefix. The verb now reads the
+  flag before the edit, checks it after, and restores it, reporting `was_draft`
+  and `draft_restored` in its answer.
+- **A forge adapter carries any text the forge accepts.** Both forge adapters
+  pin `PYTHONIOENCODING=utf-8`: on a Windows console the default is cp1252,
+  where an emoji in a change body raised `UnicodeEncodeError` inside the
+  argument reader and the field arrived empty.
 - **`/afk:setup` H7 can refresh an installed reply-standard block.** It skipped
   any steering file that already carried the sentinel, so a release changing
   the block left every machine on the old text and the migration line asking
@@ -56,8 +65,12 @@ first released heading here.
 
 ### Migration
 
-- Re-run `/afk:setup` H7 to refresh the user-global reply-standard block: the
-  install block gained the noun-cluster cap and the two coined-term rules.
+- The user-global reply-standard block gained the noun-cluster cap and the two
+  coined-term rules. A machine that has never run `/afk:setup` H7 installs the
+  new text on its first run. A steering file that already carries the block is
+  NOT updated by this release: H7 skips a file with the sentinel in it, so
+  replace the lines between the sentinels by hand, or wait for 1.0.16, where H7
+  replaces them for you.
 
 ## [1.0.14] - 2026-09-05
 

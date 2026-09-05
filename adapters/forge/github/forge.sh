@@ -31,6 +31,14 @@ payload=${2:-'{}'}
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
 
+# Text going to or from the forge is UTF-8, and a console encoding is not: on a
+# Windows terminal the default is cp1252, where an emoji in a change body raises
+# UnicodeEncodeError inside every helper below and the field arrives EMPTY. The
+# forge is the authority on what its text may contain, so pin the interpreter to
+# UTF-8 rather than trimming what a body may say.
+export PYTHONIOENCODING=utf-8
+
+
 unavailable() {
   printf '{"unavailable":true,"verb":"%s","reason":"%s"}\n' "$verb" "$1"
   exit 4

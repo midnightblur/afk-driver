@@ -42,13 +42,19 @@ CLI already established, and no configuration file holds a token.
   would re-open findings it had already settled.
 - `glab mr update --description` clears the Draft flag: the new title comes back
   without its `Draft:` prefix and the change becomes reviewable. Editing a
-  description is not a decision to publish, so any caller that edits one reads
-  the draft state back afterwards and restores it with `glab mr update --draft`.
-- Read a description as bytes, not through a pipe that guesses the encoding. On
-  a Windows console the reader decodes UTF-8 as cp1252, so an em dash comes back
-  as three characters; posting that text back stores the damage on the server.
-  Set `PYTHONIOENCODING=utf-8` (or read the JSON as bytes) before any
-  round-trip of description or note text.
+  description is not a decision to publish, so `change-update-body` reads the
+  flag before the edit, checks it after, and restores it with
+  `glab mr update --draft`. Its answer carries `was_draft` and
+  `draft_restored`, so a caller can see that it happened. A caller driving
+  `glab` directly does the same, and verifies at the END of a round: the flag
+  has been observed clear again after a later push or edit.
+- Text to and from the forge is UTF-8, and a console encoding is not. This
+  adapter exports `PYTHONIOENCODING=utf-8` for exactly that reason: on a Windows
+  terminal the default is cp1252, where an emoji in a change body raises
+  UnicodeEncodeError inside the argument reader and the field arrives EMPTY,
+  and an em dash read back comes out as three characters that get stored on the
+  server when the text is posted again. A caller driving `glab` directly sets
+  the same variable before any round-trip of description or note text.
 
 ## Documented degradation
 
