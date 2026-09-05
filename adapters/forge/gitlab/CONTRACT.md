@@ -40,6 +40,15 @@ CLI already established, and no configuration file holds a token.
   server rejects the position.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
+- `glab mr update --description` clears the Draft flag: the new title comes back
+  without its `Draft:` prefix and the change becomes reviewable. Editing a
+  description is not a decision to publish, so any caller that edits one reads
+  the draft state back afterwards and restores it with `glab mr update --draft`.
+- Read a description as bytes, not through a pipe that guesses the encoding. On
+  a Windows console the reader decodes UTF-8 as cp1252, so an em dash comes back
+  as three characters; posting that text back stores the damage on the server.
+  Set `PYTHONIOENCODING=utf-8` (or read the JSON as bytes) before any
+  round-trip of description or note text.
 
 ## Documented degradation
 

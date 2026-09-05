@@ -20,6 +20,10 @@ first released heading here.
 
 ### Added
 
+- **The gitlab forge contract records two ways an MR edit goes wrong** —
+  `glab mr update --description` clears the Draft flag, and a description
+  round-tripped through a console pipe comes back mis-decoded and stores the
+  damage on the server.
 - **README section 4 gained "Upgrading a pinned install"** — the order the pin
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
