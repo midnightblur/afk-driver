@@ -24,11 +24,25 @@ Highest precedence first:
 | explicit | `$AFK_CONFIG` | a named file, for tests and one-off runs |
 | local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer; may not set `schema` |
 | repository | `<git root>/.afk/config.yaml` | committed, the repository's contract |
-| machine | `~/.afk/config.yaml` | per-machine defaults across repositories |
+| machine | `~/.afk/config.yaml` | per-machine defaults across repositories — the recommended home for a developer's own `developer:` block |
 | built-in | — | the defaults below |
 
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
 files absent is a supported state — the built-in defaults apply.
+
+## Starting a repository off
+
+```sh
+python scripts/afk-config.py init          # --force to replace an existing file
+```
+
+Writes a starter `.afk/config.yaml` from what the repository can answer about
+itself: the forge from the origin remote's host, the build gates from a root
+`pom.xml` / `package.json`, the base branch from `origin/HEAD`. Anything it
+cannot read is written as a commented `TODO` rather than a plausible guess — a
+wrong value that validates is harder to notice than a missing one. The file it
+writes always passes `validate`. `/afk:setup` runs it for you when the file is
+absent.
 
 ## Built-in defaults
 
@@ -87,7 +101,9 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `verification` | map | `tiers`, `env` |
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
-| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `config.local.yaml`, never the committed file: two of them name a person and the others name one machine's paths. Each key's consumer fails closed and names the key when it is absent (`skills/afk/bug/CONFIG.md`). |
+| `tracker-defaults` | map | `assignee` — the account id or email work is assigned to when a developer set none. A team fact, so it is committed. |
+| `forge-defaults` | map | `reviewer` — the forge username reviewing a change when a developer set none. A team fact, so it is committed. |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. All optional. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. Resolve with `afk-config.py resolve <key>`, which applies developer value, then the committed default above, then (for `worktreeBasePath`) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
 
 ### Path templates
 
@@ -127,12 +143,13 @@ exports `AFK_PLUGIN_ROOT` to each.
 
 A configuration file holds environment variable NAMES, never values.
 `jira.credentials-env` lists the variables the Jira adapter reads. Values come
-from the environment or the harness credential store. `.afk/config.local.yaml`
-is gitignored and holds per-developer non-secret values — `tracker-assignee`,
-`forge-reviewer`, `worktree-base-path`.
+from the environment or the harness credential store. A developer's own
+non-secret values live under `developer:` in `~/.afk/config.yaml`, or in the
+gitignored `.afk/config.local.yaml` when one checkout needs a different value.
 
 The subset, the discovery order and the agreement between the three views are
-pinned by `scripts/tests/test_afk_config.py`; `scripts/tests/samples/monorepo-config.yaml`
+pinned by `scripts/tests/test_afk_config.py`; the scaffolder and the
+developer-value resolution order by `scripts/tests/test_afk_config_init.py`; `scripts/tests/samples/monorepo-config.yaml`
 is the large-repository fixture it validates.
 
 ## The shell view

@@ -96,6 +96,27 @@ def read_json(p: Path) -> dict:
     return {}
 
 
+def resolved_default(key: str):
+    """What `key` resolves to right now, before this script writes anything.
+
+    Asks the one reader rather than reimplementing the order, so "the team
+    already set this" and "git can derive this" are answered the same way every
+    other caller answers them.
+    """
+    script = Path(__file__).resolve().parents[4] / "scripts" / "afk-config.py"
+    if not script.is_file():
+        return None
+    try:
+        out = subprocess.run(
+            [sys.executable, str(script), "resolve", key],
+            cwd=str(REPO), capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    value = out.stdout.strip()
+    return value if out.returncode == 0 and value else None
+
+
 DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary")
 
 
@@ -310,19 +331,51 @@ else:
 # ------------------------------------------------------- per-dev config file
 head("Per-dev config")
 
-cfg_path = REPO / ".afk" / "config.local.yaml"
+# The machine layer by default: one file covers every repository and every
+# worktree on this machine, so a new checkout needs no config step at all. A
+# per-checkout overlay is only for a value that differs in ONE checkout.
+home_path = Path.home() / ".afk" / "config.yaml"
+overlay_path = REPO / ".afk" / "config.local.yaml"
+cfg_path = home_path
+if read_developer_block(overlay_path):
+    skip(f"This checkout already has its own developer block in {overlay_path} — keeping it there.")
+    cfg_path = overlay_path
+elif not yes(f"Write personal values to {home_path} (covers every repository)?"):
+    cfg_path = overlay_path
 cfg_path.parent.mkdir(parents=True, exist_ok=True)
 cfg = read_developer_block(cfg_path)
 if cfg:
     skip("Existing config — Enter keeps each current value.")
 
-cfg["trackerAssignee"] = ask("assignee account id or email", cfg.get("trackerAssignee") or account_id)
-cfg["mrReviewer"] = ask("reviewer (forge username)", cfg.get("mrReviewer"))
+# Both of these fall back to a value the repository commits, so an empty answer
+# is a real choice, not an omission: it means "use whatever the team set".
+team_assignee = resolved_default("trackerAssignee")
+team_reviewer = resolved_default("mrReviewer")
+if team_assignee or team_reviewer:
+    skip("This repository commits team defaults; leave a field empty to use them.")
+cfg["trackerAssignee"] = ask(
+    "assignee account id or email" + (f" [team default: {team_assignee}]" if team_assignee else ""),
+    cfg.get("trackerAssignee") or ("" if team_assignee else account_id),
+)
+cfg["mrReviewer"] = ask(
+    "reviewer (forge username)" + (f" [team default: {team_reviewer}]" if team_reviewer else ""),
+    cfg.get("mrReviewer"),
+)
 
-wt_default = cfg.get("worktreeBasePath") or (REPO.parent / f"{REPO.name}-worktrees").as_posix()
-wt = ask("worktree base path", wt_default).replace("\\", "/")
-cfg["worktreeBasePath"] = wt
-if not Path(wt).exists() and yes(f"{wt} does not exist. Create it?"):
+# The worktree base is derived from git when unset, so it is asked for only when
+# the derivation cannot answer or the developer wants somewhere else.
+wt_derived = resolved_default("worktreeBasePath")
+if cfg.get("worktreeBasePath"):
+    wt = ask("worktree base path", cfg["worktreeBasePath"]).replace("\\", "/")
+    cfg["worktreeBasePath"] = wt
+elif wt_derived:
+    ok(f"worktree base path derives to {wt_derived} — leaving it unset")
+    wt = wt_derived
+else:
+    wt = ask("worktree base path (cannot be derived here)", "").replace("\\", "/")
+    if wt:
+        cfg["worktreeBasePath"] = wt
+if wt and not Path(wt).exists() and yes(f"{wt} does not exist. Create it?"):
     Path(wt).mkdir(parents=True, exist_ok=True)
     ok(f"created {wt}")
 

@@ -85,31 +85,39 @@ a token value — not even partially.
   afk.branchNameGate false`. The installer refuses to clobber a pre-existing
   non-AFK hook of the same name.
 
-### H6 · `developer:` per-dev config
+### H6 · per-developer values (`developer:` + committed team defaults)
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
 - **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
-  a Store stub that exits 49 while real `python` works). Read through
-  `afk-config.py`, never by opening a file: it owns discovery and the overlay
-  rules, and the value may come from either config layer.
+  a Store stub that exits 49 while real `python` works). Ask `afk-config.py
+  resolve`, never `get` and never a file: `resolve` applies the whole chain —
+  the developer's own value from any layer, then the repository's committed
+  default, then the derived worktree base — so the probe cannot disagree with
+  the pipeline it gates.
   ```
   PY="$(command -v python || command -v python3)"
   m=""
   for k in trackerAssignee mrReviewer worktreeBasePath; do
-    v=$("$PY" "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get "developer.$k" 2>/dev/null)
-    [ -n "$v" ] || m="$m $k"
+    "$PY" "$AFK_PLUGIN_ROOT/scripts/afk-config.py" resolve "$k" >/dev/null 2>&1 \
+      || m="$m $k"
   done
-  [ -z "$m" ] && echo ok || { echo "missing:$m"; exit 1; }
+  [ -z "$m" ] && echo ok || { echo "unresolved:$m"; exit 1; }
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does H2/S1/C3 or C3b, whichever the forge selects; pre-fills K1 from the validated token's own account). By hand:
-  add a `developer:` block to `.afk/config.local.yaml` per the hypothetical
-  example in `skills/afk/bug/CONFIG.md` (K1 `trackerAssignee`, K2 `mrReviewer`,
-  K3 `worktreeBasePath`).
-- **Notes:** the overlay is gitignored, one per checkout — key set + fail-closed
-  matrix owned by `skills/afk/bug/CONFIG.md`; K4 `ideBinary` optional, not
-  probed. A repository may legitimately have none of this: the probe fails
-  closed and names the keys, and only the bug pipeline's gated operations care.
+  does H2/S1/C3 or C3b, whichever the forge selects; pre-fills K1 from the
+  validated token's own account, and offers `~/.afk/config.yaml` so one answer
+  covers every repository on the machine). By hand, either:
+  add a `developer:` block to `~/.afk/config.yaml` per the example in
+  `skills/afk/bug/CONFIG.md`, **or** — when the values are the same for the whole
+  team — commit `tracker-defaults.assignee` and `forge-defaults.reviewer` in the
+  repository's own `.afk/config.yaml`. Both satisfy this row; the message names
+  both because either is a correct answer.
+- **Notes:** every key is optional, and this row is **n/a** for a repository that
+  commits no defaults and a developer who set none — the bug pipeline's gated
+  operations are then the only thing affected, and each fails closed naming what
+  it needed. `worktreeBasePath` normally resolves without anyone setting it (it
+  derives beside the main checkout), so an unresolved K3 means git could not
+  answer — a bare clone. K4 `ideBinary` is optional and not probed.
 
 ### H7 · plain-language replies (ASD-STE100) **[opt-in]**
 - **Needed by:** nothing — a user preference: every agent session of this user

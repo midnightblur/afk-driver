@@ -18,6 +18,57 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-09-04
+
+Configuring a repository was the part of adoption nobody had written down. The
+file was hand-authored from a schema document, and every developer then repeated
+a personal setup step in every checkout. Both are gone.
+
+- **Migration:** run `/afk:setup` once. It moves your personal values to
+  `~/.afk/config.yaml`, where one answer covers every repository and every
+  worktree on the machine. Nothing breaks if you don't: a `developer:` block in
+  a checkout's `.afk/config.local.yaml` still wins where it exists.
+
+### Added
+
+- `afk-config.py init` writes a starter `.afk/config.yaml` from what the
+  repository can answer about itself: forge from the origin remote's host
+  (a self-hosted GitLab is still GitLab), build gates from a root `pom.xml` /
+  `package.json`, base branch from `origin/HEAD`, tracker `github-issues` when
+  the repository is on github.com. Everything it cannot read is a commented
+  `TODO`, never a plausible guess — a wrong value that validates is harder to
+  notice than a missing one. What it writes always passes `validate`, and it
+  refuses to overwrite an existing file without `--force`.
+- `/afk:setup` gained a step 0: no `.afk/config.yaml` → scaffold it, walk the
+  human through the `TODO`s, re-validate, and say to commit it. Present → skip,
+  silently. It will not guess a tracker project or a module name on anyone's
+  behalf.
+- Committed team defaults `tracker-defaults.assignee` and `forge-defaults.reviewer`.
+  Who reviews and who is assigned are facts about a team, not about a laptop, so
+  they belong in the file the team shares.
+- `afk-config.py resolve <developerKey>` — one place that knows the order, so no
+  caller has to. Exit 1 means nothing supplied the value and the caller fails
+  closed.
+
+### Changed
+
+- **Every `developer:` key is now optional.** `trackerAssignee` and `mrReviewer`
+  fall back to the committed team defaults. `worktreeBasePath` is derived: a
+  sibling directory `<main-checkout-name>-worktrees`, read through
+  `git rev-parse --git-common-dir` so every worktree of one repository agrees on
+  it. `ideBinary` has no default because none could be right. A developer who
+  configures nothing can now run the bug pipeline in a repository that commits
+  its defaults.
+- The recommended home for personal values is `~/.afk/config.yaml`, the machine
+  layer the resolver already read. A checkout's `.afk/config.local.yaml` is for
+  the case it was always for: one checkout that needs a different value.
+  `/afk:setup` writes the machine file by default and offers the overlay.
+- `create-worktree` asks `resolve` rather than `get`, and prints which base
+  directory it used and where that came from.
+- `H6` reports `ok` when the values resolve from ANY layer, and `n/a` when the
+  repository commits no defaults and the developer set none — naming both places
+  a value could come from, because either is a correct answer.
+
 ## [1.0.9] - 2026-09-04
 
 ### Fixed

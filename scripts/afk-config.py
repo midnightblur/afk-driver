@@ -4,10 +4,12 @@ Skills and bash hooks must never interpret the configuration file themselves —
 two readers drift, and a gate that disagrees with the skill it gates is worse
 than no gate. Everything goes through this module:
 
+    python scripts/afk-config.py init [--force]
     python scripts/afk-config.py validate [FILE]
     python scripts/afk-config.py effective --json
     python scripts/afk-config.py export-shell
     python scripts/afk-config.py get <dotted.key>
+    python scripts/afk-config.py resolve <developerKey>
 
 Standard library only. The file format is a documented SUBSET of YAML — block
 maps indented by two spaces, block lists written `- item`, plain and quoted
@@ -51,14 +53,29 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer",
+    "tracker-defaults", "forge-defaults",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
-# They belong in the gitignored `.afk/config.local.yaml` overlay, never in the
-# committed file — `trackerAssignee` and `mrReviewer` name a person, and the
-# paths are one machine's. Absence is a supported state: a key's consumer fails
-# closed and names the key (`skills/afk/bug/CONFIG.md`).
+# Every one is OPTIONAL. Their home is `~/.afk/config.yaml`, which covers every
+# checkout on the machine; the gitignored `.afk/config.local.yaml` overlay is for
+# a value that differs in ONE checkout. Never the committed file.
+#
+# Two of them have a committed team-wide fallback, because "who reviews" and
+# "who is assigned" are facts about a team and not about a laptop:
+#   developer.trackerAssignee -> tracker-defaults.assignee
+#   developer.mrReviewer      -> forge-defaults.reviewer
+# Resolution is developer value, then team default, then fail closed naming both
+# (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix). `worktreeBasePath` has
+# no default because it is DERIVED (`worktree_base`), and `ideBinary` has none
+# because no default could be right.
 DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary"}
+
+# developer key -> the committed key that stands in when it is unset.
+DEVELOPER_FALLBACKS = {
+    "trackerAssignee": "tracker-defaults.assignee",
+    "mrReviewer": "forge-defaults.reviewer",
+}
 
 DEFAULTS: dict = {
     "schema": SCHEMA,
@@ -361,6 +378,18 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     if creds is not None and not isinstance(creds, list):
         problems.append("jira.credentials-env: must be a block list of variable NAMES")
 
+    for block, key in (("tracker-defaults", "assignee"), ("forge-defaults", "reviewer")):
+        value = config.get(block)
+        if value is None:
+            continue
+        if not isinstance(value, dict):
+            problems.append(f"{block}: must be a mapping")
+            continue
+        for extra in sorted(set(value) - {key}):
+            problems.append(f"{block}.{extra}: unknown key; expected `{key}`")
+        if key in value and not isinstance(value[key], str):
+            problems.append(f"{block}.{key}: must be a string")
+
     developer = config.get("developer")
     if developer is not None:
         if not isinstance(developer, dict):
@@ -376,6 +405,235 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                     problems.append(f"developer.{key}: must be a string")
 
     return problems
+
+
+# --------------------------------------------------------------------------
+# Resolving a developer value
+# --------------------------------------------------------------------------
+
+def worktree_base(root: Path | None = None) -> Path | None:
+    """Where worktrees go when nobody said: beside the main checkout.
+
+    `--git-common-dir` answers with the MAIN checkout's `.git` even from inside
+    a worktree, which is the whole point: every worktree of one repository then
+    derives the same directory. A repository whose git dir is elsewhere entirely
+    (a bare clone, a `GIT_DIR` pointing outside the tree) gets `None`, and the
+    caller asks for the key instead of guessing.
+    """
+    start = root or git_root() or Path.cwd()
+    common = _git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if not common:
+        return None
+    main_checkout = Path(common).parent
+    if main_checkout.name in ("", "/") or not main_checkout.name:
+        return None
+    return main_checkout.parent / (main_checkout.name + "-worktrees")
+
+
+def developer_value(config: dict, key: str, root: Path | None = None) -> str | None:
+    """A `developer.<key>`, its committed team default, or None.
+
+    One function so that every consumer resolves in the same order. `None` means
+    fail closed and name both places the value could come from — never invent one.
+    """
+    value = get(config, f"developer.{key}")
+    if isinstance(value, str) and value.strip():
+        return value
+    fallback = DEVELOPER_FALLBACKS.get(key)
+    if fallback:
+        value = get(config, fallback)
+        if isinstance(value, str) and value.strip():
+            return value
+    if key == "worktreeBasePath":
+        derived = worktree_base(root)
+        if derived is not None:
+            return str(derived).replace("\\", "/")
+    return None
+
+
+# --------------------------------------------------------------------------
+# Scaffolding a starter file
+# --------------------------------------------------------------------------
+
+def _git(root: Path, *args: str) -> str:
+    """A git command's stdout, or an empty string when it cannot answer."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def detect_forge(root: Path) -> tuple[str, str, str]:
+    """`(forge, remote name, host)` read from the origin remote.
+
+    Detection is by HOST, not by URL shape: a self-hosted GitLab is still
+    GitLab, and a repository with no remote gets `none` rather than a guess.
+    """
+    remote = "origin"
+    url = _git(root, "remote", "get-url", remote)
+    if not url:
+        names = _git(root, "remote").splitlines()
+        if not names:
+            return "none", "", ""
+        remote = names[0].strip()
+        url = _git(root, "remote", "get-url", remote)
+    if not url:
+        return "none", "", ""
+
+    rest = re.sub(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", "", url)      # scheme
+    rest = re.sub(r"^[^@/]+@", "", rest)                        # ssh user
+    host = re.split(r"[/:]", rest, maxsplit=1)[0].lower()
+
+    if "gitlab" in host:
+        return "gitlab", remote, host
+    if "github" in host:
+        return "github", remote, host
+    return "none", remote, host
+
+
+def detect_build_gates(root: Path) -> tuple[list[str], dict]:
+    """The build gates this repository can run, and their configuration blocks."""
+    gates: list[str] = []
+    blocks: dict = {}
+
+    root_pom = root / "pom.xml"
+    if root_pom.is_file() or (root / "mvnw").is_file() or (root / "mvnw.cmd").is_file():
+        gates.append("maven")
+        # An aggregator that is not `pom.xml` is common enough that guessing is
+        # worse than naming what was found.
+        poms = sorted(p.name for p in root.glob("*pom.xml"))
+        reactor = "pom.xml" if root_pom.is_file() else (poms[0] if poms else "pom.xml")
+        blocks["maven"] = {"reactor-pom": reactor}
+
+    if (root / "package.json").is_file():
+        gates.append("npm")
+        blocks["npm"] = {"workspace-root": "."}
+    return gates, blocks
+
+
+def detect_base_branch(root: Path) -> str:
+    """The default branch name, or `auto` when git will not say."""
+    head = _git(root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if head:
+        return head.rsplit("/", 1)[-1]
+    for candidate in ("main", "master"):
+        if _git(root, "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{candidate}"):
+            return candidate
+    return "auto"
+
+
+def scaffold(root: Path) -> str:
+    """A starter configuration for this repository, as text.
+
+    Every value it cannot read from the repository is written as a commented
+    TODO rather than a plausible guess: a wrong value that validates is harder
+    to notice than a missing one.
+    """
+    forge, remote, host = detect_forge(root)
+    gates, blocks = detect_build_gates(root)
+    base = detect_base_branch(root)
+    tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
+
+    lines = [
+        "# AFK configuration for this repository. Committed: it is the contract",
+        "# every AFK skill reads. `CONFIG.md` in the plugin is the normative",
+        "# description of the schema and of the YAML subset allowed here.",
+        "#",
+        "# Scaffolded by `afk-config.py init`. Every `TODO` below is a value the",
+        "# repository could not answer for itself.",
+        f"schema: {SCHEMA}",
+        "",
+        f"tracker: {tracker}",
+        f"forge: {forge}",
+        "notes: repo-files",
+    ]
+
+    if gates:
+        lines.append("build-gates:")
+        lines += [f"  - {gate}" for gate in gates]
+    else:
+        lines += [
+            "# build-gates:            # no pom.xml / package.json at the root",
+            "#   - maven",
+        ]
+
+    lines.append("")
+    if tracker == "none":
+        lines += [
+            "# Jira: set `tracker: jira` above and fill this block in.",
+            "# jira:",
+            "#   project: TODO             # the project key, e.g. ABC",
+            "#   issue-types:",
+            "#     task: Task",
+            "#     bug: Bug",
+            "#   transitions:",
+            "#     ready-for-review: Ready for Review",
+            "#   credentials-env:          # variable NAMES; never a secret",
+            "#     - JIRA_BASE_URL",
+            "#     - JIRA_EMAIL",
+            "#     - JIRA_API_TOKEN",
+        ]
+    else:
+        lines += [
+            "github-issues:",
+            "  labels:",
+            "    bug: bug",
+        ]
+    lines.append("")
+
+    if forge in ("gitlab", "github"):
+        lines += [f"{forge}:", f"  remote: {remote or 'origin'}", ""]
+
+    lines += ["git:", f"  base-branch: {base}"]
+    lines += [
+        "  # branch-pattern is a regex every work branch must match. Empty means",
+        "  # anything is allowed; fill it in to make the branch-name gate bite.",
+        "  branch-pattern: """,
+        "",
+        "repo-files:",
+        "  spec-dir: docs/afk/{workId}",
+        "",
+    ]
+
+    for gate in gates:
+        block = blocks[gate]
+        lines.append(f"{gate}:")
+        for key, value in block.items():
+            lines.append(f"  {key}: {value}")
+        if gate == "maven":
+            lines.append("  # default-module: TODO      # the module the gates build when a")
+            lines.append("  # change names none; omit to build the whole reactor.")
+        lines.append("")
+
+    lines += [
+        "# Team defaults. These are facts about the team, not about one machine,",
+        "# so they are committed. A developer overrides either one in their own",
+        "# `~/.afk/config.yaml` under `developer:`.",
+        "# tracker-defaults:",
+        "#   assignee: TODO            # account id or email of the default assignee",
+        "# forge-defaults:",
+        "#   reviewer: TODO            # forge username of the default reviewer",
+    ]
+
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:
+    """Write the starter file. Returns its path and any validation problems."""
+    target = root / ".afk" / "config.yaml"
+    if target.is_file() and not force:
+        raise ConfigError(
+            f"{target} already exists; nothing was written. "
+            f"Pass --force to replace it (the current file is not backed up)."
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    text = scaffold(root)
+    target.write_text(text, encoding="utf-8", newline="\n")
+    config = deep_merge(dict(DEFAULTS), parse(text, str(target)))
+    return target, validate(config, root)
 
 
 # --------------------------------------------------------------------------
@@ -444,6 +702,24 @@ def main(argv: list[str]) -> int:
     root = git_root()
 
     try:
+        if command == "init":
+            if root is None:
+                sys.stderr.write("afk-config: init must run inside a git repository\n")
+                return 2
+            target, problems = init(root, force="--force" in rest)
+            for problem in problems:
+                sys.stderr.write(f"afk-config: {problem}\n")
+            if problems:
+                # A scaffold that does not validate is this tool's bug, not the
+                # user's: say so rather than leaving them to debug the file.
+                sys.stderr.write(
+                    "afk-config: the scaffold it just wrote does not validate; "
+                    "please report this with the file above\n"
+                )
+                return 2
+            sys.stdout.write(f"afk-config: wrote {target}\n")
+            return 0
+
         if command == "validate":
             if rest:
                 path = Path(rest[0])
@@ -468,6 +744,26 @@ def main(argv: list[str]) -> int:
         if command == "export-shell":
             sys.stdout.write(export_shell(config))
             return 0
+        if command == "resolve":
+            if not rest:
+                sys.stderr.write(
+                    "afk-config: resolve needs a developer key, e.g. "
+                    "`resolve trackerAssignee`\n"
+                )
+                return 2
+            key = rest[0].split(".")[-1]
+            if key not in DEVELOPER_KEYS:
+                sys.stderr.write(
+                    f"afk-config: {key!r} is not a developer key; expected one of "
+                    f"{', '.join(sorted(DEVELOPER_KEYS))}\n"
+                )
+                return 2
+            resolved = developer_value(config, key, root)
+            if resolved is None:
+                return 1
+            sys.stdout.write(shell_value(resolved) + "\n")
+            return 0
+
         if command == "get":
             if not rest:
                 sys.stderr.write("afk-config: get needs a dotted key\n")

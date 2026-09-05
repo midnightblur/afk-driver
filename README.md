@@ -254,6 +254,27 @@ changes `hooks/hooks.codex.json`. The four agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
+### Configuring a repository
+
+A repository the toolkit runs in needs one committed file, `.afk/config.yaml`.
+You do not write it by hand: `/afk:setup` scaffolds it when it is absent, from
+what the repository can answer about itself, and walks you through the few
+values it cannot infer. To scaffold it yourself:
+
+```sh
+python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
+```
+
+Commit that file — it is the repository's contract, and every other developer's
+setup depends on it. Two of its keys, `tracker-defaults.assignee` and
+`forge-defaults.reviewer`, are team facts and belong there.
+
+Your own values — the tracker account work is assigned to, the reviewer you
+name, your IDE — go under `developer:` in `~/.afk/config.yaml`, once per
+machine rather than once per checkout. Every one of them is optional: the two
+above fall back to the repository's committed defaults, and the worktree base
+is derived from git. `skills/afk/bug/CONFIG.md` is the full contract.
+
 ### Shared setup and development
 
 `/afk:setup` probes external dependencies against

@@ -24,8 +24,10 @@
 #   --track           Pass --track to `git worktree add` (use when the branch will be pushed).
 #   --repo <path>     Main repo dir. Default: first entry of `git worktree list` (the main
 #                     worktree), else the current toplevel.
-#   --parent <path>   Worktree parent dir. Default: `worktreeBasePath` from
-#                     the `developer:` block, else ~/repo-worktrees.
+#   --parent <path>   Worktree parent dir. Default: the resolved
+#                     `worktreeBasePath` — the developer's own value, else a
+#                     sibling directory `<main-checkout>-worktrees` derived
+#                     from git.
 #   --idea-bin <path> IDE launcher. Default: `developer.ideBinary`.
 #   --no-configs      Skip copying .mcp.json / .claude/ / CLAUDE.md / .run/ / .idea/.
 #   --no-npm          Skip `npm ci` at the new worktree root.
@@ -41,8 +43,9 @@
 #   success  -> WORKTREE_PATH=<absolute path>
 #   failure  -> ERROR=<reason>   (and a non-zero exit; never a bare set-e death)
 #
-# Per-dev config (the `developer:` block of .afk/config.local.yaml, gitignored)
-# supplies worktreeBasePath + ideBinary
+# Per-dev config (a `developer:` block, normally in ~/.afk/config.yaml) supplies
+# worktreeBasePath + ideBinary. Both are optional: worktreeBasePath is derived
+# when unset, and no IDE is launched without ideBinary.
 # (key names owned by skills/afk/bug/CONFIG.md); a CLI flag always overrides the config value.
 
 set -u
@@ -133,7 +136,10 @@ read_config_key() {
   }
   local py=python
   command -v python >/dev/null 2>&1 || py=python3
-  ( cd "$repo" && "$py" "$script" get "developer.$key" 2>/dev/null ) || true
+  # `resolve`, not `get`: it applies the whole chain — the developer's own
+  # value, then the repository's committed default, then the derived one —
+  # so this script never learns the order.
+  ( cd "$repo" && "$py" "$script" resolve "$key" 2>/dev/null ) || true
 }
 
 # Resolve the main repo dir first (config lives under it).
@@ -147,7 +153,15 @@ fi
 
 if [[ -z "$WORKTREE_PARENT" ]]; then
   WORKTREE_PARENT="$(read_config_key worktreeBasePath "$REPO_DIR")"
-  [[ -n "$WORKTREE_PARENT" ]] || WORKTREE_PARENT="${HOME}/repo-worktrees"
+  WORKTREE_SOURCE="developer.worktreeBasePath (or its derived default)"
+  if [[ -z "$WORKTREE_PARENT" ]]; then
+    # Only reachable when the resolver could not derive one either — a bare
+    # clone, or a git dir outside the tree. Say where it landed rather than
+    # creating worktrees somewhere the human never named.
+    WORKTREE_PARENT="${HOME}/repo-worktrees"
+    WORKTREE_SOURCE="last-resort default (set developer.worktreeBasePath or pass --parent)"
+  fi
+  echo -e "  ${YELLOW}Worktree parent: $WORKTREE_PARENT — $WORKTREE_SOURCE${NC}" >&2
 fi
 if [[ -z "$IDEA_BIN" ]]; then
   IDEA_BIN="$(read_config_key ideBinary "$REPO_DIR")"

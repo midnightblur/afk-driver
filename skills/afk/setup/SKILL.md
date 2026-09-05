@@ -27,6 +27,24 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 
 ## Doctor loop
 
+0. **Configure the repository, if it isn't.** Every probe below reads
+   `.afk/config.yaml`, so a repository without one has nothing to check against.
+   `<git root>/.afk/config.yaml` present → skip this step, silently. Absent:
+   - run `python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
+     starter file from what the repository can answer about itself (forge from
+     the origin remote, build gates from a root `pom.xml` / `package.json`, base
+     branch from `origin/HEAD`), and leaves a commented `TODO` wherever it
+     cannot;
+   - show the file and walk the human through every `TODO` it left — at minimum
+     the tracker (project key and issue types, or `none`) and the build gate's
+     default module;
+   - re-run `afk-config.py validate` after their edits and fix what it names;
+   - tell them to **commit it**: the file is the repository's contract, not a
+     personal setting, and every other developer's setup depends on it.
+
+   Refuse to guess a tracker project or a module name on their behalf. This step
+   is idempotent, and `init` refuses to overwrite an existing file.
+
 1. **Load the register.** Read [`MANIFEST.md`](MANIFEST.md) — the complete
    dependency set; probe nothing outside it (a known dep missing from it is a
    FRESHNESS.md violation — flag it, then probe it anyway).
