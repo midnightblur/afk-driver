@@ -1,6 +1,6 @@
 {
   "name": "afk",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters.",
   "skills": [
     "./skills/afk/adversary",

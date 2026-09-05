@@ -18,15 +18,25 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-09-05
+
+One fix, released on its own because the thing it prevents cannot be undone.
+
+- **Migration:** none. Upgrade before you provision anything, especially a
+  worktree whose `.mvn/maven.config` you wrote yourself.
+
 ### Fixed
 
-- The maven build gate no longer overwrites a `maven.config` the worktree
-  already has. One naming a different local repository now reports `degraded`
-  and is left exactly as it is; one carrying other flags keeps them, because the
-  repository line is appended rather than written over the file. Found by
-  running the 1.0.11 provisioner over 31 real worktrees, one of which points its
-  repository at a second toolchain's — that run was a dry run, so nothing was
-  lost.
+- **The maven build gate could destroy a `maven.config` the worktree already
+  had.** 1.0.11 wrote its own single line over the file: a worktree pointing
+  `maven.repo.local` at a deliberate second repository — another toolchain's,
+  say — silently lost that, and any other flag in the file went with it. The
+  build then ran against the wrong repository, which is the kind of failure
+  nobody connects to having cut a worktree. Now a different `maven.repo.local`
+  reports `degraded` and the file is left exactly as it is, and the repository
+  line is APPENDED, so other flags survive. Found by dry-running the 1.0.11
+  provisioner over 31 real worktrees, one of which was in exactly that state;
+  because it was a dry run, nothing was lost.
 
 ## [1.0.11] - 2026-09-04
 
