@@ -266,14 +266,14 @@ python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
 ```
 
 Commit that file — it is the repository's contract, and every other developer's
-setup depends on it. Two of its keys, `tracker-defaults.assignee` and
-`forge-defaults.reviewer`, are team facts and belong there.
+setup depends on it. It names no person: who work is assigned to and who
+reviews it are answered by each developer, not by the repository.
 
 Your own values — the tracker account work is assigned to, the reviewer you
 name, your IDE — go under `developer:` in `~/.afk/config.yaml`, once per
-machine rather than once per checkout. Every one of them is optional: the two
-above fall back to the repository's committed defaults, and the worktree base
-is derived from git. `skills/afk/bug/CONFIG.md` is the full contract.
+machine rather than once per checkout. `/afk:setup` asks you for the assignee
+and the reviewer; nothing supplies them for you. The worktree base is derived
+from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 
 ### Shared setup and development
 

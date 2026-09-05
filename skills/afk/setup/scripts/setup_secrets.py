@@ -97,11 +97,11 @@ def read_json(p: Path) -> dict:
 
 
 def resolved_default(key: str):
-    """What `key` resolves to right now, before this script writes anything.
+    """What `key` resolves to right now.
 
-    Asks the one reader rather than reimplementing the order, so "the team
-    already set this" and "git can derive this" are answered the same way every
-    other caller answers them.
+    Asks the one reader rather than reimplementing the order, so "already set"
+    and "git can derive this" are answered the way every other caller answers
+    them. A key naming a person resolves only from a `developer:` block.
     """
     script = Path(__file__).resolve().parents[4] / "scripts" / "afk-config.py"
     if not script.is_file():
@@ -347,20 +347,36 @@ cfg = read_developer_block(cfg_path)
 if cfg:
     skip("Existing config — Enter keeps each current value.")
 
-# Both of these fall back to a value the repository commits, so an empty answer
-# is a real choice, not an omission: it means "use whatever the team set".
-team_assignee = resolved_default("trackerAssignee")
-team_reviewer = resolved_default("mrReviewer")
-if team_assignee or team_reviewer:
-    skip("This repository commits team defaults; leave a field empty to use them.")
-cfg["trackerAssignee"] = ask(
-    "assignee account id or email" + (f" [team default: {team_assignee}]" if team_assignee else ""),
-    cfg.get("trackerAssignee") or ("" if team_assignee else account_id),
-)
-cfg["mrReviewer"] = ask(
-    "reviewer (forge username)" + (f" [team default: {team_reviewer}]" if team_reviewer else ""),
-    cfg.get("mrReviewer"),
-)
+# These two name a PERSON, so nothing defaults them: not the repository, not
+# this script. Each developer answers for themselves, and an empty answer is
+# re-asked rather than quietly meaning someone else.
+if TRACKER_KIND == "none":
+    skip("tracker: none — nothing is assigned, so no assignee is asked for")
+    cfg.pop("trackerAssignee", None)
+else:
+    # Pre-filled with the account the token itself belongs to: the common answer
+    # is "me", and it is the one value this script can know without guessing.
+    cfg["trackerAssignee"] = ask(
+        "assignee account id or email (yours, unless work goes to someone else)",
+        cfg.get("trackerAssignee") or account_id,
+    )
+
+if FORGE_KIND == "none":
+    skip("forge: none — no change is reviewed, so no reviewer is asked for")
+    cfg.pop("mrReviewer", None)
+else:
+    # No pre-fill: who reviews your work is not something anyone else may pick.
+    # `none` is the way to say "nobody", and the Ready flip then fails closed.
+    answer = ask("reviewer (forge username, or `none` to leave it unset)",
+                 cfg.get("mrReviewer"))
+    if answer.strip().lower() == "none":
+        # Recorded, not dropped: `none` is an answer, and a recorded answer is
+        # what tells the doctor this developer was asked. Every consumer reads
+        # `none` as "no reviewer" and fails closed exactly as an absent key does.
+        cfg["mrReviewer"] = "none"
+        skip("reviewer recorded as none — the change Ready flip will fail closed")
+    else:
+        cfg["mrReviewer"] = answer
 
 # The worktree base is derived from git when unset, so it is asked for only when
 # the derivation cannot answer or the developer wants somewhere else.
@@ -444,8 +460,14 @@ else:
     for v in (("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN") if TRACKER_KIND == "jira" else ()):
         ok(f"{v} set") if env2.get(v) else warn(f"{v} MISSING")
 
-cfg2 = read_json(cfg_path)
-missing = [k for k in ("trackerAssignee", "mrReviewer", "worktreeBasePath") if not cfg2.get(k)]
+# Re-probe the way H6 does — through `resolve`, not by reading the file — so
+# this line and the doctor row can never disagree.
+wanted = ["worktreeBasePath"]
+if TRACKER_KIND != "none":
+    wanted.insert(0, "trackerAssignee")
+if FORGE_KIND != "none":
+    wanted.append("mrReviewer")
+missing = [k for k in wanted if not resolved_default(k)]
 warn(f"config missing: {', '.join(missing)}") if missing else ok("config complete")
 
 print(f"""

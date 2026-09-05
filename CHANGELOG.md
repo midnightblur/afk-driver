@@ -18,6 +18,45 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-09-05
+
+### Removed
+
+- **Committed team defaults (`tracker-defaults`, `forge-defaults`).** A
+  committed file never names a person: it made one developer's account the
+  answer for everyone who cloned the repository, and a developer who set
+  nothing silently assigned their work to that person. Setup now asks each
+  developer instead, and `developer:` in `~/.afk/config.yaml` is the only place
+  `trackerAssignee` and `mrReviewer` resolve from.
+
+### Added
+
+- **The genericity gate refuses a person named anywhere in the plugin tree** —
+  a tracker account id, an address, or the checkout's own author handles —
+  outside the four paths where authorship is the point (`LICENSE`, both plugin
+  manifests, `CHANGELOG.md`).
+
+### Changed
+
+- **`/afk:setup` asks every developer for the assignee and the reviewer.** The
+  assignee is pre-filled with the account the validated token belongs to; the
+  reviewer has no pre-fill, an empty answer is asked again, and the literal
+  `none` records "nobody" — every consumer reads it as absent and fails closed.
+  Neither is asked where its adapter has no such concept (tracker `none`,
+  forge `none`), and the setup doctor's H6 row is then n/a.
+- **H6 now FAILS when either person does not resolve**, where before it was
+  n/a for a repository that committed no default.
+
+### Migration
+
+- Set `developer.trackerAssignee` and `developer.mrReviewer` in
+  `~/.afk/config.yaml` — run `python skills/afk/setup/scripts/setup_secrets.py`
+  from your own terminal, or write the block by hand per
+  `skills/afk/bug/CONFIG.md`.
+- Committed `tracker-defaults` / `forge-defaults` are now unknown keys:
+  `afk-config.py validate` reports them. Delete the block from the repository's
+  `.afk/config.yaml`.
+
 ## [1.0.13] - 2026-09-05
 
 ### Fixed

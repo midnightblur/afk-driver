@@ -132,32 +132,28 @@ def test_init_writes_the_file_and_refuses_to_overwrite(tmp_path):
 
 # ------------------------------------------------------- resolution order
 
-def test_developer_value_wins_over_the_team_default():
-    config = {"developer": {"trackerAssignee": "mine"},
-              "tracker-defaults": {"assignee": "team"}}
+def test_the_developer_block_is_the_only_source_of_a_person():
+    config = {"developer": {"trackerAssignee": "mine", "mrReviewer": "theirs"}}
     assert ac.developer_value(config, "trackerAssignee") == "mine"
+    assert ac.developer_value(config, "mrReviewer") == "theirs"
 
 
-def test_the_team_default_stands_in_when_the_developer_set_nothing():
+def test_a_committed_team_default_no_longer_stands_in_for_a_person():
     config = {"tracker-defaults": {"assignee": "team"},
               "forge-defaults": {"reviewer": "lead"}}
-    assert ac.developer_value(config, "trackerAssignee") == "team"
-    assert ac.developer_value(config, "mrReviewer") == "lead"
+    assert ac.developer_value(config, "trackerAssignee") is None
+    assert ac.developer_value(config, "mrReviewer") is None
 
 
-def test_an_empty_developer_value_does_not_shadow_the_default():
-    config = {"developer": {"mrReviewer": "  "}, "forge-defaults": {"reviewer": "lead"}}
-    assert ac.developer_value(config, "mrReviewer") == "lead"
+def test_an_empty_developer_value_resolves_to_nothing():
+    config = {"developer": {"mrReviewer": "  "}}
+    assert ac.developer_value(config, "mrReviewer") is None
 
 
-def test_neither_layer_set_means_fail_closed():
+def test_nothing_set_means_fail_closed():
     assert ac.developer_value({}, "trackerAssignee") is None
+    assert ac.developer_value({}, "mrReviewer") is None
     assert ac.developer_value({}, "ideBinary") is None
-
-
-def test_ide_binary_has_no_team_default():
-    config = {"tracker-defaults": {"assignee": "team"}}
-    assert ac.developer_value(config, "ideBinary") is None
 
 
 # ------------------------------------------------------- derived worktrees
@@ -188,12 +184,9 @@ def test_an_explicit_worktree_base_still_wins(tmp_path):
 
 # ------------------------------------------------------------- validation
 
-def test_team_default_blocks_are_validated():
+def test_a_committed_team_default_block_is_now_an_unknown_key():
     base = {"schema": ac.SCHEMA}
-    assert ac.validate({**base, "tracker-defaults": {"assignee": "x"}}) == []
-    assert any("must be a mapping" in p
-               for p in ac.validate({**base, "tracker-defaults": "x"}))
-    assert any("unknown key" in p
-               for p in ac.validate({**base, "forge-defaults": {"reviewr": "x"}}))
-    assert any("must be a string" in p
-               for p in ac.validate({**base, "forge-defaults": {"reviewer": 7}}))
+    assert any("unknown" in p
+               for p in ac.validate({**base, "tracker-defaults": {"assignee": "x"}}))
+    assert any("unknown" in p
+               for p in ac.validate({**base, "forge-defaults": {"reviewer": "x"}}))

@@ -8,6 +8,9 @@
 # Checks ADDED lines of changed/untracked plugin .md files for:
 #   0. build-system commands in the generic worktree scripts (scripts/*), whose
 #      whole design is that every such command lives in a build-gate adapter
+#  0b. a person named anywhere in the plugin tree - a tracker account id, an
+#      address, or this checkout's own author handles - outside the four paths
+#      where authorship is the point (LICENSE, both plugin manifests, CHANGELOG)
 #   1. tracker-shaped ticket IDs (PREFIX-123) outside the notation allowlist
 #   2. source-file references   (`Foo.vue` / `Foo.java` / `Foo.ts` ...) that
 #      resolve to a file the gated repository tracks OUTSIDE the plugin's own
@@ -62,6 +65,50 @@ gate_genericity() {
       echo "dispatch to whichever build gates the repository selected."
     } >&2
     return 2
+  fi
+
+  # ---- check 0b: nothing this plugin ships names a person.
+  # A committed file naming one developer makes every other developer read
+  # around it, and an account id or address shipped in a plugin publishes
+  # someone's identity. Three shapes, over the whole tree rather than only added
+  # lines: a tracker account id (24 lowercase hex), an address, and this
+  # checkout's own author handles — so the check catches a name without one
+  # being written into it.
+  if git -C "$PLUGIN_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local handles="" tok name_cfg mail_cfg ident_hits
+    name_cfg=$(git -C "$PLUGIN_DIR" config user.name 2>/dev/null || true)
+    mail_cfg=$(git -C "$PLUGIN_DIR" config user.email 2>/dev/null || true)
+    for tok in $(printf '%s %s' "$name_cfg" "${mail_cfg%%@*}" | tr -cs 'A-Za-z0-9' ' '); do
+      tok=$(printf '%s' "$tok" | tr 'A-Z' 'a-z')
+      [ "${#tok}" -ge 3 ] || continue
+      handles="$handles${handles:+|}$tok"
+    done
+
+    # Excluded BY PATH, because in these four a name is the point: the licence
+    # and the two plugin manifests state authorship, and the changelog records
+    # what was already published and may not be rewritten.
+    ident_hits=$(
+      git -C "$PLUGIN_DIR" grep -nIEi --untracked \
+        -e '\b[0-9a-f]{24}\b' \
+        -e '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' \
+        ${handles:+-e "\b($handles)\b"} \
+        -- . ':(exclude)LICENSE' ':(exclude)CHANGELOG.md' \
+             ':(exclude).claude-plugin/*' ':(exclude).codex-plugin/*' 2>/dev/null \
+        | grep -vEi '(^|[^A-Za-z0-9._%+-])(git|noreply)@' \
+        | grep -vEi '@([A-Za-z0-9-]+\.)*(example\.(com|org|net)|[A-Za-z0-9-]+\.(test|local|invalid))\b' \
+        | head -20
+    )
+    if [ -n "$ident_hits" ]; then
+      {
+        echo "Genericity gate: this plugin must name no person."
+        printf '%s\n' "$ident_hits"
+        echo
+        echo "Fix: replace the account id, address or handle with a placeholder"
+        echo "({user}, dev@example.com), or move the value into a developer's own"
+        echo "~/.afk/config.yaml - a committed file never names a person."
+      } >&2
+      return 2
+    fi
   fi
 
   # ---- scope: plugin .md changed vs the integration base, or untracked.

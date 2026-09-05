@@ -21,18 +21,21 @@ fail closed. Provisioned and probed by the workflow doctor (`H6`).
 |-------|------|-------|
 | Machine | `~/.afk/config.yaml` | A `developer:` block. The normal home: one file covers every repository on the machine. |
 | Checkout | `<repo>/.afk/config.local.yaml` | A `developer:` block for a value that differs in ONE checkout. Gitignored. |
-| Repository | `<repo>/.afk/config.yaml` | `tracker-defaults.assignee` and `forge-defaults.reviewer` — team facts, committed. |
+
+The committed `<repo>/.afk/config.yaml` holds none of these keys: K1 and K2 name
+a person, and a committed file never names a person. Each developer answers for
+themselves, and `/afk:setup` asks.
 
 Resolution, highest first: the `developer:` value from any layer (checkout
-overlay beats machine), then the committed team default, then — for
-`worktreeBasePath` alone — a derived value, then fail closed.
+overlay beats machine), then — for `worktreeBasePath` alone — a derived value,
+then fail closed.
 
 ## Keys
 
 | ID | Key | Type | Meaning | Falls back to | Gates |
 |----|-----|------|---------|---------------|-------|
-| K1 | `trackerAssignee` | string | Account id or email the bug ticket is assigned to — the tracker adapter resolves it by user search | `tracker-defaults.assignee` | Tracker publish |
-| K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready | `forge-defaults.reviewer` | Change Ready flip |
+| K1 | `trackerAssignee` | string | Account id or email the bug ticket is assigned to — the tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
+| K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready. The literal `none` is a valid answer: it records "nobody reviews my changes", and every consumer reads it exactly as an absent key | nothing — a person has no default | Change Ready flip |
 | K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right | (optional) interactive worktree open |
 
@@ -61,7 +64,7 @@ agrees on the directory. A repository whose git directory is not inside the tree
 |-----------|----------------|------------------------|
 | Tracker publish | K1 | No tracker call is attempted; bug stays `captured` (S1); the unpublished capture is still fully on disk and shown by `status` |
 | Fixer dispatch | K3 | Dispatch refused; no worktree created, no fixer spawned; the reason names the key. Only reachable when the derivation also failed. |
-| Change Ready flip | K2 | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
+| Change Ready flip | K2 (absent, or the literal `none`) | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
 | Interactive worktree open | K4 | Worktree is still created; the IDE simply isn't launched (K4 is optional — its absence never blocks) |
 
 ## Hypothetical files
@@ -72,21 +75,14 @@ agrees on the directory. A repository whose git directory is not inside the tree
 developer:
   # account id or email — the tracker adapter resolves it by user search
   trackerAssignee: dev@example.com
+  # the forge username who reviews this developer's changes
+  mrReviewer: reviewer.name
   ideBinary: C:/Program Files/JetBrains/IntelliJ IDEA/bin/idea64.exe
 ```
 
-`<repo>/.afk/config.yaml` — committed, the same for the whole team:
-
-```yaml
-tracker-defaults:
-  assignee: 5ad8b262af21cf2a74845b29
-forge-defaults:
-  reviewer: team.lead
-```
-
-Between them every gate above is satisfied: K1 and K4 from the machine, K2 from
-the repository, K3 derived. Nothing is per-checkout, so nothing needs writing
-again when a worktree is created.
+That one file satisfies every gate above: K1, K2 and K4 from the machine, K3
+derived. Nothing is per-checkout, so nothing needs writing again when a worktree
+is created.
 
 The overlay is gitignored and may not set `schema`; everything else about these
 files is ordinary configuration, documented in `CONFIG.md` at the plugin root.

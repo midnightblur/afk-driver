@@ -128,14 +128,14 @@ class TestCreateFields(unittest.TestCase):
         desc = publish_bug.description_doc(publish_bug.bundle_to_adf(FIXTURE_BUNDLE))
         fields = publish_bug.build_create_fields(
             "PROJ", "totals off by one", desc,
-            assignee_account_id="acc-123", labels=["afk-bug", "mvu"],
+            assignee_account_id="acc-123", labels=["afk-bug", "team-x"],
             fix_version="2026.r1")
         f = fields["fields"]
         self.assertEqual(f["project"], {"key": "PROJ"})
         self.assertEqual(f["summary"], "totals off by one")
         self.assertEqual(f["issuetype"], {"name": "Bug"})
         self.assertEqual(f["assignee"], {"accountId": "acc-123"})
-        self.assertEqual(f["labels"], ["afk-bug", "mvu"])
+        self.assertEqual(f["labels"], ["afk-bug", "team-x"])
         self.assertEqual(f["fixVersions"], [{"name": "2026.r1"}])
         self.assertEqual(f["description"]["type"], "doc")
 

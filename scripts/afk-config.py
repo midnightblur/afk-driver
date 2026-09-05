@@ -52,8 +52,7 @@ TOP_LEVEL = {
     "schema", "toolkit-version", "tracker", "forge", "notes", "build-gates",
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
-    "repo-hooks", "setup", "developer",
-    "tracker-defaults", "forge-defaults", "worktree",
+    "repo-hooks", "setup", "developer", "worktree",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -61,21 +60,13 @@ TOP_LEVEL = {
 # checkout on the machine; the gitignored `.afk/config.local.yaml` overlay is for
 # a value that differs in ONE checkout. Never the committed file.
 #
-# Two of them have a committed team-wide fallback, because "who reviews" and
-# "who is assigned" are facts about a team and not about a laptop:
-#   developer.trackerAssignee -> tracker-defaults.assignee
-#   developer.mrReviewer      -> forge-defaults.reviewer
-# Resolution is developer value, then team default, then fail closed naming both
-# (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix). `worktreeBasePath` has
-# no default because it is DERIVED (`worktree_base`), and `ideBinary` has none
-# because no default could be right.
+# `trackerAssignee` and `mrReviewer` NAME A PERSON, so they have no default at
+# any layer: a committed file may not name one, and no toolkit may pick one for
+# a team. Setup asks each developer, and a value nobody supplied fails closed
+# (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix). `worktreeBasePath`
+# has a default because it is DERIVED (`worktree_base`) and names no person;
+# `ideBinary` has none because no default could be right.
 DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary"}
-
-# developer key -> the committed key that stands in when it is unset.
-DEVELOPER_FALLBACKS = {
-    "trackerAssignee": "tracker-defaults.assignee",
-    "mrReviewer": "forge-defaults.reviewer",
-}
 
 # What a new worktree carries over from the checkout it was cut from. These are
 # personal, untracked files a fresh `git worktree add` would leave behind — the
@@ -393,18 +384,6 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     if creds is not None and not isinstance(creds, list):
         problems.append("jira.credentials-env: must be a block list of variable NAMES")
 
-    for block, key in (("tracker-defaults", "assignee"), ("forge-defaults", "reviewer")):
-        value = config.get(block)
-        if value is None:
-            continue
-        if not isinstance(value, dict):
-            problems.append(f"{block}: must be a mapping")
-            continue
-        for extra in sorted(set(value) - {key}):
-            problems.append(f"{block}.{extra}: unknown key; expected `{key}`")
-        if key in value and not isinstance(value[key], str):
-            problems.append(f"{block}.{key}: must be a string")
-
     worktree = config.get("worktree")
     if worktree is not None:
         if not isinstance(worktree, dict):
@@ -512,19 +491,15 @@ def worktree_base(root: Path | None = None) -> Path | None:
 
 
 def developer_value(config: dict, key: str, root: Path | None = None) -> str | None:
-    """A `developer.<key>`, its committed team default, or None.
+    """A `developer.<key>`, its derived value where one exists, or None.
 
-    One function so that every consumer resolves in the same order. `None` means
-    fail closed and name both places the value could come from — never invent one.
+    One function so that every consumer resolves the same way. A key naming a
+    PERSON is never derived and never defaulted: `None` means fail closed and
+    say which developer value is missing, never invent one.
     """
     value = get(config, f"developer.{key}")
     if isinstance(value, str) and value.strip():
         return value
-    fallback = DEVELOPER_FALLBACKS.get(key)
-    if fallback:
-        value = get(config, fallback)
-        if isinstance(value, str) and value.strip():
-            return value
     if key == "worktreeBasePath":
         derived = worktree_base(root)
         if derived is not None:
@@ -690,13 +665,10 @@ def scaffold(root: Path) -> str:
         lines.append("")
 
     lines += [
-        "# Team defaults. These are facts about the team, not about one machine,",
-        "# so they are committed. A developer overrides either one in their own",
-        "# `~/.afk/config.yaml` under `developer:`.",
-        "# tracker-defaults:",
-        "#   assignee: TODO            # account id or email of the default assignee",
-        "# forge-defaults:",
-        "#   reviewer: TODO            # forge username of the default reviewer",
+        "# Who work is assigned to, and who reviews it, are NOT configured here:",
+        "# a committed file never names a person. Each developer answers for",
+        "# themselves in `~/.afk/config.yaml` under `developer:`, which `/afk:setup`",
+        "# asks for.",
     ]
 
     return "\n".join(lines).rstrip("\n") + "\n"

@@ -39,7 +39,7 @@ write_fixture() {
 # Execution Plan — Fixture
 
 > Parent ticket: TCK-1   Mode: cited
-> Branch (for /afk:execute): mvu/afk/tck-1
+> Branch (for /afk:execute): dev/afk/tck-1
 > Last updated: 2026-01-01 (status column maintained by /afk:execute)
 > Feature: in-progress
 

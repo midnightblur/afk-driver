@@ -85,39 +85,45 @@ a token value — not even partially.
   afk.branchNameGate false`. The installer refuses to clobber a pre-existing
   non-AFK hook of the same name.
 
-### H6 · per-developer values (`developer:` + committed team defaults)
+### H6 · per-developer values (`developer:`)
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
 - **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
   a Store stub that exits 49 while real `python` works). Ask `afk-config.py
   resolve`, never `get` and never a file: `resolve` applies the whole chain —
-  the developer's own value from any layer, then the repository's committed
-  default, then the derived worktree base — so the probe cannot disagree with
-  the pipeline it gates.
+  the developer's own value from any layer, then the derived worktree base — so
+  the probe cannot disagree with the pipeline it gates. `trackerAssignee` and
+  `mrReviewer` name a person, so nothing resolves them but the developer's own
+  answer: unresolved is a FAILURE, not an n/a. Each is asked for only where its
+  adapter has the concept, so the selected kind decides which keys are probed.
   ```
   PY="$(command -v python || command -v python3)"
+  AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
+  keys="worktreeBasePath"
+  [ "$("$PY" "$AC" get tracker)" = none ] || keys="trackerAssignee $keys"
+  [ "$("$PY" "$AC" get forge)" = none ] || keys="$keys mrReviewer"
   m=""
-  for k in trackerAssignee mrReviewer worktreeBasePath; do
-    "$PY" "$AFK_PLUGIN_ROOT/scripts/afk-config.py" resolve "$k" >/dev/null 2>&1 \
-      || m="$m $k"
+  for k in $keys; do
+    "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
   [ -z "$m" ] && echo ok || { echo "unresolved:$m"; exit 1; }
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does H2/S1/C3 or C3b, whichever the forge selects; pre-fills K1 from the
-  validated token's own account, and offers `~/.afk/config.yaml` so one answer
-  covers every repository on the machine). By hand, either:
-  add a `developer:` block to `~/.afk/config.yaml` per the example in
-  `skills/afk/bug/CONFIG.md`, **or** — when the values are the same for the whole
-  team — commit `tracker-defaults.assignee` and `forge-defaults.reviewer` in the
-  repository's own `.afk/config.yaml`. Both satisfy this row; the message names
-  both because either is a correct answer.
-- **Notes:** every key is optional, and this row is **n/a** for a repository that
-  commits no defaults and a developer who set none — the bug pipeline's gated
-  operations are then the only thing affected, and each fails closed naming what
-  it needed. `worktreeBasePath` normally resolves without anyone setting it (it
-  derives beside the main checkout), so an unresolved K3 means git could not
-  answer — a bare clone. K4 `ideBinary` is optional and not probed.
+  does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
+  the assignee — pre-filled with the account the validated token itself belongs
+  to — and for the reviewer, which has no pre-fill because no one else may pick
+  who reviews your work. It offers `~/.afk/config.yaml`, so one answer covers
+  every repository on the machine. By hand: add a `developer:` block there per
+  the example in `skills/afk/bug/CONFIG.md`.
+- **Notes:** a developer with no reviewer answers the literal `none`, which
+  resolves and so satisfies this row; every consumer reads it as an absent key
+  and fails closed. The repository's committed config answers none of these — a
+  committed file never names a person. Under tracker `none` nothing is assigned
+  and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
+  probed; each is then **n/a**. `worktreeBasePath` normally resolves without
+  anyone setting it (it derives beside the main checkout), so an unresolved K3
+  means git could not answer — a bare clone. K4 `ideBinary` is optional and not
+  probed.
 
 ### H7 · plain-language replies (ASD-STE100) **[opt-in]**
 - **Needed by:** nothing — a user preference: every agent session of this user

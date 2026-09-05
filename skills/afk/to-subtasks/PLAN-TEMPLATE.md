@@ -5,7 +5,7 @@
 
 > Parent ticket: {TICKET-ID}   Mode: cited | uncited
 > Sources: [PRD](../PRD.md){cited: · [SDD](../SDD.md) · [ADRs](../adr/)}
-> Branch (for /afk:execute): mvu/afk/{ticket-id-lower}
+> Branch (for /afk:execute): {user}/afk/{ticket-id-lower}
 > Last updated: {YYYY-MM-DD} (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
