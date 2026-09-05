@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-09-05
+
 ### Fixed
 
 - **`change-update-body` no longer publishes a draft change.** `glab mr update
@@ -36,6 +38,13 @@ first released heading here.
   the block appended; one that has it gets the lines between the sentinels
   replaced by `skills/afk/setup/scripts/install_block.py`, which keeps the
   file's own line endings and everything written around the block.
+
+### Migration
+
+- Re-run `/afk:setup` H7 once. This is the release where it can refresh an
+  installed block, so a machine still on the pre-1.0.15 reply standard picks up
+  the noun-cluster cap and the two coined-term rules without editing the file
+  by hand.
 
 ## [1.0.15] - 2026-09-05
 
