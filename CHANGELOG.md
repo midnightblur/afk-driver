@@ -18,6 +18,16 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The maven build gate no longer overwrites a `maven.config` the worktree
+  already has. One naming a different local repository now reports `degraded`
+  and is left exactly as it is; one carrying other flags keeps them, because the
+  repository line is appended rather than written over the file. Found by
+  running the 1.0.11 provisioner over 31 real worktrees, one of which points its
+  repository at a second toolchain's — that run was a dry run, so nothing was
+  lost.
+
 ## [1.0.11] - 2026-09-04
 
 Cutting a worktree wrote one build system's private local repository and ran one

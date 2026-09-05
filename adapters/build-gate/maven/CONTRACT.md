@@ -67,6 +67,12 @@ the migration path), `skipped`, or `degraded`. Exit 0 for all of those, 2 for an
 invalid payload, 4 when the seed copy failed — the worktree is isolated either
 way, so a failed seed is a warning, never a failure.
 
+A `maven.config` the worktree already has is never overwritten. One already
+naming a different `maven.repo.local` reports `degraded` and is left exactly as
+it is — that value is someone's deliberate choice, and a build silently moved to
+another repository is the worst outcome available. One carrying other flags
+keeps them: the repository line is appended, never written over the file.
+
 A worktree path containing a space reports `degraded` and provisions nothing:
 `maven.config` cannot quote such a path, and a build that silently uses the
 wrong repository is worse than one that shares the default.

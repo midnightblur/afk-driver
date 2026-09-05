@@ -190,6 +190,49 @@ printf '%s' "$OUT6" | grep -q '"status":"adopted"' && ok "existing state is adop
 [[ ! -s "$NPM_LOG" ]] && ok "adoption ran no install" || bad "adoption ran an install"
 git -C "$REPO" worktree remove --force "$WT2" >/dev/null 2>&1 || true
 
+# --- 6b: a maven.config the developer owns is never overwritten --------------
+write_config "  - maven
+maven:
+  worktree-repo: isolated
+  worktree-seed: $FAKE_M2"
+WT2B="$(new_worktree twob)"
+mkdir -p "$WT2B/.mvn"
+printf -- '-Dmaven.repo.local=%s/elsewhere
+-Dsome.other.flag=1
+' "$TMP_ROOT" > "$WT2B/.mvn/maven.config"
+OUT6B="$(bash "$PROVISION" --source "$REPO" --worktree "$WT2B" 2>"$TMP_ROOT/err6b.log")"
+printf '%s' "$OUT6B" | grep -q '"status":"degraded"' && ok "a foreign local repository reports degraded" || bad "foreign repository not reported (got: $OUT6B)"
+if grep -qxF -- "-Dmaven.repo.local=$TMP_ROOT/elsewhere" "$WT2B/.mvn/maven.config"    && grep -qxF -- "-Dsome.other.flag=1" "$WT2B/.mvn/maven.config"; then
+  ok "the developer's maven.config is left exactly as it was"
+else
+  bad "maven.config was rewritten: $(cat "$WT2B/.mvn/maven.config")"
+fi
+git -C "$REPO" worktree remove --force "$WT2B" >/dev/null 2>&1 || true
+
+# a file with other flags and no local repository keeps them and gains ours
+WT2C="$(new_worktree twoc)"
+mkdir -p "$WT2C/.mvn"
+printf -- '-Dsome.other.flag=1
+' > "$WT2C/.mvn/maven.config"
+bash "$PROVISION" --source "$REPO" --worktree "$WT2C" >/dev/null 2>&1
+WT2C_WIN="$(cygpath -m "$WT2C" 2>/dev/null || echo "$WT2C")"
+if grep -qxF -- "-Dsome.other.flag=1" "$WT2C/.mvn/maven.config"    && grep -qxF -- "-Dmaven.repo.local=$WT2C_WIN/.m2/repository" "$WT2C/.mvn/maven.config"; then
+  ok "an existing flag is kept and the repository line appended"
+else
+  bad "append lost a flag: $(cat "$WT2C/.mvn/maven.config")"
+fi
+git -C "$REPO" worktree remove --force "$WT2C" >/dev/null 2>&1 || true
+
+write_config "  - maven
+  - npm
+maven:
+  worktree-repo: isolated
+  worktree-seed: $FAKE_M2
+  worktree-seed-exclude:
+    - '*-SNAPSHOT'
+npm:
+  worktree-install: ci"
+
 # --- 7: the ways to opt out --------------------------------------------------
 WT3="$(new_worktree three)"
 : > "$NPM_LOG"

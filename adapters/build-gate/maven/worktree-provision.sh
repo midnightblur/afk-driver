@@ -94,12 +94,27 @@ if [ "${WORKTREE_NATIVE}" != "${WORKTREE_NATIVE% *}" ]; then
   answer; exit 0
 fi
 
-# ---- adoption: a worktree provisioned before this adapter existed
+# ---- what the worktree already says. maven.config is a file a developer may own:
+# it can carry other flags, or point the local repository somewhere deliberate (a
+# second repository for another toolchain, say). Overwriting either would break a
+# build in a way nobody would connect to cutting a worktree.
 ADOPT=false
-if [ -f "$MAVEN_CONFIG" ] && grep -qxF -- "$REPO_LINE" "$MAVEN_CONFIG" 2>/dev/null \
-   && [ -d "$WORKTREE/.m2/repository" ]; then
-  ADOPT=true
-  STATUS=adopted
+FOREIGN_REPO=""
+if [ -f "$MAVEN_CONFIG" ]; then
+  if grep -qxF -- "$REPO_LINE" "$MAVEN_CONFIG" 2>/dev/null; then
+    ADOPT=true
+    STATUS=adopted
+  else
+    FOREIGN_REPO=$(grep -o -- '-Dmaven\.repo\.local=[^[:space:]]*' "$MAVEN_CONFIG" 2>/dev/null | head -1)
+  fi
+fi
+
+if [ -n "$FOREIGN_REPO" ]; then
+  STATUS=degraded
+  add SKIPPED "{\"step\":\"maven.config\",\"reason\":\"the worktree already points its local repository elsewhere\"}"
+  add WARNINGS "\"$(quoted "$MAVEN_CONFIG") already sets $(quoted "$FOREIGN_REPO"); left as it is — delete that line and re-run with --force for a private repository\""
+  printf '%s\n' "afk: $MAVEN_CONFIG already sets $FOREIGN_REPO — leaving it alone" >&2
+  answer; exit 0
 fi
 
 if [ "$DRY_RUN" = true ]; then
@@ -121,12 +136,14 @@ done
 add DONE '"info/exclude"'
 
 if [ "$ADOPT" = true ]; then
+  mkdir -p "$WORKTREE/.m2/repository" 2>/dev/null || true
   printf '%s\n' "afk: adopting the Maven repository already at $WORKTREE/.m2/repository" >&2
   answer; exit 0
 fi
 
 mkdir -p "$WORKTREE/.m2/repository" "$WORKTREE/.mvn" || fail "cannot create $WORKTREE/.mvn"
-printf -- '%s\n' "$REPO_LINE" > "$MAVEN_CONFIG" || fail "cannot write $MAVEN_CONFIG"
+# Append, never truncate: any other flag already in the file is the developer's.
+printf -- '%s\n' "$REPO_LINE" >> "$MAVEN_CONFIG" || fail "cannot write $MAVEN_CONFIG"
 add DONE '"maven.config"'
 printf '%s\n' "afk: private Maven repository at $WORKTREE_NATIVE/.m2/repository" >&2
 
