@@ -104,6 +104,11 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee` and `mrReviewer` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
 
+Every map in the table is validated one level down: a child key that is not
+listed is refused, named by its full dotted path. Below that level the names
+are the repository's own — a transition name, a state name, a tier name — so
+they are not constrained.
+
 ### Path templates
 
 `repo-files.spec-dir` and `git.branch-template` expand a fixed placeholder set:
@@ -149,8 +154,11 @@ holds can become shell syntax.
 (`SessionStart` | `PreToolUse` | `Stop`), `matcher` (a regular expression
 matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
-refused. `hooks/run-hook.py` runs the matching entries in declaration order and
-exports `AFK_PLUGIN_ROOT` to each.
+refused. What the launcher does with a handler it cannot run is pinned by
+`scripts/tests/test_run_hook.py`. `hooks/run-hook.py` runs the matching entries in declaration order and
+exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
+is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
+turn and names the entry, so a gate cannot go missing quietly.
 
 ## Secrets
 
@@ -160,8 +168,9 @@ from the environment or the harness credential store. A developer's own
 non-secret values live under `developer:` in `~/.afk/config.yaml`, or in the
 gitignored `.afk/config.local.yaml` when one checkout needs a different value.
 
-The subset, the discovery order and the agreement between the three views are
-pinned by `scripts/tests/test_afk_config.py`; the scaffolder and the
+The subset, the discovery order, the child keys of every map above, the
+readable failure of `validate FILE`, and the agreement between the three views
+are pinned by `scripts/tests/test_afk_config.py`; the scaffolder and the
 developer-value resolution order by `scripts/tests/test_afk_config_init.py`; worktree copying and provisioning by `scripts/tests/create-worktree-smoke.sh` and `scripts/tests/worktree-provision-smoke.sh`; `scripts/tests/samples/monorepo-config.yaml`
 is the large-repository fixture it validates.
 

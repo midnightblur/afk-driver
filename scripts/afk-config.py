@@ -78,6 +78,35 @@ WORKTREE_KEYS = {"copy", "copy-personal", "copy-ignored-claude-md"}
 MAVEN_WORKTREE_REPO = ("isolated", "shared")
 NPM_WORKTREE_INSTALL = ("ci", "none")
 
+# The child keys every documented map accepts, from the schema table in
+# CONFIG.md. A key spelled wrong is not a key the toolkit ignores: nothing reads
+# it, so the setting the developer meant to make is silently the default. Each
+# map is validated one level down; below that the names are the repository's own
+# (a transition name, a state name, a tier name), so they are not constrained.
+#
+# CONFIG.md and this table say the same thing, and
+# `scripts/tests/test_afk_config.py` fails when they drift apart.
+CHILD_KEYS: dict[str, set[str]] = {
+    "jira": {"project", "issue-types", "transitions", "credentials-env"},
+    "github-issues": {"repo", "state-labels"},
+    "gitlab": {"remote"},
+    "github": {"remote"},
+    "git": {"base-branch", "branch-pattern", "branch-template"},
+    "repo-files": {"spec-dir"},
+    "obsidian": {"vault"},
+    "notion": {"parent-page-id"},
+    "artifacts": {"glossary-map", "service-map"},
+    "maven": {
+        "reactor-pom", "formatter-config", "formatter-plugin", "default-module",
+        "skip-ui-flag", "worktree-repo", "worktree-seed", "worktree-seed-exclude",
+    },
+    "npm": {"lint", "workspace-root", "worktree-install", "worktree-command"},
+    "verification": {"tiers", "env"},
+    "setup": {"extra"},
+    "worktree": WORKTREE_KEYS,
+    "developer": DEVELOPER_KEYS,
+}
+
 DEFAULTS: dict = {
     "schema": SCHEMA,
     "tracker": "none",
@@ -374,10 +403,18 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
             except ValueError:
                 problems.append(f"repo-hooks: {hooks} resolves outside the repository root")
 
-    for family, key in (("tracker", "jira"), ("tracker", "github-issues")):
-        block_value = config.get(key)
-        if block_value is not None and not isinstance(block_value, dict):
-            problems.append(f"{key}: must be a mapping")
+    for name, allowed in CHILD_KEYS.items():
+        block_value = config.get(name)
+        if block_value is None:
+            continue
+        if not isinstance(block_value, dict):
+            problems.append(f"{name}: must be a mapping")
+            continue
+        for key in sorted(set(block_value) - allowed):
+            problems.append(
+                f"{name}.{key}: unknown key; expected one of "
+                f"{', '.join(sorted(allowed))}"
+            )
 
     creds = (config.get("jira") or {}).get("credentials-env") if isinstance(
         config.get("jira"), dict) else None
@@ -385,45 +422,37 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
         problems.append("jira.credentials-env: must be a block list of variable NAMES")
 
     worktree = config.get("worktree")
-    if worktree is not None:
-        if not isinstance(worktree, dict):
-            problems.append("worktree: must be a mapping")
-        else:
-            for key in sorted(set(worktree) - WORKTREE_KEYS):
+    if isinstance(worktree, dict):
+        copy = worktree.get("copy")
+        if copy is not None:
+            if not isinstance(copy, list):
                 problems.append(
-                    f"worktree.{key}: unknown key; expected one of "
-                    f"{', '.join(sorted(WORKTREE_KEYS))}"
+                    "worktree.copy: must be a block list; express `copy nothing` "
+                    "with `copy-personal: false`"
                 )
-            copy = worktree.get("copy")
-            if copy is not None:
-                if not isinstance(copy, list):
-                    problems.append(
-                        "worktree.copy: must be a block list; express `copy nothing` "
-                        "with `copy-personal: false`"
-                    )
-                elif not copy:
-                    # An empty list reads as "I configured this" while meaning the
-                    # same as the flag. One way to say a thing.
-                    problems.append(
-                        "worktree.copy: an empty list is refused; use `copy-personal: false`"
-                    )
-                else:
-                    for entry in copy:
-                        if not isinstance(entry, str) or not entry.strip():
-                            problems.append(f"worktree.copy: {entry!r} is not a path")
-                        elif entry.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", entry):
-                            problems.append(
-                                f"worktree.copy: {entry!r} is absolute; entries are "
-                                "repository-relative"
-                            )
-                        elif ".." in entry.replace("\\", "/").split("/"):
-                            problems.append(
-                                f"worktree.copy: {entry!r} escapes the repository"
-                            )
-            for flag in ("copy-personal", "copy-ignored-claude-md"):
-                value = worktree.get(flag)
-                if value is not None and not isinstance(value, bool):
-                    problems.append(f"worktree.{flag}: must be true or false")
+            elif not copy:
+                # An empty list reads as "I configured this" while meaning the
+                # same as the flag. One way to say a thing.
+                problems.append(
+                    "worktree.copy: an empty list is refused; use `copy-personal: false`"
+                )
+            else:
+                for entry in copy:
+                    if not isinstance(entry, str) or not entry.strip():
+                        problems.append(f"worktree.copy: {entry!r} is not a path")
+                    elif entry.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", entry):
+                        problems.append(
+                            f"worktree.copy: {entry!r} is absolute; entries are "
+                            "repository-relative"
+                        )
+                    elif ".." in entry.replace("\\", "/").split("/"):
+                        problems.append(
+                            f"worktree.copy: {entry!r} escapes the repository"
+                        )
+        for flag in ("copy-personal", "copy-ignored-claude-md"):
+            value = worktree.get(flag)
+            if value is not None and not isinstance(value, bool):
+                problems.append(f"worktree.{flag}: must be true or false")
 
     maven = config.get("maven") if isinstance(config.get("maven"), dict) else {}
     repo_mode = maven.get("worktree-repo")
@@ -451,18 +480,10 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
         problems.append("npm.worktree-command: must be a non-empty block list of argv words")
 
     developer = config.get("developer")
-    if developer is not None:
-        if not isinstance(developer, dict):
-            problems.append("developer: must be a mapping")
-        else:
-            for key in sorted(set(developer) - DEVELOPER_KEYS):
-                problems.append(
-                    f"developer.{key}: unknown key; expected one of "
-                    f"{', '.join(sorted(DEVELOPER_KEYS))}"
-                )
-            for key, value in developer.items():
-                if key in DEVELOPER_KEYS and not isinstance(value, str):
-                    problems.append(f"developer.{key}: must be a string")
+    if isinstance(developer, dict):
+        for key, value in developer.items():
+            if key in DEVELOPER_KEYS and not isinstance(value, str):
+                problems.append(f"developer.{key}: must be a string")
 
     return problems
 
@@ -581,6 +602,15 @@ def detect_base_branch(root: Path) -> str:
     return "auto"
 
 
+def repo_slug(root: Path, remote: str) -> str:
+    """`owner/name` from a remote URL, or "" when it cannot be read from one."""
+    if not remote:
+        return ""
+    url = _git(root, "remote", "get-url", remote) or ""
+    match = re.search(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?/?$", url.strip())
+    return f"{match.group(1)}/{match.group(2)}" if match else ""
+
+
 def scaffold(root: Path) -> str:
     """A starter configuration for this repository, as text.
 
@@ -589,6 +619,7 @@ def scaffold(root: Path) -> str:
     to notice than a missing one.
     """
     forge, remote, host = detect_forge(root)
+    slug = repo_slug(root, remote)
     gates, blocks = detect_build_gates(root)
     base = detect_base_branch(root)
     tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
@@ -635,8 +666,13 @@ def scaffold(root: Path) -> str:
     else:
         lines += [
             "github-issues:",
-            "  labels:",
-            "    bug: bug",
+            f"  repo: {slug or 'TODO                # owner/name'}",
+            "  # A state is a label here: each entry maps a state name the skills",
+            "  # use to the label that carries it on an issue.",
+            "  state-labels:",
+            '    dev-pending: "status:dev-pending"',
+            '    in-review: "status:in-review"',
+            '    done: "status:done"',
         ]
     lines.append("")
 
@@ -776,9 +812,22 @@ def main(argv: list[str]) -> int:
         if command == "validate":
             if rest:
                 path = Path(rest[0])
-                config = deep_merge(
-                    dict(DEFAULTS), parse(path.read_text(encoding="utf-8"), str(path))
-                )
+                # A file this tool cannot read is a configuration error like any
+                # other — a named path with a reason — never a Python traceback,
+                # which tells the reader nothing about which path failed.
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except OSError as problem:
+                    sys.stderr.write(
+                        f"afk-config: {path}: {problem.strerror or problem}\n")
+                    return 2
+                except UnicodeDecodeError as problem:
+                    sys.stderr.write(
+                        f"afk-config: {path}: not UTF-8 text ({problem.reason} "
+                        f"at byte {problem.start})\n"
+                    )
+                    return 2
+                config = deep_merge(dict(DEFAULTS), parse(text, str(path)))
                 root = root if root is not None else path.parent.parent
             else:
                 config = load(root)

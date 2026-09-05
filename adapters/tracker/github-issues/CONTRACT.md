@@ -58,3 +58,5 @@ A label has to exist in the repository before an issue can carry it, so
 `tracker_edit` with an unknown label answers `error` naming that label and
 writes nothing. This adapter never creates a label: that would change the
 repository's settings on a caller's behalf.
+
+A payload that is not one JSON object is answered with the family's error object and exit 2, never a traceback; the shared reader is `adapters/tracker/payload.py` and `scripts/tests/test_tracker_surface.py` pins it for both tracker kinds.

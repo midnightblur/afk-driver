@@ -2,7 +2,7 @@
 # documented YAML subset: block maps, block lists, quoted scalars, no flow
 # syntax. `no build gates` is expressed by omitting `build-gates` entirely.
 schema: 1
-toolkit-version: "1.0.0"
+toolkit-version: "1.0.17"
 tracker: github-issues
 forge: github
 notes: repo-files

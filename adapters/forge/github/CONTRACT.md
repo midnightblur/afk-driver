@@ -28,6 +28,21 @@ CLI already established, and no configuration file holds a token.
 
 ## Notes that bite
 
+The paginated read and every `ci-wait` exit are pinned offline, against a stub command-line tool, by `scripts/tests/test_forge_adapters.py`.
+
+- A paginated read (`gh api --paginate`) prints one JSON document per page, not
+  one document holding every page. `thread-list` decodes the documents in order
+  and joins the arrays; a caller driving `gh` directly does the same, or it sees
+  only page 1 — or, worse, reports the whole answer unreadable.
+- `ci-wait` prints its result object on stdout for EVERY terminal status,
+  including budget exhausted (exit 2) and unreadable (exit 3); stderr carries
+  the human line only. A caller routes on the object, and an exit code alone
+  does not say which checks, or for how long.
+- A payload handed to this script as a command-line argument from a NATIVE
+  Windows process (not from a shell) loses its quotes: the shell's runtime
+  re-parses the command line, and the adapter then reads an unreadable payload
+  and uses its defaults. Such a caller puts the payload in the environment and
+  lets the shell expand it.
 - GitHub has no discussion object: a thread is a root review comment plus the
   comments whose `in_reply_to_id` points at it, so `thread-list` does that
   grouping and reports `resolved: null` — resolution lives on a GraphQL review

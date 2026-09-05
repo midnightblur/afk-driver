@@ -54,3 +54,5 @@ credential resolution and PNG sizing — with no network access.
 ## Documented degradation
 
 None. Every tracker verb is supported.
+
+A payload that is not one JSON object is answered with the family's error object and exit 2, never a traceback; the shared reader is `adapters/tracker/payload.py` and `scripts/tests/test_tracker_surface.py` pins it for both tracker kinds.

@@ -21,6 +21,7 @@ registered as `jira`, so both names are accepted. Nothing is hardcoded.
 from __future__ import annotations
 
 import base64
+import importlib.util
 import json
 import os
 import re
@@ -41,6 +42,20 @@ from markdown_it import MarkdownIt
 # was `jira` before the adapter split, and an existing machine still holds that
 # registration, so both names resolve.
 SERVER_NAMES = ("tracker", "jira")
+
+
+# The shared payload reader (adapters/tracker/payload.py). The adapters folder
+# is not a package root, so it is loaded by file, the way this adapter itself is
+# loaded by scripts/tracker_api.py.
+def _payload_module():
+    spec = importlib.util.spec_from_file_location(
+        "afk_tracker_payload", Path(__file__).resolve().parent.parent / "payload.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+payload_reader = _payload_module()
 
 
 def _walk_for_jira_env(obj):
@@ -612,7 +627,11 @@ def main(argv):
     if not argv:
         print(json.dumps({"operations": list(OPERATIONS)}))
         return 0
-    payload = json.loads(argv[1]) if len(argv) > 1 else {}
+    payload, unreadable = payload_reader.parse(
+        argv[1] if len(argv) > 1 else None, argv[0])
+    if unreadable is not None:
+        print(json.dumps(unreadable))
+        return payload_reader.EXIT_UNREADABLE_PAYLOAD
     answer = call(argv[0], payload)
     print(json.dumps(answer))
     return 3 if isinstance(answer, dict) and answer.get("unsupported") else 0

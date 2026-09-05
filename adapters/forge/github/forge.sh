@@ -38,6 +38,37 @@ command -v python >/dev/null 2>&1 || PY=python3
 # UTF-8 rather than trimming what a body may say.
 export PYTHONIOENCODING=utf-8
 
+# A paginated read prints one JSON document per page, not one document holding
+# every page, so a reader that calls json.load sees page 2 as trailing data and
+# reports the whole answer unreadable. This prelude decodes the documents one
+# after another and joins the arrays into the single list a caller expects.
+PAGES='
+import json
+
+def _documents(text):
+    decoder = json.JSONDecoder()
+    index, out = 0, []
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index >= len(text):
+            return out
+        value, index = decoder.raw_decode(text, index)
+        out.append(value)
+
+def pages(text):
+    documents = _documents(text)
+    if not documents:
+        raise ValueError("no JSON document in the answer")
+    items = []
+    for document in documents:
+        if isinstance(document, list):
+            items.extend(document)
+        else:
+            items.append(document)
+    return items
+'
+
 
 unavailable() {
   printf '{"unavailable":true,"verb":"%s","reason":"%s"}\n' "$verb" "$1"
@@ -326,10 +357,10 @@ thread-list)
   repo=$_repo
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
-  gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null   | "$PY" -c '
+  gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
 try:
-    data = json.load(sys.stdin)
+    data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "gh returned no readable JSON"}))
     raise SystemExit(0)
@@ -397,6 +428,9 @@ ci-wait)
   ref=$(arg id)
   budget=$(arg budget 5400)
   interval=$(arg interval 180)
+  # A poll that never advances the clock never ends: an interval of 0
+  # would spin against the forge until the caller is killed.
+  [ "$interval" -gt 0 ] 2>/dev/null || interval=1
   errors=0
   elapsed=0
   while [ "$elapsed" -lt "$budget" ]; do
@@ -410,7 +444,8 @@ except Exception:
     if [ -z "$status" ]; then
       errors=$((errors + 1))
       if [ "$errors" -ge 3 ]; then
-        printf '{"status":"unreadable","elapsed":%s,"reason":"3 consecutive read errors on %s — auth or network, not a check verdict"}\n' "$elapsed" "$ref" >&2
+        printf 'forge: %s could not be read 3 times running — auth or network, not a check verdict\n' "$ref" >&2
+        printf '{"status":"unreadable","elapsed":%s,"reason":"3 consecutive read errors on %s — auth or network, not a check verdict"}\n' "$elapsed" "$ref"
         exit 3
       fi
     else
@@ -425,7 +460,8 @@ except Exception:
     sleep "$interval"
     elapsed=$((elapsed + interval))
   done
-  printf '{"status":"running","elapsed":%s,"id":"%s","reason":"budget exhausted; the checks keep running"}\n' "$elapsed" "$ref" >&2
+  printf 'forge: budget of %ss is spent on %s; the checks keep running\n' "$elapsed" "$ref" >&2
+  printf '{"status":"running","elapsed":%s,"id":"%s","reason":"budget exhausted; the checks keep running"}\n' "$elapsed" "$ref"
   exit 2
   ;;
 

@@ -135,9 +135,10 @@ def tracker_create(
 ) -> Any:
     """Create a work item, optionally assigning it and moving it to a state.
 
-    `issue_type` and `status` are the tracker's own names — take them from
-    `tracker.issue-types` and `tracker.transitions` in `.afk/config.yaml` rather
-    than inventing them. `parent` is the parent work item's key.
+    `issue_type` and `status` are the tracker's own names — take them from the
+    tracker kind's own block in `.afk/config.yaml` (`jira.issue-types` and
+    `jira.transitions`, `github-issues.state-labels`) rather than inventing
+    them. `parent` is the parent work item's key.
     """
     return _call("tracker_create", summary=summary, issue_type=issue_type,
                  project=project, description=description, parent=parent,

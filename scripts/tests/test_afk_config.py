@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -229,3 +230,91 @@ def test_export_shell_quotes_values_with_shell_metacharacters(tmp_path):
     exported = run(["export-shell"], root).stdout
     line = [l for l in exported.splitlines() if l.startswith("AFK_CFG_GIT_BRANCH_PATTERN=")][0]
     assert shlex.split(line.partition("=")[2])[0] == "^a b;rm -rf /$"
+
+
+# ---- a typo under a documented map is refused ------------------------------
+
+TYPOS = {
+    "jira": "typo-project",
+    "github-issues": "typo-repo",
+    "gitlab": "typo-remote",
+    "github": "typo-remote",
+    "git": "typo-base-branch",
+    "repo-files": "typo-spec-dir",
+    "obsidian": "typo-vault",
+    "notion": "typo-parent",
+    "artifacts": "typo-service-map",
+    "maven": "typo-reactor",
+    "npm": "typo-lint",
+    "verification": "typo-tiers",
+    "setup": "typo-extra",
+    "worktree": "typo-copy",
+    "developer": "typoReviewer",
+}
+
+
+@pytest.mark.parametrize("name,typo", sorted(TYPOS.items()))
+def test_an_unknown_child_key_is_refused_with_its_dotted_path(tmp_path, name, typo):
+    root = repo(tmp_path, f"typo-{name}")
+    (root / ".afk" / "config.yaml").write_text(
+        f"schema: 1\n{name}:\n  {typo}: value\n", encoding="utf-8"
+    )
+    done = run(["validate"], root)
+    assert done.returncode == 2
+    assert f"{name}.{typo}: unknown key" in done.stderr
+
+
+def test_every_map_in_the_schema_is_documented_the_same_way():
+    """CONFIG.md and CHILD_KEYS say the same thing, or this test says which."""
+    documented = {}
+    for line in (SCRIPTS.parent / "CONFIG.md").read_text(encoding="utf-8").splitlines():
+        if not line.startswith("| `"):
+            continue
+        # A cell may hold an escaped pipe (`a` \| `b`), so split on the
+        # unescaped ones only.
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        if len(cells) < 3 or "map" not in cells[1]:
+            continue
+        for name in re.findall(r"`([^`]+)`", cells[0]):
+            documented[name] = set(re.findall(r"`([^`]+)`", cells[2]))
+    # Words a row spells in backticks that are VALUES a key may take, not keys.
+    values = {
+        "isolated", "shared", "auto", "none", "ci", "false", "true",
+        "maven", "npm", "*-SNAPSHOT",
+    }
+    key = re.compile(r"^[a-z][A-Za-z0-9]*(?:-[a-z0-9]+)*$")
+    for name, allowed in cfg.CHILD_KEYS.items():
+        assert name in documented, f"{name} is in the schema and not in CONFIG.md"
+        listed = {word for word in documented[name] if key.match(word)} - values
+        assert allowed == listed, (
+            f"{name}: schema says {sorted(allowed)}, CONFIG.md says {sorted(listed)}"
+        )
+
+
+# ---- `validate FILE` on a file that cannot be read -------------------------
+
+def test_validate_names_a_missing_file(tmp_path):
+    done = run(["validate", str(tmp_path / "absent.yaml")], tmp_path)
+    assert done.returncode == 2
+    assert "absent.yaml" in done.stderr and "Traceback" not in done.stderr
+
+
+def test_validate_names_a_directory(tmp_path):
+    done = run(["validate", str(tmp_path)], tmp_path)
+    assert done.returncode == 2
+    assert "Traceback" not in done.stderr
+
+
+def test_validate_names_a_file_that_is_not_utf8(tmp_path):
+    target = tmp_path / "binary.yaml"
+    target.write_bytes(b"\xff\xfe\x00schema: 1")
+    done = run(["validate", str(target)], tmp_path)
+    assert done.returncode == 2
+    assert "not UTF-8" in done.stderr and "Traceback" not in done.stderr
+
+
+def test_validate_still_reads_a_good_file(tmp_path):
+    target = tmp_path / "good.yaml"
+    target.write_text("schema: 1\n", encoding="utf-8")
+    done = run(["validate", str(target)], tmp_path)
+    assert done.returncode == 0 and "valid" in done.stdout

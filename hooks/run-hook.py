@@ -25,6 +25,13 @@ relative to the repository root). A script path that resolves outside the
 repository root is refused. Handlers run in declaration order, each receives the
 original stdin envelope, and `AFK_PLUGIN_ROOT` names this plugin's root.
 
+A handler a repository declares but this checkout cannot run — the script is
+missing, the matcher is not a regular expression, the manifest does not parse,
+the handler returns no verdict inside its timeout — is a configuration error,
+never a silent skip. On Stop and PreToolUse the launcher blocks the turn with
+the decision object a failed gate emits, so a gate cannot disappear by being
+misdeclared. On the remaining events it writes the reason to stderr.
+
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
 install locations, then PATH excluding the Windows system directory.
 """
@@ -41,6 +48,9 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 REPO_HOOKS_MANIFEST = ".afk/hooks.json"
 EVENTS = {"SessionStart", "PreToolUse", "Stop"}
+# The events whose whole point is to stop a turn. A handler that cannot run is
+# a missing verdict on these, so the launcher answers for it.
+BLOCKING_EVENTS = {"Stop", "PreToolUse"}
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
@@ -167,20 +177,44 @@ def manifest_path(root: Path) -> Path:
     return candidate
 
 
-def repo_entries(root: Path, event: str) -> list[dict]:
-    """Repository-declared handlers for one event, in declaration order."""
+def repo_entries(root: Path, event: str) -> tuple[list[dict], list[str]]:
+    """Handlers declared for one event, in declaration order, and any faults.
+
+    A manifest that does not parse yields no handlers AND one fault: the
+    repository asked for gates and none of them can run, which is the opposite
+    of "nothing was declared".
+    """
     manifest = manifest_path(root)
     if not manifest.is_file():
-        return []
+        return [], []
     try:
         declared = json.loads(manifest.read_text(encoding="utf-8"))
     except (OSError, ValueError) as problem:
-        sys.stderr.write(f"run-hook.py: {REPO_HOOKS_MANIFEST}: {problem}\n")
-        return []
+        return [], [f"{REPO_HOOKS_MANIFEST}: {problem}"]
     if not isinstance(declared, list):
-        sys.stderr.write(f"run-hook.py: {REPO_HOOKS_MANIFEST}: expected a JSON array\n")
-        return []
-    return [e for e in declared if isinstance(e, dict) and e.get("event") == event]
+        return [], [f"{REPO_HOOKS_MANIFEST}: expected a JSON array"]
+    entries: list[dict] = []
+    faults: list[str] = []
+    for position, entry in enumerate(declared):
+        if not isinstance(entry, dict):
+            faults.append(f"{REPO_HOOKS_MANIFEST}: entry {position} is not an object")
+            continue
+        if entry.get("event") == event:
+            entries.append(entry)
+    return entries, faults
+
+
+def matcher_fault(matcher: object) -> str | None:
+    """Why this matcher can never be applied, or None when it can."""
+    if matcher is None or (isinstance(matcher, str) and matcher in ("", "*")):
+        return None
+    if not isinstance(matcher, str):
+        return f"matcher is not a string: {matcher!r}"
+    try:
+        re.compile(matcher)
+    except re.error as problem:
+        return f"matcher is not a regular expression: {matcher!r} ({problem})"
+    return None
 
 
 def matches(matcher: object, tool: str) -> bool:
@@ -192,20 +226,65 @@ def matches(matcher: object, tool: str) -> bool:
         return False
 
 
-def resolved_script(root: Path, entry: dict) -> Path | None:
-    """The declared script, refused when it escapes the repository root."""
+def resolved_script(root: Path, entry: dict) -> tuple[Path | None, str | None]:
+    """The declared script, or why this checkout cannot run it."""
     named = entry.get("script")
     if not isinstance(named, str) or not named:
-        return None
+        return None, "no script path is declared"
     candidate = (root / named).resolve()
     try:
         candidate.relative_to(root.resolve())
     except ValueError:
-        sys.stderr.write(
-            f"run-hook.py: {REPO_HOOKS_MANIFEST}: script escapes the repository root: {named}\n"
+        return None, f"script escapes the repository root: {named}"
+    if not candidate.is_file():
+        return None, f"script is missing: {named}"
+    return candidate, None
+
+
+def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str]) -> int:
+    """Answer for the handlers that could not run, the way a gate answers.
+
+    The decision travels the same path a failed gate travels — the provider
+    library owns the shape of a verdict and the exit code its harness reads one
+    from — so a broken gate blocks exactly like a failing one.
+    """
+    listed = "\n".join(f"  - {fault}" for fault in faults)
+    reason = (
+        f"afk: this repository declares {event} handlers this checkout cannot run, "
+        "so the gates they carry did not judge this turn:\n"
+        f"{listed}\n"
+        f"Fix {REPO_HOOKS_MANIFEST}, or remove the entries that no longer apply."
+    )
+    library = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
+    if bash is not None and library.is_file():
+        snippet = (
+            '. "$1" || exit 70\n'
+            'case "$2" in\n'
+            '  Stop) afk_emit_stop_block "$3"; exit "$(afk_stop_block_code)" ;;\n'
+            '  *) printf \'%s\\n\' "$3" >&2; afk_emit_deny "$3"; exit 0 ;;\n'
+            'esac\n'
         )
-        return None
-    return candidate if candidate.is_file() else None
+        try:
+            completed = subprocess.run(
+                [str(bash), "-c", snippet, "run-hook", str(library), event, reason],
+                env=env, timeout=60,
+            )
+            if completed.returncode != 70:
+                return completed.returncode
+        except (OSError, subprocess.SubprocessError):
+            pass
+    # No shell, or a provider library this checkout cannot read: say the same
+    # thing in the shapes both harnesses read, and use the documented default.
+    sys.stderr.write(reason + "\n")
+    if event == "Stop":
+        sys.stdout.write(json.dumps({"decision": "block", "reason": reason}) + "\n")
+        return 2
+    sys.stdout.write(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}) + "\n")
+    return 0
 
 
 def main(argv: list[str]) -> int:
@@ -247,8 +326,8 @@ def main(argv: list[str]) -> int:
     root = repo_root(env)
     if root is None:
         return 0
-    entries = repo_entries(root, event)
-    if not entries:
+    entries, faults = repo_entries(root, event)
+    if not entries and not faults:
         return 0
 
     envelope = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
@@ -262,10 +341,16 @@ def main(argv: list[str]) -> int:
 
     failure = 0
     for entry in entries:
+        named = entry.get("script")
+        fault = matcher_fault(entry.get("matcher"))
+        if fault:
+            faults.append(f"{named}: {fault}")
+            continue
         if not matches(entry.get("matcher"), tool):
             continue
-        script = resolved_script(root, entry)
+        script, fault = resolved_script(root, entry)
         if script is None:
+            faults.append(f"{REPO_HOOKS_MANIFEST}: {fault}")
             continue
         timeout = entry.get("timeout")
         timeout = float(timeout) if isinstance(timeout, (int, float)) else None
@@ -274,10 +359,19 @@ def main(argv: list[str]) -> int:
                 [str(bash), str(script)], env=env, input=envelope, timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            sys.stderr.write(f"run-hook.py: timed out: {entry.get('script')}\n")
+            faults.append(f"{named}: no verdict within {timeout:g} seconds")
+            continue
+        except OSError as problem:
+            faults.append(f"{named}: {problem}")
             continue
         if completed.returncode and not failure:
             failure = completed.returncode
+
+    if faults:
+        for fault in faults:
+            sys.stderr.write(f"run-hook.py: {fault}\n")
+        if not soft and event in BLOCKING_EVENTS:
+            return block(event, faults, bash, env)
     return 0 if soft else failure
 
 

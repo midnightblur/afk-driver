@@ -26,10 +26,33 @@ elif value is not None:
 ' "$2" 2>/dev/null
 }
 
-fail() { printf '%s\n' "afk: build-gate/npm worktree-provision: $1" >&2; exit 2; }
+fail() {
+  # One JSON object per invocation is the family's contract, and a refusal is an
+  # invocation: a caller that routes on the answer has nothing to read when the
+  # only output is a line on stderr.
+  local reason="$1" object
+  printf '%s\n' "afk: build-gate/npm worktree-provision: $reason" >&2
+  object=$(printf '%s' "$reason" | "${AFK_PY:-python}" -c 'import json,sys
+print(json.dumps({"error": True, "kind": "npm",
+                  "operation": "worktree-provision", "reason": sys.stdin.read()}))' 2>/dev/null) \
+    && [ -n "$object" ] || object='{"error":true,"kind":"npm","operation":"worktree-provision","reason":"see the message on stderr"}'
+  printf '%s\n' "$object"
+  exit 2
+}
 
 PAYLOAD=${1:-}
 [ -n "$PAYLOAD" ] || fail "no JSON payload on argv[1]"
+
+# Which way the payload is wrong is the caller's next move, so read it once
+# before any field: text that is not JSON is a different fault from JSON that
+# is not an object, and both differ from an object missing a field.
+printf '%s' "$PAYLOAD" | "${AFK_PY:-python}" -c 'import json, sys
+raise SystemExit(0 if isinstance(json.loads(sys.stdin.read()), dict) else 3)' 2>/dev/null
+case $? in
+  0) ;;
+  3) fail "the payload is not a JSON object" ;;
+  *) fail "the payload is not JSON" ;;
+esac
 SOURCE=$(json_field "$PAYLOAD" source)
 WORKTREE=$(json_field "$PAYLOAD" worktree)
 DRY_RUN=$(json_field "$PAYLOAD" dry_run)

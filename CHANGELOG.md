@@ -18,6 +18,66 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-09-05
+
+### Fixed
+
+- **A repository hook that cannot run blocks instead of vanishing.** A handler
+  a repository declares in `.afk/hooks.json` was skipped without a word when
+  its script was missing, its matcher was not a regular expression, the
+  manifest did not parse, or it returned no verdict inside its timeout — so a
+  required Stop gate could disappear and every turn looked clean. Each of those
+  is now a configuration error: `hooks/run-hook.py` names the entry and the
+  reason on stderr, and on Stop and PreToolUse it blocks with the decision
+  object a failed gate emits. On the other events it warns and carries on.
+- **A paginated answer is read to the end.** `gh api --paginate` and `glab api
+  --paginate` print one JSON document per page, not one document holding every
+  page, so both forge adapters' `thread-list` reported the whole answer
+  unreadable as soon as a change had more than one page of comments, and the
+  GitHub tracker's changelog fell back to a truncated string. All three now
+  decode the documents in order and join the arrays.
+- **A misspelled configuration key is refused.** `validate` only rejected
+  unknown keys at the top level and under `worktree` and `developer`, so a typo
+  under `jira`, `gitlab`, `maven` or any other documented map validated
+  cleanly, and the setting the developer meant to make silently stayed at its
+  default. Every documented map is now validated one level down, and an unknown
+  child key is named by its full dotted path.
+- **`ci-wait` answers on stdout for every outcome.** The budget-exhausted and
+  unreadable results were written to stderr, leaving a caller that routes on
+  exit 2 or 3 — a parked pipeline, an authentication fault — with nothing
+  structured to read. Both adapters now print the result object on stdout for
+  every terminal status and keep stderr for the human line. A poll interval of
+  zero, which spun forever, is treated as one second.
+- **A payload a tracker cannot read is an answer, not a traceback.** Both
+  tracker command surfaces raised `JSONDecodeError` and exited 1 on a malformed
+  payload. They now share one reader (`adapters/tracker/payload.py`), answer
+  with the family's error object naming what was wrong, and exit 2. A payload
+  that parses but is not an object is refused the same way.
+- **`afk-config.py validate FILE` names the file it cannot read.** A missing
+  path, a directory, or a file that is not UTF-8 raised a traceback and exited
+  1; it now prints `afk-config: <path>: <reason>` and exits 2.
+- **A build-gate provisioner answers with an object when it refuses one.** Both
+  `worktree-provision.sh` scripts printed a bare line on stderr and no JSON,
+  against the family contract of one object per invocation. They now emit
+  `{"error":true,"kind":…,"operation":…,"reason":…}` on stdout, with the reason
+  saying which way the payload was wrong.
+- **The toolkit's own `.afk/config.yaml` states the version it ships in.** It
+  said `1.0.0` in every release since the first. `hooks/release-gate.sh` now
+  holds it to the same equality as the two `plugin.json` files, the marketplace
+  manifest and the changelog heading, so it cannot drift again.
+- **`afk-config.py init` scaffolds the keys the GitHub Issues adapter reads.**
+  It wrote a `github-issues.labels` block that nothing reads, and no `repo`. It
+  now writes `repo` (derived from the origin remote) and `state-labels`.
+
+### Migration
+
+- Nothing to do. A repository whose `.afk/hooks.json` declares a handler this
+  checkout cannot run will now be told at the end of a turn instead of running
+  without that gate; fix or remove the entry the message names.
+- A configuration file carrying a misspelled key under a documented map starts
+  failing `validate`. The message names the key and the path — correct the
+  spelling, or drop the key.
+
 ## [1.0.16] - 2026-09-05
 
 ### Fixed
