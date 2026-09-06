@@ -17,7 +17,8 @@ Hard rules:
 - **Widen the search, never the question.** Follow every cited edge the evidence opens — a new caller, a new subtype, a new key — until the queue is empty. The question you answer stays the one you were handed; new questions go in the return as findings.
 - **Read every judgment-only boundary at its declared site.** A boundary the seed map marks `judgment-only` is closed by reading that file and deciding what it reaches. A grep over it, followed by a verdict, is a defect.
 - **Every node ends in a disposition** from `INVESTIGATION.md` — `traced`, `terminal`, `irrelevant(cited)`, `frontier(reason)`, `unverified(reason)`. A node you leave open is the one thing this role exists to prevent.
-- **Every boundary in your partition ends in a verdict.** A class with no enumeration method is `unverified(no method)`, never skipped and never an absence.
+- **Every boundary in your partition ends in a verdict.** A class with no enumeration method is `unverified(no method)`, never skipped and never an absence. A class the seed map left `judgment-only` is resolved to `closed` or `unverified` — that status never leaves your fragment.
+- **Your fragment declares its partition** (`partition.id`, `partition.classes`, `partition.seed`) and omits the classes outside it. Merge keys and the conflict rule are the caller's; write the ids the format defines and nothing else.
 - **Truth-grounding bar.** Every claim meets `LANGUAGE.md` § "Truth grounding": cited to `file:line` or to a command and its output; anything unchecked returned as `unverified: <reason>`; an absence claim states what was enumerated.
 - **Spawn `afk-reader` leaves only when the caller states depth ≤ 2**, one per module, in one message. Otherwise run that reading inline (`CAPABILITIES.md`, `nesting`).
 - **Body ≤ ~30 lines**, ending with the fragment path and `OUTCOME: <ok|fail|blocked> — <one line>`. The bulk stays in the fragment.

@@ -183,9 +183,15 @@ investigation:
 
 Each `boundaries` entry needs `name` and `class` (`B1`–`B14`), then exactly one
 enumeration method: `pattern`, or `judgment-only: true` with the `site` an agent
-must read. `paths` narrows the search: a block list of git pathspecs (a glob or
-a directory prefix) passed after `git grep --`. `note` carries the gotcha. `generated` lists build output directories or files — absent output is
-reported `frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
+must read. A declared instance **adds** to the generic default of its class and
+never replaces it: declared and default patterns both run, and `judgment-only`
+adds a site to read beside whatever search the class already had. A declared
+`site` that is not in the repository makes the class `unverified`, never
+evidence. `paths` narrows the entry's own search: a block list of git pathspecs
+(a glob or a directory prefix) passed after `git grep --`. `note` carries the
+gotcha. `generated` lists build output directories or files — present output is
+searched on disk, tracked or not; absent output is reported
+`frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
 manifests the build-graph class (B7) parses.
 
 ## Secrets

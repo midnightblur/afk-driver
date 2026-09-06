@@ -48,13 +48,16 @@ next node) · `terminal` (an effect that ends the path) · `irrelevant(cited)` �
 `frontier(reason)` (deliberately not crossed) · `unverified(reason)`.
 
 Every applicable boundary gets exactly one verdict: `closed(n, method)` ·
-`n/a(reason)` · `frontier(reason)` · `unverified(reason)`. A class with no
-enumeration method is `unverified(no method)` — never skipped, never absence.
+`partial(reason)` (the method could not reach all of it — a name form nobody
+enumerated, a subset of its sites) · `n/a(reason)` · `frontier(reason)` ·
+`unverified(reason)`. A class with no enumeration method is
+`unverified(no method)` — never skipped, never absence.
 
 ## Completion per question type
 
 Each list is the minimum. A question with no method for a listed item records
-`unverified`, and the answer carries it.
+`unverified`, and the answer carries it. A question matching more than one type
+runs the **union** of their lists and records every type it matched.
 
 - **Q1** — B1, B2, B10, B11 close the entry-point set. Per hop: file:line, the
   guard that decides, the transformation the hop applies, the transaction
@@ -110,7 +113,10 @@ A second pass over the same universe by a **different method** per boundary
 class — a different name form, the registration site instead of the call site,
 the generated output instead of the source. Any new node reopens the queue.
 
-- The deterministic second-name-form pass always runs; it is free.
+- The deterministic pass always runs; it is free. It counts only when the
+  method could return something the first pass could not — a name form carrying
+  none of the subject's simple name, or a second universe (case-blind, untracked
+  files). A second pass over forms the first already covered proves nothing.
 - An agent-driven counter-search is mandatory for Q2, Q3, Q5, and for the Q1
   entry-point and effect sets when the caller is a design step.
 

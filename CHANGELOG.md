@@ -44,11 +44,16 @@ first released heading here.
   repository; it writes only its fragment and evidence files. Ships with its
   provider stub, so the toolkit now carries five agent roles.
 - **Two bundled scripts under `skills/utils/investigate/scripts/`.** `seed_map.py`
-  enumerates the search space with `git grep` alone — one search per boundary
-  class, no reads and no tokens — and reports a class with no method as
-  `unverified`, never as an absence. `validate_coverage.py` refuses a ledger
-  with a class lacking a verdict, an open node, an uncited load-bearing fact, or
-  a pending counter-search.
+  enumerates the search space deterministically — `git grep` per boundary class,
+  an in-process walk for built output, no reads and no tokens — merges a
+  repository's declared instances with the generic defaults, runs a
+  counter-search whose method the first pass cannot repeat, and reports a class
+  with no method, no matching language, or a missing declared site as
+  `unverified`, never as an absence. Name forms it did not search are named, and
+  keep the class short of closed. `validate_coverage.py` checks the ledger's
+  schema and its cross-references, refuses a seed-stage status in a published
+  ledger and an uncited load-bearing claim, and prints the verdict the record
+  supports — `closed`, `closed-with-frontier`, or `partial`.
 - **`/afk:setup` opt-in H10: investigate code questions to closure.** A
   user-global steering block binding every session, in any repository, whether
   or not a plugin skill is running. Opt out by deleting the block.

@@ -212,7 +212,7 @@ _Avoid_: done, exhaustive (unbounded), full coverage (that is a test metric)
 A boundary deliberately not crossed, recorded with its reason — another repository, unbuilt generated output, an external consumer. Distinct from `unverified`, which is a boundary that should have been crossed and was not. Neither is ever reported as an absence.
 
 **Coverage ledger**:
-The two-file record of one investigation — a JSON file carrying the complete denominator, plus a short markdown report beside it. `frontier` and `unverified` are statuses inside it, never separate files. Table set, semantics, and location rule: `INVESTIGATION.md`.
+The two-file record of one investigation — a JSON file carrying the complete denominator, plus a short markdown report beside it. `frontier` and `unverified` are statuses inside it, never separate files. Table set, field grammar, verdict rule, and location: `skills/utils/investigate/LEDGER-FORMAT.md`.
 _Avoid_: coverage report (that is a test-coverage artifact)
 
 ## Gates & verdicts
