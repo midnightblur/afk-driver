@@ -165,7 +165,7 @@ investigation:
     - name: event-listener
       class: B11
       pattern: '@\w*EventListener\b'
-    - name: interface-client
+    - name: ui-caller
       class: B10
       paths:
         - '*-ui/src'

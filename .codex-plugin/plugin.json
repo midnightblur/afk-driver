@@ -38,6 +38,7 @@
     "./skills/utils/handoff",
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
+    "./skills/utils/investigate",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-change",
     "./skills/utils/settle-mr",

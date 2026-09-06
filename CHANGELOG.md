@@ -34,6 +34,24 @@ first released heading here.
   generic defaults run alone, and a class with no method is reported
   `unverified(no method)`, never as an absence. `/afk:setup` scaffolds it as a
   commented block.
+- **`/afk:investigate` — the skill that runs an investigation to closure.**
+  Classifies the question, runs a deterministic seed map over the boundary
+  catalog, fans out one closure tracer per cluster, merges their fragments,
+  validates the result, and writes the coverage ledger. It is the single writer
+  of that ledger.
+- **`afk-tracer` — a frontier-tier agent role.** Drives one boundary or module
+  partition to closure and returns a coverage fragment. Read-only in the target
+  repository; it writes only its fragment and evidence files. Ships with its
+  provider stub, so the toolkit now carries five agent roles.
+- **Two bundled scripts under `skills/utils/investigate/scripts/`.** `seed_map.py`
+  enumerates the search space with `git grep` alone — one search per boundary
+  class, no reads and no tokens — and reports a class with no method as
+  `unverified`, never as an absence. `validate_coverage.py` refuses a ledger
+  with a class lacking a verdict, an open node, an uncited load-bearing fact, or
+  a pending counter-search.
+- **`/afk:setup` opt-in H10: investigate code questions to closure.** A
+  user-global steering block binding every session, in any repository, whether
+  or not a plugin skill is running. Opt out by deleting the block.
 - **README section 4 gained "Upgrading a pinned install"** — the order the pin
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and

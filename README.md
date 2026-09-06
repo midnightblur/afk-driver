@@ -243,14 +243,14 @@ codex plugin add afk@afk-toolkit
 ```
 
 Then run `/afk:setup`. Section O enables native hooks, checks cache freshness,
-guides hook trust, copies the four agent TOML stubs, offers the per-directory
+guides hook trust, copies the five agent TOML stubs, offers the per-directory
 steering fallback, and verifies the skill catalog `plugin.json` declares plus
 Jira. Restart after cache or agent-definition changes.
 
 The first session asks you to trust the plugin's hooks. Answer it once: the
 trust is keyed to the marketplace and the definitions, not to the installed
 path, so it survives an upgrade and the prompt returns only when a release
-changes `hooks/hooks.codex.json`. The four agent stubs are the opposite — they
+changes `hooks/hooks.codex.json`. The five agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
@@ -747,6 +747,9 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   spot. Details: `skills/utils/harvest/SKILL.md`.
 - **`interactive-walkthrough`** — HTML walkthrough widget templates;
   agent-invoked. Details: `skills/utils/interactive-walkthrough/SKILL.md`.
+- **`/afk:investigate`** — answer a question about existing code to closure over
+  the boundary catalog, and write its coverage ledger. Details:
+  `skills/utils/investigate/SKILL.md`.
 - **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
 - **`/afk:settle-change`** — settle any forge change request through the review loop, the change

@@ -49,6 +49,11 @@ disk — a dead pointer is a stale doc. Sweep two scopes:
   command, a `verification.env` command, a `setup.extra` file), so the check is
   that the configured path exists, not that a named path does.
 
+- **Install blocks:** each `MANIFEST.md` opt-in whose fix copies a sentinel
+  block — its source file exists, and its opening and closing sentinels match
+  the strings the entry's probe and fix greps for. A block whose sentinel
+  drifted installs nothing and probes clean forever.
+
 Route: the citing file (fix the pointer) — unless the target genuinely moved,
 then the finding names both sides.
 

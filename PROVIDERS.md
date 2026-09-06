@@ -20,7 +20,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
 | Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
-| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, or `afk-implementor` | Same names from unchanged user TOML stubs |
+| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names from unchanged user TOML stubs |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |

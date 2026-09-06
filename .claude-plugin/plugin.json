@@ -9,7 +9,8 @@
     "./agents/afk-implementor.md",
     "./agents/afk-reader.md",
     "./agents/afk-runner-lite.md",
-    "./agents/afk-runner.md"
+    "./agents/afk-runner.md",
+    "./agents/afk-tracer.md"
   ],
   "skills": [
     "./skills/afk/adversary",
@@ -47,6 +48,7 @@
     "./skills/utils/handoff",
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
+    "./skills/utils/investigate",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-change",
     "./skills/utils/settle-mr",

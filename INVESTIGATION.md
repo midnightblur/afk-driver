@@ -35,7 +35,7 @@ a verdict.
 | B7 | Build graph | module in or out of the aggregator, client-module chains | yes — parse the declared aggregator manifests |
 | B8 | Config / profile / environment | per-profile files, environment names read at start-up, feature flags | yes — search key and variable literals across every profile file |
 | B9 | Persistence | entities, columns, migrations, views, indexes, cross-schema readers | yes — search entity and column names in schema and migration sources |
-| B10 | Interface clients | hand-written client classes, address-by-name lookups, direct cross-service calls | yes — search endpoint and service-name literals under interface sources |
+| B10 | UI callers | hand-written client classes, address-by-name lookups, direct cross-service calls | yes — search endpoint and service-name literals under the interface source directories |
 | B11 | Async / jobs | listeners, queue consumers, scheduled work, after-commit publishers | yes — search the declared registration forms |
 | B12 | Tests | which tests go red — or none, which is `unguarded` | yes — search the name forms under test sources |
 | B13 | Documents | steering files, specifications, decision records asserting behaviour | yes — search the name forms in markdown; a document the code refutes is a finding |
@@ -129,30 +129,12 @@ with no ledger node behind it is written `unverified: <reason>`.
 
 ## Coverage ledger
 
-Two files per investigation, written by one skill (the single writer):
-
-- `<slug>.coverage.json` — the complete record. Six tables: `run` (question,
-  type, name forms, head sha, inventory count and hash), `boundaries` (class,
-  repository instance, method, hits, verdict), `nodes` (site, parent edge,
-  disposition, facet), `queries` (every command run, with its hit count),
-  `claims` (claim, citation or inference label), `counter_checks` (class,
-  method, new nodes). `frontier` and `unverified` are statuses inside these
-  tables, never separate files.
-- `REPORT.md` — the short human-readable answer beside it: verdict, the site
-  list, the frontier list, the unverified list.
-
-Location: `{spec-dir}/investigations/INV-NNN-slug/` when a spec folder exists,
-else `<provider scratch>/investigations/INV-{timestamp}-{slug}/`.
+Every investigation writes one. Two files: the complete record as JSON, and a
+short markdown report beside it. Table set, field grammar, file names, location
+rule, and the report shape: `skills/utils/investigate/LEDGER-FORMAT.md`.
 
 ## Reply shape
 
-A reply carrying an investigation's result has one fixed shape:
-
-1. the answer;
-2. facts (each cited) separated from inferences (each labelled);
-3. the `unverified` list, with reasons;
-4. the `frontier` list, with reasons;
-5. the ledger path;
-6. the `OUTCOME:` line (default grammar, `DELEGATION.md` § "Return contract").
-
-<!-- If the ledger grammar grows, split it into skills/utils/investigate/LEDGER-FORMAT.md and leave a pointer here. -->
+A reply carrying an investigation's result answers, then separates facts from
+inferences, then lists what was not checked. Exact shape:
+`skills/utils/investigate/LEDGER-FORMAT.md`.

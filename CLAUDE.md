@@ -62,9 +62,11 @@ when a grep returns. **`INVESTIGATION.md`** (plugin root) owns the doctrine:
 the five question types, the boundary catalog B1–B14, the completion checklist
 per question type, node dispositions and boundary verdicts, the closure rule,
 the counter-search and proportionality rules, the coverage-ledger semantics, and
-the reply shape. Repository-specific boundary instances live in the target
-repository's `investigation:` config block (`CONFIG.md`). Skills point there,
-never restate.
+the reply shape. **`/afk:investigate`** runs it and is the single writer of the
+coverage ledger (grammar: `skills/utils/investigate/LEDGER-FORMAT.md`);
+`afk-tracer` is the frontier-tier child that drives one partition to closure.
+Repository-specific boundary instances live in the target repository's
+`investigation:` config block (`CONFIG.md`). Skills point there, never restate.
 
 ## Freshness (binding on every change)
 
@@ -109,6 +111,7 @@ Per-skill mechanics, refusal conditions, and formats live in each skill's own `S
 | `/afk:understand` | interactive HTML learning artifact (feature / MR / code area) | `skills/afk/understand/SKILL.md` |
 | `/afk:to-demo-plan` | ≤60-min demo script for a delivered feature; repo-only | `skills/afk/to-demo-plan/SKILL.md` |
 | `/afk:diagnose` | disciplined diagnosis loop for hard bugs / perf regressions | `skills/utils/diagnose/SKILL.md` |
+| `/afk:investigate` | answer a code question to closure; writes the coverage ledger | `skills/utils/investigate/SKILL.md` |
 | `/afk:handoff` | compact the conversation into a handoff doc | `skills/utils/handoff/SKILL.md` |
 | `/afk:harvest` | user-invoked whole-session lesson sweep, applied on the spot | `skills/utils/harvest/SKILL.md` |
 | `/afk:glossary` | domain-vocabulary steward (`GLOSSARY-MAP.md` + per-service `GLOSSARY.md`) | `skills/utils/glossary/SKILL.md` |
