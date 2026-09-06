@@ -10,12 +10,15 @@ counter-search that never ran, a verdict that overstates the record.
 import copy
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-_SCRIPTS = Path(__file__).resolve().parent.parent.parent / "skills" / "utils" / "investigate" / "scripts"
+_SCRIPTS = Path(os.environ.get("AFK_INVESTIGATE_SCRIPTS")
+                or Path(__file__).resolve().parent.parent.parent
+                / "skills" / "utils" / "investigate" / "scripts")
 _spec = importlib.util.spec_from_file_location(
     "validate_coverage", _SCRIPTS / "validate_coverage.py"
 )
@@ -32,13 +35,19 @@ def ledger(**overrides) -> dict:
             "repository": "/fixture", "head": "0" * 40, "question": "how does it work",
             "type": ["Q1"], "roots": ["Widget"], "aliases": {"Widget": []},
             "inventory_hash": "a" * 64, "inventory_count": 3,
+            "started": "2026-01-01T00:00:00+00:00", "finished": "2026-01-01T00:01:00+00:00",
         },
         "boundaries": [
             {"class": klass, "status": "closed", "method": "searched", "hits": 0, "hit_ids": []}
             for klass in ALL
         ],
-        "nodes": [{"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
-                   "disposition": "traced", "evidence": "the line", "parent": None}],
+        "nodes": [
+            {"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
+             "disposition": "traced", "evidence": "the line", "parent": None},
+            {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
+             "disposition": "terminal", "evidence": "the write",
+             "parent": "B1:alpha.java:2"},
+        ],
         "queries": [],
         "claims": [{"id": "c1", "text": "the path starts here", "kind": "fact",
                     "load_bearing": True, "supporting_nodes": ["B1:alpha.java:2"],
@@ -125,9 +134,10 @@ class ValidateCoverageTest(unittest.TestCase):
     def test_an_untriaged_node_needs_no_verdict(self):
         document = ledger()
         document["run"]["type"] = ["Q3"]
-        document["nodes"][0].update({"disposition": "unverified", "reason": "not yet triaged"})
+        for node in document["nodes"]:
+            node.update({"disposition": "unverified", "reason": "not yet triaged"})
         document["counter_checks"].append(
-            {"method": "the registration site", "kind": "agent", "targeted_claims": [],
+            {"method": "the registration site", "kind": "agent", "targeted_claims": ["c1"],
              "new_nodes": [], "state": "complete"})
         defects, verdict = self.check(document)
         self.assertEqual(defects, [])

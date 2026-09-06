@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""Adversarial cases for the validator: a malformed ledger that still passes.
+
+Every case here starts from the same question — what shape could reach exit 0
+while the record behind it is incomplete or inconsistent? A hit count that
+disagrees with its own node list, a traced node leading nowhere, a claim with
+nothing under it, a counter-search aimed at nothing, a key nobody defined.
+"""
+
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from test_validate_coverage import ledger, only, validate_coverage  # noqa: E402
+
+
+def q3_ready(document):
+    """A Q3 run also needs its agent-driven counter-search to be legal."""
+    document["run"]["type"] = ["Q3"]
+    document["counter_checks"].append(
+        {"method": "the registration site", "kind": "agent",
+         "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+    return document
+
+
+class LedgerShapeTest(unittest.TestCase):
+    def check(self, document):
+        return validate_coverage.validate(document)
+
+    # 12 — a count that disagrees with its own node list.
+    def test_12_hits_must_agree_with_hit_ids(self):
+        document = only(ledger(), "B1", hits=7, hit_ids=["B1:alpha.java:2"])
+        defects, _ = self.check(document)
+        self.assertTrue(any("hits" in defect and "B1" in defect for defect in defects), defects)
+
+    def test_12_a_truncated_row_may_carry_fewer_ids(self):
+        document = only(ledger(), "B1", hits=7, truncated=True,
+                        hit_ids=["B1:alpha.java:2"])
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
+    # 13 — a node with no evidence is a node nobody can check.
+    def test_13_a_traced_node_needs_evidence(self):
+        document = ledger()
+        document["nodes"][0].pop("evidence")
+        defects, _ = self.check(document)
+        self.assertTrue(any("evidence" in defect for defect in defects), defects)
+
+    # 14 — an unverified per-node verdict is not closure.
+    def test_14_an_unverified_node_verdict_downgrades_the_run(self):
+        document = q3_ready(ledger())
+        for node in document["nodes"]:
+            node.update({"impact_verdict": "unverified", "pinned_by": "unguarded"})
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "partial")
+
+    # 15 — one field cannot answer two questions at once.
+    def test_15_a_combined_run_needs_both_verdict_fields(self):
+        document = ledger()
+        document["run"]["type"] = ["Q3", "Q4"]
+        document["counter_checks"].append(
+            {"method": "the registration site", "kind": "agent",
+             "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+        for node in document["nodes"]:
+            node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9"})
+        defects, _ = self.check(document)
+        self.assertTrue(any("coverage_verdict" in defect for defect in defects), defects)
+
+    def test_15_both_verdict_fields_present_pass(self):
+        document = ledger()
+        document["run"]["type"] = ["Q3", "Q4"]
+        document["counter_checks"].append(
+            {"method": "the registration site", "kind": "agent",
+             "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+        for node in document["nodes"]:
+            node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9",
+                         "coverage_verdict": "test"})
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
+    # 16 — a traced node that leads nowhere traced nothing.
+    def test_16_a_traced_node_needs_a_child(self):
+        document = ledger()
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+        document["nodes"].append({"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
+                                  "disposition": "traced", "evidence": "the line",
+                                  "parent": None})
+        defects, _ = self.check(document)
+        self.assertTrue(any("beta.java:4" in defect for defect in defects), defects)
+
+    def test_16_duplicate_boundary_rows_are_a_defect(self):
+        document = ledger()
+        document["boundaries"].append(dict(document["boundaries"][0]))
+        defects, _ = self.check(document)
+        self.assertTrue(any("more than one row" in defect for defect in defects), defects)
+
+    # 17 — a fact with nothing under it.
+    def test_17_a_fact_needs_a_supporting_node(self):
+        document = ledger()
+        document["claims"][0]["supporting_nodes"] = []
+        defects, _ = self.check(document)
+        self.assertTrue(any("supporting node" in defect for defect in defects), defects)
+
+    def test_17_load_bearing_must_be_a_boolean(self):
+        document = ledger()
+        document["claims"][0]["load_bearing"] = "yes"
+        defects, _ = self.check(document)
+        self.assertTrue(any("load_bearing" in defect for defect in defects), defects)
+
+    def test_17_a_missing_load_bearing_flag_is_a_defect(self):
+        document = ledger()
+        del document["claims"][0]["load_bearing"]
+        defects, _ = self.check(document)
+        self.assertTrue(any("load_bearing" in defect for defect in defects), defects)
+
+    # 18 — a counter-search aimed at nothing tried to break nothing.
+    def test_18_a_complete_counter_search_names_a_target(self):
+        document = ledger()
+        document["counter_checks"][0]["targeted_claims"] = []
+        defects, _ = self.check(document)
+        self.assertTrue(any("targeted_claims" in defect for defect in defects), defects)
+
+    # 19 — the run header is the snapshot; it is not optional.
+    def test_19_run_type_must_be_a_list(self):
+        document = ledger()
+        document["run"]["type"] = "Q1"
+        defects, _ = self.check(document)
+        self.assertTrue(any("run.type" in defect for defect in defects), defects)
+
+    def test_19_timestamps_are_required(self):
+        document = ledger()
+        document["run"].pop("started", None)
+        defects, _ = self.check(document)
+        self.assertTrue(any("started" in defect for defect in defects), defects)
+
+    def test_19_a_malformed_timestamp_is_a_defect(self):
+        document = ledger()
+        document["run"]["started"] = "yesterday"
+        defects, _ = self.check(document)
+        self.assertTrue(any("started" in defect for defect in defects), defects)
+
+    # 20 — a key nobody defined is a field nobody validates.
+    def test_20_an_unknown_key_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0]["confidence"] = "high"
+        defects, _ = self.check(document)
+        self.assertTrue(any("confidence" in defect for defect in defects), defects)
+
+    def test_20_an_unknown_run_key_is_a_defect(self):
+        document = ledger()
+        document["run"]["notes"] = "free text"
+        defects, _ = self.check(document)
+        self.assertTrue(any("notes" in defect for defect in defects), defects)
+
+    def test_20_a_parent_must_resolve(self):
+        document = ledger()
+        document["nodes"][0]["parent"] = "B1:ghost.java:1"
+        defects, _ = self.check(document)
+        self.assertTrue(any("parent" in defect for defect in defects), defects)
+
+
+if __name__ == "__main__":
+    unittest.main()

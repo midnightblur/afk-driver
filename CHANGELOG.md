@@ -45,7 +45,7 @@ first released heading here.
   provider stub, so the toolkit now carries five agent roles.
 - **Two bundled scripts under `skills/utils/investigate/scripts/`.** `seed_map.py`
   enumerates the search space deterministically — `git grep` per boundary class,
-  an in-process walk for built output, no reads and no tokens — merges a
+  an in-process walk for built output, no agent reads and no tokens — merges a
   repository's declared instances with the generic defaults, runs a
   counter-search whose method the first pass cannot repeat, and reports a class
   with no method, no matching language, or a missing declared site as

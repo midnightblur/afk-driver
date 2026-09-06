@@ -19,10 +19,14 @@ repository's `.afk/config.yaml`, read and validated through
 run alone, and every class with neither a default nor a declared instance is
 reported `unverified(no enumeration method)` — never as an absence.
 
+A class is `closed` only over a set this script actually reached: a class
+searching another class's hits inherits that class's gap, a walk that skipped a
+file says so, and a declared site that is gone is a gap, never evidence.
+
 Subprocess budget: one `git ls-files`, one `git rev-parse`, one `git grep` per
-name-form pass, and at most two per boundary class (declared and default
-patterns are merged into one expression list each). A spawn costs 0.5-2s on
-this platform (`hooks/README.md` cost model), so classification runs in Python.
+name-form pass, and per boundary class one `git grep` per distinct path scope.
+A spawn costs 0.5-2s on this platform (`hooks/README.md` cost model), so
+classification runs in Python.
 
 Exit codes: 0 wrote the seed map, 2 usage, configuration, or git error.
 """
@@ -37,6 +41,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 import xml.etree.ElementTree as ElementTree
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,6 +61,9 @@ ANNOTATED = JVM + (".ts", ".py")
 #   "registration" - the pattern finds a registration form; hits are kept only
 #                    in files a name form already hit, intersected in-process
 #   "filter"       - no query of its own; the name-form hits filtered to paths
+#
+# A "filter" or "registration" class searches B1's hit set, so it can be no more
+# complete than B1 is.
 #
 # `languages` names the file kinds a default pattern can match in. A repository
 # holding none of them gets `unverified(pattern cannot match)`, never closed(0).
@@ -107,8 +115,19 @@ ALL_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 # How many nodes a boundary row carries. The count above it stays exact.
 HIT_SAMPLE = 200
 
-# A generated file large enough to be output, not source, is not read whole.
+# How much of a matching line is stored as evidence. Matching happens on the
+# whole line; only storage is capped.
+EVIDENCE_CHARS = 200
+
+# A generated file larger than this is output, not source, and is not read.
 MAX_WALK_BYTES = 2 * 1024 * 1024
+
+# How many skipped or missing paths a reason names before it says "and N more".
+REASON_SAMPLE = 5
+
+# The build-graph class parses aggregator manifests. Only XML is supported;
+# anything else is reported, never guessed at (`CONFIG.md` § Investigation).
+REACTOR_SUFFIXES = (".xml",)
 
 
 class GitError(RuntimeError):
@@ -117,6 +136,13 @@ class GitError(RuntimeError):
 
 class ConfigError(RuntimeError):
     """The effective configuration did not validate, or could not be read."""
+
+
+def sample(items: list[str]) -> str:
+    """Name a few of them, and say how many were not named."""
+    shown = ", ".join(items[:REASON_SAMPLE])
+    rest = len(items) - REASON_SAMPLE
+    return shown + (f", and {rest} more" if rest > 0 else "")
 
 
 def plugin_root() -> Path:
@@ -146,9 +172,11 @@ def load_config(repo: Path, where: str) -> dict:
         config = module.load(repo)
     else:
         path = Path(where)
-        config = module.deep_merge(
-            dict(module.DEFAULTS), module.parse(path.read_text(encoding="utf-8"), str(path))
-        )
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as problem:
+            raise ConfigError(f"cannot read {path}: {problem}") from problem
+        config = module.deep_merge(dict(module.DEFAULTS), module.parse(text, str(path)))
     problems = module.validate(config, repo)
     if problems:
         raise ConfigError("; ".join(problems))
@@ -202,12 +230,13 @@ def git(repo: Path, *args: str, allowed: tuple[int, ...] = (0,)) -> str:
 
 
 def parse_hits(out: str) -> list[dict]:
+    """Whole matching lines. Comparison happens on the line, storage caps it."""
     hits = []
     for line in out.splitlines():
         parts = line.split(":", 2)
         if len(parts) != 3 or not parts[1].isdigit():
             continue
-        hits.append({"file": parts[0], "line": int(parts[1]), "text": parts[2].strip()[:200]})
+        hits.append({"file": parts[0], "line": int(parts[1]), "text": parts[2].strip()})
     return hits
 
 
@@ -224,27 +253,34 @@ def grep(repo: Path, patterns: list[str], pathspecs: list[str] | None,
     return parse_hits(git(repo, *args, allowed=(0, 1)))
 
 
-def walk_grep(repo: Path, roots: list[str], expression: str) -> list[dict]:
-    """Search paths git does not track — built output is untracked by design."""
+def walk_grep(repo: Path, roots: list[str], expression: str) -> tuple[list[dict], list[str]]:
+    """Search paths git does not track — built output is untracked by design.
+
+    Returns the hits and the paths it could not read: a file too large or not
+    text is a file nobody searched, and the caller says so.
+    """
     compiled = re.compile(expression)
     hits: list[dict] = []
+    unread: list[str] = []
     for root in roots:
         target = repo / root
         files = [target] if target.is_file() else sorted(
             path for path in target.rglob("*") if path.is_file()
         )
         for path in files:
+            rel = path.relative_to(repo).as_posix()
             try:
                 if path.stat().st_size > MAX_WALK_BYTES:
+                    unread.append(rel)
                     continue
                 text = path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
+                unread.append(rel)
                 continue
             for number, line in enumerate(text.splitlines(), 1):
                 if compiled.search(line):
-                    rel = path.relative_to(repo).as_posix()
-                    hits.append({"file": rel, "line": number, "text": line.strip()[:200]})
-    return hits
+                    hits.append({"file": rel, "line": number, "text": line.strip()})
+    return hits, unread
 
 
 def matches_any(path: str, pathspecs: list[str]) -> bool:
@@ -264,29 +300,45 @@ def reactor_modules(repo: Path, poms: list[str]) -> dict:
     """B7: the declared module list, and the modules commented out of it.
 
     A commented-out module still deploys from an earlier build, so it is
-    reported rather than dropped.
+    reported rather than dropped. A manifest that is missing, of an unsupported
+    kind, or that will not parse is named — never guessed at.
     """
     declared: list[str] = []
     commented: list[str] = []
     missing: list[str] = []
+    unsupported: list[str] = []
+    unparsable: list[str] = []
     for pom in poms:
         target = repo / pom
         if not target.is_file():
             missing.append(pom)
             continue
-        text = target.read_text(encoding="utf-8", errors="replace")
+        if target.suffix.lower() not in REACTOR_SUFFIXES:
+            unsupported.append(pom)
+            continue
+        try:
+            text = target.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            unparsable.append(pom)
+            continue
         for comment in re.findall(r"<!--(.*?)-->", text, re.S):
             commented += [m.strip() for m in re.findall(r"<module>(.*?)</module>", comment, re.S)]
         stripped = re.sub(r"<!--.*?-->", "", text, flags=re.S)
         try:
             root = ElementTree.fromstring(stripped)
         except ElementTree.ParseError:
-            declared += [m.strip() for m in re.findall(r"<module>(.*?)</module>", stripped, re.S)]
+            unparsable.append(pom)
             continue
         for node in root.iter():
             if node.tag.rsplit("}", 1)[-1] == "module" and node.text:
                 declared.append(node.text.strip())
-    return {"declared": declared, "commented_out": commented, "missing_manifests": missing}
+    return {
+        "declared": declared,
+        "commented_out": commented,
+        "missing_manifests": missing,
+        "unsupported_manifests": unsupported,
+        "unparsable_manifests": unparsable,
+    }
 
 
 def build_class_map(block: dict) -> dict[str, list[dict]]:
@@ -317,6 +369,11 @@ def site_present(repo: Path, inventory: set[str], site: str) -> bool:
     return (repo / normalized).exists()
 
 
+def digest(prefix: str, text: str) -> str:
+    """A key stable across partitions — an ordinal collides when fragments merge."""
+    return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
+
+
 class Ledger:
     """The node table, and the ids the boundary rows point at."""
 
@@ -336,7 +393,7 @@ class Ledger:
                     "site": f"{hit['file']}:{hit['line']}",
                     "disposition": "unverified",
                     "reason": reason,
-                    "evidence": hit["text"],
+                    "evidence": hit["text"][:EVIDENCE_CHARS],
                     "parent": None,
                 },
             )
@@ -360,25 +417,27 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     head = git(repo, "rev-parse", "HEAD").strip()
 
     ledger = Ledger()
-    queries: list[dict] = []
+    queries: dict[str, dict] = {}
     declared = build_class_map(block)
     seed_reason = "seed map hit, not yet triaged"
 
+    def note(command: str, universe: str, count: int) -> None:
+        row = {"id": digest("q", command + universe), "command": command,
+               "universe": universe, "count": count, "evidence": None}
+        queries.setdefault(row["id"], row)
+
     def carries_simple(value: str) -> bool:
+        # Case-sensitive, because the primary pass is: a form the exact search
+        # already returns is not a form the counter-search can learn from.
         return any(name in value for name in simple_names)
 
-    primary_values = [
-        form["value"]
-        for subject_forms in forms.values()
-        for form in subject_forms
-        if form["enumerated"] and form["value"] and carries_simple(form["value"])
+    every_form = [
+        form for subject_forms in forms.values() for form in subject_forms
+        if form["enumerated"] and form["value"]
     ]
-    counter_values = [
-        form["value"]
-        for subject_forms in forms.values()
-        for form in subject_forms
-        if form["enumerated"] and form["value"] and not carries_simple(form["value"])
-    ]
+    primary_values = [form["value"] for form in every_form if carries_simple(form["value"])]
+    counter_values = [form["value"] for form in every_form if not carries_simple(form["value"])]
+    declared_aliases = [form for form in every_form if form.get("source") == "declared"]
     unenumerated = sorted(
         {
             form["form"]
@@ -388,9 +447,9 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         }
     )
 
-    # B1 first: its hit set is the file universe every registration-form query
-    # is intersected with, so the pass costs one extra spawn, not one per class.
-    # One call covers both universes — the wide one (case-blind, untracked files
+    # B1 first: its hit set is the universe every filter and registration class
+    # searches, so those classes can be no more complete than it is. One call
+    # covers both universes — the wide one (case-blind, untracked files
     # included) is split from the exact one in-process, so the second universe
     # costs no second walk of a large working tree.
     wide = grep(repo, [re.escape(value) for value in primary_values], None,
@@ -400,32 +459,36 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                if hit["file"] in inventory_set and exact.search(hit["text"])]
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
-    queries.append({"command": "git grep -n -I -E -i --untracked <primary name forms>",
-                    "universe": "tracked and untracked files, case-blind",
-                    "count": len(wide), "evidence": None})
-    seen = {(hit["file"], hit["line"]) for hit in b1_hits}
+    note("git grep -n -I -E -i --untracked <primary name forms>",
+         "tracked and untracked text files, not ignored, binary excluded, case-blind",
+         len(wide))
+    seen = set(kept)
 
     # Counter-search one: a name form that does not carry the simple name — a
     # form the primary pass provably cannot return.
     counter_checks: list[dict] = []
+    claim_text = ("the hit set holds every reference to "
+                  + ", ".join(subjects) + " over the name forms this pass searched")
+    claim_id = digest("c", claim_text)
     if counter_values:
         form_hits = grep(repo, [re.escape(value) for value in counter_values], None)
-        queries.append({"command": "git grep -n -I -E <declared wire or alias forms>",
-                        "universe": "tracked files", "count": len(form_hits), "evidence": None})
+        note("git grep -n -I -E <declared wire or alias forms>", "tracked files", len(form_hits))
         new = [hit for hit in form_hits if (hit["file"], hit["line"]) not in seen]
         b1_hits += new
         seen |= {(hit["file"], hit["line"]) for hit in new}
         counter_checks.append({
             "method": f"name forms carrying no simple name: {', '.join(counter_values)}",
-            "kind": "deterministic", "targeted_claims": [],
+            "kind": "deterministic", "targeted_claims": [claim_id],
             "new_nodes": ledger.add("B1", new, seed_reason), "state": "complete",
         })
     else:
+        reason = ("alias contains simple name; the primary pass already covers it"
+                  if declared_aliases
+                  else "no wire or alias form declared; pass --alias FORM=VALUE")
         counter_checks.append({
             "method": "name form carrying no simple name",
-            "kind": "deterministic", "targeted_claims": [], "new_nodes": [],
-            "state": "pending",
-            "reason": "no wire or alias form declared; pass --alias FORM=VALUE",
+            "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
+            "state": "pending", "reason": reason,
         })
 
     # Counter-search two: the second universe — case-blind, and including the
@@ -435,116 +498,159 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     b1_hits += new
     seen |= {(hit["file"], hit["line"]) for hit in new}
     counter_checks.append({
-        "method": "case-blind pass over tracked and untracked files",
-        "kind": "deterministic", "targeted_claims": [],
+        "method": "case-blind pass over tracked and untracked files, not ignored",
+        "kind": "deterministic", "targeted_claims": [claim_id],
         "new_nodes": ledger.add("B1", new, seed_reason), "state": "complete",
     })
 
     named_files = {hit["file"] for hit in b1_hits}
+    b1_gap = (f"name forms not enumerated: {', '.join(unenumerated)}") if unenumerated else None
     boundaries: dict[str, dict] = {}
 
-    def record(klass: str, status: str, method: str, hits: list[dict], **extra) -> None:
+    def record(klass: str, status: str, method: str, hits: list[dict],
+               reasons: list[str] | None = None, **extra) -> None:
         # The count is the fact; the node list is the sample an agent starts
         # from. A mechanism-wide pattern can return thousands, and a ledger
         # nobody can open is a ledger nobody reads — so the count stays exact
         # and the node list is capped, saying so.
+        unique: list[dict] = []
+        placed = set()
+        for hit in hits:
+            key = (hit["file"], hit["line"])
+            if key not in placed:
+                placed.add(key)
+                unique.append(hit)
         row = {
             "class": klass,
             "status": status,
             "method": method,
-            "hits": len(hits),
-            "truncated": len(hits) > HIT_SAMPLE,
-            "hit_ids": ledger.add(klass, hits, seed_reason),
+            "hits": len(unique),
+            "truncated": len(unique) > HIT_SAMPLE,
+            "hit_ids": ledger.add(klass, unique, seed_reason),
         }
+        reasons = [item for item in (reasons or []) if item]
+        if reasons:
+            row["reason"] = "; ".join(reasons)
         row.update(extra)
         boundaries[klass] = row
+
+    def declared_searches(klass: str, instances: list[dict],
+                          restrict_to_named: bool) -> tuple[list[dict], list[str]]:
+        """Every declared pattern, each inside its own path scope.
+
+        Patterns sharing a scope share one call, so a scope costs one spawn.
+        """
+        by_scope: dict[tuple[str, ...], list[str]] = {}
+        for instance in instances:
+            if instance.get("pattern"):
+                by_scope.setdefault(tuple(instance.get("paths") or []), []).append(
+                    instance["pattern"])
+        hits: list[dict] = []
+        universes: list[str] = []
+        for scope, patterns in by_scope.items():
+            found = grep(repo, patterns, list(scope) or None)
+            if restrict_to_named:
+                found = [hit for hit in found if hit["file"] in named_files]
+            universe = f"declared paths {', '.join(scope)}" if scope else "tracked files"
+            note(f"git grep -n -I -E <{klass} declared patterns>", universe, len(found))
+            hits += found
+            universes.append(universe)
+        return hits, universes
 
     for klass in ALL_CLASSES:
         instances = declared.get(klass, [])
         default = DEFAULTS.get(klass)
         mechanism = ", ".join(instance.get("name", "?") for instance in instances) or "default"
-        patterns = [i["pattern"] for i in instances if i.get("pattern")]
-        paths = [p for i in instances for p in (i.get("paths") or [])]
         sites = [i["site"] for i in instances if i.get("judgment-only") and i.get("site")]
         missing_sites = [site for site in sites if not site_present(repo, inventory_set, site)]
+        live_sites = [site for site in sites if site not in missing_sites]
+        site_gap = f"site missing: {sample(missing_sites)}" if missing_sites else None
+        scoped = (default or {}).get("scoped")
+        inherits_b1 = scoped in ("filter", "registration")
+
+        # A declared pattern runs beside whatever the class does on its own.
+        extra_hits, extra_universes = declared_searches(
+            klass, instances, restrict_to_named=(scoped == "registration"))
+        extra_method = ["declared instance patterns"] if extra_hits or extra_universes else []
 
         if klass == "B1":
-            gap = {"reason": f"name forms not enumerated: {', '.join(unenumerated)}"} \
-                if unenumerated else {}
-            record("B1", "partial" if unenumerated else "closed", default["method"], b1_hits,
-                   mechanism=mechanism, name_forms={s: forms[s] for s in subjects}, **gap)
-            continue
-
-        if missing_sites:
-            record(klass, "unverified", "declared judgment-only site", [], mechanism=mechanism,
-                   reason=f"site missing: {', '.join(missing_sites)}")
+            record("B1", "partial" if b1_gap else "closed",
+                   " + ".join([default["method"], *extra_method]), b1_hits + extra_hits,
+                   reasons=[b1_gap, site_gap], mechanism=mechanism,
+                   name_forms={s: forms[s] for s in subjects},
+                   sites=live_sites or None,
+                   universe="tracked text files (binary excluded), and the second universe")
             continue
 
         if klass == "B6":
             generated = block.get("generated") or []
-            if not generated:
-                record("B6", "unverified", "no generated paths declared", [],
-                       mechanism=mechanism, reason="no enumeration method")
+            if not generated and not extra_hits:
+                record("B6", "unverified", "no generated paths declared", extra_hits,
+                       reasons=["no enumeration method", site_gap], mechanism=mechanism)
                 continue
             absent = [path for path in generated if not (repo / path).exists()]
             present = [path for path in generated if (repo / path).exists()]
-            hits = walk_grep(repo, present, group(simple_names)) if present else []
+            searched = [form["value"] for form in every_form]
+            hits, unread = walk_grep(repo, present, group(searched)) if present else ([], [])
             if present:
-                queries.append({"command": "in-process walk of the declared generated paths",
-                                "universe": "built output, tracked or not",
-                                "count": len(hits), "evidence": None})
+                note("in-process walk of the declared generated paths",
+                     "built output, tracked or not", len(hits))
+            unread_gap = f"{len(unread)} files unread: size or encoding — {sample(unread)}" \
+                if unread else None
             if absent:
-                record("B6", "frontier", "declared generated paths walked", hits,
-                       mechanism=mechanism, reason=f"unbuilt: {', '.join(absent)}")
+                status, reason = "frontier", f"unbuilt: {sample(absent)}"
+            elif unread_gap or site_gap:
+                status, reason = "partial", None
             else:
-                record("B6", "closed", "name forms in built generated output", hits,
-                       mechanism=mechanism)
+                status, reason = "closed", None
+            record("B6", status,
+                   " + ".join(["every name form in built generated output", *extra_method]),
+                   hits + extra_hits, reasons=[reason, unread_gap, site_gap],
+                   mechanism=mechanism, sites=live_sites or None)
             continue
 
         if klass == "B7":
             poms = block.get("reactor") or []
-            if not poms:
-                record("B7", "unverified", "no reactor manifests declared", [],
-                       mechanism=mechanism, reason="no enumeration method")
+            if not poms and not extra_hits:
+                record("B7", "unverified", "no reactor manifests declared", extra_hits,
+                       reasons=["no enumeration method", site_gap], mechanism=mechanism)
                 continue
             modules = reactor_modules(repo, poms)
+            gaps = []
             if modules["missing_manifests"]:
-                record("B7", "unverified", "declared aggregator manifests", [],
-                       mechanism=mechanism, modules=modules,
-                       reason="reactor manifest missing: "
-                              + ", ".join(modules["missing_manifests"]))
-            else:
-                record("B7", "closed", "declared aggregator manifests parsed", [],
-                       mechanism=mechanism, modules=modules)
+                gaps.append(f"reactor manifest missing: {sample(modules['missing_manifests'])}")
+            if modules["unparsable_manifests"]:
+                gaps.append(
+                    f"reactor manifest unparsable: {sample(modules['unparsable_manifests'])}")
+            if modules["unsupported_manifests"]:
+                gaps.append(
+                    "reactor manifest of an unsupported kind: "
+                    f"{sample(modules['unsupported_manifests'])}")
+            record("B7", "unverified" if gaps else "closed",
+                   " + ".join(["declared aggregator manifests parsed", *extra_method]),
+                   extra_hits, reasons=[*gaps, site_gap], mechanism=mechanism,
+                   modules=modules, sites=live_sites or None)
             continue
 
         if klass == "B14":
-            record("B14", "frontier", "outside this repository", [], mechanism=mechanism,
-                   reason="another repository, deployment manifest, or live consumer")
+            # A submodule is its own checkout; the inventory never descends into it.
+            submodules = ("; submodules are separate checkouts and were not searched"
+                          if (repo / ".gitmodules").exists() else "")
+            record("B14", "frontier",
+                   " + ".join(["outside this repository", *extra_method]), extra_hits,
+                   reasons=["another repository, deployment manifest, or live consumer"
+                            + submodules, site_gap],
+                   mechanism=mechanism, sites=live_sites or None)
             continue
 
-        # Declared and default are merged: a declaration adds a search, and a
-        # judgment-only instance adds a site to read. Neither removes a search.
-        hits: list[dict] = []
-        methods: list[str] = []
-        universes: list[str] = []
-
-        if patterns:
-            found = grep(repo, patterns, paths or None)
-            if default and default["scoped"] == "registration":
-                found = [hit for hit in found if hit["file"] in named_files]
-            universe = "declared paths" if paths else "tracked files"
-            queries.append({"command": f"git grep -n -I -E <{klass} declared patterns>",
-                            "universe": universe, "count": len(found), "evidence": None})
-            hits += found
-            methods.append("declared instance patterns")
-            universes.append(universe)
-
+        hits: list[dict] = list(extra_hits)
+        methods: list[str] = list(extra_method)
+        universes: list[str] = list(extra_universes)
         language_gap = None
-        if default and default["scoped"] == "filter":
-            specs = paths + default["paths"] if paths else default["paths"]
-            found = [hit for hit in b1_hits if matches_any(hit["file"], specs)]
-            hits += found
+
+        if default and scoped == "filter":
+            specs = default["paths"]
+            hits += [hit for hit in b1_hits if matches_any(hit["file"], specs)]
             methods.append(default["method"])
             universes.append("name-form hits filtered to paths")
         elif default and default.get("patterns"):
@@ -558,31 +664,34 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                     for pattern in default["patterns"]
                 ]
                 found = grep(repo, expressions, None)
-                if default["scoped"] == "registration":
+                if scoped == "registration":
                     found = [hit for hit in found if hit["file"] in named_files]
-                universe = ("files that name the subject"
-                            if default["scoped"] == "registration" else "tracked files")
-                queries.append({"command": f"git grep -n -I -E <{klass} default patterns>",
-                                "universe": universe, "count": len(found), "evidence": None})
+                universe = ("files that name the subject" if scoped == "registration"
+                            else "tracked files")
+                note(f"git grep -n -I -E <{klass} default patterns>", universe, len(found))
                 hits += found
                 methods.append(default["method"])
                 universes.append(universe)
 
-        extra = {"mechanism": mechanism, "universe": ", ".join(universes) or None}
-        if sites:
-            extra["sites"] = sites
+        inherited = (f"universe inherits B1: {b1_gap}") if (inherits_b1 and b1_gap) else None
+        common = {"mechanism": mechanism, "universe": ", ".join(universes) or None,
+                  "sites": live_sites or None}
         method = " + ".join(methods) or "none"
 
-        if sites:
+        if live_sites:
             record(klass, "judgment-only", method, hits,
-                   reason="a site an agent reads: " + ", ".join(sites), **extra)
+                   reasons=[f"a site an agent reads: {', '.join(live_sites)}",
+                            site_gap, inherited], **common)
         elif not methods and language_gap:
-            record(klass, "unverified", "default pattern only", [], reason=language_gap, **extra)
+            record(klass, "unverified", "default pattern only", hits,
+                   reasons=[language_gap, site_gap], **common)
         elif not methods:
-            record(klass, "unverified", "no default and no declared instance", [],
-                   reason="no enumeration method", **extra)
+            record(klass, "unverified", "no default and no declared instance", hits,
+                   reasons=["no enumeration method", site_gap], **common)
+        elif site_gap or inherited:
+            record(klass, "partial", method, hits, reasons=[site_gap, inherited], **common)
         else:
-            record(klass, "closed", method, hits, **extra)
+            record(klass, "closed", method, hits, **common)
 
     return {
         "run": {
@@ -600,15 +709,23 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         },
         "boundaries": [boundaries[klass] for klass in ALL_CLASSES],
         "nodes": ledger.rows(),
-        "queries": queries,
-        "claims": [],
+        "queries": [queries[key] for key in queries],
+        "claims": [{
+            "id": claim_id,
+            "text": claim_text,
+            "kind": "unverified",
+            "load_bearing": False,
+            "supporting_nodes": [],
+            "citations": [],
+        }],
         "counter_checks": counter_checks,
     }
 
 
 def parse_alias(raw: str) -> tuple[str, str]:
     if "=" not in raw:
-        raise argparse.ArgumentTypeError("an alias is written FORM=VALUE, for example wire=order-created")
+        raise argparse.ArgumentTypeError(
+            "an alias is written FORM=VALUE, for example wire=order-created")
     form, value = raw.split("=", 1)
     if not form.strip() or not value.strip():
         raise argparse.ArgumentTypeError("an alias needs both a form and a value")
@@ -625,6 +742,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--alias", action="append", type=parse_alias, default=[])
     parser.add_argument("--config", default="auto")
     parser.add_argument("--out", required=True)
+    parser.add_argument("--traceback", action="store_true",
+                        help="print the traceback of an unexpected failure")
     args = parser.parse_args(argv)
 
     repo = Path(args.repo).resolve()
@@ -636,16 +755,20 @@ def main(argv: list[str]) -> int:
     try:
         block = load_config(repo, args.config)
         result = seed(repo, args.subject, args.type, question, args.alias, block)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     except ConfigError as problem:
         sys.stderr.write(f"seed_map: the effective configuration is not valid: {problem}\n")
         return 2
     except GitError as problem:
         sys.stderr.write(f"seed_map: {problem}\n")
         return 2
-
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    except Exception as problem:  # an unexpected failure is an error, never a half-run
+        if args.traceback:
+            traceback.print_exc()
+        sys.stderr.write(f"seed_map: error: {type(problem).__name__}: {problem}\n")
+        return 2
 
     rows = result["boundaries"]
     closed = sum(1 for row in rows if row["status"] == "closed")

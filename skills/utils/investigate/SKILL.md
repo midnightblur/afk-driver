@@ -38,8 +38,8 @@ This skill is the single writer of the ledger. Tracers return fragments; only th
      --ledger <scratch>/COVERAGE.json
    ```
 
-   Exit 1 → the ledger is structurally broken. Fix what it names and validate again; a broken ledger is never published, and structural breakage is never reported as `partial`. Exit 0 → take the `VERDICT:` line as the verdict, and stamp it into `run.verdict`.
-7. **Publish and reply.** Copy the validated pair into the ledger directory ([`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) owns the names and the location rule), write `REPORT.md`, then reply in the fixed shape that file defines, ending `OUTCOME: <ok|fail|blocked> — <one line>`. Report the verdict the validator computed: `closed-with-frontier` only when the sole remaining gaps are `frontier`.
+   Exit 1 → the ledger is structurally broken. Fix what it names and validate again; a broken ledger is never published, and structural breakage is never reported as `partial`. Exit 0 → stamp the `VERDICT:` line into `run.verdict` and **run the validator once more**: the stamp is itself checked, so an overstated verdict fails there rather than in the reply.
+7. **Publish and reply.** Copy the validated `COVERAGE.json` into the ledger directory ([`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) owns the names and the location rule), then write `REPORT.md` beside it from that file, then reply in the fixed shape the format defines, ending `OUTCOME: <ok|fail|blocked> — <one line>`. Report the verdict the validator computed: `closed-with-frontier` only when the sole remaining gaps are `frontier`.
 
 ## Refusals
 

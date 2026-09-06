@@ -47,9 +47,17 @@ one checker of everything below.
 | `mechanism` | the repository instance's `name`, or `default` |
 | `method` | the pattern or the command that enumerated it, or the site read |
 | `hits` | how many the method returned — a count, never a list |
-| `hit_ids` | the node ids those hits became; capped, with `truncated: true` above the cap |
+| `hit_ids` | the node ids those hits became: the first 200, `truncated: true` above that |
+| `truncated` | `true` when `hits` is above the 200-node cap |
 | `status` | `closed` · `partial` · `n/a` · `frontier` · `unverified`, plus `judgment-only` at the seed and fragment stage |
-| `reason` | required for every status but `closed` |
+| `reason` | required for every status but `closed`; several gaps join with `; ` |
+| `universe` | what the method searched — paths, file kinds, or another class's hit set |
+| `sites` | the judgment-only sites this class still has to be read at |
+| `modules` | B7 only: the parsed module lists, and the manifests that were missing, unsupported, or unparsable |
+| `name_forms` | B1 only: every form per subject, each `enumerated` true or false |
+
+`hits` equals `len(hit_ids)` unless `truncated` is true, and then it is higher.
+Every id in `hit_ids` is in the nodes table. One row per class, never two.
 
 Every class B1-B14 carries a row. A class with no enumeration method is
 `unverified` with reason `no enumeration method`. `partial` is the status of a
@@ -69,31 +77,34 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `site` | `file:line` |
 | `disposition` | `traced` · `terminal` · `irrelevant` · `frontier` · `unverified` |
 | `reason` | required for `frontier` and `unverified` |
-| `verdict` | Q3: `breaks` · `unchanged` · `unverified`. Q4: `code` · `test` · `gap`. Required once the node is dispositioned to anything but `unverified` |
+| `impact_verdict` | Q3: `breaks` · `unchanged` · `unverified`. Required once the node is dispositioned to anything but `unverified` |
+| `coverage_verdict` | Q4: `code` · `test` · `gap`. Same requirement. A run carrying both types carries both fields — one field cannot answer two questions |
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
 | `parent` | the node id this one was reached from; `null` for a root |
 
 ### `queries` — one row per search
 
-`command` (the command or pattern run) · `universe` (what it searched — paths,
-file kinds) · `count` (hits returned) · `evidence` (path to the raw output when
-it was kept).
+`id` (see "Stable keys") · `command` (the command or pattern run) · `universe`
+(what it searched — paths, file kinds) · `count` (hits returned) · `evidence`
+(path to the raw output when it was kept).
 
 ### `claims` — one row per claim the answer makes
 
-`id` (stable within the run; a counter-search points at it) · `text` · `kind`
-(`fact` · `inference` · `unverified`) · `load_bearing` (boolean: the reader acts
-on it) · `supporting_nodes` (node ids) · `citations` (`file:line`, or command
-and exit code). A load-bearing `fact` **or** `inference` carries at least one
-citation — an inference names what it rests on.
+`id` (see "Stable keys"; a counter-search points at it) · `text` · `kind`
+(`fact` · `inference` · `unverified`) · `load_bearing` (boolean, never absent:
+the reader acts on it) · `supporting_nodes` (node ids; a `fact` names at least
+one) · `citations` (`file:line`, or command and exit code). A load-bearing
+`fact` **or** `inference` carries at least one citation — an inference names
+what it rests on.
 
 ### `counter_checks` — one row per counter-search
 
 `method` (the different method used) · `kind` (`deterministic` · `agent`) ·
-`targeted_claims` (claim ids) · `new_nodes` (node ids it discovered; an empty
-list is the passing result) · `state` (`pending` · `complete`) · `reason`
-(required when `pending`).
+`targeted_claims` (claim ids; a `complete` row names at least one — a
+counter-search aimed at nothing broke nothing) · `new_nodes` (node ids it
+discovered; an empty list is the passing result) · `state` (`pending` ·
+`complete`) · `reason` (required when `pending`).
 
 A method that cannot return anything the first pass missed is not a
 counter-search. Every run carries at least one `complete` row; Q2, Q3, Q5 and
@@ -109,8 +120,11 @@ The validator computes it; nothing else does.
   frontier, no pending counter-search.
 - `closed-with-frontier` — the only remaining gaps are `frontier`.
 - `partial` — any `unverified` or `partial` class, any `judgment-only` left,
-  any node still `unverified`, any pending counter-search, or any structural
-  defect.
+  any node still `unverified`, any node verdict of `unverified`, any pending
+  counter-search, or any structural defect.
+
+No table carries a field this file does not define: an undefined key is a field
+nobody validates, and the validator refuses it.
 
 ## Tracer fragments
 
@@ -123,10 +137,26 @@ this same document scoped to its partition, plus:
 | `partition.classes` | the boundary classes this fragment is answerable for |
 | `partition.seed` | path to the slice of the seed map it worked from |
 
-Rows for classes outside `partition.classes` are omitted, not stubbed. Merging
-is by key: node `id`, claim `id`, and query order. Same node id from two
-fragments with **different** dispositions merges to `unverified` with reason
-`conflict: <a> vs <b>`, and reopens the queue for that node.
+Rows for classes outside `partition.classes` are omitted, not stubbed.
+
+### Stable keys
+
+An ordinal collides the moment two partitions merge, so every key is derived:
+
+- node: `{class}:{file}:{line}`
+- claim: `c-<sha1(text)[:8]>`
+- query: `q-<sha1(command + universe)[:8]>`
+
+### Merging
+
+| Table | Rule |
+|---|---|
+| `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations |
+| `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node |
+| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hits` and `hit_ids` union |
+| `claims` | by claim id. Same id with different text → `unverified` with reason `conflict` |
+| `queries` | by query id; duplicates dropped |
+| `counter_checks` | union by (`method`, `targeted_claims`); `pending` beats `complete` for the same pair |
 
 ## REPORT.md
 

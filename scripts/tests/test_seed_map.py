@@ -19,7 +19,10 @@ from pathlib import Path
 
 _TESTS = Path(__file__).resolve().parent
 _ROOT = _TESTS.parent.parent
-_SCRIPTS = _ROOT / "skills" / "utils" / "investigate" / "scripts"
+# The scripts under test. Overridable so the suite can be pointed at an
+# earlier checkout, which is how an adversarial case proves it fails there.
+_SCRIPTS = Path(os.environ.get("AFK_INVESTIGATE_SCRIPTS")
+                or _ROOT / "skills" / "utils" / "investigate" / "scripts")
 sys.path.insert(0, str(_SCRIPTS))
 
 import importlib.util

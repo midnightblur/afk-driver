@@ -16,6 +16,7 @@ A question or claim about existing code — how X works, what calls or depends o
 X, what breaks if X changes, what edge cases exist, whether Y exists — is
 answered by running `/afk:investigate`, never from a partial read. Every
 session, every repository, plugin skill running or not. Report what its ledger
-holds, at the verdict its validator computed. Doctrine, reference only:
+holds, at the verdict its validator computed. An absence claim with no closed
+ledger behind it is written `unverified: <reason>`. Doctrine, reference only:
 `INVESTIGATION.md` at the installed plugin root.
 <!-- afk:investigation:end -->
