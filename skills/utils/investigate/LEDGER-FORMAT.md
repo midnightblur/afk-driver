@@ -52,12 +52,16 @@ one checker of everything below.
 | `status` | `closed` · `partial` · `n/a` · `frontier` · `unverified`, plus `judgment-only` at the seed and fragment stage |
 | `reason` | required for every status but `closed`; several gaps join with `; ` |
 | `universe` | what the method searched — paths, file kinds, or another class's hit set |
+| `query_ids` | the queries-table ids of the searches behind this row; a class searching another class's hit set points at that class's queries |
 | `sites` | the judgment-only sites this class still has to be read at |
 | `modules` | B7 only: the parsed module lists, and the manifests that were missing, unsupported, or unparsable |
 | `name_forms` | B1 only: every form per subject, each `enumerated` true or false |
 
-`hits` equals `len(hit_ids)` unless `truncated` is true, and then it is higher.
-Every id in `hit_ids` is in the nodes table. One row per class, never two.
+`hits` equals `len(hit_ids)` unless `truncated` is true, and then `hits` is
+above the cap and `hit_ids` holds exactly the cap. Every id in `hit_ids` is in
+the nodes table and carries this row's class. One row per class, never two.
+A row `closed` or `partial` with hits names at least one `query_ids` entry, and
+every entry resolves in the queries table.
 
 Every class B1-B14 carries a row. A class with no enumeration method is
 `unverified` with reason `no enumeration method`. `partial` is the status of a
@@ -153,8 +157,8 @@ An ordinal collides the moment two partitions merge, so every key is derived:
 |---|---|
 | `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations |
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node |
-| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hits` and `hit_ids` union |
-| `claims` | by claim id. Same id with different text → `unverified` with reason `conflict` |
+| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hits`, `hit_ids` and `query_ids` union |
+| `claims` | by claim id; the id is the digest of the text, so equal ids are equal claims. `supporting_nodes` and `citations` union |
 | `queries` | by query id; duplicates dropped |
 | `counter_checks` | union by (`method`, `targeted_claims`); `pending` beats `complete` for the same pair |
 

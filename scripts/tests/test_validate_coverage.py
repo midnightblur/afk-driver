@@ -38,8 +38,13 @@ def ledger(**overrides) -> dict:
             "started": "2026-01-01T00:00:00+00:00", "finished": "2026-01-01T00:01:00+00:00",
         },
         "boundaries": [
-            {"class": klass, "status": "closed", "method": "searched", "hits": 0, "hit_ids": []}
-            for klass in ALL
+            {"class": "B1", "status": "closed", "method": "every name form",
+             "hits": 1, "hit_ids": ["B1:alpha.java:2"], "query_ids": ["q-abcdef12"]},
+            *[
+                {"class": klass, "status": "closed", "method": "searched",
+                 "hits": 0, "hit_ids": []}
+                for klass in ALL[1:]
+            ],
         ],
         "nodes": [
             {"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
@@ -48,7 +53,8 @@ def ledger(**overrides) -> dict:
              "disposition": "terminal", "evidence": "the write",
              "parent": "B1:alpha.java:2"},
         ],
-        "queries": [],
+        "queries": [{"id": "q-abcdef12", "command": "git grep -e Widget",
+                     "universe": "tracked files", "count": 1, "evidence": None}],
         "claims": [{"id": "c1", "text": "the path starts here", "kind": "fact",
                     "load_bearing": True, "supporting_nodes": ["B1:alpha.java:2"],
                     "citations": ["alpha.java:2"]}],

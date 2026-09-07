@@ -24,6 +24,11 @@ import sys
 from pathlib import Path
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
+
+# The node cap a boundary row is capped at (`LEDGER-FORMAT.md`). A row saying
+# `truncated` reached exactly this many ids; anything shorter is a row claiming
+# hits it never recorded.
+HIT_CAP = 200
 ALL_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 QTYPES = {f"Q{n}" for n in range(1, 6)}
 
@@ -45,8 +50,8 @@ KEYS = {
     "top": set(TABLES) | {"partition"},
     "run": {"repository", "head", "question", "type", "roots", "aliases", "inventory_hash",
             "inventory_count", "design_phase", "verdict", "started", "finished", "config"},
-    "boundaries": {"class", "status", "method", "hits", "truncated", "hit_ids", "mechanism",
-                   "reason", "universe", "sites", "modules", "name_forms"},
+    "boundaries": {"class", "status", "method", "hits", "truncated", "hit_ids", "query_ids",
+                   "mechanism", "reason", "universe", "sites", "modules", "name_forms"},
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
               "coverage_verdict", "pinned_by", "evidence", "parent"},
     "queries": {"id", "command", "universe", "count", "evidence"},
@@ -73,6 +78,11 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     for table in TABLES:
         if table not in ledger:
             defects.append(f"{table}: table missing")
+    if defects:
+        return defects, "partial"
+    for table in TABLES[1:]:
+        if not isinstance(ledger[table], list):
+            defects.append(f"{table}: must be an array of rows")
     if defects:
         return defects, "partial"
     unknown(defects, "top", "ledger", ledger)
@@ -156,6 +166,8 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     for parent in sorted(parents - node_ids):
         defects.append(f"nodes: parent {parent!r} is not in the nodes table")
 
+    query_index = {row.get("id") for row in ledger["queries"] if row.get("id")}
+
     seen: dict[str, dict] = {}
     open_classes = 0
     frontier_classes = 0
@@ -181,8 +193,11 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if not isinstance(hits, int):
             defects.append(f"{where}: hits is a count")
         elif row.get("truncated"):
-            if hits < len(hit_ids):
-                defects.append(f"{where}: hits {hits} is below its own {len(hit_ids)} node ids")
+            if len(hit_ids) != HIT_CAP or hits <= HIT_CAP:
+                defects.append(
+                    f"{where}: truncated says the {HIT_CAP}-node cap was reached — "
+                    f"{len(hit_ids)} ids for {hits} hits records neither the cap nor the count"
+                )
         elif hits != len(hit_ids):
             defects.append(
                 f"{where}: hits {hits} disagrees with {len(hit_ids)} node ids; "
@@ -193,6 +208,18 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         for node_id in hit_ids:
             if node_id not in node_ids:
                 defects.append(f"{where}: hit_id {node_id!r} is not in the nodes table")
+            elif not str(node_id).startswith(f"{klass}:"):
+                defects.append(f"{where}: hit_id {node_id!r} is not of its own class")
+        query_ids = row.get("query_ids") or []
+        if isinstance(hits, int) and hits > 0 and status in ("closed", "partial"):
+            if not query_ids:
+                defects.append(
+                    f"{where}: {hits} hits and no query_ids; a row with hits names the "
+                    "queries that found them"
+                )
+        for query_id in query_ids:
+            if query_id not in query_index:
+                defects.append(f"{where}: query_id {query_id!r} is not in the queries table")
         if status in ("unverified", "partial", "judgment-only"):
             open_classes += 1
         elif status == "frontier":
@@ -284,8 +311,12 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         verdict = "closed"
 
     claimed = run.get("verdict")
-    if claimed in VERDICTS and claimed != verdict:
-        defects.append(f"run.verdict: says {claimed}, the ledger computes {verdict}")
+    if claimed is not None:
+        if claimed not in VERDICTS:
+            defects.append(
+                f"run.verdict: {claimed!r} is not one of {', '.join(VERDICTS)}")
+        elif claimed != verdict:
+            defects.append(f"run.verdict: says {claimed}, the ledger computes {verdict}")
 
     return defects, verdict
 

@@ -53,17 +53,20 @@ ANNOTATED = JVM + (".ts", ".py")
 # Generic default patterns, one entry per class that has one. Framework-shaped
 # and product-free: a repository's own mechanisms belong in its `investigation:`
 # block, never here. `{simple}` expands to the subject's simple names, already
-# grouped — a pattern embeds it as written.
+# grouped — a pattern embeds it as written. The expansion is every simple name
+# plus every declared alias, so a pattern class searches the forms B1 searched.
 #
 # `scoped` says how a class's hits are found:
 #   "names"        - the name-form passes themselves
-#   "subject"      - the pattern already carries the subject's name
+#   "subject"      - the pattern carries the subject's name forms, so it is
+#                    as complete as the enumeration of those forms
 #   "registration" - the pattern finds a registration form; hits are kept only
 #                    in files a name form already hit, intersected in-process
 #   "filter"       - no query of its own; the name-form hits filtered to paths
 #
-# A "filter" or "registration" class searches B1's hit set, so it can be no more
-# complete than B1 is.
+# Every class but "names" depends on B1's name-form enumeration — by searching
+# its hit set, or by interpolating its forms — so none can be more complete
+# than B1 is.
 #
 # `languages` names the file kinds a default pattern can match in. A repository
 # holding none of them gets `unverified(pattern cannot match)`, never closed(0).
@@ -421,10 +424,12 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     declared = build_class_map(block)
     seed_reason = "seed map hit, not yet triaged"
 
-    def note(command: str, universe: str, count: int) -> None:
+    def note(command: str, universe: str, count: int) -> str:
+        """Record the query and hand back its id, so a row can point at it."""
         row = {"id": digest("q", command + universe), "command": command,
                "universe": universe, "count": count, "evidence": None}
         queries.setdefault(row["id"], row)
+        return row["id"]
 
     def carries_simple(value: str) -> bool:
         # Case-sensitive, because the primary pass is: a form the exact search
@@ -438,6 +443,10 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     primary_values = [form["value"] for form in every_form if carries_simple(form["value"])]
     counter_values = [form["value"] for form in every_form if not carries_simple(form["value"])]
     declared_aliases = [form for form in every_form if form.get("source") == "declared"]
+    # What a `{simple}` pattern expands to. A declared alias is a name the
+    # subject is written in, so a pattern searching for the name searches for
+    # it too — otherwise every pattern class closes over the simple form alone.
+    subject_terms = simple_names + [form["value"] for form in declared_aliases]
     unenumerated = sorted(
         {
             form["form"]
@@ -459,9 +468,10 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                if hit["file"] in inventory_set and exact.search(hit["text"])]
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
-    note("git grep -n -I -E -i --untracked <primary name forms>",
-         "tracked and untracked text files, not ignored, binary excluded, case-blind",
-         len(wide))
+    # The name-form queries; every class searching B1's hit set points at them.
+    name_query_ids = [note("git grep -n -I -E -i --untracked <primary name forms>",
+                           "tracked and untracked text files, not ignored, binary excluded, "
+                           "case-blind", len(wide))]
     seen = set(kept)
 
     # Counter-search one: a name form that does not carry the simple name — a
@@ -472,7 +482,9 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     claim_id = digest("c", claim_text)
     if counter_values:
         form_hits = grep(repo, [re.escape(value) for value in counter_values], None)
-        note("git grep -n -I -E <declared wire or alias forms>", "tracked files", len(form_hits))
+        name_query_ids.append(
+            note("git grep -n -I -E <declared wire or alias forms>", "tracked files",
+                 len(form_hits)))
         new = [hit for hit in form_hits if (hit["file"], hit["line"]) not in seen]
         b1_hits += new
         seen |= {(hit["file"], hit["line"]) for hit in new}
@@ -534,11 +546,14 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         row.update(extra)
         boundaries[klass] = row
 
-    def declared_searches(klass: str, instances: list[dict],
-                          restrict_to_named: bool) -> tuple[list[dict], list[str]]:
+    def declared_searches(klass: str,
+                          instances: list[dict]) -> tuple[list[dict], list[str], list[str]]:
         """Every declared pattern, each inside its own path scope.
 
         Patterns sharing a scope share one call, so a scope costs one spawn.
+        A declared pattern is never narrowed to the files a name form hit: the
+        repository already stated its scope, and a registration naming only a
+        wire form lives in a file no name form returns.
         """
         by_scope: dict[tuple[str, ...], list[str]] = {}
         for instance in instances:
@@ -547,15 +562,15 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                     instance["pattern"])
         hits: list[dict] = []
         universes: list[str] = []
+        qids: list[str] = []
         for scope, patterns in by_scope.items():
             found = grep(repo, patterns, list(scope) or None)
-            if restrict_to_named:
-                found = [hit for hit in found if hit["file"] in named_files]
             universe = f"declared paths {', '.join(scope)}" if scope else "tracked files"
-            note(f"git grep -n -I -E <{klass} declared patterns>", universe, len(found))
+            qids.append(note(f"git grep -n -I -E <{klass} declared patterns>",
+                             universe, len(found)))
             hits += found
             universes.append(universe)
-        return hits, universes
+        return hits, universes, qids
 
     for klass in ALL_CLASSES:
         instances = declared.get(klass, [])
@@ -566,19 +581,29 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         live_sites = [site for site in sites if site not in missing_sites]
         site_gap = f"site missing: {sample(missing_sites)}" if missing_sites else None
         scoped = (default or {}).get("scoped")
-        inherits_b1 = scoped in ("filter", "registration")
+        # A pattern class interpolates the name forms, so it is as complete as
+        # the enumeration of those forms — same dependence as a filter class.
+        inherits_b1 = scoped in ("filter", "registration", "subject")
 
         # A declared pattern runs beside whatever the class does on its own.
-        extra_hits, extra_universes = declared_searches(
-            klass, instances, restrict_to_named=(scoped == "registration"))
+        extra_hits, extra_universes, extra_qids = declared_searches(klass, instances)
         extra_method = ["declared instance patterns"] if extra_hits or extra_universes else []
 
+        # A class short-circuiting the generic tail owes the same site rule:
+        # a site an agent still has to read is not closure, and a site that is
+        # gone is a method that did not run.
+        def with_sites(status: str) -> str:
+            if live_sites:
+                return "judgment-only"
+            return "partial" if site_gap and status == "closed" else status
+
         if klass == "B1":
-            record("B1", "partial" if b1_gap else "closed",
+            record("B1", with_sites("partial" if b1_gap else "closed"),
                    " + ".join([default["method"], *extra_method]), b1_hits + extra_hits,
                    reasons=[b1_gap, site_gap], mechanism=mechanism,
                    name_forms={s: forms[s] for s in subjects},
                    sites=live_sites or None,
+                   query_ids=name_query_ids + extra_qids,
                    universe="tracked text files (binary excluded), and the second universe")
             continue
 
@@ -586,15 +611,17 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             generated = block.get("generated") or []
             if not generated and not extra_hits:
                 record("B6", "unverified", "no generated paths declared", extra_hits,
-                       reasons=["no enumeration method", site_gap], mechanism=mechanism)
+                       reasons=["no enumeration method", site_gap], mechanism=mechanism,
+                       universe="no generated paths declared", query_ids=extra_qids)
                 continue
             absent = [path for path in generated if not (repo / path).exists()]
             present = [path for path in generated if (repo / path).exists()]
             searched = [form["value"] for form in every_form]
             hits, unread = walk_grep(repo, present, group(searched)) if present else ([], [])
+            walk_qids = list(extra_qids)
             if present:
-                note("in-process walk of the declared generated paths",
-                     "built output, tracked or not", len(hits))
+                walk_qids.append(note("in-process walk of the declared generated paths",
+                                      "built output, tracked or not", len(hits)))
             unread_gap = f"{len(unread)} files unread: size or encoding — {sample(unread)}" \
                 if unread else None
             if absent:
@@ -603,17 +630,20 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 status, reason = "partial", None
             else:
                 status, reason = "closed", None
-            record("B6", status,
+            record("B6", with_sites(status),
                    " + ".join(["every name form in built generated output", *extra_method]),
                    hits + extra_hits, reasons=[reason, unread_gap, site_gap],
-                   mechanism=mechanism, sites=live_sites or None)
+                   mechanism=mechanism, sites=live_sites or None, query_ids=walk_qids,
+                   universe=", ".join(["declared generated paths, read in process",
+                                       *extra_universes]))
             continue
 
         if klass == "B7":
             poms = block.get("reactor") or []
             if not poms and not extra_hits:
                 record("B7", "unverified", "no reactor manifests declared", extra_hits,
-                       reasons=["no enumeration method", site_gap], mechanism=mechanism)
+                       reasons=["no enumeration method", site_gap], mechanism=mechanism,
+                       universe="no aggregator manifests declared", query_ids=extra_qids)
                 continue
             modules = reactor_modules(repo, poms)
             gaps = []
@@ -626,10 +656,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 gaps.append(
                     "reactor manifest of an unsupported kind: "
                     f"{sample(modules['unsupported_manifests'])}")
-            record("B7", "unverified" if gaps else "closed",
+            record("B7", with_sites("unverified" if gaps else "closed"),
                    " + ".join(["declared aggregator manifests parsed", *extra_method]),
                    extra_hits, reasons=[*gaps, site_gap], mechanism=mechanism,
-                   modules=modules, sites=live_sites or None)
+                   modules=modules, sites=live_sites or None, query_ids=extra_qids,
+                   universe=", ".join(["declared aggregator manifests", *extra_universes]))
             continue
 
         if klass == "B14":
@@ -640,12 +671,14 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                    " + ".join(["outside this repository", *extra_method]), extra_hits,
                    reasons=["another repository, deployment manifest, or live consumer"
                             + submodules, site_gap],
-                   mechanism=mechanism, sites=live_sites or None)
+                   mechanism=mechanism, sites=live_sites or None, query_ids=extra_qids,
+                   universe=", ".join(["nothing in this repository", *extra_universes]))
             continue
 
         hits: list[dict] = list(extra_hits)
         methods: list[str] = list(extra_method)
         universes: list[str] = list(extra_universes)
+        qids: list[str] = list(extra_qids)
         language_gap = None
 
         if default and scoped == "filter":
@@ -653,6 +686,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             hits += [hit for hit in b1_hits if matches_any(hit["file"], specs)]
             methods.append(default["method"])
             universes.append("name-form hits filtered to paths")
+            qids += name_query_ids
         elif default and default.get("patterns"):
             wanted = default.get("languages")
             if wanted and not (suffixes & set(wanted)):
@@ -660,7 +694,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                                 f"({', '.join(wanted[:4])})")
             else:
                 expressions = [
-                    pattern.format(simple=group(simple_names)) if "{simple}" in pattern else pattern
+                    pattern.format(simple=group(subject_terms)) if "{simple}" in pattern
+                    else pattern
                     for pattern in default["patterns"]
                 ]
                 found = grep(repo, expressions, None)
@@ -668,14 +703,18 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                     found = [hit for hit in found if hit["file"] in named_files]
                 universe = ("files that name the subject" if scoped == "registration"
                             else "tracked files")
-                note(f"git grep -n -I -E <{klass} default patterns>", universe, len(found))
+                qids.append(note(f"git grep -n -I -E <{klass} default patterns>",
+                                 universe, len(found)))
+                if scoped == "registration":
+                    qids += name_query_ids
                 hits += found
                 methods.append(default["method"])
                 universes.append(universe)
 
         inherited = (f"universe inherits B1: {b1_gap}") if (inherits_b1 and b1_gap) else None
-        common = {"mechanism": mechanism, "universe": ", ".join(universes) or None,
-                  "sites": live_sites or None}
+        common = {"mechanism": mechanism,
+                  "universe": ", ".join(universes) or "no method ran",
+                  "query_ids": qids, "sites": live_sites or None}
         method = " + ".join(methods) or "none"
 
         if live_sites:

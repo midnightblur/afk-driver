@@ -35,9 +35,25 @@ class LedgerShapeTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("hits" in defect and "B1" in defect for defect in defects), defects)
 
-    def test_12_a_truncated_row_may_carry_fewer_ids(self):
-        document = only(ledger(), "B1", hits=7, truncated=True,
+    def test_12_a_truncated_row_carries_a_full_cap_of_ids(self):
+        # `truncated` says the cap was reached. A short list with a large count
+        # is a row claiming hits it never recorded.
+        document = only(ledger(), "B1", hits=9999, truncated=True,
                         hit_ids=["B1:alpha.java:2"])
+        defects, verdict = self.check(document)
+        self.assertTrue(any("truncated" in defect for defect in defects), defects)
+        self.assertEqual(verdict, "partial")
+
+    def test_12_a_real_truncated_row_passes(self):
+        cap = validate_coverage.HIT_CAP
+        document = ledger()
+        document["nodes"] += [
+            {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
+             "disposition": "terminal", "evidence": "the line", "parent": None}
+            for n in range(cap)
+        ]
+        document = only(document, "B1", hits=9999, truncated=True,
+                        hit_ids=[f"B1:bulk.java:{n}" for n in range(cap)])
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
@@ -162,6 +178,53 @@ class LedgerShapeTest(unittest.TestCase):
         document["nodes"][0]["parent"] = "B1:ghost.java:1"
         defects, _ = self.check(document)
         self.assertTrue(any("parent" in defect for defect in defects), defects)
+
+
+    # 2d.3 — a stamp outside the enum is not a verdict.
+    def test_a_verdict_stamp_outside_the_enum_is_a_defect(self):
+        document = ledger()
+        document["run"]["verdict"] = "CLOSED"
+        defects, _ = self.check(document)
+        self.assertTrue(any("run.verdict" in defect for defect in defects), defects)
+
+    def test_a_correct_verdict_stamp_passes(self):
+        document = ledger()
+        document["run"]["verdict"] = "closed"
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
+    # 2d.4 — a hit id belongs to the class whose row points at it.
+    def test_a_hit_id_of_another_class_is_a_defect(self):
+        document = ledger()
+        document["nodes"].append({"id": "B9:alpha.sql:1", "class": "B9", "site": "alpha.sql:1",
+                                  "disposition": "terminal", "evidence": "the line",
+                                  "parent": None})
+        document = only(document, "B1", hits=1, hit_ids=["B9:alpha.sql:1"])
+        defects, _ = self.check(document)
+        self.assertTrue(any("its own class" in defect for defect in defects), defects)
+
+    # 2d.7 — a table of the wrong type is a defect line, never a traceback.
+    def test_a_table_of_the_wrong_type_is_a_defect(self):
+        document = ledger()
+        document["nodes"] = {}
+        defects, verdict = self.check(document)
+        self.assertTrue(any("nodes" in defect for defect in defects), defects)
+        self.assertEqual(verdict, "partial")
+
+    # 2d.10 — a row searched into existence names the query that ran.
+    def test_a_searched_row_needs_a_query(self):
+        document = ledger()
+        document["queries"] = []
+        defects, _ = self.check(document)
+        self.assertTrue(any("queries" in defect for defect in defects), defects)
+
+    def test_a_searched_row_query_id_must_resolve(self):
+        document = ledger()
+        document["queries"] = [{"id": "q-11111111", "command": "git grep -e Widget",
+                                "universe": "tracked files", "count": 1, "evidence": None}]
+        document = only(document, "B1", query_ids=["q-99999999"])
+        defects, _ = self.check(document)
+        self.assertTrue(any("q-99999999" in defect for defect in defects), defects)
 
 
 if __name__ == "__main__":
