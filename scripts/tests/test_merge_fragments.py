@@ -187,7 +187,7 @@ class MergeFragmentsTest(unittest.TestCase):
         item = fragment(nodes=[
             {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
              "disposition": "terminal", "evidence": "the call", "parent": None,
-             "query_id": QUERY}])
+             "query_id": QUERY, "line_hash": "cccccccccccc"}])
         merged = self.merge(ledger(), item, dict(item))
         self.assertEqual(merged["run"]["merged_from"], 1)
 
@@ -197,7 +197,7 @@ class MergeFragmentsTest(unittest.TestCase):
         first = fragment(partition="p1", nodes=[
             {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
              "disposition": "terminal", "evidence": "the call", "parent": None,
-             "query_id": QUERY}])
+             "query_id": QUERY, "line_hash": "cccccccccccc"}])
         second = fragment(partition="p1", nodes=[
             {"id": "B1:beta.java:9", "class": "B1", "site": "beta.java:9",
              "disposition": "terminal", "evidence": "the other call", "parent": None,
@@ -256,7 +256,7 @@ class MergeFragmentsTest(unittest.TestCase):
         code, stderr, document = self.run_script(ledger(), fragment(nodes=[
             {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
              "disposition": "terminal", "evidence": "the call", "parent": None,
-             "query_id": QUERY}]))
+             "query_id": QUERY, "line_hash": "cccccccccccc"}]))
         self.assertEqual(code, 0, stderr)
         self.assertEqual(document["run"]["merged_from"], 1)
         defects, verdict = validate_coverage.validate(document)

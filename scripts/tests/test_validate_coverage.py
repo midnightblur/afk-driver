@@ -58,10 +58,11 @@ def ledger(**overrides) -> dict:
         "nodes": [
             {"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
              "disposition": "traced", "evidence": "the line", "parent": None,
-             "query_id": QUERY},
+             "query_id": QUERY, "line_hash": "aaaaaaaaaaaa"},
             {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
              "disposition": "terminal", "evidence": "the write",
-             "parent": "B1:alpha.java:2", "query_id": QUERY},
+             "parent": "B1:alpha.java:2", "query_id": QUERY,
+             "line_hash": "bbbbbbbbbbbb"},
         ],
         "queries": [{"id": QUERY, "command": COMMAND,
                      "universe": "tracked files", "count": 1, "evidence": None}],

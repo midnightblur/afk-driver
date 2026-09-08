@@ -105,7 +105,7 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `coverage_verdict` | Q4: `code` · `test` · `gap`. Same requirement. A run carrying both types carries both fields — one field cannot answer two questions |
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
-| `line_hash` | the identity of the matched line, so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone |
+| `line_hash` | the identity of the matched line, so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
 | `parent` | the node id this one was reached from; `null` for a root |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 

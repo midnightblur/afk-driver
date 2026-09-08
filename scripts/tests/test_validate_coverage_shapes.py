@@ -64,7 +64,7 @@ class LedgerShapeTest(unittest.TestCase):
         document["nodes"] += [
             {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
              "disposition": "terminal", "evidence": "the line", "parent": None,
-             "query_id": QUERY}
+             "query_id": QUERY, "line_hash": f"{n:012d}"}
             for n in range(cap)
         ]
         document["queries"][0]["count"] = 9999
@@ -184,6 +184,19 @@ class LedgerShapeTest(unittest.TestCase):
         document["run"]["notes"] = "free text"
         defects, _ = self.check(document)
         self.assertTrue(any("notes" in defect for defect in defects), defects)
+
+    # A searched node is compared across runs on its line, so it carries one.
+    def test_a_searched_node_without_a_line_hash_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0].pop("line_hash", None)
+        defects, _ = self.check(document)
+        self.assertTrue(any("line_hash" in defect for defect in defects), defects)
+
+    # A node an agent read has no matched line to hash.
+    def test_a_read_node_may_omit_the_line_hash(self):
+        document = agent_check(ledger())
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
 
     # A node compared across runs on its line identity needs that to be text.
     def test_a_line_hash_must_be_a_string(self):

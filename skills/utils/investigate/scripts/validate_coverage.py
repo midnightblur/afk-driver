@@ -188,6 +188,10 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if "query_id" not in row:
             defects.append(f"{where}: query_id required - the search that produced it, "
                            "or null when an agent read it")
+        # A searched node is compared across runs on its line, not its id.
+        if isinstance(row.get("query_id"), str) and not str(row.get("line_hash") or "").strip():
+            defects.append(f"{where}: line_hash required on a node a search produced; "
+                           "an id alone moves with every line inserted above it")
         if not node_id:
             defects.append(f"nodes[{index}]: id required; boundary rows point at it")
         elif node_id in node_ids:
