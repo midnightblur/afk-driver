@@ -9,6 +9,7 @@ that degrades and a violation that fails the render.
 """
 
 import copy
+import io
 import json
 import os
 import sys
@@ -369,8 +370,13 @@ class DeadLinks(unittest.TestCase):
     """A dead relative href is the one page failure only the human meets."""
 
     def warn(self, href, artifact_dir):
+        """The count, with the warning itself kept out of the suite's output."""
         doc = {"rounds": [{"round": 2, "header": {"links": [{"href": href}]}}]}
-        return lavish_render.warn_dead_links(doc, artifact_dir)
+        held, sys.stderr = sys.stderr, io.StringIO()
+        try:
+            return lavish_render.warn_dead_links(doc, artifact_dir)
+        finally:
+            sys.stderr = held
 
     def test_a_missing_relative_target_warns(self):
         self.assertEqual(self.warn("no/such/file.md", HERE), 1)
@@ -383,6 +389,16 @@ class DeadLinks(unittest.TestCase):
         for href in ("https://example.invalid/x", "mailto:someone@example.invalid",
                      "//example.invalid/x", "/absolute/path.md", "#section"):
             self.assertEqual(self.warn(href, HERE), 0, href)
+
+    def test_the_shipped_example_links_at_nothing_dead(self):
+        """The example every author copies must never print a warning.
+
+        A sample that warns on every run teaches that warnings from this tool
+        are background noise, which costs more than the demonstration is worth.
+        """
+        self.assertEqual(lavish_render.warn_dead_links(
+            json.load(open(FIXTURE, encoding="utf-8")),
+            os.path.join(HERE, "samples")), 0)
 
     def test_a_dead_link_never_blocks_the_render(self):
         out = os.path.join(HERE, "samples", "does-not-matter.html")

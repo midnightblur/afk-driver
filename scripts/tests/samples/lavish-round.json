@@ -43,7 +43,7 @@
           {"name": "the entry point", "anchor": "example/path.ext#handle"},
           {"name": "the store", "anchor": "example/other.ext#Store"}
         ],
-        "links": [{"label": "the earlier walkthrough", "href": "docs/example-feature/notes.md"}]
+        "links": [{"label": "the round document behind this page", "href": "lavish-round.json"}]
       },
       "items": [
         {
