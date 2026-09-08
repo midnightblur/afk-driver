@@ -55,7 +55,10 @@ re-renders at question/turn boundaries, never per row write.
 dictionary and the dark-mode override are injected into the artifact HTML by
 `hooks/lavish-tips.sh` and `hooks/lavish-dark.sh`, which fire on a render **and
 on `lavish-axi poll <file>`**. Any Write/Edit that rewrites the artifact strips
-both, silently — nothing in the page or the transcript reports the loss. Both
+both, silently — nothing in the page or the transcript reports the loss. **The
+render script trips this the same way**: `scripts/lavish_render.py` writes the
+artifact file directly, so a kit render is a rewrite like any other and lands in
+the same hole. Both
 hooks are idempotent, so the next render or poll restores them; what you must
 never do is rewrite the artifact and then leave the human looking at it without
 one of those two commands in between.

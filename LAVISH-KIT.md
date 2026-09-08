@@ -17,6 +17,15 @@ python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> [-o <artifact.ht
 python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> --check
 ```
 
+**A render must be followed by a `lavish-axi` render or poll before a human
+looks at the page.** This script writes the artifact file directly, and the
+tooltip dictionary and the forced-dark override are injected by hooks that fire
+only on a `lavish-axi` command — so a direct write silently strips both, and
+nothing in the page, the file, or the transcript says so. Both hooks are
+idempotent, so running one when it was not needed costs nothing; skipping one
+leaves the human on an un-tooltipped, possibly light page. Details:
+`LAVISH.md` "The page runtime lives in the file".
+
 The JSON is the durable state; the artifact is a build product. Append the new
 round and patch item states — never rewrite an earlier round. Same document,
 byte-identical HTML. Exit `0` rendered, `1` contract violation, `2` unreadable.
