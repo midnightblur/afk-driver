@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "feature": "example-feature",
+  "purpose": "Design round",
+  "spec_dir": "docs/example-feature",
+  "grill": "solution",
+  "rounds": [
+    {
+      "round": 1,
+      "state": "settled",
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "D-1",
+          "decision": "The example component keeps its existing boundary.",
+          "round": 1,
+          "by": "human",
+          "evidence": {"grade": "repo", "cite": "example/path.ext:12"},
+          "audit": "explicit"
+        },
+        {
+          "component": "confirm_row",
+          "id": "C-9",
+          "state": "open",
+          "question": "Name the example flag consistently with its neighbours?",
+          "recommended": "yes, follow the neighbouring names",
+          "why": "An outlier name costs a lookup at every later read.",
+          "cite": "example/path.ext:44"
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "state": "current",
+      "header": {
+        "round": 2,
+        "target": 3,
+        "settled_last_round": ["D-1"],
+        "unlocks": ["the storage choice", "the retry policy"],
+        "parked": ["the reporting surface"],
+        "fork": "Two shapes both satisfy the requirement. One is cheaper to build and harder to change; the other reverses the trade. Nothing in the existing code settles it.",
+        "touches": [
+          {"name": "the entry point", "anchor": "example/path.ext#handle"},
+          {"name": "the store", "anchor": "example/other.ext#Store"}
+        ],
+        "links": [{"label": "the earlier walkthrough", "href": "docs/example-feature/notes.md"}]
+      },
+      "items": [
+        {
+          "component": "debate_card",
+          "id": "Q-1",
+          "question": "Which shape carries the write path?",
+          "context": "The write path is the only place two components agree on ordering today. Whichever shape wins here sets how every later writer is added.\n\nNothing in the existing code forces the choice, which is why it is yours and not a lookup.",
+          "criteria_order": ["build cost", "cost to reverse", "operational surface"],
+          "options": [
+            {
+              "id": "A",
+              "label": "Shape A",
+              "criteria": {"build cost": "low", "cost to reverse": "high",
+                           "operational surface": "one process"}
+            },
+            {
+              "id": "B",
+              "label": "Shape B",
+              "criteria": {"build cost": "medium", "cost to reverse": "low",
+                           "operational surface": "two processes"}
+            },
+            {
+              "id": "C",
+              "label": "Shape C — a different paradigm",
+              "criteria": {"build cost": "high", "cost to reverse": "low",
+                           "operational surface": "one process, external dependency"}
+            }
+          ],
+          "recommended": "B",
+          "third_paradigm": "C",
+          "why": "Reversal cost dominates while the requirement is still moving."
+        },
+        {
+          "component": "decided_card",
+          "id": "D-2",
+          "decision": "The example boundary stays where it is.",
+          "alternatives": [
+            {"id": "alt-move", "label": "Move it outward", "why": "widens the surface"},
+            {"id": "alt-split", "label": "Split it in two", "why": "doubles the wiring"}
+          ],
+          "evidence": {
+            "grade": "repo",
+            "cite": "example/path.ext:12-30",
+            "sentence": "The existing call sites all cross the boundary in one direction."
+          },
+          "why_beat": {
+            "runner_up_id": "alt-move",
+            "sentence": "Moving it outward widens the surface for no caller that exists today."
+          },
+          "reverse": "Revert the boundary and re-wire the two call sites.",
+          "scope": {"hl": "none", "depends_on": []}
+        },
+        {
+          "component": "decided_card",
+          "id": "D-3",
+          "decision": "The example default becomes the conservative value.",
+          "alternatives": [{"id": "alt-eager", "label": "Keep the eager value"}],
+          "evidence": {"grade": "spec", "cite": "docs/example-feature/notes.md#defaults",
+                       "sentence": "The requirement names the conservative value."},
+          "reverse": "Flip the default back.",
+          "scope": {"hl": "none", "depends_on": ["Q-1"]}
+        },
+        {
+          "component": "confirm_row",
+          "id": "C-1",
+          "question": "Keep the example retry budget at its current value?",
+          "recommended": "keep it",
+          "why": "Nothing in this round changes the failure profile.",
+          "cite": "example/other.ext:88",
+          "alternatives": [{"id": "raise", "label": "Raise it", "why": "hides slow failures"}]
+        },
+        {
+          "component": "signoff_packet",
+          "id": "HL-1",
+          "aspect": "The example human-locked aspect",
+          "hl_id": "HL-1",
+          "tables": [
+            {
+              "caption": "The rows as they stand",
+              "columns": ["Item", "Value"],
+              "rows": [["first", "as stated"], ["second", "as stated"]]
+            }
+          ],
+          "alternatives": "One alternative was weighed and set aside as more expensive to operate.",
+          "blast_radius": ["the entry point", "the store"],
+          "risks": ["A later change to the store re-opens this aspect."]
+        },
+        {
+          "component": "debate_card",
+          "id": "Q-2",
+          "state": "blocked",
+          "question": "Which failure mode is acceptable at the boundary?",
+          "criteria_order": ["visibility"],
+          "options": [
+            {"id": "loud", "label": "Fail loudly", "criteria": {"visibility": "immediate"}},
+            {"id": "quiet", "label": "Degrade quietly", "criteria": {"visibility": "delayed"}}
+          ],
+          "recommended": "loud",
+          "why": "A delayed signal costs more than an early stop.",
+          "depends_on": ["Q-1"]
+        }
+      ]
+    }
+  ]
+}

@@ -40,8 +40,10 @@ Present each live aspect as its own packet — never two aspects in one:
 3. **Blast radius** — which existing records, callers, and roles this changes.
 4. The risks and rough edges you are asking them to accept.
 
-Render per `LAVISH.md` (RP-9, playbook `table`) when a human is present —
-mandatory there per that file's Primary-path rule; markdown fallback per the
+Render per `LAVISH.md` (RP-9, playbook `table`) when a human is present,
+**kit path** — one `signoff_packet` per aspect in the round JSON, rendered by
+the script per `LAVISH-KIT.md`, never HTML; mandatory per that file's
+Primary-path rule; markdown fallback per the
 same file.
 
 ## Signing

@@ -20,6 +20,13 @@ first released heading here.
 
 ### Added
 
+- **Deterministic page kit for the grill render points** — the agent authors a
+  round JSON, `scripts/lavish_render.py` produces the page, and no model writes
+  HTML on that path. Six components, one send per round, and every card carrying
+  its own choice control and note field, so a pick and a typed note arrive paired
+  by item id instead of on separate anchors. Contract: `LAVISH-KIT.md`; which
+  pages take the path: `LAVISH.md` "Production path".
+
 - **README section 4 gained "Upgrading a pinned install"** — the order the pin
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and

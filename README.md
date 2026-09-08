@@ -808,8 +808,11 @@ first:
 `DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (the writing doctrine — which
 words, whose terms, how much — binding on replies and artifacts alike; every
 skill, agent, and emitter file carries only a pointer to it), `LAVISH.md` (the
-lavish-axi pin, invocation shapes, render-point → playbook map, and
-fallback/forbid-list — render-point skills carry only a pointer to it), and
+lavish-axi pin, invocation shapes, render-point → playbook map,
+production-path rule, and fallback/forbid-list — render-point skills carry only
+a pointer to it), `LAVISH-KIT.md` (the kit path: the round document a decision
+surface is authored as, its components, and the response grammar one send
+returns), and
 `SPINOFF-TICKET.md` (the spinoff protocol for capturing grill-deferred work as
 a tracked stub — grills carry only a pointer to it).
 

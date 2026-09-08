@@ -36,9 +36,10 @@ presentation.
 
 ## Answering the batch
 
-- **Human present:** render per LAVISH.md (RP-7, playbook `input`) — one
-  control per item (accept / pick listed alternative / write-in), one send
-  returns every answer. **Mandatory per LAVISH.md's Primary-path rule**;
+- **Human present:** render per LAVISH.md (RP-7, playbook `input`), **kit
+  path** — author the round JSON and run the render script per
+  `LAVISH-KIT.md`, never HTML: one control per item (accept / pick listed
+  alternative / write-in), one send returns every answer. **Mandatory per LAVISH.md's Primary-path rule**;
   a licensed skip (driven mode / render failure / user opt-out) per that
   file, else below.
 - **Markdown fallback / driven mode:** one numbered table in the
