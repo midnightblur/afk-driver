@@ -87,9 +87,9 @@
     return lines.join('\n');
   }
 
-  /* The per-grill silence rule, applied from the flag the renderer wrote on
-   * each card: a required card with no mark is unanswered, not accepted. The
-   * human is told which ones before the send, and can still send. */
+  /* Silence is not agreement. Every answerable card carries the required flag,
+   * so a card with no mark is unanswered rather than accepted. The human is
+   * told which ones before the send, and can still send. */
   function unmarkedCards() {
     return cards().filter(function (el) {
       return el.getAttribute('data-afk-required') === '1' && !choiceOf(el);

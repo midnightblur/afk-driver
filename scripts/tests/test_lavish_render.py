@@ -167,25 +167,36 @@ class RenderContract(unittest.TestCase):
 
 
 class SilenceRule(unittest.TestCase):
-    """The per-grill rule the runtime applies from the card's required flag."""
+    """Silence is never agreement: every answerable card needs an explicit mark."""
 
     def mark(self, **fields):
         item = {"component": "decided_card", "evidence": {"grade": "repo"}}
         item.update(fields)
         return schema.required_mark(item)
 
-    def test_requirements_grill_always_needs_a_mark(self):
-        self.assertTrue(self.mark(grill="requirements"))
-        self.assertTrue(self.mark(grill="requirements", evidence={"grade": "spec"}))
+    def test_a_decided_card_needs_a_mark_at_either_evidence_grade(self):
+        """The grade tells the reader how to judge it; it never buys a free pass."""
+        self.assertTrue(self.mark(evidence={"grade": "repo"}))
+        self.assertTrue(self.mark(evidence={"grade": "spec"}))
 
-    def test_elsewhere_only_spec_graded_needs_a_mark(self):
-        self.assertFalse(self.mark(grill="solution"))
-        self.assertFalse(self.mark(grill="verification"))
-        self.assertTrue(self.mark(grill="solution", evidence={"grade": "spec"}))
+    def test_every_answerable_class_needs_a_mark(self):
+        for component in ("debate_card", "confirm_row", "signoff_packet",
+                          "decided_card"):
+            self.assertTrue(schema.required_mark({"component": component}), component)
 
-    def test_every_other_answerable_class_always_needs_a_mark(self):
-        for component in ("debate_card", "confirm_row", "signoff_packet"):
-            self.assertTrue(schema.required_mark({"component": component}))
+    def test_a_settled_card_asks_nothing(self):
+        self.assertFalse(schema.required_mark({"component": "settled_card"}))
+
+    def test_every_rendered_answer_surface_carries_the_required_flag(self):
+        """The end-to-end guard: no answerable card renders without it."""
+        tree = Tree(render(load_fixture()))
+        current = tree.find(attr_is("data-afk-state", "current"))[0]
+        answerable = [n for n in current.find(has("data-afk-item"))
+                      if n.find(attr_is("data-afk-input", "choice"))]
+        self.assertTrue(answerable, "the fixture must render answerable cards")
+        for node in answerable:
+            self.assertEqual(node.attrs.get("data-afk-required"), "1",
+                             node.attrs.get("data-afk-item"))
 
 
 class DegradeNotFail(unittest.TestCase):
@@ -275,9 +286,6 @@ class HardFailures(unittest.TestCase):
     def test_depends_on_naming_a_missing_id(self):
         self.mutate(lambda d: self.rounds(d)[2]["items"][0]
                     .__setitem__("depends_on", ["Q-404"]))
-
-    def test_unknown_grill(self):
-        self.mutate(lambda d: d.__setitem__("grill", "guessing"))
 
     def test_a_non_integer_target_is_refused(self):
         self.mutate(lambda d: self.rounds(d)[2]["header"].__setitem__("target", "a few"))
@@ -397,8 +405,7 @@ class DeadLinks(unittest.TestCase):
         are background noise, which costs more than the demonstration is worth.
         """
         self.assertEqual(lavish_render.warn_dead_links(
-            json.load(open(FIXTURE, encoding="utf-8")),
-            os.path.join(HERE, "samples")), 0)
+            load_fixture(), os.path.join(HERE, "samples")), 0)
 
     def test_a_dead_link_never_blocks_the_render(self):
         out = os.path.join(HERE, "samples", "does-not-matter.html")

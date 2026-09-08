@@ -32,7 +32,6 @@ work.
 | `feature` | yes | spec-folder tail or ticket id — the second half |
 | `rounds[]` | yes | every round so far, oldest first |
 | `spec_dir` | no | repo-relative spec folder; emitted as the `afk-spec-dir` meta the tooltip layer reads |
-| `grill` | no | `requirements \| solution \| verification` — the default a decided card inherits |
 
 A round: `round` (positive integer), `state` (`current` or `settled`),
 `items[]`, and `header` (a `round_header`, required on the current round).
@@ -54,7 +53,7 @@ mark the one send never reads.
 | Component | Required | Optional | Renders |
 |---|---|---|---|
 | `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}` | where we are, what to read first, the fork, the next strip |
-| `decided_card` | the six contract fields below, plus `grill` | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
+| `decided_card` | the six contract fields below | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
 | `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
 | `confirm_row` | `question`, `recommended`, `why`, `cite` | `context`, `alternatives[]` `{id, label, why}` | one row, accept or override |
 | `signoff_packet` | `hl_id`, `aspect`, `tables[]` `{caption, columns[], rows[][]}`, `alternatives` (prose), `blast_radius[]`, `risks[]` | — | the packet only the human may sign |
@@ -144,8 +143,7 @@ the question it asks; `why` and `cite` carry across when present and read
 
 Hard exits: unknown component, duplicate item id, no current round or two, a
 missing or empty required field on any other component, a `recommended` naming
-no option, a settled state on a card that is not a `settled_card`, an unknown
-grill, a `target` that is not a positive integer, a `depends_on` id naming no
+no option, a settled state on a card that is not a `settled_card`, a `target` that is not a positive integer, a `depends_on` id naming no
 item in the artifact.
 
 Every hard exit guards auditability or identity. None guards size.
@@ -197,18 +195,21 @@ human types in that card's note field.
 
 ### Silence
 
-Each card carries `data-afk-required="1"` when an unmarked card counts as
-unanswered rather than as a silent accept. The runtime names every unmarked
-required card before it sends, and sends on the second press. It also offers a
-control that moves the human to the first unmarked card: with no cap on round
-size, navigation is what keeps a long round readable, so the bar names them
-**and** walks to them — it never shortens the list.
+**No card is ever accepted by silence.** Every answerable card carries
+`data-afk-required="1"`, whatever it asks and whatever grade of evidence stands
+behind it: an item the human never marked is an item they never agreed to, and
+a page that reads an unmarked card as a yes manufactures agreement nobody gave.
+Explicitness costs a click, not a turn — a round may carry as many cards as it
+needs, and one send answers them all.
 
-| Class | Mark required |
-|---|---|
-| debate, confirm, sign-off | always — an unanswered item is re-asked, never defaulted |
-| decided, `grill: requirements` | always, whatever the evidence grade |
-| decided, `grill: solution` or `verification` | only when `evidence.grade` is `spec` — a `repo` card is checkable in one click-through, a `spec` card asserts a reading only the human can make |
+The runtime names every unmarked card before it sends, and sends on the second
+press. It also offers a control that moves the human to the first unmarked card:
+with no cap on round size, navigation is what keeps a long round readable, so
+the bar names them **and** walks to them — it never shortens the list.
+
+`evidence.grade` stays required on a decided card. It gates nothing now; it is
+what lets a reader judge the decision, which is the whole reason a card the
+agent decided is allowed to exist at all.
 
 ### Round response grammar
 

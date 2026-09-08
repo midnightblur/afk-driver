@@ -28,7 +28,6 @@ COMPONENTS = (
     "settled_card",
 )
 
-GRILLS = ("requirements", "solution", "verification")
 GRADES = ("repo", "spec")
 ITEM_STATES = ("open", "blocked", "settled")
 ROUND_STATES = ("current", "settled")
@@ -119,22 +118,14 @@ def _unknown_ids(ids, known_ids):
 def required_mark(item):
     """Does an unmarked card count as unanswered rather than silently accepted?
 
-    The runtime applies the per-grill silence rule from the flag this returns.
-    Debate, confirm and sign-off items are always required — unanswered items
-    are re-asked, never defaulted. A decided card is required in the
-    requirements grill whatever its evidence grade; elsewhere only when its
-    evidence is `spec`-graded, because a `repo`-graded card is checkable in one
-    click-through while a `spec`-graded one asserts a reading only the human
-    can make.
+    Every answerable card, without exception. Silence is not agreement: a
+    decision the human never marked is a decision they never made, whatever
+    grade of evidence stands behind it. A card that is checkable in one
+    click-through still costs one click to accept, and that click is the whole
+    difference between a record of agreement and an assumption of it.
     """
-    component = item["component"]
-    if component in ("debate_card", "confirm_row", "signoff_packet"):
-        return True
-    if component != "decided_card":
-        return False
-    if item.get("grill") == "requirements":
-        return True
-    return (item.get("evidence") or {}).get("grade") != "repo"
+    return item["component"] in ("debate_card", "confirm_row",
+                                 "signoff_packet", "decided_card")
 
 
 def _degrade(item, gaps):
@@ -175,7 +166,7 @@ def _require_fields(component, item, label):
             raise ContractError("%s: required field %r is missing or empty" % (label, field))
 
 
-def _check_item(item, round_state, default_grill, seen_ids):
+def _check_item(item, round_state, seen_ids):
     if not isinstance(item, dict):
         raise ContractError("every item must be a JSON object, got %s" % type(item).__name__)
     component = item.get("component")
@@ -205,11 +196,6 @@ def _check_item(item, round_state, default_grill, seen_ids):
 
     label = "item %r (%s)" % (item_id, component)
     if component == "decided_card":
-        item.setdefault("grill", default_grill)
-        if item.get("grill") not in GRILLS:
-            raise ContractError("item %r: grill %r not one of %s — set it on the card or as "
-                                "the document default" % (item_id, item.get("grill"),
-                                                          ", ".join(GRILLS)))
         # The six-field verdict waits for `_resolve_ids`: `scope.depends_on`
         # may name an item this pass has not reached yet.
         return item
@@ -271,11 +257,6 @@ def load(doc):
     for field in ("feature", "purpose", "rounds"):
         if _empty(doc.get(field)):
             raise ContractError("document: required field %r is missing or empty" % field)
-    default_grill = doc.get("grill")
-    if default_grill is not None and default_grill not in GRILLS:
-        raise ContractError("document: grill %r not one of %s"
-                            % (default_grill, ", ".join(GRILLS)))
-
     rounds = doc["rounds"]
     if not isinstance(rounds, list):
         raise ContractError("document: `rounds` must be a list")
@@ -314,7 +295,7 @@ def load(doc):
         if not isinstance(items, list):
             raise ContractError("round %d: `items` must be a list" % number)
         checked = [_check_item(dict(i) if isinstance(i, dict) else i,
-                               state, default_grill, seen_ids)
+                               state, seen_ids)
                    for i in items]
         normalized.append({"round": number, "id": round_id, "state": state,
                            "header": header, "items": checked})

@@ -42,6 +42,19 @@ first released heading here.
 
 ### Changed
 
+- **Silence is never agreement on a rendered round.** Every answerable card now
+  requires an explicit mark, in every grill and at either evidence grade — a
+  decision the human never marked is a decision they never made. The per-grill,
+  per-grade rule and the `grill` field that only fed it are gone; `evidence.grade`
+  stays, because it is what makes a decision auditable. Batching is untouched: a
+  round may carry as many cards as it needs and one send answers them all.
+
+- **An ADR records who decided it and who audited it.** The status line gains
+  `Decided by agent` and an `Audited:` date, so a record the agent minted from
+  its own decision stays visibly unreviewed until a human reads it and stamps
+  the date. Writing `Accepted` on a decision nobody audited is how an agent's
+  call quietly becomes the team's.
+
 - **`/afk:to-demo-plan` gains a company-meeting profile** — recognized from what
   the user asks for, never a mode they must name. It fixes the hour at 45 beat
   minutes, 10 question minutes and 5 for feedback disposition and next steps,
