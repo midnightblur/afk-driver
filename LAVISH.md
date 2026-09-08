@@ -74,6 +74,7 @@ one of those two commands in between.
 | RP-8 | `input` | authored |
 | RP-9 | `table` | kit |
 | RP-10 | `input` | kit |
+| RP-11 | `slides` | authored |
 
 The Path column records what the component kit can render **today**. The
 Production-path rule below is what decides — a page carrying per-item answer
@@ -103,7 +104,11 @@ explanatory diagram or plan page has no per-item answer, and a kit built for
 cards would cost expressiveness for no saving.
 
 A render point that grows per-item answers moves to the kit by the rule, not by
-a new decision. The authored path may embed the same runtime, copied from the
+a new decision. A page whose *subject* is per-item decisions is not the same
+thing: a meeting plan lists items the room will settle out loud, and stays
+authored while the page itself collects nothing. The day a facilitator records
+those outcomes in the page, the rule moves it — no fresh judgment, and no
+argument about intent. The authored path may embed the same runtime, copied from the
 renderer's output and tagged, when it wants a send control — it gets no kit
 guarantees.
 

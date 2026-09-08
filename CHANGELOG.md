@@ -20,6 +20,14 @@ first released heading here.
 
 ### Added
 
+- **`/afk:to-design-review-plan`** — a timed run sheet for presenting settled
+  scope and design to a stakeholder room: source ledger, concept ladder, one
+  card per segment, an objection bank, and an exit that gives every undecided
+  item a disposition, an owner and a date rather than an approval nobody agreed
+  to. The hour is checked mechanically by `scripts/validate_agenda.py`. Writes
+  its plan and its index row; meeting outcomes still reach the tracker only
+  through `/afk:to-ticket` meeting mode.
+
 - **Deterministic page kit for the grill render points** — the agent authors a
   round JSON, `scripts/lavish_render.py` produces the page, and no model writes
   HTML on that path. Six components, one send per round, and every card carrying
@@ -31,6 +39,14 @@ first released heading here.
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
   running git in either detaches a checkout the CLI owns.
+
+### Changed
+
+- **`/afk:to-demo-plan` gains a company-meeting profile** — recognized from what
+  the user asks for, never a mode they must name. It fixes the hour at 45 beat
+  minutes, 10 question minutes and 5 for feedback disposition and next steps,
+  widens the audience to four roles, and adds the delivery trace and the
+  understanding artifact as optional evidence. An ordinary demo is unchanged.
 
 ## [1.0.14] - 2026-09-05
 

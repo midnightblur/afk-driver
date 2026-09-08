@@ -179,12 +179,13 @@ graph LR
     Exec -.->|adversarial gate| Adv[/afk:adversary/]
     Smoke -->|smoke green · ship gate| PF[/afk:preflight/]
     PF -.->|advisory row · post-ship understanding artifact| Und[/afk:understand/]
-    Smoke -.->|delivered · demo it to POs + QA| Demo[/afk:to-demo-plan/]
+    Sdd -.->|present scope + design to the room| DRP[/afk:to-design-review-plan/]
+    Smoke -.->|delivered · demo it to the room| Demo[/afk:to-demo-plan/]
 
     classDef mand fill:#d7f3e3,stroke:#1b9e58,stroke-width:2px;
     classDef opt fill:#eef1f5,stroke:#90a4ae;
     class Prd,Ticket,Sub,Auto,Exec mand;
-    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und,Demo opt;
+    class Grill,Proto,AG,Sdd,Brief,E2E,VPlan,Smoke,Tdd,Rev,Adv,PF,Und,DRP,Demo opt;
 ```
 
 The **green** path is the mandatory spine: `/afk:to-prd` → `/afk:to-ticket` →
@@ -490,7 +491,8 @@ folder (or `tasks/{TICKET-ID}/` for tooling work with no service home):
 ├── SDD.md                     ← /afk:to-sdd        (local only; not published to Jira)
 ├── VERIFICATION-PLAN.md       ← /afk:to-verification-plan (local only; UI journeys + API scenarios)
 ├── DESIGN-BRIEF.md            ← /afk:to-design-brief (local only; default on the full path)
-├── DEMO-PLAN.md               ← /afk:to-demo-plan  (local only; the ≤1h beat-by-beat demo script for POs + QA)
+├── DESIGN-REVIEW-PLAN.md      ← /afk:to-design-review-plan (local only; the timed design-review run sheet)
+├── DEMO-PLAN.md               ← /afk:to-demo-plan  (local only; the ≤1h beat-by-beat demo script)
 ├── GRILL-LOG.md               ← the grills          (on-disk checkpoint of settled decisions)
 ├── GLOSSARY.md                ← /afk:grill-requirements
 ├── understanding/             ← /afk:understand    (self-contained interactive HTML learning artifacts: index.html for the feature, optional {slug}.html durable copies for MR/code-area subjects)
@@ -719,8 +721,13 @@ refactors, tooling.)*
   `skills/afk/mission-control/SKILL.md`.
 - **`/afk:understand`** — self-contained interactive HTML learning artifact for
   a feature, MR, or code area. Details: `skills/afk/understand/SKILL.md`.
-- **`/afk:to-demo-plan`** — beat-by-beat ≤60-min demo script for a delivered
-  feature, for POs + QA; repo-only. Details:
+- **`/afk:to-design-review-plan`** — timed design-review run sheet from settled
+  specs: segment cards, objection windows, and an exit that classifies every
+  undecided item; repo-only. Details:
+  `skills/afk/to-design-review-plan/SKILL.md`.
+- **`/afk:to-demo-plan`** — beat-by-beat demo script for a delivered feature;
+  ≤60 min by default, an exact hour with feedback disposition in the
+  company-meeting profile; repo-only. Details:
   `skills/afk/to-demo-plan/SKILL.md`.
 - **`/afk:setup`** — workflow doctor: probes/fixes external dependencies;
   `base` adds the workstation tier, `audit` hunts plugin drift. Details:

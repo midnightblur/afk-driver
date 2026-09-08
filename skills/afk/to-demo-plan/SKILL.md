@@ -1,17 +1,32 @@
 ---
 name: to-demo-plan
-description: Demo script for a delivered feature — synthesizes its specs + diff into minute-budgeted DEMO-PLAN.md. Use when the user wants to demo a feature to POs, QA, or stakeholders.
+description: Demo script for a delivered feature — synthesizes its specs + diff into minute-budgeted DEMO-PLAN.md. Use when the user wants to demo a feature to POs, QA, or stakeholders, or asks for the stakeholder demo meeting, the company meeting, or a one-hour demo to a four-role audience.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
 # afk:to-demo-plan — the demo script
 
-Takes a delivered feature's spec artifacts + its diff; emits one `DEMO-PLAN.md` — a script the presenter runs top-to-bottom in front of **product owners and QA**, inside one hour.
+Takes a delivered feature's spec artifacts + its diff; emits one `DEMO-PLAN.md` — a script the presenter runs top-to-bottom in front of the people who judge the outcome, inside one hour.
 
 **The demo's goal is not proof.** Nobody needs convincing the code runs — the gates settled that. The demo shows the feature from the user's chair: the pain they have today, what they now do instead, why it works the way it does. A beat whose only payload is "…and it works" doesn't belong in the plan.
 
-One plan, two halves of the room: the **PO** judges value and behaviour; **QA** judges reach — what else moved, what to regress, where the edges are.
+One plan, one room, each role judging something different: the **PO** judges value and behaviour; **QA** judges reach — what else moved, what to regress, where the edges are; in the company-meeting profile the **development director** judges cost and commitment and the **team lead** judges what the team now carries. Say a thing once, to the role that needs it.
+
+## Two profiles
+
+| Profile | Budget | When |
+|---|---|---|
+| default | ≤60 min, ≥10 for questions | any other demo |
+| company-meeting | exactly 60: 45 beats + 10 questions + 5 disposition and next steps | recognized, see below |
+
+**Recognize the company-meeting profile** from what the user says — never make them name a mode. Any one of these puts the plan in it:
+
+- they ask for the stakeholder demo meeting by name;
+- they ask for the company meeting;
+- they describe the four-role audience with a one-hour slot.
+
+In that profile the plan adds an `## Agenda` section, a `## Feedback disposition` table, and a `## Next steps` table, and the audience line names all four roles. The default profile adds none of them and behaves exactly as it did.
 
 ## Vocabulary
 
@@ -33,6 +48,8 @@ One plan, two halves of the room: the **PO** judges value and behaviour; **QA** 
    | ADRs, both tiers | candidate decisions to explain; craft notes |
    | SDD §3 / §8 / §9b + every **existing** file the diff changed | touch-point candidates |
    | `plan/` contracts + `JOURNAL.md` | what actually shipped, and what was cut on the way |
+   | `plan/TRACE.md` *(optional)* | which commit satisfied which criterion — proof held in reserve for a challenge, not presentation content |
+   | `understanding/index.html` *(optional)* | a fallback visual when a beat cannot run live, and a follow-up to send afterwards |
    | PRD out-of-scope + open questions, deferred staples, env-limited verification rows | pre-empts and the out-of-scope section |
 
    **Thin sources.** No PRD (feature delivered outside a design chain) → build from the diff + the tracker ticket, and ask the human **one** question for the pain the feature addresses. Never invent a value claim; record the plan's basis in the header.
@@ -53,15 +70,20 @@ One plan, two halves of the room: the **PO** judges value and behaviour; **QA** 
 
 6. **Pre-empt.** Answer the question at the beat where it arises — never a Q&A dump at the end. Mine: rejected ADR alternatives, out-of-scope items, deferred staples, env-limited scenarios, open bugs, and anything a beat visibly makes someone wonder "does it also…". One line each.
 
-7. **Budget the arc.** ≤60 minutes total with **≥10 reserved for questions** — beats sum to ≤45. Assign every beat its minutes, order them by the arc. Over budget → demote **show** to **tell**, weakest signal first. Never silently drop a shortlisted story or a `changes` touch point: demote it to a tell line and keep its row.
+7. **Budget the arc.** Assign every beat its minutes, order them by the arc. Over budget → demote **show** to **tell**, weakest signal first. Never silently drop a shortlisted story or a `changes` touch point: demote it to a tell line and keep its row.
+
+   - **Default profile:** ≤60 minutes total with **≥10 reserved for questions** — beats sum to ≤45.
+   - **Company-meeting profile:** write the `## Agenda` section, then check it mechanically with `python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py {plan}` and fix what it names. Run that check in this profile only — a default-profile plan never had an hour imposed on it and does not gain one here.
 
 8. **Write `DEMO-PLAN.md`** using the template.
+
+8.5 **Close the loop (company-meeting profile).** The last 5 minutes are a working segment, not a goodbye: every piece of feedback gets exactly one disposition — the set lives in `skills/afk/to-design-review-plan/MEETING-PLAN-FORMAT.md` — plus an owner and a date unless it is `agreed`, and the next steps table says what happens after the room empties. Both tables are filled live; the plan ships them empty, with their rows shaped.
 
 9. **Rehearsal pass.** Read the plan as the presenter, in order: every `Do` step must be executable against a running app at that moment, and every beat's precondition state must be created by a named `## Setup` step or by an earlier beat. State that nobody creates is the classic demo death — fix it here, not on the call. Then reconcile counts: beats + tells + out-of-scope rows cover the whole shortlist and the whole touch-point map.
 
 10. **Update the ticket index.** Upsert the `Demo plan` row in the sibling `INDEX.md` per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-**Done when:** `DEMO-PLAN.md` is on disk within budget, every user story and every touched existing surface is accounted for, the rehearsal pass is clean, and the `INDEX.md` row is upserted.
+**Done when:** `DEMO-PLAN.md` is on disk within budget (company-meeting profile: the agenda check exits clean), every user story and every touched existing surface is accounted for, the rehearsal pass is clean, and the `INDEX.md` row is upserted.
 
 ## Template
 
