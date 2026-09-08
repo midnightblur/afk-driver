@@ -169,8 +169,15 @@ Every hard exit guards auditability or identity. None guards size.
 ## Skeleton
 
 Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · the
-current round · items still open from earlier rounds · settled history, newest
-first · the sticky send bar · the inline runtime.
+current round · **the sticky send bar** · items still open from earlier rounds ·
+settled history, newest first · the inline runtime.
+
+The bar sits in the flow directly under the round it sends, and is `sticky`,
+never `fixed`. Two ways a document-end bar disappears: settled history outgrows
+the current round, so the bar lands below every settled card; and a host that
+sizes its frame to the content height gives `position: fixed` a viewport as
+tall as the document, which strands it in the same place. The human then has a
+marked card and no way to send it - the one failure that costs the round.
 
 The current round is one element in `data-afk-state="current"` carrying the
 round id, with the round's cards nested inside it. Every other card sits

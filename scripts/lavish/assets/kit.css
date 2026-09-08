@@ -166,7 +166,7 @@ a { color: var(--accent); }
 /* --- send bar ---------------------------------------------------------- */
 
 .afk-send {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
   display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
   padding: .7rem 1.25rem;
   background: var(--surface); border-top: 1px solid var(--line);

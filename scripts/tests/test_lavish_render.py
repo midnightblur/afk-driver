@@ -160,6 +160,31 @@ class RenderContract(unittest.TestCase):
         jump = bar[0].find(attr_is("id", "afk-send-jump"))[0]
         self.assertIn("hidden", jump.attrs, "the jump stays out of the way until needed")
 
+    def test_the_send_bar_sits_under_the_round_it_sends(self):
+        """Not at the end of the document, where settled history buries it.
+
+        A page whose settled history outgrows its current round strands a
+        document-end bar below every settled card, and a host that sizes its
+        frame to the content height defeats a fixed one too. The only
+        placement that survives both is next to the cards it sends.
+        """
+        bar = self.html.index('id="afk-send"')
+        round_end = self.html.index('data-afk-state="current"')
+        settled = self.html.index('id="afk-settled"')
+        self.assertLess(round_end, bar, "the bar follows its round")
+        self.assertLess(bar, settled, "the bar precedes the settled history")
+        self.assertNotIn("position: fixed", self.html,
+                         "a fixed bar cannot be trusted inside a sized frame")
+
+    def test_a_round_with_nothing_to_answer_offers_no_send(self):
+        """A closing round is a record. A send control there would send nothing."""
+        doc = load_fixture()
+        current = [r for r in doc["rounds"] if r.get("state") == "current"][0]
+        current["items"] = []
+        html = render(doc)
+        self.assertNotIn('id="afk-send"', html)
+        self.assertIn("0 to answer", html)
+
     def test_settled_history_sits_below_the_current_round(self):
         order = [n.attrs.get("id") for n in self.tree.find(has("id"))
                  if n.attrs.get("id") in ("afk-open", "afk-settled")]

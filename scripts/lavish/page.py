@@ -74,20 +74,11 @@ def build(doc):
            C.round_header(header),
            "".join(C.render_item(i) for i in live)))
 
-    body = [
-        '<h1 class="afk-title">%s</h1>' % C.esc(doc["purpose"]),
-        '<p class="afk-sub">%s</p>' % C.esc(doc["feature"]),
-        round_section,
-        _section("afk-open", "Still open from earlier rounds",
-                 [C.render_item(i) for i in carried]),
-        _section("afk-settled", "Settled", [C.render_item(i) for i in settled]),
-    ]
-
     send_bar = (
         '<div class="afk-send" id="afk-send" data-afk-round="%d" '
         'data-lavish-ui="afk-send" data-lavish-action="afk-send">'
         '<button type="button" id="afk-send-go" class="afk-primary" '
-        'data-lavish-action="afk-send">Send this round</button>'
+        'data-lavish-action="afk-send">Send this round to the agent</button>'
         '<button type="button" id="afk-send-copy" '
         'data-lavish-action="afk-send">Copy the response</button>'
         # With no cap on round size, navigation is what keeps a long round
@@ -97,6 +88,26 @@ def build(doc):
         'data-lavish-action="afk-send">Go to first unmarked</button>'
         '<span class="afk-send-status"></span></div>' % header["round"])
 
+    # A round with nothing answerable is a record, not a question: no bar, so
+    # there is no control offering to send an empty response.
+    if not live:
+        send_bar = ""
+
+    # The bar sits in the flow directly under the round it sends, never at the
+    # end of the document. A page whose settled history is longer than its
+    # current round strands a document-end bar below every settled card, and a
+    # host that sizes its frame to content height defeats `position: fixed` as
+    # well — so the only placement that holds is next to the cards it sends.
+    body = [
+        '<h1 class="afk-title">%s</h1>' % C.esc(doc["purpose"]),
+        '<p class="afk-sub">%s</p>' % C.esc(doc["feature"]),
+        round_section,
+        send_bar,
+        _section("afk-open", "Still open from earlier rounds",
+                 [C.render_item(i) for i in carried]),
+        _section("afk-settled", "Settled", [C.render_item(i) for i in settled]),
+    ]
+
     spec_dir = doc.get("spec_dir")
     meta = ('<meta name="afk-spec-dir" content="%s">' % C.esc(spec_dir)) if spec_dir else ""
 
@@ -105,7 +116,7 @@ def build(doc):
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         "<title>%s — %s</title>\n%s\n<style>\n%s</style>\n</head>\n"
-        '<body>\n<div class="afk-page">%s</div>\n%s\n<script>\n%s</script>\n'
+        '<body>\n<div class="afk-page">%s</div>\n<script>\n%s</script>\n'
         "</body>\n</html>\n"
         % (C.esc(doc["purpose"]), C.esc(doc["feature"]), meta, _asset("kit.css"),
-           "".join(body), send_bar, _asset("runtime.js")))
+           "".join(body), _asset("runtime.js")))
