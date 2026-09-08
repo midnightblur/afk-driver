@@ -130,6 +130,33 @@ class SddInvestigationGateTest(unittest.TestCase):
             self.assertEqual(self.run_gate("--sdd", sdd), 0)
         self.assertIn("stops at B14", printed.getvalue())
 
+    # A claim standing only on nodes the run could not reach is not verified.
+    def test_a_claim_resting_only_on_frontier_nodes_is_a_blocker(self):
+        document = only(self.closed(), "B14", status="frontier",
+                        reason="another repository", query_ids=[])
+        document["counter_checks"][0]["classes"] = [
+            item for item in gate.load_validator().ALL_CLASSES if item != "B14"]
+        document["run"]["verdict"] = "closed-with-frontier"
+        document["nodes"].append(
+            {"id": "B14:other-repo:1", "class": "B14", "site": "other-repo:1",
+             "disposition": "frontier", "reason": "another repository",
+             "evidence": "the caller lives elsewhere", "parent": None, "query_id": None})
+        document["claims"][0]["supporting_nodes"] = ["B14:other-repo:1"]
+        sdd = self.write(document=document)
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    # The gate's column names are a copy of the template's; they move together.
+    def test_the_header_cells_match_the_template(self):
+        template = (_ROOT / "skills" / "afk" / "to-sdd" / "SDD-TEMPLATE.md").read_text(
+            encoding="utf-8")
+        rows = [line.strip() for line in template.splitlines()
+                if line.strip().startswith("| Seam")]
+        self.assertEqual(len(rows), 1, rows)
+        header = [cell.strip().lower() for cell in rows[0].strip("|").split("|")]
+        self.assertEqual(len(header), len(gate.HEADER_CELLS), header)
+        for column, cell in zip(gate.HEADER_CELLS, header):
+            self.assertIn(column, cell)
+
     # A seam whose own name opens with the header word is still a data row.
     def test_a_row_named_like_the_header_is_checked(self):
         sdd = self.write(

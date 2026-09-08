@@ -54,6 +54,11 @@ first released heading here.
   schema and its cross-references, refuses a seed-stage status in a published
   ledger and an uncited load-bearing claim, and prints the verdict the record
   supports — `closed`, `closed-with-frontier`, or `partial`.
+- **`ground_diff.py` says whether a cited investigation still describes the
+  tree.** It counts every searched line, keyed by class, file and line hash, and
+  reports an appearance, a disappearance, an in-place edit, a duplicate, or a
+  capped row as drift. `/afk:execute` runs it before writing code and answers
+  drift with a fresh investigation at the current head.
 - **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
   rules — snapshot identity, worst-status-wins, the truncation rule, the node
   conflict rule, the counter-check union — ran as prose in the skill and now run

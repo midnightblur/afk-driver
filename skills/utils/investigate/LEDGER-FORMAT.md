@@ -105,7 +105,7 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `coverage_verdict` | Q4: `code` · `test` · `gap`. Same requirement. A run carrying both types carries both fields — one field cannot answer two questions |
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
-| `line_hash` | the identity of the matched line, so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
+| `line_hash` | the identity of the matched line — 12 lowercase hex characters, the truncated SHA1 digest of the line stripped of surrounding blanks — so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
 | `parent` | the node id this one was reached from; `null` for a root |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
@@ -220,6 +220,8 @@ two fragments that ran one search carry one query row.
 | `queries` | by query id; duplicates dropped, identical by construction |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
 
+A fragment's identity is its bytes with `run.started` and `run.finished` left
+out — when a fold ran is not what it found, so a re-stamped copy folds once.
 A fragment carries `partition.id`, and a fold refuses one that does not: a
 fragment nobody can name cannot be reasoned about. Folding the same bytes twice
 folds them once; a second, *different* fragment of one partition is a delta and

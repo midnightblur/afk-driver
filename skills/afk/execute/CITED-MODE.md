@@ -48,29 +48,34 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 ## Ground diff — has the seam moved since it was investigated? (cited mode)
 
 The seam's investigation ledger is a snapshot of one commit; the branch has
-moved since. The diff, per `## Seams` symbol, costs no reading. Re-run with the
-name forms the cited ledger ran under — each `declared` form in `run.aliases`,
-one `--alias <form>=<value>` — or the two runs searched for different things:
+moved since. This step compares the two and decides; it never writes a ledger.
+Per `## Seams` symbol, take the current ground with the name forms the cited
+ledger ran under — one `--alias <form>=<value>` per `declared` form in its
+`run.aliases`, omitted when it declares none:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   --alias <form>=<value> --out <scratch>/ground-<symbol>.json
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] --out <scratch>/ground-<symbol>.json
+
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
 ```
 
-Compare **nodes**, keyed `(class, file, line_hash)` — a line inserted above a
-hit moves its id and nothing else. Two answers:
+`ground_diff.py` counts every searched line, keyed (`class`, file, `line_hash`),
+and compares the counts: a line that appeared, a line that vanished, a line
+edited in place, and a second copy of a line that was there once are each drift.
+A cited row carrying `truncated: true` holds the cap rather than the ground, so
+it is drift too. Exit 0 → the ground held; proceed. Exit 1 → it moved, and every
+difference is printed.
 
-- The cited row says `truncated: true` → it holds the cap, not the ground.
-  Re-trace that class rather than reading the comparison.
-- Keys the ledger does not hold → spawn one `afk-tracer` over **only** those
-  nodes, then fold its fragment back:
+**On drift, re-investigate rather than patch.** Run `/afk:investigate` at the
+current head — type Q3, the seam's own question, the same `--alias` forms — and
+work from the ledger it publishes. That run writes a new investigation; the
+design's cited ledger is never rewritten here, because `/afk:investigate` is its
+single writer. Name the new investigation id in this slice's journal line and in
+the pointer of the `OUTCOME:` line. A `partial` verdict on a load-bearing claim
+is a decision this run cannot take: park it as `needs_decision` (Step 13)
+carrying the new ledger's path.
 
-```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py"   --staging <the cited ledger> --fragment <the delta fragment>   --out <scratch>/COVERAGE.json
-```
-
-Same keys on both sides → the ground has not moved; proceed.
-
-Ledger grammar and merge rules: `skills/utils/investigate/LEDGER-FORMAT.md`.
+Ledger grammar and node keys: `skills/utils/investigate/LEDGER-FORMAT.md`.
 
 ## Step 9 — Producer self-preflight on `## Produces` (cited mode)
 

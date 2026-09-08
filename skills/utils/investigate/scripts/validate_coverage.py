@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import ALL_CLASSES, HIT_CAP, stable_id  # noqa: E402
+from contract import ALL_CLASSES, HIT_CAP, LINE_HASH_CHARS, stable_id  # noqa: E402
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
 QTYPES = {f"Q{n}" for n in range(1, 6)}
@@ -43,6 +43,8 @@ VERDICTS = ("closed", "closed-with-frontier", "partial")
 
 # Every field the format defines, per table. A key nobody defined is a field
 # nobody validates, so it is refused rather than carried.
+LINE_HASH = re.compile(f"[0-9a-f]{{{LINE_HASH_CHARS}}}")
+
 KEYS = {
     "top": set(TABLES) | {"partition"},
     "run": {"repository", "head", "question", "type", "roots", "aliases", "inventory_hash",
@@ -188,10 +190,16 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if "query_id" not in row:
             defects.append(f"{where}: query_id required - the search that produced it, "
                            "or null when an agent read it")
-        # A searched node is compared across runs on its line, not its id.
-        if isinstance(row.get("query_id"), str) and not str(row.get("line_hash") or "").strip():
-            defects.append(f"{where}: line_hash required on a node a search produced; "
-                           "an id alone moves with every line inserted above it")
+        # A searched node is compared across runs on its line, not its id, and
+        # a comparison needs both sides written the same way.
+        if isinstance(row.get("query_id"), str):
+            digest = row.get("line_hash")
+            if not isinstance(digest, str) or not digest.strip():
+                defects.append(f"{where}: line_hash required on a node a search produced; "
+                               "an id alone moves with every line inserted above it")
+            elif not LINE_HASH.fullmatch(digest):
+                defects.append(f"{where}: line_hash {digest!r} is not "
+                               f"{LINE_HASH_CHARS} lowercase hex characters")
         if not node_id:
             defects.append(f"nodes[{index}]: id required; boundary rows point at it")
         elif node_id in node_ids:

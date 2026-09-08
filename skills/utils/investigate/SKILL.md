@@ -13,8 +13,7 @@ Invoked with the question, then optional flags — `--type Q1..Q5` (else step 1
 classifies), `--alias FORM=VALUE` (repeatable), `--design-phase` when the answer
 feeds a design decision, and `--out DIR` to place the ledger directory where the
 caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
-"Files and location" would put it. The first four carry the same meaning here as
-in step 3's command.
+"Files and location" would put it.
 
 ## Steps
 

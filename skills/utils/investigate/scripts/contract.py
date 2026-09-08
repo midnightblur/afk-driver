@@ -32,6 +32,10 @@ def stable_id(prefix: str, text: str) -> str:
     return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
+# The shape of a `line_hash`: what the emitter writes and the validator pins.
+LINE_HASH_CHARS = 12
+
+
 def line_hash(text: str) -> str:
     """The identity of a matched line, so a node survives an edit above it.
 
@@ -39,7 +43,8 @@ def line_hash(text: str) -> str:
     two runs on ids alone reports drift the code never had; comparing on this
     reports the drift it did.
     """
-    return hashlib.sha1(text.strip().encode("utf-8", "surrogateescape")).hexdigest()[:12]
+    digest = hashlib.sha1(text.strip().encode("utf-8", "surrogateescape")).hexdigest()
+    return digest[:LINE_HASH_CHARS]
 
 
 def worst(*statuses: str) -> str:

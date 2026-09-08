@@ -12,9 +12,10 @@ Usage:
 
 A fragment names its partition, and the same bytes folded twice fold once. A
 second, different fragment of one partition is a delta and folds normally. A
-fragment taken against another `run.head`, one with no `partition.id`, and one
-carrying a class its `partition.classes` does not declare each abort the merge
-rather than answering for something they cannot.
+Identity is the fragment's bytes with its clock left out, so a re-stamped copy
+folds once. A fragment taken against another `run.head`, one with no
+`partition.id`, and one carrying a class its `partition.classes` does not
+declare each abort the merge rather than answering for something they cannot.
 
 Exit codes: 0 wrote the merged ledger, 2 usage, unreadable input, or a
 snapshot mismatch.
@@ -71,6 +72,22 @@ def join_reasons(first, second) -> str | None:
             if piece and piece not in seen:
                 seen.append(piece)
     return "; ".join(seen) or None
+
+
+# When a fragment ran says nothing about what it found, so these keys are left
+# out of its identity. Named in `LEDGER-FORMAT.md` § "Merging".
+CLOCK_KEYS = ("started", "finished")
+
+
+def fingerprint(fragment: dict) -> str:
+    """The bytes that decide whether this fragment has already been folded."""
+    body = dict(fragment)
+    run = {key: value for key, value in (body.get("run") or {}).items()
+           if key not in CLOCK_KEYS}
+    body["run"] = run
+    return hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def merge_node(kept: dict, row: dict) -> dict:
@@ -179,10 +196,9 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                 "nobody can fold twice safely"
             )
         # Two folds of one partition are two answers unless they are the same
-        # bytes: a delta re-fold carries nodes the first pass never had.
-        body = hashlib.sha256(
-            json.dumps(fragment, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
+        # bytes: a delta re-fold carries nodes the first pass never had. When a
+        # fold ran is not what it found, so the clock is left out of the bytes.
+        body = fingerprint(fragment)
         if body in seen_bodies:
             skipped.append(f"{path}: identical to a fragment already folded")
             continue

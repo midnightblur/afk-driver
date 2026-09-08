@@ -16,8 +16,9 @@ Exit codes:
      `unverified` claim nothing rests on, a class a ledger stopped at, and a
      ledger traced at a snapshot the tree has moved off.
   1  a row cites nothing, cites a ledger that is missing, ambiguous,
-     structurally broken, `partial`, or carrying a load-bearing `unverified`
-     claim.
+     structurally broken, `partial`, carrying a load-bearing `unverified`
+     claim, or resting a load-bearing claim only on nodes the run never
+     reached.
   2  usage: the SDD is unreadable, or its §14 table is missing or has drifted
      from `SDD-TEMPLATE.md`.
 """
@@ -178,6 +179,19 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
                 else:
                     notes.append(f"{name}: INV-{number} left unverified, not "
                                  f"load-bearing: {claim.get('text')}")
+            frontier_nodes = {
+                node.get("id") for node in document.get("nodes") or []
+                if isinstance(node, dict)
+                and (node.get("class") == "B14" or node.get("disposition") == "frontier")}
+            for claim in document.get("claims") or []:
+                if not isinstance(claim, dict) or not claim.get("load_bearing"):
+                    continue
+                supporting = [item for item in (claim.get("supporting_nodes") or [])
+                              if isinstance(item, str)]
+                if supporting and set(supporting) <= frontier_nodes:
+                    refusals.append(
+                        f"{name}: INV-{number} rests on a claim whose every support is "
+                        f"outside what the run reached: {claim.get('text')}")
             for row in document.get("boundaries") or []:
                 if isinstance(row, dict) and row.get("status") == "frontier":
                     notes.append(f"{name}: INV-{number} stops at {row.get('class')}: "

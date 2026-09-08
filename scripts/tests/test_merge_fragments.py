@@ -206,6 +206,23 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(merged["run"]["merged_from"], 2)
         self.assertIn("B1:beta.java:9", [row["id"] for row in merged["nodes"]])
 
+    # Two folds of one fragment differ in when they ran, never in what they
+    # found; a re-stamped copy is still the same fragment.
+    def test_a_repeat_differing_only_in_timestamps_counts_once(self):
+        first = fragment(boundaries=[
+            {"class": "B1", "status": "closed", "method": "every name form",
+             "hits": 400, "truncated": True, "hit_ids": ["B1:alpha.java:2"],
+             "query_ids": [QUERY], "universe": "tracked files"}])
+        first["run"].update({"started": "2026-01-01T00:00:00+00:00",
+                             "finished": "2026-01-01T00:01:00+00:00"})
+        second = json.loads(json.dumps(first))
+        second["run"].update({"started": "2026-01-02T00:00:00+00:00",
+                              "finished": "2026-01-02T00:02:00+00:00"})
+        merged = self.merge(ledger(), first, second)
+        self.assertEqual(merged["run"]["merged_from"], 1)
+        row = next(item for item in merged["boundaries"] if item["class"] == "B1")
+        self.assertEqual(row["hits"], 401)
+
     # A skipped repeat is reported, never silently dropped.
     def test_a_skipped_repeat_is_named_on_stderr(self):
         item = fragment(nodes=[])
