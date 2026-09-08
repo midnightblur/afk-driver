@@ -68,7 +68,8 @@ class LedgerShapeTest(unittest.TestCase):
             for n in range(1, cap + 1)
         ]
         document["queries"][0]["count"] = 9999
-        document = only(document, "B1", hits=9999, truncated=True,
+        document = only(document, "B1", hits=9999, truncated=True, status="partial",
+                        reason="more than the cap, so the row lists a sample",
                         hit_ids=[f"B1:bulk.java:{n}" for n in range(1, cap + 1)])
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
@@ -197,6 +198,42 @@ class LedgerShapeTest(unittest.TestCase):
         document = agent_check(ledger())
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
+
+    # A capped row lists a sample, so it never claims the class is enumerated.
+    def test_a_truncated_row_cannot_be_closed(self):
+        cap = validate_coverage.HIT_CAP
+        document = ledger()
+        document["nodes"] += [
+            {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
+             "disposition": "terminal", "evidence": "the line", "parent": None,
+             "query_id": QUERY, "line_hash": f"{n:012d}"}
+            for n in range(1, cap + 1)
+        ]
+        document["queries"][0]["count"] = 9999
+        document = only(document, "B1", hits=9999, truncated=True, status="closed",
+                        hit_ids=[f"B1:bulk.java:{n}" for n in range(1, cap + 1)])
+        defects, _ = self.check(document)
+        self.assertTrue(any("truncated" in defect and "closed" in defect
+                            for defect in defects), defects)
+
+    # A claim rests on a hit its class row accounts for, or on nothing.
+    def test_a_supporting_node_outside_its_class_row_is_a_defect(self):
+        document = ledger()
+        document["nodes"].append(
+            {"id": "B3:gamma.java:4", "class": "B3", "site": "gamma.java:4",
+             "disposition": "terminal", "evidence": "the call", "parent": None,
+             "query_id": QUERY, "line_hash": "dddddddddddd"})
+        document["claims"][0]["supporting_nodes"] = ["B3:gamma.java:4"]
+        defects, _ = self.check(document)
+        self.assertTrue(any("hit_ids" in defect for defect in defects), defects)
+
+    # A parent chain that never ends, or loops, describes no path.
+    def test_a_parent_cycle_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0]["parent"] = "B1:alpha.java:9"
+        document["nodes"][1]["disposition"] = "traced"
+        defects, _ = self.check(document)
+        self.assertTrue(any("cycle" in defect for defect in defects), defects)
 
     # A site names a file, or a line in one; anything else keys to nothing.
     def test_a_site_of_the_wrong_shape_is_a_defect(self):

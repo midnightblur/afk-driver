@@ -337,13 +337,13 @@ def git(repo: Path, *args: str, allowed: tuple[int, ...] = (0,)) -> str:
 
 
 def parse_hits(out: str) -> list[dict]:
-    """Whole matching lines. Comparison happens on the line, storage caps it."""
+    """Whole matching lines, byte for byte: an indent is part of the line."""
     hits = []
     for line in out.splitlines():
         parts = line.split(":", 2)
         if len(parts) != 3 or not parts[1].isdigit():
             continue
-        hits.append({"file": parts[0], "line": int(parts[1]), "text": parts[2].strip()})
+        hits.append({"file": parts[0], "line": int(parts[1]), "text": parts[2]})
     return hits
 
 
@@ -386,7 +386,7 @@ def walk_grep(repo: Path, roots: list[str], expression: str) -> tuple[list[dict]
                 continue
             for number, line in enumerate(text.splitlines(), 1):
                 if compiled.search(line):
-                    hits.append({"file": rel, "line": number, "text": line.strip()})
+                    hits.append({"file": rel, "line": number, "text": line})
     return hits, unread
 
 
@@ -570,7 +570,7 @@ class Ledger:
                     "site": f"{hit['file']}:{hit['line']}",
                     "disposition": "unverified",
                     "reason": reason,
-                    "evidence": hit["text"][:EVIDENCE_CHARS],
+                    "evidence": hit["text"].strip()[:EVIDENCE_CHARS],
                     "line_hash": line_hash(hit["text"]),
                     "parent": None,
                     "query_id": hit.get("query_id") or query_id,
@@ -660,14 +660,22 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     b1_hits = [hit for hit in wide
                if hit["file"] in inventory_set and exact.search(hit["text"])]
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
-    wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
     wide_universe = ("tracked and untracked text files, not ignored, binary excluded, "
                      "case-blind")
+    second_universe = "case-blind pass over tracked and untracked files, not ignored"
     # The name-form queries; every class searching B1's hit set points at them.
     name_query_ids = [note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
                            wide_universe, len(wide))]
     ledger.tag(wide, name_query_ids[0])
     seen = set(kept)
+    # The one call answered two universes. The second is recorded as its own
+    # search — same command, different universe, its own count — so the
+    # counter-search below cites an execution the class's own row did not run
+    # as its enumeration.
+    wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
+    second_universe_id = note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
+                              second_universe, len(wider_only))
+    name_query_ids.append(second_universe_id)
 
     # Counter-search one: a name form that does not carry the simple name — a
     # form the primary pass provably cannot return.
@@ -675,7 +683,6 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     claim_text = ("the hit set holds every reference to "
                   + ", ".join(subjects) + " over the name forms this pass searched")
     claim_id = stable_id("c", claim_text)
-    second_universe = "case-blind pass over tracked and untracked files, not ignored"
     if counter_values:
         # The same universe the simple pass searched: a wire name lives in
         # untracked built output as readily as in a tracked source file.
@@ -703,7 +710,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "method": "name form carrying no simple name: none declared discriminates, "
                       f"so the {second_universe} stands in",
             "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
-            "state": "complete", "classes": ["B1"], "query_ids": [name_query_ids[0]],
+            "state": "complete", "classes": ["B1"], "query_ids": [second_universe_id],
         })
     else:
         counter_checks.append({
@@ -724,8 +731,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     second_check = {
         "method": second_universe,
         "kind": "deterministic", "targeted_claims": [claim_id],
-        "new_nodes": ledger.add("B1", new, seed_reason, name_query_ids[0]),
-        "state": "complete", "classes": ["B1"], "query_ids": [name_query_ids[0]],
+        "new_nodes": ledger.add("B1", new, seed_reason, second_universe_id),
+        "state": "complete", "classes": ["B1"], "query_ids": [second_universe_id],
     }
     counter_checks.append(second_check)
 
@@ -791,15 +798,22 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         # Every row is finalized here, so the site rule cannot be skipped on
         # one exit: a site an agent still has to read is not closure, and a
         # site that is gone is a method that did not run. Worst status wins.
+        truncated = len(unique) > HIT_CAP
         row = {
             "class": klass,
-            "status": worst(status, *site_state["statuses"]),
+            # A capped row lists a sample, so it cannot say it enumerated the
+            # class: the best a truncated row claims is `partial`.
+            "status": worst(status, *site_state["statuses"],
+                            *(["partial"] if truncated else [])),
             "method": method,
             "hits": len(unique),
-            "truncated": len(unique) > HIT_CAP,
+            "truncated": truncated,
             "hit_ids": ledger.add(klass, unique, seed_reason),
         }
         reasons = [item for item in (reasons or []) if item]
+        if truncated:
+            reasons.append(f"more than {HIT_CAP} hits, so the row lists a sample "
+                           "rather than the class")
         if reasons:
             row["reason"] = "; ".join(reasons)
         row.update(extra)

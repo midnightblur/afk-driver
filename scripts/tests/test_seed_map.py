@@ -164,6 +164,25 @@ class SeedMapTest(unittest.TestCase):
         self.assertNotEqual({node["id"] for node in before["nodes"]},
                             {node["id"] for node in after["nodes"]})
 
+    # Whitespace is code: a re-indented line is a line the ground diff must see.
+    def test_reindenting_a_line_moves_its_hash(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        code, before = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        (repo / "alpha" / "Widget.java").write_text(
+            "    class Widget {\n}\n", encoding="utf-8")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-m", "indent")
+        code, after = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+
+        def hashes(document):
+            return {node["line_hash"] for node in document["nodes"]
+                    if node["site"].startswith("alpha/Widget.java")}
+
+        self.assertTrue(hashes(before))
+        self.assertFalse(hashes(before) & hashes(after), hashes(before))
+
     # S6 — a non-ASCII path comes back verbatim, not octal-escaped.
     def test_non_ascii_paths_are_not_escaped(self):
         repo = self.repo({"délta/Wïdget-note.md": "Widget is described here\n"})

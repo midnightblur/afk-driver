@@ -42,10 +42,13 @@ def run(plan_dir):
     return p.returncode, p.stdout + p.stderr
 
 
-def subtask(goal, scope, verification, produces=None, consumes=None, blocked="(none)", review=None):
+def subtask(goal, scope, verification, produces=None, consumes=None, blocked="(none)", review=None,
+            seams=None):
     parts = [f"## Goal\n{goal}\n", "## Complexity\nstandard\n"]
     if review:
         parts.append(f"## Review\n{review}\n")
+    if seams:
+        parts.append(f"## Seams\n{seams}\n")
     parts.append(f"## Scope\n{scope}\n")
     if produces:
         parts.append(f"## Produces\n{produces}\n")
@@ -103,10 +106,13 @@ def build_clean(root):
     write(os.path.join(root, "repo", "tasks", "T-1", "VERIFICATION-PLAN.md"), VP_FULL)
     write(os.path.join(plan, "PLAN.md"),
           plan_md(gate_table(2, 1), policy="> Review policy: lean   <!-- lean | full -->\n"))
+    write(os.path.join(root, "repo", "tasks", "T-1", "investigations",
+                       "INV-001-the-service-port", "COVERAGE.json"), "{}")
     write(os.path.join(plan, "0001-core.md"), subtask(
         "Core service.", "- services/billing/billing/src/**",
         STATIC + "\n| unit | `mvn test` | behavior |",
-        produces="- services/billing/src/Foo.java#FooServiceContractV1 — the service contract"))
+        produces="- services/billing/src/Foo.java#FooServiceContractV1 — the service contract",
+        seams="- implement: the service port — owns its code + seam-test (INV-001)"))
     write(os.path.join(plan, "0002-consumer.md"), subtask(
         "Consumer.", "- services/billing/billing/src/**",
         STATIC,
@@ -158,7 +164,9 @@ def build_dirty(root):
     write(os.path.join(plan, "0002-beta.md"), subtask(
         "Beta.", "- services/billing/billing-ui/src/**",
         "| unit | `mvn test` | behavior |",
-        produces="- svc/C.java#SomeLaterProducedThing — the thing [materialized]"))
+        produces="- svc/C.java#SomeLaterProducedThing — the thing [materialized]",
+        seams=("- implement: the service port — no investigation named\n"
+               "- use: the other port — a ledger nobody wrote (INV-404)")))
     # 0003: collides with 0002 on the same file#anchor (A-COLLISION); consumes it
     # without the [materialized] marker (A-MAT-DISAGREE); consumes an anchor 0002
     # never produced (A-NOT-PRODUCED); controller scope without api row (E-TIER-API)
@@ -205,7 +213,8 @@ def main():
                      "A-MAT-DISAGREE", "B-GENERIC", "B-SHORT", "B-AMBIGUOUS",
                      "B-MAT-UNRESOLVED", "E-STATIC", "E-TIER-E2E", "E-TIER-API",
                      "E-TIER-INTEGRATION", "G-PARITY-UI", "G-BUILD-MISSING", "G-BLOCKEDBY",
-                     "H-POLICY", "H-POLICY-VALUE", "H-OPT-IN-UNKNOWN", "H-REVIEW-LINE"]:
+                     "H-POLICY", "H-POLICY-VALUE", "H-OPT-IN-UNKNOWN", "H-REVIEW-LINE",
+                     "I-SEAM-UNGROUNDED", "I-SEAM-NO-LEDGER"]:
             (ok if rule + ":" in out else bad)(f"dirty plan flags {rule}")
         for absent in ["G-NO-GATE", "G-PHANTOM-BUILD", "G-FULL-WITHOUT-PLAN", "SYNTAX"]:
             (ok if absent + ":" not in out else bad)(f"dirty plan does not flag {absent}")

@@ -59,8 +59,13 @@ first released heading here.
   reports an appearance, a disappearance, an in-place edit, a duplicate, a
   capped row, a changed configuration, and a seed search that no longer runs as
   drift. Query rows now say who ran them (`origin`), so a line a tracer widened
-  to is counted rather than compared. `/afk:execute` runs it before writing code and answers
-  drift with a fresh investigation at the current head.
+  to is counted rather than compared, and a file only an agent read is watched
+  through `git diff` between the two snapshots. A line hash covers the exact
+  bytes of the line, so a re-indentation reads as the edit it is.
+  `/afk:execute` runs it before writing code and answers drift with a fresh
+  investigation at the current head — the cited run's own question types,
+  subject and name forms — whose claims it reads back against the facts the
+  design cites.
 - **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
   rules — snapshot identity, worst-status-wins, the truncation rule, the node
   conflict rule, the counter-check union — ran as prose in the skill and now run
@@ -71,8 +76,10 @@ first released heading here.
   `/afk:grill-requirements` spawns one per load-bearing claim and carries it as
   a `pending` row until the ledger returns, `/afk:to-prd` refuses to synthesize
   on a pending row, `/afk:grill-solution` closes each layer's premises before
-  the layer locks, and the L9 seam walk answers change impact with a Q2+Q3 run
-  per seam.
+  the layer locks, and the L9 seam walk answers the existing contract and change
+  impact with one Q1+Q2+Q3 run per seam. Each plan `## Seams` row carries that
+  investigation's id, and `validate_plan.py` refuses a seam row standing on no
+  ledger.
 - **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
   cites the investigation that closed it, and a new bundled script resolves each
   citation, validates that ledger, and refuses a design standing on a `partial`

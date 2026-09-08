@@ -58,6 +58,32 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
+    # A site is a string in the node grammar, or the match compares nothing.
+    def test_a_non_string_site_is_a_defect(self):
+        document = ledger()
+        document["nodes"].append(
+            {"id": "B3:1", "class": "B3", "site": "1", "disposition": "terminal",
+             "evidence": "the read", "parent": None, "query_id": None})
+        document = only(document, "B3", sites=[1], method="read the registry",
+                        query_ids=[], hits=0, hit_ids=[])
+        defects, _ = self.check(document)
+        self.assertTrue(any("site" in defect for defect in defects), defects)
+
+    # A counter-search that ran the class's own queries ran the same pass twice.
+    def test_a_counter_check_repeating_the_primary_queries_is_a_defect(self):
+        document = ledger()
+        document["counter_checks"][0].update({"classes": ["B1"], "query_ids": [QUERY]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("different method" in defect or "same" in defect
+                            for defect in defects), defects)
+
+    # A check that answers for a class nobody verdicted answers for nothing.
+    def test_a_counter_check_naming_an_unknown_class_is_a_defect(self):
+        document = ledger()
+        document["counter_checks"][0]["classes"] = ["B99"]
+        defects, _ = self.check(document)
+        self.assertTrue(any("B99" in defect for defect in defects), defects)
+
     def test_a_row_claiming_more_hits_than_its_queries_found_is_a_defect(self):
         document = ledger()
         document["nodes"].append(

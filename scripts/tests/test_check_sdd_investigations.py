@@ -164,6 +164,28 @@ class SddInvestigationGateTest(unittest.TestCase):
             self.assertEqual(self.run_gate("--sdd", sdd), 0)
         self.assertIn("B14:other-repo:1", printed.getvalue())
 
+    # Each required cell carries its own citation; one covering both is a gap.
+    def test_a_row_citing_only_one_required_cell_is_a_blocker(self):
+        sdd = self.write(
+            rows="| the widget port | INV-001 | one new method | none | none | fits |",
+            document=self.closed())
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    # A citation names the seam it stands under, or it answers another question.
+    def test_a_citation_naming_another_subject_is_a_blocker(self):
+        document = self.closed()
+        document["run"]["roots"] = ["the gadget port"]
+        document["run"]["aliases"] = {"the gadget port": []}
+        sdd = self.write(document=document)
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    def test_a_citation_naming_the_seam_passes(self):
+        document = self.closed()
+        document["run"]["roots"] = ["the widget port"]
+        document["run"]["aliases"] = {"the widget port": []}
+        sdd = self.write(document=document)
+        self.assertEqual(self.run_gate("--sdd", sdd), 0)
+
     # The gate's column names are a copy of the template's; they move together.
     def test_the_header_cells_match_the_template(self):
         template = (_ROOT / "skills" / "afk" / "to-sdd" / "SDD-TEMPLATE.md").read_text(

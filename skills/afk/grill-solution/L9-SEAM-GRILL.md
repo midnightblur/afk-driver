@@ -7,9 +7,11 @@ L1–L8 settle *what* the design is; L9 proves it **fits the code that exists**.
 For every point where the design touches existing code (calls it, extends it, is called by it, shares its data), a seam row answers four checks:
 
 1. **Signature/contract alignment.** Read the actual class/method/DTO the design assumes. Does the assumed call shape exist — parameters, return type, checked exceptions, nullability, transactional posture? A mismatch is a design change or an ADR-worthy extension, never "the executor will adapt it".
-2. **Change impact.** Who else uses the seam (callers, listeners, mappers, generated companions), and which of those flows change behaviour? One `/afk:investigate` run per seam answers it — types Q2 and Q3 together, `--design-phase`. "None impacted" stands only on a ledger whose verdict is `closed` or `closed-with-frontier`.
+2. **Change impact.** Who else uses the seam (callers, listeners, mappers, generated companions), and which of those flows change behaviour?
 3. **House conventions.** The CLAUDE.md chain governing that code area binds the design: class-placement contracts, base-service chains, state-machine wiring, mapper/codegen rules, scoping/authz layers. A design step violating one is reworked or gets an explicit exception ADR.
 4. **Must-do landmines.** What does the existing entry path (controller/listener/job) do that the design's new path would skip — validation, authz guards, events, auditing, balance/state bookkeeping? Every skipped obligation is re-established on the new path or explicitly ruled out with rationale.
+
+One `/afk:investigate` run per seam answers checks 1 and 2 — types Q1 (the contract as it stands), Q2 and Q3 together, `--design-phase`. An aligned contract and "none impacted" each stand only on a ledger whose verdict is `closed` or `closed-with-frontier`.
 
 **Gather in parallel, adjudicate in conversation.** Fan out read-only children — one per seam, or per module where seams cluster, per `DELEGATION.md` (plugin root) — each returning a **draft row**: file-cited evidence for all four checks plus a proposed verdict. The walk then spends conversation only where it's owed: a draft proposing `fits` with uncontradicted evidence is confirm-class (batch per `skills/afk/grill-requirements/TRIAGE.md`); a proposed `extends`/`reworked`, an evidence–design contradiction, or a live landmine is debate-class, one at a time. Spot-check citations before locking any row (`DELEGATION.md` return contract) — a draft is evidence, not a verdict.
 

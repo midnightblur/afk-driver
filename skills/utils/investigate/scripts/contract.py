@@ -46,8 +46,11 @@ def line_hash(text: str) -> str:
     A node id carries a line number, which every insertion shifts. Comparing
     two runs on ids alone reports drift the code never had; comparing on this
     reports the drift it did.
+
+    Over the exact bytes of the line, its own trailing newline aside. Whitespace
+    carries meaning in enough languages that folding it hides real edits.
     """
-    digest = hashlib.sha1(text.strip().encode("utf-8", "surrogateescape")).hexdigest()
+    digest = hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()
     return digest[:LINE_HASH_CHARS]
 
 

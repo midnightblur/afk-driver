@@ -49,14 +49,16 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 
 The seam's investigation ledger is a snapshot of one commit; the branch has
 moved since. This step compares the two and decides; it never writes a ledger.
-Per `## Seams` symbol, take the current ground with the name forms the cited
+Per `## Seams` symbol, the row's trailing `(INV-NNN)` names the ledger:
+`<spec dir>/investigations/INV-NNN-*/COVERAGE.json`, one directory or the id
+names nothing. Take the current ground with the name forms that cited
 ledger ran under — one `--alias <form>=<value>` per `declared` form in its
 `run.aliases`, omitted when it declares none:
 
 ```sh
 python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] --out <scratch>/ground-<symbol>.json
 
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
 ```
 
 `ground_diff.py` counts every searched line, keyed (`class`, file, `line_hash`),
@@ -69,8 +71,12 @@ widened to is counted in a note, because a seed map cannot re-take it. Exit 0 �
 difference is printed.
 
 **On drift, re-investigate rather than patch.** Run `/afk:investigate` at the
-current head — type Q3, the seam's own question, the same `--alias` forms — and
-work from the ledger it publishes. That run writes a new investigation; the
+current head — the cited ledger's own `run.type` set, its subject and the same
+`--alias` forms, the seam's own question — and work from the ledger it
+publishes. Then read the new ledger's `claims` against the facts the SDD cites
+for this seam: a load-bearing claim the new run contradicts is a broken binding
+decision, and it goes through the conflict procedure below, not through a patch
+here. That run writes a new investigation; the
 design's cited ledger is never rewritten here, because `/afk:investigate` is its
 single writer. Name the new investigation id in this slice's journal line and in
 the pointer of the `OUTCOME:` line. A `partial` verdict on a load-bearing claim

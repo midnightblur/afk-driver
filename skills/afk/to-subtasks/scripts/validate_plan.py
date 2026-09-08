@@ -62,6 +62,7 @@ Exit: 0 clean · 1 findings · 2 parse error (plan dir / PLAN.md / subtask file 
 Checks (c) acceptance citations, (d) seam coverage, (f) scope sanity are
 LLM judgment — deliberately not here (VALIDATION.md keeps them).
 """
+import glob
 import os
 import re
 import sys
@@ -151,6 +152,9 @@ def table_rows(body):
         elif header is not None:
             break
     return header or [], rows
+
+
+INV_RE = re.compile(r"\(INV-(\d{3,})\)")
 
 
 def repo_root(start):
@@ -321,6 +325,25 @@ def main():
             if missing:
                 flag(f"{sid}.md", "G-BLOCKEDBY",
                      f"## Blocked by misses implementation subtask(s): {', '.join(missing)}")
+
+    # ---- (i) seam ground ---------------------------------------------------
+    # A seam row names the investigation that closed it, and that ledger is on
+    # disk: without it the executor has nothing to re-take the ground against.
+    investigations = os.path.join(os.path.dirname(plan_dir), "investigations")
+    for sid, rank, secs, fname in subtasks:
+        for raw in bullets(secs.get("Seams")):
+            line = raw.strip()
+            if line.startswith("(none"):
+                continue
+            m = INV_RE.search(line)
+            if not m:
+                flag(fname, "I-SEAM-UNGROUNDED",
+                     f"## Seams row names no investigation: {line!r}")
+                continue
+            if not glob.glob(os.path.join(investigations, f"INV-{m.group(1)}-*",
+                                          "COVERAGE.json")):
+                flag(fname, "I-SEAM-NO-LEDGER",
+                     f"INV-{m.group(1)} has no ledger under {investigations}")
 
     # ---- (h) review policy -------------------------------------------------
     m = re.search(r"^>\s*Review policy:\s*([^\s<]+)", plan_text, re.M)

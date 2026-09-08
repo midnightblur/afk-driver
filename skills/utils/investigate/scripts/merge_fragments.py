@@ -78,11 +78,18 @@ def join_reasons(first, second) -> str | None:
 # When and where it ran is not part of it. Named in `LEDGER-FORMAT.md`
 # § "Merging".
 FINGERPRINTED = ("partition", *TABLES)
+# Where a fragment was written is not what it found: two worktrees of one
+# checkout name two paths and one result.
+PATH_KEYS = ("seed",)
 
 
 def fingerprint(fragment: dict) -> str:
     """The bytes that decide whether this fragment has already been folded."""
     body = {key: fragment.get(key) for key in FINGERPRINTED if key in fragment}
+    partition = body.get("partition")
+    if isinstance(partition, dict):
+        body["partition"] = {key: value for key, value in partition.items()
+                             if key not in PATH_KEYS}
     return hashlib.sha256(
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -90,6 +97,12 @@ def fingerprint(fragment: dict) -> str:
 
 def merge_node(kept: dict, row: dict) -> dict:
     """Two fragments reached the same site; only a disagreement is news."""
+    for key in ("line_hash", "site", "class"):
+        if kept.get(key) and row.get(key) and kept[key] != row[key]:
+            raise MergeError(
+                f"node {kept.get('id')}: two fragments give it a different {key} "
+                f"({kept[key]!r} and {row[key]!r}); one id is one site"
+            )
     left, right = kept.get("disposition"), row.get("disposition")
     if left == right:
         merged = dict(kept)
@@ -122,6 +135,10 @@ def merge_boundary(kept: dict, row: dict) -> dict:
     merged["universe"] = ", ".join(dict.fromkeys(universe)) or kept.get("universe")
     hit_ids = merged.get("hit_ids") or []
     if kept.get("truncated") or row.get("truncated"):
+        # A row listing a sample cannot say it enumerated the class.
+        merged["status"] = worst(merged["status"], "partial")
+        merged["reason"] = join_reasons(merged.get("reason"),
+                                        "the row lists a sample of its hits")
         counts = [item.get("hits") for item in (kept, row) if isinstance(item.get("hits"), int)]
         merged["hits"] = sum(counts)
         merged["truncated"] = True
@@ -133,11 +150,34 @@ def merge_boundary(kept: dict, row: dict) -> dict:
     return merged
 
 
-def merge_claim(kept: dict, row: dict) -> dict:
+CLAIM_ORDER = ("unverified", "inference", "fact")
+
+
+def merge_query(kept: dict, row: dict) -> dict:
+    """One id is one execution: two bodies under it are two searches."""
+    for key in ("command", "universe", "count", "origin"):
+        if key in kept and key in row and kept[key] != row[key]:
+            raise MergeError(
+                f"query {kept.get('id')}: two fragments give it a different {key} "
+                f"({kept[key]!r} and {row[key]!r}); one id is one search"
+            )
+    return kept
+
+
+def merge_claim(kept: dict, row: dict, said: list[str] | None = None) -> dict:
     merged = dict(kept)
     for key in ("supporting_nodes", "citations"):
         merged[key] = union(kept.get(key) or [], row.get(key) or [])
     merged["load_bearing"] = bool(kept.get("load_bearing") or row.get("load_bearing"))
+    kinds = [item for item in (kept.get("kind"), row.get("kind")) if item in CLAIM_ORDER]
+    if kinds:
+        merged["kind"] = min(kinds, key=CLAIM_ORDER.index)
+    if said is not None and (kept.get("kind") != row.get("kind")
+                             or bool(kept.get("load_bearing")) != bool(row.get("load_bearing"))
+                             or (kept.get("supporting_nodes") or [])
+                             != (row.get("supporting_nodes") or [])):
+        said.append(f"claim {kept.get('id')}: two fragments read it differently; kept "
+                    f"{merged['kind']}, load-bearing {merged['load_bearing']}")
     return merged
 
 
@@ -159,6 +199,33 @@ def check_key(row: dict) -> tuple:
     return (row.get("method"), tuple(classes) if isinstance(classes, list) else classes)
 
 
+# What a row of each table must carry before anything is folded into it.
+REQUIRED = {
+    "boundaries": ("class", "status"),
+    "nodes": ("id", "class", "site"),
+    "queries": ("id", "command", "universe"),
+    "claims": ("id", "text", "kind"),
+    "counter_checks": ("method", "classes", "state"),
+}
+
+
+def check_shapes(path: Path, fragment: dict) -> None:
+    """A row nobody can key on cannot be folded; it is refused before it is."""
+    for table, required in REQUIRED.items():
+        rows_here = fragment.get(table)
+        if rows_here is None:
+            continue
+        if not isinstance(rows_here, list):
+            raise MergeError(f"{path}: {table} is a list of rows")
+        for index, row in enumerate(rows_here):
+            if not isinstance(row, dict):
+                raise MergeError(f"{path}: {table}[{index}] is not a row")
+            missing = [field for field in required if not row.get(field)]
+            if missing:
+                raise MergeError(f"{path}: {table}[{index}] carries no "
+                                 f"{', '.join(missing)}, so nothing can fold onto it")
+
+
 def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
     head = staging.get("run", {}).get("head")
     merged = {"run": dict(staging.get("run") or {})}
@@ -168,13 +235,14 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
         "nodes": ({row.get("id"): dict(row) for row in rows(staging, "nodes")},
                   lambda row: row.get("id"), merge_node),
         "queries": ({row.get("id"): dict(row) for row in rows(staging, "queries")},
-                    lambda row: row.get("id"), lambda kept, row: kept),
+                    lambda row: row.get("id"), merge_query),
         "claims": ({row.get("id"): dict(row) for row in rows(staging, "claims")},
-                   lambda row: row.get("id"), merge_claim),
+                   lambda row: row.get("id"), lambda kept, row: merge_claim(kept, row, said)),
         "counter_checks": ({check_key(row): dict(row) for row in rows(staging, "counter_checks")},
                            check_key, merge_check),
     }
 
+    said: list[str] = []
     seen_bodies: set[str] = set()
     folded = 0
     skipped: list[str] = []
@@ -185,6 +253,14 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
             raise MergeError(
                 f"{path}: run.head {fragment_head!r} is not the staging ledger's "
                 f"{head!r}; two snapshots are two investigations"
+            )
+        check_shapes(path, fragment)
+        question = fragment.get("run", {}).get("question")
+        wanted = staging.get("run", {}).get("question")
+        if wanted and question and question != wanted:
+            raise MergeError(
+                f"{path}: run.question {question!r} is not the staging ledger's "
+                f"{wanted!r}; two questions are two investigations"
             )
         partition = fragment.get("partition")
         partition_id = partition.get("id") if isinstance(partition, dict) else None
@@ -204,7 +280,9 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
         classes = partition.get("classes")
         classes = classes if isinstance(classes, list) else None
         if classes is not None:
-            outside = sorted({row.get("class") for row in rows(fragment, "boundaries")
+            outside = sorted({row.get("class")
+                              for table in ("boundaries", "nodes")
+                              for row in rows(fragment, table)
                               if row.get("class") not in classes})
             if outside:
                 raise MergeError(
@@ -231,6 +309,8 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
         merged["run"]["config_warnings"] = warnings
     for line in skipped:
         print(f"merge_fragments: skipped {line}", file=sys.stderr)
+    for line in said:
+        print(f"merge_fragments: {line}", file=sys.stderr)
     return merged
 
 

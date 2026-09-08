@@ -169,7 +169,7 @@ class MergeFragmentsTest(unittest.TestCase):
     def test_a_duplicate_query_id_folds_into_one_row(self):
         merged = self.merge(ledger(), fragment(queries=[
             dict(ledger()["queries"][0])]))
-        self.assertEqual(len(merged["queries"]), 1)
+        self.assertEqual(len(merged["queries"]), len(ledger()["queries"]))
 
     def test_a_duplicate_claim_id_unions_its_support(self):
         merged = self.merge(ledger(), fragment(claims=[
@@ -282,6 +282,79 @@ class MergeFragmentsTest(unittest.TestCase):
              "universe": "tracked files"}]))
         for row in merged["boundaries"]:
             self.assertTrue(row.get("universe"), row["class"])
+
+    # A capped row cannot come out of a merge claiming the class is enumerated.
+    def test_a_merged_truncated_row_cannot_be_closed(self):
+        capped = [f"B1:alpha.java:{line}" for line in range(1000, 1000 + 200)]
+        merged = self.merge(ledger(), fragment(boundaries=[
+            {"class": "B1", "status": "closed", "method": "every name form",
+             "hits": 900, "truncated": True, "hit_ids": capped,
+             "query_ids": [QUERY], "universe": "tracked files"}]))
+        row = next(item for item in merged["boundaries"] if item["class"] == "B1")
+        self.assertEqual(row["status"], "partial")
+
+    # One id, two different searches: folding them keeps one and loses the other.
+    def test_one_query_id_with_two_bodies_is_refused(self):
+        clash = dict(ledger()["queries"][0])
+        clash["count"] = 77
+        code, stderr, document = self.run_script(ledger(), fragment(queries=[clash]))
+        self.assertEqual(code, 2)
+        self.assertIn(clash["id"], stderr)
+        self.assertIsNone(document)
+
+    def test_one_node_id_with_two_line_hashes_is_refused(self):
+        code, stderr, document = self.run_script(ledger(), fragment(nodes=[
+            {"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
+             "disposition": "traced", "evidence": "the line", "parent": None,
+             "query_id": QUERY, "line_hash": "ffffffffffff"}]))
+        self.assertEqual(code, 2)
+        self.assertIn("B1:alpha.java:2", stderr)
+        self.assertIsNone(document)
+
+    # Two readings of one claim are folded to the worse, and the fold says so.
+    def test_two_readings_of_one_claim_take_the_worse(self):
+        weaker = dict(ledger()["claims"][0])
+        weaker.update({"kind": "unverified", "load_bearing": False})
+        code, stderr, document = self.run_script(ledger(), fragment(claims=[weaker]))
+        self.assertEqual(code, 0, stderr)
+        claim = document["claims"][0]
+        self.assertEqual(claim["kind"], "unverified")
+        self.assertTrue(claim["load_bearing"])
+        self.assertIn(claim["id"], stderr)
+
+    # A fragment answering another question is another investigation.
+    def test_another_question_aborts_the_merge(self):
+        item = fragment(nodes=[])
+        item["run"]["question"] = "something else entirely"
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("question", stderr)
+        self.assertIsNone(document)
+
+    def test_a_malformed_row_aborts_the_merge(self):
+        code, stderr, document = self.run_script(ledger(), fragment(nodes=["a string"]))
+        self.assertEqual(code, 2)
+        self.assertIn("nodes", stderr)
+        self.assertIsNone(document)
+
+    def test_a_node_outside_the_partition_is_refused(self):
+        code, stderr, document = self.run_script(ledger(), fragment(
+            classes=["B1"],
+            nodes=[{"id": "B3:beta.java:4", "class": "B3", "site": "beta.java:4",
+                    "disposition": "terminal", "evidence": "the call", "parent": None,
+                    "query_id": QUERY, "line_hash": "cccccccccccc"}]))
+        self.assertEqual(code, 2)
+        self.assertIn("B3", stderr)
+        self.assertIsNone(document)
+
+    # One partition traced in two worktrees names two seed paths and one result.
+    def test_two_worktree_paths_fold_once(self):
+        first = fragment(nodes=[])
+        first["partition"]["seed"] = "/worktree-one/seed.json"
+        second = json.loads(json.dumps(first))
+        second["partition"]["seed"] = "/worktree-two/seed.json"
+        merged = self.merge(ledger(), first, second)
+        self.assertEqual(merged["run"]["merged_from"], 1)
 
     # A merged ledger that cannot be validated is a merge defect.
     def test_the_merged_ledger_validates(self):

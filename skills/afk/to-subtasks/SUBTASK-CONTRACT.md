@@ -37,9 +37,11 @@ opt-in: <concern>, … — lean-deferred concerns to run at this slice's gate an
 - <glob 2>
 
 ## Seams
-<cited — the SDD §9b external seams this subtask touches; mark each implement|use>
-- implement: <SDD §9b row "boundary"> — this subtask owns the seam's code + seam-test
-- use: <SDD §9b row "boundary"> — this subtask calls across it; relies on its contract
+<cited — the SDD §9b external seams this subtask touches; mark each implement|use.
+Every row ends with the id of the investigation the SDD §14 row cites for that
+seam — the ground the executor re-takes before it writes code.>
+- implement: <SDD §9b row "boundary"> — this subtask owns the seam's code + seam-test (INV-NNN)
+- use: <SDD §9b row "boundary"> — this subtask calls across it; relies on its contract (INV-NNN)
 <uncited or no seam>
 (none — no SDD seam register)
 

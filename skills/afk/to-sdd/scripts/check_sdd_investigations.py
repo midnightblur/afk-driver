@@ -41,6 +41,9 @@ CLOSED = ("closed", "closed-with-frontier")
 # The §14 columns of `SDD-TEMPLATE.md`, lowercased; the first names the seam.
 HEADER_CELLS = ("seam", "existing contract", "planned change", "impacted flows",
                 "conventions", "verdict")
+# The two cells a design cannot leave unclosed: what the seam is, and what else
+# runs through it.
+REQUIRE_CITATION = ("existing contract", "impacted flows")
 
 
 class Ambiguous(RuntimeError):
@@ -101,9 +104,10 @@ def seam_table(text: str) -> tuple[list[str], int]:
         raise RuntimeError(
             f"the §14 header names {header}, which does not carry "
             f"{', '.join(missing)}; it and `SDD-TEMPLATE.md` §14 have drifted apart")
-    name_index = next(index for index, cell in enumerate(header) if HEADER_CELLS[0] in cell)
+    index_of = {column: next(index for index, cell in enumerate(header) if column in cell)
+                for column in HEADER_CELLS}
     rows = [line for line in lines[separator + 1:] if not set(line) <= set("|-: ")]
-    return rows, name_index
+    return rows, index_of
 
 
 def ledger_of(root: Path, number: str) -> Path:
@@ -112,6 +116,32 @@ def ledger_of(root: Path, number: str) -> Path:
     if len(matches) > 1:
         raise Ambiguous(", ".join(sorted(path.parent.name for path in matches)))
     return matches[0] if matches else None
+
+
+def subjects(document: dict) -> list[str]:
+    """Every name the run answered under: its subjects and their declared forms."""
+    run = document.get("run") or {}
+    found: list[str] = []
+    subject = run.get("subject")
+    for item in ([subject] if isinstance(subject, str) else (subject or [])):
+        if isinstance(item, str):
+            found.append(item)
+    found += [item for item in (run.get("roots") or []) if isinstance(item, str)]
+    aliases = run.get("aliases")
+    if isinstance(aliases, dict):
+        for key, forms in aliases.items():
+            found.append(key)
+            for form in forms if isinstance(forms, list) else []:
+                value = form.get("value") if isinstance(form, dict) else form
+                if isinstance(value, str):
+                    found.append(value)
+    return [item for item in dict.fromkeys(found) if item.strip()]
+
+
+def names(document: dict, seam: str) -> bool:
+    """Whether the ledger answered about the symbol this row names."""
+    haystack = seam.lower()
+    return any(len(item) >= 3 and item.lower() in haystack for item in subjects(document))
 
 
 def current_head(start: Path) -> str | None:
@@ -130,7 +160,7 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
         text = sdd.read_text(encoding="utf-8")
     except UnicodeDecodeError as problem:
         raise RuntimeError(f"{sdd}: is not UTF-8 text: {problem}") from problem
-    rows, name_index = seam_table(text)
+    rows, index_of = seam_table(text)
     if not rows:
         raise RuntimeError(f"{sdd}: no §14 seam table to check")
     validator = load_validator()
@@ -139,13 +169,21 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
     notes: list[str] = []
     for line in rows:
         cells = cells_of(line)
-        name = cells[name_index] if name_index < len(cells) else line
+
+        def cell(column: str) -> str:
+            index = index_of[column]
+            return cells[index] if index < len(cells) else ""
+
+        name = cell(HEADER_CELLS[0]) or line
+        # Each required cell answers for itself: one citation cannot close both
+        # what the seam is today and what else runs through it.
+        uncited = [column for column in REQUIRE_CITATION if not CITATION.search(cell(column))]
+        if uncited:
+            refusals.append(f"{name}: {' and '.join(uncited)} cites no investigation")
+            continue
         # One row may cite the same investigation in two cells; it is one
         # ledger, and one line about it.
         citations = list(dict.fromkeys(CITATION.findall(line)))
-        if not citations:
-            refusals.append(f"{name}: cites no investigation")
-            continue
         for number in citations:
             try:
                 path = ledger_of(investigations, number)
@@ -161,6 +199,11 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
                 document = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as problem:
                 refusals.append(f"{name}: INV-{number} cannot be read: {problem}")
+                continue
+            if not names(document, name):
+                refusals.append(
+                    f"{name}: INV-{number} investigated {', '.join(subjects(document)) or 'nothing named'}, "
+                    "so its citation does not name this seam")
                 continue
             defects, verdict = validator.validate(document)
             if defects:

@@ -31,6 +31,9 @@ ALL = validate_coverage.ALL_CLASSES
 # test never pins an id the validator would have to accept blindly.
 COMMAND = "git grep -n -I -E -e Widget"
 QUERY = validate_coverage.stable_id("q", COMMAND + "tracked files")
+# The counter-search is a different method, so it is a different query.
+COUNTER_COMMAND = "git grep -n -I -E -e widget-created"
+COUNTER_QUERY = validate_coverage.stable_id("q", COUNTER_COMMAND + "tracked files")
 CLAIM = validate_coverage.stable_id("c", "the path starts here")
 
 
@@ -65,14 +68,17 @@ def ledger(**overrides) -> dict:
              "line_hash": "bbbbbbbbbbbb"},
         ],
         "queries": [{"id": QUERY, "command": COMMAND, "universe": "tracked files",
-                     "count": 1, "evidence": None, "origin": "seed"}],
+                     "count": 1, "evidence": None, "origin": "seed"},
+                    {"id": COUNTER_QUERY, "command": COUNTER_COMMAND,
+                     "universe": "tracked files", "count": 0, "evidence": None,
+                     "origin": "seed"}],
         "claims": [{"id": CLAIM, "text": "the path starts here", "kind": "fact",
                     "load_bearing": True, "supporting_nodes": ["B1:alpha.java:2"],
                     "citations": ["alpha.java:2"]}],
         "counter_checks": [{"method": "a second name form", "kind": "deterministic",
                             "targeted_claims": [CLAIM], "new_nodes": [],
                             "state": "complete", "classes": list(ALL),
-                            "query_ids": [QUERY]}],
+                            "query_ids": [COUNTER_QUERY]}],
     }
     document.update(overrides)
     return document
@@ -215,6 +221,16 @@ class ValidateCoverageTest(unittest.TestCase):
         defects, verdict = self.check(document)
         self.assertTrue(any("states why" in defect for defect in defects), defects)
         self.assertEqual(verdict, "partial")
+
+    # A search that counts 0 by construction ran nothing; `complete` overstates it.
+    def test_a_counter_search_that_cannot_match_is_not_complete(self):
+        document = ledger()
+        for query in document["queries"]:
+            if query["id"] == COUNTER_QUERY:
+                query["command"] = "git grep -n -I -E"
+                query["count"] = 0
+        defects, _ = self.check(document)
+        self.assertTrue(any("can match something" in defect for defect in defects), defects)
 
     # V4 / L5 — the verdict the record supports.
     def test_a_frontier_class_downgrades_to_closed_with_frontier(self):
