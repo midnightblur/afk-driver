@@ -19,13 +19,16 @@ This skill is the single writer of the ledger. Tracers return fragments; only th
    python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" \
      --repo <repo root> --subject <name> --type <Q1..Q5> \
      --question "<the question>" [--alias wire=<name> ...] \
-     --config auto --out <scratch>/seed.json
+     --config auto [--design-phase] --out <scratch>/seed.json
    ```
 
    It enumerates every boundary class it has a method for and marks the rest
    `unverified(no enumeration method)`. Pass every name form you already know
    as `--alias FORM=VALUE` — a wire or serialized name is chosen at the site,
    and an unsearched form keeps B1 short of closed. No `investigation:` block
+   Pass `--design-phase` when the answer feeds a design decision: that run owes
+   an agent-driven counter-search, and the validator asks for it. No
+   `investigation:` block
    in the repository's `.afk/config.yaml` → the generic defaults run alone; say
    so in the reply and name the fix: declare `investigation:` in
    `.afk/config.yaml` (schema: `${AFK_PLUGIN_ROOT}/CONFIG.md`).

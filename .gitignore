@@ -56,7 +56,10 @@ coverage.xml
 Thumbs.db
 
 # Claude Code local working dir (TODO backlog, agent handoffs, job scratch)
-.claude/
+.claude/*
+# The wiring ledger is the one tracked file under it: an IOU nobody can read
+# is not a declaration. `hooks/wiring-gate.sh` parses it.
+!.claude/wiring-ious.md
 
 # Secrets — never commit
 .env

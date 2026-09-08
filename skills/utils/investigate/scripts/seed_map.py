@@ -9,7 +9,8 @@ reachability, and it never writes into the repository it reads.
 Usage:
   seed_map.py --repo ROOT --subject NAME [--subject NAME ...]
               --type Q1..Q5 [--type ...] [--question TEXT]
-              [--alias FORM=VALUE ...] [--config auto|PATH] --out FILE.json
+              [--alias FORM=VALUE ...] [--config auto|PATH] [--design-phase]
+              --out FILE.json
 
 Output is a ledger-shaped document (`LEDGER-FORMAT.md` beside this script):
 the same six tables, every node it found carrying `unverified` until a tracer
@@ -24,7 +25,8 @@ searching another class's hits inherits that class's gap, a walk that skipped a
 file says so, and a declared site that is gone is a gap, never evidence.
 
 Subprocess budget: one `git ls-files`, one `git rev-parse`, one `git grep` per
-name-form pass, and per boundary class one `git grep` per distinct path scope.
+name-form pass, and per boundary class two `git grep` per distinct path scope —
+the search, and the case-blind counter-search that tries to break it.
 A spawn costs 0.5-2s on this platform (`hooks/README.md` cost model), so
 classification runs in Python.
 
@@ -45,6 +47,9 @@ import traceback
 import xml.etree.ElementTree as ElementTree
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from contract import ALL_CLASSES, HIT_CAP, stable_id, worst  # noqa: E402
 
 JVM = (".java", ".kt", ".kts", ".scala", ".groovy")
 CURLY = JVM + (".ts", ".tsx", ".js", ".jsx", ".php", ".cs")
@@ -74,7 +79,7 @@ DEFAULTS: dict[str, dict] = {
     "B1": {"scoped": "names", "method": "every name form, whole repository"},
     "B2": {
         "scoped": "subject",
-        "patterns": [r"(extends|implements)[^;{{]*\b{simple}\b", r"\(\s*{simple}\s+\w"],
+        "patterns": [r"(extends|implements)[^;{]*{bounded}", r"\(\s*{simple}\s+\w"],
         "method": "declaration and parameter forms carrying the name",
         "languages": CURLY,
         "language_label": "class-declaration",
@@ -113,10 +118,14 @@ DEFAULTS: dict[str, dict] = {
     },
 }
 
-ALL_CLASSES = tuple(f"B{n}" for n in range(1, 15))
-
-# How many nodes a boundary row carries. The count above it stays exact.
-HIT_SAMPLE = 200
+# A word boundary POSIX extended regular expressions can express, so a short
+# alias never matches inside a longer identifier. `\b` cannot do this job: an
+# alias whose first or last character is not a word character has no boundary
+# there, and the pattern then matches nothing at all.
+LEFT = "(^|[^[:alnum:]_])"
+RIGHT = "($|[^[:alnum:]_])"
+PY_LEFT = "(?:^|[^0-9A-Za-z_])"
+PY_RIGHT = "(?:$|[^0-9A-Za-z_])"
 
 # How much of a matching line is stored as evidence. Matching happens on the
 # whole line; only storage is capped.
@@ -161,8 +170,35 @@ def plugin_root() -> Path:
     raise ConfigError("cannot locate the plugin root; set AFK_PLUGIN_ROOT")
 
 
-def load_config(repo: Path, where: str) -> dict:
-    """Read and validate the effective config through the one config reader."""
+def block_warnings(block: dict) -> list[str]:
+    """Declared instances that will run, but not the way the declarer expects.
+
+    Not a defect: the pattern is legal and the run proceeds. It is said once,
+    on the way in, because the row it produces looks like closure.
+    """
+    warnings = []
+    for entry in block.get("boundaries") or []:
+        if not isinstance(entry, dict):
+            continue
+        pattern = entry.get("pattern") or ""
+        if not pattern or entry.get("paths"):
+            continue
+        if "{simple}" in pattern or "{bounded}" in pattern:
+            continue
+        warnings.append(
+            f"{entry.get('name', '?')} ({entry.get('class', '?')}): the pattern names "
+            "no subject placeholder and no paths, so it matches every occurrence in "
+            "the repository — add `{simple}` or narrow it with `paths`"
+        )
+    return warnings
+
+
+def load_config(repo: Path, where: str) -> tuple[dict, dict]:
+    """Read and validate the effective config through the one config reader.
+
+    Returns the investigation block and the stamp of the file behind it, so a
+    ledger says which configuration produced it.
+    """
     root = plugin_root()
     spec = importlib.util.spec_from_file_location(
         "afk_config", root / "scripts" / "afk-config.py"
@@ -173,6 +209,10 @@ def load_config(repo: Path, where: str) -> dict:
     spec.loader.exec_module(module)
     if where == "auto":
         config = module.load(repo)
+        found = next((repo / name for name in (".afk/config.yaml", ".afk/config.yml")
+                      if (repo / name).is_file()), None)
+        source = str(found.relative_to(repo).as_posix()) if found else "defaults"
+        raw = found.read_bytes() if found else b""
     else:
         path = Path(where)
         try:
@@ -180,11 +220,13 @@ def load_config(repo: Path, where: str) -> dict:
         except OSError as problem:
             raise ConfigError(f"cannot read {path}: {problem}") from problem
         config = module.deep_merge(dict(module.DEFAULTS), module.parse(text, str(path)))
+        source, raw = str(path), text.encode("utf-8")
     problems = module.validate(config, repo)
     if problems:
         raise ConfigError("; ".join(problems))
     block = config.get("investigation")
-    return block if isinstance(block, dict) else {}
+    stamp = {"path": source, "sha256": hashlib.sha256(raw).hexdigest()}
+    return (block if isinstance(block, dict) else {}), stamp
 
 
 def name_forms(subject: str, aliases: list[tuple[str, str]]) -> list[dict]:
@@ -362,19 +404,63 @@ def group(names: list[str]) -> str:
     return "(" + "|".join(re.escape(name) for name in names) + ")"
 
 
+def is_word(char: str) -> bool:
+    return bool(char) and (char.isalnum() or char == "_")
+
+
+def bounded(name: str, left: str, right: str) -> str:
+    """One name that cannot match inside a longer identifier.
+
+    The boundary is added only on a side where the name itself ends in a word
+    character. `W` needs both; `$Alias` needs only the right one, and asking
+    for a left boundary there would make the pattern match nothing.
+    """
+    escaped = re.escape(name)
+    return ((left if is_word(name[:1]) else "")
+            + escaped
+            + (right if is_word(name[-1:]) else ""))
+
+
+def bounded_group(names: list[str], flavour: str = "ere") -> str:
+    """The alternation, each alternative bounded. `flavour`: `ere` or `py`."""
+    left, right = (LEFT, RIGHT) if flavour == "ere" else (PY_LEFT, PY_RIGHT)
+    return "(" + "|".join(bounded(name, left, right) for name in names) + ")"
+
+
+def form_pattern(form: dict, flavour: str = "ere") -> str:
+    """The search expression for one name form.
+
+    A declared alias is bounded: it is chosen at the site and is often short,
+    so an unbounded pass returns every longer identifier that contains it, and
+    every class deriving from that pass inherits the inflation. A derived form
+    is the symbol itself and stays verbatim.
+    """
+    if form.get("source") != "declared":
+        return re.escape(form["value"])
+    left, right = (LEFT, RIGHT) if flavour == "ere" else (PY_LEFT, PY_RIGHT)
+    return bounded(form["value"], left, right)
+
+
+def expand(pattern: str, simple: str, bounded_terms: str) -> str:
+    """Fill a default pattern's placeholders.
+
+    A literal replacement, not `str.format`: a search expression carries braces
+    of its own (`{2,3}` is a quantifier), and formatting one would fail on them.
+    """
+    return pattern.replace("{simple}", simple).replace("{bounded}", bounded_terms)
+
+
 def site_present(repo: Path, inventory: set[str], site: str) -> bool:
     """A judgment-only site is evidence only while it exists on this snapshot."""
-    normalized = site.strip().lstrip("./").rstrip("/")
+    normalized = site.strip()
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.rstrip("/")
     if normalized in inventory:
         return True
     if any(path.startswith(normalized + "/") for path in inventory):
         return True
     return (repo / normalized).exists()
-
-
-def digest(prefix: str, text: str) -> str:
-    """A key stable across partitions — an ordinal collides when fragments merge."""
-    return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
 class Ledger:
@@ -383,9 +469,17 @@ class Ledger:
     def __init__(self) -> None:
         self.nodes: dict[str, dict] = {}
 
-    def add(self, klass: str, hits: list[dict], reason: str) -> list[str]:
+    @staticmethod
+    def tag(hits: list[dict], query_id: str) -> list[dict]:
+        """Stamp each hit with the query that returned it; a node keeps it."""
+        for hit in hits:
+            hit["query_id"] = query_id
+        return hits
+
+    def add(self, klass: str, hits: list[dict], reason: str,
+            query_id: str | None = None) -> list[str]:
         ids = []
-        for hit in hits[:HIT_SAMPLE]:
+        for hit in hits[:HIT_CAP]:
             node_id = f"{klass}:{hit['file']}:{hit['line']}"
             ids.append(node_id)
             self.nodes.setdefault(
@@ -398,6 +492,7 @@ class Ledger:
                     "reason": reason,
                     "evidence": hit["text"][:EVIDENCE_CHARS],
                     "parent": None,
+                    "query_id": hit.get("query_id") or query_id,
                 },
             )
         return ids
@@ -407,7 +502,8 @@ class Ledger:
 
 
 def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
-         aliases: list[tuple[str, str]], block: dict) -> dict:
+         aliases: list[tuple[str, str]], block: dict, config_stamp: dict,
+         design_phase: bool = False) -> dict:
     started = datetime.now(timezone.utc).isoformat()
     forms = {subject: name_forms(subject, aliases) for subject in subjects}
     simple_names = [subject.rsplit(".", 1)[-1] for subject in subjects]
@@ -425,11 +521,25 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     seed_reason = "seed map hit, not yet triaged"
 
     def note(command: str, universe: str, count: int) -> str:
-        """Record the query and hand back its id, so a row can point at it."""
-        row = {"id": digest("q", command + universe), "command": command,
+        """Record the query and hand back its id, so a row can point at it.
+
+        `command` is the literal thing that ran, expressions included — the id
+        is its digest, so a label like `<default patterns>` would collide two
+        different searches into one row and lose one of them on a merge.
+        """
+        row = {"id": stable_id("q", command + universe), "command": command,
                "universe": universe, "count": count, "evidence": None}
         queries.setdefault(row["id"], row)
         return row["id"]
+
+    def grep_command(patterns: list[str], pathspecs: list[str] | None,
+                     extra: list[str] | None = None) -> str:
+        """The invocation, written out — what `note` digests into a query id."""
+        parts = ["git grep -n -I -E", *(extra or [])]
+        parts += [f"-e {pattern!r}" for pattern in patterns]
+        if pathspecs:
+            parts += ["--", *pathspecs]
+        return " ".join(parts)
 
     def carries_simple(value: str) -> bool:
         # Case-sensitive, because the primary pass is: a form the exact search
@@ -440,8 +550,9 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         form for subject_forms in forms.values() for form in subject_forms
         if form["enumerated"] and form["value"]
     ]
-    primary_values = [form["value"] for form in every_form if carries_simple(form["value"])]
-    counter_values = [form["value"] for form in every_form if not carries_simple(form["value"])]
+    primary_forms = [form for form in every_form if carries_simple(form["value"])]
+    counter_forms = [form for form in every_form if not carries_simple(form["value"])]
+    counter_values = [form["value"] for form in counter_forms]
     declared_aliases = [form for form in every_form if form.get("source") == "declared"]
     # What a `{simple}` pattern expands to. A declared alias is a name the
     # subject is written in, so a pattern searching for the name searches for
@@ -461,17 +572,19 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     # covers both universes — the wide one (case-blind, untracked files
     # included) is split from the exact one in-process, so the second universe
     # costs no second walk of a large working tree.
-    wide = grep(repo, [re.escape(value) for value in primary_values], None,
-                extra=["-i", "--untracked"])
-    exact = re.compile("|".join(re.escape(value) for value in primary_values))
+    primary_patterns = [form_pattern(form) for form in primary_forms]
+    wide = grep(repo, primary_patterns, None, extra=["-i", "--untracked"])
+    exact = re.compile("|".join(form_pattern(form, "py") for form in primary_forms))
     b1_hits = [hit for hit in wide
                if hit["file"] in inventory_set and exact.search(hit["text"])]
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
+    wide_universe = ("tracked and untracked text files, not ignored, binary excluded, "
+                     "case-blind")
     # The name-form queries; every class searching B1's hit set points at them.
-    name_query_ids = [note("git grep -n -I -E -i --untracked <primary name forms>",
-                           "tracked and untracked text files, not ignored, binary excluded, "
-                           "case-blind", len(wide))]
+    name_query_ids = [note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
+                           wide_universe, len(wide))]
+    ledger.tag(wide, name_query_ids[0])
     seen = set(kept)
 
     # Counter-search one: a name form that does not carry the simple name — a
@@ -479,28 +592,43 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     counter_checks: list[dict] = []
     claim_text = ("the hit set holds every reference to "
                   + ", ".join(subjects) + " over the name forms this pass searched")
-    claim_id = digest("c", claim_text)
+    claim_id = stable_id("c", claim_text)
+    second_universe = "case-blind pass over tracked and untracked files, not ignored"
     if counter_values:
-        form_hits = grep(repo, [re.escape(value) for value in counter_values], None)
-        name_query_ids.append(
-            note("git grep -n -I -E <declared wire or alias forms>", "tracked files",
-                 len(form_hits)))
-        new = [hit for hit in form_hits if (hit["file"], hit["line"]) not in seen]
+        # The same universe the simple pass searched: a wire name lives in
+        # untracked built output as readily as in a tracked source file.
+        counter_patterns = [form_pattern(form) for form in counter_forms]
+        form_hits = grep(repo, counter_patterns, None, extra=["--untracked"])
+        form_query = note(grep_command(counter_patterns, None, ["--untracked"]),
+                          "tracked and untracked text files, not ignored", len(form_hits))
+        name_query_ids.append(form_query)
+        ledger.tag(form_hits, form_query)
+        tracked = [hit for hit in form_hits if hit["file"] in inventory_set]
+        wider_only += [hit for hit in form_hits if hit["file"] not in inventory_set]
+        new = [hit for hit in tracked if (hit["file"], hit["line"]) not in seen]
         b1_hits += new
         seen |= {(hit["file"], hit["line"]) for hit in new}
         counter_checks.append({
             "method": f"name forms carrying no simple name: {', '.join(counter_values)}",
             "kind": "deterministic", "targeted_claims": [claim_id],
-            "new_nodes": ledger.add("B1", new, seed_reason), "state": "complete",
+            "new_nodes": ledger.add("B1", new, seed_reason, form_query),
+            "state": "complete", "classes": ["B1"],
+        })
+    elif declared_aliases:
+        # No declared form discriminates from the simple name, so the second
+        # universe is what the primary pass provably could not return.
+        counter_checks.append({
+            "method": "name form carrying no simple name: none declared discriminates, "
+                      f"so the {second_universe} stands in",
+            "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
+            "state": "complete", "classes": ["B1"],
         })
     else:
-        reason = ("alias contains simple name; the primary pass already covers it"
-                  if declared_aliases
-                  else "no wire or alias form declared; pass --alias FORM=VALUE")
         counter_checks.append({
             "method": "name form carrying no simple name",
             "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
-            "state": "pending", "reason": reason,
+            "state": "pending", "classes": ["B1"],
+            "reason": "no wire or alias form declared; pass --alias FORM=VALUE",
         })
 
     # Counter-search two: the second universe — case-blind, and including the
@@ -509,14 +637,49 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     new = [hit for hit in wider_only if (hit["file"], hit["line"]) not in seen]
     b1_hits += new
     seen |= {(hit["file"], hit["line"]) for hit in new}
-    counter_checks.append({
-        "method": "case-blind pass over tracked and untracked files, not ignored",
+    # `classes` is filled once the loop knows which classes searched B1's hit
+    # set rather than running a pattern of their own.
+    second_check = {
+        "method": second_universe,
         "kind": "deterministic", "targeted_claims": [claim_id],
-        "new_nodes": ledger.add("B1", new, seed_reason), "state": "complete",
-    })
+        "new_nodes": ledger.add("B1", new, seed_reason, name_query_ids[0]),
+        "state": "complete", "classes": ["B1"],
+    }
+    counter_checks.append(second_check)
 
-    named_files = {hit["file"] for hit in b1_hits}
-    b1_gap = (f"name forms not enumerated: {', '.join(unenumerated)}") if unenumerated else None
+    def counter_pass(klass: str, patterns: list[str], pathspecs: list[str] | None,
+                     seen_keys: set, keep: set | None = None) -> tuple[list[dict], str]:
+        """The class's own expressions over the second universe.
+
+        A class enumerated by its own pattern is not counter-searched by B1's
+        pass: nothing there ran that pattern. Running it case-blind is a method
+        the case-sensitive primary provably cannot repeat, over the same
+        universe the primary searched — so the pass changes the method without
+        widening the claim. Untracked files stay B1's wide pass and B6's walk;
+        adding `--untracked` here triples the cost of every class.
+        """
+        found = grep(repo, patterns, pathspecs, extra=["-i"])
+        if keep is not None:
+            found = [hit for hit in found if hit["file"] in keep]
+        query_id = note(grep_command(patterns, pathspecs, ["-i"]),
+                        "tracked files, case-blind", len(found))
+        new = ledger.tag([hit for hit in found
+                          if (hit["file"], hit["line"]) not in seen_keys], query_id)
+        counter_checks.append({
+            "method": "case-blind pass over the class's own expressions",
+            "kind": "deterministic", "targeted_claims": [claim_id],
+            "new_nodes": ledger.add(klass, new, seed_reason, query_id),
+            "state": "complete", "classes": [klass],
+        })
+        return new, query_id
+
+    declared_done: dict[str, tuple] = {}
+    named_files: set[str] = set()
+    b1_derived: list[str] = []
+    # Set once per class, read by `record`. Holding it here rather than passing
+    # it to every call is what makes the rule unskippable.
+    site_state: dict[str, list[str]] = {"statuses": []}
+    b1_gap =(f"name forms not enumerated: {', '.join(unenumerated)}") if unenumerated else None
     boundaries: dict[str, dict] = {}
 
     def record(klass: str, status: str, method: str, hits: list[dict],
@@ -532,12 +695,15 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             if key not in placed:
                 placed.add(key)
                 unique.append(hit)
+        # Every row is finalized here, so the site rule cannot be skipped on
+        # one exit: a site an agent still has to read is not closure, and a
+        # site that is gone is a method that did not run. Worst status wins.
         row = {
             "class": klass,
-            "status": status,
+            "status": worst(status, *site_state["statuses"]),
             "method": method,
             "hits": len(unique),
-            "truncated": len(unique) > HIT_SAMPLE,
+            "truncated": len(unique) > HIT_CAP,
             "hit_ids": ledger.add(klass, unique, seed_reason),
         }
         reasons = [item for item in (reasons or []) if item]
@@ -555,22 +721,36 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         repository already stated its scope, and a registration naming only a
         wire form lives in a file no name form returns.
         """
+        if klass in declared_done:
+            return declared_done[klass]
         by_scope: dict[tuple[str, ...], list[str]] = {}
         for instance in instances:
             if instance.get("pattern"):
                 by_scope.setdefault(tuple(instance.get("paths") or []), []).append(
-                    instance["pattern"])
+                    expand(instance["pattern"], group(subject_terms),
+                           bounded_group(subject_terms)))
         hits: list[dict] = []
         universes: list[str] = []
         qids: list[str] = []
         for scope, patterns in by_scope.items():
             found = grep(repo, patterns, list(scope) or None)
             universe = f"declared paths {', '.join(scope)}" if scope else "tracked files"
-            qids.append(note(f"git grep -n -I -E <{klass} declared patterns>",
-                             universe, len(found)))
-            hits += found
+            qid = note(grep_command(patterns, list(scope) or None), universe, len(found))
+            qids.append(qid)
+            hits += ledger.tag(found, qid)
             universes.append(universe)
-        return hits, universes, qids
+            extra, counter_qid = counter_pass(
+                klass, patterns, list(scope) or None,
+                {(hit["file"], hit["line"]) for hit in found})
+            hits += extra
+            qids.append(counter_qid)
+        declared_done[klass] = (hits, universes, qids)
+        return declared_done[klass]
+
+    # B1's declared patterns widen the set every derived class searches, so
+    # they run before that set is frozen.
+    b1_hits += declared_searches("B1", declared.get("B1", []))[0]
+    named_files.update(hit["file"] for hit in b1_hits)
 
     for klass in ALL_CLASSES:
         instances = declared.get(klass, [])
@@ -585,20 +765,15 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         # the enumeration of those forms — same dependence as a filter class.
         inherits_b1 = scoped in ("filter", "registration", "subject")
 
+        site_state["statuses"] = ([] + (["judgment-only"] if live_sites else [])
+                                  + (["partial"] if site_gap else []))
+
         # A declared pattern runs beside whatever the class does on its own.
         extra_hits, extra_universes, extra_qids = declared_searches(klass, instances)
-        extra_method = ["declared instance patterns"] if extra_hits or extra_universes else []
-
-        # A class short-circuiting the generic tail owes the same site rule:
-        # a site an agent still has to read is not closure, and a site that is
-        # gone is a method that did not run.
-        def with_sites(status: str) -> str:
-            if live_sites:
-                return "judgment-only"
-            return "partial" if site_gap and status == "closed" else status
+        extra_method = ["declared instance patterns"] if extra_universes else []
 
         if klass == "B1":
-            record("B1", with_sites("partial" if b1_gap else "closed"),
+            record("B1", "partial" if b1_gap else "closed",
                    " + ".join([default["method"], *extra_method]), b1_hits + extra_hits,
                    reasons=[b1_gap, site_gap], mechanism=mechanism,
                    name_forms={s: forms[s] for s in subjects},
@@ -609,7 +784,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
         if klass == "B6":
             generated = block.get("generated") or []
-            if not generated and not extra_hits:
+            if not generated and not extra_universes:
                 record("B6", "unverified", "no generated paths declared", extra_hits,
                        reasons=["no enumeration method", site_gap], mechanism=mechanism,
                        universe="no generated paths declared", query_ids=extra_qids)
@@ -620,8 +795,10 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             hits, unread = walk_grep(repo, present, group(searched)) if present else ([], [])
             walk_qids = list(extra_qids)
             if present:
-                walk_qids.append(note("in-process walk of the declared generated paths",
-                                      "built output, tracked or not", len(hits)))
+                walk_query = note(f"in-process walk of {', '.join(present)}",
+                                  "built output, tracked or not", len(hits))
+                walk_qids.append(walk_query)
+                ledger.tag(hits, walk_query)
             unread_gap = f"{len(unread)} files unread: size or encoding — {sample(unread)}" \
                 if unread else None
             if absent:
@@ -630,7 +807,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 status, reason = "partial", None
             else:
                 status, reason = "closed", None
-            record("B6", with_sites(status),
+            record("B6", status,
                    " + ".join(["every name form in built generated output", *extra_method]),
                    hits + extra_hits, reasons=[reason, unread_gap, site_gap],
                    mechanism=mechanism, sites=live_sites or None, query_ids=walk_qids,
@@ -640,12 +817,15 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
         if klass == "B7":
             poms = block.get("reactor") or []
-            if not poms and not extra_hits:
+            if not poms and not extra_universes:
                 record("B7", "unverified", "no reactor manifests declared", extra_hits,
                        reasons=["no enumeration method", site_gap], mechanism=mechanism,
                        universe="no aggregator manifests declared", query_ids=extra_qids)
                 continue
             modules = reactor_modules(repo, poms)
+            parse_query = note(f"parse {', '.join(poms)}",
+                               "declared aggregator manifests",
+                               len(modules["declared"]))
             gaps = []
             if modules["missing_manifests"]:
                 gaps.append(f"reactor manifest missing: {sample(modules['missing_manifests'])}")
@@ -656,10 +836,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 gaps.append(
                     "reactor manifest of an unsupported kind: "
                     f"{sample(modules['unsupported_manifests'])}")
-            record("B7", with_sites("unverified" if gaps else "closed"),
+            record("B7", "unverified" if gaps else "closed",
                    " + ".join(["declared aggregator manifests parsed", *extra_method]),
                    extra_hits, reasons=[*gaps, site_gap], mechanism=mechanism,
-                   modules=modules, sites=live_sites or None, query_ids=extra_qids,
+                   modules=modules, sites=live_sites or None,
+                   query_ids=[parse_query, *extra_qids],
                    universe=", ".join(["declared aggregator manifests", *extra_universes]))
             continue
 
@@ -687,27 +868,32 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             methods.append(default["method"])
             universes.append("name-form hits filtered to paths")
             qids += name_query_ids
+            b1_derived.append(klass)
         elif default and default.get("patterns"):
             wanted = default.get("languages")
             if wanted and not (suffixes & set(wanted)):
                 language_gap = (f"pattern cannot match: no {default['language_label']} files "
                                 f"({', '.join(wanted[:4])})")
             else:
-                expressions = [
-                    pattern.format(simple=group(subject_terms)) if "{simple}" in pattern
-                    else pattern
-                    for pattern in default["patterns"]
-                ]
+                expressions = [expand(pattern, group(subject_terms),
+                                      bounded_group(subject_terms))
+                               for pattern in default["patterns"]]
+                keep = named_files if scoped == "registration" else None
                 found = grep(repo, expressions, None)
-                if scoped == "registration":
-                    found = [hit for hit in found if hit["file"] in named_files]
+                if keep is not None:
+                    found = [hit for hit in found if hit["file"] in keep]
                 universe = ("files that name the subject" if scoped == "registration"
                             else "tracked files")
-                qids.append(note(f"git grep -n -I -E <{klass} default patterns>",
-                                 universe, len(found)))
+                query_id = note(grep_command(expressions, None), universe, len(found))
+                qids.append(query_id)
+                hits += ledger.tag(found, query_id)
                 if scoped == "registration":
                     qids += name_query_ids
-                hits += found
+                extra, counter_qid = counter_pass(
+                    klass, expressions, None,
+                    {(hit["file"], hit["line"]) for hit in found}, keep)
+                hits += extra
+                qids.append(counter_qid)
                 methods.append(default["method"])
                 universes.append(universe)
 
@@ -717,20 +903,24 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                   "query_ids": qids, "sites": live_sites or None}
         method = " + ".join(methods) or "none"
 
-        if live_sites:
-            record(klass, "judgment-only", method, hits,
-                   reasons=[f"a site an agent reads: {', '.join(live_sites)}",
-                            site_gap, inherited], **common)
-        elif not methods and language_gap:
+        # A live site is a method too, so a class carrying only one is not an
+        # absence. `record` folds the site statuses in; this picks the base.
+        if not methods and not live_sites and language_gap:
             record(klass, "unverified", "default pattern only", hits,
                    reasons=[language_gap, site_gap], **common)
-        elif not methods:
+        elif not methods and not live_sites:
             record(klass, "unverified", "no default and no declared instance", hits,
                    reasons=["no enumeration method", site_gap], **common)
-        elif site_gap or inherited:
-            record(klass, "partial", method, hits, reasons=[site_gap, inherited], **common)
         else:
-            record(klass, "closed", method, hits, **common)
+            # A default pattern that cannot match any file kind here is a
+            # method that did not run, even where a declared one did.
+            record(klass, "partial" if (inherited or language_gap) else "closed",
+                   method, hits,
+                   reasons=[f"a site an agent reads: {', '.join(live_sites)}"
+                            if live_sites else None,
+                            site_gap, inherited, language_gap], **common)
+
+    second_check["classes"] = ["B1", *b1_derived]
 
     return {
         "run": {
@@ -742,7 +932,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "aliases": {subject: forms[subject] for subject in subjects},
             "inventory_hash": inventory_hash,
             "inventory_count": len(inventory),
-            "config": "declared" if block else "defaults only",
+            "config": config_stamp,
+            "design_phase": design_phase,
             "started": started,
             "finished": datetime.now(timezone.utc).isoformat(),
         },
@@ -780,6 +971,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--question")
     parser.add_argument("--alias", action="append", type=parse_alias, default=[])
     parser.add_argument("--config", default="auto")
+    parser.add_argument("--design-phase", action="store_true",
+                        help="this run feeds a design decision, not a report")
     parser.add_argument("--out", required=True)
     parser.add_argument("--traceback", action="store_true",
                         help="print the traceback of an unexpected failure")
@@ -792,8 +985,11 @@ def main(argv: list[str]) -> int:
 
     question = args.question or "seed map for " + ", ".join(args.subject)
     try:
-        block = load_config(repo, args.config)
-        result = seed(repo, args.subject, args.type, question, args.alias, block)
+        block, config_stamp = load_config(repo, args.config)
+        for warning in block_warnings(block):
+            sys.stderr.write(f"seed_map: {warning}\n")
+        result = seed(repo, args.subject, args.type, question, args.alias, block,
+                      config_stamp, args.design_phase)
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

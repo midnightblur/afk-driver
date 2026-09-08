@@ -27,6 +27,12 @@ _spec.loader.exec_module(validate_coverage)
 
 ALL = validate_coverage.ALL_CLASSES
 
+# The fixture's stable keys, computed the way the format defines them, so a
+# test never pins an id the validator would have to accept blindly.
+COMMAND = "git grep -n -I -E -e Widget"
+QUERY = validate_coverage.stable_id("q", COMMAND + "tracked files")
+CLAIM = validate_coverage.stable_id("c", "the path starts here")
+
 
 def ledger(**overrides) -> dict:
     """A minimal ledger that is structurally valid and fully closed."""
@@ -36,30 +42,35 @@ def ledger(**overrides) -> dict:
             "type": ["Q1"], "roots": ["Widget"], "aliases": {"Widget": []},
             "inventory_hash": "a" * 64, "inventory_count": 3,
             "started": "2026-01-01T00:00:00+00:00", "finished": "2026-01-01T00:01:00+00:00",
+            "design_phase": False, "config": {"path": "defaults", "sha256": "b" * 64},
         },
         "boundaries": [
             {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 1, "hit_ids": ["B1:alpha.java:2"], "query_ids": ["q-abcdef12"]},
+             "hits": 1, "hit_ids": ["B1:alpha.java:2"], "query_ids": [QUERY],
+             "universe": "tracked files"},
             *[
                 {"class": klass, "status": "closed", "method": "searched",
-                 "hits": 0, "hit_ids": []}
+                 "hits": 0, "hit_ids": [], "query_ids": [QUERY],
+                 "universe": "tracked files"}
                 for klass in ALL[1:]
             ],
         ],
         "nodes": [
             {"id": "B1:alpha.java:2", "class": "B1", "site": "alpha.java:2",
-             "disposition": "traced", "evidence": "the line", "parent": None},
+             "disposition": "traced", "evidence": "the line", "parent": None,
+             "query_id": QUERY},
             {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
              "disposition": "terminal", "evidence": "the write",
-             "parent": "B1:alpha.java:2"},
+             "parent": "B1:alpha.java:2", "query_id": QUERY},
         ],
-        "queries": [{"id": "q-abcdef12", "command": "git grep -e Widget",
+        "queries": [{"id": QUERY, "command": COMMAND,
                      "universe": "tracked files", "count": 1, "evidence": None}],
-        "claims": [{"id": "c1", "text": "the path starts here", "kind": "fact",
+        "claims": [{"id": CLAIM, "text": "the path starts here", "kind": "fact",
                     "load_bearing": True, "supporting_nodes": ["B1:alpha.java:2"],
                     "citations": ["alpha.java:2"]}],
         "counter_checks": [{"method": "a second name form", "kind": "deterministic",
-                            "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"}],
+                            "targeted_claims": [CLAIM], "new_nodes": [],
+                            "state": "complete", "classes": list(ALL)}],
     }
     document.update(overrides)
     return document
@@ -109,7 +120,7 @@ class ValidateCoverageTest(unittest.TestCase):
 
     def test_a_dangling_targeted_claim_is_a_defect(self):
         document = ledger()
-        document["counter_checks"][0]["targeted_claims"] = ["c9"]
+        document["counter_checks"][0]["targeted_claims"] = ["c-99999999"]
         defects, _ = self.check(document)
         self.assertTrue(any("targeted claim" in defect for defect in defects), defects)
 
@@ -143,7 +154,7 @@ class ValidateCoverageTest(unittest.TestCase):
         for node in document["nodes"]:
             node.update({"disposition": "unverified", "reason": "not yet triaged"})
         document["counter_checks"].append(
-            {"method": "the registration site", "kind": "agent", "targeted_claims": ["c1"],
+            {"method": "the registration site", "kind": "agent", "targeted_claims": [CLAIM],
              "new_nodes": [], "state": "complete"})
         defects, verdict = self.check(document)
         self.assertEqual(defects, [])

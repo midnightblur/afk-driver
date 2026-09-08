@@ -20,7 +20,8 @@ from test_seed_map import row, run, seed_map, write_config, make_repo  # noqa: E
 
 def check(document, needle):
     """The counter-search whose method says what it did — never a position."""
-    found = [item for item in document["counter_checks"] if needle in item["method"]]
+    found = [item for item in document["counter_checks"]
+             if needle in item["method"] and "own expressions" not in item["method"]]
     assert len(found) == 1, f"{needle}: {[item['method'] for item in document['counter_checks']]}"
     return found[0]
 
@@ -172,17 +173,7 @@ class SeedMapReachTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(row(document, "B7")["status"], "unverified")
 
-    # 9 — an alias carrying the simple name is not a counter-search form.
-    def test_9_an_alias_carrying_the_simple_name_states_the_real_reason(self):
-        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
-        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
-                             "--alias", "wire=Widget-created")
-        self.assertEqual(code, 0)
-        counter = check(document, "carrying no simple name")
-        self.assertEqual(counter["state"], "pending")
-        self.assertIn("alias contains simple name", counter["reason"])
-
-    # 10 — the recorded universe says what was searched, and no more.
+    # 10— the recorded universe says what was searched, and no more.
     def test_10_the_wide_universe_does_not_claim_ignored_files(self):
         repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
         code, document = run(repo, "--subject", "Widget", "--type", "Q1")

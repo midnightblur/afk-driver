@@ -35,7 +35,9 @@ one checker of everything below.
 | `aliases` | every name form, each `enumerated` true or false with its reason |
 | `inventory_hash` | sha256 over the tracked-file list |
 | `inventory_count` | how many files that list held |
-| `design_phase` | `true` when the caller is a design step; drives the counter-search requirement |
+| `design_phase` | boolean, never absent: `true` when the caller is a design step; drives the counter-search requirement |
+| `config` | the configuration behind the run: `{path, sha256}`, `path` being the repository-relative config file or the literal `defaults` |
+| `merged_from` | how many fragments were folded in; absent in an unmerged ledger |
 | `verdict` | `closed` · `closed-with-frontier` · `partial` — stamped from the validator's `VERDICT:` line, never by hand |
 | `started`, `finished` | ISO-8601 timestamps |
 
@@ -51,7 +53,7 @@ one checker of everything below.
 | `truncated` | `true` when `hits` is above the 200-node cap |
 | `status` | `closed` · `partial` · `n/a` · `frontier` · `unverified`, plus `judgment-only` at the seed and fragment stage |
 | `reason` | required for every status but `closed`; several gaps join with `; ` |
-| `universe` | what the method searched — paths, file kinds, or another class's hit set |
+| `universe` | required: what the method searched — paths, file kinds, or another class's hit set |
 | `query_ids` | the queries-table ids of the searches behind this row; a class searching another class's hit set points at that class's queries |
 | `sites` | the judgment-only sites this class still has to be read at |
 | `modules` | B7 only: the parsed module lists, and the manifests that were missing, unsupported, or unparsable |
@@ -60,8 +62,17 @@ one checker of everything below.
 `hits` equals `len(hit_ids)` unless `truncated` is true, and then `hits` is
 above the cap and `hit_ids` holds exactly the cap. Every id in `hit_ids` is in
 the nodes table and carries this row's class. One row per class, never two.
-A row `closed` or `partial` with hits names at least one `query_ids` entry, and
-every entry resolves in the queries table.
+
+The query rule, in three parts:
+
+- a row that is `closed` or `partial`, **or** that carries any hits under any
+  status, names at least one `query_ids` entry — unless it carries `sites`,
+  which says an agent closed it by reading rather than by searching;
+- every entry resolves in the queries table;
+- a row carrying hits cites at least one query that returned something, and the
+  counts over its cited queries sum to at least its `hits` — overlap makes the
+  sum larger, and nothing makes it smaller. A query of count 0 is the right
+  citation for a row of 0 hits: the absence is the result.
 
 Every class B1-B14 carries a row. A class with no enumeration method is
 `unverified` with reason `no enumeration method`. `partial` is the status of a
@@ -86,6 +97,7 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
 | `parent` | the node id this one was reached from; `null` for a root |
+| `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
 ### `queries` — one row per search
 
@@ -108,7 +120,15 @@ what it rests on.
 `targeted_claims` (claim ids; a `complete` row names at least one — a
 counter-search aimed at nothing broke nothing) · `new_nodes` (node ids it
 discovered; an empty list is the passing result) · `state` (`pending` ·
-`complete`) · `reason` (required when `pending`).
+`complete`) · `reason` (required when `pending`) · `classes` (the boundary
+classes this check covers).
+
+Coverage rule: every class whose status is `closed` or `partial` by a search
+names at least one `complete` counter-search listing it in `classes`, and that
+check's `method` differs from the class's own `method`. A class whose universe
+**is** another class's hit set is covered by that class's check listing it.
+A class resolved by judgment, closed by parsing rather than searching, or left
+`frontier`, `n/a` or `unverified` owes none.
 
 A method that cannot return anything the first pass missed is not a
 counter-search. Every run carries at least one `complete` row; Q2, Q3, Q5 and
@@ -155,12 +175,15 @@ An ordinal collides the moment two partitions merge, so every key is derived:
 
 | Table | Rule |
 |---|---|
-| `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations |
+| `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations. `merged_from` records how many were folded in |
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node |
-| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hits`, `hit_ids` and `query_ids` union |
+| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union. `hits` is `len(hit_ids)` after the union, except that a row any fragment marked `truncated` sums instead — capped lists cannot be unioned back into a count |
 | `claims` | by claim id; the id is the digest of the text, so equal ids are equal claims. `supporting_nodes` and `citations` union |
-| `queries` | by query id; duplicates dropped |
-| `counter_checks` | union by (`method`, `targeted_claims`); `pending` beats `complete` for the same pair |
+| `queries` | by query id; duplicates dropped, identical by construction |
+| `counter_checks` | by (`method`, `classes`): `new_nodes` and `targeted_claims` union, and `pending` beats `complete` |
+
+Fragment identity is `partition.id` plus `run.head`: the same partition of the
+same snapshot folded twice is one fragment, not two.
 
 ## REPORT.md
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from test_validate_coverage import ledger, only, validate_coverage  # noqa: E402
+from test_validate_coverage import CLAIM, QUERY, ledger, only, validate_coverage  # noqa: E402
 
 
 def q3_ready(document):
@@ -21,7 +21,7 @@ def q3_ready(document):
     document["run"]["type"] = ["Q3"]
     document["counter_checks"].append(
         {"method": "the registration site", "kind": "agent",
-         "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+         "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
     return document
 
 
@@ -49,9 +49,11 @@ class LedgerShapeTest(unittest.TestCase):
         document = ledger()
         document["nodes"] += [
             {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
-             "disposition": "terminal", "evidence": "the line", "parent": None}
+             "disposition": "terminal", "evidence": "the line", "parent": None,
+             "query_id": QUERY}
             for n in range(cap)
         ]
+        document["queries"][0]["count"] = 9999
         document = only(document, "B1", hits=9999, truncated=True,
                         hit_ids=[f"B1:bulk.java:{n}" for n in range(cap)])
         defects, _ = self.check(document)
@@ -79,7 +81,7 @@ class LedgerShapeTest(unittest.TestCase):
         document["run"]["type"] = ["Q3", "Q4"]
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent",
-             "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9"})
         defects, _ = self.check(document)
@@ -90,7 +92,7 @@ class LedgerShapeTest(unittest.TestCase):
         document["run"]["type"] = ["Q3", "Q4"]
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent",
-             "targeted_claims": ["c1"], "new_nodes": [], "state": "complete"})
+             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9",
                          "coverage_verdict": "test"})
@@ -105,7 +107,7 @@ class LedgerShapeTest(unittest.TestCase):
         self.assertEqual(defects, [])
         document["nodes"].append({"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
                                   "disposition": "traced", "evidence": "the line",
-                                  "parent": None})
+                                  "parent": None, "query_id": QUERY})
         defects, _ = self.check(document)
         self.assertTrue(any("beta.java:4" in defect for defect in defects), defects)
 
@@ -198,7 +200,7 @@ class LedgerShapeTest(unittest.TestCase):
         document = ledger()
         document["nodes"].append({"id": "B9:alpha.sql:1", "class": "B9", "site": "alpha.sql:1",
                                   "disposition": "terminal", "evidence": "the line",
-                                  "parent": None})
+                                  "parent": None, "query_id": QUERY})
         document = only(document, "B1", hits=1, hit_ids=["B9:alpha.sql:1"])
         defects, _ = self.check(document)
         self.assertTrue(any("its own class" in defect for defect in defects), defects)
@@ -220,8 +222,6 @@ class LedgerShapeTest(unittest.TestCase):
 
     def test_a_searched_row_query_id_must_resolve(self):
         document = ledger()
-        document["queries"] = [{"id": "q-11111111", "command": "git grep -e Widget",
-                                "universe": "tracked files", "count": 1, "evidence": None}]
         document = only(document, "B1", query_ids=["q-99999999"])
         defects, _ = self.check(document)
         self.assertTrue(any("q-99999999" in defect for defect in defects), defects)
