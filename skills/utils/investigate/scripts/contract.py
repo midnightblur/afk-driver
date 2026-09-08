@@ -25,7 +25,10 @@ STATUS_ORDER = ("unverified", "judgment-only", "partial", "frontier", "n/a", "cl
 
 
 def stable_id(prefix: str, text: str) -> str:
-    """A key stable across partitions — an ordinal collides when fragments merge."""
+    """A key stable across partitions — an ordinal collides when fragments merge.
+
+    What goes in `text` per table is `LEDGER-FORMAT.md` § "Stable keys".
+    """
     return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 

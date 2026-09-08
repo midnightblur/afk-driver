@@ -54,6 +54,27 @@ first released heading here.
   schema and its cross-references, refuses a seed-stage status in a published
   ledger and an uncited load-bearing claim, and prints the verdict the record
   supports — `closed`, `closed-with-frontier`, or `partial`.
+- **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
+  rules — snapshot identity, worst-status-wins, the truncation rule, the node
+  conflict rule, the counter-check union — ran as prose in the skill and now run
+  as a script. A fragment taken against another commit aborts the merge rather
+  than mixing two snapshots.
+- **The design chain verifies its claims by investigation.** A claim about this
+  repository is closed by an `/afk:investigate` run, not by a search:
+  `/afk:grill-requirements` spawns one per load-bearing claim and carries it as
+  a `pending` row until the ledger returns, `/afk:to-prd` refuses to synthesize
+  on a pending row, `/afk:grill-solution` closes each layer's premises before
+  the layer locks, and the L9 seam walk answers change impact with a Q2+Q3 run
+  per seam.
+- **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
+  cites the investigation that closed it, and a new bundled script resolves each
+  citation, validates that ledger, and refuses a design standing on a `partial`
+  one or on a load-bearing unverified claim. `/afk:to-subtasks` re-runs the same
+  gate before slicing.
+- **`/afk:execute` closes the ground before writing code.** A slice re-runs the
+  seed map over its seams and diffs the result against the ledger the design
+  cited; new hits get a delta tracer folded back in, and a `partial` verdict on
+  a load-bearing claim parks the subtask instead of guessing.
 - **`/afk:setup` opt-in H10: investigate code questions to closure.** A
   user-global steering block binding every session, in any repository, whether
   or not a plugin skill is running. Opt out by deleting the block.

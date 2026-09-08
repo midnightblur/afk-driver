@@ -45,6 +45,25 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
      `{Seam}ContractTest`) → same `contract_mismatch` — the compiler caught a
      signature drift the anchor string couldn't.
 
+## Ground diff — has the seam moved since it was investigated? (cited mode)
+
+The seam's investigation ledger is a snapshot of one commit; the branch has
+moved since. The diff, per `## Seams` symbol, costs no reading:
+
+```sh
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   --out <scratch>/ground-<symbol>.json
+```
+
+Compare its `hit_ids` against the `hit_ids` of the ledger the SDD §14 row
+cites. Equal → the ground has not moved; proceed. New ids → spawn one
+`afk-tracer` over **only** the new ids, then fold its fragment back:
+
+```sh
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py"   --staging <the cited ledger> --fragment <the delta fragment>   --out <scratch>/COVERAGE.json
+```
+
+Ledger grammar and merge rules: `skills/utils/investigate/LEDGER-FORMAT.md`.
+
 ## Step 9 — Producer self-preflight on `## Produces` (cited mode)
 
 9. **Before declaring success**, run from the worktree root:

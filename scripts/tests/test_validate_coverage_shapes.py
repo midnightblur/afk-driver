@@ -16,14 +16,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_validate_coverage import CLAIM, QUERY, ledger, only, validate_coverage  # noqa: E402
 
 
-def q3_ready(document):
-    """A Q3 run also needs its agent-driven counter-search to be legal."""
-    document["run"]["type"] = ["Q3"]
+READ_NODE = "B1:alpha.java:12"
+
+
+def agent_check(document):
+    """An agent-driven counter-search names the node it read."""
+    document["nodes"].append(
+        {"id": READ_NODE, "class": "B1", "site": "alpha.java:12",
+         "disposition": "terminal", "evidence": "the registration line",
+         "parent": None, "query_id": None, "impact_verdict": "unchanged",
+         "pinned_by": "unguarded", "coverage_verdict": "test"})
     document["counter_checks"].append(
         {"method": "the registration site", "kind": "agent",
          "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
-         "evidence_nodes": ["B1:alpha.java:2"]})
+         "evidence_nodes": [READ_NODE]})
     return document
+
+
+def q3_ready(document):
+    """A Q3 run also needs its agent-driven counter-search to be legal."""
+    document["run"]["type"] = ["Q3"]
+    return agent_check(document)
 
 
 class LedgerShapeTest(unittest.TestCase):
@@ -80,10 +93,7 @@ class LedgerShapeTest(unittest.TestCase):
     def test_15_a_combined_run_needs_both_verdict_fields(self):
         document = ledger()
         document["run"]["type"] = ["Q3", "Q4"]
-        document["counter_checks"].append(
-            {"method": "the registration site", "kind": "agent",
-             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
-         "evidence_nodes": ["B1:alpha.java:2"]})
+        agent_check(document)
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9"})
         defects, _ = self.check(document)
@@ -92,10 +102,7 @@ class LedgerShapeTest(unittest.TestCase):
     def test_15_both_verdict_fields_present_pass(self):
         document = ledger()
         document["run"]["type"] = ["Q3", "Q4"]
-        document["counter_checks"].append(
-            {"method": "the registration site", "kind": "agent",
-             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
-         "evidence_nodes": ["B1:alpha.java:2"]})
+        agent_check(document)
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9",
                          "coverage_verdict": "test"})

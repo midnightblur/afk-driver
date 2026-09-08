@@ -38,6 +38,7 @@ one checker of everything below.
 | `design_phase` | boolean, never absent: `true` when the caller is a design step; drives the counter-search requirement |
 | `config` | the configuration behind the run: `{path, sha256}`, `path` being the repository-relative config file or the literal `defaults` |
 | `merged_from` | how many fragments were folded in; absent in an unmerged ledger |
+| `config_warnings` | the declared mechanisms whose pattern matches every occurrence in the repository, so their hits are not about the subject; absent when there are none |
 | `verdict` | `closed` · `closed-with-frontier` · `partial` — stamped from the validator's `VERDICT:` line, never by hand |
 | `started`, `finished` | ISO-8601 timestamps |
 
@@ -199,6 +200,13 @@ An ordinal collides the moment two partitions merge, so every key is derived:
 - node: `{class}:{file}:{line}`
 - claim: `c-<sha1(text)[:8]>`
 - query: `q-<sha1(command + universe)[:8]>`
+
+`command` is the invocation written out, in the order it ran: the tool and
+its fixed flags, then the run's extra flags, then one `-e <expression>` per
+expression in the order the expressions were passed, then `--` and the
+pathspecs when there are any. Reordering the expressions is another
+invocation and another id; the same tuple always digests to the same id, so
+two fragments that ran one search carry one query row.
 
 ### Merging
 

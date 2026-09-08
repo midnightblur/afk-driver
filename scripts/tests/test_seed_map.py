@@ -58,8 +58,8 @@ def make_repo(files: dict, commit: bool = True) -> Path:
     return root
 
 
-def write_config(root: Path, body: str) -> Path:
-    path = root / "fixture-config.yaml"
+def write_config(root: Path, body: str, name: str = "fixture-config.yaml") -> Path:
+    path = root / name
     path.write_text("schema: 1\n" + body, encoding="utf-8")
     return path
 

@@ -218,9 +218,9 @@ If any row has `Blocks executor? = yes` in L2-L7 or L9, the design is NOT publis
 
 **Required visual:** table — one row per seam the design touches in existing code, from the L9 seam walk.
 
-| Seam (class/method/contract) | Existing contract (verified where) | Planned change | Impacted flows | Conventions / landmines | Verdict |
-|------------------------------|------------------------------------|----------------|----------------|-------------------------|---------|
+| Seam (class/method/contract) | Existing contract (INV-NNN) | Planned change | Impacted flows (INV-NNN) | Conventions / landmines | Verdict |
+|------------------------------|-----------------------------|----------------|--------------------------|-------------------------|---------|
 
-Every row's existing contract cites where it was verified (file); `Verdict` is `fits` / `extends (ADR-NNNN)` / `reworked`. Below the table, list each compatibility-audit finding that was **accepted** rather than resolved, with its rationale (resolved findings changed the design, need no entry). A §14 with an unverified contract or an unlisted accepted finding is not publishable.
+Every row's existing contract and impacted flows each cite the investigation that closed them, by its `INV-NNN` id; `Verdict` is `fits` / `extends (ADR-NNNN)` / `reworked`. Below the table, list each compatibility-audit finding that was **accepted** rather than resolved, with its rationale (resolved findings changed the design, need no entry). A §14 row whose citation does not resolve to a ledger the gate can read, or an unlisted accepted finding, is not publishable.
 
 </sdd-template>

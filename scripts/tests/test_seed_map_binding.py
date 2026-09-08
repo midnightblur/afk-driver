@@ -15,7 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from test_seed_map import row, run, seed_map, write_config, make_repo  # noqa: E402
+from test_seed_map import (row, run, seed_map, validate_coverage,  # noqa: E402
+                           write_config, make_repo)
 from test_seed_map_reach import check  # noqa: E402
 
 
@@ -304,6 +305,101 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertEqual(states.get("B10"), "pending")
         self.assertEqual(states.get("B9"), "complete")
         self.assertEqual(states.get("B3"), "complete")
+
+    # 3-A2 — the stamp is of the configuration that ran, not of the bytes it
+    # was written in: two files that resolve to one block are one search.
+    def test_the_config_stamp_hashes_the_resolved_block(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        block = ("investigation:\n"
+                 "  boundaries:\n"
+                 "    - name: doc-marker\n"
+                 "      class: B13\n"
+                 "      pattern: '{simple}'\n")
+        first = write_config(repo, block, name="first.yaml")
+        second = write_config(repo, "# a comment the reader drops\n" + block,
+                              name="second.yaml")
+        _, one = run(repo, "--subject", "Widget", "--type", "Q1", config=str(first))
+        _, two = run(repo, "--subject", "Widget", "--type", "Q1", config=str(second))
+        self.assertEqual(one["run"]["config"]["sha256"], two["run"]["config"]["sha256"])
+        self.assertNotEqual(one["run"]["config"]["path"], two["run"]["config"]["path"])
+
+    # 3-A7 — a class searching B1's hit set cites every search behind that
+    # set, so the nodes it carries are ones its own row accounts for.
+    def test_a_two_scope_config_produces_a_clean_ledger(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "notes/handbook.md": "the SPECIAL entry point\n",
+            "conf/service.yml": "marker: OTHERMARK\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: doc-mention\n"
+            "      class: B1\n"
+            "      pattern: 'SPECIAL'\n"
+            "      paths:\n"
+            "        - 'notes/*'\n"
+            "    - name: config-mention\n"
+            "      class: B1\n"
+            "      pattern: 'OTHERMARK'\n"
+            "      paths:\n"
+            "        - 'conf/*'\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             config=str(config))
+        self.assertEqual(code, 0)
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+
+    # 3-A3 — a seed-only run on a repository with the declared build graph and
+    # generated output states no defect; its gaps are honest ones.
+    def test_a_declared_build_graph_and_generated_output_validate(self):
+        repo = self.repo({
+            "pom.xml": ("<project><modules><module>alpha</module>"
+                        "</modules></project>\n"),
+            "alpha/pom.xml": "<project></project>\n",
+            "alpha/Widget.java": "class Widget {}\n",
+            "target/typescript/widget.ts": "export class Widget {}\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  generated:\n"
+            "    - target/typescript\n"
+            "  reactor:\n"
+            "    - pom.xml\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             config=str(config))
+        self.assertEqual(code, 0)
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(row(document, "B7")["status"], "closed")
+        self.assertEqual(row(document, "B6")["status"], "closed")
+
+    # 3-A4 — the query id is the digest of the invocation, so the same search
+    # collides across fragments and a different one does not.
+    def test_a_query_id_follows_the_invocation_it_names(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        _, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        for item in document["queries"]:
+            self.assertEqual(
+                item["id"],
+                seed_map.stable_id("q", item["command"] + item["universe"]))
+        first = seed_map.stable_id("q", "git grep -n -I -E -e 'A' -e 'B'" + "tracked files")
+        second = seed_map.stable_id("q", "git grep -n -I -E -e 'B' -e 'A'" + "tracked files")
+        self.assertNotEqual(first, second)
+        self.assertEqual(
+            first, seed_map.stable_id("q", "git grep -n -I -E -e 'A' -e 'B'" + "tracked files"))
+
+    # 3-A8 — the case-blind guard reads both spellings of the flag.
+    def test_a_case_blind_primary_owes_no_case_blind_counter(self):
+        self.assertFalse(seed_map.discriminating(["Widget"], ["-i"]))
+        self.assertFalse(seed_map.discriminating(["Widget"], ["--ignore-case"]))
+        self.assertTrue(seed_map.discriminating(["Widget"], []))
+
+    def test_a_letter_range_inside_brackets_counts_as_a_letter(self):
+        self.assertTrue(seed_map.discriminating(["[a-z]+"], []))
+        self.assertFalse(seed_map.discriminating(["[Ww][Ii]"], []))
 
     # B2 — a node found by a search names the search that found it.
     def test_every_seed_node_names_its_query(self):

@@ -109,9 +109,11 @@ gate_ctx_build() {
     AFK_CTX_HASHES+="${_paths[$_i]}"$'\t'"${_hashes[$_i]:-?}"$'\n'
   done
 
-  # The wiring IOU ledger is gitignored, so `git status` never lists it — yet
-  # its content flips wiring verdicts (deleting a waive/IOU line must bust both
-  # the Stop stamp and wiring's pass cache). Fold it into the digest directly.
+  # The wiring IOU ledger is tracked through a negation inside an ignored
+  # directory, and its content flips wiring verdicts (deleting a waive/IOU line
+  # must bust both the Stop stamp and wiring's pass cache). Fold it into the
+  # digest directly, so the verdict never rides on how the change set was
+  # scoped.
   local ledger_body=""
   [ -f .claude/wiring-ious.md ] && ledger_body=$(<.claude/wiring-ious.md)
 

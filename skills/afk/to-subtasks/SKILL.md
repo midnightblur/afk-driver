@@ -51,6 +51,8 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
    - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, §13 `Blocks executor? = yes` rule, and not-a-blocker exclusions.
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
 
+   - **Seam investigations** — re-run `/afk:to-sdd`'s seam-investigation gate (`${AFK_PLUGIN_ROOT}/skills/afk/to-sdd/scripts/check_sdd_investigations.py --sdd <spec dir>/SDD.md`); exit 1 refuses, printing what it named.
+
    Run both scans via `afk-reader` — the same child that built step 1's citation pool, or a second spawned in parallel in the same message — returning pass/fail + cited hits, per `DELEGATION.md` (plugin root).
 
    Uncited mode skips this gate — the human accepted the PRD as sole source of truth.

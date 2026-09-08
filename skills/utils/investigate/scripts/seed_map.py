@@ -141,6 +141,9 @@ REASON_SAMPLE = 5
 # anything else is reported, never guessed at (`CONFIG.md` § Investigation).
 REACTOR_SUFFIXES = (".xml",)
 
+# Both spellings git accepts for a case-blind pass.
+CASE_BLIND = {"-i", "--ignore-case"}
+
 
 class GitError(RuntimeError):
     """A git invocation failed for a reason that is not `no match`."""
@@ -185,6 +188,15 @@ def outside_brackets(pattern: str) -> str:
         if character == "\\":
             index += 2
             continue
+        if inside and character != "]":
+            # A range like `a-z` is widened by a case-blind pass, so its
+            # letters count; `[Ww]` spells its cases and does not.
+            if (character == "-" and kept is not None and index + 1 < len(pattern)
+                    and pattern[index - 1].isascii() and pattern[index - 1].isalpha()
+                    and pattern[index + 1].isascii() and pattern[index + 1].isalpha()):
+                kept.append(pattern[index + 1])
+            index += 1
+            continue
         if not inside:
             if character == "[":
                 inside = True
@@ -201,6 +213,20 @@ def outside_brackets(pattern: str) -> str:
             inside = False
         index += 1
     return "".join(kept)
+
+
+def discriminating(patterns: list[str], primary_extra: list[str] | None) -> bool:
+    """Whether a case-blind rerun can return what the primary could not.
+
+    It cannot when the primary already ran case-blind, and it cannot when the
+    expressions pin no letter — a digit class matches the same text either
+    way. Both are the same pass twice.
+    """
+    if set(primary_extra or []) & CASE_BLIND:
+        return False
+    return any(character.isascii() and character.isalpha()
+               for pattern in patterns
+               for character in outside_brackets(pattern))
 
 
 def block_warnings(block: dict) -> list[str]:
@@ -229,8 +255,10 @@ def block_warnings(block: dict) -> list[str]:
 def load_config(repo: Path, where: str) -> tuple[dict, dict]:
     """Read and validate the effective config through the one config reader.
 
-    Returns the investigation block and the stamp of the file behind it, so a
-    ledger says which configuration produced it.
+    Returns the investigation block and its stamp, so a ledger says which
+    configuration produced it. The stamp hashes the resolved block, not the
+    bytes it was written in: two files that resolve to one block are one
+    search, and a comment is not a different investigation.
     """
     root = plugin_root()
     spec = importlib.util.spec_from_file_location(
@@ -245,7 +273,6 @@ def load_config(repo: Path, where: str) -> tuple[dict, dict]:
         found = next((repo / name for name in (".afk/config.yaml", ".afk/config.yml")
                       if (repo / name).is_file()), None)
         source = str(found.relative_to(repo).as_posix()) if found else "defaults"
-        raw = found.read_bytes() if found else b""
     else:
         path = Path(where)
         try:
@@ -253,13 +280,15 @@ def load_config(repo: Path, where: str) -> tuple[dict, dict]:
         except OSError as problem:
             raise ConfigError(f"cannot read {path}: {problem}") from problem
         config = module.deep_merge(dict(module.DEFAULTS), module.parse(text, str(path)))
-        source, raw = str(path), text.encode("utf-8")
+        source = str(path)
     problems = module.validate(config, repo)
     if problems:
         raise ConfigError("; ".join(problems))
     block = config.get("investigation")
-    stamp = {"path": source, "sha256": hashlib.sha256(raw).hexdigest()}
-    return (block if isinstance(block, dict) else {}), stamp
+    block = block if isinstance(block, dict) else {}
+    resolved = json.dumps(block, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    stamp = {"path": source, "sha256": hashlib.sha256(resolved).hexdigest()}
+    return block, stamp
 
 
 def name_forms(subject: str, aliases: list[tuple[str, str]]) -> list[dict]:
@@ -417,6 +446,24 @@ def reactor_modules(repo: Path, poms: list[str]) -> dict:
         "unsupported_manifests": unsupported,
         "unparsable_manifests": unparsable,
     }
+
+
+def sibling_modules(repo: Path, poms: list[str]) -> list[str]:
+    """The module directories the tree holds beside each declared manifest.
+
+    The build graph's counter-method: the parse reads what a manifest says,
+    this reads what the tree carries. A directory holding a manifest of its
+    own that the parse never named is a module the declared list left out.
+    """
+    found: list[str] = []
+    for pom in poms:
+        target = repo / pom
+        if not target.is_file():
+            continue
+        for child in sorted(path for path in target.parent.iterdir() if path.is_dir()):
+            if (child / target.name).is_file() and child.name not in found:
+                found.append(child.name)
+    return found
 
 
 def build_class_map(block: dict) -> dict[str, list[dict]]:
@@ -680,21 +727,6 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     }
     counter_checks.append(second_check)
 
-    def discriminating(patterns: list[str], primary_extra: list[str] | None) -> bool:
-        """Whether a case-blind rerun can return what the primary could not.
-
-        It cannot when the primary already ran case-blind, and it cannot when
-        the expressions hold no literal letter outside a bracket expression —
-        a digit class matches the same text either way, and a letter inside
-        brackets is already written in the cases it accepts. Both are the same
-        pass twice.
-        """
-        if "-i" in (primary_extra or []):
-            return False
-        return any(character.isascii() and character.isalpha()
-                   for pattern in patterns
-                   for character in outside_brackets(pattern))
-
     def counter_pass(klass: str, patterns: list[str], pathspecs: list[str] | None,
                      seen_keys: set, keep: set | None = None,
                      primary_extra: list[str] | None = None
@@ -792,7 +824,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         universes: list[str] = []
         qids: list[str] = []
         for scope, patterns in by_scope.items():
-            found = grep(repo, patterns, list(scope) or None)
+            primary_extra: list[str] = []
+            found = grep(repo, patterns, list(scope) or None, extra=primary_extra)
             universe = f"declared paths {', '.join(scope)}" if scope else "tracked files"
             qid = note(grep_command(patterns, list(scope) or None), universe, len(found))
             qids.append(qid)
@@ -800,7 +833,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             universes.append(universe)
             extra, counter_qid = counter_pass(
                 klass, patterns, list(scope) or None,
-                {(hit["file"], hit["line"]) for hit in found})
+                {(hit["file"], hit["line"]) for hit in found},
+                primary_extra=primary_extra)
             hits += extra
             if counter_qid:
                 qids.append(counter_qid)
@@ -809,8 +843,10 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
     # B1's declared patterns widen the set every derived class searches, so
     # they run before that set is frozen.
-    b1_hits += declared_searches("B1", declared.get("B1", []))[0]
+    b1_declared_hits, _, b1_declared_qids = declared_searches("B1", declared.get("B1", []))
+    b1_hits += b1_declared_hits
     named_files.update(hit["file"] for hit in b1_hits)
+    b1_query_ids = name_query_ids + b1_declared_qids
 
     for klass in ALL_CLASSES:
         instances = declared.get(klass, [])
@@ -861,15 +897,36 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 ledger.tag(hits, walk_query)
             unread_gap = f"{len(unread)} files unread: size or encoding — {sample(unread)}" \
                 if unread else None
+            unbuilt_gap = None
+            if present:
+                # The counter-method: the index says what belongs under these
+                # paths, the walk says what is there to read. A tracked file
+                # the walk never saw is one nobody searched.
+                listed = [line for line in
+                          git(repo, "ls-files", "--", *present).splitlines() if line]
+                gone = [name for name in listed if not (repo / name).exists()]
+                list_query = note(f"git ls-files -- {', '.join(present)}",
+                                  "tracked files under the declared generated paths",
+                                  len(listed))
+                walk_qids.append(list_query)
+                counter_checks.append({
+                    "method": "the tracked file list of the generated paths, "
+                              "against the walk that read them",
+                    "kind": "deterministic", "targeted_claims": [claim_id],
+                    "new_nodes": [], "state": "complete", "classes": ["B6"],
+                    "query_ids": [list_query],
+                })
+                if gone:
+                    unbuilt_gap = f"tracked but not on disk: {sample(gone)}"
             if absent:
                 status, reason = "frontier", f"unbuilt: {sample(absent)}"
-            elif unread_gap or site_gap:
+            elif unread_gap or site_gap or unbuilt_gap:
                 status, reason = "partial", None
             else:
                 status, reason = "closed", None
             record("B6", status,
                    " + ".join(["every name form in built generated output", *extra_method]),
-                   hits + extra_hits, reasons=[reason, unread_gap, site_gap],
+                   hits + extra_hits, reasons=[reason, unread_gap, unbuilt_gap, site_gap],
                    mechanism=mechanism, sites=live_sites or None, query_ids=walk_qids,
                    universe=", ".join(["declared generated paths, read in process",
                                        *extra_universes]))
@@ -896,11 +953,26 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 gaps.append(
                     "reactor manifest of an unsupported kind: "
                     f"{sample(modules['unsupported_manifests'])}")
-            record("B7", "unverified" if gaps else "closed",
-                   " + ".join(["declared aggregator manifests parsed", *extra_method]),
-                   extra_hits, reasons=[*gaps, site_gap], mechanism=mechanism,
+            # The counter-method: what the tree holds beside each manifest,
+            # against what the manifest declares.
+            siblings = sibling_modules(repo, poms)
+            tree_query = note(f"list the directories beside {', '.join(poms)}",
+                              "directories holding a manifest of their own",
+                              len(siblings))
+            counter_checks.append({
+                "method": "the module directories the tree holds beside the manifests",
+                "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
+                "state": "complete", "classes": ["B7"], "query_ids": [tree_query],
+            })
+            undeclared = [name for name in siblings if name not in modules["declared"]]
+            undeclared_gap = (f"module directories no manifest declares: {sample(undeclared)}"
+                              if undeclared else None)
+            record("B7", "unverified" if gaps else ("partial" if undeclared_gap else "closed"),
+                   " + ".join(["declared aggregator manifests parsed",
+                               "the module directories beside them", *extra_method]),
+                   extra_hits, reasons=[*gaps, undeclared_gap, site_gap], mechanism=mechanism,
                    modules=modules, sites=live_sites or None,
-                   query_ids=[parse_query, *extra_qids],
+                   query_ids=[parse_query, tree_query, *extra_qids],
                    universe=", ".join(["declared aggregator manifests", *extra_universes]))
             continue
 
@@ -927,7 +999,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             hits += [hit for hit in b1_hits if matches_any(hit["file"], specs)]
             methods.append(default["method"])
             universes.append("name-form hits filtered to paths")
-            qids += name_query_ids
+            qids += b1_query_ids
             b1_derived.append(klass)
         elif default and default.get("patterns"):
             wanted = default.get("languages")
@@ -939,7 +1011,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                                       bounded_group(subject_terms))
                                for pattern in default["patterns"]]
                 keep = named_files if scoped == "registration" else None
-                found = grep(repo, expressions, None)
+                primary_extra = []
+                found = grep(repo, expressions, None, extra=primary_extra)
                 if keep is not None:
                     found = [hit for hit in found if hit["file"] in keep]
                 universe = ("files that name the subject" if scoped == "registration"
@@ -948,10 +1021,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 qids.append(query_id)
                 hits += ledger.tag(found, query_id)
                 if scoped == "registration":
-                    qids += name_query_ids
+                    qids += b1_query_ids
                 extra, counter_qid = counter_pass(
                     klass, expressions, None,
-                    {(hit["file"], hit["line"]) for hit in found}, keep)
+                    {(hit["file"], hit["line"]) for hit in found}, keep,
+                    primary_extra=primary_extra)
                 hits += extra
                 if counter_qid:
                     qids.append(counter_qid)
@@ -1047,10 +1121,15 @@ def main(argv: list[str]) -> int:
     question = args.question or "seed map for " + ", ".join(args.subject)
     try:
         block, config_stamp = load_config(repo, args.config)
-        for warning in block_warnings(block):
+        warnings = block_warnings(block)
+        for warning in warnings:
             sys.stderr.write(f"seed_map: {warning}\n")
         result = seed(repo, args.subject, args.type, question, args.alias, block,
                       config_stamp, args.design_phase)
+        # A pattern that matches everything returns hits that are not about the
+        # subject; the record says so, so a reader can triage them last.
+        if warnings:
+            result["run"]["config_warnings"] = warnings
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

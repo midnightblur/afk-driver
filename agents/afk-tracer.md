@@ -29,6 +29,7 @@ Hard rules:
   `sites` and no `query_ids`, its `method` names the read, and every site it
   names carries a node you read it into. A site with no such node keeps the
   boundary `judgment-only`.
+- **Triage a class `run.config_warnings` names last.** Its pattern matches every occurrence in the repository, so most of its hits are not about the subject.
 - **Your fragment declares its partition** (`partition.id`, `partition.classes`, `partition.seed`) and omits the classes outside it. Merge keys and the conflict rule are the caller's; write the ids the format defines and nothing else.
 - **Truth-grounding bar.** Every claim meets `LANGUAGE.md` § "Truth grounding": cited to `file:line` or to a command and its output; anything unchecked returned as `unverified: <reason>`; an absence claim states what was enumerated.
 - **Spawn `afk-reader` leaves only when the caller states depth ≤ 2**, one per module, in one message. Otherwise run that reading inline (`CAPABILITIES.md`, `nesting`).

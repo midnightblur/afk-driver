@@ -18,7 +18,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 
 ## Requirements grill
 
-- Ledger: {claim} → verified ({where}) | refuted ({where}) | unverified-external (user acknowledged)
+- Ledger: {claim} → pending (INV-NNN) | verified (INV-NNN) | refuted (INV-NNN) | unverified-external (user acknowledged)
 - Staples: {staple} → in|out — {one-clause why}
 - Settled: {decision, one line each, as they lock}
 - Spinoffs: {spinoff row — grammar below}
@@ -26,7 +26,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 
 ## Solution grill
 
-- Locked: L1 {one-line decision} | inherited
+- Locked: L1 {one-line decision} (INV-NNN, …) | inherited
 - … one row per layer as it locks (L1–L9)
 - Seams (L9): {seam} → {verdict: fits | extends (ADR-candidate) | reworked}
 - Signoff: {signoff row — grammar below}

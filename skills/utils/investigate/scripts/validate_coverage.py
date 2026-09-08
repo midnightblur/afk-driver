@@ -47,7 +47,7 @@ KEYS = {
     "top": set(TABLES) | {"partition"},
     "run": {"repository", "head", "question", "type", "roots", "aliases", "inventory_hash",
             "inventory_count", "design_phase", "verdict", "started", "finished",
-            "config", "merged_from"},
+            "config", "merged_from", "config_warnings"},
     "boundaries": {"class", "status", "method", "hits", "truncated", "hit_ids", "query_ids",
                    "mechanism", "reason", "universe", "sites", "modules", "name_forms"},
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
@@ -203,7 +203,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             defects.append(f"{where}: {disposition!r} is not a disposition")
         if disposition in NEED_REASON and not row.get("reason"):
             defects.append(f"{where}: disposition {disposition} needs a reason")
-        if disposition != "unverified" and not row.get("evidence"):
+        if disposition != "unverified" and not str(row.get("evidence") or "").strip():
             defects.append(f"{where}: disposition {disposition} needs evidence")
         if disposition == "unverified":
             open_nodes += 1
@@ -267,13 +267,15 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         for row in nodes
         if isinstance(row.get("site"), str) and row.get("query_id") is None
         and row.get("disposition") in ("traced", "terminal", "irrelevant")
-        and row.get("evidence")
+        and str(row.get("evidence") or "").strip()
     }
 
     # Which nodes carry evidence, so a check claiming it read one can be held
     # to a node that records the reading.
-    node_evidence = {row["id"]: bool(row.get("evidence"))
+    node_evidence = {row["id"]: bool(str(row.get("evidence") or "").strip())
                      for row in nodes if isinstance(row.get("id"), str)}
+    read_node_ids = {row["id"] for row in nodes
+                     if isinstance(row.get("id"), str) and row.get("query_id") is None}
 
     searched: dict[str, str] = {}
     for row in rows_of(defects, ledger, "boundaries"):
@@ -327,7 +329,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         # query rule and the counter-search rule, so it is checked against the
         # rest of the row: a read names a read and produced no query, and a row
         # that produced queries did not close by reading.
-        by_reading = bool(row.get("sites"))
+        by_reading = isinstance(row.get("sites"), list) and bool(row.get("sites"))
         method = row.get("method")
         method_reads = (isinstance(method, str)
                         and method.strip().lower().startswith(("read", "judgment")))
@@ -350,6 +352,12 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 # A site is a path or a `path:line`; a node under it is the
                 # same path, not another path that merely starts the same way.
                 prefix = str(site)
+                if prefix.endswith("/") or prefix.endswith("\\"):
+                    defects.append(
+                        f"{where}: site {site!r} is a directory; a site is one file, and a "
+                        "directory to search belongs in the instance's `paths`"
+                    )
+                    continue
                 if not any(read_nodes.get(node_site) for node_site in read_nodes
                            if node_site == prefix
                            or node_site.startswith(prefix + ":")
@@ -495,7 +503,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             # rather than an absence of work.
             cited = [item for item in (row.get("query_ids") or []) if item in query_index]
             read = [item for item in (row.get("evidence_nodes") or [])
-                    if node_evidence.get(item)]
+                    if node_evidence.get(item) and item in read_node_ids]
             if row.get("kind") == "agent":
                 if not read:
                     defects.append(

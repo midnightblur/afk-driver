@@ -25,15 +25,22 @@ This skill is the single writer of the ledger. Tracers return fragments; only th
    It enumerates every boundary class it has a method for and marks the rest
    `unverified(no enumeration method)`. Pass every name form you already know
    as `--alias FORM=VALUE` — a wire or serialized name is chosen at the site,
-   and an unsearched form keeps B1 short of closed. No `investigation:` block
-   Pass `--design-phase` when the answer feeds a design decision: that run owes
-   an agent-driven counter-search, and the validator asks for it. No
-   `investigation:` block
-   in the repository's `.afk/config.yaml` → the generic defaults run alone; say
-   so in the reply and name the fix: declare `investigation:` in
+   and an unsearched form keeps B1 short of closed. Pass `--design-phase` when
+   the answer feeds a design decision: that run owes an agent-driven
+   counter-search, and the validator asks for it. No `investigation:` block in
+   the repository's `.afk/config.yaml` → the generic defaults run alone; say so
+   in the reply and name the fix: declare `investigation:` in
    `.afk/config.yaml` (schema: `${AFK_PLUGIN_ROOT}/CONFIG.md`).
 4. **Fan out.** Apply the proportionality rule (`INVESTIGATION.md` § "Proportionality"). Cluster the seed map's hits by module and boundary, then spawn one `afk-tracer` per cluster **in one message** — or one tracer for the whole run when the rule does not call for fan-out. Each spawn carries: the repository root, the question, its types, the path to its slice of the seed map, the fragment output path, and one sentence stating the nesting depth it may use. Arm the stall watchdog (`${AFK_PLUGIN_ROOT}/DELEGATION.md` § "Stall watchdog").
-5. **Merge and reopen.** Fold every fragment into one staging ledger by the merge keys in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Tracer fragments". A node a fragment discovered that no boundary covered, and every `judgment-only` class left, reopens the queue: spawn a delta tracer. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
+5. **Merge and reopen.** Fold every fragment into the staging ledger:
+
+   ```sh
+   python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py" \
+     --staging <scratch>/seed.json --fragment <scratch>/fragment-1.json \
+     [--fragment ...] --out <scratch>/COVERAGE.json
+   ```
+
+   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, and every `judgment-only` class left, reopens the queue: spawn a delta tracer and fold its fragment the same way. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
 6. **Validate the staging copy.** Before publishing anything:
 
    ```sh

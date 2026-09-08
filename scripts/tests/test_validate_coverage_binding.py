@@ -303,20 +303,20 @@ class LedgerBindingTest(unittest.TestCase):
                             for defect in defects), defects)
 
     def test_a_complete_agent_check_naming_a_node_it_read_is_valid(self):
-        document = ledger()
+        document = read_evidence(ledger(), "B1")
         document["counter_checks"][0].update(
             {"kind": "agent", "query_ids": [],
-             "evidence_nodes": ["B1:alpha.java:9"]})
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
     def test_a_complete_agent_check_naming_an_evidence_free_node_is_a_defect(self):
-        document = ledger()
-        document["nodes"][1].update({"disposition": "unverified",
-                                     "reason": "not read", "evidence": None})
+        document = read_evidence(ledger(), "B1")
+        document["nodes"][-1].update({"disposition": "unverified",
+                                      "reason": "not read", "evidence": None})
         document["counter_checks"][0].update(
             {"kind": "agent", "query_ids": [],
-             "evidence_nodes": ["B1:alpha.java:9"]})
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
         defects, _ = self.check(document)
         self.assertTrue(any("counter_checks[0]" in defect for defect in defects), defects)
 
@@ -338,6 +338,35 @@ class LedgerBindingTest(unittest.TestCase):
         document["claims"][0]["citations"] = [{"file": "alpha.java"}]
         defects, _ = self.check(document)
         self.assertTrue(any("citation" in defect for defect in defects), defects)
+
+    # 3-A8 — a field that is present but says nothing is not evidence, and a
+    # field of the wrong shape is a defect line rather than a traceback.
+    def test_blank_evidence_does_not_disposition_a_node(self):
+        document = ledger()
+        document["nodes"][1]["evidence"] = "   "
+        defects, _ = self.check(document)
+        self.assertTrue(any("evidence" in defect for defect in defects), defects)
+
+    def test_an_agent_checks_evidence_node_carries_no_query(self):
+        document = ledger()
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "evidence_nodes": ["B1:alpha.java:9"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("counter_checks[0]" in defect and "read" in defect
+                            for defect in defects), defects)
+
+    def test_a_sites_field_that_is_not_a_list_is_a_defect(self):
+        document = only(ledger(), "B3", sites=True, method="read the declared site",
+                        query_ids=[])
+        defects, _ = self.check(document)
+        self.assertTrue(any("sites" in defect for defect in defects), defects)
+
+    def test_a_directory_site_is_a_defect(self):
+        document = read_closed(ledger(), "B3")
+        document = only(document, "B3", sites=["alpha/"],
+                        method="read the declared site", query_ids=[])
+        defects, _ = self.check(document)
+        self.assertTrue(any("paths" in defect for defect in defects), defects)
 
     # B6 — one cap, not two literals.
     def test_the_cap_is_one_constant(self):
