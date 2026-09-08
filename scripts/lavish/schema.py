@@ -50,12 +50,45 @@ REQUIRED = {
 LIST_FIELDS = ("settled_last_round", "unlocks", "touches", "parked",
                "blast_radius", "risks", "tables")
 
+# Optional fields per component, beside the required ones above. Together with
+# `COMMON_ITEM` and the three key sets below these close the document: anything
+# else is a typo, and a typo that renders is a field the author thinks they
+# wrote. `depends_on` is legal on every card but a decided one, which carries
+# its own inside `scope`.
+OPTIONAL = {
+    "round_header": ("target", "size_note", "parked", "links"),
+    "decided_card": ("context", "provisional_on"),
+    "debate_card": ("context", "third_paradigm"),
+    "confirm_row": ("context", "alternatives"),
+    "signoff_packet": (),
+    "settled_card": ("audit",),
+}
+
+COMMON_ITEM = ("component", "id", "state", "fresh")
+DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir")
+ROUND_KEYS = ("round", "state", "items", "header")
+
 # The six decided-card contract fields, in render order (C-1 … C-6).
 DECIDED_CONTRACT = ("decision", "alternatives", "evidence", "why_beat", "reverse", "scope")
 
 
 class ContractError(Exception):
     """A violation the renderer refuses to render around."""
+
+
+def _reject_unknown(label, mapping, known):
+    """Refuse any key outside `known`, naming it.
+
+    A key the renderer does not read is a key the author believes they wrote:
+    `contex` renders a card with no explanation and no complaint, and the
+    author only finds out in front of the human. Same class as a half-render —
+    the failure nobody is told about is the expensive one.
+    """
+    unknown = sorted(k for k in mapping if k not in known)
+    if unknown:
+        raise ContractError("%s: unknown field %s (known: %s)"
+                            % (label, ", ".join(repr(k) for k in unknown),
+                               ", ".join(sorted(known))))
 
 
 def _empty(value):
@@ -195,6 +228,15 @@ def _check_item(item, round_state, seen_ids):
         item["fresh"] = round_state == "current" and state != "settled"
 
     label = "item %r (%s)" % (item_id, component)
+    known = set(COMMON_ITEM)
+    known.update(REQUIRED.get(component, ()))
+    known.update(OPTIONAL.get(component, ()))
+    if component != "decided_card":
+        known.add("depends_on")
+    else:
+        known.update(DECIDED_CONTRACT)
+    _reject_unknown(label, item, known)
+
     if component == "decided_card":
         # The six-field verdict waits for `_resolve_ids`: `scope.depends_on`
         # may name an item this pass has not reached yet.
@@ -237,6 +279,16 @@ def _check_header(header, number):
     if not isinstance(header, dict):
         raise ContractError("round %d: the current round needs a `header` (round_header)"
                             % number)
+    # `component: round_header` is legal here and does nothing: the header is
+    # addressed by position, but the contract calls it a component, so an author
+    # writes the tag. Legal and wrong-valued are different — a tag naming another
+    # component means the author put the wrong object here.
+    _reject_unknown("round %d header" % number, header,
+                    set(REQUIRED["round_header"]) | set(OPTIONAL["round_header"])
+                    | {"component"})
+    if header.get("component") not in (None, "round_header"):
+        raise ContractError("round %d header: `component` says %r; a round's header is a "
+                            "round_header" % (number, header.get("component")))
     _require_fields("round_header", header, "round %d header" % number)
     if header.get("round") != number:
         raise ContractError("round %d header says round %r" % (number, header.get("round")))
@@ -254,6 +306,7 @@ def load(doc):
     if doc.get("schema") != 1:
         raise ContractError("unsupported `schema` %r — this renderer speaks schema 1"
                             % doc.get("schema"))
+    _reject_unknown("document", doc, DOCUMENT_KEYS)
     for field in ("feature", "purpose", "rounds"):
         if _empty(doc.get(field)):
             raise ContractError("document: required field %r is missing or empty" % field)
@@ -270,6 +323,7 @@ def load(doc):
     for rnd in rounds:
         if not isinstance(rnd, dict):
             raise ContractError("every round must be a JSON object")
+        _reject_unknown("round %r" % rnd.get("round"), rnd, ROUND_KEYS)
         state = rnd.get("state")
         if state not in ROUND_STATES:
             raise ContractError("round state %r not one of %s"

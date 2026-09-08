@@ -49,6 +49,11 @@ first released heading here.
   stays, because it is what makes a decision auditable. Batching is untouched: a
   round may carry as many cards as it needs and one send answers them all.
 
+- **An unknown key in a round document is now a hard exit naming it.** The
+  renderer used to ignore any field it did not read, so a misspelt `contex`
+  rendered a card with no explanation and no complaint and the author found out
+  in front of the human. Every level is closed — document, round, header, card.
+
 - **An ADR records who decided it and who audited it.** The status line gains
   `Decided by agent` and an `Audited:` date, so a record the agent minted from
   its own decision stays visibly unreviewed until a human reads it and stamps

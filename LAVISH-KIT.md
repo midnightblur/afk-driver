@@ -99,8 +99,8 @@ still true when the audit trail is not.
 |---|---|
 | `touches[].anchor` | rendered as code text, never a link — an anchor is `file#symbol`, which no browser resolves from the artifact. Write it for a human to read and search |
 | `links[].href` | rendered as an `<a href>` verbatim; a relative path resolves against the artifact's own location. Unverified at render — a wrong path fails only when clicked |
-| `depends_on[]` on any card | **validated**: every id must name an item in the artifact, and a card may point forward at a later item or a later round. An id naming nothing is a hard exit |
-| `scope.depends_on[]` on a decided card | **validated** the same way, but as part of C-6: a decided card pointing at nothing degrades rather than failing the render |
+| `depends_on[]` on any card but a decided one | **validated**: every id must name an item in the artifact, and a card may point forward at a later item or a later round. An id naming nothing is a hard exit |
+| `scope.depends_on[]` — where a decided card carries its dependencies | **validated** the same way, but as part of C-6: a decided card pointing at nothing degrades rather than failing the render |
 | `why_beat.runner_up_id` | validated against that card's own `alternatives[]`, not against the artifact |
 | `settled_card.evidence` | free prose, no shape and no validation. It records **what settled the item** — quote the ruling in the words it was given, or name the fact that closed it. A citation is welcome and is not required; a verbatim quote of the human's own words is the strongest form |
 | `settled_last_round[]`, `unlocks[]`, `parked[]` | **not validated** — they name what settled, what opens next and what is set aside, which may be outside the artifact entirely |
@@ -141,10 +141,19 @@ question. The degraded card needs only a non-empty `decision`, which becomes
 the question it asks; `why` and `cite` carry across when present and read
 "not supplied" when not.
 
-Hard exits: unknown component, duplicate item id, no current round or two, a
-missing or empty required field on any other component, a `recommended` naming
-no option, a settled state on a card that is not a `settled_card`, a `target` that is not a positive integer, a `depends_on` id naming no
-item in the artifact.
+**The document is closed.** Every key is known — on the document, on a round,
+on the header, on a card — and an unknown one is a hard exit naming it. A field
+the renderer does not read is a field the author believes they wrote: `contex`
+would otherwise render a card with no explanation and no complaint, and the
+author finds out in front of the human. The one tolerated redundancy is
+`component: round_header` on a header, because this file calls it a component;
+a header tagged as anything else is refused.
+
+Hard exits: an unknown key at any level, an unknown component, duplicate item
+id, no current round or two, a missing or empty required field on any other
+component, a `recommended` naming no option, a settled state on a card that is
+not a `settled_card`, a `target` that is not a positive integer, a `depends_on`
+id naming no item in the artifact.
 
 Every hard exit guards auditability or identity. None guards size.
 

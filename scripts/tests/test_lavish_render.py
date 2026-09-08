@@ -262,6 +262,36 @@ class HardFailures(unittest.TestCase):
     def rounds(self, doc):
         return {r["round"]: r for r in doc["rounds"]}
 
+    def test_an_unknown_key_on_the_document(self):
+        self.mutate(lambda d: d.__setitem__("grill", "requirements"))
+
+    def test_an_unknown_key_on_a_round(self):
+        self.mutate(lambda d: self.rounds(d)[2].__setitem__("headr", {}))
+
+    def test_an_unknown_key_on_a_round_header(self):
+        self.mutate(lambda d: self.rounds(d)[2]["header"].__setitem__("tgt", 3))
+
+    def test_a_header_may_carry_its_own_component_tag(self):
+        """The contract calls it a component, so an author writes the tag."""
+        doc = load_fixture()
+        self.rounds(doc)[2]["header"]["component"] = "round_header"
+        schema.load(doc)
+
+    def test_a_header_tagged_as_another_component_is_refused(self):
+        self.mutate(lambda d: self.rounds(d)[2]["header"]
+                    .__setitem__("component", "debate_card"))
+
+    def test_an_unknown_key_on_a_card(self):
+        """A misspelt field is the common authoring error, and it renders nothing."""
+        self.mutate(lambda d: self.rounds(d)[2]["items"][0].__setitem__("contex", "lost"))
+
+    def test_the_finding_names_the_key(self):
+        doc = load_fixture()
+        self.rounds(doc)[2]["items"][0]["contex"] = "lost"
+        with self.assertRaises(schema.ContractError) as caught:
+            schema.load(doc)
+        self.assertIn("contex", str(caught.exception))
+
     def test_unknown_component(self):
         self.mutate(lambda d: self.rounds(d)[2]["items"][0].__setitem__("component", "wat"))
 
@@ -330,13 +360,23 @@ class NoCaps(unittest.TestCase):
     def test_every_answerable_card_type_takes_a_prose_body(self):
         doc = load_fixture()
         current = self.rounds(doc)[2]
-        for item in current["items"]:
+        takes = [i for i in current["items"]
+                 if i["component"] in ("decided_card", "debate_card", "confirm_row")]
+        self.assertTrue(takes)
+        for item in takes:
             item["context"] = "Explanation for %s." % item["id"]
         html = render(doc)
-        for item in current["items"]:
-            if item["component"] == "signoff_packet":
-                continue
+        for item in takes:
             self.assertIn("Explanation for %s." % item["id"], html)
+
+    def test_a_signoff_packet_may_not_carry_one(self):
+        """The packet is its tables; prose beside them is a field nothing renders."""
+        doc = load_fixture()
+        for item in self.rounds(doc)[2]["items"]:
+            if item["component"] == "signoff_packet":
+                item["context"] = "Would render nowhere."
+        with self.assertRaises(schema.ContractError):
+            render(doc)
 
     def test_a_decided_card_keeps_c4_under_the_heading_above_its_context(self):
         doc = load_fixture()
