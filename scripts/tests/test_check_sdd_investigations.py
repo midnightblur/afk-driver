@@ -6,7 +6,9 @@ citing nothing, a citation resolving to no ledger, a ledger that stopped at
 `partial`, a ledger whose load-bearing claim was never verified.
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import shutil
 import sys
@@ -113,6 +115,51 @@ class SddInvestigationGateTest(unittest.TestCase):
         del document["run"]["design_phase"]
         sdd = self.write(document=document)
         self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    # A class the ledger stopped at is printed, so the reader sees the edge.
+    def test_a_frontier_class_prints_as_a_note(self):
+        document = only(self.closed(), "B14", status="frontier",
+                        reason="another repository", query_ids=[])
+        document["counter_checks"][0]["classes"] = [
+            item for item in gate.load_validator().ALL_CLASSES if item != "B14"]
+        document["run"]["verdict"] = "closed-with-frontier"
+        document["run"]["head"] = "9" * 40
+        sdd = self.write(document=document)
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            self.assertEqual(self.run_gate("--sdd", sdd), 0)
+        self.assertIn("stops at B14", printed.getvalue())
+
+    # A seam whose own name opens with the header word is still a data row.
+    def test_a_row_named_like_the_header_is_checked(self):
+        sdd = self.write(
+            rows="| seam registry writer | read the class | one new method | none | none | fits |",
+            document=self.closed())
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    # Two ledgers under one number: the citation names neither.
+    def test_an_ambiguous_citation_is_a_blocker(self):
+        sdd = self.write(document=self.closed(), folder="INV-001-a-widget-port")
+        second = self.work / "investigations" / "INV-001-b-other-port"
+        second.mkdir(parents=True, exist_ok=True)
+        broken = only(self.closed(), "B3", status="partial", reason="one form unenumerated")
+        (second / "COVERAGE.json").write_text(json.dumps(broken), encoding="utf-8")
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
+    # A header the template no longer matches is drift, not a pass.
+    def test_a_drifted_header_is_a_usage_error(self):
+        sdd = self.work / "SDD.md"
+        sdd.write_text(
+            "# SDD\n\n## §14 L9 — Implementation Seams & Change Impact\n\n"
+            "| Thing | Notes |\n|---|---|\n| the widget port | INV-001 |\n",
+            encoding="utf-8")
+        self.assertEqual(self.run_gate("--sdd", sdd), 2)
+
+    # An SDD nobody can decode is a defect line, not a traceback.
+    def test_a_non_utf8_sdd_is_a_usage_error(self):
+        sdd = self.work / "SDD.md"
+        sdd.write_bytes(b"# SDD\n\n## \xff\xfe14 seams\n")
+        self.assertEqual(self.run_gate("--sdd", sdd), 2)
 
     def test_an_sdd_without_a_seam_table_is_a_usage_error(self):
         sdd = self.work / "SDD.md"

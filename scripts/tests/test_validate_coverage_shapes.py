@@ -185,6 +185,19 @@ class LedgerShapeTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("notes" in defect for defect in defects), defects)
 
+    # A node compared across runs on its line identity needs that to be text.
+    def test_a_line_hash_must_be_a_string(self):
+        document = ledger()
+        document["nodes"][0]["line_hash"] = 12
+        defects, _ = self.check(document)
+        self.assertTrue(any("line_hash" in defect for defect in defects), defects)
+
+    def test_a_line_hash_is_an_accepted_key(self):
+        document = ledger()
+        document["nodes"][0]["line_hash"] = "0123456789ab"
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
     def test_20_a_parent_must_resolve(self):
         document = ledger()
         document["nodes"][0]["parent"] = "B1:ghost.java:1"

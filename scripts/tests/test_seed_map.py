@@ -76,6 +76,12 @@ def run(repo: Path, *args: str, config: str | None = None):
     return code, json.loads(out.read_text(encoding="utf-8"))
 
 
+def only_check(document, klass):
+    """The one counter-check answering for a class."""
+    return next(check for check in document["counter_checks"]
+                if check.get("classes") == [klass])
+
+
 def row(document, klass):
     return next(item for item in document["boundaries"] if item["class"] == klass)
 
@@ -135,6 +141,28 @@ class SeedMapTest(unittest.TestCase):
                              "--alias", "wire=widget-created", "--alias", "import-alias=W")
         self.assertEqual(code, 0)
         self.assertEqual(row(document, "B1")["status"], "closed")
+
+    # A line inserted above a hit moves its id, not its identity: two runs are
+    # compared on (class, file, line_hash).
+    def test_a_node_survives_an_edit_above_it(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        code, before = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        (repo / "alpha" / "Widget.java").write_text(
+            "// a line nobody searched for\nclass Widget {\n}\n", encoding="utf-8")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-m", "shift")
+        code, after = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+
+        def keyed(document):
+            return {(node["class"], node["site"].rsplit(":", 1)[0], node["line_hash"])
+                    for node in document["nodes"]}
+
+        self.assertTrue(keyed(before))
+        self.assertEqual(keyed(before), keyed(after))
+        self.assertNotEqual({node["id"] for node in before["nodes"]},
+                            {node["id"] for node in after["nodes"]})
 
     # S6 — a non-ASCII path comes back verbatim, not octal-escaped.
     def test_non_ascii_paths_are_not_escaped(self):
@@ -204,6 +232,23 @@ class SeedMapTest(unittest.TestCase):
         code, document = run(repo, "--subject", "Widget", "--type", "Q1", config=str(config))
         self.assertEqual(code, 0)
         self.assertEqual(row(document, "B3")["status"], "judgment-only")
+
+    # A listing that returned nothing tried nothing: it cannot confirm a parse.
+    def test_a_manifest_with_no_sibling_modules_leaves_the_counter_pending(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "pom.xml": "<project><modules></modules></project>\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  reactor:\n"
+            "    - pom.xml\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1", config=str(config))
+        self.assertEqual(code, 0)
+        check = only_check(document, "B7")
+        self.assertEqual(check["state"], "pending")
+        self.assertIn("nothing to weigh", check["reason"])
 
     # S9 — a reactor manifest that is gone cannot close the build graph.
     def test_a_missing_reactor_manifest_is_unverified(self):

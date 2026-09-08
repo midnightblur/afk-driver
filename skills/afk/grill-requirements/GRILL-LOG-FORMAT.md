@@ -28,7 +28,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 
 - Locked: L1 {one-line decision} (INV-NNN, …) | inherited
 - … one row per layer as it locks (L1–L9)
-- Seams (L9): {seam} → {verdict: fits | extends (ADR-candidate) | reworked}
+- Seams (L9): one locked-seam row per seam, in the six-column grammar `skills/afk/grill-solution/L9-SEAM-GRILL.md` states
 - Signoff: {signoff row — grammar below}
 - Spinoffs: {spinoff row — grammar below}
 - Open: {the layer under discussion + the live question}

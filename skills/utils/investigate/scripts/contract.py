@@ -32,6 +32,16 @@ def stable_id(prefix: str, text: str) -> str:
     return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
+def line_hash(text: str) -> str:
+    """The identity of a matched line, so a node survives an edit above it.
+
+    A node id carries a line number, which every insertion shifts. Comparing
+    two runs on ids alone reports drift the code never had; comparing on this
+    reports the drift it did.
+    """
+    return hashlib.sha1(text.strip().encode("utf-8", "surrogateescape")).hexdigest()[:12]
+
+
 def worst(*statuses: str) -> str:
     """The status a row may claim when several apply to it at once."""
     known = [status for status in statuses if status in STATUS_ORDER]

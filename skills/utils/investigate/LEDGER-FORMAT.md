@@ -105,6 +105,7 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `coverage_verdict` | Q4: `code` · `test` · `gap`. Same requirement. A run carrying both types carries both fields — one field cannot answer two questions |
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
+| `line_hash` | the identity of the matched line, so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone |
 | `parent` | the node id this one was reached from; `null` for a root |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
@@ -219,8 +220,11 @@ two fragments that ran one search carry one query row.
 | `queries` | by query id; duplicates dropped, identical by construction |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
 
-Fragment identity is `partition.id` plus `run.head`: the same partition of the
-same snapshot folded twice is one fragment, not two.
+A fragment carries `partition.id`, and a fold refuses one that does not: a
+fragment nobody can name cannot be reasoned about. Folding the same bytes twice
+folds them once; a second, *different* fragment of one partition is a delta and
+folds normally, because a re-trace carries nodes the first pass never had. A
+fragment carrying a class outside its `partition.classes` is refused.
 
 ## REPORT.md
 

@@ -48,19 +48,27 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 ## Ground diff — has the seam moved since it was investigated? (cited mode)
 
 The seam's investigation ledger is a snapshot of one commit; the branch has
-moved since. The diff, per `## Seams` symbol, costs no reading:
+moved since. The diff, per `## Seams` symbol, costs no reading. Re-run with the
+name forms the cited ledger ran under — each `declared` form in `run.aliases`,
+one `--alias <form>=<value>` — or the two runs searched for different things:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   --out <scratch>/ground-<symbol>.json
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   --alias <form>=<value> --out <scratch>/ground-<symbol>.json
 ```
 
-Compare its `hit_ids` against the `hit_ids` of the ledger the SDD §14 row
-cites. Equal → the ground has not moved; proceed. New ids → spawn one
-`afk-tracer` over **only** the new ids, then fold its fragment back:
+Compare **nodes**, keyed `(class, file, line_hash)` — a line inserted above a
+hit moves its id and nothing else. Two answers:
+
+- The cited row says `truncated: true` → it holds the cap, not the ground.
+  Re-trace that class rather than reading the comparison.
+- Keys the ledger does not hold → spawn one `afk-tracer` over **only** those
+  nodes, then fold its fragment back:
 
 ```sh
 python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py"   --staging <the cited ledger> --fragment <the delta fragment>   --out <scratch>/COVERAGE.json
 ```
+
+Same keys on both sides → the ground has not moved; proceed.
 
 Ledger grammar and merge rules: `skills/utils/investigate/LEDGER-FORMAT.md`.
 

@@ -9,6 +9,13 @@ Runs one code investigation to closure and writes its coverage ledger. The compl
 
 This skill is the single writer of the ledger. Tracers return fragments; only this skill merges them.
 
+Invoked with the question, then optional flags — `--type Q1..Q5` (else step 1
+classifies), `--alias FORM=VALUE` (repeatable), `--design-phase` when the answer
+feeds a design decision, and `--out DIR` to place the ledger directory where the
+caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
+"Files and location" would put it. The first four carry the same meaning here as
+in step 3's command.
+
 ## Steps
 
 1. **Classify.** Pick every question type the question matches from the table in `${AFK_PLUGIN_ROOT}/INVESTIGATION.md` § "Question types". Two types matched → run the union of their checklists and record both in `run.type`.

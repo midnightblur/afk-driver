@@ -10,9 +10,11 @@ Usage:
   merge_fragments.py --staging LEDGER.json --fragment FRAG.json
                      [--fragment FRAG.json ...] --out MERGED.json
 
-The same partition of the same snapshot folded twice is one fragment. A
-fragment taken against another `run.head` is another investigation, and the
-merge aborts rather than mixing two snapshots.
+A fragment names its partition, and the same bytes folded twice fold once. A
+second, different fragment of one partition is a delta and folds normally. A
+fragment taken against another `run.head`, one with no `partition.id`, and one
+carrying a class its `partition.classes` does not declare each abort the merge
+rather than answering for something they cannot.
 
 Exit codes: 0 wrote the merged ledger, 2 usage, unreadable input, or a
 snapshot mismatch.
@@ -21,6 +23,7 @@ snapshot mismatch.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -157,7 +160,10 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                            check_key, merge_check),
     }
 
-    folded: set[tuple] = set()
+    seen_bodies: set[str] = set()
+    folded = 0
+    skipped: list[str] = []
+    warnings: list[str] = list(merged["run"].get("config_warnings") or [])
     for path, fragment in fragments:
         fragment_head = fragment.get("run", {}).get("head")
         if fragment_head != head:
@@ -165,10 +171,37 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                 f"{path}: run.head {fragment_head!r} is not the staging ledger's "
                 f"{head!r}; two snapshots are two investigations"
             )
-        identity = (fragment.get("partition", {}).get("id"), fragment_head)
-        if identity in folded:
+        partition = fragment.get("partition")
+        partition_id = partition.get("id") if isinstance(partition, dict) else None
+        if not partition_id:
+            raise MergeError(
+                f"{path}: no partition.id; a fragment nobody can name is a fragment "
+                "nobody can fold twice safely"
+            )
+        # Two folds of one partition are two answers unless they are the same
+        # bytes: a delta re-fold carries nodes the first pass never had.
+        body = hashlib.sha256(
+            json.dumps(fragment, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        if body in seen_bodies:
+            skipped.append(f"{path}: identical to a fragment already folded")
             continue
-        folded.add(identity)
+        seen_bodies.add(body)
+        classes = partition.get("classes")
+        classes = classes if isinstance(classes, list) else None
+        if classes is not None:
+            outside = sorted({row.get("class") for row in rows(fragment, "boundaries")
+                              if row.get("class") not in classes})
+            if outside:
+                raise MergeError(
+                    f"{path}: carries {', '.join(str(item) for item in outside)}, which its "
+                    f"partition.classes does not declare; a fragment answers for its own "
+                    "partition"
+                )
+        folded += 1
+        for warning in fragment.get("run", {}).get("config_warnings") or []:
+            if warning not in warnings:
+                warnings.append(warning)
         for table, (index, key_of, fold) in tables.items():
             for row in rows(fragment, table):
                 key = key_of(row)
@@ -179,7 +212,11 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
 
     for table, (index, _, _) in tables.items():
         merged[table] = list(index.values())
-    merged["run"]["merged_from"] = len(folded)
+    merged["run"]["merged_from"] = folded
+    if warnings:
+        merged["run"]["config_warnings"] = warnings
+    for line in skipped:
+        print(f"merge_fragments: skipped {line}", file=sys.stderr)
     return merged
 
 

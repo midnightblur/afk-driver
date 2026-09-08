@@ -32,8 +32,13 @@ from test_validate_coverage import CLAIM, QUERY, ledger, validate_coverage  # no
 HEAD = "0" * 40
 
 
-def fragment(partition="p1", head=HEAD, **tables) -> dict:
-    document = {"run": {"head": head}, "partition": {"id": partition, "classes": ["B1"],
+def fragment(partition="p1", head=HEAD, classes=None, **tables) -> dict:
+    """A fragment declaring the classes its own rows carry, unless told otherwise."""
+    if classes is None:
+        declared = [row["class"] for row in tables.get("boundaries") or []
+                    if isinstance(row, dict) and row.get("class")]
+        classes = sorted(set(declared)) or ["B1"]
+    document = {"run": {"head": head}, "partition": {"id": partition, "classes": classes,
                                                      "seed": "seed.json"}}
     document.update({table: rows for table, rows in tables.items()})
     return document
@@ -185,6 +190,66 @@ class MergeFragmentsTest(unittest.TestCase):
              "query_id": QUERY}])
         merged = self.merge(ledger(), item, dict(item))
         self.assertEqual(merged["run"]["merged_from"], 1)
+
+    # A re-trace of one partition carries nodes the first pass never had, so a
+    # second, different fragment of that partition is a delta, not a repeat.
+    def test_a_second_different_fragment_of_one_partition_folds(self):
+        first = fragment(partition="p1", nodes=[
+            {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
+             "disposition": "terminal", "evidence": "the call", "parent": None,
+             "query_id": QUERY}])
+        second = fragment(partition="p1", nodes=[
+            {"id": "B1:beta.java:9", "class": "B1", "site": "beta.java:9",
+             "disposition": "terminal", "evidence": "the other call", "parent": None,
+             "query_id": QUERY}])
+        merged = self.merge(ledger(), first, second)
+        self.assertEqual(merged["run"]["merged_from"], 2)
+        self.assertIn("B1:beta.java:9", [row["id"] for row in merged["nodes"]])
+
+    # A skipped repeat is reported, never silently dropped.
+    def test_a_skipped_repeat_is_named_on_stderr(self):
+        item = fragment(nodes=[])
+        code, stderr, document = self.run_script(ledger(), item, dict(item))
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("skipped", stderr)
+        self.assertEqual(document["run"]["merged_from"], 1)
+
+    # A fragment nobody can name cannot be reasoned about.
+    def test_a_fragment_without_a_partition_id_is_refused(self):
+        item = fragment(nodes=[])
+        item["partition"].pop("id")
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("partition.id", stderr)
+        self.assertIsNone(document)
+
+    # A fragment answers for its own partition and no other.
+    def test_a_class_outside_the_partition_is_refused(self):
+        code, stderr, document = self.run_script(ledger(), fragment(
+            classes=["B1"],
+            boundaries=[{"class": "B3", "status": "closed", "method": "searched",
+                         "hits": 0, "hit_ids": [], "query_ids": [QUERY],
+                         "universe": "tracked files"}]))
+        self.assertEqual(code, 2)
+        self.assertIn("B3", stderr)
+        self.assertIsNone(document)
+
+    # A warning a fragment recorded is a warning the run carries.
+    def test_fragment_config_warnings_reach_the_run(self):
+        item = fragment(nodes=[])
+        item["run"]["config_warnings"] = ["a declared path matched nothing"]
+        merged = self.merge(ledger(), item)
+        self.assertIn("a declared path matched nothing",
+                      merged["run"]["config_warnings"])
+
+    # A merged row states the ground it was searched over.
+    def test_a_merged_boundary_keeps_its_universe(self):
+        merged = self.merge(ledger(), fragment(boundaries=[
+            {"class": "B1", "status": "partial", "reason": "one form unenumerated",
+             "method": "every name form", "hits": 0, "hit_ids": [], "query_ids": [QUERY],
+             "universe": "tracked files"}]))
+        for row in merged["boundaries"]:
+            self.assertTrue(row.get("universe"), row["class"])
 
     # A merged ledger that cannot be validated is a merge defect.
     def test_the_merged_ledger_validates(self):

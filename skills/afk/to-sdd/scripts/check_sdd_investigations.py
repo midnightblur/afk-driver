@@ -12,11 +12,14 @@ Usage:
 `--investigations` defaults to `investigations/` beside the SDD.
 
 Exit codes:
-  0  every row cites a ledger that closed. A ledger carrying `unverified`
-     claims that are not load-bearing is printed, not refused.
-  1  a row cites nothing, cites a ledger that is missing, structurally
-     broken, `partial`, or carrying a load-bearing `unverified` claim.
-  2  usage: the SDD is unreadable, or it has no §14 table.
+  0  every row cites a ledger that closed. Notes print rather than refuse: an
+     `unverified` claim nothing rests on, a class a ledger stopped at, and a
+     ledger traced at a snapshot the tree has moved off.
+  1  a row cites nothing, cites a ledger that is missing, ambiguous,
+     structurally broken, `partial`, or carrying a load-bearing `unverified`
+     claim.
+  2  usage: the SDD is unreadable, or its §14 table is missing or has drifted
+     from `SDD-TEMPLATE.md`.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +37,13 @@ SECTION = re.compile(r"^##\s*§?14\b", re.M)
 NEXT_SECTION = re.compile(r"^##\s", re.M)
 CITATION = re.compile(r"INV-(\d{3,})")
 CLOSED = ("closed", "closed-with-frontier")
+# The §14 columns of `SDD-TEMPLATE.md`, lowercased; the first names the seam.
+HEADER_CELLS = ("seam", "existing contract", "planned change", "impacted flows",
+                "conventions", "verdict")
+
+
+class Ambiguous(RuntimeError):
+    """One `INV-NNN` resolves to more than one ledger."""
 
 
 def plugin_root() -> Path:
@@ -58,42 +69,76 @@ def load_validator():
     return module
 
 
-def seam_rows(text: str) -> list[str]:
-    """The body rows of the §14 table, header and separator dropped."""
+def cells_of(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def seam_table(text: str) -> tuple[list[str], int]:
+    """The §14 data rows and the column the seam is named in.
+
+    The header is the one row above the `---` separator, and its cells are
+    matched against the §14 columns of `SDD-TEMPLATE.md`; every row below the
+    separator is data, whatever it starts with.
+    """
     match = SECTION.search(text)
     if not match:
-        return []
+        return [], 0
     rest = text[match.end():]
     following = NEXT_SECTION.search(rest)
     body = rest[:following.start()] if following else rest
-    rows = []
-    for line in body.splitlines():
-        line = line.strip()
-        if not line.startswith("|") or set(line) <= set("|-: "):
-            continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if cells and cells[0].lower().startswith("seam"):
-            continue
-        rows.append(line)
-    return rows
+    lines = [line.strip() for line in body.splitlines() if line.strip().startswith("|")]
+    separators = [index for index, line in enumerate(lines) if set(line) <= set("|-: ")]
+    if not separators:
+        raise RuntimeError("the §14 table has no `---` separator row")
+    separator = separators[0]
+    if separator == 0:
+        raise RuntimeError("the §14 table has no header row above its separator")
+    header = [cell.lower() for cell in cells_of(lines[separator - 1])]
+    missing = [column for column in HEADER_CELLS
+               if not any(column in cell for cell in header)]
+    if missing:
+        raise RuntimeError(
+            f"the §14 header names {header}, which does not carry "
+            f"{', '.join(missing)}; it and `SDD-TEMPLATE.md` §14 have drifted apart")
+    name_index = next(index for index, cell in enumerate(header) if HEADER_CELLS[0] in cell)
+    rows = [line for line in lines[separator + 1:] if not set(line) <= set("|-: ")]
+    return rows, name_index
 
 
-def ledger_of(root: Path, number: str) -> Path | None:
+def ledger_of(root: Path, number: str) -> Path:
+    """The one ledger `INV-NNN` names; two of them name nothing."""
     matches = sorted(root.glob(f"INV-{number}-*/COVERAGE.json"))
+    if len(matches) > 1:
+        raise Ambiguous(", ".join(sorted(path.parent.name for path in matches)))
     return matches[0] if matches else None
+
+
+def current_head(start: Path) -> str | None:
+    """The snapshot the SDD is read against, when there is a repository to ask."""
+    try:
+        result = subprocess.run(["git", "-C", str(start), "rev-parse", "HEAD"],
+                                capture_output=True, encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
     """Returns the rows that refuse, and the notes that only print."""
-    text = sdd.read_text(encoding="utf-8")
-    rows = seam_rows(text)
+    try:
+        text = sdd.read_text(encoding="utf-8")
+    except UnicodeDecodeError as problem:
+        raise RuntimeError(f"{sdd}: is not UTF-8 text: {problem}") from problem
+    rows, name_index = seam_table(text)
     if not rows:
         raise RuntimeError(f"{sdd}: no §14 seam table to check")
     validator = load_validator()
+    head = current_head(sdd.parent if sdd.parent.is_dir() else Path.cwd())
     refusals: list[str] = []
     notes: list[str] = []
     for line in rows:
-        name = [cell.strip() for cell in line.strip("|").split("|")][0]
+        cells = cells_of(line)
+        name = cells[name_index] if name_index < len(cells) else line
         # One row may cite the same investigation in two cells; it is one
         # ledger, and one line about it.
         citations = list(dict.fromkeys(CITATION.findall(line)))
@@ -101,7 +146,13 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
             refusals.append(f"{name}: cites no investigation")
             continue
         for number in citations:
-            path = ledger_of(investigations, number)
+            try:
+                path = ledger_of(investigations, number)
+            except Ambiguous as problem:
+                refusals.append(
+                    f"{name}: INV-{number} names more than one ledger ({problem}); "
+                    "a citation resolves to one investigation")
+                continue
             if path is None:
                 refusals.append(f"{name}: INV-{number} has no ledger under {investigations}")
                 continue
@@ -125,7 +176,16 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
                         f"{name}: INV-{number} rests on an unverified claim: "
                         f"{claim.get('text')}")
                 else:
-                    notes.append(f"{name}: INV-{number} left unverified: {claim.get('text')}")
+                    notes.append(f"{name}: INV-{number} left unverified, not "
+                                 f"load-bearing: {claim.get('text')}")
+            for row in document.get("boundaries") or []:
+                if isinstance(row, dict) and row.get("status") == "frontier":
+                    notes.append(f"{name}: INV-{number} stops at {row.get('class')}: "
+                                 f"{row.get('reason') or 'declared out of scope'}")
+            ledger_head = (document.get("run") or {}).get("head")
+            if head and ledger_head and ledger_head != head:
+                notes.append(f"{name}: INV-{number} was traced at {ledger_head[:12]}, "
+                             f"and the tree is at {head[:12]}")
     return refusals, notes
 
 
@@ -143,7 +203,7 @@ def main(argv: list[str]) -> int:
         print(f"check_sdd_investigations: {problem}", file=sys.stderr)
         return 2
     for note in notes:
-        print(f"unverified, not load-bearing — {note}")
+        print(f"note — {note}")
     if refusals:
         for refusal in refusals:
             print(f"blocker — {refusal}")

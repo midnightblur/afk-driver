@@ -23,19 +23,16 @@ verify before continuing:
 - "There's already a {pattern} for {feature}"
 
 **How to verify.** One `/afk:investigate` run per claim, `--design-phase`,
-its question type read off the claim:
+its question type read off the claim by
+`${AFK_PLUGIN_ROOT}/INVESTIGATION.md` § "Question types" — with one addition
+that file does not carry:
 
 | Claim about | Question type |
 |---|---|
-| Existence of a library, service, module, class, schema object, or pattern | Q5 |
-| How something behaves, or how a configuration is posed | Q1 |
-| Whether something can be reused as it stands | Q2 |
-| What a change to it would break | Q3 |
 | Cross-repo / runtime topology / deploy posture | Q5 — usually answered `frontier`; see "external claims" below |
 
-The claim-type table's old greps are seed hints, not the verification:
-pass what you know as `--alias FORM=VALUE` and as declared paths, and let
-the run close the boundaries. The completion contract is
+Pass what you know as `--alias FORM=VALUE` and as declared paths, and let the
+run close the boundaries. The completion contract is
 `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; a run whose verdict is `partial`
 has not verified the claim.
 

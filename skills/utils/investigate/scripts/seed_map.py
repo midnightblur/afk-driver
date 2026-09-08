@@ -49,7 +49,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import ALL_CLASSES, HIT_CAP, stable_id, worst  # noqa: E402
+from contract import ALL_CLASSES, HIT_CAP, line_hash, stable_id, worst  # noqa: E402
 
 JVM = (".java", ".kt", ".kts", ".scala", ".groovy")
 CURLY = JVM + (".ts", ".tsx", ".js", ".jsx", ".php", ".cs")
@@ -571,6 +571,7 @@ class Ledger:
                     "disposition": "unverified",
                     "reason": reason,
                     "evidence": hit["text"][:EVIDENCE_CHARS],
+                    "line_hash": line_hash(hit["text"]),
                     "parent": None,
                     "query_id": hit.get("query_id") or query_id,
                 },
@@ -959,10 +960,16 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             tree_query = note(f"list the directories beside {', '.join(poms)}",
                               "directories holding a manifest of their own",
                               len(siblings))
+            # A listing that returned nothing tried nothing: there was no
+            # second reading of the tree to disagree with the parse.
             counter_checks.append({
                 "method": "the module directories the tree holds beside the manifests",
                 "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
-                "state": "complete", "classes": ["B7"], "query_ids": [tree_query],
+                "state": "complete" if siblings else "pending",
+                "classes": ["B7"], "query_ids": [tree_query],
+                **({} if siblings else
+                   {"reason": "no module directory sits beside a declared manifest, so the "
+                              "listing had nothing to weigh against the parse"}),
             })
             undeclared = [name for name in siblings if name not in modules["declared"]]
             undeclared_gap = (f"module directories no manifest declares: {sample(undeclared)}"
