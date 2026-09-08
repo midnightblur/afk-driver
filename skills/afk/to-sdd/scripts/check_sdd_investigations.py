@@ -188,10 +188,15 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
                     continue
                 supporting = [item for item in (claim.get("supporting_nodes") or [])
                               if isinstance(item, str)]
-                if supporting and set(supporting) <= frontier_nodes:
+                outside = [item for item in supporting if item in frontier_nodes]
+                if supporting and len(outside) == len(supporting):
                     refusals.append(
                         f"{name}: INV-{number} rests on a claim whose every support is "
                         f"outside what the run reached: {claim.get('text')}")
+                elif outside:
+                    notes.append(
+                        f"{name}: INV-{number} rests partly outside what the run "
+                        f"reached ({', '.join(outside)}): {claim.get('text')}")
             for row in document.get("boundaries") or []:
                 if isinstance(row, dict) and row.get("status") == "frontier":
                     notes.append(f"{name}: INV-{number} stops at {row.get('class')}: "

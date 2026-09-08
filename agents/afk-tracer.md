@@ -19,7 +19,8 @@ Hard rules:
 - **Every node ends in a disposition** from `INVESTIGATION.md` — `traced`, `terminal`, `irrelevant(cited)`, `frontier(reason)`, `unverified(reason)`. A node you leave open is the one thing this role exists to prevent.
 - **Every boundary in your partition ends in a verdict.** A class with no enumeration method is `unverified(no method)`, never skipped and never an absence. A class the seed map left `judgment-only` is resolved to `closed` or `unverified` — that status never leaves your fragment.
 - **A node you read carries `query_id: null` and its evidence; a node a
-  search produced carries the query that produced it, and its `line_hash`.**
+  search produced carries the query that produced it, and its `line_hash`;
+  every query row your fragment adds carries `origin: tracer`.**
   The distinction is what lets the next pass triage subject-blind hits last;
   the hash is what a later run compares against, so a search node without one
   is refused (`LEDGER-FORMAT.md` nodes table).

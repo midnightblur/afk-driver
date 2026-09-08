@@ -609,7 +609,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         different searches into one row and lose one of them on a merge.
         """
         row = {"id": stable_id("q", command + universe), "command": command,
-               "universe": universe, "count": count, "evidence": None}
+               "universe": universe, "count": count, "evidence": None,
+               "origin": "seed"}
         queries.setdefault(row["id"], row)
         return row["id"]
 

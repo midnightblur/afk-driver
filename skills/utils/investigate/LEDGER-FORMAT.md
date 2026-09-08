@@ -98,7 +98,7 @@ the ledger is published, and the validator rejects it in a published ledger.
 |---|---|
 | `id` | `{class}:{file}:{line}` — the merge key across fragments |
 | `class` | the boundary class that found it |
-| `site` | `file:line` |
+| `site` | `path:line`, or `path` alone where the class is the file itself; `line` is a positive integer. A site with no line keys to its path, never to its last segment |
 | `disposition` | `traced` · `terminal` · `irrelevant` · `frontier` · `unverified` |
 | `reason` | required for `frontier` and `unverified` |
 | `impact_verdict` | Q3: `breaks` · `unchanged` · `unverified`. Required once the node is dispositioned to anything but `unverified` |
@@ -117,11 +117,13 @@ for.
 ### `queries` — one row per search
 
 `id` (see "Stable keys") · `command` (the command or pattern run) · `universe`
-(what it searched — paths, file kinds) · `count` (hits returned) · `evidence`
-(path to the raw output when it was kept).
+(what it searched — paths, file kinds) · `count` (hits returned) · `origin`
+(`seed` · `tracer`) · `evidence` (path to the raw output when it was kept).
 
-`command`, `universe` and `count` are required; `count` is an integer, zero or
-more. One boundary row never names the same query twice — one execution
+`command`, `universe`, `count` and `origin` are required; `count` is an integer,
+zero or more. `origin` says who ran the search: `seed` for the deterministic
+pre-pass, whose queries a later pre-pass runs again, `tracer` for a widening
+past it, which it does not. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
 
 ### `claims` — one row per claim the answer makes
@@ -220,8 +222,9 @@ two fragments that ran one search carry one query row.
 | `queries` | by query id; duplicates dropped, identical by construction |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
 
-A fragment's identity is its bytes with `run.started` and `run.finished` left
-out — when a fold ran is not what it found, so a re-stamped copy folds once.
+A fragment's identity is what it found — the bytes of its `partition` and of
+the five tables — never its `run` block: one partition traced twice, in two
+worktrees or at two times, is one answer and folds once.
 A fragment carries `partition.id`, and a fold refuses one that does not: a
 fragment nobody can name cannot be reasoned about. Folding the same bytes twice
 folds them once; a second, *different* fragment of one partition is a delta and

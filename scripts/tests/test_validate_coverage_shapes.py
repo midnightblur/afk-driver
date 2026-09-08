@@ -65,11 +65,11 @@ class LedgerShapeTest(unittest.TestCase):
             {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
              "disposition": "terminal", "evidence": "the line", "parent": None,
              "query_id": QUERY, "line_hash": f"{n:012d}"}
-            for n in range(cap)
+            for n in range(1, cap + 1)
         ]
         document["queries"][0]["count"] = 9999
         document = only(document, "B1", hits=9999, truncated=True,
-                        hit_ids=[f"B1:bulk.java:{n}" for n in range(cap)])
+                        hit_ids=[f"B1:bulk.java:{n}" for n in range(1, cap + 1)])
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
@@ -195,6 +195,28 @@ class LedgerShapeTest(unittest.TestCase):
     # A node an agent read has no matched line to hash.
     def test_a_read_node_may_omit_the_line_hash(self):
         document = agent_check(ledger())
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
+    # A site names a file, or a line in one; anything else keys to nothing.
+    def test_a_site_of_the_wrong_shape_is_a_defect(self):
+        for value in ("alpha.java:", "alpha.java:0", "alpha.java:-3", "alpha.java:two",
+                      "alpha.java:2:9", ":9"):
+            document = ledger()
+            document["nodes"][0]["site"] = value
+            document["nodes"][0]["id"] = f"B1:{value}"
+            document["boundaries"][0]["hit_ids"] = [f"B1:{value}"]
+            document["nodes"][1]["parent"] = f"B1:{value}"
+            document["claims"][0]["supporting_nodes"] = [f"B1:{value}"]
+            defects, _ = self.check(document)
+            self.assertTrue(any("site" in defect for defect in defects), (value, defects))
+
+    def test_a_site_naming_a_whole_file_passes(self):
+        document = ledger()
+        document["nodes"][0].update({"site": "conf/queue.yml", "id": "B1:conf/queue.yml"})
+        document["boundaries"][0]["hit_ids"] = ["B1:conf/queue.yml"]
+        document["nodes"][1]["parent"] = "B1:conf/queue.yml"
+        document["claims"][0]["supporting_nodes"] = ["B1:conf/queue.yml"]
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 

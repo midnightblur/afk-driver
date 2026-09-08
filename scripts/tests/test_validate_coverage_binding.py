@@ -53,7 +53,7 @@ class LedgerBindingTest(unittest.TestCase):
         document["queries"].append(
             {"id": validate_coverage.stable_id("q", "git grep -e Ghosttracked files"),
              "command": "git grep -e Ghost", "universe": "tracked files",
-             "count": 0, "evidence": None})
+             "count": 0, "evidence": None, "origin": "seed"})
         document = only(document, "B3", query_ids=[document["queries"][-1]["id"]])
         defects, _ = self.check(document)
         self.assertEqual(defects, [])

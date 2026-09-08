@@ -223,6 +223,21 @@ class MergeFragmentsTest(unittest.TestCase):
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
         self.assertEqual(row["hits"], 401)
 
+    # One partition traced in two worktrees of one head is one answer: the run
+    # block differs, what it found does not.
+    def test_a_repeat_differing_only_in_the_run_block_counts_once(self):
+        first = fragment(boundaries=[
+            {"class": "B1", "status": "closed", "method": "every name form",
+             "hits": 400, "truncated": True, "hit_ids": ["B1:alpha.java:2"],
+             "query_ids": [QUERY], "universe": "tracked files"}])
+        first["run"]["repository"] = "/worktree-one"
+        second = json.loads(json.dumps(first))
+        second["run"]["repository"] = "/worktree-two"
+        merged = self.merge(ledger(), first, second)
+        self.assertEqual(merged["run"]["merged_from"], 1)
+        row = next(item for item in merged["boundaries"] if item["class"] == "B1")
+        self.assertEqual(row["hits"], 401)
+
     # A skipped repeat is reported, never silently dropped.
     def test_a_skipped_repeat_is_named_on_stderr(self):
         item = fragment(nodes=[])

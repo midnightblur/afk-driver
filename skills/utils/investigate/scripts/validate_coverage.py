@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import ALL_CLASSES, HIT_CAP, LINE_HASH_CHARS, stable_id  # noqa: E402
+from contract import (ALL_CLASSES, HIT_CAP, LINE_HASH_CHARS,  # noqa: E402
+                      QUERY_ORIGINS, stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
 QTYPES = {f"Q{n}" for n in range(1, 6)}
@@ -43,6 +44,7 @@ VERDICTS = ("closed", "closed-with-frontier", "partial")
 
 # Every field the format defines, per table. A key nobody defined is a field
 # nobody validates, so it is refused rather than carried.
+SITE = re.compile(r"[^:]+(?::[1-9][0-9]*)?")
 LINE_HASH = re.compile(f"[0-9a-f]{{{LINE_HASH_CHARS}}}")
 
 KEYS = {
@@ -55,7 +57,7 @@ KEYS = {
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
               "coverage_verdict", "pinned_by", "evidence", "parent", "query_id",
               "line_hash"},
-    "queries": {"id", "command", "universe", "count", "evidence"},
+    "queries": {"id", "command", "universe", "count", "evidence", "origin"},
     "claims": {"id", "text", "kind", "load_bearing", "supporting_nodes", "citations"},
     "counter_checks": {"method", "kind", "targeted_claims", "new_nodes", "state",
                        "reason", "classes", "query_ids", "evidence_nodes"},
@@ -75,6 +77,7 @@ TYPES = {
               "impact_verdict": str, "coverage_verdict": str, "pinned_by": str,
               "evidence": str, "parent": str, "query_id": str, "line_hash": str},
     "queries": {"id": str, "command": str, "universe": str, "count": int,
+                "origin": str,
                 "evidence": str},
     "claims": {"id": str, "text": str, "kind": str, "load_bearing": bool,
                "supporting_nodes": list, "citations": list},
@@ -207,8 +210,12 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         node_ids.add(node_id)
         if row.get("parent"):
             parents.add(row["parent"])
-        if not row.get("site"):
-            defects.append(f"{where}: site required (file:line)")
+        site = row.get("site")
+        if not site:
+            defects.append(f"{where}: site required (a path, or path:line)")
+        elif not isinstance(site, str) or not SITE.fullmatch(site):
+            defects.append(f"{where}: site {site!r} is neither a path nor a path:line "
+                           "with a positive line number, so nothing can key on it")
         if row.get("class") not in ALL_CLASSES:
             defects.append(f"{where}: class must be one of B1-B14")
         disposition = row.get("disposition")
@@ -259,6 +266,9 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         # ran, over what, and how much came back.
         if not isinstance(command, str) or not command.strip():
             defects.append(f"{where}: command required — the invocation that ran")
+        if row.get("origin") not in QUERY_ORIGINS:
+            defects.append(f"{where}: origin must be one of {', '.join(QUERY_ORIGINS)}; "
+                           "only a seed query can be run again by a later pre-pass")
         if not isinstance(universe, str) or not universe.strip():
             defects.append(f"{where}: universe required — what the invocation searched")
         count = row.get("count")

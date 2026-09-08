@@ -63,7 +63,9 @@ python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --ci
 and compares the counts: a line that appeared, a line that vanished, a line
 edited in place, and a second copy of a line that was there once are each drift.
 A cited row carrying `truncated: true` holds the cap rather than the ground, so
-it is drift too. Exit 0 → the ground held; proceed. Exit 1 → it moved, and every
+it is drift too, as is a seed search the cited run ran and this one no longer
+runs. Only nodes from `origin: seed` queries are compared — a line a tracer
+widened to is counted in a note, because a seed map cannot re-take it. Exit 0 → the ground held; proceed. Exit 1 → it moved, and every
 difference is printed.
 
 **On drift, re-investigate rather than patch.** Run `/afk:investigate` at the

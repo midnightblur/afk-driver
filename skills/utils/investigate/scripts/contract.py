@@ -32,6 +32,10 @@ def stable_id(prefix: str, text: str) -> str:
     return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
+# Who ran a query: the deterministic pre-pass, or a tracer widening past it.
+# Only a `seed` query can be run again by a later pre-pass.
+QUERY_ORIGINS = ("seed", "tracer")
+
 # The shape of a `line_hash`: what the emitter writes and the validator pins.
 LINE_HASH_CHARS = 12
 

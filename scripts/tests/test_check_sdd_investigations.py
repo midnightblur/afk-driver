@@ -145,6 +145,25 @@ class SddInvestigationGateTest(unittest.TestCase):
         sdd = self.write(document=document)
         self.assertEqual(self.run_gate("--sdd", sdd), 1)
 
+    # A claim half-verified is not refused, but the leg outside the run is said.
+    def test_a_claim_with_one_frontier_leg_prints_a_note(self):
+        document = only(self.closed(), "B14", status="frontier",
+                        reason="another repository", query_ids=[])
+        document["counter_checks"][0]["classes"] = [
+            item for item in gate.load_validator().ALL_CLASSES if item != "B14"]
+        document["run"]["verdict"] = "closed-with-frontier"
+        document["nodes"].append(
+            {"id": "B14:other-repo:1", "class": "B14", "site": "other-repo:1",
+             "disposition": "frontier", "reason": "another repository",
+             "evidence": "the caller lives elsewhere", "parent": None, "query_id": None})
+        document["claims"][0]["supporting_nodes"] = [
+            "B1:alpha.java:2", "B14:other-repo:1"]
+        sdd = self.write(document=document)
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            self.assertEqual(self.run_gate("--sdd", sdd), 0)
+        self.assertIn("B14:other-repo:1", printed.getvalue())
+
     # The gate's column names are a copy of the template's; they move together.
     def test_the_header_cells_match_the_template(self):
         template = (_ROOT / "skills" / "afk" / "to-sdd" / "SDD-TEMPLATE.md").read_text(

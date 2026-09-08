@@ -56,8 +56,10 @@ first released heading here.
   supports — `closed`, `closed-with-frontier`, or `partial`.
 - **`ground_diff.py` says whether a cited investigation still describes the
   tree.** It counts every searched line, keyed by class, file and line hash, and
-  reports an appearance, a disappearance, an in-place edit, a duplicate, or a
-  capped row as drift. `/afk:execute` runs it before writing code and answers
+  reports an appearance, a disappearance, an in-place edit, a duplicate, a
+  capped row, a changed configuration, and a seed search that no longer runs as
+  drift. Query rows now say who ran them (`origin`), so a line a tracer widened
+  to is counted rather than compared. `/afk:execute` runs it before writing code and answers
   drift with a fresh investigation at the current head.
 - **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
   rules — snapshot identity, worst-status-wins, the truncation rule, the node

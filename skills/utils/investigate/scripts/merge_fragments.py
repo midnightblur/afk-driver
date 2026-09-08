@@ -12,8 +12,8 @@ Usage:
 
 A fragment names its partition, and the same bytes folded twice fold once. A
 second, different fragment of one partition is a delta and folds normally. A
-Identity is the fragment's bytes with its clock left out, so a re-stamped copy
-folds once. A fragment taken against another `run.head`, one with no
+Identity is what a fragment found — its partition and its tables — never when
+or where it ran, so one partition traced twice folds once. A fragment taken against another `run.head`, one with no
 `partition.id`, and one carrying a class its `partition.classes` does not
 declare each abort the merge rather than answering for something they cannot.
 
@@ -74,17 +74,15 @@ def join_reasons(first, second) -> str | None:
     return "; ".join(seen) or None
 
 
-# When a fragment ran says nothing about what it found, so these keys are left
-# out of its identity. Named in `LEDGER-FORMAT.md` § "Merging".
-CLOCK_KEYS = ("started", "finished")
+# What a fragment found, which is what decides whether it has been folded.
+# When and where it ran is not part of it. Named in `LEDGER-FORMAT.md`
+# § "Merging".
+FINGERPRINTED = ("partition", *TABLES)
 
 
 def fingerprint(fragment: dict) -> str:
     """The bytes that decide whether this fragment has already been folded."""
-    body = dict(fragment)
-    run = {key: value for key, value in (body.get("run") or {}).items()
-           if key not in CLOCK_KEYS}
-    body["run"] = run
+    body = {key: fragment.get(key) for key in FINGERPRINTED if key in fragment}
     return hashlib.sha256(
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
