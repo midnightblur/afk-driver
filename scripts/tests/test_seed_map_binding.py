@@ -245,6 +245,36 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertEqual(row(document, "B2")["status"], "partial")
         self.assertIn("cannot match", row(document, "B2")["reason"])
 
+    # 2f — a case-blind pass over a pattern holding no letter discriminates
+    # nothing, so it is a counter-search that did not run.
+    def test_a_letterless_pattern_gets_a_pending_counter_row(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "conf/ports.txt": "8080-9090\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: port-range\n"
+            "      class: B10\n"
+            "      pattern: '[0-9]+-[0-9]+'\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "wire=w-created", "--alias", "import-alias=Wgt",
+                             config=str(config))
+        self.assertEqual(code, 0)
+        by_class = {}
+        for item in document["counter_checks"]:
+            for klass in item.get("classes") or []:
+                by_class.setdefault(klass, []).append(item)
+        letterless = [item for item in by_class["B10"] if "own expressions" in item["method"]]
+        self.assertTrue(letterless)
+        self.assertEqual(letterless[0]["state"], "pending")
+        self.assertIn("not discriminating", letterless[0]["reason"])
+        lettered = [item for item in by_class["B2"] if "own expressions" in item["method"]]
+        self.assertTrue(lettered)
+        self.assertEqual(lettered[0]["state"], "complete")
+
     # B2 — a node found by a search names the search that found it.
     def test_every_seed_node_names_its_query(self):
         repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})

@@ -23,7 +23,12 @@ Hard rules:
   what lets the next pass triage subject-blind hits last.
 - **A boundary you close by searching names a counter-search covering it**
   in that check's `classes`, and that check used a different method than the
-  boundary's own. A boundary you close by reading owes none.
+  boundary's own. That check names what ran: `query_ids` when the method was a
+  search, `evidence_nodes` when you ran it by reading.
+  A boundary you close by reading owes none: it carries
+  `sites` and no `query_ids`, its `method` names the read, and every site it
+  names carries a node you read it into. A site with no such node keeps the
+  boundary `judgment-only`.
 - **Your fragment declares its partition** (`partition.id`, `partition.classes`, `partition.seed`) and omits the classes outside it. Merge keys and the conflict rule are the caller's; write the ids the format defines and nothing else.
 - **Truth-grounding bar.** Every claim meets `LANGUAGE.md` § "Truth grounding": cited to `file:line` or to a command and its output; anything unchecked returned as `unverified: <reason>`; an absence claim states what was enumerated.
 - **Spawn `afk-reader` leaves only when the caller states depth ≤ 2**, one per module, in one message. Otherwise run that reading inline (`CAPABILITIES.md`, `nesting`).

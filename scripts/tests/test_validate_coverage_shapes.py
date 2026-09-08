@@ -21,7 +21,8 @@ def q3_ready(document):
     document["run"]["type"] = ["Q3"]
     document["counter_checks"].append(
         {"method": "the registration site", "kind": "agent",
-         "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
+         "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+         "evidence_nodes": ["B1:alpha.java:2"]})
     return document
 
 
@@ -81,7 +82,8 @@ class LedgerShapeTest(unittest.TestCase):
         document["run"]["type"] = ["Q3", "Q4"]
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent",
-             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
+             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+         "evidence_nodes": ["B1:alpha.java:2"]})
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9"})
         defects, _ = self.check(document)
@@ -92,7 +94,8 @@ class LedgerShapeTest(unittest.TestCase):
         document["run"]["type"] = ["Q3", "Q4"]
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent",
-             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete"})
+             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+         "evidence_nodes": ["B1:alpha.java:2"]})
         for node in document["nodes"]:
             node.update({"impact_verdict": "unchanged", "pinned_by": "alpha_test:9",
                          "coverage_verdict": "test"})

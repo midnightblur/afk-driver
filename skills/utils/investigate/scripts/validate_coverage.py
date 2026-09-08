@@ -55,7 +55,7 @@ KEYS = {
     "queries": {"id", "command", "universe", "count", "evidence"},
     "claims": {"id", "text", "kind", "load_bearing", "supporting_nodes", "citations"},
     "counter_checks": {"method", "kind", "targeted_claims", "new_nodes", "state",
-                       "reason", "classes"},
+                       "reason", "classes", "query_ids", "evidence_nodes"},
 }
 
 TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}")
@@ -76,7 +76,8 @@ TYPES = {
     "claims": {"id": str, "text": str, "kind": str, "load_bearing": bool,
                "supporting_nodes": list, "citations": list},
     "counter_checks": {"method": str, "kind": str, "targeted_claims": list,
-                       "new_nodes": list, "state": str, "reason": str, "classes": list},
+                       "new_nodes": list, "state": str, "reason": str, "classes": list,
+                       "query_ids": list, "evidence_nodes": list},
 }
 
 
@@ -163,6 +164,10 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     for qtype in qtypes:
         if qtype not in QTYPES:
             defects.append(f"run.type: {qtype!r} is not Q1-Q5")
+    for entry in (run.get("type") or []) if isinstance(run.get("type"), list) else []:
+        if not isinstance(entry, str):
+            defects.append(f"run.type: {entry!r} is not a question type; the rules a run "
+                           "owes are read off this list")
 
     nodes = rows_of(defects, ledger, "nodes")
     node_ids: set[str] = set()
@@ -237,6 +242,15 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if query_id in query_index:
             defects.append(f"{where}: duplicate query id")
         command, universe = row.get("command"), row.get("universe")
+        # A query row is the record of one execution, so it carries one: what
+        # ran, over what, and how much came back.
+        if not isinstance(command, str) or not command.strip():
+            defects.append(f"{where}: command required — the invocation that ran")
+        if not isinstance(universe, str) or not universe.strip():
+            defects.append(f"{where}: universe required — what the invocation searched")
+        count = row.get("count")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            defects.append(f"{where}: count is how many the query returned, zero or more")
         if isinstance(command, str) and isinstance(universe, str):
             if query_id != stable_id("q", command + universe):
                 defects.append(f"{where}: a query id is the digest of its command and "
@@ -246,6 +260,21 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     seen: dict[str, dict] = {}
     open_classes = 0
     frontier_classes = 0
+    # The nodes an agent read rather than searched, by site, so a boundary row
+    # claiming a read can be checked against one.
+    read_nodes = {
+        row["site"]: True
+        for row in nodes
+        if isinstance(row.get("site"), str) and row.get("query_id") is None
+        and row.get("disposition") in ("traced", "terminal", "irrelevant")
+        and row.get("evidence")
+    }
+
+    # Which nodes carry evidence, so a check claiming it read one can be held
+    # to a node that records the reading.
+    node_evidence = {row["id"]: bool(row.get("evidence"))
+                     for row in nodes if isinstance(row.get("id"), str)}
+
     searched: dict[str, str] = {}
     for row in rows_of(defects, ledger, "boundaries"):
         klass = row.get("class")
@@ -254,6 +283,9 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         typed(defects, "boundaries", where, row)
         if not row.get("universe"):
             defects.append(f"{where}: universe required - what the method searched")
+        if not isinstance(row.get("method"), str) or not row.get("method", "").strip():
+            defects.append(f"{where}: method required - how the class was enumerated, "
+                           "or `none` when nothing ran")
         if klass in seen:
             defects.append(f"{where}: more than one row for this class")
         seen[klass] = row
@@ -291,8 +323,41 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 defects.append(f"{where}: hit_id {node_id!r} is not of its own class")
         query_ids = row.get("query_ids") or []
         # A class an agent closed by reading its declared site ran no query;
-        # its `sites` field is what says so.
+        # its `sites` field is what says so. That field switches off both the
+        # query rule and the counter-search rule, so it is checked against the
+        # rest of the row: a read names a read and produced no query, and a row
+        # that produced queries did not close by reading.
         by_reading = bool(row.get("sites"))
+        method = row.get("method")
+        method_reads = (isinstance(method, str)
+                        and method.strip().lower().startswith(("read", "judgment")))
+        if by_reading and status in ("closed", "partial"):
+            if not method_reads:
+                defects.append(
+                    f"{where}: carries sites, so its method names the read that closed "
+                    "it — a method that starts with `read` or `judgment`"
+                )
+            if row.get("query_ids"):
+                defects.append(
+                    f"{where}: carries sites and query_ids; a class is closed by reading "
+                    "its site or by searching, and the record says which"
+                )
+                by_reading = False
+            # The structure alone is cheap to fake, so the sites are checked
+            # against the nodes: a site closed by reading left a node an agent
+            # produced — no query behind it, dispositioned, carrying evidence.
+            for site in row.get("sites") or []:
+                # A site is a path or a `path:line`; a node under it is the
+                # same path, not another path that merely starts the same way.
+                prefix = str(site)
+                if not any(read_nodes.get(node_site) for node_site in read_nodes
+                           if node_site == prefix
+                           or node_site.startswith(prefix + ":")
+                           or node_site.startswith(prefix.rstrip("/") + "/")):
+                    defects.append(
+                        f"{where}: site {site!r} closed the class with no node an agent "
+                        "read it into — a dispositioned node with evidence and no query"
+                    )
         needs_query = ((isinstance(hits, int) and hits > 0)
                        or (status in ("closed", "partial") and not by_reading))
         if needs_query and not query_ids:
@@ -303,6 +368,9 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         # A query that found nothing is the right citation for a row that
         # holds nothing: the absence is the result. It cannot, on its own,
         # account for a row that holds hits.
+        if len(set(query_ids)) != len(query_ids):
+            defects.append(f"{where}: the same query id appears twice in query_ids; "
+                           "one execution counts once")
         counted = 0
         for query_id in query_ids:
             if query_id not in query_index:
@@ -330,6 +398,25 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if klass not in seen:
             defects.append(f"boundaries.{klass}: no verdict; a skipped class reads as an absence")
 
+    # A node a search produced is bound to that search, and the search is one
+    # its own class says it ran. A node citing a query no row cites is a node
+    # whose class row does not account for it.
+    for row in nodes:
+        query_id = row.get("query_id")
+        if not isinstance(query_id, str):
+            continue
+        where = f"nodes.{row.get('id')}"
+        if query_id not in query_index:
+            defects.append(f"{where}: query_id {query_id!r} is not in the queries table")
+            continue
+        klass = row.get("class")
+        owner = seen.get(klass)
+        if owner is not None and query_id not in (owner.get("query_ids") or []):
+            defects.append(
+                f"{where}: query_id {query_id!r} is not in the query_ids of "
+                f"boundaries.{klass}; the row does not account for its own node"
+            )
+
     claim_ids: set[str] = set()
     load_bearing_gaps = 0
     for index, row in enumerate(rows_of(defects, ledger, "claims")):
@@ -354,7 +441,14 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if not isinstance(row.get("load_bearing"), bool):
             defects.append(f"{where}: load_bearing is true or false, never absent")
         supporting = row.get("supporting_nodes") or []
+        for citation in row.get("citations") or []:
+            if not isinstance(citation, str) or not citation.strip():
+                defects.append(f"{where}: citation {citation!r} is not a `file:line` or a "
+                               "command; a claim rests on something readable")
         for node in supporting:
+            if not isinstance(node, str):
+                defects.append(f"{where}: supporting node {node!r} is not a node id")
+                continue
             if node not in node_ids:
                 defects.append(f"{where}: supporting node {node!r} is not in the nodes table")
         if kind == "fact" and not supporting:
@@ -394,6 +488,28 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 f"{where}: targeted_claims required — a counter-search that aimed at nothing "
                 "broke nothing"
             )
+        if state == "complete":
+            # `complete` says the method ran. A deterministic method ran as a
+            # query; an agent-driven one ran as reading. Either way the record
+            # names what it ran, and an empty `new_nodes` is then a result
+            # rather than an absence of work.
+            cited = [item for item in (row.get("query_ids") or []) if item in query_index]
+            read = [item for item in (row.get("evidence_nodes") or [])
+                    if node_evidence.get(item)]
+            if row.get("kind") == "agent":
+                if not read:
+                    defects.append(
+                        f"{where}: a complete agent-driven check names in evidence_nodes at "
+                        "least one node it read, carrying evidence"
+                    )
+            elif not cited:
+                defects.append(
+                    f"{where}: a complete deterministic check names in query_ids at least "
+                    "one query in the queries table"
+                )
+        for node in row.get("evidence_nodes") or []:
+            if node not in node_ids:
+                defects.append(f"{where}: evidence node {node!r} is not in the nodes table")
         for node in row.get("new_nodes") or []:
             if node not in node_ids:
                 defects.append(f"{where}: new node {node!r} is not in the nodes table")
@@ -407,8 +523,17 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     for row in complete:
         for klass in row.get("classes") or []:
             covered.setdefault(klass, []).append(row.get("method") or "")
+    # A counter-search recorded pending is a method that did not run, not a
+    # record that contradicts itself: `pending` already forces `partial`.
+    pending_cover: set[str] = set()
+    for row in checks:
+        if row.get("state") == "pending":
+            pending_cover.update(item for item in row.get("classes") or []
+                                 if isinstance(item, str))
     for klass, method in sorted(searched.items()):
         methods = covered.get(klass)
+        if not methods and klass in pending_cover:
+            continue
         if not methods:
             defects.append(
                 f"boundaries.{klass}: closed by a search with no complete counter-search "

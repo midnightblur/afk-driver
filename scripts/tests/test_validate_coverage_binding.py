@@ -17,6 +17,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_validate_coverage import CLAIM, COMMAND, QUERY, ledger, only, validate_coverage  # noqa: E402
 
 
+def read_closed(document, klass):
+    """One class closed the way an agent closes one: by reading its site."""
+    document = only(document, klass, status="closed", query_ids=[],
+                    sites=[f"alpha/{klass}.java"],
+                    method="read the declared site")
+    document["counter_checks"][0]["classes"] = [
+        item for item in validate_coverage.ALL_CLASSES if item != klass]
+    return document
+
+
+def read_evidence(document, klass):
+    """The node an agent leaves behind when it reads a declared site."""
+    document["nodes"].append(
+        {"id": f"{klass}:alpha/{klass}.java:4", "class": klass,
+         "site": f"alpha/{klass}.java:4", "disposition": "terminal",
+         "evidence": "the line an agent read", "parent": None, "query_id": None})
+    return document
+
+
 class LedgerBindingTest(unittest.TestCase):
     def check(self, document):
         return validate_coverage.validate(document)
@@ -175,14 +194,150 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertTrue(any("B14" in defect and "quer" in defect for defect in defects),
                         defects)
 
-    # 2e self-review — a class closed by reading a site ran no query.
-    def test_a_class_closed_by_reading_a_site_needs_no_query(self):
-        document = only(ledger(), "B3", status="closed", query_ids=[],
-                        sites=["alpha/Entry.java"], method="the registration site read")
-        document["counter_checks"][0]["classes"] = [k for k in validate_coverage.ALL_CLASSES
-                                                    if k != "B3"]
+    # 2f — `sites` switches two rules off, so it is not a field a writer may
+    # set beside the evidence of the searching it says did not happen.
+    def test_a_row_claiming_both_a_read_and_a_search_is_a_defect(self):
+        document = read_closed(ledger(), "B3")
+        document = only(document, "B3", query_ids=[QUERY])
+        defects, _ = self.check(document)
+        self.assertTrue(any("B3" in defect and "sites" in defect for defect in defects),
+                        defects)
+
+    def test_a_read_row_needs_an_evidence_node_per_site(self):
+        document = read_closed(ledger(), "B3")
+        defects, _ = self.check(document)
+        self.assertTrue(any("alpha/B3.java" in defect for defect in defects), defects)
+
+    def test_a_read_row_with_its_evidence_nodes_is_valid(self):
+        document = read_evidence(read_closed(ledger(), "B3"), "B3")
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
+    def test_a_read_nodes_query_id_must_be_null(self):
+        document = read_evidence(read_closed(ledger(), "B3"), "B3")
+        document["nodes"][-1]["query_id"] = QUERY
+        defects, verdict = self.check(document)
+        self.assertTrue(any("alpha/B3.java" in defect for defect in defects), defects)
+        self.assertEqual(verdict, "partial")
+
+    def test_a_read_node_without_evidence_does_not_close_the_site(self):
+        document = read_evidence(read_closed(ledger(), "B3"), "B3")
+        document["nodes"][-1].update({"disposition": "unverified",
+                                      "reason": "not yet read", "evidence": None})
+        defects, verdict = self.check(document)
+        self.assertTrue(any("alpha/B3.java" in defect for defect in defects), defects)
+        self.assertEqual(verdict, "partial")
+
+    # 2f self-review — a path that merely starts the same way is another file.
+    def test_a_node_in_a_neighbouring_path_does_not_close_the_site(self):
+        document = read_closed(ledger(), "B3")
+        document["nodes"].append(
+            {"id": "B3:alpha/B3.javax:4", "class": "B3", "site": "alpha/B3.javax:4",
+             "disposition": "terminal", "evidence": "a line in another file",
+             "parent": None, "query_id": None})
+        defects, _ = self.check(document)
+        self.assertTrue(any("alpha/B3.java'" in defect for defect in defects), defects)
+
+    def test_a_read_row_whose_method_is_not_a_read_is_a_defect(self):
+        document = read_closed(ledger(), "B3")
+        document = only(document, "B3", method="every name form")
+        defects, _ = self.check(document)
+        self.assertTrue(any("B3" in defect and "names the read" in defect
+                            for defect in defects), defects)
+
+    # 2f — a node names the search that produced it, and that search is one the
+    # class's own row says it ran.
+    def second_query(self, document, command="git grep -e Other"):
+        query_id = validate_coverage.stable_id("q", command + "tracked files")
+        document["queries"].append({"id": query_id, "command": command,
+                                    "universe": "tracked files", "count": 1,
+                                    "evidence": None})
+        return query_id
+
+    def test_a_node_query_id_outside_the_queries_table_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0]["query_id"] = "q-deadbeef"
+        defects, _ = self.check(document)
+        self.assertTrue(any("q-deadbeef" in defect for defect in defects), defects)
+
+    def test_a_node_query_its_own_class_row_does_not_cite_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0]["query_id"] = self.second_query(document)
+        defects, _ = self.check(document)
+        self.assertTrue(any("B1" in defect and "query_ids" in defect
+                            for defect in defects), defects)
+
+    # 2f — a query row is the record of one execution, so it carries one.
+    def test_a_query_without_a_command_is_a_defect(self):
+        document = ledger()
+        del document["queries"][0]["command"]
+        defects, _ = self.check(document)
+        self.assertTrue(any("command" in defect for defect in defects), defects)
+
+    def test_a_negative_query_count_is_a_defect(self):
+        document = ledger()
+        document["queries"][0]["count"] = -1
+        defects, _ = self.check(document)
+        self.assertTrue(any("count" in defect for defect in defects), defects)
+
+    def test_a_row_citing_the_same_query_twice_is_a_defect(self):
+        document = only(ledger(), "B1", query_ids=[QUERY, QUERY])
+        defects, _ = self.check(document)
+        self.assertTrue(any("B1" in defect and "twice" in defect for defect in defects),
+                        defects)
+
+    # 2f — a counter-search recorded complete names the execution behind it.
+    def test_a_complete_deterministic_check_without_a_query_is_a_defect(self):
+        document = ledger()
+        document["counter_checks"][0].pop("query_ids", None)
+        defects, _ = self.check(document)
+        self.assertTrue(any("counter_checks[0]" in defect and "quer" in defect
+                            for defect in defects), defects)
+
+    def test_a_complete_agent_check_without_a_node_it_read_is_a_defect(self):
+        document = ledger()
+        document["counter_checks"][0].update({"kind": "agent", "query_ids": []})
+        defects, _ = self.check(document)
+        self.assertTrue(any("counter_checks[0]" in defect and "read" in defect
+                            for defect in defects), defects)
+
+    def test_a_complete_agent_check_naming_a_node_it_read_is_valid(self):
+        document = ledger()
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [],
+             "evidence_nodes": ["B1:alpha.java:9"]})
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
+
+    def test_a_complete_agent_check_naming_an_evidence_free_node_is_a_defect(self):
+        document = ledger()
+        document["nodes"][1].update({"disposition": "unverified",
+                                     "reason": "not read", "evidence": None})
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [],
+             "evidence_nodes": ["B1:alpha.java:9"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("counter_checks[0]" in defect for defect in defects), defects)
+
+    # 2f — a value the format states is checked, never carried.
+    def test_a_question_type_that_is_not_a_string_is_a_defect(self):
+        document = ledger()
+        document["run"]["type"] = ["Q1", 3]
+        defects, _ = self.check(document)
+        self.assertTrue(any("run.type" in defect for defect in defects), defects)
+
+    def test_a_boundary_row_without_a_method_is_a_defect(self):
+        document = only(ledger(), "B3", method="  ")
+        defects, _ = self.check(document)
+        self.assertTrue(any("B3" in defect and "method" in defect for defect in defects),
+                        defects)
+
+    def test_a_citation_that_is_not_a_string_is_a_defect(self):
+        document = ledger()
+        document["claims"][0]["citations"] = [{"file": "alpha.java"}]
+        defects, _ = self.check(document)
+        self.assertTrue(any("citation" in defect for defect in defects), defects)
 
     # B6 — one cap, not two literals.
     def test_the_cap_is_one_constant(self):

@@ -612,7 +612,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "method": f"name forms carrying no simple name: {', '.join(counter_values)}",
             "kind": "deterministic", "targeted_claims": [claim_id],
             "new_nodes": ledger.add("B1", new, seed_reason, form_query),
-            "state": "complete", "classes": ["B1"],
+            "state": "complete", "classes": ["B1"], "query_ids": [form_query],
         })
     elif declared_aliases:
         # No declared form discriminates from the simple name, so the second
@@ -621,7 +621,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "method": "name form carrying no simple name: none declared discriminates, "
                       f"so the {second_universe} stands in",
             "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
-            "state": "complete", "classes": ["B1"],
+            "state": "complete", "classes": ["B1"], "query_ids": [name_query_ids[0]],
         })
     else:
         counter_checks.append({
@@ -643,12 +643,27 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         "method": second_universe,
         "kind": "deterministic", "targeted_claims": [claim_id],
         "new_nodes": ledger.add("B1", new, seed_reason, name_query_ids[0]),
-        "state": "complete", "classes": ["B1"],
+        "state": "complete", "classes": ["B1"], "query_ids": [name_query_ids[0]],
     }
     counter_checks.append(second_check)
 
+    def discriminating(patterns: list[str], primary_extra: list[str] | None) -> bool:
+        """Whether a case-blind rerun can return what the primary could not.
+
+        It cannot when the primary already ran case-blind, and it cannot when
+        the expressions hold no literal letter — a digit or punctuation class
+        matches the same text either way. Both are the same pass twice.
+        """
+        if "-i" in (primary_extra or []):
+            return False
+        return any(character.isascii() and character.isalpha()
+                   for pattern in patterns
+                   for character in re.sub(r"\\.", "", pattern))
+
     def counter_pass(klass: str, patterns: list[str], pathspecs: list[str] | None,
-                     seen_keys: set, keep: set | None = None) -> tuple[list[dict], str]:
+                     seen_keys: set, keep: set | None = None,
+                     primary_extra: list[str] | None = None
+                     ) -> tuple[list[dict], str | None]:
         """The class's own expressions over the second universe.
 
         A class enumerated by its own pattern is not counter-searched by B1's
@@ -658,6 +673,15 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         widening the claim. Untracked files stay B1's wide pass and B6's walk;
         adding `--untracked` here triples the cost of every class.
         """
+        if not discriminating(patterns, primary_extra):
+            counter_checks.append({
+                "method": "case-blind pass over the class's own expressions",
+                "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
+                "state": "pending", "classes": [klass],
+                "reason": "method not discriminating: a case-blind rerun of these "
+                          "expressions returns what the primary pass already returned",
+            })
+            return [], None
         found = grep(repo, patterns, pathspecs, extra=["-i"])
         if keep is not None:
             found = [hit for hit in found if hit["file"] in keep]
@@ -669,7 +693,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "method": "case-blind pass over the class's own expressions",
             "kind": "deterministic", "targeted_claims": [claim_id],
             "new_nodes": ledger.add(klass, new, seed_reason, query_id),
-            "state": "complete", "classes": [klass],
+            "state": "complete", "classes": [klass], "query_ids": [query_id],
         })
         return new, query_id
 
@@ -743,7 +767,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 klass, patterns, list(scope) or None,
                 {(hit["file"], hit["line"]) for hit in found})
             hits += extra
-            qids.append(counter_qid)
+            if counter_qid:
+                qids.append(counter_qid)
         declared_done[klass] = (hits, universes, qids)
         return declared_done[klass]
 
@@ -893,7 +918,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                     klass, expressions, None,
                     {(hit["file"], hit["line"]) for hit in found}, keep)
                 hits += extra
-                qids.append(counter_qid)
+                if counter_qid:
+                    qids.append(counter_qid)
                 methods.append(default["method"])
                 universes.append(universe)
 

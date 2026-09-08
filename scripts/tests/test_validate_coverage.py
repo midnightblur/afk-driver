@@ -70,7 +70,8 @@ def ledger(**overrides) -> dict:
                     "citations": ["alpha.java:2"]}],
         "counter_checks": [{"method": "a second name form", "kind": "deterministic",
                             "targeted_claims": [CLAIM], "new_nodes": [],
-                            "state": "complete", "classes": list(ALL)}],
+                            "state": "complete", "classes": list(ALL),
+                            "query_ids": [QUERY]}],
     }
     document.update(overrides)
     return document
@@ -153,9 +154,15 @@ class ValidateCoverageTest(unittest.TestCase):
         document["run"]["type"] = ["Q3"]
         for node in document["nodes"]:
             node.update({"disposition": "unverified", "reason": "not yet triaged"})
+        document["nodes"].append(
+            {"id": "B1:alpha.java:12", "class": "B1", "site": "alpha.java:12",
+             "disposition": "terminal", "evidence": "the registration line",
+             "parent": None, "query_id": None, "impact_verdict": "unchanged",
+             "pinned_by": "unguarded"})
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent", "targeted_claims": [CLAIM],
-             "new_nodes": [], "state": "complete"})
+             "new_nodes": [], "state": "complete",
+             "evidence_nodes": ["B1:alpha.java:12"]})
         defects, verdict = self.check(document)
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "partial")

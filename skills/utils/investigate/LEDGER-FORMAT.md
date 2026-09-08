@@ -68,6 +68,14 @@ The query rule, in three parts:
 - a row that is `closed` or `partial`, **or** that carries any hits under any
   status, names at least one `query_ids` entry — unless it carries `sites`,
   which says an agent closed it by reading rather than by searching;
+- `sites` and `query_ids` are exclusive: a row carrying both claims a read and
+  a search for one class, and the reading claim is dropped. A `closed` or
+  `partial` row carrying `sites` states a `method` that names the read (it
+  begins `read` or `judgment`), and every one of its sites carries at least one
+  node under that path whose `query_id` is null, whose `disposition` is
+  `traced`, `terminal` or `irrelevant`, and whose `evidence` is non-null. A
+  site with no such node leaves the row `judgment-only`, so the verdict is
+  `partial`;
 - every entry resolves in the queries table;
 - a row carrying hits cites at least one query that returned something, and the
   counts over its cited queries sum to at least its `hits` — overlap makes the
@@ -99,11 +107,20 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `parent` | the node id this one was reached from; `null` for a root |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
+A non-null `query_id` resolves in the queries table, and appears in the
+`query_ids` of the boundary row of the node's own class: a node whose class
+row does not name the search behind it is a hit that row does not account
+for.
+
 ### `queries` — one row per search
 
 `id` (see "Stable keys") · `command` (the command or pattern run) · `universe`
 (what it searched — paths, file kinds) · `count` (hits returned) · `evidence`
 (path to the raw output when it was kept).
+
+`command`, `universe` and `count` are required; `count` is an integer, zero or
+more. One boundary row never names the same query twice — one execution
+counts once — and no two rows in this table share an id.
 
 ### `claims` — one row per claim the answer makes
 
@@ -112,7 +129,8 @@ the ledger is published, and the validator rejects it in a published ledger.
 the reader acts on it) · `supporting_nodes` (node ids; a `fact` names at least
 one) · `citations` (`file:line`, or command and exit code). A load-bearing
 `fact` **or** `inference` carries at least one citation — an inference names
-what it rests on.
+what it rests on. Every entry of `supporting_nodes` is a node id in the nodes
+table; every entry of `citations` is a non-empty string.
 
 ### `counter_checks` — one row per counter-search
 
@@ -121,7 +139,14 @@ what it rests on.
 counter-search aimed at nothing broke nothing) · `new_nodes` (node ids it
 discovered; an empty list is the passing result) · `state` (`pending` ·
 `complete`) · `reason` (required when `pending`) · `classes` (the boundary
-classes this check covers).
+classes this check covers) · `query_ids` (the queries a deterministic method
+ran) · `evidence_nodes` (the nodes an agent-driven method read).
+
+Execution rule: `complete` says the method ran, so the row names what ran — a
+`deterministic` row names at least one query in the queries table, an `agent`
+row at least one node in the nodes table carrying evidence. A `complete` row
+naming neither is a defect; with the rule in place, an empty `new_nodes` reads
+as a result rather than as work nobody did.
 
 Coverage rule: every class whose status is `closed` or `partial` by a search
 names at least one `complete` counter-search listing it in `classes`, and that
@@ -131,7 +156,11 @@ A class resolved by judgment, closed by parsing rather than searching, or left
 `frontier`, `n/a` or `unverified` owes none.
 
 A method that cannot return anything the first pass missed is not a
-counter-search. Every run carries at least one `complete` row; Q2, Q3, Q5 and
+counter-search: a case-blind rerun of a primary that already ran case-blind, or
+of expressions holding no literal letter, is recorded `pending` with a reason
+naming the method as not discriminating — never `complete`. A class covered
+only by a `pending` row is not a defect; the `pending` row makes the verdict
+`partial`. Every run carries at least one `complete` row; Q2, Q3, Q5 and
 design-phase runs additionally carry a `complete` row of kind `agent`
 (`INVESTIGATION.md` § "Counter-search"). A `pending` row is legal and makes the
 verdict `partial`.
@@ -180,7 +209,7 @@ An ordinal collides the moment two partitions merge, so every key is derived:
 | `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union. `hits` is `len(hit_ids)` after the union, except that a row any fragment marked `truncated` sums instead — capped lists cannot be unioned back into a count |
 | `claims` | by claim id; the id is the digest of the text, so equal ids are equal claims. `supporting_nodes` and `citations` union |
 | `queries` | by query id; duplicates dropped, identical by construction |
-| `counter_checks` | by (`method`, `classes`): `new_nodes` and `targeted_claims` union, and `pending` beats `complete` |
+| `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
 
 Fragment identity is `partition.id` plus `run.head`: the same partition of the
 same snapshot folded twice is one fragment, not two.
