@@ -28,10 +28,13 @@ Numbering is local to `adr/requirements/`, starts at `0001`. Scan the folder for
 {1-3 sentences: context, what we decided, why.}
 ```
 
-The two status lines are optional on a record the human decided — a requirement
-ADR can be one paragraph. They are **required** on a record the agent minted
-from its own decision: `Decided by agent`, `Audited: not yet`, until a human
-reads it and stamps the date they read it, which is what makes it `Accepted`.
+`Status:` is optional on a record the human decided — a requirement ADR can be
+one paragraph — and `Audited:` is **omitted** on one, so that the line's
+presence is what says the agent decided the record. Both are **required** on a
+record the agent minted from its own decision: `Decided by agent`,
+`Audited: not yet`, until a human reads it and stamps the date they read it,
+which is what makes it `Accepted`. Provenance-by-presence, its one-way failure,
+and its reader are stated once, in the owner file below.
 Grammar owned by `skills/afk/to-sdd/ADR-TEMPLATE.md` "The status line"; this is
 a synchronized copy at the emitting site and moves in the same commit.
 

@@ -46,6 +46,16 @@ rather than one the human made. It is not a lesser status — it is the honest
 one, and it stays until a human has read the record and stamped `Audited` with
 the date they read it. That stamp is what makes it `Accepted`.
 
+`Audited:` is written **only** on a record the agent decided; a human-decided
+record omits the line. An `Accepted` record therefore still says who decided
+it — by whether the line is there. Read by `/afk:retro`, which once `/afk:gc`
+has deleted `GRILL-LOG.md` has no other source for that fact.
+
+Proving provenance by a line's presence fails one way: a human-decided record
+that carries `Audited:` reads as agent-decided. The error over-attributes to
+the agent, so it reaches `/afk:retro` as noise, never as a missed signal —
+which is why presence is enough here.
+
 An unaudited record is not wrong; it is unreviewed. Writing `Accepted` on a
 decision nobody audited is how an agent's call quietly becomes the team's,
 which is the one thing this line exists to prevent.
