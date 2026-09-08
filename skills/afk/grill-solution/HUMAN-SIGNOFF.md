@@ -48,7 +48,7 @@ same file.
 
 ## Signing
 
-- **Ask by id, one aspect at a time**, after the packet and before descending.
+- **Ask by id, one packet per card** — each signature a direct answer to its own card, in the round that closes the aspect's layer (`../grill-requirements/ROUND.md`), after the packet and before descending.
 - A **signature** is the human's direct answer to that aspect's sign-off
   question, affirming it. Silence, an approval given to a different question, a
   nearby favourable remark, and any approval you supply on their behalf are not

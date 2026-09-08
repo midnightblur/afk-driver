@@ -69,7 +69,7 @@ Optional, **human-invoked**. Which modalities you can design depends on what's o
      - **Composite + degenerate variants.** A grid with ≥2 entity-ref filters gets one multi-ref composite deep link; an `IN`-based linked-entity filter gets a resolves-to-empty variant; an exact-match display-id resolver gets a duplicate-key data case. This bug class is invisible against clean, unique-per-row, single-filter scenarios.
      - **Target class.** A scenario whose code path depends on the origin class (secure vs non-secure context, `localhost` vs real hostname — any branch gated on the page origin) records the target class it *requires*; the gate may not count it green on an incompatible target. Note it now, like `env-limited`.
 
-   Journey shape and observables are debate-class — walked one at a time. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: batch them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate).
+   Journey shape and observables are debate-class. The `env-limited` flags and per-aspect triggered/N-A calls are confirm-class by default: classify them per `skills/afk/grill-requirements/TRIAGE.md` (a contested call escalates to debate). Both classes ride one round per `skills/afk/grill-requirements/ROUND.md` — aspects and journeys first, API scenarios next.
 
 3. **Grill the API scenarios** *(when the modality matrix puts them in play)* per [API-SCENARIOS.md](API-SCENARIOS.md). Settled API rows join the same RP-3 matrix artifact (step 6) as they land — one standing surface for the session, never a second file.
 

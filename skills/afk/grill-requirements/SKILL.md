@@ -7,9 +7,9 @@ description: Grills a raw feature idea against the domain glossary and staples b
 
 ## What to do
 
-Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree, resolving decision dependencies one-by-one. Recommend an answer per question.
+Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree in dependency order. Recommend an answer per question.
 
-Ask one at a time; wait for feedback before continuing.
+Work the group first, then present one round per [ROUND.md](ROUND.md): ground the premises, weigh the alternatives, decide what the rule there allows, and bring the whole layer at once — decisions to audit, calls that are the user's, and the indecisions with the condition that failed. The wait for feedback is per round, not per question.
 
 If a question is answerable by exploring the codebase, explore instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
 

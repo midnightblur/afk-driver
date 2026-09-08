@@ -7,7 +7,7 @@ description: Grills the solution design top-down L1–L9, one layer at a time. U
 
 Interview the user relentlessly about every aspect of the architecture until shared understanding. Walk the design tree **top-down across 9 layers**. Resolve each layer before descending — lower-layer choices are brittle when higher-layer ones aren't pinned (e.g. picking Strategy at L8 before deciding at L4 whether rendering is sync or async → strategy interface might need to return a `Future<T>` you didn't plan for).
 
-Ask one at a time. For each, give your recommended answer with the trade-off and the alternative you reject.
+Present one round per `../grill-requirements/ROUND.md`, grouped by layer: work the layer first, then bring what you decided, what is the user's call, and what you could not decide with the condition that failed. For each, give your recommended answer with the trade-off and the alternative you reject. Descending past a layer still waits for that layer's answers and signatures.
 
 If a question is answerable from the codebase, PRD, a `PROTOTYPE.md` if one settled the UI (its UX decisions — modal vs page, inline vs wizard — are design inputs here), existing ADRs, or the project glossary (start at root `GLOSSARY-MAP.md`, then owning service's `GLOSSARY.md`), do that instead — a read matching a `DELEGATION.md` trigger (plugin root) runs via `afk-reader`, keeping only the cited digest inline. Speak the design in the glossary's canonical vocabulary.
 
