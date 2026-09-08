@@ -275,6 +275,36 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertTrue(lettered)
         self.assertEqual(lettered[0]["state"], "complete")
 
+    # 2g — a letter inside a bracket expression is already both cases, so a
+    # pattern whose only letters sit there discriminates nothing either.
+    def test_a_bracketed_only_pattern_gets_a_pending_counter_row(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: bracketed\n"
+            "      class: B10\n"
+            "      pattern: '[Ww][Ii][Dd]'\n"
+            "    - name: half-bracketed\n"
+            "      class: B9\n"
+            "      pattern: '[Ww]idget'\n"
+            "    - name: escaped\n"
+            "      class: B3\n"
+            "      pattern: '\\bW\\b'\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "wire=w-created", "--alias", "import-alias=Wgt",
+                             config=str(config))
+        self.assertEqual(code, 0)
+        states = {}
+        for item in document["counter_checks"]:
+            if "own expressions" in item["method"]:
+                for klass in item.get("classes") or []:
+                    states.setdefault(klass, item["state"])
+        self.assertEqual(states.get("B10"), "pending")
+        self.assertEqual(states.get("B9"), "complete")
+        self.assertEqual(states.get("B3"), "complete")
+
     # B2 — a node found by a search names the search that found it.
     def test_every_seed_node_names_its_query(self):
         repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})

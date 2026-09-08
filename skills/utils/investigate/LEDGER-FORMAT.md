@@ -157,8 +157,8 @@ A class resolved by judgment, closed by parsing rather than searching, or left
 
 A method that cannot return anything the first pass missed is not a
 counter-search: a case-blind rerun of a primary that already ran case-blind, or
-of expressions holding no literal letter, is recorded `pending` with a reason
-naming the method as not discriminating — never `complete`. A class covered
+of expressions holding no literal letter outside a bracket expression, is
+recorded `pending` with a reason naming the method as not discriminating — never `complete`. A class covered
 only by a `pending` row is not a defect; the `pending` row makes the verdict
 `partial`. Every run carries at least one `complete` row; Q2, Q3, Q5 and
 design-phase runs additionally carry a `complete` row of kind `agent`

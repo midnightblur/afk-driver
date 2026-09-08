@@ -170,6 +170,39 @@ def plugin_root() -> Path:
     raise ConfigError("cannot locate the plugin root; set AFK_PLUGIN_ROOT")
 
 
+def outside_brackets(pattern: str) -> str:
+    """The pattern with its escapes and its bracket expressions removed.
+
+    What is left is the text whose case the expression actually pins. A
+    bracket expression states the cases it accepts, and an escaped character
+    is one character, never a class.
+    """
+    kept: list[str] = []
+    index = 0
+    inside = False
+    while index < len(pattern):
+        character = pattern[index]
+        if character == "\\":
+            index += 2
+            continue
+        if not inside:
+            if character == "[":
+                inside = True
+                index += 1
+                # A `^` opens a negation, and a `]` in first position is a
+                # literal `]`, not the close.
+                if index < len(pattern) and pattern[index] == "^":
+                    index += 1
+                if index < len(pattern) and pattern[index] == "]":
+                    index += 1
+                continue
+            kept.append(character)
+        elif character == "]":
+            inside = False
+        index += 1
+    return "".join(kept)
+
+
 def block_warnings(block: dict) -> list[str]:
     """Declared instances that will run, but not the way the declarer expects.
 
@@ -651,14 +684,16 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         """Whether a case-blind rerun can return what the primary could not.
 
         It cannot when the primary already ran case-blind, and it cannot when
-        the expressions hold no literal letter — a digit or punctuation class
-        matches the same text either way. Both are the same pass twice.
+        the expressions hold no literal letter outside a bracket expression —
+        a digit class matches the same text either way, and a letter inside
+        brackets is already written in the cases it accepts. Both are the same
+        pass twice.
         """
         if "-i" in (primary_extra or []):
             return False
         return any(character.isascii() and character.isalpha()
                    for pattern in patterns
-                   for character in re.sub(r"\\.", "", pattern))
+                   for character in outside_brackets(pattern))
 
     def counter_pass(klass: str, patterns: list[str], pathspecs: list[str] | None,
                      seen_keys: set, keep: set | None = None,
