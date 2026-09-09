@@ -63,7 +63,7 @@ mark the one send never reads.
 |---|---|---|---|
 | `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}` | where we are, what to read first, the fork, the next strip |
 | `decided_card` | the six contract fields below | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
-| `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
+| `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why`, `undecided_because` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
 | `confirm_row` | `question`, `recommended`, `why`, `cite` | `context`, `alternatives[]` `{id, label, why}` | one row, accept or override |
 | `signoff_packet` | `hl_id`, `aspect`, `tables[]` `{caption, columns[], rows[][]}`, `alternatives` (prose), `blast_radius[]`, `risks[]` | — | the packet only the human may sign |
 | `settled_card` | `decision`, `round`, `by` (`human \| agent`), `evidence` | `audit` (`explicit \| silent`) | one heading line, always open |
@@ -96,6 +96,13 @@ Placement is early, ahead of the comparison and the audit trail:
 | Card | `context` sits |
 |---|---|
 | `debate_card` | under the heading, before the options |
+
+`undecided_because` is required on every `debate_card`, and it names the
+condition that stopped the agent deciding — the reason lives in
+`skills/afk/grill-requirements/ROUND.md`. Required rather than optional
+because a round's completion test is read off these lines: an indecision with
+no named condition cannot be checked, and "in doubt" is not a condition. It
+renders first, so the reader meets the tension before the options.
 | `confirm_row` | under the heading, before the recommendation |
 | `decided_card` | under C-4, which keeps its own line directly under the heading — the six-field contract does not move, so a two-line read still gives the decision and why it beat the runner-up |
 
@@ -131,7 +138,7 @@ directly under it.
 |---|---|---|
 | C-1 | `decision` | one sentence — the thing that is true from now on |
 | C-2 | `alternatives[]` | every option weighed: `{id, label, why}`, at least one |
-| C-3 | `evidence` | `{grade: repo \| spec, cite, sentence}` — the cited fact and what it says |
+| C-3 | `evidence` | `{grade: repo \| spec \| pattern, cite, sentence}` — the cited fact and what it says |
 | C-4 | `why_beat` | `{runner_up_id, sentence}` — one sentence, and the id names a listed alternative |
 | C-5 | `reverse` | what to revert or rework if the human reverses later |
 | C-6 | `scope` | `{hl, depends_on[]}` — `hl` is `none`, `depends_on` may be `[]` |

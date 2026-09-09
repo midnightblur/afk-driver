@@ -28,7 +28,7 @@ COMPONENTS = (
     "settled_card",
 )
 
-GRADES = ("repo", "spec")
+GRADES = ("repo", "spec", "pattern")
 ITEM_STATES = ("open", "blocked", "settled")
 ROUND_STATES = ("current", "settled")
 
@@ -37,7 +37,8 @@ ROUND_STATES = ("current", "settled")
 # path rather than the hard-failure one.
 REQUIRED = {
     "round_header": ("round", "settled_last_round", "unlocks", "fork", "touches"),
-    "debate_card": ("question", "options", "criteria_order", "recommended", "why"),
+    "debate_card": ("question", "options", "criteria_order", "recommended", "why",
+                    "undecided_because"),
     "confirm_row": ("question", "recommended", "why", "cite"),
     "signoff_packet": ("hl_id", "aspect", "tables", "alternatives", "blast_radius", "risks"),
     "settled_card": ("decision", "round", "by", "evidence"),

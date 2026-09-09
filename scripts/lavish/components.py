@@ -218,7 +218,8 @@ def debate_card(item):
             '<thead><tr><th scope="col">Criterion</th>%s</tr></thead>'
             '<tbody>%s</tbody></table></div>' % (head, "".join(rows)))
 
-    body = []
+    body = ['<p class="afk-undecided"><b>Undecided because:</b> %s</p>'
+            % esc(item["undecided_because"])]
     if item.get("context"):
         body.append(prose(item["context"]))
     body.append(grid)

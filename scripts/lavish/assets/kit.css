@@ -120,6 +120,7 @@ a { color: var(--accent); }
 .afk-context + .afk-context { margin-top: -.2rem; }
 .afk-why-beat { margin: 0 0 .35rem; }
 .afk-third { color: var(--accent); }
+.afk-undecided { color: var(--fg-dim); }
 .afk-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
 
 .afk-degraded {

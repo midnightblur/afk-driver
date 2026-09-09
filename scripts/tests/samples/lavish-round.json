@@ -107,7 +107,8 @@
           ],
           "recommended": "B",
           "third_paradigm": "C",
-          "why": "Reversal cost dominates while the requirement is still moving."
+          "why": "Reversal cost dominates while the requirement is still moving.",
+          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take"
         },
         {
           "component": "decided_card",
@@ -239,7 +240,8 @@
           "why": "A delayed signal costs more than an early stop.",
           "depends_on": [
             "Q-1"
-          ]
+          ],
+          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take"
         }
       ]
     }

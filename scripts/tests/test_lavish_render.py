@@ -105,6 +105,15 @@ def render(doc):
     return page.build(schema.load(copy.deepcopy(doc)))
 
 
+def first_component(doc, component):
+    """The first item of a component kind, for tests that break one field."""
+    for rnd in doc["rounds"]:
+        for item in rnd["items"]:
+            if item.get("component") == component:
+                return item
+    raise AssertionError("fixture carries no %s" % component)
+
+
 class RenderContract(unittest.TestCase):
     def setUp(self):
         self.doc = load_fixture()
@@ -222,6 +231,36 @@ class SilenceRule(unittest.TestCase):
         for node in answerable:
             self.assertEqual(node.attrs.get("data-afk-required"), "1",
                              node.attrs.get("data-afk-item"))
+
+
+class IndecisionIsStated(unittest.TestCase):
+    """A debate card is a recorded indecision, so it owes its reason."""
+
+    def test_a_debate_card_without_its_reason_is_refused(self):
+        doc = load_fixture()
+        card = first_component(doc, "debate_card")
+        del card["undecided_because"]
+        with self.assertRaises(schema.ContractError) as caught:
+            render(doc)
+        self.assertIn("undecided_because", str(caught.exception))
+
+    def test_the_reason_precedes_the_options(self):
+        """The tension beat comes before the comparison, never after it."""
+        html = render(load_fixture())
+        reason = html.index("Undecided because:")
+        grid = html.index('<table class="afk-grid"')
+        self.assertLess(reason, grid)
+
+    def test_a_convention_cited_by_path_is_decidable(self):
+        """`pattern` is a grade the doctrine admits, so it must not degrade."""
+        doc = load_fixture()
+        card = first_component(doc, "decided_card")
+        card["evidence"]["grade"] = "pattern"
+        before = render(load_fixture()).count("shown as a question")
+        html = render(doc)
+        self.assertIn("Evidence (pattern)", html)
+        self.assertEqual(html.count("shown as a question"), before,
+                         "a pattern-graded card must not become a question")
 
 
 class DegradeNotFail(unittest.TestCase):
