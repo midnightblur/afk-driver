@@ -49,30 +49,35 @@ class LedgerShapeTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("hits" in defect and "B1" in defect for defect in defects), defects)
 
-    def test_12_a_truncated_row_carries_a_full_cap_of_ids(self):
-        # `truncated` says the cap was reached. A short list with a large count
-        # is a row claiming hits it never recorded.
-        document = only(ledger(), "B1", hits=9999, truncated=True,
-                        hit_ids=["B1:alpha.java:2"])
-        defects, verdict = self.check(document)
-        self.assertTrue(any("truncated" in defect for defect in defects), defects)
-        self.assertEqual(verdict, "partial")
-
-    def test_12_a_real_truncated_row_passes(self):
-        cap = validate_coverage.HIT_CAP
+    # A big class is carried whole: 250 hits are 250 nodes and 250 ids, and the
+    # row closes honestly rather than on a sample.
+    def test_12_a_large_row_carries_every_hit(self):
+        size = 250
         document = ledger()
         document["nodes"] += [
             {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
              "disposition": "terminal", "evidence": "the line", "parent": None,
              "query_id": QUERY, "line_hash": f"{n:012d}"}
-            for n in range(1, cap + 1)
+            for n in range(1, size + 1)
         ]
-        document["queries"][0]["count"] = 9999
-        document = only(document, "B1", hits=9999, truncated=True, status="partial",
-                        reason="more than the cap, so the row lists a sample",
-                        hit_ids=[f"B1:bulk.java:{n}" for n in range(1, cap + 1)])
-        defects, _ = self.check(document)
+        base = ["B1:alpha.java:2", "B1:alpha.java:9"]
+        document["queries"][0]["count"] = size + len(base)
+        document = only(document, "B1", hits=size + len(base),
+                        hit_ids=base + [f"B1:bulk.java:{n}" for n in range(1, size + 1)])
+        defects, verdict = self.check(document)
         self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
+    # A node the row's count cannot see is a searched line the answer lost.
+    def test_12_a_searched_node_outside_its_row_is_a_defect(self):
+        document = ledger()
+        document["nodes"].append(
+            {"id": "B1:bulk.java:9", "class": "B1", "site": "bulk.java:9",
+             "disposition": "terminal", "evidence": "the line", "parent": None,
+             "query_id": QUERY, "line_hash": "e" * 12})
+        defects, _ = self.check(document)
+        self.assertTrue(any("hit_ids" in defect and "B1:bulk.java:9" in defect
+                            for defect in defects), defects)
 
     # 13 — a node with no evidence is a node nobody can check.
     def test_13_a_traced_node_needs_evidence(self):
@@ -199,23 +204,6 @@ class LedgerShapeTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
-    # A capped row lists a sample, so it never claims the class is enumerated.
-    def test_a_truncated_row_cannot_be_closed(self):
-        cap = validate_coverage.HIT_CAP
-        document = ledger()
-        document["nodes"] += [
-            {"id": f"B1:bulk.java:{n}", "class": "B1", "site": f"bulk.java:{n}",
-             "disposition": "terminal", "evidence": "the line", "parent": None,
-             "query_id": QUERY, "line_hash": f"{n:012d}"}
-            for n in range(1, cap + 1)
-        ]
-        document["queries"][0]["count"] = 9999
-        document = only(document, "B1", hits=9999, truncated=True, status="closed",
-                        hit_ids=[f"B1:bulk.java:{n}" for n in range(1, cap + 1)])
-        defects, _ = self.check(document)
-        self.assertTrue(any("truncated" in defect and "closed" in defect
-                            for defect in defects), defects)
-
     # A claim rests on a hit its class row accounts for, or on nothing.
     def test_a_supporting_node_outside_its_class_row_is_a_defect(self):
         document = ledger()
@@ -251,7 +239,7 @@ class LedgerShapeTest(unittest.TestCase):
     def test_a_site_naming_a_whole_file_passes(self):
         document = ledger()
         document["nodes"][0].update({"site": "conf/queue.yml", "id": "B1:conf/queue.yml"})
-        document["boundaries"][0]["hit_ids"] = ["B1:conf/queue.yml"]
+        document["boundaries"][0]["hit_ids"] = ["B1:conf/queue.yml", "B1:alpha.java:9"]
         document["nodes"][1]["parent"] = "B1:conf/queue.yml"
         document["claims"][0]["supporting_nodes"] = ["B1:conf/queue.yml"]
         defects, _ = self.check(document)

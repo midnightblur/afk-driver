@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import (ALL_CLASSES, HIT_CAP, LINE_HASH_CHARS,  # noqa: E402
+from contract import (ALL_CLASSES, LINE_HASH_CHARS,  # noqa: E402
                       QUERY_ORIGINS, stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
@@ -44,7 +44,9 @@ VERDICTS = ("closed", "closed-with-frontier", "partial")
 
 # Every field the format defines, per table. A key nobody defined is a field
 # nobody validates, so it is refused rather than carried.
-SITE = re.compile(r"[^:]+(?::[1-9][0-9]*)?")
+# A site is a repository path, git's own separator, optionally a line: a
+# backslash is a Windows spelling of a path git never writes.
+SITE = re.compile(r"[^:\\]+(?::[1-9][0-9]*)?")
 LINE_HASH = re.compile(f"[0-9a-f]{{{LINE_HASH_CHARS}}}")
 
 KEYS = {
@@ -52,7 +54,7 @@ KEYS = {
     "run": {"repository", "head", "question", "type", "roots", "aliases", "inventory_hash",
             "inventory_count", "design_phase", "verdict", "started", "finished",
             "config", "merged_from", "config_warnings"},
-    "boundaries": {"class", "status", "method", "hits", "truncated", "hit_ids", "query_ids",
+    "boundaries": {"class", "status", "method", "hits", "hit_ids", "query_ids",
                    "mechanism", "reason", "universe", "sites", "modules", "name_forms"},
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
               "coverage_verdict", "pinned_by", "evidence", "parent", "query_id",
@@ -70,7 +72,7 @@ TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}")
 # has to say what is wrong with it, not stop on it.
 TYPES = {
     "boundaries": {"class": str, "status": str, "method": str, "hits": int,
-                   "truncated": bool, "hit_ids": list, "query_ids": list,
+                   "hit_ids": list, "query_ids": list,
                    "mechanism": str, "reason": str, "universe": str, "sites": list,
                    "modules": dict, "name_forms": dict},
     "nodes": {"id": str, "class": str, "site": str, "disposition": str, "reason": str,
@@ -295,6 +297,19 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                                "universe; this one cannot be recomputed")
         query_index[query_id] = row
 
+    # Which query ids reached a class through a counter-search rather than
+    # through the class's own enumeration. A counter-search is a second method,
+    # so its queries stay out of the row that names the first one — and the
+    # row still accounts for the nodes that search produced.
+    countered: dict[str, set[str]] = {klass: set() for klass in ALL_CLASSES}
+    for row in ledger.get("counter_checks") or []:
+        if not isinstance(row, dict):
+            continue
+        for klass in row.get("classes") or []:
+            if isinstance(klass, str):
+                countered.setdefault(klass, set()).update(
+                    item for item in (row.get("query_ids") or []) if isinstance(item, str))
+
     seen: dict[str, dict] = {}
     open_classes = 0
     frontier_classes = 0
@@ -343,21 +358,10 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         hit_ids = row.get("hit_ids") or []
         if not isinstance(hits, int):
             defects.append(f"{where}: hits is a count")
-        elif row.get("truncated"):
-            if status == "closed":
-                defects.append(
-                    f"{where}: truncated and closed; a row listing a sample of its hits "
-                    "cannot say it enumerated the class — partial at best"
-                )
-            if len(hit_ids) != HIT_CAP or hits <= HIT_CAP:
-                defects.append(
-                    f"{where}: truncated says the {HIT_CAP}-node cap was reached — "
-                    f"{len(hit_ids)} ids for {hits} hits records neither the cap nor the count"
-                )
         elif hits != len(hit_ids):
             defects.append(
                 f"{where}: hits {hits} disagrees with {len(hit_ids)} node ids; "
-                "a capped row says `truncated: true`"
+                "a row carries every hit it found, so the two are one number"
             )
         if len(set(hit_ids)) != len(hit_ids):
             defects.append(f"{where}: the same node id appears twice in hit_ids")
@@ -440,6 +444,12 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             count = query_index[query_id].get("count")
             if isinstance(count, int) and count > 0:
                 counted += count
+        # A counter-search's hits are the class's hits, so its count answers for
+        # them even though its query stays out of the row's own method.
+        for query_id in sorted(countered.get(klass, set()) - set(query_ids)):
+            count = (query_index.get(query_id) or {}).get("count")
+            if isinstance(count, int) and count > 0:
+                counted += count
         if query_ids and isinstance(hits, int) and hits > 0 and counted == 0:
             defects.append(
                 f"{where}: {hits} hits, and every query it cites found nothing"
@@ -472,10 +482,17 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             continue
         klass = row.get("class")
         owner = seen.get(klass)
-        if owner is not None and query_id not in (owner.get("query_ids") or []):
+        accounted = set(owner.get("query_ids") or []) | countered.get(klass, set())             if owner is not None else set()
+        if owner is not None and query_id not in accounted:
             defects.append(
-                f"{where}: query_id {query_id!r} is not in the query_ids of "
-                f"boundaries.{klass}; the row does not account for its own node"
+                f"{where}: query_id {query_id!r} is in neither the query_ids of "
+                f"boundaries.{klass} nor a counter-search covering it; the row does "
+                "not account for its own node"
+            )
+        if owner is not None and row.get("id") not in (owner.get("hit_ids") or []):
+            defects.append(
+                f"{where}: a searched node outside the hit_ids of boundaries.{klass}; "
+                "the row's count would not see it"
             )
 
     node_index = {row["id"]: row for row in nodes if isinstance(row.get("id"), str)}
@@ -534,7 +551,6 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             support = node_index.get(node) or {}
             owner = seen.get(support.get("class")) or {}
             if (isinstance(support.get("query_id"), str) and owner
-                    and not owner.get("truncated")
                     and node not in (owner.get("hit_ids") or [])):
                 defects.append(
                     f"{where}: supporting node {node!r} is not in the hit_ids of "
@@ -555,14 +571,6 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             )
 
     checks = rows_of(defects, ledger, "counter_checks")
-    # Which query ids reached a class through a counter-search rather than
-    # through the class's own enumeration.
-    countered: dict[str, set[str]] = {klass: set() for klass in ALL_CLASSES}
-    for row in checks:
-        for klass in row.get("classes") or []:
-            if isinstance(klass, str):
-                countered.setdefault(klass, set()).update(
-                    item for item in (row.get("query_ids") or []) if isinstance(item, str))
     complete = [row for row in checks if row.get("state") == "complete"]
     pending = 0
     for index, row in enumerate(checks):
@@ -602,10 +610,10 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 # method, and nothing was weighed against anything.
                 primary = {item for item in ((seen.get(klass) or {}).get("query_ids") or [])
                            if isinstance(item, str)}
-                if own and primary and primary <= own:
+                if own and primary and own <= primary:
                     defects.append(
-                        f"{where}: boundaries.{klass} names no search this check did not "
-                        "run, so no different method reached the class"
+                        f"{where}: it ran no search boundaries.{klass} does not already "
+                        "name, so no different method reached the class"
                     )
             # `complete` says the method ran. A deterministic method ran as a
             # query; an agent-driven one ran as reading. Either way the record

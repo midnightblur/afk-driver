@@ -2,9 +2,9 @@
 """Rules for the ground diff: has the code moved under a cited investigation?
 
 Each case pins a way a comparison could report calm ground that moved — two
-identical lines collapsing into one key, a site that vanished, a row that holds
-the cap, a class whose status slipped, a file only an agent ever read, a
-configuration that changed under both runs.
+identical lines collapsing into one key, a site that vanished, a class whose
+status slipped, a file only an agent ever read, a configuration that changed
+under both runs.
 """
 
 import importlib.util
@@ -76,17 +76,15 @@ class GroundDiffTest(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.repo, ignore_errors=True)
 
-    def ledger(self, nodes, truncated=(), config="c" * 64, queries=(QUERY,),
+    def ledger(self, nodes, config="c" * 64, queries=(QUERY,),
                tracer_queries=(), snapshot=None, statuses=None) -> dict:
-        classes = sorted({item["class"] for item in nodes} | set(truncated)
-                         | set(statuses or {}))
+        classes = sorted({item["class"] for item in nodes} | set(statuses or {}))
         return {
             "run": {"head": snapshot or self.after,
                     "config": {"path": "defaults", "sha256": config}},
             "boundaries": [{"class": klass,
                             "status": (statuses or {}).get(klass, "closed"),
-                            "method": "searched", "hits": 1,
-                            "truncated": klass in truncated, "hit_ids": [],
+                            "method": "searched", "hits": 1, "hit_ids": [],
                             "query_ids": [], "universe": "tracked files"}
                            for klass in classes],
             "nodes": nodes,
@@ -134,17 +132,6 @@ class GroundDiffTest(unittest.TestCase):
         current = self.ledger([node(2, "cccccccccccc")])
         code, output = self.diff(cited, current)
         self.assertEqual(code, 1)
-
-    # A capped row holds the cap, not the ground, on either side.
-    def test_a_truncated_row_is_drift_on_either_side(self):
-        cited = self.ledger([node(2, "aaaaaaaaaaaa")], truncated=["B1"])
-        code, output = self.diff(cited, json.loads(json.dumps(cited)))
-        self.assertEqual(code, 1)
-        self.assertIn("truncated", output)
-        current = self.ledger([node(2, "aaaaaaaaaaaa")], truncated=["B1"])
-        code, output = self.diff(self.ledger([node(2, "aaaaaaaaaaaa")]), current)
-        self.assertEqual(code, 1)
-        self.assertIn("current row is truncated", output)
 
     # A class that no longer closes is drift even when every line matches.
     def test_a_boundary_status_change_is_drift(self):

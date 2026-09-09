@@ -49,7 +49,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import ALL_CLASSES, HIT_CAP, line_hash, stable_id, worst  # noqa: E402
+from contract import ALL_CLASSES, HIT_LIMIT, line_hash, stable_id, worst  # noqa: E402
 
 JVM = (".java", ".kt", ".kts", ".scala", ".groovy")
 CURLY = JVM + (".ts", ".tsx", ".js", ".jsx", ".php", ".cs")
@@ -151,6 +151,10 @@ class GitError(RuntimeError):
 
 class ConfigError(RuntimeError):
     """The effective configuration did not validate, or could not be read."""
+
+
+class SeedTooWide(RuntimeError):
+    """One class returned more than a ledger can carry as whole nodes."""
 
 
 def sample(items: list[str]) -> str:
@@ -559,7 +563,7 @@ class Ledger:
     def add(self, klass: str, hits: list[dict], reason: str,
             query_id: str | None = None) -> list[str]:
         ids = []
-        for hit in hits[:HIT_CAP]:
+        for hit in hits:
             node_id = f"{klass}:{hit['file']}:{hit['line']}"
             ids.append(node_id)
             self.nodes.setdefault(
@@ -669,17 +673,18 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     ledger.tag(wide, name_query_ids[0])
     seen = set(kept)
     # The one call answered two universes. The second is recorded as its own
-    # search — same command, different universe, its own count — so the
-    # counter-search below cites an execution the class's own row did not run
-    # as its enumeration.
+    # search — same command, different universe, its own count — and it stays
+    # out of the class's own query list: a counter-search the row also claimed
+    # as its enumeration would be the same pass counted twice.
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
     second_universe_id = note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
                               second_universe, len(wider_only))
-    name_query_ids.append(second_universe_id)
 
     # Counter-search one: a name form that does not carry the simple name — a
     # form the primary pass provably cannot return.
     counter_checks: list[dict] = []
+    # The checks whose hits reach every class that searches B1's hit set.
+    inherited_checks: list[dict] = []
     claim_text = ("the hit set holds every reference to "
                   + ", ".join(subjects) + " over the name forms this pass searched")
     claim_id = stable_id("c", claim_text)
@@ -690,19 +695,22 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         form_hits = grep(repo, counter_patterns, None, extra=["--untracked"])
         form_query = note(grep_command(counter_patterns, None, ["--untracked"]),
                           "tracked and untracked text files, not ignored", len(form_hits))
-        name_query_ids.append(form_query)
         ledger.tag(form_hits, form_query)
         tracked = [hit for hit in form_hits if hit["file"] in inventory_set]
         wider_only += [hit for hit in form_hits if hit["file"] not in inventory_set]
         new = [hit for hit in tracked if (hit["file"], hit["line"]) not in seen]
         b1_hits += new
         seen |= {(hit["file"], hit["line"]) for hit in new}
-        counter_checks.append({
+        # `classes` is filled with the derived classes once the loop knows
+        # them: they inherit this search's hits through B1's set.
+        form_check = {
             "method": f"name forms carrying no simple name: {', '.join(counter_values)}",
             "kind": "deterministic", "targeted_claims": [claim_id],
             "new_nodes": ledger.add("B1", new, seed_reason, form_query),
             "state": "complete", "classes": ["B1"], "query_ids": [form_query],
-        })
+        }
+        inherited_checks.append(form_check)
+        counter_checks.append(form_check)
     elif declared_aliases:
         # No declared form discriminates from the simple name, so the second
         # universe is what the primary pass provably could not return.
@@ -734,6 +742,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         "new_nodes": ledger.add("B1", new, seed_reason, second_universe_id),
         "state": "complete", "classes": ["B1"], "query_ids": [second_universe_id],
     }
+    inherited_checks.append(second_check)
     counter_checks.append(second_check)
 
     def counter_pass(klass: str, patterns: list[str], pathspecs: list[str] | None,
@@ -784,10 +793,10 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
     def record(klass: str, status: str, method: str, hits: list[dict],
                reasons: list[str] | None = None, **extra) -> None:
-        # The count is the fact; the node list is the sample an agent starts
-        # from. A mechanism-wide pattern can return thousands, and a ledger
-        # nobody can open is a ledger nobody reads — so the count stays exact
-        # and the node list is capped, saying so.
+        # The count is the fact and the node list carries it: every hit becomes
+        # a node, so `hits`, `hit_ids` and the node table say the same thing. A
+        # class past the limit is a subject too generic to answer, and the run
+        # stops instead of publishing a sample that reads like a class.
         unique: list[dict] = []
         placed = set()
         for hit in hits:
@@ -798,22 +807,20 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         # Every row is finalized here, so the site rule cannot be skipped on
         # one exit: a site an agent still has to read is not closure, and a
         # site that is gone is a method that did not run. Worst status wins.
-        truncated = len(unique) > HIT_CAP
+        if len(unique) > HIT_LIMIT:
+            raise SeedTooWide(
+                f"{klass}: {len(unique)} hits, past the {HIT_LIMIT} a class may "
+                "carry — the subject is too generic to answer; narrow it with "
+                "--alias or with paths on the boundary instance"
+            )
         row = {
             "class": klass,
-            # A capped row lists a sample, so it cannot say it enumerated the
-            # class: the best a truncated row claims is `partial`.
-            "status": worst(status, *site_state["statuses"],
-                            *(["partial"] if truncated else [])),
+            "status": worst(status, *site_state["statuses"]),
             "method": method,
             "hits": len(unique),
-            "truncated": truncated,
             "hit_ids": ledger.add(klass, unique, seed_reason),
         }
         reasons = [item for item in (reasons or []) if item]
-        if truncated:
-            reasons.append(f"more than {HIT_CAP} hits, so the row lists a sample "
-                           "rather than the class")
         if reasons:
             row["reason"] = "; ".join(reasons)
         row.update(extra)
@@ -847,13 +854,14 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             qids.append(qid)
             hits += ledger.tag(found, qid)
             universes.append(universe)
-            extra, counter_qid = counter_pass(
+            # The counter-search's own query stays out of `qids`: the class
+            # row names the method that enumerated it, and the check names the
+            # method that tried to break it.
+            extra, _ = counter_pass(
                 klass, patterns, list(scope) or None,
                 {(hit["file"], hit["line"]) for hit in found},
                 primary_extra=primary_extra)
             hits += extra
-            if counter_qid:
-                qids.append(counter_qid)
         declared_done[klass] = (hits, universes, qids)
         return declared_done[klass]
 
@@ -924,7 +932,6 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 list_query = note(f"git ls-files -- {', '.join(present)}",
                                   "tracked files under the declared generated paths",
                                   len(listed))
-                walk_qids.append(list_query)
                 counter_checks.append({
                     "method": "the tracked file list of the generated paths, "
                               "against the walk that read them",
@@ -994,7 +1001,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                                "the module directories beside them", *extra_method]),
                    extra_hits, reasons=[*gaps, undeclared_gap, site_gap], mechanism=mechanism,
                    modules=modules, sites=live_sites or None,
-                   query_ids=[parse_query, tree_query, *extra_qids],
+                   query_ids=[parse_query, *extra_qids],
                    universe=", ".join(["declared aggregator manifests", *extra_universes]))
             continue
 
@@ -1044,13 +1051,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 hits += ledger.tag(found, query_id)
                 if scoped == "registration":
                     qids += b1_query_ids
-                extra, counter_qid = counter_pass(
+                extra, _ = counter_pass(
                     klass, expressions, None,
                     {(hit["file"], hit["line"]) for hit in found}, keep,
                     primary_extra=primary_extra)
                 hits += extra
-                if counter_qid:
-                    qids.append(counter_qid)
                 methods.append(default["method"])
                 universes.append(universe)
 
@@ -1077,7 +1082,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                             if live_sites else None,
                             site_gap, inherited, language_gap], **common)
 
-    second_check["classes"] = ["B1", *b1_derived]
+    for check in inherited_checks:
+        check["classes"] = ["B1", *b1_derived]
 
     return {
         "run": {
@@ -1159,6 +1165,9 @@ def main(argv: list[str]) -> int:
         sys.stderr.write(f"seed_map: the effective configuration is not valid: {problem}\n")
         return 2
     except GitError as problem:
+        sys.stderr.write(f"seed_map: {problem}\n")
+        return 2
+    except SeedTooWide as problem:
         sys.stderr.write(f"seed_map: {problem}\n")
         return 2
     except Exception as problem:  # an unexpected failure is an error, never a half-run

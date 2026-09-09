@@ -14,7 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from test_validate_coverage import CLAIM, COMMAND, QUERY, ledger, only, validate_coverage  # noqa: E402
+from test_validate_coverage import (CLAIM, COMMAND, COUNTER_QUERY, QUERY,  # noqa: E402
+                                    ledger, only, validate_coverage)
 
 
 def read_closed(document, klass):
@@ -69,12 +70,36 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("site" in defect for defect in defects), defects)
 
+    # A path git never writes is a site nobody can re-take.
+    def test_a_backslash_site_is_a_defect(self):
+        document = ledger()
+        document["nodes"][0].update({"site": "alpha\\Beta.java:3",
+                                     "id": "B1:alpha\\Beta.java:3"})
+        document["boundaries"][0]["hit_ids"] = ["B1:alpha\\Beta.java:3",
+                                                "B1:alpha.java:9"]
+        document["claims"][0]["supporting_nodes"] = ["B1:alpha\\Beta.java:3"]
+        document["nodes"][1]["parent"] = "B1:alpha\\Beta.java:3"
+        defects, _ = self.check(document)
+        self.assertTrue(any("site" in defect for defect in defects), defects)
+
     # A counter-search that ran the class's own queries ran the same pass twice.
     def test_a_counter_check_repeating_the_primary_queries_is_a_defect(self):
         document = ledger()
         document["counter_checks"][0].update({"classes": ["B1"], "query_ids": [QUERY]})
         defects, _ = self.check(document)
         self.assertTrue(any("different method" in defect or "same" in defect
+                            for defect in defects), defects)
+
+    # A subset is not a second method: the class already ran every search this
+    # check cites, so nothing weighed against anything.
+    def test_a_counter_check_citing_a_subset_of_the_primary_is_a_defect(self):
+        document = ledger()
+        for row in document["boundaries"]:
+            if row["class"] == "B1":
+                row["query_ids"] = [QUERY, COUNTER_QUERY]
+        document["counter_checks"][0].update({"classes": ["B1"], "query_ids": [COUNTER_QUERY]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("no search boundaries.B1 does not already name" in defect
                             for defect in defects), defects)
 
     # A check that answers for a class nobody verdicted answers for nothing.
@@ -90,8 +115,9 @@ class LedgerBindingTest(unittest.TestCase):
             {"id": "B1:alpha.java:3", "class": "B1", "site": "alpha.java:3",
              "disposition": "terminal", "evidence": "the line", "parent": None,
              "query_id": QUERY})
-        document = only(document, "B1", hits=2,
-                        hit_ids=["B1:alpha.java:2", "B1:alpha.java:3"])
+        document = only(document, "B1", hits=3,
+                        hit_ids=["B1:alpha.java:2", "B1:alpha.java:9",
+                                 "B1:alpha.java:3"])
         defects, _ = self.check(document)
         self.assertTrue(any("more hits than" in defect for defect in defects), defects)
 
@@ -394,15 +420,6 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("paths" in defect for defect in defects), defects)
 
-    # B6 — one cap, not two literals.
-    def test_the_cap_is_one_constant(self):
-        import importlib.util
-
-        scripts = Path(validate_coverage.__file__).resolve().parent
-        spec = importlib.util.spec_from_file_location("contract", scripts / "contract.py")
-        contract = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(contract)
-        self.assertEqual(validate_coverage.HIT_CAP, contract.HIT_CAP)
 
 
 if __name__ == "__main__":

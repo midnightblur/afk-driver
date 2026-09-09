@@ -179,6 +179,14 @@ class SddInvestigationGateTest(unittest.TestCase):
         sdd = self.write(document=document)
         self.assertEqual(self.run_gate("--sdd", sdd), 1)
 
+    # Two names that start alike are two names; a fragment is not an answer.
+    def test_a_citation_naming_a_fragment_of_the_seam_is_a_blocker(self):
+        document = self.closed()
+        document["run"]["roots"] = ["widg"]
+        document["run"]["aliases"] = {"widg": []}
+        sdd = self.write(document=document)
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
+
     def test_a_citation_naming_the_seam_passes(self):
         document = self.closed()
         document["run"]["roots"] = ["the widget port"]

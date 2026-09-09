@@ -36,14 +36,14 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
 
 7b. **Human sign-off gate.** Transcribe §0's sign-off register from the grill log's signoff rows, then refuse to write on any of: a live human-locked aspect not `signed` or `n/a`; a `signed` row without the human's own wording; a section (§3 endpoint, §4 entity, §5 authz, §6 lifecycle, §7 side effect, §14 seam) carrying design the signature didn't cover. Name the aspect and bounce to `/afk:grill-solution`. Never sign, infer a signature, or promote `pending` on the human's behalf — the set and protocol live in `skills/afk/grill-solution/HUMAN-SIGNOFF.md`.
 
-7c. **Seam-investigation gate.** Every §14 seam row stands on an investigation, so the gate reads them:
+7c. **Seam-investigation gate.** Every §14 seam row stands on an investigation, and the gate reads the document before it becomes the SDD. Write the synthesis to `<spec dir>/SDD.draft.md`, then gate that draft:
 
    ```sh
    python "$AFK_PLUGIN_ROOT/skills/afk/to-sdd/scripts/check_sdd_investigations.py" \
-     --sdd <spec dir>/SDD.md
+     --sdd <spec dir>/SDD.draft.md
    ```
 
-   Exit 1 → refuse to write, and record one §13 blocker per line it printed, each naming the seam and its investigation; bounce to `/afk:grill-solution`. Exit 0 with printed lines → those items appear verbatim in §13. Exit 2 → the SDD has no §14 table yet.
+   Exit 0 → rename the draft to `<spec dir>/SDD.md`; lines it printed appear verbatim in §13. Any nonzero exit → delete the draft and refuse, so no ungated document is ever the SDD. Exit 1 records one §13 blocker per line it printed, each naming the seam and its investigation, and bounces to `/afk:grill-solution`; exit 2 names a document the gate cannot read — no §14 table, a header the template no longer matches, or bytes that are not UTF-8 — and the fix is the document.
 
 8. **Library-version pin cross-check.** Verify any version pin the SDD/ADR names (Spring Boot, Hibernate, Vue, axios, … — anything `\d+\.\d+`) against the build manifest before writing. The Grounding rule catches a library's *existence*; this catches a fictional *version* of a real library, which silently poisons every downstream behaviour assumption.
 

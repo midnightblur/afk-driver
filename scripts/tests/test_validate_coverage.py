@@ -49,7 +49,8 @@ def ledger(**overrides) -> dict:
         },
         "boundaries": [
             {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 1, "hit_ids": ["B1:alpha.java:2"], "query_ids": [QUERY],
+             "hits": 2, "hit_ids": ["B1:alpha.java:2", "B1:alpha.java:9"],
+             "query_ids": [QUERY],
              "universe": "tracked files"},
             *[
                 {"class": klass, "status": "closed", "method": "searched",
@@ -68,7 +69,7 @@ def ledger(**overrides) -> dict:
              "line_hash": "bbbbbbbbbbbb"},
         ],
         "queries": [{"id": QUERY, "command": COMMAND, "universe": "tracked files",
-                     "count": 1, "evidence": None, "origin": "seed"},
+                     "count": 2, "evidence": None, "origin": "seed"},
                     {"id": COUNTER_QUERY, "command": COUNTER_COMMAND,
                      "universe": "tracked files", "count": 0, "evidence": None,
                      "origin": "seed"}],

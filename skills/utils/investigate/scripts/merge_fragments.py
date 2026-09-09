@@ -3,7 +3,7 @@
 
 Every rule this applies is stated in `LEDGER-FORMAT.md` (beside this script)
 § "Tracer fragments" and § "Merging" — merge keys, the conflict rule, the
-worst-status rule, and the truncation rule. This script is the one place they
+worst-status rule, and the counting rule. This script is the one place they
 run; it decides nothing the format does not state.
 
 Usage:
@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import HIT_CAP, worst  # noqa: E402
+from contract import worst  # noqa: E402
 
 TABLES = ("boundaries", "nodes", "queries", "claims", "counter_checks")
 
@@ -118,7 +118,7 @@ def merge_node(kept: dict, row: dict) -> dict:
 
 
 def merge_boundary(kept: dict, row: dict) -> dict:
-    """The worst status wins, and a capped list cannot be counted back."""
+    """The worst status wins, and the union of the hits is the count."""
     merged = dict(kept)
     merged["status"] = worst(kept.get("status"), row.get("status"))
     reason = join_reasons(kept.get("reason"), row.get("reason"))
@@ -133,20 +133,10 @@ def merge_boundary(kept: dict, row: dict) -> dict:
     universe = [part for part in (kept.get("universe"), row.get("universe"))
                 if isinstance(part, str) and part.strip()]
     merged["universe"] = ", ".join(dict.fromkeys(universe)) or kept.get("universe")
-    hit_ids = merged.get("hit_ids") or []
-    if kept.get("truncated") or row.get("truncated"):
-        # A row listing a sample cannot say it enumerated the class.
-        merged["status"] = worst(merged["status"], "partial")
-        merged["reason"] = join_reasons(merged.get("reason"),
-                                        "the row lists a sample of its hits")
-        counts = [item.get("hits") for item in (kept, row) if isinstance(item.get("hits"), int)]
-        merged["hits"] = sum(counts)
-        merged["truncated"] = True
-        merged["hit_ids"] = hit_ids[:HIT_CAP]
-    else:
-        merged["hits"] = len(hit_ids)
-        merged["truncated"] = len(hit_ids) > HIT_CAP
-        merged["hit_ids"] = hit_ids[:HIT_CAP] if merged["truncated"] else hit_ids
+    # The union is the class: a fragment's hits are its own node ids, so the
+    # count is the length of what the fold holds, never a sum over overlaps.
+    merged["hit_ids"] = hit_ids = merged.get("hit_ids") or []
+    merged["hits"] = len(hit_ids)
     return merged
 
 
@@ -165,6 +155,12 @@ def merge_query(kept: dict, row: dict) -> dict:
 
 
 def merge_claim(kept: dict, row: dict, said: list[str] | None = None) -> dict:
+    """One id is one sentence: two texts under it are two claims."""
+    if kept.get("text") != row.get("text"):
+        raise MergeError(
+            f"claim {kept.get('id')}: two fragments give it a different text "
+            f"({kept.get('text')!r} and {row.get('text')!r}); one id is one claim"
+        )
     merged = dict(kept)
     for key in ("supporting_nodes", "citations"):
         merged[key] = union(kept.get(key) or [], row.get(key) or [])

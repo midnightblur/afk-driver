@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import hashlib
 
-# How many node ids a boundary row carries. The count above it stays exact, and
-# a row that reached the cap says `truncated: true`.
-HIT_CAP = 200
+# A boundary row carries every hit it found: the node table is the denominator
+# a count is checked against, so a sampled list would hide the rest of a class.
+# This is the ceiling on a whole class instead — past it the subject is too
+# generic to answer anything, and the run says so rather than publishing noise.
+HIT_LIMIT = 20000
 
 ALL_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 

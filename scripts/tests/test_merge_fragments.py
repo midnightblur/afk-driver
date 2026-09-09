@@ -101,32 +101,30 @@ class MergeFragmentsTest(unittest.TestCase):
         row = next(item for item in merged["boundaries"] if item["class"] == "B3")
         self.assertEqual(row["reason"], "first gap; second gap")
 
-    # A capped list holds the cap, not the count, so it cannot be unioned
-    # back into a total.
-    def test_a_truncated_row_sums_rather_than_counts(self):
+    # A hit both fragments found is one hit: the union counts, a sum invents.
+    def test_an_overlapping_row_counts_the_union(self):
         staging = ledger()
-        capped = [f"B1:alpha.java:{line}" for line in range(1000, 1000 + 200)]
+        shared = [f"B1:alpha.java:{line}" for line in range(1000, 1000 + 200)]
         for row in staging["boundaries"]:
             if row["class"] == "B1":
-                row.update({"hits": 900, "truncated": True, "hit_ids": capped})
+                row.update({"hits": len(shared), "hit_ids": list(shared)})
         merged = self.merge(staging, fragment(boundaries=[
             {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 400, "truncated": True, "hit_ids": capped,
+             "hits": len(shared) + 1, "hit_ids": shared + ["B1:beta.java:4"],
              "query_ids": [QUERY], "universe": "tracked files"}]))
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
-        self.assertEqual(row["hits"], 1300)
-        self.assertTrue(row["truncated"])
-        self.assertEqual(len(row["hit_ids"]), merge_fragments.HIT_CAP)
+        self.assertEqual(row["hits"], len(shared) + 1)
+        self.assertEqual(len(row["hit_ids"]), len(shared) + 1)
 
-    def test_an_untruncated_row_counts_the_union(self):
+    def test_a_disjoint_row_counts_the_union(self):
         merged = self.merge(ledger(), fragment(boundaries=[
             {"class": "B1", "status": "closed", "method": "every name form",
              "hits": 1, "hit_ids": ["B1:beta.java:4"], "query_ids": [QUERY],
              "universe": "tracked files"}]))
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
-        self.assertEqual(sorted(row["hit_ids"]), ["B1:alpha.java:2", "B1:beta.java:4"])
-        self.assertEqual(row["hits"], 2)
-        self.assertFalse(row["truncated"])
+        self.assertEqual(sorted(row["hit_ids"]),
+                         ["B1:alpha.java:2", "B1:alpha.java:9", "B1:beta.java:4"])
+        self.assertEqual(row["hits"], 3)
 
     # Two fragments that disagree about one site have not settled it.
     def test_a_node_two_fragments_dispositioned_differently_reopens(self):
@@ -211,7 +209,7 @@ class MergeFragmentsTest(unittest.TestCase):
     def test_a_repeat_differing_only_in_timestamps_counts_once(self):
         first = fragment(boundaries=[
             {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 400, "truncated": True, "hit_ids": ["B1:alpha.java:2"],
+             "hits": 1, "hit_ids": ["B1:alpha.java:2"],
              "query_ids": [QUERY], "universe": "tracked files"}])
         first["run"].update({"started": "2026-01-01T00:00:00+00:00",
                              "finished": "2026-01-01T00:01:00+00:00"})
@@ -221,14 +219,14 @@ class MergeFragmentsTest(unittest.TestCase):
         merged = self.merge(ledger(), first, second)
         self.assertEqual(merged["run"]["merged_from"], 1)
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
-        self.assertEqual(row["hits"], 401)
+        self.assertEqual(row["hits"], 2)
 
     # One partition traced in two worktrees of one head is one answer: the run
     # block differs, what it found does not.
     def test_a_repeat_differing_only_in_the_run_block_counts_once(self):
         first = fragment(boundaries=[
             {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 400, "truncated": True, "hit_ids": ["B1:alpha.java:2"],
+             "hits": 1, "hit_ids": ["B1:alpha.java:2"],
              "query_ids": [QUERY], "universe": "tracked files"}])
         first["run"]["repository"] = "/worktree-one"
         second = json.loads(json.dumps(first))
@@ -236,7 +234,7 @@ class MergeFragmentsTest(unittest.TestCase):
         merged = self.merge(ledger(), first, second)
         self.assertEqual(merged["run"]["merged_from"], 1)
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
-        self.assertEqual(row["hits"], 401)
+        self.assertEqual(row["hits"], 2)
 
     # A skipped repeat is reported, never silently dropped.
     def test_a_skipped_repeat_is_named_on_stderr(self):
@@ -283,16 +281,6 @@ class MergeFragmentsTest(unittest.TestCase):
         for row in merged["boundaries"]:
             self.assertTrue(row.get("universe"), row["class"])
 
-    # A capped row cannot come out of a merge claiming the class is enumerated.
-    def test_a_merged_truncated_row_cannot_be_closed(self):
-        capped = [f"B1:alpha.java:{line}" for line in range(1000, 1000 + 200)]
-        merged = self.merge(ledger(), fragment(boundaries=[
-            {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 900, "truncated": True, "hit_ids": capped,
-             "query_ids": [QUERY], "universe": "tracked files"}]))
-        row = next(item for item in merged["boundaries"] if item["class"] == "B1")
-        self.assertEqual(row["status"], "partial")
-
     # One id, two different searches: folding them keeps one and loses the other.
     def test_one_query_id_with_two_bodies_is_refused(self):
         clash = dict(ledger()["queries"][0])
@@ -321,6 +309,15 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(claim["kind"], "unverified")
         self.assertTrue(claim["load_bearing"])
         self.assertIn(claim["id"], stderr)
+
+    # One id is the digest of one sentence: two sentences under it are forged.
+    def test_one_claim_id_with_two_texts_is_refused(self):
+        forged = dict(ledger()["claims"][0])
+        forged["text"] = "the path starts somewhere else"
+        code, stderr, document = self.run_script(ledger(), fragment(claims=[forged]))
+        self.assertEqual(code, 2)
+        self.assertIn("one id is one claim", stderr)
+        self.assertIsNone(document)
 
     # A fragment answering another question is another investigation.
     def test_another_question_aborts_the_merge(self):
@@ -358,10 +355,17 @@ class MergeFragmentsTest(unittest.TestCase):
 
     # A merged ledger that cannot be validated is a merge defect.
     def test_the_merged_ledger_validates(self):
-        code, stderr, document = self.run_script(ledger(), fragment(nodes=[
-            {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
-             "disposition": "terminal", "evidence": "the call", "parent": None,
-             "query_id": QUERY, "line_hash": "cccccccccccc"}]))
+        staging = ledger()
+        staging["queries"][0]["count"] = 3
+        code, stderr, document = self.run_script(staging, fragment(
+            boundaries=[{"class": "B1", "status": "closed",
+                         "method": "every name form", "hits": 1,
+                         "hit_ids": ["B1:beta.java:4"], "query_ids": [QUERY],
+                         "universe": "tracked files"}],
+            nodes=[
+                {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
+                 "disposition": "terminal", "evidence": "the call", "parent": None,
+                 "query_id": QUERY, "line_hash": "cccccccccccc"}]))
         self.assertEqual(code, 0, stderr)
         self.assertEqual(document["run"]["merged_from"], 1)
         defects, verdict = validate_coverage.validate(document)

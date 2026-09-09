@@ -19,9 +19,8 @@ two hits and losing one is drift.
 What the multiset cannot see is reported beside it. A node an agent read and a
 node a tracer widened to are not ground a seed map re-takes, so their files are
 checked against `git diff` between the two snapshots instead. A boundary status
-that moved, a capped row on either side, a seed search that no longer runs, and
-a configuration that changed are each drift on their own, whatever the lines
-say.
+that moved, a seed search that no longer runs, and a configuration that changed
+are each drift on their own, whatever the lines say.
 
 Exit codes: 0 the ground held, 1 it moved (every difference printed), 2 usage,
 a ledger that cannot be read, or one that cannot be compared — no `run.head`,
@@ -172,11 +171,6 @@ def differences(cited: dict, current: dict, classes: list[str] | None,
         now = (after_rows.get(klass) or {}).get("status")
         if was != now:
             lines.append(f"! {klass}: the class was {was}, and now it is {now}")
-        for row, side in ((before_rows.get(klass), "cited"),
-                          (after_rows.get(klass), "current")):
-            if row and row.get("truncated"):
-                lines.append(f"! {klass}: the {side} row is truncated, so it holds the "
-                             "cap rather than the ground; re-trace the class")
 
     for gone in sorted(seed_query_ids(cited) - seed_query_ids(current)):
         lines.append(f"! query {gone} no longer runs, so the search that closed its "

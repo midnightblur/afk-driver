@@ -53,7 +53,10 @@ first released heading here.
   keep the class short of closed. `validate_coverage.py` checks the ledger's
   schema and its cross-references, refuses a seed-stage status in a published
   ledger and an uncited load-bearing claim, and prints the verdict the record
-  supports — `closed`, `closed-with-frontier`, or `partial`.
+  supports — `closed`, `closed-with-frontier`, or `partial`. A boundary row
+  carries every hit it found, so `hits`, `hit_ids` and the nodes table are one
+  set: a searched line no row counts is a defect, and a class past 20000 hits
+  stops the run as a subject too generic to answer.
 - **`ground_diff.py` says whether a cited investigation still describes the
   tree.** It counts every searched line, keyed by class, file and line hash, and
   reports an appearance, a disappearance, an in-place edit, a duplicate, a

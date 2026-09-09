@@ -138,10 +138,24 @@ def subjects(document: dict) -> list[str]:
     return [item for item in dict.fromkeys(found) if item.strip()]
 
 
+def tokens(text: str) -> str:
+    """The words of a name, so a match lands on a name and not on a fragment."""
+    return " ".join(re.findall(r"[A-Za-z0-9_]+", text.lower()))
+
+
 def names(document: dict, seam: str) -> bool:
-    """Whether the ledger answered about the symbol this row names."""
-    haystack = seam.lower()
-    return any(len(item) >= 3 and item.lower() in haystack for item in subjects(document))
+    """Whether the ledger answered about the symbol this row names.
+
+    Whole names only: a subject is this seam's, or a run of whole words inside
+    it. A shared fragment is two names that start alike, not one answer.
+    """
+    haystack = tokens(seam)
+    for item in subjects(document):
+        for candidate in (item, item.rsplit(".", 1)[-1]):
+            want = tokens(candidate)
+            if want and re.search(rf"(?:^| ){re.escape(want)}(?: |$)", haystack):
+                return True
+    return False
 
 
 def current_head(start: Path) -> str | None:

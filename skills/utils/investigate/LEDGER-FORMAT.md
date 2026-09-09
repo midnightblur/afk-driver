@@ -50,8 +50,7 @@ one checker of everything below.
 | `mechanism` | the repository instance's `name`, or `default` |
 | `method` | the pattern or the command that enumerated it, or the site read |
 | `hits` | how many the method returned — a count, never a list |
-| `hit_ids` | the node ids those hits became: the first 200, `truncated: true` above that |
-| `truncated` | `true` when `hits` is above the 200-node cap |
+| `hit_ids` | the node ids those hits became — every one of them, so the row and the nodes table hold the same set |
 | `status` | `closed` · `partial` · `n/a` · `frontier` · `unverified`, plus `judgment-only` at the seed and fragment stage |
 | `reason` | required for every status but `closed`; several gaps join with `; ` |
 | `universe` | required: what the method searched — paths, file kinds, or another class's hit set |
@@ -60,11 +59,14 @@ one checker of everything below.
 | `modules` | B7 only: the parsed module lists, and the manifests that were missing, unsupported, or unparsable |
 | `name_forms` | B1 only: every form per subject, each `enumerated` true or false |
 
-`hits` equals `len(hit_ids)` unless `truncated` is true, and then `hits` is
-above the cap and `hit_ids` holds exactly the cap. A truncated row holds a
-sample, so it is `partial` at best, whatever its evidence says — at the seed,
-at a fold, and at validation. Every id in `hit_ids` is in
-the nodes table and carries this row's class. One row per class, never two.
+`hits` equals `len(hit_ids)`, always: a row carries every hit it found, so the
+count and the list are one number, and the nodes table is what both are checked
+against. Every id in `hit_ids` is in the nodes table and carries this row's
+class, and every searched node of a class is in its row's `hit_ids` — a node no
+row counts is a line the answer lost. A class returning more hits than a ledger
+can carry as whole nodes (20000) is a subject too generic to answer: the seed
+stops and writes nothing rather than publishing a sample. One row per class,
+never two.
 
 The query rule, in three parts:
 
@@ -100,14 +102,14 @@ the ledger is published, and the validator rejects it in a published ledger.
 |---|---|
 | `id` | `{class}:{file}:{line}` — the merge key across fragments |
 | `class` | the boundary class that found it |
-| `site` | `path:line`, or `path` alone where the class is the file itself; `line` is a positive integer. A site with no line keys to its path, never to its last segment |
+| `site` | `path:line`, or `path` alone where the class is the file itself; `line` is a positive integer. A site with no line keys to its path, never to its last segment. The separator is the one git writes, so a site holding a backslash is a defect, in `sites` as in `site` |
 | `disposition` | `traced` · `terminal` · `irrelevant` · `frontier` · `unverified` |
 | `reason` | required for `frontier` and `unverified` |
 | `impact_verdict` | Q3: `breaks` · `unchanged` · `unverified`. Required once the node is dispositioned to anything but `unverified` |
 | `coverage_verdict` | Q4: `code` · `test` · `gap`. Same requirement. A run carrying both types carries both fields — one field cannot answer two questions |
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
-| `line_hash` | the identity of the matched line — 12 lowercase hex characters, the truncated SHA1 digest of the exact bytes of the line, its own line break aside, indentation and inner spacing included — so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
+| `line_hash` | the identity of the matched line — 12 lowercase hex characters, the first 12 characters of the SHA1 digest of the exact bytes of the line, its own line break aside, indentation and inner spacing included — so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
 | `parent` | the node id this one was reached from; `null` for a root |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
@@ -221,8 +223,8 @@ two fragments that ran one search carry one query row.
 |---|---|
 | `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations. `merged_from` records how many were folded in |
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them |
-| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union. `hits` is `len(hit_ids)` after the union, except that a row any fragment marked `truncated` sums instead — capped lists cannot be unioned back into a count |
-| `claims` | by claim id; the id is the digest of the text, so equal ids are equal claims. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
+| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice |
+| `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
 | `queries` | by query id; two rows under one id must agree on `command`, `universe`, `count` and `origin`, and a fold refuses them when they do not |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
 

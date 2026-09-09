@@ -64,9 +64,8 @@ python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --re
 `ground_diff.py` counts every searched line, keyed (`class`, file, `line_hash`),
 and compares the counts: a line that appeared, a line that vanished, a line
 edited in place, and a second copy of a line that was there once are each drift.
-A cited row carrying `truncated: true` holds the cap rather than the ground, so
-it is drift too, as is a seed search the cited run ran and this one no longer
-runs. Only nodes from `origin: seed` queries are compared — a line a tracer
+A boundary status that moved is drift too, as is a seed search the cited run ran
+and this one no longer runs. Only nodes from `origin: seed` queries are compared — a line a tracer
 widened to is counted in a note, because a seed map cannot re-take it. Exit 0 → the ground held; proceed. Exit 1 → it moved, and every
 difference is printed.
 
@@ -149,7 +148,9 @@ These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 13:
   a tie (`DECISIONS.md`, plugin root — a two-way-door correction is recorded
   in `plan/DECISIONS.md` and never parks). Name the SDD section / ADR + the
   concrete conflict + your recommendation; route the human to
-  `/afk:grill-solution` for a superseding ADR before re-running.
+  `/afk:grill-solution` for a superseding ADR before re-running. A `## Seams`
+  row naming no investigation parks here too: the ground it stands on is the
+  design's to produce, not a producer subtask's.
 - `contract_mismatch` — cited mode. Step 2: an upstream `## Produces`
   artifact is missing or its anchor doesn't appear. Name the `{PRODUCER-ID}`
   and quote the bullet; record on both subtask files.

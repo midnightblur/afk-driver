@@ -164,6 +164,50 @@ class SeedMapTest(unittest.TestCase):
         self.assertNotEqual({node["id"] for node in before["nodes"]},
                             {node["id"] for node in after["nodes"]})
 
+    # A big class is carried whole: every hit is a node, and the row closes on
+    # the set it actually holds rather than on a sample of it.
+    def test_a_large_class_carries_every_hit(self):
+        size = 250
+        body = "".join(f"// Widget line {n}\n" for n in range(1, size + 1))
+        repo = self.repo({"alpha/Widget.java": body})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        b1 = row(document, "B1")
+        self.assertEqual(b1["hits"], size)
+        self.assertEqual(len(b1["hit_ids"]), size)
+        self.assertEqual(len([node for node in document["nodes"]
+                              if node["class"] == "B1"]), size)
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+
+    # Past the limit the subject is too generic to answer, and nothing is written.
+    def test_a_class_past_the_limit_writes_no_ledger(self):
+        limit = seed_map.HIT_LIMIT
+        seed_map.HIT_LIMIT = 3
+        self.addCleanup(setattr, seed_map, "HIT_LIMIT", limit)
+        body = "".join(f"// Widget line {n}\n" for n in range(1, 4))
+        repo = self.repo({"alpha/Widget.java": body})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B1")["hits"], 3)
+
+        (repo / "alpha" / "Widget.java").write_text(body + "// Widget line 4\n",
+                                                    encoding="utf-8")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-m", "one more")
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 2)
+        self.assertIsNone(document)
+
+    # The limit has one home, so the guard and the contract cannot drift apart.
+    def test_the_limit_is_one_constant(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("contract", _SCRIPTS / "contract.py")
+        contract = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(contract)
+        self.assertEqual(seed_map.HIT_LIMIT, contract.HIT_LIMIT)
+
     # Whitespace is code: a re-indented line is a line the ground diff must see.
     def test_reindenting_a_line_moves_its_hash(self):
         repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
