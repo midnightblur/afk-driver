@@ -382,10 +382,10 @@ a token value — not even partially.
 - **Fix:** `auto:` `pip install openpyxl`
 
 ### P5 · pytest
-- **Needed by:** every test under `scripts/tests/` — the suite's cases are
-  `pytest` functions using its fixtures and helpers, so without it the whole
-  suite is unrunnable, not merely degraded. A plugin change cannot be checked on
-  a machine lacking it.
+- **Needed by:** the `pytest`-based tests under `scripts/tests/` — their cases
+  are `pytest` functions using its fixtures and helpers, so without it they are
+  unrunnable, not merely degraded. The rest of the directory is `unittest` and
+  runs on stock Python, so a green run proves nothing about this row.
 - **Probe:** `python -c "import pytest"`
 - **Fix:** `auto:` `pip install pytest`
 - **Notes:** a miss surfaces only when someone runs the suite, never at session
