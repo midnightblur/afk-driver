@@ -153,6 +153,14 @@ class LedgerBindingTest(unittest.TestCase):
         _, verdict = self.check(document)
         self.assertEqual(verdict, "partial")
 
+    def test_a_gap_that_lowers_the_verdict_is_said_out_loud(self):
+        document = ledger()
+        document["claims"][0].update({"kind": "inference", "supporting_nodes": []})
+        notes = []
+        defects, verdict = validate_coverage.validate(document, notes=notes)
+        self.assertEqual((defects, verdict), ([], "partial"))
+        self.assertTrue(any("no node supports it" in note for note in notes), notes)
+
     def test_a_load_bearing_unverified_claim_is_partial(self):
         document = ledger()
         document["claims"][0].update({"kind": "unverified", "load_bearing": True})
@@ -338,6 +346,19 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("count" in defect for defect in defects), defects)
 
+    def test_a_negative_line_figure_is_a_defect(self):
+        document = ledger()
+        document["queries"][0]["lines"] = -1
+        defects, _ = self.check(document)
+        self.assertTrue(any("lines is how many lines" in defect for defect in defects),
+                        defects)
+
+    def test_a_query_may_leave_the_line_figure_out(self):
+        document = ledger()
+        document["queries"][0].pop("lines", None)
+        defects, _ = self.check(document)
+        self.assertFalse(any("lines" in defect for defect in defects), defects)
+
     def test_a_row_citing_the_same_query_twice_is_a_defect(self):
         document = only(ledger(), "B1", query_ids=[QUERY, QUERY])
         defects, _ = self.check(document)
@@ -510,12 +531,24 @@ class LedgerBindingTest(unittest.TestCase):
     def test_a_counter_check_rerunning_the_primary_command_respaced_is_a_defect(self):
         document = ledger()
         primary = document["queries"][0]
-        respaced = {**primary, "universe": "tracked files, case-blind",
+        respaced = {**primary, "universe": "tracked files, case-blind", "count": 0,
                     "command": primary["command"].replace(" ", "  ")}
         respaced["id"] = validate_coverage.stable_id(
             "q", respaced["command"] + respaced["universe"])
         document["queries"].append(respaced)
         document["counter_checks"][0].update({"query_ids": [respaced["id"]]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
+                            for defect in defects), defects)
+    def test_a_counter_check_rerunning_the_primary_command_requoted_is_a_defect(self):
+        document = ledger()
+        primary = document["queries"][0]
+        requoted = {**primary, "universe": "tracked files, case-blind", "count": 0,
+                    "command": primary["command"].replace("-e ", "-e '") + "'"}
+        requoted["id"] = validate_coverage.stable_id(
+            "q", requoted["command"] + requoted["universe"])
+        document["queries"].append(requoted)
+        document["counter_checks"][0].update({"query_ids": [requoted["id"]]})
         defects, _ = self.check(document)
         self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)

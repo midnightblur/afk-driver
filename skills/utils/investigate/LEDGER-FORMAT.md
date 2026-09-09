@@ -124,18 +124,22 @@ its class row does not account for.
 
 `id` (see "Stable keys") · `command` (the command that ran, written so it runs
 again verbatim) · `universe` (what it searched — paths, file kinds) · `count`
-(the nodes citing this query) · `lines` (optional: the lines the search
-returned, which is a larger number wherever a pass filtered its own results) ·
-`origin` (`seed` · `tracer`) · `evidence` (path to the raw output when it was
-kept).
+(the nodes citing this query) · `lines` (optional integer, zero or more: the
+lines the search returned) · `origin` (`seed` · `tracer`) · `evidence` (path to
+the raw output when it was kept).
 
 `command`, `universe`, `count` and `origin` are required; `count` is an integer,
 zero or more, and is the number of nodes citing this query in this ledger —
 two numbers for one search is one of them lying, and the nodes table is the one
-a reader can check. Every searched node cites exactly one query. A search a pass
-filtered in process is two searches, and each is recorded as itself: the
-invocation, and the filter over its results. A `command` nobody executed is a
-command nobody can rerun. `origin` says who ran the search: `seed` for the deterministic
+a reader can check. Every searched node cites exactly one query. `count` and
+`lines` count different things, so they part where one returned line becomes
+several nodes — a line two classes each take a node from is one line and two
+citations, and `count` runs ahead of `lines`. A pass that wants a narrower and a
+wider universe executes both and records both commands; a command a pass
+composed in memory is a command nobody can rerun. A pass searching only the
+files another class named passes those files to the search as paths, and splits
+them across several executed commands where the list is long — each command is
+its own row, and a hit cites the one that returned it. `origin` says who ran the search: `seed` for the deterministic
 pre-pass, whose queries a later pre-pass runs again, `tracer` for a widening
 past it, which it does not. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
@@ -214,7 +218,10 @@ this same document scoped to its partition, plus:
 | `partition.classes` | the boundary classes this fragment is answerable for |
 | `partition.seed` | path to the slice of the seed map it worked from |
 
-Rows for classes outside `partition.classes` are omitted, not stubbed.
+A fragment carries the `run` block of the ledger it folds into, copied verbatim
+from what the caller handed it — the fold reads it to prove the fragment answers
+the same question over the same subject, and refuses a fragment that leaves it
+out. Rows for classes outside `partition.classes` are omitted, not stubbed.
 
 ### Stable keys
 
@@ -239,7 +246,7 @@ two fragments that ran one search carry one query row.
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Two rows under one id that disagree on any other field they both fill are two answers under one name, and a fold refuses them rather than keeping the first |
 | `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
-| `queries` | by query id; two rows under one id must agree on `command`, `universe`, `lines` and `origin`, and a fold refuses them when they do not. `count` is not carried across: it is the nodes citing the query in the ledger holding it, so the fold reads it off the folded nodes table |
+| `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` and `lines` are not carried across: each records one execution in the ledger holding it, and the fold reads `count` off the folded nodes table |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
 
 A fragment accounts for what it searched: every node it carries that a search produced is in the `hit_ids` of a boundary row the fragment itself carries, and its every query's `count` is the fragment's own nodes citing it.

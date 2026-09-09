@@ -171,11 +171,11 @@ CLAIM_ORDER = ("unverified", "inference", "fact")
 def merge_query(kept: dict, row: dict) -> dict:
     """One id is one execution: two bodies under it are two searches.
 
-    `count` is left out: it is the nodes citing the query in the ledger that
-    carries it, so two partitions of one search carry two parts of one count.
-    The fold recomputes it off the folded nodes table.
+    `count` and `lines` are left out: both are records of one execution in the
+    ledger that carries it, so two partitions of one search carry two parts of
+    each. The fold recomputes `count` off the folded nodes table.
     """
-    for key in ("command", "universe", "lines", "origin"):
+    for key in ("command", "universe", "origin"):
         if key in kept and key in row and kept[key] != row[key]:
             raise MergeError(
                 f"query {kept.get('id')}: two fragments give it a different {key} "
@@ -427,25 +427,24 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                 f"{path}: partition.classes is absent; a fragment names the classes "
                 "it answers for, and answers for nothing else"
             )
-        if True:
-            outside = sorted({row.get("class")
-                              for table in ("boundaries", "nodes")
-                              for row in rows(fragment, table)
-                              if row.get("class") not in classes})
-            if outside:
-                raise MergeError(
-                    f"{path}: carries {', '.join(str(item) for item in outside)}, which its "
-                    f"partition.classes does not declare; a fragment answers for its own "
-                    "partition"
-                )
-            declared = {row.get("class") for row in rows(staging, "boundaries")}
-            beyond = sorted(item for item in classes if item not in declared)
-            if beyond:
-                raise MergeError(
-                    f"{path}: partition.classes names {', '.join(str(item) for item in beyond)}, "
-                    "which the staging ledger does not carry; a partition is a slice of the "
-                    "run it folds into"
-                )
+        outside = sorted({row.get("class")
+                          for table in ("boundaries", "nodes")
+                          for row in rows(fragment, table)
+                          if row.get("class") not in classes})
+        if outside:
+            raise MergeError(
+                f"{path}: carries {', '.join(str(item) for item in outside)}, which its "
+                f"partition.classes does not declare; a fragment answers for its own "
+                "partition"
+            )
+        declared = {row.get("class") for row in rows(staging, "boundaries")}
+        beyond = sorted(item for item in classes if item not in declared)
+        if beyond:
+            raise MergeError(
+                f"{path}: partition.classes names {', '.join(str(item) for item in beyond)}, "
+                "which the staging ledger does not carry; a partition is a slice of the "
+                "run it folds into"
+            )
         folded += 1
         for warning in fragment.get("run", {}).get("config_warnings") or []:
             if warning not in warnings:

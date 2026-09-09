@@ -62,9 +62,13 @@ first released heading here.
   one search, a query's `count` is the nodes citing it, and a row's `hits` is
   what its own searches produced — the nodes table is the arithmetic, so a
   number nobody can recompute is a defect. A recorded `command` is the one that
-  ran, quoted so it runs again verbatim; a pass that filters its own results
-  records the filter as its own search, and the lines a search returned live in
-  `lines` beside the nodes it produced. A ledger written before this version
+  ran, quoted so it runs again verbatim: a pass wanting a narrow and a wide
+  universe executes both, and a class searching only the files another class
+  named passes those files to the search as paths, split across several executed
+  commands where the list is long. The lines a search returned live in `lines`
+  beside the nodes it produced — `count` runs ahead of `lines` where one line
+  becomes a node for several classes. A load-bearing gap that lowers the verdict
+  is printed, so a valid ledger never reads closed in silence. A ledger written before this version
   carrying `truncated` fails validation: re-seed the question, there is no
   migration.
 - **`ground_diff.py` says whether a cited investigation still describes the
@@ -72,7 +76,9 @@ first released heading here.
   reports an appearance, a disappearance, an in-place edit, a duplicate, a
   boundary status that moved, a changed configuration, and a seed search that no
   longer runs as drift. Query rows now say who ran them (`origin`), so a line a tracer widened
-  to is counted rather than compared, and a file only an agent read is watched
+  to is counted rather than compared. Searches compare as what they run over
+  what universe, paths aside, so one file set split into a different number of
+  commands is the same pass and only a search that stopped running is drift; and a file only an agent read is watched
   through `git diff` between the two snapshots. A line hash covers the exact
   bytes of the line, so a re-indentation reads as the edit it is.
   `/afk:execute` runs it before writing code and answers drift with a fresh
@@ -89,7 +95,8 @@ first released heading here.
   folds, and a defect refuses the fold naming the fragment and the row rather
   than repairing it — including its own arithmetic: a fragment accounts for
   every node it searched, in a row it carries itself. A fragment folds on an
-  identity both sides state, so a run field absent from either refuses. A fragment taken against another commit, or answering
+  identity both sides state, so a run field absent from either refuses; the spawn
+  hands the tracer the run block to carry back verbatim. A fragment taken against another commit, or answering
   another question, subject or configuration, aborts the merge rather
   than mixing two snapshots.
 - **The design chain verifies its claims by investigation.** A claim about this
@@ -100,9 +107,9 @@ first released heading here.
   the layer locks, and the L9 seam walk answers the existing contract and change
   impact with one Q1+Q2+Q3 run per seam. Each plan `## Seams` row carries that
   investigation's id, and `validate_plan.py` refuses a seam row standing on no
-  ledger, on a ledger the SDD's own §14 row does not cite, or on one whose
-  verdict is not closed, that names two seam rows, or that resolves to two
-  ledger directories; a validator that will not load stops the plan rather
+  ledger, on a plan citing a seam with no §14 table to ground it, on a ledger the SDD's
+  own §14 row does not cite, or on one whose verdict is not closed, that names
+  two seam rows, or that resolves to two ledger directories; a validator that will not load stops the plan rather
   than passing it unchecked.
 - **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
   cites the investigation that closed it, and a new bundled script resolves each

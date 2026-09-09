@@ -37,7 +37,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
    the repository's `.afk/config.yaml` → the generic defaults run alone; say so
    in the reply and name the fix: declare `investigation:` in
    `.afk/config.yaml` (schema: `${AFK_PLUGIN_ROOT}/CONFIG.md`).
-4. **Fan out.** Apply the proportionality rule (`INVESTIGATION.md` § "Proportionality"). Cluster the seed map's hits by module and boundary, then spawn one `afk-tracer` per cluster **in one message** — or one tracer for the whole run when the rule does not call for fan-out. Each spawn carries: the repository root, the question, its types, the path to its slice of the seed map, the fragment output path, and one sentence stating the nesting depth it may use. Arm the stall watchdog (`${AFK_PLUGIN_ROOT}/DELEGATION.md` § "Stall watchdog").
+4. **Fan out.** Apply the proportionality rule (`INVESTIGATION.md` § "Proportionality"). Cluster the seed map's hits by module and boundary, then spawn one `afk-tracer` per cluster **in one message** — or one tracer for the whole run when the rule does not call for fan-out. Each spawn carries: the repository root, the question, its types, the path to its slice of the seed map, the staging ledger's `run` block for the fragment to copy, the fragment output path, and one sentence stating the nesting depth it may use. Arm the stall watchdog (`${AFK_PLUGIN_ROOT}/DELEGATION.md` § "Stall watchdog").
 5. **Merge and reopen.** Fold every fragment into the staging ledger:
 
    ```sh

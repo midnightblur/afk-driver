@@ -9,6 +9,7 @@ longer identifier. Fixtures are throwaway git repositories.
 """
 
 import shutil
+import shlex
 import subprocess
 import sys
 import unittest
@@ -426,25 +427,61 @@ class SeedMapBindingTest(unittest.TestCase):
                     if item["status"] in ("closed", "partial") and item["query_ids"]}
         self.assertTrue(searched)
         self.assertTrue(searched <= covered, f"uncovered: {sorted(searched - covered)}")
+
     # B4 — a recorded command is the command that ran, and it runs verbatim.
     def test_the_recorded_search_reruns_and_returns_what_cites_it(self):
         repo = self.repo({"alpha/Widget.java": "class Widget {}\n",
                           "alpha/other.java": "no name here\n"})
         code, document = run(repo, "--subject", "Widget", "--type", "Q1")
         self.assertEqual(code, 0)
-        wide = next(item for item in document["queries"]
-                    if item["command"].startswith("git grep")
-                    and "--untracked" in item["command"])
-        filtered = next(item for item in document["queries"]
-                        if item["command"].startswith("filter:"))
-        result = subprocess.run(wide["command"], cwd=repo, shell=True,
+        primary = next(item for item in document["queries"]
+                       if item["command"].startswith("git grep")
+                       and "--untracked" not in item["command"])
+        result = subprocess.run(primary["command"], cwd=repo, shell=True,
                                 capture_output=True, encoding="utf-8", errors="replace")
         self.assertEqual(result.returncode, 0, result.stderr)
         returned = {line.split(":", 2)[0] + ":" + line.split(":", 2)[1]
                     for line in result.stdout.splitlines() if line.count(":") >= 2}
         cited = {node["site"] for node in document["nodes"]
-                 if node.get("query_id") in (wide["id"], filtered["id"])}
+                 if node.get("query_id") == primary["id"]}
         self.assertEqual(returned, cited)
+
+    # B4b — every recorded command, not just the primary: re-executed, each
+    # returns the line figure its own row carries.
+    def test_every_recorded_query_reruns_to_the_lines_it_recorded(self):
+        # One file names the subject and registers, one registers without
+        # naming it: a class scoped to the named files must not count the
+        # second, and must not record a command that returns it either.
+        files = {"alpha/Widget.java": "class Widget {}\n",
+                 "alpha/WidgetModule.java": "@KafkaListener\nvoid onWidget() {}\n",
+                 "alpha/Other.java": "@KafkaListener\nvoid onOther() {}\n"}
+        repo = self.repo(files)
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        checked = 0
+        for row in document["queries"]:
+            if "lines" not in row or not row["command"].startswith("git grep"):
+                continue
+            result = subprocess.run(shlex.split(row["command"]), cwd=repo,
+                                    capture_output=True, encoding="utf-8",
+                                    errors="replace")
+            self.assertIn(result.returncode, (0, 1), result.stderr)
+            returned = [line for line in result.stdout.splitlines()
+                        if line.count(":") >= 2]
+            self.assertEqual(len(returned), row["lines"], row["command"])
+            checked += 1
+        self.assertTrue(checked >= 2, document["queries"])
+
+    def test_a_path_list_past_the_budget_runs_as_several_commands(self):
+        paths = [f"alpha/File{index:04d}.java" for index in range(900)]
+        chunks = seed_map.chunk_pathspecs(paths)
+        self.assertTrue(len(chunks) > 1, len(chunks))
+        self.assertEqual(sorted(item for chunk in chunks for item in chunk),
+                         sorted(paths))
+        for chunk in chunks:
+            self.assertTrue(sum(len(shlex.quote(item)) + 1 for item in chunk)
+                            <= seed_map.PATHSPEC_BUDGET, len(chunk))
+        self.assertEqual(chunks, seed_map.chunk_pathspecs(list(reversed(paths))))
 
     # B5 — the two numbers a query carries say two different things.
     def test_a_query_counts_its_nodes_and_records_the_lines_it_returned(self):

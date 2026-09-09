@@ -51,8 +51,9 @@ Checks + rule ids (one finding line per hit: `{file}: {RULE}: {detail}`):
                       scenario count (deferred API placeholder counts 0)
 
 (i) Seam ground — every `## Seams` bullet of a cited-mode contract:
-  I-SEAM-UNGROUNDED   the bullet names no `(INV-NNN)`, or names one the SDD §14
-                      row for that seam does not cite
+  I-SEAM-UNGROUNDED   the bullet names no `(INV-NNN)`, names no SDD §14 row (an
+                      absent SDD or §14 table included), or names one the SDD
+                      §14 row for that seam does not cite
   I-SEAM-NO-LEDGER    no `INV-NNN-*/COVERAGE.json` under ../investigations, or
                       more than one directory answering to that id
   I-SEAM-NOT-CLOSED   the ledger's validator verdict is not closed or
@@ -439,8 +440,11 @@ def main():
             # The design cites the investigation that closed the seam; a plan
             # citing another one grounds the slice on an answer the SDD never
             # rested on, and a bullet naming two seams grounds on neither.
-            found = seam_rows(sdd_rows, line) if sdd_rows else []
-            if sdd_rows and not found:
+            # A cited seam stands on the SDD row that designed it. No design,
+            # no §14 table, or no row naming this seam are one answer: the
+            # citation rests on nothing this plan can point at.
+            found = seam_rows(sdd_rows, line)
+            if not found:
                 flag(fname, "I-SEAM-UNGROUNDED",
                      f"## Seams row names no SDD §14 seam: {line!r}")
                 continue

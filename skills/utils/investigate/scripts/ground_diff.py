@@ -20,7 +20,9 @@ What the multiset cannot see is reported beside it. A node an agent read and a
 node a tracer widened to are not ground a seed map re-takes, so their files are
 checked against `git diff` between the two snapshots instead. A boundary status
 that moved, a seed search that no longer runs, and a configuration that changed
-are each drift on their own, whatever the lines say.
+are each drift on their own, whatever the lines say. Searches are compared as
+what they run over what universe, pathspecs aside, so a path list chunked into
+a different number of commands is the same pass.
 
 Exit codes: 0 the ground held, 1 it moved (every difference printed), 2 usage,
 a ledger that cannot be read, or one that cannot be compared — no `run.head`,
@@ -33,9 +35,14 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from validate_coverage import normalized  # noqa: E402
 
 
 class GroundError(ValueError):
@@ -135,8 +142,30 @@ def statuses(document: dict, classes: list[str] | None) -> dict[str, dict]:
             and (not classes or row["class"] in classes)}
 
 
-def seed_query_ids(document: dict) -> set[str]:
-    return {key for key, row in queries_of(document).items() if row.get("origin") == "seed"}
+def logical(row: dict) -> str:
+    """One logical search: what ran, over what universe, pathspecs aside.
+
+    A pass carrying a long path list runs it as several commands, so where the
+    chunks fall is an execution detail, not a search. Two runs that split one
+    file set differently ran the same searches.
+    """
+    command = row.get("command") or ""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    if "--" in parts:
+        command = " ".join(shlex.quote(part) for part in parts[:parts.index("--")])
+    return normalized(command) + " over " + str(row.get("universe") or "")
+
+
+def seed_searches(document: dict) -> dict[str, str]:
+    """The logical searches the seed pass ran, each under a command to name it."""
+    found: dict[str, str] = {}
+    for row in queries_of(document).values():
+        if row.get("origin") == "seed":
+            found.setdefault(logical(row), row.get("command") or "")
+    return found
 
 
 def touched(repo: Path, before: str, after: str) -> set[str]:
@@ -172,9 +201,11 @@ def differences(cited: dict, current: dict, classes: list[str] | None,
         if was != now:
             lines.append(f"! {klass}: the class was {was}, and now it is {now}")
 
-    for gone in sorted(seed_query_ids(cited) - seed_query_ids(current)):
-        lines.append(f"! query {gone} no longer runs, so the search that closed its "
-                     "class is gone; re-investigate")
+    now_running = seed_searches(current)
+    for key, command in sorted(seed_searches(cited).items()):
+        if key not in now_running:
+            lines.append(f"! the search `{command}` no longer runs, so what closed its "
+                         "class is gone; re-investigate")
 
     # A node nobody can re-search is watched through its file instead.
     moved = touched(repo, cited_head, current_head)

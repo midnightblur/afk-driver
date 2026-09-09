@@ -119,11 +119,12 @@ def normalized(command: str) -> str:
     """One invocation, one spelling.
 
     Two searches differ by what they run, not by how the string was typed:
-    spacing, quoting and the order of the fixed flags say nothing. The
-    expressions keep their order — that order is part of the search.
+    spacing, quoting and the order of the fixed flags say nothing, and a shell
+    hands the tool one argv whichever quoting reached it. The expressions keep
+    their order — that order is part of the search.
     """
     try:
-        parts = shlex.split(command, posix=False)
+        parts = shlex.split(command)
     except ValueError:
         parts = command.split()
     flags: list[str] = []
@@ -168,14 +169,19 @@ def unknown(defects: list[str], table: str, where: str, row: dict) -> None:
         defects.append(f"{where}: {key!r} is not a field this format defines")
 
 
-def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
+def validate(ledger: dict, scope: str = "run",
+             notes: list[str] | None = None) -> tuple[list[str], str]:
     """Check a ledger.
 
     `scope="rows"` checks the rows and their bindings alone — what a fragment
     answers for. The run's own fields, the fourteen-class sweep, the
     counter-search coverage and the verdict read on the whole investigation, so
     a part of one is not held to them.
+
+    `notes` collects what lowered the verdict without being a defect, so a
+    caller can say why a valid ledger is not a closed one.
     """
+    said = notes if notes is not None else []
     whole = scope != "rows"
     defects: list[str] = []
 
@@ -333,7 +339,12 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
             defects.append(f"{where}: universe required — what the invocation searched")
         count = row.get("count")
         if not isinstance(count, int) or isinstance(count, bool) or count < 0:
-            defects.append(f"{where}: count is how many the query returned, zero or more")
+            defects.append(f"{where}: count is how many nodes cite the query, zero or more")
+        lines = row.get("lines")
+        if lines is not None and (not isinstance(lines, int)
+                                  or isinstance(lines, bool) or lines < 0):
+            defects.append(f"{where}: lines is how many lines the search returned, "
+                           "zero or more")
         if isinstance(command, str) and isinstance(universe, str):
             if query_id != stable_id("q", command + universe):
                 defects.append(f"{where}: a query id is the digest of its command and "
@@ -640,6 +651,11 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
                     in ("traced", "terminal")]
         if kind == "unverified" or not supporting or not followed:
             load_bearing_gaps += 1
+            why = ("its kind is unverified" if kind == "unverified"
+                   else "no node supports it" if not supporting
+                   else "no node it rests on was followed to an end")
+            said.append(f"{where}: a load-bearing claim, and {why}; the verdict "
+                        "cannot read closed")
         if kind in ("fact", "inference") and not row.get("citations"):
             defects.append(
                 f"{where}: a load-bearing {kind} names what it rests on — at least one citation"
@@ -824,9 +840,12 @@ def main(argv: list[str]) -> int:
         sys.stderr.write(f"validate_coverage: cannot read {path}: {problem}\n")
         return 2
 
-    defects, verdict = validate(ledger)
+    notes: list[str] = []
+    defects, verdict = validate(ledger, notes=notes)
     for defect in defects:
         sys.stderr.write(f"validate_coverage: {defect}\n")
+    for note in notes:
+        sys.stdout.write(f"validate_coverage: note — {note}\n")
     sys.stdout.write(f"VERDICT: {verdict}\n")
     if defects:
         sys.stdout.write(f"validate_coverage: invalid — {len(defects)} defect(s)\n")

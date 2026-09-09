@@ -95,6 +95,37 @@ class MergeFragmentsTest(unittest.TestCase):
         document = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
         return result.returncode, result.stderr, document
 
+    # The spawn hands the tracer the staging ledger's run block; a fragment
+    # that carries it back verbatim is the shape the prose asks for.
+    def test_a_fragment_carrying_the_run_block_verbatim_folds(self):
+        staging = ledger()
+        piece = fragment(boundaries=[])
+        piece["run"] = json.loads(json.dumps(staging["run"]))
+        code, stderr, document = self.run_script(staging, piece)
+        self.assertEqual(code, 0, stderr)
+        self.assertIsNotNone(document)
+
+    def test_a_fragment_without_a_run_block_is_refused(self):
+        piece = fragment(boundaries=[])
+        del piece["run"]
+        code, stderr, document = self.run_script(ledger(), piece)
+        self.assertEqual(code, 2)
+        self.assertIn("run", stderr)
+        self.assertIsNone(document)
+
+    # `lines` is a record of one execution, not identity: two partitions of one
+    # search returned two parts of it.
+    def test_two_fragments_may_record_different_line_figures(self):
+        staging = ledger()
+        query = dict(staging["queries"][0])
+        first = fragment(partition="p1", classes=["B1"], boundaries=[],
+                         queries=[dict(query, lines=3, count=0)])
+        second = fragment(partition="p2", classes=["B2"], boundaries=[],
+                          queries=[dict(query, lines=9, count=0)])
+        code, stderr, document = self.run_script(staging, first, second)
+        self.assertEqual(code, 0, stderr)
+        self.assertIsNotNone(document)
+
     # A fragment from another snapshot is another investigation.
     def test_a_head_mismatch_aborts_the_merge(self):
         code, stderr, document = self.run_script(

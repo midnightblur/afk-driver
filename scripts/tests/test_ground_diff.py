@@ -88,7 +88,8 @@ class GroundDiffTest(unittest.TestCase):
                             "query_ids": [], "universe": "tracked files"}
                            for klass in classes],
             "nodes": nodes,
-            "queries": [{"id": item, "command": "git grep", "universe": "tracked files",
+            "queries": [{"id": item, "command": f"git grep -e {item}",
+                         "universe": "tracked files",
                          "count": 1, "evidence": None, "origin": origin}
                         for origin, group in (("seed", queries),
                                               ("tracer", tracer_queries))
@@ -229,6 +230,34 @@ class GroundDiffTest(unittest.TestCase):
         self.assertEqual(code, 0, output)
 
     # A seed search the current run no longer runs is drift, not a quiet drop.
+    # Where the chunks fall is an execution detail: one file set split into a
+    # different number of commands is the same pass.
+    def test_the_same_search_re_chunked_is_not_drift(self):
+        def chunked(*specs):
+            document = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")])
+            document["queries"] = [
+                {"id": f"q-{index:08d}", "command": f"git grep -e Widget -- {spec}",
+                 "universe": "files that name the subject", "count": 0,
+                 "evidence": None, "origin": "seed"}
+                for index, spec in enumerate(specs)]
+            document["queries"].append(
+                {"id": QUERY, "command": "git grep -e Widget",
+                 "universe": "tracked files", "count": 1, "evidence": None,
+                 "origin": "seed"})
+            return document
+
+        code, output = self.diff(chunked("alpha.java", "conf/queue.yml"),
+                                 chunked("alpha.java conf/queue.yml"))
+        self.assertEqual(code, 0, output)
+
+    def test_a_pattern_the_current_run_dropped_is_drift(self):
+        cited = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")],
+                            queries=(QUERY, "q-22222222"))
+        current = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")], queries=(QUERY,))
+        code, output = self.diff(cited, current)
+        self.assertEqual(code, 1)
+        self.assertIn("git grep -e q-22222222", output)
+
     def test_a_seed_query_that_no_longer_runs_is_drift(self):
         cited = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")],
                             queries=(QUERY, "q-22222222"))

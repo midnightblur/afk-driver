@@ -265,6 +265,14 @@ def main():
             "dirty plan flags a seam id two ledger directories answer to")
         (ok if "is not cited by the SDD" in out else bad)(
             "dirty plan flags a seam citing an investigation the SDD row does not")
+        # A cited seam with no design behind it is not a clean plan.
+        blind_sdd = os.path.join(tmp, "repo", "tasks", "T-1", "SDD.md")
+        os.replace(blind_sdd, blind_sdd + ".away")
+        rc, no_sdd = run(os.path.join(tmp, "repo", "tasks", "T-1", "plan"))
+        os.replace(blind_sdd + ".away", blind_sdd)
+        (ok if rc == 1 and "I-SEAM-UNGROUNDED:" in no_sdd else bad)(
+            f"a cited seam with no SDD flags I-SEAM-UNGROUNDED (got {rc})")
+
         # A validator that did not load checks nothing, and says so rather
         # than passing a plan nobody checked.
         blind = os.path.join(tmp, "no-scripts")

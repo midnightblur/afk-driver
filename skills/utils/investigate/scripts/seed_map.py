@@ -135,6 +135,11 @@ EVIDENCE_CHARS = 200
 # A generated file larger than this is output, not source, and is not read.
 MAX_WALK_BYTES = 2 * 1024 * 1024
 
+# Bytes of pathspec argv one executed search may carry. Well under the shell
+# limits of every supported platform, so a path list past it runs as several
+# commands rather than as one command nobody can rerun.
+PATHSPEC_BUDGET = 8000
+
 # How many skipped or missing paths a reason names before it says "and N more".
 REASON_SAMPLE = 5
 
@@ -363,6 +368,27 @@ def grep(repo: Path, patterns: list[str], pathspecs: list[str] | None,
     if pathspecs:
         args += ["--", *pathspecs]
     return parse_hits(git(repo, *args, allowed=(0, 1)))
+
+
+def chunk_pathspecs(paths: list[str]) -> list[list[str]]:
+    """The path list, split into runs one command can carry.
+
+    Sorted paths and a fixed budget, so two runs over one file set chunk the
+    same way and the recorded commands compare.
+    """
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    size = 0
+    for path in sorted(set(paths)):
+        cost = len(shlex.quote(path)) + 1
+        if current and size + cost > PATHSPEC_BUDGET:
+            chunks.append(current)
+            current, size = [], 0
+        current.append(path)
+        size += cost
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def walk_grep(repo: Path, roots: list[str], expression: str) -> tuple[list[dict], list[str]]:
@@ -630,6 +656,28 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             parts += ["--", *(shlex.quote(spec) for spec in pathspecs)]
         return " ".join(parts)
 
+    def search(patterns: list[str], files: list[str] | None, universe: str,
+               extra: list[str] | None = None) -> tuple[list[dict], list[str]]:
+        """Run the search the ledger records, pathspecs and all.
+
+        A class that searches only the files another class named passes those
+        files as pathspecs, so the recorded command returns what the row
+        counted; a list past the argv budget runs as several commands, each its
+        own query row, and every hit cites the one that returned it.
+        """
+        if files is None:
+            found = grep(repo, patterns, None, extra=extra)
+            query_id = note(grep_command(patterns, None, extra), universe, len(found))
+            return ledger.tag(found, query_id), [query_id]
+        hits: list[dict] = []
+        ids: list[str] = []
+        for chunk in chunk_pathspecs(files):
+            found = grep(repo, patterns, chunk, extra=extra)
+            query_id = note(grep_command(patterns, chunk, extra), universe, len(found))
+            hits += ledger.tag(found, query_id)
+            ids.append(query_id)
+        return hits, ids
+
     def carries_simple(value: str) -> bool:
         # Case-sensitive, because the primary pass is: a form the exact search
         # already returns is not a form the counter-search can learn from.
@@ -657,32 +705,23 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     )
 
     # B1 first: its hit set is the universe every filter and registration class
-    # searches, so those classes can be no more complete than it is. One call
-    # covers both universes — the wide one (case-blind, untracked files
-    # included) is split from the exact one in-process, so the second universe
-    # costs no second walk of a large working tree.
+    # searches, so those classes can be no more complete than it is. Two
+    # universes, two calls: the class's own exact tracked pass, and the wider
+    # case-blind pass over untracked files the counter-search runs. Each
+    # recorded command is the one that ran, so a reader reruns either verbatim.
     primary_patterns = [form_pattern(form) for form in primary_forms]
-    wide = grep(repo, primary_patterns, None, extra=["-i", "--untracked"])
-    exact = re.compile("|".join(form_pattern(form, "py") for form in primary_forms))
-    b1_hits = [hit for hit in wide
-               if hit["file"] in inventory_set and exact.search(hit["text"])]
+    b1_hits = grep(repo, primary_patterns, None)
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
+    wide = grep(repo, primary_patterns, None, extra=["-i", "--untracked"])
     second_universe = "case-blind pass over tracked and untracked files, not ignored"
-    # The one call answered two universes, and each is recorded as the search
-    # that would return it on its own: the class's own method is the exact
-    # tracked pass, and the wider case-blind pass is the counter-search's. Two
-    # commands, two counts, and every hit tagged with the one that produced it.
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
-    wide_command = grep_command(primary_patterns, None, ["-i", "--untracked"])
-    # Two searches ran: the wide grep, and the filter this pass applied to its
-    # results. Each is recorded as itself — a command nobody executed is a
-    # command nobody can rerun, whatever it would have returned.
     # The name-form queries; every class searching B1's hit set points at them.
-    name_query_ids = [note(f"filter: case-sensitive, tracked files only, over {wide_command}",
+    name_query_ids = [note(grep_command(primary_patterns, None),
                            "tracked text files, binary excluded", len(b1_hits))]
     ledger.tag(b1_hits, name_query_ids[0])
     seen = set(kept)
-    second_universe_id = note(wide_command, second_universe, len(wide))
+    second_universe_id = note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
+                              second_universe, len(wide))
     ledger.tag(wider_only, second_universe_id)
 
     # Counter-search one: a name form that does not carry the simple name — a
@@ -772,20 +811,18 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                           "expressions returns what the primary pass already returned",
             })
             return [], None
-        found = grep(repo, patterns, pathspecs, extra=["-i"])
-        if keep is not None:
-            found = [hit for hit in found if hit["file"] in keep]
-        query_id = note(grep_command(patterns, pathspecs, ["-i"]),
-                        "tracked files, case-blind", len(found))
-        new = ledger.tag([hit for hit in found
-                          if (hit["file"], hit["line"]) not in seen_keys], query_id)
+        scope = sorted(keep) if keep is not None else pathspecs
+        universe = ("files that name the subject, case-blind" if keep is not None
+                    else "tracked files, case-blind")
+        found, ids = search(patterns, scope, universe, ["-i"])
+        new = [hit for hit in found if (hit["file"], hit["line"]) not in seen_keys]
         counter_checks.append({
             "method": "case-blind pass over the class's own expressions",
             "kind": "deterministic", "targeted_claims": [claim_id],
-            "new_nodes": ledger.add(klass, new, seed_reason, query_id),
-            "state": "complete", "classes": [klass], "query_ids": [query_id],
+            "new_nodes": ledger.add(klass, new, seed_reason),
+            "state": "complete", "classes": [klass], "query_ids": ids,
         })
-        return new, query_id
+        return new, ids
 
     declared_done: dict[str, tuple] = {}
     named_files: set[str] = set()
@@ -853,11 +890,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         qids: list[str] = []
         for scope, patterns in by_scope.items():
             primary_extra: list[str] = []
-            found = grep(repo, patterns, list(scope) or None, extra=primary_extra)
             universe = f"declared paths {', '.join(scope)}" if scope else "tracked files"
-            qid = note(grep_command(patterns, list(scope) or None), universe, len(found))
-            qids.append(qid)
-            hits += ledger.tag(found, qid)
+            found, scope_ids = search(patterns, list(scope) or None, universe,
+                                      primary_extra)
+            qids += scope_ids
+            hits += found
             universes.append(universe)
             # The counter-search's own query stays out of `qids`: the class
             # row names the method that enumerated it, and the check names the
@@ -1046,14 +1083,13 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                                for pattern in default["patterns"]]
                 keep = named_files if scoped == "registration" else None
                 primary_extra = []
-                found = grep(repo, expressions, None, extra=primary_extra)
-                if keep is not None:
-                    found = [hit for hit in found if hit["file"] in keep]
                 universe = ("files that name the subject" if scoped == "registration"
                             else "tracked files")
-                query_id = note(grep_command(expressions, None), universe, len(found))
-                qids.append(query_id)
-                hits += ledger.tag(found, query_id)
+                found, class_ids = search(expressions,
+                                          sorted(keep) if keep is not None else None,
+                                          universe, primary_extra)
+                qids += class_ids
+                hits += found
                 if scoped == "registration":
                     qids += b1_query_ids
                 extra, _ = counter_pass(
