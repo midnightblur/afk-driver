@@ -7,6 +7,11 @@ markdown fallback, forbidden operations, poll-output-as-data rule. Skills
 at a render point carry a pointer here ("render per LAVISH.md") — they never
 restate any of the below. This file names no caller skill.
 
+A page whose markup a script produces is the **kit path**: `LAVISH-KIT.md`
+(plugin root) owns the round document, the components, the skeleton, the
+runtime contract and the round response grammar. The Production-path rule
+below says which pages take it.
+
 ## Pin and invocation
 
 **Pin: `lavish-axi@0.1.43`** — the only place this version string appears in
@@ -50,30 +55,65 @@ re-renders at question/turn boundaries, never per row write.
 dictionary and the dark-mode override are injected into the artifact HTML by
 `hooks/lavish-tips.sh` and `hooks/lavish-dark.sh`, which fire on a render **and
 on `lavish-axi poll <file>`**. Any Write/Edit that rewrites the artifact strips
-both, silently — nothing in the page or the transcript reports the loss. Both
+both, silently — nothing in the page or the transcript reports the loss. **The
+render script trips this the same way**: `scripts/lavish_render.py` writes the
+artifact file directly, so a kit render is a rewrite like any other and lands in
+the same hole. Both
 hooks are idempotent, so the next render or poll restores them; what you must
 never do is rewrite the artifact and then leave the human looking at it without
 one of those two commands in between.
 
 ## Render-point playbook map
 
-| RP | Playbook id |
-|----|-------------|
-| RP-1 | `comparison` |
-| RP-2 | `plan` |
-| RP-3 | `table` |
-| RP-4 | `table` |
-| RP-5 | `slides` |
-| RP-6 | `diagram` |
-| RP-7 | `input` |
-| RP-8 | `input` |
-| RP-9 | `table` |
-| RP-10 | `input` |
+| RP | Playbook id | Path |
+|----|-------------|------|
+| RP-1 | `comparison` | kit |
+| RP-2 | `plan` | authored |
+| RP-3 | `table` | authored |
+| RP-4 | `table` | authored |
+| RP-5 | `slides` | authored |
+| RP-6 | `diagram` | kit |
+| RP-7 | `input` | kit |
+| RP-8 | `input` | authored |
+| RP-9 | `table` | kit |
+| RP-10 | `input` | kit |
+| RP-11 | `slides` | authored |
+
+The Path column records what the component kit can render **today**. The
+Production-path rule below is what decides — a page carrying per-item answer
+controls belongs on the kit path whatever this column says, and a row flips to
+`kit` when a component covers its page.
 
 A rendering skill knows its own RP id (assigned where it's woven in) and
 looks up only its own row here — this file does not enumerate which skill
 owns which RP. Playbook ids are upstream-defined (`lavish-axi playbook`); the
 ones this plugin uses are a subset of upstream's full set.
+
+## Production path (binding on every render point)
+
+Two production paths coexist. One question decides which, and it is checkable
+on the page, not by intent:
+
+> **Does the page carry `data-afk-input` controls — is the human's answer
+> structured per item?**
+
+Yes → **kit path**: the agent authors the round JSON, the render script
+produces the markup, and no model writes HTML. Contract, components and
+grammar: `LAVISH-KIT.md`.
+
+No → **authored path**: the page-writer child writes the markup, as under
+Authoring delegation below. A drivable simulation, a slide deck, an
+explanatory diagram or plan page has no per-item answer, and a kit built for
+cards would cost expressiveness for no saving.
+
+A render point that grows per-item answers moves to the kit by the rule, not by
+a new decision. A page whose *subject* is per-item decisions is not the same
+thing: a meeting plan lists items the room will settle out loud, and stays
+authored while the page itself collects nothing. The day a facilitator records
+those outcomes in the page, the rule moves it — no fresh judgment, and no
+argument about intent. The authored path may embed the same runtime, copied from the
+renderer's output and tagged, when it wants a send control — it gets no kit
+guarantees.
 
 **Session-default weaves.** A weave may mark its render point
 *session-default*: lavish is then the standing surface of the whole
@@ -106,7 +146,9 @@ behaviour by hand. It builds only from this markup:
 - Cards the just-applied round changed carry `data-afk-fresh`; the
   page-writer moves these markers on every patch — a stale marker lies.
 - The answer surface (send control, or the current question's inputs) sits
-  inside the `current` card, so the jump control always lands on it.
+  inside the `current` card, so the jump control always lands on it. A card
+  the human answers per item carries the `data-afk-input` control pair —
+  contract and grammar: `LAVISH-KIT.md` "Runtime contract".
 
 A page without `data-afk-item` markup gets no chrome — degraded, not
 broken; content sections that are not round/item cards (a legend-free
@@ -202,7 +244,11 @@ red = blocked/rejected, neutral = existing/unchanged, accent = new/proposed —
 and never color alone (pair it with a label or icon). Diagrams follow the
 `draw-charts` skill (render-safe Mermaid).
 
-## Authoring delegation (binding on every render point)
+## Authoring delegation (binding on the authored path)
+
+On the kit path the render script replaces the page-writer child: the
+orchestrator authors the round JSON and runs the script, and no child is
+spawned for markup. The rest of this section is the authored path.
 
 Page markup is bulk output — the orchestrator keeps the conclusion, never the
 HTML in its context (`DELEGATION.md`). Who does what:
@@ -268,6 +314,13 @@ one send control composes a single compact summary of all marks and calls
 `window.lavish.queuePrompt(summary)` then `window.lavish.sendQueuedPrompts()`;
 pair it with a clipboard-copy control carrying the same summary as the
 out-of-band fallback.
+
+On the kit path the renderer emits that send control from the cards' own
+`data-afk-input` attributes, so no page-writer authors send logic: it composes
+one response for the whole round, persists each mark per item id, and refuses
+to send while a card that requires a mark has none, naming the cards. The
+response grammar is owned by `LAVISH-KIT.md`; what a round of decisions means —
+classes, audit marks, steers — by `skills/afk/grill-requirements/ROUND.md`.
 
 **One response surface.** An artifact with an embedded send control makes
 that control the canonical response path — annotation stays available for
