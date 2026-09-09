@@ -62,7 +62,7 @@ this evidence, and the last section says what would close it.
 | afk/setup | proven | `release` — run on the second harness's real installation: it wrote all four agent stubs with the plugin root substituted and reported its own failed rows honestly |
 | afk/smoke-test | not proven | Loads and registers |
 | afk/tdd | not proven | Loads and registers |
-| afk/to-demo-plan | covered | `gate` — the registry gate accepts the alias and resolves its forward |
+| afk/to-demo-plan | not proven | the registry gate accepts the alias directory; no harness was observed invoking the old name and following the forward |
 | afk/to-meeting-d | covered | `gate` + `round5` — its notes writes go through the proven `notes` adapter |
 | afk/to-design-brief | covered | `gate` + `round5` — obsidian variant proven at the adapter |
 | afk/to-prd | covered | `gate` + `round5` — repo-files, obsidian and notion all proven at the adapter |

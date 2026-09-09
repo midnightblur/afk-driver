@@ -11,4 +11,6 @@ Print this line once, then continue:
 
 > `/afk:to-demo-plan` is the old name. The skill is now `/afk:to-meeting-d`. The alias is removed in the next major version.
 
-Then read `skills/afk/to-meeting-d/SKILL.md` from the plugin root and follow it verbatim with the same arguments. Add nothing of your own; this file holds no behaviour.
+Then read `${AFK_PLUGIN_ROOT}/skills/afk/to-meeting-d/SKILL.md` and follow it verbatim with the same arguments, including any this file was invoked with. Add nothing of your own and skip nothing; this file holds no behaviour of its own.
+
+Everything the forwarded skill needs lives beside it — its template, its shared format file, its index row. This directory holds this file only.
