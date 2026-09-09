@@ -1,0 +1,184 @@
+/* Kit stylesheet — inlined into every rendered page, never fetched.
+ *
+ * Dark-first on purpose. Every render and every poll injects a forced-dark
+ * override that inverts any page it measures as light (hooks/lavish-dark.sh),
+ * so a stylesheet that followed `prefers-color-scheme` would hand a
+ * light-preference machine a page the override then inverts. Tokens still
+ * switch: `data-theme="light"` on <html> paints the light set for a human who
+ * asks for it.
+ *
+ * Color is a dimension, not decoration: one fixed semantic set — settled/pass,
+ * open/undecided, blocked/rejected, existing/unchanged, new/proposed — and
+ * never color alone; every state also carries a word.
+ */
+
+:root {
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-2: #23272f;
+  --line: #333944;
+  --fg: #e6e9ef;
+  --fg-dim: #a7b0be;
+  --settled: #4ade80;
+  --open: #fbbf24;
+  --blocked: #f87171;
+  --neutral: #94a3b8;
+  --accent: #7dd3fc;
+  --focus: #7dd3fc;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --line: #d8dde6;
+  --fg: #14161a;
+  --fg-dim: #545c6a;
+  --settled: #15803d;
+  --open: #b45309;
+  --blocked: #b91c1c;
+  --neutral: #52606d;
+  --accent: #0369a1;
+  --focus: #0369a1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem 1.5rem 7rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.afk-page { max-width: 62rem; margin: 0 auto; }
+
+.afk-title { margin: 0 0 .25rem; font-size: 1.35rem; }
+.afk-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+
+h2, h3, h4 { line-height: 1.3; }
+h4 { margin: 1rem 0 .35rem; font-size: .8rem; letter-spacing: .06em;
+     text-transform: uppercase; color: var(--fg-dim); }
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: .88em; background: var(--surface-2); padding: .1em .35em;
+       border-radius: 3px; }
+
+a { color: var(--accent); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.afk-section { margin: 2rem 0; }
+.afk-section > h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+
+.afk-round {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--open);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.afk-round > .afk-h { margin: 0 0 .75rem; font-size: 1.1rem; }
+
+.afk-round-header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
+.afk-where { margin: 0; font-weight: 600; }
+.afk-settled-last, .afk-next p { margin: .25rem 0; color: var(--fg-dim); }
+.afk-next { margin-top: .75rem; }
+
+.afk-cards { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+/* --- cards ------------------------------------------------------------- */
+
+.afk-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neutral);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: .85rem 1rem;
+}
+.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; }
+.afk-card--decided { border-left-color: var(--accent); }
+.afk-card--debate { border-left-color: var(--open); }
+.afk-card--confirm { border-left-color: var(--open); }
+.afk-card--signoff { border-left-color: var(--blocked); }
+.afk-card--settled { border-left-color: var(--settled); }
+.afk-card[data-afk-state="blocked"] { border-left-color: var(--blocked); }
+
+/* The session rail collapses a card by adding this class; only the heading,
+ * which is always the first child, stays visible. */
+.afk-card.afk-collapsed > *:not(.afk-h) { display: none; }
+
+.afk-fields { margin: .5rem 0 0; }
+.afk-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); margin-top: .6rem; }
+.afk-fields dd { margin: .15rem 0 0; }
+.afk-fields ul { margin: .15rem 0; padding-left: 1.1rem; }
+
+.afk-context { margin: 0 0 .6rem; }
+.afk-context + .afk-context { margin-top: -.2rem; }
+.afk-why-beat { margin: 0 0 .35rem; }
+.afk-third { color: var(--accent); }
+.afk-undecided { color: var(--fg-dim); }
+.afk-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
+
+.afk-degraded {
+  margin: 0 0 .5rem;
+  padding: .5rem .65rem;
+  border: 1px dashed var(--open);
+  border-radius: 4px;
+  color: var(--open);
+}
+
+/* --- option grid ------------------------------------------------------- */
+
+.afk-grid-wrap { overflow-x: auto; margin: .5rem 0; }
+.afk-grid { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.afk-grid caption { text-align: left; color: var(--fg-dim); padding-bottom: .3rem; }
+.afk-grid th, .afk-grid td {
+  border: 1px solid var(--line); padding: .4rem .55rem; text-align: left;
+  vertical-align: top;
+}
+.afk-grid thead th { background: var(--surface); }
+.afk-rec { color: var(--accent); font-weight: 600; font-size: .75rem; }
+
+/* --- answer surface ---------------------------------------------------- */
+
+.afk-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+
+.afk-choice { border: 0; margin: 0; padding: 0; }
+.afk-choice legend { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                     color: var(--fg-dim); padding: 0; }
+.afk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+.afk-opt input { margin-top: .25rem; }
+
+.afk-note { display: block; margin-top: .55rem; }
+.afk-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); }
+.afk-note textarea {
+  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; font: inherit; resize: vertical;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- send bar ---------------------------------------------------------- */
+
+.afk-send {
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .7rem 1.25rem;
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.afk-send button {
+  font: inherit; padding: .45rem .9rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  cursor: pointer;
+}
+.afk-send button.afk-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.afk-send button[hidden] { display: none; }
+.afk-card.afk-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
+.afk-send-status { color: var(--fg-dim); font-size: .88rem; }
+.afk-send-status.afk-warn { color: var(--open); }

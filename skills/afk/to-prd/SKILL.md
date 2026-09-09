@@ -19,7 +19,7 @@ Write `PRD.md` (+ any requirement ADRs) to the repo and stop. Publishing to a tr
 
 3. Write the PRD per [PRD-TEMPLATE.md](./PRD-TEMPLATE.md), applying its **concision doctrine** throughout.
 
-4. **Emit requirement-level ADRs.** From the PRD's `## Implementation Decisions`, extract the *behavioural* decisions clearing the three-part bar in [ADR-FORMAT.md](./ADR-FORMAT.md) ("When to emit"); write each standalone in `adr/requirements/` sibling to the PRD, per that format. These record *what / why* (behaviour, scope boundaries) — NOT *how* (algorithm/pattern/tech), which `/afk:to-sdd` records under `adr/design/`. Skip if nothing clears the bar (most small PRDs).
+4. **Emit requirement-level ADRs.** From the PRD's `## Implementation Decisions`, extract the *behavioural* decisions clearing the three-part bar in [ADR-FORMAT.md](./ADR-FORMAT.md) ("When to emit"). A decision whose grill-log `Settled:` row carries the agent tail keeps that provenance in the record it mints, per that format's status lines; write each standalone in `adr/requirements/` sibling to the PRD, per that format. These record *what / why* (behaviour, scope boundaries) — NOT *how* (algorithm/pattern/tech), which `/afk:to-sdd` records under `adr/design/`. Skip if nothing clears the bar (most small PRDs).
 
 5. **Consolidate unverified premises.** If any requirement carries a `(unverified premise: {claim})` label, list them all in one block under `## Further Notes` ("Assumptions this PRD rests on") — every assumption visible in one place.
 

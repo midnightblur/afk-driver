@@ -40,13 +40,15 @@ Present each live aspect as its own packet — never two aspects in one:
 3. **Blast radius** — which existing records, callers, and roles this changes.
 4. The risks and rough edges you are asking them to accept.
 
-Render per `LAVISH.md` (RP-9, playbook `table`) when a human is present —
-mandatory there per that file's Primary-path rule; markdown fallback per the
+Render per `LAVISH.md` (RP-9, playbook `table`) when a human is present,
+**kit path** — one `signoff_packet` per aspect in the round JSON, rendered by
+the script per `LAVISH-KIT.md`, never HTML; mandatory per that file's
+Primary-path rule; markdown fallback per the
 same file.
 
 ## Signing
 
-- **Ask by id, one aspect at a time**, after the packet and before descending.
+- **Ask by id, one packet per card** — each signature a direct answer to its own card, in the round that closes the aspect's layer (`../grill-requirements/ROUND.md`), after the packet and before descending.
 - A **signature** is the human's direct answer to that aspect's sign-off
   question, affirming it. Silence, an approval given to a different question, a
   nearby favourable remark, and any approval you supply on their behalf are not

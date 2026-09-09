@@ -7,7 +7,8 @@ Fill every section. Prose is what the presenter **says**, so write it speakable 
 ```markdown
 # {Feature name} — demo plan
 
-**Audience:** product owners + QA · **Runtime:** {n} min of beats + {m} min questions
+**Audience:** {product owners + QA | product owners, QA, the development director, the team lead}
+**Runtime:** {n} min of beats + {m} min questions
 **Demo on:** {environment / branch} · **Basis:** {PRD + SDD + diff | diff only} · **Last updated:** {date}
 
 ## The pitch
@@ -25,6 +26,27 @@ instead now, who feels it. This is the only section the presenter may deliver fr
   particular state, a second user, a switched-off toggle.
 - Name the reset: how to get back to S-state if a beat has to be re-run live.
 
+## Agenda
+
+*Company-meeting profile only. An ordinary demo has no agenda section and keeps
+its at-most-60 budget.*
+
+Profile: company-meeting
+
+| Min | Segment | Purpose |
+|---:|---|---|
+| 3 | Outcome and agenda | State what changed and how feedback will be handled. |
+| 5 | Problem, scope, exclusions | Restore the user context; prevent scope assumptions. |
+| 22 | Primary user journey | Show the highest-value delivered behaviour. |
+| 10 | Changed touch points and edges | Show existing behaviour that changed, and failure handling. |
+| 5 | Visible decisions and proof | Explain up to 3 felt decisions; point at the evidence. |
+| 10 | Questions and feedback | Inspect the outcome with stakeholders. |
+| 5 | Disposition and next steps | Classify feedback; name owners and dates. |
+
+- The first five rows total 45, which is what the beats below sum to. The
+  agenda is the hour; the run sheet is the detail inside it.
+- Check the arithmetic with the script named in the skill file, never by eye.
+
 ## Run sheet
 
 | # | Beat | Class | Min | Covers |
@@ -34,7 +56,7 @@ instead now, who feels it. This is the only section the presenter may deliver fr
 - The whole demo on one screen, in running order, following the arc:
   why → concepts → happy path → touch points → edges.
 - `Class` is `show` or `tell`. Minutes live only here.
-- Beats sum to ≤45; questions keep ≥10.
+- Beats sum to ≤45; questions keep ≥10. In the company-meeting profile beats sum to exactly 45, questions take 10, and disposition with next steps takes 5.
 
 ## Beats
 
@@ -93,6 +115,32 @@ instead now, who feels it. This is the only section the presenter may deliver fr
 
 - {the two or three failure modes with a live recovery: which beat to skip to,
   what to say, what not to debug on the call}
+
+## Feedback disposition
+
+*Company-meeting profile only.* Filled live, in the room, one row per piece of
+feedback. Exactly one disposition each, from
+`skills/afk/to-meeting-b/MEETING-PLAN-FORMAT.md`.
+
+| Feedback | Disposition | Owner | Date |
+|---|---|---|---|
+| {what a stakeholder asked for} | agreed \| revise and return \| deferred from scope \| blocked by evidence | {who} | {when} |
+
+- Everything except `agreed` names an owner and a date. Unowned feedback is
+  feedback nobody acts on.
+- Classify in the room. A note taken away to be sorted later is sorted by
+  whoever remembers it.
+
+## Next steps
+
+*Company-meeting profile only.*
+
+| What happens next | Who | When |
+|---|---|---|
+| {the concrete next action, one per row} | {who} | {when} |
+
+- Say these out loud before the hour ends. The room leaves knowing what follows,
+  or it invents its own answer.
 
 ## Coverage ledger
 

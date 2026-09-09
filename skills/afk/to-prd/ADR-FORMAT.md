@@ -20,18 +20,33 @@ Numbering is local to `adr/requirements/`, starts at `0001`. Scan the folder for
 ```md
 # {Short title of the decision}
 
+> Status: Proposed | Decided by agent | Accepted | Superseded by ADR-NNNN
+> Audited: not yet | {YYYY-MM-DD}
 > Layer: Requirements
 > Context ticket: {TICKET-ID}
 
 {1-3 sentences: context, what we decided, why.}
 ```
 
-That's it — a requirement ADR can be one paragraph. The value is recording *that* a behavioural decision was made and *why*. The `Layer: Requirements` line discriminates these from `/afk:to-sdd`'s `Layer: L1–L9` design ADRs in the sibling folder.
+`Status:` is optional on a record the human decided — a requirement ADR can be
+one paragraph — and `Audited:` is **omitted** on one, so that the line's
+presence is what says the agent decided the record. Both are **required** on a
+record the agent minted from its own decision: `Decided by agent`,
+`Audited: not yet`, until a human reads it and stamps the date they read it,
+which is what makes it `Accepted`. Provenance-by-presence, its one-way failure,
+and its reader are stated once, in the owner file below.
+A record minted from a grill-time decision the human accepted is written
+`Status: Accepted` with `Audited: {the accept date from the grill log's settled
+row}` — the card the human audited carried more than this record will.
+
+Grammar owned by `skills/afk/to-sdd/ADR-TEMPLATE.md` "The status line"; this is
+a synchronized copy at the emitting site and moves in the same commit.
+
+The value is recording *that* a behavioural decision was made and *why*. The `Layer: Requirements` line discriminates these from `/afk:to-sdd`'s `Layer: L1–L9` design ADRs in the sibling folder.
 
 ## Optional sections
 
 Only when they add genuine value (most won't need them):
-- **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`) — when decisions get revisited
 - **Considered Options** — when rejected alternatives are worth remembering
 - **Consequences** — when non-obvious downstream effects need calling out
 
