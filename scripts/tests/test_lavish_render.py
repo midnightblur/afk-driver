@@ -732,6 +732,95 @@ class TheTwoStrips(unittest.TestCase):
                         "settled rounds read newest first")
 
 
+class ReAuditAndLedger(unittest.TestCase):
+    """W-8 and W-6: what came back unmarked, and everything already settled."""
+
+    def current(self, doc):
+        for rnd in doc["rounds"]:
+            if rnd["state"] == "current":
+                return rnd
+        raise AssertionError("fixture has no current round")
+
+    def flag(self, doc, ids):
+        self.current(doc)["header"]["re_audit"] = ids
+        return doc
+
+    # --- the re-audit strip ----------------------------------------------
+
+    def test_an_unmarked_decision_opens_the_round(self):
+        html = body_of(render(self.flag(load_fixture(), ["D-2"])))
+        strip = html.split("afk-reaudit")[1]
+        self.assertIn('href="#afk-i-D-2"', strip)
+        round_section = html.split('<section class="afk-round"')[1]
+        self.assertLess(round_section.index("afk-reaudit"),
+                        round_section.index("afk-round-header"),
+                        "the strip reads before the round's own header")
+
+    def test_the_line_carries_the_decision_and_its_citation_from_the_card(self):
+        """Ids are authored; the words come off the card the round presents."""
+        doc = self.flag(load_fixture(), ["D-2"])
+        card = first_component(doc, "decided_card")
+        line = body_of(render(doc)).split("afk-reaudit")[1].split("</ul>")[0]
+        self.assertIn(card["decision"], line)
+        self.assertIn(card["evidence"]["cite"], line)
+
+    def test_no_flag_no_strip(self):
+        self.assertNotIn("afk-reaudit", body_of(render(load_fixture())))
+
+    def test_only_the_unanswered_are_listed(self):
+        """One trigger: the strip is a fact about unmarked decisions, not a
+        second place to put warnings."""
+        line = body_of(render(self.flag(load_fixture(), ["D-2"]))).split("afk-reaudit")[1]
+        self.assertEqual(line.split("</ul>")[0].count("<li>"), 1)
+
+    def test_a_flag_naming_a_settled_card_is_refused(self):
+        doc = load_fixture()
+        settled = [i for r in doc["rounds"] for i in r["items"]
+                   if i["component"] == "settled_card"]
+        self.current(doc)["items"].append(dict(settled[0], id="D-7"))
+        self.flag(doc, ["D-7"])
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_a_flag_naming_a_card_this_round_does_not_present_is_refused(self):
+        """An unmarked card is re-asked, not merely reported."""
+        with self.assertRaises(schema.ContractError):
+            schema.load(self.flag(load_fixture(), ["D-1"]))
+        with self.assertRaises(schema.ContractError):
+            schema.load(self.flag(load_fixture(), ["D-404"]))
+
+    # --- the decision ledger ---------------------------------------------
+
+    def test_the_ledger_carries_one_row_per_settled_decision(self):
+        html = body_of(render(load_fixture()))
+        ledger = html.split('<details class="afk-ledger"')[1]
+        self.assertEqual(ledger.split("</tbody>")[0].count("<tr>"), 2)  # header + 1
+        self.assertIn("1 settled", ledger)
+
+    def test_a_ledger_row_links_to_its_card_rather_than_restating_it(self):
+        """The card is the record. A ledger holding a copy of the evidence
+        would be a second home for it, and the two would drift."""
+        html = body_of(render(load_fixture()))
+        ledger = html.split('<details class="afk-ledger"')[1]
+        self.assertIn('href="#afk-i-D-1"', ledger)
+        settled_card = html.split('data-afk-item="D-1"')[1].split("</article>")[0]
+        sentence = "explicit"
+        self.assertIn(sentence, settled_card)
+        self.assertNotIn("What settled it", ledger)
+
+    def test_the_ledger_sits_at_the_bottom_and_starts_closed(self):
+        html = body_of(render(load_fixture()))
+        self.assertGreater(html.index("afk-ledger"), html.index("afk-settled"))
+        opening = html.split('<details class="afk-ledger"')[1].split(">")[0]
+        self.assertNotIn("open", opening)
+
+    def test_a_session_with_nothing_settled_has_no_ledger(self):
+        doc = load_fixture()
+        doc["rounds"] = [r for r in doc["rounds"] if r["state"] == "current"]
+        doc["rounds"][0]["header"]["settled_last_round"] = []
+        self.assertNotIn("afk-ledger", body_of(render(doc)))
+
+
 class DeadLinks(unittest.TestCase):
     """A dead relative href is the one page failure only the human meets."""
 

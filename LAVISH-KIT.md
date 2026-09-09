@@ -94,7 +94,7 @@ information.
 
 | Component | Required | Optional | Renders |
 |---|---|---|---|
-| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}`, `groups[]` `{id, title, after[]}` | the shape line, where we are, what to read first, the fork, the next strip |
+| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}`, `groups[]` `{id, title, after[]}`, `re_audit[]` | the shape line, the re-audit strip, where we are, what to read first, the fork, the next strip |
 | `decided_card` | the six contract fields below | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
 | `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why`, `undecided_because` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
 | `confirm_row` | `question`, `recommended`, `why`, `cite` | `context`, `alternatives[]` `{id, label, why}` | one row, accept or override |
@@ -215,6 +215,22 @@ Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · **the
 process rail** · title · **the round strip** · the current round · **the sticky
 send bar** · items still open from earlier rounds · settled history in round
 sections, newest round first · the inline runtime.
+
+The **re-audit strip** opens the round when `re_audit[]` names any ids: one
+line per decided card that came back from the last send unmarked, because an
+unmarked decision is not applied and that is the first thing the round has to
+say. Only ids are authored — the decision and the citation are read off the
+card the round already presents. Each id must name a live card in the current
+round: one naming a settled card would contradict the record, and one naming
+nothing would ask for a re-audit of a card the human cannot reach. Both are
+hard exits. Nothing else is listed there — one trigger, so the strip stays a
+fact about unanswered decisions rather than a second place to put warnings.
+
+The **decision ledger** closes the page: one row per settled decision — item,
+round, decided by, audit mark, evidence grade — inside a closed `<details>`.
+A row links to its own settled card rather than expanding a copy of it. The
+card is the record; a ledger restating the evidence would be a second home for
+it, and the two would drift. No settled decision, no ledger.
 
 Both strips sit above the round: the map reads before the detail, and neither
 needs opening. The **process rail** is the chain stages with `stage` lit, and

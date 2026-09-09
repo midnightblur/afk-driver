@@ -32,6 +32,15 @@ first released heading here.
   it, so a closed card is still markable and scanning and answering are one
   pass. Contract: `LAVISH-KIT.md`.
 
+- **The re-audit strip and the decision ledger** — a round now opens with one
+  line per decided card that came back from the last send unmarked, since an
+  unmarked decision is never applied; only the ids are authored, and the
+  decision and citation are read off the card the round already presents. An id
+  that names a settled card, or one this round does not present, is a hard exit.
+  The page closes with a decision ledger: one row per settled decision — item,
+  round, decided by, audit mark, evidence grade — closed by default, each row
+  linking to its own card instead of holding a second copy of the evidence.
+
 - **Two strips above the round** — a **process rail** showing the chain stages
   with this session's lit (`stage` on the round document; `done` and `upcoming`
   are derived from its position, so no author can state them wrongly), and a

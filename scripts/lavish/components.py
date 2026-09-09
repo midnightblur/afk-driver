@@ -198,6 +198,61 @@ def process_rail(stage):
             "<ol>%s</ol></nav>" % "".join(steps))
 
 
+def re_audit_strip(header, items):
+    """One line per decided card that came back from the last send unmarked.
+
+    Ids are authored; the decision and the citation are read off the card the
+    round already presents. Nothing else is listed here — one trigger, so the
+    strip stays a fact about unanswered decisions rather than a second place
+    to put warnings.
+    """
+    ids = header.get("re_audit") or []
+    if not ids:
+        return ""
+    by_id = {i["id"]: i for i in items}
+    lines = []
+    for item_id in ids:
+        item = by_id.get(item_id, {})
+        decision = item.get("decision") or item.get("question") or item_id
+        evidence = item.get("evidence")
+        cite = evidence.get("cite") if isinstance(evidence, dict) else (
+            item.get("cite") or "")
+        lines.append('<li><a href="#%s"><code>%s</code></a> %s%s</li>'
+                     % (esc(anchor(item_id)), esc(item_id), esc(decision),
+                        " <code>%s</code>" % esc(cite) if cite else ""))
+    return ('<div class="afk-reaudit" role="note"><b>Sent unmarked, so not applied:</b>'
+            "<ul>%s</ul>"
+            "<p>These stay listed until they carry a mark. Silence is not agreement.</p>"
+            "</div>" % "".join(lines))
+
+
+def decision_ledger(settled):
+    """Every settled decision as one row, at the bottom, closed.
+
+    A row links to its own settled card instead of expanding a copy of it. The
+    card is the record; a ledger that restated the evidence would be a second
+    home for it, and the two would drift.
+    """
+    if not settled:
+        return ""
+    rows = []
+    for number, item in settled:
+        evidence = item.get("evidence")
+        grade = evidence.get("grade") if isinstance(evidence, dict) else None
+        rows.append("<tr><td><a href=\"#%s\"><code>%s</code></a></td><td>R-%s</td>"
+                    "<td>%s</td><td>%s</td><td>%s</td></tr>"
+                    % (esc(anchor(item["id"])), esc(item["id"]), esc(number),
+                       esc(item.get("by") or "—"),
+                       esc(item.get("audit") or "—"),
+                       esc(grade or "—")))
+    return ('<details class="afk-ledger" id="afk-ledger"><summary>'
+            "The decision ledger — %d settled, by whom, on what evidence</summary>"
+            '<div class="afk-grid-wrap"><table class="afk-grid"><thead><tr>'
+            "<th>Item</th><th>Round</th><th>Decided by</th><th>Audit</th>"
+            "<th>Evidence</th></tr></thead><tbody>%s</tbody></table></div>"
+            "</details>" % (len(settled), "".join(rows)))
+
+
 def round_strip(doc):
     """One notch per round, carrying what the round holds.
 

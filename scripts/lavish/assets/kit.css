@@ -291,3 +291,21 @@ a { color: var(--accent); }
 
 .afk-round-past { margin: 1.25rem 0; }
 .afk-round-past > h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--fg-dim); }
+
+/* --- re-audit strip and the decision ledger ---------------------------- */
+
+/* One trigger, and it opens the round: a decision that came back unmarked is
+ * not applied, and the human has to meet that before the new cards. */
+.afk-reaudit {
+  margin: 0 0 1rem; padding: .6rem .75rem;
+  border: 1px solid var(--open); border-left-width: 3px; border-radius: 0 4px 4px 0;
+}
+.afk-reaudit ul { margin: .4rem 0; padding-left: 1.1rem; }
+.afk-reaudit p { margin: .3rem 0 0; color: var(--fg-dim); font-size: .88rem; }
+.afk-reaudit a { color: var(--open); }
+
+.afk-ledger { margin: 2rem 0 0; }
+.afk-ledger > summary {
+  cursor: pointer; color: var(--fg-dim); font-size: .88rem; padding: .2rem 0;
+}
+.afk-ledger > summary:hover { color: var(--accent); }

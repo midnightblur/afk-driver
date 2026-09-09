@@ -138,11 +138,14 @@ def build(doc):
     of_target = " of %d" % target if target else ""
     round_heading = "Round R-%d%s — %d to answer" % (
         header["round"], of_target, len(live))
+    # The re-audit strip opens the round, ahead of the header: an unmarked
+    # decision from the last send is the first thing the round has to say.
     round_section = (
         '<section class="afk-round" id="afk-r-%d" data-afk-item="%s" '
         'data-afk-state="current">'
-        '<h2 class="afk-h">%s</h2>%s%s</section>'
+        '<h2 class="afk-h">%s</h2>%s%s%s</section>'
         % (header["round"], C.esc(current["id"]), C.esc(round_heading),
+           C.re_audit_strip(header, current["items"]),
            C.round_header(header, len(live)),
            _grouped(live, header, states)))
 
@@ -183,6 +186,7 @@ def build(doc):
                  [C.render_item(i, states) for i in carried]),
         _settled_by_round([(number, C.render_item(item, states))
                            for number, item in settled]),
+        C.decision_ledger(settled),
     ]
 
     spec_dir = doc.get("spec_dir")

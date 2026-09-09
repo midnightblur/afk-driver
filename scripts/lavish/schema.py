@@ -63,7 +63,8 @@ LIST_FIELDS = ("settled_last_round", "unlocks", "touches", "parked",
 # wrote. `depends_on` is legal on every card but a decided one, which carries
 # its own inside `scope`.
 OPTIONAL = {
-    "round_header": ("target", "size_note", "parked", "links", "groups"),
+    "round_header": ("target", "size_note", "parked", "links", "groups",
+                     "re_audit"),
     "decided_card": ("context", "provisional_on"),
     "debate_card": ("context", "third_paradigm"),
     "confirm_row": ("context", "alternatives"),
@@ -359,6 +360,34 @@ def _bind_groups(items, groups, number):
                                     ", ".join(sorted(known))))
 
 
+def _bind_re_audit(items, ids, number):
+    """Every re-audited id is a live card in this round.
+
+    The strip exists to say a decision went unmarked and is therefore not
+    applied. That claim is only true while the card is on the page to be
+    marked: an id naming a settled card would say the opposite of the record,
+    and an id naming nothing would ask the human to re-audit a card they
+    cannot reach.
+    """
+    if ids is None:
+        return
+    if not isinstance(ids, list):
+        raise ContractError("round %d header: `re_audit` must be a list of item ids"
+                            % number)
+    live = {i["id"] for i in items if i.get("state") != "settled"}
+    settled = {i["id"] for i in items if i.get("state") == "settled"}
+    for item_id in ids:
+        if item_id in live:
+            continue
+        if item_id in settled:
+            raise ContractError(
+                "round %d: `re_audit` names %r, which is settled in this round — a card "
+                "that carries a mark is not unanswered" % (number, item_id))
+        raise ContractError(
+            "round %d: `re_audit` names %r, which this round does not present — an "
+            "unmarked card is re-asked, not just reported" % (number, item_id))
+
+
 def independent_groups(groups):
     """Group ids nothing gates: the ones the human may take in any order.
 
@@ -453,6 +482,7 @@ def load(doc):
                    for i in items]
         if state == "current":
             _bind_groups(checked, header.get("groups"), number)
+            _bind_re_audit(checked, header.get("re_audit"), number)
         normalized.append({"round": number, "id": round_id, "state": state,
                            "header": header, "items": checked})
 
