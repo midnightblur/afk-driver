@@ -35,16 +35,12 @@ def stable_id(prefix: str, text: str) -> str:
     return prefix + "-" + hashlib.sha1(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
-# One search, one spelling. Every git-grep query this format records is written
-# in this grammar and no other:
-#
-#   git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]
-#
-# Options are unbundled, short of a long form, and in that order; the mode is
-# always -E. Chasing what a tool would make of every other spelling is a game
-# with no end, so a command outside the grammar is not a search this format
-# reads. `LEDGER-FORMAT.md` states it, and every emitter writes it through
-# `build_command`.
+# One search, one spelling: `CANONICAL` below is the grammar every git-grep
+# query this format records is written in. Options are unbundled, short of a
+# long form, and in that order; the mode is always -E. Chasing what a tool would
+# make of every other spelling is a game with no end, so a command outside it is
+# not a search this format reads. `LEDGER-FORMAT.md` § "Command families" states
+# it for a reader; every emitter writes it through `build_command`.
 CANONICAL = ("git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ "
              "[-- <path>+]")
 FIXED = ("git", "grep", "-n", "-I", "-E")

@@ -557,6 +557,30 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertNotEqual(key("parse alpha/pom.xml"),
                             key("list the directories beside alpha/pom.xml"))
 
+    # A hint is offered for spelling alone; anything that changes the question
+    # gets none, because a hint that runs another search is worse than silence.
+    def test_no_hint_where_an_option_changes_what_the_search_means(self):
+        respell = seed_map.contract.respell
+        for command in ("git grep -v -e Widget",
+                        "git grep -n -I -F -e Widget",
+                        "git grep -n -I -G -e Widget",
+                        "git grep -n -I -P -e Widget",
+                        "git grep -n -I -E -e A --and -e B"):
+            self.assertIsNone(respell(command), command)
+
+    def test_a_hint_where_only_the_spelling_differs(self):
+        respell = seed_map.contract.respell
+        canonical = "git grep -n -I -E -i -e Widget"
+        for command in ("git grep --ignore-case --regexp Widget",
+                        "git grep -inE -e Widget",
+                        "git grep --ignore-case --regexp=Widget"):
+            self.assertEqual(respell(command), canonical, command)
+
+    def test_the_grammar_is_written_once(self):
+        source = (Path(seed_map.__file__).resolve().parent / "contract.py").read_text(
+            encoding="utf-8")
+        self.assertEqual(source.count("(-e <expression>)+"), 1, "the grammar is stated twice")
+
     def test_the_expressions_of_one_search_carry_no_order(self):
         key = seed_map.contract.command_key
         self.assertEqual(key("git grep -n -I -E -e A -e B"),
