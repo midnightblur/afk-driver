@@ -30,8 +30,8 @@ goes through pinned `npx`:
 
 | Shape | Command | Use |
 |---|---|---|
-| Render (open) | `npx lavish-axi@0.1.43 <file>` | open or resume a session, browser opens |
-| Render (no browser) | `npx lavish-axi@0.1.43 <file> --no-open` | same, skip opening the browser window |
+| Render (open) | `npx lavish-axi@0.1.43 <file>` | the session's **first** render — opens or resumes a session and opens the browser |
+| Render (no browser) | `npx lavish-axi@0.1.43 <file> --no-open` | the warm-up and **every render after the first** — same, no browser window |
 | Reopen | `npx lavish-axi@0.1.43 <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
 | Poll | `npx lavish-axi@0.1.43 poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
 | Poll + reply | `npx lavish-axi@0.1.43 poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
@@ -41,6 +41,17 @@ goes through pinned `npx`:
 
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.
+
+**One tab per session.** The browser opens once — at the first render the
+human is meant to look at, never again (the warm-up below opens nothing). The
+background server watches the artifact file and pushes a reload to the open
+tab, which swaps the artifact frame alone and leaves the editor chrome around
+it — queued prompts, the conversation panel — standing. Writing the file is
+the whole update, so a second plain render is a second tab rather than a
+refresh; every render after the first passes `--no-open`. On the kit path the
+render script's write triggers that reload by itself, and the `lavish-axi`
+command the injection rule below demands is then the poll the round already
+waits on, or a `--no-open` render — both inject, neither opens a window.
 
 **Warm-up.** At the start of an interactive phase with render points ahead,
 run one background render (`--no-open`) on the phase's artifact file so the
@@ -276,6 +287,12 @@ HTML in its context (`DELEGATION.md`). Who does what:
   4. New feature-terms entries from the tooltip sweep; the child writes them
      to the terms file (Tooltips above) alongside the artifact.
   5. What must not change.
+- **The child patches the artifact; it never re-emits it.** The page is
+  durable state, not a per-round output: a round adds its own cards, flips the
+  states the brief names, and leaves every other byte alone. A whole-page
+  re-emit costs the page's full length in output tokens every round, grows as
+  the session does, and silently rewrites markup no brief asked to change.
+  Same rule as the kit path's over the round JSON (`LAVISH-KIT.md`).
 - **Spawn boundary = the re-render cadence.** Delegate page creation and
   structural rewrites at question/turn boundaries. A small delta (one status
   cell, one appended settled row) the orchestrator edits inline; never spawn

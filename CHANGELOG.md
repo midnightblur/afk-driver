@@ -95,6 +95,20 @@ first released heading here.
 
 ### Changed
 
+- **One browser tab per lavish session, and one page that is patched rather
+  than rebuilt.** A round used to open a fresh tab, because the plain render
+  shape opens the browser and a session-default weave re-renders every round.
+  It never needed to: the background server watches the artifact file and
+  pushes a reload to the tab already open, swapping the artifact frame and
+  leaving the queued prompts and the conversation panel standing. So the
+  browser opens once, at the first render a human is meant to see, and every
+  render after it passes `--no-open`. On the authored path the page-writer
+  child now patches the artifact — adding its round's cards and flipping the
+  states its brief names — instead of re-emitting the whole page each round,
+  which cost the page's full length in output tokens per round and rewrote
+  markup no brief asked to change. The kit path already held the same rule
+  over the round JSON.
+
 - **The two meeting-plan skills are named by their meeting** — `/afk:to-meeting-b`
   (the design review) and `/afk:to-meeting-d` (the demo). The letters are the
   audience's own labels, registered in `GLOSSARY.md`; each skill's first line
