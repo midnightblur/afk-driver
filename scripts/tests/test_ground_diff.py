@@ -88,7 +88,7 @@ class GroundDiffTest(unittest.TestCase):
                             "query_ids": [], "universe": "tracked files"}
                            for klass in classes],
             "nodes": nodes,
-            "queries": [{"id": item, "command": f"git grep -e {item}",
+            "queries": [{"id": item, "command": f"git grep -n -I -E -e {item}",
                          "universe": "tracked files",
                          "count": 1, "evidence": None, "origin": origin}
                         for origin, group in (("seed", queries),
@@ -236,12 +236,12 @@ class GroundDiffTest(unittest.TestCase):
         def chunked(*specs):
             document = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")])
             document["queries"] = [
-                {"id": f"q-{index:08d}", "command": f"git grep -e Widget -- {spec}",
+                {"id": f"q-{index:08d}", "command": f"git grep -n -I -E -e Widget -- {spec}",
                  "universe": "files that name the subject", "count": 0,
                  "evidence": None, "origin": "seed"}
                 for index, spec in enumerate(specs)]
             document["queries"].append(
-                {"id": QUERY, "command": "git grep -e Widget",
+                {"id": QUERY, "command": "git grep -n -I -E -e Widget",
                  "universe": "tracked files", "count": 1, "evidence": None,
                  "origin": "seed"})
             return document
@@ -254,12 +254,12 @@ class GroundDiffTest(unittest.TestCase):
         def chunked(*specs):
             document = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")])
             document["queries"] = [
-                {"id": f"q-{index:08d}", "command": f"git grep -e Widget -- {spec}",
+                {"id": f"q-{index:08d}", "command": f"git grep -n -I -E -e Widget -- {spec}",
                  "universe": "files that name the subject", "count": 0,
                  "evidence": None, "origin": "seed"}
                 for index, spec in enumerate(specs)]
             document["queries"].append(
-                {"id": QUERY, "command": "git grep -e Widget",
+                {"id": QUERY, "command": "git grep -n -I -E -e Widget",
                  "universe": "tracked files", "count": 1, "evidence": None,
                  "origin": "seed"})
             return document
@@ -269,13 +269,34 @@ class GroundDiffTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("conf/queue.yml", output)
 
+    # A search naming no path ran over everything, which no list of paths is.
+    def test_a_scoped_run_of_a_search_that_ran_unscoped_is_drift(self):
+        def searched(*commands):
+            document = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")])
+            document["queries"] = [
+                {"id": QUERY if index == 0 else f"q-{index:08d}", "command": command,
+                 "universe": "tracked files", "count": 0, "evidence": None,
+                 "origin": "seed"}
+                for index, command in enumerate(commands)]
+            document["queries"][0]["count"] = 1
+            return document
+
+        whole = "git grep -n -I -E -e Widget"
+        scoped = "git grep -n -I -E -e Widget -- alpha.java"
+        code, output = self.diff(searched(whole, scoped), searched(scoped))
+        self.assertEqual(code, 1)
+        self.assertIn("the whole tree", output)
+        code, output = self.diff(searched(scoped), searched(whole, scoped))
+        self.assertEqual(code, 1)
+        self.assertIn("the whole tree", output)
+
     def test_a_pattern_the_current_run_dropped_is_drift(self):
         cited = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")],
                             queries=(QUERY, "q-22222222"))
         current = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")], queries=(QUERY,))
         code, output = self.diff(cited, current)
         self.assertEqual(code, 1)
-        self.assertIn("git grep -e q-22222222", output)
+        self.assertIn("git grep -n -I -E -e q-22222222", output)
 
     def test_a_seed_query_that_no_longer_runs_is_drift(self):
         cited = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")],

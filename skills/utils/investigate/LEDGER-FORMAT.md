@@ -141,7 +141,29 @@ files another class named passes those files to the search as paths, and splits
 them across several executed commands where the list is long — each command is
 its own row, and a hit cites the one that returned it. `origin` says who ran the search: `seed` for the deterministic
 pre-pass, whose queries a later pre-pass runs again, `tracer` for a widening
-past it, which it does not. One boundary row never names the same query twice — one execution
+past it, which it does not.
+
+#### Command families
+
+Every recorded `command` is written in one of these shapes, and a command in
+none of them is a defect. Reading every spelling a tool would accept is a game
+with no end; one grammar per family ends it.
+
+| Family | Shape |
+|---|---|
+| search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]` |
+| built-output walk | `in-process walk of <path>[, <path>]*` |
+| tracked listing | `git ls-files -- <path>[, <path>]*` |
+| manifest parse | `parse <manifest>[, <manifest>]*` |
+| sibling listing | `list the directories beside <manifest>[, <manifest>]*` |
+
+A search carries those options and no others, unbundled, short of a long form,
+in that order, always in `-E` mode. There are no Boolean operators: a question
+needing `--and` is two searches. Two searches are one search where their flag
+set and their expression set are equal — the expressions carry no order, and the
+paths are left out, so the same search over fewer files is that search narrowed.
+The grammar is `contract.py` (`CANONICAL`, `build_command`, `parse_canonical`);
+an emitter writes a command through it rather than by hand. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
 
 ### `claims` — one row per claim the answer makes
@@ -174,12 +196,9 @@ than as work nobody did.
 Coverage rule: every class whose status is `closed` or `partial` by a search
 names at least one `complete` counter-search listing it in `classes`, and that
 check's `method` differs from the class's own `method`, and it ran at least one
-`command` the class row does not already run — same command under another
-universe label is the class's own pass wearing a second name. Two commands are
-one command by what they run: quoting and spacing say nothing, the long and
-short spelling of an option are one option, the fixed flags carry no order, and
-paths are left out, so the same search over fewer files is that search narrowed.
-The Boolean terms keep their order — that order is the question asked. A class whose
+`command` the class row does not already run (§ "Command families" says when
+two commands are one) — same command under another universe label is the class's
+own pass wearing a second name. A class whose
 universe **is** another class's hit set is covered by that class's check
 listing it.
 A class resolved by judgment, closed by parsing rather than searching, or left

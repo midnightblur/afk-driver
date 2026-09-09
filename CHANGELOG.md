@@ -61,12 +61,16 @@ first released heading here.
   stops the run as a subject too generic to answer. Every searched node cites
   one search, a query's `count` is the nodes citing it, and a row's `hits` is
   what its own searches produced — the nodes table is the arithmetic, so a
-  number nobody can recompute is a defect. Two commands are one command by what they
-  run: quoting and spacing say nothing, an option's long and short spelling are
-  one option, the fixed flags carry no order, and the paths are left out — the
-  same search over fewer files is that search narrowed. The Boolean terms keep
-  their order, because that order is the question. A recorded `command` is the
-  one that ran, quoted so it runs again verbatim: a pass wanting a narrow and a wide
+  number nobody can recompute is a defect. Every command a ledger records is written in
+  one of five declared shapes, and a search in one grammar —
+  `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]`,
+  unbundled, short-form, in that order, with no Boolean operators: a question
+  needing two conditions is two searches. A command outside every family is a
+  defect that hands back the canonical re-spelling, so nothing has to guess what
+  a tool would make of another one. Two searches are one search where their flag
+  set and expression set match; the paths are left out, so the same search over
+  fewer files is that search narrowed. A recorded `command` is the one that ran,
+  quoted so it runs again verbatim: a pass wanting a narrow and a wide
   universe executes both, and a class searching only the files another class
   named passes those files to the search as paths, split across several executed
   commands where the list is long. The lines a search returned live in `lines`
@@ -83,7 +87,8 @@ first released heading here.
   to is counted rather than compared. Searches compare as what they run over
   what universe and then on the files they ran over, unioned across their
   chunks, so one file set split into a different number of commands is the same
-  pass and a file that left the set is drift; and a file only an agent read is watched
+  pass, a file that left the set is drift, and a pass that ran over the whole
+  tree never equals one scoped to paths; and a file only an agent read is watched
   through `git diff` between the two snapshots. A line hash covers the exact
   bytes of the line, so a re-indentation reads as the edit it is.
   `/afk:execute` runs it before writing code and answers drift with a fresh

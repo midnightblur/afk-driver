@@ -491,6 +491,49 @@ class SeedMapBindingTest(unittest.TestCase):
                 self.assertTrue(check.get("query_ids") or check.get("evidence_nodes"),
                                 check)
 
+    # B4d — every command a run records is one a reader can place, and every
+    # search is written in the one grammar.
+    def test_every_recorded_command_belongs_to_a_declared_family(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "wire=w-created")
+        self.assertEqual(code, 0)
+        for row in document["queries"]:
+            self.assertIsNotNone(seed_map.contract.family(row["command"]),
+                                 row["command"])
+            if row["command"].startswith("git grep"):
+                self.assertIsNotNone(
+                    seed_map.contract.parse_canonical(row["command"]), row["command"])
+
+    def test_a_built_command_parses_back_to_what_built_it(self):
+        build = seed_map.contract.build_command
+        parse = seed_map.contract.parse_canonical
+        cases = [(["Widget"], None, []),
+                 (["a b", "c|d"], None, ["-i"]),
+                 (["Widget"], ["alpha/Widget.java", "beta/x.java"], ["-i", "--untracked"]),
+                 (["Widget"], None, ["--untracked", "-i"])]
+        for expressions, paths, flags in cases:
+            parsed = parse(build(expressions, paths, flags))
+            self.assertIsNotNone(parsed, (expressions, paths, flags))
+            self.assertEqual(parsed[0], frozenset(flags))
+            self.assertEqual(parsed[1], frozenset(expressions))
+            self.assertEqual(list(parsed[2]), list(paths or []))
+
+    def test_a_command_outside_the_grammar_does_not_parse(self):
+        parse = seed_map.contract.parse_canonical
+        for command in ("git grep -inE -e Widget",
+                        "git grep -n -I -E -F -e Widget",
+                        "git grep -n -I -G -e Widget",
+                        "git grep -n -I -E --and -e Widget",
+                        "git grep -n -I -E --untracked -i -e Widget",
+                        "git grep -n -I -E"):
+            self.assertIsNone(parse(command), command)
+
+    def test_the_expressions_of_one_search_carry_no_order(self):
+        key = seed_map.contract.search_key
+        self.assertEqual(key("git grep -n -I -E -e A -e B"),
+                         key("git grep -n -I -E -e B -e A"))
+
     def test_a_path_list_past_the_budget_runs_as_several_commands(self):
         paths = [f"alpha/File{index:04d}.java" for index in range(900)]
         chunks = seed_map.chunk_pathspecs(paths)

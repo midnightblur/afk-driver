@@ -136,6 +136,17 @@ class MergeFragmentsTest(unittest.TestCase):
         row = next(item for item in merged["queries"] if item["id"] == query["id"])
         self.assertNotIn("lines", row)
 
+    # A fragment writes searches in the one grammar, and the fold checks it.
+    def test_a_fragment_query_outside_the_grammar_refuses_the_fold(self):
+        query = {"id": "q-abcdef12", "command": "git grep -inE -e Widget",
+                 "universe": "tracked files", "count": 0, "evidence": None,
+                 "origin": "tracer"}
+        piece = fragment(classes=["B1"], boundaries=[], queries=[query])
+        code, stderr, document = self.run_script(ledger(), piece)
+        self.assertEqual(code, 2)
+        self.assertIn("in no command family", stderr)
+        self.assertIsNone(document)
+
     # A fragment from another snapshot is another investigation.
     def test_a_head_mismatch_aborts_the_merge(self):
         code, stderr, document = self.run_script(

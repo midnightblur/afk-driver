@@ -25,7 +25,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from contract import (ALL_CLASSES, HIT_LIMIT, LINE_HASH_CHARS,  # noqa: E402
-                      QUERY_ORIGINS, normalized, stable_id)
+                      CANONICAL, QUERY_ORIGINS, family, respell, search_key,
+                      stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
 QTYPES = {f"Q{n}" for n in range(1, 6)}
@@ -302,6 +303,14 @@ def validate(ledger: dict, scope: str = "run",
         # ran, over what, and how much came back.
         if not isinstance(command, str) or not command.strip():
             defects.append(f"{where}: command required — the invocation that ran")
+        elif family(command) is None:
+            fix = respell(command)
+            defects.append(
+                f"{where}: {command!r} is in no command family this format declares "
+                f"(LEDGER-FORMAT.md § Command families); a search is written "
+                f"`{CANONICAL}`"
+                + (f" — write this one as `{fix}`" if fix else "")
+            )
         if row.get("origin") not in QUERY_ORIGINS:
             defects.append(f"{where}: origin must be one of {', '.join(QUERY_ORIGINS)}; "
                            "only a seed query can be run again by a later pre-pass")
@@ -664,17 +673,17 @@ def validate(ledger: dict, scope: str = "run",
         if state == "complete":
             # A check that ran the class's own searches ran the same pass
             # twice; a counter-search is a different method by definition.
-            own = {normalized((query_index.get(item) or {}).get("command") or "")
+            own = {search_key((query_index.get(item) or {}).get("command") or "")
                    for item in (row.get("query_ids") or []) if isinstance(item, str)}
-            own.discard("")
+            own.discard(search_key(""))
             for klass in row.get("classes") or []:
                 # A counter-search is a second method, so it ran a different
                 # command. Same command under another universe label is the
                 # class's own pass wearing a second name.
-                primary = {normalized((query_index.get(item) or {}).get("command") or "")
+                primary = {search_key((query_index.get(item) or {}).get("command") or "")
                            for item in ((seen.get(klass) or {}).get("query_ids") or [])
                            if isinstance(item, str)}
-                primary.discard("")
+                primary.discard(search_key(""))
                 if own and primary and own <= primary:
                     defects.append(
                         f"{where}: it ran no command boundaries.{klass} does not already "

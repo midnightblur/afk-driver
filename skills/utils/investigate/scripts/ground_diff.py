@@ -43,7 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from contract import normalized, pathspecs  # noqa: E402
+from contract import ALL_FILES, search_key, searched_paths  # noqa: E402
 
 
 class GroundError(ValueError):
@@ -143,28 +143,33 @@ def statuses(document: dict, classes: list[str] | None) -> dict[str, dict]:
             and (not classes or row["class"] in classes)}
 
 
-def logical(row: dict) -> str:
+def logical(row: dict):
     """One logical search: what it runs, over what universe, paths aside.
 
     A pass carrying a long path list runs it as several commands, so where the
     chunks fall is an execution detail, not a search.
     """
-    return normalized(row.get("command") or "") + " over " + str(row.get("universe") or "")
+    return (search_key(row.get("command") or ""), str(row.get("universe") or ""))
 
 
-def seed_searches(document: dict) -> dict[str, dict]:
-    """The seed pass's logical searches, each with the paths it ran over.
+def seed_searches(document: dict) -> dict:
+    """The seed pass's logical searches, each with the files it ran over.
 
-    The paths are unioned across the chunks of one search: re-chunking one file
-    set is the same pass, and a file that left the set is not.
+    Paths union across the chunks of one search: re-chunking one file set is
+    the same pass, and a file that left the set is not. A chunk that named no
+    path ran over the whole tree, which no list of paths equals.
     """
-    found: dict[str, dict] = {}
+    found: dict = {}
     for row in queries_of(document).values():
         if row.get("origin") != "seed":
             continue
         entry = found.setdefault(logical(row), {"command": row.get("command") or "",
-                                                "paths": set()})
-        entry["paths"] |= set(pathspecs(row.get("command") or ""))
+                                                "paths": set(), "whole": False})
+        paths = searched_paths(row.get("command") or "")
+        if paths == ALL_FILES:
+            entry["whole"] = True
+        else:
+            entry["paths"] |= set(paths)
     return found
 
 
@@ -207,6 +212,12 @@ def differences(cited: dict, current: dict, classes: list[str] | None,
         if running is None:
             lines.append(f"! the search `{entry['command']}` no longer runs, so what "
                          "closed its class is gone; re-investigate")
+            continue
+        if entry["whole"] != running["whole"]:
+            was = "the whole tree" if entry["whole"] else "named paths"
+            now = "the whole tree" if running["whole"] else "named paths"
+            lines.append(f"! the search `{entry['command']}` ran over {was} and now "
+                         f"runs over {now}")
             continue
         dropped = sorted(entry["paths"] - running["paths"])
         added = sorted(running["paths"] - entry["paths"])

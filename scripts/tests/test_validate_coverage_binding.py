@@ -53,8 +53,9 @@ class LedgerBindingTest(unittest.TestCase):
     def test_a_zero_hit_row_may_cite_a_query_that_found_nothing(self):
         document = ledger()
         document["queries"].append(
-            {"id": validate_coverage.stable_id("q", "git grep -e Ghosttracked files"),
-             "command": "git grep -e Ghost", "universe": "tracked files",
+            {"id": validate_coverage.stable_id(
+                "q", "git grep -n -I -E -e Ghosttracked files"),
+             "command": "git grep -n -I -E -e Ghost", "universe": "tracked files",
              "count": 0, "evidence": None, "origin": "seed"})
         document = only(document, "B3", query_ids=[document["queries"][-1]["id"]])
         defects, _ = self.check(document)
@@ -343,6 +344,47 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("command" in defect for defect in defects), defects)
 
+    # One grammar: a command outside every declared family is a command no
+    # reader can place, whatever a tool would make of it.
+    def test_a_command_outside_the_grammar_is_a_defect(self):
+        for command in ("git grep -inE -e Widget",
+                        "git grep -n -I -E -F -e Widget",
+                        "find . -name Widget.java"):
+            document = ledger()
+            document["queries"][0]["command"] = command
+            defects, _ = self.check(document)
+            self.assertTrue(any("in no command family" in defect for defect in defects),
+                            (command, defects))
+
+    def test_the_defect_hands_back_the_canonical_spelling(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep --ignore-case -e Widget"
+        defects, _ = self.check(document)
+        self.assertTrue(any("write this one as `git grep -n -I -E -i -e Widget`" in defect
+                            for defect in defects), defects)
+
+    def test_an_option_joined_to_its_value_is_outside_the_grammar(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep --regexp=Widget"
+        defects, _ = self.check(document)
+        self.assertTrue(any("in no command family" in defect for defect in defects),
+                        defects)
+        self.assertTrue(any("write this one as `git grep -n -I -E -e Widget`" in defect
+                            for defect in defects), defects)
+
+    def test_a_counter_check_reordering_the_primary_expressions_is_a_defect(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep -n -I -E -e Widget -e Gadget"
+        document["queries"][0]["id"] = validate_coverage.stable_id(
+            "q", document["queries"][0]["command"] + document["queries"][0]["universe"])
+        document["boundaries"][0]["query_ids"] = [document["queries"][0]["id"]]
+        for node in document["nodes"]:
+            if node.get("query_id") == QUERY:
+                node["query_id"] = document["queries"][0]["id"]
+        defects = self.rerun(document, "git grep -n -I -E -e Gadget -e Widget")
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
+                            for defect in defects), defects)
+
     def test_a_negative_query_count_is_a_defect(self):
         document = ledger()
         document["queries"][0]["count"] = -1
@@ -551,27 +593,6 @@ class LedgerBindingTest(unittest.TestCase):
         document["queries"].append(again)
         document["counter_checks"][0].update({"query_ids": [again["id"]]})
         return self.check(document)[0]
-
-    # One option, two spellings, one method.
-    def test_a_counter_check_spelling_the_same_options_out_long_is_a_defect(self):
-        document = ledger()
-        defects = self.rerun(document, "git grep --line-number -I "
-                             "--extended-regexp --regexp Widget")
-        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
-                            for defect in defects), defects)
-
-    def test_the_short_and_long_spelling_of_one_option_are_one_search(self):
-        self.assertEqual(validate_coverage.normalized("git grep -i -n -e A"),
-                         validate_coverage.normalized(
-                             "git grep --ignore-case --line-number --regexp A"))
-
-    # The fixed flags carry no order; the Boolean expression is the search.
-    def test_the_fixed_flags_are_order_blind_and_the_boolean_terms_are_not(self):
-        self.assertEqual(validate_coverage.normalized("git grep -n -E -e A"),
-                         validate_coverage.normalized("git grep -E -n -e A"))
-        self.assertNotEqual(
-            validate_coverage.normalized("git grep --not -e A --and -e B"),
-            validate_coverage.normalized("git grep --not -e B --and -e A"))
 
     # Paths narrow a search; they do not make it another method.
     def test_a_counter_check_rerunning_the_primary_over_fewer_files_is_a_defect(self):

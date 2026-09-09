@@ -50,7 +50,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import ALL_CLASSES, HIT_LIMIT, line_hash, stable_id, worst  # noqa: E402
+import contract  # noqa: E402
+from contract import (ALL_CLASSES, HIT_LIMIT, OPTIONAL_FLAGS,  # noqa: E402
+                      build_command, line_hash, stable_id, worst)
 
 JVM = (".java", ".kt", ".kts", ".scala", ".groovy")
 CURLY = JVM + (".ts", ".tsx", ".js", ".jsx", ".php", ".cs")
@@ -332,7 +334,7 @@ def name_forms(subject: str, aliases: list[tuple[str, str]]) -> list[dict]:
 def git(repo: Path, *args: str, allowed: tuple[int, ...] = (0,)) -> str:
     """Run git with paths verbatim. A return code outside `allowed` is an error."""
     done = subprocess.run(
-        ["git", "-c", "core.quotePath=false", *args],
+        ["git", "-c", "core.quotePath=false", "-c", "color.grep=false", *args],
         cwd=str(repo),
         capture_output=True,
         encoding="utf-8",
@@ -362,7 +364,10 @@ def grep(repo: Path, patterns: list[str], pathspecs: list[str] | None,
     """One `git grep` for a whole class. Exit 1 means no match, not failure."""
     if not patterns:
         return []
-    args = ["grep", "-n", "-I", "-E", "--no-color", *(extra or [])]
+    # The options the recorded command carries, in its order: what ran and what
+    # the ledger says ran are one argv (colour is off through the config below).
+    args = ["grep", "-n", "-I", "-E",
+            *[flag for flag in OPTIONAL_FLAGS if flag in (extra or [])]]
     for pattern in patterns:
         args += ["-e", pattern]
     if pathspecs:
@@ -649,12 +654,8 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
     def grep_command(patterns: list[str], pathspecs: list[str] | None,
                      extra: list[str] | None = None) -> str:
-        """The invocation, written out — what `note` digests into a query id."""
-        parts = ["git grep -n -I -E", *(extra or [])]
-        parts += [f"-e {shlex.quote(pattern)}" for pattern in patterns]
-        if pathspecs:
-            parts += ["--", *(shlex.quote(spec) for spec in pathspecs)]
-        return " ".join(parts)
+        """The invocation, in the one grammar a recorded search is written in."""
+        return build_command(patterns, pathspecs, extra or [])
 
     def search(patterns: list[str], files: list[str] | None, universe: str,
                extra: list[str] | None = None) -> tuple[list[dict], list[str]]:
