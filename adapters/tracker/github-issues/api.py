@@ -38,6 +38,20 @@ OPERATIONS = (
     "tracker_attachments", "tracker_changelog",
 )
 
+
+# The shared payload reader (adapters/tracker/payload.py). The adapters folder
+# is not a package root, so it is loaded by file, the way this adapter itself is
+# loaded by scripts/tracker_api.py.
+def _payload_module():
+    spec = importlib.util.spec_from_file_location(
+        "afk_tracker_payload", Path(__file__).resolve().parent.parent / "payload.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+payload_reader = _payload_module()
+
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 ASSET_URL = re.compile(
     r"https://(?:user-images\.githubusercontent\.com|github\.com/[^/\s)]+/[^/\s)]+/(?:files|assets))/[^\s)\"']+")
@@ -94,9 +108,39 @@ def _gh(*args, stdin=None):
     if not out:
         return {"ok": True}
     try:
-        return json.loads(out)
+        return _pages(out)
     except ValueError:
         return {"raw": out[:2000]}
+
+
+def _pages(text):
+    """One value from an answer that may arrive as several JSON documents.
+
+    `gh api --paginate` prints one document per page, so a reader that calls
+    json.loads sees page 2 as trailing data and loses every page after the
+    first. Decode the documents in order; when they are arrays, join them into
+    the single list the caller asked for.
+    """
+    decoder = json.JSONDecoder()
+    index, documents = 0, []
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index >= len(text):
+            break
+        value, index = decoder.raw_decode(text, index)
+        documents.append(value)
+    if not documents:
+        raise ValueError("no JSON document in the answer")
+    if len(documents) == 1:
+        return documents[0]
+    items = []
+    for document in documents:
+        if isinstance(document, list):
+            items.extend(document)
+        else:
+            items.append(document)
+    return items
 
 
 def _repo_args():
@@ -328,7 +372,11 @@ def main(argv):
     if not argv:
         print(json.dumps({"operations": list(OPERATIONS)}))
         return 0
-    payload = json.loads(argv[1]) if len(argv) > 1 else {}
+    payload, unreadable = payload_reader.parse(
+        argv[1] if len(argv) > 1 else None, argv[0])
+    if unreadable is not None:
+        print(json.dumps(unreadable))
+        return payload_reader.EXIT_UNREADABLE_PAYLOAD
     answer = call(argv[0], payload)
     print(json.dumps(answer))
     return 3 if isinstance(answer, dict) and answer.get("unsupported") else 0

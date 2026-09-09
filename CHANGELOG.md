@@ -55,11 +55,6 @@ first released heading here.
   is a restart. It hands back exactly the cost the round dossier removes,
   which is what an escape is for.
 
-- **README section 4 gained "Upgrading a pinned install"** — the order the pin
-  has to move in on each harness, and how to ask which version is live. Reading
-  the marketplace clone or the version cache answers a different question, and
-  running git in either detaches a checkout the CLI owns.
-
 ### Changed
 
 - **Silence is never agreement on a rendered round.** Every answerable card now
@@ -120,6 +115,145 @@ first released heading here.
   that sizes its frame to the content height gives the bar a viewport as tall
   as the document. It now sits in the flow directly under the round it sends,
   and a round with nothing answerable emits no bar at all.
+
+## [1.0.18] - 2026-09-05
+
+### Removed
+
+- **`artifacts.glossary-map`.** The key was documented and validated, and
+  nothing read it: every skill that needs the domain glossary reads a root
+  `GLOSSARY-MAP.md`, the name `/afk:glossary` fixes in
+  `skills/utils/glossary/GLOSSARY-FORMAT.md`. A key that configures a name the
+  toolkit does not honour is a second home for one decision.
+
+### Migration
+
+- Delete `artifacts.glossary-map` from `.afk/config.yaml`; `validate` now
+  rejects it. Keep the file at the root as `GLOSSARY-MAP.md` — that is where
+  every skill looks. `artifacts.service-map` is unchanged.
+
+## [1.0.17] - 2026-09-05
+
+### Fixed
+
+- **A repository hook that cannot run blocks instead of vanishing.** A handler
+  a repository declares in `.afk/hooks.json` was skipped without a word when
+  its script was missing, its matcher was not a regular expression, the
+  manifest did not parse, or it returned no verdict inside its timeout — so a
+  required Stop gate could disappear and every turn looked clean. Each of those
+  is now a configuration error: `hooks/run-hook.py` names the entry and the
+  reason on stderr, and on Stop and PreToolUse it blocks with the decision
+  object a failed gate emits. On the other events it warns and carries on.
+- **A paginated answer is read to the end.** `gh api --paginate` and `glab api
+  --paginate` print one JSON document per page, not one document holding every
+  page, so both forge adapters' `thread-list` reported the whole answer
+  unreadable as soon as a change had more than one page of comments, and the
+  GitHub tracker's changelog fell back to a truncated string. All three now
+  decode the documents in order and join the arrays.
+- **A misspelled configuration key is refused.** `validate` only rejected
+  unknown keys at the top level and under `worktree` and `developer`, so a typo
+  under `jira`, `gitlab`, `maven` or any other documented map validated
+  cleanly, and the setting the developer meant to make silently stayed at its
+  default. Every documented map is now validated one level down, and an unknown
+  child key is named by its full dotted path.
+- **`ci-wait` answers on stdout for every outcome.** The budget-exhausted and
+  unreadable results were written to stderr, leaving a caller that routes on
+  exit 2 or 3 — a parked pipeline, an authentication fault — with nothing
+  structured to read. Both adapters now print the result object on stdout for
+  every terminal status and keep stderr for the human line. A poll interval of
+  zero, which spun forever, is treated as one second.
+- **A payload a tracker cannot read is an answer, not a traceback.** Both
+  tracker command surfaces raised `JSONDecodeError` and exited 1 on a malformed
+  payload. They now share one reader (`adapters/tracker/payload.py`), answer
+  with the family's error object naming what was wrong, and exit 2. A payload
+  that parses but is not an object is refused the same way.
+- **`afk-config.py validate FILE` names the file it cannot read.** A missing
+  path, a directory, or a file that is not UTF-8 raised a traceback and exited
+  1; it now prints `afk-config: <path>: <reason>` and exits 2.
+- **A build-gate provisioner answers with an object when it refuses one.** Both
+  `worktree-provision.sh` scripts printed a bare line on stderr and no JSON,
+  against the family contract of one object per invocation. They now emit
+  `{"error":true,"kind":…,"operation":…,"reason":…}` on stdout, with the reason
+  saying which way the payload was wrong.
+- **The toolkit's own `.afk/config.yaml` states the version it ships in.** It
+  said `1.0.0` in every release since the first. `hooks/release-gate.sh` now
+  holds it to the same equality as the two `plugin.json` files, the marketplace
+  manifest and the changelog heading, so it cannot drift again.
+- **`afk-config.py init` scaffolds the keys the GitHub Issues adapter reads.**
+  It wrote a `github-issues.labels` block that nothing reads, and no `repo`. It
+  now writes `repo` (derived from the origin remote) and `state-labels`.
+
+### Migration
+
+- Nothing to do. A repository whose `.afk/hooks.json` declares a handler this
+  checkout cannot run will now be told at the end of a turn instead of running
+  without that gate; fix or remove the entry the message names.
+- A configuration file carrying a misspelled key under a documented map starts
+  failing `validate`. The message names the key and the path — correct the
+  spelling, or drop the key.
+
+## [1.0.16] - 2026-09-05
+
+### Fixed
+
+- **`change-update-body` no longer publishes a draft change.** `glab mr update
+  --description` clears the draft flag as a side effect, so editing a body made
+  the change reviewable and dropped its title prefix. The verb now reads the
+  flag before the edit, checks it after, and restores it, reporting `was_draft`
+  and `draft_restored` in its answer.
+- **A forge adapter carries any text the forge accepts.** Both forge adapters
+  pin `PYTHONIOENCODING=utf-8`: on a Windows console the default is cp1252,
+  where an emoji in a change body raised `UnicodeEncodeError` inside the
+  argument reader and the field arrived empty.
+- **`/afk:setup` H7 can refresh an installed reply-standard block.** It skipped
+  any steering file that already carried the sentinel, so a release changing
+  the block left every machine on the old text and the migration line asking
+  people to re-run it could not work. A file without the sentinel still gets
+  the block appended; one that has it gets the lines between the sentinels
+  replaced by `skills/afk/setup/scripts/install_block.py`, which keeps the
+  file's own line endings and everything written around the block.
+
+### Migration
+
+- Re-run `/afk:setup` H7 once. This is the release where it can refresh an
+  installed block, so a machine still on the pre-1.0.15 reply standard picks up
+  the noun-cluster cap and the two coined-term rules without editing the file
+  by hand.
+
+## [1.0.15] - 2026-09-05
+
+### Changed
+
+- **The writing doctrine caps noun clusters and governs coined compounds.**
+  `LANGUAGE.md` section 1 caps a noun cluster at 3 words and says to unstack it
+  with a preposition or a verb. Section 2 adds two rules: a multi-word compound
+  naming a concept is a term, so register it in a glossary or write the concept
+  out as a phrase rather than coining one mid-document, and a registered
+  compound carries a 3-5 word gloss at first use in every document. Section 3
+  and `CLAUDE.md` no longer say to drop articles for concision - an article or
+  preposition marking a noun-to-noun relation is what tells the reader which
+  noun is the head, and dropping it is how the noun stacks were built. The
+  reply-standard install block carries the same rules.
+
+### Added
+
+- **The gitlab forge contract records two ways an MR edit goes wrong** —
+  `glab mr update --description` clears the Draft flag, and a description
+  round-tripped through a console pipe comes back mis-decoded and stores the
+  damage on the server.
+- **README section 4 gained "Upgrading a pinned install"** — the order the pin
+  has to move in on each harness, and how to ask which version is live. Reading
+  the marketplace clone or the version cache answers a different question, and
+  running git in either detaches a checkout the CLI owns.
+
+### Migration
+
+- The user-global reply-standard block gained the noun-cluster cap and the two
+  coined-term rules. A machine that has never run `/afk:setup` H7 installs the
+  new text on its first run. A steering file that already carries the block is
+  NOT updated by this release: H7 skips a file with the sentinel in it, so
+  replace the lines between the sentinels by hand, or wait for 1.0.16, where H7
+  replaces them for you.
 
 ## [1.0.14] - 2026-09-05
 

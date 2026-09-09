@@ -44,8 +44,13 @@ without knowing what they are. It declares them in `.afk/hooks.json`
 `matcher`, `timeout` and repository-relative `script`. `hooks.json` invokes
 `run-hook.py repo-list <event>` once per event; the launcher resolves each
 script under the checkout, refuses one that resolves outside it, and exits 0
-when the manifest or a handler is absent — so the plugin stays inert in a
-repository that declares none. They are deliberately NOT resolved under the
+when the manifest is absent — so the plugin stays inert in a repository that
+declares none. A handler a repository DOES declare and this checkout cannot run
+— missing script, unusable matcher, unparsable manifest, no verdict inside its
+timeout — is a configuration error, not a skip: on Stop and PreToolUse the
+launcher blocks with the decision object a failed gate emits, naming each
+entry, so a required gate cannot disappear by being misdeclared. On the other
+events it says so on stderr. They are deliberately NOT resolved under the
 plugin root: a repository's gates must track the checkout, not the installed
 plugin. Their escape hatch is the repository's own.
 

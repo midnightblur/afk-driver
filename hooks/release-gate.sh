@@ -3,7 +3,7 @@
 #
 #   bash hooks/release-gate.sh v1.0.0
 #
-# A release is a tag, and three files claim a version of their own. If any of
+# A release is a tag, and four files claim a version of their own. If any of
 # them drifts, an installed plugin reports a version it is not, and the update
 # notice compares against a lie. So the gate is an equality check:
 #
@@ -12,11 +12,14 @@
 #     == .codex-plugin/plugin.json       "version"
 #     == .claude-plugin/marketplace.json plugins[name == plugin.json's name] .version
 #     == CHANGELOG.md's FIRST released heading after `## [Unreleased]`
+#     == .afk/config.yaml                `toolkit-version`
 #
 # The changelog heading is part of the equality on purpose: a release with no
-# entry is a release nobody can read.
+# entry is a release nobody can read. So is this plugin's own `.afk/config.yaml`:
+# it is the reference every consuming repository copies, and a repository reads
+# `toolkit-version` as the version it was configured against.
 #
-# Exit 0 all four agree; exit 2 with the disagreement named; exit 1 on usage.
+# Exit 0 all five agree; exit 2 with the disagreement named; exit 1 on usage.
 set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
@@ -76,6 +79,9 @@ CODEX_V=$(json_version "$ROOT/.codex-plugin/plugin.json" version)
 PLUGIN_NAME=$("$PY" -c 'import json,sys;print(json.load(open(sys.argv[1],encoding="utf-8")).get("name",""),end="")' "$ROOT/.claude-plugin/plugin.json" 2>/dev/null)
 MARKET_V=$(json_version "$ROOT/.claude-plugin/marketplace.json" marketplace "$PLUGIN_NAME")
 CHANGE_V=$(changelog_version)
+CONFIG_V=$(awk -F'[:#]' '/^toolkit-version:/ {
+    gsub(/^[ \t]+|[ \t]+$/, "", $2); gsub(/^["\047]|["\047]$/, "", $2); print $2; exit
+  }' "$ROOT/.afk/config.yaml" 2>/dev/null)
 
 fail=""
 check() {   # check <label> <found>
@@ -87,6 +93,7 @@ check ".claude-plugin/plugin.json" "$CLAUDE_V"
 check ".codex-plugin/plugin.json" "$CODEX_V"
 check ".claude-plugin/marketplace.json" "$MARKET_V"
 check "CHANGELOG.md first released heading" "$CHANGE_V"
+check ".afk/config.yaml toolkit-version" "$CONFIG_V"
 
 if [ -n "$fail" ]; then
   {
@@ -97,4 +104,4 @@ if [ -n "$fail" ]; then
   exit 2
 fi
 
-echo "release-gate: $TAG — plugin.json (both harnesses), marketplace.json and CHANGELOG.md all say $VERSION"
+echo "release-gate: $TAG — plugin.json (both harnesses), marketplace.json, CHANGELOG.md and .afk/config.yaml all say $VERSION"

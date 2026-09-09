@@ -31,7 +31,6 @@ git:
 repo-files:
   spec-dir: '{service}/specs/{release}/{ticket}'
 artifacts:
-  glossary-map: GLOSSARY-MAP.md
   service-map:
     PROJ: services/billing
 maven:

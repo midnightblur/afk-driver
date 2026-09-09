@@ -33,6 +33,45 @@ payload=${2:-'{}'}
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
 
+# Text going to or from the forge is UTF-8, and a console encoding is not: on a
+# Windows terminal the default is cp1252, where an emoji in a change body raises
+# UnicodeEncodeError inside every helper below and the field arrives EMPTY. The
+# forge is the authority on what its text may contain, so pin the interpreter to
+# UTF-8 rather than trimming what a body may say.
+export PYTHONIOENCODING=utf-8
+
+# A paginated read prints one JSON document per page, not one document holding
+# every page, so a reader that calls json.load sees page 2 as trailing data and
+# reports the whole answer unreadable. This prelude decodes the documents one
+# after another and joins the arrays into the single list a caller expects.
+PAGES='
+import json
+
+def _documents(text):
+    decoder = json.JSONDecoder()
+    index, out = 0, []
+    while True:
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if index >= len(text):
+            return out
+        value, index = decoder.raw_decode(text, index)
+        out.append(value)
+
+def pages(text):
+    documents = _documents(text)
+    if not documents:
+        raise ValueError("no JSON document in the answer")
+    items = []
+    for document in documents:
+        if isinstance(document, list):
+            items.extend(document)
+        else:
+            items.append(document)
+    return items
+'
+
+
 unsupported() {
   printf '{"unsupported":true,"verb":"%s","reason":"forge/gitlab has no verb %s"}\n' "$verb" "$verb"
   exit 3
@@ -271,12 +310,35 @@ change-reviewers)
 
 change-update-body)
   ref=$(arg id); body=$(arg body)
+  # Editing a body is not a decision to publish, but `glab mr update` clears the
+  # draft flag as a side effect: the title comes back without its prefix and the
+  # change becomes reviewable. Read the flag first, restore it after, and say in
+  # the answer whether it had to be put back.
+  was_draft=$(glab mr view "$ref" "${REPO_FLAG[@]}" --output json 2>/dev/null \
+    | "$PY" -c 'import json,sys
+try:
+    print("true" if json.load(sys.stdin).get("draft") else "false", end="")
+except Exception:
+    print("unknown", end="")')
   out=$(glab mr update "$ref" "${REPO_FLAG[@]}" --description "$body" 2>&1) || {
     printf '{"error":true,"verb":"change-update-body","reason":%s}\n' \
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
     exit 0
   }
-  printf '{"ok":true,"id":"%s"}\n' "$ref"
+  restored=false
+  if [ "$was_draft" = true ]; then
+    now=$(glab mr view "$ref" "${REPO_FLAG[@]}" --output json 2>/dev/null \
+      | "$PY" -c 'import json,sys
+try:
+    print("true" if json.load(sys.stdin).get("draft") else "false", end="")
+except Exception:
+    print("unknown", end="")')
+    if [ "$now" != true ]; then
+      glab mr update "$ref" "${REPO_FLAG[@]}" --draft >/dev/null 2>&1 && restored=true
+    fi
+  fi
+  printf '{"ok":true,"id":"%s","was_draft":"%s","draft_restored":%s}\n' \
+    "$ref" "$was_draft" "$restored"
   ;;
 
 change-comment)
@@ -345,10 +407,10 @@ thread-list)
   # end — a round that read only the first page would re-open findings it had
   # already settled.
   iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
-  glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null   | "$PY" -c '
+  glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
 try:
-    data = json.load(sys.stdin)
+    data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "glab returned no readable JSON"}))
     raise SystemExit(0)
@@ -418,6 +480,9 @@ ci-wait)
   ref=$(arg id)
   budget=$(arg budget 5400)
   interval=$(arg interval 180)
+  # A poll that never advances the clock never ends: an interval of 0
+  # would spin against the forge until the caller is killed.
+  [ "$interval" -gt 0 ] 2>/dev/null || interval=1
   errors=0
   elapsed=0
   while [ "$elapsed" -lt "$budget" ]; do
@@ -433,7 +498,8 @@ print(((d.get("head_pipeline") or d.get("pipeline") or {}).get("status")) or "")
     if [ -z "$status" ]; then
       errors=$((errors + 1))
       if [ "$errors" -ge 3 ]; then
-        printf '{"status":"unreadable","elapsed":%s,"reason":"3 consecutive read errors on %s — auth or network, not a pipeline verdict"}\n' "$elapsed" "$ref" >&2
+        printf 'forge: %s could not be read 3 times running — auth or network, not a pipeline verdict\n' "$ref" >&2
+        printf '{"status":"unreadable","elapsed":%s,"reason":"3 consecutive read errors on %s — auth or network, not a pipeline verdict"}\n' "$elapsed" "$ref"
         exit 3
       fi
     else
@@ -448,7 +514,8 @@ print(((d.get("head_pipeline") or d.get("pipeline") or {}).get("status")) or "")
     sleep "$interval"
     elapsed=$((elapsed + interval))
   done
-  printf '{"status":"running","elapsed":%s,"id":"%s","reason":"budget exhausted; the pipeline keeps running"}\n' "$elapsed" "$ref" >&2
+  printf 'forge: budget of %ss is spent on %s; the pipeline keeps running\n' "$elapsed" "$ref" >&2
+  printf '{"status":"running","elapsed":%s,"id":"%s","reason":"budget exhausted; the pipeline keeps running"}\n' "$elapsed" "$ref"
   exit 2
   ;;
 

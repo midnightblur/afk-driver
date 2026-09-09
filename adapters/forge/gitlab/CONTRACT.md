@@ -29,6 +29,21 @@ CLI already established, and no configuration file holds a token.
 
 ## Notes that bite
 
+The paginated read and every `ci-wait` exit are pinned offline, against a stub command-line tool, by `scripts/tests/test_forge_adapters.py`.
+
+- A paginated read (`glab api --paginate`) prints one JSON document per page,
+  not one document holding every page. `thread-list` decodes the documents in
+  order and joins the arrays; a caller driving `glab` directly does the same, or
+  it sees only page 1 — or, worse, reports the whole answer unreadable.
+- `ci-wait` prints its result object on stdout for EVERY terminal status,
+  including budget exhausted (exit 2) and unreadable (exit 3); stderr carries
+  the human line only. A caller routes on the object, and an exit code alone
+  does not say which pipeline, or for how long.
+- A payload handed to this script as a command-line argument from a NATIVE
+  Windows process (not from a shell) loses its quotes: the shell's runtime
+  re-parses the command line, and the adapter then reads an unreadable payload
+  and uses its defaults. Such a caller puts the payload in the environment and
+  lets the shell expand it.
 - An INLINE comment is a DiffNote and needs the change's four diff refs
   (`base_sha`, `start_sha`, `head_sha` plus the paths). `glab mr note` has no
   flag for that, and passing `-f position[...]` form parameters posts a PLAIN
@@ -40,6 +55,21 @@ CLI already established, and no configuration file holds a token.
   server rejects the position.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
+- `glab mr update --description` clears the Draft flag: the new title comes back
+  without its `Draft:` prefix and the change becomes reviewable. Editing a
+  description is not a decision to publish, so `change-update-body` reads the
+  flag before the edit, checks it after, and restores it with
+  `glab mr update --draft`. Its answer carries `was_draft` and
+  `draft_restored`, so a caller can see that it happened. A caller driving
+  `glab` directly does the same, and verifies at the END of a round: the flag
+  has been observed clear again after a later push or edit.
+- Text to and from the forge is UTF-8, and a console encoding is not. This
+  adapter exports `PYTHONIOENCODING=utf-8` for exactly that reason: on a Windows
+  terminal the default is cp1252, where an emoji in a change body raises
+  UnicodeEncodeError inside the argument reader and the field arrives EMPTY,
+  and an em dash read back comes out as three characters that get stored on the
+  server when the text is posted again. A caller driving `glab` directly sets
+  the same variable before any round-trip of description or note text.
 
 ## Documented degradation
 
