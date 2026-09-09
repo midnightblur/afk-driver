@@ -60,8 +60,8 @@ first released heading here.
 - **`ground_diff.py` says whether a cited investigation still describes the
   tree.** It counts every searched line, keyed by class, file and line hash, and
   reports an appearance, a disappearance, an in-place edit, a duplicate, a
-  capped row, a changed configuration, and a seed search that no longer runs as
-  drift. Query rows now say who ran them (`origin`), so a line a tracer widened
+  boundary status that moved, a changed configuration, and a seed search that no
+  longer runs as drift. Query rows now say who ran them (`origin`), so a line a tracer widened
   to is counted rather than compared, and a file only an agent read is watched
   through `git diff` between the two snapshots. A line hash covers the exact
   bytes of the line, so a re-indentation reads as the edit it is.
@@ -70,9 +70,10 @@ first released heading here.
   subject and name forms — whose claims it reads back against the facts the
   design cites.
 - **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
-  rules — snapshot identity, worst-status-wins, the truncation rule, the node
+  rules — snapshot identity, worst-status-wins, the union count, the node
   conflict rule, the counter-check union — ran as prose in the skill and now run
-  as a script. A fragment taken against another commit aborts the merge rather
+  as a script. One id under two bodies — a query, a node, a claim — aborts the
+  fold rather than keeping one and losing the other. A fragment taken against another commit aborts the merge rather
   than mixing two snapshots.
 - **The design chain verifies its claims by investigation.** A claim about this
   repository is closed by an `/afk:investigate` run, not by a search:
