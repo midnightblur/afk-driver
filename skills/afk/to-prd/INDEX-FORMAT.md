@@ -17,8 +17,8 @@ Created by PRD synthesis (owns the summary paragraph + seeds **every** row). Aft
 | `Plan` | `/afk:to-subtasks` |
 | `Smoke gate` | `/afk:smoke-test` |
 | `Understanding` | `/afk:understand` (upserts only its own row) |
-| `Design review plan` | `/afk:to-design-review-plan` |
-| `Demo plan` | `/afk:to-demo-plan` |
+| `Design review plan` | `/afk:to-meeting-b` |
+| `Demo plan` | `/afk:to-meeting-d` |
 
 ## Template
 

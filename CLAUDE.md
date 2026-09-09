@@ -96,8 +96,9 @@ Per-skill mechanics, refusal conditions, and formats live in each skill's own `S
 | `/afk:design-system` | per-service `claude.ai/design` catalog of the live frontend | `skills/afk/design-system/SKILL.md` |
 | `/afk:mission-control` | read-only per-feature dashboard (watch / `--once` / `build`) | `skills/afk/mission-control/SKILL.md` |
 | `/afk:understand` | interactive HTML learning artifact (feature / MR / code area) | `skills/afk/understand/SKILL.md` |
-| `/afk:to-design-review-plan` | timed design-review meeting plan from settled specs; repo-only | `skills/afk/to-design-review-plan/SKILL.md` |
-| `/afk:to-demo-plan` | ≤60-min demo script for a delivered feature; repo-only | `skills/afk/to-demo-plan/SKILL.md` |
+| `/afk:to-meeting-b` | meeting B, the design review: timed plan from settled specs; repo-only | `skills/afk/to-meeting-b/SKILL.md` |
+| `/afk:to-meeting-d` | meeting D, the demo: ≤60-min script for a delivered feature; repo-only | `skills/afk/to-meeting-d/SKILL.md` |
+| `/afk:to-demo-plan` | deprecated alias for `to-meeting-d`; removed in the next major version | `skills/afk/to-demo-plan/SKILL.md` |
 | `/afk:diagnose` | disciplined diagnosis loop for hard bugs / perf regressions | `skills/utils/diagnose/SKILL.md` |
 | `/afk:handoff` | compact the conversation into a handoff doc | `skills/utils/handoff/SKILL.md` |
 | `/afk:harvest` | user-invoked whole-session lesson sweep, applied on the spot | `skills/utils/harvest/SKILL.md` |
@@ -154,7 +155,7 @@ The contract is enforced at three checkpoints — drift can't ship without surfa
 
 ## Tracker boundary
 
-Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket description publish + re-publish delta comments + spinoff stub Enhancements (mechanics: `skills/afk/to-ticket/SKILL.md`) — and **`/afk:bug`**'s publisher subagent — create Bug + one Dev-Pending transition + evidence comments, that ticket only (`skills/afk/bug/SKILL.md`). Everything else stops at disk or GitLab: `/afk:to-prd`, `/afk:to-sdd`, `/afk:grill-verification`, `/afk:to-verification-plan`, `/afk:to-subtasks`, `/afk:to-design-brief`, `/afk:to-design-review-plan`, `/afk:to-demo-plan`, `/afk:smoke-test` **local-only**; `/afk:prototype` **local-first**, sole network egress an **opt-in** `claude.ai/design` push (share mirror, never Jira/GitLab/merge); `/afk:execute` touches **GitLab** (push + Draft MR) + the local plan, **not Jira** — subtasks are local artifacts, progress lives in `plan/PLAN.md`.
+Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket description publish + re-publish delta comments + spinoff stub Enhancements (mechanics: `skills/afk/to-ticket/SKILL.md`) — and **`/afk:bug`**'s publisher subagent — create Bug + one Dev-Pending transition + evidence comments, that ticket only (`skills/afk/bug/SKILL.md`). Everything else stops at disk or GitLab: `/afk:to-prd`, `/afk:to-sdd`, `/afk:grill-verification`, `/afk:to-verification-plan`, `/afk:to-subtasks`, `/afk:to-design-brief`, `/afk:to-meeting-b`, `/afk:to-meeting-d`, `/afk:smoke-test` **local-only**; `/afk:prototype` **local-first**, sole network egress an **opt-in** `claude.ai/design` push (share mirror, never Jira/GitLab/merge); `/afk:execute` touches **GitLab** (push + Draft MR) + the local plan, **not Jira** — subtasks are local artifacts, progress lives in `plan/PLAN.md`.
 
 ## Conventions to keep
 

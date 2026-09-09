@@ -233,8 +233,17 @@ _Avoid_: approval (routine), locked decision (that is any settled design call)
 **Sign-off**:
 The human's own affirming answer to a human-locked aspect's question, recorded verbatim as a `signoff` row in `GRILL-LOG.md` and carried into SDD §0. Void the moment the aspect's design moves; `pending` or `changes-requested` means the design isn't exhausted and the SDD can't publish.
 
+**Meeting B** / **Meeting D**:
+The two stakeholder meetings the plugin writes run sheets for, named by the
+letter their audience already uses. **B** is the *design review*: settled scope
+and design in front of the room before the code exists — plan
+`/afk:to-meeting-b`. **D** is the *demo*: the delivered feature working — plan
+`/afk:to-meeting-d`. Nothing depends on the letters beyond the skill names; a
+repository using other labels reads B as "design review" and D as "demo".
+_Avoid_: design review meeting / demo meeting as term names (the letter is the term), meeting A / meeting C (no plan exists)
+
 **Objection window**:
-Minutes reserved inside a meeting segment, at its end, for the room to challenge what it just saw — so an objection lands while its evidence is still on screen. Presentation overrun never consumes one. Rules: `skills/afk/to-design-review-plan/MEETING-PLAN-FORMAT.md`.
+Minutes reserved inside a meeting segment, at its end, for the room to challenge what it just saw — so an objection lands while its evidence is still on screen. Presentation overrun never consumes one. Rules: `skills/afk/to-meeting-b/MEETING-PLAN-FORMAT.md`.
 
 **Disposition**:
 The single outcome a facilitator assigns to an open meeting item after the room discusses it — `agreed`, `revise and return`, `deferred from scope`, or `blocked by evidence`; everything but `agreed` names an owner and a date. Distinct from `Decision needed`, which is the plan author's question written before the meeting.

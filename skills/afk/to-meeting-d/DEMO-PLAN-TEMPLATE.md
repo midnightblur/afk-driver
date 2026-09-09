@@ -120,7 +120,7 @@ Profile: company-meeting
 
 *Company-meeting profile only.* Filled live, in the room, one row per piece of
 feedback. Exactly one disposition each, from
-`skills/afk/to-design-review-plan/MEETING-PLAN-FORMAT.md`.
+`skills/afk/to-meeting-b/MEETING-PLAN-FORMAT.md`.
 
 | Feedback | Disposition | Owner | Date |
 |---|---|---|---|

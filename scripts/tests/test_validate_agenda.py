@@ -108,9 +108,9 @@ class Cli(unittest.TestCase):
 
     def test_the_shipped_templates_add_up(self):
         """Templates ship the agenda authors start from; both must be correct."""
-        self.assertEqual(self.shipped("skills", "afk", "to-design-review-plan",
+        self.assertEqual(self.shipped("skills", "afk", "to-meeting-b",
                                       "PLAN-TEMPLATE.md"), [])
-        self.assertEqual(self.shipped("skills", "afk", "to-demo-plan",
+        self.assertEqual(self.shipped("skills", "afk", "to-meeting-d",
                                       "DEMO-PLAN-TEMPLATE.md"), [])
 
 

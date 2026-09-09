@@ -1,11 +1,14 @@
 ---
-name: to-design-review-plan
-description: Timed design-review meeting plan — synthesizes PRD, SDD and ADRs into a 60-minute DESIGN-REVIEW-PLAN.md with segment cards, objection windows and an undecided exit. Use when the user must present settled scope and design to a product owner, QA, a development director, or a team lead.
+name: to-meeting-b
+description: Meeting B, the design review — a timed design-review meeting plan. Synthesizes PRD, SDD and ADRs into a 60-minute DESIGN-REVIEW-PLAN.md with segment cards, objection windows and an undecided exit. Use when the user must present settled scope and design to a product owner, QA, a development director, or a team lead.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
-# afk:to-design-review-plan — the design-review script
+# afk:to-meeting-b — the design-review script
+
+Meeting B is the design review: the room sees settled scope and design before
+the code is built (`GLOSSARY.md`, "Meeting B").
 
 Takes a feature's settled specs; emits one `DESIGN-REVIEW-PLAN.md` — the run
 sheet a presenter works top-to-bottom in a fixed hour, in front of four roles

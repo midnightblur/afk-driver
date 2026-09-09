@@ -20,7 +20,7 @@ first released heading here.
 
 ### Added
 
-- **`/afk:to-design-review-plan`** — a timed run sheet for presenting settled
+- **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
   scope and design to a stakeholder room: source ledger, concept ladder, one
   card per segment, an objection bank, and an exit that gives every undecided
   item a disposition, an owner and a date rather than an approval nobody agreed
@@ -57,6 +57,15 @@ first released heading here.
   which is what an escape is for.
 
 ### Changed
+
+- **The two meeting-plan skills are named by their meeting** — `/afk:to-meeting-b`
+  (the design review) and `/afk:to-meeting-d` (the demo). The letters are the
+  audience's own labels, registered in `GLOSSARY.md`; each skill's first line
+  still says which meeting it is, so the name never has to be decoded from
+  memory. `/afk:to-demo-plan` keeps working as a deprecated alias and is removed
+  in the next major version. `/afk:to-design-review-plan` never shipped, so it
+  gets no alias. The artifacts keep their names: `DESIGN-REVIEW-PLAN.md` and
+  `DEMO-PLAN.md`.
 
 - **Silence is never agreement on a rendered round.** Every answerable card now
   requires an explicit mark, in every grill and at every evidence grade — a
