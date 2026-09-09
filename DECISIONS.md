@@ -18,6 +18,8 @@ Weigh the options and form a recommendation exactly as if presenting the choice 
 
 An auto-taken decision is a recommendation the human never saw — record it as one they can audit and reverse. Two writes, at decision time:
 
+No `plan/` yet, because the decision is taken during a grill → the record home is the grill log's `Settled:` row per `skills/afk/grill-requirements/GRILL-LOG-FORMAT.md`, and the human's accept in the round is the audit this ledger exists to provide.
+
 1. **Ledger** — append an entry to `plan/DECISIONS.md`. Create the file with the header below if missing. Append-only: never edit or delete a prior entry; `{n}` increments per plan. Wording per `LANGUAGE.md` §3.
 
    ```
