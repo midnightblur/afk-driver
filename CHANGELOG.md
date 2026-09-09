@@ -95,6 +95,24 @@ first released heading here.
 
 ### Changed
 
+- **A round can lay its items out as a table, and three render points moved
+  onto the kit because of it.** A group in a round document now takes
+  `layout: "cards"` (the default) or `layout: "table"`; a table group renders
+  its `confirm_row` members as one row each -- item, question, recommended,
+  your mark, note -- with the why, the citation and the alternatives behind a
+  per-row disclosure. Items stay flat, so anchors, the decision ledger, the
+  re-audit strip, dependency chips and per-item persistence work on a row
+  exactly as they do on a card, and the page runtime needed no change at all.
+  Only `confirm_row` may sit in a table group: a `decided_card` carries a
+  six-field record that a cell would either truncate or make unreadable, so an
+  intact one there is a hard exit naming it.
+
+  This is what the plan page (RP-2), the verification matrix (RP-3) and
+  findings triage (RP-4) were waiting for -- all three are dozens of items
+  needing one mark each, which is a matrix, not a card stack. Their Path rows
+  now read `kit`, so no model writes their markup. The weaving skills needed
+  no edit: each points at its RP row rather than restating a path.
+
 - **One browser tab per lavish session.** A round used to open a fresh tab,
   because the plain render shape opens the browser and a session-default weave
   re-renders every round. It never needed to: the background server watches

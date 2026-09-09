@@ -76,7 +76,13 @@ OPTIONAL = {
 # they settle, and a settled card keeps the group it was decided under.
 COMMON_ITEM = ("component", "id", "state", "fresh", "group")
 
-GROUP_KEYS = ("id", "title", "after")
+GROUP_KEYS = ("id", "title", "after", "layout")
+
+# How a group lays its members out. `cards` is the default and the only shape
+# every component fits; `table` is one row per item, and only a `confirm_row`
+# is row-shaped (see `_bind_layout`).
+LAYOUTS = ("cards", "table")
+TABLE_LAYOUT = "table"
 DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir", "stage")
 ROUND_KEYS = ("round", "state", "items", "header")
 
@@ -316,6 +322,10 @@ def _check_groups(groups, number):
         gid = group["id"]
         if gid in seen:
             raise ContractError("%s: duplicate group id" % label)
+        layout = group.get("layout")
+        if layout is not None and layout not in LAYOUTS:
+            raise ContractError("%s: `layout` %r is not one of %s"
+                                % (label, layout, ", ".join(LAYOUTS)))
         after = group.get("after") or []
         if not isinstance(after, list):
             raise ContractError("%s: `after` must be a list of group ids" % label)
@@ -358,6 +368,45 @@ def _bind_groups(items, groups, number):
                 "round %d: item %r is in group %r, which the header does not declare "
                 "(declared: %s)" % (number, item["id"], item["group"],
                                     ", ".join(sorted(known))))
+
+
+def group_layout(group):
+    """How this group lays its members out. Absent reads as `cards`.
+
+    Read, never written: normalizing the field onto the author's own group
+    object would edit the document the caller handed in.
+    """
+    return group.get("layout") or "cards"
+
+
+def _bind_layout(items, groups, number):
+    """A table group holds only `confirm_row` members.
+
+    A row is one question needing exactly one mark, which is the whole of a
+    confirm card. Every other component carries more than a row can hold: a
+    `decided_card` has a six-field contract plus a narrative body, so forcing
+    it into a cell either truncates the record or makes the row unreadable —
+    and the record is the reason the card is allowed to exist. A `debate_card`
+    is a criteria grid, and a `signoff_packet` is tables; neither is row-shaped
+    either.
+
+    Runs after the degrade pass, so a `decided_card` that lost its contract has
+    already become a `confirm_row` and passes here — the same question in a
+    weaker form, which is exactly what a row asks.
+    """
+    if not groups:
+        return
+    tables = {g["id"] for g in groups if group_layout(g) == TABLE_LAYOUT}
+    if not tables:
+        return
+    for item in items:
+        if item.get("state") == "settled" or item.get("group") not in tables:
+            continue
+        if item["component"] != "confirm_row":
+            raise ContractError(
+                "round %d: item %r is a %s in group %r, which lays out as a table — a "
+                "table row holds one question and one mark, so only confirm_row fits"
+                % (number, item["id"], item["component"], item["group"]))
 
 
 def _bind_re_audit(items, ids, number):
@@ -488,6 +537,11 @@ def load(doc):
 
     for rnd in normalized:
         rnd["items"] = [_resolve_ids(i, seen_ids) for i in rnd["items"]]
+        # Layout membership waits for the degrade pass above: a decided card
+        # that fails its contract is a confirm_row by the time it is placed.
+        if rnd["state"] == "current":
+            _bind_layout(rnd["items"], (rnd["header"] or {}).get("groups"),
+                         rnd["round"])
 
     normalized.sort(key=lambda r: r["round"])
     out = dict(doc)

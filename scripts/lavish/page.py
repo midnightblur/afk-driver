@@ -20,6 +20,7 @@ draws navigation chrome.
 import os
 
 from . import components as C
+from . import schema
 
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -66,6 +67,11 @@ def _grouped(live, header, states):
     A group with no cards is still rendered, saying so: the shape line counted
     it, and a group that vanishes between the count and the page makes the
     human hunt for a group that was never there.
+
+    A group declaring `layout: "table"` renders its members as one table, one
+    row per item. The items are unchanged either way — a row carries the same
+    anatomy as a card, so anchors, chips, persistence and the send read it
+    identically.
     """
     groups = header.get("groups") or []
     if not groups:
@@ -79,9 +85,14 @@ def _grouped(live, header, states):
         after = group.get("after") or []
         waits = (' <span class="afk-chip-note">after %s</span>'
                  % C.esc(", ".join(after))) if after else ""
-        cards = ("".join(C.render_item(i, states, level=4) for i in members)
-                 if members
-                 else '<p class="afk-empty-group">Nothing left to answer here.</p>')
+        if not members:
+            cards = '<p class="afk-empty-group">Nothing left to answer here.</p>'
+        elif schema.group_layout(group) == schema.TABLE_LAYOUT:
+            # One table for the whole group, one row per item. The schema has
+            # already refused any member a row cannot hold.
+            cards = C.confirm_table(members, states)
+        else:
+            cards = "".join(C.render_item(i, states, level=4) for i in members)
         out.append('<section class="afk-group" id="afk-g-%s" data-afk-group="%s">'
                    '<h3 class="afk-group-h">%s <span class="afk-count">%d</span>%s</h3>'
                    '<div class="afk-cards">%s</div></section>'

@@ -153,17 +153,23 @@ class RenderContract(unittest.TestCase):
             self.assertEqual(len(card.find(attr_is("data-afk-input", "choice"))), 1)
             self.assertEqual(len(card.find(attr_is("data-afk-input", "note"))), 1)
 
-    def test_item_ids_unique_and_headings_come_first(self):
+    def test_item_ids_unique_and_every_item_opens_with_its_label(self):
+        """The injected rail labels and folds an item by its first child.
+
+        A card opens with its heading -- h4 inside a group, h3 in a flat
+        round, h2 for the round itself, so grouping moves the level and never
+        the position. A table row opens with its Item cell instead: the same
+        contract in the shape a `tr` can hold.
+        """
         seen = set()
         for node in self.tree.find(has("data-afk-item")):
             item_id = node.attrs["data-afk-item"]
             self.assertNotIn(item_id, seen)
             seen.add(item_id)
-            self.assertTrue(node.children, "%s has no heading" % item_id)
-            # h4 inside a group, h3 in a flat round, h2 for the round itself:
-            # grouping moves the level, never the position.
-            self.assertIn(node.children[0].tag, ("h2", "h3", "h4"),
-                          "%s must open with its one-line heading" % item_id)
+            self.assertTrue(node.children, "%s has no label" % item_id)
+            expected = ("td",) if node.tag == "tr" else ("h2", "h3", "h4")
+            self.assertIn(node.children[0].tag, expected,
+                          "%s must open with its label" % item_id)
 
     def test_carried_over_items_answer_nothing(self):
         current = self.tree.find(attr_is("data-afk-state", "current"))[0]
@@ -833,6 +839,220 @@ class ReAuditAndLedger(unittest.TestCase):
         doc["rounds"] = [r for r in doc["rounds"] if r["state"] == "current"]
         doc["rounds"][0]["header"]["settled_last_round"] = []
         self.assertNotIn("afk-ledger", body_of(render(doc)))
+
+
+class TableLayoutGroups(unittest.TestCase):
+    """A group may lay its members out as rows instead of cards.
+
+    Two upstream pages ask dozens of one-mark questions, where a card stack
+    buries the list. The items stay flat — a row carries the same anatomy as a
+    card — so anchors, the ledger, the re-audit strip, the chips, persistence
+    and the send read either layout without knowing which one drew the item.
+    """
+
+    def current(self, doc):
+        for rnd in doc["rounds"]:
+            if rnd["state"] == "current":
+                return rnd
+        raise AssertionError("fixture has no current round")
+
+    def table_doc(self, rows=3, layout="table"):
+        """The fixture plus one more group holding `rows` confirm rows.
+
+        `layout=None` drops the field, which is how every document written
+        before it existed reads.
+        """
+        doc = load_fixture()
+        current = self.current(doc)
+        group = {"id": "bulk", "title": "One mark each"}
+        if layout is not None:
+            group["layout"] = layout
+        current["header"]["groups"].append(group)
+        template = next(i for i in current["items"]
+                        if i["component"] == "confirm_row")
+        for n in range(rows):
+            item = copy.deepcopy(template)
+            item.update(id="T-%d" % n, question="Row question %d" % n,
+                        group="bulk")
+            current["items"].append(item)
+        return doc
+
+    def group_section(self, html, group_id="bulk"):
+        return body_of(html).split('id="afk-g-%s"' % group_id)[1].split("</section>")[0]
+
+    def rows_of(self, html, group_id="bulk"):
+        tree = Tree(self.group_section(html, group_id))
+        return [n for n in tree.find(has("data-afk-item")) if n.tag == "tr"]
+
+    # --- the shape --------------------------------------------------------
+
+    def test_a_table_group_renders_one_row_per_item(self):
+        """One `<tr>` per item, and the items themselves stay flat: nothing is
+        nested inside a container item, so every walk over `[data-afk-item]`
+        still finds one element per question."""
+        html = render(self.table_doc(rows=4))
+        rows = self.rows_of(html)
+        self.assertEqual(len(rows), 4)
+        self.assertEqual([r.attrs["data-afk-item"] for r in rows],
+                         ["T-0", "T-1", "T-2", "T-3"])
+        self.assertNotIn("afk-card--confirm", self.group_section(html))
+
+    def test_every_row_carries_the_item_anatomy(self):
+        """The anchor is what the decision ledger and the re-audit strip link
+        to, so it must land on the row rather than on a wrapper."""
+        html = render(self.table_doc())
+        for row in self.rows_of(html):
+            item_id = row.attrs["data-afk-item"]
+            self.assertEqual(row.attrs.get("id"), "afk-i-%s" % item_id)
+            self.assertEqual(row.attrs.get("data-afk-state"), "open")
+            self.assertEqual(row.attrs.get("data-afk-group"), "bulk")
+
+    def test_every_row_anchor_resolves_to_an_element_that_exists(self):
+        html = render(self.table_doc())
+        for row in self.rows_of(html):
+            self.assertIn('id="%s"' % row.attrs["id"], html)
+
+    def test_every_row_mark_is_required_and_sits_in_the_row(self):
+        """Silence is not agreement in either layout: one choice control and
+        one note field per row, both inside the row the send walks."""
+        html = render(self.table_doc())
+        for row in self.rows_of(html):
+            self.assertEqual(row.attrs.get("data-afk-required"), "1",
+                             row.attrs["data-afk-item"])
+            self.assertEqual(len(row.find(attr_is("data-afk-input", "choice"))), 1)
+            self.assertEqual(len(row.find(attr_is("data-afk-input", "note"))), 1)
+
+    def test_a_rows_answer_grammar_is_the_confirm_grammar(self):
+        """One home for the answer grammar: the row offers exactly the tokens
+        a confirm card offers, so the composed response cannot depend on the
+        frame that drew the question."""
+        html = render(self.table_doc(rows=1))
+        row = self.rows_of(html)[0]
+        values = [n.attrs.get("value") for n in row.find(attr_is("type", "radio"))]
+        self.assertEqual(values, ["accept", "raise", "write-in"])
+
+    def test_a_row_hides_no_answer_control_behind_its_disclosure(self):
+        """Scanning and answering stay one pass, exactly as on a card."""
+        html = render(self.table_doc())
+        for row in self.rows_of(html):
+            details = row.find(lambda n: n.tag == "details")
+            self.assertTrue(details, "%s discloses nothing" % row.attrs["data-afk-item"])
+            for control in row.find(has("data-afk-input")):
+                for block in details:
+                    self.assertFalse(control.has_ancestor(block))
+
+    def test_the_row_disclosure_holds_the_argument_and_the_citation(self):
+        """The cells carry the scannable facts; `why`, `cite`, `context` and
+        each alternative's reason open on demand, so the group keeps one row
+        per item at any width."""
+        doc = self.table_doc(rows=1)
+        for item in self.current(doc)["items"]:
+            if item["id"] == "T-0":
+                item["context"] = "Background a cold reader needs."
+        row = self.group_section(render(doc))
+        detail = row.split("<details")[1]
+        for needle in ("Background a cold reader needs.",
+                       "Nothing in this round changes the failure profile.",
+                       "example/other.ext:88", "hides slow failures"):
+            self.assertIn(needle, detail, needle)
+        self.assertIn("Row question 0", row.split("<details")[0])
+
+    def test_wide_rows_scroll_inside_the_shared_wrapper(self):
+        """The same wrapper the decision ledger uses — one home for the
+        horizontal-scroll behaviour, not a second one for this table."""
+        section = self.group_section(render(self.table_doc()))
+        self.assertIn("afk-grid-wrap", section)
+
+    # --- what may sit in a table group ------------------------------------
+
+    def test_a_non_confirm_row_in_a_table_group_is_refused(self):
+        """Every other component carries more than a row can hold — a decided
+        card's six-field contract and its narrative body would be truncated
+        into a cell or make the row unreadable."""
+        for component in ("debate_card", "decided_card", "signoff_packet"):
+            doc = self.table_doc()
+            first_component(doc, component)["group"] = "bulk"
+            with self.assertRaises(schema.ContractError, msg=component):
+                schema.load(doc)
+
+    def test_the_refusal_names_the_item_and_its_component(self):
+        doc = self.table_doc()
+        card = first_component(doc, "debate_card")
+        card["group"] = "bulk"
+        with self.assertRaises(schema.ContractError) as caught:
+            schema.load(doc)
+        self.assertIn(card["id"], str(caught.exception))
+        self.assertIn("debate_card", str(caught.exception))
+
+    def test_a_settled_card_in_a_table_group_is_left_alone(self):
+        """A settled card renders in the history section, never in the group,
+        so the row-shape rule has nothing to say about it."""
+        doc = self.table_doc()
+        settled = [i for r in doc["rounds"] for i in r["items"]
+                   if i["component"] == "settled_card"][0]
+        self.current(doc)["items"].append(
+            dict(settled, id="D-8", group="bulk", state="settled"))
+        self.assertEqual(len(self.rows_of(render(doc))), 3)
+
+    def test_a_degraded_decided_card_renders_as_a_row_with_its_banner(self):
+        """The degrade path lands in the table: the card is a confirm_row by
+        the time it is placed, and its banner is a warning, so it shows in the
+        row rather than behind the disclosure."""
+        doc = self.table_doc()
+        card = first_component(doc, "decided_card")
+        card["group"] = "bulk"
+        card["reverse"] = None
+        html = render(doc)
+        ids = [r.attrs["data-afk-item"] for r in self.rows_of(html)]
+        self.assertIn(card["id"], ids)
+        row = self.group_section(html).split('data-afk-item="%s"' % card["id"])[1]
+        row = row.split("</tr>")[0]
+        self.assertIn("afk-degraded", row)
+        self.assertIn("reverse", row)
+        self.assertLess(row.index("afk-degraded"), row.index("<details"))
+
+    # --- the layout field itself ------------------------------------------
+
+    def test_an_unknown_layout_value_is_refused(self):
+        """A layout the renderer does not know would silently fall back to
+        cards, which is the class of failure nobody is told about."""
+        for value in ("rows", "grid", "", "Table", "cards "):
+            doc = self.table_doc()
+            self.current(doc)["header"]["groups"][-1]["layout"] = value
+            with self.assertRaises(schema.ContractError, msg=repr(value)):
+                schema.load(doc)
+
+    def test_cards_layout_and_an_absent_layout_render_the_same_page(self):
+        """The default is the behaviour every document written before the field
+        existed already had, byte for byte."""
+        declared = render(self.table_doc(layout="cards"))
+        absent = render(self.table_doc(layout=None))
+        self.assertEqual(declared, absent)
+        self.assertNotIn("afk-rows", body_of(absent))
+        self.assertEqual(len(self.rows_of(absent)), 0)
+
+    def test_the_shipped_sample_is_untouched_by_the_new_field(self):
+        html = render(load_fixture())
+        self.assertNotIn("afk-rows", body_of(html))
+        self.assertEqual(schema.group_layout({"id": "x", "title": "y"}), "cards")
+
+    def test_a_table_group_and_a_card_group_coexist_in_one_round(self):
+        """One round, both layouts: the shape line still counts every group and
+        every card, and each group renders in its declared order."""
+        html = render(self.table_doc(rows=2))
+        body = body_of(html)
+        order = [chunk.split('"')[0]
+                 for chunk in body.split('<section class="afk-group" id="afk-g-')[1:]]
+        self.assertEqual(order, ["shape", "access", "wiring", "bulk"])
+        self.assertIn("8 cards in 4 groups", body.split('class="afk-shape"')[1])
+        self.assertIn("afk-card--debate", self.group_section(html, "shape"))
+        self.assertEqual(len(self.rows_of(html)), 2)
+        # Every item in the round is still one element the send walks.
+        tree = Tree(html)
+        current = tree.find(attr_is("data-afk-state", "current"))[0]
+        answerable = [n for n in current.find(has("data-afk-item"))
+                      if n.find(attr_is("data-afk-input", "choice"))]
+        self.assertEqual(len(answerable), 8)
 
 
 class DeadLinks(unittest.TestCase):

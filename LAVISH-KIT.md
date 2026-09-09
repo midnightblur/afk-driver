@@ -71,6 +71,9 @@ declares them; every answerable card names one:
 ]
 ```
 
+`layout` says how a group lays its members out: `cards` (the default, and what
+an absent field means) or `table`. Any other value is a hard exit.
+
 `after[]` names the groups a group waits for. **List order is render order and
 must already be a dependency order** — a group listed before one it comes
 `after` is a hard exit, so the renderer never reorders an author's round and the
@@ -90,11 +93,38 @@ author writes it.
 Small rounds skip groups. One group per card is grouping that carries no
 information.
 
+### Table groups
+
+`layout: "table"` renders the group as one table, one `<tr>` per member. It is
+the shape for a group of many questions each needing exactly one mark, where a
+card stack buries the list.
+
+**Only a `confirm_row` may sit in a table group** — every other component in
+one is a hard exit naming the item and its component. A row holds one question
+and one mark, which is the whole of a confirm card; a `decided_card` carries a
+six-field contract and a narrative body, so a cell would either truncate the
+record or make the row unreadable. A degraded decided card is a `confirm_row`
+by the time it is placed, so it lands in the table as a row and carries its
+banner there.
+
+Items stay flat: nothing nests inside a container item, and a row carries the
+same `data-afk-*` anatomy and the same `afk-i-{item id}` anchor as the card
+would. A row has no heading — its Item cell is its label.
+
+| Where | What it holds |
+|---|---|
+| the cells | Item (the id) · Question · Recommended · Your mark · Note |
+| the row's disclosure, inside the Question cell | `why`, `cite`, `context`, each alternative's `why` |
+| the row, outside the disclosure | the degrade banner and the dependency chips — both are warnings |
+
+A row's answer grammar is a `confirm_row`'s, unchanged: the tokens are the ones
+its line in "Round response grammar" below lists.
+
 ## The six components
 
 | Component | Required | Optional | Renders |
 |---|---|---|---|
-| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}`, `groups[]` `{id, title, after[]}`, `re_audit[]` | the shape line, the re-audit strip, where we are, what to read first, the fork, the next strip |
+| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}`, `groups[]` `{id, title, after[], layout}`, `re_audit[]` | the shape line, the re-audit strip, where we are, what to read first, the fork, the next strip |
 | `decided_card` | the six contract fields below | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
 | `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why`, `undecided_because` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
 | `confirm_row` | `question`, `recommended`, `why`, `cite` | `context`, `alternatives[]` `{id, label, why}` | one row, accept or override |
@@ -205,7 +235,8 @@ Hard exits: an unknown key at any level, an unknown component, duplicate item
 id, no current round or two, a missing or empty required field on any other
 component, a `recommended` naming no option, a settled state on a card that is
 not a `settled_card`, a `target` that is not a positive integer, a `depends_on`
-id naming no item in the artifact.
+id naming no item in the artifact, an unknown group `layout`, a component other
+than `confirm_row` in a `table` group.
 
 Every hard exit guards auditability or identity. None guards size.
 

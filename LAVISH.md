@@ -79,9 +79,9 @@ one of those two commands in between.
 | RP | Playbook id | Path |
 |----|-------------|------|
 | RP-1 | `comparison` | kit |
-| RP-2 | `plan` | authored |
-| RP-3 | `table` | authored |
-| RP-4 | `table` | authored |
+| RP-2 | `plan` | kit |
+| RP-3 | `table` | kit |
+| RP-4 | `table` | kit |
 | RP-5 | `slides` | authored |
 | RP-6 | `diagram` | kit |
 | RP-7 | `input` | kit |
@@ -281,7 +281,10 @@ HTML in its context (`DELEGATION.md`). Who does what:
   1. New/changed round content verbatim (question, options, trade-offs) — the
      child cannot see the conversation.
   2. Items whose state moved, by id (settled / reopened / blocked), so the
-     child re-orders per Live-on-top.
+     child updates each one's `data-afk-state` — and re-orders only where the
+     page's own ordering rule binds. Live-on-top binds session-default
+     artifacts; a one-shot page and a page that restructures by design have no
+     ordering rule, so nothing licenses a reorder there.
   3. The chosen form (Convey-the-idea table) for anything new — form choice
      is orchestrator judgment.
   4. New feature-terms entries from the tooltip sweep; the child writes them

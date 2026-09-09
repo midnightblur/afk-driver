@@ -69,6 +69,25 @@ def anchor(item_id):
     return "afk-i-%s" % item_id
 
 
+def item_attrs(item, answerable):
+    """The `data-afk-*` anatomy every item element carries, card or row.
+
+    One home for it: the runtime walks `[data-afk-item]` and reads the state,
+    the group and the required flag off whatever element carries them, so the
+    two layouts of the same item must not spell the anatomy differently.
+    """
+    attrs = [_attr("id", anchor(item["id"])),
+             _attr("data-afk-item", item["id"]),
+             _attr("data-afk-state", item["state"])]
+    if item.get("group"):
+        attrs.append(_attr("data-afk-group", item["group"]))
+    if item.get("fresh"):
+        attrs.append(" data-afk-fresh")
+    if answerable and schema.required_mark(item):
+        attrs.append(' data-afk-required="1"')
+    return "".join(attrs)
+
+
 def _card(item, kind, heading, lede, summary, detail, answer, level=3):
     """One card: heading, lede, disclosed detail, answer surface.
 
@@ -78,16 +97,8 @@ def _card(item, kind, heading, lede, summary, detail, answer, level=3):
     control outside the current section would collect a mark the one send never
     reads.
     """
-    attrs = [_attr("id", anchor(item["id"])),
-             _attr("data-afk-item", item["id"]),
-             _attr("data-afk-state", item["state"])]
-    if item.get("group"):
-        attrs.append(_attr("data-afk-group", item["group"]))
-    if item.get("fresh"):
-        attrs.append(" data-afk-fresh")
     answerable = item.get("answerable") and answer
-    if answerable and schema.required_mark(item):
-        attrs.append(' data-afk-required="1"')
+    attrs = [item_attrs(item, answerable)]
 
     parts = ['<h%d class="afk-h">%s</h%d>' % (level, esc(heading), level)]
     if lede:
@@ -466,17 +477,42 @@ def debate_card(item, states=None, level=3):
 # confirm_row — accept the recommendation, pick an alternative, or write in
 # --------------------------------------------------------------------------
 
+def confirm_choice(item):
+    """The confirm answer grammar as its one choice control.
+
+    `accept`, one value per `alternatives[]` entry, `write-in` — the tokens
+    `LAVISH-KIT.md` "Round response grammar" lists for a `confirm_row`. Both
+    layouts of the item call this, so a card and a row offer the same values
+    and the composed response cannot depend on which frame drew the question.
+    """
+    tokens = [("accept", "Accept the recommendation")]
+    for alt in item.get("alternatives") or []:
+        tokens.append((alt.get("id"), _alt_label(alt)))
+    tokens.append((WRITE_IN, WRITE_IN_LABEL))
+    return choice(item["id"], tokens, "Your call")
+
+
+def _degrade_banner(item):
+    """The warning a degraded card carries, in either layout.
+
+    Never behind a disclosure: the human is being asked a question the agent
+    meant to have decided, and the reason has to reach a reader who opens
+    nothing.
+    """
+    gaps = item.get("degraded_gaps")
+    if not gaps:
+        return ""
+    return ('<p class="afk-degraded">Proposed as a decision, shown as a question: '
+            "the card is missing %s, so it is not auditable as decided.</p>"
+            % esc(", ".join(gaps)))
+
+
 def confirm_row(item, states=None, level=3):
     """`context` carries the explanation; `why` argues for the recommendation."""
-    # A degrade banner is a warning, so it never goes behind a disclosure: the
-    # human is being asked a question the agent meant to have decided, and the
-    # reason has to reach a reader who opens nothing.
     lede = []
-    gaps = item.get("degraded_gaps")
-    if gaps:
-        lede.append('<p class="afk-degraded">Proposed as a decision, shown as a question: '
-                    'the card is missing %s, so it is not auditable as decided.</p>'
-                    % esc(", ".join(gaps)))
+    banner = _degrade_banner(item)
+    if banner:
+        lede.append(banner)
     lede.append('<p class="afk-rec-line"><b>Recommended:</b> %s — %s</p>'
                 % (esc(item["recommended"]),
                    esc(item["why"]) if item.get("why") else "no reason supplied"))
@@ -490,13 +526,66 @@ def confirm_row(item, states=None, level=3):
          else "not supplied"),
     ]))
 
-    tokens = [("accept", "Accept the recommendation")]
-    for alt in item.get("alternatives") or []:
-        tokens.append((alt.get("id"), _alt_label(alt)))
-    tokens.append((WRITE_IN, WRITE_IN_LABEL))
-    answer = choice(item["id"], tokens, "Your call") + note(item["id"])
+    answer = confirm_choice(item) + note(item["id"])
     return _card(item, "confirm", item["question"], "".join(lede),
                  "Context and the citation behind it", "".join(detail), answer, level)
+
+
+# --------------------------------------------------------------------------
+# confirm_row, laid out as table rows — the same items, one row each
+# --------------------------------------------------------------------------
+
+TABLE_COLUMNS = ("Item", "Question", "Recommended", "Your mark", "Note")
+
+TABLE_SUMMARY = "Why this one, the citation behind it, and the alternatives"
+
+
+def confirm_table(items, states=None):
+    """A table group's members, one `<tr>` per item.
+
+    The items stay flat: same objects, same ids, same anchors, same answer
+    grammar as the card layout — only the frame changes. A row is the readable
+    shape for a group of dozens of one-mark questions, where a card stack
+    buries the list.
+
+    Cells carry the scannable facts. `why`, `cite`, `context` and each
+    alternative's reason go in a disclosure inside the Question cell, so the
+    group stays one row per item at any count and any width. The degrade
+    banner and the dependency chips sit in that cell outside the disclosure —
+    both are warnings.
+
+    A row carries no heading, so the Item cell is its label. Every other
+    `data-afk-*` attribute is the card's, from `item_attrs`.
+    """
+    head = "".join('<th scope="col">%s</th>' % esc(c) for c in TABLE_COLUMNS)
+    rows = []
+    for item in items:
+        detail = []
+        if item.get("context"):
+            detail.append(prose(item["context"]))
+        detail.append(_dl([
+            ("Why this", esc(item["why"]) if item.get("why") else "no reason supplied"),
+            ("Evidence", "<code>%s</code>" % esc(item["cite"]) if item.get("cite")
+             else "not supplied"),
+            ("Alternatives", _bullets(item["alternatives"], _alt_label)
+             if item.get("alternatives") else None),
+        ]))
+        question = ['<p class="afk-row-q">%s</p>' % esc(item["question"]),
+                    _degrade_banner(item),
+                    deps_strip(item, states),
+                    '<details class="afk-detail"><summary>%s</summary>'
+                    '<div class="afk-detail-body">%s</div></details>'
+                    % (esc(TABLE_SUMMARY), "".join(detail))]
+        rows.append(
+            '<tr class="afk-row"%s>'
+            '<td class="afk-row-id"><code>%s</code></td>'
+            "<td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+            % (item_attrs(item, item.get("answerable")), esc(item["id"]),
+               "".join(question), esc(item["recommended"]),
+               confirm_choice(item), note(item["id"])))
+    return ('<div class="afk-grid-wrap"><table class="afk-grid afk-rows">'
+            "<thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>"
+            % (head, "".join(rows)))
 
 
 # --------------------------------------------------------------------------
