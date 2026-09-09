@@ -65,7 +65,9 @@ python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --re
 and compares the counts: a line that appeared, a line that vanished, a line
 edited in place, and a second copy of a line that was there once are each drift.
 A boundary status that moved is drift too, as is a seed search the cited run ran
-and this one no longer runs. Only nodes from `origin: seed` queries are compared — a line a tracer
+and this one no longer runs, or one that now runs over other files. A search
+whose file set changed is reported once as the changed search and once per line
+that came or went — one cause, several lines, as intended. Only nodes from `origin: seed` queries are compared — a line a tracer
 widened to is counted in a note, because a seed map cannot re-take it. Exit 0 → the ground held; proceed. Exit 1 → it moved, and every
 difference is printed.
 

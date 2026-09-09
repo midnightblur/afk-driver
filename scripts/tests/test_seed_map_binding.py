@@ -472,6 +472,25 @@ class SeedMapBindingTest(unittest.TestCase):
             checked += 1
         self.assertTrue(checked >= 2, document["queries"])
 
+    # B4c — a subject no file names still gets an answer: the classes that
+    # search B1’s file set are closed on nothing, on B1’s own searches.
+    def test_a_subject_no_file_names_closes_the_derived_classes(self):
+        repo = self.repo({"alpha/plain.java": "class Other {}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "wire=w-created", "--alias",
+                             "import-alias=Wgt")
+        self.assertEqual(code, 0)
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+        rows = {item["class"]: item for item in document["boundaries"]}
+        self.assertEqual(rows["B11"]["hits"], 0)
+        self.assertEqual(rows["B11"]["status"], "closed")
+        self.assertTrue(rows["B11"]["query_ids"], rows["B11"])
+        for check in document["counter_checks"]:
+            if check.get("state") == "complete":
+                self.assertTrue(check.get("query_ids") or check.get("evidence_nodes"),
+                                check)
+
     def test_a_path_list_past_the_budget_runs_as_several_commands(self):
         paths = [f"alpha/File{index:04d}.java" for index in range(900)]
         chunks = seed_map.chunk_pathspecs(paths)

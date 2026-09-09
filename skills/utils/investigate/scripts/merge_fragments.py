@@ -173,8 +173,11 @@ def merge_query(kept: dict, row: dict) -> dict:
 
     `count` and `lines` are left out: both are records of one execution in the
     ledger that carries it, so two partitions of one search carry two parts of
-    each. The fold recomputes `count` off the folded nodes table.
+    each. The fold recomputes `count` off the folded nodes table, and drops
+    `lines` from a row two ledgers carry rather than publish one side's figure.
     """
+    if "lines" in kept and "lines" in row:
+        kept = {field: value for field, value in kept.items() if field != "lines"}
     for key in ("command", "universe", "origin"):
         if key in kept and key in row and kept[key] != row[key]:
             raise MergeError(

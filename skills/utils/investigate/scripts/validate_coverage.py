@@ -20,13 +20,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shlex
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from contract import (ALL_CLASSES, HIT_LIMIT, LINE_HASH_CHARS,  # noqa: E402
-                      QUERY_ORIGINS, stable_id)
+                      QUERY_ORIGINS, normalized, stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
 QTYPES = {f"Q{n}" for n in range(1, 6)}
@@ -113,35 +112,6 @@ def rows_of(defects: list[str], ledger: dict, table: str) -> list[dict]:
             defects.append(f"{table}[{index}]: must be an object, not "
                            f"{type(row).__name__}")
     return kept
-
-
-def normalized(command: str) -> str:
-    """One invocation, one spelling.
-
-    Two searches differ by what they run, not by how the string was typed:
-    spacing, quoting and the order of the fixed flags say nothing, and a shell
-    hands the tool one argv whichever quoting reached it. The expressions keep
-    their order — that order is part of the search.
-    """
-    try:
-        parts = shlex.split(command)
-    except ValueError:
-        parts = command.split()
-    flags: list[str] = []
-    rest: list[str] = []
-    index = 0
-    while index < len(parts):
-        token = parts[index]
-        if token == "-e" and index + 1 < len(parts):
-            rest.append(f"-e {parts[index + 1]}")
-            index += 2
-        elif token.startswith("-") and token != "--":
-            flags.append(token)
-            index += 1
-        else:
-            rest.append(token)
-            index += 1
-    return " ".join(sorted(flags) + rest)
 
 
 def runs_nothing(command: str) -> bool:
@@ -654,8 +624,8 @@ def validate(ledger: dict, scope: str = "run",
             why = ("its kind is unverified" if kind == "unverified"
                    else "no node supports it" if not supporting
                    else "no node it rests on was followed to an end")
-            said.append(f"{where}: a load-bearing claim, and {why}; the verdict "
-                        "cannot read closed")
+            said.append(f"{where}: \"{row.get('text')}\" is load-bearing, and {why}; "
+                        "the verdict cannot read closed")
         if kind in ("fact", "inference") and not row.get("citations"):
             defects.append(
                 f"{where}: a load-bearing {kind} names what it rests on — at least one citation"

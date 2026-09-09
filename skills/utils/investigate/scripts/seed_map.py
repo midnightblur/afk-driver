@@ -1085,20 +1085,29 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 primary_extra = []
                 universe = ("files that name the subject" if scoped == "registration"
                             else "tracked files")
-                found, class_ids = search(expressions,
-                                          sorted(keep) if keep is not None else None,
-                                          universe, primary_extra)
-                qids += class_ids
-                hits += found
-                if scoped == "registration":
+                if keep is not None and not keep:
+                    # No file names the subject, so this class searches an empty
+                    # universe: what B1 ran is the proof it is empty, and B1's
+                    # counter-search covers the classes that inherit its set.
                     qids += b1_query_ids
-                extra, _ = counter_pass(
-                    klass, expressions, None,
-                    {(hit["file"], hit["line"]) for hit in found}, keep,
-                    primary_extra=primary_extra)
-                hits += extra
-                methods.append(default["method"])
-                universes.append(universe)
+                    b1_derived.append(klass)
+                    methods.append(default["method"])
+                    universes.append("no file names the subject")
+                else:
+                    found, class_ids = search(
+                        expressions, sorted(keep) if keep is not None else None,
+                        universe, primary_extra)
+                    qids += class_ids
+                    hits += found
+                    if scoped == "registration":
+                        qids += b1_query_ids
+                    extra, _ = counter_pass(
+                        klass, expressions, None,
+                        {(hit["file"], hit["line"]) for hit in found}, keep,
+                        primary_extra=primary_extra)
+                    hits += extra
+                    methods.append(default["method"])
+                    universes.append(universe)
 
         inherited = (f"universe inherits B1: {b1_gap}") if (inherits_b1 and b1_gap) else None
         common = {"mechanism": mechanism,

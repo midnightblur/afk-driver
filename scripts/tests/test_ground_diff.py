@@ -250,6 +250,25 @@ class GroundDiffTest(unittest.TestCase):
                                  chunked("alpha.java conf/queue.yml"))
         self.assertEqual(code, 0, output)
 
+    def test_a_path_the_current_run_no_longer_searches_is_drift(self):
+        def chunked(*specs):
+            document = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")])
+            document["queries"] = [
+                {"id": f"q-{index:08d}", "command": f"git grep -e Widget -- {spec}",
+                 "universe": "files that name the subject", "count": 0,
+                 "evidence": None, "origin": "seed"}
+                for index, spec in enumerate(specs)]
+            document["queries"].append(
+                {"id": QUERY, "command": "git grep -e Widget",
+                 "universe": "tracked files", "count": 1, "evidence": None,
+                 "origin": "seed"})
+            return document
+
+        code, output = self.diff(chunked("alpha.java", "conf/queue.yml"),
+                                 chunked("alpha.java"))
+        self.assertEqual(code, 1)
+        self.assertIn("conf/queue.yml", output)
+
     def test_a_pattern_the_current_run_dropped_is_drift(self):
         cited = self.ledger([node(2, "aaaaaaaaaaaa", klass="B11")],
                             queries=(QUERY, "q-22222222"))

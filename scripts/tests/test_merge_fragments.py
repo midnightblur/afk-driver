@@ -126,6 +126,16 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(code, 0, stderr)
         self.assertIsNotNone(document)
 
+    def test_a_query_two_ledgers_carry_loses_its_line_figure(self):
+        staging = ledger()
+        staging["queries"][0]["lines"] = 4
+        query = dict(staging["queries"][0])
+        piece = fragment(classes=["B1"], boundaries=[],
+                         queries=[dict(query, lines=9, count=0)])
+        merged = self.merge(staging, piece)
+        row = next(item for item in merged["queries"] if item["id"] == query["id"])
+        self.assertNotIn("lines", row)
+
     # A fragment from another snapshot is another investigation.
     def test_a_head_mismatch_aborts_the_merge(self):
         code, stderr, document = self.run_script(

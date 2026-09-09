@@ -50,7 +50,7 @@ Checks + rule ids (one finding line per hit: `{file}: {RULE}: {detail}`):
   G-PARITY-UI/API     gate-table row count per modality != VERIFICATION-PLAN.md
                       scenario count (deferred API placeholder counts 0)
 
-(i) Seam ground — every `## Seams` bullet of a cited-mode contract:
+(i) Seam ground — every `## Seams` bullet, whatever mode wrote the plan:
   I-SEAM-UNGROUNDED   the bullet names no `(INV-NNN)`, names no SDD §14 row (an
                       absent SDD or §14 table included), or names one the SDD
                       §14 row for that seam does not cite
@@ -149,8 +149,8 @@ SDD_NEXT = re.compile(r"^##\s", re.M)
 def seam_citations(sdd_path):
     """Each SDD §14 seam row as (name, {investigation numbers it cites}).
 
-    No SDD, or none this reader can parse, returns nothing: an uncited plan
-    grounds on its ledgers alone.
+    No SDD, or none this reader can parse, returns nothing — and a plan citing
+    a seam then grounds it on nothing, which is the ungrounded case.
     """
     try:
         with open(sdd_path, encoding="utf-8") as handle:

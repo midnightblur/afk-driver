@@ -175,7 +175,11 @@ Coverage rule: every class whose status is `closed` or `partial` by a search
 names at least one `complete` counter-search listing it in `classes`, and that
 check's `method` differs from the class's own `method`, and it ran at least one
 `command` the class row does not already run — same command under another
-universe label is the class's own pass wearing a second name. A class whose
+universe label is the class's own pass wearing a second name. Two commands are
+one command by what they run: quoting and spacing say nothing, the long and
+short spelling of an option are one option, the fixed flags carry no order, and
+paths are left out, so the same search over fewer files is that search narrowed.
+The Boolean terms keep their order — that order is the question asked. A class whose
 universe **is** another class's hit set is covered by that class's check
 listing it.
 A class resolved by judgment, closed by parsing rather than searching, or left
@@ -246,7 +250,7 @@ two fragments that ran one search carry one query row.
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Two rows under one id that disagree on any other field they both fill are two answers under one name, and a fold refuses them rather than keeping the first |
 | `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
-| `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` and `lines` are not carried across: each records one execution in the ledger holding it, and the fold reads `count` off the folded nodes table |
+| `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` and `lines` are not carried across: each records one execution in the ledger holding it. The fold reads `count` off the folded nodes table, and drops `lines` from a row two ledgers carry — a row only one carries keeps its own |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
 
 A fragment accounts for what it searched: every node it carries that a search produced is in the `hit_ids` of a boundary row the fragment itself carries, and its every query's `count` is the fragment's own nodes citing it.

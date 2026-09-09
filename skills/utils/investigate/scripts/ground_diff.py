@@ -21,8 +21,10 @@ node a tracer widened to are not ground a seed map re-takes, so their files are
 checked against `git diff` between the two snapshots instead. A boundary status
 that moved, a seed search that no longer runs, and a configuration that changed
 are each drift on their own, whatever the lines say. Searches are compared as
-what they run over what universe, pathspecs aside, so a path list chunked into
-a different number of commands is the same pass.
+what they run over what universe, and then on the paths they ran over, unioned
+across their chunks: one file set split into a different number of commands is
+the same pass, and a file that left the set is drift. That file's lines are
+reported too — one changed search, and one line apiece, is intended.
 
 Exit codes: 0 the ground held, 1 it moved (every difference printed), 2 usage,
 a ledger that cannot be read, or one that cannot be compared — no `run.head`,
@@ -35,14 +37,13 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import shlex
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_coverage import normalized  # noqa: E402
+from contract import normalized, pathspecs  # noqa: E402
 
 
 class GroundError(ValueError):
@@ -143,28 +144,27 @@ def statuses(document: dict, classes: list[str] | None) -> dict[str, dict]:
 
 
 def logical(row: dict) -> str:
-    """One logical search: what ran, over what universe, pathspecs aside.
+    """One logical search: what it runs, over what universe, paths aside.
 
     A pass carrying a long path list runs it as several commands, so where the
-    chunks fall is an execution detail, not a search. Two runs that split one
-    file set differently ran the same searches.
+    chunks fall is an execution detail, not a search.
     """
-    command = row.get("command") or ""
-    try:
-        parts = shlex.split(command)
-    except ValueError:
-        parts = command.split()
-    if "--" in parts:
-        command = " ".join(shlex.quote(part) for part in parts[:parts.index("--")])
-    return normalized(command) + " over " + str(row.get("universe") or "")
+    return normalized(row.get("command") or "") + " over " + str(row.get("universe") or "")
 
 
-def seed_searches(document: dict) -> dict[str, str]:
-    """The logical searches the seed pass ran, each under a command to name it."""
-    found: dict[str, str] = {}
+def seed_searches(document: dict) -> dict[str, dict]:
+    """The seed pass's logical searches, each with the paths it ran over.
+
+    The paths are unioned across the chunks of one search: re-chunking one file
+    set is the same pass, and a file that left the set is not.
+    """
+    found: dict[str, dict] = {}
     for row in queries_of(document).values():
-        if row.get("origin") == "seed":
-            found.setdefault(logical(row), row.get("command") or "")
+        if row.get("origin") != "seed":
+            continue
+        entry = found.setdefault(logical(row), {"command": row.get("command") or "",
+                                                "paths": set()})
+        entry["paths"] |= set(pathspecs(row.get("command") or ""))
     return found
 
 
@@ -202,10 +202,18 @@ def differences(cited: dict, current: dict, classes: list[str] | None,
             lines.append(f"! {klass}: the class was {was}, and now it is {now}")
 
     now_running = seed_searches(current)
-    for key, command in sorted(seed_searches(cited).items()):
-        if key not in now_running:
-            lines.append(f"! the search `{command}` no longer runs, so what closed its "
-                         "class is gone; re-investigate")
+    for key, entry in sorted(seed_searches(cited).items()):
+        running = now_running.get(key)
+        if running is None:
+            lines.append(f"! the search `{entry['command']}` no longer runs, so what "
+                         "closed its class is gone; re-investigate")
+            continue
+        dropped = sorted(entry["paths"] - running["paths"])
+        added = sorted(running["paths"] - entry["paths"])
+        if dropped or added:
+            lines.append(f"! the search `{entry['command']}` runs over other files now"
+                         + (f"; gone: {', '.join(dropped)}" if dropped else "")
+                         + (f"; new: {', '.join(added)}" if added else ""))
 
     # A node nobody can re-search is watched through its file instead.
     moved = touched(repo, cited_head, current_head)

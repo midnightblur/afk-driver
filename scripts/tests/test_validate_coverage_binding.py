@@ -160,6 +160,9 @@ class LedgerBindingTest(unittest.TestCase):
         defects, verdict = validate_coverage.validate(document, notes=notes)
         self.assertEqual((defects, verdict), ([], "partial"))
         self.assertTrue(any("no node supports it" in note for note in notes), notes)
+        claim = document["claims"][0]
+        self.assertTrue(any(claim["id"] in note and claim["text"] in note
+                            for note in notes), notes)
 
     def test_a_load_bearing_unverified_claim_is_partial(self):
         document = ledger()
@@ -540,6 +543,44 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)
+    def rerun(self, document, command):
+        """The primary, re-run under another spelling, as a counter-search."""
+        again = {**document["queries"][0], "universe": "tracked files, case-blind",
+                 "count": 0, "command": command}
+        again["id"] = validate_coverage.stable_id("q", command + again["universe"])
+        document["queries"].append(again)
+        document["counter_checks"][0].update({"query_ids": [again["id"]]})
+        return self.check(document)[0]
+
+    # One option, two spellings, one method.
+    def test_a_counter_check_spelling_the_same_options_out_long_is_a_defect(self):
+        document = ledger()
+        defects = self.rerun(document, "git grep --line-number -I "
+                             "--extended-regexp --regexp Widget")
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
+                            for defect in defects), defects)
+
+    def test_the_short_and_long_spelling_of_one_option_are_one_search(self):
+        self.assertEqual(validate_coverage.normalized("git grep -i -n -e A"),
+                         validate_coverage.normalized(
+                             "git grep --ignore-case --line-number --regexp A"))
+
+    # The fixed flags carry no order; the Boolean expression is the search.
+    def test_the_fixed_flags_are_order_blind_and_the_boolean_terms_are_not(self):
+        self.assertEqual(validate_coverage.normalized("git grep -n -E -e A"),
+                         validate_coverage.normalized("git grep -E -n -e A"))
+        self.assertNotEqual(
+            validate_coverage.normalized("git grep --not -e A --and -e B"),
+            validate_coverage.normalized("git grep --not -e B --and -e A"))
+
+    # Paths narrow a search; they do not make it another method.
+    def test_a_counter_check_rerunning_the_primary_over_fewer_files_is_a_defect(self):
+        document = ledger()
+        defects = self.rerun(document,
+                             "git grep -n -I -E -e Widget -- alpha/Widget.java")
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
+                            for defect in defects), defects)
+
     def test_a_counter_check_rerunning_the_primary_command_requoted_is_a_defect(self):
         document = ledger()
         primary = document["queries"][0]
