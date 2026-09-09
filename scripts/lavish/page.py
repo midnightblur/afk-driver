@@ -1,8 +1,12 @@
 """Page assembly — the fixed skeleton.
 
-Phase-1 skeleton, in order: head, the current round, open items carried over
-from earlier rounds, settled history, the send bar. The process rail, the round
-strip and the design map are not part of it.
+Skeleton order: head, the current round, its send bar, open items carried over
+from earlier rounds, settled history. The design map is not part of it.
+
+The current round is grouped when its header declares groups: one subsection
+per group, in the declared order, which the schema has already checked is a
+dependency order. Grouping is what makes a round with no cap navigable — the
+human reads the shape line, then takes a group.
 
 Order is by liveness, never chronology: the round in play at the top, open
 items below it, settled decisions at the bottom, newest first — the human never
@@ -33,6 +37,49 @@ def _section(section_id, heading, cards):
             % (section_id, C.esc(heading), "".join(cards)))
 
 
+def _grouped(live, header, states):
+    """The current round's cards, in their groups or in one flat list.
+
+    A group with no cards is still rendered, saying so: the shape line counted
+    it, and a group that vanishes between the count and the page makes the
+    human hunt for a group that was never there.
+    """
+    groups = header.get("groups") or []
+    if not groups:
+        return ('<div class="afk-cards">%s</div>'
+                % "".join(C.render_item(i, states) for i in live))
+    out = []
+    claimed = set()
+    for group in groups:
+        members = [i for i in live if i.get("group") == group["id"]]
+        claimed.update(id(i) for i in members)
+        after = group.get("after") or []
+        waits = (' <span class="afk-chip-note">after %s</span>'
+                 % C.esc(", ".join(after))) if after else ""
+        cards = ("".join(C.render_item(i, states, level=4) for i in members)
+                 if members
+                 else '<p class="afk-empty-group">Nothing left to answer here.</p>')
+        out.append('<section class="afk-group" id="afk-g-%s" data-afk-group="%s">'
+                   '<h3 class="afk-group-h">%s <span class="afk-count">%d</span>%s</h3>'
+                   '<div class="afk-cards">%s</div></section>'
+                   % (C.esc(group["id"]), C.esc(group["id"]), C.esc(group["title"]),
+                      len(members), waits, cards))
+
+    # Nothing may fall between the groups. The schema binds every live card to
+    # a declared group, so reaching here means a later transform dropped the
+    # field — and a card the human never sees is worse than a card in the
+    # wrong section, because nothing on the page says it is missing.
+    orphans = [i for i in live if id(i) not in claimed]
+    if orphans:
+        out.append('<section class="afk-group" id="afk-g-unplaced">'
+                   '<h3 class="afk-group-h">In no group '
+                   '<span class="afk-count">%d</span></h3>'
+                   '<div class="afk-cards">%s</div></section>'
+                   % (len(orphans),
+                      "".join(C.render_item(i, states, level=4) for i in orphans)))
+    return "".join(out)
+
+
 def _split(doc):
     """Current round, carried-over open items, settled history."""
     current = None
@@ -60,6 +107,7 @@ def build(doc):
     current, carried, settled = _split(doc)
     live = [i for i in current["items"] if i["state"] != "settled"]
     header = current["header"]
+    states = C.item_states(doc)
 
     # No cap and no target: a round is as large as what it decides. `target`,
     # when the author states one, is context on the heading, never a bound.
@@ -69,10 +117,10 @@ def build(doc):
         header["round"], of_target, len(live))
     round_section = (
         '<section class="afk-round" data-afk-item="%s" data-afk-state="current">'
-        '<h2 class="afk-h">%s</h2>%s<div class="afk-cards">%s</div></section>'
+        '<h2 class="afk-h">%s</h2>%s%s</section>'
         % (C.esc(current["id"]), C.esc(round_heading),
-           C.round_header(header),
-           "".join(C.render_item(i) for i in live)))
+           C.round_header(header, len(live)),
+           _grouped(live, header, states)))
 
     send_bar = (
         '<div class="afk-send" id="afk-send" data-afk-round="%d" '
@@ -104,8 +152,9 @@ def build(doc):
         round_section,
         send_bar,
         _section("afk-open", "Still open from earlier rounds",
-                 [C.render_item(i) for i in carried]),
-        _section("afk-settled", "Settled", [C.render_item(i) for i in settled]),
+                 [C.render_item(i, states) for i in carried]),
+        _section("afk-settled", "Settled",
+                 [C.render_item(i, states) for i in settled]),
     ]
 
     spec_dir = doc.get("spec_dir")

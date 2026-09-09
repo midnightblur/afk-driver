@@ -8,6 +8,13 @@ Every answerable card carries exactly one element with `data-afk-input="choice"`
 and exactly one with `data-afk-input="note"` — the attribute contract the inline
 runtime composes the round response from. A card's first child is its one-line
 heading, so the injected session rail can label it and collapse to it.
+
+Three parts per card, in this order (`ROUND.md` navigability rule 3): the
+heading, the **lede** — the recommendation and the one sentence behind it, plus
+anything a scanning reader must not miss — and a `<details>` block holding the
+rest. A reader who reads only headings and ledes knows every decision the round
+holds. The answer surface stays outside the disclosure: a card can be marked
+without being opened, so scanning and answering are one pass rather than two.
 """
 
 from html import escape
@@ -53,23 +60,49 @@ def note(item_id, placeholder="Your words — always optional"):
             % (NOTE_ATTR, esc(item_id), esc(placeholder)))
 
 
-def _card(item, kind, heading, body, answer):
-    """One card. The answer surface exists only inside the current round.
+def anchor(item_id):
+    """The element id a chip or a rail jumps to.
 
-    A card carried over from an earlier round shows its state and nothing to
-    mark: an unanswered item is re-asked as a fresh card in a later round, so
-    an answer control outside the current section would collect a mark the one
-    send never reads.
+    Prefixed, because an item id is the author's word and `afk-send` is the
+    page's: an unprefixed collision would point a chip at the send bar.
     """
-    attrs = [_attr("data-afk-item", item["id"]), _attr("data-afk-state", item["state"])]
+    return "afk-i-%s" % item_id
+
+
+def _card(item, kind, heading, lede, summary, detail, answer, level=3):
+    """One card: heading, lede, disclosed detail, answer surface.
+
+    The answer surface exists only inside the current round. A card carried
+    over from an earlier round shows its state and nothing to mark: an
+    unanswered item is re-asked as a fresh card in a later round, so an answer
+    control outside the current section would collect a mark the one send never
+    reads.
+    """
+    attrs = [_attr("id", anchor(item["id"])),
+             _attr("data-afk-item", item["id"]),
+             _attr("data-afk-state", item["state"])]
+    if item.get("group"):
+        attrs.append(_attr("data-afk-group", item["group"]))
     if item.get("fresh"):
         attrs.append(" data-afk-fresh")
     answerable = item.get("answerable") and answer
     if answerable and schema.required_mark(item):
         attrs.append(' data-afk-required="1"')
-    return ('<article class="afk-card afk-card--%s"%s><h3 class="afk-h">%s</h3>%s%s</article>'
-            % (kind, "".join(attrs), esc(heading), body,
-               '<div class="afk-answer">%s</div>' % answer if answerable else ""))
+
+    parts = ['<h%d class="afk-h">%s</h%d>' % (level, esc(heading), level)]
+    if lede:
+        parts.append('<div class="afk-lede">%s</div>' % lede)
+    if detail:
+        # Open on demand, closed by default, and the summary says what is
+        # behind it: a disclosure whose label does not name its contents is a
+        # reason not to click, which turns rule 3 into hidden explanation.
+        parts.append('<details class="afk-detail"><summary>%s</summary>'
+                     '<div class="afk-detail-body">%s</div></details>'
+                     % (esc(summary), detail))
+    if answerable:
+        parts.append('<div class="afk-answer">%s</div>' % answer)
+    return ('<article class="afk-card afk-card--%s"%s>%s</article>'
+            % (kind, "".join(attrs), "".join(parts)))
 
 
 def _dl(pairs):
@@ -93,6 +126,42 @@ def _alt_label(alt):
     return label
 
 
+def depends_on(item):
+    """The ids this card waits on, wherever its component keeps them."""
+    if item["component"] == "decided_card":
+        return (item.get("scope") or {}).get("depends_on") or []
+    return item.get("depends_on") or []
+
+
+def deps_strip(item, states=None):
+    """Parent ids as chips, plus a `provisional` badge while one is unmarked.
+
+    States come from the artifact, not from the card: a card cannot know
+    whether its parent has been settled, and a dependent that claims to hold
+    while its parent is still open is the one wrong statement this strip
+    exists to prevent.
+    """
+    ids = depends_on(item)
+    if not ids:
+        return ""
+    states = states or {}
+    chips = []
+    pending = []
+    for parent in ids:
+        state = states.get(parent, "open")
+        if state != "settled":
+            pending.append(parent)
+        chips.append('<a class="afk-chip afk-chip--%s" href="#%s">%s</a>'
+                     % (esc(state), esc(anchor(parent)), esc(parent)))
+    badge = ""
+    if pending:
+        badge = ('<span class="afk-badge afk-badge--open">provisional</span>'
+                 '<span class="afk-chip-note">holds while %s stands</span>'
+                 % esc(", ".join(pending)))
+    return ('<p class="afk-deps"><span class="afk-deps-label">Depends on</span>%s%s</p>'
+            % ("".join(chips), badge))
+
+
 def _depends(scope):
     ids = scope.get("depends_on") or []
     return ", ".join(ids) if ids else "none"
@@ -108,13 +177,43 @@ def prose(text):
 # round_header — "Where we are", "Before you read", "The fork", next strip
 # --------------------------------------------------------------------------
 
-def round_header(header):
+def shape_line(header, cards):
+    """Rule 1: what the round holds, before a word of its content.
+
+    Card count, group count, and which groups wait for nothing — the last one
+    derived, never authored, because a stale independence claim sends the human
+    into a group whose parent is still open.
+    """
+    groups = header.get("groups") or []
+    if not groups:
+        return "%d card%s, ungrouped." % (cards, "" if cards == 1 else "s")
+    free = schema.independent_groups(groups)
+    titles = {g["id"]: g["title"] for g in groups}
+    sentence = "%d card%s in %d group%s." % (cards, "" if cards == 1 else "s",
+                                             len(groups), "" if len(groups) == 1 else "s")
+    if len(free) == len(groups):
+        return sentence + " Every group is independent — take them in any order."
+    if len(free) > 1:
+        sentence += (" Independent of each other, so in any order: %s."
+                     % ", ".join(titles[g] for g in free))
+    elif len(free) == 1:
+        sentence += " Start with %s." % titles[free[0]]
+    waiting = [g for g in groups if (g.get("after") or [])]
+    if waiting:
+        sentence += (" Then %s."
+                     % "; ".join("%s, after %s"
+                                 % (g["title"], ", ".join(titles[a] for a in g["after"]))
+                                 for g in waiting))
+    return sentence
+
+
+def round_header(header, cards=0):
     """The current round's opening block. Not a card: it answers nothing.
 
     The round number and the card count sit in the section heading — the rail's
     label — so this block says only what the heading cannot.
     """
-    parts = []
+    parts = ['<p class="afk-shape">%s</p>' % esc(shape_line(header, cards))]
     size_note = header.get("size_note")
     if size_note:
         parts.append('<p class="afk-where">On this round&#x27;s size: %s</p>'
@@ -126,7 +225,7 @@ def round_header(header):
 
     touches = header.get("touches") or []
     if touches:
-        parts.append("<h4>Before you read</h4>")
+        parts.append("<h3>Before you read</h3>")
         parts.append(_bullets(
             touches,
             lambda t: "%s — <code>%s</code>" % (esc(t.get("name")), esc(t.get("anchor")))))
@@ -136,12 +235,12 @@ def round_header(header):
             links,
             lambda l: '<a href="%s">%s</a>' % (esc(l.get("href")), esc(l.get("label")))))
 
-    parts.append("<h4>The fork</h4><p>%s</p>" % esc(header["fork"]))
+    parts.append("<h3>The fork</h3><p>%s</p>" % esc(header["fork"]))
 
     # W-7 next strip: what this round unlocks, what stays parked.
     unlocks = header.get("unlocks") or []
     parked = header.get("parked") or []
-    parts.append('<div class="afk-next"><h4>Next</h4>')
+    parts.append('<div class="afk-next"><h3>Next</h3>')
     parts.append("<p><b>Unlocks:</b> %s</p>"
                  % (esc(", ".join(unlocks)) if unlocks else "nothing further this round"))
     if parked:
@@ -154,7 +253,7 @@ def round_header(header):
 # decided_card — the agent decided; the human audits
 # --------------------------------------------------------------------------
 
-def decided_card(item):
+def decided_card(item, states=None, level=3):
     """The six contract fields in order, C-4 directly under the heading.
 
     A reader who reads two lines gets the decision and the why; a reader who
@@ -167,20 +266,26 @@ def decided_card(item):
     alternatives = item["alternatives"]
     scope = item["scope"]
 
-    body = ['<p class="afk-why-beat">Beat <b>%s</b>: %s</p>'
-            % (esc(why["runner_up_id"]), esc(why["sentence"]))]
-    # C-4 keeps the line under the heading — the six-field contract does not
-    # move — so the prose body sits behind it and ahead of the audit trail.
+    # C-4 and the evidence grade stay in the lede: they are what an audit
+    # decides on, so a reader who only scans still sees what the agent leaned
+    # on and how hard. The trail behind them is what the disclosure holds.
+    lede = ['<p class="afk-why-beat">Beat <b>%s</b>: %s</p>'
+            % (esc(why["runner_up_id"]), esc(why["sentence"])),
+            '<p class="afk-evidence-line"><b>Evidence (%s):</b> %s <code>%s</code></p>'
+            % (esc(evidence["grade"]), esc(evidence["sentence"]), esc(evidence["cite"]))]
+    if item.get("provisional_on"):
+        lede.append('<p class="afk-prov">Provisional on: %s</p>'
+                    % esc(item["provisional_on"]))
+    lede.append(deps_strip(item, states))
+
+    detail = []
     if item.get("context"):
-        body.append(prose(item["context"]))
-    body.append(_dl([
+        detail.append(prose(item["context"]))
+    detail.append(_dl([
         ("Alternatives beaten", _bullets(alternatives, _alt_label)),
-        ("Evidence (%s)" % esc(evidence["grade"]),
-         "%s <code>%s</code>" % (esc(evidence["sentence"]), esc(evidence["cite"]))),
         ("Reverse", esc(item["reverse"])),
         ("Scope", "HL: %s · depends-on: %s"
          % (esc(scope.get("hl") or "none"), esc(_depends(scope)))),
-        ("Provisional on", esc(item["provisional_on"]) if item.get("provisional_on") else None),
     ]))
 
     tokens = [("accept", "Accept — I audited it"), ("reopen", "Reopen — argue it next round")]
@@ -188,14 +293,16 @@ def decided_card(item):
         tokens.append(("reverse:%s" % alt.get("id"),
                        "Reverse to %s" % (alt.get("label") or alt.get("id"))))
     answer = choice(item["id"], tokens, "Your audit") + note(item["id"])
-    return _card(item, "decided", item["decision"], "".join(body), answer)
+    return _card(item, "decided", item["decision"], "".join(lede),
+                 "What it beat, how to reverse it, what it touches",
+                 "".join(detail), answer, level)
 
 
 # --------------------------------------------------------------------------
 # debate_card — live alternatives, identical criteria rows per option
 # --------------------------------------------------------------------------
 
-def debate_card(item):
+def debate_card(item, states=None, level=3):
     """Explanation first, then the options.
 
     `context` is where a cold reader meets the question: the criteria grid
@@ -218,41 +325,58 @@ def debate_card(item):
             '<thead><tr><th scope="col">Criterion</th>%s</tr></thead>'
             '<tbody>%s</tbody></table></div>' % (head, "".join(rows)))
 
-    body = ['<p class="afk-undecided"><b>Undecided because:</b> %s</p>'
-            % esc(item["undecided_because"])]
+    # Two sentences carry the whole card for a scanning reader: which option
+    # is recommended and why, and why the call is the human's at all. Neither
+    # goes behind the disclosure — the second one is the reason they are being
+    # asked, and a card that hides it reads as busywork.
+    recommended = next((o for o in options if o.get("id") == item["recommended"]), None)
+    lede = ['<p class="afk-rec-line"><b>Recommended:</b> %s — %s</p>'
+            % (esc((recommended or {}).get("label") or item["recommended"]),
+               esc(item["why"])),
+            '<p class="afk-undecided"><b>Undecided because:</b> %s</p>'
+            % esc(item["undecided_because"]),
+            deps_strip(item, states)]
+
+    detail = []
     if item.get("context"):
-        body.append(prose(item["context"]))
-    body.append(grid)
-    body.append("<p><b>Why the recommendation:</b> %s</p>" % esc(item["why"]))
+        detail.append(prose(item["context"]))
+    detail.append(grid)
     if item.get("third_paradigm"):
-        body.append('<p class="afk-third">A deliberately different paradigm is on the '
-                    'table: <b>%s</b></p>' % esc(item["third_paradigm"]))
-    if item.get("depends_on"):
-        body.append("<p><b>Depends on:</b> %s</p>" % esc(", ".join(item["depends_on"])))
+        detail.append('<p class="afk-third">A deliberately different paradigm is on the '
+                      'table: <b>%s</b></p>' % esc(item["third_paradigm"]))
 
     tokens = [(o.get("id"), o.get("label") or o.get("id")) for o in options]
     tokens.append((WRITE_IN, WRITE_IN_LABEL))
     answer = choice(item["id"], tokens, "Your call") + note(item["id"])
-    return _card(item, "debate", item["question"], "".join(body), answer)
+    return _card(item, "debate", item["question"], "".join(lede),
+                 "The options side by side, on %d criteria" % len(order),
+                 "".join(detail), answer, level)
 
 
 # --------------------------------------------------------------------------
 # confirm_row — accept the recommendation, pick an alternative, or write in
 # --------------------------------------------------------------------------
 
-def confirm_row(item):
+def confirm_row(item, states=None, level=3):
     """`context` carries the explanation; `why` argues for the recommendation."""
-    body = []
+    # A degrade banner is a warning, so it never goes behind a disclosure: the
+    # human is being asked a question the agent meant to have decided, and the
+    # reason has to reach a reader who opens nothing.
+    lede = []
     gaps = item.get("degraded_gaps")
     if gaps:
-        body.append('<p class="afk-degraded">Proposed as a decision, shown as a question: '
+        lede.append('<p class="afk-degraded">Proposed as a decision, shown as a question: '
                     'the card is missing %s, so it is not auditable as decided.</p>'
                     % esc(", ".join(gaps)))
+    lede.append('<p class="afk-rec-line"><b>Recommended:</b> %s — %s</p>'
+                % (esc(item["recommended"]),
+                   esc(item["why"]) if item.get("why") else "no reason supplied"))
+    lede.append(deps_strip(item, states))
+
+    detail = []
     if item.get("context"):
-        body.append(prose(item["context"]))
-    body.append(_dl([
-        ("Recommendation", esc(item["recommended"])),
-        ("Why", esc(item["why"]) if item.get("why") else "not supplied"),
+        detail.append(prose(item["context"]))
+    detail.append(_dl([
         ("Evidence", "<code>%s</code>" % esc(item["cite"]) if item.get("cite")
          else "not supplied"),
     ]))
@@ -262,7 +386,8 @@ def confirm_row(item):
         tokens.append((alt.get("id"), _alt_label(alt)))
     tokens.append((WRITE_IN, WRITE_IN_LABEL))
     answer = choice(item["id"], tokens, "Your call") + note(item["id"])
-    return _card(item, "confirm", item["question"], "".join(body), answer)
+    return _card(item, "confirm", item["question"], "".join(lede),
+                 "Context and the citation behind it", "".join(detail), answer, level)
 
 
 # --------------------------------------------------------------------------
@@ -280,11 +405,21 @@ def _table(table):
             "</table></div>" % (caption, head, rows))
 
 
-def signoff_packet(item):
-    body = ["<p><b>Aspect:</b> %s <span class=\"afk-hl\">%s</span></p>"
-            % (esc(item["aspect"]), esc(item["hl_id"]))]
-    body.extend(_table(t) for t in item["tables"] if isinstance(t, dict))
-    body.append(_dl([
+def signoff_packet(item, states=None, level=3):
+    """The one card whose detail a signature depends on having been read.
+
+    So its disclosure says what a signature is being given over — the table
+    count and the risk count — rather than inviting a signature on a closed
+    packet. Nothing here can force the reading; naming the weight is what the
+    page can do.
+    """
+    lede = ['<p><b>Aspect:</b> %s <span class="afk-hl">%s</span></p>'
+            % (esc(item["aspect"]), esc(item["hl_id"])),
+            '<p class="afk-locked">Yours to sign — the agent may not decide this one.</p>',
+            deps_strip(item, states)]
+
+    detail = [_table(t) for t in item["tables"] if isinstance(t, dict)]
+    detail.append(_dl([
         ("Alternatives", esc(item["alternatives"])
          if isinstance(item["alternatives"], str) else _bullets(item["alternatives"],
                                                                 _alt_label)),
@@ -296,14 +431,19 @@ def signoff_packet(item):
                      ("changes", "Changes needed — name them below")],
                     "Your signature") \
         + note(item["id"], "Your own words — this is the signature quote")
-    return _card(item, "signoff", item["aspect"], "".join(body), answer)
+    summary = ("The packet — %d table(s), %d risk(s), blast radius"
+               % (len([t for t in item["tables"] if isinstance(t, dict)]),
+                  len(item["risks"])))
+    return _card(item, "signoff", item["aspect"], "".join(lede), summary,
+                 "".join(detail), answer, level)
 
 
 # --------------------------------------------------------------------------
 # settled_card — history, collapsed to one line
 # --------------------------------------------------------------------------
 
-def settled_card(item):
+def settled_card(item, states=None, level=3):
+    """History: the heading is the record, the evidence opens on demand."""
     evidence = item["evidence"]
     if isinstance(evidence, dict):
         grade = evidence.get("grade")
@@ -311,12 +451,12 @@ def settled_card(item):
     else:
         grade, cite = None, evidence
     heading = "R-%s · %s — %s" % (item["round"], item["by"], item["decision"])
-    body = _dl([
+    detail = _dl([
         ("Evidence", "%s<code>%s</code>"
          % ("%s: " % esc(grade) if grade else "", esc(cite))),
         ("Audit", esc(item["audit"]) if item.get("audit") else None),
     ])
-    return _card(item, "settled", heading, body, "")
+    return _card(item, "settled", heading, "", "What settled it", detail, "", level)
 
 
 RENDERERS = {
@@ -328,5 +468,10 @@ RENDERERS = {
 }
 
 
-def render_item(item):
-    return RENDERERS[item["component"]](item)
+def item_states(doc):
+    """`{item id: state}` across the whole artifact, for the dependency chips."""
+    return {i["id"]: i["state"] for r in doc["rounds"] for i in r["items"]}
+
+
+def render_item(item, states=None, level=3):
+    return RENDERERS[item["component"]](item, states, level)

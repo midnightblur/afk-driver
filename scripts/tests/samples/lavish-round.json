@@ -63,6 +63,23 @@
             "label": "the round document behind this page",
             "href": "lavish-round.json"
           }
+        ],
+        "groups": [
+          {
+            "id": "shape",
+            "title": "What the thing is"
+          },
+          {
+            "id": "access",
+            "title": "Who may do it"
+          },
+          {
+            "id": "wiring",
+            "title": "How it reaches the rest",
+            "after": [
+              "shape"
+            ]
+          }
         ]
       },
       "items": [
@@ -108,7 +125,8 @@
           "recommended": "B",
           "third_paradigm": "C",
           "why": "Reversal cost dominates while the requirement is still moving.",
-          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take"
+          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take",
+          "group": "shape"
         },
         {
           "component": "decided_card",
@@ -139,7 +157,8 @@
           "scope": {
             "hl": "none",
             "depends_on": []
-          }
+          },
+          "group": "shape"
         },
         {
           "component": "decided_card",
@@ -162,7 +181,8 @@
             "depends_on": [
               "Q-1"
             ]
-          }
+          },
+          "group": "access"
         },
         {
           "component": "confirm_row",
@@ -177,7 +197,8 @@
               "label": "Raise it",
               "why": "hides slow failures"
             }
-          ]
+          ],
+          "group": "access"
         },
         {
           "component": "signoff_packet",
@@ -210,7 +231,8 @@
           ],
           "risks": [
             "A later change to the store re-opens this aspect."
-          ]
+          ],
+          "group": "access"
         },
         {
           "component": "debate_card",
@@ -241,7 +263,8 @@
           "depends_on": [
             "Q-1"
           ],
-          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take"
+          "undecided_because": "two alternatives are still live: the evidence beats neither, and resolving it needs a decision only the reader can take",
+          "group": "wiring"
         }
       ]
     }

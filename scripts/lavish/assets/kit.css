@@ -182,3 +182,72 @@ a { color: var(--accent); }
 .afk-card.afk-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
 .afk-send-status { color: var(--fg-dim); font-size: .88rem; }
 .afk-send-status.afk-warn { color: var(--open); }
+
+/* --- groups, shape, disclosure, chips ---------------------------------- */
+
+/* Rule 1: the shape line reads before any card, so it is set apart from the
+ * header prose that follows it. */
+.afk-shape {
+  margin: 0 0 .6rem; padding: .45rem .6rem;
+  background: var(--surface-2); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.afk-round-header h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+.afk-group { margin: 1.5rem 0; }
+.afk-group-h {
+  margin: 0 0 .5rem; font-size: .95rem;
+  display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap;
+}
+.afk-count {
+  font-size: .75rem; padding: .05rem .4rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--fg-dim); font-weight: 400;
+}
+.afk-empty-group { color: var(--fg-dim); margin: 0; }
+
+/* Rule 3: heading and lede always visible, the rest one click away. The
+ * answer surface is a sibling of the disclosure, never inside it — a card
+ * stays markable while closed, so scanning and answering are one pass. */
+.afk-lede > :first-child { margin-top: 0; }
+.afk-lede > :last-child { margin-bottom: 0; }
+.afk-rec-line, .afk-evidence-line { margin: .1rem 0 .35rem; }
+.afk-prov, .afk-locked { margin: .25rem 0; color: var(--open); }
+
+.afk-detail { margin: .6rem 0 0; }
+.afk-detail > summary {
+  cursor: pointer; color: var(--accent); font-size: .88rem;
+  padding: .15rem 0; list-style-position: outside;
+}
+.afk-detail > summary:hover { text-decoration: underline; }
+.afk-detail-body {
+  margin-top: .5rem; padding-left: .7rem;
+  border-left: 1px solid var(--line);
+}
+
+/* A print or a PDF of the page must not lose what a disclosure holds: paper
+ * has no click. The renderer cannot force `open` from CSS, so it prints the
+ * label as a heading and the browser's own print rule opens the block; where
+ * it does not, the markdown fallback is the record. */
+@media print {
+  .afk-detail > summary { color: inherit; font-weight: 600; }
+}
+
+.afk-deps { margin: .35rem 0 0; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.afk-deps-label {
+  font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
+}
+.afk-chip {
+  font-size: .8rem; padding: .1rem .45rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--fg); text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+.afk-chip:hover { border-color: var(--accent); }
+.afk-chip--settled { border-color: var(--settled); color: var(--settled); }
+.afk-chip--open { border-color: var(--open); color: var(--open); }
+.afk-chip--blocked { border-color: var(--blocked); color: var(--blocked); }
+.afk-chip-note { font-size: .8rem; color: var(--fg-dim); font-weight: 400; }
+.afk-badge {
+  font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+  padding: .1rem .4rem; border-radius: 3px;
+}
+.afk-badge--open { background: var(--open); color: var(--bg); }

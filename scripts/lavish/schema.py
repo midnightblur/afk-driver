@@ -57,7 +57,7 @@ LIST_FIELDS = ("settled_last_round", "unlocks", "touches", "parked",
 # wrote. `depends_on` is legal on every card but a decided one, which carries
 # its own inside `scope`.
 OPTIONAL = {
-    "round_header": ("target", "size_note", "parked", "links"),
+    "round_header": ("target", "size_note", "parked", "links", "groups"),
     "decided_card": ("context", "provisional_on"),
     "debate_card": ("context", "third_paradigm"),
     "confirm_row": ("context", "alternatives"),
@@ -65,7 +65,11 @@ OPTIONAL = {
     "settled_card": ("audit",),
 }
 
-COMMON_ITEM = ("component", "id", "state", "fresh")
+# `group` is legal on every card: the round groups its cards by the concern
+# they settle, and a settled card keeps the group it was decided under.
+COMMON_ITEM = ("component", "id", "state", "fresh", "group")
+
+GROUP_KEYS = ("id", "title", "after")
 DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir")
 ROUND_KEYS = ("round", "state", "items", "header")
 
@@ -175,6 +179,10 @@ def _degrade(item, gaps):
         "id": item["id"],
         "state": item.get("state"),
         "fresh": item.get("fresh"),
+        # The group travels with the card. A degrade that dropped it would put
+        # the card in no group, and a grouped page renders groups — so the
+        # question would vanish at the exact moment it needs asking.
+        "group": item.get("group"),
         "question": item["decision"],
         "context": item.get("context"),
         # The degraded card asks the one question its gaps leave standing.
@@ -276,6 +284,85 @@ def _resolve_ids(item, known_ids):
     return item
 
 
+def _check_groups(groups, number):
+    """Declared groups, in an order that is already a dependency order.
+
+    The list order is the render order, so a group listed before one it comes
+    `after` would put a dependent above its parent — navigability rule 2 read
+    backwards. Rejecting that here means the renderer never has to sort, and
+    the author sees the cycle instead of a page that quietly reorders their
+    round.
+    """
+    if not isinstance(groups, list) or not groups:
+        raise ContractError("round %d header: `groups`, when stated, is a non-empty list"
+                            % number)
+    seen = []
+    for group in groups:
+        if not isinstance(group, dict):
+            raise ContractError("round %d header: every group is a JSON object" % number)
+        label = "round %d group %r" % (number, group.get("id"))
+        _reject_unknown(label, group, set(GROUP_KEYS))
+        for field in ("id", "title"):
+            if _empty(group.get(field)):
+                raise ContractError("%s: required field %r is missing or empty"
+                                    % (label, field))
+        gid = group["id"]
+        if gid in seen:
+            raise ContractError("%s: duplicate group id" % label)
+        after = group.get("after") or []
+        if not isinstance(after, list):
+            raise ContractError("%s: `after` must be a list of group ids" % label)
+        for parent in after:
+            if parent == gid:
+                raise ContractError("%s: a group cannot come after itself" % label)
+            if parent not in seen:
+                raise ContractError(
+                    "%s: comes after %r, which is not declared before it — list groups in "
+                    "dependency order, parents first" % (label, parent))
+        seen.append(gid)
+    return seen
+
+
+def _bind_groups(items, groups, number):
+    """Every answerable card in a grouped round names one of the groups.
+
+    Half a round grouped is worse than none: the ungrouped cards land in no
+    section, so the group count on the header stops describing the page. A
+    round either groups its live cards or declares no groups at all — and a
+    `group` on a card in an ungrouped round names nothing, which is the same
+    class of defect as any other reference to nothing.
+    """
+    live = [i for i in items if i.get("state") != "settled"]
+    if groups is None:
+        stray = [i["id"] for i in live if i.get("group") is not None]
+        if stray:
+            raise ContractError(
+                "round %d: %s carry a `group`, but the header declares none — declare the "
+                "groups or drop the field" % (number, ", ".join(repr(i) for i in stray)))
+        return
+    known = {g["id"] for g in groups}
+    for item in live:
+        if item.get("group") is None:
+            raise ContractError(
+                "round %d: item %r names no `group`, and this round declares %d of them"
+                % (number, item["id"], len(known)))
+        if item["group"] not in known:
+            raise ContractError(
+                "round %d: item %r is in group %r, which the header does not declare "
+                "(declared: %s)" % (number, item["id"], item["group"],
+                                    ", ".join(sorted(known))))
+
+
+def independent_groups(groups):
+    """Group ids nothing gates: the ones the human may take in any order.
+
+    Rule 1 asks the header to say which groups are independent of each other.
+    That is derivable — a group with an empty `after` waits for nothing — so no
+    author writes it and no author gets it wrong.
+    """
+    return [g["id"] for g in groups if not (g.get("after") or [])]
+
+
 def _check_header(header, number):
     if not isinstance(header, dict):
         raise ContractError("round %d: the current round needs a `header` (round_header)"
@@ -291,6 +378,8 @@ def _check_header(header, number):
         raise ContractError("round %d header: `component` says %r; a round's header is a "
                             "round_header" % (number, header.get("component")))
     _require_fields("round_header", header, "round %d header" % number)
+    if header.get("groups") is not None:
+        _check_groups(header["groups"], number)
     if header.get("round") != number:
         raise ContractError("round %d header says round %r" % (number, header.get("round")))
     target = header.get("target")
@@ -352,6 +441,8 @@ def load(doc):
         checked = [_check_item(dict(i) if isinstance(i, dict) else i,
                                state, seen_ids)
                    for i in items]
+        if state == "current":
+            _bind_groups(checked, header.get("groups"), number)
         normalized.append({"round": number, "id": round_id, "state": state,
                            "header": header, "items": checked})
 

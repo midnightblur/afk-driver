@@ -47,7 +47,8 @@ A round: `round` (positive integer), `state` (`current` or `settled`),
 Exactly one round is `current`.
 
 Every item: `component`, `id` (unique across the artifact), `state`
-(`open | blocked | settled`), `fresh` (bool). `state` and `fresh` default from
+(`open | blocked | settled`), `fresh` (bool), `group` (a group id, on a grouped
+round). `state` and `fresh` default from
 placement — items in the current round are `open` and fresh, items in an
 earlier round are `settled` — so state them only to override. A settled item is
 a `settled_card` and a `settled_card` is settled.
@@ -57,11 +58,42 @@ earlier round shows its state and nothing to mark: a later round re-asks it as
 a fresh card, and an answer control outside the current section would collect a
 mark the one send never reads.
 
+### Groups
+
+A round groups its cards by the concern they settle. The current round's header
+declares them; every answerable card names one:
+
+```json
+"groups": [
+  {"id": "shape",  "title": "What the thing is"},
+  {"id": "wiring", "title": "How it reaches the rest", "after": ["shape"]}
+]
+```
+
+`after[]` names the groups a group waits for. **List order is render order and
+must already be a dependency order** — a group listed before one it comes
+`after` is a hard exit, so the renderer never reorders an author's round and the
+author sees the cycle instead of a page that quietly fixed it.
+
+Grouping is all-or-nothing per round: declare `groups` and every live card
+names one, or declare none and no card carries the field. Half a round grouped
+leaves cards in no section, which makes the header's group count stop
+describing the page. Both halves are hard exits. A card that degrades keeps its
+group — it is the same question in a weaker form.
+
+The **shape line** at the top of the round is derived, never authored: card
+count, group count, and which groups wait for nothing. A stale independence
+claim would send the human into a group whose parent is still open, so no
+author writes it.
+
+Small rounds skip groups. One group per card is grouping that carries no
+information.
+
 ## The six components
 
 | Component | Required | Optional | Renders |
 |---|---|---|---|
-| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}` | where we are, what to read first, the fork, the next strip |
+| `round_header` | `round`, `settled_last_round[]`, `unlocks[]`, `fork`, `touches[]` `{name, anchor}` | `target`, `size_note`, `parked[]`, `links[]` `{label, href}`, `groups[]` `{id, title, after[]}` | the shape line, where we are, what to read first, the fork, the next strip |
 | `decided_card` | the six contract fields below | `context`, `provisional_on` | the decision, its audit trail, and the audit control |
 | `debate_card` | `question`, `options[]` `{id, label, criteria{}}` (≥2), `criteria_order[]`, `recommended`, `why`, `undecided_because` | `context`, `depends_on[]`, `third_paradigm` | side-by-side options, identical criteria rows, recommendation flagged |
 | `confirm_row` | `question`, `recommended`, `why`, `cite` | `context`, `alternatives[]` `{id, label, why}` | one row, accept or override |
@@ -91,11 +123,14 @@ call is the human's rather than the agent's — the second half is what stops a
 card reading as a decision already taken. There is no separate field: write both
 in the one sentence pair.
 
-Placement is early, ahead of the comparison and the audit trail:
+`context` sits inside the card's disclosure, ahead of the comparison and the
+audit trail. It is the paragraph a cold reader opens the card for — which is
+what a disclosure is for — while the lede carries what a scanning reader must
+not miss:
 
 | Card | `context` sits |
 |---|---|
-| `debate_card` | under the heading, before the options |
+| `debate_card` | first in the detail block, before the option grid |
 
 `undecided_because` is required on every `debate_card`, and it names the
 condition that stopped the agent deciding — the reason lives in
@@ -103,8 +138,8 @@ condition that stopped the agent deciding — the reason lives in
 because a round's completion test is read off these lines: an indecision with
 no named condition cannot be checked, and "in doubt" is not a condition. It
 renders first, so the reader meets the tension before the options.
-| `confirm_row` | under the heading, before the recommendation |
-| `decided_card` | under C-4, which keeps its own line directly under the heading — the six-field contract does not move, so a two-line read still gives the decision and why it beat the runner-up |
+| `confirm_row` | first in the detail block, before the citation |
+| `decided_card` | first in the detail block. C-4 and the evidence grade stay in the lede — the six-field contract does not move, so a two-line read still gives the decision, what it beat, and how hard the evidence is |
 
 A decided card that degrades carries its `context` across: the explanation is
 still true when the audit trail is not.
@@ -192,15 +227,36 @@ outside it in its own state. That keeps `LAVISH.md`'s page anatomy true — one
 current element, the answer surface inside it — while a round asks several
 questions at once.
 
-**Nothing collapses.** Every card renders open, at any round size and on any
-screen, and no control folds one away. A settled card is short because it is
-written short — one heading line — not because anything hid the rest of it. So
-a long round is long, and the send bar's jump control is the whole of the
-navigation.
+**Three parts per card** (`ROUND.md` navigability rule 3): the heading, the
+**lede**, and a `<details>` block holding the rest. What stays in the lede is
+what a reader who opens nothing must still see:
 
-Phase-1 widgets: the **state rail**, injected by the hooks from this anatomy,
-and the **next strip**, which is `unlocks[]` plus `parked[]` on the round
-header. The renderer draws no navigation chrome of its own.
+| Card | Lede carries |
+|---|---|
+| `decided_card` | C-4 (`why_beat`) and the evidence grade with its citation — an audit decides on those |
+| `debate_card` | the recommendation with `why`, and `undecided_because` — the reason the call is theirs |
+| `confirm_row` | the recommendation with `why`, and any degrade banner |
+| `signoff_packet` | the aspect, its `hl_id`, and that the agent may not decide it |
+| `settled_card` | the heading line is the record; the evidence opens on demand |
+
+Two rules hold the disclosure honest. **The answer surface is a sibling of the
+details block, never inside it** — a closed card stays markable, so scanning
+and answering are one pass rather than two. And **every summary names what is
+behind it**: a disclosure labelled with nothing is a reason not to click, which
+turns rule 3 into hidden explanation. A degrade banner and a `provisional`
+badge are warnings and never disclose.
+
+Paper has no click. The renderer cannot force a `<details>` open from CSS, so a
+printed page keeps the summaries as headings and the markdown fallback is the
+record of what they held.
+
+Widgets the renderer draws: the **shape line** (rule 1), the **group sections**
+(rule 2), the **disclosure** (rule 3), the **dependency chips** — parent ids as
+links plus a `provisional` badge while a parent is unmarked, states read off the
+artifact rather than off the card — and the **next strip**, which is `unlocks[]`
+plus `parked[]` on the round header. The **state rail** is injected by the hooks
+from this anatomy. Chips jump to `afk-i-{item id}`; the prefix is there because
+an item id is the author's word and `afk-send` is the page's.
 
 The stylesheet is dark-first and switches on `data-theme="light"`. It does not
 follow `prefers-color-scheme`: every render and every poll injects a forced-dark

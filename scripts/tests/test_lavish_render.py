@@ -150,7 +150,9 @@ class RenderContract(unittest.TestCase):
             self.assertNotIn(item_id, seen)
             seen.add(item_id)
             self.assertTrue(node.children, "%s has no heading" % item_id)
-            self.assertIn(node.children[0].tag, ("h2", "h3"),
+            # h4 inside a group, h3 in a flat round, h2 for the round itself:
+            # grouping moves the level, never the position.
+            self.assertIn(node.children[0].tag, ("h2", "h3", "h4"),
                           "%s must open with its one-line heading" % item_id)
 
     def test_carried_over_items_answer_nothing(self):
@@ -396,7 +398,10 @@ class NoCaps(unittest.TestCase):
         del self.rounds(doc)[2]["header"]["target"]
         html = render(doc)
         self.assertIn("Round R-2 — ", html)
-        self.assertNotIn(" of ", html.split("</h2>")[0])
+        # The heading itself, not everything above it: the inlined stylesheet
+        # sits in that prefix and its prose is not under test.
+        heading = html.split('<h2 class="afk-h">')[1].split("</h2>")[0]
+        self.assertNotIn(" of ", heading)
 
     def test_a_round_past_its_stated_target_renders(self):
         doc = load_fixture()
@@ -476,6 +481,178 @@ class NoCaps(unittest.TestCase):
         self.assertEqual(len(answered), 206)
         for n in range(200):
             self.assertTrue(tree.find(attr_is("data-afk-item", "C-BULK-%03d" % n)))
+
+
+class Navigability(unittest.TestCase):
+    """Rules 1-3: shape before content, groups in dependency order, detail on demand."""
+
+    def rounds(self, doc):
+        return {r["round"]: r for r in doc["rounds"]}
+
+    def current(self, doc):
+        return self.rounds(doc)[2]
+
+    def ungroup(self, doc):
+        """The same round with grouping removed — a small round may skip it."""
+        del self.current(doc)["header"]["groups"]
+        for item in self.current(doc)["items"]:
+            item.pop("group", None)
+        return doc
+
+    # --- rule 1: shape before content ------------------------------------
+
+    def test_the_shape_line_counts_cards_and_groups(self):
+        html = render(load_fixture())
+        shape = html.split('class="afk-shape"')[1].split("</p>")[0]
+        self.assertIn("6 cards in 3 groups", shape)
+
+    def test_the_shape_line_names_the_independent_groups_itself(self):
+        """Derived, never authored: a stale independence claim misroutes the human."""
+        doc = load_fixture()
+        titles = [g["title"] for g in self.current(doc)["header"]["groups"]]
+        shape = render(doc).split('class="afk-shape"')[1].split("</p>")[0]
+        self.assertIn(titles[0], shape)
+        self.assertIn(titles[1], shape)
+        self.assertIn("after %s" % titles[0], shape)
+
+    def test_an_ungrouped_round_says_so_rather_than_claiming_groups(self):
+        shape = render(self.ungroup(load_fixture())).split('class="afk-shape"')[1]
+        self.assertIn("ungrouped", shape.split("</p>")[0])
+
+    # --- rule 2: groups in dependency order ------------------------------
+
+    def test_groups_render_in_their_declared_order(self):
+        html = render(load_fixture())
+        order = [chunk.split('"')[0]
+                 for chunk in html.split('<section class="afk-group" id="afk-g-')[1:]]
+        self.assertEqual(order, ["shape", "access", "wiring"])
+
+    def test_a_group_listed_before_its_parent_is_refused(self):
+        doc = load_fixture()
+        groups = self.current(doc)["header"]["groups"]
+        groups[0], groups[2] = groups[2], groups[0]
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_a_card_in_an_undeclared_group_is_refused(self):
+        doc = load_fixture()
+        self.current(doc)["items"][0]["group"] = "nowhere"
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_a_grouped_round_leaves_no_card_ungrouped(self):
+        doc = load_fixture()
+        del self.current(doc)["items"][0]["group"]
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_a_group_on_a_card_in_an_ungrouped_round_is_refused(self):
+        doc = self.ungroup(load_fixture())
+        self.current(doc)["items"][0]["group"] = "shape"
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_a_degrading_card_keeps_its_group_and_stays_on_the_page(self):
+        """The defect this test exists for: a degrade that dropped the group
+        removed the card from every group section, so the weaker question
+        disappeared at the moment it needed asking."""
+        doc = load_fixture()
+        card = first_component(doc, "decided_card")
+        card["reverse"] = None
+        html = render(doc)
+        self.assertIn("afk-degraded", html)
+        placed = html.split('data-afk-item="%s"' % card["id"])[0]
+        self.assertIn('id="afk-g-%s"' % card["group"], placed)
+        self.assertNotIn("afk-g-unplaced", html)
+
+    def test_a_card_no_group_claims_is_still_rendered(self):
+        """The guard, not the contract: the schema already refuses this, so
+        reaching it means a later transform dropped the field."""
+        doc = schema.load(load_fixture())
+        for rnd in doc["rounds"]:
+            if rnd["state"] == "current":
+                rnd["items"][0].pop("group")
+        html = page.build(doc)
+        self.assertIn("afk-g-unplaced", html)
+        self.assertIn('data-afk-item="%s"' % "Q-1", html)
+
+    # --- rule 3: heading and lede visible, detail on demand --------------
+
+    def card(self, html, item_id):
+        return html.split('data-afk-item="%s"' % item_id)[1].split("</article>")[0]
+
+    def test_every_answerable_card_keeps_its_answer_outside_the_disclosure(self):
+        """A closed card is still markable: scanning and answering are one pass."""
+        tree = Tree(render(load_fixture())).root
+        current = tree.find(attr_is("data-afk-state", "current"))[0]
+        cards = [n for n in current.find(has("data-afk-required"))]
+        self.assertTrue(cards)
+        for card in cards:
+            details = card.find(lambda n: n.tag == "details")
+            self.assertTrue(details, "%s discloses nothing" % card.attrs["data-afk-item"])
+            for control in card.find(has("data-afk-input")):
+                for block in details:
+                    self.assertFalse(
+                        control.has_ancestor(block),
+                        "%s hides an answer control behind its disclosure"
+                        % card.attrs["data-afk-item"])
+
+    def test_a_debate_cards_recommendation_and_reason_precede_the_disclosure(self):
+        html = render(load_fixture())
+        card = self.card(html, "Q-1")
+        self.assertLess(card.index("afk-rec-line"), card.index("<details"))
+        self.assertLess(card.index("afk-undecided"), card.index("<details"))
+
+    def test_the_option_grid_sits_behind_the_disclosure(self):
+        card = self.card(render(load_fixture()), "Q-1")
+        self.assertLess(card.index("<details"), card.index('<table class="afk-grid"'))
+
+    def test_a_decided_cards_evidence_grade_reads_without_opening_it(self):
+        html = render(load_fixture())
+        card = self.card(html, "D-2")
+        lede = card.split("<details")[0]
+        self.assertIn("afk-why-beat", lede)
+        self.assertIn("Evidence (", lede)
+
+    def test_a_degrade_banner_never_hides_behind_the_disclosure(self):
+        doc = load_fixture()
+        card = first_component(doc, "decided_card")
+        card["reverse"] = None
+        rendered = self.card(render(doc), card["id"])
+        self.assertLess(rendered.index("afk-degraded"), rendered.index("<details"))
+
+    def test_every_disclosure_says_what_it_holds(self):
+        """A summary that names nothing is a reason not to click, which turns
+        rule 3 into hidden explanation."""
+        html = render(load_fixture())
+        labels = [chunk.split("</summary>")[0]
+                  for chunk in html.split("<summary>")[1:]]
+        self.assertTrue(labels)
+        for label in labels:
+            self.assertGreater(len(label.strip()), 8, "an unlabelled disclosure")
+
+    # --- W-5: dependency chips -------------------------------------------
+
+    def test_a_dependent_card_chips_its_parent_and_reads_provisional(self):
+        doc = load_fixture()
+        self.current(doc)["items"][0]["depends_on"] = ["Q-2"]
+        card = self.card(render(doc), "Q-1")
+        self.assertIn('href="#afk-i-Q-2"', card)
+        self.assertIn("provisional", card)
+
+    def test_a_dependency_already_settled_carries_no_provisional_badge(self):
+        doc = load_fixture()
+        self.current(doc)["items"][0]["depends_on"] = ["D-1"]
+        card = self.card(render(doc), "Q-1")
+        self.assertIn('href="#afk-i-D-1"', card)
+        self.assertIn("afk-chip--settled", card)
+        self.assertNotIn("provisional", card)
+
+    def test_a_chip_points_at_an_element_that_exists(self):
+        doc = load_fixture()
+        self.current(doc)["items"][0]["depends_on"] = ["Q-2"]
+        html = render(doc)
+        self.assertIn('id="afk-i-Q-2"', html)
 
 
 class DeadLinks(unittest.TestCase):

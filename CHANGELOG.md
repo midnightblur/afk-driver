@@ -20,6 +20,25 @@ first released heading here.
 
 ### Added
 
+- **A round is navigable without being smaller** — the three navigability rules
+  in `skills/afk/grill-requirements/ROUND.md` were a contract nothing
+  implemented, so a large round was a long page. Now: a **shape line** states
+  the card count, the group count and which groups wait for nothing, all
+  derived rather than authored; **groups** section the round by the concern each
+  card settles, in a declared order the renderer refuses to reorder; and every
+  card renders as **heading, lede, disclosure** — the recommendation and the
+  one sentence behind it always visible, the comparison and the audit trail one
+  click away. The answer control is a sibling of the disclosure, never inside
+  it, so a closed card is still markable and scanning and answering are one
+  pass. Contract: `LAVISH-KIT.md`.
+
+- **Dependency chips on a dependent card** — parent ids as links to the parent
+  card, plus a `provisional` badge while a parent is still unmarked. The states
+  are read off the artifact, not off the card: a card cannot know whether its
+  parent has settled, and a dependent that claims to hold while its parent is
+  open is the one wrong statement the strip exists to prevent.
+
+
 - **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
   scope and design to a stakeholder room: source ledger, concept ladder, one
   card per segment, an objection bank, and an exit that gives every undecided
