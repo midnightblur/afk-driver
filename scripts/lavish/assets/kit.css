@@ -58,8 +58,12 @@ body {
 .afk-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
 
 h2, h3, h4 { line-height: 1.3; }
-h4 { margin: 1rem 0 .35rem; font-size: .8rem; letter-spacing: .06em;
-     text-transform: uppercase; color: var(--fg-dim); }
+
+/* No bare h4 rule. Card headings are h4 inside a group, and an h4 rule written
+ * for small labels styles a card's decision sentence as a caption — dim,
+ * uppercase, and smaller than the prose under it. Style headings by their
+ * class, never by their level: a card that moves a level must not change
+ * what it looks like. */
 
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
        font-size: .88em; background: var(--surface-2); padding: .1em .35em;
@@ -98,7 +102,8 @@ a { color: var(--accent); }
   background: var(--surface-2);
   padding: .85rem 1rem;
 }
-.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; }
+.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+                     letter-spacing: normal; text-transform: none; color: var(--fg); }
 .afk-card--decided { border-left-color: var(--accent); }
 .afk-card--debate { border-left-color: var(--open); }
 .afk-card--confirm { border-left-color: var(--open); }

@@ -607,6 +607,20 @@ class Navigability(unittest.TestCase):
                         "%s hides an answer control behind its disclosure"
                         % card.attrs["data-afk-item"])
 
+    def test_no_stylesheet_rule_styles_a_heading_by_its_level(self):
+        """A card heading is h3 in a flat round and h4 inside a group. A bare
+        `h4 {}` rule written for small labels styled every grouped card's
+        decision sentence as a dim uppercase caption — caught in a browser,
+        invisible to every markup assertion. Headings are styled by class."""
+        css = io.open(os.path.join(SCRIPTS, "lavish", "assets", "kit.css"),
+                      encoding="utf-8").read()
+        for line in css.splitlines():
+            stripped = line.strip()
+            for level in ("h2", "h3", "h4"):
+                self.assertFalse(
+                    stripped.startswith(level + " {") or stripped.startswith(level + "{"),
+                    "%r styles a heading by its level" % stripped)
+
     def test_a_debate_cards_recommendation_and_reason_precede_the_disclosure(self):
         html = render(load_fixture())
         card = self.card(html, "Q-1")
