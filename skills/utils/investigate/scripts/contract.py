@@ -51,12 +51,16 @@ FIXED = ("git", "grep", "-n", "-I", "-E")
 OPTIONAL_FLAGS = ("-i", "--untracked", "-w")
 
 
-def argv(command: str) -> list[str]:
-    """The tokens a shell would hand the tool."""
+def argv(command: str) -> list[str] | None:
+    """The tokens a shell would hand the tool, or `None` for none it would.
+
+    A command no shell can split is a command nobody can rerun; guessing at
+    tokens would publish a search that never ran under a name that reads real.
+    """
     try:
-        return shlex.split(command)
+        return shlex.split(command or "")
     except ValueError:
-        return command.split()
+        return None
 
 
 def build_command(expressions, paths=None, flags=()) -> str:
@@ -82,7 +86,7 @@ def parse_canonical(command: str):
     their order says nothing — and the paths it ran over, in order.
     """
     parts = argv(command)
-    if parts[:len(FIXED)] != list(FIXED):
+    if parts is None or parts[:len(FIXED)] != list(FIXED):
         return None
     rest = parts[len(FIXED):]
     flags: list[str] = []
@@ -108,25 +112,26 @@ def parse_canonical(command: str):
 
 def is_search(command: str) -> bool:
     """Whether a command claims to be a search; the grammar judges the rest."""
-    return argv(command)[:2] == ["git", "grep"]
+    return (argv(command) or [])[:2] == ["git", "grep"]
 
 
-def search_key(command: str):
-    """What two commands compare on: the search, never the files it narrowed to."""
-    parsed = parse_canonical(command)
-    if parsed is None:
-        return ("outside the grammar", command.strip())
-    flags, expressions, _ = parsed
-    return (flags, expressions)
+class _AllFiles:
+    """The whole repository: a universe, never a path a list could hold."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "the whole tree"
 
 
-# A search naming no path ran over the whole repository, which is not the same
-# as contributing nothing to a union of paths.
-ALL_FILES = ("<every tracked file>",)
+# A search naming no path ran over everything, which is not a path list and not
+# an empty contribution to one. Out of band on purpose: any string here is a
+# string some repository could name a file.
+ALL_FILES = _AllFiles()
 
 
-def searched_paths(command: str) -> tuple[str, ...]:
-    """The paths a canonical search ran over, or the whole tree."""
+def searched_paths(command: str):
+    """The paths a canonical search ran over, or `ALL_FILES` for the whole tree."""
     parsed = parse_canonical(command)
     if parsed is None:
         return ()
@@ -154,25 +159,56 @@ PROSE_FAMILIES = (
 def family(command: str) -> str | None:
     """The family a recorded command belongs to, or `None` for none of them."""
     text = (command or "").strip()
+    if argv(text) is None:
+        return None
     if is_search(text):
         return "search" if parse_canonical(text) else None
     for name, prefix in PROSE_FAMILIES:
-        if text.startswith(prefix) and text[len(prefix):].strip():
+        if text.startswith(prefix) and listed(text, prefix):
             return name
     return None
+
+
+def listed(command: str, prefix: str) -> tuple[str, ...]:
+    """The paths a prose family lists, in no order — the list is the method."""
+    rest = command.strip()[len(prefix):]
+    return tuple(sorted({item.strip() for item in rest.split(",") if item.strip()}))
+
+
+def command_key(command: str):
+    """The one key a command of any family compares on.
+
+    A search is its flags and its expressions, the paths left out — the same
+    search over fewer files is that search narrowed. Every other family is what
+    it read, as a set: relisting the same paths is the same method.
+    """
+    text = (command or "").strip()
+    name = family(text)
+    if name is None:
+        return ("outside the grammar", text)
+    if name == "search":
+        flags, expressions, _ = parse_canonical(text)
+        return (name, flags, expressions)
+    prefix = dict(PROSE_FAMILIES)[name]
+    return (name, listed(text, prefix))
 
 
 def respell(command: str) -> str | None:
     """The same search, written in the grammar — a mechanical fix, or `None`.
 
-    Reads what a command outside the grammar was asking for: options bundled,
-    spelled long, or in another order, and the expressions they carried.
+    Reads what a command outside the grammar asked for: options bundled,
+    spelled long, joined to their value, or in another order. An option the
+    grammar has no place for — another mode, an inversion, another output —
+    changes what the search means, so no hint is offered at all: a hint that
+    runs a different search is worse than none.
     """
     parts = argv(command)
-    if parts[:2] != ["git", "grep"]:
+    if parts is None or parts[:2] != ["git", "grep"]:
         return None
-    long_forms = {"--ignore-case": "-i", "--word-regexp": "-w",
-                  "--regexp": "-e", "--untracked": "--untracked"}
+    known = {"--ignore-case": "-i", "--word-regexp": "-w", "--regexp": "-e",
+             "--untracked": "--untracked", "-i": "-i", "-w": "-w", "-e": "-e",
+             "-n": "-n", "-I": "-I", "-E": "-E",
+             "--line-number": "-n", "--extended-regexp": "-E"}
     flags: list[str] = []
     expressions: list[str] = []
     index = 2
@@ -180,26 +216,35 @@ def respell(command: str) -> str | None:
         token, joined = parts[index], None
         if token.startswith("--") and "=" in token:
             token, _, joined = token.partition("=")
-        token = long_forms.get(token, token)
-        if token == "-e" and joined is not None:
-            expressions.append(joined)
-            index += 1
-            continue
         if token == "--":
             break
-        if token == "-e" and index + 1 < len(parts):
-            expressions.append(parts[index + 1])
-            index += 2
-            continue
         if token.startswith("--"):
-            if token in OPTIONAL_FLAGS:
-                flags.append(token)
+            option = known.get(token)
+            if option is None:
+                return None
+            if option == "-e":
+                if joined is None:
+                    if index + 1 >= len(parts):
+                        return None
+                    joined = parts[index + 1]
+                    index += 1
+                expressions.append(joined)
+            elif option in OPTIONAL_FLAGS:
+                flags.append(option)
             index += 1
             continue
         if token.startswith("-"):
             for letter in token[1:]:
-                if f"-{letter}" in OPTIONAL_FLAGS:
-                    flags.append(f"-{letter}")
+                option = known.get(f"-{letter}")
+                if option is None:
+                    return None
+                if option == "-e":
+                    if index + 1 >= len(parts):
+                        return None
+                    expressions.append(parts[index + 1])
+                    index += 1
+                elif option in OPTIONAL_FLAGS:
+                    flags.append(option)
             index += 1
             continue
         expressions.append(token)

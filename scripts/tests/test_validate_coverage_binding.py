@@ -372,6 +372,42 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertTrue(any("write this one as `git grep -n -I -E -e Widget`" in defect
                             for defect in defects), defects)
 
+    def test_a_command_no_shell_can_split_is_a_defect(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep -n -I -E -e 'Widget"
+        defects, _ = self.check(document)
+        self.assertTrue(any("in no command family" in defect for defect in defects),
+                        defects)
+
+    # A hint that runs another search is worse than no hint.
+    def test_no_respelling_is_offered_for_an_option_outside_the_grammar(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep -v -e Widget"
+        defects, _ = self.check(document)
+        named = [defect for defect in defects if "in no command family" in defect]
+        self.assertTrue(named, defects)
+        self.assertFalse(any("write this one as" in defect for defect in named), named)
+
+    def test_a_respelling_is_offered_where_every_option_is_known(self):
+        document = ledger()
+        document["queries"][0]["command"] = "git grep --ignore-case -e Widget"
+        defects, _ = self.check(document)
+        self.assertTrue(any("write this one as `git grep -n -I -E -i -e Widget`" in defect
+                            for defect in defects), defects)
+
+    def test_a_counter_check_relisting_the_primary_paths_is_a_defect(self):
+        document = ledger()
+        document["queries"][0]["command"] = "parse alpha/pom.xml, beta/pom.xml"
+        document["queries"][0]["id"] = validate_coverage.stable_id(
+            "q", document["queries"][0]["command"] + document["queries"][0]["universe"])
+        document["boundaries"][0]["query_ids"] = [document["queries"][0]["id"]]
+        for node in document["nodes"]:
+            if node.get("query_id") == QUERY:
+                node["query_id"] = document["queries"][0]["id"]
+        defects = self.rerun(document, "parse beta/pom.xml, alpha/pom.xml")
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
+                            for defect in defects), defects)
+
     def test_a_counter_check_reordering_the_primary_expressions_is_a_defect(self):
         document = ledger()
         document["queries"][0]["command"] = "git grep -n -I -E -e Widget -e Gadget"

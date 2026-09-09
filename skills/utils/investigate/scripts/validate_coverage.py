@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from contract import (ALL_CLASSES, HIT_LIMIT, LINE_HASH_CHARS,  # noqa: E402
-                      CANONICAL, QUERY_ORIGINS, family, respell, search_key,
+                      CANONICAL, QUERY_ORIGINS, command_key, family, respell,
                       stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
@@ -673,17 +673,17 @@ def validate(ledger: dict, scope: str = "run",
         if state == "complete":
             # A check that ran the class's own searches ran the same pass
             # twice; a counter-search is a different method by definition.
-            own = {search_key((query_index.get(item) or {}).get("command") or "")
+            own = {command_key((query_index.get(item) or {}).get("command") or "")
                    for item in (row.get("query_ids") or []) if isinstance(item, str)}
-            own.discard(search_key(""))
+            own.discard(command_key(""))
             for klass in row.get("classes") or []:
                 # A counter-search is a second method, so it ran a different
                 # command. Same command under another universe label is the
                 # class's own pass wearing a second name.
-                primary = {search_key((query_index.get(item) or {}).get("command") or "")
+                primary = {command_key((query_index.get(item) or {}).get("command") or "")
                            for item in ((seen.get(klass) or {}).get("query_ids") or [])
                            if isinstance(item, str)}
-                primary.discard(search_key(""))
+                primary.discard(command_key(""))
                 if own and primary and own <= primary:
                     defects.append(
                         f"{where}: it ran no command boundaries.{klass} does not already "

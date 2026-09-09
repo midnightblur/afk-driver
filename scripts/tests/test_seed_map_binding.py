@@ -529,8 +529,36 @@ class SeedMapBindingTest(unittest.TestCase):
                         "git grep -n -I -E"):
             self.assertIsNone(parse(command), command)
 
+    def test_a_command_no_shell_can_split_does_not_parse(self):
+        contract = seed_map.contract
+        broken = "git grep -n -I -E -e 'Widget"
+        self.assertIsNone(contract.argv(broken))
+        self.assertIsNone(contract.parse_canonical(broken))
+        self.assertIsNone(contract.family(broken))
+
+    # The whole tree is not a path, so no path list can spell it.
+    def test_the_all_files_sentinel_is_out_of_band(self):
+        contract = seed_map.contract
+        whole = contract.searched_paths("git grep -n -I -E -e Widget")
+        spelled = contract.searched_paths(
+            "git grep -n -I -E -e Widget -- '<every tracked file>'")
+        self.assertIs(whole, contract.ALL_FILES)
+        self.assertIsNot(spelled, contract.ALL_FILES)
+        self.assertNotEqual(whole, spelled)
+        self.assertEqual(spelled, ("<every tracked file>",))
+
+    # A family that lists paths is one method however the list is ordered.
+    def test_a_listing_family_keys_on_its_paths_not_their_order(self):
+        key = seed_map.contract.command_key
+        self.assertEqual(key("git ls-files -- target, build"),
+                         key("git ls-files -- build, target"))
+        self.assertEqual(key("parse alpha/pom.xml, beta/pom.xml"),
+                         key("parse beta/pom.xml, alpha/pom.xml"))
+        self.assertNotEqual(key("parse alpha/pom.xml"),
+                            key("list the directories beside alpha/pom.xml"))
+
     def test_the_expressions_of_one_search_carry_no_order(self):
-        key = seed_map.contract.search_key
+        key = seed_map.contract.command_key
         self.assertEqual(key("git grep -n -I -E -e A -e B"),
                          key("git grep -n -I -E -e B -e A"))
 

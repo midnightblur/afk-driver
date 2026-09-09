@@ -66,10 +66,13 @@ first released heading here.
   `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]`,
   unbundled, short-form, in that order, with no Boolean operators: a question
   needing two conditions is two searches. A command outside every family is a
-  defect that hands back the canonical re-spelling, so nothing has to guess what
-  a tool would make of another one. Two searches are one search where their flag
-  set and expression set match; the paths are left out, so the same search over
-  fewer files is that search narrowed. A recorded `command` is the one that ran,
+  defect — a quote left open included, because a command no shell can split is
+  one nobody can rerun — and it hands back the canonical re-spelling wherever
+  every option in it has a place in the grammar; an option that changes what the
+  search means gets no hint rather than a misleading one. Each family states the
+  key its commands compare on: a search is its flag set and expression set with
+  the paths left out, and every other family is the paths it read as a set, so
+  relisting them in another order is the same method. A recorded `command` is the one that ran,
   quoted so it runs again verbatim: a pass wanting a narrow and a wide
   universe executes both, and a class searching only the files another class
   named passes those files to the search as paths, split across several executed

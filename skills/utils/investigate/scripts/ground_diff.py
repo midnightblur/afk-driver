@@ -43,7 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from contract import ALL_FILES, search_key, searched_paths  # noqa: E402
+from contract import ALL_FILES, command_key, searched_paths  # noqa: E402
 
 
 class GroundError(ValueError):
@@ -149,7 +149,7 @@ def logical(row: dict):
     A pass carrying a long path list runs it as several commands, so where the
     chunks fall is an execution detail, not a search.
     """
-    return (search_key(row.get("command") or ""), str(row.get("universe") or ""))
+    return (command_key(row.get("command") or ""), str(row.get("universe") or ""))
 
 
 def seed_searches(document: dict) -> dict:
@@ -166,7 +166,7 @@ def seed_searches(document: dict) -> dict:
         entry = found.setdefault(logical(row), {"command": row.get("command") or "",
                                                 "paths": set(), "whole": False})
         paths = searched_paths(row.get("command") or "")
-        if paths == ALL_FILES:
+        if paths is ALL_FILES:
             entry["whole"] = True
         else:
             entry["paths"] |= set(paths)

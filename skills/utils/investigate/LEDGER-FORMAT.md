@@ -149,19 +149,26 @@ Every recorded `command` is written in one of these shapes, and a command in
 none of them is a defect. Reading every spelling a tool would accept is a game
 with no end; one grammar per family ends it.
 
-| Family | Shape |
-|---|---|
-| search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]` |
-| built-output walk | `in-process walk of <path>[, <path>]*` |
-| tracked listing | `git ls-files -- <path>[, <path>]*` |
-| manifest parse | `parse <manifest>[, <manifest>]*` |
-| sibling listing | `list the directories beside <manifest>[, <manifest>]*` |
+Each family also states the key two of its commands compare on — one command,
+one key, whatever order its parts were written in.
+
+| Family | Shape | Key |
+|---|---|---|
+| search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]` | its flag set and its expression set; the paths are left out |
+| built-output walk | `in-process walk of <path>[, <path>]*` | the paths it walked, as a set |
+| tracked listing | `git ls-files -- <path>[, <path>]*` | the paths it listed, as a set |
+| manifest parse | `parse <manifest>[, <manifest>]*` | the manifests it read, as a set |
+| sibling listing | `list the directories beside <manifest>[, <manifest>]*` | the manifests it read, as a set |
+
+A command no shell can split — a quote left open — is in no family: a command
+nobody can rerun is not a record of a search.
 
 A search carries those options and no others, unbundled, short of a long form,
 in that order, always in `-E` mode. There are no Boolean operators: a question
-needing `--and` is two searches. Two searches are one search where their flag
-set and their expression set are equal — the expressions carry no order, and the
-paths are left out, so the same search over fewer files is that search narrowed.
+needing `--and` is two searches. Two commands are one command where their keys are equal — the expressions of a
+search carry no order, and its paths are left out, so the same search over fewer
+files is that search narrowed. A search that names no path ran over the whole
+tree, which no list of paths equals.
 The grammar is `contract.py` (`CANONICAL`, `build_command`, `parse_canonical`);
 an emitter writes a command through it rather than by hand. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
