@@ -41,12 +41,13 @@ class LedgerBindingTest(unittest.TestCase):
     def check(self, document):
         return validate_coverage.validate(document)
 
-    # C1 — a cited query must account for the hits the row claims.
-    def test_a_row_citing_a_query_that_found_nothing_is_a_defect(self):
+    # C1 — a query's count is the nodes citing it, and a row's hits are the
+    # nodes its own searches produced. Two numbers for one search is a defect.
+    def test_a_query_counting_more_than_the_nodes_citing_it_is_a_defect(self):
         document = ledger()
-        document["queries"][0]["count"] = 0
+        document["queries"][0]["count"] = 7
         defects, _ = self.check(document)
-        self.assertTrue(any("every query it cites found nothing" in defect
+        self.assertTrue(any("disagrees with the 2 nodes citing it" in defect
                             for defect in defects), defects)
 
     def test_a_zero_hit_row_may_cite_a_query_that_found_nothing(self):
@@ -97,9 +98,9 @@ class LedgerBindingTest(unittest.TestCase):
         for row in document["boundaries"]:
             if row["class"] == "B1":
                 row["query_ids"] = [QUERY, COUNTER_QUERY]
-        document["counter_checks"][0].update({"classes": ["B1"], "query_ids": [COUNTER_QUERY]})
+        document["counter_checks"][0].update({"query_ids": [COUNTER_QUERY]})
         defects, _ = self.check(document)
-        self.assertTrue(any("no search boundaries.B1 does not already name" in defect
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)
 
     # A check that answers for a class nobody verdicted answers for nothing.
@@ -109,17 +110,22 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("B99" in defect for defect in defects), defects)
 
-    def test_a_row_claiming_more_hits_than_its_queries_found_is_a_defect(self):
+    def test_a_row_holding_a_node_its_own_searches_never_produced_is_a_defect(self):
         document = ledger()
+        stray = {"id": validate_coverage.stable_id("q", "git grep -e Othertracked files"),
+                 "command": "git grep -e Other", "universe": "tracked files",
+                 "count": 1, "evidence": None, "origin": "seed"}
+        document["queries"].append(stray)
         document["nodes"].append(
             {"id": "B1:alpha.java:3", "class": "B1", "site": "alpha.java:3",
-             "disposition": "terminal", "evidence": "the line", "parent": None,
-             "query_id": QUERY})
+             "line_hash": "abcdef123456", "disposition": "terminal",
+             "evidence": "the line", "parent": None, "query_id": stray["id"]})
         document = only(document, "B1", hits=3,
                         hit_ids=["B1:alpha.java:2", "B1:alpha.java:9",
                                  "B1:alpha.java:3"])
         defects, _ = self.check(document)
-        self.assertTrue(any("more hits than" in defect for defect in defects), defects)
+        self.assertTrue(any("neither this row nor a counter-search" in defect
+                            for defect in defects), defects)
 
     def test_a_closed_row_with_no_hits_still_names_its_query(self):
         document = only(ledger(), "B3", query_ids=[])
@@ -226,8 +232,7 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertTrue(any("query_id" in defect for defect in defects), defects)
 
     def test_a_read_node_carries_a_null_query_id(self):
-        document = ledger()
-        document["nodes"][1]["query_id"] = None
+        document = read_evidence(ledger(), "B1")
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
@@ -420,6 +425,49 @@ class LedgerBindingTest(unittest.TestCase):
         defects, _ = self.check(document)
         self.assertTrue(any("paths" in defect for defect in defects), defects)
 
+    # C6 — a row's arithmetic is the nodes table, and a class has a ceiling.
+    def test_a_row_counting_a_node_no_search_produced_is_a_defect(self):
+        document = read_evidence(ledger(), "B1")
+        document = only(document, "B1", hits=3,
+                        hit_ids=["B1:alpha.java:2", "B1:alpha.java:9",
+                                 "B1:alpha/B1.java:4"])
+        defects, _ = self.check(document)
+        self.assertTrue(any("nodes its searches produced" in defect
+                            for defect in defects), defects)
+
+    def test_a_class_past_the_hit_limit_is_a_defect(self):
+        document = ledger()
+        document = only(document, "B1", hits=validate_coverage.HIT_LIMIT + 1)
+        defects, _ = self.check(document)
+        self.assertTrue(any("past the" in defect and "a class may carry" in defect
+                            for defect in defects), defects)
+
+    def test_a_terminal_node_the_table_reaches_on_from_is_a_defect(self):
+        document = ledger()
+        parent = next(item for item in document["nodes"]
+                      if item["id"] == "B1:alpha.java:2")
+        parent["disposition"] = "terminal"
+        defects, _ = self.check(document)
+        self.assertTrue(any("the table reaches on from it" in defect
+                            for defect in defects), defects)
+
+    def test_an_agent_check_naming_no_class_is_a_defect(self):
+        document = read_evidence(ledger(), "B1")
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "classes": [],
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("names the classes it answers for" in defect
+                            for defect in defects), defects)
+
+    def test_an_agent_check_citing_a_node_of_another_class_is_a_defect(self):
+        document = read_evidence(ledger(), "B1")
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "classes": ["B2"],
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("which this check does not answer for" in defect
+                            for defect in defects), defects)
 
 
 if __name__ == "__main__":

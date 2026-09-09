@@ -43,7 +43,7 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
      --sdd <spec dir>/SDD.draft.md
    ```
 
-   Exit 0 → rename the draft to `<spec dir>/SDD.md`; lines it printed appear verbatim in §13. Any nonzero exit → delete the draft and refuse, so no ungated document is ever the SDD. Exit 1 records one §13 blocker per line it printed, each naming the seam and its investigation, and bounces to `/afk:grill-solution`; exit 2 names a document the gate cannot read — no §14 table, a header the template no longer matches, or bytes that are not UTF-8 — and the fix is the document.
+   Exit 0 → write the lines it printed verbatim into the draft's §13, run the same command on the draft again, and on a second exit 0 rename it in place (`mv <spec dir>/SDD.draft.md <spec dir>/SDD.md`) — what the gate passed is what becomes the SDD, notes included. Any nonzero exit at either run → delete the draft and refuse, so no ungated document is ever the SDD. A re-run overwrites a leftover draft. Exit 1 records one §13 blocker per line it printed, each naming the seam and its investigation, and bounces to `/afk:grill-solution`; exit 2 names a document the gate cannot read — no §14 table, a header the template no longer matches, or bytes that are not UTF-8 — and the fix is the document.
 
 8. **Library-version pin cross-check.** Verify any version pin the SDD/ADR names (Spring Boot, Hibernate, Vue, axios, … — anything `\d+\.\d+`) against the build manifest before writing. The Grounding rule catches a library's *existence*; this catches a fictional *version* of a real library, which silently poisons every downstream behaviour assumption.
 

@@ -664,21 +664,20 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     b1_hits = [hit for hit in wide
                if hit["file"] in inventory_set and exact.search(hit["text"])]
     kept = {(hit["file"], hit["line"]) for hit in b1_hits}
-    wide_universe = ("tracked and untracked text files, not ignored, binary excluded, "
-                     "case-blind")
     second_universe = "case-blind pass over tracked and untracked files, not ignored"
-    # The name-form queries; every class searching B1's hit set points at them.
-    name_query_ids = [note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
-                           wide_universe, len(wide))]
-    ledger.tag(wide, name_query_ids[0])
-    seen = set(kept)
-    # The one call answered two universes. The second is recorded as its own
-    # search — same command, different universe, its own count — and it stays
-    # out of the class's own query list: a counter-search the row also claimed
-    # as its enumeration would be the same pass counted twice.
+    # The one call answered two universes, and each is recorded as the search
+    # that would return it on its own: the class's own method is the exact
+    # tracked pass, and the wider case-blind pass is the counter-search's. Two
+    # commands, two counts, and every hit tagged with the one that produced it.
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
+    # The name-form queries; every class searching B1's hit set points at them.
+    name_query_ids = [note(grep_command(primary_patterns, None),
+                           "tracked text files, binary excluded", len(b1_hits))]
+    ledger.tag(b1_hits, name_query_ids[0])
+    seen = set(kept)
     second_universe_id = note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
                               second_universe, len(wider_only))
+    ledger.tag(wider_only, second_universe_id)
 
     # Counter-search one: a name form that does not carry the simple name — a
     # form the primary pass provably cannot return.
@@ -1085,6 +1084,17 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     for check in inherited_checks:
         check["classes"] = ["B1", *b1_derived]
 
+    # A query's count is what it put in the nodes table. A raw hit that no class
+    # kept is not a node, and a count above the nodes citing it would be a row
+    # nobody can check against the table.
+    node_rows = ledger.rows()
+    produced: dict[str, int] = {}
+    for node in node_rows:
+        if isinstance(node.get("query_id"), str):
+            produced[node["query_id"]] = produced.get(node["query_id"], 0) + 1
+    for key, row in queries.items():
+        row["count"] = produced.get(key, 0)
+
     return {
         "run": {
             "repository": str(repo),
@@ -1101,7 +1111,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             "finished": datetime.now(timezone.utc).isoformat(),
         },
         "boundaries": [boundaries[klass] for klass in ALL_CLASSES],
-        "nodes": ledger.rows(),
+        "nodes": node_rows,
         "queries": [queries[key] for key in queries],
         "claims": [{
             "id": claim_id,

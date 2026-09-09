@@ -8,6 +8,7 @@ Builds disposable fixture plans in a temp dir (never touches a real checkout):
   4. clean uncited plan, minimal gate, no VERIFICATION-PLAN   -> exit 0
 Exit 0 = all green (prints SMOKE_OK).
 """
+import json
 import os
 import shutil
 import subprocess
@@ -15,7 +16,18 @@ import sys
 import tempfile
 
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "validate_plan.py")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PLUGIN = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(_HERE))))
+sys.path.insert(0, os.path.join(os.path.dirname(_PLUGIN), "scripts", "tests"))
 PASS = FAIL = 0
+
+
+def closed_ledger():
+    """A ledger the seam check accepts, built from the validator's own fixture."""
+    from test_validate_coverage import ledger  # noqa: E402
+    document = ledger()
+    document["run"]["verdict"] = "closed"
+    return json.dumps(document)
 
 
 def ok(msg):
@@ -100,6 +112,16 @@ def plan_md(gate_section, policy=""):
             + gate_section)
 
 
+SDD_SEAMS = """# SDD
+
+## §14 L9 — Implementation Seams & Change Impact
+
+| Seam (class/method/contract) | Existing contract (INV-NNN) | Planned change | Impacted flows (INV-NNN) | Conventions / landmines | Verdict |
+|---|---|---|---|---|---|
+| the service port | INV-001 | one new method | none (INV-001) | none | fits |
+"""
+
+
 def build_clean(root):
     plan = os.path.join(root, "repo", "tasks", "T-1", "plan")
     os.makedirs(os.path.join(root, "repo", ".git"), exist_ok=True)
@@ -107,7 +129,8 @@ def build_clean(root):
     write(os.path.join(plan, "PLAN.md"),
           plan_md(gate_table(2, 1), policy="> Review policy: lean   <!-- lean | full -->\n"))
     write(os.path.join(root, "repo", "tasks", "T-1", "investigations",
-                       "INV-001-the-service-port", "COVERAGE.json"), "{}")
+                       "INV-001-the-service-port", "COVERAGE.json"), closed_ledger())
+    write(os.path.join(root, "repo", "tasks", "T-1", "SDD.md"), SDD_SEAMS)
     write(os.path.join(plan, "0001-core.md"), subtask(
         "Core service.", "- services/billing/billing/src/**",
         STATIC + "\n| unit | `mvn test` | behavior |",
@@ -137,6 +160,12 @@ def build_dirty(root):
     plan = os.path.join(root, "repo", "tasks", "T-2", "plan")
     os.makedirs(os.path.join(root, "repo", ".git"), exist_ok=True)
     write(os.path.join(root, "repo", "tasks", "T-2", "VERIFICATION-PLAN.md"), VP_FULL)
+    # a ledger that exists and never closed -> I-SEAM-NOT-CLOSED
+    write(os.path.join(root, "repo", "tasks", "T-2", "investigations",
+                       "INV-007-the-open-port", "COVERAGE.json"), "{}")
+    # the SDD cites another investigation for the same seam -> I-SEAM-UNGROUNDED
+    write(os.path.join(root, "repo", "tasks", "T-2", "SDD.md"),
+          SDD_SEAMS.replace("the service port", "the other port"))
     # gate has 1 ui-e2e row but the plan has 2 -> G-PARITY-UI; bogus policy -> H-POLICY
     write(os.path.join(plan, "PLAN.md"),
           plan_md(gate_table(1, 1), policy="> Review policy: strict\n"))
@@ -166,7 +195,9 @@ def build_dirty(root):
         "| unit | `mvn test` | behavior |",
         produces="- svc/C.java#SomeLaterProducedThing — the thing [materialized]",
         seams=("- implement: the service port — no investigation named\n"
-               "- use: the other port — a ledger nobody wrote (INV-404)")))
+               "- use: the other port — the SDD cites another (INV-002)\n"
+               "- use: the open port — a ledger that never closed (INV-007)\n"
+               "- use: the third port — a ledger nobody wrote (INV-404)")))
     # 0003: collides with 0002 on the same file#anchor (A-COLLISION); consumes it
     # without the [materialized] marker (A-MAT-DISAGREE); consumes an anchor 0002
     # never produced (A-NOT-PRODUCED); controller scope without api row (E-TIER-API)
@@ -214,8 +245,10 @@ def main():
                      "B-MAT-UNRESOLVED", "E-STATIC", "E-TIER-E2E", "E-TIER-API",
                      "E-TIER-INTEGRATION", "G-PARITY-UI", "G-BUILD-MISSING", "G-BLOCKEDBY",
                      "H-POLICY", "H-POLICY-VALUE", "H-OPT-IN-UNKNOWN", "H-REVIEW-LINE",
-                     "I-SEAM-UNGROUNDED", "I-SEAM-NO-LEDGER"]:
+                     "I-SEAM-UNGROUNDED", "I-SEAM-NO-LEDGER", "I-SEAM-NOT-CLOSED"]:
             (ok if rule + ":" in out else bad)(f"dirty plan flags {rule}")
+        (ok if "is not cited by the SDD" in out else bad)(
+            "dirty plan flags a seam citing an investigation the SDD row does not")
         for absent in ["G-NO-GATE", "G-PHANTOM-BUILD", "G-FULL-WITHOUT-PLAN", "SYNTAX"]:
             (ok if absent + ":" not in out else bad)(f"dirty plan does not flag {absent}")
 

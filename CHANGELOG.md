@@ -56,7 +56,12 @@ first released heading here.
   supports — `closed`, `closed-with-frontier`, or `partial`. A boundary row
   carries every hit it found, so `hits`, `hit_ids` and the nodes table are one
   set: a searched line no row counts is a defect, and a class past 20000 hits
-  stops the run as a subject too generic to answer.
+  stops the run as a subject too generic to answer. Every searched node cites
+  one search, a query's `count` is the nodes citing it, and a row's `hits` is
+  what its own searches produced — the nodes table is the arithmetic, so a
+  number nobody can recompute is a defect. A ledger written before this version
+  carrying `truncated` fails validation: re-seed the question, there is no
+  migration.
 - **`ground_diff.py` says whether a cited investigation still describes the
   tree.** It counts every searched line, keyed by class, file and line hash, and
   reports an appearance, a disappearance, an in-place edit, a duplicate, a
@@ -73,7 +78,12 @@ first released heading here.
   rules — snapshot identity, worst-status-wins, the union count, the node
   conflict rule, the counter-check union — ran as prose in the skill and now run
   as a script. One id under two bodies — a query, a node, a claim — aborts the
-  fold rather than keeping one and losing the other. A fragment taken against another commit aborts the merge rather
+  fold rather than keeping one and losing the other, as does any other field two
+  rows under one id both fill and fill differently: nothing is settled by
+  arrival order. Every fragment is validated against the ledger rules before it
+  folds, and a defect refuses the fold naming the fragment and the row rather
+  than repairing it. A fragment taken against another commit, or answering
+  another question, subject or configuration, aborts the merge rather
   than mixing two snapshots.
 - **The design chain verifies its claims by investigation.** A claim about this
   repository is closed by an `/afk:investigate` run, not by a search:
@@ -83,12 +93,16 @@ first released heading here.
   the layer locks, and the L9 seam walk answers the existing contract and change
   impact with one Q1+Q2+Q3 run per seam. Each plan `## Seams` row carries that
   investigation's id, and `validate_plan.py` refuses a seam row standing on no
-  ledger.
+  ledger, on a ledger the SDD's own §14 row does not cite, or on one whose
+  verdict is not closed.
 - **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
   cites the investigation that closed it, and a new bundled script resolves each
   citation, validates that ledger, and refuses a design standing on a `partial`
-  one or on a load-bearing unverified claim. `/afk:to-subtasks` re-runs the same
-  gate before slicing.
+  one, on a load-bearing unverified claim, or on citations that between them
+  never asked what the symbol is, what reaches it, and what changing it breaks.
+  The synthesis is written as a draft, gated, given the gate's own notes, gated
+  again, and only then renamed to `SDD.md` — what the gate passed is what
+  becomes the SDD. `/afk:to-subtasks` re-runs the same gate before slicing.
 - **`/afk:execute` closes the ground before writing code.** A slice re-runs the
   seed map over its seams and diffs the result against the ledger the design
   cited; new hits get a delta tracer folded back in, and a `partial` verdict on

@@ -65,7 +65,8 @@ against. Every id in `hit_ids` is in the nodes table and carries this row's
 class, and every searched node of a class is in its row's `hit_ids` — a node no
 row counts is a line the answer lost. A class returning more hits than a ledger
 can carry as whole nodes (20000) is a subject too generic to answer: the seed
-stops and writes nothing rather than publishing a sample. One row per class,
+stops and writes nothing rather than publishing a sample, the validator refuses
+a row past it, and so does a fold. The ceiling is per class, never a sum. One row per class,
 never two.
 
 The query rule, in three parts:
@@ -82,10 +83,11 @@ The query rule, in three parts:
   site with no such node leaves the row `judgment-only`, so the verdict is
   `partial`;
 - every entry resolves in the queries table;
-- a row carrying hits cites at least one query that returned something, and the
-  counts over its cited queries sum to at least its `hits` — overlap makes the
-  sum larger, and nothing makes it smaller. A query of count 0 is the right
-  citation for a row of 0 hits: the absence is the result.
+- a row's `hits` is the number of nodes of its class that a search produced,
+  counting only nodes whose `query_id` the row names or a counter-search
+  covering the class ran. A node of the class citing any other query is a hit
+  the row does not account for, and a defect. A row of 0 hits cites the query
+  that found nothing: the absence is the result.
 
 Every class B1-B14 carries a row. A class with no enumeration method is
 `unverified` with reason `no enumeration method`. `partial` is the status of a
@@ -110,13 +112,13 @@ the ledger is published, and the validator rejects it in a published ledger.
 | `pinned_by` | the test site that pins this node, or `unguarded`; required on a dispositioned Q3 node |
 | `evidence` | the quoted line, or a path to the evidence file |
 | `line_hash` | the identity of the matched line — 12 lowercase hex characters, the first 12 characters of the SHA1 digest of the exact bytes of the line, its own line break aside, indentation and inner spacing included — so a node survives an edit above it: two runs are compared on (`class`, file, `line_hash`), never on ids alone. Required wherever `query_id` names a search; a node an agent read has no matched line and omits it |
-| `parent` | the node id this one was reached from; `null` for a root |
+| `parent` | the node id this one was reached from; `null` for a root. A node another node names as its parent is `traced` — a path the run followed further is not one that ended there |
 | `query_id` | the query that produced it, never absent; `null` on a node an agent read rather than searched, which then carries `evidence` instead |
 
-A non-null `query_id` resolves in the queries table, and appears in the
-`query_ids` of the boundary row of the node's own class: a node whose class
-row does not name the search behind it is a hit that row does not account
-for.
+A non-null `query_id` resolves in the queries table, and is a query the
+node's own class reached the site through: one the class row names, or one a
+counter-search covering the class ran. A node citing any other search is a hit
+its class row does not account for.
 
 ### `queries` — one row per search
 
@@ -125,7 +127,9 @@ for.
 (`seed` · `tracer`) · `evidence` (path to the raw output when it was kept).
 
 `command`, `universe`, `count` and `origin` are required; `count` is an integer,
-zero or more. `origin` says who ran the search: `seed` for the deterministic
+zero or more, and equals the number of nodes citing this query in this ledger —
+two numbers for one search is one of them lying, and the nodes table is the one
+a reader can check. Every searched node cites exactly one query. `origin` says who ran the search: `seed` for the deterministic
 pre-pass, whose queries a later pre-pass runs again, `tracer` for a widening
 past it, which it does not. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
@@ -152,14 +156,18 @@ ran) · `evidence_nodes` (the nodes an agent-driven method read).
 
 Execution rule: `complete` says the method ran, so the row names what ran — a
 `deterministic` row names at least one query in the queries table, an `agent`
-row at least one node in the nodes table carrying evidence. A `complete` row
-naming neither is a defect; with the rule in place, an empty `new_nodes` reads
-as a result rather than as work nobody did.
+row a non-empty `classes` and at least one node in the nodes table carrying
+evidence, each of a class the row covers. A `complete` row naming neither is a
+defect; with the rule in place, an empty `new_nodes` reads as a result rather
+than as work nobody did.
 
 Coverage rule: every class whose status is `closed` or `partial` by a search
 names at least one `complete` counter-search listing it in `classes`, and that
-check's `method` differs from the class's own `method`. A class whose universe
-**is** another class's hit set is covered by that class's check listing it.
+check's `method` differs from the class's own `method`, and it ran at least one
+`command` the class row does not already run — same command under another
+universe label is the class's own pass wearing a second name. A class whose
+universe **is** another class's hit set is covered by that class's check
+listing it.
 A class resolved by judgment, closed by parsing rather than searching, or left
 `frontier`, `n/a` or `unverified` owes none.
 
@@ -221,12 +229,14 @@ two fragments that ran one search carry one query row.
 
 | Table | Rule |
 |---|---|
-| `run` | `head` must match across fragments; a mismatch aborts the merge — two snapshots are two investigations. `merged_from` records how many were folded in |
-| `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them |
-| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice |
+| `run` | `head`, `question`, `type`, `roots`, `aliases` and `config.sha256` must match across fragments; a mismatch aborts the merge naming the field — two snapshots are two investigations. `merged_from` records how many were folded in |
+| `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Two rows under one id that disagree on any other field they both fill are two answers under one name, and a fold refuses them rather than keeping the first |
+| `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
-| `queries` | by query id; two rows under one id must agree on `command`, `universe`, `count` and `origin`, and a fold refuses them when they do not |
-| `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete` |
+| `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` is not carried across: it is the nodes citing the query in the ledger holding it, so the fold reads it off the folded nodes table |
+| `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
+
+Every fragment is checked against the rules above — every rule but the ones that read on the whole run: its own fields, the fourteen-class sweep, the counter-search coverage and the verdict. A fragment carrying a defect refuses the fold, naming the fragment and the row; nothing is repaired or filled in on its behalf. A fragment names rows the seed left in the staging ledger, so a reference it cannot resolve alone is not its defect.
 
 A fragment's identity is what it found — the bytes of its `partition` and of
 the five tables — never its `run` block: one partition traced twice, in two

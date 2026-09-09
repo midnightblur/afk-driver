@@ -27,7 +27,7 @@ def agent_check(document):
          "parent": None, "query_id": None, "impact_verdict": "unchanged",
          "pinned_by": "unguarded", "coverage_verdict": "test"})
     document["counter_checks"].append(
-        {"method": "the registration site", "kind": "agent",
+        {"method": "the registration site", "kind": "agent", "classes": ["B1"],
          "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
          "evidence_nodes": [READ_NODE]})
     return document

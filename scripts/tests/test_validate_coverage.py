@@ -152,7 +152,7 @@ class ValidateCoverageTest(unittest.TestCase):
         document["run"]["type"] = ["Q3"]
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent", "targeted_claims": [],
-             "new_nodes": [], "state": "complete"})
+             "classes": ["B1"], "new_nodes": [], "state": "complete"})
         defects, _ = self.check(document)
         self.assertTrue(any("Q3 node needs" in defect for defect in defects), defects)
         self.assertTrue(any("pins it" in defect for defect in defects), defects)
@@ -169,7 +169,7 @@ class ValidateCoverageTest(unittest.TestCase):
              "pinned_by": "unguarded"})
         document["counter_checks"].append(
             {"method": "the registration site", "kind": "agent", "targeted_claims": [CLAIM],
-             "new_nodes": [], "state": "complete",
+             "classes": ["B1"], "new_nodes": [], "state": "complete",
              "evidence_nodes": ["B1:alpha.java:12"]})
         defects, verdict = self.check(document)
         self.assertEqual(defects, [])

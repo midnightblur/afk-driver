@@ -30,7 +30,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import worst  # noqa: E402
+import validate_coverage  # noqa: E402
+from contract import HIT_LIMIT, worst  # noqa: E402
 
 TABLES = ("boundaries", "nodes", "queries", "claims", "counter_checks")
 
@@ -95,6 +96,15 @@ def fingerprint(fragment: dict) -> str:
     ).hexdigest()
 
 
+def differing(kept: dict, row: dict, skip: tuple[str, ...] = ()) -> list[str]:
+    """The fields both rows fill and fill differently."""
+    return sorted(key for key in set(kept) & set(row)
+                  if key not in skip
+                  and kept.get(key) not in (None, "", [])
+                  and row.get(key) not in (None, "", [])
+                  and kept.get(key) != row.get(key))
+
+
 def merge_node(kept: dict, row: dict) -> dict:
     """Two fragments reached the same site; only a disagreement is news."""
     for key in ("line_hash", "site", "class"):
@@ -105,6 +115,15 @@ def merge_node(kept: dict, row: dict) -> dict:
             )
     left, right = kept.get("disposition"), row.get("disposition")
     if left == right:
+        # The disposition is the one field a fold reconciles. Every other
+        # disagreement under one id is two answers, and picking the first is
+        # picking by arrival order.
+        clash = differing(kept, row)
+        if clash:
+            raise MergeError(
+                f"node {kept.get('id')}: two fragments disagree on "
+                f"{', '.join(clash)}; one id is one node"
+            )
         merged = dict(kept)
         for key, value in row.items():
             if merged.get(key) in (None, "", []):
@@ -137,6 +156,12 @@ def merge_boundary(kept: dict, row: dict) -> dict:
     # count is the length of what the fold holds, never a sum over overlaps.
     merged["hit_ids"] = hit_ids = merged.get("hit_ids") or []
     merged["hits"] = len(hit_ids)
+    if len(hit_ids) > HIT_LIMIT:
+        raise MergeError(
+            f"boundaries.{merged.get('class')}: {len(hit_ids)} hits, past the "
+            f"{HIT_LIMIT} a class may carry; the question is re-asked of a "
+            "narrower subject, never published as noise"
+        )
     return merged
 
 
@@ -144,8 +169,13 @@ CLAIM_ORDER = ("unverified", "inference", "fact")
 
 
 def merge_query(kept: dict, row: dict) -> dict:
-    """One id is one execution: two bodies under it are two searches."""
-    for key in ("command", "universe", "count", "origin"):
+    """One id is one execution: two bodies under it are two searches.
+
+    `count` is left out: it is the nodes citing the query in the ledger that
+    carries it, so two partitions of one search carry two parts of one count.
+    The fold recomputes it off the folded nodes table.
+    """
+    for key in ("command", "universe", "origin"):
         if key in kept and key in row and kept[key] != row[key]:
             raise MergeError(
                 f"query {kept.get('id')}: two fragments give it a different {key} "
@@ -177,9 +207,20 @@ def merge_claim(kept: dict, row: dict, said: list[str] | None = None) -> dict:
     return merged
 
 
+# The four lists a fold accumulates: two fragments naming different nodes for
+# one check are two parts of one record, not two records.
+CHECK_LISTS = ("new_nodes", "targeted_claims", "query_ids", "evidence_nodes")
+
+
 def merge_check(kept: dict, row: dict) -> dict:
+    clash = differing(kept, row, skip=(*CHECK_LISTS, "state", "reason"))
+    if clash:
+        raise MergeError(
+            f"counter_check {kept.get('method')!r}: two fragments disagree on "
+            f"{', '.join(clash)}; one method over one class set is one check"
+        )
     merged = dict(kept)
-    for key in ("new_nodes", "targeted_claims", "query_ids", "evidence_nodes"):
+    for key in CHECK_LISTS:
         values = union(kept.get(key) or [], row.get(key) or [])
         if values or key in kept or key in row:
             merged[key] = values
@@ -222,6 +263,58 @@ def check_shapes(path: Path, fragment: dict) -> None:
                                  f"{', '.join(missing)}, so nothing can fold onto it")
 
 
+KEY_OF = {"boundaries": "class", "nodes": "id", "queries": "id", "claims": "id"}
+
+
+def fragment_defects(staging: dict, fragment: dict) -> list[str]:
+    """The fragment's own defects, checked before anything folds onto them.
+
+    A fragment names rows the seed left in the staging ledger, so it is read
+    twice — alone, and against the staging rows it refers back to. Only what
+    both readings call a defect is the fragment's own.
+    """
+    alone, _ = validate_coverage.validate(fragment, scope="rows")
+    if not alone:
+        return []
+    with_context = {"run": dict(fragment.get("run") or {})}
+    if "partition" in fragment:
+        with_context["partition"] = fragment["partition"]
+    for table in TABLES:
+        key = KEY_OF.get(table)
+        if key is None:
+            with_context[table] = union(rows(staging, table), rows(fragment, table))
+            continue
+        index = {row.get(key): row for row in rows(staging, table)}
+        index.update({row.get(key): row for row in rows(fragment, table)})
+        with_context[table] = list(index.values())
+    against, _ = validate_coverage.validate(with_context, scope="rows")
+    return [defect for defect in alone if defect in set(against)]
+
+
+# What makes two runs one investigation. A fragment that answers a different
+# question, of a different subject, under a different configuration, answers
+# for a run this one is not. The repository path is not on the list: two
+# worktrees of one checkout name two paths and one result.
+IDENTITY = ("question", "type", "roots", "aliases")
+
+
+def identity(path: Path, staging_run: dict, fragment_run: dict) -> None:
+    for field in IDENTITY:
+        wanted, given = staging_run.get(field), fragment_run.get(field)
+        if given is not None and wanted is not None and given != wanted:
+            raise MergeError(
+                f"{path}: run.{field} is not the staging ledger's; a fragment of "
+                "another run answers another question"
+            )
+    wanted = (staging_run.get("config") or {}).get("sha256")
+    given = (fragment_run.get("config") or {}).get("sha256")
+    if given is not None and wanted is not None and given != wanted:
+        raise MergeError(
+            f"{path}: run.config.sha256 is not the staging ledger's; one question "
+            "over two configurations is two different searches"
+        )
+
+
 def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
     head = staging.get("run", {}).get("head")
     merged = {"run": dict(staging.get("run") or {})}
@@ -251,13 +344,16 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                 f"{head!r}; two snapshots are two investigations"
             )
         check_shapes(path, fragment)
-        question = fragment.get("run", {}).get("question")
-        wanted = staging.get("run", {}).get("question")
-        if wanted and question and question != wanted:
+        # A fragment is folded as it stands or not at all: a defect the fold
+        # papers over is a defect nobody sees again, and the merged ledger is
+        # what a reader trusts.
+        row_defects = fragment_defects(staging, fragment)
+        if row_defects:
             raise MergeError(
-                f"{path}: run.question {question!r} is not the staging ledger's "
-                f"{wanted!r}; two questions are two investigations"
+                f"{path}: {len(row_defects)} defect(s), first: {row_defects[0]}; "
+                "a fragment is folded as its writer wrote it"
             )
+        identity(path, staging.get("run") or {}, fragment.get("run") or {})
         partition = fragment.get("partition")
         partition_id = partition.get("id") if isinstance(partition, dict) else None
         if not partition_id:
@@ -286,6 +382,14 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                     f"partition.classes does not declare; a fragment answers for its own "
                     "partition"
                 )
+            declared = {row.get("class") for row in rows(staging, "boundaries")}
+            beyond = sorted(item for item in classes if item not in declared)
+            if beyond:
+                raise MergeError(
+                    f"{path}: partition.classes names {', '.join(str(item) for item in beyond)}, "
+                    "which the staging ledger does not carry; a partition is a slice of the "
+                    "run it folds into"
+                )
         folded += 1
         for warning in fragment.get("run", {}).get("config_warnings") or []:
             if warning not in warnings:
@@ -300,6 +404,15 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
 
     for table, (index, _, _) in tables.items():
         merged[table] = list(index.values())
+    # A query's count is the nodes citing it, so the fold reads it off the
+    # folded nodes rather than adding up parts that overlap.
+    citing: dict[str, int] = {}
+    for row in merged["nodes"]:
+        if isinstance(row.get("query_id"), str):
+            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+    for row in merged["queries"]:
+        if "count" in row or row.get("id") in citing:
+            row["count"] = citing.get(row.get("id"), 0)
     merged["run"]["merged_from"] = folded
     if warnings:
         merged["run"]["config_warnings"] = warnings

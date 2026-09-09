@@ -38,6 +38,10 @@ SECTION = re.compile(r"^##\s*§?14\b", re.M)
 NEXT_SECTION = re.compile(r"^##\s", re.M)
 CITATION = re.compile(r"INV-(\d{3,})")
 CLOSED = ("closed", "closed-with-frontier")
+
+# What a seam row rests on: what the symbol is (Q1), what reaches it (Q2), and
+# what changing it breaks (Q3). Question types are defined in `INVESTIGATION.md`.
+SEAM_QUESTIONS = ("Q1", "Q2", "Q3")
 # The §14 columns of `SDD-TEMPLATE.md`, lowercased; the first names the seam.
 HEADER_CELLS = ("seam", "existing contract", "planned change", "impacted flows",
                 "conventions", "verdict")
@@ -198,6 +202,10 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
         # One row may cite the same investigation in two cells; it is one
         # ledger, and one line about it.
         citations = list(dict.fromkeys(CITATION.findall(line)))
+        # A seam is what it is, what reaches it, and what changing it breaks.
+        # One ledger may answer all three; between them the row's citations
+        # have to.
+        answered: set[str] = set()
         for number in citations:
             try:
                 path = ledger_of(investigations, number)
@@ -219,6 +227,8 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
                     f"{name}: INV-{number} investigated {', '.join(subjects(document)) or 'nothing named'}, "
                     "so its citation does not name this seam")
                 continue
+            answered.update(item for item in ((document.get("run") or {}).get("type") or [])
+                            if isinstance(item, str))
             defects, verdict = validator.validate(document)
             if defects:
                 refusals.append(f"{name}: INV-{number} is structurally broken: {defects[0]}")
@@ -262,6 +272,12 @@ def check(sdd: Path, investigations: Path) -> tuple[list[str], list[str]]:
             if head and ledger_head and ledger_head != head:
                 notes.append(f"{name}: INV-{number} was traced at {ledger_head[:12]}, "
                              f"and the tree is at {head[:12]}")
+        unanswered = [item for item in SEAM_QUESTIONS if item not in answered]
+        if citations and unanswered:
+            refusals.append(
+                f"{name}: its investigations answer no {', '.join(unanswered)} question; "
+                "a seam row rests on what the symbol is, what reaches it, and what "
+                "changing it breaks")
     return refusals, notes
 
 

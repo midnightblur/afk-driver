@@ -27,6 +27,7 @@ gate = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gate)
 
 from test_validate_coverage import ledger, only  # noqa: E402
+from test_validate_coverage_shapes import agent_check  # noqa: E402
 
 SDD = """# SDD
 
@@ -63,14 +64,23 @@ class SddInvestigationGateTest(unittest.TestCase):
     def run_gate(self, *args):
         return gate.main([str(arg) for arg in args])
 
-    def closed(self):
-        document = ledger()
+    def closed(self, types=("Q1", "Q2", "Q3")):
+        """A ledger a seam row may rest on: closed, and asked all three ways."""
+        document = agent_check(ledger())
+        document["run"]["type"] = list(types)
+        for node in document["nodes"]:
+            node.setdefault("impact_verdict", "unchanged")
+            node.setdefault("pinned_by", "unguarded")
         document["run"]["verdict"] = "closed"
         return document
 
     def test_a_row_citing_a_closed_ledger_passes(self):
         sdd = self.write(document=self.closed())
         self.assertEqual(self.run_gate("--sdd", sdd), 0)
+
+    def test_a_row_whose_ledgers_ask_one_question_is_a_blocker(self):
+        sdd = self.write(document=self.closed(types=("Q1",)))
+        self.assertEqual(self.run_gate("--sdd", sdd), 1)
 
     def test_a_row_citing_nothing_is_a_blocker(self):
         sdd = self.write(rows="| the widget port | read the class | one new method | none | none | fits |",
@@ -155,7 +165,8 @@ class SddInvestigationGateTest(unittest.TestCase):
         document["nodes"].append(
             {"id": "B14:other-repo:1", "class": "B14", "site": "other-repo:1",
              "disposition": "frontier", "reason": "another repository",
-             "evidence": "the caller lives elsewhere", "parent": None, "query_id": None})
+             "evidence": "the caller lives elsewhere", "parent": None, "query_id": None,
+             "impact_verdict": "unchanged", "pinned_by": "unguarded"})
         document["claims"][0]["supporting_nodes"] = [
             "B1:alpha.java:2", "B14:other-repo:1"]
         sdd = self.write(document=document)

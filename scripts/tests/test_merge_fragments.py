@@ -27,7 +27,8 @@ _spec = importlib.util.spec_from_file_location(
 merge_fragments = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(merge_fragments)
 
-from test_validate_coverage import CLAIM, QUERY, ledger, validate_coverage  # noqa: E402
+from test_validate_coverage import (CLAIM, COMMAND, QUERY,  # noqa: E402
+                                    ledger, validate_coverage)
 
 HEAD = "0" * 40
 
@@ -42,6 +43,14 @@ def fragment(partition="p1", head=HEAD, classes=None, **tables) -> dict:
                                                      "seed": "seed.json"}}
     document.update({table: rows for table, rows in tables.items()})
     return document
+
+
+def hit(node_id, query=QUERY, line_hash="abcdef123456") -> dict:
+    """A node a search produced, carrying what the format asks of one."""
+    klass, _, site = node_id.partition(":")
+    return {"id": node_id, "class": klass, "site": site, "line_hash": line_hash,
+            "disposition": "terminal", "evidence": "the line the search returned",
+            "parent": None, "query_id": query}
 
 
 class MergeFragmentsTest(unittest.TestCase):
@@ -108,19 +117,26 @@ class MergeFragmentsTest(unittest.TestCase):
         for row in staging["boundaries"]:
             if row["class"] == "B1":
                 row.update({"hits": len(shared), "hit_ids": list(shared)})
-        merged = self.merge(staging, fragment(boundaries=[
-            {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": len(shared) + 1, "hit_ids": shared + ["B1:beta.java:4"],
-             "query_ids": [QUERY], "universe": "tracked files"}]))
+        ids = shared + ["B1:beta.java:4"]
+        merged = self.merge(staging, fragment(
+            boundaries=[{"class": "B1", "status": "closed", "method": "every name form",
+                         "hits": len(ids), "hit_ids": list(ids), "query_ids": [QUERY],
+                         "universe": "tracked files"}],
+            nodes=[hit(item) for item in ids],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": len(ids), "evidence": None, "origin": "seed"}]))
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
         self.assertEqual(row["hits"], len(shared) + 1)
         self.assertEqual(len(row["hit_ids"]), len(shared) + 1)
 
     def test_a_disjoint_row_counts_the_union(self):
-        merged = self.merge(ledger(), fragment(boundaries=[
-            {"class": "B1", "status": "closed", "method": "every name form",
-             "hits": 1, "hit_ids": ["B1:beta.java:4"], "query_ids": [QUERY],
-             "universe": "tracked files"}]))
+        merged = self.merge(ledger(), fragment(
+            boundaries=[{"class": "B1", "status": "closed", "method": "every name form",
+                         "hits": 1, "hit_ids": ["B1:beta.java:4"], "query_ids": [QUERY],
+                         "universe": "tracked files"}],
+            nodes=[hit("B1:beta.java:4")],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": 1, "evidence": None, "origin": "seed"}]))
         row = next(item for item in merged["boundaries"] if item["class"] == "B1")
         self.assertEqual(sorted(row["hit_ids"]),
                          ["B1:alpha.java:2", "B1:alpha.java:9", "B1:beta.java:4"])
@@ -129,18 +145,16 @@ class MergeFragmentsTest(unittest.TestCase):
     # Two fragments that disagree about one site have not settled it.
     def test_a_node_two_fragments_dispositioned_differently_reopens(self):
         merged = self.merge(ledger(), fragment(nodes=[
-            {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
-             "disposition": "irrelevant", "evidence": "the write", "parent": None,
-             "query_id": QUERY}]))
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+             "disposition": "irrelevant", "evidence": "the write"}]))
         node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
         self.assertEqual(node["disposition"], "unverified")
         self.assertIn("conflict: terminal vs irrelevant", node["reason"])
 
     def test_a_node_both_fragments_agree_on_stays_settled(self):
         merged = self.merge(ledger(), fragment(nodes=[
-            {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
-             "disposition": "terminal", "evidence": "the write", "parent":
-             "B1:alpha.java:2", "query_id": QUERY}]))
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+             "evidence": "the write", "parent": "B1:alpha.java:2"}]))
         node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
         self.assertEqual(node["disposition"], "terminal")
 
@@ -192,14 +206,8 @@ class MergeFragmentsTest(unittest.TestCase):
     # A re-trace of one partition carries nodes the first pass never had, so a
     # second, different fragment of that partition is a delta, not a repeat.
     def test_a_second_different_fragment_of_one_partition_folds(self):
-        first = fragment(partition="p1", nodes=[
-            {"id": "B1:beta.java:4", "class": "B1", "site": "beta.java:4",
-             "disposition": "terminal", "evidence": "the call", "parent": None,
-             "query_id": QUERY, "line_hash": "cccccccccccc"}])
-        second = fragment(partition="p1", nodes=[
-            {"id": "B1:beta.java:9", "class": "B1", "site": "beta.java:9",
-             "disposition": "terminal", "evidence": "the other call", "parent": None,
-             "query_id": QUERY}])
+        first = fragment(partition="p1", nodes=[hit("B1:beta.java:4")])
+        second = fragment(partition="p1", nodes=[hit("B1:beta.java:9")])
         merged = self.merge(ledger(), first, second)
         self.assertEqual(merged["run"]["merged_from"], 2)
         self.assertIn("B1:beta.java:9", [row["id"] for row in merged["nodes"]])
@@ -284,7 +292,7 @@ class MergeFragmentsTest(unittest.TestCase):
     # One id, two different searches: folding them keeps one and loses the other.
     def test_one_query_id_with_two_bodies_is_refused(self):
         clash = dict(ledger()["queries"][0])
-        clash["count"] = 77
+        clash["origin"] = "tracer"
         code, stderr, document = self.run_script(ledger(), fragment(queries=[clash]))
         self.assertEqual(code, 2)
         self.assertIn(clash["id"], stderr)
@@ -312,11 +320,20 @@ class MergeFragmentsTest(unittest.TestCase):
 
     # One id is the digest of one sentence: two sentences under it are forged.
     def test_one_claim_id_with_two_texts_is_refused(self):
+        kept = dict(ledger()["claims"][0])
+        forged = {**kept, "text": "the path starts somewhere else"}
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            merge_fragments.merge_claim(kept, forged)
+        self.assertIn("one id is one claim", str(refused.exception))
+
+    # A fragment whose claim id does not digest its text is refused before
+    # anything folds onto it.
+    def test_a_claim_id_that_does_not_digest_its_text_is_refused(self):
         forged = dict(ledger()["claims"][0])
         forged["text"] = "the path starts somewhere else"
         code, stderr, document = self.run_script(ledger(), fragment(claims=[forged]))
         self.assertEqual(code, 2)
-        self.assertIn("one id is one claim", stderr)
+        self.assertIn("cannot be recomputed", stderr)
         self.assertIsNone(document)
 
     # A fragment answering another question is another investigation.
@@ -371,6 +388,76 @@ class MergeFragmentsTest(unittest.TestCase):
         defects, verdict = validate_coverage.validate(document)
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "closed")
+    # A fragment is folded as its writer wrote it, or not at all.
+    def test_a_fragment_carrying_a_defect_is_refused_before_it_folds(self):
+        loose = {**hit("B1:beta.java:4")}
+        del loose["line_hash"]
+        code, stderr, document = self.run_script(ledger(), fragment(nodes=[loose]))
+        self.assertEqual(code, 2)
+        self.assertIn("line_hash", stderr)
+        self.assertIsNone(document)
+
+    def test_a_fragment_defect_names_the_row_it_is_in(self):
+        code, stderr, _ = self.run_script(ledger(), fragment(nodes=[
+            {**hit("B1:beta.java:4"), "site": "beta.java:5"}]))
+        self.assertEqual(code, 2)
+        self.assertIn("B1:beta.java:4", stderr)
+
+    # Two answers under one id are two answers; arrival order settles nothing.
+    def test_one_node_id_with_two_evidence_lines_is_refused(self):
+        code, stderr, document = self.run_script(ledger(), fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+             "evidence": "something else the reader saw"}]))
+        self.assertEqual(code, 2)
+        self.assertIn("one id is one node", stderr)
+        self.assertIsNone(document)
+
+    def test_one_counter_check_with_two_kinds_is_refused(self):
+        clash = dict(ledger()["counter_checks"][0])
+        clash["kind"] = "agent"
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            merge_fragments.merge_check(dict(ledger()["counter_checks"][0]), clash)
+        self.assertIn("one method over one class set is one check",
+                      str(refused.exception))
+
+    # A fragment of another run answers for a run this one is not.
+    def test_a_fragment_of_another_subject_is_refused(self):
+        item = fragment(nodes=[])
+        item["run"]["roots"] = ["some.other.Subject"]
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("run.roots", stderr)
+        self.assertIsNone(document)
+
+    def test_a_fragment_under_another_configuration_is_refused(self):
+        item = fragment(nodes=[])
+        item["run"]["config"] = {"path": ".afk/config.yaml", "sha256": "f" * 64}
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("run.config.sha256", stderr)
+        self.assertIsNone(document)
+
+    def test_a_partition_class_the_staging_ledger_never_carried_is_refused(self):
+        item = fragment(classes=["B1", "B99"], nodes=[])
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("B99", stderr)
+        self.assertIsNone(document)
+
+    # A class past the ceiling is re-asked, never folded.
+    def test_a_class_past_the_hit_limit_refuses_the_fold(self):
+        limit = merge_fragments.HIT_LIMIT
+        merge_fragments.HIT_LIMIT = 2
+        try:
+            ids = ["B1:beta.java:4", "B1:beta.java:5", "B1:beta.java:6"]
+            with self.assertRaises(merge_fragments.MergeError) as refused:
+                merge_fragments.merge_boundary(
+                    {"class": "B1", "status": "closed", "hit_ids": [], "hits": 0},
+                    {"class": "B1", "status": "closed", "hit_ids": ids,
+                     "hits": len(ids)})
+            self.assertIn("a class may carry", str(refused.exception))
+        finally:
+            merge_fragments.HIT_LIMIT = limit
 
 
 if __name__ == "__main__":

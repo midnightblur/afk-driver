@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from contract import (ALL_CLASSES, LINE_HASH_CHARS,  # noqa: E402
+from contract import (ALL_CLASSES, HIT_LIMIT, LINE_HASH_CHARS,  # noqa: E402
                       QUERY_ORIGINS, stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
@@ -139,9 +139,21 @@ def unknown(defects: list[str], table: str, where: str, row: dict) -> None:
         defects.append(f"{where}: {key!r} is not a field this format defines")
 
 
-def validate(ledger: dict) -> tuple[list[str], str]:
+def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
+    """Check a ledger.
+
+    `scope="rows"` checks the rows and their bindings alone — what a fragment
+    answers for. The run's own fields, the fourteen-class sweep, the
+    counter-search coverage and the verdict read on the whole investigation, so
+    a part of one is not held to them.
+    """
+    whole = scope != "rows"
     defects: list[str] = []
 
+    if not whole:
+        # A fragment carries the tables it has rows for. An absent table is
+        # nothing to check, not a defect: the fold checks the whole.
+        ledger = {**{table: [] for table in TABLES[1:]}, "run": {}, **ledger}
     for table in TABLES:
         if table not in ledger:
             defects.append(f"{table}: table missing")
@@ -165,32 +177,34 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         defects.append("run: must be a single object")
         run = {}
     unknown(defects, "run", "run", run)
-    for field in ("repository", "head", "question", "type", "roots", "aliases",
-                  "inventory_hash", "inventory_count", "started", "finished"):
-        if run.get(field) in (None, "", [], {}):
-            defects.append(f"run.{field}: required")
-    if not isinstance(run.get("design_phase"), bool):
-        defects.append("run.design_phase: true or false, never absent - it decides "
-                       "whether an agent-driven counter-search is owed")
-    config = run.get("config")
-    if not isinstance(config, dict) or not config.get("path") or not config.get("sha256"):
-        defects.append("run.config: the configuration behind the run, as "
-                       "{path, sha256}; one question over two configurations "
-                       "is two different searches")
+    if whole:
+        for field in ("repository", "head", "question", "type", "roots", "aliases",
+                      "inventory_hash", "inventory_count", "started", "finished"):
+            if run.get(field) in (None, "", [], {}):
+                defects.append(f"run.{field}: required")
+        if not isinstance(run.get("design_phase"), bool):
+            defects.append("run.design_phase: true or false, never absent - it decides "
+                           "whether an agent-driven counter-search is owed")
+        config = run.get("config")
+        if not isinstance(config, dict) or not config.get("path") or not config.get("sha256"):
+            defects.append("run.config: the configuration behind the run, as "
+                           "{path, sha256}; one question over two configurations "
+                           "is two different searches")
     for field in ("started", "finished"):
         stamp = run.get(field)
         if stamp and not TIMESTAMP.match(str(stamp)):
             defects.append(f"run.{field}: {stamp!r} is not an ISO-8601 timestamp")
-    if not isinstance(run.get("type"), list):
+    if whole and not isinstance(run.get("type"), list):
         defects.append("run.type: a list of question types, even when there is one")
     qtypes = types_of(run)
-    for qtype in qtypes:
-        if qtype not in QTYPES:
-            defects.append(f"run.type: {qtype!r} is not Q1-Q5")
-    for entry in (run.get("type") or []) if isinstance(run.get("type"), list) else []:
-        if not isinstance(entry, str):
-            defects.append(f"run.type: {entry!r} is not a question type; the rules a run "
-                           "owes are read off this list")
+    if whole:
+        for qtype in qtypes:
+            if qtype not in QTYPES:
+                defects.append(f"run.type: {qtype!r} is not Q1-Q5")
+        for entry in (run.get("type") or []) if isinstance(run.get("type"), list) else []:
+            if not isinstance(entry, str):
+                defects.append(f"run.type: {entry!r} is not a question type; the rules a "
+                               "run owes are read off this list")
 
     nodes = rows_of(defects, ledger, "nodes")
     node_ids: set[str] = set()
@@ -319,7 +333,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         (row.get("class"), row["site"])
         for row in nodes
         if isinstance(row.get("site"), str) and row.get("query_id") is None
-        and row.get("disposition") in ("traced", "terminal", "irrelevant")
+        and row.get("disposition") in ("traced", "terminal")
         and str(row.get("evidence") or "").strip()
     }
 
@@ -327,6 +341,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     # to a node that records the reading.
     node_evidence = {row["id"]: bool(str(row.get("evidence") or "").strip())
                      for row in nodes if isinstance(row.get("id"), str)}
+    node_index = {row["id"]: row for row in nodes if isinstance(row.get("id"), str)}
     read_node_ids = {row["id"] for row in nodes
                      if isinstance(row.get("id"), str) and row.get("query_id") is None}
 
@@ -362,6 +377,11 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             defects.append(
                 f"{where}: hits {hits} disagrees with {len(hit_ids)} node ids; "
                 "a row carries every hit it found, so the two are one number"
+            )
+        if isinstance(hits, int) and hits > HIT_LIMIT:
+            defects.append(
+                f"{where}: {hits} hits, past the {HIT_LIMIT} a class may carry; the "
+                "subject is too generic to answer and the run is re-seeded, not published"
             )
         if len(set(hit_ids)) != len(hit_ids):
             defects.append(f"{where}: the same node id appears twice in hit_ids")
@@ -414,9 +434,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 # The node that read it answers for THIS class: a read of one
                 # class's site says nothing about another's.
                 if not any(node_class == klass
-                           and (node_site == site
-                                or node_site.startswith(site + ":")
-                                or node_site.startswith(site + "/"))
+                           and (node_site == site or node_site.startswith(site + ":"))
                            for node_class, node_site in read_nodes):
                     defects.append(
                         f"{where}: site {site!r} closed the class with no node of {klass} "
@@ -436,28 +454,28 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if len(set(query_ids)) != len(query_ids):
             defects.append(f"{where}: the same query id appears twice in query_ids; "
                            "one execution counts once")
-        counted = 0
         for query_id in query_ids:
             if query_id not in query_index:
                 defects.append(f"{where}: query_id {query_id!r} is not in the queries table")
-                continue
-            count = query_index[query_id].get("count")
-            if isinstance(count, int) and count > 0:
-                counted += count
-        # A counter-search's hits are the class's hits, so its count answers for
-        # them even though its query stays out of the row's own method.
-        for query_id in sorted(countered.get(klass, set()) - set(query_ids)):
-            count = (query_index.get(query_id) or {}).get("count")
-            if isinstance(count, int) and count > 0:
-                counted += count
-        if query_ids and isinstance(hits, int) and hits > 0 and counted == 0:
+        # Every hit this row holds came out of a search it names, or out of a
+        # counter-search answering for this class. The nodes table is the
+        # arithmetic: a row cannot hold what no search of its own produced.
+        reachable = set(query_ids) | countered.get(klass, set())
+        produced = sum(1 for node in nodes
+                       if node.get("class") == klass
+                       and isinstance(node.get("query_id"), str)
+                       and node["query_id"] in reachable)
+        searched_here = sum(1 for node in nodes if node.get("class") == klass
+                            and isinstance(node.get("query_id"), str))
+        if isinstance(hits, int) and searched_here and produced != searched_here:
             defects.append(
-                f"{where}: {hits} hits, and every query it cites found nothing"
+                f"{where}: {searched_here - produced} of its searched nodes cite a query "
+                "neither this row nor a counter-search covering the class names"
             )
-        elif query_ids and isinstance(hits, int) and counted and counted < hits:
+        elif isinstance(hits, int) and hits != produced and searched_here:
             defects.append(
-                f"{where}: {hits} is more hits than its queries found ({counted}); a row "
-                "cannot hold what no query returned"
+                f"{where}: hits {hits} disagrees with the {produced} nodes its searches "
+                "produced; a row holds exactly what its searches found"
             )
         if status in ("closed", "partial") and query_ids and not by_reading:
             searched[klass] = row.get("method") or ""
@@ -465,9 +483,25 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             open_classes += 1
         elif status == "frontier":
             frontier_classes += 1
-    for klass in ALL_CLASSES:
-        if klass not in seen:
-            defects.append(f"boundaries.{klass}: no verdict; a skipped class reads as an absence")
+    if whole:
+        for klass in ALL_CLASSES:
+            if klass not in seen:
+                defects.append(
+                    f"boundaries.{klass}: no verdict; a skipped class reads as an absence")
+
+    # A query's count is what it put in the nodes table: two numbers for one
+    # search is one of them lying, and the table is the one a reader can check.
+    citing: dict[str, int] = {}
+    for row in nodes:
+        if isinstance(row.get("query_id"), str):
+            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+    for query_id, row in query_index.items():
+        count = row.get("count")
+        if isinstance(count, int) and count != citing.get(query_id, 0):
+            defects.append(
+                f"queries.{query_id}: count {count} disagrees with the "
+                f"{citing.get(query_id, 0)} nodes citing it"
+            )
 
     # A node a search produced is bound to that search, and the search is one
     # its own class says it ran. A node citing a query no row cites is a node
@@ -495,7 +529,16 @@ def validate(ledger: dict) -> tuple[list[str], str]:
                 "the row's count would not see it"
             )
 
-    node_index = {row["id"]: row for row in nodes if isinstance(row.get("id"), str)}
+
+    # A node the table walks on from is a node the path went through, whatever
+    # a row calls it: `terminal` over a child says the path ended and continued.
+    for row in nodes:
+        node_id = row.get("id")
+        if node_id in parents and row.get("disposition") not in ("traced", "unverified"):
+            defects.append(
+                f"nodes.{node_id}: {row.get('disposition')!r}, and the table reaches "
+                "on from it; a path the run followed further is traced"
+            )
 
     # A traced node says the path goes on, so the path has to end somewhere:
     # a chain that loops, or that walks off the table, describes nothing.
@@ -603,17 +646,21 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if state == "complete":
             # A check that ran the class's own searches ran the same pass
             # twice; a counter-search is a different method by definition.
-            own = {item for item in (row.get("query_ids") or []) if isinstance(item, str)}
+            own = {(query_index.get(item) or {}).get("command")
+                   for item in (row.get("query_ids") or []) if isinstance(item, str)}
+            own.discard(None)
             for klass in row.get("classes") or []:
-                # A counter-search is a second method. When the class row names
-                # no search this check did not run, the check IS the class's
-                # method, and nothing was weighed against anything.
-                primary = {item for item in ((seen.get(klass) or {}).get("query_ids") or [])
+                # A counter-search is a second method, so it ran a different
+                # command. Same command under another universe label is the
+                # class's own pass wearing a second name.
+                primary = {(query_index.get(item) or {}).get("command")
+                           for item in ((seen.get(klass) or {}).get("query_ids") or [])
                            if isinstance(item, str)}
+                primary.discard(None)
                 if own and primary and own <= primary:
                     defects.append(
-                        f"{where}: it ran no search boundaries.{klass} does not already "
-                        "name, so no different method reached the class"
+                        f"{where}: it ran no command boundaries.{klass} does not already "
+                        "run, so no different method reached the class"
                     )
             # `complete` says the method ran. A deterministic method ran as a
             # query; an agent-driven one ran as reading. Either way the record
@@ -621,14 +668,30 @@ def validate(ledger: dict) -> tuple[list[str], str]:
             # rather than an absence of work.
             cited = [item for item in (row.get("query_ids") or []) if item in query_index
                      and not runs_nothing(query_index[item].get("command") or "")]
+            covered_classes = {item for item in (row.get("classes") or [])
+                               if isinstance(item, str)}
             read = [item for item in (row.get("evidence_nodes") or [])
                     if node_evidence.get(item) and item in read_node_ids]
             if row.get("kind") == "agent":
+                if not covered_classes:
+                    defects.append(
+                        f"{where}: a complete agent-driven check names the classes it "
+                        "answers for; one answering for none answers for nothing"
+                    )
                 if not read:
                     defects.append(
                         f"{where}: a complete agent-driven check names in evidence_nodes at "
                         "least one node it read, carrying evidence"
                     )
+                # The reading has to be of the classes the check answers for:
+                # a node of another class is another class's evidence.
+                for item in read:
+                    node_class = (node_index.get(item) or {}).get("class")
+                    if covered_classes and node_class not in covered_classes:
+                        defects.append(
+                            f"{where}: evidence node {item!r} is of {node_class}, which "
+                            "this check does not answer for"
+                        )
             elif not cited:
                 defects.append(
                     f"{where}: a complete deterministic check names in query_ids at least "
@@ -657,31 +720,33 @@ def validate(ledger: dict) -> tuple[list[str], str]:
         if row.get("state") == "pending":
             pending_cover.update(item for item in row.get("classes") or []
                                  if isinstance(item, str))
-    for klass, method in sorted(searched.items()):
-        methods = covered.get(klass)
-        if not methods and klass in pending_cover:
-            continue
-        if not methods:
-            defects.append(
-                f"boundaries.{klass}: closed by a search with no complete counter-search "
-                "covering it; a search nobody tried to break is one method's answer"
-            )
-        elif all(item == method for item in methods):
-            defects.append(
-                f"boundaries.{klass}: its counter-search used the same method as its "
-                "primary search, so it could not have returned anything new"
-            )
+    if whole:
+        for klass, method in sorted(searched.items()):
+            methods = covered.get(klass)
+            if not methods and klass in pending_cover:
+                continue
+            if not methods:
+                defects.append(
+                    f"boundaries.{klass}: closed by a search with no complete counter-search "
+                    "covering it; a search nobody tried to break is one method's answer"
+                )
+            elif all(item == method for item in methods):
+                defects.append(
+                    f"boundaries.{klass}: its counter-search used the same method as its "
+                    "primary search, so it could not have returned anything new"
+                )
 
-    if not complete:
-        defects.append(
-            "counter_checks: every question type needs one complete counter-search; none recorded"
-        )
-    if (set(qtypes) & AGENT_COUNTER_TYPES) or run.get("design_phase"):
-        if not [row for row in complete if row.get("kind") == "agent"]:
+        if not complete:
             defects.append(
-                "counter_checks: this run needs a complete agent-driven counter-search "
-                "(INVESTIGATION.md § Counter-search)"
+                "counter_checks: every question type needs one complete counter-search; "
+                "none recorded"
             )
+        if (set(qtypes) & AGENT_COUNTER_TYPES) or run.get("design_phase"):
+            if not [row for row in complete if row.get("kind") == "agent"]:
+                defects.append(
+                    "counter_checks: this run needs a complete agent-driven counter-search "
+                    "(INVESTIGATION.md § Counter-search)"
+                )
 
     if defects:
         verdict = "partial"
@@ -693,7 +758,7 @@ def validate(ledger: dict) -> tuple[list[str], str]:
     else:
         verdict = "closed"
 
-    claimed = run.get("verdict")
+    claimed = run.get("verdict") if whole else None
     if claimed is not None:
         if claimed not in VERDICTS:
             defects.append(
