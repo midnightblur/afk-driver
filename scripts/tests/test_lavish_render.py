@@ -905,7 +905,6 @@ class TableLayoutGroups(unittest.TestCase):
             item_id = row.attrs["data-afk-item"]
             self.assertEqual(row.attrs.get("id"), "afk-i-%s" % item_id)
             self.assertEqual(row.attrs.get("data-afk-state"), "open")
-            self.assertEqual(row.attrs.get("data-afk-group"), "bulk")
 
     def test_every_row_anchor_resolves_to_an_element_that_exists(self):
         html = render(self.table_doc())

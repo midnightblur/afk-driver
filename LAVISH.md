@@ -79,8 +79,8 @@ one of those two commands in between.
 | RP | Playbook id | Path |
 |----|-------------|------|
 | RP-1 | `comparison` | kit |
-| RP-2 | `plan` | kit |
-| RP-3 | `table` | kit |
+| RP-2 | `plan` | authored |
+| RP-3 | `table` | authored |
 | RP-4 | `table` | kit |
 | RP-5 | `slides` | authored |
 | RP-6 | `diagram` | kit |

@@ -79,8 +79,6 @@ def item_attrs(item, answerable):
     attrs = [_attr("id", anchor(item["id"])),
              _attr("data-afk-item", item["id"]),
              _attr("data-afk-state", item["state"])]
-    if item.get("group"):
-        attrs.append(_attr("data-afk-group", item["group"]))
     if item.get("fresh"):
         attrs.append(" data-afk-fresh")
     if answerable and schema.required_mark(item):

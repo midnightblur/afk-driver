@@ -107,11 +107,13 @@ first released heading here.
   six-field record that a cell would either truncate or make unreadable, so an
   intact one there is a hard exit naming it.
 
-  This is what the plan page (RP-2), the verification matrix (RP-3) and
-  findings triage (RP-4) were waiting for -- all three are dozens of items
-  needing one mark each, which is a matrix, not a card stack. Their Path rows
-  now read `kit`, so no model writes their markup. The weaving skills needed
-  no edit: each points at its RP row rather than restating a path.
+  Findings triage (RP-4) moves onto the kit because of it -- dozens of
+  findings needing one disposition each is a matrix, not a card stack -- so no
+  model writes that page any more. The plan page (RP-2) and the verification
+  matrix (RP-3) stay authored: the ship-time seam check proved neither flip
+  was earned. RP-2 wants a multi-pick control for its `opt-in:` picks and the
+  kit offers one radio set per item; RP-3 wants domain columns that the
+  table's fixed five cannot carry.
 
 - **One browser tab per lavish session.** A round used to open a fresh tab,
   because the plain render shape opens the browser and a session-default weave

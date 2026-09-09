@@ -93,10 +93,10 @@ def _grouped(live, header, states):
             cards = C.confirm_table(members, states)
         else:
             cards = "".join(C.render_item(i, states, level=4) for i in members)
-        out.append('<section class="afk-group" id="afk-g-%s" data-afk-group="%s">'
+        out.append('<section class="afk-group" id="afk-g-%s">'
                    '<h3 class="afk-group-h">%s <span class="afk-count">%d</span>%s</h3>'
                    '<div class="afk-cards">%s</div></section>'
-                   % (C.esc(group["id"]), C.esc(group["id"]), C.esc(group["title"]),
+                   % (C.esc(group["id"]), C.esc(group["title"]),
                       len(members), waits, cards))
 
     # Nothing may fall between the groups. The schema binds every live card to
