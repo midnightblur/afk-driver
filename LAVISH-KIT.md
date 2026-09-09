@@ -41,6 +41,7 @@ work.
 | `feature` | yes | spec-folder tail or ticket id — the second half |
 | `rounds[]` | yes | every round so far, oldest first |
 | `spec_dir` | no | repo-relative spec folder; emitted as the `afk-spec-dir` meta the tooltip layer reads |
+| `stage` | no | which chain stage this session sits in — `requirements`, `design`, `verification`, `plan`, `execution`, `smoke`, `ship`. Lights the process rail; absent, there is no rail |
 
 A round: `round` (positive integer), `state` (`current` or `settled`),
 `items[]`, and `header` (a `round_header`, required on the current round).
@@ -210,9 +211,22 @@ Every hard exit guards auditability or identity. None guards size.
 
 ## Skeleton
 
-Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · the
-current round · **the sticky send bar** · items still open from earlier rounds ·
-settled history, newest first · the inline runtime.
+Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · **the
+process rail** · title · **the round strip** · the current round · **the sticky
+send bar** · items still open from earlier rounds · settled history in round
+sections, newest round first · the inline runtime.
+
+Both strips sit above the round: the map reads before the detail, and neither
+needs opening. The **process rail** is the chain stages with `stage` lit, and
+`done` / `upcoming` come from that stage's position in the fixed order — no
+author states them, so none can state them wrongly. It carries no links: a
+done stage's artifact path is a fact `skills/afk/to-prd/INDEX-FORMAT.md`
+already owns, and a second copy would go stale against it. The **round strip**
+is one notch per round carrying its card count, its group count and how many
+of its cards are still open — counts, not a progress bar, because there is no
+target round count for a round to be a fraction of. Every notch lands on a
+round section that exists: `afk-r-{n}`, which is why settled history is
+sectioned by round rather than flat.
 
 The bar sits in the flow directly under the round it sends, and is `sticky`,
 never `fixed`. Two ways a document-end bar disappears: settled history outgrows

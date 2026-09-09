@@ -251,3 +251,43 @@ a { color: var(--accent); }
   padding: .1rem .4rem; border-radius: 3px;
 }
 .afk-badge--open { background: var(--open); color: var(--bg); }
+
+/* --- the two strips ---------------------------------------------------- */
+
+/* Where the session sits in the chain. Sticky, because the map answering
+ * "where am I" is worth less once it has scrolled away. */
+.afk-rail {
+  position: sticky; top: 0; z-index: 30;
+  margin: -1.5rem -1.5rem 1rem; padding: .5rem 1.5rem;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.afk-rail ol, .afk-strip ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+}
+.afk-step {
+  font-size: .78rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.afk-step + .afk-step::before { content: "→"; margin-right: .4rem; color: var(--line); }
+.afk-step--done { color: var(--settled); }
+.afk-step--current { color: var(--fg); font-weight: 700; }
+.afk-step--upcoming { color: var(--fg-dim); opacity: .7; }
+
+/* The rounds so far. Notches, not a progress bar: there is no target count
+ * for a round to be a fraction of. */
+.afk-strip { margin: 0 0 1.25rem; }
+.afk-notch a {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .35rem .6rem; min-width: 6.5rem;
+  border: 1px solid var(--line); border-top: 3px solid var(--neutral);
+  border-radius: 0 0 4px 4px;
+  color: var(--fg); text-decoration: none; font-size: .8rem;
+}
+.afk-notch a:hover { border-color: var(--accent); }
+.afk-notch a span { color: var(--fg-dim); }
+.afk-notch--settled a { border-top-color: var(--settled); }
+.afk-notch--current a { border-top-color: var(--accent); background: var(--surface); }
+
+.afk-round-past { margin: 1.25rem 0; }
+.afk-round-past > h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--fg-dim); }

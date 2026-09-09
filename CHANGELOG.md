@@ -32,6 +32,15 @@ first released heading here.
   it, so a closed card is still markable and scanning and answering are one
   pass. Contract: `LAVISH-KIT.md`.
 
+- **Two strips above the round** — a **process rail** showing the chain stages
+  with this session's lit (`stage` on the round document; `done` and `upcoming`
+  are derived from its position, so no author can state them wrongly), and a
+  **round strip** of one notch per round carrying its card count, group count
+  and how many cards are still open. Counts, not a progress bar: there is no
+  target round count for a round to be a fraction of. Every notch lands on a
+  round section, which is why settled history is now sectioned by round —
+  newest round first — instead of one flat list.
+
 - **Dependency chips on a dependent card** — parent ids as links to the parent
   card, plus a `provisional` badge while a parent is still unmarked. The states
   are read off the artifact, not off the card: a card cannot know whether its

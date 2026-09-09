@@ -105,6 +105,16 @@ def render(doc):
     return page.build(schema.load(copy.deepcopy(doc)))
 
 
+def body_of(html):
+    """The rendered markup without the inlined stylesheet and runtime.
+
+    Twice now an assertion about the page has matched a CSS comment or a class
+    name in the stylesheet instead of an element. Any test asking whether
+    something is *absent* asks it of this, not of the whole document.
+    """
+    return html.split("<body>", 1)[1].split("<script>", 1)[0]
+
+
 def first_component(doc, component):
     """The first item of a component kind, for tests that break one field."""
     for rnd in doc["rounds"]:
@@ -653,6 +663,73 @@ class Navigability(unittest.TestCase):
         self.current(doc)["items"][0]["depends_on"] = ["Q-2"]
         html = render(doc)
         self.assertIn('id="afk-i-Q-2"', html)
+
+
+class TheTwoStrips(unittest.TestCase):
+    """W-1 and W-2: where the session sits, and where this round sits in it."""
+
+    def test_the_process_rail_lights_the_document_stage(self):
+        html = render(load_fixture())
+        rail = html.split('class="afk-rail"')[1].split("</nav>")[0]
+        self.assertIn('afk-step--current" aria-current="step">design', rail)
+        self.assertIn("afk-step--done", rail)
+        self.assertIn("afk-step--upcoming", rail)
+
+    def test_done_and_upcoming_are_derived_from_the_stage_order(self):
+        """Nobody authors them, so nobody can author them wrongly."""
+        doc = load_fixture()
+        doc["stage"] = schema.STAGES[0]
+        rail = render(doc).split('class="afk-rail"')[1].split("</nav>")[0]
+        self.assertNotIn("afk-step--done", rail)
+        doc["stage"] = schema.STAGES[-1]
+        rail = render(doc).split('class="afk-rail"')[1].split("</nav>")[0]
+        self.assertNotIn("afk-step--upcoming", rail)
+
+    def test_a_document_with_no_stage_gets_no_rail(self):
+        doc = load_fixture()
+        del doc["stage"]
+        self.assertNotIn("afk-rail", body_of(render(doc)))
+
+    def test_a_stage_outside_the_chain_is_refused(self):
+        doc = load_fixture()
+        doc["stage"] = "brainstorm"
+        with self.assertRaises(schema.ContractError):
+            schema.load(doc)
+
+    def test_one_notch_per_round_carrying_what_it_holds(self):
+        html = render(load_fixture())
+        strip = html.split('class="afk-strip"')[1].split("</nav>")[0]
+        self.assertEqual(strip.count("<li"), 2)
+        self.assertIn("afk-notch--settled", strip)
+        self.assertIn("afk-notch--current", strip)
+        self.assertIn("6 cards", strip)
+        self.assertIn("3 groups", strip)
+        self.assertIn("6 to answer", strip)
+
+    def test_every_notch_lands_on_an_element_that_exists(self):
+        """A strip is navigation; a notch pointing at nothing is worse than none."""
+        html = render(load_fixture())
+        strip = html.split('class="afk-strip"')[1].split("</nav>")[0]
+        targets = [chunk.split('"')[0] for chunk in strip.split('href="#')[1:]]
+        self.assertTrue(targets)
+        for target in targets:
+            self.assertIn('id="%s"' % target, html)
+
+    def test_settled_history_is_sectioned_by_round_newest_first(self):
+        doc = load_fixture()
+        # A second settled round, so "newest first" has something to order.
+        doc["rounds"].insert(1, {"round": 2, "state": "settled",
+                                 "items": [{"component": "settled_card", "id": "D-9",
+                                            "decision": "An earlier call",
+                                            "round": 2, "by": "human",
+                                            "evidence": "the human's own words"}]})
+        for rnd in doc["rounds"]:
+            if rnd["state"] == "current":
+                rnd["round"] = 3
+                rnd["header"]["round"] = 3
+        html = render(doc)
+        self.assertLess(html.index('id="afk-r-2"'), html.index('id="afk-r-1"'),
+                        "settled rounds read newest first")
 
 
 class DeadLinks(unittest.TestCase):

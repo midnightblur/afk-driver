@@ -29,6 +29,12 @@ COMPONENTS = (
 )
 
 GRADES = ("repo", "spec", "pattern")
+
+# The chain stages, in order, for the process rail. Order is the whole content:
+# `done` and `upcoming` are read off the position of the round document's own
+# `stage`, so no author states them and none can state them wrongly.
+STAGES = ("requirements", "design", "verification", "plan", "execution",
+          "smoke", "ship")
 ITEM_STATES = ("open", "blocked", "settled")
 ROUND_STATES = ("current", "settled")
 
@@ -70,7 +76,7 @@ OPTIONAL = {
 COMMON_ITEM = ("component", "id", "state", "fresh", "group")
 
 GROUP_KEYS = ("id", "title", "after")
-DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir")
+DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir", "stage")
 ROUND_KEYS = ("round", "state", "items", "header")
 
 # The six decided-card contract fields, in render order (C-1 … C-6).
@@ -400,6 +406,10 @@ def load(doc):
     for field in ("feature", "purpose", "rounds"):
         if _empty(doc.get(field)):
             raise ContractError("document: required field %r is missing or empty" % field)
+    stage = doc.get("stage")
+    if stage is not None and stage not in STAGES:
+        raise ContractError("document: `stage` %r is not a chain stage (%s)"
+                            % (stage, ", ".join(STAGES)))
     rounds = doc["rounds"]
     if not isinstance(rounds, list):
         raise ContractError("document: `rounds` must be a list")

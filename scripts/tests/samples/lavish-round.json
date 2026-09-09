@@ -1,6 +1,7 @@
 {
   "schema": 1,
   "feature": "example-feature",
+  "stage": "design",
   "purpose": "Design round",
   "spec_dir": "docs/example-feature",
   "rounds": [

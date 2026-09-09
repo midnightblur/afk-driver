@@ -29,6 +29,29 @@ def _asset(name):
         return handle.read()
 
 
+def _settled_by_round(settled):
+    """Settled history in round subsections, newest round first.
+
+    The round strip needs somewhere to land, and a flat newest-first list has
+    no per-round target. Grouping by round gives every notch an anchor and
+    keeps the newest-first order the human reads history in.
+    """
+    if not settled:
+        return ""
+    order = []
+    for number, _ in settled:
+        if number not in order:
+            order.append(number)
+    blocks = []
+    for number in sorted(order, reverse=True):
+        cards = [item for round_number, item in settled if round_number == number]
+        blocks.append('<section class="afk-round-past" id="afk-r-%d">'
+                      '<h3>Round R-%d</h3><div class="afk-cards">%s</div></section>'
+                      % (number, number, "".join(cards)))
+    return ('<section class="afk-section" id="afk-settled"><h2>Settled</h2>%s</section>'
+            % "".join(blocks))
+
+
 def _section(section_id, heading, cards):
     if not cards:
         return ""
@@ -99,7 +122,7 @@ def _split(doc):
             current = rnd
     carried.sort(key=lambda pair: pair[0])
     settled.sort(key=lambda pair: -pair[0])
-    return current, [i for _, i in carried], [i for _, i in settled]
+    return current, [i for _, i in carried], settled
 
 
 def build(doc):
@@ -116,9 +139,10 @@ def build(doc):
     round_heading = "Round R-%d%s — %d to answer" % (
         header["round"], of_target, len(live))
     round_section = (
-        '<section class="afk-round" data-afk-item="%s" data-afk-state="current">'
+        '<section class="afk-round" id="afk-r-%d" data-afk-item="%s" '
+        'data-afk-state="current">'
         '<h2 class="afk-h">%s</h2>%s%s</section>'
-        % (C.esc(current["id"]), C.esc(round_heading),
+        % (header["round"], C.esc(current["id"]), C.esc(round_heading),
            C.round_header(header, len(live)),
            _grouped(live, header, states)))
 
@@ -146,15 +170,19 @@ def build(doc):
     # current round strands a document-end bar below every settled card, and a
     # host that sizes its frame to content height defeats `position: fixed` as
     # well — so the only placement that holds is next to the cards it sends.
+    # The two strips sit above the round: the map reads before the detail, and
+    # both are static data the human never has to open anything to see.
     body = [
+        C.process_rail(doc.get("stage")),
         '<h1 class="afk-title">%s</h1>' % C.esc(doc["purpose"]),
         '<p class="afk-sub">%s</p>' % C.esc(doc["feature"]),
+        C.round_strip(doc),
         round_section,
         send_bar,
         _section("afk-open", "Still open from earlier rounds",
                  [C.render_item(i, states) for i in carried]),
-        _section("afk-settled", "Settled",
-                 [C.render_item(i, states) for i in settled]),
+        _settled_by_round([(number, C.render_item(item, states))
+                           for number, item in settled]),
     ]
 
     spec_dir = doc.get("spec_dir")

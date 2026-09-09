@@ -174,6 +174,60 @@ def prose(text):
 
 
 # --------------------------------------------------------------------------
+# The two strips — where this session sits, and where this round sits in it
+# --------------------------------------------------------------------------
+
+def process_rail(stage):
+    """The chain stages, this session's lit. Absent stage, absent rail.
+
+    No links. A done stage's artifact path is a fact `skills/afk/to-prd/
+    INDEX-FORMAT.md` already owns, and a second copy here would go stale
+    against it — the rail answers where the session is, which needs no path.
+    """
+    if not stage:
+        return ""
+    now = schema.STAGES.index(stage)
+    steps = []
+    for index, name in enumerate(schema.STAGES):
+        state = "done" if index < now else ("current" if index == now else "upcoming")
+        steps.append('<li class="afk-step afk-step--%s"%s>%s</li>'
+                     % (state,
+                        ' aria-current="step"' if state == "current" else "",
+                        esc(name)))
+    return ('<nav class="afk-rail" aria-label="Where this session sits in the chain">'
+            "<ol>%s</ol></nav>" % "".join(steps))
+
+
+def round_strip(doc):
+    """One notch per round, carrying what the round holds.
+
+    The notch labels are counts, not a progress bar: there is no target round
+    count to be a fraction of. A session with one round still gets a strip —
+    it says the session has one round, which is a fact about the shape.
+    """
+    rounds = doc["rounds"]
+    notches = []
+    for rnd in rounds:
+        live = [i for i in rnd["items"] if i["state"] != "settled"]
+        done = [i for i in rnd["items"] if i["state"] == "settled"]
+        groups = (rnd.get("header") or {}).get("groups") or []
+        counts = ["%d card%s" % (len(rnd["items"]),
+                                 "" if len(rnd["items"]) == 1 else "s")]
+        if groups:
+            counts.append("%d group%s" % (len(groups), "" if len(groups) == 1 else "s"))
+        if rnd["state"] == "current" and live:
+            counts.append("%d to answer" % len(live))
+        elif done:
+            counts.append("%d settled" % len(done))
+        notches.append(
+            '<li class="afk-notch afk-notch--%s"><a href="#afk-r-%d">'
+            '<b>R-%d</b><span>%s</span></a></li>'
+            % (rnd["state"], rnd["round"], rnd["round"], esc(" · ".join(counts))))
+    return ('<nav class="afk-strip" aria-label="The rounds so far">'
+            "<ol>%s</ol></nav>" % "".join(notches))
+
+
+# --------------------------------------------------------------------------
 # round_header — "Where we are", "Before you read", "The fork", next strip
 # --------------------------------------------------------------------------
 
