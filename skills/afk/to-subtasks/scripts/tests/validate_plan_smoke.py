@@ -48,9 +48,10 @@ def write(path, text):
         f.write(text)
 
 
-def run(plan_dir):
+def run(plan_dir, env=None):
+    environment = dict(os.environ, **(env or {}))
     p = subprocess.run([sys.executable, SCRIPT, plan_dir],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=environment)
     return p.returncode, p.stdout + p.stderr
 
 
@@ -121,6 +122,13 @@ SDD_SEAMS = """# SDD
 | the service port | INV-001 | one new method | none (INV-001) | none | fits |
 """
 
+# The dirty plan's seams, each row a different way the ground fails.
+SDD_DIRTY = SDD_SEAMS + "".join(
+    f"| {name} | INV-{number} | one new method | none (INV-{number}) | none | fits |\n"
+    for name, number in (("the other port", "001"), ("the open port", "007"),
+                         ("the third port", "404"), ("the twin port", "001"),
+                         ("twin port", "001"), ("the double port", "008")))
+
 
 def build_clean(root):
     plan = os.path.join(root, "repo", "tasks", "T-1", "plan")
@@ -163,9 +171,12 @@ def build_dirty(root):
     # a ledger that exists and never closed -> I-SEAM-NOT-CLOSED
     write(os.path.join(root, "repo", "tasks", "T-2", "investigations",
                        "INV-007-the-open-port", "COVERAGE.json"), "{}")
+    # one id, two directories -> I-SEAM-NO-LEDGER rather than a first-wins pick
+    for slug in ("INV-008-the-double-port", "INV-008-the-double-port-again"):
+        write(os.path.join(root, "repo", "tasks", "T-2", "investigations",
+                           slug, "COVERAGE.json"), closed_ledger())
     # the SDD cites another investigation for the same seam -> I-SEAM-UNGROUNDED
-    write(os.path.join(root, "repo", "tasks", "T-2", "SDD.md"),
-          SDD_SEAMS.replace("the service port", "the other port"))
+    write(os.path.join(root, "repo", "tasks", "T-2", "SDD.md"), SDD_DIRTY)
     # gate has 1 ui-e2e row but the plan has 2 -> G-PARITY-UI; bogus policy -> H-POLICY
     write(os.path.join(plan, "PLAN.md"),
           plan_md(gate_table(1, 1), policy="> Review policy: strict\n"))
@@ -196,6 +207,8 @@ def build_dirty(root):
         produces="- svc/C.java#SomeLaterProducedThing — the thing [materialized]",
         seams=("- implement: the service port — no investigation named\n"
                "- use: the other port — the SDD cites another (INV-002)\n"
+               "- use: the twin port — two SDD rows answer to it (INV-001)\n"
+               "- use: the double port — two ledgers answer to it (INV-008)\n"
                "- use: the open port — a ledger that never closed (INV-007)\n"
                "- use: the third port — a ledger nobody wrote (INV-404)")))
     # 0003: collides with 0002 on the same file#anchor (A-COLLISION); consumes it
@@ -245,10 +258,22 @@ def main():
                      "B-MAT-UNRESOLVED", "E-STATIC", "E-TIER-E2E", "E-TIER-API",
                      "E-TIER-INTEGRATION", "G-PARITY-UI", "G-BUILD-MISSING", "G-BLOCKEDBY",
                      "H-POLICY", "H-POLICY-VALUE", "H-OPT-IN-UNKNOWN", "H-REVIEW-LINE",
-                     "I-SEAM-UNGROUNDED", "I-SEAM-NO-LEDGER", "I-SEAM-NOT-CLOSED"]:
+                     "I-SEAM-UNGROUNDED", "I-SEAM-NO-LEDGER", "I-SEAM-NOT-CLOSED",
+                     "I-SEAM-AMBIGUOUS"]:
             (ok if rule + ":" in out else bad)(f"dirty plan flags {rule}")
+        (ok if "resolves to more than one ledger" in out else bad)(
+            "dirty plan flags a seam id two ledger directories answer to")
         (ok if "is not cited by the SDD" in out else bad)(
             "dirty plan flags a seam citing an investigation the SDD row does not")
+        # A validator that did not load checks nothing, and says so rather
+        # than passing a plan nobody checked.
+        blind = os.path.join(tmp, "no-scripts")
+        os.makedirs(blind, exist_ok=True)
+        rc, blind_out = run(os.path.join(tmp, "repo", "tasks", "T-1", "plan"),
+                            env={"AFK_INVESTIGATE_SCRIPTS": blind})
+        (ok if rc == 1 and "I-SEAM-NO-VALIDATOR:" in blind_out else bad)(
+            f"a plan whose validator does not load exits 1 with I-SEAM-NO-VALIDATOR "
+            f"(got {rc})")
         for absent in ["G-NO-GATE", "G-PHANTOM-BUILD", "G-FULL-WITHOUT-PLAN", "SYNTAX"]:
             (ok if absent + ":" not in out else bad)(f"dirty plan does not flag {absent}")
 

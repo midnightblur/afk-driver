@@ -41,6 +41,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import traceback
@@ -605,15 +606,17 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     declared = build_class_map(block)
     seed_reason = "seed map hit, not yet triaged"
 
-    def note(command: str, universe: str, count: int) -> str:
+    def note(command: str, universe: str, lines: int) -> str:
         """Record the query and hand back its id, so a row can point at it.
 
         `command` is the literal thing that ran, expressions included — the id
         is its digest, so a label like `<default patterns>` would collide two
         different searches into one row and lose one of them on a merge.
+        `lines` is what the search returned; `count` is the nodes citing it,
+        and the finalization pass reads that off the nodes table.
         """
         row = {"id": stable_id("q", command + universe), "command": command,
-               "universe": universe, "count": count, "evidence": None,
+               "universe": universe, "count": 0, "lines": lines, "evidence": None,
                "origin": "seed"}
         queries.setdefault(row["id"], row)
         return row["id"]
@@ -622,9 +625,9 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                      extra: list[str] | None = None) -> str:
         """The invocation, written out — what `note` digests into a query id."""
         parts = ["git grep -n -I -E", *(extra or [])]
-        parts += [f"-e {pattern!r}" for pattern in patterns]
+        parts += [f"-e {shlex.quote(pattern)}" for pattern in patterns]
         if pathspecs:
-            parts += ["--", *pathspecs]
+            parts += ["--", *(shlex.quote(spec) for spec in pathspecs)]
         return " ".join(parts)
 
     def carries_simple(value: str) -> bool:
@@ -670,13 +673,16 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
     # tracked pass, and the wider case-blind pass is the counter-search's. Two
     # commands, two counts, and every hit tagged with the one that produced it.
     wider_only = [hit for hit in wide if (hit["file"], hit["line"]) not in kept]
+    wide_command = grep_command(primary_patterns, None, ["-i", "--untracked"])
+    # Two searches ran: the wide grep, and the filter this pass applied to its
+    # results. Each is recorded as itself — a command nobody executed is a
+    # command nobody can rerun, whatever it would have returned.
     # The name-form queries; every class searching B1's hit set points at them.
-    name_query_ids = [note(grep_command(primary_patterns, None),
+    name_query_ids = [note(f"filter: case-sensitive, tracked files only, over {wide_command}",
                            "tracked text files, binary excluded", len(b1_hits))]
     ledger.tag(b1_hits, name_query_ids[0])
     seen = set(kept)
-    second_universe_id = note(grep_command(primary_patterns, None, ["-i", "--untracked"]),
-                              second_universe, len(wider_only))
+    second_universe_id = note(wide_command, second_universe, len(wide))
     ledger.tag(wider_only, second_universe_id)
 
     # Counter-search one: a name form that does not carry the simple name — a

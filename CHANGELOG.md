@@ -55,11 +55,16 @@ first released heading here.
   ledger and an uncited load-bearing claim, and prints the verdict the record
   supports — `closed`, `closed-with-frontier`, or `partial`. A boundary row
   carries every hit it found, so `hits`, `hit_ids` and the nodes table are one
-  set: a searched line no row counts is a defect, and a class past 20000 hits
+  set: a searched line no row counts is a defect, an agent-driven counter-search
+  reads at least one followed site of every class it answers for, a load-bearing
+  claim standing only on sites nobody followed lowers the verdict, and a class past 20000 hits
   stops the run as a subject too generic to answer. Every searched node cites
   one search, a query's `count` is the nodes citing it, and a row's `hits` is
   what its own searches produced — the nodes table is the arithmetic, so a
-  number nobody can recompute is a defect. A ledger written before this version
+  number nobody can recompute is a defect. A recorded `command` is the one that
+  ran, quoted so it runs again verbatim; a pass that filters its own results
+  records the filter as its own search, and the lines a search returned live in
+  `lines` beside the nodes it produced. A ledger written before this version
   carrying `truncated` fails validation: re-seed the question, there is no
   migration.
 - **`ground_diff.py` says whether a cited investigation still describes the
@@ -82,7 +87,9 @@ first released heading here.
   rows under one id both fill and fill differently: nothing is settled by
   arrival order. Every fragment is validated against the ledger rules before it
   folds, and a defect refuses the fold naming the fragment and the row rather
-  than repairing it. A fragment taken against another commit, or answering
+  than repairing it — including its own arithmetic: a fragment accounts for
+  every node it searched, in a row it carries itself. A fragment folds on an
+  identity both sides state, so a run field absent from either refuses. A fragment taken against another commit, or answering
   another question, subject or configuration, aborts the merge rather
   than mixing two snapshots.
 - **The design chain verifies its claims by investigation.** A claim about this
@@ -94,7 +101,9 @@ first released heading here.
   impact with one Q1+Q2+Q3 run per seam. Each plan `## Seams` row carries that
   investigation's id, and `validate_plan.py` refuses a seam row standing on no
   ledger, on a ledger the SDD's own §14 row does not cite, or on one whose
-  verdict is not closed.
+  verdict is not closed, that names two seam rows, or that resolves to two
+  ledger directories; a validator that will not load stops the plan rather
+  than passing it unchecked.
 - **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
   cites the investigation that closed it, and a new bundled script resolves each
   citation, validates that ledger, and refuses a design standing on a `partial`

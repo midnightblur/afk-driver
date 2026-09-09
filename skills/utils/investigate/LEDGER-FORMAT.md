@@ -122,14 +122,20 @@ its class row does not account for.
 
 ### `queries` — one row per search
 
-`id` (see "Stable keys") · `command` (the command or pattern run) · `universe`
-(what it searched — paths, file kinds) · `count` (hits returned) · `origin`
-(`seed` · `tracer`) · `evidence` (path to the raw output when it was kept).
+`id` (see "Stable keys") · `command` (the command that ran, written so it runs
+again verbatim) · `universe` (what it searched — paths, file kinds) · `count`
+(the nodes citing this query) · `lines` (optional: the lines the search
+returned, which is a larger number wherever a pass filtered its own results) ·
+`origin` (`seed` · `tracer`) · `evidence` (path to the raw output when it was
+kept).
 
 `command`, `universe`, `count` and `origin` are required; `count` is an integer,
-zero or more, and equals the number of nodes citing this query in this ledger —
+zero or more, and is the number of nodes citing this query in this ledger —
 two numbers for one search is one of them lying, and the nodes table is the one
-a reader can check. Every searched node cites exactly one query. `origin` says who ran the search: `seed` for the deterministic
+a reader can check. Every searched node cites exactly one query. A search a pass
+filtered in process is two searches, and each is recorded as itself: the
+invocation, and the filter over its results. A `command` nobody executed is a
+command nobody can rerun. `origin` says who ran the search: `seed` for the deterministic
 pre-pass, whose queries a later pre-pass runs again, `tracer` for a widening
 past it, which it does not. One boundary row never names the same query twice — one execution
 counts once — and no two rows in this table share an id.
@@ -233,8 +239,10 @@ two fragments that ran one search carry one query row.
 | `nodes` | by node id. Same id, different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Two rows under one id that disagree on any other field they both fill are two answers under one name, and a fold refuses them rather than keeping the first |
 | `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
-| `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` is not carried across: it is the nodes citing the query in the ledger holding it, so the fold reads it off the folded nodes table |
+| `queries` | by query id; two rows under one id must agree on `command`, `universe`, `lines` and `origin`, and a fold refuses them when they do not. `count` is not carried across: it is the nodes citing the query in the ledger holding it, so the fold reads it off the folded nodes table |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
+
+A fragment accounts for what it searched: every node it carries that a search produced is in the `hit_ids` of a boundary row the fragment itself carries, and its every query's `count` is the fragment's own nodes citing it.
 
 Every fragment is checked against the rules above — every rule but the ones that read on the whole run: its own fields, the fourteen-class sweep, the counter-search coverage and the verdict. A fragment carrying a defect refuses the fold, naming the fragment and the row; nothing is repaired or filled in on its behalf. A fragment names rows the seed left in the staging ledger, so a reference it cannot resolve alone is not its defect.
 

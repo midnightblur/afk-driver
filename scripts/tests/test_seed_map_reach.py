@@ -178,7 +178,8 @@ class SeedMapReachTest(unittest.TestCase):
         repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
         code, document = run(repo, "--subject", "Widget", "--type", "Q1")
         self.assertEqual(code, 0)
-        wide = [query for query in document["queries"] if "--untracked" in query["command"]]
+        wide = [query for query in document["queries"]
+                if query["command"].startswith("git grep") and "--untracked" in query["command"]]
         self.assertTrue(wide)
         self.assertIn("not ignored", wide[0]["universe"])
 

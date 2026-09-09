@@ -39,9 +39,27 @@ def fragment(partition="p1", head=HEAD, classes=None, **tables) -> dict:
         declared = [row["class"] for row in tables.get("boundaries") or []
                     if isinstance(row, dict) and row.get("class")]
         classes = sorted(set(declared)) or ["B1"]
-    document = {"run": {"head": head}, "partition": {"id": partition, "classes": classes,
-                                                     "seed": "seed.json"}}
+    run = {"head": head}
+    # Every identity field the fold checks, taken from the run these fragments
+    # are parts of; a case that varies one overwrites it.
+    for field in ("question", "type", "roots", "aliases", "config"):
+        run[field] = ledger()["run"][field]
+    document = {"run": run, "partition": {"id": partition, "classes": classes,
+                                          "seed": "seed.json"}}
     document.update({table: rows for table, rows in tables.items()})
+    # A fragment accounts for the nodes it searched, so unless a case says
+    # otherwise it carries the row that holds them.
+    if "boundaries" not in tables:
+        searched = [row for row in document.get("nodes") or []
+                    if isinstance(row, dict) and isinstance(row.get("query_id"), str)]
+        by_class: dict = {}
+        for row in searched:
+            by_class.setdefault(row.get("class"), []).append(row.get("id"))
+        document["boundaries"] = [
+            {"class": klass, "status": "closed", "method": "every name form",
+             "hits": len(ids), "hit_ids": ids, "query_ids": [QUERY],
+             "universe": "tracked files"}
+            for klass, ids in sorted(by_class.items())]
     return document
 
 
@@ -179,8 +197,9 @@ class MergeFragmentsTest(unittest.TestCase):
 
     # Identical by construction, so one row.
     def test_a_duplicate_query_id_folds_into_one_row(self):
-        merged = self.merge(ledger(), fragment(queries=[
-            dict(ledger()["queries"][0])]))
+        merged = self.merge(ledger(), fragment(
+            queries=[{**ledger()["queries"][0], "count": 1}],
+            nodes=[hit("B1:beta.java:4")]))
         self.assertEqual(len(merged["queries"]), len(ledger()["queries"]))
 
     def test_a_duplicate_claim_id_unions_its_support(self):
@@ -458,6 +477,65 @@ class MergeFragmentsTest(unittest.TestCase):
             self.assertIn("a class may carry", str(refused.exception))
         finally:
             merge_fragments.HIT_LIMIT = limit
+    # An identity nobody stated is not an identity that matched.
+    def test_a_fragment_missing_a_run_identity_field_is_refused(self):
+        item = fragment(nodes=[])
+        item["run"].update({"question": "the same question", "type": ["Q1"],
+                            "aliases": {"Widget": []},
+                            "config": {"path": ".afk/config.yaml", "sha256": "a" * 64}})
+        staging = ledger()
+        for field in ("question", "type", "roots", "aliases"):
+            item["run"][field] = staging["run"][field]
+        item["run"]["config"] = staging["run"]["config"]
+        del item["run"]["roots"]
+        code, stderr, document = self.run_script(staging, item)
+        self.assertEqual(code, 2)
+        self.assertIn("run.roots", stderr)
+        self.assertIsNone(document)
+
+    def test_a_fragment_without_partition_classes_is_refused(self):
+        item = fragment(nodes=[])
+        del item["partition"]["classes"]
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("partition.classes", stderr)
+        self.assertIsNone(document)
+
+    # A fragment's own count is checked before the fold recomputes anything.
+    def test_a_fragment_whose_query_count_is_not_its_own_nodes_is_refused(self):
+        item = fragment(
+            nodes=[hit("B1:beta.java:4")],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": 99, "evidence": None, "origin": "seed"}])
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("nodes citing it", stderr)
+        self.assertIsNone(document)
+    # A fragment accounts for what it searched, before the fold does.
+    def test_a_fragment_whose_row_does_not_hold_its_node_is_refused(self):
+        item = fragment(
+            nodes=[hit("B1:beta.java:4")],
+            boundaries=[{"class": "B1", "status": "closed", "method": "every name form",
+                         "hits": 0, "hit_ids": [], "query_ids": [QUERY],
+                         "universe": "tracked files"}],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": 1, "evidence": None, "origin": "seed"}])
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("outside the hit_ids of its own boundaries.B1", stderr)
+        self.assertIsNone(document)
+
+    def test_a_fragment_carrying_a_node_of_a_class_it_has_no_row_for_is_refused(self):
+        item = fragment(
+            classes=["B1"],
+            nodes=[hit("B1:beta.java:4")],
+            boundaries=[],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": 1, "evidence": None, "origin": "seed"}])
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 2)
+        self.assertIn("carries no row for", stderr)
+        self.assertIsNone(document)
 
 
 if __name__ == "__main__":

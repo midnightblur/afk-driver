@@ -175,7 +175,7 @@ def merge_query(kept: dict, row: dict) -> dict:
     carries it, so two partitions of one search carry two parts of one count.
     The fold recomputes it off the folded nodes table.
     """
-    for key in ("command", "universe", "origin"):
+    for key in ("command", "universe", "lines", "origin"):
         if key in kept and key in row and kept[key] != row[key]:
             raise MergeError(
                 f"query {kept.get('id')}: two fragments give it a different {key} "
@@ -273,9 +273,37 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
     twice — alone, and against the staging rows it refers back to. Only what
     both readings call a defect is the fragment's own.
     """
+    # A query's count is the nodes citing it, and a fragment's count is its own
+    # nodes: the fold recomputes it afterwards, and a number nobody could
+    # recompute here is a number the fragment made up.
+    own: list[str] = []
+    citing: dict[str, int] = {}
+    for row in rows(fragment, "nodes"):
+        if isinstance(row.get("query_id"), str):
+            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+    for row in rows(fragment, "queries"):
+        count, query_id = row.get("count"), row.get("id")
+        if isinstance(count, int) and count != citing.get(query_id, 0):
+            own.append(f"queries.{query_id}: count {count} disagrees with the "
+                       f"{citing.get(query_id, 0)} nodes citing it")
+    # A fragment answers for its own partition, so the row that accounts for a
+    # node it searched is a row it carries: a node the staging ledger's row
+    # would have to adopt is a node this fragment never accounted for.
+    listed = {row.get("class"): (row.get("hit_ids") or [])
+              for row in rows(fragment, "boundaries")}
+    for row in rows(fragment, "nodes"):
+        if not isinstance(row.get("query_id"), str):
+            continue
+        klass = row.get("class")
+        if klass not in listed:
+            own.append(f"nodes.{row.get('id')}: a searched node of {klass}, which this "
+                       "fragment carries no row for")
+        elif row.get("id") not in listed[klass]:
+            own.append(f"nodes.{row.get('id')}: a searched node outside the hit_ids of "
+                       f"its own boundaries.{klass}")
     alone, _ = validate_coverage.validate(fragment, scope="rows")
     if not alone:
-        return []
+        return own
     with_context = {"run": dict(fragment.get("run") or {})}
     if "partition" in fragment:
         with_context["partition"] = fragment["partition"]
@@ -288,7 +316,7 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
         index.update({row.get(key): row for row in rows(fragment, table)})
         with_context[table] = list(index.values())
     against, _ = validate_coverage.validate(with_context, scope="rows")
-    return [defect for defect in alone if defect in set(against)]
+    return own + [defect for defect in alone if defect in set(against)]
 
 
 # What makes two runs one investigation. A fragment that answers a different
@@ -298,17 +326,41 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
 IDENTITY = ("question", "type", "roots", "aliases")
 
 
+def same(field: str, wanted, given) -> bool:
+    """Whether two runs state the same thing. `type` is a set of questions."""
+    if field == "type" and isinstance(wanted, list) and isinstance(given, list):
+        return sorted(str(item) for item in wanted) == sorted(str(item) for item in given)
+    return wanted == given
+
+
 def identity(path: Path, staging_run: dict, fragment_run: dict) -> None:
+    """Every identity field, stated on both sides and stating the same run.
+
+    A field nobody stated is not a field that matched: a fragment that says
+    nothing about the question it answers is folded on nothing.
+    """
     for field in IDENTITY:
         wanted, given = staging_run.get(field), fragment_run.get(field)
-        if given is not None and wanted is not None and given != wanted:
+        for side, value in (("staging ledger", wanted), (str(path), given)):
+            if value in (None, "", [], {}):
+                raise MergeError(
+                    f"{path}: run.{field} is absent from the {side}; a fragment folds "
+                    "on an identity both sides state"
+                )
+        if not same(field, wanted, given):
             raise MergeError(
                 f"{path}: run.{field} is not the staging ledger's; a fragment of "
                 "another run answers another question"
             )
     wanted = (staging_run.get("config") or {}).get("sha256")
     given = (fragment_run.get("config") or {}).get("sha256")
-    if given is not None and wanted is not None and given != wanted:
+    for side, value in (("staging ledger", wanted), (str(path), given)):
+        if not value:
+            raise MergeError(
+                f"{path}: run.config.sha256 is absent from the {side}; one question "
+                "over two configurations is two different searches"
+            )
+    if given != wanted:
         raise MergeError(
             f"{path}: run.config.sha256 is not the staging ledger's; one question "
             "over two configurations is two different searches"
@@ -370,8 +422,12 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
             continue
         seen_bodies.add(body)
         classes = partition.get("classes")
-        classes = classes if isinstance(classes, list) else None
-        if classes is not None:
+        if not isinstance(classes, list) or not classes:
+            raise MergeError(
+                f"{path}: partition.classes is absent; a fragment names the classes "
+                "it answers for, and answers for nothing else"
+            )
+        if True:
             outside = sorted({row.get("class")
                               for table in ("boundaries", "nodes")
                               for row in rows(fragment, table)

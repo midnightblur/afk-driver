@@ -361,9 +361,10 @@ class LedgerBindingTest(unittest.TestCase):
 
     def test_a_complete_agent_check_naming_a_node_it_read_is_valid(self):
         document = read_evidence(ledger(), "B1")
-        document["counter_checks"][0].update(
-            {"kind": "agent", "query_ids": [],
-             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        document["counter_checks"].append(
+            {"method": "read the registration site", "kind": "agent", "query_ids": [],
+             "classes": ["B1"], "targeted_claims": [CLAIM], "new_nodes": [],
+             "state": "complete", "evidence_nodes": ["B1:alpha/B1.java:4"]})
         defects, _ = self.check(document)
         self.assertEqual(defects, [])
 
@@ -467,6 +468,56 @@ class LedgerBindingTest(unittest.TestCase):
              "evidence_nodes": ["B1:alpha/B1.java:4"]})
         defects, _ = self.check(document)
         self.assertTrue(any("which this check does not answer for" in defect
+                            for defect in defects), defects)
+    # C7 — evidence answers for the class it is of, and for every class the
+    # check covers; one read closes one class.
+    def test_an_agent_check_covering_a_class_it_read_nothing_of_is_a_defect(self):
+        document = read_evidence(ledger(), "B1")
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "classes": ["B1", "B2"],
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("read nothing of B2" in defect for defect in defects),
+                        defects)
+
+    def test_an_agent_check_whose_only_read_is_irrelevant_is_a_defect(self):
+        document = read_evidence(ledger(), "B1")
+        document["nodes"][-1].update({"disposition": "irrelevant"})
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "classes": ["B1"],
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("read nothing of B1" in defect for defect in defects),
+                        defects)
+
+    # A claim standing only on sites nobody followed is a claim the run has
+    # not finished, so the verdict says so.
+    def test_a_load_bearing_claim_supported_only_by_a_frontier_node_is_partial(self):
+        document = ledger()
+        document["nodes"].append(
+            {"id": "B14:other-repo:1", "class": "B14", "site": "other-repo:1",
+             "disposition": "frontier", "reason": "another repository",
+             "evidence": "the caller lives elsewhere", "parent": None,
+             "query_id": None})
+        document["claims"][0].update({"load_bearing": True, "kind": "inference",
+                                      "supporting_nodes": ["B14:other-repo:1"],
+                                      "citations": ["other-repo:1"]})
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "partial")
+
+    # Two spellings of one command are one command.
+    def test_a_counter_check_rerunning_the_primary_command_respaced_is_a_defect(self):
+        document = ledger()
+        primary = document["queries"][0]
+        respaced = {**primary, "universe": "tracked files, case-blind",
+                    "command": primary["command"].replace(" ", "  ")}
+        respaced["id"] = validate_coverage.stable_id(
+            "q", respaced["command"] + respaced["universe"])
+        document["queries"].append(respaced)
+        document["counter_checks"][0].update({"query_ids": [respaced["id"]]})
+        defects, _ = self.check(document)
+        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)
 
 

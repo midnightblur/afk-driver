@@ -9,6 +9,7 @@ longer identifier. Fixtures are throwaway git repositories.
 """
 
 import shutil
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -425,6 +426,38 @@ class SeedMapBindingTest(unittest.TestCase):
                     if item["status"] in ("closed", "partial") and item["query_ids"]}
         self.assertTrue(searched)
         self.assertTrue(searched <= covered, f"uncovered: {sorted(searched - covered)}")
+    # B4 — a recorded command is the command that ran, and it runs verbatim.
+    def test_the_recorded_search_reruns_and_returns_what_cites_it(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n",
+                          "alpha/other.java": "no name here\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        wide = next(item for item in document["queries"]
+                    if item["command"].startswith("git grep")
+                    and "--untracked" in item["command"])
+        filtered = next(item for item in document["queries"]
+                        if item["command"].startswith("filter:"))
+        result = subprocess.run(wide["command"], cwd=repo, shell=True,
+                                capture_output=True, encoding="utf-8", errors="replace")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        returned = {line.split(":", 2)[0] + ":" + line.split(":", 2)[1]
+                    for line in result.stdout.splitlines() if line.count(":") >= 2}
+        cited = {node["site"] for node in document["nodes"]
+                 if node.get("query_id") in (wide["id"], filtered["id"])}
+        self.assertEqual(returned, cited)
+
+    # B5 — the two numbers a query carries say two different things.
+    def test_a_query_counts_its_nodes_and_records_the_lines_it_returned(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        citing = {}
+        for node in document["nodes"]:
+            if isinstance(node.get("query_id"), str):
+                citing[node["query_id"]] = citing.get(node["query_id"], 0) + 1
+        for item in document["queries"]:
+            self.assertEqual(item["count"], citing.get(item["id"], 0), item["command"])
+            self.assertIsInstance(item["lines"], int)
 
 
 if __name__ == "__main__":

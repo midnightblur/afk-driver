@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -59,7 +60,7 @@ KEYS = {
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
               "coverage_verdict", "pinned_by", "evidence", "parent", "query_id",
               "line_hash"},
-    "queries": {"id", "command", "universe", "count", "evidence", "origin"},
+    "queries": {"id", "command", "universe", "count", "lines", "evidence", "origin"},
     "claims": {"id", "text", "kind", "load_bearing", "supporting_nodes", "citations"},
     "counter_checks": {"method", "kind", "targeted_claims", "new_nodes", "state",
                        "reason", "classes", "query_ids", "evidence_nodes"},
@@ -79,7 +80,7 @@ TYPES = {
               "impact_verdict": str, "coverage_verdict": str, "pinned_by": str,
               "evidence": str, "parent": str, "query_id": str, "line_hash": str},
     "queries": {"id": str, "command": str, "universe": str, "count": int,
-                "origin": str,
+                "lines": int, "origin": str,
                 "evidence": str},
     "claims": {"id": str, "text": str, "kind": str, "load_bearing": bool,
                "supporting_nodes": list, "citations": list},
@@ -112,6 +113,34 @@ def rows_of(defects: list[str], ledger: dict, table: str) -> list[dict]:
             defects.append(f"{table}[{index}]: must be an object, not "
                            f"{type(row).__name__}")
     return kept
+
+
+def normalized(command: str) -> str:
+    """One invocation, one spelling.
+
+    Two searches differ by what they run, not by how the string was typed:
+    spacing, quoting and the order of the fixed flags say nothing. The
+    expressions keep their order — that order is part of the search.
+    """
+    try:
+        parts = shlex.split(command, posix=False)
+    except ValueError:
+        parts = command.split()
+    flags: list[str] = []
+    rest: list[str] = []
+    index = 0
+    while index < len(parts):
+        token = parts[index]
+        if token == "-e" and index + 1 < len(parts):
+            rest.append(f"-e {parts[index + 1]}")
+            index += 2
+        elif token.startswith("-") and token != "--":
+            flags.append(token)
+            index += 1
+        else:
+            rest.append(token)
+            index += 1
+    return " ".join(sorted(flags) + rest)
 
 
 def runs_nothing(command: str) -> bool:
@@ -606,7 +635,10 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
             continue
         # A load-bearing claim nobody supported is not structurally broken; it
         # is a run that has not finished, so it lowers the verdict.
-        if kind == "unverified" or not supporting:
+        followed = [node for node in supporting
+                    if (node_index.get(node) or {}).get("disposition")
+                    in ("traced", "terminal")]
+        if kind == "unverified" or not supporting or not followed:
             load_bearing_gaps += 1
         if kind in ("fact", "inference") and not row.get("citations"):
             defects.append(
@@ -646,17 +678,17 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
         if state == "complete":
             # A check that ran the class's own searches ran the same pass
             # twice; a counter-search is a different method by definition.
-            own = {(query_index.get(item) or {}).get("command")
+            own = {normalized((query_index.get(item) or {}).get("command") or "")
                    for item in (row.get("query_ids") or []) if isinstance(item, str)}
-            own.discard(None)
+            own.discard("")
             for klass in row.get("classes") or []:
                 # A counter-search is a second method, so it ran a different
                 # command. Same command under another universe label is the
                 # class's own pass wearing a second name.
-                primary = {(query_index.get(item) or {}).get("command")
+                primary = {normalized((query_index.get(item) or {}).get("command") or "")
                            for item in ((seen.get(klass) or {}).get("query_ids") or [])
                            if isinstance(item, str)}
-                primary.discard(None)
+                primary.discard("")
                 if own and primary and own <= primary:
                     defects.append(
                         f"{where}: it ran no command boundaries.{klass} does not already "
@@ -671,7 +703,9 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
             covered_classes = {item for item in (row.get("classes") or [])
                                if isinstance(item, str)}
             read = [item for item in (row.get("evidence_nodes") or [])
-                    if node_evidence.get(item) and item in read_node_ids]
+                    if node_evidence.get(item) and item in read_node_ids
+                    and (node_index.get(item) or {}).get("disposition")
+                    in ("traced", "terminal")]
             if row.get("kind") == "agent":
                 if not covered_classes:
                     defects.append(
@@ -683,6 +717,15 @@ def validate(ledger: dict, scope: str = "run") -> tuple[list[str], str]:
                         f"{where}: a complete agent-driven check names in evidence_nodes at "
                         "least one node it read, carrying evidence"
                     )
+                # One read closes one class. A check answering for a class it
+                # read nothing of answers for it on another class's evidence.
+                for klass in sorted(covered_classes):
+                    if not [item for item in read
+                            if (node_index.get(item) or {}).get("class") == klass]:
+                        defects.append(
+                            f"{where}: it read nothing of {klass}, which it answers for; "
+                            "one read closes one class"
+                        )
                 # The reading has to be of the classes the check answers for:
                 # a node of another class is another class's evidence.
                 for item in read:
