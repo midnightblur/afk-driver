@@ -35,6 +35,26 @@ first released heading here.
   by item id instead of on separate anchors. Contract: `LAVISH-KIT.md`; which
   pages take the path: `LAVISH.md` "Production path".
 
+- **The round dossier** (`skills/afk/grill-requirements/ROUND.md`) — a grill
+  asked one question per turn, so a design interview cost a turn per node and
+  ran for days. The team works first now: ground the premises, weigh the
+  alternatives, decide what the rule allows, and present the whole layer at
+  once — decisions to audit, the calls that are the human's, and the
+  indecisions with the condition that stopped each one. The file owns the item
+  classes, the decide rule (pointing at `DECISIONS.md`, no second protocol),
+  the evidence grades, the six-field contract a decided card carries or
+  degrades to a question, the seven dossier sections, the navigability
+  contract that replaces the removed caps, the audit controls, steering, and
+  the one escape. Every grill points at it.
+
+- **An escape from a session that has stopped earning trust** — the human
+  writes `take over` and, for the rest of that session, the agent stops
+  deciding, stops recommending, and questions go back to one at a time.
+  Nothing is saved and no configuration key exists, so a new session decides
+  again; the session keeps its state, because an escape that costs the state
+  is a restart. It hands back exactly the cost the round dossier removes,
+  which is what an escape is for.
+
 - **README section 4 gained "Upgrading a pinned install"** — the order the pin
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
@@ -43,7 +63,7 @@ first released heading here.
 ### Changed
 
 - **Silence is never agreement on a rendered round.** Every answerable card now
-  requires an explicit mark, in every grill and at either evidence grade — a
+  requires an explicit mark, in every grill and at every evidence grade — a
   decision the human never marked is a decision they never made. The per-grill,
   per-grade rule and the `grill` field that only fed it are gone; `evidence.grade`
   stays, because it is what makes a decision auditable. Batching is untouched: a
@@ -60,11 +80,46 @@ first released heading here.
   the date. Writing `Accepted` on a decision nobody audited is how an agent's
   call quietly becomes the team's.
 
+- **A decision taken during a grill now has a record that survives it.** The
+  decision ledger writes to `plan/`, which does not exist yet at grill time,
+  and the grill log's settled row was a bare sentence — so who decided, on
+  what evidence, and whether a human ever accepted it were all gone by the
+  time synthesis ran. The row gained a tail carrying exactly that, and a row
+  without an accept date is not written at all, because an unaccepted decision
+  is not settled. The open row gained steer and escape lines, so a resumed
+  session honours a correction instead of asking again.
+
+- **An `Accepted` ADR still says who decided it.** The audit stamp used to
+  flip the status and take the word "agent" with it, leaving the grill log as
+  the only witness — which `/afk:gc` deletes, on the stated ground that
+  decisions already live in the ADRs. `Audited:` is now written only on a
+  record the agent decided, so the line's presence is the provenance and
+  survives both the stamp and the clean-up. `/afk:retro` reads it, which is
+  the one measurement that says whether agents deciding more pays or costs.
+
+- **The renderer enforces what a round claims.** A decision cited to a
+  documented house convention silently degraded into a question, so the agent
+  did the work, cited the convention, and handed the call back anyway; the
+  `pattern` grade is now admissible. And a debate card owes the condition that
+  stopped the agent deciding — a convention with no field, so nothing checked
+  it. It is required now and renders before the options, because a round's
+  completion test is read off those lines and "in doubt" is not a condition.
+
 - **`/afk:to-demo-plan` gains a company-meeting profile** — recognized from what
   the user asks for, never a mode they must name. It fixes the hour at 45 beat
   minutes, 10 question minutes and 5 for feedback disposition and next steps,
   widens the audience to four roles, and adds the delivery trace and the
   understanding artifact as optional evidence. An ordinary demo is unchanged.
+
+### Fixed
+
+- **The send control sat where a long round hid it.** Emitted at the end of
+  the document, it fell below every settled card as soon as the settled
+  history outgrew the current round — a human with a marked card and no
+  visible way to send it. `position: fixed` did not save it either: a host
+  that sizes its frame to the content height gives the bar a viewport as tall
+  as the document. It now sits in the flow directly under the round it sends,
+  and a round with nothing answerable emits no bar at all.
 
 ## [1.0.14] - 2026-09-05
 
