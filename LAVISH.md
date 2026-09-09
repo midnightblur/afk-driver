@@ -287,12 +287,6 @@ HTML in its context (`DELEGATION.md`). Who does what:
   4. New feature-terms entries from the tooltip sweep; the child writes them
      to the terms file (Tooltips above) alongside the artifact.
   5. What must not change.
-- **The child patches the artifact; it never re-emits it.** The page is
-  durable state, not a per-round output: a round adds its own cards, flips the
-  states the brief names, and leaves every other byte alone. A whole-page
-  re-emit costs the page's full length in output tokens every round, grows as
-  the session does, and silently rewrites markup no brief asked to change.
-  Same rule as the kit path's over the round JSON (`LAVISH-KIT.md`).
 - **Spawn boundary = the re-render cadence.** Delegate page creation and
   structural rewrites at question/turn boundaries. A small delta (one status
   cell, one appended settled row) the orchestrator edits inline; never spawn
