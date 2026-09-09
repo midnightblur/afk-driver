@@ -35,6 +35,10 @@ record the agent minted from its own decision: `Decided by agent`,
 `Audited: not yet`, until a human reads it and stamps the date they read it,
 which is what makes it `Accepted`. Provenance-by-presence, its one-way failure,
 and its reader are stated once, in the owner file below.
+A record minted from a grill-time decision the human accepted is written
+`Status: Accepted` with `Audited: {the accept date from the grill log's settled
+row}` — the card the human audited carried more than this record will.
+
 Grammar owned by `skills/afk/to-sdd/ADR-TEMPLATE.md` "The status line"; this is
 a synchronized copy at the emitting site and moves in the same commit.
 

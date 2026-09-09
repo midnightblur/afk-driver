@@ -315,6 +315,13 @@ one send control composes a single compact summary of all marks and calls
 pair it with a clipboard-copy control carrying the same summary as the
 out-of-band fallback.
 
+On the kit path the renderer emits that send control from the cards' own
+`data-afk-input` attributes, so no page-writer authors send logic: it composes
+one response for the whole round, persists each mark per item id, and refuses
+to send while a card that requires a mark has none, naming the cards. The
+response grammar is owned by `LAVISH-KIT.md`; what a round of decisions means —
+classes, audit marks, steers — by `skills/afk/grill-requirements/ROUND.md`.
+
 **One response surface.** An artifact with an embedded send control makes
 that control the canonical response path — annotation stays available for
 free-form margin notes, but the page never grows a second structured path,

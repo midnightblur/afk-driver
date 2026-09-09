@@ -46,6 +46,13 @@ rather than one the human made. It is not a lesser status — it is the honest
 one, and it stays until a human has read the record and stamped `Audited` with
 the date they read it. That stamp is what makes it `Accepted`.
 
+Minting from a grill-time decision the human accepted: the accepted `Settled:`
+row (`skills/afk/grill-requirements/GRILL-LOG-FORMAT.md`) carries more scrutiny
+than this record will — the human audited the decision, its alternatives, and
+its evidence on the card — so write `Status: Accepted` and `Audited: {the
+accept date from that row}`. The card was the audit; no second read is asked of
+the human.
+
 `Audited:` is written **only** on a record the agent decided; a human-decided
 record omits the line. An `Accepted` record therefore still says who decided
 it — by whether the line is there. Read by `/afk:retro`, which once `/afk:gc`
