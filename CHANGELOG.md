@@ -35,7 +35,8 @@ first released heading here.
   by item id instead of on separate anchors. Contract: `LAVISH-KIT.md`; which
   pages take the path: `LAVISH.md` "Production path".
 
-- **The round dossier** (`skills/afk/grill-requirements/ROUND.md`) — a grill
+- **The round dossier** — one dependency layer, presented at once
+  (`skills/afk/grill-requirements/ROUND.md`). A grill
   asked one question per turn, so a design interview cost a turn per node and
   ran for days. The team works first now: ground the premises, weigh the
   alternatives, decide what the rule allows, and present the whole layer at

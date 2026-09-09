@@ -3,7 +3,8 @@
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word a
 > round puts in front of the human.
 
-The one home for how a grill presents its work: the team works first, then
+The one home for how a grill presents its work. A **round dossier** (one
+dependency layer, presented at once) is the unit: the team works first, then
 presents one complete round. Grill skills point here; this file names no
 caller.
 
@@ -36,14 +37,15 @@ and `debate`.
 
 | Class | Meaning | Human action | Dossier section |
 |---|---|---|---|
-| `decided` | the agent decided; passes every condition of "The decide rule" and carries the decided-card contract | accept / reopen / reverse | Decided for you |
+| `decided` | the agent decided; passes every condition of "The decide rule" and carries the decided-card contract (the six fields below) | accept / reopen / reverse | Decided for you |
 | `confirm` | TRIAGE.md, unchanged | accept / pick alternative / write-in | Your calls |
 | `debate` | the agent's recorded **indecision**: two or more live alternatives, a tie, a one-way door, or an unverifiable premise | pick + note | Your calls, first |
 | `locked` | a human-locked aspect packet (`../grill-solution/HUMAN-SIGNOFF.md`) | sign by id, own words | Sign-off, one packet per card |
 
 Misclassification bias is TRIAGE's: in doubt, `debate`. A `debate` card states
 **which** condition failed — "in doubt" with no named condition is not a
-reason, and a reviewer reads those lines to check the completion test below.
+reason, and a reviewer reads those lines to check the completion test (nothing here
+was decidable) below.
 
 ## Before a round — the team works first
 
@@ -54,13 +56,14 @@ root):
    (`../grill-solution/GROUNDING-RULE.md`);
 2. pre-fill evidence for every candidate item — TRIAGE.md "Evidence pre-fill",
    widened from `confirm` to every class;
-3. build the alternatives set per item, `decided` items included, since the
-   human audits the alternatives beaten;
+3. build the alternatives set per item — at the top design layers including
+   the third-paradigm option (a deliberately different approach) — `decided`
+   items included, since the human audits the alternatives beaten;
 4. take the decision, or decline it and name the failed condition;
 5. write the context digest the dossier's "Before you read" section needs.
 
 Assemble the round only when every item in the group carries a taken or
-declined decision with its evidence grade. An item whose digest has not
+declined decision with its evidence grade (what checking an accept asks). An item whose digest has not
 returned waits for the next round — a blank rationale is never presented.
 
 **Completion test.** No item in the round could have been decided by the agent
@@ -204,7 +207,7 @@ page.
 
 **The escape** is for the session where steering has stopped working and the
 human no longer trusts the agent's decisions. The human writes `take over` as a
-line of its own in a round response.
+line of its own in a round response (the one send that answers a round).
 
 - **Per session.** Nothing is saved, no configuration key, nothing team-wide. A
   new session starts with the agent deciding again.
@@ -259,8 +262,8 @@ conditions and the evidence grade, never a second protocol. An item is
    An item with no citation at all fails this condition.
 3. `DECISIONS.md` condition 3 — no human-locked aspect, voids no signature,
    reshapes no plan structure, crosses no caller boundary.
-4. Every premise it rests on is `verified` in the claim ledger
-   (`../grill-solution/GROUNDING-RULE.md`).
+4. Every premise it rests on is `verified` in the claim ledger (the grill's
+   record of checked premises, `../grill-solution/GROUNDING-RULE.md`).
 5. It does not depend on an open `debate` item — or it is presented
    `provisional`, still `decided`, re-derived if the parent moves.
 6. It contradicts no standing steer. A steer is binding evidence: an item the
@@ -303,7 +306,7 @@ with a gap.
 | # | Field | Content | Check |
 |---|---|---|---|
 | C-1 | Decision | one sentence: the thing that is true from now on | non-empty; one sentence |
-| C-2 | Alternatives beaten | every option weighed, one clause each; at least one, and at least two including the third-paradigm option at the top design layers | list length meets the layer's minimum |
+| C-2 | Alternatives beaten | every option weighed, one clause each; at least one, and at least two at the top design layers, the third-paradigm option among them | list length meets the layer's minimum |
 | C-3 | Evidence + grade | the cited fact and its grade | citation resolves; grade is `repo`, `spec`, or `pattern` |
 | C-4 | Why it beat the runner-up | one sentence naming the runner-up and the criterion that decided it | names an id from C-2 |
 | C-5 | Reverse clause | what to revert or rework if the human reverses later | non-empty; one clause |
