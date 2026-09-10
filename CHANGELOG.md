@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-10
+
 ### Added
 
 - **`INVESTIGATION.md` — when reading code is finished.** The plugin had a bar
