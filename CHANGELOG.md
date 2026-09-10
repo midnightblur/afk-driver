@@ -18,7 +18,7 @@ first released heading here.
 
 ## [Unreleased]
 
-## [1.0.19] - 2026-09-09
+## [1.1.0] - 2026-09-10
 
 ### Added
 
