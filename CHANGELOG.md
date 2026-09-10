@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-10
+
 ### Added
 
 - **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
