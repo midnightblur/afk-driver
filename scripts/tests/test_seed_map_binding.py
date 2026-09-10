@@ -8,7 +8,6 @@ query id that two different searches share, an alias that matched inside a
 longer identifier. Fixtures are throwaway git repositories.
 """
 
-import os
 import shutil
 import shlex
 import subprocess
@@ -440,12 +439,33 @@ class SeedMapBindingTest(unittest.TestCase):
     def test_a_path_the_repository_can_hold_survives_the_grammar(self):
         contract = seed_map.contract
         self.assertEqual(contract.repo_path(" lead.java"), " lead.java")
-        self.assertEqual(contract.repo_path("a:b/x.java"), "a:b/x.java")
         self.assertIsNone(contract.repo_path("C:/tree/x.java"))
         self.assertIsNone(contract.repo_path("C:"))
-        for command in (contract.build_listing("manifest parse", [" lead.java"]),
-                        contract.build_listing("manifest parse", ["a:b/x.java"])):
-            self.assertEqual(contract.family(command), "manifest parse", command)
+        self.assertEqual(contract.family(
+            contract.build_listing("manifest parse", [" lead.java"])), "manifest parse")
+
+    # A path a path reader takes for a drive is a path that leaves the
+    # repository when it is joined: `Path("repo") / "C:foo"` is `C:foo` on
+    # Windows. Refused on every host, so a ledger crosses platforms.
+    def test_a_drive_relative_path_is_refused_on_every_host(self):
+        contract = seed_map.contract
+        for value in ("C:foo", "a:b", "/x", "C:/tree/x.java"):
+            self.assertIsNone(contract.repo_path(value), value)
+
+    def test_a_declared_drive_relative_site_stops_the_run(self):
+        repo = self.repo({"src/Foo.java": "class Foo {}" + chr(10)})
+        config = write_config(repo, (
+            "investigation:" + chr(10)
+            + "  boundaries:" + chr(10)
+            + "    - name: consumer" + chr(10)
+            + "      class: B14" + chr(10)
+            + "      judgment-only: true" + chr(10)
+            + "      site: " + chr(34) + "C:foo" + chr(34) + chr(10)
+        ))
+        code, document = run(repo, "--subject", "Foo", "--type", "Q1",
+                             config=str(config))
+        self.assertEqual(code, 2)
+        self.assertIsNone(document)
 
     def test_the_path_rule_has_one_home(self):
         contract = seed_map.contract
@@ -461,10 +481,7 @@ class SeedMapBindingTest(unittest.TestCase):
 
     # E2 — a repository holding both odd names still emits recordable commands.
     def test_a_repository_of_odd_names_emits_recordable_commands(self):
-        files = {" lead.java": "class Widget {}\n"}
-        if os.name != "nt":
-            files["a:b/x.java"] = "class Widget {}\n"
-        repo = self.repo(files)
+        repo = self.repo({" lead.java": "class Widget {}" + chr(10)})
         code, document = run(repo, "--subject", "Widget", "--type", "Q1")
         self.assertEqual(code, 0)
         defects, _ = validate_coverage.validate(document)
@@ -472,9 +489,6 @@ class SeedMapBindingTest(unittest.TestCase):
         for item in document["queries"]:
             self.assertIsNotNone(seed_map.contract.family(item["command"]),
                                  item["command"])
-        if os.name == "nt":
-            self.skipTest("this platform holds no file named `a:b/x.java`; "
-                          "the space-led half ran")
 
     # 3-A4 — the query id is the digest of the invocation, so the same search
     # collides across fragments and a different one does not.

@@ -39,7 +39,7 @@ import re
 import shlex
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 SCHEMA = 1
 
@@ -367,6 +367,12 @@ def _choice(problems: list[str], config: dict, key: str, allowed: tuple[str, ...
         problems.append(f"{key}: {value!r} is not one of {', '.join(allowed)}")
 
 
+def _rooted(text: str) -> bool:
+    """Whether any path reader takes this for a drive or a root."""
+    return any(reader(text).drive or reader(text).anchor
+               for reader in (PureWindowsPath, PurePosixPath))
+
+
 def normalize_path(value: str) -> str | None:
     """One repository path, in the one spelling everything downstream reads.
 
@@ -383,9 +389,13 @@ def normalize_path(value: str) -> str | None:
     if text.startswith("./"):
         text = text[2:]
     text = text.rstrip("/")
-    # A leading or trailing space is a name git holds and a builder quotes; a
-    # drive letter is not. `a:b` is a legal path, so a colon alone says nothing.
-    if not text or text.startswith("/") or re.match(r"^[A-Za-z]:(/|$)", text):
+    # A leading or trailing space is a name git holds and a builder quotes. A
+    # path a path reader takes for drive-relative or rooted is not: joining it
+    # to the repository drops the repository (`Path("repo") / "C:foo"` is
+    # `C:foo` on Windows), so the coverage would be of somewhere else. Both
+    # readers are asked on every host — a ledger written on one platform is
+    # read on the other, and a rule that changes with the host is two rules.
+    if not text or _rooted(text):
         return None
     if any(part in ("", ".", "..") for part in text.split("/")):
         return None
@@ -442,7 +452,7 @@ def _relative_path(problems: list[str], where: str, value: str) -> None:
     if normalize_path(value) is not None:
         return
     folded = value.replace(chr(92), "/")
-    if folded.startswith("/") or re.match(r"^[A-Za-z]:(/|$)", folded):
+    if _rooted(folded):
         problems.append(f"{where}: {value!r} is absolute; paths are repository-relative")
     elif ".." in folded.split("/"):
         problems.append(f"{where}: {value!r} escapes the repository")

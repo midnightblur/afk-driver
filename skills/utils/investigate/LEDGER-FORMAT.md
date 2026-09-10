@@ -162,10 +162,11 @@ one key, whatever order its parts were written in.
 
 Paths follow `--` as shell tokens, quoted where they need it, so a path holding
 a comma or a space is one path. Each is repository-relative with forward
-slashes. An absolute path, a drive letter, a `..` or `.` segment, an empty
-segment, a backslash or a trailing `/` is a path this format cannot resolve,
-which puts the command in no family — and so is any other spelling of a path
-the builder writes one way, `./x` for `x` among them.
+slashes. Anything a Windows or POSIX path reader takes as a drive or a root,
+a `..` or `.` segment, an empty segment, a backslash or a trailing `/` is a
+path this format cannot resolve, which puts the command in no family — and so
+is any other spelling of a path the builder writes one way, `./x` for `x`
+among them.
 
 A command no shell can split — a quote left open — is in no family, and so is
 one carrying a token a shell would expand: an unquoted `*`, `$VAR`, or a

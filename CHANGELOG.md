@@ -203,6 +203,11 @@ first released heading here.
   evidence never lands in a spec folder.
 - **`.afk/config.yaml`'s `toolkit-version` joins the release row** in
   `FRESHNESS.md`; the release gate has always checked it.
+- **A declared path the platform reads as a drive could close against a file
+  outside the repository** — `Path("repo") / "C:foo"` is `C:foo` on Windows,
+  while git calls that path outside the tree. Any path a Windows or POSIX
+  path reader takes for a drive or a root is refused now, on every host, so
+  a ledger written on one platform still reads on the other.
 
 ## [1.2.0] - 2026-09-10
 
