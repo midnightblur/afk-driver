@@ -18,6 +18,14 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/afk:setup` now registers `pytest` (`MANIFEST.md` P5).** The `pytest`-based
+  tests under `scripts/tests/` need it, but the dependency was in no register
+  entry — so the doctor could report a machine green while the suite was
+  unrunnable on it. A known dependency missing from the register is a
+  `FRESHNESS.md` violation, not housekeeping. Re-run `/afk:setup`.
+
 ## [1.2.0] - 2026-09-10
 
 ### Added
