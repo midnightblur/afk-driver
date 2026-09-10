@@ -186,7 +186,7 @@ Classify a finding `product-debt` when all three hold: it is real, the obvious f
 
 The home is the **nearest `CLAUDE.md` to the code**, under a `## Known debt` heading, written through `/afk:claude-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
 
-What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
+What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) — **kit path**: author the round JSON per `LAVISH-KIT.md`, one table-group row per finding, never HTML — for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
