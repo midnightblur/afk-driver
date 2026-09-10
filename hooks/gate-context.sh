@@ -185,8 +185,9 @@ gate_ctx_build_staged() {
 
   AFK_CTX_CHANGED=""; AFK_CTX_NEW=""; AFK_CTX_LIVE=""
   local entry st path
-  local statfile=".claude/hooks/.gate-cache/.staged.$$"
-  mkdir -p .claude/hooks/.gate-cache 2>/dev/null
+  local statdir=${TMPDIR:-/tmp}
+  [ -d "$statdir" ] || statdir=/tmp
+  local statfile="$statdir/afk-gate-staged.$$"
   git diff --cached --name-status -z --diff-filter=ACMRT >"$statfile" 2>/dev/null || : >"$statfile"
   while IFS= read -r -d '' st; do
     [ -n "$st" ] || continue

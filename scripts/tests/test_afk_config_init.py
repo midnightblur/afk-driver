@@ -257,7 +257,9 @@ def test_every_investigation_path_stays_inside_the_repository():
 
     for block, needle in (
         ({"boundaries": [{**boundary, "site": "/etc/passwd"}]}, "absolute"),
-        ({"boundaries": [{**boundary, "site": "C:\tools\builder.txt"}]}, "absolute"),
+        # A raw string: the escapes made this a name holding a tab and a
+        # backspace, which is a path git can hold, not the drive path it means.
+        ({"boundaries": [{**boundary, "site": r"C:\tools\builder.txt"}]}, "absolute"),
         ({"boundaries": [{**boundary, "site": "../other/builder.txt"}]}, "escapes"),
         ({"generated": ["/var/build"]}, "absolute"),
         ({"generated": ["../sibling/target"]}, "escapes"),

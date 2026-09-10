@@ -12,7 +12,7 @@ The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this pl
 
 ## Steps
 
-1. **Scope the change, then close the consumer question.** `git status --porcelain -uall` plus `git diff --name-only @{u}...HEAD` (fall back to `origin/master...HEAD`). This file list — not the conversation — defines what gets audited. Then run one `/afk:investigate` Q2 per symbol the change adds or reshapes, here in the caller: the verifier is read-only, and a consumer set nobody enumerated is an orphan hunt that only looked where it remembered to.
+1. **Scope the change, then close the consumer question.** `git status --porcelain -uall` plus `git diff --name-only @{u}...HEAD` (fall back to `origin/master...HEAD`). This file list — not the conversation — defines what gets audited. Then run one `/afk:investigate` Q2 per symbol the change adds or reshapes, here in the caller, `--out` set to this run's scratch directory: the verifier is read-only, and a consumer set nobody enumerated is an orphan hunt that only looked where it remembered to.
 
 2. **Spawn the verifier blind.** One fresh-context subagent (`afk-reader`). Give it: the change goal (one sentence), the file list, the repo path, and the step-1 ledger path per symbol. Do **not** give it your own account of what you wired — the author's narrative is what it exists to distrust. Its brief, verbatim:
 

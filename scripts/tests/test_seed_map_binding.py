@@ -8,6 +8,7 @@ query id that two different searches share, an alias that matched inside a
 longer identifier. Fixtures are throwaway git repositories.
 """
 
+import os
 import shutil
 import shlex
 import subprocess
@@ -20,6 +21,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_seed_map import (row, run, seed_map, validate_coverage,  # noqa: E402
                            write_config, make_repo)
 from test_seed_map_reach import check  # noqa: E402
+
+
+def config_module():
+    """The one config reader, loaded the way the scripts load it."""
+    import importlib.util
+    target = seed_map.plugin_root() / "scripts" / "afk-config.py"
+    spec = importlib.util.spec_from_file_location("afk_config_under_test", target)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def sites(document, klass):
@@ -398,6 +409,72 @@ class SeedMapBindingTest(unittest.TestCase):
             walks = [item["command"] for item in document["queries"]
                      if item["command"].startswith("in-process walk of")]
             self.assertIn("in-process walk of -- gen", walks, spelling)
+
+    # E1 — every path-valued field of the block folds, `site` among them: a
+    # site the config accepts must be a site the ledger's grammar can hold.
+    def test_a_declared_site_spelled_with_backslashes_reaches_the_ledger_folded(self):
+        repo = self.repo({"src/Foo.java": "class Foo {}\n"})
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: consumer\n"
+            "      class: B14\n"
+            "      judgment-only: true\n"
+            "      site: " + chr(34) + "src" + chr(92) + chr(92)
+            + "Foo.java" + chr(34) + chr(10)
+        ))
+        code, document = run(repo, "--subject", "Foo", "--type", "Q1", config=str(config))
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B14").get("sites"), ["src/Foo.java"])
+
+    # E5 — three spellings of one directory are one declared path, and the
+    # order the human wrote them in is the order that survives.
+    def test_folding_leaves_one_path_per_directory(self):
+        module = config_module()
+        block = {"investigation": {"generated": ["out", "gen/", "gen//",
+                                                 "." + chr(92) + "gen", "out"]}}
+        module.normalize(block)
+        self.assertEqual(block["investigation"]["generated"], ["out", "gen"])
+
+    # E2 — one path rule, one home: what git can hold, the grammar can record.
+    def test_a_path_the_repository_can_hold_survives_the_grammar(self):
+        contract = seed_map.contract
+        self.assertEqual(contract.repo_path(" lead.java"), " lead.java")
+        self.assertEqual(contract.repo_path("a:b/x.java"), "a:b/x.java")
+        self.assertIsNone(contract.repo_path("C:/tree/x.java"))
+        self.assertIsNone(contract.repo_path("C:"))
+        for command in (contract.build_listing("manifest parse", [" lead.java"]),
+                        contract.build_listing("manifest parse", ["a:b/x.java"])):
+            self.assertEqual(contract.family(command), "manifest parse", command)
+
+    def test_the_path_rule_has_one_home(self):
+        contract = seed_map.contract
+        config = seed_map.plugin_root() / "scripts" / "afk-config.py"
+        source = config.read_text(encoding="utf-8")
+        self.assertEqual(source.count("def normalize_path("), 1)
+        own = (Path(seed_map.__file__).resolve().parent / "contract.py").read_text(
+            encoding="utf-8")
+        self.assertNotIn("def " + "_fold_path", own)
+        for value in ("./x", "x/", "../x", "a/./b", "gen//x", " lead.java"):
+            self.assertEqual(contract.repo_path(value),
+                             config_module().normalize_path(value), value)
+
+    # E2 — a repository holding both odd names still emits recordable commands.
+    def test_a_repository_of_odd_names_emits_recordable_commands(self):
+        files = {" lead.java": "class Widget {}\n"}
+        if os.name != "nt":
+            files["a:b/x.java"] = "class Widget {}\n"
+        repo = self.repo(files)
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+        for item in document["queries"]:
+            self.assertIsNotNone(seed_map.contract.family(item["command"]),
+                                 item["command"])
+        if os.name == "nt":
+            self.skipTest("this platform holds no file named `a:b/x.java`; "
+                          "the space-led half ran")
 
     # 3-A4 — the query id is the digest of the invocation, so the same search
     # collides across fragments and a different one does not.

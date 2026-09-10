@@ -191,6 +191,18 @@ first released heading here.
   tree now.
 - **`GLOSSARY.md` declares the shorter spelling of a decided card**, so the
   term-usage check sees the prose that uses it.
+- **Every path a repository declares folds through one rule.** The config
+  reader owned one spelling rule and the ledger grammar another, and they
+  disagreed: a `site` field skipped folding entirely, so a backslash site
+  passed validation and died in the grammar. One function now, in the config
+  reader, imported by the grammar — and it refuses only what git cannot hold,
+  so a path named `a:b/x.java` or one led by a space stays reachable. Repeated
+  spellings of one directory collapse to one declared path.
+- **A ledger a parent run produces stays in scratch.** The review gate, the
+  seam verifier, and the understanding artifact pass `--out`, so working
+  evidence never lands in a spec folder.
+- **`.afk/config.yaml`'s `toolkit-version` joins the release row** in
+  `FRESHNESS.md`; the release gate has always checked it.
 
 ## [1.2.0] - 2026-09-10
 

@@ -161,23 +161,42 @@ PROSE_FAMILIES = (
 )
 
 
+_FOLD = None
+
+
 def repo_path(text: str) -> str | None:
     """One path, one spelling — or `None` for one no repository holds.
 
-    Repository-relative, forward slashes, no walk upwards: `./x` and `x` are
-    one file, and everything else is a path this format cannot resolve.
+    The rule itself lives with the config reader (`scripts/afk-config.py`,
+    `normalize_path`), which reads the paths a repository declares: two copies
+    of it drift, and a path one accepts while the other refuses is a run that
+    dies between them.
     """
-    if not isinstance(text, str) or not text.strip() or text != text.strip():
-        return None
-    if text.startswith("./"):
-        text = text[2:]
-    if not text or text.endswith("/") or chr(92) in text or text.startswith("/"):
-        return None
-    if len(text) > 1 and text[1] == ":":
-        return None
-    if any(part in ("", ".", "..") for part in text.split("/")):
-        return None
-    return text
+    global _FOLD
+    if _FOLD is None:
+        _FOLD = _config_reader().normalize_path
+    return _FOLD(text)
+
+
+def _config_reader():
+    """The one config reader, imported by path — it owns the path rule."""
+    import importlib.util
+    import os
+    from pathlib import Path
+
+    roots = []
+    env = os.environ.get("AFK_PLUGIN_ROOT")
+    if env:
+        roots.append(Path(env))
+    roots += list(Path(__file__).resolve().parents)
+    for root in roots:
+        target = root / "scripts" / "afk-config.py"
+        if target.is_file():
+            spec = importlib.util.spec_from_file_location("afk_config_paths", target)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+    raise ImportError("cannot locate scripts/afk-config.py; set AFK_PLUGIN_ROOT")
 
 
 def build_listing(name: str, paths) -> str:

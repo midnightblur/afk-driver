@@ -51,7 +51,7 @@ Delegate every heavy read (diff/code digestion, journal/review mining, context g
    - Auto mode uses defaults; standalone prompts for quiz size + background depth first.
 
 2. **Derive the code scope, and close it.** *feature:* the diff-derivation ladder below (the git-CLI seam, ADR-0004) — on exhaustion, **refuse**: `no_derivable_diff`, nothing written, naming the missing input. *mr:* the fetched MR diff. *code:* the resolved file set at repo `HEAD` (no diff).
-   - *code:* one `/afk:investigate` Q1 run on the resolved entry symbol, here in the orchestrator — the digest children are read-only and each would otherwise enumerate the same boundaries again. Its ledger path rides in the diff/code digest's brief.
+   - *code:* one `/afk:investigate` Q1 run on the resolved entry symbol, here in the orchestrator, `--out` set to this artifact's build directory — the digest children are read-only and each would otherwise enumerate the same boundaries again. Its ledger path rides in the diff/code digest's brief.
 
 3. **Three parallel digest subagents** (one message, per `DELEGATION.md`), **1 retry each**, any failure after its retry → whole generation fails-soft:
    - **diff/code digest** — *feature/mr:* the diff grouped by seam/flow (SEC-3 source), full-coverage list incl. skipped-trivial candidates. *code:* the in-scope code grouped by flow — entry points → module boundaries → key classes → end-to-end scenarios — same full-coverage list, with the flow map starting from the step-2 ledger handed to it, so the boundaries it names are the closed ones. Either way: note footguns, edge cases, and surprising behaviour as **misconception fodder** (cited).

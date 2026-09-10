@@ -53,6 +53,7 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
+    "report-issue",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -81,6 +82,12 @@ INVESTIGATION_KEYS = {"boundaries", "generated", "reactor"}
 INVESTIGATION_BOUNDARY_KEYS = {
     "name", "class", "pattern", "judgment-only", "site", "paths", "note",
 }
+# Which fields hold paths, in one place: validation checks exactly these, and
+# `normalize` folds exactly these. A field on one list and not the other is a
+# path that reaches a consumer in a spelling its grammar refuses.
+INVESTIGATION_PATH_LISTS = ("generated", "reactor")
+INVESTIGATION_BOUNDARY_PATHS = ("site",)
+INVESTIGATION_BOUNDARY_PATH_LISTS = ("paths",)
 INVESTIGATION_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 
 # Per-kind worktree provisioning. Flat, like every other `maven.` / `npm.` key.
@@ -114,6 +121,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "setup": {"extra"},
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
+    "report-issue": {"repository", "auto-publish"},
 }
 
 DEFAULTS: dict = {
@@ -371,13 +379,15 @@ def normalize_path(value: str) -> str | None:
     """
     if not isinstance(value, str):
         return None
-    text = value.strip().replace(chr(92), "/")
+    text = value.replace(chr(92), "/")
     while "//" in text:
         text = text.replace("//", "/")
     if text.startswith("./"):
         text = text[2:]
     text = text.rstrip("/")
-    if not text or text.startswith("/") or re.match(r"^[A-Za-z]:", text):
+    # A leading or trailing space is a name git holds and a builder quotes; a
+    # drive letter is not. `a:b` is a legal path, so a colon alone says nothing.
+    if not text or text.startswith("/") or re.match(r"^[A-Za-z]:(/|$)", text):
         return None
     if any(part in ("", ".", "..") for part in text.split("/")):
         return None
@@ -389,19 +399,38 @@ def normalize(config: dict) -> dict:
     investigation = config.get("investigation")
     if not isinstance(investigation, dict):
         return config
-    for key in ("generated", "reactor"):
-        value = investigation.get(key)
-        if isinstance(value, list):
-            folded = [normalize_path(item) for item in value]
-            if all(item is not None for item in folded):
-                investigation[key] = folded
+    for key in INVESTIGATION_PATH_LISTS:
+        _fold_list(investigation, key)
     for entry in investigation.get("boundaries") or []:
-        if not isinstance(entry, dict) or not isinstance(entry.get("paths"), list):
+        if not isinstance(entry, dict):
             continue
-        folded = [normalize_path(item) for item in entry["paths"]]
-        if all(item is not None for item in folded):
-            entry["paths"] = folded
+        for key in INVESTIGATION_BOUNDARY_PATHS:
+            folded = normalize_path(entry.get(key)) if key in entry else None
+            if folded is not None:
+                entry[key] = folded
+        for key in INVESTIGATION_BOUNDARY_PATH_LISTS:
+            _fold_list(entry, key)
     return config
+
+
+def _fold_list(holder: dict, key: str) -> None:
+    """Fold one list of paths in place, or leave it for validation to refuse.
+
+    Three spellings of one directory are one declared path: folded they would
+    otherwise walk it three times and record three commands over one file set.
+    First writing wins, so the order the human wrote survives.
+    """
+    value = holder.get(key)
+    if not isinstance(value, list):
+        return
+    folded = [normalize_path(item) for item in value]
+    if any(item is None for item in folded):
+        return
+    kept: list[str] = []
+    for item in folded:
+        if item not in kept:
+            kept.append(item)
+    holder[key] = kept
 
 
 def _relative_path(problems: list[str], where: str, value: str) -> None:
@@ -414,9 +443,10 @@ def _relative_path(problems: list[str], where: str, value: str) -> None:
     """
     if normalize_path(value) is not None:
         return
-    if value.startswith(("/", chr(92))) or re.match(r"^[A-Za-z]:", value):
+    folded = value.replace(chr(92), "/")
+    if folded.startswith("/") or re.match(r"^[A-Za-z]:(/|$)", folded):
         problems.append(f"{where}: {value!r} is absolute; paths are repository-relative")
-    elif ".." in value.replace(chr(92), "/").split("/"):
+    elif ".." in folded.split("/"):
         problems.append(f"{where}: {value!r} escapes the repository")
     else:
         problems.append(f"{where}: {value!r} is not a repository-relative path")
@@ -457,8 +487,6 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
         site = entry.get("site")
         if site is not None and not isinstance(site, str):
             problems.append(f"{where}.site: must be a repository-relative path")
-        elif isinstance(site, str) and site.strip():
-            _relative_path(problems, f"{where}.site", site)
         if judgment is True:
             if pattern is not None:
                 problems.append(
@@ -474,15 +502,21 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
                 f"{where}: needs a `pattern`, or `judgment-only: true` with a `site`"
             )
         paths = entry.get("paths")
-        if paths is not None:
-            if not isinstance(paths, list):
-                problems.append(f"{where}.paths: must be a block list of globs")
-            else:
-                for glob in paths:
-                    if not isinstance(glob, str) or not glob.strip():
-                        problems.append(f"{where}.paths: {glob!r} is not a pathspec")
-                    else:
-                        _relative_path(problems, f"{where}.paths", glob)
+        if paths is not None and not isinstance(paths, list):
+            problems.append(f"{where}.paths: must be a block list of globs")
+        # The path-shaped fields, checked off the one field list `normalize`
+        # folds — a field on one list and not the other is a path that reaches
+        # a consumer in a spelling its grammar refuses.
+        for key in INVESTIGATION_BOUNDARY_PATHS:
+            item = entry.get(key)
+            if isinstance(item, str) and item.strip():
+                _relative_path(problems, f"{where}.{key}", item)
+        for key in INVESTIGATION_BOUNDARY_PATH_LISTS:
+            for item in entry.get(key) or []:
+                if not isinstance(item, str) or not item.strip():
+                    problems.append(f"{where}.{key}: {item!r} is not a pathspec")
+                else:
+                    _relative_path(problems, f"{where}.{key}", item)
         note = entry.get("note")
         if note is not None and not isinstance(note, str):
             problems.append(f"{where}.note: must be a string")
@@ -600,7 +634,7 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                     f"investigation.{key}: unknown key; expected one of "
                     f"{', '.join(sorted(INVESTIGATION_KEYS))}"
                 )
-            for key in ("generated", "reactor"):
+            for key in INVESTIGATION_PATH_LISTS:
                 value = investigation.get(key)
                 if value is None:
                     continue
@@ -646,6 +680,14 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     command = npm.get("worktree-command")
     if command is not None and (not isinstance(command, list) or not command):
         problems.append("npm.worktree-command: must be a non-empty block list of argv words")
+
+    report = config.get("report-issue")
+    if isinstance(report, dict):
+        target = report.get("repository")
+        if target is not None and (not isinstance(target, str) or "/" not in target):
+            problems.append("report-issue.repository: must be `owner/name` or its GitHub URL")
+        if "auto-publish" in report and not isinstance(report["auto-publish"], bool):
+            problems.append("report-issue.auto-publish: must be `true` or `false`")
 
     developer = config.get("developer")
     if isinstance(developer, dict):

@@ -570,10 +570,9 @@ def expand(pattern: str, simple: str, bounded_terms: str) -> str:
 
 def site_present(repo: Path, inventory: set[str], site: str) -> bool:
     """A judgment-only site is evidence only while it exists on this snapshot."""
-    normalized = site.strip()
-    if normalized.startswith("./"):
-        normalized = normalized[2:]
-    normalized = normalized.rstrip("/")
+    normalized = contract.repo_path(site)
+    if normalized is None:
+        return False
     if normalized in inventory:
         return True
     if any(path.startswith(normalized + "/") for path in inventory):
