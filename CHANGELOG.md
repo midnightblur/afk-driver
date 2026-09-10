@@ -18,7 +18,7 @@ first released heading here.
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-09-10
+## [1.2.0] - 2026-09-10
 
 ### Added
 
@@ -58,6 +58,38 @@ first released heading here.
   parent has settled, and a dependent that claims to hold while its parent is
   open is the one wrong statement the strip exists to prevent.
 
+### Changed
+
+- **A round can lay its items out as a table, and three render points moved
+  onto the kit because of it.** A group in a round document now takes
+  `layout: "cards"` (the default) or `layout: "table"`; a table group renders
+  its `confirm_row` members as one row each -- item, question, recommended,
+  your mark, note -- with the why, the citation and the alternatives behind a
+  per-row disclosure. Items stay flat, so anchors, the decision ledger, the
+  re-audit strip, dependency chips and per-item persistence work on a row
+  exactly as they do on a card, and the page runtime needed no change at all.
+  Only `confirm_row` may sit in a table group: a `decided_card` carries a
+  six-field record that a cell would either truncate or make unreadable, so an
+  intact one there is a hard exit naming it.
+
+  Findings triage (RP-4) moves onto the kit because of it -- dozens of
+  findings needing one disposition each is a matrix, not a card stack -- so no
+  model writes that page any more. The plan page (RP-2) and the verification
+  matrix (RP-3) stay authored: the ship-time seam check proved neither flip
+  was earned. RP-2 wants a multi-pick control for its `opt-in:` picks and the
+  kit offers one radio set per item; RP-3 wants domain columns that the
+  table's fixed five cannot carry.
+
+- **One browser tab per lavish session.** A round used to open a fresh tab,
+  because the plain render shape opens the browser and a session-default weave
+  re-renders every round. It never needed to: the background server watches
+  the artifact file and pushes a reload to the tab already open, swapping the
+  artifact frame and leaving the queued prompts and the conversation panel
+  standing. So the browser opens once, at the first render a human is meant to
+  see, and every render after it passes `--no-open`.
+
+## [1.1.0] - 2026-09-10
+### Added
 
 - **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
   scope and design to a stakeholder room: source ledger, concept ladder, one
@@ -96,34 +128,6 @@ first released heading here.
   which is what an escape is for.
 
 ### Changed
-
-- **A round can lay its items out as a table, and three render points moved
-  onto the kit because of it.** A group in a round document now takes
-  `layout: "cards"` (the default) or `layout: "table"`; a table group renders
-  its `confirm_row` members as one row each -- item, question, recommended,
-  your mark, note -- with the why, the citation and the alternatives behind a
-  per-row disclosure. Items stay flat, so anchors, the decision ledger, the
-  re-audit strip, dependency chips and per-item persistence work on a row
-  exactly as they do on a card, and the page runtime needed no change at all.
-  Only `confirm_row` may sit in a table group: a `decided_card` carries a
-  six-field record that a cell would either truncate or make unreadable, so an
-  intact one there is a hard exit naming it.
-
-  Findings triage (RP-4) moves onto the kit because of it -- dozens of
-  findings needing one disposition each is a matrix, not a card stack -- so no
-  model writes that page any more. The plan page (RP-2) and the verification
-  matrix (RP-3) stay authored: the ship-time seam check proved neither flip
-  was earned. RP-2 wants a multi-pick control for its `opt-in:` picks and the
-  kit offers one radio set per item; RP-3 wants domain columns that the
-  table's fixed five cannot carry.
-
-- **One browser tab per lavish session.** A round used to open a fresh tab,
-  because the plain render shape opens the browser and a session-default weave
-  re-renders every round. It never needed to: the background server watches
-  the artifact file and pushes a reload to the tab already open, swapping the
-  artifact frame and leaving the queued prompts and the conversation panel
-  standing. So the browser opens once, at the first render a human is meant to
-  see, and every render after it passes `--no-open`.
 
 - **The two meeting-plan skills are named by their meeting** — `/afk:to-meeting-b`
   (the design review) and `/afk:to-meeting-d` (the demo). The letters are the
