@@ -118,6 +118,15 @@ first released heading here.
 
 ### Fixed
 
+- **The stale-activation check saw one working tree.** `MANIFEST.md` row `O8`
+  probed the current root only, so a repository whose siblings each kept their
+  own copy of the retired generated tree passed while every sibling stayed
+  stale — and a session opened in one of them lost the skills that copy
+  shadowed. The probe now walks `git worktree list`, and the fix separates a
+  worktree whose branch already untracked the tree (remove it) from one whose
+  branch predates that commit (report it, merge forward, never stage a
+  deletion the human did not ask for).
+
 - **The send control sat where a long round hid it.** Emitted at the end of
   the document, it fell below every settled card as soon as the settled
   history outgrew the current round — a human with a marked card and no
