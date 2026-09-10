@@ -206,6 +206,16 @@ first released heading here.
   as the document. It now sits in the flow directly under the round it sends,
   and a round with nothing answerable emits no bar at all.
 
+- **`setup_secrets.py` resolved the plugin's own location instead of the
+  caller's repository.** The preflight ran `git rev-parse --show-toplevel` with
+  the working directory pinned to the plugin root. On a marketplace install the
+  plugin root sits outside any checkout, so the script aborted with "not inside
+  a git checkout" from every directory, and register entries H6 and S1 could not
+  be fixed at all. On a clone of the plugin itself the same call answered with
+  the plugin's repository rather than the target one. The call now inherits the
+  caller's directory. `scripts/tests/test_setup_secrets_repo_root.py` covers
+  both directions.
+
 ## [1.0.18] - 2026-09-05
 
 ### Removed
