@@ -20,6 +20,14 @@ first released heading here.
 
 ### Fixed
 
+- **Grills no longer drift back to one question at a time.**
+  `/afk:grill-requirements` and `/afk:grill-solution` still carried
+  per-question pacing that contradicted the round dossier (`ROUND.md`) — "ask
+  each debate-class concern one question at a time", re-render "at each
+  question boundary", ask a term check "as soon as the candidate surfaces". A
+  grill following those lines interrupted the human per question instead of
+  presenting one researched round. They now present per round; one at a time
+  remains only after the human writes `take over`.
 - **`/afk:setup` now registers `pytest` (`MANIFEST.md` P5).** The `pytest`-based
   tests under `scripts/tests/` need it, but the dependency was in no register
   entry — so the doctor could report a machine green while the suite was

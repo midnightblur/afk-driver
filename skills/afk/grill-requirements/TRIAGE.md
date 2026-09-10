@@ -62,7 +62,8 @@ frames it.
 ## Escalation and locking
 
 - Any item the user **overrides or questions** leaves the batch, becomes
-  debate-class — re-grilled one-at-a-time before locking.
+  debate-class — re-grilled in the next round before locking (one at a time
+  only while an escape is in force).
 - A batch-accepted item locks with its recommended rationale and checkpoints
   into `GRILL-LOG.md` like any other decision
   ([GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md)).
