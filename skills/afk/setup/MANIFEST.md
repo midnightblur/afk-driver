@@ -541,11 +541,24 @@ Gating rule: if O1 misses, report the whole section as
 - **Needed by:** migration from the retired generated layer only. Run it after
   uninstalling the plugin too: these paths are gitignored, so a harness removal
   leaves them behind and a repository-root session still reads them.
-- **Probe:** `test ! -d .agents/skills -a ! -f .codex/hooks.json -a ! -d .codex/agents -a ! -f AGENTS.local.md`
+- **Probe:** `! git worktree list --porcelain | sed -n 's/^worktree //p' | while IFS= read -r w; do ls -d "$w/.agents/skills" "$w/.codex/agents" "$w/.codex/hooks.json" "$w/AGENTS.local.md" 2>/dev/null; done | grep -q .`
 - **Fix:** `human:` offer removal of AFK-generated `.agents/skills/afk-*`,
   project `.codex/agents/`, project `.codex/hooks.json`, and only the AFK block
   in `AGENTS.local.md`. Delete nothing without confirmation. Preserve every
-  unrelated file and block.
+  unrelated file and block. Run `git ls-files` on those paths in each worktree
+  first: zero hits ⇒ remove them there; any hit ⇒ that branch predates the
+  commit that untracked the tree, so report it and leave it — merging the branch
+  forward drops them, and a cleanup delete would stage a content change the
+  human never asked for.
+- **Notes:** each worktree holds its own copy, so a check at one root passes
+  while its siblings stay stale. A stale copy is a live fault, and its two
+  halves resolve differently. Skills resolve per worktree: the retired generator
+  wrote a folded-scalar `description:` header that reads as invalid YAML, so a
+  session opened there loses those skills, and the copies that still load shadow
+  the plugin's own catalog and squeeze every description into a smaller budget.
+  The hook file resolves once, from the main worktree: its `_generated` key
+  fails that schema for every worktree at once, so removing the main copy clears
+  it everywhere and a sibling copy sits inert.
 
 ## X — Rows the repository contributes
 

@@ -18,6 +18,85 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/afk:setup` now registers `pytest` (`MANIFEST.md` P5).** The `pytest`-based
+  tests under `scripts/tests/` need it, but the dependency was in no register
+  entry — so the doctor could report a machine green while the suite was
+  unrunnable on it. A known dependency missing from the register is a
+  `FRESHNESS.md` violation, not housekeeping. Re-run `/afk:setup`.
+
+## [1.2.0] - 2026-09-10
+
+### Added
+
+- **A round is navigable without being smaller** — the three navigability rules
+  in `skills/afk/grill-requirements/ROUND.md` were a contract nothing
+  implemented, so a large round was a long page. Now: a **shape line** states
+  the card count, the group count and which groups wait for nothing, all
+  derived rather than authored; **groups** section the round by the concern each
+  card settles, in a declared order the renderer refuses to reorder; and every
+  card renders as **heading, lede, disclosure** — the recommendation and the
+  one sentence behind it always visible, the comparison and the audit trail one
+  click away. The answer control is a sibling of the disclosure, never inside
+  it, so a closed card is still markable and scanning and answering are one
+  pass. Contract: `LAVISH-KIT.md`.
+
+- **The re-audit strip and the decision ledger** — a round now opens with one
+  line per decided card that came back from the last send unmarked, since an
+  unmarked decision is never applied; only the ids are authored, and the
+  decision and citation are read off the card the round already presents. An id
+  that names a settled card, or one this round does not present, is a hard exit.
+  The page closes with a decision ledger: one row per settled decision — item,
+  round, decided by, audit mark, evidence grade — closed by default, each row
+  linking to its own card instead of holding a second copy of the evidence.
+
+- **Two strips above the round** — a **process rail** showing the chain stages
+  with this session's lit (`stage` on the round document; `done` and `upcoming`
+  are derived from its position, so no author can state them wrongly), and a
+  **round strip** of one notch per round carrying its card count, group count
+  and how many cards are still open. Counts, not a progress bar: there is no
+  target round count for a round to be a fraction of. Every notch lands on a
+  round section, which is why settled history is now sectioned by round —
+  newest round first — instead of one flat list.
+
+- **Dependency chips on a dependent card** — parent ids as links to the parent
+  card, plus a `provisional` badge while a parent is still unmarked. The states
+  are read off the artifact, not off the card: a card cannot know whether its
+  parent has settled, and a dependent that claims to hold while its parent is
+  open is the one wrong statement the strip exists to prevent.
+
+### Changed
+
+- **A round can lay its items out as a table, and three render points moved
+  onto the kit because of it.** A group in a round document now takes
+  `layout: "cards"` (the default) or `layout: "table"`; a table group renders
+  its `confirm_row` members as one row each -- item, question, recommended,
+  your mark, note -- with the why, the citation and the alternatives behind a
+  per-row disclosure. Items stay flat, so anchors, the decision ledger, the
+  re-audit strip, dependency chips and per-item persistence work on a row
+  exactly as they do on a card, and the page runtime needed no change at all.
+  Only `confirm_row` may sit in a table group: a `decided_card` carries a
+  six-field record that a cell would either truncate or make unreadable, so an
+  intact one there is a hard exit naming it.
+
+  Findings triage (RP-4) moves onto the kit because of it -- dozens of
+  findings needing one disposition each is a matrix, not a card stack -- so no
+  model writes that page any more. The plan page (RP-2) and the verification
+  matrix (RP-3) stay authored: the ship-time seam check proved neither flip
+  was earned. RP-2 wants a multi-pick control for its `opt-in:` picks and the
+  kit offers one radio set per item; RP-3 wants domain columns that the
+  table's fixed five cannot carry.
+
+- **One browser tab per lavish session.** A round used to open a fresh tab,
+  because the plain render shape opens the browser and a session-default weave
+  re-renders every round. It never needed to: the background server watches
+  the artifact file and pushes a reload to the tab already open, swapping the
+  artifact frame and leaving the queued prompts and the conversation panel
+  standing. So the browser opens once, at the first render a human is meant to
+  see, and every render after it passes `--no-open`.
+
+## [1.1.0] - 2026-09-10
 ### Added
 
 - **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
@@ -118,6 +197,15 @@ first released heading here.
 
 ### Fixed
 
+- **The stale-activation check saw one working tree.** `MANIFEST.md` row `O8`
+  probed the current root only, so a repository whose siblings each kept their
+  own copy of the retired generated tree passed while every sibling stayed
+  stale — and a session opened in one of them lost the skills that copy
+  shadowed. The probe now walks `git worktree list`, and the fix separates a
+  worktree whose branch already untracked the tree (remove it) from one whose
+  branch predates that commit (report it, merge forward, never stage a
+  deletion the human did not ask for).
+
 - **The send control sat where a long round hid it.** Emitted at the end of
   the document, it fell below every settled card as soon as the settled
   history outgrew the current round — a human with a marked card and no
@@ -126,11 +214,15 @@ first released heading here.
   as the document. It now sits in the flow directly under the round it sends,
   and a round with nothing answerable emits no bar at all.
 
-- **`/afk:setup` now registers `pytest` (`MANIFEST.md` P5).** Every test under
-  `scripts/tests/` is a `pytest` case, but the dependency was in no register
-  entry — so the doctor could report a machine green while the suite was
-  unrunnable on it. A known dependency missing from the register is a
-  `FRESHNESS.md` violation, not housekeeping. Re-run `/afk:setup`.
+- **`setup_secrets.py` resolved the plugin's own location instead of the
+  caller's repository.** The preflight ran `git rev-parse --show-toplevel` with
+  the working directory pinned to the plugin root. On a marketplace install the
+  plugin root sits outside any checkout, so the script aborted with "not inside
+  a git checkout" from every directory, and register entries H6 and S1 could not
+  be fixed at all. On a clone of the plugin itself the same call answered with
+  the plugin's repository rather than the target one. The call now inherits the
+  caller's directory. `scripts/tests/test_setup_secrets_repo_root.py` covers
+  both directions.
 
 ## [1.0.18] - 2026-09-05
 

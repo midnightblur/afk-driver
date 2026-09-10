@@ -29,6 +29,12 @@ COMPONENTS = (
 )
 
 GRADES = ("repo", "spec", "pattern")
+
+# The chain stages, in order, for the process rail. Order is the whole content:
+# `done` and `upcoming` are read off the position of the round document's own
+# `stage`, so no author states them and none can state them wrongly.
+STAGES = ("requirements", "design", "verification", "plan", "execution",
+          "smoke", "ship")
 ITEM_STATES = ("open", "blocked", "settled")
 ROUND_STATES = ("current", "settled")
 
@@ -57,7 +63,8 @@ LIST_FIELDS = ("settled_last_round", "unlocks", "touches", "parked",
 # wrote. `depends_on` is legal on every card but a decided one, which carries
 # its own inside `scope`.
 OPTIONAL = {
-    "round_header": ("target", "size_note", "parked", "links"),
+    "round_header": ("target", "size_note", "parked", "links", "groups",
+                     "re_audit"),
     "decided_card": ("context", "provisional_on"),
     "debate_card": ("context", "third_paradigm"),
     "confirm_row": ("context", "alternatives"),
@@ -65,8 +72,18 @@ OPTIONAL = {
     "settled_card": ("audit",),
 }
 
-COMMON_ITEM = ("component", "id", "state", "fresh")
-DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir")
+# `group` is legal on every card: the round groups its cards by the concern
+# they settle, and a settled card keeps the group it was decided under.
+COMMON_ITEM = ("component", "id", "state", "fresh", "group")
+
+GROUP_KEYS = ("id", "title", "after", "layout")
+
+# How a group lays its members out. `cards` is the default and the only shape
+# every component fits; `table` is one row per item, and only a `confirm_row`
+# is row-shaped (see `_bind_layout`).
+LAYOUTS = ("cards", "table")
+TABLE_LAYOUT = "table"
+DOCUMENT_KEYS = ("schema", "purpose", "feature", "rounds", "spec_dir", "stage")
 ROUND_KEYS = ("round", "state", "items", "header")
 
 # The six decided-card contract fields, in render order (C-1 … C-6).
@@ -175,6 +192,10 @@ def _degrade(item, gaps):
         "id": item["id"],
         "state": item.get("state"),
         "fresh": item.get("fresh"),
+        # The group travels with the card. A degrade that dropped it would put
+        # the card in no group, and a grouped page renders groups — so the
+        # question would vanish at the exact moment it needs asking.
+        "group": item.get("group"),
         "question": item["decision"],
         "context": item.get("context"),
         # The degraded card asks the one question its gaps leave standing.
@@ -276,6 +297,156 @@ def _resolve_ids(item, known_ids):
     return item
 
 
+def _check_groups(groups, number):
+    """Declared groups, in an order that is already a dependency order.
+
+    The list order is the render order, so a group listed before one it comes
+    `after` would put a dependent above its parent — navigability rule 2 read
+    backwards. Rejecting that here means the renderer never has to sort, and
+    the author sees the cycle instead of a page that quietly reorders their
+    round.
+    """
+    if not isinstance(groups, list) or not groups:
+        raise ContractError("round %d header: `groups`, when stated, is a non-empty list"
+                            % number)
+    seen = []
+    for group in groups:
+        if not isinstance(group, dict):
+            raise ContractError("round %d header: every group is a JSON object" % number)
+        label = "round %d group %r" % (number, group.get("id"))
+        _reject_unknown(label, group, set(GROUP_KEYS))
+        for field in ("id", "title"):
+            if _empty(group.get(field)):
+                raise ContractError("%s: required field %r is missing or empty"
+                                    % (label, field))
+        gid = group["id"]
+        if gid in seen:
+            raise ContractError("%s: duplicate group id" % label)
+        layout = group.get("layout")
+        if layout is not None and layout not in LAYOUTS:
+            raise ContractError("%s: `layout` %r is not one of %s"
+                                % (label, layout, ", ".join(LAYOUTS)))
+        after = group.get("after") or []
+        if not isinstance(after, list):
+            raise ContractError("%s: `after` must be a list of group ids" % label)
+        for parent in after:
+            if parent == gid:
+                raise ContractError("%s: a group cannot come after itself" % label)
+            if parent not in seen:
+                raise ContractError(
+                    "%s: comes after %r, which is not declared before it — list groups in "
+                    "dependency order, parents first" % (label, parent))
+        seen.append(gid)
+    return seen
+
+
+def _bind_groups(items, groups, number):
+    """Every answerable card in a grouped round names one of the groups.
+
+    Half a round grouped is worse than none: the ungrouped cards land in no
+    section, so the group count on the header stops describing the page. A
+    round either groups its live cards or declares no groups at all — and a
+    `group` on a card in an ungrouped round names nothing, which is the same
+    class of defect as any other reference to nothing.
+    """
+    live = [i for i in items if i.get("state") != "settled"]
+    if groups is None:
+        stray = [i["id"] for i in live if i.get("group") is not None]
+        if stray:
+            raise ContractError(
+                "round %d: %s carry a `group`, but the header declares none — declare the "
+                "groups or drop the field" % (number, ", ".join(repr(i) for i in stray)))
+        return
+    known = {g["id"] for g in groups}
+    for item in live:
+        if item.get("group") is None:
+            raise ContractError(
+                "round %d: item %r names no `group`, and this round declares %d of them"
+                % (number, item["id"], len(known)))
+        if item["group"] not in known:
+            raise ContractError(
+                "round %d: item %r is in group %r, which the header does not declare "
+                "(declared: %s)" % (number, item["id"], item["group"],
+                                    ", ".join(sorted(known))))
+
+
+def group_layout(group):
+    """How this group lays its members out. Absent reads as `cards`.
+
+    Read, never written: normalizing the field onto the author's own group
+    object would edit the document the caller handed in.
+    """
+    return group.get("layout") or "cards"
+
+
+def _bind_layout(items, groups, number):
+    """A table group holds only `confirm_row` members.
+
+    A row is one question needing exactly one mark, which is the whole of a
+    confirm card. Every other component carries more than a row can hold: a
+    `decided_card` has a six-field contract plus a narrative body, so forcing
+    it into a cell either truncates the record or makes the row unreadable —
+    and the record is the reason the card is allowed to exist. A `debate_card`
+    is a criteria grid, and a `signoff_packet` is tables; neither is row-shaped
+    either.
+
+    Runs after the degrade pass, so a `decided_card` that lost its contract has
+    already become a `confirm_row` and passes here — the same question in a
+    weaker form, which is exactly what a row asks.
+    """
+    if not groups:
+        return
+    tables = {g["id"] for g in groups if group_layout(g) == TABLE_LAYOUT}
+    if not tables:
+        return
+    for item in items:
+        if item.get("state") == "settled" or item.get("group") not in tables:
+            continue
+        if item["component"] != "confirm_row":
+            raise ContractError(
+                "round %d: item %r is a %s in group %r, which lays out as a table — a "
+                "table row holds one question and one mark, so only confirm_row fits"
+                % (number, item["id"], item["component"], item["group"]))
+
+
+def _bind_re_audit(items, ids, number):
+    """Every re-audited id is a live card in this round.
+
+    The strip exists to say a decision went unmarked and is therefore not
+    applied. That claim is only true while the card is on the page to be
+    marked: an id naming a settled card would say the opposite of the record,
+    and an id naming nothing would ask the human to re-audit a card they
+    cannot reach.
+    """
+    if ids is None:
+        return
+    if not isinstance(ids, list):
+        raise ContractError("round %d header: `re_audit` must be a list of item ids"
+                            % number)
+    live = {i["id"] for i in items if i.get("state") != "settled"}
+    settled = {i["id"] for i in items if i.get("state") == "settled"}
+    for item_id in ids:
+        if item_id in live:
+            continue
+        if item_id in settled:
+            raise ContractError(
+                "round %d: `re_audit` names %r, which is settled in this round — a card "
+                "that carries a mark is not unanswered" % (number, item_id))
+        raise ContractError(
+            "round %d: `re_audit` names %r, which this round does not present — an "
+            "unmarked card is re-asked, not just reported" % (number, item_id))
+
+
+def independent_groups(groups):
+    """Group ids nothing gates: the ones the human may take in any order.
+
+    Rule 1 asks the header to say which groups are independent of each other.
+    That is derivable — a group with an empty `after` waits for nothing — so no
+    author writes it and no author gets it wrong.
+    """
+    return [g["id"] for g in groups if not (g.get("after") or [])]
+
+
 def _check_header(header, number):
     if not isinstance(header, dict):
         raise ContractError("round %d: the current round needs a `header` (round_header)"
@@ -291,6 +462,8 @@ def _check_header(header, number):
         raise ContractError("round %d header: `component` says %r; a round's header is a "
                             "round_header" % (number, header.get("component")))
     _require_fields("round_header", header, "round %d header" % number)
+    if header.get("groups") is not None:
+        _check_groups(header["groups"], number)
     if header.get("round") != number:
         raise ContractError("round %d header says round %r" % (number, header.get("round")))
     target = header.get("target")
@@ -311,6 +484,10 @@ def load(doc):
     for field in ("feature", "purpose", "rounds"):
         if _empty(doc.get(field)):
             raise ContractError("document: required field %r is missing or empty" % field)
+    stage = doc.get("stage")
+    if stage is not None and stage not in STAGES:
+        raise ContractError("document: `stage` %r is not a chain stage (%s)"
+                            % (stage, ", ".join(STAGES)))
     rounds = doc["rounds"]
     if not isinstance(rounds, list):
         raise ContractError("document: `rounds` must be a list")
@@ -352,11 +529,19 @@ def load(doc):
         checked = [_check_item(dict(i) if isinstance(i, dict) else i,
                                state, seen_ids)
                    for i in items]
+        if state == "current":
+            _bind_groups(checked, header.get("groups"), number)
+            _bind_re_audit(checked, header.get("re_audit"), number)
         normalized.append({"round": number, "id": round_id, "state": state,
                            "header": header, "items": checked})
 
     for rnd in normalized:
         rnd["items"] = [_resolve_ids(i, seen_ids) for i in rnd["items"]]
+        # Layout membership waits for the degrade pass above: a decided card
+        # that fails its contract is a confirm_row by the time it is placed.
+        if rnd["state"] == "current":
+            _bind_layout(rnd["items"], (rnd["header"] or {}).get("groups"),
+                         rnd["round"])
 
     normalized.sort(key=lambda r: r["round"])
     out = dict(doc)
