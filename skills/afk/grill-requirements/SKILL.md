@@ -7,9 +7,9 @@ description: Grills a raw feature idea against the domain glossary and staples b
 
 ## What to do
 
-Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree, resolving decision dependencies one-by-one. Recommend an answer per question.
+Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree in dependency order. Recommend an answer per question.
 
-Ask one at a time; wait for feedback before continuing.
+Work the group first, then present one round per [ROUND.md](ROUND.md): ground the premises, weigh the alternatives, decide what the rule there allows, and bring the whole layer at once — decisions to audit, calls that are the user's, and the indecisions with the condition that failed. The wait for feedback is per round, not per question.
 
 If a question is answerable by exploring the codebase, explore instead — run that exploration in an `afk-reader` subagent returning a cited digest, per `DELEGATION.md` (plugin root), so this session's context stays on the conversation.
 
@@ -47,7 +47,7 @@ When the user states how something works — existing behaviour, a constraint, a
 
 Keep a running **claim ledger** in the conversation: every load-bearing claim one line, in the Ledger-row grammar of [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). A row is `pending` from the moment its run is spawned, and becomes `verified` or `refuted` when that run's ledger returns; a `partial` verdict leaves it `pending`, and the reply lists that ledger's `unverified` items. Nothing settles on a `pending` row. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it, update the row to `verified` against actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. PRD synthesis gates on the ledger — a lost ledger means re-verifying, not waving through.
 
-**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-6, playbook `diagram`): render from the first question and re-render at every question/turn boundary into one phase artifact carrying the round in play plus the shared view across every grill's `GRILL-LOG.md` section — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to markdown + reading the log directly.
+**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-6, playbook `diagram`), **kit path** — author the round JSON and run the render script per `LAVISH-KIT.md`, never HTML: render from the first question and re-render at every question/turn boundary into one phase artifact carrying the round in play plus the shared view across every grill's `GRILL-LOG.md` section — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to markdown + reading the log directly.
 
 ### Challenge the want (find the real pain, not the perceived one)
 

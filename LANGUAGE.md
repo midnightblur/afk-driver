@@ -20,6 +20,7 @@ pointer.
 - Active voice, present tense: "run the build", not "the build should be run".
 - One term, one meaning — and one meaning, one term. Never rotate synonyms for variety.
 - Prefer the common word. Expand every abbreviation at first use, per report or artifact.
+- Noun clusters: 3 words maximum. Unstack with a preposition or a verb — "the handler that sets task-queue priority", never "the agent task queue priority handler". English does not mark which noun is the head, so the reader guesses.
 - No idioms, no metaphors, no filler, no rhetorical questions.
 - Numbers, not adjectives: "3 of 9 subtasks parked", never "most subtasks parked".
 
@@ -30,6 +31,8 @@ pointer.
 - Domain terms come from the target repo's glossaries (start at its `GLOSSARY-MAP.md`).
 - Never coin a synonym for a term a glossary owns; never redefine one inline — point at its home.
 - A recurring domain term with no entry is a gap: name it once, consistently, and route it to the glossary steward (`/afk:glossary`).
+- **A multi-word compound naming a concept is a term.** Register it in a glossary before use, or write the concept out as a phrase. Coining one mid-document and using it from then on is a defect: the reader gets a name and no definition.
+- **Gloss a registered compound at first use in every document** — 3-5 words, in brackets: `mergebase (the commit the branch forked from)`. Deliberate exception to §3's one-fact-one-home: a novel compound costs the reader a full re-parse at every encounter, and that cost is paid per document, not per repo.
 - Jargon stays out of the reader-facing plain-terms sentence — that sentence must stand alone without any glossary (`REPORTING.md`).
 
 ## 3. Concision — how much
@@ -38,7 +41,7 @@ Applies to every markdown artifact a skill writes (PRD, SDD, ADRs, plan index
 + subtask contracts, verification/demo/brief docs, grill logs,
 review/adversary/retro reports, steering notes, handoff docs):
 
-- **Every sentence carries a fact the reader acts on.** No narration, motivation, meta-commentary, restated upstream context, or "unlike X" asides. Drop articles, fillers, hedges where meaning survives; fragments OK.
+- **Every sentence carries a fact the reader acts on.** No narration, motivation, meta-commentary, restated upstream context, or "unlike X" asides. Drop fillers and hedges where meaning survives; fragments OK. An article or preposition marking a noun-to-noun relation is **not** filler — dropping those is what builds the noun stacks §1 caps.
 - **Complete over short.** Never drop a fact, constraint, citation, code anchor, or table row to save words — a shorter artifact that loses a fact failed. Cut words, not facts.
 - **One fact, one home.** State each fact once at its owning spot; elsewhere point (path, section, stable ID). One-liner pointers beat explanations — reference the key location, let the reader open the code. Restate only what a format section explicitly requires (e.g. a contract's `Context excerpts`).
 - **Tables beat prose for parallel structure** — reach for one at the third bullet of the same shape; enumerable sets get a catalog + reference-by-ID, never re-narration.

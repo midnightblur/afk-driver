@@ -1,6 +1,6 @@
 {
   "name": "afk",
-  "version": "1.0.15",
+  "version": "1.2.0",
   "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters.",
   "skills": [
     "./skills/afk/adversary",
@@ -25,6 +25,8 @@
     "./skills/afk/tdd",
     "./skills/afk/to-demo-plan",
     "./skills/afk/to-design-brief",
+    "./skills/afk/to-meeting-b",
+    "./skills/afk/to-meeting-d",
     "./skills/afk/to-prd",
     "./skills/afk/to-sdd",
     "./skills/afk/to-subtasks",

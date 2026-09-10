@@ -44,7 +44,7 @@ ADVERSARY: <clean|findings|tainted|env_unreachable> — probed=<n> [crit=… hig
 In plain terms: <one jargon-free sentence — what the running app got wrong (or that it held up), and what it means for shipping>
 ```
 
-   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict flags a diet breach — say so plainly. Human present: render per LAVISH.md (RP-4, playbook `table`) for findings triage; markdown fallback and driven mode use the written report above instead.
+   Both lines follow the reporting protocol (`REPORTING.md` at the plugin root). A `tainted` verdict flags a diet breach — say so plainly. Human present: render per LAVISH.md (RP-4, playbook `table`) — **kit path**: author the round JSON per `LAVISH-KIT.md`, one table-group row per finding, never HTML — for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 

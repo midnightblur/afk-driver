@@ -18,8 +18,6 @@ first released heading here.
 
 ## [Unreleased]
 
-## [1.0.15] - 2026-09-10
-
 ### Added
 
 - **`INVESTIGATION.md` — when reading code is finished.** The plugin had a bar
@@ -165,6 +163,333 @@ first released heading here.
 - **The frontier model tier now names one model per harness column**
   (`PROVIDERS.md` "Model tiers"). A research-preview model is never a tier; a
   skill that needs one names it for that usage alone.
+
+## [1.2.0] - 2026-09-10
+
+### Added
+
+- **A round is navigable without being smaller** — the three navigability rules
+  in `skills/afk/grill-requirements/ROUND.md` were a contract nothing
+  implemented, so a large round was a long page. Now: a **shape line** states
+  the card count, the group count and which groups wait for nothing, all
+  derived rather than authored; **groups** section the round by the concern each
+  card settles, in a declared order the renderer refuses to reorder; and every
+  card renders as **heading, lede, disclosure** — the recommendation and the
+  one sentence behind it always visible, the comparison and the audit trail one
+  click away. The answer control is a sibling of the disclosure, never inside
+  it, so a closed card is still markable and scanning and answering are one
+  pass. Contract: `LAVISH-KIT.md`.
+
+- **The re-audit strip and the decision ledger** — a round now opens with one
+  line per decided card that came back from the last send unmarked, since an
+  unmarked decision is never applied; only the ids are authored, and the
+  decision and citation are read off the card the round already presents. An id
+  that names a settled card, or one this round does not present, is a hard exit.
+  The page closes with a decision ledger: one row per settled decision — item,
+  round, decided by, audit mark, evidence grade — closed by default, each row
+  linking to its own card instead of holding a second copy of the evidence.
+
+- **Two strips above the round** — a **process rail** showing the chain stages
+  with this session's lit (`stage` on the round document; `done` and `upcoming`
+  are derived from its position, so no author can state them wrongly), and a
+  **round strip** of one notch per round carrying its card count, group count
+  and how many cards are still open. Counts, not a progress bar: there is no
+  target round count for a round to be a fraction of. Every notch lands on a
+  round section, which is why settled history is now sectioned by round —
+  newest round first — instead of one flat list.
+
+- **Dependency chips on a dependent card** — parent ids as links to the parent
+  card, plus a `provisional` badge while a parent is still unmarked. The states
+  are read off the artifact, not off the card: a card cannot know whether its
+  parent has settled, and a dependent that claims to hold while its parent is
+  open is the one wrong statement the strip exists to prevent.
+
+### Changed
+
+- **A round can lay its items out as a table, and three render points moved
+  onto the kit because of it.** A group in a round document now takes
+  `layout: "cards"` (the default) or `layout: "table"`; a table group renders
+  its `confirm_row` members as one row each -- item, question, recommended,
+  your mark, note -- with the why, the citation and the alternatives behind a
+  per-row disclosure. Items stay flat, so anchors, the decision ledger, the
+  re-audit strip, dependency chips and per-item persistence work on a row
+  exactly as they do on a card, and the page runtime needed no change at all.
+  Only `confirm_row` may sit in a table group: a `decided_card` carries a
+  six-field record that a cell would either truncate or make unreadable, so an
+  intact one there is a hard exit naming it.
+
+  Findings triage (RP-4) moves onto the kit because of it -- dozens of
+  findings needing one disposition each is a matrix, not a card stack -- so no
+  model writes that page any more. The plan page (RP-2) and the verification
+  matrix (RP-3) stay authored: the ship-time seam check proved neither flip
+  was earned. RP-2 wants a multi-pick control for its `opt-in:` picks and the
+  kit offers one radio set per item; RP-3 wants domain columns that the
+  table's fixed five cannot carry.
+
+- **One browser tab per lavish session.** A round used to open a fresh tab,
+  because the plain render shape opens the browser and a session-default weave
+  re-renders every round. It never needed to: the background server watches
+  the artifact file and pushes a reload to the tab already open, swapping the
+  artifact frame and leaving the queued prompts and the conversation panel
+  standing. So the browser opens once, at the first render a human is meant to
+  see, and every render after it passes `--no-open`.
+
+## [1.1.0] - 2026-09-10
+### Added
+
+- **`/afk:to-meeting-b`** — a timed run sheet for presenting settled
+  scope and design to a stakeholder room: source ledger, concept ladder, one
+  card per segment, an objection bank, and an exit that gives every undecided
+  item a disposition, an owner and a date rather than an approval nobody agreed
+  to. The hour is checked mechanically by `scripts/validate_agenda.py`. Writes
+  its plan and its index row; meeting outcomes still reach the tracker only
+  through `/afk:to-ticket` meeting mode.
+
+- **Deterministic page kit for the grill render points** — the agent authors a
+  round JSON, `scripts/lavish_render.py` produces the page, and no model writes
+  HTML on that path. Six components, one send per round, and every card carrying
+  its own choice control and note field, so a pick and a typed note arrive paired
+  by item id instead of on separate anchors. Contract: `LAVISH-KIT.md`; which
+  pages take the path: `LAVISH.md` "Production path".
+
+- **The round dossier** — one dependency layer, presented at once
+  (`skills/afk/grill-requirements/ROUND.md`). A grill
+  asked one question per turn, so a design interview cost a turn per node and
+  ran for days. The team works first now: ground the premises, weigh the
+  alternatives, decide what the rule allows, and present the whole layer at
+  once — decisions to audit, the calls that are the human's, and the
+  indecisions with the condition that stopped each one. The file owns the item
+  classes, the decide rule (pointing at `DECISIONS.md`, no second protocol),
+  the evidence grades, the six-field contract a decided card carries or
+  degrades to a question, the seven dossier sections, the navigability
+  contract that replaces the removed caps, the audit controls, steering, and
+  the one escape. Every grill points at it.
+
+- **An escape from a session that has stopped earning trust** — the human
+  writes `take over` and, for the rest of that session, the agent stops
+  deciding, stops recommending, and questions go back to one at a time.
+  Nothing is saved and no configuration key exists, so a new session decides
+  again; the session keeps its state, because an escape that costs the state
+  is a restart. It hands back exactly the cost the round dossier removes,
+  which is what an escape is for.
+
+### Changed
+
+- **The two meeting-plan skills are named by their meeting** — `/afk:to-meeting-b`
+  (the design review) and `/afk:to-meeting-d` (the demo). The letters are the
+  audience's own labels, registered in `GLOSSARY.md`; each skill's first line
+  still says which meeting it is, so the name never has to be decoded from
+  memory. `/afk:to-demo-plan` keeps working as a deprecated alias and is removed
+  in the next major version. `/afk:to-design-review-plan` never shipped, so it
+  gets no alias. The artifacts keep their names: `DESIGN-REVIEW-PLAN.md` and
+  `DEMO-PLAN.md`.
+
+- **Silence is never agreement on a rendered round.** Every answerable card now
+  requires an explicit mark, in every grill and at every evidence grade — a
+  decision the human never marked is a decision they never made. The per-grill,
+  per-grade rule and the `grill` field that only fed it are gone; `evidence.grade`
+  stays, because it is what makes a decision auditable. Batching is untouched: a
+  round may carry as many cards as it needs and one send answers them all.
+
+- **An unknown key in a round document is now a hard exit naming it.** The
+  renderer used to ignore any field it did not read, so a misspelt `contex`
+  rendered a card with no explanation and no complaint and the author found out
+  in front of the human. Every level is closed — document, round, header, card.
+
+- **An ADR records who decided it and who audited it.** The status line gains
+  `Decided by agent` and an `Audited:` date, so a record the agent minted from
+  its own decision stays visibly unreviewed until a human reads it and stamps
+  the date. Writing `Accepted` on a decision nobody audited is how an agent's
+  call quietly becomes the team's.
+
+- **A decision taken during a grill now has a record that survives it.** The
+  decision ledger writes to `plan/`, which does not exist yet at grill time,
+  and the grill log's settled row was a bare sentence — so who decided, on
+  what evidence, and whether a human ever accepted it were all gone by the
+  time synthesis ran. The row gained a tail carrying exactly that, and a row
+  without an accept date is not written at all, because an unaccepted decision
+  is not settled. The open row gained steer and escape lines, so a resumed
+  session honours a correction instead of asking again.
+
+- **An `Accepted` ADR still says who decided it.** The audit stamp used to
+  flip the status and take the word "agent" with it, leaving the grill log as
+  the only witness — which `/afk:gc` deletes, on the stated ground that
+  decisions already live in the ADRs. `Audited:` is now written only on a
+  record the agent decided, so the line's presence is the provenance and
+  survives both the stamp and the clean-up. `/afk:retro` reads it, which is
+  the one measurement that says whether agents deciding more pays or costs.
+
+- **The renderer enforces what a round claims.** A decision cited to a
+  documented house convention silently degraded into a question, so the agent
+  did the work, cited the convention, and handed the call back anyway; the
+  `pattern` grade is now admissible. And a debate card owes the condition that
+  stopped the agent deciding — a convention with no field, so nothing checked
+  it. It is required now and renders before the options, because a round's
+  completion test is read off those lines and "in doubt" is not a condition.
+
+- **`/afk:to-demo-plan` gains a company-meeting profile** — recognized from what
+  the user asks for, never a mode they must name. It fixes the hour at 45 beat
+  minutes, 10 question minutes and 5 for feedback disposition and next steps,
+  widens the audience to four roles, and adds the delivery trace and the
+  understanding artifact as optional evidence. An ordinary demo is unchanged.
+
+### Fixed
+
+- **The stale-activation check saw one working tree.** `MANIFEST.md` row `O8`
+  probed the current root only, so a repository whose siblings each kept their
+  own copy of the retired generated tree passed while every sibling stayed
+  stale — and a session opened in one of them lost the skills that copy
+  shadowed. The probe now walks `git worktree list`, and the fix separates a
+  worktree whose branch already untracked the tree (remove it) from one whose
+  branch predates that commit (report it, merge forward, never stage a
+  deletion the human did not ask for).
+
+- **The send control sat where a long round hid it.** Emitted at the end of
+  the document, it fell below every settled card as soon as the settled
+  history outgrew the current round — a human with a marked card and no
+  visible way to send it. `position: fixed` did not save it either: a host
+  that sizes its frame to the content height gives the bar a viewport as tall
+  as the document. It now sits in the flow directly under the round it sends,
+  and a round with nothing answerable emits no bar at all.
+
+## [1.0.18] - 2026-09-05
+
+### Removed
+
+- **`artifacts.glossary-map`.** The key was documented and validated, and
+  nothing read it: every skill that needs the domain glossary reads a root
+  `GLOSSARY-MAP.md`, the name `/afk:glossary` fixes in
+  `skills/utils/glossary/GLOSSARY-FORMAT.md`. A key that configures a name the
+  toolkit does not honour is a second home for one decision.
+
+### Migration
+
+- Delete `artifacts.glossary-map` from `.afk/config.yaml`; `validate` now
+  rejects it. Keep the file at the root as `GLOSSARY-MAP.md` — that is where
+  every skill looks. `artifacts.service-map` is unchanged.
+
+## [1.0.17] - 2026-09-05
+
+### Fixed
+
+- **A repository hook that cannot run blocks instead of vanishing.** A handler
+  a repository declares in `.afk/hooks.json` was skipped without a word when
+  its script was missing, its matcher was not a regular expression, the
+  manifest did not parse, or it returned no verdict inside its timeout — so a
+  required Stop gate could disappear and every turn looked clean. Each of those
+  is now a configuration error: `hooks/run-hook.py` names the entry and the
+  reason on stderr, and on Stop and PreToolUse it blocks with the decision
+  object a failed gate emits. On the other events it warns and carries on.
+- **A paginated answer is read to the end.** `gh api --paginate` and `glab api
+  --paginate` print one JSON document per page, not one document holding every
+  page, so both forge adapters' `thread-list` reported the whole answer
+  unreadable as soon as a change had more than one page of comments, and the
+  GitHub tracker's changelog fell back to a truncated string. All three now
+  decode the documents in order and join the arrays.
+- **A misspelled configuration key is refused.** `validate` only rejected
+  unknown keys at the top level and under `worktree` and `developer`, so a typo
+  under `jira`, `gitlab`, `maven` or any other documented map validated
+  cleanly, and the setting the developer meant to make silently stayed at its
+  default. Every documented map is now validated one level down, and an unknown
+  child key is named by its full dotted path.
+- **`ci-wait` answers on stdout for every outcome.** The budget-exhausted and
+  unreadable results were written to stderr, leaving a caller that routes on
+  exit 2 or 3 — a parked pipeline, an authentication fault — with nothing
+  structured to read. Both adapters now print the result object on stdout for
+  every terminal status and keep stderr for the human line. A poll interval of
+  zero, which spun forever, is treated as one second.
+- **A payload a tracker cannot read is an answer, not a traceback.** Both
+  tracker command surfaces raised `JSONDecodeError` and exited 1 on a malformed
+  payload. They now share one reader (`adapters/tracker/payload.py`), answer
+  with the family's error object naming what was wrong, and exit 2. A payload
+  that parses but is not an object is refused the same way.
+- **`afk-config.py validate FILE` names the file it cannot read.** A missing
+  path, a directory, or a file that is not UTF-8 raised a traceback and exited
+  1; it now prints `afk-config: <path>: <reason>` and exits 2.
+- **A build-gate provisioner answers with an object when it refuses one.** Both
+  `worktree-provision.sh` scripts printed a bare line on stderr and no JSON,
+  against the family contract of one object per invocation. They now emit
+  `{"error":true,"kind":…,"operation":…,"reason":…}` on stdout, with the reason
+  saying which way the payload was wrong.
+- **The toolkit's own `.afk/config.yaml` states the version it ships in.** It
+  said `1.0.0` in every release since the first. `hooks/release-gate.sh` now
+  holds it to the same equality as the two `plugin.json` files, the marketplace
+  manifest and the changelog heading, so it cannot drift again.
+- **`afk-config.py init` scaffolds the keys the GitHub Issues adapter reads.**
+  It wrote a `github-issues.labels` block that nothing reads, and no `repo`. It
+  now writes `repo` (derived from the origin remote) and `state-labels`.
+
+### Migration
+
+- Nothing to do. A repository whose `.afk/hooks.json` declares a handler this
+  checkout cannot run will now be told at the end of a turn instead of running
+  without that gate; fix or remove the entry the message names.
+- A configuration file carrying a misspelled key under a documented map starts
+  failing `validate`. The message names the key and the path — correct the
+  spelling, or drop the key.
+
+## [1.0.16] - 2026-09-05
+
+### Fixed
+
+- **`change-update-body` no longer publishes a draft change.** `glab mr update
+  --description` clears the draft flag as a side effect, so editing a body made
+  the change reviewable and dropped its title prefix. The verb now reads the
+  flag before the edit, checks it after, and restores it, reporting `was_draft`
+  and `draft_restored` in its answer.
+- **A forge adapter carries any text the forge accepts.** Both forge adapters
+  pin `PYTHONIOENCODING=utf-8`: on a Windows console the default is cp1252,
+  where an emoji in a change body raised `UnicodeEncodeError` inside the
+  argument reader and the field arrived empty.
+- **`/afk:setup` H7 can refresh an installed reply-standard block.** It skipped
+  any steering file that already carried the sentinel, so a release changing
+  the block left every machine on the old text and the migration line asking
+  people to re-run it could not work. A file without the sentinel still gets
+  the block appended; one that has it gets the lines between the sentinels
+  replaced by `skills/afk/setup/scripts/install_block.py`, which keeps the
+  file's own line endings and everything written around the block.
+
+### Migration
+
+- Re-run `/afk:setup` H7 once. This is the release where it can refresh an
+  installed block, so a machine still on the pre-1.0.15 reply standard picks up
+  the noun-cluster cap and the two coined-term rules without editing the file
+  by hand.
+
+## [1.0.15] - 2026-09-05
+
+### Changed
+
+- **The writing doctrine caps noun clusters and governs coined compounds.**
+  `LANGUAGE.md` section 1 caps a noun cluster at 3 words and says to unstack it
+  with a preposition or a verb. Section 2 adds two rules: a multi-word compound
+  naming a concept is a term, so register it in a glossary or write the concept
+  out as a phrase rather than coining one mid-document, and a registered
+  compound carries a 3-5 word gloss at first use in every document. Section 3
+  and `CLAUDE.md` no longer say to drop articles for concision - an article or
+  preposition marking a noun-to-noun relation is what tells the reader which
+  noun is the head, and dropping it is how the noun stacks were built. The
+  reply-standard install block carries the same rules.
+
+### Added
+
+- **The gitlab forge contract records two ways an MR edit goes wrong** —
+  `glab mr update --description` clears the Draft flag, and a description
+  round-tripped through a console pipe comes back mis-decoded and stores the
+  damage on the server.
+- **README section 4 gained "Upgrading a pinned install"** — the order the pin
+  has to move in on each harness, and how to ask which version is live. Reading
+  the marketplace clone or the version cache answers a different question, and
+  running git in either detaches a checkout the CLI owns.
+
+### Migration
+
+- The user-global reply-standard block gained the noun-cluster cap and the two
+  coined-term rules. A machine that has never run `/afk:setup` H7 installs the
+  new text on its first run. A steering file that already carries the block is
+  NOT updated by this release: H7 skips a file with the sentinel in it, so
+  replace the lines between the sentinels by hand, or wait for 1.0.16, where H7
+  replaces them for you.
 
 ## [1.0.14] - 2026-09-05
 

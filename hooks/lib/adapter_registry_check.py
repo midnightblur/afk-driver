@@ -36,10 +36,16 @@ def main(argv: list[str]) -> int:
     register = read(root / "skills" / "afk" / "setup" / "MANIFEST.md")
     findings: list[str] = []
 
-    for family_dir in sorted(d for d in adapters.iterdir() if d.is_dir()):
+    # A directory whose name starts with `.` or `_` is not a kind: running an
+    # adapter makes Python write `__pycache__` beside it.
+    def kinds(parent: Path) -> list[Path]:
+        return sorted(d for d in parent.iterdir()
+                      if d.is_dir() and not d.name.startswith((".", "_")))
+
+    for family_dir in kinds(adapters):
         family = family_dir.name
         enum = family_enum(config_md, family)
-        for kind_dir in sorted(d for d in family_dir.iterdir() if d.is_dir()):
+        for kind_dir in kinds(family_dir):
             kind = kind_dir.name
             name = f"{family}/{kind}"
             manifest_path = kind_dir / "adapter.json"

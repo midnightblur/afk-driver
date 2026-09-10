@@ -20,9 +20,38 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 
 - Ledger: {claim} → pending (INV-NNN) | verified (INV-NNN) | refuted (INV-NNN) | unverified-external (user acknowledged)
 - Staples: {staple} → in|out — {one-clause why}
-- Settled: {decision, one line each, as they lock}
+- Settled: {decision, one line each, as they lock}{agent tail — grammar below}
 - Spinoffs: {spinoff row — grammar below}
-- Open: {what's still unsettled — the resume point}
+- Open: {what's still unsettled — the resume point}{steer and escape lines — grammar below}
+
+### Settled row — the agent tail
+
+A decision the agent took itself and the human accepted in a round carries the
+provenance the round holds (`ROUND.md`):
+
+```
+- Settled: {decision} · decided-by agent R-{n} · accepted {YYYY-MM-DD} · {grade}: {evidence, one sentence} · reverse: {one clause}
+```
+
+The tail is absent on a decision the human made — the plain row above is that
+case. A tail without `accepted {date}` does not exist: an unaccepted decision
+is not settled, so the row is not written until the mark arrives. `{grade}` is
+one of the evidence grades in `ROUND.md`. Synthesis reads the row as any other
+settled decision and carries the provenance into the record it mints.
+
+### Open row — steers and the escape
+
+```
+- Open: {the live question}
+  steer: {the human's words, verbatim}
+  escape: taken R-{n}
+```
+
+A `steer:` line is a standing constraint a resumed session honours and cites as
+`spec`-grade evidence; an `escape:` line says the human took the session back,
+so a resumed session keeps asking one question at a time. Both stay until the
+grill ends. The merged round response is appended here verbatim until the round
+is applied, so a crash between poll and apply loses no human words.
 
 ## Solution grill
 

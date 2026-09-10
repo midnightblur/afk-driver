@@ -54,6 +54,8 @@ _wiring_conventional() {
     # so a test file has zero textual referrers by construction.
     *.test.js|*.test.mjs|*.test.ts|*.test.tsx|\
     *.spec.js|*.spec.mjs|*.spec.ts|*.spec.tsx) return 0 ;;
+    # Python tests — pytest and unittest discover by the same kind of glob.
+    test_*.py|*_test.py) return 0 ;;
   esac
   return 1
 }

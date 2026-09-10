@@ -533,6 +533,11 @@ block = MARK_START + """
     }
     function applyDefaults() {
       items().forEach(function (el) {
+        // A table row is already its own summary. Folding one would hide
+        // every cell but the id and leave a one-cell row in a five-column
+        // table. Rows still list in the rail and still take goTo(); they
+        // just never fold.
+        if (el.tagName === 'TR') return;
         var id = el.getAttribute('data-afk-item'), s = st(el);
         if (s === 'current') { setCollapsed(el, false); return; }
         if (el.hasAttribute('data-afk-nav-done')) return;

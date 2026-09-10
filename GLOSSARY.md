@@ -36,6 +36,12 @@ Architecture Decision Record — one decision, its alternatives, and why. Two ti
 **Design Brief**:
 The 1–2 page plain-language digest of PRD + SDD + ADRs (one diagram, a decision table, stakeholder impact) — the fastest way for a human to catch up on a design.
 
+**Design Review Plan**:
+`DESIGN-REVIEW-PLAN.md` — the timed run sheet for presenting settled scope and design to the stakeholder room: source ledger, concept ladder, segment cards, objection bank, and an exit that classifies every undecided item. Presentation only; it settles no design.
+
+**Demo Plan**:
+`DEMO-PLAN.md` — the beat-by-beat script for demonstrating a delivered feature. Two profiles: the default at-most-hour, and the fixed-hour **company-meeting profile** carrying an agenda, feedback disposition, and next steps.
+
 **Verification Plan**:
 `VERIFICATION-PLAN.md` — the feature's UI journeys and API scenarios with per-aspect coverage verdicts; what turns the smoke gate from minimal into full.
 
@@ -88,6 +94,26 @@ _Avoid_: legend (the on-page section this layer retires), glossary (that is the 
 **Grill-question triage (debate / confirm)**:
 The classification every grill question gets before it's asked (rule: `skills/afk/grill-requirements/TRIAGE.md`): *debate* — alternatives worth weighing, asked one at a time; *confirm* — a safe default the user accepts or overrides, batched at the section/layer boundary into one answer round. An overridden confirm escalates to debate.
 _Avoid_: quick questions (vague), survey (implies no escalation path)
+
+**Round dossier**:
+A grill's complete presentation for one dependency layer, answered in one send: where we are, the context to read first, the fork, what the agent decided for the human, the human's own calls, the sign-off packets, and what changes downstream. The unit of interaction that replaces one question per turn. Doctrine: `skills/afk/grill-requirements/ROUND.md`; a round is complete when the agent has taken every decision it legitimately can, never when a count is reached.
+_Avoid_: batch (that is the confirm tail inside a round), questionnaire (implies no decisions were taken)
+
+**Decided-class item**:
+A grill item the agent settled itself, presented for explicit audit rather than for an answer. Admissible only when it passes every condition of the decide rule and carries all six fields of the decided-card contract (`ROUND.md`); a card missing a field degrades to *confirm*. Silence never accepts one — an unmarked decided card is unanswered.
+_Avoid_: auto-decision (hides that a human still audits it), assumption (a decided item is cited, an assumption is not)
+
+**Evidence grade**:
+What kind of checking a card's accept asks of the human — `repo` (a line, row, or measured fact), `spec` (a quoted passage or a standing steer), `pattern` (a house convention cited by path), `judgment` (reasoning with no citation, which no decided card may carry). Information for the auditor, never a gate on what the agent may decide. Table: `ROUND.md`.
+_Avoid_: confidence (invites a percentage nobody measured), certainty
+
+**Steer**:
+The human's correction inside a grill — guidance, an instruction, or a reference — arriving as a note on a card or pinned to the page. Binds the card and its dependents, or the rest of the session when page-level, and is cited as `spec`-grade evidence thereafter. A steer changes *what* the agent decides and never lowers its autonomy.
+_Avoid_: feedback (too broad), override (that is a confirm answer)
+
+**Escape (`take over`)**:
+The session-level hand-back a human writes when steering has stopped working: for the rest of that session the agent stops deciding, stops recommending, and questions come one at a time. Per session, nothing saved, and the session keeps its state — settled items, marks, and the round in flight all survive. Rules: `ROUND.md` "Steering, and one escape".
+_Avoid_: switch (implies something saved), mode (implies a place to sit)
 
 **Mission control**:
 The per-feature, read-only HTML dashboard with two layers: *live* sections derived on every render from the plan's existing artifacts (tracker, journal, gate verdicts, git), and *design-digest* sections rendered from committed [Design digests](#). A viewport, never a second home for status: agents keep writing the artifacts; a renderer keeps the page true.
@@ -223,6 +249,17 @@ _Avoid_: approval (routine), locked decision (that is any settled design call)
 
 **Sign-off**:
 The human's own affirming answer to a human-locked aspect's question, recorded verbatim as a `signoff` row in `GRILL-LOG.md` and carried into SDD §0. Void the moment the aspect's design moves; `pending` or `changes-requested` means the design isn't exhausted and the SDD can't publish.
+
+**Meeting B** / **Meeting D**:
+The two stakeholder meetings the plugin writes run sheets for, named by the letter their audience already uses: **B** reviews settled scope and design before the code exists, **D** demonstrates the delivered feature. Both face the same four judging roles inside a fixed hour, which is why they share one plan format and one agenda checker. Only the skill names depend on the letters — a room using other labels reads B as "design review" and D as "demo".
+`Related:` Objection window, Disposition, `DEMO-PLAN.md` · `_Avoid_`: design-review meeting / demo meeting as term names (the letter is the term), meeting A / meeting C (no plan exists)
+
+**Objection window**:
+Minutes reserved inside a meeting segment, at its end, for the room to challenge what it just saw — so an objection lands while its evidence is still on screen. Presentation overrun never consumes one. Rules: `skills/afk/to-meeting-b/MEETING-PLAN-FORMAT.md`.
+
+**Disposition**:
+The single outcome a facilitator assigns to an open meeting item after the room discusses it — `agreed`, `revise and return`, `deferred from scope`, or `blocked by evidence`; everything but `agreed` names an owner and a date. Distinct from `Decision needed`, which is the plan author's question written before the meeting.
+_Avoid_: verdict (that is a gate's result), decision (that is the thing being disposed)
 
 **Review gate**:
 The independent post-verification code review (`clean` / `advisory` / `blocking` per invocation) run by fresh subagents, one per concern, that never see the implementor's reasoning. Gate-mode callers settle it via the settle loop. Per-subtask rollup: `plan/review/INDEX.md`.

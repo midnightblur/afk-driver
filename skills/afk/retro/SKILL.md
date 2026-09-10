@@ -27,6 +27,7 @@ Locate every in-scope feature with a `plan/` dir; skip those without one (nothin
 | `plan/review/*.findings.json` × `*.outcomes.json` | per-`criterion` outcome rates — fixed vs dismissed vs deferred, joined on finding id |
 | `plan/review/PATTERN-DEBT.md` | baseline↔repo-pattern conflicts: criterion + overriding rule per row |
 | `plan/review/*-adversary.md` | adversary verdicts + finding classes |
+| ticket-local `adr/**` records carrying `Audited:` | which decisions the agent took rather than the human — the line's presence is the provenance (grammar: `skills/afk/to-sdd/ADR-TEMPLATE.md` "The status line"); the only source once `/afk:gc` has deleted `GRILL-LOG.md` |
 | `GRILL-LOG.md` | which decisions were settled at grill time (to correlate: did downstream failures trace to a gap a grill should have caught?) |
 | repo `.claude/metrics/gate-latency.jsonl` | per-gate runs / red count / p50 / p95 / max via `bash $AFK_PLUGIN_ROOT/hooks/gate-metrics-report.sh` (aggregate percentiles only); dominant-component breakdown (`lock_wait_ms`, `package_ms`) by grepping those raw fields in the jsonl directly |
 | repo `.claude/wiring-ious.md` | open IOUs and their age (consumers that never arrived) |

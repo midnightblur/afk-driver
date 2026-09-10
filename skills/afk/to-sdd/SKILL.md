@@ -106,7 +106,7 @@ Write SDD.md using the template in [SDD-TEMPLATE.md](SDD-TEMPLATE.md). Each sect
 
 ## ADR template
 
-Write each design ADR using the template in [ADR-TEMPLATE.md](ADR-TEMPLATE.md).
+Write each design ADR using the template in [ADR-TEMPLATE.md](ADR-TEMPLATE.md). A decision whose grill-log `Settled:` row carries the agent tail keeps that provenance in its status lines, per that template.
 
 ## Hard rules
 

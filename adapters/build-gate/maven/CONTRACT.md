@@ -15,6 +15,12 @@ answers with one JSON object on stdout. A verb this adapter does not implement
 answers `{"unsupported": true, "reason": "..."}`. A verb whose runtime is
 absent answers `{"unavailable": true, "reason": "..."}` — never nothing.
 
+A payload this operation refuses is answered the same way: one object on stdout,
+`{"error": true, "kind": "maven", "operation": "worktree-provision", "reason": ...}`
+with exit 2, and the same sentence on stderr for a human. The reason says which
+way the payload was wrong — not JSON, not an object, or an object missing a
+field — because that is the caller's next move.
+
 ## Configuration keys read
 
 - `build-gates`
