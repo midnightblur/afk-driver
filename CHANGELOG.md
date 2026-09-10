@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-10
+
 ### Fixed
 
 - **Grills no longer drift back to one question at a time.**
