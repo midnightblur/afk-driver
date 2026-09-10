@@ -155,13 +155,21 @@ one key, whatever order its parts were written in.
 | Family | Shape | Key |
 |---|---|---|
 | search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]` | its flag set and its expression set; the paths are left out |
-| built-output walk | `in-process walk of <path>[, <path>]*` | the paths it walked, as a set |
-| tracked listing | `git ls-files -- <path>[, <path>]*` | the paths it listed, as a set |
-| manifest parse | `parse <manifest>[, <manifest>]*` | the manifests it read, as a set |
-| sibling listing | `list the directories beside <manifest>[, <manifest>]*` | the manifests it read, as a set |
+| built-output walk | `in-process walk of -- <path>+` | the paths it walked, as a set |
+| tracked listing | `git ls-files -- <path>+` | the paths it listed, as a set |
+| manifest parse | `parse -- <manifest>+` | the manifests it read, as a set |
+| sibling listing | `list the directories beside -- <manifest>+` | the manifests it read, as a set |
 
-A command no shell can split — a quote left open — is in no family: a command
-nobody can rerun is not a record of a search.
+Paths follow `--` as shell tokens, quoted where they need it, so a path holding
+a comma or a space is one path. Each is repository-relative with forward
+slashes: a leading `./` is dropped, and an absolute path, a `..` segment, a
+backslash or a trailing `/` is a path this format cannot resolve, which puts the
+command in no family.
+
+A command no shell can split — a quote left open — is in no family, and so is a
+search carrying a token a shell would expand: an unquoted `*`, `$VAR`, or a
+command substitution never reached the tool as written. A search is in the
+grammar when it comes back out of the builder character for character.
 
 A search carries those options and no others, unbundled, short of a long form,
 in that order, always in `-E` mode. There are no Boolean operators: a question

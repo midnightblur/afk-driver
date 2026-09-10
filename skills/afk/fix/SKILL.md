@@ -67,6 +67,8 @@ A fix on an unreleased feature can invalidate a load-bearing artifact. Triage wh
 | An in-flight subtask's `## Produces` / contract shifted | `plan/NNNN-slug.md` | surface to the `/afk:execute` run; don't silently re-slice |
 | The bug could not be reproduced (diagnose built no loop) | none — nothing to reconcile yet | back to the reporter/human with the repro-attempt evidence (what was tried, what's needed); report `cannot_reproduce` |
 
+Where diagnose left a coverage ledger for this bug, its B13 rows are the documents the failing path reaches — read them for the statements the fix now contradicts, and route each by the table above.
+
 Doc right + code wrong → no artifact change. Reconcile only when the fix changed something a doc asserts. Can't reach truth this session → record the divergence and report `needs_artifact_sync`.
 
 ## Phase 3.5 — Workflow feedback

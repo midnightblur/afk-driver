@@ -78,6 +78,13 @@ Confirm:
 
 Do not proceed until you reproduce the bug.
 
+## Phase 2.5 — Trace the path
+
+Close the failing path before guessing at it: one `/afk:investigate` run on the
+entry symbol the repro enters through — Q1, or Q4 where the report names an
+input class. Phase 3 hypotheses cite its nodes; a ledger that comes back
+`partial` is the gap, and Phase 6 reports it as one.
+
 ## Phase 3 — Hypothesise
 
 Generate **3–5 ranked hypotheses** before testing any. Single-hypothesis generation anchors on the first plausible idea.

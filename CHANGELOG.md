@@ -143,9 +143,23 @@ first released heading here.
   has to move in on each harness, and how to ask which version is live. Reading
   the marketplace clone or the version cache answers a different question, and
   running git in either detaches a checkout the CLI owns.
+- **Every code-reading step now points at the closed investigation.**
+  `/afk:diagnose` traces the failing path before it hypothesises, `/afk:fix`
+  routes the documents that path reaches, the scope-and-impact and
+  refactor-safety review checklists and the seam verifier take their caller set
+  from a deterministic seed map instead of an ad-hoc search, and
+  `/afk:understand` starts its code digest from the entry symbol's own run.
 
 ### Changed
 
+- **The recorded search grammar spells paths as tokens.** The four prose command
+  families end in `-- <path>+`, so a path holding a comma round-trips and two
+  spellings of one path key the same query. A path a shell would have expanded,
+  and a path that leaves the repository, are refused where the command is
+  recorded. Query ids for those four families move once.
+- **The genericity gate's cache key takes path patterns only.** It was handed a
+  git pathspec exclusion, which the cache matches as a shell glob and so can
+  never match, and an edit under the product tree could reuse a stale verdict.
 - **The frontier model tier now names one model per harness column**
   (`PROVIDERS.md` "Model tiers"). A research-preview model is never a tier; a
   skill that needs one names it for that usage alone.

@@ -129,7 +129,12 @@ gate_genericity() {
   # plugin IS the repository there is no product tree and checks 2-3 are inert.
   local PRODUCT_SCOPE=""
   [ -n "$PLUGIN_SCOPE" ] && PRODUCT_SCOPE=":!$PLUGIN_SCOPE*"
-  cache_key=$(gate_cache_key genericity "$PLUGIN_SCOPE*.md" "$ALLOW_FILE" "${PRODUCT_SCOPE:-.}")
+  # The cache key takes path patterns, and a git pathspec exclusion is not one:
+  # passing it matched no path, so a product edit left the cache warm while the
+  # inventory under it moved. Where a product tree exists, every change counts.
+  local cache_scope=("$PLUGIN_SCOPE*.md" "$ALLOW_FILE")
+  [ -n "$PRODUCT_SCOPE" ] && cache_scope+=("*")
+  cache_key=$(gate_cache_key genericity "${cache_scope[@]}")
   gate_cache_hit genericity "$cache_key" && return 0
 
   gate_metrics_begin

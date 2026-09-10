@@ -103,6 +103,12 @@ def parse_canonical(command: str):
         if rest[0] != "--" or len(rest) < 2:
             return None
         paths = tuple(rest[1:])
+    # The one spelling is the one the builder writes: a command that does not
+    # come back out of it carried something the grammar has no place for — a
+    # token a shell would have expanded before git ever saw it, or quoting
+    # nobody can reproduce.
+    if command.strip() != build_command(expressions, list(paths), flags):
+        return None
     return frozenset(flags), frozenset(expressions), paths
 
 
@@ -138,18 +144,48 @@ def searched_paths(command: str):
 # A command outside all of them is a command no reader can place.
 COMMAND_FAMILIES = (
     ("search", CANONICAL),
-    ("built-output walk", "in-process walk of <path>[, <path>]*"),
-    ("tracked listing", "git ls-files -- <path>[, <path>]*"),
-    ("manifest parse", "parse <manifest>[, <manifest>]*"),
-    ("sibling listing", "list the directories beside <manifest>[, <manifest>]*"),
+    ("built-output walk", "in-process walk of -- <path>+"),
+    ("tracked listing", "git ls-files -- <path>+"),
+    ("manifest parse", "parse -- <manifest>+"),
+    ("sibling listing", "list the directories beside -- <manifest>+"),
 )
 
 PROSE_FAMILIES = (
-    ("built-output walk", "in-process walk of "),
-    ("tracked listing", "git ls-files -- "),
-    ("manifest parse", "parse "),
-    ("sibling listing", "list the directories beside "),
+    ("built-output walk", "in-process walk of --"),
+    ("tracked listing", "git ls-files --"),
+    ("manifest parse", "parse --"),
+    ("sibling listing", "list the directories beside --"),
 )
+
+
+def repo_path(text: str) -> str | None:
+    """One path, one spelling — or `None` for one no repository holds.
+
+    Repository-relative, forward slashes, no walk upwards: `./x` and `x` are
+    one file, and everything else is a path this format cannot resolve.
+    """
+    if not isinstance(text, str) or not text.strip() or text != text.strip():
+        return None
+    if text.startswith("./"):
+        text = text[2:]
+    if not text or text.endswith("/") or chr(92) in text or text.startswith("/"):
+        return None
+    if len(text) > 1 and text[1] == ":":
+        return None
+    if any(part in ("", ".", "..") for part in text.split("/")):
+        return None
+    return text
+
+
+def build_listing(name: str, paths) -> str:
+    """One recorded listing, in its family's shape, paths as quoted tokens."""
+    prefix = dict(PROSE_FAMILIES).get(name)
+    if prefix is None:
+        raise ValueError(f"{name}: no such command family")
+    kept = [repo_path(path) for path in paths]
+    if not kept or any(path is None for path in kept):
+        raise ValueError(f"{name}: a path no repository holds")
+    return " ".join([prefix, *(shlex.quote(path) for path in kept)])
 
 
 def family(command: str) -> str | None:
@@ -166,9 +202,22 @@ def family(command: str) -> str | None:
 
 
 def listed(command: str, prefix: str) -> tuple[str, ...]:
-    """The paths a prose family lists, in no order — the list is the method."""
+    """The paths a prose family lists, in no order — the list is the method.
+
+    Empty where the command lists none, or one no repository holds: a path is
+    a token a shell would hand over, so a comma inside one is part of it.
+    """
     rest = command.strip()[len(prefix):]
-    return tuple(sorted({item.strip() for item in rest.split(",") if item.strip()}))
+    if chr(92) in rest:
+        # A shell reads it as an escape; a repository path never carries one.
+        return ()
+    parts = argv(rest)
+    if not parts:
+        return ()
+    kept = [repo_path(part) for part in parts]
+    if any(path is None for path in kept):
+        return ()
+    return tuple(sorted(set(kept)))
 
 
 def command_key(command: str):

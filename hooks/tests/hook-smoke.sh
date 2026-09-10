@@ -266,6 +266,43 @@ else
 fi
 rm -rf "$(dirname "$spaced")"
 
+# The genericity gate reads the product tree, so a product edit must bust its
+# cache. A git pathspec exclusion is not a path pattern: passed as one it
+# matched nothing, and the gate stayed warm while its inputs moved.
+if grep -qE 'gate_cache_key genericity.*PRODUCT_SCOPE' "$workflow/hooks/genericity-gate.sh"; then
+  fail "genericity cache key still takes the pathspec exclusion as a path pattern"
+else
+  pass "genericity cache key takes path patterns only"
+fi
+
+cachefix=$(mktemp -d)
+(
+  cd "$cachefix" || exit 1
+  git init -q . && git config user.email f@example.invalid && git config user.name f
+  mkdir -p plugin src
+  printf 'prose
+' > plugin/README.md
+  printf 'class Widget {}
+' > src/Widget.java
+  git add -A && git commit -qm first
+) >/dev/null 2>&1
+key_of() (
+  cd "$cachefix" || exit 1
+  AFK_CTX_READY=0 bash -c '. "$1"/hooks/gate-cache.sh; gate_cache_key genericity "plugin/*.md" "allow.txt" "*"' _ "$workflow"
+)
+printf 'class Widget { }
+' > "$cachefix/src/Widget.java"
+before=$(key_of)
+printf 'class Widget {  }
+' > "$cachefix/src/Widget.java"
+after=$(key_of)
+if [ -n "$before" ] && [ "$before" != "$after" ]; then
+  pass "a product-tree edit busts the genericity cache key"
+else
+  fail "product-tree edit left the genericity cache key unchanged"
+fi
+rm -rf "$cachefix"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

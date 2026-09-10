@@ -397,14 +397,14 @@ class LedgerBindingTest(unittest.TestCase):
 
     def test_a_counter_check_relisting_the_primary_paths_is_a_defect(self):
         document = ledger()
-        document["queries"][0]["command"] = "parse alpha/pom.xml, beta/pom.xml"
+        document["queries"][0]["command"] = "parse -- alpha/pom.xml beta/pom.xml"
         document["queries"][0]["id"] = validate_coverage.stable_id(
             "q", document["queries"][0]["command"] + document["queries"][0]["universe"])
         document["boundaries"][0]["query_ids"] = [document["queries"][0]["id"]]
         for node in document["nodes"]:
             if node.get("query_id") == QUERY:
                 node["query_id"] = document["queries"][0]["id"]
-        defects = self.rerun(document, "parse beta/pom.xml, alpha/pom.xml")
+        defects = self.rerun(document, "parse -- ./beta/pom.xml alpha/pom.xml")
         self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)
 
@@ -608,7 +608,7 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "partial")
 
-    # Two spellings of one command are one command.
+    # One spelling: a rerun typed another way is no longer a command at all.
     def test_a_counter_check_rerunning_the_primary_command_respaced_is_a_defect(self):
         document = ledger()
         primary = document["queries"][0]
@@ -619,8 +619,8 @@ class LedgerBindingTest(unittest.TestCase):
         document["queries"].append(respaced)
         document["counter_checks"][0].update({"query_ids": [respaced["id"]]})
         defects, _ = self.check(document)
-        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
-                            for defect in defects), defects)
+        self.assertTrue(any("in no command family" in defect for defect in defects),
+                        defects)
     def rerun(self, document, command):
         """The primary, re-run under another spelling, as a counter-search."""
         again = {**document["queries"][0], "universe": "tracked files, case-blind",
@@ -648,8 +648,8 @@ class LedgerBindingTest(unittest.TestCase):
         document["queries"].append(requoted)
         document["counter_checks"][0].update({"query_ids": [requoted["id"]]})
         defects, _ = self.check(document)
-        self.assertTrue(any("no command boundaries.B1 does not already run" in defect
-                            for defect in defects), defects)
+        self.assertTrue(any("in no command family" in defect for defect in defects),
+                        defects)
 
 
 if __name__ == "__main__":

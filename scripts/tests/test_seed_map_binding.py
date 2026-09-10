@@ -550,12 +550,12 @@ class SeedMapBindingTest(unittest.TestCase):
     # A family that lists paths is one method however the list is ordered.
     def test_a_listing_family_keys_on_its_paths_not_their_order(self):
         key = seed_map.contract.command_key
-        self.assertEqual(key("git ls-files -- target, build"),
-                         key("git ls-files -- build, target"))
-        self.assertEqual(key("parse alpha/pom.xml, beta/pom.xml"),
-                         key("parse beta/pom.xml, alpha/pom.xml"))
-        self.assertNotEqual(key("parse alpha/pom.xml"),
-                            key("list the directories beside alpha/pom.xml"))
+        self.assertEqual(key("git ls-files -- target build"),
+                         key("git ls-files -- build target"))
+        self.assertEqual(key("parse -- alpha/pom.xml beta/pom.xml"),
+                         key("parse -- beta/pom.xml alpha/pom.xml"))
+        self.assertNotEqual(key("parse -- alpha/pom.xml"),
+                            key("list the directories beside -- alpha/pom.xml"))
 
     # A hint is offered for spelling alone; anything that changes the question
     # gets none, because a hint that runs another search is worse than silence.
@@ -580,6 +580,44 @@ class SeedMapBindingTest(unittest.TestCase):
         source = (Path(seed_map.__file__).resolve().parent / "contract.py").read_text(
             encoding="utf-8")
         self.assertEqual(source.count("(-e <expression>)+"), 1, "the grammar is stated twice")
+        # R3 — the doc line is the sanctioned copy, so it is the same line.
+        doc = (Path(seed_map.__file__).resolve().parent.parent
+               / "LEDGER-FORMAT.md").read_text(encoding="utf-8")
+        self.assertIn(seed_map.contract.CANONICAL, doc)
+
+    # R1 — a path list is tokens, not prose: a path holding a comma survives.
+    def test_a_listed_path_holding_a_comma_round_trips(self):
+        contract = seed_map.contract
+        command = contract.build_listing("manifest parse", ["odd, name/pom.xml",
+                                                            "alpha/pom.xml"])
+        self.assertEqual(contract.family(command), "manifest parse")
+        self.assertEqual(contract.command_key(command),
+                         ("manifest parse", ("alpha/pom.xml", "odd, name/pom.xml")))
+
+    # R1b — one path, one spelling: `./x` and `x` are the same file.
+    def test_two_spellings_of_one_path_key_the_same(self):
+        key = seed_map.contract.command_key
+        self.assertEqual(key("parse -- alpha/pom.xml"), key("parse -- ./alpha/pom.xml"))
+
+    def test_a_path_no_repository_can_hold_is_a_parse_failure(self):
+        contract = seed_map.contract
+        for command in ("parse -- ../outside/pom.xml",
+                        "parse -- /etc/pom.xml",
+                        "parse -- C:/tree/pom.xml",
+                        "parse -- alpha" + chr(92) + "pom.xml",
+                        "parse -- alpha/",
+                        "parse --"):
+            self.assertIsNone(contract.family(command), command)
+
+    # R2 — a token a shell would expand is a token that ran as something else.
+    def test_a_command_carrying_shell_expansion_is_not_canonical(self):
+        parse = seed_map.contract.parse_canonical
+        for command in ("git grep -n -I -E -e $PATTERN",
+                        "git grep -n -I -E -e Widget -- src/*.java",
+                        "git grep -n -I -E -e `cat pattern`",
+                        'git grep -n -I -E -e "Widget"'):
+            self.assertIsNone(parse(command), command)
+        self.assertIsNotNone(parse("git grep -n -I -E -e '$PATTERN'"))
 
     def test_the_expressions_of_one_search_carry_no_order(self):
         key = seed_map.contract.command_key

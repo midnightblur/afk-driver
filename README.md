@@ -400,7 +400,8 @@ sequenceDiagram
    a contract grade, packeted for your review, and **signed off by you** before
    the design counts as done.
 6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
-   ADRs. **Local only** — the SDD is never published to the ticket.
+   ADRs, gating each §14 seam on the closed investigation it cites (step 7c).
+   **Local only** — the SDD is never published to the ticket.
 7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
    feature's verification scenarios with you: the real end-user **browser
    journeys**, plus (once the SDD exists) the **API scenarios** that prove the
@@ -645,7 +646,9 @@ skill's own `SKILL.md` (+ siblings); nothing here restates them.
 - **`/afk:to-subtasks`** — slice the PRD (+ SDD/ADRs when present) into the
   local `plan/`; no Jira. Details: `skills/afk/to-subtasks/SKILL.md`.
 - **`/afk:execute`** — run one subtask end-to-end (TDD, verification tiers,
-  review + adversary gates, commit/push/Draft MR), then stop at CR/Merge.
+  review + adversary gates, commit/push/Draft MR), then stop at CR/Merge. It
+  re-takes the ground each cited seam stands on first — a ground diff against
+  the investigation the slice cites, answering drift with a fresh one.
   Details: `skills/afk/execute/SKILL.md`.
 - **`/afk:autopilot`** — hands-off driver: walks the plan in dependency order,
   one fresh subagent per subtask, parks failures + dependents, ends at the

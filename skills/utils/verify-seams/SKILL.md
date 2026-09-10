@@ -20,6 +20,7 @@ The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this pl
    > - **wired** — a consumer exists AND lies on a path that actually executes (cite file:line of the consuming site);
    > - **weak** — only referenced by its own tests, dead code, docs, or a consumer that never runs;
    > - **orphan** — no consumer found.
+   > Enumerate each symbol's consumers with the seed map before you judge it: `python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" --repo <repo> --subject <symbol> --type Q2 --config auto --out <scratch>/consumers-<symbol>.json`. A symbol whose B1 row is not `closed` cannot be `wired` — an unenumerated name form is a consumer nobody looked for.
    > Default to orphan when you cannot prove reachability. Return a table: artifact | verdict | evidence (cited) — nothing else.
 
 3. **Resolve every non-wired row.** For each `weak`/`orphan`: wire a real consumer now, or add an IOU to the repo's `.claude/wiring-ious.md` anchored to a plan step, ticket, or contract naming *your* symbol the future consumer will call (never a guessed future filename — implementers choose their own names). An anchor-less "used later" is not a resolution.

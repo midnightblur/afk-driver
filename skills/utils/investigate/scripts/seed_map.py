@@ -52,7 +52,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import contract  # noqa: E402
 from contract import (ALL_CLASSES, HIT_LIMIT, OPTIONAL_FLAGS,  # noqa: E402
-                      build_command, line_hash, stable_id, worst)
+                      build_command, build_listing, line_hash, stable_id,
+                      worst)
 
 JVM = (".java", ".kt", ".kts", ".scala", ".groovy")
 CURLY = JVM + (".ts", ".tsx", ".js", ".jsx", ".php", ".cs")
@@ -958,7 +959,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             hits, unread = walk_grep(repo, present, group(searched)) if present else ([], [])
             walk_qids = list(extra_qids)
             if present:
-                walk_query = note(f"in-process walk of {', '.join(present)}",
+                walk_query = note(build_listing("built-output walk", present),
                                   "built output, tracked or not", len(hits))
                 walk_qids.append(walk_query)
                 ledger.tag(hits, walk_query)
@@ -972,7 +973,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                 listed = [line for line in
                           git(repo, "ls-files", "--", *present).splitlines() if line]
                 gone = [name for name in listed if not (repo / name).exists()]
-                list_query = note(f"git ls-files -- {', '.join(present)}",
+                list_query = note(build_listing("tracked listing", present),
                                   "tracked files under the declared generated paths",
                                   len(listed))
                 counter_checks.append({
@@ -1006,9 +1007,11 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                        universe="no aggregator manifests declared", query_ids=extra_qids)
                 continue
             modules = reactor_modules(repo, poms)
-            parse_query = note(f"parse {', '.join(poms)}",
-                               "declared aggregator manifests",
-                               len(modules["declared"]))
+            # No manifest declared, and a declared instance carried the class:
+            # there is no parse to record, so nothing pretends there was one.
+            parse_qids = ([note(build_listing("manifest parse", poms),
+                                "declared aggregator manifests",
+                                len(modules["declared"]))] if poms else [])
             gaps = []
             if modules["missing_manifests"]:
                 gaps.append(f"reactor manifest missing: {sample(modules['missing_manifests'])}")
@@ -1022,17 +1025,17 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
             # The counter-method: what the tree holds beside each manifest,
             # against what the manifest declares.
             siblings = sibling_modules(repo, poms)
-            tree_query = note(f"list the directories beside {', '.join(poms)}",
-                              "directories holding a manifest of their own",
-                              len(siblings))
+            tree_qids = ([note(build_listing("sibling listing", poms),
+                               "directories holding a manifest of their own",
+                               len(siblings))] if poms else [])
             # A listing that returned nothing tried nothing: there was no
             # second reading of the tree to disagree with the parse.
             counter_checks.append({
                 "method": "the module directories the tree holds beside the manifests",
                 "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
-                "state": "complete" if siblings else "pending",
-                "classes": ["B7"], "query_ids": [tree_query],
-                **({} if siblings else
+                "state": "complete" if (siblings and tree_qids) else "pending",
+                "classes": ["B7"], "query_ids": tree_qids,
+                **({} if (siblings and tree_qids) else
                    {"reason": "no module directory sits beside a declared manifest, so the "
                               "listing had nothing to weigh against the parse"}),
             })
@@ -1044,7 +1047,7 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
                                "the module directories beside them", *extra_method]),
                    extra_hits, reasons=[*gaps, undeclared_gap, site_gap], mechanism=mechanism,
                    modules=modules, sites=live_sites or None,
-                   query_ids=[parse_query, *extra_qids],
+                   query_ids=[*parse_qids, *extra_qids],
                    universe=", ".join(["declared aggregator manifests", *extra_universes]))
             continue
 
