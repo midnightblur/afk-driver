@@ -162,14 +162,16 @@ one key, whatever order its parts were written in.
 
 Paths follow `--` as shell tokens, quoted where they need it, so a path holding
 a comma or a space is one path. Each is repository-relative with forward
-slashes: a leading `./` is dropped, and an absolute path, a `..` segment, a
-backslash or a trailing `/` is a path this format cannot resolve, which puts the
-command in no family.
+slashes. An absolute path, a drive letter, a `..` or `.` segment, an empty
+segment, a backslash or a trailing `/` is a path this format cannot resolve,
+which puts the command in no family — and so is any other spelling of a path
+the builder writes one way, `./x` for `x` among them.
 
-A command no shell can split — a quote left open — is in no family, and so is a
-search carrying a token a shell would expand: an unquoted `*`, `$VAR`, or a
-command substitution never reached the tool as written. A search is in the
-grammar when it comes back out of the builder character for character.
+A command no shell can split — a quote left open — is in no family, and so is
+one carrying a token a shell would expand: an unquoted `*`, `$VAR`, or a
+command substitution never reached the tool as written. A command of any family
+is in the grammar when it comes back out of its builder character for
+character.
 
 A search carries those options and no others, unbundled, short of a long form,
 in that order, always in `-E` mode. There are no Boolean operators: a question

@@ -297,6 +297,7 @@ def load_config(repo: Path, where: str) -> tuple[dict, dict]:
     problems = module.validate(config, repo)
     if problems:
         raise ConfigError("; ".join(problems))
+    module.normalize(config)
     block = config.get("investigation")
     block = block if isinstance(block, dict) else {}
     resolved = json.dumps(block, sort_keys=True, separators=(",", ":")).encode("utf-8")

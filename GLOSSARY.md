@@ -101,6 +101,7 @@ _Avoid_: batch (that is the confirm tail inside a round), questionnaire (implies
 
 **Decided-class item**:
 A grill item the agent settled itself, presented for explicit audit rather than for an answer. Admissible only when it passes every condition of the decide rule and carries all six fields of the decided-card contract (`ROUND.md`); a card missing a field degrades to *confirm*. Silence never accepts one — an unmarked decided card is unanswered.
+_Also_: decided card
 _Avoid_: auto-decision (hides that a human still audits it), assumption (a decided item is cited, an assumption is not)
 
 **Evidence grade**:

@@ -361,17 +361,65 @@ def _choice(problems: list[str], config: dict, key: str, allowed: tuple[str, ...
         problems.append(f"{key}: {value!r} is not one of {', '.join(allowed)}")
 
 
+def normalize_path(value: str) -> str | None:
+    """One repository path, in the one spelling everything downstream reads.
+
+    A human writes `gen/`, `gen//`, or a backslash separator; a consumer that
+    hands any of those on as written dies on a path its own grammar refuses.
+    Folded here, at the read, so no consumer folds it again. `None` where no
+    folding produces a repository-relative path.
+    """
+    if not isinstance(value, str):
+        return None
+    text = value.strip().replace(chr(92), "/")
+    while "//" in text:
+        text = text.replace("//", "/")
+    if text.startswith("./"):
+        text = text[2:]
+    text = text.rstrip("/")
+    if not text or text.startswith("/") or re.match(r"^[A-Za-z]:", text):
+        return None
+    if any(part in ("", ".", "..") for part in text.split("/")):
+        return None
+    return text
+
+
+def normalize(config: dict) -> dict:
+    """The same config, its investigation paths in one spelling. In place."""
+    investigation = config.get("investigation")
+    if not isinstance(investigation, dict):
+        return config
+    for key in ("generated", "reactor"):
+        value = investigation.get(key)
+        if isinstance(value, list):
+            folded = [normalize_path(item) for item in value]
+            if all(item is not None for item in folded):
+                investigation[key] = folded
+    for entry in investigation.get("boundaries") or []:
+        if not isinstance(entry, dict) or not isinstance(entry.get("paths"), list):
+            continue
+        folded = [normalize_path(item) for item in entry["paths"]]
+        if all(item is not None for item in folded):
+            entry["paths"] = folded
+    return config
+
+
 def _relative_path(problems: list[str], where: str, value: str) -> None:
-    """Every path this block holds is repository-relative.
+    """Every path this block holds folds to a repository-relative one.
 
     An absolute path, a drive-letter path, or a `..` segment would point an
     investigation at a file outside the repository it is enumerating: the
-    coverage it then reports would be of somewhere else.
+    coverage it then reports would be of somewhere else. Shape:
+    `CONFIG.md` § "Paths in the investigation block".
     """
-    if value.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", value):
+    if normalize_path(value) is not None:
+        return
+    if value.startswith(("/", chr(92))) or re.match(r"^[A-Za-z]:", value):
         problems.append(f"{where}: {value!r} is absolute; paths are repository-relative")
-    elif ".." in value.replace("\\", "/").split("/"):
+    elif ".." in value.replace(chr(92), "/").split("/"):
         problems.append(f"{where}: {value!r} escapes the repository")
+    else:
+        problems.append(f"{where}: {value!r} is not a repository-relative path")
 
 
 def _investigation_boundaries(problems: list[str], boundaries: list) -> None:

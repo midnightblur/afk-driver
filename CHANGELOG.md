@@ -147,22 +147,48 @@ first released heading here.
   `/afk:diagnose` traces the failing path before it hypothesises, `/afk:fix`
   routes the documents that path reaches, the scope-and-impact and
   refactor-safety review checklists and the seam verifier take their caller set
-  from a deterministic seed map instead of an ad-hoc search, and
-  `/afk:understand` starts its code digest from the entry symbol's own run.
+  from a closed ledger instead of an ad-hoc search, and `/afk:understand`
+  starts its code digest from the entry symbol's own run.
 
 ### Changed
 
 - **The recorded search grammar spells paths as tokens.** The four prose command
-  families end in `-- <path>+`, so a path holding a comma round-trips and two
-  spellings of one path key the same query. A path a shell would have expanded,
-  and a path that leaves the repository, are refused where the command is
-  recorded. Query ids for those four families move once.
+  families end in `-- <path>+`, so a path holding a comma round-trips. A path a
+  shell would have expanded, and a path that leaves the repository, are refused
+  where the command is recorded. Query ids for those four families move once.
 - **The genericity gate's cache key takes path patterns only.** It was handed a
   git pathspec exclusion, which the cache matches as a shell glob and so can
   never match, and an edit under the product tree could reuse a stale verdict.
 - **The frontier model tier now names one model per harness column**
   (`PROVIDERS.md` "Model tiers"). A research-preview model is never a tier; a
   skill that needs one names it for that usage alone.
+- **A read-only child never enumerates.** The review gate, the seam verifier,
+  and the understanding artifact each ran their own search from inside a
+  read-only reviewer. The caller now closes the question once, before the
+  fan-out, and hands the child the ledger path.
+
+### Fixed
+
+- **A declared path spelled `gen/`, `gen//`, or with backslashes killed the
+  seed map** — the config reader accepted all three and the search grammar
+  refuses them, so the run died with no ledger. Paths in the `investigation:`
+  block now fold to one spelling at the read, and one that cannot fold is a
+  configuration error before the run starts.
+- **A command is of a family only when its own builder rebuilds it byte for
+  byte.** A path a shell would have expanded, a prefix glued to its first path,
+  and a second spelling of one path each read as a legal command; each is now
+  outside the grammar, and where only the spelling differs the defect carries
+  the canonical re-spelling.
+- **The genericity gate could reuse a verdict its own allow-list had changed** —
+  the cache key was handed an absolute path, which matches no repository-
+  relative pattern. Where the plugin is the whole repository, removing an allow
+  line left the gate warm.
+- **No gate cache could ever hit in a checkout that tracks its cache
+  directory** — the status scratch file was written inside the tree it was
+  recording, so every key carried the process id. It is written outside the
+  tree now.
+- **`GLOSSARY.md` declares the shorter spelling of a decided card**, so the
+  term-usage check sees the prose that uses it.
 
 ## [1.2.0] - 2026-09-10
 

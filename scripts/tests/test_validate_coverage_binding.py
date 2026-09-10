@@ -404,7 +404,7 @@ class LedgerBindingTest(unittest.TestCase):
         for node in document["nodes"]:
             if node.get("query_id") == QUERY:
                 node["query_id"] = document["queries"][0]["id"]
-        defects = self.rerun(document, "parse -- ./beta/pom.xml alpha/pom.xml")
+        defects = self.rerun(document, "parse -- beta/pom.xml alpha/pom.xml")
         self.assertTrue(any("no command boundaries.B1 does not already run" in defect
                             for defect in defects), defects)
 

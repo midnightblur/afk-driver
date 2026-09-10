@@ -102,7 +102,10 @@ def parse_canonical(command: str):
     if rest:
         if rest[0] != "--" or len(rest) < 2:
             return None
-        paths = tuple(rest[1:])
+        kept = [repo_path(item) for item in rest[1:]]
+        if any(item is None for item in kept):
+            return None
+        paths = tuple(kept)
     # The one spelling is the one the builder writes: a command that does not
     # come back out of it carried something the grammar has no place for — a
     # token a shell would have expanded before git ever saw it, or quoting
@@ -189,20 +192,34 @@ def build_listing(name: str, paths) -> str:
 
 
 def family(command: str) -> str | None:
-    """The family a recorded command belongs to, or `None` for none of them."""
+    """The family a recorded command belongs to, or `None` for none of them.
+
+    Membership is the builder's own answer: a command is of a family when
+    rebuilding it from the parts it parses to returns the same bytes. Anything
+    else — a path spelled another way, a token a shell would have eaten, a
+    prefix glued to its first path — is a command nobody can rerun as written.
+    """
     text = (command or "").strip()
     if argv(text) is None:
         return None
     if is_search(text):
         return "search" if parse_canonical(text) else None
     for name, prefix in PROSE_FAMILIES:
-        if text.startswith(prefix) and listed(text, prefix):
-            return name
+        if not text.startswith(prefix + " "):
+            continue
+        paths = parsed_paths(text, prefix)
+        if not paths:
+            continue
+        try:
+            if build_listing(name, paths) == text:
+                return name
+        except ValueError:
+            continue
     return None
 
 
-def listed(command: str, prefix: str) -> tuple[str, ...]:
-    """The paths a prose family lists, in no order — the list is the method.
+def parsed_paths(command: str, prefix: str) -> tuple[str, ...]:
+    """The paths a prose family lists, in the command's own order.
 
     Empty where the command lists none, or one no repository holds: a path is
     a token a shell would hand over, so a comma inside one is part of it.
@@ -217,7 +234,12 @@ def listed(command: str, prefix: str) -> tuple[str, ...]:
     kept = [repo_path(part) for part in parts]
     if any(path is None for path in kept):
         return ()
-    return tuple(sorted(set(kept)))
+    return tuple(kept)
+
+
+def listed(command: str, prefix: str) -> tuple[str, ...]:
+    """What a prose family read, as a set — relisting is the same method."""
+    return tuple(sorted(set(parsed_paths(command, prefix))))
 
 
 def command_key(command: str):
@@ -295,9 +317,12 @@ def respell(command: str) -> str | None:
         expressions.append(token)
         index += 1
     paths = parts[index + 1:] if index < len(parts) else []
+    kept = [repo_path(path) for path in paths]
+    if any(path is None for path in kept):
+        return None
     if not expressions:
         return None
-    return build_command(expressions, paths, sorted(set(flags)))
+    return build_command(expressions, kept, sorted(set(flags)))
 
 
 # Who ran a query: the deterministic pre-pass, or a tracer widening past it.

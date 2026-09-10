@@ -378,6 +378,27 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertEqual(row(document, "B7")["status"], "closed")
         self.assertEqual(row(document, "B6")["status"], "closed")
 
+    # C4 — the config reader accepts a directory written with a trailing
+    # slash, a doubled slash, or backslashes; the seed map must not die on one.
+    def test_a_declared_path_spelled_loosely_still_runs(self):
+        for spelling in ("gen/", "gen//", "." + chr(92) + "gen"):
+            repo = self.repo({
+                "alpha/Widget.java": "class Widget {}" + chr(10),
+                "gen/widget.ts": "export class Widget {}" + chr(10),
+            })
+            config = write_config(repo, (
+                "investigation:" + chr(10)
+                + "  generated:" + chr(10)
+                + "    - " + chr(39) + spelling + chr(39) + chr(10)
+            ))
+            code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                                 config=str(config))
+            self.assertEqual(code, 0, spelling)
+            self.assertEqual(row(document, "B6")["status"], "closed", spelling)
+            walks = [item["command"] for item in document["queries"]
+                     if item["command"].startswith("in-process walk of")]
+            self.assertIn("in-process walk of -- gen", walks, spelling)
+
     # 3-A4 — the query id is the digest of the invocation, so the same search
     # collides across fragments and a different one does not.
     def test_a_query_id_follows_the_invocation_it_names(self):
@@ -594,10 +615,68 @@ class SeedMapBindingTest(unittest.TestCase):
         self.assertEqual(contract.command_key(command),
                          ("manifest parse", ("alpha/pom.xml", "odd, name/pom.xml")))
 
-    # R1b — one path, one spelling: `./x` and `x` are the same file.
-    def test_two_spellings_of_one_path_key_the_same(self):
-        key = seed_map.contract.command_key
-        self.assertEqual(key("parse -- alpha/pom.xml"), key("parse -- ./alpha/pom.xml"))
+    # C1 — canonicalization lives in the builder, so the parser refuses every
+    # other spelling of one path rather than quietly folding it.
+    def test_the_alias_spelling_of_a_path_is_not_canonical(self):
+        contract = seed_map.contract
+        self.assertEqual(contract.family("parse -- alpha/pom.xml"), "manifest parse")
+        self.assertIsNone(contract.family("parse -- ./alpha/pom.xml"))
+
+    # C1 — a family is what the builder writes: a command is in one only when
+    # rebuilding it from its parts returns the same bytes.
+    def test_a_family_is_what_its_builder_writes(self):
+        contract = seed_map.contract
+        built = {
+            "search": contract.build_command(["Widget"], ["alpha/Widget.java"]),
+            "built-output walk": contract.build_listing("built-output walk", ["gen"]),
+            "tracked listing": contract.build_listing("tracked listing", ["gen"]),
+            "manifest parse": contract.build_listing("manifest parse", ["alpha/pom.xml"]),
+            "sibling listing": contract.build_listing("sibling listing", ["alpha/pom.xml"]),
+        }
+        for name, command in built.items():
+            self.assertEqual(contract.family(command), name, command)
+
+    # C1 — a token a shell would have expanded is legal only in the quoted
+    # spelling the builder emits, so a path named `A$B.java` stays reachable.
+    def test_a_prose_family_takes_the_builders_quoting_only(self):
+        contract = seed_map.contract
+        self.assertIsNone(contract.family("parse -- $MANIFEST"))
+        self.assertEqual(contract.family(contract.build_listing("manifest parse",
+                                                                ["$MANIFEST"])),
+                         "manifest parse")
+        self.assertEqual(contract.family(contract.build_listing("manifest parse",
+                                                                ["A$B/pom.xml"])),
+                         "manifest parse")
+
+    # C1 — the prefix ends at exactly one space; a path glued to it is no path.
+    def test_a_path_glued_to_the_prefix_is_no_family(self):
+        self.assertIsNone(seed_map.contract.family("parse --alpha/pom.xml"))
+
+    # C1 — the parts keep the command's own order, and the key does not.
+    def test_a_prose_family_keys_on_its_paths_not_their_order(self):
+        contract = seed_map.contract
+        first = contract.build_listing("manifest parse", ["b/pom.xml", "a/pom.xml"])
+        second = contract.build_listing("manifest parse", ["a/pom.xml", "b/pom.xml"])
+        self.assertNotEqual(first, second)
+        self.assertEqual(contract.family(first), "manifest parse")
+        self.assertEqual(contract.command_key(first), contract.command_key(second))
+
+    # C2 — a search path is a repository path: one that is not is not a search.
+    def test_a_search_path_outside_the_repository_is_not_canonical(self):
+        contract = seed_map.contract
+        for command in ("git grep -n -I -E -e Widget -- ../x",
+                        "git grep -n -I -E -e Widget -- /etc/x",
+                        "git grep -n -I -E -e Widget -- alpha/",
+                        "git grep -n -I -E -e Widget -- ./alpha/Widget.java"):
+            self.assertIsNone(contract.parse_canonical(command), command)
+            self.assertIsNone(contract.family(command), command)
+
+    # C3 — a path spelled another way is a spelling difference, so it hints.
+    def test_a_hint_where_only_the_path_spelling_differs(self):
+        respell = seed_map.contract.respell
+        self.assertEqual(respell("git grep -n -I -E -e Widget -- ./alpha/Widget.java"),
+                         "git grep -n -I -E -e Widget -- alpha/Widget.java")
+        self.assertIsNone(respell("git grep -n -I -E -e Widget -- ../x"))
 
     def test_a_path_no_repository_can_hold_is_a_parse_failure(self):
         contract = seed_map.contract

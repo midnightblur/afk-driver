@@ -206,6 +206,16 @@ searched on disk, tracked or not; absent output is reported
 `frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
 manifests the build-graph class (B7) parses.
 
+### Paths in the investigation block
+
+Every path here — `generated`, `reactor`, an entry's `paths` — is
+repository-relative with forward slashes. Write it however reads well:
+a trailing `/`, a doubled `//`, a backslash separator, and a leading `./` all
+fold to the one spelling at the read, so what a consumer receives is `gen`
+whichever of those was written. A value that cannot fold to a
+repository-relative path — absolute, drive-lettered, or holding a `..` segment
+— is a configuration error, reported before any run starts.
+
 ## Secrets
 
 A configuration file holds environment variable NAMES, never values.

@@ -61,8 +61,12 @@ gate_ctx_build() {
   # cannot hold NUL, so status goes to a file and is read back with read -d ''.
   # $$-suffixed: two sessions' Stop hooks in one checkout must not truncate each
   # other's scratch mid-read (a torn read = a wrong change set for that Stop).
-  local statfile=".claude/hooks/.gate-cache/.status.$$"
-  mkdir -p .claude/hooks/.gate-cache 2>/dev/null
+  # Outside the tree: written inside it, the scratch file is itself a change
+  # in the very status it records, so every key carried a PID and no cache
+  # could ever hit in a checkout that does not ignore the cache directory.
+  local statdir=${TMPDIR:-/tmp}
+  [ -d "$statdir" ] || statdir=/tmp
+  local statfile="$statdir/afk-gate-status.$$"
   git status --porcelain -z -uall >"$statfile" 2>/dev/null || : >"$statfile"
 
   AFK_CTX_CHANGED=""; AFK_CTX_NEW=""; AFK_CTX_LIVE=""

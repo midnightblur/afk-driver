@@ -36,6 +36,20 @@
 
 set -u
 
+# What the gate's verdict can turn on, as the repo-relative path patterns
+# `gate_cache_key` matches: the plugin's own prose, the allow-list, and — only
+# where the plugin is not the whole repository — every product path, whose
+# symbols checks 2-3 read. A git pathspec exclusion is not a path pattern, and
+# an absolute path matches none of them: either one leaves the cache warm while
+# the gate's inputs move. The gate's own tests call this, so what they measure
+# is what the gate keys on.
+genericity_cache_scope() {
+  local scope=${1-}
+  printf '%s\n' "${scope}*.md" "${scope}hooks/genericity-allow.txt"
+  [ -n "$scope" ] && printf '%s\n' "*"
+  return 0
+}
+
 gate_genericity() {
   [ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && return 0
   [ -f .claude/hooks/.gate-disabled ] && return 0
@@ -121,19 +135,14 @@ gate_genericity() {
   )
   [ -z "$changed_md" ] && return 0   # scope no-op
 
-  # Inputs: the plugin's own prose, the allow-list, and the product-symbol
-  # inventory (a new product file can turn a previously clean token into a hit).
   local cache_key
-  # The product-symbol universe is every tracked path OUTSIDE the plugin tree,
-  # so a new product file can turn a previously clean token into a hit. When the
-  # plugin IS the repository there is no product tree and checks 2-3 are inert.
+  # The product-symbol universe is every tracked path OUTSIDE the plugin tree.
+  # When the plugin IS the repository there is none and checks 2-3 are inert.
   local PRODUCT_SCOPE=""
   [ -n "$PLUGIN_SCOPE" ] && PRODUCT_SCOPE=":!$PLUGIN_SCOPE*"
-  # The cache key takes path patterns, and a git pathspec exclusion is not one:
-  # passing it matched no path, so a product edit left the cache warm while the
-  # inventory under it moved. Where a product tree exists, every change counts.
-  local cache_scope=("$PLUGIN_SCOPE*.md" "$ALLOW_FILE")
-  [ -n "$PRODUCT_SCOPE" ] && cache_scope+=("*")
+  local cache_scope=() pat
+  while IFS= read -r pat; do cache_scope+=("$pat"); done \
+    < <(genericity_cache_scope "$PLUGIN_SCOPE")
   cache_key=$(gate_cache_key genericity "${cache_scope[@]}")
   gate_cache_hit genericity "$cache_key" && return 0
 

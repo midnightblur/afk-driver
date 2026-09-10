@@ -12,15 +12,15 @@ The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this pl
 
 ## Steps
 
-1. **Scope the change.** `git status --porcelain -uall` plus `git diff --name-only @{u}...HEAD` (fall back to `origin/master...HEAD`). This file list — not the conversation — defines what gets audited.
+1. **Scope the change, then close the consumer question.** `git status --porcelain -uall` plus `git diff --name-only @{u}...HEAD` (fall back to `origin/master...HEAD`). This file list — not the conversation — defines what gets audited. Then run one `/afk:investigate` Q2 per symbol the change adds or reshapes, here in the caller: the verifier is read-only, and a consumer set nobody enumerated is an orphan hunt that only looked where it remembered to.
 
-2. **Spawn the verifier blind.** One fresh-context subagent (`afk-reader`). Give it: the change goal (one sentence), the file list, the repo path. Do **not** give it your own account of what you wired — the author's narrative is what it exists to distrust. Its brief, verbatim:
+2. **Spawn the verifier blind.** One fresh-context subagent (`afk-reader`). Give it: the change goal (one sentence), the file list, the repo path, and the step-1 ledger path per symbol. Do **not** give it your own account of what you wired — the author's narrative is what it exists to distrust. Its brief, verbatim:
 
    > For each artifact this change adds or reshapes (files, endpoints, events, config keys, public methods, emitted files/logs), find its consumer and classify:
    > - **wired** — a consumer exists AND lies on a path that actually executes (cite file:line of the consuming site);
    > - **weak** — only referenced by its own tests, dead code, docs, or a consumer that never runs;
    > - **orphan** — no consumer found.
-   > Enumerate each symbol's consumers with the seed map before you judge it: `python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" --repo <repo> --subject <symbol> --type Q2 --config auto --out <scratch>/consumers-<symbol>.json`. A symbol whose B1 row is not `closed` cannot be `wired` — an unenumerated name form is a consumer nobody looked for.
+   > The symbol's consumers are the B1/B2/B4 nodes of the ledger named beside it; read that file, run no enumeration of your own. A symbol whose ledger verdict is not `closed` or `closed-with-frontier` cannot be `wired` — an unenumerated name form is a consumer nobody looked for.
    > Default to orphan when you cannot prove reachability. Return a table: artifact | verdict | evidence (cited) — nothing else.
 
 3. **Resolve every non-wired row.** For each `weak`/`orphan`: wire a real consumer now, or add an IOU to the repo's `.claude/wiring-ious.md` anchored to a plan step, ticket, or contract naming *your* symbol the future consumer will call (never a guessed future filename — implementers choose their own names). An anchor-less "used later" is not a resolution.

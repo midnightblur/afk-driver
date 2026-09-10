@@ -137,5 +137,6 @@ Required before declaring done:
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] For a UI-visible bug, the fix was confirmed **in the running UI** (re-mint token, re-drive the app) — not only by the test seam
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
+- [ ] A Phase 2.5 ledger short of `closed` is reported as the gap it is: which boundary stayed open, and what the fix therefore stands on unchecked
 
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), hand off to the `/improve-codebase-architecture` skill with the specifics if available; otherwise record the recommendation in the diagnosis notes. Make the recommendation **after** the fix is in, not before.
