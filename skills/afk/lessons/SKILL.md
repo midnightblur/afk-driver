@@ -41,7 +41,12 @@ Walk `open` lessons newest-first; for each, route by `target`:
 - **Plugin file (skill, checklist, doctrine, hook)** → propose → approve →
   write **here**: load `/afk:writing-for-agents` first and hold the edit to
   its bar; honour the plugin `CLAUDE.md` "Lockstep" partners and the
-  `FRESHNESS.md` same-commit obligations of every file touched.
+  `FRESHNESS.md` same-commit obligations of every file touched. First apply
+  `CAPTURE.md` "A plugin-file lesson on an installed plugin" — an installed
+  plugin gets an issue, never an edit.
+- **Draft is not a doctrine gap** (classification: `CAPTURE.md` "A plugin
+  defect is an issue") → take that route with the draft and evidence, then
+  append `filed --id <id> --issue "<issue URL, or the queued draft path>"`.
 
 Per outcome, append the transition via
 `bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh`:
@@ -70,8 +75,9 @@ human what it takes for that edit to bind:
 Read-only hygiene report: malformed ledger lines, `applied` lessons whose
 `note`-named target edit no longer exists on disk, `open` lessons older than
 the newest applied one by feature-count (stall candidates), duplicate drafts
-against the same `target`. Findings route to `apply` (or a human decision) —
-this subcommand writes nothing.
+against the same `target`, and `open` lessons whose draft is not a doctrine
+gap (`CAPTURE.md` "A plugin defect is an issue"). Findings route to `apply` (or a human
+decision) — this subcommand writes nothing.
 
 ## Hard rules
 

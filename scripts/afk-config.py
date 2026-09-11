@@ -53,6 +53,7 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
+    "report-issue",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -120,6 +121,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "setup": {"extra"},
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
+    "report-issue": {"repository", "auto-publish"},
 }
 
 DEFAULTS: dict = {
@@ -688,6 +690,14 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     command = npm.get("worktree-command")
     if command is not None and (not isinstance(command, list) or not command):
         problems.append("npm.worktree-command: must be a non-empty block list of argv words")
+
+    report = config.get("report-issue")
+    if isinstance(report, dict):
+        target = report.get("repository")
+        if target is not None and (not isinstance(target, str) or "/" not in target):
+            problems.append("report-issue.repository: must be `owner/name` or its GitHub URL")
+        if "auto-publish" in report and not isinstance(report["auto-publish"], bool):
+            problems.append("report-issue.auto-publish: must be `true` or `false`")
 
     developer = config.get("developer")
     if isinstance(developer, dict):

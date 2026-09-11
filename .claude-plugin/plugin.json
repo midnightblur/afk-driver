@@ -5,6 +5,7 @@
   "author": {
     "name": "midnightblur"
   },
+  "repository": "https://github.com/midnightblur/afk-driver",
   "agents": [
     "./agents/afk-implementor.md",
     "./agents/afk-reader.md",
@@ -51,6 +52,7 @@
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
     "./skills/utils/investigate",
+    "./skills/utils/report-issue",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-change",
     "./skills/utils/settle-mr",

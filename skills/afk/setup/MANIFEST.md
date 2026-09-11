@@ -252,7 +252,10 @@ a token value — not even partially.
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
   wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
   `skills/afk/gc` (the merged proof); and
-  `adapters/tracker/github-issues/api.py` — every `tracker_*` operation.
+  `adapters/tracker/github-issues/api.py` — every `tracker_*` operation; and,
+  whatever the repository selects, `skills/utils/report-issue/scripts/publish.sh`
+  (issue search, label create, issue create or comment; absent or logged out →
+  the draft queues on disk, so it is optional there).
 - **Probe:** `gh auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`

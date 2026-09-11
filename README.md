@@ -116,7 +116,9 @@ into the parent ticket and mints stub Enhancements for grill-deferred work
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
 else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
-design ADRs are local only. `/afk:execute` pushes branches + Draft MRs to
+design ADRs are local only. `/afk:report-issue` files plugin defects as GitHub
+issues on the plugin's own repository, never on the consuming repository's
+tracker (ADR-0002). `/afk:execute` pushes branches + Draft MRs to
 GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
@@ -763,6 +765,9 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
 - **`/afk:investigate`** — answer a question about existing code to closure over
   the boundary catalog, and write its coverage ledger. Details:
   `skills/utils/investigate/SKILL.md`.
+- **`/afk:report-issue`** — file a plugin defect or feedback as a redacted,
+  deduplicated GitHub issue on the plugin's repository; `publish` drains queued
+  drafts. Details: `skills/utils/report-issue/SKILL.md`.
 - **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
 - **`/afk:settle-change`** — settle any forge change request through the review loop, the change

@@ -310,6 +310,21 @@ else
 fi
 rm -rf "$cachefix"
 
+# A shared pattern that does not compile must block, not match nothing and pass.
+badpat=$(mktemp -d)
+mkdir -p "$badpat/skills" "$badpat/hooks/lib"
+sed 's/^ticket-id\t.*/ticket-id\t[/' "$workflow/hooks/lib/sensitive-patterns.tsv" > "$badpat/hooks/lib/sensitive-patterns.tsv"
+err=$(cd "$badpat" && bash -c '
+  . "$1"/hooks/genericity-gate.sh
+  afk_plugin_dir() { printf ".\n"; }; afk_plugin_scope() { printf "\n"; }
+  gate_genericity' _ "$workflow" 2>&1 >/dev/null); rc=$?
+if [ "$rc" = 2 ] && printf '%s' "$err" | grep -q 'cannot compile'; then
+  pass "a ticket-id pattern of \"[\" blocks the genericity gate"
+else
+  fail "malformed genericity pattern did not block (rc=$rc err=$err)"
+fi
+rm -rf "$badpat"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

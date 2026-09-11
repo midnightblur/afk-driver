@@ -47,7 +47,10 @@ Transition event:
 
 ```json
 {"ts":"<ISO-8601 UTC>","id":"L-NNNN","event":"<applied|verified|rejected|superseded>","writer":"<skill>","note":"<reason / commit / successor id>"}
+{"ts":"<ISO-8601 UTC>","id":"L-NNNN","event":"filed","writer":"<skill>","issue":"<issue URL, or the queued draft path>","note":"<optional>"}
 ```
+
+`filed` requires `issue`.
 
 ## Status model (= last event)
 
@@ -57,6 +60,7 @@ Transition event:
 | `applied` | The durable edit was written after human approval; `note` names the edited file (and commit when there is one). |
 | `verified` | A later retro found the signal gone — the loop closed. |
 | `rejected` | A human declined the draft; `note` carries the reason. |
+| `filed` | Sent upstream as a plugin issue instead of a local edit; `issue` holds the issue URL or the queued draft path. |
 | `superseded` | Replaced by a stronger lesson (escalation); `note` names the successor `L-NNNN`. |
 
 ## Class enum

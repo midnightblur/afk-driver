@@ -9,6 +9,8 @@
 #       [--evidence <path:line>] [--writer <skill>] [--id L-NNNN]
 #   lesson-append.sh <applied|verified|rejected|superseded> --id L-NNNN \
 #       [--note <n>] [--writer <skill>]
+#   lesson-append.sh filed --id L-NNNN --issue <url | queued path> \
+#       [--note <n>] [--writer <skill>]
 #
 # Prints the event's id on success. Best-effort: ALWAYS exits 0 — a failed
 # append is a stderr note, never a reason to block the capturing task.
@@ -22,11 +24,11 @@ bail() { echo "lesson-append: $*" >&2; exit 0; }
 
 EVENT="${1:-}"; shift 2>/dev/null || true
 case "$EVENT" in
-  opened|applied|verified|rejected|superseded) ;;
+  opened|applied|verified|rejected|superseded|filed) ;;
   *) bail "unknown or missing event '$EVENT'" ;;
 esac
 
-CLASS='' MISS='' TARGET='' SUMMARY='' DRAFT='' SOURCE='' EVIDENCE='' WRITER='' ID='' NOTE=''
+CLASS='' MISS='' TARGET='' SUMMARY='' DRAFT='' SOURCE='' EVIDENCE='' WRITER='' ID='' NOTE='' ISSUE=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --class)      CLASS="${2:-}"; shift 2 ;;
@@ -40,6 +42,7 @@ while [ $# -gt 0 ]; do
     --writer)     WRITER="${2:-}"; shift 2 ;;
     --id)         ID="${2:-}"; shift 2 ;;
     --note)       NOTE="${2:-}"; shift 2 ;;
+    --issue)      ISSUE="${2:-}"; shift 2 ;;
     *) bail "unknown arg '$1'" ;;
   esac
 done
@@ -64,6 +67,7 @@ if [ "$EVENT" = "opened" ]; then
   fi
 else
   [ -n "$ID" ] || bail "$EVENT requires --id"
+  [ "$EVENT" != "filed" ] || [ -n "$ISSUE" ] || bail "filed requires --issue"
 fi
 
 mkdir -p "$(dirname "$LESSON_LEDGER_FILE")" 2>/dev/null || bail "cannot create ledger dir"
@@ -71,7 +75,7 @@ mkdir -p "$(dirname "$LESSON_LEDGER_FILE")" 2>/dev/null || bail "cannot create l
 line=$(EV_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" EV_ID="$ID" EV_EVENT="$EVENT" \
   EV_WRITER="$WRITER" EV_CLASS="$CLASS" EV_MISS="$MISS" EV_TARGET="$TARGET" \
   EV_SUMMARY="$SUMMARY" EV_DRAFT="$DRAFT" EV_SOURCE="$SOURCE" \
-  EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" python -c '
+  EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" EV_ISSUE="$ISSUE" python -c '
 import json, os
 g = os.environ.get
 e = {"ts": g("EV_TS"), "id": g("EV_ID"), "event": g("EV_EVENT"),
@@ -81,8 +85,11 @@ if e["event"] == "opened":
     for key, var in (("draft","EV_DRAFT"),("miss","EV_MISS"),
                      ("source","EV_SOURCE"),("evidence","EV_EVIDENCE")):
         if g(var): e[key] = g(var)
-elif g("EV_NOTE"):
-    e["note"] = g("EV_NOTE")
+else:
+    if e["event"] == "filed":
+        e["issue"] = g("EV_ISSUE")
+    if g("EV_NOTE"):
+        e["note"] = g("EV_NOTE")
 # ensure_ascii stays ON: python -c stdout uses the console codepage on Windows,
 # so raw non-ASCII here would land as non-UTF-8 bytes in the ledger
 print(json.dumps(e, separators=(",", ":")))

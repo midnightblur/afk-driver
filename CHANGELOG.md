@@ -18,6 +18,27 @@ first released heading here.
 
 ## [Unreleased]
 
+### Added
+
+- **`/afk:report-issue` — plugin defects reach the plugin's own repository.**
+  A plugin script or hook crash, a gate verdict against its own rule, or a
+  broken contract between skills now becomes a GitHub issue: summary, goal,
+  expected and actual, steps to reproduce, redacted evidence, an environment
+  table, the suspected owning file, and a fingerprint. A matching open or
+  closed issue gets a comment instead of a duplicate. The title and body are
+  redacted before any send. An agent run publishes only when redaction finds
+  nothing left, the body is complete, and the configuration reads cleanly;
+  otherwise it queues the draft under `.claude/afk-issues/` for
+  `/afk:report-issue publish`, which publishes on a human's explicit yes. New optional
+  `report-issue:` block in `.afk/config.yaml` (`repository`, `auto-publish`).
+  Needs `gh` logged in; without it every draft queues.
+- **A plugin-file lesson on an installed plugin becomes a feedback issue.**
+  When the plugin runs from an installed copy rather than a git clone,
+  `/afk:lessons apply` no longer edits the plugin file, because the next
+  update would erase the edit. It files the lesson's draft upstream through
+  `/afk:report-issue` and records the issue in the ledger with a new `filed`
+  event. A clone still gets the edit in place.
+
 ## [1.3.0] - 2026-09-10
 
 ### Added

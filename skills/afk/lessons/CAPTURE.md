@@ -21,6 +21,33 @@ A **concluded** workflow lesson — the gap is confirmed, not suspected:
 One-off, obvious-from-code, or this-session-only → **not a lesson** (same bar
 as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
 
+## A plugin defect is an issue
+
+One home for classifying a signal about the plugin itself:
+
+| Signal | Class | Route |
+|---|---|---|
+| A plugin script or hook crashes, a gate verdict goes against its own rule, a contract between two skills does not hold | **defect** | `/afk:report-issue` kind `bug`, with its evidence; append no lesson |
+| The plugin works as written, and a human wants it to behave otherwise: a feature request or a usability opinion | **feedback** | `/afk:report-issue` kind `feedback` |
+| A doctrine gap whose target is a plugin file, on an installed plugin | **feedback** | section "A plugin-file lesson on an installed plugin" |
+| An instruction existed and was ignored, or one should exist | **doctrine gap** | a lesson — the rest of this file |
+
+## A plugin-file lesson on an installed plugin
+
+Before any write to a plugin file, run
+`bash ${AFK_PLUGIN_ROOT}/skills/afk/lessons/scripts/plugin-clone.sh`:
+
+- exit 0, `clone` → the lesson follows its route; the edit lands in place after
+  approval.
+- exit 1, `installed` → the next plugin update would erase the edit, so write
+  no plugin file. On the human's approval of the lesson, invoke
+  `/afk:report-issue` with kind `feedback`, the lesson's `target` as the owning
+  file, and its `draft` as the proposed change. Then append
+  `filed --id <id> --issue "<issue URL, or the queued draft path>"`.
+
+A run with no human appends `opened` only, as the route table says; filing
+waits for the human.
+
 ## Conclude it now
 
 1. **Classify** — pick the `class` (enum: [LEDGER-FORMAT.md](LEDGER-FORMAT.md)).
@@ -38,7 +65,7 @@ as `/afk:claude-md`'s inclusion bar). When unsure, don't capture.
 |---|---|
 | Human present **and** target is CLAUDE.md / role sidecars / `.claude/rules` / `STAPLES.md` | Delegate to `/afk:claude-md` (its propose → approve → write). On approved write: append `opened` then `applied`. Declined: append `opened` then `rejected`. |
 | Human present **and** target is a domain `GLOSSARY.md` | Delegate to `/afk:glossary` — same handling. |
-| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | **Self-contained** → delegate to a writer subagent that loads `/afk:writing-for-agents`, makes the edit, and closes its FRESHNESS obligations; append `opened` then `applied`/`rejected`. Delegating keeps the invoking task's own context intact. **Not self-contained** → append `opened` alone; applied in a dedicated `/afk:lessons apply` session. |
+| Human present **and** target is a plugin file (skill, checklist, doctrine, hook) | Installed plugin → section "A plugin-file lesson on an installed plugin". **Self-contained** → delegate to a writer subagent that loads `/afk:writing-for-agents`, makes the edit, and closes its FRESHNESS obligations; append `opened` then `applied`/`rejected`. Delegating keeps the invoking task's own context intact. **Not self-contained** → append `opened` alone; applied in a dedicated `/afk:lessons apply` session. |
 | No human (driven / hands-off) | Append `opened` with the full draft — the drafts surface at the ship gate's advisory row and via `/afk:lessons`. |
 
 **Self-contained** = one file, no `CLAUDE.md` "Lockstep" partner, no row in

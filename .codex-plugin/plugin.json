@@ -2,6 +2,7 @@
   "name": "afk",
   "version": "1.3.0",
   "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters.",
+  "repository": "https://github.com/midnightblur/afk-driver",
   "skills": [
     "./skills/afk/adversary",
     "./skills/afk/autopilot",
@@ -41,6 +42,7 @@
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
     "./skills/utils/investigate",
+    "./skills/utils/report-issue",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-change",
     "./skills/utils/settle-mr",

@@ -18,6 +18,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `plugin_job_dir` | Native | No | Use plugin-data scratch space |
 | `question_cards` | Native | No | Ask one plain-text question |
 | `design_push` | Native | No | Keep local HTML canonical |
+| `issue_egress` | `gh` CLI, logged in | `gh` CLI, logged in | Queue the draft on disk and print the publish command |
 | `reload` | Reload the enabled plugin | Re-add the plugin, then start a new session | Report stale cache |
 
 ## Shared hook subset
@@ -40,5 +41,6 @@ Shared hook matchers: *, Bash, PowerShell, Glob, Grep, mcp__intellij__search_in_
 | Skills that delegate | `custom_agents`, `model_tiers` | `agent_tool_allowlist`, `parallel_agents`, `continuation`, `nesting` |
 | `/afk:to-ticket`, `/afk:bug` | `plugin_mcp` | — |
 | `/afk:prototype`, `/afk:design-system` | — | `design_push` |
+| `/afk:report-issue` | — | `issue_egress` |
 
 Provider spellings, enable flags, and model names live in `PROVIDERS.md`. Live proofs and unresolved capabilities live in `providers/CONFORMANCE.md`.

@@ -45,7 +45,8 @@ set -u
 # is what the gate keys on.
 genericity_cache_scope() {
   local scope=${1-}
-  printf '%s\n' "${scope}*.md" "${scope}hooks/genericity-allow.txt"
+  printf '%s\n' "${scope}*.md" "${scope}hooks/genericity-allow.txt" \
+    "${scope}hooks/lib/sensitive-patterns.tsv"
   [ -n "$scope" ] && printf '%s\n' "*"
   return 0
 }
@@ -57,6 +58,29 @@ gate_genericity() {
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout
   local ALLOW_FILE="$PLUGIN_DIR/hooks/genericity-allow.txt"
+
+  # The shapes this gate blocks are shared with the outgoing-issue redactor, so
+  # they live in one file. A missing file blocks: an empty pattern set passes all.
+  local PATTERNS_FILE="$PLUGIN_DIR/hooks/lib/sensitive-patterns.tsv" pk pv
+  local -A PAT=()
+  if [ -f "$PATTERNS_FILE" ]; then
+    while IFS=$'\t' read -r pk pv || [ -n "$pk" ]; do
+      case "$pk" in ''|\#*) continue ;; esac
+      PAT["$pk"]=${pv%$'\r'}
+    done < "$PATTERNS_FILE"
+  fi
+  for pk in ticket-id notation-prefixes account-id email source-file; do
+    [ -n "${PAT[$pk]:-}" ] || { echo "Genericity gate: $PATTERNS_FILE has no \`$pk\` pattern." >&2; return 2; }
+  done
+  # A pattern that does not compile matches nothing, and a check that matches
+  # nothing passes. Both engines that run the patterns must compile every one:
+  # one grep -E and one awk, whatever the change set holds.
+  printf '' | grep -E -e "${PAT[ticket-id]}" -e "${PAT[account-id]}" -e "${PAT[email]}" \
+    -e "${PAT[source-file]}" -e "^(${PAT[notation-prefixes]})$" >/dev/null 2>&1
+  [ $? -le 1 ] || { echo "Genericity gate: $PATTERNS_FILE holds a pattern grep -E cannot compile." >&2; return 2; }
+  GEN_TICKET_RE="${PAT[ticket-id]}" GEN_FILE_RE="${PAT[source-file]}" \
+    awk 'BEGIN { match("", ENVIRON["GEN_TICKET_RE"]); match("", ENVIRON["GEN_FILE_RE"]) }' >/dev/null 2>&1 \
+    || { echo "Genericity gate: $PATTERNS_FILE holds a pattern awk cannot compile." >&2; return 2; }
 
   # ---- check 0: the generic scripts stay generic.
   # scripts/ holds the harness-side scripts every consuming repository runs,
@@ -103,8 +127,8 @@ gate_genericity() {
     # what was already published and may not be rewritten.
     ident_hits=$(
       git -C "$PLUGIN_DIR" grep -nIEi --untracked \
-        -e '\b[0-9a-f]{24}\b' \
-        -e '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b' \
+        -e "${PAT[account-id]}" \
+        -e "${PAT[email]}" \
         ${handles:+-e "\b($handles)\b"} \
         -- . ':(exclude)LICENSE' ':(exclude)CHANGELOG.md' \
              ':(exclude).claude-plugin/*' ':(exclude).codex-plugin/*' 2>/dev/null \
@@ -163,7 +187,7 @@ gate_genericity() {
 
   # Internal notation prefixes that are NOT Jira tickets (ADRs, acceptance
   # criteria, user stories, render points, preflight steps, encodings, specs).
-  local NOTATION_PREFIXES='ADR|AC|US|RP|PF|PROJ|UTF|RFC|ISO|JEP|JDK|HHH'
+  local NOTATION_PREFIXES="${PAT[notation-prefixes]}"
 
   # ---- added lines per file: ONE diff for every tracked file, plus a fork-free
   # read of each untracked one.
@@ -208,7 +232,12 @@ gate_genericity() {
 
   # Token harvest: ONE pass over the whole stream, emitting "<file>\t<class>\t<token>".
   # Classes: 1 = ticket ID, 2 = source-file reference, 3 = backticked CamelCase.
+  # The harvest ends on an END sentinel: an awk that dies part-way (a runtime
+  # regex error, a crash) leaves none, and that blocks rather than passing the
+  # lines it never read.
+  local harvest_done=0
   while IFS=$'\t' read -r file kind tok; do
+    [ "$kind" = END ] && { harvest_done=1; continue; }
     [ -n "$tok" ] || continue
     [ -n "${seen["$file:$kind:$tok"]:-}" ] && continue
     seen["$file:$kind:$tok"]=1
@@ -223,7 +252,7 @@ gate_genericity() {
       2) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(file) ;;
       3) cand_file+=("$file"); cand_tok+=("$tok"); cand_kind+=(class) ;;
     esac
-  done < <(printf '%s' "$added_stream" | awk '
+  done < <(printf '%s' "$added_stream" | GEN_TICKET_RE="${PAT[ticket-id]}" GEN_FILE_RE="${PAT[source-file]}" awk '
     # Boundaries are checked against ABSOLUTE positions in the full line (pre/
     # post computed from s, not the consumed remainder) — checking the remainder
     # makes every post-consumption match look line-initial and defeats the left
@@ -236,7 +265,7 @@ gate_genericity() {
 
       # class 1: Jira-shaped ticket IDs (prefix 2-10 chars, 1-6 digits)
       rest = s
-      while (match(rest, /[A-Z][A-Z0-9]{1,9}-[0-9]{1,6}/)) {
+      while (match(rest, ENVIRON["GEN_TICKET_RE"])) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)
@@ -247,7 +276,7 @@ gate_genericity() {
 
       # class 2: source-file references
       rest = s
-      while (match(rest, /[A-Za-z][A-Za-z0-9_]*\.(vue|java|tsx|ts|mjs|js)/)) {
+      while (match(rest, ENVIRON["GEN_FILE_RE"])) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)
@@ -262,7 +291,9 @@ gate_genericity() {
         print file "\t3\t" substr(rest, RSTART+1, RLENGTH-2)
         rest = substr(rest, RSTART+RLENGTH)
       }
-    }')
+    }
+    END { print "-\tEND\t-" }')
+  [ "$harvest_done" = 1 ] || { echo "Genericity gate: the token harvest failed; nothing was checked." >&2; return 2; }
 
   if [ "${#cand_tok[@]}" -gt 0 ]; then
     local -A prod_file=() prod_class=()
@@ -271,7 +302,7 @@ gate_genericity() {
     while IFS= read -r n; do
       n=${n##*/}
       [ -n "$n" ] || continue
-      case "$n" in *.vue|*.java|*.ts|*.tsx|*.js|*.mjs) ;; *) continue ;; esac
+      [[ "$n" =~ ^${PAT[source-file]}$ ]] || continue
       stem=${n%.*}
       [ -n "$stem" ] || continue          # dotfile — no class name to resolve
       prod_file["$n"]=1
