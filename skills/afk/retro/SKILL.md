@@ -65,5 +65,6 @@ Report: {path}
 - **Read-only everywhere except its own report file.** Never edit a plugin file, plan artifact, ledger, or metric file. Proposals propose; humans apply.
 - **Every claim cites.** A signal without its occurrences listed (feature + subtask + source line/id) is dropped. Numbers, not adjectives.
 - **Don't double-count re-runs.** A re-executed subtask contributes its final outcome once; earlier journal lines for the same subtask count as remediation cycles, not extra occurrences.
+- **Plugin issues also go upstream.** A signal `skills/afk/lessons/CAPTURE.md` "A plugin defect is an issue" routes to an issue keeps its proposal and also takes that route; the report cites its `ISSUE:` line.
 - **No proposals about the target repo's code.** Product/code defects route to `/afk:fix`; this skill's proposals change the *workflow* (skills, doctrine files, gates, templates) only. Target-repo CLAUDE.md-rule gaps surface as input for `/afk:claude-md`, which owns those writes.
 - **Cap the fan-out.** One digest subagent per feature; no nested fan-out.

@@ -18,7 +18,7 @@ superseded when the synthesized artifacts (PRD / SDD / VERIFICATION-PLAN) land.
 
 ## Requirements grill
 
-- Ledger: {claim} → verified ({where}) | refuted ({where}) | unverified-external (user acknowledged)
+- Ledger: {claim} → pending (INV-NNN) | verified (INV-NNN) | refuted (INV-NNN) | unverified-external (user acknowledged)
 - Staples: {staple} → in|out — {one-clause why}
 - Settled: {decision, one line each, as they lock}{agent tail — grammar below}
 - Spinoffs: {spinoff row — grammar below}
@@ -55,9 +55,9 @@ is applied, so a crash between poll and apply loses no human words.
 
 ## Solution grill
 
-- Locked: L1 {one-line decision} | inherited
+- Locked: L{n} {one-line decision} (INV-NNN, …) | inherited (INV-NNN | gap acknowledged: {what the human accepted unproven})
 - … one row per layer as it locks (L1–L9)
-- Seams (L9): {seam} → {verdict: fits | extends (ADR-candidate) | reworked}
+- Seams (L9): one locked-seam row per seam, in the six-column grammar `skills/afk/grill-solution/L9-SEAM-GRILL.md` states
 - Signoff: {signoff row — grammar below}
 - Spinoffs: {spinoff row — grammar below}
 - Open: {the layer under discussion + the live question}

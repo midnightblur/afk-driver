@@ -6,7 +6,8 @@
 # Usage: lesson-digest.sh [--count | --all]
 #   (default)  open lessons, newest first: "L-NNNN | class | target | summary"
 #   --count    just the number of open lessons (a bare integer)
-#   --all      status counts + one line per lesson with its current status
+#   --all      status counts + one line per lesson with its current status;
+#              a `filed` lesson ends with "| issue: <url or queued path>"
 #
 # LESSON_LEDGER_DISABLE=1 → behaves as an empty ledger.
 # LESSON_LEDGER_FILE relocates (default: <main-checkout>/.claude/lessons/LEDGER.jsonl).
@@ -77,7 +78,8 @@ elif mode == "--all":
         counts[lessons[i].get("event", "?")] = counts.get(lessons[i].get("event", "?"), 0) + 1
     print("status: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
     for i in reversed(order):
-        print(f"{lessons[i].get('event','?'):<10} {row(i)}")
+        issue = f" | issue: {lessons[i]['issue']}" if lessons[i].get("event") == "filed" and lessons[i].get("issue") else ""
+        print(f"{lessons[i].get('event','?'):<10} {row(i)}{issue}")
 else:
     if not open_ids:
         print("no open lessons")

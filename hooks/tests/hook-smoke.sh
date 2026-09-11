@@ -266,6 +266,65 @@ else
 fi
 rm -rf "$(dirname "$spaced")"
 
+# The genericity gate's cache key must move when any input it reads moves, and
+# stay put when none does. The scope comes from the gate itself, so what these
+# measure is what the gate keys on. Both placements are exercised: the plugin as
+# the whole repository (no product tree), and the plugin inside one.
+cachefix=$(mktemp -d)
+(
+  cd "$cachefix" || exit 1
+  git init -q . && git config user.email f@example.invalid && git config user.name f
+  mkdir -p hooks plugin src
+  printf 'prose\n' > plugin/README.md
+  printf 'Widget  # a deliberate reference\n' > hooks/genericity-allow.txt
+  printf 'class Widget {}\n' > src/Widget.java
+  git add -A && git commit -qm first
+) >/dev/null 2>&1
+key_of() (
+  cd "$cachefix" || exit 1
+  AFK_CTX_READY=0 bash -c '
+    . "$1"/hooks/genericity-gate.sh
+    . "$1"/hooks/gate-cache.sh
+    scope=(); while IFS= read -r pat; do scope+=("$pat"); done \
+      < <(genericity_cache_scope "$2")
+    gate_cache_key genericity "${scope[@]}"' _ "$workflow" "$1"
+)
+first=$(key_of "plugin/")
+if [ -n "$first" ] && [ "$first" = "$(key_of "plugin/")" ]; then
+  pass "two runs on an unchanged tree key the same"
+else
+  fail "the genericity cache key moved with no edit (scratch file inside the tree?)"
+fi
+printf 'class Widget { }\n' > "$cachefix/src/Widget.java"
+if [ "$first" != "$(key_of "plugin/")" ]; then
+  pass "a product-tree edit busts the genericity cache key"
+else
+  fail "product-tree edit left the genericity cache key unchanged"
+fi
+before=$(key_of "")
+printf '\n' > "$cachefix/hooks/genericity-allow.txt"
+if [ -n "$before" ] && [ "$before" != "$(key_of "")" ]; then
+  pass "an allow-list edit busts the genericity cache key"
+else
+  fail "a removed allow line reused the cached verdict"
+fi
+rm -rf "$cachefix"
+
+# A shared pattern that does not compile must block, not match nothing and pass.
+badpat=$(mktemp -d)
+mkdir -p "$badpat/skills" "$badpat/hooks/lib"
+sed 's/^ticket-id\t.*/ticket-id\t[/' "$workflow/hooks/lib/sensitive-patterns.tsv" > "$badpat/hooks/lib/sensitive-patterns.tsv"
+err=$(cd "$badpat" && bash -c '
+  . "$1"/hooks/genericity-gate.sh
+  afk_plugin_dir() { printf ".\n"; }; afk_plugin_scope() { printf "\n"; }
+  gate_genericity' _ "$workflow" 2>&1 >/dev/null); rc=$?
+if [ "$rc" = 2 ] && printf '%s' "$err" | grep -q 'cannot compile'; then
+  pass "a ticket-id pattern of \"[\" blocks the genericity gate"
+else
+  fail "malformed genericity pattern did not block (rc=$rc err=$err)"
+fi
+rm -rf "$badpat"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

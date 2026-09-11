@@ -18,6 +18,219 @@ first released heading here.
 
 ## [Unreleased]
 
+### Added
+
+- **`/afk:report-issue` — plugin defects reach the plugin's own repository.**
+  A plugin script or hook crash, a gate verdict against its own rule, or a
+  broken contract between skills now becomes a GitHub issue: summary, goal,
+  expected and actual, steps to reproduce, redacted evidence, an environment
+  table, the suspected owning file, and a fingerprint. A matching open or
+  closed issue gets a comment instead of a duplicate. The title and body are
+  redacted before any send. An agent run publishes only when redaction finds
+  nothing left, the body is complete, and the configuration reads cleanly;
+  otherwise it queues the draft under `.claude/afk-issues/` for
+  `/afk:report-issue publish`, which publishes on a human's explicit yes. New optional
+  `report-issue:` block in `.afk/config.yaml` (`repository`, `auto-publish`).
+  Needs `gh` logged in; without it every draft queues.
+- **A plugin-file lesson on an installed plugin becomes a feedback issue.**
+  When the plugin runs from an installed copy rather than a git clone,
+  `/afk:lessons apply` no longer edits the plugin file, because the next
+  update would erase the edit. It files the lesson's draft upstream through
+  `/afk:report-issue` and records the issue in the ledger with a new `filed`
+  event. A clone still gets the edit in place.
+
+## [1.3.0] - 2026-09-10
+
+### Added
+
+- **`INVESTIGATION.md` — when reading code is finished.** The plugin had a bar
+  for a single claim and no completion criterion for a whole investigation, so
+  a partial read produced a cited, internally consistent, wrong answer. The new
+  root doctrine defines completion as closure over a 14-class boundary catalog:
+  five question types, a completion checklist per type, node dispositions and
+  boundary verdicts, the closure, counter-search, and proportionality rules, and
+  the coverage-ledger semantics. Every code-reading step points at it.
+- **Optional `investigation:` block in `.afk/config.yaml`.** A repository
+  declares its own boundary instances — `boundaries` (name, class, and either a
+  search pattern or a judgment-only site), `generated` output, and `reactor`
+  manifests. Declarative only: a pattern is never a command. Absent means the
+  generic defaults run alone, and a class with no method is reported
+  `unverified(no method)`, never as an absence. `/afk:setup` scaffolds it as a
+  commented block.
+- **`/afk:investigate` — the skill that runs an investigation to closure.**
+  Classifies the question, runs a deterministic seed map over the boundary
+  catalog, fans out one closure tracer per cluster, merges their fragments,
+  validates the result, and writes the coverage ledger. It is the single writer
+  of that ledger.
+- **`afk-tracer` — a frontier-tier agent role.** Drives one boundary or module
+  partition to closure and returns a coverage fragment. Read-only in the target
+  repository; it writes only its fragment and evidence files. Ships with its
+  provider stub, so the toolkit now carries five agent roles.
+- **Two bundled scripts under `skills/utils/investigate/scripts/`.** `seed_map.py`
+  enumerates the search space deterministically — `git grep` per boundary class,
+  an in-process walk for built output, no agent reads and no tokens — merges a
+  repository's declared instances with the generic defaults, runs a
+  counter-search whose method the first pass cannot repeat, and reports a class
+  with no method, no matching language, or a missing declared site as
+  `unverified`, never as an absence. Name forms it did not search are named, and
+  keep the class short of closed. `validate_coverage.py` checks the ledger's
+  schema and its cross-references, refuses a seed-stage status in a published
+  ledger and an uncited load-bearing claim, and prints the verdict the record
+  supports — `closed`, `closed-with-frontier`, or `partial`. A boundary row
+  carries every hit it found, so `hits`, `hit_ids` and the nodes table are one
+  set: a searched line no row counts is a defect, an agent-driven counter-search
+  reads at least one followed site of every class it answers for, a load-bearing
+  claim standing only on sites nobody followed lowers the verdict, and a class past 20000 hits
+  stops the run as a subject too generic to answer. Every searched node cites
+  one search, a query's `count` is the nodes citing it, and a row's `hits` is
+  what its own searches produced — the nodes table is the arithmetic, so a
+  number nobody can recompute is a defect. Every command a ledger records is written in
+  one of five declared shapes, and a search in one grammar —
+  `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]`,
+  unbundled, short-form, in that order, with no Boolean operators: a question
+  needing two conditions is two searches. A command outside every family is a
+  defect — a quote left open included, because a command no shell can split is
+  one nobody can rerun — and it hands back the canonical re-spelling wherever
+  every option in it has a place in the grammar; an option that changes what the
+  search means gets no hint rather than a misleading one. Each family states the
+  key its commands compare on: a search is its flag set and expression set with
+  the paths left out, and every other family is the paths it read as a set, so
+  relisting them in another order is the same method. A recorded `command` is the one that ran,
+  quoted so it runs again verbatim: a pass wanting a narrow and a wide
+  universe executes both, and a class searching only the files another class
+  named passes those files to the search as paths, split across several executed
+  commands where the list is long. The lines a search returned live in `lines`
+  beside the nodes it produced — `count` runs ahead of `lines` where one line
+  becomes a node for several classes. A load-bearing gap that lowers the verdict
+  is printed, so a valid ledger never reads closed in silence. A ledger written before this version
+  carrying `truncated` fails validation: re-seed the question, there is no
+  migration.
+- **`ground_diff.py` says whether a cited investigation still describes the
+  tree.** It counts every searched line, keyed by class, file and line hash, and
+  reports an appearance, a disappearance, an in-place edit, a duplicate, a
+  boundary status that moved, a changed configuration, and a seed search that no
+  longer runs as drift. Query rows now say who ran them (`origin`), so a line a tracer widened
+  to is counted rather than compared. Searches compare as what they run over
+  what universe and then on the files they ran over, unioned across their
+  chunks, so one file set split into a different number of commands is the same
+  pass, a file that left the set is drift, and a pass that ran over the whole
+  tree never equals one scoped to paths; and a file only an agent read is watched
+  through `git diff` between the two snapshots. A line hash covers the exact
+  bytes of the line, so a re-indentation reads as the edit it is.
+  `/afk:execute` runs it before writing code and answers drift with a fresh
+  investigation at the current head — the cited run's own question types,
+  subject and name forms — whose claims it reads back against the facts the
+  design cites.
+- **`merge_fragments.py` folds tracer fragments into the ledger.** The merge
+  rules — snapshot identity, worst-status-wins, the union count, the node
+  conflict rule, the counter-check union — ran as prose in the skill and now run
+  as a script. One id under two bodies — a query, a node, a claim — aborts the
+  fold rather than keeping one and losing the other, as does any other field two
+  rows under one id both fill and fill differently: nothing is settled by
+  arrival order. Every fragment is validated against the ledger rules before it
+  folds, and a defect refuses the fold naming the fragment and the row rather
+  than repairing it — including its own arithmetic: a fragment accounts for
+  every node it searched, in a row it carries itself. A fragment folds on an
+  identity both sides state, so a run field absent from either refuses; the spawn
+  hands the tracer the run block to carry back verbatim. A fragment taken against another commit, or answering
+  another question, subject or configuration, aborts the merge rather
+  than mixing two snapshots.
+- **The design chain verifies its claims by investigation.** A claim about this
+  repository is closed by an `/afk:investigate` run, not by a search:
+  `/afk:grill-requirements` spawns one per load-bearing claim and carries it as
+  a `pending` row until the ledger returns, `/afk:to-prd` refuses to synthesize
+  on a pending row, `/afk:grill-solution` closes each layer's premises before
+  the layer locks, and the L9 seam walk answers the existing contract and change
+  impact with one Q1+Q2+Q3 run per seam. Each plan `## Seams` row carries that
+  investigation's id, and `validate_plan.py` refuses a seam row standing on no
+  ledger, on a plan citing a seam with no §14 table to ground it, on a ledger the SDD's
+  own §14 row does not cite, or on one whose verdict is not closed, that names
+  two seam rows, or that resolves to two ledger directories; a validator that will not load stops the plan rather
+  than passing it unchecked.
+- **`/afk:to-sdd` step 7c — the seam-investigation gate.** Every SDD §14 seam row
+  cites the investigation that closed it, and a new bundled script resolves each
+  citation, validates that ledger, and refuses a design standing on a `partial`
+  one, on a load-bearing unverified claim, or on citations that between them
+  never asked what the symbol is, what reaches it, and what changing it breaks.
+  The synthesis is written as a draft, gated, given the gate's own notes, gated
+  again, and only then renamed to `SDD.md` — what the gate passed is what
+  becomes the SDD. `/afk:to-subtasks` re-runs the same gate before slicing.
+- **`/afk:execute` closes the ground before writing code.** A slice re-runs the
+  seed map over its seams and diffs the result against the ledger the design
+  cited; new hits get a delta tracer folded back in, and a `partial` verdict on
+  a load-bearing claim parks the subtask instead of guessing.
+- **`/afk:setup` opt-in H10: investigate code questions to closure.** A
+  user-global steering block binding every session, in any repository, whether
+  or not a plugin skill is running. Opt out by deleting the block.
+- **README section 4 gained "Upgrading a pinned install"** — the order the pin
+  has to move in on each harness, and how to ask which version is live. Reading
+  the marketplace clone or the version cache answers a different question, and
+  running git in either detaches a checkout the CLI owns.
+- **Every code-reading step now points at the closed investigation.**
+  `/afk:diagnose` traces the failing path before it hypothesises, `/afk:fix`
+  routes the documents that path reaches, the scope-and-impact and
+  refactor-safety review checklists and the seam verifier take their caller set
+  from a closed ledger instead of an ad-hoc search, and `/afk:understand`
+  starts its code digest from the entry symbol's own run.
+
+### Changed
+
+- **The recorded search grammar spells paths as tokens.** The four prose command
+  families end in `-- <path>+`, so a path holding a comma round-trips. A path a
+  shell would have expanded, and a path that leaves the repository, are refused
+  where the command is recorded. Query ids for those four families move once.
+- **The genericity gate's cache key takes path patterns only.** It was handed a
+  git pathspec exclusion, which the cache matches as a shell glob and so can
+  never match, and an edit under the product tree could reuse a stale verdict.
+- **The frontier model tier now names one model per harness column**
+  (`PROVIDERS.md` "Model tiers"). A research-preview model is never a tier; a
+  skill that needs one names it for that usage alone.
+- **A read-only child never enumerates.** The review gate, the seam verifier,
+  and the understanding artifact each ran their own search from inside a
+  read-only reviewer. The caller now closes the question once, before the
+  fan-out, and hands the child the ledger path.
+
+### Fixed
+
+- **A declared path spelled `gen/`, `gen//`, or with backslashes killed the
+  seed map** — the config reader accepted all three and the search grammar
+  refuses them, so the run died with no ledger. Paths in the `investigation:`
+  block now fold to one spelling at the read, and one that cannot fold is a
+  configuration error before the run starts.
+- **A command is of a family only when its own builder rebuilds it byte for
+  byte.** A path a shell would have expanded, a prefix glued to its first path,
+  and a second spelling of one path each read as a legal command; each is now
+  outside the grammar, and where only the spelling differs the defect carries
+  the canonical re-spelling.
+- **The genericity gate could reuse a verdict its own allow-list had changed** —
+  the cache key was handed an absolute path, which matches no repository-
+  relative pattern. Where the plugin is the whole repository, removing an allow
+  line left the gate warm.
+- **No gate cache could ever hit in a checkout that tracks its cache
+  directory** — the status scratch file was written inside the tree it was
+  recording, so every key carried the process id. It is written outside the
+  tree now.
+- **`GLOSSARY.md` declares the shorter spelling of a decided card**, so the
+  term-usage check sees the prose that uses it.
+- **Every path a repository declares folds through one rule.** The config
+  reader owned one spelling rule and the ledger grammar another, and they
+  disagreed: a `site` field skipped folding entirely, so a backslash site
+  passed validation and died in the grammar. One function now, in the config
+  reader, imported by the grammar — and it refuses only what git cannot hold,
+  so a path led by a space stays reachable, while anything a Windows or
+  POSIX path reader takes as a drive or a root is refused on every host.
+  Repeated spellings of one directory collapse to one declared path.
+- **A ledger a parent run produces stays in scratch.** The review gate, the
+  seam verifier, and the understanding artifact pass `--out`, so working
+  evidence never lands in a spec folder.
+- **`.afk/config.yaml`'s `toolkit-version` joins the release row** in
+  `FRESHNESS.md`; the release gate has always checked it.
+- **A declared path the platform reads as a drive could close against a file
+  outside the repository** — `Path("repo") / "C:foo"` is `C:foo` on Windows,
+  while git calls that path outside the tree. Any path a Windows or POSIX
+  path reader takes for a drive or a root is refused now, on every host, so
+  a ledger written on one platform still reads on the other.
+
 ## [1.2.1] - 2026-09-10
 
 ### Fixed

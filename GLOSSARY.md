@@ -101,6 +101,7 @@ _Avoid_: batch (that is the confirm tail inside a round), questionnaire (implies
 
 **Decided-class item**:
 A grill item the agent settled itself, presented for explicit audit rather than for an answer. Admissible only when it passes every condition of the decide rule and carries all six fields of the decided-card contract (`ROUND.md`); a card missing a field degrades to *confirm*. Silence never accepts one — an unmarked decided card is unanswered.
+_Also_: decided card
 _Avoid_: auto-decision (hides that a human still audits it), assumption (a decided item is cited, an assumption is not)
 
 **Evidence grade**:
@@ -223,6 +224,23 @@ The subagent spawned by `retest` to re-run a bug's reproduction read-only once i
 **One-live-fixer invariant**:
 At most one bug across the whole ledger may hold the `fixing` (S4) lane at a time; a second bug queues (S3) instead of dispatching.
 _Also_: one-live-fixer (prose names it inside a list of invariants, the category noun carried by the sentence)
+
+## Investigation
+
+**Boundary (investigation)**:
+One of the 14 generic ways a reference to a symbol can cross code (B1–B14). Catalog, per-class enumeration method, and verdict set: `INVESTIGATION.md` (plugin root); a repository's own instances live in its `investigation:` config block (`CONFIG.md`).
+_Avoid_: seam (that is where new code meets existing code, a design term)
+
+**Closure**:
+The completion criterion of a code investigation — no node in the work queue is unchecked and every applicable boundary carries a verdict. Transitive expansion runs while the changed facet propagates, never to a time, turn, or token budget. Rule: `INVESTIGATION.md`.
+_Avoid_: done, exhaustive (unbounded), full coverage (that is a test metric)
+
+**Frontier**:
+A boundary deliberately not crossed, recorded with its reason — another repository, unbuilt generated output, an external consumer. Distinct from `unverified`, which is a boundary that should have been crossed and was not. Neither is ever reported as an absence.
+
+**Coverage ledger**:
+The two-file record of one investigation — a JSON file carrying the complete denominator, plus a short markdown report beside it. `frontier` and `unverified` are statuses inside it, never separate files. Table set, field grammar, verdict rule, and location: `skills/utils/investigate/LEDGER-FORMAT.md`.
+_Avoid_: coverage report (that is a test-coverage artifact)
 
 ## Gates & verdicts
 

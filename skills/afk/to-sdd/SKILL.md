@@ -36,6 +36,15 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
 
 7b. **Human sign-off gate.** Transcribe §0's sign-off register from the grill log's signoff rows, then refuse to write on any of: a live human-locked aspect not `signed` or `n/a`; a `signed` row without the human's own wording; a section (§3 endpoint, §4 entity, §5 authz, §6 lifecycle, §7 side effect, §14 seam) carrying design the signature didn't cover. Name the aspect and bounce to `/afk:grill-solution`. Never sign, infer a signature, or promote `pending` on the human's behalf — the set and protocol live in `skills/afk/grill-solution/HUMAN-SIGNOFF.md`.
 
+7c. **Seam-investigation gate.** Every §14 seam row stands on an investigation, and the gate reads the document before it becomes the SDD. Write the synthesis to `<spec dir>/SDD.draft.md`, then gate that draft:
+
+   ```sh
+   python "$AFK_PLUGIN_ROOT/skills/afk/to-sdd/scripts/check_sdd_investigations.py" \
+     --sdd <spec dir>/SDD.draft.md
+   ```
+
+   Exit 0 → write the lines it printed verbatim into the draft's §13, run the same command on the draft again, and on a second exit 0 rename it in place (`mv <spec dir>/SDD.draft.md <spec dir>/SDD.md`) — what the gate passed is what becomes the SDD, notes included. Any nonzero exit at either run → delete the draft and refuse, so no ungated document is ever the SDD. A re-run overwrites a leftover draft. Exit 1 records one §13 blocker per line it printed, each naming the seam and its investigation, and bounces to `/afk:grill-solution`; exit 2 names a document the gate cannot read — no §14 table, a header the template no longer matches, or bytes that are not UTF-8 — and the fix is the document.
+
 8. **Library-version pin cross-check.** Verify any version pin the SDD/ADR names (Spring Boot, Hibernate, Vue, axios, … — anything `\d+\.\d+`) against the build manifest before writing. The Grounding rule catches a library's *existence*; this catches a fictional *version* of a real library, which silently poisons every downstream behaviour assumption.
 
    | Stack | Manifest |
@@ -60,7 +69,7 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
 
 10. **Update the ticket index.** Upsert this skill's rows in the sibling `INDEX.md` (`SDD`, `Design ADRs`) per `skills/afk/to-prd/INDEX-FORMAT.md`.
 
-**Done when:** `SDD.md` + every design ADR on disk, Steps 7 / 7b / 8 / 8b gates passed, `INDEX.md` rows upserted.
+**Done when:** `SDD.md` + every design ADR on disk, Steps 7 / 7b / 7c / 8 / 8b gates passed, `INDEX.md` rows upserted.
 
 ## Visualization rules
 

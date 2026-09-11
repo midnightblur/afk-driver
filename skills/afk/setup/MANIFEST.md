@@ -189,6 +189,29 @@ a token value — not even partially.
 - **Notes:** the page every work item is created under is
   `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
 
+### H10 · investigate code questions to closure **[opt-in]**
+- **Needed by:** nothing — a user preference: every agent session of this user
+  answers a question or claim about existing code by running
+  `/afk:investigate`, not from a partial read.
+- **Probe:** `grep -q 'afk:investigation:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:investigation:start' ~/.codex/AGENTS.md 2>/dev/null; }`
+- **Fix:** `auto:` append the sentinel block from
+  [`INVESTIGATION-SESSIONS.md`](INVESTIGATION-SESSIONS.md) (the one home) to the
+  user-global steering files — same targets and skip guards as H7's loop:
+  ```sh
+  src=$AFK_PLUGIN_ROOT/skills/afk/setup/INVESTIGATION-SESSIONS.md
+  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
+    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
+    grep -q 'afk:investigation:start' "$f" 2>/dev/null && continue
+    mkdir -p "$(dirname "$f")"
+    { [ -s "$f" ] && echo; sed -n '/afk:investigation:start/,/afk:investigation:end/p' "$src"; } >> "$f"
+  done
+  ```
+- **Notes:** user-global, per-machine — never rides git (file map:
+  `PROVIDERS.md`). The installed block deliberately carries no scope guard: a
+  wrong answer about existing code costs the same in any repository. Completion
+  doctrine stays in `INVESTIGATION.md`. Opt out by deleting the sentinel block;
+  opt in any time by re-running `/afk:setup`.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
@@ -205,7 +228,8 @@ a token value — not even partially.
   Stop hooks error on every turn.
 
 ### C2 · git
-- **Needed by:** the whole chain (worktrees, branches, push), `hooks/wiring-gate.sh`.
+- **Needed by:** the whole chain (worktrees, branches, push), `hooks/wiring-gate.sh`,
+  `skills/utils/investigate/scripts/seed_map.py` (its only search and inventory tool).
 - **Probe:** `git --version`
 - **Fix:** `human:` install Git for Windows (also satisfies C1).
 - **Base fix:** `auto:` `winget install --id Git.Git -e` — ships bash + POSIX
@@ -228,7 +252,10 @@ a token value — not even partially.
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
   wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
   `skills/afk/gc` (the merged proof); and
-  `adapters/tracker/github-issues/api.py` — every `tracker_*` operation.
+  `adapters/tracker/github-issues/api.py` — every `tracker_*` operation; and,
+  whatever the repository selects, `skills/utils/report-issue/scripts/publish.sh`
+  (issue search, label create, issue create or comment; absent or logged out →
+  the draft queues on disk, so it is optional there).
 - **Probe:** `gh auth status` (exit 0 = logged in; prints no token).
 - **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
@@ -352,8 +379,9 @@ a token value — not even partially.
   `.mcp.json` bootstrap,
   `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/claude-md/scripts/*.py`, the repository's `verification.env` command,
-  the shared Jira lib `adapters/tracker/jira/api.py` and
-  `skills/afk/bug/scripts/publish_bug.py` (ADR-0001).
+  the shared Jira lib `adapters/tracker/jira/api.py`,
+  `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
+  `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
 - **Base fix:** `auto:` `winget install --id Python.Python.3.12 -e` (any Python 3
@@ -492,12 +520,14 @@ Gating rule: if O1 misses, report the whole section as
   native hooks interface after all `hooks.json` edits land.
 
 ### O5 · Codex agent TOML stubs
-- **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, and `afk-implementor` roles.
-- **Sources (exactly these four, no others):**
+- **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`,
+  and `afk-tracer` roles.
+- **Sources (exactly these five, no others):**
   `providers/codex/agents/afk-afk-implementor.toml`,
   `providers/codex/agents/afk-afk-reader.toml`,
   `providers/codex/agents/afk-afk-runner.toml`,
-  `providers/codex/agents/afk-afk-runner-lite.toml`.
+  `providers/codex/agents/afk-afk-runner-lite.toml`,
+  `providers/codex/agents/afk-afk-tracer.toml`.
 - **Probe:** each `providers/codex/agents/afk-afk-*.toml` is present under
   `~/.codex/agents/` with the same filename, its `{{PLUGIN_ROOT}}` placeholder is
   replaced by a plugin root that **exists on disk and contains `LANGUAGE.md` and
@@ -507,7 +537,7 @@ Gating rule: if O1 misses, report the whole section as
   correct. What matters is that the baked path resolves to the toolkit, not which of
   its two names was written.
 - **Upgrading the plugin breaks this row until setup runs again.** The root baked into
-  each stub carries the version, so installing any new version leaves all four stubs
+  each stub carries the version, so installing any new version leaves all five stubs
   naming a directory that no longer exists, and every agent spawn on that harness
   fails. Re-run `/afk:setup` after every version change on that harness — not
   only when a changelog entry says the dependency set changed. The last clause of the

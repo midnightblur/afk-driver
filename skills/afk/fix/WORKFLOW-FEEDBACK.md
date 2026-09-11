@@ -9,7 +9,9 @@ bugs have no AFK workflow to improve → skip.
 The lesson is **recorded, not self-applied.** Do **not** edit the AFK skills
 here and do **not** run a retro — improving a workflow skill is a separate,
 reviewed change applied via `/afk:lessons apply` from the lesson ledger
-(format: `skills/afk/lessons/LEDGER-FORMAT.md`).
+(format: `skills/afk/lessons/LEDGER-FORMAT.md`). A miss traced to a plugin
+defect — not a doctrine gap — goes to `/afk:report-issue` instead
+(`skills/afk/lessons/CAPTURE.md` "A plugin defect is an issue").
 
 1. **Trace the miss to a stage.** Map the Phase 2.5 miss class (or the Phase 3
    stale artifact) to the AFK stage that under-specified the guard:

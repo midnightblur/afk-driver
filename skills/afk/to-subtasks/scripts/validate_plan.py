@@ -50,6 +50,19 @@ Checks + rule ids (one finding line per hit: `{file}: {RULE}: {detail}`):
   G-PARITY-UI/API     gate-table row count per modality != VERIFICATION-PLAN.md
                       scenario count (deferred API placeholder counts 0)
 
+(i) Seam ground — every `## Seams` bullet, whatever mode wrote the plan:
+  I-SEAM-UNGROUNDED   the bullet names no `(INV-NNN)`, names no SDD §14 row (an
+                      absent SDD or §14 table included), or names one the SDD
+                      §14 row for that seam does not cite
+  I-SEAM-NO-LEDGER    no `INV-NNN-*/COVERAGE.json` under ../investigations, or
+                      more than one directory answering to that id
+  I-SEAM-NOT-CLOSED   the ledger's validator verdict is not closed or
+                      closed-with-frontier (verdict + rules:
+                      skills/utils/investigate/scripts/validate_coverage.py)
+  I-SEAM-AMBIGUOUS    the bullet names more than one SDD §14 seam row
+  I-SEAM-NO-VALIDATOR the coverage validator did not load, so no ledger under
+                      this plan could be checked
+
 (h) Review policy — PLAN.md header + optional `## Review` contract sections:
   H-POLICY            PLAN.md `> Review policy:` value is neither lean nor full
   H-POLICY-VALUE      a contract `policy:` value is neither lean nor full
@@ -62,6 +75,9 @@ Exit: 0 clean · 1 findings · 2 parse error (plan dir / PLAN.md / subtask file 
 Checks (c) acceptance citations, (d) seam coverage, (f) scope sanity are
 LLM judgment — deliberately not here (VALIDATION.md keeps them).
 """
+import glob
+import importlib.util
+import json
 import os
 import re
 import sys
@@ -119,6 +135,83 @@ def bullets(body):
             if ln.strip().startswith("- ")]
 
 
+def words(text):
+    """The words of a name, so a match lands on a name and not a fragment."""
+    return " ".join(re.findall(r"[A-Za-z0-9_]+", (text or "").lower()))
+
+
+# The seam table and nothing else: a citation in §0 or §13 is about something
+# other than a seam. Same section shape check_sdd_investigations.py reads.
+SDD_SEAMS = re.compile(r"^##\s*§?14\b", re.M)
+SDD_NEXT = re.compile(r"^##\s", re.M)
+
+
+def seam_citations(sdd_path):
+    """Each SDD §14 seam row as (name, {investigation numbers it cites}).
+
+    No SDD, or none this reader can parse, returns nothing — and a plan citing
+    a seam then grounds it on nothing, which is the ungrounded case.
+    """
+    try:
+        with open(sdd_path, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return []
+    start = SDD_SEAMS.search(text)
+    if not start:
+        return []
+    rest = text[start.end():]
+    following = SDD_NEXT.search(rest)
+    body = rest[:following.start()] if following else rest
+    rows = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line.startswith("|") or line.startswith("|--") or "---" in line:
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        ids = set(INV_RE.findall(line))
+        if cells and ids:
+            rows.append((cells[0], ids))
+    return rows
+
+
+def seam_rows(rows, bullet):
+    """Every §14 row this seam bullet names, by whole-word name match."""
+    haystack = words(bullet)
+    found = []
+    for name, ids in rows:
+        want = words(name)
+        if want and re.search(rf"(?:^| ){re.escape(want)}(?: |$)", haystack):
+            found.append((name, ids))
+    return found
+
+
+def load_validator():
+    """The coverage validator beside this plugin's investigate skill."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+    scripts = (os.environ.get("AFK_INVESTIGATE_SCRIPTS")
+               or os.path.join(root, "utils", "investigate", "scripts"))
+    path = os.path.join(scripts, "validate_coverage.py")
+    try:
+        spec = importlib.util.spec_from_file_location("validate_coverage", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except (OSError, ImportError, AttributeError):
+        return None
+    return module
+
+
+def ledger_verdict(validator, path):
+    try:
+        with open(path, encoding="utf-8") as handle:
+            document = json.load(handle)
+    except (OSError, ValueError) as problem:
+        return f"unreadable ({problem})"
+    defects, verdict = validator.validate(document)
+    return f"structurally broken: {defects[0]}" if defects else verdict
+
+
 def split_anchor(ref):
     """'{file}#{anchor} [— contract]' -> (file, anchor) or None."""
     ref = ref.split(f" {EMDASH} ")[0].strip()
@@ -151,6 +244,9 @@ def table_rows(body):
         elif header is not None:
             break
     return header or [], rows
+
+
+INV_RE = re.compile(r"\(INV-(\d{3,})\)")
 
 
 def repo_root(start):
@@ -321,6 +417,67 @@ def main():
             if missing:
                 flag(f"{sid}.md", "G-BLOCKEDBY",
                      f"## Blocked by misses implementation subtask(s): {', '.join(missing)}")
+
+    # ---- (i) seam ground ---------------------------------------------------
+    # A seam row names the investigation that closed it, and that ledger is on
+    # disk: without it the executor has nothing to re-take the ground against.
+    spec_dir = os.path.dirname(plan_dir)
+    investigations = os.path.join(spec_dir, "investigations")
+    sdd_rows = seam_citations(os.path.join(spec_dir, "SDD.md"))
+    validator = load_validator()
+    verdicts = {}
+    for sid, rank, secs, fname in subtasks:
+        for raw in bullets(secs.get("Seams")):
+            line = raw.strip()
+            if line.startswith("(none"):
+                continue
+            m = INV_RE.search(line)
+            if not m:
+                flag(fname, "I-SEAM-UNGROUNDED",
+                     f"## Seams row names no investigation: {line!r}")
+                continue
+            number = m.group(1)
+            # The design cites the investigation that closed the seam; a plan
+            # citing another one grounds the slice on an answer the SDD never
+            # rested on, and a bullet naming two seams grounds on neither.
+            # A cited seam stands on the SDD row that designed it. No design,
+            # no §14 table, or no row naming this seam are one answer: the
+            # citation rests on nothing this plan can point at.
+            found = seam_rows(sdd_rows, line)
+            if not found:
+                flag(fname, "I-SEAM-UNGROUNDED",
+                     f"## Seams row names no SDD §14 seam: {line!r}")
+                continue
+            if len(found) > 1:
+                flag(fname, "I-SEAM-AMBIGUOUS",
+                     "## Seams row names more than one SDD §14 seam "
+                     f"({', '.join(repr(name) for name, _ in found)})")
+                continue
+            if found and number not in found[0][1]:
+                flag(fname, "I-SEAM-UNGROUNDED",
+                     f"INV-{number} is not cited by the SDD §14 row {found[0][0]!r}")
+                continue
+            ledgers = sorted(glob.glob(os.path.join(investigations, f"INV-{number}-*",
+                                                    "COVERAGE.json")))
+            if not ledgers:
+                flag(fname, "I-SEAM-NO-LEDGER",
+                     f"INV-{number} has no ledger under {investigations}")
+                continue
+            if len(ledgers) > 1:
+                flag(fname, "I-SEAM-NO-LEDGER",
+                     f"INV-{number} resolves to more than one ledger "
+                     f"({', '.join(os.path.basename(os.path.dirname(item)) for item in ledgers)})")
+                continue
+            if validator is None:
+                flag(fname, "I-SEAM-NO-VALIDATOR",
+                     f"INV-{number} cannot be checked: the coverage validator did not load")
+                continue
+            if number not in verdicts:
+                verdicts[number] = ledger_verdict(validator, ledgers[0])
+            verdict = verdicts[number]
+            if verdict not in ("closed", "closed-with-frontier"):
+                flag(fname, "I-SEAM-NOT-CLOSED",
+                     f"INV-{number} is {verdict}; a seam stands on a closed investigation")
 
     # ---- (h) review policy -------------------------------------------------
     m = re.search(r"^>\s*Review policy:\s*([^\s<]+)", plan_text, re.M)

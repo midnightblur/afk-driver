@@ -22,23 +22,24 @@ verify before continuing:
 - "Auth is {scheme}" / "we shard by {key}" / "we cache in {store}"
 - "There's already a {pattern} for {feature}"
 
-**How to verify, by claim type.**
+**How to verify.** One `/afk:investigate` run per claim, `--design-phase`,
+its question type read off the claim by
+`${AFK_PLUGIN_ROOT}/INVESTIGATION.md` § "Question types" — with one addition
+that file does not carry:
 
-| Claim about | Verify with |
+| Claim about | Question type |
 |---|---|
-| Library / dep usage | Grep `pom.xml`, `build.gradle`, `package.json`, `requirements.txt`. Check the **pinned version**, not just the name. |
-| Service / module / class existence | Grep for the symbol declaration; Glob the package. |
-| Configuration posture | Grep `application.yml` / `application.properties` / `*.env*` / framework-specific config files. |
-| Schema / table / sharding key | Grep migration files / changelog / DDL / JPA entity annotations. |
-| Existing pattern reuse ("we already use Strategy for X") | Grep for the named interface / abstract class. |
-| Existing behaviour ("the system does X when Y") | Find the code path: Grep the entry point, read the branch that decides; or run the existing test that pins it. |
-| Cross-repo / runtime topology / deploy posture | Often unverifiable from this repo alone — see "external claims" below. |
+| Cross-repo / runtime topology / deploy posture | Q5 — usually answered `frontier`; see "external claims" below |
 
-Run these verifications in `afk-reader` subagents — parallel where the
-claims are independent — each returning a cited confirm/refute digest,
-per `DELEGATION.md` (plugin root; its think-time overlap rule applies —
-spawn before yielding the turn); the grilling session keeps its
-context on the interview and acts on the digests.
+Pass what you know as `--alias FORM=VALUE` and as declared paths, and let the
+run close the boundaries. The completion contract is
+`${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; a run whose verdict is `partial`
+has not verified the claim.
+
+Spawn the runs in the background — parallel where the claims are
+independent — per `DELEGATION.md` (plugin root; its think-time overlap
+rule applies — spawn before yielding the turn); the grilling session keeps
+its context on the interview and acts on the ledgers.
 
 **How to handle a verification miss.**
 
@@ -63,21 +64,15 @@ unverified label?"* Letting the user decide whether to chase external
 verification is fine; **pretending you verified is not**.
 
 **This rule binds across all 9 layers**, not just L1/L2 where infra
-claims are most common — the claim-type table above covers the how; e.g.:
-
-- L1 ("we deploy multi-region") — check ops manifests / Terraform.
-- L4 ("we have an idempotency table") — Grep the schema.
-- L6 ("the order saga is implemented via outbox") — verify the
-  outbox table + dispatcher.
-- L9 ("that service method takes a DTO and handles validation") — read
-  the actual signature and its entry path; the seam walk is this rule
-  applied per seam.
+claims are most common. A deployment-topology claim, a schema claim, a
+workflow claim, and a signature claim are all claims; the table above
+picks the question type for each. The L9 seam walk is this rule applied
+per seam.
 
 **A derived finding is a claim too.** A conflict, hole, or violation inferred
 from several facts is only as verified as its least-verified leg. Before
 presenting one to the human — in chat, a poll reply, or a rendered card —
 verify every leg, or present it as a hypothesis naming the unverified leg.
 
-Verification is cheap (one Grep / Read); a wrong premise
-is not. Drafting an answer that references
+A wrong premise is expensive. Drafting an answer that references
 something specific in the codebase — **verify before you write it down.**

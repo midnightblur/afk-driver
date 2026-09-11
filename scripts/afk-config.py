@@ -39,7 +39,7 @@ import re
 import shlex
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 SCHEMA = 1
 
@@ -52,7 +52,8 @@ TOP_LEVEL = {
     "schema", "toolkit-version", "tracker", "forge", "notes", "build-gates",
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
-    "repo-hooks", "setup", "developer", "worktree",
+    "repo-hooks", "setup", "developer", "worktree", "investigation",
+    "report-issue",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -73,6 +74,21 @@ DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinar
 # worktree would then run without hooks, MCP registration or run configurations.
 WORKTREE_COPY_DEFAULT = (".mcp.json", ".claude", ".run", ".idea")
 WORKTREE_KEYS = {"copy", "copy-personal", "copy-ignored-claude-md"}
+
+# Investigation boundaries: this repository's instances of the generic boundary
+# classes `INVESTIGATION.md` owns. Declarative only — a `pattern` is a regular
+# expression a search reads, never a command, so nothing here can execute.
+INVESTIGATION_KEYS = {"boundaries", "generated", "reactor"}
+INVESTIGATION_BOUNDARY_KEYS = {
+    "name", "class", "pattern", "judgment-only", "site", "paths", "note",
+}
+# Which fields hold paths, in one place: validation checks exactly these, and
+# `normalize` folds exactly these. A field on one list and not the other is a
+# path that reaches a consumer in a spelling its grammar refuses.
+INVESTIGATION_PATH_LISTS = ("generated", "reactor")
+INVESTIGATION_BOUNDARY_PATHS = ("site",)
+INVESTIGATION_BOUNDARY_PATH_LISTS = ("paths",)
+INVESTIGATION_CLASSES = tuple(f"B{n}" for n in range(1, 15))
 
 # Per-kind worktree provisioning. Flat, like every other `maven.` / `npm.` key.
 MAVEN_WORKTREE_REPO = ("isolated", "shared")
@@ -105,6 +121,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "setup": {"extra"},
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
+    "report-issue": {"repository", "auto-publish"},
 }
 
 DEFAULTS: dict = {
@@ -352,6 +369,169 @@ def _choice(problems: list[str], config: dict, key: str, allowed: tuple[str, ...
         problems.append(f"{key}: {value!r} is not one of {', '.join(allowed)}")
 
 
+def _rooted(text: str) -> bool:
+    """Whether any path reader takes this for a drive or a root."""
+    return any(reader(text).drive or reader(text).anchor
+               for reader in (PureWindowsPath, PurePosixPath))
+
+
+def normalize_path(value: str) -> str | None:
+    """One repository path, in the one spelling everything downstream reads.
+
+    A human writes `gen/`, `gen//`, or a backslash separator; a consumer that
+    hands any of those on as written dies on a path its own grammar refuses.
+    Folded here, at the read, so no consumer folds it again. `None` where no
+    folding produces a repository-relative path.
+    """
+    if not isinstance(value, str):
+        return None
+    text = value.replace(chr(92), "/")
+    while "//" in text:
+        text = text.replace("//", "/")
+    if text.startswith("./"):
+        text = text[2:]
+    text = text.rstrip("/")
+    # A leading or trailing space is a name git holds and a builder quotes. A
+    # path a path reader takes for drive-relative or rooted is not: joining it
+    # to the repository drops the repository (`Path("repo") / "C:foo"` is
+    # `C:foo` on Windows), so the coverage would be of somewhere else. Both
+    # readers are asked on every host — a ledger written on one platform is
+    # read on the other, and a rule that changes with the host is two rules.
+    if not text or _rooted(text):
+        return None
+    if any(part in ("", ".", "..") for part in text.split("/")):
+        return None
+    return text
+
+
+def normalize(config: dict) -> dict:
+    """The same config, its investigation paths in one spelling. In place."""
+    investigation = config.get("investigation")
+    if not isinstance(investigation, dict):
+        return config
+    for key in INVESTIGATION_PATH_LISTS:
+        _fold_list(investigation, key)
+    for entry in investigation.get("boundaries") or []:
+        if not isinstance(entry, dict):
+            continue
+        for key in INVESTIGATION_BOUNDARY_PATHS:
+            folded = normalize_path(entry.get(key)) if key in entry else None
+            if folded is not None:
+                entry[key] = folded
+        for key in INVESTIGATION_BOUNDARY_PATH_LISTS:
+            _fold_list(entry, key)
+    return config
+
+
+def _fold_list(holder: dict, key: str) -> None:
+    """Fold one list of paths in place, or leave it for validation to refuse.
+
+    Three spellings of one directory are one declared path: folded they would
+    otherwise walk it three times and record three commands over one file set.
+    First writing wins, so the order the human wrote survives.
+    """
+    value = holder.get(key)
+    if not isinstance(value, list):
+        return
+    folded = [normalize_path(item) for item in value]
+    if any(item is None for item in folded):
+        return
+    kept: list[str] = []
+    for item in folded:
+        if item not in kept:
+            kept.append(item)
+    holder[key] = kept
+
+
+def _relative_path(problems: list[str], where: str, value: str) -> None:
+    """Every path this block holds folds to a repository-relative one.
+
+    An absolute path, a drive-letter path, or a `..` segment would point an
+    investigation at a file outside the repository it is enumerating: the
+    coverage it then reports would be of somewhere else. Shape:
+    `CONFIG.md` § "Paths in the investigation block".
+    """
+    if normalize_path(value) is not None:
+        return
+    folded = value.replace(chr(92), "/")
+    if _rooted(folded):
+        problems.append(f"{where}: {value!r} is absolute; paths are repository-relative")
+    elif ".." in folded.split("/"):
+        problems.append(f"{where}: {value!r} escapes the repository")
+    else:
+        problems.append(f"{where}: {value!r} is not a repository-relative path")
+
+
+def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
+    """Each entry names one boundary and exactly one way to enumerate it.
+
+    A boundary with no enumeration method is the failure this block exists to
+    prevent: it would be silently skipped, and a skipped boundary reads as an
+    absence. Refuse it at configuration time instead.
+    """
+    for index, entry in enumerate(boundaries):
+        where = f"investigation.boundaries[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{where}: must be a mapping")
+            continue
+        for key in sorted(set(entry) - INVESTIGATION_BOUNDARY_KEYS):
+            problems.append(
+                f"{where}.{key}: unknown key; expected one of "
+                f"{', '.join(sorted(INVESTIGATION_BOUNDARY_KEYS))}"
+            )
+        name = entry.get("name")
+        if not isinstance(name, str) or not name.strip():
+            problems.append(f"{where}.name: required, a short identifier")
+        klass = entry.get("class")
+        if klass not in INVESTIGATION_CLASSES:
+            problems.append(
+                f"{where}.class: {klass!r} is not one of "
+                f"{INVESTIGATION_CLASSES[0]}..{INVESTIGATION_CLASSES[-1]}"
+            )
+        judgment = entry.get("judgment-only")
+        if judgment is not None and not isinstance(judgment, bool):
+            problems.append(f"{where}.judgment-only: must be true or false")
+        pattern = entry.get("pattern")
+        if pattern is not None and not isinstance(pattern, str):
+            problems.append(f"{where}.pattern: must be a search expression")
+        site = entry.get("site")
+        if site is not None and not isinstance(site, str):
+            problems.append(f"{where}.site: must be a repository-relative path")
+        if judgment is True:
+            if pattern is not None:
+                problems.append(
+                    f"{where}: a judgment-only boundary carries a `site`, not a `pattern`"
+                )
+            if not isinstance(site, str) or not site.strip():
+                problems.append(
+                    f"{where}.site: required when `judgment-only: true` — name the "
+                    "file an agent has to read"
+                )
+        elif not isinstance(pattern, str) or not pattern.strip():
+            problems.append(
+                f"{where}: needs a `pattern`, or `judgment-only: true` with a `site`"
+            )
+        paths = entry.get("paths")
+        if paths is not None and not isinstance(paths, list):
+            problems.append(f"{where}.paths: must be a block list of globs")
+        # The path-shaped fields, checked off the one field list `normalize`
+        # folds — a field on one list and not the other is a path that reaches
+        # a consumer in a spelling its grammar refuses.
+        for key in INVESTIGATION_BOUNDARY_PATHS:
+            item = entry.get(key)
+            if isinstance(item, str) and item.strip():
+                _relative_path(problems, f"{where}.{key}", item)
+        for key in INVESTIGATION_BOUNDARY_PATH_LISTS:
+            for item in entry.get(key) or []:
+                if not isinstance(item, str) or not item.strip():
+                    problems.append(f"{where}.{key}: {item!r} is not a pathspec")
+                else:
+                    _relative_path(problems, f"{where}.{key}", item)
+        note = entry.get("note")
+        if note is not None and not isinstance(note, str):
+            problems.append(f"{where}.note: must be a string")
+
+
 def validate(config: dict, root: Path | None = None) -> list[str]:
     problems: list[str] = []
 
@@ -454,6 +634,38 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
             if value is not None and not isinstance(value, bool):
                 problems.append(f"worktree.{flag}: must be true or false")
 
+    investigation = config.get("investigation")
+    if investigation is not None:
+        if not isinstance(investigation, dict):
+            problems.append("investigation: must be a mapping")
+        else:
+            for key in sorted(set(investigation) - INVESTIGATION_KEYS):
+                problems.append(
+                    f"investigation.{key}: unknown key; expected one of "
+                    f"{', '.join(sorted(INVESTIGATION_KEYS))}"
+                )
+            for key in INVESTIGATION_PATH_LISTS:
+                value = investigation.get(key)
+                if value is None:
+                    continue
+                if not isinstance(value, list):
+                    problems.append(
+                        f"investigation.{key}: must be a block list; express `none` "
+                        "by omitting the key"
+                    )
+                    continue
+                for entry in value:
+                    if not isinstance(entry, str) or not entry.strip():
+                        problems.append(f"investigation.{key}: {entry!r} is not a path")
+                    else:
+                        _relative_path(problems, f"investigation.{key}", entry)
+            boundaries = investigation.get("boundaries")
+            if boundaries is not None:
+                if not isinstance(boundaries, list):
+                    problems.append("investigation.boundaries: must be a block list")
+                else:
+                    _investigation_boundaries(problems, boundaries)
+
     maven = config.get("maven") if isinstance(config.get("maven"), dict) else {}
     repo_mode = maven.get("worktree-repo")
     if repo_mode is not None and repo_mode not in MAVEN_WORKTREE_REPO:
@@ -478,6 +690,14 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     command = npm.get("worktree-command")
     if command is not None and (not isinstance(command, list) or not command):
         problems.append("npm.worktree-command: must be a non-empty block list of argv words")
+
+    report = config.get("report-issue")
+    if isinstance(report, dict):
+        target = report.get("repository")
+        if target is not None and (not isinstance(target, str) or "/" not in target):
+            problems.append("report-issue.repository: must be `owner/name` or its GitHub URL")
+        if "auto-publish" in report and not isinstance(report["auto-publish"], bool):
+            problems.append("report-issue.auto-publish: must be `true` or `false`")
 
     developer = config.get("developer")
     if isinstance(developer, dict):
@@ -699,6 +919,28 @@ def scaffold(root: Path) -> str:
             lines.append("  # default-module: TODO      # the module the gates build when a")
             lines.append("  # change names none; omit to build the whole reactor.")
         lines.append("")
+
+    lines += [
+        "# Investigation boundaries: how a reference to a symbol hides in THIS",
+        "# repository. A class left undeclared is reported `unverified(no method)`,",
+        "# never as an absence. Classes B1 .. B14: `INVESTIGATION.md` in the plugin.",
+        "# investigation:",
+        "#   boundaries:",
+        "#     - name: TODO            # a short identifier",
+        "#       class: TODO           # B1 .. B14",
+        "#       pattern: TODO         # regex a search reads; never a command",
+        "#       paths:                # optional: repository-relative pathspecs",
+        "#         - TODO",
+        "#     - name: TODO",
+        "#       class: TODO",
+        "#       judgment-only: true   # a search cannot enumerate it",
+        "#       site: TODO            # the file an agent has to read instead",
+        "#   generated:                # build output; absent output is `frontier`",
+        "#     - TODO",
+        "#   reactor:                  # aggregator manifests the build graph uses",
+        "#     - TODO",
+        "",
+    ]
 
     lines += [
         "# Who work is assigned to, and who reviews it, are NOT configured here:",

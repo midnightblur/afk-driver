@@ -51,6 +51,8 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
    - **Executor-blocking markers** — re-scan with the canonical blocker set `/afk:to-sdd` Step 7 declares (`skills/afk/to-sdd/SKILL.md`): its token list, §13 `Blocks executor? = yes` rule, and not-a-blocker exclusions.
    - **Library-version pins** — every pin the SDD/ADR cites (`Spring Boot 3.2.4`, `Vue 3.4`, …) must match the build manifest (`pom.xml` + BOM / `build.gradle` / `package-lock.json` / `pyproject.toml`). A divergent pin means a fictional API surface — refuse, unless the SDD labelled it `"inherited from {BOM}; not a direct pin"` (the documented escape hatch).
 
+   - **Seam investigations** — re-run `/afk:to-sdd`'s seam-investigation gate (`${AFK_PLUGIN_ROOT}/skills/afk/to-sdd/scripts/check_sdd_investigations.py --sdd <spec dir>/SDD.md`); exit 1 refuses, printing what it named.
+
    Run both scans via `afk-reader` — the same child that built step 1's citation pool, or a second spawned in parallel in the same message — returning pass/fail + cited hits, per `DELEGATION.md` (plugin root).
 
    Uncited mode skips this gate — the human accepted the PRD as sole source of truth.
@@ -58,6 +60,8 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 3. **Slice into subtasks.** A good subtask is independently buildable (no dependency on an unlanded sibling except via `## Blocked by`), bounded by a clear Scope (one or two globs), verifiable on its own, sized for one `/afk:execute` sitting (~1 hour). Cited mode: **slice along SDD §8 module boundaries** — one subtask per module's public interface. Splitting a §8 module means the SDD is too coarse: bounce, don't invent a split contradicting §8. Aim for 4–10 subtasks; >10 means the PRD is too big or the slice too fine.
 
    **Detect the verification plan.** If a `VERIFICATION-PLAN.md` sits next to the PRD (from `/afk:grill-verification` → `/afk:to-verification-plan`), **automatically** append a **terminal** build subtask **per modality the plan carries** — `NNNN-smoke-e2e` for `## UI Journeys`, `NNNN-smoke-api` for `## API Scenarios` (omit when that section is the "deferred" placeholder) — each `## Blocked by` **every** other subtask, per the templates in [SMOKE-GATE.md](SMOKE-GATE.md). Specs land as reviewed `/afk:execute` work; the integrated gate that *runs* them is `/afk:smoke-test`, after these subtasks are `done` (not part of this skill). No `VERIFICATION-PLAN.md` → no build subtasks, but the plan still gets the **minimal** gate section per [SMOKE-GATE.md](SMOKE-GATE.md) — a plan never ships gate-less.
+
+   **Carry each seam's investigation id.** Every `## Seams` row copies the id of the investigation the SDD §14 row cites for that seam — the executor re-takes that ground before it writes code, and a row naming none leaves it nothing to compare against. A §14 row citing no closed investigation is a design gap: bounce it rather than emit a seam nobody grounded.
 
    **Carry the accepted staples.** Each staple the PRD accepted (traceable to `{service}/STAPLES.md`) is an obligation, not a suggestion — turn it into Acceptance bullets on the owning subtask, and cited mode a `## Seams` row wherever the SDD named one (the staple's registry **Reference** is the exemplar to copy). A PRD-accepted staple appearing in no subtask is a slice gap — fix the slice, don't drop it.
 

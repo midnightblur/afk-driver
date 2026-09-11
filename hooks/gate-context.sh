@@ -61,8 +61,12 @@ gate_ctx_build() {
   # cannot hold NUL, so status goes to a file and is read back with read -d ''.
   # $$-suffixed: two sessions' Stop hooks in one checkout must not truncate each
   # other's scratch mid-read (a torn read = a wrong change set for that Stop).
-  local statfile=".claude/hooks/.gate-cache/.status.$$"
-  mkdir -p .claude/hooks/.gate-cache 2>/dev/null
+  # Outside the tree: written inside it, the scratch file is itself a change
+  # in the very status it records, so every key carried a PID and no cache
+  # could ever hit in a checkout that does not ignore the cache directory.
+  local statdir=${TMPDIR:-/tmp}
+  [ -d "$statdir" ] || statdir=/tmp
+  local statfile="$statdir/afk-gate-status.$$"
   git status --porcelain -z -uall >"$statfile" 2>/dev/null || : >"$statfile"
 
   AFK_CTX_CHANGED=""; AFK_CTX_NEW=""; AFK_CTX_LIVE=""
@@ -109,9 +113,11 @@ gate_ctx_build() {
     AFK_CTX_HASHES+="${_paths[$_i]}"$'\t'"${_hashes[$_i]:-?}"$'\n'
   done
 
-  # The wiring IOU ledger is gitignored, so `git status` never lists it — yet
-  # its content flips wiring verdicts (deleting a waive/IOU line must bust both
-  # the Stop stamp and wiring's pass cache). Fold it into the digest directly.
+  # The wiring IOU ledger is tracked through a negation inside an ignored
+  # directory, and its content flips wiring verdicts (deleting a waive/IOU line
+  # must bust both the Stop stamp and wiring's pass cache). Fold it into the
+  # digest directly, so the verdict never rides on how the change set was
+  # scoped.
   local ledger_body=""
   [ -f .claude/wiring-ious.md ] && ledger_body=$(<.claude/wiring-ious.md)
 
@@ -179,8 +185,9 @@ gate_ctx_build_staged() {
 
   AFK_CTX_CHANGED=""; AFK_CTX_NEW=""; AFK_CTX_LIVE=""
   local entry st path
-  local statfile=".claude/hooks/.gate-cache/.staged.$$"
-  mkdir -p .claude/hooks/.gate-cache 2>/dev/null
+  local statdir=${TMPDIR:-/tmp}
+  [ -d "$statdir" ] || statdir=/tmp
+  local statfile="$statdir/afk-gate-staged.$$"
   git diff --cached --name-status -z --diff-filter=ACMRT >"$statfile" 2>/dev/null || : >"$statfile"
   while IFS= read -r -d '' st; do
     [ -n "$st" ] || continue

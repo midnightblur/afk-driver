@@ -20,7 +20,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
 | Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
-| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, or `afk-implementor` | Same names from unchanged user TOML stubs |
+| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names from unchanged user TOML stubs |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
@@ -54,10 +54,13 @@ Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not 
 
 | Tier | Claude Code | Codex CLI |
 |---|---|---|
-| Frontier | `fable`; floating `opus` fallback | `gpt-5.6-sol` at high or xhigh effort; `gpt-5.5` fallback |
+| Frontier | `opus` | `gpt-5.6-sol` at high or xhigh effort; `gpt-5.5` fallback |
 | Implementation | Pinned `claude-opus-4-8`; `sonnet` for simple slices | `gpt-5.6-terra` at medium effort; lower effort for simple slices |
 | Digest | `sonnet` | `gpt-5.6-terra` at low effort |
 | Deterministic | `haiku`, carried by the `afk-runner-lite` definition | `gpt-5.6-terra` at low effort; no distinct rung exists, so the split saves nothing here |
+
+A Fable-class or Astra-class model is never a tier. Name one only where a skill
+requires that model for one specific usage.
 
 The implementation pin travels through the agent definition. Never pass the pinned identifier as a spawn-model argument. Agent definitions load at session start.
 

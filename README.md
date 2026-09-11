@@ -116,7 +116,9 @@ into the parent ticket and mints stub Enhancements for grill-deferred work
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
 else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
-design ADRs are local only. `/afk:execute` pushes branches + Draft MRs to
+design ADRs are local only. `/afk:report-issue` files plugin defects as GitHub
+issues on the plugin's own repository, never on the consuming repository's
+tracker (ADR-0002). `/afk:execute` pushes branches + Draft MRs to
 GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
@@ -244,14 +246,14 @@ codex plugin add afk@afk-toolkit
 ```
 
 Then run `/afk:setup`. Section O enables native hooks, checks cache freshness,
-guides hook trust, copies the four agent TOML stubs, offers the per-directory
+guides hook trust, copies the five agent TOML stubs, offers the per-directory
 steering fallback, and verifies the skill catalog `plugin.json` declares plus
 Jira. Restart after cache or agent-definition changes.
 
 The first session asks you to trust the plugin's hooks. Answer it once: the
 trust is keyed to the marketplace and the definitions, not to the installed
 path, so it survives an upgrade and the prompt returns only when a release
-changes `hooks/hooks.codex.json`. The four agent stubs are the opposite — they
+changes `hooks/hooks.codex.json`. The five agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
@@ -401,7 +403,8 @@ sequenceDiagram
    a contract grade, packeted for your review, and **signed off by you** before
    the design counts as done.
 6. **`/afk:to-sdd`** — synthesizes the design into `SDD.md` + per-decision design
-   ADRs. **Local only** — the SDD is never published to the ticket.
+   ADRs, gating each §14 seam on the closed investigation it cites (step 7c).
+   **Local only** — the SDD is never published to the ticket.
 7. **`/afk:grill-verification`** *(optional but recommended)* — designs the
    feature's verification scenarios with you: the real end-user **browser
    journeys**, plus (once the SDD exists) the **API scenarios** that prove the
@@ -647,7 +650,9 @@ skill's own `SKILL.md` (+ siblings); nothing here restates them.
 - **`/afk:to-subtasks`** — slice the PRD (+ SDD/ADRs when present) into the
   local `plan/`; no Jira. Details: `skills/afk/to-subtasks/SKILL.md`.
 - **`/afk:execute`** — run one subtask end-to-end (TDD, verification tiers,
-  review + adversary gates, commit/push/Draft MR), then stop at CR/Merge.
+  review + adversary gates, commit/push/Draft MR), then stop at CR/Merge. It
+  re-takes the ground each cited seam stands on first — a ground diff against
+  the investigation the slice cites, answering drift with a fresh one.
   Details: `skills/afk/execute/SKILL.md`.
 - **`/afk:autopilot`** — hands-off driver: walks the plan in dependency order,
   one fresh subagent per subtask, parks failures + dependents, ends at the
@@ -757,6 +762,12 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   spot. Details: `skills/utils/harvest/SKILL.md`.
 - **`interactive-walkthrough`** — HTML walkthrough widget templates;
   agent-invoked. Details: `skills/utils/interactive-walkthrough/SKILL.md`.
+- **`/afk:investigate`** — answer a question about existing code to closure over
+  the boundary catalog, and write its coverage ledger. Details:
+  `skills/utils/investigate/SKILL.md`.
+- **`/afk:report-issue`** — file a plugin defect or feedback as a redacted,
+  deduplicated GitHub issue on the plugin's repository; `publish` drains queued
+  drafts. Details: `skills/utils/report-issue/SKILL.md`.
 - **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
 - **`/afk:settle-change`** — settle any forge change request through the review loop, the change
@@ -815,7 +826,10 @@ first:
 ---
 
 **Doctrine files at the plugin root:** `GLOSSARY.md`, `REPORTING.md`,
-`DELEGATION.md`, `FRESHNESS.md`, `LANGUAGE.md` (the writing doctrine — which
+`DELEGATION.md`, `FRESHNESS.md`, `INVESTIGATION.md` (when reading code is
+finished — question types, the boundary catalog, the closure and counter-search
+rules, the coverage ledger; a code-reading step points at it, never restates
+it), `LANGUAGE.md` (the writing doctrine — which
 words, whose terms, how much — binding on replies and artifacts alike; every
 skill, agent, and emitter file carries only a pointer to it), `LAVISH.md` (the
 lavish-axi pin, invocation shapes, render-point → playbook map,

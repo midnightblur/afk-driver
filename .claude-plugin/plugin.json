@@ -1,15 +1,17 @@
 {
   "name": "afk",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Harness-agnostic AFK workflow toolkit: requirements grilling, design, planning, test-first execution, verification, review, and delivery skills, with pluggable tracker / forge / notes / build-gate adapters.",
   "author": {
     "name": "midnightblur"
   },
+  "repository": "https://github.com/midnightblur/afk-driver",
   "agents": [
     "./agents/afk-implementor.md",
     "./agents/afk-reader.md",
     "./agents/afk-runner-lite.md",
-    "./agents/afk-runner.md"
+    "./agents/afk-runner.md",
+    "./agents/afk-tracer.md"
   ],
   "skills": [
     "./skills/afk/adversary",
@@ -49,6 +51,8 @@
     "./skills/utils/handoff",
     "./skills/utils/harvest",
     "./skills/utils/interactive-walkthrough",
+    "./skills/utils/investigate",
+    "./skills/utils/report-issue",
     "./skills/utils/review-qa-tests",
     "./skills/utils/settle-change",
     "./skills/utils/settle-mr",

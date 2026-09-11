@@ -102,6 +102,8 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
 | `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
+| `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
+| `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (`false` makes an agent-invoked run queue every draft for a human; absent means `true`) |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee` and `mrReviewer` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
@@ -163,6 +165,57 @@ refused. What the launcher does with a handler it cannot run is pinned by
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
 is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
 turn and names the entry, so a gate cannot go missing quietly.
+
+### Investigation boundaries
+
+`investigation` declares this repository's instances of the generic boundary
+classes B1–B14 that `INVESTIGATION.md` (plugin root) owns. Declarative only: a
+`pattern` is a regular expression handed to `git grep`, never a command.
+
+```yaml
+investigation:
+  boundaries:
+    - name: event-listener
+      class: B11
+      pattern: '@\w*EventListener\b'
+    - name: ui-caller
+      class: B10
+      paths:
+        - '*-ui/src'
+      pattern: 'serviceBaseUrl\('
+    - name: message-name
+      class: B4
+      judgment-only: true
+      site: path/to/the/site/that/builds/the/name
+      note: built by concatenation at start-up; a search cannot enumerate it
+  generated:
+    - target/generated-sources
+  reactor:
+    - pom.xml
+```
+
+Each `boundaries` entry needs `name` and `class` (`B1`–`B14`), then exactly one
+enumeration method: `pattern`, or `judgment-only: true` with the `site` an agent
+must read. A declared instance **adds** to the generic default of its class and
+never replaces it: declared and default patterns both run, and `judgment-only`
+adds a site to read beside whatever search the class already had. A declared
+`site` that is not in the repository makes the class `unverified`, never
+evidence. `paths` narrows the entry's own search: a block list of git pathspecs
+(a glob or a directory prefix) passed after `git grep --`. `note` carries the
+gotcha. `generated` lists build output directories or files — present output is
+searched on disk, tracked or not; absent output is reported
+`frontier(unbuilt)`, never as absence. `reactor` lists the aggregator
+manifests the build-graph class (B7) parses.
+
+### Paths in the investigation block
+
+Every path here — `generated`, `reactor`, an entry's `paths` — is
+repository-relative with forward slashes. Write it however reads well:
+a trailing `/`, a doubled `//`, a backslash separator, and a leading `./` all
+fold to the one spelling at the read, so what a consumer receives is `gen`
+whichever of those was written. A value that cannot fold to a
+repository-relative path — absolute, drive-lettered, or holding a `..` segment
+— is a configuration error, reported before any run starts.
 
 ## Secrets
 
