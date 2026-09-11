@@ -7,7 +7,7 @@ description: Grills a raw feature idea against the domain glossary and staples b
 
 ## What to do
 
-Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree in dependency order. Recommend an answer per question.
+Interview the user relentlessly about every aspect of the plan until shared understanding is reached. Walk each branch of the design tree in dependency order. Recommend an answer per item.
 
 Work the group first, then present one round per [ROUND.md](ROUND.md): ground the premises, weigh the alternatives, decide what the rule there allows, and bring the whole layer at once — decisions to audit, calls that are the user's, and the indecisions with the condition that failed. The wait for feedback is per round, not per question.
 
@@ -27,11 +27,11 @@ Standing obligations, from the first exchange:
 
 - **Scan every plan statement and user answer for candidate terms** — domain nouns, lifecycle states, actions, role names. Anything two people could read differently is a candidate.
 - **Draft your own definition first** (from the code, the plan, the conversation), then ask the user to **verify** it: "I take 'X' to mean … — correct?" A proposed-definition question beats an open "what does X mean?".
-- **Ask the verification question as soon as the candidate surfaces** — an unverified term poisons every question built on it; never batch term verification to the end of the session.
+- **Put the verification in the round where the candidate surfaces** — an unverified term poisons every item built on it; items resting on it wait or ride that round `provisional` (ROUND.md "Dependencies inside a round").
 
 ### Challenge against the glossary
 
-When a term conflicts with the existing language in the relevant `GLOSSARY.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+When a term conflicts with the existing language in the relevant `GLOSSARY.md`, call it out in the next round. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
 
 ### Sharpen fuzzy language
 
@@ -43,11 +43,11 @@ When domain relationships are discussed, stress-test with specific scenarios pro
 
 ### Verify claims — maintain the claim ledger
 
-When the user states how something works — existing behaviour, a constraint, an ownership boundary — that is a claim about this repository, and it is verified by one `/afk:investigate` run rather than by a search: pick its question type from the claim's shape and pass `--design-phase`. Spawn the turn's runs in the background as one set before the turn yields, so the interview keeps moving while they close (`DELEGATION.md`). [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) says which statements are claims and what to do with a miss; the completion contract is `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`. Surface a contradiction immediately: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+When the user states how something works — existing behaviour, a constraint, an ownership boundary — that is a claim about this repository, and it is verified by one `/afk:investigate` run rather than by a search: pick its question type from the claim's shape and pass `--design-phase`. Spawn the turn's runs in the background as one set before the turn yields, so the interview keeps moving while they close (`DELEGATION.md`). [../grill-solution/GROUNDING-RULE.md](../grill-solution/GROUNDING-RULE.md) says which statements are claims and what to do with a miss; the completion contract is `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`. Surface a contradiction in the next round: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
 Keep a running **claim ledger** in the conversation: every load-bearing claim one line, in the Ledger-row grammar of [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md). A row is `pending` from the moment its run is spawned, and becomes `verified` or `refuted` when that run's ledger returns; a `partial` verdict leaves it `pending`, and the reply lists that ledger's `unverified` items. Nothing settles on a `pending` row. A `refuted` row must be **re-settled before exit**: correct the requirement that rested on it, update the row to `verified` against actual behaviour. Only claims about systems outside this repo may stay unverified, and only with the user's explicit acknowledgement. PRD synthesis gates on the ledger — a lost ledger means re-verifying, not waving through.
 
-**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-6, playbook `diagram`), **kit path** — author the round JSON and run the render script per `LAVISH-KIT.md`, never HTML: render from the first question and re-render at every question/turn boundary into one phase artifact carrying the round in play plus the shared view across every grill's `GRILL-LOG.md` section — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to markdown + reading the log directly.
+**Checkpoint the ledger to disk as it changes.** Mirror the ledger, the staples calls, and settled/open decisions into this skill's section of the ticket folder's `GRILL-LOG.md` per [GRILL-LOG-FORMAT.md](GRILL-LOG-FORMAT.md) — update rows as they lock, don't batch to the end. A compaction or pause then costs nothing: the next session resumes from the log instead of re-verifying. Lavish is this session's default surface — **session-default** per LAVISH.md (RP-6, playbook `diagram`), **kit path** — author the round JSON and run the render script per `LAVISH-KIT.md`, never HTML: render from the first round and re-render at every round boundary into one phase artifact carrying the round in play plus the shared view across every grill's `GRILL-LOG.md` section — mandatory per LAVISH.md's Primary-path rule; a licensed skip (driven mode / render failure / user opt-out) per that file falls back to markdown + reading the log directly.
 
 ### Challenge the want (find the real pain, not the perceived one)
 

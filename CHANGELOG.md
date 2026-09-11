@@ -231,6 +231,24 @@ first released heading here.
   path reader takes for a drive or a root is refused now, on every host, so
   a ledger written on one platform still reads on the other.
 
+## [1.2.1] - 2026-09-10
+
+### Fixed
+
+- **Grills no longer drift back to one question at a time.**
+  `/afk:grill-requirements` and `/afk:grill-solution` still carried
+  per-question pacing that contradicted the round dossier (`ROUND.md`) — "ask
+  each debate-class concern one question at a time", re-render "at each
+  question boundary", ask a term check "as soon as the candidate surfaces". A
+  grill following those lines interrupted the human per question instead of
+  presenting one researched round. They now present per round; one at a time
+  remains only after the human writes `take over`.
+- **`/afk:setup` now registers `pytest` (`MANIFEST.md` P5).** The `pytest`-based
+  tests under `scripts/tests/` need it, but the dependency was in no register
+  entry — so the doctor could report a machine green while the suite was
+  unrunnable on it. A known dependency missing from the register is a
+  `FRESHNESS.md` violation, not housekeeping. Re-run `/afk:setup`.
+
 ## [1.2.0] - 2026-09-10
 
 ### Added
@@ -418,6 +436,16 @@ first released heading here.
   that sizes its frame to the content height gives the bar a viewport as tall
   as the document. It now sits in the flow directly under the round it sends,
   and a round with nothing answerable emits no bar at all.
+
+- **`setup_secrets.py` resolved the plugin's own location instead of the
+  caller's repository.** The preflight ran `git rev-parse --show-toplevel` with
+  the working directory pinned to the plugin root. On a marketplace install the
+  plugin root sits outside any checkout, so the script aborted with "not inside
+  a git checkout" from every directory, and register entries H6 and S1 could not
+  be fixed at all. On a clone of the plugin itself the same call answered with
+  the plugin's repository rather than the target one. The call now inherits the
+  caller's directory. `scripts/tests/test_setup_secrets_repo_root.py` covers
+  both directions.
 
 ## [1.0.18] - 2026-09-05
 

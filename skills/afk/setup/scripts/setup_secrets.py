@@ -184,10 +184,15 @@ def write_json_atomic(p: Path, data: dict) -> None:
 
 
 def repo_root() -> Path:
+    """The checkout the human ran this from — never the plugin's own location.
+
+    The plugin is installed, not checked out beside the work, so its root is
+    usually outside any repository. Inherit the caller's directory.
+    """
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=15, cwd=str(PLUGIN_ROOT),
+            capture_output=True, text=True, timeout=15,
         )
         if out.returncode == 0 and out.stdout.strip():
             return Path(out.stdout.strip())

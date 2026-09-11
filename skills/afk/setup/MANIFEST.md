@@ -409,6 +409,16 @@ a token value — not even partially.
 - **Probe:** `python -c "import openpyxl"`
 - **Fix:** `auto:` `pip install openpyxl`
 
+### P5 · pytest
+- **Needed by:** the `pytest`-based tests under `scripts/tests/` — their cases
+  are `pytest` functions using its fixtures and helpers, so without it they are
+  unrunnable, not merely degraded. The rest of the directory is `unittest` and
+  runs on stock Python, so a green run proves nothing about this row.
+- **Probe:** `python -c "import pytest"`
+- **Fix:** `auto:` `pip install pytest`
+- **Notes:** a miss surfaces only when someone runs the suite, never at session
+  start — nothing at runtime imports it.
+
 ## N — Node toolchain
 
 ### N1 · node + npm + npx
