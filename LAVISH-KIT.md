@@ -243,9 +243,10 @@ Every hard exit guards auditability or identity. None guards size.
 ## Skeleton
 
 Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · **the
-process rail** · title · **the round strip** · the current round · **the sticky
-send bar** · items still open from earlier rounds · settled history in round
-sections, newest round first · the inline runtime.
+process rail** · title · **the round strip** · one answer form containing the
+current round and its **sticky send bar** · items still open from earlier
+rounds · settled history in round sections, newest round first · the inline
+runtime. A round with no answerable item has no answer form.
 
 The **re-audit strip** opens the round when `re_audit[]` names any ids: one
 line per decided card that came back from the last send unmarked, because an
@@ -334,13 +335,19 @@ identically, and gets no kit guarantees.
 | # | Guarantee |
 |---|---|
 | R-1 | one `data-afk-input="choice"` and one `data-afk-input="note"` per `data-afk-item` card inside the current section, both native form controls |
-| R-2 | one send per round — a single `queuePrompt` plus `sendQueuedPrompts`, never one per item |
-| R-3 | marks and notes persist per item id in `localStorage`, surviving reload and session end |
+| R-2 | one answer-form submit per round — `queuePrompt(summary, {tag: "choice", data: {round, answers}})` then `sendQueuedPrompts`, never one send per item |
+| R-3 | marks and notes persist by session path and item id in `localStorage`; a page revision never changes the key |
 | R-4 | the response grammar below, verbatim |
 
 The attribute sits on the radio set's `fieldset`, so a card offers many values
 through exactly one choice control. A write-in is a choice value whose text the
 human types in that card's note field.
+
+The sticky bar shows a live compact summary and one **Send my answers** submit
+button. A successful send shows a visible confirmation. If the lavish bridge
+is absent, the same submit copies the response and tells the human to paste it.
+The separate copy button uses the same response. Native form controls carry no
+`data-lavish-action` attribute.
 
 ### Silence
 

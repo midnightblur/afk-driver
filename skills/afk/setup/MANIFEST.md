@@ -373,6 +373,18 @@ a token value — not even partially.
   already require; every failure path exits 0 without output. A missed notice
   about a newer release is the entire cost.
 
+### C11 · Chrome, Edge, or Chromium *(optional)*
+- **Needed by:** `scripts/tests/test_lavish_render.py` — serves a rendered input
+  page, stubs the lavish bridge, and checks the form submit and clipboard paths
+  in a browser.
+- **Probe:** `command -v chrome || command -v msedge || command -v chromium || command -v chromium-browser || command -v google-chrome`
+- **Fix:** `human:` install one Chromium browser. Standard Windows Chrome and
+  Edge installation paths also pass the test when the commands are not on
+  `PATH`.
+- **Notes:** optional and fail-open. Without a browser, this one regression test
+  skips. The renderer's structural send-control gate and all non-browser tests
+  still run.
+
 ### P1 · Python 3
 - **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
   runs through, so without it no gate or guard fires at all — the shared

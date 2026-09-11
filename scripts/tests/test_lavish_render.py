@@ -12,9 +12,15 @@ import copy
 import io
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
+import threading
 import unittest
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
+from urllib.parse import unquote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
@@ -105,6 +111,62 @@ def render(doc):
     return page.build(schema.load(copy.deepcopy(doc)))
 
 
+def chromium_executable():
+    """Return an installed Chromium browser without adding a test dependency."""
+    candidates = [
+        shutil.which("chrome"),
+        shutil.which("msedge"),
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        shutil.which("google-chrome"),
+        os.path.join(os.environ.get("PROGRAMFILES", ""),
+                     "Google", "Chrome", "Application", "chrome.exe"),
+        os.path.join(os.environ.get("PROGRAMFILES(X86)", ""),
+                     "Microsoft", "Edge", "Application", "msedge.exe"),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""),
+                     "Google", "Chrome", "Application", "chrome.exe"),
+    ]
+    return next((path for path in candidates if path and os.path.isfile(path)), None)
+
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+
+def run_in_browser(html):
+    """Serve one page and return the result its browser probe records."""
+    browser = chromium_executable()
+    if not browser:
+        raise unittest.SkipTest("Chrome or Edge is required for the browser regression")
+    with tempfile.TemporaryDirectory() as directory:
+        artifact = os.path.join(directory, "round.html")
+        with open(artifact, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(html)
+        handler = lambda *args, **kwargs: QuietHandler(  # noqa: E731
+            *args, directory=directory, **kwargs)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as profile:
+                result = subprocess.run([
+                    browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+                    "--virtual-time-budget=1500", "--user-data-dir=" + profile,
+                    "--dump-dom", "http://127.0.0.1:%d/round.html" % server.server_port,
+                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                   encoding="utf-8", errors="replace", timeout=30, check=True)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+    tree = Tree(result.stdout)
+    bodies = tree.find(lambda node: node.tag == "body")
+    if not bodies or "data-afk-browser-result" not in bodies[0].attrs:
+        raise AssertionError("browser probe produced no result\n" + result.stderr[-2000:])
+    return json.loads(unquote(bodies[0].attrs["data-afk-browser-result"]))
+
+
 def body_of(html):
     """The rendered markup without the inlined stylesheet and runtime.
 
@@ -183,9 +245,27 @@ class RenderContract(unittest.TestCase):
         bar = self.tree.find(attr_is("id", "afk-send"))
         self.assertEqual(len(bar), 1)
         ids = [n.attrs.get("id") for n in bar[0].find(has("id"))]
-        self.assertEqual(ids, ["afk-send-go", "afk-send-copy", "afk-send-jump"])
+        self.assertEqual(ids, ["afk-send-go", "afk-send-copy", "afk-send-jump",
+                               "afk-send-summary"])
         jump = bar[0].find(attr_is("id", "afk-send-jump"))[0]
         self.assertIn("hidden", jump.attrs, "the jump stays out of the way until needed")
+
+    def test_one_form_owns_the_round_and_its_sticky_send_control(self):
+        forms = self.tree.find(attr_is("data-afk-answer-form", "1"))
+        self.assertEqual(len(forms), 1)
+        current = self.tree.find(attr_is("data-afk-state", "current"))[0]
+        send = self.tree.find(attr_is("id", "afk-send"))[0]
+        self.assertTrue(current.has_ancestor(forms[0]))
+        self.assertTrue(send.has_ancestor(forms[0]))
+        button = send.find(attr_is("id", "afk-send-go"))[0]
+        self.assertEqual(button.attrs.get("type"), "submit")
+        self.assertEqual(self.tree.find(attr_is("id", "afk-send-summary"))[0].tag,
+                         "output")
+
+    def test_native_answer_buttons_need_no_lavish_action_override(self):
+        bar = self.tree.find(attr_is("id", "afk-send"))[0]
+        for button in bar.find(lambda node: node.tag == "button"):
+            self.assertNotIn("data-lavish-action", button.attrs)
 
     def test_the_send_bar_sits_under_the_round_it_sends(self):
         """Not at the end of the document, where settled history buries it.
@@ -211,6 +291,75 @@ class RenderContract(unittest.TestCase):
         html = render(doc)
         self.assertNotIn('id="afk-send"', html)
         self.assertIn("0 to answer", html)
+
+    def test_renderer_gate_rejects_an_input_page_without_the_kit_form(self):
+        broken = self.html.replace(' data-afk-answer-form="1"', "", 1)
+        with self.assertRaisesRegex(schema.ContractError, "one kit answer form"):
+            lavish_render.validate_input_page(broken)
+
+    def test_form_submit_sends_one_tagged_summary_and_copies_without_bridge(self):
+        probe = r'''<script>
+window.__afkCalls = [];
+window.lavish = {
+  queuePrompt: function (summary, options) {
+    window.__afkCalls.push({
+      call: 'queuePrompt', summary: summary, tag: options.tag,
+      text: options.text, round: options.data.round,
+      answers: options.data.answers, element: options.element.id
+    });
+  },
+  sendQueuedPrompts: function () { window.__afkCalls.push({call: 'sendQueuedPrompts'}); }
+};
+window.addEventListener('load', function () {
+  document.querySelectorAll('[data-afk-input="choice"]').forEach(function (host) {
+    var radio = host.querySelector('input[type="radio"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', {bubbles: true}));
+  });
+  var form = document.getElementById('afk-answer-form');
+  form.requestSubmit();
+  delete window.lavish;
+  var copied = '';
+  var write = function (text) { copied = text; return Promise.resolve(); };
+  if (navigator.clipboard) {
+    Object.defineProperty(navigator.clipboard, 'writeText', {value: write});
+  } else {
+    document.execCommand = function () {
+    var field = document.querySelector('textarea');
+    copied = field ? field.value : '';
+    return true;
+    };
+  }
+  form.requestSubmit();
+  setTimeout(function () {
+    document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
+      calls: window.__afkCalls,
+      copied: copied,
+      status: document.querySelector('.afk-send-status').textContent,
+      summary: document.getElementById('afk-send-summary').textContent,
+      storageKeys: Object.keys(localStorage)
+    })));
+  }, 20);
+});
+</script>'''
+        result = run_in_browser(self.html.replace("</body>", probe + "</body>"))
+        expected = "[round R-2]\nQ-1 A\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
+        self.assertEqual([call["call"] for call in result["calls"]],
+                         ["queuePrompt", "sendQueuedPrompts"])
+        queued = result["calls"][0]
+        self.assertEqual(queued["summary"], expected)
+        self.assertEqual(queued["tag"], "choice")
+        self.assertEqual(queued["round"], "R-2")
+        self.assertEqual(queued["element"], "afk-answer-form")
+        self.assertEqual([answer["id"] for answer in queued["answers"]],
+                         ["Q-1", "D-2", "D-3", "C-1", "HL-1", "Q-2"])
+        self.assertEqual(result["copied"], expected)
+        self.assertIn("No session", result["status"])
+        self.assertIn("Q-1=A", result["summary"])
+        self.assertEqual(len(result["storageKeys"]), 1)
+        self.assertIn("afk-answers:http://127.0.0.1:", result["storageKeys"][0])
+        self.assertTrue(result["storageKeys"][0].endswith("/round.html"))
+        self.assertNotRegex(result["storageKeys"][0], r"v\d")
 
     def test_settled_history_sits_below_the_current_round(self):
         order = [n.attrs.get("id") for n in self.tree.find(has("id"))

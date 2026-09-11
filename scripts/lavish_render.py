@@ -33,6 +33,25 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lavish import page, schema  # noqa: E402
 
 
+def validate_input_page(html):
+    """Refuse an input page that has lost the kit-owned answer form."""
+    markup = html.split("<body>", 1)[-1].split("<script>", 1)[0]
+    if 'data-afk-input=' not in markup:
+        return
+    required = {
+        'one kit answer form': markup.count('data-afk-answer-form="1"') == 1,
+        'one submit control': markup.count('id="afk-send-go"') == 1 and
+                              'type="submit" id="afk-send-go"' in markup,
+        'one live answer summary': markup.count('id="afk-send-summary"') == 1,
+        'one send confirmation': markup.count('class="afk-send-status"') == 1,
+        'the queue bridge': 'queuePrompt(compose(), {' in html,
+        'the send bridge': 'bridge.sendQueuedPrompts();' in html,
+    }
+    missing = [name for name, present in required.items() if not present]
+    if missing:
+        raise schema.ContractError("input page lacks " + ", ".join(missing))
+
+
 def _links(doc):
     """Every `links[]` entry on every round header, with its round number."""
     for rnd in doc.get("rounds") or []:
@@ -90,6 +109,7 @@ def main(argv=None):
     try:
         doc = schema.load(doc)
         html = page.build(doc)
+        validate_input_page(html)
     except schema.ContractError as exc:
         sys.stderr.write("lavish_render: contract violation: %s\n" % exc)
         return 1
