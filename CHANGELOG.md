@@ -196,8 +196,9 @@ first released heading here.
   disagreed: a `site` field skipped folding entirely, so a backslash site
   passed validation and died in the grammar. One function now, in the config
   reader, imported by the grammar — and it refuses only what git cannot hold,
-  so a path named `a:b/x.java` or one led by a space stays reachable. Repeated
-  spellings of one directory collapse to one declared path.
+  so a path led by a space stays reachable, while anything a Windows or
+  POSIX path reader takes as a drive or a root is refused on every host.
+  Repeated spellings of one directory collapse to one declared path.
 - **A ledger a parent run produces stays in scratch.** The review gate, the
   seam verifier, and the understanding artifact pass `--out`, so working
   evidence never lands in a spec folder.
