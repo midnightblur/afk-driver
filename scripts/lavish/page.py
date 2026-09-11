@@ -162,17 +162,19 @@ def build(doc):
 
     send_bar = (
         '<div class="afk-send" id="afk-send" data-afk-round="%d" '
-        'data-lavish-ui="afk-send" data-lavish-action="afk-send">'
-        '<button type="button" id="afk-send-go" class="afk-primary" '
-        'data-lavish-action="afk-send">Send this round to the agent</button>'
-        '<button type="button" id="afk-send-copy" '
-        'data-lavish-action="afk-send">Copy the response</button>'
+        'data-lavish-ui="afk-send">'
+        '<button type="submit" id="afk-send-go" class="afk-primary">'
+        'Send my answers</button>'
+        '<button type="button" id="afk-send-copy">Copy the response</button>'
         # With no cap on round size, navigation is what keeps a long round
         # readable — so the bar names every unmarked card AND moves the human
         # to the first one. Hidden while nothing is unmarked.
-        '<button type="button" id="afk-send-jump" hidden '
-        'data-lavish-action="afk-send">Go to first unmarked</button>'
-        '<span class="afk-send-status"></span></div>' % header["round"])
+        '<button type="button" id="afk-send-jump" hidden>'
+        'Go to first unmarked</button>'
+        '<output id="afk-send-summary" class="afk-send-summary" '
+        'aria-live="polite"></output>'
+        '<output class="afk-send-status" role="status" '
+        'aria-live="polite"></output></div>' % header["round"])
 
     # A round with nothing answerable is a record, not a question: no bar, so
     # there is no control offering to send an empty response.
@@ -191,8 +193,10 @@ def build(doc):
         '<h1 class="afk-title">%s</h1>' % C.esc(doc["purpose"]),
         '<p class="afk-sub">%s</p>' % C.esc(doc["feature"]),
         C.round_strip(doc),
-        round_section,
-        send_bar,
+        ('<form id="afk-answer-form" data-afk-answer-form="1" '
+         'data-afk-round="%d" data-lavish-question="round:R-%d">%s%s</form>'
+         % (header["round"], header["round"], round_section, send_bar))
+        if live else round_section,
         _section("afk-open", "Still open from earlier rounds",
                  [C.render_item(i, states) for i in carried]),
         _settled_by_round([(number, C.render_item(item, states))
