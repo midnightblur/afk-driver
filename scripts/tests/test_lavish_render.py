@@ -21,6 +21,7 @@ import threading
 import unittest
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
+from unittest import mock
 from urllib.parse import unquote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -225,17 +226,20 @@ def dump_browser_dom(browser, url, profile, output):
         options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         options["start_new_session"] = True
-    process = subprocess.Popen(command, **options)
-    job = WindowsBrowserJob(process)
+    process = None
+    job = None
     try:
+        process = subprocess.Popen(command, **options)
+        job = WindowsBrowserJob(process)
         returncode = process.wait(timeout=90)
     except subprocess.TimeoutExpired:
         stop_browser(process)
         raise
     finally:
-        if process.poll() is None:
+        if process is not None and process.poll() is None:
             stop_browser(process)
-        job.close()
+        if job is not None:
+            job.close()
     if returncode:
         raise subprocess.CalledProcessError(returncode, command)
 
@@ -245,7 +249,7 @@ def run_in_browser(html):
     browser = lavish_browser.executable()
     if not browser:
         raise unittest.SkipTest("Chrome or Edge is required for the browser regression")
-    with tempfile.TemporaryDirectory() as directory:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
         artifact = os.path.join(directory, "round.html")
         with open(artifact, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(html)
@@ -255,7 +259,7 @@ def run_in_browser(html):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with tempfile.TemporaryDirectory() as profile:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:
                 dump = os.path.join(directory, "dom.html")
                 with open(dump, "wb") as output:
                     dump_browser_dom(
@@ -314,6 +318,18 @@ class RenderContract(unittest.TestCase):
                  "</script></body></html>")
         for _ in range(3):
             self.assertEqual(run_in_browser(probe), {"ok": True})
+
+    def test_browser_is_stopped_when_job_creation_fails(self):
+        process = mock.Mock()
+        process.poll.return_value = None
+        module = sys.modules[__name__]
+        with mock.patch.object(subprocess, "Popen", return_value=process), \
+                mock.patch.object(module, "WindowsBrowserJob",
+                                  side_effect=OSError("job failed")), \
+                mock.patch.object(module, "stop_browser") as stop:
+            with self.assertRaisesRegex(OSError, "job failed"):
+                dump_browser_dom("browser", "http://artifact", "profile", io.BytesIO())
+        stop.assert_called_once_with(process)
 
     def test_one_current_element_and_every_answer_inside_it(self):
         """The invariant the injected session rail and the send both rest on."""
