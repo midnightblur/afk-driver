@@ -12,7 +12,6 @@ import copy
 import io
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +26,7 @@ SCRIPTS = os.path.dirname(HERE)
 sys.path.insert(0, SCRIPTS)
 
 import lavish_render  # noqa: E402
+from lavish import browser as lavish_browser  # noqa: E402
 from lavish import page, schema  # noqa: E402
 
 FIXTURE = os.path.join(HERE, "samples", "lavish-round.json")
@@ -111,24 +111,6 @@ def render(doc):
     return page.build(schema.load(copy.deepcopy(doc)))
 
 
-def chromium_executable():
-    """Return an installed Chromium browser without adding a test dependency."""
-    candidates = [
-        shutil.which("chrome"),
-        shutil.which("msedge"),
-        shutil.which("chromium"),
-        shutil.which("chromium-browser"),
-        shutil.which("google-chrome"),
-        os.path.join(os.environ.get("PROGRAMFILES", ""),
-                     "Google", "Chrome", "Application", "chrome.exe"),
-        os.path.join(os.environ.get("PROGRAMFILES(X86)", ""),
-                     "Microsoft", "Edge", "Application", "msedge.exe"),
-        os.path.join(os.environ.get("LOCALAPPDATA", ""),
-                     "Google", "Chrome", "Application", "chrome.exe"),
-    ]
-    return next((path for path in candidates if path and os.path.isfile(path)), None)
-
-
 class QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
@@ -136,7 +118,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
 
 def run_in_browser(html):
     """Serve one page and return the result its browser probe records."""
-    browser = chromium_executable()
+    browser = lavish_browser.executable()
     if not browser:
         raise unittest.SkipTest("Chrome or Edge is required for the browser regression")
     with tempfile.TemporaryDirectory() as directory:
@@ -257,6 +239,7 @@ class RenderContract(unittest.TestCase):
         send = self.tree.find(attr_is("id", "afk-send"))[0]
         self.assertTrue(current.has_ancestor(forms[0]))
         self.assertTrue(send.has_ancestor(forms[0]))
+        self.assertTrue(send.has_ancestor(current))
         button = send.find(attr_is("id", "afk-send-go"))[0]
         self.assertEqual(button.attrs.get("type"), "submit")
         self.assertEqual(self.tree.find(attr_is("id", "afk-send-summary"))[0].tag,
@@ -295,7 +278,15 @@ class RenderContract(unittest.TestCase):
     def test_renderer_gate_rejects_an_input_page_without_the_kit_form(self):
         broken = self.html.replace(' data-afk-answer-form="1"', "", 1)
         with self.assertRaisesRegex(schema.ContractError, "one kit answer form"):
-            lavish_render.validate_input_page(broken)
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
+
+    def test_renderer_gate_uses_document_state_when_all_input_anatomy_is_removed(self):
+        broken = self.html.replace(' data-afk-answer-form="1"', "", 1)
+        broken = broken.replace(' data-afk-input="choice"', "")
+        broken = broken.replace(' data-afk-input="note"', "")
+        with self.assertRaisesRegex(schema.ContractError,
+                                    "one kit answer form|answer input markers"):
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
 
     def test_form_submit_sends_one_tagged_summary_and_copies_without_bridge(self):
         probe = r'''<script>
@@ -362,7 +353,7 @@ window.addEventListener('load', function () {
         self.assertFalse(queued["hasData"])
         self.assertEqual(queued["element"], "afk-answer-form")
         self.assertEqual(result["duplicateStatus"],
-                         "Already sent. Change an answer to send again.")
+                         "Already sent. Change an answer, or use Copy the response.")
         self.assertEqual(result["copied"], copied)
         self.assertIn("No session", result["status"])
         self.assertIn("Q-1=A", result["summary"])
@@ -404,13 +395,12 @@ window.addEventListener('load', function () {
         result = run_in_browser(html.replace("</body>", probe + "</body>"))
         self.assertEqual(result["choice"], "A")
         self.assertEqual(result["status"], "Copy failed.")
-        self.assertEqual(result["storageKeys"],
-                         ["afk-answers:/round.html", "afk-round:/round.html"])
+        self.assertEqual(result["storageKeys"], ["afk-answers:/round.html"])
 
     def test_renderer_gate_uses_the_stable_send_bridge_marker(self):
         broken = self.html.replace("/* afk:send-bridge */", "", 1)
         with self.assertRaisesRegex(schema.ContractError, "the send bridge"):
-            lavish_render.validate_input_page(broken)
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
 
     def test_settled_history_sits_below_the_current_round(self):
         order = [n.attrs.get("id") for n in self.tree.find(has("id"))

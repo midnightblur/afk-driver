@@ -149,17 +149,6 @@ def build(doc):
     of_target = " of %d" % target if target else ""
     round_heading = "Round R-%d%s — %d to answer" % (
         header["round"], of_target, len(live))
-    # The re-audit strip opens the round, ahead of the header: an unmarked
-    # decision from the last send is the first thing the round has to say.
-    round_section = (
-        '<section class="afk-round" id="afk-r-%d" data-afk-item="%s" '
-        'data-afk-state="current">'
-        '<h2 class="afk-h">%s</h2>%s%s%s</section>'
-        % (header["round"], C.esc(current["id"]), C.esc(round_heading),
-           C.re_audit_strip(header, current["items"]),
-           C.round_header(header, len(live)),
-           _grouped(live, header, states)))
-
     send_bar = (
         '<div class="afk-send" id="afk-send" data-afk-round="%d" '
         'data-lavish-ui="afk-send">'
@@ -181,7 +170,20 @@ def build(doc):
     if not live:
         send_bar = ""
 
-    # The bar sits in the flow directly under the round it sends, never at the
+    # The re-audit strip opens the round, ahead of the header: an unmarked
+    # decision from the last send is the first thing the round has to say.
+    # The send bar closes the current section, so navigation to the current
+    # answer surface cannot leave its send control behind.
+    round_section = (
+        '<section class="afk-round" id="afk-r-%d" data-afk-item="%s" '
+        'data-afk-state="current">'
+        '<h2 class="afk-h">%s</h2>%s%s%s%s</section>'
+        % (header["round"], C.esc(current["id"]), C.esc(round_heading),
+           C.re_audit_strip(header, current["items"]),
+           C.round_header(header, len(live)),
+           _grouped(live, header, states), send_bar))
+
+    # The bar sits in the flow as the current round's last child, never at the
     # end of the document. A page whose settled history is longer than its
     # current round strands a document-end bar below every settled card, and a
     # host that sizes its frame to content height defeats `position: fixed` as
@@ -194,8 +196,8 @@ def build(doc):
         '<p class="afk-sub">%s</p>' % C.esc(doc["feature"]),
         C.round_strip(doc),
         ('<form id="afk-answer-form" data-afk-answer-form="1" '
-         'data-afk-round="%d" data-lavish-question="round:R-%d">%s%s</form>'
-         % (header["round"], header["round"], round_section, send_bar))
+         'data-afk-round="%d" data-lavish-question="round:R-%d">%s</form>'
+         % (header["round"], header["round"], round_section))
         if live else round_section,
         _section("afk-open", "Still open from earlier rounds",
                  [C.render_item(i, states) for i in carried]),

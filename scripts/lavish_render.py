@@ -33,13 +33,21 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lavish import page, schema  # noqa: E402
 
 
-def validate_input_page(html):
+def validate_input_page(doc, html):
     """Refuse an input page that has lost the kit-owned answer form."""
     markup = html.split("<body>", 1)[-1].split("<script>", 1)[0]
-    if 'data-afk-input=' not in markup:
+    current = next((rnd for rnd in doc["rounds"] if rnd["state"] == "current"), None)
+    live_count = sum(1 for item in current["items"] if item["state"] != "settled")
+    if not live_count:
         return
     required = {
         'one kit answer form': markup.count('data-afk-answer-form="1"') == 1,
+        'answer input markers':
+            markup.count('data-afk-input="choice"') == live_count and
+            markup.count('data-afk-input="note"') == live_count,
+        'native answer controls':
+            markup.count('type="radio"') >= live_count and
+            markup.count('<textarea') == live_count,
         'one submit control': markup.count('id="afk-send-go"') == 1 and
                               'type="submit" id="afk-send-go"' in markup,
         'one live answer summary': markup.count('id="afk-send-summary"') == 1,
@@ -108,7 +116,7 @@ def main(argv=None):
     try:
         doc = schema.load(doc)
         html = page.build(doc)
-        validate_input_page(html)
+        validate_input_page(doc, html)
     except schema.ContractError as exc:
         sys.stderr.write("lavish_render: contract violation: %s\n" % exc)
         return 1

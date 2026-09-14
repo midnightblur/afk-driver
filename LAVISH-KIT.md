@@ -244,9 +244,9 @@ Every hard exit guards auditability or identity. None guards size.
 
 Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · **the
 process rail** · title · **the round strip** · one answer form containing the
-current round and its **sticky send bar** · items still open from earlier
-rounds · settled history in round sections, newest round first · the inline
-runtime. A round with no answerable item has no answer form.
+current round, which closes with its **sticky send bar** · items still open
+from earlier rounds · settled history in round sections, newest round first ·
+the inline runtime. A round with no answerable item has no answer form.
 
 The **re-audit strip** opens the round when `re_audit[]` names any ids: one
 line per decided card that came back from the last send unmarked, because an
@@ -276,7 +276,7 @@ target round count for a round to be a fraction of. Every notch lands on a
 round section that exists: `afk-r-{n}`, which is why settled history is
 sectioned by round rather than flat.
 
-The bar sits in the flow directly under the round it sends, and is `sticky`,
+The bar sits in the flow as the current round's last child, and is `sticky`,
 never `fixed`. Two ways a document-end bar disappears: settled history outgrows
 the current round, so the bar lands below every settled card; and a host that
 sizes its frame to the content height gives `position: fixed` a viewport as
@@ -285,9 +285,10 @@ marked card and no way to send it - the one failure that costs the round.
 
 The current round is one element in `data-afk-state="current"` carrying the
 round id, with the round's cards nested inside it. Every other card sits
-outside it in its own state. That keeps `LAVISH.md`'s page anatomy true — one
-current element, the answer surface inside it — while a round asks several
-questions at once.
+outside it in its own state. The answer form wraps the current element, and
+the sticky send bar is the element's last child. That keeps `LAVISH.md`'s page
+anatomy true — one current element, the answer surface inside it — while a
+round asks several questions at once.
 
 **Three parts per card** (`ROUND.md` navigability rule 3): the heading, the
 **lede**, and a `<details>` block holding the rest. What stays in the lede is

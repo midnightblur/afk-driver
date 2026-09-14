@@ -39,9 +39,14 @@
     store = JSON.parse(stored || '{}') || {};
   } catch (e) {}
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(store));
+      return true;
+    } catch (e) { return false; }
   }
-  if (migrateLegacy) save();
+  if (migrateLegacy && save()) {
+    try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+  }
 
   /* Page order = DOM order, and only cards inside the current section are the
    * round's questions; settled and carried-over cards answer nothing. */
@@ -166,7 +171,7 @@
   var sent = false;
   function send() {
     if (sent) {
-      say('Already sent. Change an answer to send again.');
+      say('Already sent. Change an answer, or use Copy the response.');
       return;
     }
     var missing = unmarked();

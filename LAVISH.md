@@ -156,10 +156,11 @@ behaviour by hand. It builds only from this markup:
   never nested inside the heading.
 - Cards the just-applied round changed carry `data-afk-fresh`; the
   page-writer moves these markers on every patch — a stale marker lies.
-- The answer surface (send control, or the current question's inputs) sits
-  inside the `current` card, so the jump control always lands on it. A card
-  the human answers per item carries the `data-afk-input` control pair —
-  contract and grammar: `LAVISH-KIT.md` "Runtime contract".
+- The answer surface sits inside the `current` card, so the jump control always
+  lands on it. On the kit path, one answer form wraps that card, and its send
+  bar closes the card. A card the human answers per item carries the
+  `data-afk-input` control pair — contract and grammar: `LAVISH-KIT.md`
+  "Runtime contract".
 
 A page without `data-afk-item` markup gets no chrome — degraded, not
 broken; content sections that are not round/item cards (a legend-free
@@ -324,8 +325,10 @@ One review = one queued prompt. Never queue per-item/per-click prompts — a
 long queue overflows the editor's queue panel (no scroll), hiding Send to
 Agent, and ending the session discards the whole queue (nothing persists
 server-side until `sendQueuedPrompts()`). Controls mark state locally in the
-page. One send control composes a single compact summary of all marks and sends
-it as one queued prompt.
+page. They persist marks to `localStorage` by session and question id, never by
+page revision, so the marks survive reload and session end. One send control
+composes a single compact summary of all marks and sends it as one queued
+prompt. Pair it with a clipboard-copy control that carries the same summary.
 
 On the kit path the renderer emits the form and sticky send bar from the cards'
 own `data-afk-input` attributes. A page-writer never authors or forks this send

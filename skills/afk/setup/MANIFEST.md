@@ -377,7 +377,8 @@ a token value — not even partially.
 - **Needed by:** `scripts/tests/test_lavish_render.py` — serves a rendered input
   page, stubs the lavish bridge, and checks the form submit and clipboard paths
   in a browser.
-- **Probe:** `command -v chrome || command -v msedge || command -v chromium || command -v chromium-browser || command -v google-chrome`
+- **Probe:** `python "$AFK_PLUGIN_ROOT/scripts/lavish/browser.py"` (the same
+  resolver the test imports)
 - **Fix:** `human:` install one Chromium browser. Standard Windows Chrome and
   Edge installation paths also pass the test when the commands are not on
   `PATH`.
