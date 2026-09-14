@@ -9,9 +9,11 @@ that degrades and a violation that fails the render.
 """
 
 import copy
+import ctypes
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -116,6 +118,128 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+class BrowserTestServer(ThreadingHTTPServer):
+    daemon_threads = True
+    block_on_close = False
+
+
+class WindowsBrowserJob:
+    """Own a Windows browser process tree and stop descendants on close."""
+
+    def __init__(self, process):
+        self.handle = None
+        if os.name != "nt":
+            return
+
+        class IoCounters(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_ulonglong) for name in (
+                "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+                "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+
+        class BasicLimits(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", ctypes.c_uint32),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", ctypes.c_uint32),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", ctypes.c_uint32),
+                ("SchedulingClass", ctypes.c_uint32),
+            ]
+
+        class ExtendedLimits(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", BasicLimits),
+                ("IoInfo", IoCounters),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.restype = ctypes.c_void_p
+        kernel32.SetInformationJobObject.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        self.handle = kernel32.CreateJobObjectW(None, None)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = ExtendedLimits()
+        limits.BasicLimitInformation.LimitFlags = 0x2000
+        if not kernel32.SetInformationJobObject(
+                self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+            self.close()
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not kernel32.AssignProcessToJobObject(self.handle, process._handle):
+            self.close()
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def close(self):
+        if self.handle:
+            kernel32 = ctypes.WinDLL("kernel32")
+            kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+            kernel32.CloseHandle(self.handle)
+            self.handle = None
+
+
+def stop_browser(process):
+    """Stop the browser and every child without waiting on inherited handles."""
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=15, check=False)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=10)
+
+
+def dump_browser_dom(browser, url, profile, output):
+    """Write the browser DOM to a file and bound every exit path."""
+    command = [
+        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        "--disable-background-networking", "--disable-component-update",
+        "--disable-default-apps", "--disable-extensions", "--disable-sync",
+        "--disable-crash-reporter", "--no-first-run", "--no-default-browser-check",
+        "--virtual-time-budget=1500", "--user-data-dir=" + profile,
+        "--dump-dom", url,
+    ]
+    options = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": output,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        options["start_new_session"] = True
+    process = subprocess.Popen(command, **options)
+    job = WindowsBrowserJob(process)
+    try:
+        returncode = process.wait(timeout=90)
+    except subprocess.TimeoutExpired:
+        stop_browser(process)
+        raise
+    finally:
+        if process.poll() is None:
+            stop_browser(process)
+        job.close()
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
+
+
 def run_in_browser(html):
     """Serve one page and return the result its browser probe records."""
     browser = lavish_browser.executable()
@@ -127,25 +251,28 @@ def run_in_browser(html):
             handle.write(html)
         handler = lambda *args, **kwargs: QuietHandler(  # noqa: E731
             *args, directory=directory, **kwargs)
-        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        server = BrowserTestServer(("127.0.0.1", 0), handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
             with tempfile.TemporaryDirectory() as profile:
-                result = subprocess.run([
-                    browser, "--headless=new", "--disable-gpu", "--no-sandbox",
-                    "--virtual-time-budget=1500", "--user-data-dir=" + profile,
-                    "--dump-dom", "http://127.0.0.1:%d/round.html" % server.server_port,
-                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                   encoding="utf-8", errors="replace", timeout=30, check=True)
+                dump = os.path.join(directory, "dom.html")
+                with open(dump, "wb") as output:
+                    dump_browser_dom(
+                        browser,
+                        "http://127.0.0.1:%d/round.html" % server.server_port,
+                        profile,
+                        output)
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-    tree = Tree(result.stdout)
+        with open(dump, encoding="utf-8", errors="replace") as handle:
+            rendered = handle.read()
+    tree = Tree(rendered)
     bodies = tree.find(lambda node: node.tag == "body")
     if not bodies or "data-afk-browser-result" not in bodies[0].attrs:
-        raise AssertionError("browser probe produced no result\n" + result.stderr[-2000:])
+        raise AssertionError("browser probe produced no result")
     return json.loads(unquote(bodies[0].attrs["data-afk-browser-result"]))
 
 
@@ -180,6 +307,13 @@ class RenderContract(unittest.TestCase):
     def test_no_external_resources(self):
         for needle in ("http://", "https://", "<link", "src="):
             self.assertNotIn(needle, self.html, "%r would leave the page" % needle)
+
+    def test_browser_helper_exits_across_repeated_runs(self):
+        probe = ("<!doctype html><html><body><script>"
+                 "document.body.setAttribute('data-afk-browser-result', '%7B%22ok%22%3Atrue%7D');"
+                 "</script></body></html>")
+        for _ in range(3):
+            self.assertEqual(run_in_browser(probe), {"ok": True})
 
     def test_one_current_element_and_every_answer_inside_it(self):
         """The invariant the injected session rail and the send both rest on."""
