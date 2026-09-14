@@ -13,6 +13,7 @@ import ctypes
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -249,7 +250,8 @@ def run_in_browser(html):
     browser = lavish_browser.executable()
     if not browser:
         raise unittest.SkipTest("Chrome or Edge is required for the browser regression")
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
+    directory = tempfile.mkdtemp()
+    try:
         artifact = os.path.join(directory, "round.html")
         with open(artifact, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(html)
@@ -259,7 +261,8 @@ def run_in_browser(html):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profile:
+            profile = tempfile.mkdtemp()
+            try:
                 dump = os.path.join(directory, "dom.html")
                 with open(dump, "wb") as output:
                     dump_browser_dom(
@@ -267,12 +270,16 @@ def run_in_browser(html):
                         "http://127.0.0.1:%d/round.html" % server.server_port,
                         profile,
                         output)
+            finally:
+                shutil.rmtree(profile, ignore_errors=True)
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
         with open(dump, encoding="utf-8", errors="replace") as handle:
             rendered = handle.read()
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
     tree = Tree(rendered)
     bodies = tree.find(lambda node: node.tag == "body")
     if not bodies or "data-afk-browser-result" not in bodies[0].attrs:
