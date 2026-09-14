@@ -302,10 +302,13 @@ class RenderContract(unittest.TestCase):
 window.__afkCalls = [];
 window.lavish = {
   queuePrompt: function (summary, options) {
+    var prompt = summary;
+    if (options.data) {
+      prompt += '\n\nContext data:\n' + JSON.stringify(options.data, null, 2);
+    }
     window.__afkCalls.push({
-      call: 'queuePrompt', summary: summary, tag: options.tag,
-      text: options.text, round: options.data.round,
-      answers: options.data.answers, element: options.element.id
+      call: 'queuePrompt', prompt: prompt, tag: options.tag,
+      text: options.text, hasData: !!options.data, element: options.element.id
     });
   },
   sendQueuedPrompts: function () { window.__afkCalls.push({call: 'sendQueuedPrompts'}); }
@@ -318,7 +321,12 @@ window.addEventListener('load', function () {
   });
   var form = document.getElementById('afk-answer-form');
   form.requestSubmit();
+  form.requestSubmit();
+  var duplicateStatus = document.querySelector('.afk-send-status').textContent;
   delete window.lavish;
+  var note = document.querySelector('[data-afk-input="note"]');
+  note.value = 'changed';
+  note.dispatchEvent(new Event('input', {bubbles: true}));
   var copied = '';
   var write = function (text) { copied = text; return Promise.resolve(); };
   if (navigator.clipboard) {
@@ -335,6 +343,7 @@ window.addEventListener('load', function () {
     document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
       calls: window.__afkCalls,
       copied: copied,
+      duplicateStatus: duplicateStatus,
       status: document.querySelector('.afk-send-status').textContent,
       summary: document.getElementById('afk-send-summary').textContent,
       storageKeys: Object.keys(localStorage)
@@ -344,22 +353,64 @@ window.addEventListener('load', function () {
 </script>'''
         result = run_in_browser(self.html.replace("</body>", probe + "</body>"))
         expected = "[round R-2]\nQ-1 A\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
+        copied = "[round R-2]\nQ-1 A | changed\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
         self.assertEqual([call["call"] for call in result["calls"]],
                          ["queuePrompt", "sendQueuedPrompts"])
         queued = result["calls"][0]
-        self.assertEqual(queued["summary"], expected)
+        self.assertEqual(queued["prompt"], expected)
         self.assertEqual(queued["tag"], "choice")
-        self.assertEqual(queued["round"], "R-2")
+        self.assertFalse(queued["hasData"])
         self.assertEqual(queued["element"], "afk-answer-form")
-        self.assertEqual([answer["id"] for answer in queued["answers"]],
-                         ["Q-1", "D-2", "D-3", "C-1", "HL-1", "Q-2"])
-        self.assertEqual(result["copied"], expected)
+        self.assertEqual(result["duplicateStatus"],
+                         "Already sent. Change an answer to send again.")
+        self.assertEqual(result["copied"], copied)
         self.assertIn("No session", result["status"])
         self.assertIn("Q-1=A", result["summary"])
         self.assertEqual(len(result["storageKeys"]), 1)
-        self.assertIn("afk-answers:http://127.0.0.1:", result["storageKeys"][0])
-        self.assertTrue(result["storageKeys"][0].endswith("/round.html"))
+        self.assertEqual(result["storageKeys"][0], "afk-answers:/round.html")
         self.assertNotRegex(result["storageKeys"][0], r"v\d")
+
+    def test_legacy_answers_migrate_and_a_false_copy_result_reports_failure(self):
+        old_answers = {
+            "Q-1": {"c": "A", "n": ""},
+            "D-2": {"c": "accept", "n": ""},
+            "D-3": {"c": "accept", "n": ""},
+            "C-1": {"c": "accept", "n": ""},
+            "HL-1": {"c": "sign", "n": ""},
+            "Q-2": {"c": "loud", "n": ""},
+        }
+        preload = """<script>
+localStorage.setItem('afk-round:' + location.pathname, %s);
+Object.defineProperty(Navigator.prototype, 'clipboard', {
+  configurable: true, get: function () { return null; }
+});
+document.execCommand = function () { return false; };
+</script>
+""" % json.dumps(json.dumps(old_answers))
+        probe = r'''<script>
+window.addEventListener('load', function () {
+  document.getElementById('afk-answer-form').requestSubmit();
+  setTimeout(function () {
+    document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
+      choice: document.querySelector('[data-afk-input="choice"] input:checked').value,
+      status: document.querySelector('.afk-send-status').textContent,
+      storageKeys: Object.keys(localStorage).sort()
+    })));
+  }, 20);
+});
+</script>'''
+        html = self.html.replace("<script>\n/* Send runtime", preload +
+                                 "<script>\n/* Send runtime", 1)
+        result = run_in_browser(html.replace("</body>", probe + "</body>"))
+        self.assertEqual(result["choice"], "A")
+        self.assertEqual(result["status"], "Copy failed.")
+        self.assertEqual(result["storageKeys"],
+                         ["afk-answers:/round.html", "afk-round:/round.html"])
+
+    def test_renderer_gate_uses_the_stable_send_bridge_marker(self):
+        broken = self.html.replace("/* afk:send-bridge */", "", 1)
+        with self.assertRaisesRegex(schema.ContractError, "the send bridge"):
+            lavish_render.validate_input_page(broken)
 
     def test_settled_history_sits_below_the_current_round(self):
         order = [n.attrs.get("id") for n in self.tree.find(has("id"))

@@ -312,7 +312,8 @@ rules:
 - **Live controls opt out of annotation**: a non-native element with its own
   click behavior carries `data-lavish-action`, so it stays drivable regardless
   of the toggle. Native inputs and buttons need no attribute. Embedded
-  structured-feedback controls use the kit path.
+  structured-feedback controls on a kit page use the kit path. Other drivable
+  pages follow upstream `playbook input` guidance.
 - **Portable always**: every `window.lavish.*` call is guarded
   (`window.lavish?.`) — the fallback below opens the same file with no
   server running, and the artifact must render and behave identically there.
@@ -323,19 +324,14 @@ One review = one queued prompt. Never queue per-item/per-click prompts — a
 long queue overflows the editor's queue panel (no scroll), hiding Send to
 Agent, and ending the session discards the whole queue (nothing persists
 server-side until `sendQueuedPrompts()`). Controls mark state locally in the
-page and persist marks to `localStorage` by session and question id. Never put
-a page revision in the storage key. One answer form composes a single compact
-summary of all marks. Its submit calls
-`window.lavish.queuePrompt(summary, {tag: "choice", data: {...}})` then
-`window.lavish.sendQueuedPrompts()`. It shows the live summary and a sent
-confirmation. If the bridge is absent, submit copies the same summary and
-tells the human to paste it.
+page. One send control composes a single compact summary of all marks and sends
+it as one queued prompt.
 
 On the kit path the renderer emits the form and sticky send bar from the cards'
 own `data-afk-input` attributes. A page-writer never authors or forks this send
-path. The runtime refuses the first submit while a required card has no mark
-and names the cards. The response grammar is owned by `LAVISH-KIT.md`; what a
-round of decisions means — classes, audit marks, steers — by
+path. Its persistence, form submit, bridge call, confirmation, fallback, and
+response grammar are owned by `LAVISH-KIT.md` "Runtime contract". What a round
+of decisions means — classes, audit marks, steers — is owned by
 `skills/afk/grill-requirements/ROUND.md`.
 
 **One response surface.** An artifact with an embedded send control makes

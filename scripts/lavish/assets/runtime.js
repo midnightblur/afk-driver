@@ -24,14 +24,24 @@
   var round = bar.getAttribute('data-afk-round') || '?';
   /* The namespace contains no page-revision token. A render revision must not
    * silently discard marks made against the same session and item ids. */
-  var KEY = 'afk-answers:' + location.origin + location.pathname;
+  var KEY = 'afk-answers:' + location.pathname;
+  var LEGACY_KEY = 'afk-round:' + location.pathname;
   var NO_CHOICE = '—';
 
   var store = {};
-  try { store = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+  var migrateLegacy = false;
+  try {
+    var stored = localStorage.getItem(KEY);
+    if (!stored) {
+      stored = localStorage.getItem(LEGACY_KEY);
+      migrateLegacy = !!stored;
+    }
+    store = JSON.parse(stored || '{}') || {};
+  } catch (e) {}
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {}
   }
+  if (migrateLegacy) save();
 
   /* Page order = DOM order, and only cards inside the current section are the
    * round's questions; settled and carried-over cards answer nothing. */
@@ -155,6 +165,10 @@
   var armed = false;
   var sent = false;
   function send() {
+    if (sent) {
+      say('Already sent. Change an answer to send again.');
+      return;
+    }
     var missing = unmarked();
     if (missing.length && !armed) {
       armed = true;
@@ -169,11 +183,11 @@
       copy('No session. Copied the answers. Paste them to the agent.');
       return;
     }
+    /* afk:send-bridge */
     bridge.queuePrompt(compose(), {
       tag: 'choice',
       text: 'Round R-' + round + ' answers',
-      element: form,
-      data: { round: 'R-' + round, answers: answerData() }
+      element: form
     });
     bridge.sendQueuedPrompts();
     sent = true;
@@ -200,7 +214,13 @@
     ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) { say('Copy failed.', true); }
+    try {
+      if (document.execCommand('copy')) {
+        done();
+      } else {
+        say('Copy failed.', true);
+      }
+    } catch (e) { say('Copy failed.', true); }
     document.body.removeChild(ta);
   }
 
@@ -208,11 +228,17 @@
     restore(el);
     el.addEventListener('change', function () {
       armed = false; remember(el); refreshJump(); refreshSummary();
-      if (sent) say('Answers changed after send.', true);
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
     });
     el.addEventListener('input', function () {
       armed = false; remember(el); refreshJump(); refreshSummary();
-      if (sent) say('Answers changed after send.', true);
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
     });
   });
 

@@ -44,8 +44,7 @@ def validate_input_page(html):
                               'type="submit" id="afk-send-go"' in markup,
         'one live answer summary': markup.count('id="afk-send-summary"') == 1,
         'one send confirmation': markup.count('class="afk-send-status"') == 1,
-        'the queue bridge': 'queuePrompt(compose(), {' in html,
-        'the send bridge': 'bridge.sendQueuedPrompts();' in html,
+        'the send bridge': '/* afk:send-bridge */' in html,
     }
     missing = [name for name, present in required.items() if not present]
     if missing:

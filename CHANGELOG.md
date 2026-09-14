@@ -25,6 +25,7 @@ first released heading here.
   live summary, sends one tagged response, confirms the send, and copies the
   same response when the lavish bridge is absent. Stored answers use the
   session path and question ids, so a page revision cannot discard them. The
+  runtime migrates answers from the prior `afk-round:` storage key. The
   renderer rejects an input page that loses this form, and a served-browser
   regression covers both send paths.
 
