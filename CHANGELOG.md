@@ -18,6 +18,17 @@ first released heading here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Choice pages send their answers from one visible control.** The page kit
+  now owns one answer form around each active round. Its sticky bar shows a
+  live summary, sends one tagged response, confirms the send, and copies the
+  same response when the lavish bridge is absent. Stored answers use the
+  session path and question ids, so a page revision cannot discard them. The
+  runtime migrates answers from the prior `afk-round:` storage key. The
+  renderer rejects an input page that loses this form, and a served-browser
+  regression covers both send paths.
+
 ### Added
 
 - **`/afk:report-issue` — plugin defects reach the plugin's own repository.**

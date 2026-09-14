@@ -9,18 +9,28 @@ that degrades and a violation that fails the render.
 """
 
 import copy
+import ctypes
 import io
 import json
 import os
+import shutil
+import signal
+import subprocess
 import sys
+import tempfile
+import threading
 import unittest
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from html.parser import HTMLParser
+from unittest import mock
+from urllib.parse import unquote
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
 sys.path.insert(0, SCRIPTS)
 
 import lavish_render  # noqa: E402
+from lavish import browser as lavish_browser  # noqa: E402
 from lavish import page, schema  # noqa: E402
 
 FIXTURE = os.path.join(HERE, "samples", "lavish-round.json")
@@ -105,6 +115,178 @@ def render(doc):
     return page.build(schema.load(copy.deepcopy(doc)))
 
 
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+
+class BrowserTestServer(ThreadingHTTPServer):
+    daemon_threads = True
+    block_on_close = False
+
+
+class WindowsBrowserJob:
+    """Own a Windows browser process tree and stop descendants on close."""
+
+    def __init__(self, process):
+        self.handle = None
+        if os.name != "nt":
+            return
+
+        class IoCounters(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_ulonglong) for name in (
+                "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
+                "ReadTransferCount", "WriteTransferCount", "OtherTransferCount")]
+
+        class BasicLimits(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", ctypes.c_uint32),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", ctypes.c_uint32),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", ctypes.c_uint32),
+                ("SchedulingClass", ctypes.c_uint32),
+            ]
+
+        class ExtendedLimits(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", BasicLimits),
+                ("IoInfo", IoCounters),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateJobObjectW.restype = ctypes.c_void_p
+        kernel32.SetInformationJobObject.argtypes = [
+            ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        self.handle = kernel32.CreateJobObjectW(None, None)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = ExtendedLimits()
+        limits.BasicLimitInformation.LimitFlags = 0x2000
+        if not kernel32.SetInformationJobObject(
+                self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+            self.close()
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not kernel32.AssignProcessToJobObject(self.handle, process._handle):
+            self.close()
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def close(self):
+        if self.handle:
+            kernel32 = ctypes.WinDLL("kernel32")
+            kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+            kernel32.CloseHandle(self.handle)
+            self.handle = None
+
+
+def stop_browser(process):
+    """Stop the browser and every child without waiting on inherited handles."""
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=15, check=False)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=10)
+
+
+def dump_browser_dom(browser, url, profile, output):
+    """Write the browser DOM to a file and bound every exit path."""
+    command = [
+        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        "--disable-background-networking", "--disable-component-update",
+        "--disable-default-apps", "--disable-extensions", "--disable-sync",
+        "--disable-crash-reporter", "--no-first-run", "--no-default-browser-check",
+        "--virtual-time-budget=1500", "--user-data-dir=" + profile,
+        "--dump-dom", url,
+    ]
+    options = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": output,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        options["start_new_session"] = True
+    process = None
+    job = None
+    try:
+        process = subprocess.Popen(command, **options)
+        job = WindowsBrowserJob(process)
+        returncode = process.wait(timeout=90)
+    except subprocess.TimeoutExpired:
+        stop_browser(process)
+        raise
+    finally:
+        if process is not None and process.poll() is None:
+            stop_browser(process)
+        if job is not None:
+            job.close()
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
+
+
+def run_in_browser(html):
+    """Serve one page and return the result its browser probe records."""
+    browser = lavish_browser.executable()
+    if not browser:
+        raise unittest.SkipTest("Chrome or Edge is required for the browser regression")
+    directory = tempfile.mkdtemp()
+    try:
+        artifact = os.path.join(directory, "round.html")
+        with open(artifact, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(html)
+        handler = lambda *args, **kwargs: QuietHandler(  # noqa: E731
+            *args, directory=directory, **kwargs)
+        server = BrowserTestServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            profile = tempfile.mkdtemp()
+            try:
+                dump = os.path.join(directory, "dom.html")
+                with open(dump, "wb") as output:
+                    dump_browser_dom(
+                        browser,
+                        "http://127.0.0.1:%d/round.html" % server.server_port,
+                        profile,
+                        output)
+            finally:
+                shutil.rmtree(profile, ignore_errors=True)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+        with open(dump, encoding="utf-8", errors="replace") as handle:
+            rendered = handle.read()
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
+    tree = Tree(rendered)
+    bodies = tree.find(lambda node: node.tag == "body")
+    if not bodies or "data-afk-browser-result" not in bodies[0].attrs:
+        raise AssertionError("browser probe produced no result")
+    return json.loads(unquote(bodies[0].attrs["data-afk-browser-result"]))
+
+
 def body_of(html):
     """The rendered markup without the inlined stylesheet and runtime.
 
@@ -136,6 +318,25 @@ class RenderContract(unittest.TestCase):
     def test_no_external_resources(self):
         for needle in ("http://", "https://", "<link", "src="):
             self.assertNotIn(needle, self.html, "%r would leave the page" % needle)
+
+    def test_browser_helper_exits_across_repeated_runs(self):
+        probe = ("<!doctype html><html><body><script>"
+                 "document.body.setAttribute('data-afk-browser-result', '%7B%22ok%22%3Atrue%7D');"
+                 "</script></body></html>")
+        for _ in range(3):
+            self.assertEqual(run_in_browser(probe), {"ok": True})
+
+    def test_browser_is_stopped_when_job_creation_fails(self):
+        process = mock.Mock()
+        process.poll.return_value = None
+        module = sys.modules[__name__]
+        with mock.patch.object(subprocess, "Popen", return_value=process), \
+                mock.patch.object(module, "WindowsBrowserJob",
+                                  side_effect=OSError("job failed")), \
+                mock.patch.object(module, "stop_browser") as stop:
+            with self.assertRaisesRegex(OSError, "job failed"):
+                dump_browser_dom("browser", "http://artifact", "profile", io.BytesIO())
+        stop.assert_called_once_with(process)
 
     def test_one_current_element_and_every_answer_inside_it(self):
         """The invariant the injected session rail and the send both rest on."""
@@ -183,9 +384,28 @@ class RenderContract(unittest.TestCase):
         bar = self.tree.find(attr_is("id", "afk-send"))
         self.assertEqual(len(bar), 1)
         ids = [n.attrs.get("id") for n in bar[0].find(has("id"))]
-        self.assertEqual(ids, ["afk-send-go", "afk-send-copy", "afk-send-jump"])
+        self.assertEqual(ids, ["afk-send-go", "afk-send-copy", "afk-send-jump",
+                               "afk-send-summary"])
         jump = bar[0].find(attr_is("id", "afk-send-jump"))[0]
         self.assertIn("hidden", jump.attrs, "the jump stays out of the way until needed")
+
+    def test_one_form_owns_the_round_and_its_sticky_send_control(self):
+        forms = self.tree.find(attr_is("data-afk-answer-form", "1"))
+        self.assertEqual(len(forms), 1)
+        current = self.tree.find(attr_is("data-afk-state", "current"))[0]
+        send = self.tree.find(attr_is("id", "afk-send"))[0]
+        self.assertTrue(current.has_ancestor(forms[0]))
+        self.assertTrue(send.has_ancestor(forms[0]))
+        self.assertTrue(send.has_ancestor(current))
+        button = send.find(attr_is("id", "afk-send-go"))[0]
+        self.assertEqual(button.attrs.get("type"), "submit")
+        self.assertEqual(self.tree.find(attr_is("id", "afk-send-summary"))[0].tag,
+                         "output")
+
+    def test_native_answer_buttons_need_no_lavish_action_override(self):
+        bar = self.tree.find(attr_is("id", "afk-send"))[0]
+        for button in bar.find(lambda node: node.tag == "button"):
+            self.assertNotIn("data-lavish-action", button.attrs)
 
     def test_the_send_bar_sits_under_the_round_it_sends(self):
         """Not at the end of the document, where settled history buries it.
@@ -211,6 +431,133 @@ class RenderContract(unittest.TestCase):
         html = render(doc)
         self.assertNotIn('id="afk-send"', html)
         self.assertIn("0 to answer", html)
+
+    def test_renderer_gate_rejects_an_input_page_without_the_kit_form(self):
+        broken = self.html.replace(' data-afk-answer-form="1"', "", 1)
+        with self.assertRaisesRegex(schema.ContractError, "one kit answer form"):
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
+
+    def test_renderer_gate_uses_document_state_when_all_input_anatomy_is_removed(self):
+        broken = self.html.replace(' data-afk-answer-form="1"', "", 1)
+        broken = broken.replace(' data-afk-input="choice"', "")
+        broken = broken.replace(' data-afk-input="note"', "")
+        with self.assertRaisesRegex(schema.ContractError,
+                                    "one kit answer form|answer input markers"):
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
+
+    def test_form_submit_sends_one_tagged_summary_and_copies_without_bridge(self):
+        probe = r'''<script>
+window.__afkCalls = [];
+window.lavish = {
+  queuePrompt: function (summary, options) {
+    var prompt = summary;
+    if (options.data) {
+      prompt += '\n\nContext data:\n' + JSON.stringify(options.data, null, 2);
+    }
+    window.__afkCalls.push({
+      call: 'queuePrompt', prompt: prompt, tag: options.tag,
+      text: options.text, hasData: !!options.data, element: options.element.id
+    });
+  },
+  sendQueuedPrompts: function () { window.__afkCalls.push({call: 'sendQueuedPrompts'}); }
+};
+window.addEventListener('load', function () {
+  document.querySelectorAll('[data-afk-input="choice"]').forEach(function (host) {
+    var radio = host.querySelector('input[type="radio"]');
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', {bubbles: true}));
+  });
+  var form = document.getElementById('afk-answer-form');
+  form.requestSubmit();
+  form.requestSubmit();
+  var duplicateStatus = document.querySelector('.afk-send-status').textContent;
+  delete window.lavish;
+  var note = document.querySelector('[data-afk-input="note"]');
+  note.value = 'changed';
+  note.dispatchEvent(new Event('input', {bubbles: true}));
+  var copied = '';
+  var write = function (text) { copied = text; return Promise.resolve(); };
+  if (navigator.clipboard) {
+    Object.defineProperty(navigator.clipboard, 'writeText', {value: write});
+  } else {
+    document.execCommand = function () {
+    var field = document.querySelector('textarea');
+    copied = field ? field.value : '';
+    return true;
+    };
+  }
+  form.requestSubmit();
+  setTimeout(function () {
+    document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
+      calls: window.__afkCalls,
+      copied: copied,
+      duplicateStatus: duplicateStatus,
+      status: document.querySelector('.afk-send-status').textContent,
+      summary: document.getElementById('afk-send-summary').textContent,
+      storageKeys: Object.keys(localStorage)
+    })));
+  }, 20);
+});
+</script>'''
+        result = run_in_browser(self.html.replace("</body>", probe + "</body>"))
+        expected = "[round R-2]\nQ-1 A\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
+        copied = "[round R-2]\nQ-1 A | changed\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
+        self.assertEqual([call["call"] for call in result["calls"]],
+                         ["queuePrompt", "sendQueuedPrompts"])
+        queued = result["calls"][0]
+        self.assertEqual(queued["prompt"], expected)
+        self.assertEqual(queued["tag"], "choice")
+        self.assertFalse(queued["hasData"])
+        self.assertEqual(queued["element"], "afk-answer-form")
+        self.assertEqual(result["duplicateStatus"],
+                         "Already sent. Change an answer, or use Copy the response.")
+        self.assertEqual(result["copied"], copied)
+        self.assertIn("No session", result["status"])
+        self.assertIn("Q-1=A", result["summary"])
+        self.assertEqual(len(result["storageKeys"]), 1)
+        self.assertEqual(result["storageKeys"][0], "afk-answers:/round.html")
+        self.assertNotRegex(result["storageKeys"][0], r"v\d")
+
+    def test_legacy_answers_migrate_and_a_false_copy_result_reports_failure(self):
+        old_answers = {
+            "Q-1": {"c": "A", "n": ""},
+            "D-2": {"c": "accept", "n": ""},
+            "D-3": {"c": "accept", "n": ""},
+            "C-1": {"c": "accept", "n": ""},
+            "HL-1": {"c": "sign", "n": ""},
+            "Q-2": {"c": "loud", "n": ""},
+        }
+        preload = """<script>
+localStorage.setItem('afk-round:' + location.pathname, %s);
+Object.defineProperty(Navigator.prototype, 'clipboard', {
+  configurable: true, get: function () { return null; }
+});
+document.execCommand = function () { return false; };
+</script>
+""" % json.dumps(json.dumps(old_answers))
+        probe = r'''<script>
+window.addEventListener('load', function () {
+  document.getElementById('afk-answer-form').requestSubmit();
+  setTimeout(function () {
+    document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
+      choice: document.querySelector('[data-afk-input="choice"] input:checked').value,
+      status: document.querySelector('.afk-send-status').textContent,
+      storageKeys: Object.keys(localStorage).sort()
+    })));
+  }, 20);
+});
+</script>'''
+        html = self.html.replace("<script>\n/* Send runtime", preload +
+                                 "<script>\n/* Send runtime", 1)
+        result = run_in_browser(html.replace("</body>", probe + "</body>"))
+        self.assertEqual(result["choice"], "A")
+        self.assertEqual(result["status"], "Copy failed.")
+        self.assertEqual(result["storageKeys"], ["afk-answers:/round.html"])
+
+    def test_renderer_gate_uses_the_stable_send_bridge_marker(self):
+        broken = self.html.replace("/* afk:send-bridge */", "", 1)
+        with self.assertRaisesRegex(schema.ContractError, "the send bridge"):
+            lavish_render.validate_input_page(schema.load(copy.deepcopy(self.doc)), broken)
 
     def test_settled_history_sits_below_the_current_round(self):
         order = [n.attrs.get("id") for n in self.tree.find(has("id"))

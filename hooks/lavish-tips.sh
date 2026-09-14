@@ -623,17 +623,22 @@ block = MARK_START + """
         });
       });
     }
+    function currentAnswerSurface() {
+      var current = document.querySelector('[data-afk-state="current"]');
+      if (!current) return null;
+      return current.closest('[data-afk-answer-form="1"]') || current;
+    }
     var jump = document.createElement('button');
     jump.type = 'button';
     jump.id = 'afk-jump';
     jump.setAttribute('data-lavish-action', 'afk-nav');
     jump.textContent = '↑ Current question';
     jump.addEventListener('click', function () {
-      var cur = document.querySelector('[data-afk-state="current"]');
+      var cur = currentAnswerSurface();
       if (cur) goTo(cur);
     });
     document.body.appendChild(jump);
-    var cur = document.querySelector('[data-afk-state="current"]');
+    var cur = currentAnswerSurface();
     if (cur && 'IntersectionObserver' in window) {
       new IntersectionObserver(function (entries) {
         jump.style.display = entries[0].isIntersecting ? 'none' : 'block';

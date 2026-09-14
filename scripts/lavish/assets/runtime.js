@@ -8,10 +8,9 @@
  * What it guarantees (LAVISH-KIT.md "Runtime contract"):
  *   R-1  one `data-afk-input="choice"` and one `data-afk-input="note"` per
  *        `data-afk-item` card inside the current section; native controls only.
- *   R-2  one send per round — a single queuePrompt + sendQueuedPrompts,
- *        never one per item.
- *   R-3  marks and notes persist per item id in localStorage, surviving reload
- *        and session end.
+ *   R-2  one form submit per round — a single tagged queuePrompt plus
+ *        sendQueuedPrompts, never one per item.
+ *   R-3  marks and notes persist by session path and item id in localStorage.
  *   R-4  the response grammar, emitted verbatim.
  *
  * Every window.lavish call is guarded: opening the file with no server running
@@ -20,14 +19,33 @@
 (function () {
   var bar = document.getElementById('afk-send');
   if (!bar) return;
+  var form = document.getElementById('afk-answer-form');
+  if (!form) return;
   var round = bar.getAttribute('data-afk-round') || '?';
-  var KEY = 'afk-round:' + location.pathname;
+  /* The namespace contains no page-revision token. A render revision must not
+   * silently discard marks made against the same session and item ids. */
+  var KEY = 'afk-answers:' + location.pathname;
+  var LEGACY_KEY = 'afk-round:' + location.pathname;
   var NO_CHOICE = '—';
 
   var store = {};
-  try { store = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+  var migrateLegacy = false;
+  try {
+    var stored = localStorage.getItem(KEY);
+    if (!stored) {
+      stored = localStorage.getItem(LEGACY_KEY);
+      migrateLegacy = !!stored;
+    }
+    store = JSON.parse(stored || '{}') || {};
+  } catch (e) {}
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(store));
+      return true;
+    } catch (e) { return false; }
+  }
+  if (migrateLegacy && save()) {
+    try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
   }
 
   /* Page order = DOM order, and only cards inside the current section are the
@@ -87,6 +105,24 @@
     return lines.join('\n');
   }
 
+  function answerData() {
+    return cards().map(function (el) {
+      return {
+        id: el.getAttribute('data-afk-item'),
+        choice: choiceOf(el) || '',
+        note: noteOf(el)
+      };
+    });
+  }
+
+  var summary = bar.querySelector('#afk-send-summary');
+  function refreshSummary() {
+    if (!summary) return;
+    summary.textContent = answerData().map(function (answer) {
+      return answer.id + '=' + (answer.choice || NO_CHOICE);
+    }).join(' · ');
+  }
+
   /* Silence is not agreement. Every answerable card carries the required flag,
    * so a card with no mark is unanswered rather than accepted. The human is
    * told which ones before the send, and can still send. */
@@ -132,7 +168,12 @@
   }
 
   var armed = false;
+  var sent = false;
   function send() {
+    if (sent) {
+      say('Already sent. Change an answer, or use Copy the response.');
+      return;
+    }
     var missing = unmarked();
     if (missing.length && !armed) {
       armed = true;
@@ -141,18 +182,28 @@
       return;
     }
     armed = false;
-    if (!window.lavish || !window.lavish.queuePrompt) {
-      say('No session — use Copy and paste the response to the agent.', true);
+    var bridge = window.lavish;
+    if (!bridge || typeof bridge.queuePrompt !== 'function' ||
+        typeof bridge.sendQueuedPrompts !== 'function') {
+      copy('No session. Copied the answers. Paste them to the agent.');
       return;
     }
-    window.lavish.queuePrompt(compose());
-    if (window.lavish.sendQueuedPrompts) window.lavish.sendQueuedPrompts();
+    /* afk:send-bridge */
+    bridge.queuePrompt(compose(), {
+      tag: 'choice',
+      text: 'Round R-' + round + ' answers',
+      element: form
+    });
+    bridge.sendQueuedPrompts();
+    sent = true;
     say('Round R-' + round + ' sent.');
   }
 
-  function copy() {
+  function copy(message) {
     var text = compose();
-    var done = function () { say('Copied — paste it to the agent.'); };
+    var done = function () {
+      say(message || 'Copied. Paste it to the agent.');
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
     } else {
@@ -168,22 +219,43 @@
     ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) { say('Copy failed.', true); }
+    try {
+      if (document.execCommand('copy')) {
+        done();
+      } else {
+        say('Copy failed.', true);
+      }
+    } catch (e) { say('Copy failed.', true); }
     document.body.removeChild(ta);
   }
 
   cards().forEach(function (el) {
     restore(el);
-    el.addEventListener('change', function () { armed = false; remember(el); refreshJump(); });
-    el.addEventListener('input', function () { armed = false; remember(el); refreshJump(); });
+    el.addEventListener('change', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+    el.addEventListener('input', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
   });
 
-  var sendBtn = bar.querySelector('#afk-send-go');
   var copyBtn = bar.querySelector('#afk-send-copy');
-  if (sendBtn) sendBtn.addEventListener('click', send);
-  if (copyBtn) copyBtn.addEventListener('click', copy);
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    send();
+  });
+  if (copyBtn) copyBtn.addEventListener('click', function () { copy(); });
   if (jumpBtn) jumpBtn.addEventListener('click', jumpToFirstUnmarked);
   refreshJump();
+  refreshSummary();
 
   var n = cards().length;
   say(n + (n === 1 ? ' card' : ' cards') + ' in this round — one send answers them all.');
