@@ -325,6 +325,16 @@ else
 fi
 rm -rf "$badpat"
 
+# The current-question jump includes the kit send bar. Authored pages without
+# the form keep the current-card fallback.
+nav_calls=$(grep -c 'var cur = currentAnswerSurface();' "$lavish_tips")
+if grep -Fq "return current.closest('[data-afk-answer-form=\"1\"]') || current;" "$lavish_tips" &&
+   [ "$nav_calls" = "2" ]; then
+  pass "lavish navigation targets the kit answer form"
+else
+  fail "lavish navigation lost the kit answer form or current-card fallback"
+fi
+
 # A pattern that matches the empty string must block, not loop forever.
 emptypat=$(mktemp -d)
 mkdir -p "$emptypat/skills" "$emptypat/hooks/lib"

@@ -243,9 +243,10 @@ Every hard exit guards auditability or identity. None guards size.
 ## Skeleton
 
 Fixed order: head (title, `afk-spec-dir` meta, inline tokens and CSS) · **the
-process rail** · title · **the round strip** · the current round · **the sticky
-send bar** · items still open from earlier rounds · settled history in round
-sections, newest round first · the inline runtime.
+process rail** · title · **the round strip** · one answer form containing the
+current round, which closes with its **sticky send bar** · items still open
+from earlier rounds · settled history in round sections, newest round first ·
+the inline runtime. A round with no answerable item has no answer form.
 
 The **re-audit strip** opens the round when `re_audit[]` names any ids: one
 line per decided card that came back from the last send unmarked, because an
@@ -275,7 +276,7 @@ target round count for a round to be a fraction of. Every notch lands on a
 round section that exists: `afk-r-{n}`, which is why settled history is
 sectioned by round rather than flat.
 
-The bar sits in the flow directly under the round it sends, and is `sticky`,
+The bar sits in the flow as the current round's last child, and is `sticky`,
 never `fixed`. Two ways a document-end bar disappears: settled history outgrows
 the current round, so the bar lands below every settled card; and a host that
 sizes its frame to the content height gives `position: fixed` a viewport as
@@ -284,9 +285,10 @@ marked card and no way to send it - the one failure that costs the round.
 
 The current round is one element in `data-afk-state="current"` carrying the
 round id, with the round's cards nested inside it. Every other card sits
-outside it in its own state. That keeps `LAVISH.md`'s page anatomy true — one
-current element, the answer surface inside it — while a round asks several
-questions at once.
+outside it in its own state. The answer form wraps the current element, and
+the sticky send bar is the element's last child. That keeps `LAVISH.md`'s page
+anatomy true — one current element, the answer surface inside it — while a
+round asks several questions at once.
 
 **Three parts per card** (`ROUND.md` navigability rule 3): the heading, the
 **lede**, and a `<details>` block holding the rest. What stays in the lede is
@@ -334,13 +336,20 @@ identically, and gets no kit guarantees.
 | # | Guarantee |
 |---|---|
 | R-1 | one `data-afk-input="choice"` and one `data-afk-input="note"` per `data-afk-item` card inside the current section, both native form controls |
-| R-2 | one send per round — a single `queuePrompt` plus `sendQueuedPrompts`, never one per item |
-| R-3 | marks and notes persist per item id in `localStorage`, surviving reload and session end |
+| R-2 | one answer-form submit per round — `queuePrompt(summary, {tag: "choice"})` then `sendQueuedPrompts`, never one send per item |
+| R-3 | marks and notes persist by session path and item id in `localStorage`; a page revision never changes the key |
 | R-4 | the response grammar below, verbatim |
 
 The attribute sits on the radio set's `fieldset`, so a card offers many values
 through exactly one choice control. A write-in is a choice value whose text the
 human types in that card's note field.
+
+The sticky bar shows a live compact summary and one **Send my answers** submit
+button. A successful send shows a visible confirmation. If the lavish bridge
+is absent, the same submit copies the response and tells the human to paste it.
+The separate copy button uses the same response. Native form controls carry no
+`data-lavish-action` attribute. A second submit sends nothing until an answer
+changes.
 
 ### Silence
 
