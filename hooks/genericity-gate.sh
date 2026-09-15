@@ -78,6 +78,11 @@ gate_genericity() {
   printf '' | grep -E -e "${PAT[ticket-id]}" -e "${PAT[account-id]}" -e "${PAT[email]}" \
     -e "${PAT[source-file]}" -e "^(${PAT[notation-prefixes]})$" >/dev/null 2>&1
   [ $? -le 1 ] || { echo "Genericity gate: $PATTERNS_FILE holds a pattern grep -E cannot compile." >&2; return 2; }
+  # A pattern that matches the empty string matches everywhere and never advances.
+  for pk in ticket-id account-id email source-file; do
+    ! printf '\n' | grep -qE -e "${PAT[$pk]}" 2>/dev/null \
+      || { echo "Genericity gate: $PATTERNS_FILE \`$pk\` matches the empty string." >&2; return 2; }
+  done
   GEN_TICKET_RE="${PAT[ticket-id]}" GEN_FILE_RE="${PAT[source-file]}" \
     awk 'BEGIN { match("", ENVIRON["GEN_TICKET_RE"]); match("", ENVIRON["GEN_FILE_RE"]) }' >/dev/null 2>&1 \
     || { echo "Genericity gate: $PATTERNS_FILE holds a pattern awk cannot compile." >&2; return 2; }
@@ -265,7 +270,7 @@ gate_genericity() {
 
       # class 1: Jira-shaped ticket IDs (prefix 2-10 chars, 1-6 digits)
       rest = s
-      while (match(rest, ENVIRON["GEN_TICKET_RE"])) {
+      while (match(rest, ENVIRON["GEN_TICKET_RE"]) && RLENGTH > 0) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)
@@ -276,7 +281,7 @@ gate_genericity() {
 
       # class 2: source-file references
       rest = s
-      while (match(rest, ENVIRON["GEN_FILE_RE"])) {
+      while (match(rest, ENVIRON["GEN_FILE_RE"]) && RLENGTH > 0) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)

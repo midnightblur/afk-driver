@@ -16,6 +16,21 @@ afk_claude_plugin_root() {
   fi
 }
 
+# Directories this harness owns its plugin copies in (its marketplace clones
+# and its version cache), one per line. Contract: `hooks/lib/provider.sh`
+# afk_managed_plugin_dirs. With no configuration directory and no home to
+# resolve one from, this cannot answer, and it says so with exit 1 rather than
+# printing a guess: the caller then reads UNDECIDABLE, never "not managed".
+afk_claude_managed_plugin_dirs() {
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
+    printf '%s/plugins\n' "$CLAUDE_CONFIG_DIR"
+  elif [ -n "${HOME:-}" ]; then
+    printf '%s/plugins\n' "$HOME/.claude"
+  else
+    return 1
+  fi
+}
+
 afk_claude_stop_block_code() {
   printf '0\n'
 }
