@@ -18,6 +18,19 @@ afk_codex_plugin_root() {
   fi
 }
 
+# Directories this harness owns its plugin copies in, one per line. Contract:
+# `hooks/lib/provider.sh` afk_managed_plugin_dirs. No home to resolve means no
+# answer: exit 1, and the caller reads UNDECIDABLE rather than "not managed".
+afk_codex_managed_plugin_dirs() {
+  if [ -n "${CODEX_HOME:-}" ]; then
+    printf '%s/plugins\n' "$CODEX_HOME"
+  elif [ -n "${HOME:-}" ]; then
+    printf '%s/plugins\n' "$HOME/.codex"
+  else
+    return 1
+  fi
+}
+
 afk_codex_stop_block_code() {
   printf '0\n'
 }

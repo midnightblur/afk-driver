@@ -28,7 +28,7 @@ Scripts: `${AFK_PLUGIN_ROOT}/skills/utils/report-issue/scripts/`. Every script d
 4. **Draft** the title and body per [ISSUE-TEMPLATE.md](ISSUE-TEMPLATE.md) into a scratch file. Every template section is present; `publish.sh` queues a body missing one.
 5. **Redact.** `redact.py --repo-root <git root> --keep-repo <target> -o <redacted file> <draft>`. Exit 1 lists residual hits by line and class. `publish.sh` redacts the title and body again before any send.
 6. **Publish** with `publish.sh --body <redacted file> --title <title> --kind <kind> --fp <fp>`:
-   - Agent run: call it without `--approved`. The script queues the draft on a residual hit, an incomplete body, an unreadable configuration, `report-issue.auto-publish` not `true` (`CONFIG.md`), no logged-in `gh`, or a failed `gh` call.
+   - Agent run: call it without `--approved`. The script queues the draft on a residual hit, an incomplete body, an unreadable configuration, `report-issue.auto-publish` switched off (`CONFIG.md`), no logged-in `gh`, or a failed `gh` call.
    - Any run: exit 3 means queued, with the reason printed; report it with the publish command the script printed.
    - Human run: first run it with `--dry-run --approved` and show the full redacted title, body, and target repository it prints. On an explicit yes, re-run with `--approved`. Exit 4 (residual refused) → show each hit; the human edits the body, or accepts every hit, and the retry adds `--approved --accept-residual`.
 7. **Report** per `REPORTING.md` (plugin root): the script's `ISSUE:` line, then one `In plain terms:` sentence. A queued draft also gets the publish command the script printed.

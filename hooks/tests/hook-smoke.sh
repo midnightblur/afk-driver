@@ -325,6 +325,21 @@ else
 fi
 rm -rf "$badpat"
 
+# A pattern that matches the empty string must block, not loop forever.
+emptypat=$(mktemp -d)
+mkdir -p "$emptypat/skills" "$emptypat/hooks/lib"
+sed 's/^ticket-id\t.*/ticket-id\tx*/' "$workflow/hooks/lib/sensitive-patterns.tsv" > "$emptypat/hooks/lib/sensitive-patterns.tsv"
+err=$(cd "$emptypat" && timeout 30 bash -c '
+  . "$1"/hooks/genericity-gate.sh
+  afk_plugin_dir() { printf ".\n"; }; afk_plugin_scope() { printf "\n"; }
+  gate_genericity' _ "$workflow" 2>&1 >/dev/null); rc=$?
+if [ "$rc" = 2 ] && printf '%s' "$err" | grep -q 'matches the empty string'; then
+  pass "a ticket-id pattern of \"x*\" blocks the genericity gate without hanging"
+else
+  fail "empty-matching genericity pattern (rc=$rc, 124 = hung; err=$err)"
+fi
+rm -rf "$emptypat"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

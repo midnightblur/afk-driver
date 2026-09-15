@@ -25,6 +25,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
 | Plugin root/data | Compatibility root/data variables | `PLUGIN_ROOT`/`PLUGIN_DATA`; compatibility variables also exist |
+| Managed plugin directory | `~/.claude/plugins`, moved by `CLAUDE_CONFIG_DIR` | `~/.codex/plugins`, moved by `CODEX_HOME` |
 | Project root | `CLAUDE_PROJECT_DIR` when present | Resolve from `$PWD` through Git |
 | Job scratch | Native job directory | Plugin-data scratch directory |
 | Jira MCP tools | Plugin-scoped server; call the bare tool name | Plugin-scoped server; call the bare tool name |

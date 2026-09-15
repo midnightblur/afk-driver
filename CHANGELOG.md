@@ -37,7 +37,13 @@ first released heading here.
   `/afk:lessons apply` no longer edits the plugin file, because the next
   update would erase the edit. It files the lesson's draft upstream through
   `/afk:report-issue` and records the issue in the ledger with a new `filed`
-  event. A clone still gets the edit in place.
+  event. A clone still gets the edit in place. The harness's own marketplace
+  clone counts as installed: a plugin tree under the plugin directory a harness
+  manages (`~/.claude/plugins`, `~/.codex/plugins`, or wherever
+  `CLAUDE_CONFIG_DIR`/`CODEX_HOME` moves them — `PROVIDERS.md` "Construct
+  mapping") now answers `installed` even though it is a git work tree, because
+  the harness rewrites it on the next update. A clone you keep anywhere else
+  still answers `clone`.
 
 ## [1.3.0] - 2026-09-10
 

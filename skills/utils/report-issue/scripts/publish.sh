@@ -18,10 +18,14 @@
 #   Redact:   redact.py runs on the title and on the body — every field sent to
 #             gh or written to the queue. A residual hit, or a redactor failure,
 #             queues an agent run and refuses an approved one (exit 4) unless
-#             --accept-residual.
-#   Complete: the body holds every section ISSUE-TEMPLATE.md requires and the
-#             visible Fingerprint row for HASH; otherwise it queues (incomplete).
-#   Switch:   an agent run with `report-issue.auto-publish` other than true queues.
+#             --accept-residual. A placeholder in the INPUT is a residual only
+#             when redact.py's probe shows it hiding a value, so a draft coming
+#             back from the queue needs no waiver.
+#   Complete: every section ISSUE-TEMPLATE.md requires is present with
+#             non-blank content, and the visible Fingerprint row for HASH is
+#             there; otherwise it queues (incomplete).
+#   Switch:   an agent run queues when `report-issue.auto-publish` is set to
+#             anything but true; absent means true (CONFIG.md).
 #   gh:       absent or logged out queues.
 # Then dedup: an issue in the target (any state) whose body holds the visible
 # Fingerprint row gets the body as a comment; else a new issue. A missing label
@@ -117,7 +121,8 @@ repo=$(printf '%s' "$repo" | sed -E 's#^(https?://|git@)?(www\.)?github\.com[/:]
 case "$repo" in */*) ;; *) usage "no target repository resolves (got '$repo')" ;; esac
 auto=$(cfg report-issue.auto-publish)
 
-# ---- redact every outgoing field. The queue stores only redacted text.
+# ---- redact every outgoing field. The queue stores only redacted text; its
+# placeholders probe clean in redact.py, so the queue path takes no waiver.
 redact() { "$py" "$here/redact.py" --plugin-root "$root" --repo-root "$main_checkout" --keep-repo "$repo" "$@"; }
 residual=0
 printf '%s\n' "$title" | tr '\r\n' '  ' > "$tmp/title.raw"
@@ -148,7 +153,12 @@ queue() {
 # ---- completeness. Synchronized copy of the section set ISSUE-TEMPLATE.md owns.
 for section in "## Summary" "## Goal" "## Expected" "## Actual" "## Steps to reproduce" \
                "## Evidence" "## Environment" "## Suspected owner"; do
-  grep -qx "$section" "$tmp/issue.md" || queue "incomplete:${section#\#\# }"
+  # Present, with a non-blank line before the next heading ("none captured" counts).
+  # A comment counts as blank for its whole span, one line or many. Content
+  # SHARING the closing line is content: `--> the gate failed` fills the section.
+  awk -v want="$section" '$0 == want { f = 1; next } f && /^## / { exit }
+    f && /^<!--/ { c = 1 } f && c { if (!sub(/^.*-->/, "")) next; c = 0 }
+    f && NF { ok = 1; exit } END { exit !ok }' "$tmp/issue.md" || queue "incomplete:${section#\#\# }"
 done
 grep -qF "$fp_row" "$tmp/issue.md" || queue "incomplete:Fingerprint row"
 

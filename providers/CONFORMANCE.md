@@ -294,7 +294,11 @@ so a later reader does not re-open them as accidents.
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
-2. Add `hooks/lib/providers/<name>.sh` with detect, root, and data functions.
+2. Add `hooks/lib/providers/<name>.sh` with the adapter functions
+   `hooks/lib/provider.sh` dispatches by name: detect, priority, plugin root,
+   plugin data, stop block code, and the plugin directory the harness manages.
+   A missing one makes the managed-path answer undecidable, and every caller
+   reads undecidable the safe way: `plugin-clone.sh` then says `installed`.
 3. Add one envelope fixture per shared event under `hooks/tests/envelopes/<name>/`.
 4. Add a native manifest twin only when the harness cannot consume an existing manifest.
 5. Add unchanged agent-definition stubs when the harness cannot consume `agents/*.md`.

@@ -118,6 +118,14 @@ out=$(pub --body "$sandbox/nogoal.md" --title t --kind bug --fp $fp --repo o/n -
 [ $rc = 3 ] && printf '%s' "$out" | grep -q 'reason=incomplete:Goal' && [ ! -s "$log" ] \
   && ok "a body missing a template section queues, even approved" || bad "incomplete (rc=$rc out=$out)"
 reset
+for s in Summary Goal Expected Actual "Steps to reproduce" Evidence Environment "Suspected owner"; do
+  printf '## %s\n\n' "$s"
+  [ "$s" = Environment ] && printf '| Fingerprint | `%s` |\n\n' "$fp"
+done > "$sandbox/empty.md"
+out=$(pub --body "$sandbox/empty.md" --title t --kind bug --fp $fp --repo o/n --approved); rc=$?
+[ $rc = 3 ] && printf '%s' "$out" | grep -q 'reason=incomplete:Summary' && [ ! -s "$log" ] \
+  && ok "empty sections with only the Fingerprint row queue" || bad "empty sections (rc=$rc out=$out)"
+reset
 out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp 0123456789ac --repo o/n); rc=$?
 [ $rc = 3 ] && printf '%s' "$out" | grep -q 'reason=incomplete:Fingerprint row' \
   && ok "a body without the Fingerprint row for --fp queues" || bad "fp row (rc=$rc out=$out)"
@@ -146,6 +154,11 @@ reset
 out=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run --approved); rc=$?
 [ $rc = 0 ] && printf '%s' "$out" | grep -q '^--- body:' && ! printf '%s' "$out" | grep -q 'agent-filed' \
   && ok "a human preview shows the body with auto-publish off" || bad "human preview (rc=$rc out=$out)"
+reset
+printf 'schema: 1\nreport-issue:\n  repository: o/n\n' > "$sandbox/unset.yaml"
+out=$(AFK_CONFIG="$sandbox/unset.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp); rc=$?
+[ $rc = 0 ] && [ "$out" = "ISSUE: created https://github.com/o/n/issues/7" ] && grep -q '^issue create' "$log" \
+  && ok "auto-publish unset publishes a clean agent run" || bad "auto-publish unset (rc=$rc out=$out)"
 reset
 printf 'schema: 1\nreport-issue: [x]\n' > "$sandbox/broken.yaml"
 out=$(AFK_CONFIG="$sandbox/broken.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp 2>/dev/null); rc=$?
