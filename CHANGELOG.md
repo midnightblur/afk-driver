@@ -18,6 +18,8 @@ first released heading here.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-16
+
 ### Fixed
 
 - **Choice pages send their answers from one visible control.** The page kit
