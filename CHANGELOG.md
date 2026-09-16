@@ -16,7 +16,32 @@ Maintenance: a commit shipping a dev-visible change adds its line under
 heading, and `hooks/release-gate.sh` refuses a tag whose version is not the
 first released heading here.
 
+Versioning: a release bumps exactly one part of `MAJOR.MINOR.PATCH` and
+resets the parts to its right to `0`. Pick the part from the `[Unreleased]`
+entries; the highest match wins.
+
+- **MAJOR** — an overhaul, a brand-new workflow, or a change that breaks a
+  consuming repository (a removed skill or alias, an incompatible
+  `.afk/config.yaml` or plan-contract shape). Only the human decides it. An
+  agent that sees a match does not bump: it proposes the bump with the entries
+  that triggered it and waits.
+- **MINOR** — a notable addition a dev sees: a new skill, subcommand, mode,
+  adapter kind, gate, or config key. An agent decides it.
+- **PATCH** — a bug fix or a small enhancement mostly invisible to devs. An
+  agent decides it.
+
+Releasing: the release commit bumps the version files and moves
+`[Unreleased]` under the new heading. Its merge to `main` is the release —
+`.github/workflows/release.yml` gates that commit, tags it, and publishes the
+release page from its section here. Nobody tags by hand.
+
 ## [Unreleased]
+
+### Changed
+
+- **Every release now has a GitHub release page.** Merging a version bump to
+  `main` tags the commit and publishes its changelog section as the release
+  notes, so the update notice and the releases page both see it.
 
 ## [1.4.0] - 2026-09-16
 

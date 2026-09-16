@@ -1,0 +1,75 @@
+# Release on delivery.
+#
+# A merge to main that changes the plugin version is a release: this job runs
+# the release gate on the merged commit, tags it `v<version>`, and publishes a
+# GitHub release whose notes are that version's CHANGELOG.md section. A tag
+# pushed by hand gets the same gate and release page. A version that already
+# has a tag and a release is left alone, so re-runs are safe.
+#
+# A tag pushed with GITHUB_TOKEN starts no other workflow, so this job runs the
+# gate itself before it tags.
+name: release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.claude-plugin/plugin.json'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="v$(python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Version agreement
+        run: bash hooks/release-gate.sh "${{ steps.version.outputs.tag }}"
+
+      - name: Tag the merged commit
+        if: github.ref_type != 'tag'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "${TAG} already exists at $(git rev-list -n1 "${TAG}"); not re-tagging."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" "${GITHUB_SHA}" -m "Release ${TAG#v}"
+          git push origin "refs/tags/${TAG}"
+
+      - name: Publish the release page
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; nothing to publish."
+            exit 0
+          fi
+          python .github/scripts/changelog_section.py "${TAG}" > notes.md
+          gh release create "${TAG}" --verify-tag --title "${TAG}" --notes-file notes.md
