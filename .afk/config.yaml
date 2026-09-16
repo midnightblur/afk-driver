@@ -20,3 +20,74 @@ git:
   branch-template: 'feat/{ticket_lower}'
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+
+investigation:
+  boundaries:
+    - name: jira-redirect-handler
+      class: B2
+      judgment-only: true
+      site: adapters/tracker/jira/api.py
+      note: urllib calls redirect_request on the subclass; the type is never named at the call site
+    - name: provider-adapter-dispatch
+      class: B3
+      judgment-only: true
+      site: hooks/lib/provider.sh
+      note: glob-sources providers/*.sh then looks up afk_<name>_detect by built name
+    - name: build-gate-kind-dispatch
+      class: B3
+      judgment-only: true
+      site: hooks/lib/adapter.sh
+      note: sources adapters/build-gate/<kind>/gates.sh and calls afk_bg_<kind>_discover by built name
+    - name: kind-selector-keys
+      class: B4
+      pattern: 'AFK_PROVIDER|build-gates:|^tracker:|^forge:|^notes:'
+      paths:
+        - 'hooks/lib'
+        - '.afk/config.yaml'
+      note: selects the adapter/provider directory by string key
+    - name: json-jsonl-artifacts
+      class: B5
+      pattern: '\.jsonl?\b'
+      paths:
+        - 'scripts'
+        - 'hooks'
+      note: LEDGER.jsonl, COVERAGE.json, round and mission-control json artifacts
+    - name: config-yaml-subset-codec
+      class: B5
+      judgment-only: true
+      site: scripts/afk-config.py
+      note: hand-rolled YAML-subset reader for .afk/config.yaml, not a library codec
+    - name: afk-env-vars
+      class: B8
+      pattern: 'AFK_[A-Z_]+'
+      paths:
+        - 'hooks'
+        - 'scripts'
+      note: AFK_PLUGIN_ROOT, AFK_PROVIDER, CLAUDE_PLUGIN_ROOT, PLUGIN_ROOT read at start-up
+    - name: http-and-cli-callers
+      class: B10
+      pattern: 'urllib\.request|requests\.|curl '
+      paths:
+        - 'adapters'
+        - 'hooks'
+      note: jira HTTP client, update-notice.sh curl to raw.githubusercontent.com
+    - name: tracker-mcp-stdio
+      class: B10
+      judgment-only: true
+      site: mcp-servers/tracker/server.py
+      note: stdio MCP protocol launched via .mcp.json, no literal endpoint string to grep
+    - name: plugin-release-check
+      class: B14
+      judgment-only: true
+      site: hooks/update-notice.sh
+      note: reads this plugin's own GitHub repo release history at start-up
+    - name: forge-adapter-repos
+      class: B14
+      judgment-only: true
+      site: adapters/forge
+      note: gh/glab calls against the consuming repository's live forge (github or gitlab)
+    - name: tracker-adapter-repos
+      class: B14
+      judgment-only: true
+      site: adapters/tracker/github-issues
+      note: gh calls against the consuming repository's live issue tracker

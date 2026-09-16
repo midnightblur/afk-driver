@@ -1,0 +1,187 @@
+{
+  "schema": 1,
+  "purpose": "Solution grill, human-locked sign-offs only. Everything else is settled from MERGED-PLAN.md and the requirement ADRs.",
+  "feature": "research-enhancement",
+  "spec_dir": "docs/afk/research-enhancement",
+  "stage": "design",
+  "rounds": [
+    {
+      "round": 1,
+      "state": "settled",
+      "header": {
+        "round": 1,
+        "size_note": "Goal: sign the six human-locked aspects (HL-1..HL-6) so /afk:to-sdd can write the SDD. 6 sign-off packets, 2 confirm rows, 2 decided cards to audit. About 25 minutes.",
+        "settled_last_round": [
+          "D-1 no priorities registry now (user, 2026-09-11) -> ADR-0001",
+          "D-2 no_training declared per destination (user, 2026-09-11) -> ADR-0002",
+          "D-3 web research when_relevant, staged evidence, single=advisory / block=high-impact (user, 2026-09-11) -> ADR-0003",
+          "D-4 pilot read-only roles, Claude + Codex, resume from state.json (user, 2026-09-11) -> ADR-0004",
+          "D-5 subscription only, credits declared disabled, headroom probe (user, 2026-09-11) -> ADR-0005",
+          "D-6 same-provider participant = native subagent (user, 2026-09-11) -> ADR-0006"
+        ],
+        "unlocks": [
+          "/afk:to-sdd: SDD.md sections 3, 4, 5, 6, 7, 14 and the section 0 sign-off register",
+          "/afk:to-subtasks in cited mode"
+        ],
+        "fork": "Every packet below is additive to the plugin: no existing artifact changes shape, no data migrates. The one thing only you can grant is the disclosure in HL-5: staged evidence and sanitized queries leave the machine and cannot be recalled.",
+        "touches": [
+          {
+            "name": "PRD (requirements, catalogs C1-C5, AC-001..AC-036)",
+            "anchor": "docs/afk/research-enhancement/PRD.md"
+          },
+          {
+            "name": "Requirement ADRs 0001-0008",
+            "anchor": "docs/afk/research-enhancement/adr/requirements/"
+          },
+          {
+            "name": "SDD to be written after signing",
+            "anchor": "docs/afk/research-enhancement/SDD.md"
+          }
+        ],
+        "parked": [
+          "Executor and write-role hop to another provider (ADR-0004 IOU on state.json)",
+          "Priorities registry file (ADR-0001 IOU on a retro-observed trigger)",
+          "Antigravity and Grok as live participants (after providers/CONFORMANCE.md probe, step 5)"
+        ],
+        "links": [
+          {
+            "href": "PRD.md",
+            "label": "PRD.md"
+          },
+          {
+            "href": "adr/requirements/",
+            "label": "adr/requirements/"
+          },
+          {
+            "href": "INDEX.md",
+            "label": "INDEX.md"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "dc-advisory",
+          "state": "settled",
+          "round": 1,
+          "by": "agent",
+          "decision": "Consultation is advisory: never changes a gate verdict or a human decision (ADR-0007). Human: `accept`.",
+          "evidence": "spec: ADR-0007; MERGED-PLAN A4 (:26), A7 (:29), D2 (:49)",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "dc-no-extensions",
+          "state": "settled",
+          "round": 1,
+          "by": "agent",
+          "decision": "No new review concern, no new evidence grades, no counter-search route (ADR-0008). Human: `accept`.",
+          "evidence": "repo: scripts/lavish/schema.py:31; INVESTIGATION.md:110-114; skills/afk/review/SKILL.md:41",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-1",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-1 Persistence signed 2026-09-15: \"hl-1 sign\". Covers SDD §4 file set and JSON field tables.",
+          "evidence": "GRILL-LOG.md HL-1 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-2",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-2 Callable surfaces signed 2026-09-15: \"hl-2 sign\". Covers SDD §3.",
+          "evidence": "GRILL-LOG.md HL-2 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-3",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-3 Authorization and scoping signed 2026-09-15: \"hl-3 sign\". Covers SDD §5.",
+          "evidence": "GRILL-LOG.md HL-3 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-4",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-4 Lifecycle and invariants signed 2026-09-15: \"hl-4 sign\". Covers SDD §6.",
+          "evidence": "GRILL-LOG.md HL-4 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-5",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-5 Irreversible and outward effects signed 2026-09-15: \"hl-5 sign\". Covers SDD §7.",
+          "evidence": "GRILL-LOG.md HL-5 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "hl-6",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "HL-6 Change to existing behaviour signed 2026-09-15: \"hl-6 sign\". Covers SDD §14; ledger gap acknowledged.",
+          "evidence": "GRILL-LOG.md HL-6 row",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "cf-retain-raw",
+          "state": "settled",
+          "round": 1,
+          "by": "agent",
+          "decision": "`retain_raw_days` default 7. Human: `accept`.",
+          "evidence": "spec: MERGED-PLAN A5; PRD AC-029",
+          "audit": "explicit"
+        },
+        {
+          "component": "settled_card",
+          "id": "cf-deadline",
+          "state": "settled",
+          "round": 1,
+          "by": "human",
+          "decision": "`deadline_minutes` default 45. Human picked alternative `m45` over the recommended 20.",
+          "evidence": "spec: PRD FC-8, AC-022",
+          "audit": "explicit"
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "state": "current",
+      "header": {
+        "round": 2,
+        "size_note": "Nothing to answer. Round 1 closed with every packet signed; this page is the record.",
+        "settled_last_round": [
+          "dc-advisory accept",
+          "dc-no-extensions accept",
+          "HL-1..HL-6 sign",
+          "cf-retain-raw accept (7 days)",
+          "cf-deadline m45 (45 minutes)"
+        ],
+        "unlocks": [
+          "/afk:to-sdd once PREMISES-CHECK.md and ADR-AUDIT.md are closed",
+          "/afk:investigate on the HL-6 seam rows before /afk:to-subtasks"
+        ],
+        "fork": "No fork. The design has not moved since the signatures.",
+        "touches": []
+      },
+      "items": []
+    }
+  ]
+}
