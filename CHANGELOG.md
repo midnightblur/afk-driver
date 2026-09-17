@@ -56,6 +56,17 @@ release page from its section here. Nobody tags by hand.
   renderer rejects an input page that loses this form, and a served-browser
   regression covers both send paths.
 
+- **Unsent answers survive a page reload.** A host may load a rendered page in
+  a sandboxed frame with an opaque origin, where every `localStorage` call
+  throws. The runtime guarded those calls, so the failure was silent: no draft
+  was ever stored, and a reload returned an empty page. Marks and notes now go
+  to `window.name` as well, which survives a navigation of the same browsing
+  context — an `src` reset included — and which an opaque origin can still
+  write. The frame copy wins a tie, so a `localStorage` write the host refused
+  cannot leave a stale value behind it. Anything that reloads the page — a
+  re-render, a live-reload after a save, an agent's reply on a poll — now costs
+  the reader nothing.
+
 ### Added
 
 - **`/afk:report-issue` — plugin defects reach the plugin's own repository.**
