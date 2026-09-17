@@ -19,6 +19,44 @@ A skill that writes an artifact from already-settled conversation (`to-prd`, `to
 **Full path / Lean path**:
 Full = grills + SDD + verification design for complex features; lean = PRD → plan → execute for bugs/refactors/tooling. Mode of the plan follows from what exists upstream, never from a flag.
 
+## Agent teams
+
+**Contact agent**:
+The one agent session the human talks to. It relays instructions, collects results, and asks for approvals. The human starts it; the plugin never starts or closes it.
+_Avoid_: orchestrator (a role a pattern may name, which the contact agent is not), lead
+
+**Team topology**:
+The shape of the work on one task — which roles exist, how many agents fill each, who may message whom, and how long each lives. Optional; with no configuration the plugin behaves as it always has.
+
+**Multi-model**:
+Giving roles to models from more than one provider. A switch separate from team topology; all four combinations of the two work.
+
+**Transport**:
+The mechanism that starts an agent, messages it, waits for it, reads it, and closes it — harness subagents, headless runs, multiplexer panes, desktop-tool terminals. With none available, a pattern runs on the harness's own subagents and says so in its report.
+
+**Team pattern**:
+A reusable topology, built in or user-written, durable or one-shot. It is data — roles, model per role, lifespan per role, and the talk edges between them — so a user-written pattern has the same power as a built-in one.
+_Avoid_: template, preset
+
+**Lifespan**:
+How long a role's agent lives before it is closed: a turn, a phase, or a feature.
+
+**Knowledge store**:
+The record an agent writes as it works and before it is closed, so a later stage can use what an earlier stage learned. Not durable and never committed: it serves the workflow's own agents and is deleted with the run's other artifacts. PRD, SDD, and ADRs remain the durable record.
+
+**Debate pattern**:
+Two agents or more, on different models, doing one piece of thinking independently, then critiquing each other and recording a verdict each. The shape for research, grounding, design, planning, review, and audit work. Agreement is reported per agent, never as one voice.
+_Avoid_: consensus (the thing the pattern exists to make impossible to fake)
+
+**Run manifest**:
+The record of everything a run started — each agent with its process, pane, and directory, and each background process an agent started — keyed by feature and by the contact session that owns it. Cleanup kills what it names and reports what it could not.
+
+**Running checkpoint**:
+A file a role writes as it works, not at the end. It is what a replacement reads when the original agent dies, because a dying agent cannot be asked for a handoff — that request is the one an exhausted provider refuses. Born unfinished at every write; only the agent's own clean exit stamps it finished.
+
+**Talk edges**:
+The pairs of roles a pattern allows to message each other directly. Anything not listed relays through the contact agent.
+
 ## Artifacts
 
 **PRD**:
