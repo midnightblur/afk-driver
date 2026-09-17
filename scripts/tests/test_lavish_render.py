@@ -518,6 +518,51 @@ window.addEventListener('load', function () {
         self.assertEqual(result["storageKeys"][0], "afk-answers:/round.html")
         self.assertNotRegex(result["storageKeys"][0], r"v\d")
 
+    def test_marked_answers_survive_reload_then_reach_waiting_bridge(self):
+        probe = r'''<script>
+window.__afkCalls = [];
+window.lavish = {
+  queuePrompt: function (prompt, options) {
+    window.__afkCalls.push({
+      call: 'queuePrompt', prompt: prompt, tag: options.tag
+    });
+  },
+  sendQueuedPrompts: function () {
+    window.__afkCalls.push({call: 'sendQueuedPrompts'});
+  }
+};
+window.addEventListener('load', function () {
+  if (!sessionStorage.getItem('afk-browser-reloaded')) {
+    document.querySelectorAll('[data-afk-input="choice"]').forEach(function (host) {
+      var radio = host.querySelector('input[type="radio"]');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+    sessionStorage.setItem('afk-browser-reloaded', '1');
+    location.reload();
+    return;
+  }
+  var choices = Array.from(
+    document.querySelectorAll('[data-afk-input="choice"] input:checked')
+  ).map(function (input) { return input.value; });
+  document.getElementById('afk-answer-form').requestSubmit();
+  setTimeout(function () {
+    document.body.setAttribute('data-afk-browser-result', encodeURIComponent(JSON.stringify({
+      calls: window.__afkCalls,
+      choices: choices
+    })));
+  }, 20);
+});
+</script>'''
+        result = run_in_browser(self.html.replace("</body>", probe + "</body>"))
+        expected = "[round R-2]\nQ-1 A\nD-2 accept\nD-3 accept\nC-1 accept\nHL-1 sign\nQ-2 loud"
+        self.assertEqual(result["choices"],
+                         ["A", "accept", "accept", "accept", "sign", "loud"])
+        self.assertEqual([call["call"] for call in result["calls"]],
+                         ["queuePrompt", "sendQueuedPrompts"])
+        self.assertEqual(result["calls"][0]["prompt"], expected)
+        self.assertEqual(result["calls"][0]["tag"], "choice")
+
     def test_legacy_answers_migrate_and_a_false_copy_result_reports_failure(self):
         old_answers = {
             "Q-1": {"c": "A", "n": ""},
