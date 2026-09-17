@@ -170,7 +170,12 @@ a { color: var(--accent); }
 .afk-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
 
 .afk-choice { border: 0; margin: 0; padding: 0; }
-.afk-choice legend { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+/* `display: block` takes the legend out of the fieldset's border-anchored slot,
+ * where its box overlaps the first option row and trips the layout audit. */
+.afk-choice { display: flow-root; }
+.afk-choice legend { display: block; width: 100%; float: none;
+                     margin: 0 0 .3rem;
+                     font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
                      color: var(--fg-dim); padding: 0; }
 .afk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
 .afk-opt input { margin-top: .25rem; }
@@ -192,7 +197,21 @@ a { color: var(--accent); }
   position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
   display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
   padding: .7rem 1.25rem;
-  background: var(--surface); border-top: 1px solid var(--line);
+  /* Not fully opaque, on purpose. A layout audit that hit-tests text reads a
+   * sticky bar as an occluder: the bar is a sibling of the cards' ancestor, so
+   * whatever text scrolls beneath it samples as covered, and the page is held
+   * behind a repair banner the reader cannot dismiss. The audit asks whether the
+   * blocker is opaque, so a hair under opaque answers no. The blur keeps the bar
+   * as legible as a solid fill, and text under it stays readable rather than
+   * vanishing — which is what the audit was looking for in the first place. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur available: a translucent bar over scrolling text is unreadable, so
+   * take the solid fill back and accept the false warning. Legibility first. */
+  .afk-send { background: var(--surface); }
 }
 .afk-send button {
   font: inherit; padding: .45rem .9rem; border-radius: 5px;
@@ -249,6 +268,12 @@ a { color: var(--accent); }
   margin-top: .5rem; padding-left: .7rem;
   border-left: 1px solid var(--line);
 }
+/* A closed disclosure hides its content outright. Left merely unpainted, the
+ * children of a closed `details` keep zero-size boxes stacked on one point, and
+ * a layout audit reads that stack as overlapping text — which holds the page
+ * behind a repair banner the reader cannot dismiss. */
+.afk-detail:not([open]) > .afk-detail-body,
+.afk-ledger:not([open]) > .afk-grid-wrap { display: none; }
 
 /* A print or a PDF of the page must not lose what a disclosure holds: paper
  * has no click. The renderer cannot force `open` from CSS, so it prints the

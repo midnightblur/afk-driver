@@ -28,21 +28,61 @@
   var LEGACY_KEY = 'afk-round:' + location.pathname;
   var NO_CHOICE = '—';
 
-  var store = {};
-  var migrateLegacy = false;
-  try {
-    var stored = localStorage.getItem(KEY);
-    if (!stored) {
-      stored = localStorage.getItem(LEGACY_KEY);
-      migrateLegacy = !!stored;
-    }
-    store = JSON.parse(stored || '{}') || {};
-  } catch (e) {}
-  function save() {
+  /* Two stores, because the first one is not always there. A host may load this
+   * page in a sandboxed frame with an opaque origin, where every `localStorage`
+   * call throws — and a guarded call that throws loses the draft in silence,
+   * which is the one failure mode nobody is told about. `window.name` survives a
+   * navigation of the same browsing context, an `src` reset included, and an
+   * opaque origin can still read and write it. So marks go to both: whichever
+   * one the host allows is the one that answers on the way back.
+   *
+   * A reload costs the human nothing only if this holds. It is the reason the
+   * page can be re-rendered at all. */
+  function frameRead() {
     try {
-      localStorage.setItem(KEY, JSON.stringify(store));
+      var envelope = JSON.parse(window.name || '{}') || {};
+      var drafts = envelope.afkAnswers;
+      return (drafts && drafts[KEY]) || null;
+    } catch (e) { return null; }
+  }
+
+  function frameWrite(value) {
+    try {
+      var envelope = {};
+      try { envelope = JSON.parse(window.name || '{}') || {}; } catch (e) {}
+      /* Another page's name payload is not ours to drop. */
+      if (!envelope.afkAnswers) envelope.afkAnswers = {};
+      envelope.afkAnswers[KEY] = value;
+      window.name = JSON.stringify(envelope);
       return true;
     } catch (e) { return false; }
+  }
+
+  function localRead() {
+    try {
+      var stored = localStorage.getItem(KEY);
+      if (!stored) {
+        stored = localStorage.getItem(LEGACY_KEY);
+        if (stored) migrateLegacy = true;
+      }
+      return JSON.parse(stored || '{}') || {};
+    } catch (e) { return null; }
+  }
+
+  var migrateLegacy = false;
+  /* The frame store wins a tie: it is written last and cannot go stale behind a
+   * `localStorage` copy the host silently refused to update. */
+  var store = frameRead() || localRead() || {};
+
+  function save() {
+    var text;
+    try { text = JSON.stringify(store); } catch (e) { return false; }
+    var kept = frameWrite(store);
+    try {
+      localStorage.setItem(KEY, text);
+      kept = true;
+    } catch (e) {}
+    return kept;
   }
   if (migrateLegacy && save()) {
     try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}

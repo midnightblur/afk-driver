@@ -337,7 +337,7 @@ identically, and gets no kit guarantees.
 |---|---|
 | R-1 | one `data-afk-input="choice"` and one `data-afk-input="note"` per `data-afk-item` card inside the current section, both native form controls |
 | R-2 | one answer-form submit per round — `queuePrompt(summary, {tag: "choice"})` then `sendQueuedPrompts`, never one send per item |
-| R-3 | marks and notes persist by session path and item id in `localStorage`; a page revision never changes the key |
+| R-3 | marks and notes persist by session path and item id in **both** `window.name` and `localStorage`; a page revision never changes the key. Both, because a host may load the page in a sandboxed frame with an opaque origin, where every `localStorage` call throws and a guarded call loses the draft in silence — `window.name` survives an `src` reset and an opaque origin can still write it. The frame copy wins a tie. A reload costs the human nothing only while this holds, and that is what makes re-rendering safe at all |
 | R-4 | the response grammar below, verbatim |
 
 The attribute sits on the radio set's `fieldset`, so a card offers many values
