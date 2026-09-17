@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requirements grill — agent-team-topology</title>
+<meta name="afk-spec-dir" content="docs/afk/agent-team-topology">
+<style>
+/* Kit stylesheet — inlined into every rendered page, never fetched.
+ *
+ * Dark-first on purpose. Every render and every poll injects a forced-dark
+ * override that inverts any page it measures as light (hooks/lavish-dark.sh),
+ * so a stylesheet that followed `prefers-color-scheme` would hand a
+ * light-preference machine a page the override then inverts. Tokens still
+ * switch: `data-theme="light"` on <html> paints the light set for a human who
+ * asks for it.
+ *
+ * Color is a dimension, not decoration: one fixed semantic set — settled/pass,
+ * open/undecided, blocked/rejected, existing/unchanged, new/proposed — and
+ * never color alone; every state also carries a word.
+ */
+
+:root {
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-2: #23272f;
+  --line: #333944;
+  --fg: #e6e9ef;
+  --fg-dim: #a7b0be;
+  --settled: #4ade80;
+  --open: #fbbf24;
+  --blocked: #f87171;
+  --neutral: #94a3b8;
+  --accent: #7dd3fc;
+  --focus: #7dd3fc;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfd;
+  --surface: #ffffff;
+  --surface-2: #f2f4f8;
+  --line: #d8dde6;
+  --fg: #14161a;
+  --fg-dim: #545c6a;
+  --settled: #15803d;
+  --open: #b45309;
+  --blocked: #b91c1c;
+  --neutral: #52606d;
+  --accent: #0369a1;
+  --focus: #0369a1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1.5rem 1.5rem 7rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.afk-page { max-width: 62rem; margin: 0 auto; }
+
+.afk-title { margin: 0 0 .25rem; font-size: 1.35rem; }
+.afk-sub { margin: 0 0 1.5rem; color: var(--fg-dim); }
+
+h2, h3, h4 { line-height: 1.3; }
+
+/* No bare h4 rule. Card headings are h4 inside a group, and an h4 rule written
+ * for small labels styles a card's decision sentence as a caption — dim,
+ * uppercase, and smaller than the prose under it. Style headings by their
+ * class, never by their level: a card that moves a level must not change
+ * what it looks like. */
+
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+       font-size: .88em; background: var(--surface-2); padding: .1em .35em;
+       border-radius: 3px; }
+
+a { color: var(--accent); }
+
+/* --- sections ---------------------------------------------------------- */
+
+.afk-section { margin: 2rem 0; }
+.afk-section > h2 { margin: 0 0 .75rem; font-size: 1.05rem; }
+
+.afk-round {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--open);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.afk-round > .afk-h { margin: 0 0 .75rem; font-size: 1.1rem; }
+
+.afk-round-header { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
+.afk-where { margin: 0; font-weight: 600; }
+.afk-settled-last, .afk-next p { margin: .25rem 0; color: var(--fg-dim); }
+.afk-next { margin-top: .75rem; }
+
+.afk-cards { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+
+/* --- cards ------------------------------------------------------------- */
+
+.afk-card {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--neutral);
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: .85rem 1rem;
+}
+.afk-card > .afk-h { margin: 0 0 .5rem; font-size: 1rem; font-weight: 700;
+                     letter-spacing: normal; text-transform: none; color: var(--fg); }
+.afk-card--decided { border-left-color: var(--accent); }
+.afk-card--debate { border-left-color: var(--open); }
+.afk-card--confirm { border-left-color: var(--open); }
+.afk-card--signoff { border-left-color: var(--blocked); }
+.afk-card--settled { border-left-color: var(--settled); }
+.afk-card[data-afk-state="blocked"] { border-left-color: var(--blocked); }
+
+/* The session rail collapses a card by adding this class; only the heading,
+ * which is always the first child, stays visible. */
+.afk-card.afk-collapsed > *:not(.afk-h) { display: none; }
+
+.afk-fields { margin: .5rem 0 0; }
+.afk-fields dt { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); margin-top: .6rem; }
+.afk-fields dd { margin: .15rem 0 0; }
+.afk-fields ul { margin: .15rem 0; padding-left: 1.1rem; }
+
+.afk-context { margin: 0 0 .6rem; }
+.afk-context + .afk-context { margin-top: -.2rem; }
+.afk-why-beat { margin: 0 0 .35rem; }
+.afk-third { color: var(--accent); }
+.afk-undecided { color: var(--fg-dim); }
+.afk-hl { color: var(--blocked); font-family: ui-monospace, monospace; }
+
+.afk-degraded {
+  margin: 0 0 .5rem;
+  padding: .5rem .65rem;
+  border: 1px dashed var(--open);
+  border-radius: 4px;
+  color: var(--open);
+}
+
+/* --- option grid ------------------------------------------------------- */
+
+.afk-grid-wrap { overflow-x: auto; margin: .5rem 0; }
+.afk-grid { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.afk-grid caption { text-align: left; color: var(--fg-dim); padding-bottom: .3rem; }
+.afk-grid th, .afk-grid td {
+  border: 1px solid var(--line); padding: .4rem .55rem; text-align: left;
+  vertical-align: top;
+}
+.afk-grid thead th { background: var(--surface); }
+.afk-rec { color: var(--accent); font-weight: 600; font-size: .75rem; }
+
+/* --- table-layout groups: one row per item ----------------------------- */
+
+.afk-rows td { vertical-align: top; }
+.afk-row-id { white-space: nowrap; }
+.afk-row-q { margin: 0 0 .35rem; font-weight: 600; }
+.afk-rows .afk-degraded { margin: .35rem 0; }
+.afk-rows .afk-note { margin-top: 0; }
+/* The column header already says Note, so the field's own label is left for
+ * assistive technology only — clipped, never moved, so it adds no scroll
+ * width inside the wrapper's `overflow-x`. */
+.afk-rows .afk-note span {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+/* The jump control highlights whatever it walks to, card or row. */
+.afk-row.afk-seek { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* --- answer surface ---------------------------------------------------- */
+
+.afk-answer { margin-top: .85rem; border-top: 1px solid var(--line); padding-top: .7rem; }
+
+.afk-choice { border: 0; margin: 0; padding: 0; }
+/* `display: block` takes the legend out of the fieldset's border-anchored slot,
+ * where its box overlaps the first option row and trips the layout audit. */
+.afk-choice { display: flow-root; }
+.afk-choice legend { display: block; width: 100%; float: none;
+                     margin: 0 0 .3rem;
+                     font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                     color: var(--fg-dim); padding: 0; }
+.afk-opt { display: flex; gap: .5rem; align-items: flex-start; padding: .2rem 0; cursor: pointer; }
+.afk-opt input { margin-top: .25rem; }
+
+.afk-note { display: block; margin-top: .55rem; }
+.afk-note span { font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+                 color: var(--fg-dim); }
+.afk-note textarea {
+  display: block; width: 100%; margin-top: .2rem; padding: .4rem .5rem;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 4px; font: inherit; resize: vertical;
+}
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- send bar ---------------------------------------------------------- */
+
+.afk-send {
+  position: sticky; bottom: 0; z-index: 40; margin: 0 0 1.5rem;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .7rem 1.25rem;
+  /* Not fully opaque, on purpose. A layout audit that hit-tests text reads a
+   * sticky bar as an occluder: the bar is a sibling of the cards' ancestor, so
+   * whatever text scrolls beneath it samples as covered, and the page is held
+   * behind a repair banner the reader cannot dismiss. The audit asks whether the
+   * blocker is opaque, so a hair under opaque answers no. The blur keeps the bar
+   * as legible as a solid fill, and text under it stays readable rather than
+   * vanishing — which is what the audit was looking for in the first place. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur available: a translucent bar over scrolling text is unreadable, so
+   * take the solid fill back and accept the false warning. Legibility first. */
+  .afk-send { background: var(--surface); }
+}
+.afk-send button {
+  font: inherit; padding: .45rem .9rem; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg);
+  cursor: pointer;
+}
+.afk-send button.afk-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.afk-send button[hidden] { display: none; }
+.afk-card.afk-seek { outline: 2px solid var(--accent); outline-offset: 3px; }
+.afk-send-summary {
+  flex: 1 1 100%; color: var(--fg); font: .82rem/1.35 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+.afk-send-status { color: var(--fg-dim); font-size: .88rem; }
+.afk-send-status.afk-warn { color: var(--open); }
+
+/* --- groups, shape, disclosure, chips ---------------------------------- */
+
+/* Rule 1: the shape line reads before any card, so it is set apart from the
+ * header prose that follows it. */
+.afk-shape {
+  margin: 0 0 .6rem; padding: .45rem .6rem;
+  background: var(--surface-2); border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.afk-round-header h3 { font-size: .95rem; margin: 1rem 0 .35rem; }
+.afk-group { margin: 1.5rem 0; }
+.afk-group-h {
+  margin: 0 0 .5rem; font-size: .95rem;
+  display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap;
+}
+.afk-count {
+  font-size: .75rem; padding: .05rem .4rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--fg-dim); font-weight: 400;
+}
+.afk-empty-group { color: var(--fg-dim); margin: 0; }
+
+/* Rule 3: heading and lede always visible, the rest one click away. The
+ * answer surface is a sibling of the disclosure, never inside it — a card
+ * stays markable while closed, so scanning and answering are one pass. */
+.afk-lede > :first-child { margin-top: 0; }
+.afk-lede > :last-child { margin-bottom: 0; }
+.afk-rec-line, .afk-evidence-line { margin: .1rem 0 .35rem; }
+.afk-prov, .afk-locked { margin: .25rem 0; color: var(--open); }
+
+.afk-detail { margin: .6rem 0 0; }
+.afk-detail > summary {
+  cursor: pointer; color: var(--accent); font-size: .88rem;
+  padding: .15rem 0; list-style-position: outside;
+}
+.afk-detail > summary:hover { text-decoration: underline; }
+.afk-detail-body {
+  margin-top: .5rem; padding-left: .7rem;
+  border-left: 1px solid var(--line);
+}
+/* A closed disclosure hides its content outright. Left merely unpainted, the
+ * children of a closed `details` keep zero-size boxes stacked on one point, and
+ * a layout audit reads that stack as overlapping text — which holds the page
+ * behind a repair banner the reader cannot dismiss. */
+.afk-detail:not([open]) > .afk-detail-body,
+.afk-ledger:not([open]) > .afk-grid-wrap { display: none; }
+
+/* A print or a PDF of the page must not lose what a disclosure holds: paper
+ * has no click. The renderer cannot force `open` from CSS, so it prints the
+ * label as a heading and the browser's own print rule opens the block; where
+ * it does not, the markdown fallback is the record. */
+@media print {
+  .afk-detail > summary { color: inherit; font-weight: 600; }
+}
+
+.afk-deps { margin: .35rem 0 0; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.afk-deps-label {
+  font-size: .72rem; letter-spacing: .05em; text-transform: uppercase; color: var(--fg-dim);
+}
+.afk-chip {
+  font-size: .8rem; padding: .1rem .45rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--fg); text-decoration: none;
+  font-family: ui-monospace, monospace;
+}
+.afk-chip:hover { border-color: var(--accent); }
+.afk-chip--settled { border-color: var(--settled); color: var(--settled); }
+.afk-chip--open { border-color: var(--open); color: var(--open); }
+.afk-chip--blocked { border-color: var(--blocked); color: var(--blocked); }
+.afk-chip-note { font-size: .8rem; color: var(--fg-dim); font-weight: 400; }
+.afk-badge {
+  font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+  padding: .1rem .4rem; border-radius: 3px;
+}
+.afk-badge--open { background: var(--open); color: var(--bg); }
+
+/* --- the two strips ---------------------------------------------------- */
+
+/* Where the session sits in the chain. Sticky, because the map answering
+ * "where am I" is worth less once it has scrolled away. */
+.afk-rail {
+  position: sticky; top: 0; z-index: 30;
+  margin: -1.5rem -1.5rem 1rem; padding: .5rem 1.5rem;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.afk-rail ol, .afk-strip ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+}
+.afk-step {
+  font-size: .78rem; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.afk-step + .afk-step::before { content: "→"; margin-right: .4rem; color: var(--line); }
+.afk-step--done { color: var(--settled); }
+.afk-step--current { color: var(--fg); font-weight: 700; }
+.afk-step--upcoming { color: var(--fg-dim); opacity: .7; }
+
+/* The rounds so far. Notches, not a progress bar: there is no target count
+ * for a round to be a fraction of. */
+.afk-strip { margin: 0 0 1.25rem; }
+.afk-notch a {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .35rem .6rem; min-width: 6.5rem;
+  border: 1px solid var(--line); border-top: 3px solid var(--neutral);
+  border-radius: 0 0 4px 4px;
+  color: var(--fg); text-decoration: none; font-size: .8rem;
+}
+.afk-notch a:hover { border-color: var(--accent); }
+.afk-notch a span { color: var(--fg-dim); }
+.afk-notch--settled a { border-top-color: var(--settled); }
+.afk-notch--current a { border-top-color: var(--accent); background: var(--surface); }
+
+.afk-round-past { margin: 1.25rem 0; }
+.afk-round-past > h3 { margin: 0 0 .5rem; font-size: .95rem; color: var(--fg-dim); }
+
+/* --- re-audit strip and the decision ledger ---------------------------- */
+
+/* One trigger, and it opens the round: a decision that came back unmarked is
+ * not applied, and the human has to meet that before the new cards. */
+.afk-reaudit {
+  margin: 0 0 1rem; padding: .6rem .75rem;
+  border: 1px solid var(--open); border-left-width: 3px; border-radius: 0 4px 4px 0;
+}
+.afk-reaudit ul { margin: .4rem 0; padding-left: 1.1rem; }
+.afk-reaudit p { margin: .3rem 0 0; color: var(--fg-dim); font-size: .88rem; }
+.afk-reaudit a { color: var(--open); }
+
+.afk-ledger { margin: 2rem 0 0; }
+.afk-ledger > summary {
+  cursor: pointer; color: var(--fg-dim); font-size: .88rem; padding: .2rem 0;
+}
+.afk-ledger > summary:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="afk-page"><nav class="afk-rail" aria-label="Where this session sits in the chain"><ol><li class="afk-step afk-step--current" aria-current="step">requirements</li><li class="afk-step afk-step--upcoming">design</li><li class="afk-step afk-step--upcoming">verification</li><li class="afk-step afk-step--upcoming">plan</li><li class="afk-step afk-step--upcoming">execution</li><li class="afk-step afk-step--upcoming">smoke</li><li class="afk-step afk-step--upcoming">ship</li></ol></nav><h1 class="afk-title">Requirements grill</h1><p class="afk-sub">agent-team-topology</p><nav class="afk-strip" aria-label="The rounds so far"><ol><li class="afk-notch afk-notch--settled"><a href="#afk-r-1"><b>R-1</b><span>22 cards · 1 group · 22 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-2"><b>R-2</b><span>9 cards · 1 group · 9 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-3"><b>R-3</b><span>11 cards · 1 group · 11 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-4"><b>R-4</b><span>8 cards · 1 group · 8 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-5"><b>R-5</b><span>10 cards · 1 group · 10 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-6"><b>R-6</b><span>2 cards · 1 group · 2 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-7"><b>R-7</b><span>3 cards · 1 group · 3 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-8"><b>R-8</b><span>3 cards · 1 group · 3 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-9"><b>R-9</b><span>1 card · 1 group · 1 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-10"><b>R-10</b><span>5 cards · 1 group · 5 settled</span></a></li><li class="afk-notch afk-notch--settled"><a href="#afk-r-11"><b>R-11</b><span>2 cards · 1 group · 2 settled</span></a></li><li class="afk-notch afk-notch--current"><a href="#afk-r-12"><b>R-12</b><span>0 cards</span></a></li></ol></nav><section class="afk-round" id="afk-r-12" data-afk-item="R-12" data-afk-state="current"><h2 class="afk-h">Round R-12 — 0 to answer</h2><div class="afk-round-header"><p class="afk-shape">0 cards, ungrouped.</p><p class="afk-where">On this round&#x27;s size: No cards. Nothing to answer — this page is now the record.</p><p class="afk-settled-last">Settled last round: CMT1, SPIN2</p><h3>Before you read</h3><ul><li>Everything settled — <code>GRILL-LOG.md</code></li><li>The glossary — <code>GLOSSARY.md</code></li></ul><ul><li><a href="GRILL-LOG.md">The checkpoint</a></li></ul><h3>The fork</h3><p>The grill is closed.
+
+74 cards over eleven rounds, every one settled by you. The claim ledger is closed: four claims went to live trial, one came back refuted and was re-settled against what the machine actually does, and the single remaining unproven claim carries a grade you set yourself.
+
+Eleven terms are in the plugin glossary. The devil&#x27;s-advocate pass ran against the settled set and its twelve findings became rounds 5 and 8. Nothing is open.
+
+What happens next is synthesis, not interview: the PRD is written from the checkpoint, and it re-asks nothing.</p><div class="afk-next"><h3>Next</h3><p><b>Unlocks:</b> /afk:to-prd writes the PRD from this log</p></div></div><div class="afk-cards"></div></section><section class="afk-section" id="afk-settled"><h2>Settled</h2><section class="afk-round-past" id="afk-r-11"><h3>Round R-11</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-CMT1" data-afk-item="CMT1" data-afk-state="settled"><h3 class="afk-h">R-11 · human — The grill work is committed: the eleven glossary terms as their own commit, the grill documents as a second.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. Committed on the feature branch, not merged — merging stays yours.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-SPIN2" data-afk-item="SPIN2" data-afk-state="settled"><h3 class="afk-h">R-11 · human — The deferred nested sub-teams work is minted as a tracked stub, naming what must be proved first: nesting, reporting, restart recovery, cleanup.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. Minted through the sanctioned tracker writer in spinoff mode, never by the grill itself, and the returned key is recorded on the candidate row.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-10"><h3>Round R-10</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-TEAM1" data-afk-item="TEAM1" data-afk-state="settled"><h3 class="afk-h">R-10 · human — Team agents are started one at a time. The tool&#x27;s own team and swarm manifests are not used, and our run manifest stays the only record of a team.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose one at a time. A pattern is data and may be one-shot, so its shape belongs in the pattern description rather than a transport&#x27;s org chart — otherwise every pattern is written twice, once per transport.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-CLN2" data-afk-item="CLN2" data-afk-state="settled"><h3 class="afk-h">R-10 · human — On this transport, cleanup closes each terminal by the id in the run manifest, using the tool&#x27;s own close command. The operating-system job covers only agents we start; the descendant sweep is the last resort.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. Residual gap recorded rather than hidden: a background process started inside one of its terminals may outlive the terminal, which is the shape the Windows trial refuted, and only the sweep catches it.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ATT1" data-afk-item="ATT1" data-afk-state="settled"><h3 class="afk-h">R-10 · human — An agent reports and relays only through its own terminal&#x27;s channel. The contact agent uses only the verbs that work without a parent terminal: run, list, close, stop.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. This is the tool&#x27;s constraint, not a preference — it reads the caller from terminal ancestry, and setting that identity by hand does not work.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-LED2" data-afk-item="LED2" data-afk-state="settled"><h3 class="afk-h">R-10 · human — The PRD proceeds now, with this transport graded surface-verified and trial-pending — verified by the tool&#x27;s own contract, not by measurement.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose trial-pending, the same grade you accepted for the usage-read claim. It bends your all-four-trials rule once, deliberately, because the trial is blocked on opening the app rather than on anything in the design. A later failure edits the transport section; it does not auto-drop the transport.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-DET1" data-afk-item="DET1" data-afk-state="settled"><h3 class="afk-h">R-10 · human — Detection looks for the command in the user profile directory, never on the command path alone, and never asks the tool&#x27;s background service whether teams are possible. A command that answers that terminal attach is disabled is reported as a fixable setting, named.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. Both halves come from the mistake I made in this session; a detector built on either assumption would repeat it silently on a user&#x27;s machine.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-9"><h3>Round R-9</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-TRN2" data-afk-item="TRN2" data-afk-state="settled"><h3 class="afk-h">R-9 · human — Both 1DevTool and the multiplexer ship as supported transports. A transport is dropped only when a verified capability check shows it cannot do what this feature needs — never on absence of evidence.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in set the rule, and the check then met it. 1devtool-agent exists at ~/.1devtool/bin/1devtool-agent-v9.cmd — in your profile, not on PATH, which is why I missed it. Its own --help shows run, team start, swarm start, terminal list/submit/close, and stop --team --close-terminals across 17 agent targets. The multiplexer state is on disk: per-project terminal panes, a 12-edge link graph, an org chart with manages edges.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-8"><h3>Round R-8</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-CLN1" data-afk-item="CLN1" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Every agent starts inside an operating-system job that owns its whole process tree. Closing the job kills the tree, registered or not. Where a transport does not let us own the start, cleanup falls back to a descendant sweep.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the job object. It is the only option that catches a process nobody registered, which the live trial proved is the real case: the parent exited 0 and both survivors kept running.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-QTA1" data-afk-item="QTA1" data-afk-state="settled"><h3 class="afk-h">R-8 · human — The Codex zero-cost usage read is graded verified from the provider&#x27;s own documented contract, not from a measurement. Nothing in the design rests on it, because AUD2 removed the quota check.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-TRN1" data-afk-item="TRN1" data-afk-state="settled"><h3 class="afk-h">R-8 · human — Handed back, not settled: 1DevTool is installed on this machine, so &#x27;could not be trialled here&#x27; was wrong. Dropping it is on the table once we have actually verified what it does and does not support.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in. You were right to push back — I had called it absent when it was installed and merely not on PATH. Round 9 carries what the check found.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-7"><h3>Round R-7</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-LED1" data-afk-item="LED1" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Every unproven claim gets a live trial before the PRD — all four, not only the two still load-bearing.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose all, overriding my recommendation to drop the two the AUD2 answer had made irrelevant. The trial refuted one of them.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-GLO1" data-afk-item="GLO1" data-afk-state="settled"><h3 class="afk-h">R-7 · human — Eleven terms graduate to the plugin glossary: contact agent, team topology, multi-model, transport, team pattern, lifespan, knowledge store, debate pattern, run manifest, running checkpoint, talk edges. This session&#x27;s nicknames do not.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded; written into GLOSSARY.md.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-SPIN1" data-afk-item="SPIN1" data-afk-state="settled"><h3 class="afk-h">R-7 · human — The deferred work — a manager role running its own sub-team — is captured as a spinoff candidate naming what must be proved first: nesting, reporting, restart recovery, cleanup.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted. Recorded as a candidate row; minting the stub is a tracker write and waits for your word.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-6"><h3>Round R-6</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-VIS2B" data-afk-item="VIS2B" data-afk-state="settled"><h3 class="afk-h">R-6 · human — No cost estimate. A fixed slice of each provider window is reserved for the contact agent, and patterns spend the rest. Nothing has to be predicted, and the agent you talk to can always answer you.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the reserve over the estimate — including over the estimate I had recommended the round before.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PUSH1" data-afk-item="PUSH1" data-afk-state="settled"><h3 class="afk-h">R-6 · human — A spawned agent may commit and push its own branch. Opening the change request stays with the contact agent, and merging stays with you. All agents work in one worktree — one per feature or bug, never one per agent.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, with your note: all agents will work in the same worktree (not one worktree per agent, but one worktree per feature/bug/etc).</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-5"><h3>Round R-5</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-AUD1" data-afk-item="AUD1" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A spawned agent may commit and may push. Keeping local and remote in sync is worth more than the ban, the work happens on feature branches, and merging is the guard — only the human merges.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in, overriding PERM2: one can commit, can push ... merging is the guard and only users can do it.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AUD2" data-afk-item="AUD2" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Check authentication only, once per provider the pattern names, before the first spawn. H2 narrows to usage limits: no quota prediction.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in: check auth only. user would know about quota limit.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AUD3" data-afk-item="AUD3" data-afk-state="settled"><h3 class="afk-h">R-5 · human — The wait horizon is per provider window. Beyond it, park with a dated report and tell the human — never drop to a reduced shape, never abandon the run.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the per-provider horizon over dropping the shape and over stopping.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AUD4" data-afk-item="AUD4" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Each role owns an output path, named in the pattern and repeated in its brief. An agent writes there and in the files its brief names. Changing shared git state belongs to the contact agent alone.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 5.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-KNW1" data-afk-item="KNW1" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A store entry is born unfinished at every write, and only the agent&#x27;s own clean exit stamps it finished. Peers in the same stage read finished entries only; later stages read everything finished.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the stamp, which supplies the mechanism your ACC2 write-in left open and needs nothing new.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-KNW2" data-afk-item="KNW2" data-afk-state="settled"><h3 class="afk-h">R-5 · human — A pattern may name a role other than the contact agent as the hub for a group of roles. Starting and closing those agents stays with the contact agent, so one manifest holds everything.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted — your ACC1 note, written as a rule.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-KNW3" data-afk-item="KNW3" data-afk-state="settled"><h3 class="afk-h">R-5 · human — Before the store is deleted, the terminal sync-harness subtask promotes environment facts into a durable register. Feature facts are dropped. Only qualified harvestable facts are promoted, so the harness does not fill up.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, with your condition: just make sure to not clutter the harness.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-VIS1" data-afk-item="VIS1" data-afk-state="settled"><h3 class="afk-h">R-5 · human — The run manifest, every agent name and every scheduled task carry the feature id and the contact session that owns them. A new contact agent adopts an existing manifest by that key.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 5.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-VIS3" data-afk-item="VIS3" data-afk-state="settled"><h3 class="afk-h">R-5 · human — The manifest carries each agent&#x27;s role, model, state and park-until time, and the read-only dashboard reads it. A parked team never looks like a hung one.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 5.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-VIS4" data-afk-item="VIS4" data-afk-state="settled"><h3 class="afk-h">R-5 · human — On a detection-versus-config conflict the plugin asks the human when they are present. Unattended, it parks and names the conflict rather than waiting on a prompt nobody will answer.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 5.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-4"><h3>Round R-4</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-ACC1" data-afk-item="ACC1" data-afk-state="settled"><h3 class="afk-h">R-4 · human — Only the contact agent starts and stops team agents. A spawned agent starts and closes its own harness subagents, but never another team agent.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, with your note: the contact agent is not necessarily the talk hub — an orchestrator it spawns may be the one talking to the planners.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ACC2" data-afk-item="ACC2" data-afk-state="settled"><h3 class="afk-h">R-4 · human — The knowledge store exists so a later stage can use what an earlier stage learned: a builder reads what the planners knew, a reviewer reads what the builder knew. Within one stage, and above all in a debate, an agent&#x27;s work is shared only once that agent has finished its own independent work.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in, replacing the role-blind option. You named the rule and left the mechanism open.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ACC3" data-afk-item="ACC3" data-afk-state="settled"><h3 class="afk-h">R-4 · human — A spawned agent is given a written brief, never the transcript of your conversation. What it needs from that conversation is quoted into the brief.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: for sure. that&#x27;s the point, we don&#x27;t want to spend tokens.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ACC4" data-afk-item="ACC4" data-afk-state="settled"><h3 class="afk-h">R-4 · human — No agent writes your repository config. A pattern an agent proposes is shown to you and saved only by you; a one-off pattern is never written down.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 4.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ACC5" data-afk-item="ACC5" data-afk-state="settled"><h3 class="afk-h">R-4 · human — Every store entry carries who wrote it, which role and model they were, when, and what it rests on. A claim with no author and no ground is refused rather than stored.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 4.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-LIM1" data-afk-item="LIM1" data-afk-state="settled"><h3 class="afk-h">R-4 · human — A pattern that asks for a role the environment cannot fill is refused at start: name the role, name what is missing, stop. No reduced start, and no offer round.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose refuse over the offer I recommended — nothing runs under a name it does not deserve.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-LIM2" data-afk-item="LIM2" data-afk-state="settled"><h3 class="afk-h">R-4 · human — A phase is not reported as finished while the run manifest still holds a process the plugin could not kill. It says which process, where, and what to run to kill it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 4.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-LIM3" data-afk-item="LIM3" data-afk-state="settled"><h3 class="afk-h">R-4 · human — An agent closed before its work is written leaves a checkpoint marked unfinished. A later reader is told it is unfinished, and never reads it as a finding.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 4.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-3"><h3>Round R-3</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-PAT1" data-afk-item="PAT1" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Fan-out is not a pattern. Calling subagents is every agent&#x27;s own business, subagents included, decided by the goal and by whether the work would pollute its context. Deep research, grounding, design, planning, review and audit work uses the debate pattern — two agents or more — inside the afk workflow or outside it. Lighter work, such as bug fixes and small enhancements, can be covered end to end by a fuller pattern: one contact, one manager or orchestrator, several planners, several reviewers, one builder.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in, replacing all three option lists.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PAT2" data-afk-item="PAT2" data-afk-state="settled"><h3 class="afk-h">R-3 · human — A pattern is data, not code: roles, model per role, lifespan per role, and the talk edges between them. A pattern you write yourself has exactly the same shape as a built-in one.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 3.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PAT3" data-afk-item="PAT3" data-afk-state="settled"><h3 class="afk-h">R-3 · human — A pattern can be used once without being saved: you describe the shape for this task, it runs, and nothing is written into your repository config.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 3.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PERM1" data-afk-item="PERM1" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Every agent works in the same directory, or at least a subdirectory of the contact agent&#x27;s. One worktree is cut from the main checkout for the work; no worktree per agent, because the repository may be large.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your write-in, replacing the workspace-per-role option.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PERM1B" data-afk-item="PERM1B" data-afk-state="settled"><h3 class="afk-h">R-3 · human — No limit is enforced on a spawned agent. What it may do is its harness&#x27;s business. The shared worktree is a layout choice, not a guard.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: no limit should be enforced. that depends on the agent&#x27;s harness.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PERM2" data-afk-item="PERM2" data-afk-state="settled"><h3 class="afk-h">R-3 · human — No spawned agent commits, pushes, opens a change request, or writes to the tracker. Those actions belong to the contact agent or to you.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 3.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-PERM3" data-afk-item="PERM3" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Every agent the plugin starts is recorded in a run manifest with its process, pane and workspace — and so is every background process an agent starts. Cleanup kills everything in the manifest at phase end, on failure and at session end, and reports anything it could not kill.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your note: it&#x27;s not only about the agents, but also background processes that it might invoke.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ENV1" data-afk-item="ENV1" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Setup always offers the herdr install, not only when team topology is enabled.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose always-offer over the conditional offer I recommended.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ENV2" data-afk-item="ENV2" data-afk-state="settled"><h3 class="afk-h">R-3 · human — Detection reports what it found and never changes your transport or your models on its own. It reads the session you and your agents are actually in, not the machine in general — herdr and 1DevTool can both be installed at once.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your note: the detection should be based on the current session that users and agents are in, not by the env in general.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ENV3" data-afk-item="ENV3" data-afk-state="settled"><h3 class="afk-h">R-3 · human — With no multi-agent transport available, a team pattern runs on the harness&#x27;s own subagents and says so in its report, rather than failing.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 3.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-ENV4" data-afk-item="ENV4" data-afk-state="settled"><h3 class="afk-h">R-3 · human — The plugin never installs anything, registers a scheduled task, or opens a terminal window without asking first, and every such change can be undone by a single command.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 3.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-2"><h3>Round R-2</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-H1" data-afk-item="H1" data-afk-state="settled"><h3 class="afk-h">R-2 · human — A role writes a running checkpoint as it works. That file is what a replacement reads, because the dying model cannot be asked for a handoff — that request is the one the exhausted provider refuses.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the running checkpoint over an orchestrator mirror and per-step commits.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-H2" data-afk-item="H2" data-afk-state="settled"><h3 class="afk-h">R-2 · human — No provider availability check at all. Failures are reacted to, never predicted.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose drop, closing the AG1 you reopened: the limited model cannot run the check that would detect its own limit.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-H3" data-afk-item="H3" data-afk-state="settled"><h3 class="afk-h">R-2 · human — A single-model role continues on an equivalent model from another provider when its own fails. A role whose independence depends on its model, such as a planner in a debate, waits instead — or you continue without it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded, closing the AG2 you reopened.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-H4" data-afk-item="H4" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Equivalence comes from the existing model-tier map, overridable per role.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose tiers over writing explicit pairs or asking at failure time.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-B1" data-afk-item="B1" data-afk-state="settled"><h3 class="afk-h">R-2 · human — A team pattern declares its own talk edges. Direct messages happen only where the pattern grants them in writing; everything else relays through the contact agent.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>You chose the pattern declaring edges over hub-only and open talk.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-B2" data-afk-item="B2" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Agents filling one role on different models never see each other&#x27;s work before their own is written. Drafts, critiques and verdicts are recorded per agent with reasons, and agreement is reported per agent, never as one voice.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted — the guard against agents agreeing to report agreement.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-S3" data-afk-item="S3" data-afk-state="settled"><h3 class="afk-h">R-2 · human — The knowledge store lives in an ignored path beside the feature spec, is never committed, and is deleted with the feature&#x27;s other run artifacts.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, closing the AG3 you reopened; the repository-wide catalog is dropped.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-S4" data-afk-item="S4" data-afk-state="settled"><h3 class="afk-h">R-2 · human — Nothing survives the store&#x27;s deletion. Harvestable facts are already carried by the terminal sync-harness subtask; facts needed only for implementation are dropped, and a later feature rediscovers what it needs.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: anything harvestable should happen in update-harness subtask already, other facts ... should be dropped.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-P1" data-afk-item="P1" data-afk-state="settled"><h3 class="afk-h">R-2 · human — At task start the contact agent proposes a pattern, prices it in agents and relayed messages, and offers a one-off pattern instead. You pick; it never picks silently.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 2.</code></dd></dl></div></details></article></div></section><section class="afk-round-past" id="afk-r-1"><h3>Round R-1</h3><div class="afk-cards"><article class="afk-card afk-card--settled" id="afk-i-S1" data-afk-item="S1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Planners debate until every point is a reasoned AGREE or a DISAGREE-FINAL. Only those points, and values only a human may set, reach a grill.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: grill is only when they decide to agree and disagree and no further discussion needed.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-S2" data-afk-item="S2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — On a provider usage limit, agents detect it, learn the reset time and resume on their own, with nobody watching.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: ideally users won&#x27;t have to babysit and come back to continue the work.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T1" data-afk-item="T1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Contact agent: the one agent session you talk to. It relays your instructions, collects results and asks for approvals. You start it; the plugin never starts or closes it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T2" data-afk-item="T2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Team topology: the shape of the work on one task — which roles exist, how many agents fill each, who may message whom, how long each lives.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T3" data-afk-item="T3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Multi-model: giving roles to models from more than one provider. A separate switch from team topology.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T4" data-afk-item="T4" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Transport: the mechanism that starts an agent, messages it, waits for it, reads it and closes it — harness subagents, headless runs, herdr panes, 1DevTool terminals.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, with your note on sibling and same-role talk rules, settled in round 2.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T5" data-afk-item="T5" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Team pattern: a named topology you can reuse — built-in or your own, durable or one-shot. Agents help you pick one or propose a custom one.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted, with your note that agents assist the choice.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T6" data-afk-item="T6" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Lifespan: turn, phase or feature — how long a role&#x27;s agent lives before it is closed.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted as worded in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-T7" data-afk-item="T7" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Knowledge store: the record an agent writes before it is closed. It is NOT durable and is NOT committed — it serves the workflow&#x27;s own agents and is dropped after delivery. PRD, SDD and ADRs remain the durable record.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: it should not be durable ... feature already have durable docs such as PRD, ADR, SDD.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-D1" data-afk-item="D1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — No strict single-agent mode. Subagents are promoted, not restricted: the topology governs only the main roles, and every agent may fan out native subagents of its own harness to keep its context clean.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: subagents should be promoted and not restricted.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C1" data-afk-item="C1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — With no new config the plugin behaves exactly as today, proven by a test on the effective config and the started processes.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C2" data-afk-item="C2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Team topology and multi-model are separate switches; all four combinations work.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C3" data-afk-item="C3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — When live detection and your config disagree, the plugin asks you to confirm and fix the config. It never silently prefers one.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: if conflicted between live detection and configs, ask users to confirm and fix configs.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C4" data-afk-item="C4" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Every agent the plugin starts carries a name showing its role and model, as the command name and as the label in the host&#x27;s agent list.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Accepted in round 1; proven needed when herdr showed only the workspace label.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-C5" data-afk-item="C5" data-afk-state="settled"><h3 class="afk-h">R-1 · human — Spawned agents run at maximum freedom: yolo for Codex, dangerously-skip-permissions for Claude.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: yolo for Codex and dangerously-skip-permissions for Claude. basically max freedom.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AG4" data-afk-item="AG4" data-afk-state="settled"><h3 class="afk-h">R-1 · debaters — A stored fact is verified only when its claim was checked. Whether its evidence is still current is tracked separately.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Audited and accepted by you in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AG5" data-afk-item="AG5" data-afk-state="settled"><h3 class="afk-h">R-1 · debaters — First delivery: the knowledge store plus close records around today&#x27;s subagents. Its test: close a planner, and a fresh agent answers from the store without repeating the research.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Audited and accepted by you in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AG6" data-afk-item="AG6" data-afk-state="settled"><h3 class="afk-h">R-1 · debaters — Patterns where managers run their own sub-teams are deferred until a trial proves nesting, reporting, restart recovery and cleanup.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Audited and accepted by you in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-AG7" data-afk-item="AG7" data-afk-state="settled"><h3 class="afk-h">R-1 · debaters — On a usage limit: classify from the provider&#x27;s own signal, park with the reset time, rely on checkpoints, wake through something that outlives the agent, resume from the saved session or the disk handoff.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Audited and accepted by you in round 1.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-L1" data-afk-item="L1" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The unattended wait horizon is 5 hours, the Claude session window. Codex has no 5-hour window, only a weekly one. Fetch the exact reset where the provider exposes it.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: 5 hours as that&#x27;s Claude&#x27;s session.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-L2" data-afk-item="L2" data-afk-state="settled"><h3 class="afk-h">R-1 · human — On a usage limit, fall back where a fallback exists; park until reset only where none does.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: always fallback if possible ... park till reset when there&#x27;s no choice.</code></dd></dl></div></details></article><article class="afk-card afk-card--settled" id="afk-i-L3" data-afk-item="L3" data-afk-state="settled"><h3 class="afk-h">R-1 · human — The plugin may register an OS scheduled task, on condition that every process it starts is killed cleanly — no stranded process when work ends or fails.</h3><details class="afk-detail"><summary>What settled it</summary><div class="afk-detail-body"><dl class="afk-fields"><dt>Evidence</dt><dd><code>Your words: yes, but ensure it is killed properly so no stranded process left.</code></dd></dl></div></details></article></div></section></section><details class="afk-ledger" id="afk-ledger"><summary>The decision ledger — 76 settled, by whom, on what evidence</summary><div class="afk-grid-wrap"><table class="afk-grid"><thead><tr><th>Item</th><th>Round</th><th>Decided by</th><th>Audit</th><th>Evidence</th></tr></thead><tbody><tr><td><a href="#afk-i-CMT1"><code>CMT1</code></a></td><td>R-11</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-SPIN2"><code>SPIN2</code></a></td><td>R-11</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-TEAM1"><code>TEAM1</code></a></td><td>R-10</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-CLN2"><code>CLN2</code></a></td><td>R-10</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ATT1"><code>ATT1</code></a></td><td>R-10</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-LED2"><code>LED2</code></a></td><td>R-10</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-DET1"><code>DET1</code></a></td><td>R-10</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-TRN2"><code>TRN2</code></a></td><td>R-9</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-CLN1"><code>CLN1</code></a></td><td>R-8</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-QTA1"><code>QTA1</code></a></td><td>R-8</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-TRN1"><code>TRN1</code></a></td><td>R-8</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-LED1"><code>LED1</code></a></td><td>R-7</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-GLO1"><code>GLO1</code></a></td><td>R-7</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-SPIN1"><code>SPIN1</code></a></td><td>R-7</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-VIS2B"><code>VIS2B</code></a></td><td>R-6</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PUSH1"><code>PUSH1</code></a></td><td>R-6</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AUD1"><code>AUD1</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AUD2"><code>AUD2</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AUD3"><code>AUD3</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AUD4"><code>AUD4</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-KNW1"><code>KNW1</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-KNW2"><code>KNW2</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-KNW3"><code>KNW3</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-VIS1"><code>VIS1</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-VIS3"><code>VIS3</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-VIS4"><code>VIS4</code></a></td><td>R-5</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ACC1"><code>ACC1</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ACC2"><code>ACC2</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ACC3"><code>ACC3</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ACC4"><code>ACC4</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ACC5"><code>ACC5</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-LIM1"><code>LIM1</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-LIM2"><code>LIM2</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-LIM3"><code>LIM3</code></a></td><td>R-4</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PAT1"><code>PAT1</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PAT2"><code>PAT2</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PAT3"><code>PAT3</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PERM1"><code>PERM1</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PERM1B"><code>PERM1B</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PERM2"><code>PERM2</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-PERM3"><code>PERM3</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ENV1"><code>ENV1</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ENV2"><code>ENV2</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ENV3"><code>ENV3</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-ENV4"><code>ENV4</code></a></td><td>R-3</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-H1"><code>H1</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-H2"><code>H2</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-H3"><code>H3</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-H4"><code>H4</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-B1"><code>B1</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-B2"><code>B2</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-S3"><code>S3</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-S4"><code>S4</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-P1"><code>P1</code></a></td><td>R-2</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-S1"><code>S1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-S2"><code>S2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T1"><code>T1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T2"><code>T2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T3"><code>T3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T4"><code>T4</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T5"><code>T5</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T6"><code>T6</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-T7"><code>T7</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-D1"><code>D1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-C1"><code>C1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-C2"><code>C2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-C3"><code>C3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-C4"><code>C4</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-C5"><code>C5</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AG4"><code>AG4</code></a></td><td>R-1</td><td>debaters</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AG5"><code>AG5</code></a></td><td>R-1</td><td>debaters</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AG6"><code>AG6</code></a></td><td>R-1</td><td>debaters</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-AG7"><code>AG7</code></a></td><td>R-1</td><td>debaters</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-L1"><code>L1</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-L2"><code>L2</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr><tr><td><a href="#afk-i-L3"><code>L3</code></a></td><td>R-1</td><td>human</td><td>—</td><td>—</td></tr></tbody></table></div></details></div>
+<script>
+/* Send runtime — inlined into every rendered page, never fetched.
+ *
+ * The page-writer never authors send logic; this file is that logic, and the
+ * renderer emitting it is what makes the attribute contract true by
+ * construction. It reads only the attribute contract, so a hand-authored card
+ * carrying the same attributes composes identically to a rendered one.
+ *
+ * What it guarantees (LAVISH-KIT.md "Runtime contract"):
+ *   R-1  one `data-afk-input="choice"` and one `data-afk-input="note"` per
+ *        `data-afk-item` card inside the current section; native controls only.
+ *   R-2  one form submit per round — a single tagged queuePrompt plus
+ *        sendQueuedPrompts, never one per item.
+ *   R-3  marks and notes persist by session path and item id in localStorage.
+ *   R-4  the response grammar, emitted verbatim.
+ *
+ * Every window.lavish call is guarded: opening the file with no server running
+ * must behave identically, minus the send.
+ */
+(function () {
+  var bar = document.getElementById('afk-send');
+  if (!bar) return;
+  var form = document.getElementById('afk-answer-form');
+  if (!form) return;
+  var round = bar.getAttribute('data-afk-round') || '?';
+  /* The namespace contains no page-revision token. A render revision must not
+   * silently discard marks made against the same session and item ids. */
+  var KEY = 'afk-answers:' + location.pathname;
+  var LEGACY_KEY = 'afk-round:' + location.pathname;
+  var NO_CHOICE = '—';
+
+  /* Two stores, because the first one is not always there. A host may load this
+   * page in a sandboxed frame with an opaque origin, where every `localStorage`
+   * call throws — and a guarded call that throws loses the draft in silence,
+   * which is the one failure mode nobody is told about. `window.name` survives a
+   * navigation of the same browsing context, an `src` reset included, and an
+   * opaque origin can still read and write it. So marks go to both: whichever
+   * one the host allows is the one that answers on the way back.
+   *
+   * A reload costs the human nothing only if this holds. It is the reason the
+   * page can be re-rendered at all. */
+  function frameRead() {
+    try {
+      var envelope = JSON.parse(window.name || '{}') || {};
+      var drafts = envelope.afkAnswers;
+      return (drafts && drafts[KEY]) || null;
+    } catch (e) { return null; }
+  }
+
+  function frameWrite(value) {
+    try {
+      var envelope = {};
+      try { envelope = JSON.parse(window.name || '{}') || {}; } catch (e) {}
+      /* Another page's name payload is not ours to drop. */
+      if (!envelope.afkAnswers) envelope.afkAnswers = {};
+      envelope.afkAnswers[KEY] = value;
+      window.name = JSON.stringify(envelope);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function localRead() {
+    try {
+      var stored = localStorage.getItem(KEY);
+      if (!stored) {
+        stored = localStorage.getItem(LEGACY_KEY);
+        if (stored) migrateLegacy = true;
+      }
+      return JSON.parse(stored || '{}') || {};
+    } catch (e) { return null; }
+  }
+
+  var migrateLegacy = false;
+  /* The frame store wins a tie: it is written last and cannot go stale behind a
+   * `localStorage` copy the host silently refused to update. */
+  var store = frameRead() || localRead() || {};
+
+  function save() {
+    var text;
+    try { text = JSON.stringify(store); } catch (e) { return false; }
+    var kept = frameWrite(store);
+    try {
+      localStorage.setItem(KEY, text);
+      kept = true;
+    } catch (e) {}
+    return kept;
+  }
+  if (migrateLegacy && save()) {
+    try { localStorage.removeItem(LEGACY_KEY); } catch (e) {}
+  }
+
+  /* Page order = DOM order, and only cards inside the current section are the
+   * round's questions; settled and carried-over cards answer nothing. */
+  function cards() {
+    var current = document.querySelector('[data-afk-state="current"]');
+    if (!current) return [];
+    return [].slice.call(current.querySelectorAll('[data-afk-item]')).filter(function (el) {
+      return el.querySelector('[data-afk-input="choice"], [data-afk-input="note"]');
+    });
+  }
+
+  function choiceOf(el) {
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (!host) return '';
+    var picked = host.querySelector('input[type="radio"]:checked');
+    return picked ? picked.value : '';
+  }
+
+  function noteOf(el) {
+    var field = el.querySelector('[data-afk-input="note"]');
+    return field ? field.value.trim() : '';
+  }
+
+  function restore(el) {
+    var id = el.getAttribute('data-afk-item');
+    var saved = store[id];
+    if (!saved) return;
+    var host = el.querySelector('[data-afk-input="choice"]');
+    if (host && saved.c) {
+      var radios = host.querySelectorAll('input[type="radio"]');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].value === saved.c) { radios[i].checked = true; break; }
+      }
+    }
+    var field = el.querySelector('[data-afk-input="note"]');
+    if (field && saved.n) field.value = saved.n;
+  }
+
+  function remember(el) {
+    var id = el.getAttribute('data-afk-item');
+    var c = choiceOf(el), n = noteOf(el);
+    if (!c && !n) { delete store[id]; } else { store[id] = { c: c, n: n }; }
+    save();
+  }
+
+  /* R-4. One line per card, page order; an em dash stands for no choice, and
+   * the note follows a pipe only when there is one. */
+  function compose() {
+    var lines = ['[round R-' + round + ']'];
+    cards().forEach(function (el) {
+      var id = el.getAttribute('data-afk-item');
+      var c = choiceOf(el) || NO_CHOICE;
+      var n = noteOf(el);
+      lines.push(n ? id + ' ' + c + ' | ' + n : id + ' ' + c);
+    });
+    return lines.join('\n');
+  }
+
+  function answerData() {
+    return cards().map(function (el) {
+      return {
+        id: el.getAttribute('data-afk-item'),
+        choice: choiceOf(el) || '',
+        note: noteOf(el)
+      };
+    });
+  }
+
+  var summary = bar.querySelector('#afk-send-summary');
+  function refreshSummary() {
+    if (!summary) return;
+    summary.textContent = answerData().map(function (answer) {
+      return answer.id + '=' + (answer.choice || NO_CHOICE);
+    }).join(' · ');
+  }
+
+  /* Silence is not agreement. Every answerable card carries the required flag,
+   * so a card with no mark is unanswered rather than accepted. The human is
+   * told which ones before the send, and can still send. */
+  function unmarkedCards() {
+    return cards().filter(function (el) {
+      return el.getAttribute('data-afk-required') === '1' && !choiceOf(el);
+    });
+  }
+
+  function unmarked() {
+    return unmarkedCards().map(function (el) { return el.getAttribute('data-afk-item'); });
+  }
+
+  /* Round size follows what is being decided, so nothing caps the card count.
+   * Navigation is what keeps a long round readable: the bar names every
+   * unmarked card and this control walks to them, first one first. */
+  var jumpBtn = bar.querySelector('#afk-send-jump');
+  function refreshJump() {
+    if (!jumpBtn) return;
+    var pending = unmarkedCards();
+    jumpBtn.hidden = pending.length === 0;
+    jumpBtn.textContent = pending.length === 1
+      ? 'Go to the unmarked card'
+      : 'Go to first of ' + pending.length + ' unmarked';
+  }
+
+  function jumpToFirstUnmarked() {
+    var pending = unmarkedCards();
+    if (!pending.length) return;
+    var target = pending[0];
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('afk-seek');
+    setTimeout(function () { target.classList.remove('afk-seek'); }, 1600);
+    var radio = target.querySelector('[data-afk-input="choice"] input[type="radio"]');
+    if (radio && radio.focus) radio.focus({ preventScroll: true });
+  }
+
+  var status = bar.querySelector('.afk-send-status');
+  function say(text, warn) {
+    if (!status) return;
+    status.textContent = text;
+    status.classList.toggle('afk-warn', !!warn);
+  }
+
+  var armed = false;
+  var sent = false;
+  function send() {
+    if (sent) {
+      say('Already sent. Change an answer, or use Copy the response.');
+      return;
+    }
+    var missing = unmarked();
+    if (missing.length && !armed) {
+      armed = true;
+      say('No mark on ' + missing.join(', ') + ' — those stay unanswered. '
+          + 'Send again to send anyway.', true);
+      return;
+    }
+    armed = false;
+    var bridge = window.lavish;
+    if (!bridge || typeof bridge.queuePrompt !== 'function' ||
+        typeof bridge.sendQueuedPrompts !== 'function') {
+      copy('No session. Copied the answers. Paste them to the agent.');
+      return;
+    }
+    /* afk:send-bridge */
+    bridge.queuePrompt(compose(), {
+      tag: 'choice',
+      text: 'Round R-' + round + ' answers',
+      element: form
+    });
+    bridge.sendQueuedPrompts();
+    sent = true;
+    say('Round R-' + round + ' sent.');
+  }
+
+  function copy(message) {
+    var text = compose();
+    var done = function () {
+      say(message || 'Copied. Paste it to the agent.');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      if (document.execCommand('copy')) {
+        done();
+      } else {
+        say('Copy failed.', true);
+      }
+    } catch (e) { say('Copy failed.', true); }
+    document.body.removeChild(ta);
+  }
+
+  cards().forEach(function (el) {
+    restore(el);
+    el.addEventListener('change', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+    el.addEventListener('input', function () {
+      armed = false; remember(el); refreshJump(); refreshSummary();
+      if (sent) {
+        sent = false;
+        say('Answers changed after send. Send them again.', true);
+      }
+    });
+  });
+
+  var copyBtn = bar.querySelector('#afk-send-copy');
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    send();
+  });
+  if (copyBtn) copyBtn.addEventListener('click', function () { copy(); });
+  if (jumpBtn) jumpBtn.addEventListener('click', jumpToFirstUnmarked);
+  refreshJump();
+  refreshSummary();
+
+  var n = cards().length;
+  say(n + (n === 1 ? ' card' : ' cards') + ' in this round — one send answers them all.');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "observedAt": "2026-09-15",
+  "tools": [
+    {
+      "name": "mcp__onedevtool__orchestration_chart_op",
+      "description": "Apply one surgical draft chart op (add_seat | connect | insert_stage | set_agent | reorder_stages). Requires draft session + CAS. Refusals return a sentence. Never Applies, binds a live terminal, or starts a team.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__orchestration_chart_op(args: {\n  basePolicyHash: string;\n  baseRevision: number;\n  // Chart op payload with an \"op\" discriminator\n  op: { [key: string]: unknown; };\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__orchestration_explain",
+      "description": "Explain the current hierarchy/pipeline draft (summary + mermaid). Read-only.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__orchestration_explain(args: { [key: string]: unknown; }): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__orchestration_propose_chart",
+      "description": "Propose a whole hierarchy or pipeline chart from mermaid flowchart source into the Builder draft. Requires a human-enabled draft session and basePolicyHash/baseRevision. Never Applies, Activates, or Starts a team.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__orchestration_propose_chart(args: {\n  // CAS: current draft policy hash from orchestration_explain\n  basePolicyHash: string;\n  // CAS: current draft revision\n  baseRevision: number;\n  // Mermaid flowchart source\n  source: string;\n  // Chart topology\n  topology: \"hierarchy\" | \"pipeline\";\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__orchestration_recommend",
+      "description": "Recommend Builder canvas topology for a setup description: hierarchy | pipeline | router | ephemeral-team | none. Read-only; never writes a chart. ephemeral-team / none mean prose dispatch, not a durable chart.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__orchestration_recommend(args: {\n  // What the user wants to set up\n  text: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_comment",
+      "description": "Append a note to a task's activity — what you tried, what failed, what you suspect, or that it looks like a duplicate. Allowed on tasks you do not own.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_comment(args: { id: string; text: string; }): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_complete",
+      "description": "Report a task finished, with a summary against its acceptance criteria. Either closes it or opens a done gate for review.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_complete(args: {\n  id: string;\n  // What you did, against the acceptance criteria\n  summary: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_create",
+      "description": "Create a task in this terminal's project. Created unassigned — a human decides who works on it.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_create(args: {\n  // What must be true for this to be done\n  acceptanceCriteria?: Array<string>;\n  // Markdown detail\n  body?: string;\n  labels?: Array<string>;\n  // Parent task id, for a subtask\n  parent?: string;\n  priority?: \"p0\" | \"p1\" | \"p2\" | \"p3\";\n  // One line, imperative\n  title: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_get",
+      "description": "Get one task in full: body, acceptance criteria, definition of done, plan, dependencies and recent activity.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_get(args: {\n  // Task id, e.g. t-7k2m9qx4wp3fn\n  id: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_link",
+      "description": "Add or remove dependency edges between tasks: blockedBy, parent, relatesTo. Cycles are rejected.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_link(args: { addBlockedBy?: Array<string>; addRelatesTo?: Array<string>; id: string; parent?: string; removeBlockedBy?: Array<string>; removeRelatesTo?: Array<string>; }): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_list",
+      "description": "List tasks as compact rows without bodies. Use to see the board; use tasks_get for one task in full.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_list(args: {\n  // true = only blocked, false = only unblocked\n  blocked?: boolean;\n  // Filter by a single label\n  label?: string;\n  // Maximum rows (capped at 100)\n  limit?: number;\n  // Only tasks assigned to this terminal\n  mine?: boolean;\n  // Filter by priority\n  priority?: Array<\"p0\" | \"p1\" | \"p2\" | \"p3\">;\n  // Defaults to this terminal's project\n  scope?: \"project\" | \"all\";\n  // Filter by status\n  status?: Array<\"backlog\" | \"ready\" | \"in_progress\" | \"blocked\" | \"in_review\" | \"done\" | \"cancelled\">;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_next",
+      "description": "Get the next task assigned to this terminal. Empty means stop and report back — it never means look for other work. Use at the start of a fresh session, or after finishing a task.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_next(args: {\n  // Which projects to consider. Defaults to this terminal's project.\n  scope?: \"project\" | \"all\";\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_request_approval",
+      "description": "Ask the human to approve a plan or answer a question. Returns a gateId immediately; poll tasks_wait for the verdict.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_request_approval(args: {\n  // Task id\n  id: string;\n  // 'plan' before implementing, 'question' any time\n  kind: \"plan\" | \"question\" | \"done\";\n  // Optional choices, for a question\n  options?: Array<string>;\n  // The plan, the question, or what you want reviewed\n  payload: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_update",
+      "description": "Update a task assigned to you: status, priority, labels, body, plan, or tick acceptance criteria. Cannot set who a task is assigned to.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_update(args: {\n  // The hash from tasks_get — proves you are editing what you read\n  baseHash?: string;\n  body?: string;\n  // 1-based indexes of criteria now satisfied\n  criteriaDone?: Array<number>;\n  id: string;\n  labels?: Array<string>;\n  // Your implementation plan\n  plan?: string;\n  priority?: \"p0\" | \"p1\" | \"p2\" | \"p3\";\n  status?: \"backlog\" | \"ready\" | \"in_progress\" | \"blocked\" | \"in_review\" | \"done\" | \"cancelled\";\n  title?: string;\n}): Promise<CallToolResult>; };\n```"
+    },
+    {
+      "name": "mcp__onedevtool__tasks_wait",
+      "description": "Wait briefly for a verdict on a gate. Returns open (call again), resolved (with verdict and the human's words), stale, or timeout. Never approve on your own after a timeout.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__onedevtool__tasks_wait(args: { gateId: string; }): Promise<CallToolResult>; };\n```"
+    }
+  ],
+  "live": [
+    {
+      "tool": "orchestration_explain",
+      "args": {},
+      "result": "Bridge error (403): {\"error\":\"Feature 'orchestrator' is not enabled\"}"
+    }
+  ]
+}

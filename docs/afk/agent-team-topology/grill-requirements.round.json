@@ -1,0 +1,1100 @@
+{
+  "schema": 1,
+  "purpose": "Requirements grill",
+  "feature": "agent-team-topology",
+  "spec_dir": "docs/afk/agent-team-topology",
+  "stage": "requirements",
+  "rounds": [
+    {
+      "round": 1,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 1,
+        "settled_last_round": [],
+        "unlocks": [
+          "Rounds 2 and 3 build on these"
+        ],
+        "fork": "Settled. The words, the two switches, and the debaters' agreements.",
+        "touches": [
+          {
+            "name": "Workflow glossary",
+            "anchor": "GLOSSARY.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r1",
+            "title": "Settled in round 1"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "S1",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Planners debate until every point is a reasoned AGREE or a DISAGREE-FINAL. Only those points, and values only a human may set, reach a grill.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: grill is only when they decide to agree and disagree and no further discussion needed."
+        },
+        {
+          "component": "settled_card",
+          "id": "S2",
+          "group": "r1",
+          "state": "settled",
+          "decision": "On a provider usage limit, agents detect it, learn the reset time and resume on their own, with nobody watching.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: ideally users won't have to babysit and come back to continue the work."
+        },
+        {
+          "component": "settled_card",
+          "id": "T1",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Contact agent: the one agent session you talk to. It relays your instructions, collects results and asks for approvals. You start it; the plugin never starts or closes it.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted as worded in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "T2",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Team topology: the shape of the work on one task — which roles exist, how many agents fill each, who may message whom, how long each lives.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted as worded in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "T3",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Multi-model: giving roles to models from more than one provider. A separate switch from team topology.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted as worded in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "T4",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Transport: the mechanism that starts an agent, messages it, waits for it, reads it and closes it — harness subagents, headless runs, herdr panes, 1DevTool terminals.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted, with your note on sibling and same-role talk rules, settled in round 2."
+        },
+        {
+          "component": "settled_card",
+          "id": "T5",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Team pattern: a named topology you can reuse — built-in or your own, durable or one-shot. Agents help you pick one or propose a custom one.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted, with your note that agents assist the choice."
+        },
+        {
+          "component": "settled_card",
+          "id": "T6",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Lifespan: turn, phase or feature — how long a role's agent lives before it is closed.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted as worded in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "T7",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Knowledge store: the record an agent writes before it is closed. It is NOT durable and is NOT committed — it serves the workflow's own agents and is dropped after delivery. PRD, SDD and ADRs remain the durable record.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: it should not be durable ... feature already have durable docs such as PRD, ADR, SDD."
+        },
+        {
+          "component": "settled_card",
+          "id": "D1",
+          "group": "r1",
+          "state": "settled",
+          "decision": "No strict single-agent mode. Subagents are promoted, not restricted: the topology governs only the main roles, and every agent may fan out native subagents of its own harness to keep its context clean.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: subagents should be promoted and not restricted."
+        },
+        {
+          "component": "settled_card",
+          "id": "C1",
+          "group": "r1",
+          "state": "settled",
+          "decision": "With no new config the plugin behaves exactly as today, proven by a test on the effective config and the started processes.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "C2",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Team topology and multi-model are separate switches; all four combinations work.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "C3",
+          "group": "r1",
+          "state": "settled",
+          "decision": "When live detection and your config disagree, the plugin asks you to confirm and fix the config. It never silently prefers one.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: if conflicted between live detection and configs, ask users to confirm and fix configs."
+        },
+        {
+          "component": "settled_card",
+          "id": "C4",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Every agent the plugin starts carries a name showing its role and model, as the command name and as the label in the host's agent list.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Accepted in round 1; proven needed when herdr showed only the workspace label."
+        },
+        {
+          "component": "settled_card",
+          "id": "C5",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Spawned agents run at maximum freedom: yolo for Codex, dangerously-skip-permissions for Claude.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: yolo for Codex and dangerously-skip-permissions for Claude. basically max freedom."
+        },
+        {
+          "component": "settled_card",
+          "id": "AG4",
+          "group": "r1",
+          "state": "settled",
+          "decision": "A stored fact is verified only when its claim was checked. Whether its evidence is still current is tracked separately.",
+          "round": 1,
+          "by": "debaters",
+          "evidence": "Audited and accepted by you in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "AG5",
+          "group": "r1",
+          "state": "settled",
+          "decision": "First delivery: the knowledge store plus close records around today's subagents. Its test: close a planner, and a fresh agent answers from the store without repeating the research.",
+          "round": 1,
+          "by": "debaters",
+          "evidence": "Audited and accepted by you in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "AG6",
+          "group": "r1",
+          "state": "settled",
+          "decision": "Patterns where managers run their own sub-teams are deferred until a trial proves nesting, reporting, restart recovery and cleanup.",
+          "round": 1,
+          "by": "debaters",
+          "evidence": "Audited and accepted by you in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "AG7",
+          "group": "r1",
+          "state": "settled",
+          "decision": "On a usage limit: classify from the provider's own signal, park with the reset time, rely on checkpoints, wake through something that outlives the agent, resume from the saved session or the disk handoff.",
+          "round": 1,
+          "by": "debaters",
+          "evidence": "Audited and accepted by you in round 1."
+        },
+        {
+          "component": "settled_card",
+          "id": "L1",
+          "group": "r1",
+          "state": "settled",
+          "decision": "The unattended wait horizon is 5 hours, the Claude session window. Codex has no 5-hour window, only a weekly one. Fetch the exact reset where the provider exposes it.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: 5 hours as that's Claude's session."
+        },
+        {
+          "component": "settled_card",
+          "id": "L2",
+          "group": "r1",
+          "state": "settled",
+          "decision": "On a usage limit, fall back where a fallback exists; park until reset only where none does.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: always fallback if possible ... park till reset when there's no choice."
+        },
+        {
+          "component": "settled_card",
+          "id": "L3",
+          "group": "r1",
+          "state": "settled",
+          "decision": "The plugin may register an OS scheduled task, on condition that every process it starts is killed cleanly — no stranded process when work ends or fails.",
+          "round": 1,
+          "by": "human",
+          "evidence": "Your words: yes, but ensure it is killed properly so no stranded process left."
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 2,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 3 asks what is left"
+        ],
+        "fork": "Settled. Failure handling, talk rules, and the store's short life.",
+        "touches": [
+          {
+            "name": "Model tiers",
+            "anchor": "DELEGATION.md#Model selection"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r2",
+            "title": "Settled in round 2"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "H1",
+          "group": "r2",
+          "state": "settled",
+          "decision": "A role writes a running checkpoint as it works. That file is what a replacement reads, because the dying model cannot be asked for a handoff — that request is the one the exhausted provider refuses.",
+          "round": 2,
+          "by": "human",
+          "evidence": "You chose the running checkpoint over an orchestrator mirror and per-step commits."
+        },
+        {
+          "component": "settled_card",
+          "id": "H2",
+          "group": "r2",
+          "state": "settled",
+          "decision": "No provider availability check at all. Failures are reacted to, never predicted.",
+          "round": 2,
+          "by": "human",
+          "evidence": "You chose drop, closing the AG1 you reopened: the limited model cannot run the check that would detect its own limit."
+        },
+        {
+          "component": "settled_card",
+          "id": "H3",
+          "group": "r2",
+          "state": "settled",
+          "decision": "A single-model role continues on an equivalent model from another provider when its own fails. A role whose independence depends on its model, such as a planner in a debate, waits instead — or you continue without it.",
+          "round": 2,
+          "by": "human",
+          "evidence": "Accepted as worded, closing the AG2 you reopened."
+        },
+        {
+          "component": "settled_card",
+          "id": "H4",
+          "group": "r2",
+          "state": "settled",
+          "decision": "Equivalence comes from the existing model-tier map, overridable per role.",
+          "round": 2,
+          "by": "human",
+          "evidence": "You chose tiers over writing explicit pairs or asking at failure time."
+        },
+        {
+          "component": "settled_card",
+          "id": "B1",
+          "group": "r2",
+          "state": "settled",
+          "decision": "A team pattern declares its own talk edges. Direct messages happen only where the pattern grants them in writing; everything else relays through the contact agent.",
+          "round": 2,
+          "by": "human",
+          "evidence": "You chose the pattern declaring edges over hub-only and open talk."
+        },
+        {
+          "component": "settled_card",
+          "id": "B2",
+          "group": "r2",
+          "state": "settled",
+          "decision": "Agents filling one role on different models never see each other's work before their own is written. Drafts, critiques and verdicts are recorded per agent with reasons, and agreement is reported per agent, never as one voice.",
+          "round": 2,
+          "by": "human",
+          "evidence": "Accepted — the guard against agents agreeing to report agreement."
+        },
+        {
+          "component": "settled_card",
+          "id": "S3",
+          "group": "r2",
+          "state": "settled",
+          "decision": "The knowledge store lives in an ignored path beside the feature spec, is never committed, and is deleted with the feature's other run artifacts.",
+          "round": 2,
+          "by": "human",
+          "evidence": "Accepted, closing the AG3 you reopened; the repository-wide catalog is dropped."
+        },
+        {
+          "component": "settled_card",
+          "id": "S4",
+          "group": "r2",
+          "state": "settled",
+          "decision": "Nothing survives the store's deletion. Harvestable facts are already carried by the terminal sync-harness subtask; facts needed only for implementation are dropped, and a later feature rediscovers what it needs.",
+          "round": 2,
+          "by": "human",
+          "evidence": "Your words: anything harvestable should happen in update-harness subtask already, other facts ... should be dropped."
+        },
+        {
+          "component": "settled_card",
+          "id": "P1",
+          "group": "r2",
+          "state": "settled",
+          "decision": "At task start the contact agent proposes a pattern, prices it in agents and relayed messages, and offers a one-off pattern instead. You pick; it never picks silently.",
+          "round": 2,
+          "by": "human",
+          "evidence": "Accepted as worded in round 2."
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 3,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 4 asks who may do what"
+        ],
+        "fork": "Settled. The pattern rule, what bounds a spawned agent, and detection.",
+        "touches": [
+          {
+            "name": "Setup dependency register",
+            "anchor": "skills/afk/setup/MANIFEST.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r3",
+            "title": "Settled in round 3"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "PAT1",
+          "group": "r3",
+          "state": "settled",
+          "decision": "Fan-out is not a pattern. Calling subagents is every agent's own business, subagents included, decided by the goal and by whether the work would pollute its context. Deep research, grounding, design, planning, review and audit work uses the debate pattern — two agents or more — inside the afk workflow or outside it. Lighter work, such as bug fixes and small enhancements, can be covered end to end by a fuller pattern: one contact, one manager or orchestrator, several planners, several reviewers, one builder.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Your write-in, replacing all three option lists."
+        },
+        {
+          "component": "settled_card",
+          "id": "PAT2",
+          "group": "r3",
+          "state": "settled",
+          "decision": "A pattern is data, not code: roles, model per role, lifespan per role, and the talk edges between them. A pattern you write yourself has exactly the same shape as a built-in one.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Accepted as worded in round 3."
+        },
+        {
+          "component": "settled_card",
+          "id": "PAT3",
+          "group": "r3",
+          "state": "settled",
+          "decision": "A pattern can be used once without being saved: you describe the shape for this task, it runs, and nothing is written into your repository config.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Accepted as worded in round 3."
+        },
+        {
+          "component": "settled_card",
+          "id": "PERM1",
+          "group": "r3",
+          "state": "settled",
+          "decision": "Every agent works in the same directory, or at least a subdirectory of the contact agent's. One worktree is cut from the main checkout for the work; no worktree per agent, because the repository may be large.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Your write-in, replacing the workspace-per-role option."
+        },
+        {
+          "component": "settled_card",
+          "id": "PERM1B",
+          "group": "r3",
+          "state": "settled",
+          "decision": "No limit is enforced on a spawned agent. What it may do is its harness's business. The shared worktree is a layout choice, not a guard.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Your words: no limit should be enforced. that depends on the agent's harness."
+        },
+        {
+          "component": "settled_card",
+          "id": "PERM2",
+          "group": "r3",
+          "state": "settled",
+          "decision": "No spawned agent commits, pushes, opens a change request, or writes to the tracker. Those actions belong to the contact agent or to you.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Accepted as worded in round 3."
+        },
+        {
+          "component": "settled_card",
+          "id": "PERM3",
+          "group": "r3",
+          "state": "settled",
+          "decision": "Every agent the plugin starts is recorded in a run manifest with its process, pane and workspace — and so is every background process an agent starts. Cleanup kills everything in the manifest at phase end, on failure and at session end, and reports anything it could not kill.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Your note: it's not only about the agents, but also background processes that it might invoke."
+        },
+        {
+          "component": "settled_card",
+          "id": "ENV1",
+          "group": "r3",
+          "state": "settled",
+          "decision": "Setup always offers the herdr install, not only when team topology is enabled.",
+          "round": 3,
+          "by": "human",
+          "evidence": "You chose always-offer over the conditional offer I recommended."
+        },
+        {
+          "component": "settled_card",
+          "id": "ENV2",
+          "group": "r3",
+          "state": "settled",
+          "decision": "Detection reports what it found and never changes your transport or your models on its own. It reads the session you and your agents are actually in, not the machine in general — herdr and 1DevTool can both be installed at once.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Your note: the detection should be based on the current session that users and agents are in, not by the env in general."
+        },
+        {
+          "component": "settled_card",
+          "id": "ENV3",
+          "group": "r3",
+          "state": "settled",
+          "decision": "With no multi-agent transport available, a team pattern runs on the harness's own subagents and says so in its report, rather than failing.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Accepted as worded in round 3."
+        },
+        {
+          "component": "settled_card",
+          "id": "ENV4",
+          "group": "r3",
+          "state": "settled",
+          "decision": "The plugin never installs anything, registers a scheduled task, or opens a terminal window without asking first, and every such change can be undone by a single command.",
+          "round": 3,
+          "by": "human",
+          "evidence": "Accepted as worded in round 3."
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 4,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 5 closes the audit"
+        ],
+        "fork": "Settled. Who may do what, and when the plugin refuses to carry on.",
+        "touches": [
+          {
+            "name": "Knowledge store",
+            "anchor": "GRILL-LOG.md#T7"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r4",
+            "title": "Settled in round 4"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "ACC1",
+          "group": "r4",
+          "state": "settled",
+          "decision": "Only the contact agent starts and stops team agents. A spawned agent starts and closes its own harness subagents, but never another team agent.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Accepted, with your note: the contact agent is not necessarily the talk hub — an orchestrator it spawns may be the one talking to the planners."
+        },
+        {
+          "component": "settled_card",
+          "id": "ACC2",
+          "group": "r4",
+          "state": "settled",
+          "decision": "The knowledge store exists so a later stage can use what an earlier stage learned: a builder reads what the planners knew, a reviewer reads what the builder knew. Within one stage, and above all in a debate, an agent's work is shared only once that agent has finished its own independent work.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Your write-in, replacing the role-blind option. You named the rule and left the mechanism open."
+        },
+        {
+          "component": "settled_card",
+          "id": "ACC3",
+          "group": "r4",
+          "state": "settled",
+          "decision": "A spawned agent is given a written brief, never the transcript of your conversation. What it needs from that conversation is quoted into the brief.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Your words: for sure. that's the point, we don't want to spend tokens."
+        },
+        {
+          "component": "settled_card",
+          "id": "ACC4",
+          "group": "r4",
+          "state": "settled",
+          "decision": "No agent writes your repository config. A pattern an agent proposes is shown to you and saved only by you; a one-off pattern is never written down.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Accepted as worded in round 4."
+        },
+        {
+          "component": "settled_card",
+          "id": "ACC5",
+          "group": "r4",
+          "state": "settled",
+          "decision": "Every store entry carries who wrote it, which role and model they were, when, and what it rests on. A claim with no author and no ground is refused rather than stored.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Accepted as worded in round 4."
+        },
+        {
+          "component": "settled_card",
+          "id": "LIM1",
+          "group": "r4",
+          "state": "settled",
+          "decision": "A pattern that asks for a role the environment cannot fill is refused at start: name the role, name what is missing, stop. No reduced start, and no offer round.",
+          "round": 4,
+          "by": "human",
+          "evidence": "You chose refuse over the offer I recommended — nothing runs under a name it does not deserve."
+        },
+        {
+          "component": "settled_card",
+          "id": "LIM2",
+          "group": "r4",
+          "state": "settled",
+          "decision": "A phase is not reported as finished while the run manifest still holds a process the plugin could not kill. It says which process, where, and what to run to kill it.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Accepted as worded in round 4."
+        },
+        {
+          "component": "settled_card",
+          "id": "LIM3",
+          "group": "r4",
+          "state": "settled",
+          "decision": "An agent closed before its work is written leaves a checkpoint marked unfinished. A later reader is told it is unfinished, and never reads it as a finding.",
+          "round": 4,
+          "by": "human",
+          "evidence": "Accepted as worded in round 4."
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 5,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 6 closes the two that are left"
+        ],
+        "fork": "Settled. The audit's findings, answered.",
+        "touches": [
+          {
+            "name": "The audit in full",
+            "anchor": "research/DEVIL.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r5",
+            "title": "Settled in round 5"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "AUD1",
+          "group": "r5",
+          "state": "settled",
+          "decision": "A spawned agent may commit and may push. Keeping local and remote in sync is worth more than the ban, the work happens on feature branches, and merging is the guard — only the human merges.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Your write-in, overriding PERM2: one can commit, can push ... merging is the guard and only users can do it."
+        },
+        {
+          "component": "settled_card",
+          "id": "AUD2",
+          "group": "r5",
+          "state": "settled",
+          "decision": "Check authentication only, once per provider the pattern names, before the first spawn. H2 narrows to usage limits: no quota prediction.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Your write-in: check auth only. user would know about quota limit."
+        },
+        {
+          "component": "settled_card",
+          "id": "AUD3",
+          "group": "r5",
+          "state": "settled",
+          "decision": "The wait horizon is per provider window. Beyond it, park with a dated report and tell the human — never drop to a reduced shape, never abandon the run.",
+          "round": 5,
+          "by": "human",
+          "evidence": "You chose the per-provider horizon over dropping the shape and over stopping."
+        },
+        {
+          "component": "settled_card",
+          "id": "AUD4",
+          "group": "r5",
+          "state": "settled",
+          "decision": "Each role owns an output path, named in the pattern and repeated in its brief. An agent writes there and in the files its brief names. Changing shared git state belongs to the contact agent alone.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted as worded in round 5."
+        },
+        {
+          "component": "settled_card",
+          "id": "KNW1",
+          "group": "r5",
+          "state": "settled",
+          "decision": "A store entry is born unfinished at every write, and only the agent's own clean exit stamps it finished. Peers in the same stage read finished entries only; later stages read everything finished.",
+          "round": 5,
+          "by": "human",
+          "evidence": "You chose the stamp, which supplies the mechanism your ACC2 write-in left open and needs nothing new."
+        },
+        {
+          "component": "settled_card",
+          "id": "KNW2",
+          "group": "r5",
+          "state": "settled",
+          "decision": "A pattern may name a role other than the contact agent as the hub for a group of roles. Starting and closing those agents stays with the contact agent, so one manifest holds everything.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted — your ACC1 note, written as a rule."
+        },
+        {
+          "component": "settled_card",
+          "id": "KNW3",
+          "group": "r5",
+          "state": "settled",
+          "decision": "Before the store is deleted, the terminal sync-harness subtask promotes environment facts into a durable register. Feature facts are dropped. Only qualified harvestable facts are promoted, so the harness does not fill up.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted, with your condition: just make sure to not clutter the harness."
+        },
+        {
+          "component": "settled_card",
+          "id": "VIS1",
+          "group": "r5",
+          "state": "settled",
+          "decision": "The run manifest, every agent name and every scheduled task carry the feature id and the contact session that owns them. A new contact agent adopts an existing manifest by that key.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted as worded in round 5."
+        },
+        {
+          "component": "settled_card",
+          "id": "VIS3",
+          "group": "r5",
+          "state": "settled",
+          "decision": "The manifest carries each agent's role, model, state and park-until time, and the read-only dashboard reads it. A parked team never looks like a hung one.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted as worded in round 5."
+        },
+        {
+          "component": "settled_card",
+          "id": "VIS4",
+          "group": "r5",
+          "state": "settled",
+          "decision": "On a detection-versus-config conflict the plugin asks the human when they are present. Unattended, it parks and names the conflict rather than waiting on a prompt nobody will answer.",
+          "round": 5,
+          "by": "human",
+          "evidence": "Accepted as worded in round 5."
+        }
+      ]
+    },
+    {
+      "round": 6,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 6,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 7 is the exit gate"
+        ],
+        "fork": "Settled. The reserve, and who opens the change request.",
+        "touches": [
+          {
+            "name": "Ownership split",
+            "anchor": "CLAUDE.md#Skill ↔ human ownership split"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r6",
+            "title": "Settled in round 6"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "VIS2B",
+          "group": "r6",
+          "state": "settled",
+          "round": 6,
+          "by": "human",
+          "decision": "No cost estimate. A fixed slice of each provider window is reserved for the contact agent, and patterns spend the rest. Nothing has to be predicted, and the agent you talk to can always answer you.",
+          "evidence": "You chose the reserve over the estimate — including over the estimate I had recommended the round before."
+        },
+        {
+          "component": "settled_card",
+          "id": "PUSH1",
+          "group": "r6",
+          "state": "settled",
+          "round": 6,
+          "by": "human",
+          "decision": "A spawned agent may commit and push its own branch. Opening the change request stays with the contact agent, and merging stays with you. All agents work in one worktree — one per feature or bug, never one per agent.",
+          "evidence": "Accepted, with your note: all agents will work in the same worktree (not one worktree per agent, but one worktree per feature/bug/etc)."
+        }
+      ]
+    },
+    {
+      "round": 7,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 7,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 8 re-settles what the trial refuted"
+        ],
+        "fork": "Settled. The exit gate — and one of its trials came back refuted.",
+        "touches": [
+          {
+            "name": "The claim ledger",
+            "anchor": "GRILL-LOG.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r7",
+            "title": "Settled in round 7"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "LED1",
+          "group": "r7",
+          "state": "settled",
+          "round": 7,
+          "by": "human",
+          "decision": "Every unproven claim gets a live trial before the PRD — all four, not only the two still load-bearing.",
+          "evidence": "You chose all, overriding my recommendation to drop the two the AUD2 answer had made irrelevant. The trial refuted one of them."
+        },
+        {
+          "component": "settled_card",
+          "id": "GLO1",
+          "group": "r7",
+          "state": "settled",
+          "round": 7,
+          "by": "human",
+          "decision": "Eleven terms graduate to the plugin glossary: contact agent, team topology, multi-model, transport, team pattern, lifespan, knowledge store, debate pattern, run manifest, running checkpoint, talk edges. This session's nicknames do not.",
+          "evidence": "Accepted as worded; written into GLOSSARY.md."
+        },
+        {
+          "component": "settled_card",
+          "id": "SPIN1",
+          "group": "r7",
+          "state": "settled",
+          "round": 7,
+          "by": "human",
+          "decision": "The deferred work — a manager role running its own sub-team — is captured as a spinoff candidate naming what must be proved first: nesting, reporting, restart recovery, cleanup.",
+          "evidence": "Accepted. Recorded as a candidate row; minting the stub is a tracker write and waits for your word."
+        }
+      ]
+    },
+    {
+      "round": 8,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 8,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 9 answers the question you asked back"
+        ],
+        "fork": "Settled, except the one you handed back to me. You asked what the desktop tool was. It is 1DevTool, and I went and looked.",
+        "touches": [
+          {
+            "name": "The claim ledger",
+            "anchor": "GRILL-LOG.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r8",
+            "title": "Settled in round 8"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "CLN1",
+          "group": "r8",
+          "state": "settled",
+          "round": 8,
+          "by": "human",
+          "decision": "Every agent starts inside an operating-system job that owns its whole process tree. Closing the job kills the tree, registered or not. Where a transport does not let us own the start, cleanup falls back to a descendant sweep.",
+          "evidence": "You chose the job object. It is the only option that catches a process nobody registered, which the live trial proved is the real case: the parent exited 0 and both survivors kept running."
+        },
+        {
+          "component": "settled_card",
+          "id": "QTA1",
+          "group": "r8",
+          "state": "settled",
+          "round": 8,
+          "by": "human",
+          "decision": "The Codex zero-cost usage read is graded verified from the provider's own documented contract, not from a measurement. Nothing in the design rests on it, because AUD2 removed the quota check.",
+          "evidence": "Accepted as worded."
+        },
+        {
+          "component": "settled_card",
+          "id": "TRN1",
+          "group": "r8",
+          "state": "settled",
+          "round": 8,
+          "by": "human",
+          "decision": "Handed back, not settled: 1DevTool is installed on this machine, so 'could not be trialled here' was wrong. Dropping it is on the table once we have actually verified what it does and does not support.",
+          "evidence": "Your write-in. You were right to push back — I had called it absent when it was installed and merely not on PATH. Round 9 carries what the check found."
+        }
+      ]
+    },
+    {
+      "round": 9,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 9,
+        "settled_last_round": [],
+        "unlocks": [
+          "Round 10 settles how the second transport is driven"
+        ],
+        "fork": "You were right, and I was wrong twice. The command exists, and the tool is a multiplexer.",
+        "touches": [
+          {
+            "name": "The claim ledger",
+            "anchor": "GRILL-LOG.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r9",
+            "title": "Settled in round 9"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "TRN2",
+          "group": "r9",
+          "state": "settled",
+          "round": 9,
+          "by": "human",
+          "decision": "Both 1DevTool and the multiplexer ship as supported transports. A transport is dropped only when a verified capability check shows it cannot do what this feature needs — never on absence of evidence.",
+          "evidence": "Your write-in set the rule, and the check then met it. 1devtool-agent exists at ~/.1devtool/bin/1devtool-agent-v9.cmd — in your profile, not on PATH, which is why I missed it. Its own --help shows run, team start, swarm start, terminal list/submit/close, and stop --team --close-terminals across 17 agent targets. The multiplexer state is on disk: per-project terminal panes, a 12-edge link graph, an org chart with manages edges."
+        }
+      ]
+    },
+    {
+      "round": 10,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 10,
+        "settled_last_round": [],
+        "unlocks": [
+          "The requirement tree is exhausted"
+        ],
+        "fork": "Settled, all five. The transport question is closed and the tree with it.",
+        "touches": [
+          {
+            "name": "The claim ledger",
+            "anchor": "GRILL-LOG.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r10",
+            "title": "Settled in round 10"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "TEAM1",
+          "group": "r10",
+          "state": "settled",
+          "round": 10,
+          "by": "human",
+          "decision": "Team agents are started one at a time. The tool's own team and swarm manifests are not used, and our run manifest stays the only record of a team.",
+          "evidence": "You chose one at a time. A pattern is data and may be one-shot, so its shape belongs in the pattern description rather than a transport's org chart — otherwise every pattern is written twice, once per transport."
+        },
+        {
+          "component": "settled_card",
+          "id": "CLN2",
+          "group": "r10",
+          "state": "settled",
+          "round": 10,
+          "by": "human",
+          "decision": "On this transport, cleanup closes each terminal by the id in the run manifest, using the tool's own close command. The operating-system job covers only agents we start; the descendant sweep is the last resort.",
+          "evidence": "Accepted. Residual gap recorded rather than hidden: a background process started inside one of its terminals may outlive the terminal, which is the shape the Windows trial refuted, and only the sweep catches it."
+        },
+        {
+          "component": "settled_card",
+          "id": "ATT1",
+          "group": "r10",
+          "state": "settled",
+          "round": 10,
+          "by": "human",
+          "decision": "An agent reports and relays only through its own terminal's channel. The contact agent uses only the verbs that work without a parent terminal: run, list, close, stop.",
+          "evidence": "Accepted. This is the tool's constraint, not a preference — it reads the caller from terminal ancestry, and setting that identity by hand does not work."
+        },
+        {
+          "component": "settled_card",
+          "id": "LED2",
+          "group": "r10",
+          "state": "settled",
+          "round": 10,
+          "by": "human",
+          "decision": "The PRD proceeds now, with this transport graded surface-verified and trial-pending — verified by the tool's own contract, not by measurement.",
+          "evidence": "You chose trial-pending, the same grade you accepted for the usage-read claim. It bends your all-four-trials rule once, deliberately, because the trial is blocked on opening the app rather than on anything in the design. A later failure edits the transport section; it does not auto-drop the transport."
+        },
+        {
+          "component": "settled_card",
+          "id": "DET1",
+          "group": "r10",
+          "state": "settled",
+          "round": 10,
+          "by": "human",
+          "decision": "Detection looks for the command in the user profile directory, never on the command path alone, and never asks the tool's background service whether teams are possible. A command that answers that terminal attach is disabled is reported as a fixable setting, named.",
+          "evidence": "Accepted. Both halves come from the mistake I made in this session; a detector built on either assumption would repeat it silently on a user's machine."
+        }
+      ]
+    },
+    {
+      "round": 11,
+      "state": "settled",
+      "header": {
+        "component": "round_header",
+        "round": 11,
+        "settled_last_round": [],
+        "unlocks": [
+          "The grill is closed"
+        ],
+        "fork": "Both actions approved. The grill ends here.",
+        "touches": [
+          {
+            "name": "The checkpoint",
+            "anchor": "GRILL-LOG.md"
+          }
+        ],
+        "groups": [
+          {
+            "id": "r11",
+            "title": "Settled in round 11"
+          }
+        ]
+      },
+      "items": [
+        {
+          "component": "settled_card",
+          "id": "CMT1",
+          "group": "r11",
+          "state": "settled",
+          "round": 11,
+          "by": "human",
+          "decision": "The grill work is committed: the eleven glossary terms as their own commit, the grill documents as a second.",
+          "evidence": "Accepted. Committed on the feature branch, not merged — merging stays yours."
+        },
+        {
+          "component": "settled_card",
+          "id": "SPIN2",
+          "group": "r11",
+          "state": "settled",
+          "round": 11,
+          "by": "human",
+          "decision": "The deferred nested sub-teams work is minted as a tracked stub, naming what must be proved first: nesting, reporting, restart recovery, cleanup.",
+          "evidence": "Accepted. Minted through the sanctioned tracker writer in spinoff mode, never by the grill itself, and the returned key is recorded on the candidate row."
+        }
+      ]
+    },
+    {
+      "round": 12,
+      "state": "current",
+      "header": {
+        "component": "round_header",
+        "round": 12,
+        "settled_last_round": [
+          "CMT1",
+          "SPIN2"
+        ],
+        "unlocks": [
+          "/afk:to-prd writes the PRD from this log"
+        ],
+        "fork": "The grill is closed.\n\n74 cards over eleven rounds, every one settled by you. The claim ledger is closed: four claims went to live trial, one came back refuted and was re-settled against what the machine actually does, and the single remaining unproven claim carries a grade you set yourself.\n\nEleven terms are in the plugin glossary. The devil's-advocate pass ran against the settled set and its twelve findings became rounds 5 and 8. Nothing is open.\n\nWhat happens next is synthesis, not interview: the PRD is written from the checkpoint, and it re-asks nothing.",
+        "touches": [
+          {
+            "name": "Everything settled",
+            "anchor": "GRILL-LOG.md"
+          },
+          {
+            "name": "The glossary",
+            "anchor": "GLOSSARY.md"
+          }
+        ],
+        "links": [
+          {
+            "label": "The checkpoint",
+            "href": "GRILL-LOG.md"
+          }
+        ],
+        "size_note": "No cards. Nothing to answer — this page is now the record."
+      },
+      "items": []
+    }
+  ]
+}

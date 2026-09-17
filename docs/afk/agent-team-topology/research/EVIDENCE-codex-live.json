@@ -1,0 +1,149 @@
+{
+  "observedAt": "2026-09-15T16:49:20.7855152Z",
+  "command": "1devtool-agent run --to=codex --prompt-stdin --timeout=5 --no-link --model=gpt-5.6-sol --json",
+  "rootPid": 20576,
+  "elapsedSeconds": 6.36,
+  "exitCode": 124,
+  "processes": [
+    {
+      "pid": 45028,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 3624,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 31480,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 30084,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 24336,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 29552,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 20264,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 49604,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 54000,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 1616,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 50076,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 47856,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 37748,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 14256,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 21508,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 54584,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 31828,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 41852,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 20576,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 36956,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 39924,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 7808,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    },
+    {
+      "pid": 46324,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    }
+  ],
+  "stdout": "{\n  \"agent\": \"codex\",\n  \"output\": \"OpenAI Codex v0.154.0\\n--------\\nworkdir: C:\\\\Users\\\\mvu\\\\PersonalProjects\\\\afk-driver-agent-teams\\\\docs\\\\afk\\\\agent-team-topology\\\\research\\nmodel: gpt-5.6-sol\\nprovider: openai\\napproval: never\\nsandbox: danger-full-access\\nreasoning effort: high\\nreasoning summaries: none\\nsession id: 01a0a5f9-05bb-76d0-8882-e8fbf57dcf61\\n--------\\nuser\\nBounded transport probe. Do not use tools. Reply with exactly PROBE_OK.\\r\\n\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\n\",\n  \"exitCode\": 124,\n  \"durationSeconds\": 5,\n  \"stderr\": \"OpenAI Codex v0.154.0\\n--------\\nworkdir: C:\\\\Users\\\\mvu\\\\PersonalProjects\\\\afk-driver-agent-teams\\\\docs\\\\afk\\\\agent-team-topology\\\\research\\nmodel: gpt-5.6-sol\\nprovider: openai\\napproval: never\\nsandbox: danger-full-access\\nreasoning effort: high\\nreasoning summaries: none\\nsession id: 01a0a5f9-05bb-76d0-8882-e8fbf57dcf61\\n--------\\nuser\\nBounded transport probe. Do not use tools. Reply with exactly PROBE_OK.\\r\\n\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\n\",\n  \"timedOut\": true,\n  \"rawStderr\": \"OpenAI Codex v0.154.0\\n--------\\nworkdir: C:\\\\Users\\\\mvu\\\\PersonalProjects\\\\afk-driver-agent-teams\\\\docs\\\\afk\\\\agent-team-topology\\\\research\\nmodel: gpt-5.6-sol\\nprovider: openai\\napproval: never\\nsandbox: danger-full-access\\nreasoning effort: high\\nreasoning summaries: none\\nsession id: 01a0a5f9-05bb-76d0-8882-e8fbf57dcf61\\n--------\\nuser\\nBounded transport probe. Do not use tools. Reply with exactly PROBE_OK.\\r\\n\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\nhook: SessionStart\\n\"\n}\n",
+  "stderr": ""
+}

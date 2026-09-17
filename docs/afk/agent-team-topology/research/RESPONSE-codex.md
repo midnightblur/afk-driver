@@ -1,0 +1,61 @@
+# RESPONSE-codex — converge round 3, Step 1
+
+Author: debater-astra. Date: 2026-09-15. Side: codex.
+Prose follows `LANGUAGE.md` §3. Positions below supersede conflicting positions in `PROPOSAL-codex.md` and `CRITIQUE-codex.md`.
+
+Sources: `BRIEF.md`, `FACTS-claude.md`, `FACTS-codex.md`, both `PROPOSAL-*.md`, both `CRITIQUE-*.md`, and `../GRILL-LOG.md`.
+`Cnnn` identifiers belong to `FACTS-codex.md`; all other fact identifiers belong to `FACTS-claude.md`.
+JSONL means one JavaScript Object Notation object per line.
+Positions are proposed design decisions; cited observations retain their original evidence limits.
+
+Human rulings remain binding: agents run in auto mode for this session; planners debate before unresolved human choices reach the grill.
+The product default remains open, as `../GRILL-LOG.md` records.
+
+## Objections from CRITIQUE-claude.md §a
+
+| obj | verdict: accept / reject / compromise | reason + fact ids | resulting position, one sentence |
+|---|---|---|---|
+| 1 | compromise | Accept a configurable generation check and explicit handling before unattended execution. Reject automatically charging for it merely because execution is unattended. CX-04 reports 18,541 tokens; CN-13 reports elapsed time, not a cost ceiling. C071 documents methods; C072 remains inferred and C077 unverified. A cheap model's success cannot establish access to the selected model: inference from C070, C076, C078. | Keep non-generation checks as the default; require either a configured, bounded generation check or explicit acceptance of unknown readiness before unattended execution. |
+| 2 | accept | Direct repository storage removes an unnecessary adapter dependency. PL-07 establishes multiple notes kinds, but does not establish the asserted loss of repository authority. `PROPOSAL-codex.md` §C explicitly asserts repository authority. That dispute need not block adopting direct storage. KS-03, KS-10 provide local precedents; KS-17 supports retention. | Write canonical facts directly under `{spec-dir}/knowledge/` through one script, with retained evidence and the catalog described in dispute 5. |
+| 3 | compromise | Accept structured events and rendered views. Reject the premise that Markdown cannot contain identifiers or parseable fields: both supplied fact tables already contain identifiers. `PROPOSAL-codex.md` §C also specifies identifiers and digests. JSONL simplifies explicit event validation; it does not itself establish concurrency safety. KS-05, KS-06, KS-10, PL-40. | Use scoped JSONL events with serialized, idempotent writes, explicit conflict handling, and on-demand Markdown views; keep conclusion verification separate. |
+| 4 | reject | `BRIEF.md` goal 6 explicitly requests none, meaning one agent. Native behavior creates children: SP-01, SP-09, SP-21. These values differ. SP-12 requires independent review, so strict single-agent execution cannot claim that gate passed. | Preserve unset/native behavior and add explicit `none`, which prohibits child execution and stops before any required independent stage it cannot satisfy. |
+| 5 | accept | PL-30 caps nesting; CN-02 and C019 restrict particular mechanisms. C032 documents hierarchy in 1DevTool, so the evidence does not establish universal impossibility. The supplied files lack a completed hierarchy lifecycle trial. | Defer the built-in `hierarchy` pattern until one transport proves permitted nesting, delegated ownership, recovery, and descendant cleanup. |
+| 6 | compromise | Reuse the watchdog: PL-33 gives exit 3 for stale output and 4 for elapsed cap. SP-05 defines timeout parking. CN-15 requires a delivered exit or call result. These facts do not prove that a detached watchdog wakes every transport's manager or cleans descendants. | Consume watchdog exit 3/4 through a waiting call that resumes the manager, record `parked(timeout)`, and confirm owned cleanup separately. |
+| 7 | accept | Adopt the attributed mapping from `PROPOSAL-claude.md` §d: split/start, prompt, wait, read, close, list. HR-01–HR-13 support it. HR-07 requires submission/result correlation beyond terminal state. HR-22 describes the source session, not every future sandbox. | Integrate the herdr mapping, correlate submissions with result files, and test the selected permission path without assuming bypass is necessary. |
+| 8 | compromise | C074 requires a preceding provider response; CN-12 establishes authentication metadata only. Remove status-line reading as a cold-start probe. C074 does not forbid reuse of already supplied, scoped observations. The supplied files do not establish a free Claude quota endpoint. | Report cold-start Claude quota as unknown; consume existing scoped observations when supplied, and use a generation check only under dispute 1's policy. |
+| 9 | compromise | HR-25 and `BRIEF.md` establish a herdr use case. No supplied evidence supports the predicted months of delay. Move herdr and planner debate forward while preserving the smaller first delivery already adopted in `CRITIQUE-claude.md` §c.10. | Deliver storage first, then a herdr planner pair with bounded debate and lifecycle checks, before broader transports and patterns. |
+| 10 | accept | PL-10 identifies the effective-configuration reader; PL-16 identifies strict key validation. Equal configuration output alone cannot prove that no process starts. `BRIEF.md` goal 4 requires unchanged defaults. | Test byte-identical effective configuration with the new blocks absent, plus zero new provider probes, processes, installations, or external writes. |
+| 11 | compromise | For review, SP-12 and SP-13 already own settlement and adjudication. For planning, `../GRILL-LOG.md` requires planner debate before the human grill. Restricting every debate to review would omit that ruling. A round cap alone cannot turn an evidence gap into a human-only choice. | Put review debate inside existing settlement, and planner debate before the grill; only reasoned agreements or human-only unresolved choices complete convergence. |
+| 12 | accept | CN-02, CN-05, CN-06 justify coverage of Claude teams, background sessions, and messaging. They do not prove these are the only durable choices. CN-05 distinguishes `stop` from destructive `rm`; C066–C067 distinguish documented resumption from persistence guarantees. | Include Claude background execution within headless support and optional Claude-team support, with tested messaging, retained history, and separate exit/cleanup receipts. |
+
+## Final positions on open disputes
+
+| dispute | codex final position | reason + fact ids |
+|---|---|---|
+| 1. May the default availability check spend a generation call? | No. Default checks do not generate. An explicit policy can authorize a bounded check on the intended provider/model. Scope its budget to startup context, hooks, output, duration, and retries; a trivial prompt alone is insufficient. Before unattended execution, require that policy or explicit acceptance of unknown readiness. Otherwise stop during preparation. Cache scoped, dated results; never promise future success. | CX-04 records 18,541 tokens for a trivial prompt. CN-13 proves a successful historical turn, not a price bound. C070–C078 distinguish authentication, metadata, unknown quota, billing configuration, and inference. Auto execution in `../GRILL-LOG.md` does not settle the product's probe default. |
+| 2. Does strict single-agent selection exist beside today's behavior? | Yes: `none` means no child agents, including external agents. Unset/native preserves existing delegation. Validate required independence before starting affected work; report incompatibility rather than passing or weakening that gate. Multiple configured providers may select the one executing provider, but cannot create simultaneous reviewers under `none`. | `BRIEF.md` goals 4 and 6; SP-01, SP-09, SP-12, SP-21. Independent configuration does not require accepting combinations that violate a task's required capabilities: PL-20. |
+| 3. A named provider fails: fall back or stop? | Stop the affected role unless an explicit fallback list authorizes substitution. Automatic selection may try configured candidates that satisfy the role's quality and capability requirements. Record every substitution; visibility alone does not authorize it. | PL-20, PL-29; C031, C046. `CRITIQUE-claude.md` §c.6 and §d.e already converge on required-provider constraints. This is an authority policy, not an inferred platform behavior. |
+| 4. Smallest first delivery | Store scoped facts and retained evidence; provide filtered retrieval, a rebuildable catalog, and artifact/termination receipts around existing native children. Prove a fresh consumer answers from a terminated planner's evidence. Also cover interrupted capture and visibly missing knowledge. Add no provider or environment probe, new transport family, or review routing in phase 1. Phase 2 targets the herdr planner pair and debate. | `BRIEF.md` goals 2–3; KS-03, KS-10, KS-16–KS-17; C023–C024 show why output capture alone needs limits. `CRITIQUE-claude.md` §c.10 accepts the smaller first delivery; HR-25 supports the next delivery. |
+| 5. Spec folder, catalog, and cleanup | Canonical JSONL facts and necessary evidence live under `{spec-dir}/knowledge/`. Add a repository-wide, rebuildable catalog of subjects, scoped identifiers, and pointers; it copies no claims. Render views on demand. `/afk:gc` preserves the knowledge and its necessary evidence. Relocate evidence referenced from deleted paths before cleanup, or mark dependent claims unusable. | KS-03, KS-16, KS-17; `CLAUDE.md` §Section ownership invariants confirms deletion of `plan/`. `BRIEF.md` goal 3 supports retrieval beyond one producer's lifetime. A catalog across features is the proposed mechanism for avoiding repeated research, not a separately settled human requirement. |
+| 6. Meaning of verified | A verified conclusion has a scoped assertion supported by checked evidence and either a relevant executable assertion or a recorded reviewer judgment. Track evidence freshness separately. Unchanged hashes, zero exits, and existing references do not promote an inference. On reuse, check scope and expiry; repeat conclusion review when supporting conditions change or remain uncertain. Preserve the historical verdict. | KS-05 separates claim classification from supporting nodes; KS-06 checks line identity; KS-07 checks claims. C071/C072/C077 demonstrate documented capability without established live usability. Inference: unchanged evidence alone cannot establish unchanged callers, configuration, or entitlement. |
+| 7. Build hierarchy now? | Defer it. Keep the role graph extensible, but reject unsupported nesting before execution. Admit the built-in pattern only after a bounded trial proves delegated ownership, permitted communication, restart recovery, and cleanup of owned descendants. | PL-30, CN-02, C019 constrain nesting; C032 documents a distinct hierarchy facility. C044–C045 prove only an observed process set and timeout termination, not an entire hierarchy. |
+
+## Rechecks and evidence limits
+
+Only files named by `CONVERGE.md` are read. No live provider check, source traversal, agent launch, or external evidence read occurs.
+Historical measurements remain attributed observations. Runtime capability claims remain unverified in this round.
+The checks below confirm the recorded evidence and its limits; they do not re-confirm provider behavior.
+
+Commands run from the repository root:
+
+```powershell
+rg -n '^\| (C019|C032|C070|C071|C072|C074|C077|C078|KS-05|KS-06|KS-07|KS-17|SP-09|SP-12|PL-33|HR-07|HR-22|CN-02|CN-13|CX-04) \|' docs/afk/agent-team-topology/research/FACTS-codex.md docs/afk/agent-team-topology/research/FACTS-claude.md
+rg -n 'steer:|Lifespan|\| [0-9]+ \|' docs/afk/agent-team-topology/GRILL-LOG.md CLAUDE.md docs/afk/agent-team-topology/research/CRITIQUE-claude.md
+```
+
+Both commands exit 0. The first returns all 20 selected fact rows.
+The second confirms 12 objections, both human steering lines, and the `plan/` deletion rule at `CLAUDE.md:160`.
+C072 remains inferred; C077 remains unverified; HR-22 retains its source-session scope.
+CX-04 retains its reported token count; CN-13 contains no monetary cost measurement.
+
+Step 2 remains pending. `VERDICT-codex.md` must cite `RESPONSE-codex.md` when Step 2 is requested.
