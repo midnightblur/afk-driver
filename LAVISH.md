@@ -53,9 +53,48 @@ render script's write triggers that reload by itself, and the `lavish-axi`
 command the injection rule below demands is then the poll the round already
 waits on, or a `--no-open` render — both inject, neither opens a window.
 
+### Wave Terminal on Windows
+
+Wave Terminal is an optional host for the same Lavish session page. Check it
+only before a visible render:
+
+```
+python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" eligible
+```
+
+Exit `1` keeps the command table above unchanged. This includes non-Windows,
+remote Wave connections, stale Wave variables, an incomplete local scope, and
+a missing `wsh` command. It also includes a timed-out or failed block-list
+command and block-list output that is not usable JSON.
+
+Exit `0` uses this sequence for the first visible render and each later visible
+render:
+
+1. Run the literal `npx lavish-axi@0.1.43 <file> --no-open` command. Do not
+   wrap it. Both injection hooks must see `lavish-axi` in the tool command.
+2. Take the exact generated session URL from that command. Pass it unchanged:
+   `python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" open "<url>"`.
+3. Helper exit `0` means Wave opened or reused one Web block. Open no browser.
+4. Helper exit `1` means failure happened before any Wave open attempt. Run the
+   plain first render command from the table so the normal browser opens.
+5. Helper exit `2` means a Wave open attempt timed out, failed, or could not be
+   confirmed. The helper prints one fallback message. Print no second message
+   and open no browser, because that could create 2 views.
+
+The helper accepts only the generated HTTP URL on `127.0.0.1` with an explicit
+valid port. It uses the current Wave tab to find a Web block with that exact
+URL. A match is replaced in place. No match opens one Web block. Closing that
+block makes the next visible render open a new one.
+
+The helper uses Wave variables only to confirm a local session and select the
+current tab and block. It never prints those values, reads Wave credentials,
+adds page JavaScript, or adds a terminal-command bridge. The existing
+`window.lavish` answer bridge remains the only page-to-agent path.
+
 **Warm-up.** At the start of an interactive phase with render points ahead,
 run one background render (`--no-open`) on the phase's artifact file so the
-first real render pays no `npx` resolution or server spin-up. Reuse one
+first real render pays no `npx` resolution or server spin-up. Warm-up never
+checks Wave and never opens or replaces a Wave block. Reuse one
 artifact file per phase — a render opens **or resumes** a session; a fresh
 file per question forfeits the resume.
 

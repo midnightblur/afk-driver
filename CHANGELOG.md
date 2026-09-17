@@ -37,6 +37,17 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-17
+
+### Added
+
+- **Lavish pages can reuse one Wave Terminal Web block on Windows.** The
+  opt-in setup item installs Wave only when selected. A local Wave session can
+  open the generated loopback session URL without creating a browser tab. The
+  helper reuses the block, reopens it after closure, and prevents a second view
+  when Wave may have opened before confirmation failed. AFK keeps the existing
+  browser path everywhere else. Run `/afk:setup` to select the optional app.
+
 ## [1.4.1] - 2026-09-17
 
 ### Fixed
