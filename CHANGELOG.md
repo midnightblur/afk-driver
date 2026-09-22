@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-22
+
 ### Changed
 
 - **Model tiers move to Opus 5.5 and GPT-6.** The implementation tier drops
