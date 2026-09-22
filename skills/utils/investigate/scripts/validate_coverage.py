@@ -352,7 +352,7 @@ def validate(ledger: dict, scope: str = "run",
         (row.get("class"), row["site"])
         for row in nodes
         if isinstance(row.get("site"), str) and row.get("query_id") is None
-        and row.get("disposition") in ("traced", "terminal")
+        and row.get("disposition") in ("traced", "terminal", "irrelevant")
         and str(row.get("evidence") or "").strip()
     }
 

@@ -28,6 +28,16 @@ first released heading here.
   B7 to `judgment-only`, for a tracer to resolve. A repository that declares
   generated output or a reactor manifest sees no change.
 
+- **A tracer's answer now closes what the seed left open.** The seed writes
+  every search hit as an `unverified` node and every declared site as a
+  `judgment-only` class. The merge treated those rows as answers, so a
+  tracer's disposition became a conflict and the worst status kept the class
+  open: no fold over a seed could reach `closed`. The first fragment row under
+  an open key now replaces it, and later rows fold against that answer. The
+  validator also accepts an `irrelevant` node as the read that closes a
+  declared site, as the ledger format already stated, and the tracer
+  definition says how to hash a line that ends in `\r\n`.
+
 - **Choice pages send their answers from one visible control.** The page kit
   now owns one answer form around each active round. Its sticky bar shows a
   live summary, sends one tagged response, confirms the send, and copies the

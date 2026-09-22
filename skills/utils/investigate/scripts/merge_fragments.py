@@ -105,14 +105,18 @@ def differing(kept: dict, row: dict, skip: tuple[str, ...] = ()) -> list[str]:
                   and kept.get(key) != row.get(key))
 
 
-def merge_node(kept: dict, row: dict) -> dict:
-    """Two fragments reached the same site; only a disagreement is news."""
+def same_site(kept: dict, row: dict) -> None:
     for key in ("line_hash", "site", "class"):
         if kept.get(key) and row.get(key) and kept[key] != row[key]:
             raise MergeError(
                 f"node {kept.get('id')}: two fragments give it a different {key} "
                 f"({kept[key]!r} and {row[key]!r}); one id is one site"
             )
+
+
+def merge_node(kept: dict, row: dict) -> dict:
+    """Two fragments reached the same site; only a disagreement is news."""
+    same_site(kept, row)
     left, right = kept.get("disposition"), row.get("disposition")
     if left == right:
         # The disposition is the one field a fold reconciles. Every other
@@ -163,6 +167,40 @@ def merge_boundary(kept: dict, row: dict) -> dict:
             "narrower subject, never published as noise"
         )
     return merged
+
+
+# A staging row still in these states is a queue item, not an answer: the first
+# fragment row under its key answers it, and every later row folds against that
+# answer. Named in `LEDGER-FORMAT.md` § "Merging".
+OPEN_NODE = ("unverified",)
+OPEN_BOUNDARY = ("unverified", "judgment-only")
+
+
+def answer_node(kept: dict, row: dict) -> dict:
+    """A fragment dispositions a node the staging ledger left open."""
+    same_site(kept, row)
+    answered = dict(row)
+    for key, value in kept.items():
+        if key not in ("disposition", "reason") and answered.get(key) in (None, "", []):
+            answered[key] = value
+    return answered
+
+
+def answer_boundary(kept: dict, row: dict) -> dict:
+    """A fragment gives the verdict on a class the staging ledger left open.
+
+    The hits, queries and sites the staging row holds stay on the row, so every
+    node a search found is still counted, and every declared site still needs a
+    node that read it.
+    """
+    answered = merge_boundary(kept, row)
+    answered["status"] = row.get("status")
+    for key in ("reason", "method"):
+        if row.get(key):
+            answered[key] = row[key]
+        elif key == "reason":
+            answered.pop(key, None)
+    return answered
 
 
 CLAIM_ORDER = ("unverified", "inference", "fact")
@@ -386,6 +424,13 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                            check_key, merge_check),
     }
 
+    opened = {
+        "nodes": ({key for key, row in tables["nodes"][0].items()
+                   if row.get("disposition") in OPEN_NODE}, answer_node),
+        "boundaries": ({key for key, row in tables["boundaries"][0].items()
+                        if row.get("status") in OPEN_BOUNDARY}, answer_boundary),
+    }
+
     said: list[str] = []
     seen_bodies: set[str] = set()
     folded = 0
@@ -453,9 +498,13 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
             if warning not in warnings:
                 warnings.append(warning)
         for table, (index, key_of, fold) in tables.items():
+            open_keys, answer = opened.get(table, (set(), None))
             for row in rows(fragment, table):
                 key = key_of(row)
-                if key in index:
+                if key in open_keys:
+                    index[key] = answer(index[key], row)
+                    open_keys.discard(key)
+                elif key in index:
                     index[key] = fold(index[key], row)
                 else:
                     index[key] = dict(row)

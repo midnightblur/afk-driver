@@ -71,6 +71,12 @@ def hit(node_id, query=QUERY, line_hash="abcdef123456") -> dict:
             "parent": None, "query_id": query}
 
 
+# The node an agent leaves when it reads a declared site.
+READ_B3 = {"id": "B3:alpha/B3.java:4", "class": "B3", "site": "alpha/B3.java:4",
+           "disposition": "terminal", "evidence": "the line an agent read",
+           "parent": None, "query_id": None}
+
+
 class MergeFragmentsTest(unittest.TestCase):
     def merge(self, staging, *fragments):
         return merge_fragments.merge(
@@ -227,6 +233,69 @@ class MergeFragmentsTest(unittest.TestCase):
              "evidence": "the write", "parent": "B1:alpha.java:2"}]))
         node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
         self.assertEqual(node["disposition"], "terminal")
+
+    # A seed node is a queue item: the tracer that dispositions it answers it.
+    def test_a_fragment_answers_a_node_the_staging_ledger_left_open(self):
+        staging = ledger()
+        seeded = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        seeded.update({"disposition": "unverified", "reason": "not yet dispositioned"})
+        answer = {**hit("B1:alpha.java:9", query=seeded["query_id"],
+                        line_hash=seeded["line_hash"]),
+                  "disposition": "irrelevant", "evidence": "a comment"}
+        merged = self.merge(staging, fragment(nodes=[answer]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "irrelevant")
+        self.assertNotIn("reason", node)
+
+    def test_two_fragments_answering_one_open_node_differently_reopen_it(self):
+        staging = ledger()
+        seeded = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        seeded.update({"disposition": "unverified", "reason": "not yet dispositioned"})
+        first = {**hit("B1:alpha.java:9", query=seeded["query_id"],
+                       line_hash=seeded["line_hash"]),
+                 "disposition": "irrelevant", "evidence": "a comment"}
+        second = {**first, "disposition": "terminal"}
+        merged = self.merge(staging, fragment(partition="p1", nodes=[first]),
+                            fragment(partition="p2", nodes=[second]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertIn("conflict: irrelevant vs terminal", node["reason"])
+
+    # A class the seed left for a reader closes on the reader's verdict, and the
+    # sites the seed declared stay on the row for the validator to hold it to.
+    def test_a_fragment_answers_a_class_the_staging_ledger_left_open(self):
+        staging = ledger()
+        seeded = next(item for item in staging["boundaries"] if item["class"] == "B3")
+        seeded.update({"status": "judgment-only", "method": "none",
+                       "reason": "a site an agent reads: alpha/B3.java",
+                       "sites": ["alpha/B3.java"]})
+        merged = self.merge(staging, fragment(boundaries=[
+            {"class": "B3", "status": "closed", "method": "read the declared site",
+             "hits": 0, "hit_ids": [], "sites": ["alpha/B3.java"],
+             "universe": "the declared site"}], nodes=[READ_B3]))
+        row = next(item for item in merged["boundaries"] if item["class"] == "B3")
+        self.assertEqual(row["status"], "closed")
+        self.assertEqual(row["method"], "read the declared site")
+        self.assertNotIn("reason", row)
+        self.assertEqual(row["sites"], ["alpha/B3.java"])
+
+    def test_a_second_answer_to_an_open_class_folds_by_the_worst_status(self):
+        staging = ledger()
+        seeded = next(item for item in staging["boundaries"] if item["class"] == "B3")
+        seeded.update({"status": "judgment-only", "method": "none",
+                       "reason": "a site an agent reads: alpha/B3.java"})
+        row_of = lambda status, reason=None: {  # noqa: E731
+            "class": "B3", "status": status, "method": "read the declared site",
+            "hits": 0, "hit_ids": [], "universe": "the declared site",
+            "sites": ["alpha/B3.java"], **({"reason": reason} if reason else {})}
+        merged = self.merge(staging,
+                            fragment(partition="p1", boundaries=[row_of("closed")],
+                                     nodes=[READ_B3]),
+                            fragment(partition="p2", boundaries=[
+                                row_of("partial", "one site unread")], nodes=[READ_B3]))
+        row = next(item for item in merged["boundaries"] if item["class"] == "B3")
+        self.assertEqual(row["status"], "partial")
+        self.assertEqual(row["reason"], "one site unread")
 
     # One counter-search run in two partitions is one row.
     def test_the_same_counter_search_unions_rather_than_repeats(self):
