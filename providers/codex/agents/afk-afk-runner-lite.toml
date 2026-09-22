@@ -1,6 +1,6 @@
 name = "afk-afk-runner-lite"
 description = "AFK deterministic-check runner; reports the command's own exit code."
-model = "gpt-5.6-terra"
+model = "gpt-6-luna"
 model_reasoning_effort = "low"
 sandbox_mode = "workspace-write"
 developer_instructions = '''

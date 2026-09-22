@@ -55,15 +55,15 @@ Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not 
 
 | Tier | Claude Code | Codex CLI |
 |---|---|---|
-| Frontier | `opus` | `gpt-5.6-sol` at high or xhigh effort; `gpt-5.5` fallback |
-| Implementation | Pinned `claude-opus-4-8`; `sonnet` for simple slices | `gpt-5.6-terra` at medium effort; lower effort for simple slices |
-| Digest | `sonnet` | `gpt-5.6-terra` at low effort |
-| Deterministic | `haiku`, carried by the `afk-runner-lite` definition | `gpt-5.6-terra` at low effort; no distinct rung exists, so the split saves nothing here |
+| Frontier | `opus` | `gpt-6-sol` at high or xhigh effort; `gpt-5.6-sol` fallback |
+| Implementation | `opus`, carried by the `afk-implementor` definition; `sonnet` for simple slices | `gpt-6-sol` at medium effort; lower effort for simple slices |
+| Digest | `sonnet` | `gpt-6-sol` at low effort |
+| Deterministic | `haiku`, carried by the `afk-runner-lite` definition | `gpt-6-luna` at low effort |
 
 A Fable-class or Astra-class model is never a tier. Name one only where a skill
 requires that model for one specific usage.
 
-The implementation pin travels through the agent definition. Never pass the pinned identifier as a spawn-model argument. Agent definitions load at session start.
+The implementation model travels through the `afk-implementor` definition. Never pass it as a spawn-model argument. Agent definitions load at session start.
 
 ## Agent stubs
 
