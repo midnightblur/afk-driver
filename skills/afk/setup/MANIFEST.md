@@ -212,6 +212,27 @@ a token value — not even partially.
   doctrine stays in `INVESTIGATION.md`. Opt out by deleting the sentinel block;
   opt in any time by re-running `/afk:setup`.
 
+### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
+- **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
+  this settings key — this plugin's own `skills/afk/AGENTS.md` and the
+  `nested_steering` capability (`CAPABILITIES.md`) reach that session only when
+  the key is set with the root `CLAUDE.md` bridge present. Which harness, and
+  the key's values: `providers/HARNESS-MATRIX.md`; standard:
+  `skills/afk/agents-md/SKILL.md`.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py" --check`
+  — reads `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`;
+  exit 0 when `pluginConfigs."agents-md@builtin".options.instructionFiles` is
+  `claude-md-and-agents-md`.
+- **Fix:** `auto:` `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py"`
+  — merges exactly that one key, preserves every other key and the file's
+  indentation, writes a timestamped backup first, and creates the file and its
+  parents when absent.
+- **Notes:** the key may also arrive from managed settings or `--settings`,
+  which the probe cannot see — a miss it reports is advisory, and the
+  idempotent fix writes the same value into the user-global settings file
+  either way. It lives only in the user-global file, per machine, never on git;
+  the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
@@ -554,11 +575,20 @@ Gating rule: if O1 misses, report the whole section as
   `codex plugin remove afk@afk-toolkit`, add it again, then restart.
 
 ### O4 · current hook definitions trusted
-- **Needed by:** every handler in `hooks/hooks.json`.
+- **Needed by:** every handler in `hooks/hooks.json` and its native twin
+  `hooks/hooks.codex.json`.
 - **Probe:** parse `~/.codex/config.toml`; every enabled AFK handler has a
-  current native trust entry. Never print other config or secret values.
+  native trust entry matching the currently installed `hooks.codex.json`
+  definition. Never print other config or secret values.
+- **A plugin upgrade changes `hooks/hooks.codex.json`, so the harness re-prompts
+  for hook trust and a dismissed prompt leaves those hooks silently off.** Re-run
+  `/afk:setup` after every version change on that harness — not only when a
+  changelog entry says the dependency set changed. The probe re-checks trust
+  against the current definitions, which is what catches a stale or dismissed
+  trust after an upgrade.
 - **Fix:** `human:` review and trust every current AFK definition through the
-  native hooks interface after all `hooks.json` edits land.
+  native hooks interface after all `hooks.json` / `hooks.codex.json` edits land,
+  including after a plugin upgrade.
 
 ### O5 · Codex agent TOML stubs
 - **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`,
@@ -598,6 +628,8 @@ Gating rule: if O1 misses, report the whole section as
   `project_doc_fallback_filenames = ["CLAUDE.md"]`.
 - **Fix:** `human:` offer that exact idempotent setting. Preserve all other
   user configuration.
+- **Notes:** serves a repo that still keeps per-directory `CLAUDE.md`; inert in
+  a repo migrated to the `AGENTS.md` standard, which leaves only the root bridge.
 
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.

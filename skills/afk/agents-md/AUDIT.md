@@ -18,7 +18,18 @@ Manual. Scan project's `AGENTS.md` tree / `.claude/rules` / shared layer; report
 3. **Staleness** — verify referenced paths/commands/symbols still exist in code; flag dead hints.
    Flag volatile specifics (pinned versions, counts, dates, "current" dep lists) →
    generalize to the durable rule (`LANGUAGE.md` plugin root, "Stay generic").
-4. **Mechanical** — run `scripts/mechanical_check.py <root>`: size >200 lines, broken `@import` paths.
+4. **Mechanical** — run `scripts/mechanical_check.py <root>`. It reports (never fails; exit 0), one
+   tagged line per finding; the steward acts per tag:
+   - `[size > 200]` / `[bytes > 32768]` / `[chain > 32768]` — split the file, or rebalance the
+     root→directory chain under the 32 KiB per-chain budget (`providers/HARNESS-MATRIX.md`).
+   - `[import]` (in an `AGENTS.md`) — inline the target or make it a nested `AGENTS.md` (D2).
+   - `[bridge]` — rewrite the root `CLAUDE.md` to exactly `@AGENTS.md`.
+   - `[migrate]` — advisory; propose `git mv CLAUDE.md AGENTS.md` for each non-bridge `CLAUDE.md`.
+   - `[override]` — propose removal (banned, D3).
+   - `[tracked-local]` — untrack the file and add it to `.gitignore`.
+   - `[rule-paths]` — add the `paths:` frontmatter key.
+   - `[broken-import]` — fix or drop the `@import` in the `CLAUDE.md`.
+
    Orphan shared files + dead file-refs = agent judgment (unreliable to script across repos).
 5. **Inclusion-bar sweep** — re-test each existing line vs the 4 gates; flag now-obvious / one-off /
    non-steering lines as removal candidates.
