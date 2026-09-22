@@ -41,8 +41,9 @@ release page from its section here. Nobody tags by hand.
 
 - **Model tiers move to Opus 5.5 and GPT-6.** The implementation tier drops
   its `claude-opus-4-8` pin: `afk-implementor` now runs `opus`, the latest
-  Opus. The OpenAI agent stubs move to `gpt-6-sol`; `afk-runner-lite` runs
-  `gpt-6-luna`. The implementation tier is now the frontier model at a lower
+  Opus. The OpenAI agent stubs move to `gpt-6-sol` (frontier at high effort,
+  implementation at medium); `afk-reader` and `afk-runner` run `gpt-5.6-terra`
+  at medium effort; `afk-runner-lite` runs `gpt-6-luna`. The implementation tier is now the frontier model at a lower
   reasoning effort, not a rung below it.
 
 ## [1.6.0] - 2026-09-22
