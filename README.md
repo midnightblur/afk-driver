@@ -774,6 +774,10 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   itself the ledger; for MRs outside the AFK chain. Details:
   `skills/utils/settle-change/SKILL.md`. `/afk:settle-mr` stays as a
   deprecated alias for one major version and forwards here.
+- **`/afk:sred`** — user-invoked: write or revise SR&ED (Scientific Research
+  and Experimental Development) technical investigation documents for an audit
+  team; Markdown for review, DOCX on acceptance. Details:
+  `skills/utils/sred/SKILL.md`.
 - **`/afk:todo`** — per-project todo list that survives sessions. Details:
   `skills/utils/todo/SKILL.md`.
 - **`writing-for-agents`** — doctrine for writing any document an agent

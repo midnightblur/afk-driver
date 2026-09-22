@@ -398,6 +398,22 @@ a token value — not even partially.
 - **Notes:** setup installs and verifies only. It does not start the app, call
   its command-line tool, change the active terminal, or move a session.
 
+### C13 · pandoc **[deferred: first `/afk:sred` DOCX export]**
+- **Needed by:** `skills/utils/sred/SKILL.md` "Write" — converts each accepted
+  Markdown document to DOCX.
+- **Probe:** `pandoc --version`
+- **Fix:** `human:` install pandoc from <https://pandoc.org/installing.html>
+  (Windows: `winget install --id JohnMacFarlane.Pandoc --exact`).
+
+### C14 · LibreOffice (`soffice`) **[deferred: first `/afk:sred` DOCX export]**
+- **Needed by:** `skills/utils/sred/SKILL.md` "Write" — renders each DOCX to PDF
+  so every page is inspected before delivery.
+- **Probe:** `soffice --version`
+- **Fix:** `human:` install LibreOffice from <https://www.libreoffice.org>
+  (Windows: `winget install --id TheDocumentFoundation.LibreOffice --exact`),
+  then put its `program` directory on `PATH`.
+- **Notes:** the Windows installer does not add `soffice` to `PATH`.
+
 ### P1 · Python 3
 - **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
   runs through, so without it no gate or guard fires at all — the shared
