@@ -37,6 +37,18 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-22
+
+### Added
+
+- **`/afk:sred` writes SR&ED technical investigation documents.** SR&ED is
+  Scientific Research and Experimental Development. The skill is user-invoked
+  only. It rebuilds each topic's investigation from the team's account, the
+  repository history, and the records, and it keeps a source map beside each
+  document. It writes one Markdown document per topic for review, then one
+  DOCX per topic after acceptance. The DOCX step needs pandoc and LibreOffice:
+  run `/afk:setup` before the first export.
+
 ## [1.5.0] - 2026-09-17
 
 ### Added
