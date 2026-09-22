@@ -1,8 +1,8 @@
-# claude-md-compliance — documented-rule violations
+# agents-md-compliance — documented-rule violations
 
 Default `class: compliance`. Documented rules are hard findings — PRECEDENCE.md's baseline softening does not apply here.
 
-Load the resolved CLAUDE.md chain; for each documented rule, check the diff for a violation. This concern enforces the target repo's CLAUDE.md chain — landmines documented there (e.g. tenant/security test helpers, formatter discipline) live there, not here. The recurring landmines below are **not** homed in that chain — flag any the diff trips:
+Load the resolved AGENTS.md chain (the instruction files the orchestrator walked — "What the review reads"); for each documented rule, check the diff for a violation. This concern enforces the target repo's instruction chain — landmines documented there (e.g. tenant/security test helpers, formatter discipline) live there, not here. The recurring landmines below are **not** homed in that chain — flag any the diff trips:
 
 - `@Transactional(rollbackFor=…)` must be repeated on **every** override, not just the base — a subclass override that calls `super.x()` bypasses the proxy and silently commits on a checked exception.
 - Cost Center and Profit Center must be sourced as a **pair** from one source — never mixed.
@@ -12,4 +12,4 @@ Load the resolved CLAUDE.md chain; for each documented rule, check the diff for 
 - The access boundary to verify is **company and/or vendor**, not tenant (build-per-tenant = single-tenant at runtime).
 - Cross-module edits (outside the home module) carry a `// {TICKET-ID}:` marker comment in the added hunks.
 - Commits start with `[{NNNN-slug}]`.
-- Any rule stated in a service/sub-package `CLAUDE.md` that the diff contradicts — quote the rule and the offending line.
+- Any rule stated in a service/sub-package `AGENTS.md` that the diff contradicts — quote the rule and the offending line.

@@ -48,7 +48,7 @@ review/adversary/retro reports, steering notes, handoff docs):
 - **Directive subject + scope stated.** "Never run migrations against prod DB" ≠ "Never run migrations".
 - **Formats are contracts.** Compactness changes the words inside a section, never the section set or grammar the owning format file defines.
 
-### Steering notes (CLAUDE.md tree, role sidecars, `.claude/rules`) — additional rules
+### Steering notes (AGENTS.md tree, role sidecars, `.claude/rules`) — additional rules
 
 Read cold by future agents AND human teammates, and long-lived — unlike run artifacts, so also:
 
@@ -59,7 +59,7 @@ Read cold by future agents AND human teammates, and long-lived — unlike run ar
   - Good: `Auth: token TTL checked in AuthFilter (uses <, off-by-one on expiry). Refresh path skips filter.`
   - Good: `Migrations: Flyway V{n}__ naming. Never edit applied migration — add new. Baseline V1 in db/migration.`
   - Bad (obvious → drop): `This project uses Spring Boot, a popular Java web framework.`
-- **Leaf/subdir CLAUDE.md = directive only.** Emit the steering heading (`## …`) + body, nothing else — no file-title line, no `Scope:`/`Inherits` preamble: the dir path already scopes it and ancestors auto-load, so a banner adds tokens, not steering. Legacy leaf files carrying one are not the pattern to copy.
+- **Leaf/subdir AGENTS.md = directive only.** Emit the steering heading (`## …`) + body, nothing else — no file-title line, no `Scope:`/`Inherits` preamble: the dir path already scopes it and ancestors auto-load, so a banner adds tokens, not steering. Legacy leaf files carrying one are not the pattern to copy.
 - **Match the target file's heading structure + density** — meaning density/heading depth, not replicating a redundant title/`Scope:` banner a legacy file happens to carry.
 - **Block comments** `<!-- … -->` are stripped from agent context (free) but visible to humans in the raw file. Sparingly, for human-maintainer notes — never provenance (we don't track provenance).
 

@@ -34,13 +34,13 @@ LESSONS: <n> open, <m> applied, <k> verified, <f> filed — top open: <L-NNNN> (
 
 Walk `open` lessons newest-first; for each, route by `target`:
 
-- **CLAUDE.md tree / role sidecars / `.claude/rules` / `STAPLES.md`** →
-  delegate to `/afk:claude-md` with the draft; its propose → approve → write
+- **AGENTS.md tree / role sidecars / `.claude/rules` / `STAPLES.md`** →
+  delegate to `/afk:agents-md` with the draft; its propose → approve → write
   protocol and write boundary govern.
 - **Domain `GLOSSARY.md`** → delegate to `/afk:glossary` — same shape.
 - **Plugin file (skill, checklist, doctrine, hook)** → propose → approve →
   write **here**: load `/afk:writing-for-agents` first and hold the edit to
-  its bar; honour the plugin `CLAUDE.md` "Lockstep" partners and the
+  its bar; honour the plugin `AGENTS.md` "Lockstep" partners and the
   `FRESHNESS.md` same-commit obligations of every file touched. First apply
   `CAPTURE.md` "A plugin-file lesson on an installed plugin".
 - **Draft is a defect or feedback** per `CAPTURE.md` "A plugin defect is an
@@ -66,7 +66,7 @@ human what it takes for that edit to bind:
 | Written | Binds |
 |---|---|
 | Plugin file (skill, checklist, doctrine, hook) | Refresh the enabled plugin per `PROVIDERS.md`; until then the old text runs |
-| CLAUDE.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
+| AGENTS.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
 | Domain `GLOSSARY.md` | on next read; no action |
 
 ### `audit`

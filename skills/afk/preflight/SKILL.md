@@ -77,7 +77,7 @@ root), leave the MR Draft, leave every not-yet-reached row untouched.
 
 **PF-2 — validations.** Re-run the repository's mandated validation suite —
 the `static` tier of `verification.tiers`, plus whatever that repository's own
-`CLAUDE.md` names as mandatory — against the merged tip. A **mechanical** red (formatter, config-validation,
+`AGENTS.md` names as mandatory — against the merged tip. A **mechanical** red (formatter, config-validation,
 merge-induced compile break) is fixable within the shared cycle cap below. A
 **semantic** red (a validation asserting something is actually wrong, not just
 malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
@@ -161,13 +161,13 @@ is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
 **PF-4d product-debt homes — a real gate, not advisory.** Reached once
 PF-4c is `green`. Read every `plan/review/*.outcomes.json` for entries
 whose outcome is `settled(product-debt: <path>)`, plus any finding this
-run classified `product-debt`. For each, confirm the named `CLAUDE.md`
+run classified `product-debt`. For each, confirm the named `AGENTS.md`
 exists and carries a `## Known debt` entry for it.
 
 - All homed (or none found) → row `green`, `Evidence: product-debt
   homed: <n>`.
 - Any accepted `product-debt` finding with no home → land the entry via
-  `/afk:claude-md` within the shared fix cap, then re-check; cap
+  `/afk:agents-md` within the shared fix cap, then re-check; cap
   exhausted → `park(PF-4d: unhomed_product_debt)` naming each one.
 
 **PF-5 — ship evidence.**

@@ -39,18 +39,18 @@ Bulk reads are delegated per `DELEGATION.md` (plugin root): one subagent per fea
 
 Aggregate across features, then rank. A signal needs **≥2 independent occurrences** (different features, or different subtasks of one feature) — a single incident belongs to `/afk:fix`'s escape analysis, not a retro. The signal families:
 
-1. **Recurring finding classes** — which review/adversary `class`+concern combinations keep appearing. A class recurring across features means the *executor's* doctrine (or a target-repo CLAUDE.md rule) has a hole — caught downstream of where it should be prevented.
+1. **Recurring finding classes** — which review/adversary `class`+concern combinations keep appearing. A class recurring across features means the *executor's* doctrine (or a target-repo AGENTS.md rule) has a hole — caught downstream of where it should be prevented.
 2. **Park patterns** — which outcome statuses recur (`contract_mismatch`, `produces_drift`, `review_fail`…), on what kind of subtask. Recurring `contract_mismatch` implicates slicing (anchor quality); recurring `review_fail` implicates the executor's step doctrine.
 3. **Stall geography** — where wall-clock goes: per-subtask duration outliers from journal timestamps, remediation-cycle counts, gate latency p95 vs budget (`hooks/README.md` "Latency metrics & budget"), `lock_wait_ms` share.
 4. **Grill-gap correlation** — downstream failures (parks, blocking findings, smoke reds) whose root cause was decidable at grill time. Each a missed staple/question candidate for the owning grill skill.
 5. **Wiring debt** — open IOUs older than the feature that minted them.
 6. **Criterion yield** — join each finding's `criterion` to its recorded outcome: a criterion whose findings are predominantly `dismissed` across features is a prune/reword candidate (proposal edits the owning `skills/afk/review/checklists/*.md`); a criterion that never fires is flagged as possible dead weight, never auto-pruned. This is what keeps the review catalog earning its cost instead of only growing.
-7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk:claude-md` (which owns those writes), not as a plugin edit.
+7. **Pattern-debt recurrence** — the same criterion recurring in `PATTERN-DEBT.md` across features means the documented repo pattern itself deserves re-examination; surface it as input for `/afk:agents-md` (which owns those writes), not as a plugin edit.
 8. **Lesson closure & recurrence** — the safety net behind conclude-at-detection capture (single incidents belong to the detection points; this family only grades what they already recorded). An `applied` lesson whose signal (same class + target area) recurs in a later feature means the edit didn't stick → propose the **next rung of the escalation ladder** (`skills/afk/lessons/LEDGER-FORMAT.md`) as a new lesson superseding it, citing the recurrence. Lessons `open` longer than the feature that minted them are stall signals — surface them for `/afk:lessons apply`. Status transitions are applied via `/afk:lessons`, never stamped here (the ledger is one of the ledgers the read-only rule covers).
 
 ## Output
 
-Write the report to `{release-folder}/RETRO-{YYYY-MM-DD}.md` (format: [RETRO-FORMAT.md](RETRO-FORMAT.md)). Its load-bearing section is **Proposals**: at most 5, ranked by expected impact, each carrying its evidence (cited journal lines / finding ids / metric numbers), the root-cause hypothesis, and the concrete edit — file + section of the plugin artifact to change, with proposed wording. A proposal touching a lockstep pair or registry surface must name **every** partner file (`CLAUDE.md` "Lockstep" + `FRESHNESS.md` registry row) — a proposal that would create drift if half-applied is malformed.
+Write the report to `{release-folder}/RETRO-{YYYY-MM-DD}.md` (format: [RETRO-FORMAT.md](RETRO-FORMAT.md)). Its load-bearing section is **Proposals**: at most 5, ranked by expected impact, each carrying its evidence (cited journal lines / finding ids / metric numbers), the root-cause hypothesis, and the concrete edit — file + section of the plugin artifact to change, with proposed wording. A proposal touching a lockstep pair or registry surface must name **every** partner file (`AGENTS.md` "Lockstep" + `FRESHNESS.md` registry row) — a proposal that would create drift if half-applied is malformed.
 
 End with the layered report per `REPORTING.md` (plugin root):
 
@@ -66,5 +66,5 @@ Report: {path}
 - **Every claim cites.** A signal without its occurrences listed (feature + subtask + source line/id) is dropped. Numbers, not adjectives.
 - **Don't double-count re-runs.** A re-executed subtask contributes its final outcome once; earlier journal lines for the same subtask count as remediation cycles, not extra occurrences.
 - **Plugin issues also go upstream.** A signal about the plugin itself keeps its proposal and is also routed per `skills/afk/lessons/CAPTURE.md` "A plugin defect is an issue"; the report cites its `ISSUE:` line.
-- **No proposals about the target repo's code.** Product/code defects route to `/afk:fix`; this skill's proposals change the *workflow* (skills, doctrine files, gates, templates) only. Target-repo CLAUDE.md-rule gaps surface as input for `/afk:claude-md`, which owns those writes.
+- **No proposals about the target repo's code.** Product/code defects route to `/afk:fix`; this skill's proposals change the *workflow* (skills, doctrine files, gates, templates) only. Target-repo AGENTS.md-rule gaps surface as input for `/afk:agents-md`, which owns those writes.
 - **Cap the fan-out.** One digest subagent per feature; no nested fan-out.

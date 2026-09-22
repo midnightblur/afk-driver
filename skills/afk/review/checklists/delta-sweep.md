@@ -10,7 +10,7 @@ The consolidated implementation reviewer for a settle-loop delta round — the f
 - **Behaviour narrowed to dodge** (`class: spec`, severity `high`) — the change silences a symptom instead of fixing the cause: feature short-circuited, input rejected, case dropped, output special-cased.
 - **Test weakened to pass** (`class: test`, severity `high`) — assertion deleted or loosened, test disabled/skipped, expected value updated to match broken output, tolerance widened.
 - **New test proves nothing** (`class: test`) — an added test that cannot fail for the behaviour it names: tautological, asserts the DTO not the framework's real output, happy-path-only where the change is about the edge.
-- **Documented-rule breach in changed lines** (`class: compliance`) — the changed hunks violate an applicable CLAUDE.md-chain / rules / glossary rule you can quote.
+- **Documented-rule breach in changed lines** (`class: compliance`) — the changed hunks violate an applicable AGENTS.md-chain / rules / glossary rule you can quote.
 - **Unrelated churn riding the change** (`class: scope`) — reformat, rename, or refactor of lines the remediation didn't need to touch.
 - **Smell introduced by the change** (`class: smell`) — near-copy of an existing helper, copy-paste leaving a drifted twin, dead code, debug artifacts, ownerless TODO; hardcoded secret/config is `class: correctness`, severity `critical`.
 

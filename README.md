@@ -197,13 +197,13 @@ Grey is optional design depth — add for complex features, skip for small ones
 
 Every plan `/afk:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
 subtask (blocked by all others) that `/afk:execute` runs last to sync the
-CLAUDE.md harness for the shipped feature **and settle the staples registry**
-(`{service}/STAPLES.md`), delegating the write to `/afk:claude-md`.
+AGENTS.md harness for the shipped feature **and settle the staples registry**
+(`{service}/STAPLES.md`), delegating the write to `/afk:agents-md`.
 
 **Staples.** A *staple* is a delivered capability that became a standing
 expectation (e.g. deep-linking, Excel import/export) — every future feature
 matching its trigger must consider adopting it, via the per-service `STAPLES.md`
-registry. Consult/capture loops + stewardship: CLAUDE.md "Staples registry".
+registry. Consult/capture loops + stewardship: AGENTS.md "Staples registry".
 
 Start where your inputs land: raw idea → `/afk:grill-requirements`; existing PRD
 → `/afk:grill-solution`; SDD in hand → `/afk:to-subtasks`.
@@ -524,8 +524,8 @@ ADRs (`adr/design/`, owned by `/afk:to-sdd`).
 Two artifacts live at the **service root**, not the per-ticket spec folder,
 because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
 `/afk:glossary`) and `STAPLES.md` (cross-cutting staples registry, stewarded by
-`/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
-`/afk:claude-md` writes it.
+`/afk:agents-md`). Every design/plan/review stage reads `STAPLES.md`; only
+`/afk:agents-md` writes it.
 
 One artifact lives in the **main checkout** (shared across every feature
 worktree): `.claude/lessons/LEDGER.jsonl` — the append-only workflow lesson
@@ -539,7 +539,7 @@ The verification suites are **not** in this repo — they live in the consuming
 repository, and `verification.tiers` in its `.afk/config.yaml` says how to run
 each tier. A skill names a tier KEY (`static`, `unit`, `integration`, `api`,
 `e2e/browser`), never a command. A repository that keeps authoring recipes for
-its own suites names them in its own `CLAUDE.md` and in the `setup.extra` files
+its own suites names them in its own `AGENTS.md` and in the `setup.extra` files
 `/afk:setup` reads; AFK skills only *point* at recipes — never embed a
 copy, because a copy drifts from the code it describes.
 
@@ -630,7 +630,7 @@ graph TD
 Full contract — checkpoint text, the mandatory-`## Produces` rule,
 `design_conflict` routing on a binding-decision break, and the opt-in
 **materialized seams** upgrade (`materialize_seams=true`: compiler-checked
-pre-created seam stubs) — lives in CLAUDE.md "Cited-mode contract".
+pre-created seam stubs) — lives in AGENTS.md "Cited-mode contract".
 
 ---
 
@@ -715,9 +715,9 @@ refactors, tooling.)*
   `skills/afk/retro/SKILL.md`.
 - **`/afk:lessons`** — steward of the workflow lesson ledger
   (`status`/`apply`/`audit`). Details: `skills/afk/lessons/SKILL.md`.
-- **`/afk:claude-md`** — steward of CLAUDE.md harnesses, `.claude/rules`, and
+- **`/afk:agents-md`** — steward of AGENTS.md harnesses, `.claude/rules`, and
   the per-service `STAPLES.md` registry. Details:
-  `skills/afk/claude-md/SKILL.md`.
+  `skills/afk/agents-md/SKILL.md`.
 - **`/afk:design-system`** — per-service (not per-feature) `claude.ai/design`
   catalog mirroring the live frontend; re-run on token/component drift.
   Details: `skills/afk/design-system/SKILL.md`.
@@ -793,7 +793,7 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
 
 Mixed human + automated Markdown surfaces have strict single-writer ownership.
 Full map (including SDD-never-published, journal append-only, `plan/review/`
-co-writers): CLAUDE.md "Section ownership invariants". The three you'll meet
+co-writers): AGENTS.md "Section ownership invariants". The three you'll meet
 first:
 
 - **Parent ticket description** — `/afk:to-ticket` writes only its AFK-managed
@@ -806,7 +806,7 @@ first:
   cell; `/afk:smoke-test` a disjoint smoke-gate slice of the same `PLAN.md`.
 
 > **Contributor rules.** Same-commit freshness: `FRESHNESS.md` (plugin root).
-> Emitter/parser lockstep on plan contract sections: CLAUDE.md "Lockstep".
+> Emitter/parser lockstep on plan contract sections: AGENTS.md "Lockstep".
 
 ---
 
@@ -845,4 +845,4 @@ returns), and
 a tracked stub — grills carry only a pointer to it).
 
 For contributor-facing internals (the lockstep contract, three-checkpoint
-enforcement, tracker boundary), see [`CLAUDE.md`](CLAUDE.md).
+enforcement, tracker boundary), see [`AGENTS.md`](AGENTS.md).

@@ -65,7 +65,7 @@ Cited is default whenever an `SDD.md` sits next to the PRD. Uncited is for small
 
    **Carry the accepted staples.** Each staple the PRD accepted (traceable to `{service}/STAPLES.md`) is an obligation, not a suggestion — turn it into Acceptance bullets on the owning subtask, and cited mode a `## Seams` row wherever the SDD named one (the staple's registry **Reference** is the exemplar to copy). A PRD-accepted staple appearing in no subtask is a slice gap — fix the slice, don't drop it.
 
-   **Always seed the harness-sync subtask.** For every feature, append a single terminal `NNNN-sync-harness` documentation subtask, `## Blocked by` **every** other subtask, per [HARNESS-SYNC.md](HARNESS-SYNC.md). It keeps the CLAUDE.md harness current so the next agent discovers the shipped feature, and makes the **final** staples-registry call (register a candidate new staple / advance an existing staple's Reference to this feature); delegates the write to `/afk:claude-md`. Emit unconditionally — not gated on any artifact.
+   **Always seed the harness-sync subtask.** For every feature, append a single terminal `NNNN-sync-harness` documentation subtask, `## Blocked by` **every** other subtask, per [HARNESS-SYNC.md](HARNESS-SYNC.md). It keeps the AGENTS.md harness current so the next agent discovers the shipped feature, and makes the **final** staples-registry call (register a candidate new staple / advance an existing staple's Reference to this feature); delegates the write to `/afk:agents-md`. Emit unconditionally — not gated on any artifact.
 
 3.5. **Materialize seams (cited mode, only when `materialize_seams=true`).** A grep-anchor is a *proxy* for a contract; the compiler is the real check. For every SDD §8/§9b seam whose home is a **new Java type** (not an edit to an existing file):
    - Write the **stub**: the interface/skeleton at the SDD §7/§8-declared package with the §8 signatures verbatim, body-less, carrying a `// {TICKET-ID}: seam stub — implemented by {NNNN-slug}` marker comment.
@@ -112,7 +112,7 @@ Seed the gate per [SMOKE-GATE.md](SMOKE-GATE.md) — read it before step 3. A `V
 
 ### Harness sync (always)
 
-Every plan ends with a terminal `NNNN-sync-harness` documentation subtask that syncs the CLAUDE.md harness for the shipped feature (delegating the write to `/afk:claude-md`), `## Blocked by` every other subtask. Emit for every feature. See [HARNESS-SYNC.md](HARNESS-SYNC.md).
+Every plan ends with a terminal `NNNN-sync-harness` documentation subtask that syncs the AGENTS.md harness for the shipped feature (delegating the write to `/afk:agents-md`), `## Blocked by` every other subtask. Emit for every feature. See [HARNESS-SYNC.md](HARNESS-SYNC.md).
 
 ## PLAN.md (the index)
 
@@ -133,7 +133,7 @@ Run before declaring the plan emitted, per [VALIDATION.md](VALIDATION.md): `scri
 - **Generated-schema subtasks verify the pickup** (only where the repository generates its schema from the model): a `## Produces` `.java` file with `@Entity` / `@MappedSuperclass` / `@Embeddable` must list an integration-tier row running the documented pickup check (`mvn -pl {module} compile liquibase:diff …` then grep the diff for the entity/column) — not just a unit test against the entity in isolation.
 - **Uncited mode is human-approved per ticket.** Never decide on your own the design needs no SDD.
 - **The smoke gate's shape is artifact-driven; its presence is not optional.** A `VERIFICATION-PLAN.md` drives the full gate (never half-emit — Process step 3 / [SMOKE-GATE.md](SMOKE-GATE.md) define the per-modality rule; never invent scenarios without the plan); its absence drives the minimal gate. This skill only seeds + slices; running the gate is `/afk:smoke-test`'s job.
-- **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk:claude-md`; this skill only seeds it. Never omit.
+- **The harness-sync subtask is always emitted.** Every plan ends with a terminal `NNNN-sync-harness` doc subtask (per [HARNESS-SYNC.md](HARNESS-SYNC.md)) blocked by every other subtask. It delegates the write to `/afk:agents-md`; this skill only seeds it. Never omit.
 
 ## Design-doc optionality
 
@@ -150,4 +150,4 @@ The plan is on disk. Review `PLAN.md` — especially the seam register and any s
 
 If a `VERIFICATION-PLAN.md` drove a `## Feature smoke gate`, the terminal build subtasks author their specs last (each blocked by everything). Once **every** subtask is `done`, run **`/afk:smoke-test`** as the feature-completion gate: it runs the integrated scenarios against a running app and, only on green, stamps `Feature: complete` in PLAN.md. That suite then serves CI / scheduled / manual sanity runs.
 
-The plan's dead-last subtask is always `NNNN-sync-harness`: run it after the feature lands to sync the CLAUDE.md harness so the next agent discovers the feature.
+The plan's dead-last subtask is always `NNNN-sync-harness`: run it after the feature lands to sync the AGENTS.md harness so the next agent discovers the feature.

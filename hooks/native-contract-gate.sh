@@ -75,7 +75,7 @@ def read(path: Path) -> str:
 # Provider mapping, capability matrix, and conformance evidence are the named
 # homes for provider-specific vocabulary. Historical CHANGELOG lines stay in
 # scope and carry narrow allowlist entries so new coupling cannot hide there.
-excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md"}
+excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
     if rel(path) not in excluded_prose

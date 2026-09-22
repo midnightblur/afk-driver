@@ -5,8 +5,8 @@
 # harness-tool, mcp-prefix. Keep patterns line-specific; broad file waivers hide
 # new coupling in the same file.
 LAVISH.md	harness-name	lavish-axi setup hooks.*Claude Code, Codex, OpenCode, GitHub Copilot CLI	Third-party command capability names its supported runtimes.
-CLAUDE.md	claude-project-dir	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
-CLAUDE.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
+AGENTS.md	claude-project-dir	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
+AGENTS.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
 CHANGELOG.md	harness-name	on Codex machines\) so every agent session	Historical shipped behavior.
 CHANGELOG.md	harness-name	The distribution law is written doctrine.*Claude.*Codex parity	Historical shipped behavior.
 CHANGELOG.md	harness-name	Codex now has the same opt-in boundary	Historical shipped behavior.

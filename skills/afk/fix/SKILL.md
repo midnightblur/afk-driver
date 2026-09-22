@@ -102,7 +102,7 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 ## Hard rules
 
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
-- **The target repo's CLAUDE.md chain binds here** — notably its DB-migration and commit rules.
+- **The target repo's AGENTS.md chain binds here** — notably its DB-migration and commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
 - **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).

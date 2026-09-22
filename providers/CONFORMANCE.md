@@ -32,6 +32,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 | Hook launcher runs handlers whatever the PATH | pass 2026-09-02 | pass 2026-09-02 (round 3) | First harness: the launcher ran the repository guard and carried its deny envelope, stayed silent on an absent handler, and still produced the denial when PATH held only the system directory (the WSL-stub case the second harness hit). Covered by `hooks/tests/hook-smoke.sh`; gate rule J rejected a hand-written bare-`bash` command with the expected diagnostic and exit 2, then passed once restored |
 | Stop block decision object is honoured | pass 2026-09-02 | pass 2026-09-02 (round 4) | First harness, live rig: with the adapter exit code set to 0 so only the decision object could carry the verdict, an unregistered scratch skill produced a real Stop block carrying the gate findings. Second harness: same emission, `Stop Blocked` with the same reason. One emission serves both |
+| Nested `AGENTS.md` reaches the model (main + subagent) | pending | pending | Probe: the model quotes a string that exists only in a nested `AGENTS.md`, run from the main session and from a subagent. The first-harness proofs above predate its native `AGENTS.md` support, so this row is unproven on both until re-run |
 
 ## Unresolved items
 

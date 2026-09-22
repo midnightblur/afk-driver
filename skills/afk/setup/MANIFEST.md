@@ -17,7 +17,7 @@ only by `/afk:setup base` (the default branch runs `Probe:`/`Fix:` alone).
 `Base probe:` tightens the health check to the monorepo's pinned toolchain
 version; `Base fix:` names the concrete install the plain `human:` fix leaves to
 the reader. Version pins are never restated here — probes read them from their
-one home (`.sdkmanrc` for JDK/Maven; the repository's root `CLAUDE.md` states the
+one home (`.sdkmanrc` for JDK/Maven; the repository's root `AGENTS.md` states the
 Node 24 / npm 11 workspace standard). Under `base`, a version miss is
 `missing/broken` even when the plain probe passes. Section **W** is base-only —
 its entries have no plain `Probe:` and the default branch skips them. The base
@@ -72,7 +72,7 @@ a token value — not even partially.
 - **Needed by:** branch-naming discipline for `/afk:execute`'s push — enforces
   the repository's `git.branch-pattern` on **agent** new-branch creation only;
   human-driven creation is untouched.
-  Workflow `CLAUDE.md` "Conventions to keep". Not required for any skill to *run*.
+  Workflow `AGENTS.md` "Conventions to keep". Not required for any skill to *run*.
 - **Probe:** `grep -q afk-branch-name-gate "$(git rev-parse --path-format=absolute --git-path hooks)/reference-transaction" 2>/dev/null`
 - **Fix:** `auto:` `bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"`
 - **Notes:** normally auto-installs on `SessionStart` (`hooks/install-git-hooks.sh
@@ -272,7 +272,7 @@ a token value — not even partially.
   is in `build-gates:` and `maven.reactor-pom` names a POM in this checkout).
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the repository; JDK selection
-  follows that repository's own conventions (its root `CLAUDE.md`).
+  follows that repository's own conventions (its root `AGENTS.md`).
 - **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep "Java version: $want\." | grep -qi amazon`
   — the JDK the wrapper resolves must match the `.sdkmanrc` java pin **and** be
   Amazon Corretto (the `amazon` vendor grep mirrors the pin's `-amzn` suffix —
@@ -419,7 +419,7 @@ a token value — not even partially.
   runs through, so without it no gate or guard fires at all — the shared
   `.mcp.json` bootstrap,
   `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
-  `skills/afk/claude-md/scripts/*.py`, the repository's `verification.env` command,
+  `skills/afk/agents-md/scripts/*.py`, the repository's `verification.env` command,
   the shared Jira lib `adapters/tracker/jira/api.py`,
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
   `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
@@ -469,7 +469,7 @@ a token value — not even partially.
 - **Probe:** `node --version && npm --version`
 - **Fix:** `human:` install the Node version the repository standardises on.
 - **Base probe:** `node --version | grep -q '^v24\.' && npm --version | grep -q '^11\.'`
-  — whatever workspace standard the repository's root `CLAUDE.md` states.
+  — whatever workspace standard the repository's root `AGENTS.md` states.
 - **Base fix:** `human:` via nvm: `nvm install 24 && nvm use 24` (npm 11 ships
   with Node 24); nvm itself is optional — any install path that flips the base
   probe green passes.

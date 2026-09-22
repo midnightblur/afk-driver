@@ -16,7 +16,7 @@ A step matching **any** trigger runs in a subagent — "looks small this time" i
 
 1. **The human conversation** — interviews, approvals, anything needing the user mid-step.
 2. **Conversation synthesis** — a child cannot see the session; a skill whose input *is* the conversation keeps its synthesis spine inline (its research/verification sub-steps still delegate per the triggers above).
-3. **Single-writer stamps** — progress-tracker cells, journal appends, index rows: child reports, owning skill writes (ownership map: plugin `CLAUDE.md`, "Section ownership invariants").
+3. **Single-writer stamps** — progress-tracker cells, journal appends, index rows: child reports, owning skill writes (ownership map: plugin `AGENTS.md`, "Section ownership invariants").
 4. **Accumulated-nuance loops** — steps whose next decision needs the full texture of the previous one (e.g. the TDD inner loop) stay inline; only their bulk sub-steps (a suite run, a wide read) delegate.
 
 ## Spawn rules
