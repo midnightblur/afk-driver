@@ -142,6 +142,48 @@ class SeedMapTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(row(document, "B1")["status"], "closed")
 
+    # A form the subject is never written in is accounted for, not a gap: a
+    # module constant has no wire name to search.
+    def test_an_absent_form_closes_b1_and_keeps_its_reason(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "import-alias=W",
+                             "--absent", "wire=never serialized")
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B1")["status"], "closed")
+        wire = next(form for form in document["run"]["aliases"]["Widget"]
+                    if form["form"] == "wire")
+        self.assertTrue(wire["absent"])
+        self.assertIsNone(wire["value"])
+        self.assertEqual(wire["reason"], "never serialized")
+
+    # With every site-chosen form absent, the name-form counter-search has
+    # nothing to search: the second universe stands in, never a pending row.
+    def test_every_site_chosen_form_absent_leaves_no_pending_counter(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--absent", "import-alias=imported by path only",
+                             "--absent", "wire=never serialized")
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B1")["status"], "closed")
+        pending = [check for check in document["counter_checks"]
+                   if check["state"] == "pending" and "B1" in check["classes"]]
+        self.assertEqual(pending, [])
+        self.assertTrue(any("declared absent" in check["method"]
+                            for check in document["counter_checks"]))
+
+    def test_a_form_both_declared_and_absent_is_refused(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        code, _ = run(repo, "--subject", "Widget", "--type", "Q1",
+                      "--alias", "wire=widget-created", "--absent", "wire=never serialized")
+        self.assertEqual(code, 2)
+
+    def test_an_absent_form_needs_a_site_chosen_form_and_a_reason(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {\n}\n"})
+        for bad in ("wire=", "wire", "simple=never written"):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit):
+                run(repo, "--subject", "Widget", "--type", "Q1", "--absent", bad)
+
     # A line inserted above a hit moves its id, not its identity: two runs are
     # compared on (class, file, line_hash).
     def test_a_node_survives_an_edit_above_it(self):

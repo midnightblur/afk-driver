@@ -9,8 +9,12 @@ reachability, and it never writes into the repository it reads.
 Usage:
   seed_map.py --repo ROOT --subject NAME [--subject NAME ...]
               --type Q1..Q5 [--type ...] [--question TEXT]
-              [--alias FORM=VALUE ...] [--config auto|PATH] [--design-phase]
-              --out FILE.json
+              [--alias FORM=VALUE ...] [--absent FORM=REASON ...]
+              [--config auto|PATH] [--design-phase] --out FILE.json
+
+`--absent` states that a site-chosen name form (`import-alias`, `wire`) does
+not exist for the subject, with the reason on the record. The form is then no
+gap and is never searched; a form both declared and absent is refused.
 
 Output is a ledger-shaped document (`LEDGER-FORMAT.md` beside this script):
 the same six tables, every node it found carrying `unverified` until a tracer
@@ -305,13 +309,22 @@ def load_config(repo: Path, where: str) -> tuple[dict, dict]:
     return block, stamp
 
 
-def name_forms(subject: str, aliases: list[tuple[str, str]]) -> list[dict]:
+# The name forms chosen at the site rather than derived from the symbol: the
+# only forms a caller may declare, and the only ones it may declare absent.
+SITE_CHOSEN_FORMS = ("import-alias", "wire")
+
+
+def name_forms(subject: str, aliases: list[tuple[str, str]],
+               absent: dict[str, str] | None = None) -> list[dict]:
     """Every form the subject can be written in, each labelled enumerated or not.
 
     A form nobody enumerated keeps B1 short of closed: an alias and a wire name
     are chosen at the site, not derivable from the symbol, so they are searched
-    only when the caller passes them as `--alias FORM=VALUE`.
+    only when the caller passes them as `--alias FORM=VALUE`. A caller who
+    knows the form does not exist says so with `--absent FORM=REASON`: the form
+    is then accounted for, carries no value, and is never searched.
     """
+    absent = absent or {}
     simple = subject.rsplit(".", 1)[-1]
     forms = [{"form": "simple", "value": simple, "enumerated": True}]
     if "." in subject:
@@ -320,8 +333,15 @@ def name_forms(subject: str, aliases: list[tuple[str, str]]) -> list[dict]:
     declared = {form for form, _ in aliases}
     for form, value in aliases:
         forms.append({"form": form, "value": value, "enumerated": True, "source": "declared"})
-    for form in ("import-alias", "wire"):
-        if form not in declared:
+    for form in SITE_CHOSEN_FORMS:
+        if form in declared:
+            continue
+        if form in absent:
+            # Accounted for, not searched: the value is null, and the reason is
+            # the caller's claim that the subject is never written this way.
+            forms.append({"form": form, "value": None, "enumerated": True,
+                          "absent": True, "source": "declared", "reason": absent[form]})
+        else:
             forms.append(
                 {
                     "form": form,
@@ -621,9 +641,9 @@ class Ledger:
 
 def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
          aliases: list[tuple[str, str]], block: dict, config_stamp: dict,
-         design_phase: bool = False) -> dict:
+         design_phase: bool = False, absent: dict[str, str] | None = None) -> dict:
     started = datetime.now(timezone.utc).isoformat()
-    forms = {subject: name_forms(subject, aliases) for subject in subjects}
+    forms = {subject: name_forms(subject, aliases, absent) for subject in subjects}
     simple_names = [subject.rsplit(".", 1)[-1] for subject in subjects]
 
     listing = git(repo, "ls-files")
@@ -757,12 +777,16 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
         }
         inherited_checks.append(form_check)
         counter_checks.append(form_check)
-    elif declared_aliases:
-        # No declared form discriminates from the simple name, so the second
-        # universe is what the primary pass provably could not return.
+    elif declared_aliases or absent:
+        # No declared form discriminates from the simple name, or the caller
+        # stated the site-chosen forms do not exist: either way no form is left
+        # for this method, so the second universe is what the primary pass
+        # provably could not return.
         counter_checks.append({
-            "method": "name form carrying no simple name: none declared discriminates, "
-                      f"so the {second_universe} stands in",
+            "method": ("name form carrying no simple name: none declared discriminates, "
+                       if declared_aliases else
+                       "name form carrying no simple name: the site-chosen forms are "
+                       "declared absent, ") + f"so the {second_universe} stands in",
             "kind": "deterministic", "targeted_claims": [claim_id], "new_nodes": [],
             "state": "complete", "classes": ["B1"], "query_ids": [second_universe_id],
         })
@@ -1210,6 +1234,22 @@ def parse_alias(raw: str) -> tuple[str, str]:
     return form.strip(), value.strip()
 
 
+def parse_absent(raw: str) -> tuple[str, str]:
+    if "=" not in raw:
+        raise argparse.ArgumentTypeError(
+            "an absent form is written FORM=REASON, for example "
+            "wire='a module constant, never serialized'")
+    form, reason = raw.split("=", 1)
+    form, reason = form.strip(), reason.strip()
+    if form not in SITE_CHOSEN_FORMS:
+        raise argparse.ArgumentTypeError(
+            f"only a site-chosen form can be absent: {', '.join(SITE_CHOSEN_FORMS)}")
+    if not reason:
+        raise argparse.ArgumentTypeError(
+            "an absent form needs the reason it does not exist")
+    return form, reason
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(add_help=True, description=__doc__)
     parser.add_argument("--repo", required=True)
@@ -1218,6 +1258,8 @@ def main(argv: list[str]) -> int:
                         choices=[f"Q{n}" for n in range(1, 6)])
     parser.add_argument("--question")
     parser.add_argument("--alias", action="append", type=parse_alias, default=[])
+    parser.add_argument("--absent", action="append", type=parse_absent, default=[],
+                        help="a site-chosen name form that does not exist, with why")
     parser.add_argument("--config", default="auto")
     parser.add_argument("--design-phase", action="store_true",
                         help="this run feeds a design decision, not a report")
@@ -1231,6 +1273,14 @@ def main(argv: list[str]) -> int:
         sys.stderr.write(f"seed_map: {repo} is not a git repository\n")
         return 2
 
+    absent = dict(args.absent)
+    both = sorted(set(absent) & {form for form, _ in args.alias})
+    if both:
+        # One form, two claims: a value to search and no such form at all.
+        sys.stderr.write(f"seed_map: a form cannot be both declared and absent: "
+                         f"{', '.join(both)}\n")
+        return 2
+
     question = args.question or "seed map for " + ", ".join(args.subject)
     try:
         block, config_stamp = load_config(repo, args.config)
@@ -1238,7 +1288,7 @@ def main(argv: list[str]) -> int:
         for warning in warnings:
             sys.stderr.write(f"seed_map: {warning}\n")
         result = seed(repo, args.subject, args.type, question, args.alias, block,
-                      config_stamp, args.design_phase)
+                      config_stamp, args.design_phase, absent)
         # A pattern that matches everything returns hits that are not about the
         # subject; the record says so, so a reader can triage them last.
         if warnings:

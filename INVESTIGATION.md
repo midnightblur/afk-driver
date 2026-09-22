@@ -26,7 +26,7 @@ a verdict.
 
 | # | Class | How a reference hides | Deterministic? |
 |---|---|---|---|
-| B1 | Textual reference | none | yes — search every **name form**: simple name, fully qualified name, import alias, wire or serialized name |
+| B1 | Textual reference | none | yes — search every **name form**: simple name, fully qualified name, import alias, wire or serialized name; a site-chosen form the subject is never written in is declared absent, with its reason |
 | B2 | Type dispatch | bound by parameter or supertype, the subtype never named | partly — search declaration and parameter forms, then read the dispatch site |
 | B3 | Reflection / scan | classpath scan, name-to-class lookup, annotation processing | judgment-only — read the scanning site, decide what it reaches |
 | B4 | String-keyed identity | config key, permission string, message name, bean name, route, service name — a rename breaks silently | partly — search the literal key forms, read the site that builds them |

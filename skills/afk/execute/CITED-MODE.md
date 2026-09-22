@@ -53,10 +53,11 @@ Per `## Seams` symbol, the row's trailing `(INV-NNN)` names the ledger:
 `<spec dir>/investigations/INV-NNN-*/COVERAGE.json`, one directory or the id
 names nothing. Take the current ground with the name forms that cited
 ledger ran under — one `--alias <form>=<value>` per `declared` form in its
-`run.aliases`, omitted when it declares none:
+`run.aliases`, and one `--absent <form>=<reason>` per form marked `absent`,
+each omitted when it declares none:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] --out <scratch>/ground-<symbol>.json
+python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] [--absent <form>=<reason> ...] --out <scratch>/ground-<symbol>.json
 
 python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
 ```
@@ -73,7 +74,7 @@ difference is printed.
 
 **On drift, re-investigate rather than patch.** Run `/afk:investigate` at the
 current head — the cited ledger's own `run.type` set, its subject and the same
-`--alias` forms, the seam's own question — and work from the ledger it
+`--alias` and `--absent` forms, the seam's own question — and work from the ledger it
 publishes. Then read the new ledger's `claims` against the facts the SDD cites
 for this seam: a load-bearing claim the new run contradicts is a broken binding
 decision, and it goes through the conflict procedure below, not through a patch

@@ -50,6 +50,15 @@ first released heading here.
 
 ### Added
 
+- **An investigation can declare a name form absent.** A subject that no site
+  writes as an import alias or a wire name — a module constant, a private
+  helper — left B1 and every class resting on it `partial`, because the seed
+  had no way to hear that the form was checked and does not exist. `seed_map.py`
+  takes `--absent FORM=REASON` for the forms `import-alias` and `wire`; the
+  ledger records the form with `absent: true` and the reason, and B1 closes. A
+  form given both as `--alias` and `--absent` is refused. The ground re-take in
+  `/afk:execute` cited mode passes the cited ledger's absent forms back.
+
 - **`/afk:report-issue` — plugin defects reach the plugin's own repository.**
   A plugin script or hook crash, a gate verdict against its own rule, or a
   broken contract between skills now becomes a GitHub issue: summary, goal,

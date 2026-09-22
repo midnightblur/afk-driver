@@ -31,7 +31,8 @@ that file does not carry:
 |---|---|
 | Cross-repo / runtime topology / deploy posture | Q5 — usually answered `frontier`; see "external claims" below |
 
-Pass what you know as `--alias FORM=VALUE` and as declared paths, and let the
+Pass what you know as `--alias FORM=VALUE`, a form the subject is never written
+in as `--absent FORM=REASON`, and declared paths, and let the
 run close the boundaries. The completion contract is
 `${AFK_PLUGIN_ROOT}/INVESTIGATION.md`; a run whose verdict is `partial`
 has not verified the claim.

@@ -32,7 +32,7 @@ one checker of everything below.
 | `question` | the question as asked |
 | `type` | a list of `Q1`-`Q5`; a question matching two types carries both |
 | `roots` | the subject symbols the investigation started from |
-| `aliases` | every name form, each `enumerated` true or false with its reason |
+| `aliases` | every name form, each `enumerated` true or false with its reason; a site-chosen form declared absent carries `absent: true`, a null `value` and the caller's `reason`, and counts as enumerated |
 | `inventory_hash` | sha256 over the tracked-file list |
 | `inventory_count` | how many files that list held |
 | `design_phase` | boolean, never absent: `true` when the caller is a design step; drives the counter-search requirement |
