@@ -342,6 +342,54 @@ class SeedMapTest(unittest.TestCase):
         self.assertEqual(row(document, "B6")["status"], "closed")
         self.assertGreater(row(document, "B6")["hits"], 0)
 
+    # A repository with no build step has no generated output to walk. A
+    # declared site is how it says so, and `B1`-`B14` all accept one.
+    def test_a_judgment_site_carries_the_generated_class(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "CLAUDE.md": "No package build step.\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: no-build-step\n"
+            "      class: B6\n"
+            "      judgment-only: true\n"
+            "      site: CLAUDE.md\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1", config=str(config))
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B6")["status"], "judgment-only")
+        self.assertIn("CLAUDE.md", row(document, "B6")["sites"])
+
+    def test_a_judgment_site_carries_the_build_graph_class(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "CLAUDE.md": "No aggregator manifest.\n",
+        })
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: no-aggregator\n"
+            "      class: B7\n"
+            "      judgment-only: true\n"
+            "      site: CLAUDE.md\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1", config=str(config))
+        self.assertEqual(code, 0)
+        self.assertEqual(row(document, "B7")["status"], "judgment-only")
+        self.assertIn("CLAUDE.md", row(document, "B7")["sites"])
+
+    # Declaring nothing is still an absence: a class nobody gave a method is
+    # `unverified`, never a closed zero.
+    def test_no_declaration_leaves_the_build_classes_unverified(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n"})
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        for klass in ("B6", "B7"):
+            self.assertEqual(row(document, klass)["status"], "unverified")
+            self.assertIn("no enumeration method", row(document, klass)["reason"])
+
     # S11 — a default pattern with no file it could match is not a closed zero.
     def test_a_pattern_with_no_matching_language_is_unverified(self):
         repo = self.repo({"notes/widget.md": "Widget is described here\n"})

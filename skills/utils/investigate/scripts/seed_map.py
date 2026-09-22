@@ -948,10 +948,20 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
         if klass == "B6":
             generated = block.get("generated") or []
-            if not generated and not extra_universes:
+            if not generated and not extra_universes and not live_sites:
                 record("B6", "unverified", "no generated paths declared", extra_hits,
                        reasons=["no enumeration method", site_gap], mechanism=mechanism,
                        universe="no generated paths declared", query_ids=extra_qids)
+                continue
+            if not generated and not extra_universes:
+                # A repository with no build step has no generated output to
+                # walk, and a declared site is how it says so. `record` folds
+                # the site status in, so this leaves the class `judgment-only`
+                # for a tracer to resolve — never a closed zero.
+                record("B6", "n/a", f"a site an agent reads: {', '.join(live_sites)}",
+                       extra_hits, reasons=["no generated output declared", site_gap],
+                       mechanism=mechanism, sites=live_sites, query_ids=extra_qids,
+                       universe="no generated paths declared")
                 continue
             absent = [path for path in generated if not (repo / path).exists()]
             present = [path for path in generated if (repo / path).exists()]
@@ -1001,10 +1011,20 @@ def seed(repo: Path, subjects: list[str], qtypes: list[str], question: str,
 
         if klass == "B7":
             poms = block.get("reactor") or []
-            if not poms and not extra_universes:
+            if not poms and not extra_universes and not live_sites:
                 record("B7", "unverified", "no reactor manifests declared", extra_hits,
                        reasons=["no enumeration method", site_gap], mechanism=mechanism,
                        universe="no aggregator manifests declared", query_ids=extra_qids)
+                continue
+            if not poms and not extra_universes:
+                # A repository with no aggregator manifest has no build graph to
+                # parse, and a declared site is how it says so. `record` folds
+                # the site status in, so this leaves the class `judgment-only`
+                # for a tracer to resolve — never a closed zero.
+                record("B7", "n/a", f"a site an agent reads: {', '.join(live_sites)}",
+                       extra_hits, reasons=["no aggregator manifest declared", site_gap],
+                       mechanism=mechanism, sites=live_sites, query_ids=extra_qids,
+                       universe="no aggregator manifests declared")
                 continue
             modules = reactor_modules(repo, poms)
             # No manifest declared, and a declared instance carried the class:

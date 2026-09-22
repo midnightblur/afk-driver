@@ -20,6 +20,14 @@ first released heading here.
 
 ### Fixed
 
+- **A repository with no build step can close the generated-code and
+  build-graph classes.** The investigation seed marked B6 and B7 `unverified`
+  whenever `investigation.generated` or `investigation.reactor` was empty, and
+  it ignored a `judgment-only` site declared for either class, although
+  `CONFIG.md` accepts one for every class. A declared site now carries B6 and
+  B7 to `judgment-only`, for a tracer to resolve. A repository that declares
+  generated output or a reactor manifest sees no change.
+
 - **Choice pages send their answers from one visible control.** The page kit
   now owns one answer form around each active round. Its sticky bar shows a
   live summary, sends one tagged response, confirms the send, and copies the

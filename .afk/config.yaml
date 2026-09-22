@@ -20,3 +20,39 @@ git:
   branch-template: 'feat/{ticket_lower}'
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+# This repository's instances of the generic boundary classes. Every entry here
+# is judgment-only: each names a reference this repository hides in a way no
+# search can enumerate, and the site an agent reads to decide. A class with a
+# declared site is `judgment-only` at the seed and a tracer resolves it.
+investigation:
+  boundaries:
+    - name: adapter-dispatch
+      class: B3
+      judgment-only: true
+      site: hooks/lib/adapter.sh
+      note: family and verb resolve to the selected kind's implementation at run time, so the entry reached is named nowhere a search returns
+    - name: module-loader
+      class: B3
+      judgment-only: true
+      site: scripts/tracker_api.py
+      note: loads a module by file location, so the import names no symbol
+    - name: config-codec
+      class: B5
+      judgment-only: true
+      site: scripts/afk-config.py
+      note: reads the documented YAML subset and exports the shell view; a key's spelling is the serialized shape
+    - name: no-build-step
+      class: B6
+      judgment-only: true
+      site: CLAUDE.md
+      note: this repository has no package build step, so there is no generated output to walk
+    - name: no-aggregator
+      class: B7
+      judgment-only: true
+      site: CLAUDE.md
+      note: no aggregator manifest exists anywhere, so there is no build graph to parse
+    - name: tracker-mcp-surface
+      class: B10
+      judgment-only: true
+      site: mcp-servers/tracker/server.py
+      note: the one surface another process calls by verb name rather than by symbol
