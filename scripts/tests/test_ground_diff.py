@@ -197,6 +197,15 @@ class GroundDiffTest(unittest.TestCase):
         code, output = self.diff(cited, current)
         self.assertEqual(code, 0, output)
 
+    # A seed hit a tracer answered by reading is still the seed's line.
+    def test_a_read_a_seed_search_also_found_is_ground(self):
+        cited = self.ledger([node(2, "aaaaaaaaaaaa")])
+        answered = {**node(2, "aaaaaaaaaaaa"), "query_id": None, "also_found_by": [QUERY]}
+        code, output = self.diff(cited, self.ledger([answered]))
+        self.assertEqual(code, 0, output)
+        code, output = self.diff(cited, self.ledger([]))
+        self.assertEqual(code, 1, output)
+
     # A widening is counted, and its file is watched instead of re-searched.
     def test_tracer_widened_nodes_are_counted_not_compared(self):
         widened = node(80, "eeeeeeeeeeee", file="beta.java", query=TRACER_QUERY)

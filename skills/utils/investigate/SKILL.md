@@ -50,7 +50,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
      [--fragment ...] --out <scratch>/COVERAGE.json
    ```
 
-   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, and every `judgment-only` class left, reopens the queue: spawn a delta tracer and fold its fragment the same way. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
+   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, every node the fold reopened as a conflict, and every `judgment-only` class left reopen the queue: spawn a delta tracer and fold its fragment over the merged ledger, passed as `--staging`, before validating. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
 6. **Validate the staging copy.** Before publishing anything:
 
    ```sh

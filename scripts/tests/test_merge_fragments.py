@@ -573,6 +573,34 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertFalse([item for item in defects
                           if "also_found_by" in item or other["id"] in item], defects)
 
+    # Two rows under one id that reached the site differently: every read,
+    # every search and every parent edge survives the fold.
+    def test_a_read_folded_with_a_search_stays_a_read(self):
+        read = {**READ_B3}
+        searched = {**hit(READ_B3["id"]), "query_id": "q-other"}
+        for first, second in ((read, searched), (searched, read)):
+            node = merge_fragments.merge_node(dict(first), dict(second))
+            self.assertIsNone(node["query_id"])
+            self.assertEqual(node["evidence"], READ_B3["evidence"])
+            self.assertEqual(node["also_found_by"], ["q-other"])
+
+    def test_a_second_parent_is_kept_as_an_edge(self):
+        first = {**hit("B1:alpha.java:9"), "parent": "B1:alpha.java:1"}
+        second = {**hit("B1:alpha.java:9"), "parent": "B1:beta.java:2"}
+        node = merge_fragments.merge_node(first, second)
+        self.assertEqual(node["parent"], "B1:alpha.java:1")
+        self.assertEqual(node["also_reached_from"], ["B1:beta.java:2"])
+        rooted = merge_fragments.merge_node({**hit("B1:alpha.java:9")}, second)
+        self.assertIsNone(rooted["parent"])
+        self.assertEqual(rooted["also_reached_from"], ["B1:beta.java:2"])
+
+    def test_a_read_answer_to_a_seed_node_keeps_the_search(self):
+        seeded = {**hit(READ_B3["id"]), "disposition": "unverified", "reason": "seed"}
+        node = merge_fragments.answer_node(seeded, dict(READ_B3))
+        self.assertIsNone(node["query_id"])
+        self.assertEqual(node["also_found_by"], [QUERY])
+        self.assertEqual(node["disposition"], "terminal")
+
     def test_an_overlap_split_on_impact_reopens_the_node(self):
         staging = ledger()
         kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")

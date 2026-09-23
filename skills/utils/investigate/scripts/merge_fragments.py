@@ -119,14 +119,48 @@ def same_site(kept: dict, row: dict) -> None:
 VERDICTS = ("impact_verdict", "coverage_verdict")
 
 
-def cite_both(merged: dict, kept: dict, row: dict) -> None:
-    """Every search that reached the site stays on the node that holds it."""
-    found = union(kept.get("also_found_by") or [], row.get("also_found_by") or [])
-    if isinstance(row.get("query_id"), str) and row["query_id"] != merged.get("query_id"):
-        found = union(found, [row["query_id"]])
-    found = [item for item in found if item != merged.get("query_id")]
+def is_read(node: dict) -> bool:
+    return "query_id" in node and node.get("query_id") is None
+
+
+def keep_both(merged: dict, kept: dict, row: dict) -> None:
+    """Every search and every edge that reached the site stays on the node.
+
+    A read outranks a search: when either row read the site, the node is a
+    read, its evidence the reading, and every search joins `also_found_by`.
+    A parent the first row does not name joins `also_reached_from`.
+    """
+    queries = union(cited_queries(kept), cited_queries(row))
+    reader = kept if is_read(kept) else row if is_read(row) else None
+    if reader is not None:
+        merged["query_id"] = None
+        if reader.get("evidence"):
+            merged["evidence"] = reader["evidence"]
+    else:
+        merged["query_id"] = kept.get("query_id")
+    found = [item for item in queries if item != merged.get("query_id")]
     if found:
         merged["also_found_by"] = found
+    else:
+        merged.pop("also_found_by", None)
+    if not merged.get("evidence") and (kept.get("evidence") or row.get("evidence")):
+        merged["evidence"] = kept.get("evidence") or row.get("evidence")
+    if not merged.get("line_hash") and row.get("line_hash"):
+        merged["line_hash"] = row["line_hash"]
+    edges = union([kept.get("parent")] + list(kept.get("also_reached_from") or []),
+                  [row.get("parent")] + list(row.get("also_reached_from") or []))
+    edges = [edge for edge in edges if isinstance(edge, str) and edge]
+    merged["parent"] = kept.get("parent")
+    reached = [edge for edge in edges if edge != merged["parent"] and edge != merged.get("id")]
+    if reached:
+        merged["also_reached_from"] = reached
+    else:
+        merged.pop("also_reached_from", None)
+
+
+# Fields `keep_both` settles; filling them from the other row would turn a
+# read into a search or drop an edge.
+KEPT = ("query_id", "also_found_by", "parent", "also_reached_from", "evidence", "line_hash")
 
 
 def merge_node(kept: dict, row: dict) -> dict:
@@ -138,7 +172,7 @@ def merge_node(kept: dict, row: dict) -> dict:
     """
     same_site(kept, row)
     merged = dict(kept)
-    cite_both(merged, kept, row)
+    keep_both(merged, kept, row)
     left, right = kept.get("disposition"), row.get("disposition")
     split = [f"{key} {kept[key]} vs {row[key]}" for key in VERDICTS
              if kept.get(key) and row.get(key) and kept[key] != row[key]]
@@ -151,7 +185,7 @@ def merge_node(kept: dict, row: dict) -> dict:
             merged["impact_verdict"] = "unverified"
         return merged
     for key, value in row.items():
-        if key != "also_found_by" and merged.get(key) in (None, "", []):
+        if key not in KEPT and merged.get(key) in (None, "", []):
             merged[key] = value
     pins = [pin for pin in (kept.get("pinned_by"), row.get("pinned_by"))
             if isinstance(pin, str) and pin.strip()]
@@ -216,8 +250,9 @@ def answer_node(kept: dict, row: dict) -> dict:
     same_site(kept, row)
     answered = dict(row)
     for key, value in kept.items():
-        if key not in ("disposition", "reason") and answered.get(key) in (None, "", []):
+        if key not in ("disposition", "reason") + KEPT and answered.get(key) in (None, "", []):
             answered[key] = value
+    keep_both(answered, row, kept)
     return answered
 
 

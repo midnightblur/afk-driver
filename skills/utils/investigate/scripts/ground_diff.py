@@ -11,7 +11,7 @@ Usage:
                  [--class B1 ...]
 
 Ground is a searched line the seed map can re-take: a node carrying a
-`line_hash` and a `query_id` resolving to a query of `origin: seed`
+`line_hash` and citing, in `query_id` or `also_found_by`, a query of `origin: seed`
 (`LEDGER-FORMAT.md` § "Nodes"). Nodes are compared as a multiset keyed
 (`class`, file, `line_hash`) — a count, not a set, so two identical lines are
 two hits and losing one is drift.
@@ -43,7 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from contract import ALL_FILES, command_key, searched_paths  # noqa: E402
+from contract import ALL_FILES, cited_queries, command_key, searched_paths  # noqa: E402
 
 
 class GroundError(ValueError):
@@ -112,19 +112,23 @@ def sort_nodes(document: dict, path: Path) -> tuple[list[dict], list[dict]]:
     for row in document.get("nodes") or []:
         if not isinstance(row, dict):
             continue
-        query_id = row.get("query_id")
-        if not isinstance(query_id, str) or not query_id.strip():
+        # A read a search also found is still that search's line: every query
+        # the node cites decides its side, not only the one that made it.
+        cited = [item for item in cited_queries(row) if item.strip()]
+        if not cited:
             other.append(row)
             continue
-        if query_id not in queries:
-            raise GroundError(f"{path}: node {row.get('id')} cites query {query_id!r}, "
-                              "which its own queries table does not hold")
+        for query_id in cited:
+            if query_id not in queries:
+                raise GroundError(f"{path}: node {row.get('id')} cites query {query_id!r}, "
+                                  "which its own queries table does not hold")
         digest = row.get("line_hash")
         if not isinstance(digest, str) or not digest.strip():
             raise GroundError(f"{path}: node {row.get('id')} was produced by a search "
                               "and carries no line_hash, so the ground it stands on "
                               "cannot be read")
-        (seed if queries[query_id].get("origin") == "seed" else other).append(row)
+        seeded = any(queries[item].get("origin") == "seed" for item in cited)
+        (seed if seeded else other).append(row)
     return seed, other
 
 

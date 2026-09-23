@@ -48,6 +48,17 @@ first released heading here.
   keeps the search, as the ledger format already stated, instead of producing
   a row the validator refuses.
 
+- **A fold keeps every reading, search and edge of a node found twice.** The
+  first fold of two rows under one id kept only the first row's parent and
+  could turn a read into a search, so a node lost the edge that made its
+  parent traced and a counter-search lost its reading. A read now outranks a
+  search, every other search joins `also_found_by`, every other parent joins a
+  new optional `also_reached_from` field, and the validator counts a node as a
+  hit of every query it cites. The ground comparison in cited-mode execution
+  reads every query a node cites too, so a seed hit a tracer answered by
+  reading stays ground. The investigate skill now says a delta tracer
+  answers every node a fold reopened as a conflict before the run validates.
+
 - **Choice pages send their answers from one visible control.** The page kit
   now owns one answer form around each active round. Its sticky bar shows a
   live summary, sends one tagged response, confirms the send, and copies the
