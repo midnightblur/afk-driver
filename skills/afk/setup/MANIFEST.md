@@ -110,9 +110,10 @@ a token value — not even partially.
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
-  the assignee — pre-filled with the account the validated token itself belongs
-  to — and for the reviewer, which has no pre-fill because no one else may pick
-  who reviews your work. It offers `~/.afk/config.yaml`, so one answer covers
+  the tracker assignee — pre-filled with the account the validated token itself
+  belongs to — for the reviewer, which has no pre-fill because no one else may
+  pick who reviews your work, and for the MR/PR assignee, pre-filled with the
+  forge account the CLI is logged in as. It offers `~/.afk/config.yaml`, so one answer covers
   every repository on the machine. By hand: add a `developer:` block there per
   the example in `skills/afk/bug/CONFIG.md`.
 - **Notes:** a developer with no reviewer answers the literal `none`, which
@@ -122,8 +123,9 @@ a token value — not even partially.
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
   probed; each is then **n/a**. `worktreeBasePath` normally resolves without
   anyone setting it (it derives beside the main checkout), so an unresolved K3
-  means git could not answer — a bare clone. K4 `ideBinary` is optional and not
-  probed.
+  means git could not answer — a bare clone. K4 `ideBinary` and K5 `mrAssignee`
+  are optional and not probed — an unset `mrAssignee` means no assignee, never a
+  failure.
 
 ### H7 · plain-language replies (ASD-STE100) **[opt-in]**
 - **Needed by:** nothing — a user preference: every agent session of this user

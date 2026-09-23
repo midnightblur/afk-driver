@@ -44,6 +44,12 @@ release page from its section here. Nobody tags by hand.
   repository tracks an `AGENTS.md` but the Claude `instructionFiles` setting is
   not `claude-md-and-agents-md` (setup H11); it names the setting and points the
   dev at `/afk:setup`. Claude only; silent everywhere else.
+- **Per-developer `mrAssignee`.** A new `developer:` key names the forge user
+  every merge request or pull request the plugin opens is assigned to.
+  `/afk:setup` asks for it when a forge is configured, pre-filled with the
+  account the forge CLI is logged in as. Unset means no assignee, so behavior
+  is unchanged for anyone who does not set it. The execute Draft change and the
+  bug fixer's Draft change now pass it as the create call's `assignee`.
 
 ## [1.6.1] - 2026-09-22
 

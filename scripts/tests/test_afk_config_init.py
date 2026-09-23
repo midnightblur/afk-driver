@@ -169,6 +169,17 @@ def test_nothing_set_means_fail_closed():
     assert ac.developer_value({}, "ideBinary") is None
 
 
+def test_mr_assignee_is_a_developer_key_that_resolves_from_the_block():
+    assert "mrAssignee" in ac.DEVELOPER_KEYS
+    assert ac.developer_value({"developer": {"mrAssignee": "me"}}, "mrAssignee") == "me"
+
+
+def test_mr_assignee_unset_resolves_to_nothing():
+    # Unset is a valid state — no assignee — never a derived or defaulted value.
+    assert ac.developer_value({}, "mrAssignee") is None
+    assert ac.developer_value({"developer": {}}, "mrAssignee") is None
+
+
 # ------------------------------------------------------- derived worktrees
 
 def test_worktree_base_is_derived_beside_the_main_checkout(tmp_path):

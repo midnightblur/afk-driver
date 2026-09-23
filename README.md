@@ -310,9 +310,10 @@ setup depends on it. It names no person: who work is assigned to and who
 reviews it are answered by each developer, not by the repository.
 
 Your own values — the tracker account work is assigned to, the reviewer you
-name, your IDE — go under `developer:` in `~/.afk/config.yaml`, once per
-machine rather than once per checkout. `/afk:setup` asks you for the assignee
-and the reviewer; nothing supplies them for you. The worktree base is derived
+name, the forge user your merge requests are assigned to, your IDE — go under
+`developer:` in `~/.afk/config.yaml`, once per machine rather than once per
+checkout. `/afk:setup` asks you for the tracker assignee, the reviewer, and the
+MR/PR assignee; nothing supplies them for you. The worktree base is derived
 from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 
 ### Shared setup and development
