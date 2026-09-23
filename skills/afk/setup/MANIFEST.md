@@ -233,6 +233,29 @@ a token value — not even partially.
   either way. It lives only in the user-global file, per machine, never on git;
   the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
 
+### H12 · no instruction-file strays above the repository
+- **Needed by:** every afk developer — an instruction file left in the git
+  root's parent, or any directory above it up to the filesystem root, is read by
+  a harness that walks the working directory upward past the git root
+  (`providers/HARNESS-MATRIX.md`), so it is prepended to **every** repository
+  below it, silently. Standard: `skills/afk/agents-md/SKILL.md`.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/ancestor_instruction_files.py" --check`
+  — tests the fixed names `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`,
+  `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` at each ancestor by
+  direct path test (never a recursive scan, which would trip the endpoint
+  sensor); exit 0 when none is found, 1 when one is. A file inside `~/.claude` or
+  `~/.codex` is the harness user-global steering file, not a stray, and is
+  excluded; one directly in the home directory (`~/AGENTS.md`, `~/CLAUDE.md`) is
+  a stray.
+- **Fix:** `human:` run the probe without `--check` to list each stray with its
+  size and the reason it leaks into every repository below it, then per stray
+  offer the developer **delete** or **add its path to `claudeMdExcludes`** in
+  their settings. Never delete without the developer's answer — a stray may be
+  theirs on purpose.
+- **Notes:** report-only; the toolkit changes no file above the repository on
+  its own. The two remediations and the harness that walks above the repository
+  are in `providers/HARNESS-MATRIX.md` and the standard.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
