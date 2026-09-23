@@ -80,18 +80,17 @@ learn.chatgpt.com/docs/agent-configuration/agents-md; openai/codex
   agents skip them. No afk agent sets `omitClaudeMd`.
 - Claude hooks that fire inside subagents: `PreToolUse`, `PostToolUse`, `SubagentStart`,
   `SubagentStop`. `PostToolUse` injects through `hookSpecificOutput.additionalContext`.
-- **Verified false** (2026-09-23, Claude 2.1.280; `providers/CONFORMANCE.md`
-  "Nested steering probe"): a Claude subagent's read of a file below the launch
-  directory does **not** trigger a nested lazy load — a spawned subagent that
-  read a file in `sub/deep/` never saw that directory's `AGENTS.md`. This is why
-  `hooks/lib/providers/claude.sh` injects in `agent-only` mode. A subagent's own
-  `PostToolUse` envelope carries `agent_id`; the main-session `Agent`/`Task` call
-  does not, so the same policy is silent in the main session.
-- **Unverified**: whether hook-injected context survives Claude compaction. A
-  headless single-turn `claude -p` cannot force a compaction, so this was not
+- **Verified true** (2026-09-23, Claude 2.1.280, real config with the plugin
+  installed; `providers/CONFORMANCE.md` "Nested steering probe"): a Claude
+  subagent's read of a file below the launch directory **does** trigger the
+  native nested lazy load — a spawned subagent that read a file in `sub/deep/`
+  quoted that directory's `AGENTS.md` token, attached to its Read result. So
+  `hooks/lib/providers/claude.sh` stays `never`: injecting here would double a
+  nested `AGENTS.md` the native support already delivers to the subagent.
+- **Unverified**: whether hook-injected context survives Claude compaction. Not
   probed live. Correctness does not depend on it: the dedup marker tree is keyed
   by `session_id` and is reset on `PostCompact`, so a compacted turn re-arms
-  rather than double-injecting.
+  rather than double-injecting. (Moot for Claude while its mode is `never`.)
 
 ## 5. Nested-steering injector
 

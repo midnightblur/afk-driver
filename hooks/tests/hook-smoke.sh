@@ -180,22 +180,42 @@ fi
 
 out5=$(ns_run claude PostToolUse "$top/sub/deep/x.txt")
 if [ -z "$out5" ]; then
-  pass "claude main session injects nothing (agent-only, native nested read applies)"
+  pass "claude main session injects nothing (mode never; native AGENTS.md support handles the subtree)"
 else
   fail "claude main session should be silent (out=$out5)"
 fi
 
-# claude is agent-only: a subagent tool call (envelope carries agent_id) IS
-# injected, because a Claude subagent does not inherit the native nested load
-# (providers/CONFORMANCE.md, 2026-09-23).
+# claude stays never even for a subagent tool call: a Claude subagent lazy-loads
+# a nested AGENTS.md natively (providers/CONFORMANCE.md, 2026-09-23), so injecting
+# would double it. The handler must emit nothing regardless of agent_id.
 out6=$(printf '{"session_id":"ns-sess-a","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","agent_id":"child-7","tool_input":{"file_path":"%s"}}' \
     "$top" "$top/sub/deep/x.txt" \
   | env AFK_PROVIDER=claude PLUGIN_DATA="$ns_data" CLAUDE_PLUGIN_DATA="$ns_data" \
     bash "$workflow/hooks/nested-steering.sh")
-if printf '%s' "$out6" | jq -e '.hookSpecificOutput.additionalContext | test("NESTED-TOKEN-XYZ")' >/dev/null 2>&1; then
-  pass "claude injects a nested AGENTS.md token into a subagent tool call"
+if [ -z "$out6" ]; then
+  pass "claude subagent tool call injects nothing (mode never; no double-inject over native lazy-load)"
 else
-  fail "claude agent-only subagent injection (out=$out6)"
+  fail "claude subagent should be silent (out=$out6)"
+fi
+
+# agent-only is correct machinery for a harness whose subagents do NOT lazy-load,
+# though no shipped provider selects it. Exercise it directly against the module
+# (synthetic mode): it injects when the envelope carries agent_id and is silent
+# without one.
+ns_py=python
+command -v python >/dev/null 2>&1 || ns_py=python3
+out7=$(printf '{"session_id":"ns-sess-b","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","agent_id":"child-9","tool_input":{"file_path":"%s"}}' \
+    "$top" "$top/sub/deep/x.txt" \
+  | "$ns_py" "$workflow/hooks/lib/nested_steering.py" \
+    --provider synthetic --mode agent-only --rules 0 --data-dir "$ns_data")
+out8=$(printf '{"session_id":"ns-sess-c","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' \
+    "$top" "$top/sub/deep/x.txt" \
+  | "$ns_py" "$workflow/hooks/lib/nested_steering.py" \
+    --provider synthetic --mode agent-only --rules 0 --data-dir "$ns_data")
+if printf '%s' "$out7" | grep -q "NESTED-TOKEN-XYZ" && [ -z "$out8" ]; then
+  pass "agent-only machinery injects for a subagent tool call, silent without agent_id"
+else
+  fail "agent-only machinery (with-agent='$out7' without-agent='$out8')"
 fi
 rm -rf "$ns_repo" "$ns_data"
 
