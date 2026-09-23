@@ -387,11 +387,16 @@ if TRACKER_KIND == "none":
     skip("tracker: none — nothing is assigned, so no assignee is asked for")
     cfg.pop("trackerAssignee", None)
 else:
-    # Pre-filled with the account the token itself belongs to: the common answer
-    # is "me", and it is the one value this script can know without guessing.
+    # Pre-filled with the account this developer is "me": the Jira `/myself`
+    # accountId when jira validated a token above, else the GitHub login the
+    # `gh` CLI is authenticated as. The common answer is "me", and it is the one
+    # value this script can know without guessing.
+    prefill = cfg.get("trackerAssignee") or account_id
+    if not prefill and TRACKER_KIND == "github-issues":
+        prefill = forge_user("github")
     cfg["trackerAssignee"] = ask(
         "assignee account id or email (yours, unless work goes to someone else)",
-        cfg.get("trackerAssignee") or account_id,
+        prefill,
     )
 
 if FORGE_KIND == "none":

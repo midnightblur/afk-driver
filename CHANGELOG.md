@@ -51,6 +51,14 @@ release page from its section here. Nobody tags by hand.
   is unchanged for anyone who does not set it. The execute Draft change and the
   bug fixer's Draft change now pass it as the create call's `assignee`.
 
+### Changed
+
+- **`trackerAssignee` now assigns every work item the plugin creates.** It
+  already went on bug tickets; spinoff tickets from `/afk:to-ticket` now carry
+  it too, resolved through the one resolver. `/afk:setup` pre-fills it for a
+  `github-issues` tracker with the authenticated `gh` user, matching the Jira
+  `/myself` pre-fill. Unset still means no assignee.
+
 ## [1.6.1] - 2026-09-22
 
 ### Changed

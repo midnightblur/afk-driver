@@ -33,7 +33,7 @@ then fail closed.
 
 | ID | Key | Type | Meaning | Falls back to | Gates |
 |----|-----|------|---------|---------------|-------|
-| K1 | `trackerAssignee` | string | Account id or email the bug ticket is assigned to — the tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
+| K1 | `trackerAssignee` | string | Account id or email a work item the plugin creates is assigned to — the bug ticket (fail-closed, below) and spinoff tickets via `/afk:to-ticket` (unset → no assignee). The tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
 | K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready. The literal `none` is a valid answer: it records "nobody reviews my changes", and every consumer reads it exactly as an absent key | nothing — a person has no default | Change Ready flip |
 | K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right | (optional) interactive worktree open |
