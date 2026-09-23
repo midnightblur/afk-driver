@@ -1,0 +1,12 @@
+{
+  "session_id": "codex-session",
+  "turn_id": "codex-turn",
+  "agent_id": "codex-subagent",
+  "cwd": "/workspace/example-repo",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/workspace/example-repo/sub/deep/x.txt"
+  },
+  "model": "gpt-5.6"
+}

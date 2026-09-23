@@ -80,5 +80,46 @@ learn.chatgpt.com/docs/agent-configuration/agents-md; openai/codex
   agents skip them. No afk agent sets `omitClaudeMd`.
 - Claude hooks that fire inside subagents: `PreToolUse`, `PostToolUse`, `SubagentStart`,
   `SubagentStop`. `PostToolUse` injects through `hookSpecificOutput.additionalContext`.
-- **Unverified**: whether a Claude subagent's read triggers the nested lazy load.
-- **Unverified**: whether hook-injected context survives Claude compaction.
+- **Verified false** (2026-09-23, Claude 2.1.280; `providers/CONFORMANCE.md`
+  "Nested steering probe"): a Claude subagent's read of a file below the launch
+  directory does **not** trigger a nested lazy load — a spawned subagent that
+  read a file in `sub/deep/` never saw that directory's `AGENTS.md`. This is why
+  `hooks/lib/providers/claude.sh` injects in `agent-only` mode. A subagent's own
+  `PostToolUse` envelope carries `agent_id`; the main-session `Agent`/`Task` call
+  does not, so the same policy is silent in the main session.
+- **Unverified**: whether hook-injected context survives Claude compaction. A
+  headless single-turn `claude -p` cannot force a compaction, so this was not
+  probed live. Correctness does not depend on it: the dedup marker tree is keyed
+  by `session_id` and is reset on `PostCompact`, so a compacted turn re-arms
+  rather than double-injecting.
+
+## 5. Nested-steering injector
+
+The `nested_steering` capability (`CAPABILITIES.md`; handler `hooks/nested-steering.sh`,
+mechanics `hooks/lib/nested_steering.py`, glob matcher `hooks/lib/rule_paths_match.py`)
+delivers the nested chain to a harness that loads instruction files only at run
+start. Facts it rests on:
+
+- **Ceiling.** The harness that needs injection loads the project-root → launch
+  directory chain once. The injector adds only `AGENTS.md` files in directories
+  strictly below the launch directory, on the path down to a touched directory,
+  deepest last. Nothing at or above the launch directory is re-injected.
+- **Path-scoped rules base (decision).** A `.claude/rules/*.md` `paths:` glob is
+  matched against the touched path **relative to the directory that contains the
+  `.claude` directory** — the repo root for a root `.claude/rules`, and `<sub>`
+  for a nested `<sub>/.claude/rules`. This mirrors how a root `.claude/rules`
+  pattern like `src/**/*.ts` reads against the repo root. **Verification:** the
+  matcher's own semantics are proven by `hooks/lib/rule_paths_match.py`'s fixture
+  table and its pytest. Native Claude application of a **nested** `.claude/rules`
+  base is **unverified** — Claude ships path-scoped rules natively, so the
+  injector never runs its rules leg on that harness, and the base rule matters
+  only for a harness with no native path-scoped rules.
+- **Glob semantics.** `**` crosses `/`, `*`/`?` do not; a pattern is anchored to
+  the base (so `*.md` is base-root only); brace expansion is capped at 1,000
+  patterns / 4 MiB; an invalid character class matches nothing; a YAML list or a
+  comma string is accepted; unparseable frontmatter or a missing `paths:` key
+  makes the rule unconditional. The fixture table is the specification.
+- **Reset.** Per-(session, agent, directory) dedup markers are dropped on
+  `PostCompact` and on `SessionStart` with source `startup` or `clear`, never
+  `resume`/`fork`. The `SessionStart` source vocabulary this relies on is
+  recorded per harness in `providers/CONFORMANCE.md`.

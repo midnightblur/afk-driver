@@ -182,14 +182,39 @@ afk_emit_deny() {
   fi
 }
 
+# Emit an additional-context injection for one hook event. The event name is the
+# caller's, not a constant — a PostToolUse handler must name PostToolUse. Both a
+# nested `hookSpecificOutput.additionalContext` and a top-level `additional_context`
+# carry the same text, so one shape satisfies either harness's reader.
 afk_emit_context() {
-  local msg="$1"
+  local event="$1" msg="$2"
   if command -v jq >/dev/null 2>&1; then
-    jq -n --arg msg "$msg" \
-      '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$msg}}'
+    jq -n --arg e "$event" --arg msg "$msg" \
+      '{hookSpecificOutput:{hookEventName:$e,additionalContext:$msg},additional_context:$msg}'
   else
-    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$(afk__json_escape "$msg")"
+    local esc; esc=$(afk__json_escape "$msg")
+    printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"},"additional_context":"%s"}\n' "$event" "$esc" "$esc"
   fi
+}
+
+# Nested-steering injection policy, owned per harness in
+# hooks/lib/providers/<name>.sh. Mode: `always` inject, `never` never (the harness
+# reads nested files itself), `agent-only` inject only for a call carrying an
+# agent id. Rules: `1` inject matching `.claude/rules` bodies (a harness with no
+# native path-scoped rules), `0` leave them to the harness. Defaults are the safe
+# no-op so an unknown provider never double-loads.
+afk_nested_inject_mode() {
+  local provider function
+  provider=$(afk_provider)
+  function="afk_${provider}_nested_inject_mode"
+  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf 'never\n'; fi
+}
+
+afk_nested_inject_rules() {
+  local provider function
+  provider=$(afk_provider)
+  function="afk_${provider}_nested_inject_rules"
+  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf '0\n'; fi
 }
 
 # A Stop verdict has to reach the session, and harnesses read it differently:

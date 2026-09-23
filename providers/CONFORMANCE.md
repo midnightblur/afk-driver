@@ -32,7 +32,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 | Hook launcher runs handlers whatever the PATH | pass 2026-09-02 | pass 2026-09-02 (round 3) | First harness: the launcher ran the repository guard and carried its deny envelope, stayed silent on an absent handler, and still produced the denial when PATH held only the system directory (the WSL-stub case the second harness hit). Covered by `hooks/tests/hook-smoke.sh`; gate rule J rejected a hand-written bare-`bash` command with the expected diagnostic and exit 2, then passed once restored |
 | Stop block decision object is honoured | pass 2026-09-02 | pass 2026-09-02 (round 4) | First harness, live rig: with the adapter exit code set to 0 so only the decision object could carry the verdict, an unregistered scratch skill produced a real Stop block carrying the gate findings. Second harness: same emission, `Stop Blocked` with the same reason. One emission serves both |
-| Nested `AGENTS.md` reaches the model (main + subagent) | pending | pending | Probe: the model quotes a string that exists only in a nested `AGENTS.md`, run from the main session and from a subagent. The first-harness proofs above predate its native `AGENTS.md` support, so this row is unproven on both until re-run |
+| Nested `AGENTS.md` reaches the model (main + subagent) | subagent **pass** 2026-09-23; main-session native single-turn **not preloaded** | **pending** (account usage limit) | See "Nested steering probe (2026-09-23)" below. Claude: a spawned subagent quoted a token that exists only in `sub/deep/AGENTS.md`, delivered by the `agent-only` injector; a headless single-turn main session did not preload it natively. Codex: plugin + hook config install and load with no parse error, but a model turn is blocked by the account usage limit, so injection could not be observed live |
 
 ## Unresolved items
 
@@ -291,6 +291,90 @@ so a later reader does not re-open them as accidents.
 | The flag name on `create-worktree` | `--force-provision` | its own `--force` would read as forcing the worktree itself, which it does not do. |
 | When a marker is written | only when the adapter returned a fingerprint | a marker with nothing to compare against would suppress a later run without being able to say whether anything changed. |
 | Per-worktree state in a copied directory | still excluded by name (`TODO.md`) | it is the toolkit's own per-worktree state, not build state, so it does not belong to any adapter. |
+
+## Nested steering probe (2026-09-23)
+
+Live probes for the `nested_steering` capability (P3 of the AGENTS.md-standard
+plan). Both harnesses ran in sandboxed homes under a scratch directory
+(`CLAUDE_CONFIG_DIR` for Claude, `CODEX_HOME` for Codex); the copied credential
+and both sandbox homes were deleted at the end, and the owner's real
+`~/.claude` and `~/.codex` were never written.
+
+| Field | Claude Code | Codex CLI |
+|---|---|---|
+| Date | 2026-09-23 | 2026-09-23 |
+| Version | 2.1.280 | codex-cli 0.155.1 |
+| Home | scratch `CLAUDE_CONFIG_DIR`, credential copied in, deleted after | scratch `CODEX_HOME`, `auth.json` copied in, deleted after |
+
+Fixture: a throwaway Git repo with a root `AGENTS.md` (token `ROOT-OK`), a root
+`CLAUDE.md` bridging `@AGENTS.md`, and a nested `sub/deep/AGENTS.md` carrying a
+unique nonsense token that appears nowhere else, plus a `sub/deep/x.txt`.
+
+### Claude Code
+
+- **Control — root load.** With `instructionFiles=claude-md-and-agents-md`, a
+  headless `claude -p` run at the fixture root answered `ROOT-OK`. The root
+  `AGENTS.md` loads through the `CLAUDE.md` bridge, exit 0. The setup H11
+  premise is confirmed for the main session.
+- **Probe (a) — native nested load, main session.** A headless single-turn
+  `claude -p` that read `sub/deep/x.txt` reported `NONE-IN-CONTEXT`: the nested
+  `sub/deep/AGENTS.md` was **not** auto-loaded by reading a file in that
+  directory. A single-turn headless run cannot exercise the interactive,
+  multi-turn native lazy-load, so this is conclusive only for the headless
+  single-turn case and leaves the interactive main-session case unproven here.
+- **Probe (b) — subagent native lazy load.** A spawned general-purpose subagent
+  that read `sub/deep/x.txt` reported `NONE`: a subagent does **not** inherit a
+  nested `AGENTS.md`. This is the fail that settles open item 1 and fires the
+  P3.7 amendment.
+- **Envelope shape.** A scratch capture hook confirmed a subagent's own
+  `PostToolUse` envelope carries `agent_id` (and `agent_type`); the main-session
+  `PostToolUse` for the `Agent`/`Task` tool call carries **no** `agent_id`. So
+  gating injection on the presence of `agent_id` fires for a subagent's tool
+  calls and stays silent in the main session — exactly the `agent-only` mode.
+- **Positive — `agent-only` injection reaches a subagent.** With the plugin
+  loaded and `hooks/lib/providers/claude.sh` set to `agent-only`, a spawned
+  subagent that read `sub/deep/x.txt` quoted the nested token verbatim
+  and stated it came from a `PostToolUse` hook, not the file. The
+  injector's dedup markers landed under the sandbox
+  (`<CLAUDE_CONFIG_DIR>/plugins/data/afk-inline/`), not the real home.
+
+**Amendment (P3.7) — taken.** Because probe (b) failed, `claude.sh`
+`afk_claude_nested_inject_mode` is `agent-only` (was the provisional `never`).
+The main session still relies on the native interactive load (setup H11); only
+subagent tool calls are injected. `afk_claude_nested_inject_rules` stays `0`
+(Claude reads `.claude/rules` `paths:` natively).
+
+**(c) — compaction survival: not run.** A single-turn headless `claude -p`
+cannot force a compaction, so the marker reset on `PostCompact` was not
+exercised live. It is covered deterministically by `hooks/tests/hook-smoke.sh`
+and `scripts/tests/test_nested_steering.py` (reset-then-re-arm). Open.
+
+### Codex CLI — pending (account usage limit)
+
+The temporary `CODEX_HOME` authenticated with the copied `auth.json`, the local
+worktree was added as marketplace `afk-toolkit`, and `afk@afk-toolkit` installed
+`enabled` at 1.6.1 with its source resolved to the worktree. `codex exec`
+rendered its session banner (hooks loaded) with **no** parse or matcher warning
+against `hooks/hooks.codex.json`, including the new `SessionStart`
+`startup|clear` group and the `PostToolUse` / `PostCompact` nested-steering
+groups. Every model turn then returned `You've hit your usage limit ... try
+again at Sep 28th, 2026`, exit 1.
+
+So the wiring is accepted locally, but the behavioral probe — injection reaching
+a Codex main session and subagent, and observing which `SessionStart` matcher
+fires — could **not** run. **Blocker:** the Codex ChatGPT account is over its
+usage limit until 2026-09-28; no model turn is possible. Re-run after the reset:
+the fixture and command sequence above reproduce it. The provider-agnostic
+mechanics for `provider=codex` are meanwhile proven deterministically by
+`hooks/tests/hook-smoke.sh` (codex injection, dedup, reset, rules leg) and
+`scripts/tests/test_nested_steering.py`.
+
+Note on the `SessionStart` `startup|clear` matcher on Codex: even if that
+harness does not recognize the matcher vocabulary, correctness is preserved —
+the dedup marker tree is keyed by `session_id`, so a fresh Codex session gets
+fresh markers regardless, and `PostCompact` still resets within a session. The
+`SessionStart` reset is a belt-and-suspenders reset, not the only one. This is
+recorded as the reason the pending Codex verdict does not gate the release.
 
 ## Add harness #N
 
