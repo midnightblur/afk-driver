@@ -25,8 +25,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from contract import (ALL_CLASSES, HIT_LIMIT, LINE_HASH_CHARS,  # noqa: E402
-                      CANONICAL, QUERY_ORIGINS, command_key, family, respell,
-                      stable_id)
+                      CANONICAL, QUERY_ORIGINS, cited_queries, command_key, family,
+                      respell, stable_id)
 
 TABLES = ("run", "boundaries", "nodes", "queries", "claims", "counter_checks")
 QTYPES = {f"Q{n}" for n in range(1, 6)}
@@ -59,7 +59,7 @@ KEYS = {
                    "mechanism", "reason", "universe", "sites", "modules", "name_forms"},
     "nodes": {"id", "class", "site", "disposition", "reason", "impact_verdict",
               "coverage_verdict", "pinned_by", "evidence", "parent", "query_id",
-              "line_hash"},
+              "line_hash", "also_found_by"},
     "queries": {"id", "command", "universe", "count", "lines", "evidence", "origin"},
     "claims": {"id", "text", "kind", "load_bearing", "supporting_nodes", "citations"},
     "counter_checks": {"method", "kind", "targeted_claims", "new_nodes", "state",
@@ -78,7 +78,8 @@ TYPES = {
                    "modules": dict, "name_forms": dict},
     "nodes": {"id": str, "class": str, "site": str, "disposition": str, "reason": str,
               "impact_verdict": str, "coverage_verdict": str, "pinned_by": str,
-              "evidence": str, "parent": str, "query_id": str, "line_hash": str},
+              "evidence": str, "parent": str, "query_id": str, "line_hash": str,
+              "also_found_by": list},
     "queries": {"id": str, "command": str, "universe": str, "count": int,
                 "lines": int, "origin": str,
                 "evidence": str},
@@ -512,8 +513,8 @@ def validate(ledger: dict, scope: str = "run",
     # search is one of them lying, and the table is the one a reader can check.
     citing: dict[str, int] = {}
     for row in nodes:
-        if isinstance(row.get("query_id"), str):
-            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+        for query_id in cited_queries(row):
+            citing[query_id] = citing.get(query_id, 0) + 1
     for query_id, row in query_index.items():
         count = row.get("count")
         if isinstance(count, int) and count != citing.get(query_id, 0):
@@ -526,6 +527,10 @@ def validate(ledger: dict, scope: str = "run",
     # its own class says it ran. A node citing a query no row cites is a node
     # whose class row does not account for it.
     for row in nodes:
+        for other in row.get("also_found_by") or []:
+            if other not in query_index:
+                defects.append(f"nodes.{row.get('id')}: also_found_by {other!r} is not "
+                               "in the queries table")
         query_id = row.get("query_id")
         if not isinstance(query_id, str):
             continue

@@ -38,6 +38,16 @@ first released heading here.
   declared site, as the ledger format already stated, and the tracer
   definition says how to hash a line that ends in `\r\n`.
 
+- **A counter-search that reaches a line another tracer reached now folds.**
+  Two tracers reaching one line by different searches were refused as two
+  answers under one id, so a blind counter-search could never fold. Rows that
+  agree on the disposition and both verdicts now fold as one node, with the
+  second search in a new optional `also_found_by` field that counts toward
+  its query. Rows that split on any of the three reopen the node as a
+  conflict. A class closed by a search in one row and by reading in another
+  keeps the search, as the ledger format already stated, instead of producing
+  a row the validator refuses.
+
 - **Choice pages send their answers from one visible control.** The page kit
   now owns one answer form around each active round. Its sticky bar shows a
   live summary, sends one tagged response, confirms the send, and copies the

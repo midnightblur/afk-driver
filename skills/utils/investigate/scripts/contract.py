@@ -366,6 +366,14 @@ def line_hash(text: str) -> str:
     return digest[:LINE_HASH_CHARS]
 
 
+def cited_queries(node: dict) -> list[str]:
+    """Every search a node counts toward: the one that produced it, and the
+    others that reached the same site (`also_found_by`)."""
+    cited = [node["query_id"]] if isinstance(node.get("query_id"), str) else []
+    return cited + [item for item in node.get("also_found_by") or []
+                    if isinstance(item, str) and item not in cited]
+
+
 def worst(*statuses: str) -> str:
     """The status a row may claim when several apply to it at once."""
     known = [status for status in statuses if status in STATUS_ORDER]

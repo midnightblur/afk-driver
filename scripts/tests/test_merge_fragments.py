@@ -268,7 +268,8 @@ class MergeFragmentsTest(unittest.TestCase):
         seeded = next(item for item in staging["boundaries"] if item["class"] == "B3")
         seeded.update({"status": "judgment-only", "method": "none",
                        "reason": "a site an agent reads: alpha/B3.java",
-                       "sites": ["alpha/B3.java"]})
+                       "sites": ["alpha/B3.java"], "query_ids": [],
+                       "hits": 0, "hit_ids": []})
         merged = self.merge(staging, fragment(boundaries=[
             {"class": "B3", "status": "closed", "method": "read the declared site",
              "hits": 0, "hit_ids": [], "sites": ["alpha/B3.java"],
@@ -544,13 +545,72 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertIn("B1:beta.java:4", stderr)
 
     # Two answers under one id are two answers; arrival order settles nothing.
-    def test_one_node_id_with_two_evidence_lines_is_refused(self):
-        code, stderr, document = self.run_script(ledger(), fragment(nodes=[
-            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
-             "evidence": "something else the reader saw"}]))
-        self.assertEqual(code, 2)
-        self.assertIn("one id is one node", stderr)
-        self.assertIsNone(document)
+    # Two searches reaching one line and agreeing on it are one node found
+    # twice: the first row stands, and the second search is kept beside it.
+    def test_an_agreeing_overlap_is_one_node_found_twice(self):
+        staging = ledger()
+        command = "git grep -n -I -E -i -e Widget"
+        other = {"id": validate_coverage.stable_id("q", command + "tracked files"),
+                 "command": command, "universe": "tracked files", "count": 1,
+                 "evidence": None, "origin": "tracer"}
+        kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        merged = self.merge(staging, fragment(
+            boundaries=[{"class": "B1", "status": "closed", "method": "every name form",
+                         "hits": 1, "hit_ids": ["B1:alpha.java:9"],
+                         "query_ids": [other["id"]], "universe": "tracked files"}],
+            nodes=[{**hit("B1:alpha.java:9", query=other["id"],
+                          line_hash=kept["line_hash"]),
+                    "evidence": "something else the reader saw"}],
+            queries=[other]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], kept["disposition"])
+        self.assertEqual(node["evidence"], kept["evidence"])
+        self.assertEqual(node["query_id"], kept["query_id"])
+        self.assertEqual(node["also_found_by"], [other["id"]])
+        row = next(item for item in merged["queries"] if item["id"] == other["id"])
+        self.assertEqual(row["count"], 1)
+        defects, _ = validate_coverage.validate(merged)
+        self.assertFalse([item for item in defects
+                          if "also_found_by" in item or other["id"] in item], defects)
+
+    def test_an_overlap_split_on_impact_reopens_the_node(self):
+        staging = ledger()
+        kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        kept.update({"impact_verdict": "unchanged", "pinned_by": "unguarded"})
+        merged = self.merge(staging, fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash=kept["line_hash"]),
+             "disposition": kept["disposition"], "impact_verdict": "breaks",
+             "pinned_by": "unguarded"}]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertIn("impact_verdict unchanged vs breaks", node["reason"])
+        self.assertEqual(node["impact_verdict"], "unverified")
+
+    def test_a_named_pinning_test_wins_over_unguarded(self):
+        staging = ledger()
+        kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        kept.update({"impact_verdict": "breaks", "pinned_by": "unguarded"})
+        merged = self.merge(staging, fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash=kept["line_hash"]),
+             "disposition": kept["disposition"], "impact_verdict": "breaks",
+             "pinned_by": "tests/alpha_test.java:12"}]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["pinned_by"], "tests/alpha_test.java:12")
+
+    # `sites` and `query_ids` are exclusive: a class closed both ways keeps the
+    # search, and the read nodes stay in the table.
+    def test_a_read_folded_into_a_searched_class_keeps_the_search(self):
+        staging = ledger()
+        seeded = next(item for item in staging["boundaries"] if item["class"] == "B3")
+        assert seeded.get("query_ids"), "fixture: B3 is closed by a search"
+        merged = self.merge(staging, fragment(boundaries=[
+            {"class": "B3", "status": "closed", "method": "read the declared site",
+             "hits": 0, "hit_ids": [], "sites": ["alpha/B3.java"],
+             "universe": "the declared site"}], nodes=[READ_B3]))
+        row = next(item for item in merged["boundaries"] if item["class"] == "B3")
+        self.assertNotIn("sites", row)
+        self.assertEqual(row["method"], seeded["method"])
+        self.assertIn(READ_B3["id"], [item["id"] for item in merged["nodes"]])
 
     def test_one_counter_check_with_two_kinds_is_refused(self):
         clash = dict(ledger()["counter_checks"][0])
