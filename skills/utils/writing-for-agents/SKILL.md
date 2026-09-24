@@ -1,22 +1,22 @@
 ---
 name: writing-for-agents
-description: Writing documents for agents. Use when creating, editing, auditing, or reviewing a skill (SKILL.md and siblings), a CLAUDE.md / role sidecar / rules file, or any other document an agent consumes.
+description: Writing documents for agents. Use when creating, editing, auditing, or reviewing a skill (SKILL.md and siblings), an AGENTS.md / role sidecar / rules file, or any other document an agent consumes.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
-Reference for writing any document an agent consumes — a skill, a `CLAUDE.md`, a doc reached by a pointer. The packaging differs; the writing does not: the same levers make each one predictable — the agent taking the same _process_ every run, not producing the same output.
+Reference for writing any document an agent consumes — a skill, an `AGENTS.md`, a doc reached by a pointer. The packaging differs; the writing does not: the same levers make each one predictable — the agent taking the same _process_ every run, not producing the same output.
 
 Two branch files carry what changes with the packaging:
 
 - The document is a **skill** → read [`SKILL-MECHANICS.md`](SKILL-MECHANICS.md) for frontmatter, the invocation choice, and router skills.
-- The document is a **harness markdown** (`CLAUDE.md`, a role sidecar, a `.claude/rules` file) → read [`HARNESS-MECHANICS.md`](HARNESS-MECHANICS.md) for the inclusion bar and placement.
+- The document is an **instruction file** (`AGENTS.md`, a role sidecar, a `.claude/rules` file) → read [`PLACEMENT.md`](../../afk/agents-md/PLACEMENT.md) for the inclusion bar and placement.
 
 Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.
 
 ## Context pointers
 
-A **context pointer** is a reference held in the agent's context that names some out-of-context material and encodes the condition for reaching it. A skill's description is one; a line in `CLAUDE.md` naming a doc is the same object. The pointer's _wording_, not its target, decides when the agent reaches the material — and how reliably. A must-have target behind a weakly worded pointer is a variance bug: sharpen the wording first, and inline the material only if sharpening fails.
+A **context pointer** is a reference held in the agent's context that names some out-of-context material and encodes the condition for reaching it. A skill's description is one; a line in `AGENTS.md` naming a doc is the same object. The pointer's _wording_, not its target, decides when the agent reaches the material — and how reliably. A must-have target behind a weakly worded pointer is a variance bug: sharpen the wording first, and inline the material only if sharpening fails.
 
 A pointer does two jobs — state what the material is, and list the **branches** that should trigger reaching it (a branch is a distinct case the document handles, so different runs take different paths through it). Every word of an always-loaded pointer costs on every turn, so it earns even harder pruning than the body:
 
@@ -28,7 +28,7 @@ A pointer does two jobs — state what the material is, and list the **branches*
 
 Every document and pointer you add spends one of two budgets:
 
-- **Context load** — the cost of always-loaded material on the agent's window: a `CLAUDE.md` line, a skill description, anything sitting in context every turn, spending tokens and attention whether or not it fires.
+- **Context load** — the cost of always-loaded material on the agent's window: an `AGENTS.md` line, a skill description, anything sitting in context every turn, spending tokens and attention whether or not it fires.
 - **Cognitive load** — the cost on the human: which documents exist and when to reach for each. The human is the index. Not a cost to minimise — it is the price of human agency; spend it where human judgement matters, remove it where it does not.
 
 Material reached only through a pointer escapes context load at the price of the pointer's own line; material with no pointer at all rides entirely on cognitive load.

@@ -43,7 +43,7 @@ could apply without asking what you meant.
 ## 3. Propose
 
 **One round**, grouped by target file. Per item: the edit · one-line **why** ·
-its route. Approval granularity per `/afk:claude-md`'s proposal protocol.
+its route. Approval granularity per `/afk:agents-md`'s proposal protocol.
 **Never write unapproved.**
 
 Done when every drafted item is approved, declined, or deferred — none left

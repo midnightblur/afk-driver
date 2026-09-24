@@ -45,7 +45,7 @@ this evidence, and the last section says what would close it.
 | afk/adversary | not proven | Loads and registers on both harnesses; no fixture contract was probed |
 | afk/autopilot | not proven | Loads and registers; no fixture plan was driven |
 | afk/bug | not proven | Its tracker calls are proven through `round5`; the dossier shape was not rendered |
-| afk/claude-md | not proven | Loads and registers; no fixture delta was produced |
+| afk/agents-md | not proven | Loads and registers; no fixture delta was produced |
 | afk/design-system | not proven | Loads and registers; the design-system tool is main-session-only and was not driven |
 | afk/execute | not proven | Its build gates are proven through `round5`; no driven slice was run |
 | afk/fix | not proven | Its gate behaviour is proven through `round5` (blocked then passed); the loop was not run |

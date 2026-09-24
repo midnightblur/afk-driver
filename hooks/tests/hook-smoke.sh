@@ -77,13 +77,15 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
   provider_envelopes="$envelopes/$provider"
   echo "== provider: $provider =="
 
-  for event in session-start pretooluse-bash-safe stop; do
+  for event in session-start sessionstart-clear pretooluse-bash-safe posttooluse postcompact stop; do
     fixture="$provider_envelopes/$event.json"
     parsed=$(AFK_PROVIDER="$provider" bash -c \
       '. "$1"; afk_hook_input; printf "%s" "$(afk_hook_field hook_event_name)"' \
       _ "$shim" < "$fixture")
     case "$event:$parsed" in
-      session-start:SessionStart|pretooluse-bash-safe:PreToolUse|stop:Stop)
+      session-start:SessionStart|sessionstart-clear:SessionStart|\
+pretooluse-bash-safe:PreToolUse|posttooluse:PostToolUse|\
+postcompact:PostCompact|stop:Stop)
         pass "$event envelope parses" ;;
       *) fail "$event envelope parse (actual=$parsed)" ;;
     esac
@@ -121,6 +123,163 @@ for adapter in "$workflow"/hooks/lib/providers/*.sh; do
     fail "lavish-tips pass-through (rc=$rc)"
   fi
 done
+
+# ---- nested-steering handler: inject nested AGENTS.md below the launch dir on
+# a harness that loaded only the launch chain, dedup, reset, and stay silent on
+# the harness that reads nested files natively.
+echo "== nested steering =="
+ns_repo=$(mktemp -d)
+git -C "$ns_repo" init -q >/dev/null 2>&1
+top=$(git -C "$ns_repo" rev-parse --show-toplevel)
+printf 'root steering\n' > "$top/AGENTS.md"
+printf '@AGENTS.md\n' > "$top/CLAUDE.md"
+mkdir -p "$top/sub/deep" "$top/.claude/rules"
+printf 'deep steering NESTED-TOKEN-XYZ\n' > "$top/sub/deep/AGENTS.md"
+printf 'hello\n' > "$top/sub/deep/x.txt"
+printf 'export const a = 1;\n' > "$top/sub/deep/widget.ts"
+printf -- '---\npaths: ["**/*.ts"]\n---\nrule body RULE-TOKEN-QRS\n' > "$top/.claude/rules/scoped.md"
+ns_data=$(mktemp -d)
+
+ns_run() {  # provider event file_path -> handler stdout
+  local prov=$1 evt=$2 fp=$3
+  printf '{"session_id":"ns-sess","cwd":"%s","hook_event_name":"%s","tool_name":"Read","tool_input":{"file_path":"%s"}}' \
+    "$top" "$evt" "$fp" \
+    | env AFK_PROVIDER="$prov" PLUGIN_DATA="$ns_data" CLAUDE_PLUGIN_DATA="$ns_data" \
+      bash "$workflow/hooks/nested-steering.sh"
+}
+
+out=$(ns_run codex PostToolUse "$top/sub/deep/x.txt")
+if printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("NESTED-TOKEN-XYZ")' >/dev/null 2>&1; then
+  pass "codex injects a nested AGENTS.md token below the launch dir"
+else
+  fail "codex nested injection (out=$out)"
+fi
+
+out2=$(ns_run codex PostToolUse "$top/sub/deep/x.txt")
+if [ -z "$out2" ]; then
+  pass "a second touch of the same dir is deduped"
+else
+  fail "dedup failed (out=$out2)"
+fi
+
+printf '{"session_id":"ns-sess","cwd":"%s","hook_event_name":"PostCompact"}' "$top" \
+  | env AFK_PROVIDER=codex PLUGIN_DATA="$ns_data" bash "$workflow/hooks/nested-steering.sh" >/dev/null 2>&1
+out3=$(ns_run codex PostToolUse "$top/sub/deep/x.txt")
+if printf '%s' "$out3" | jq -e '.hookSpecificOutput.additionalContext | test("NESTED-TOKEN-XYZ")' >/dev/null 2>&1; then
+  pass "reset on PostCompact re-arms injection"
+else
+  fail "reset did not re-arm (out=$out3)"
+fi
+
+out4=$(ns_run codex PostToolUse "$top/sub/deep/widget.ts")
+if printf '%s' "$out4" | jq -e '.additional_context | test("RULE-TOKEN-QRS")' >/dev/null 2>&1; then
+  pass "codex injects a matching .claude/rules body"
+else
+  fail "codex rule injection (out=$out4)"
+fi
+
+out5=$(ns_run claude PostToolUse "$top/sub/deep/x.txt")
+if [ -z "$out5" ]; then
+  pass "claude main session injects nothing (mode never; native AGENTS.md support handles the subtree)"
+else
+  fail "claude main session should be silent (out=$out5)"
+fi
+
+# claude stays never even for a subagent tool call: a Claude subagent lazy-loads
+# a nested AGENTS.md natively (providers/CONFORMANCE.md, 2026-09-23), so injecting
+# would double it. The handler must emit nothing regardless of agent_id.
+out6=$(printf '{"session_id":"ns-sess-a","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","agent_id":"child-7","tool_input":{"file_path":"%s"}}' \
+    "$top" "$top/sub/deep/x.txt" \
+  | env AFK_PROVIDER=claude PLUGIN_DATA="$ns_data" CLAUDE_PLUGIN_DATA="$ns_data" \
+    bash "$workflow/hooks/nested-steering.sh")
+if [ -z "$out6" ]; then
+  pass "claude subagent tool call injects nothing (mode never; no double-inject over native lazy-load)"
+else
+  fail "claude subagent should be silent (out=$out6)"
+fi
+
+# agent-only is correct machinery for a harness whose subagents do NOT lazy-load,
+# though no shipped provider selects it. Exercise it directly against the module
+# (synthetic mode): it injects when the envelope carries agent_id and is silent
+# without one.
+ns_py=python
+command -v python >/dev/null 2>&1 || ns_py=python3
+out7=$(printf '{"session_id":"ns-sess-b","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","agent_id":"child-9","tool_input":{"file_path":"%s"}}' \
+    "$top" "$top/sub/deep/x.txt" \
+  | "$ns_py" "$workflow/hooks/lib/nested_steering.py" \
+    --provider synthetic --mode agent-only --rules 0 --data-dir "$ns_data")
+out8=$(printf '{"session_id":"ns-sess-c","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' \
+    "$top" "$top/sub/deep/x.txt" \
+  | "$ns_py" "$workflow/hooks/lib/nested_steering.py" \
+    --provider synthetic --mode agent-only --rules 0 --data-dir "$ns_data")
+if printf '%s' "$out7" | grep -q "NESTED-TOKEN-XYZ" && [ -z "$out8" ]; then
+  pass "agent-only machinery injects for a subagent tool call, silent without agent_id"
+else
+  fail "agent-only machinery (with-agent='$out7' without-agent='$out8')"
+fi
+rm -rf "$ns_repo" "$ns_data"
+
+# ---- agents-md-config-check.sh: the SessionStart notice for the instructionFiles setting.
+echo "== agents-md config notice =="
+amc_repo_a=$(mktemp -d)          # tracks an AGENTS.md
+git -C "$amc_repo_a" init -q
+printf 'root steering\n' > "$amc_repo_a/AGENTS.md"
+git -C "$amc_repo_a" add AGENTS.md
+git -C "$amc_repo_a" -c user.email=a@b.c -c user.name=x commit -q -m init
+amc_repo_b=$(mktemp -d)          # no AGENTS.md
+git -C "$amc_repo_b" init -q
+printf 'x\n' > "$amc_repo_b/README.md"
+git -C "$amc_repo_b" add README.md
+git -C "$amc_repo_b" -c user.email=a@b.c -c user.name=x commit -q -m init
+
+amc_wrong=$(mktemp -d)           # settings with the wrong value
+printf '{"pluginConfigs":{"agents-md@builtin":{"options":{"instructionFiles":"claude-md"}}}}\n' \
+  > "$amc_wrong/settings.json"
+amc_right=$(mktemp -d)           # settings with the required value
+printf '{"pluginConfigs":{"agents-md@builtin":{"options":{"instructionFiles":"claude-md-and-agents-md"}}}}\n' \
+  > "$amc_right/settings.json"
+amc_missing=$(mktemp -d)         # no settings.json at all
+
+amc_run() {  # provider repo config_dir -> handler stdout
+  ( cd "$2" && env AFK_PROVIDER="$1" CLAUDE_CONFIG_DIR="$3" \
+      bash "$workflow/hooks/agents-md-config-check.sh" )
+}
+
+a1=$(amc_run claude "$amc_repo_a" "$amc_wrong")
+if printf '%s' "$a1" | grep -q 'instructionFiles'; then
+  pass "claude + tracked AGENTS.md + wrong value -> warns and names the setting"
+else
+  fail "claude wrong-value should warn (out=$a1)"
+fi
+
+a2=$(amc_run claude "$amc_repo_a" "$amc_right")
+if [ -z "$a2" ]; then
+  pass "claude + tracked AGENTS.md + right value -> silent"
+else
+  fail "claude right-value should be silent (out=$a2)"
+fi
+
+a3=$(amc_run claude "$amc_repo_b" "$amc_wrong")
+if [ -z "$a3" ]; then
+  pass "claude + no tracked AGENTS.md -> silent"
+else
+  fail "no-AGENTS.md should be silent (out=$a3)"
+fi
+
+a4=$(amc_run codex "$amc_repo_a" "$amc_wrong")
+if [ -z "$a4" ]; then
+  pass "codex -> silent (setting is Claude-only)"
+else
+  fail "codex should be silent (out=$a4)"
+fi
+
+a5=$(amc_run claude "$amc_repo_a" "$amc_missing")
+if [ -z "$a5" ]; then
+  pass "claude + missing settings file -> silent"
+else
+  fail "missing settings file should be silent (out=$a5)"
+fi
+rm -rf "$amc_repo_a" "$amc_repo_b" "$amc_wrong" "$amc_right" "$amc_missing"
 
 # ---- the launcher every hook command goes through.
 launcher="$workflow/hooks/run-hook.py"

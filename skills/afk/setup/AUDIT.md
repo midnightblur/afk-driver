@@ -11,7 +11,7 @@ Run all six checks; report even when clean.
 
 Five surfaces that enumerate skills must agree:
 `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` (`skills` arrays) ↔ skill dirs on disk
-(`skills/*/*/SKILL.md`) ↔ `README.md` §10 skill reference ↔ `CLAUDE.md`
+(`skills/*/*/SKILL.md`) ↔ `README.md` §10 skill reference ↔ `AGENTS.md`
 "The skills". A skill on one surface, absent from another → finding (route: the
 surface missing it — or `plugin.json` if the dir itself is the stray). Also:
 both `.claude-plugin/*.json` descriptions still describe the chain's current
@@ -61,7 +61,7 @@ then the finding names both sides.
 
 For each `FRESHNESS.md` registry row: the artifact exists, its steward file
 exists, the update-trigger surfaces it names still exist. For each lockstep
-pair/triple named in `CLAUDE.md` "Lockstep": the sections the pair binds
+pair/triple named in `AGENTS.md` "Lockstep": the sections the pair binds
 (emitter grammar ↔ parser expectation) are both still present. Route:
 `FRESHNESS.md` for dead rows; the drifted member for broken pairs.
 

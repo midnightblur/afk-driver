@@ -8,7 +8,7 @@
 #    (silent, no error) — happened for skills/afk/setup and skills/afk/retro
 #    (added in 331deb608a5, plugin.json never updated; caught only when a
 #    human noticed the skill was missing).
-# B. skill catalog — every skill name is mentioned in the plugin's CLAUDE.md
+# B. skill catalog — every skill name is mentioned in the plugin's AGENTS.md
 #    and README.md (as /afk:<name>, `<name>`, or its skills/ path); an agent
 #    reading the harness never learns an uncatalogued skill exists — happened
 #    for seven skills/utils/ entries, caught only by an /afk:setup audit.
@@ -117,11 +117,11 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     [ -f "$PLUGIN_DIR/${a#./}" ] || stale="$stale$a"$'\n'
   done
 
-  # ---- check B: every skill name catalogued in the plugin's CLAUDE.md + README.md.
+  # ---- check B: every skill name catalogued in the plugin's AGENTS.md + README.md.
   # Accepted mention shapes: /afk:<name>, `<name>`, or its skills/(afk|utils)/<name> path.
   # Each doc is read once; the per-skill test is a fork-free bash pattern match.
   local uncatalogued="" doc doc_body
-  for doc in CLAUDE.md README.md; do
+  for doc in AGENTS.md README.md; do
     [ -f "$PLUGIN_DIR/$doc" ] || continue
     doc_body=$(<"$PLUGIN_DIR/$doc")
     for s in ${actual_skills[@]+"${actual_skills[@]}"}; do

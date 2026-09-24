@@ -36,7 +36,7 @@ Bulk executions inside the loop (failing-suite runs, builds, instrumented runs w
 
 ### Tools at your disposal
 
-*The repository names its own instruments — its `CLAUDE.md` and its `setup.extra` files. Read those first; the classes below say what to look for.*
+*The repository names its own instruments — its `AGENTS.md` and its `setup.extra` files. Read those first; the classes below say what to look for.*
 
 The list above is generic methods; these are the classes of concrete instrument worth having. Use every one that fits before settling for a guess.
 

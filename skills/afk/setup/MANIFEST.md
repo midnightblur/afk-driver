@@ -17,7 +17,7 @@ only by `/afk:setup base` (the default branch runs `Probe:`/`Fix:` alone).
 `Base probe:` tightens the health check to the monorepo's pinned toolchain
 version; `Base fix:` names the concrete install the plain `human:` fix leaves to
 the reader. Version pins are never restated here — probes read them from their
-one home (`.sdkmanrc` for JDK/Maven; the repository's root `CLAUDE.md` states the
+one home (`.sdkmanrc` for JDK/Maven; the repository's root `AGENTS.md` states the
 Node 24 / npm 11 workspace standard). Under `base`, a version miss is
 `missing/broken` even when the plain probe passes. Section **W** is base-only —
 its entries have no plain `Probe:` and the default branch skips them. The base
@@ -72,7 +72,7 @@ a token value — not even partially.
 - **Needed by:** branch-naming discipline for `/afk:execute`'s push — enforces
   the repository's `git.branch-pattern` on **agent** new-branch creation only;
   human-driven creation is untouched.
-  Workflow `CLAUDE.md` "Conventions to keep". Not required for any skill to *run*.
+  Workflow `AGENTS.md` "Conventions to keep". Not required for any skill to *run*.
 - **Probe:** `grep -q afk-branch-name-gate "$(git rev-parse --path-format=absolute --git-path hooks)/reference-transaction" 2>/dev/null`
 - **Fix:** `auto:` `bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"`
 - **Notes:** normally auto-installs on `SessionStart` (`hooks/install-git-hooks.sh
@@ -212,6 +212,50 @@ a token value — not even partially.
   doctrine stays in `INVESTIGATION.md`. Opt out by deleting the sentinel block;
   opt in any time by re-running `/afk:setup`.
 
+### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
+- **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
+  this settings key — this plugin's own `skills/afk/AGENTS.md` and the
+  `nested_steering` capability (`CAPABILITIES.md`) reach that session only when
+  the key is set with the root `CLAUDE.md` bridge present. Which harness, and
+  the key's values: `providers/HARNESS-MATRIX.md`; standard:
+  `skills/afk/agents-md/SKILL.md`.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py" --check`
+  — reads `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`;
+  exit 0 when `pluginConfigs."agents-md@builtin".options.instructionFiles` is
+  `claude-md-and-agents-md`.
+- **Fix:** `auto:` `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py"`
+  — merges exactly that one key, preserves every other key and the file's
+  indentation, writes a timestamped backup first, and creates the file and its
+  parents when absent.
+- **Notes:** the key may also arrive from managed settings or `--settings`,
+  which the probe cannot see — a miss it reports is advisory, and the
+  idempotent fix writes the same value into the user-global settings file
+  either way. It lives only in the user-global file, per machine, never on git;
+  the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
+
+### H12 · no instruction-file strays above the repository
+- **Needed by:** every afk developer — an instruction file left in the git
+  root's parent, or any directory above it up to the filesystem root, is read by
+  a harness that walks the working directory upward past the git root
+  (`providers/HARNESS-MATRIX.md`), so it is prepended to **every** repository
+  below it, silently. Standard: `skills/afk/agents-md/SKILL.md`.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/ancestor_instruction_files.py" --check`
+  — tests the fixed names `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`,
+  `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` at each ancestor by
+  direct path test (never a recursive scan, which would trip the endpoint
+  sensor); exit 0 when none is found, 1 when one is. A file inside `~/.claude` or
+  `~/.codex` is the harness user-global steering file, not a stray, and is
+  excluded; one directly in the home directory (`~/AGENTS.md`, `~/CLAUDE.md`) is
+  a stray.
+- **Fix:** `human:` run the probe without `--check` to list each stray with its
+  size and the reason it leaks into every repository below it, then per stray
+  offer the developer **delete** or **add its path to `claudeMdExcludes`** in
+  their settings. Never delete without the developer's answer — a stray may be
+  theirs on purpose.
+- **Notes:** report-only; the toolkit changes no file above the repository on
+  its own. The two remediations and the harness that walks above the repository
+  are in `providers/HARNESS-MATRIX.md` and the standard.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
@@ -272,7 +316,7 @@ a token value — not even partially.
   is in `build-gates:` and `maven.reactor-pom` names a POM in this checkout).
 - **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
 - **Fix:** `human:` the wrapper ships with the repository; JDK selection
-  follows that repository's own conventions (its root `CLAUDE.md`).
+  follows that repository's own conventions (its root `AGENTS.md`).
 - **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep "Java version: $want\." | grep -qi amazon`
   — the JDK the wrapper resolves must match the `.sdkmanrc` java pin **and** be
   Amazon Corretto (the `amazon` vendor grep mirrors the pin's `-amzn` suffix —
@@ -419,7 +463,7 @@ a token value — not even partially.
   runs through, so without it no gate or guard fires at all — the shared
   `.mcp.json` bootstrap,
   `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
-  `skills/afk/claude-md/scripts/*.py`, the repository's `verification.env` command,
+  `skills/afk/agents-md/scripts/*.py`, the repository's `verification.env` command,
   the shared Jira lib `adapters/tracker/jira/api.py`,
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
   `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
@@ -469,7 +513,7 @@ a token value — not even partially.
 - **Probe:** `node --version && npm --version`
 - **Fix:** `human:` install the Node version the repository standardises on.
 - **Base probe:** `node --version | grep -q '^v24\.' && npm --version | grep -q '^11\.'`
-  — whatever workspace standard the repository's root `CLAUDE.md` states.
+  — whatever workspace standard the repository's root `AGENTS.md` states.
 - **Base fix:** `human:` via nvm: `nvm install 24 && nvm use 24` (npm 11 ships
   with Node 24); nvm itself is optional — any install path that flips the base
   probe green passes.
@@ -554,11 +598,20 @@ Gating rule: if O1 misses, report the whole section as
   `codex plugin remove afk@afk-toolkit`, add it again, then restart.
 
 ### O4 · current hook definitions trusted
-- **Needed by:** every handler in `hooks/hooks.json`.
+- **Needed by:** every handler in `hooks/hooks.json` and its native twin
+  `hooks/hooks.codex.json`.
 - **Probe:** parse `~/.codex/config.toml`; every enabled AFK handler has a
-  current native trust entry. Never print other config or secret values.
+  native trust entry matching the currently installed `hooks.codex.json`
+  definition. Never print other config or secret values.
+- **A plugin upgrade changes `hooks/hooks.codex.json`, so the harness re-prompts
+  for hook trust and a dismissed prompt leaves those hooks silently off.** Re-run
+  `/afk:setup` after every version change on that harness — not only when a
+  changelog entry says the dependency set changed. The probe re-checks trust
+  against the current definitions, which is what catches a stale or dismissed
+  trust after an upgrade.
 - **Fix:** `human:` review and trust every current AFK definition through the
-  native hooks interface after all `hooks.json` edits land.
+  native hooks interface after all `hooks.json` / `hooks.codex.json` edits land,
+  including after a plugin upgrade.
 
 ### O5 · Codex agent TOML stubs
 - **Needed by:** `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`,
@@ -598,6 +651,8 @@ Gating rule: if O1 misses, report the whole section as
   `project_doc_fallback_filenames = ["CLAUDE.md"]`.
 - **Fix:** `human:` offer that exact idempotent setting. Preserve all other
   user configuration.
+- **Notes:** serves a repo that still keeps per-directory `CLAUDE.md`; inert in
+  a repo migrated to the `AGENTS.md` standard, which leaves only the root bridge.
 
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.
@@ -700,6 +755,7 @@ Each var is documented at its consumer — this table is just the map.
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
 | `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |
+| `NESTED_STEERING_DISABLE` | `hooks/nested-steering.sh` | disable the nested-steering injector (`nested_steering` capability) for one session |
 | `AFK_PROVIDER` | `hooks/lib/provider.sh` | force provider detection before adapter probes |
 | `AFK_PATH_CASE_FOLD` | `hooks/lib/provider.sh` | force path comparison to fold case (`1`) or to match exactly (`0`); unset follows the filesystem — folded on Windows and macOS, exact elsewhere |
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |

@@ -24,7 +24,7 @@ A single subtask id — its filename stem under `plan/`, e.g. `0003-export-regis
 - `--only <concerns>` / `--skip <concerns>` — narrow the concern set (names below); overrides gate policy and trigger activation. Default: every active concern.
 - `--tag <suffix>` — appended to every artifact basename this run writes (`{basename}-{base-short}-{tag}.md` / `.findings.json`, and the caller's matching `.outcomes.json`) so repeated gate-mode invocations over the same base don't overwrite each other. Naming only — the tag never appears in any reviewer prompt.
 - `--scope-escalated` — the caller's settle loop has escalated past the delta (`SETTLEMENT.md` "Scope escalation" owns the trigger). Adds the `consistency-sweep` reviewer and widens every reviewer's reading surface from the delta to the whole surface the feature touches ("Scope-escalation roster" below).
-- `--feature` — review the **integrated feature diff** instead of one slice: the diff is `git diff $(git merge-base origin/master HEAD)...HEAD` (or `--base`). Roster is fixed (triggers ignored): the four design-level concerns, briefed on what's invisible at slice altitude — change patterns emerging *across* subtasks (shotgun surgery/divergent change spanning slices), coupling drift between the touched modules, coherence of the integrated API surface and vocabulary — plus `logic-correctness` and `code-quality` over the whole diff — and `claude-md-compliance` when the plan's header reads `Review policy: lean` ("Gate policy" below): the one lean-deferrable concern the fixed roster doesn't already carry. Reads the feature's PRD/SDD/ADRs and `plan/PLAN.md` in place of one subtask contract; report basename `feature` replaces `{NNNN-slug}`.
+- `--feature` — review the **integrated feature diff** instead of one slice: the diff is `git diff $(git merge-base origin/master HEAD)...HEAD` (or `--base`). Roster is fixed (triggers ignored): the four design-level concerns, briefed on what's invisible at slice altitude — change patterns emerging *across* subtasks (shotgun surgery/divergent change spanning slices), coupling drift between the touched modules, coherence of the integrated API surface and vocabulary — plus `logic-correctness` and `code-quality` over the whole diff — and `agents-md-compliance` when the plan's header reads `Review policy: lean` ("Gate policy" below): the one lean-deferrable concern the fixed roster doesn't already carry. Reads the feature's PRD/SDD/ADRs and `plan/PLAN.md` in place of one subtask contract; report basename `feature` replaces `{NNNN-slug}`.
 
 ## What the review reads
 
@@ -36,7 +36,7 @@ Resolve these once, in the orchestrator, and hand each subagent only the paths i
 2. **The subtask contract.** `plan/{NNNN-slug}.md` — `## Goal / Scope / Acceptance / Verification / Produces / Seams / Parent PRD / Parent SDD / Design refs`. In uncited mode the SDD-only sections are absent.
 3. **The parent spec.** The `## Parent PRD` file, and (cited mode) the `## Parent SDD` + cited `## Design refs` ADR sections.
 4. **The caller set of every changed public symbol.** Before the fan-out, run one `/afk:investigate` Q2 per changed signature, REST path, DTO field, or event with `--out` set to the review's scratch directory, and hand the reviewers the ledger paths. The reviewers are read-only: an enumeration a reviewer runs itself is work the orchestrator can do once, and a caller set nobody enumerated is a review that guessed.
-5. **The CLAUDE.md chain** for every touched file — walk each changed file's directory up to the repo root collecting `CLAUDE.md`, plus that service's root `CLAUDE.md`, the repo-root `CLAUDE.md`, any `.claude/rules/*.md`, and the nearest `GLOSSARY.md`. The rulebook the `claude-md-compliance` concern checks against.
+5. **The instruction chain** for every touched file — walk each changed file's directory up to the repo root collecting `AGENTS.md` **and** `CLAUDE.md` (the root bridge, plus any un-migrated `CLAUDE.md`), plus that service's root and the repo-root of both, any `.claude/rules/*.md`, and the nearest `GLOSSARY.md`. Collecting only one filename yields an empty rulebook in a migrated repo (all `AGENTS.md`) or an un-migrated one (all `CLAUDE.md`), and the concern then passes silently. The rulebook the `agents-md-compliance` concern checks against.
 
 ## Concerns (11)
 
@@ -46,7 +46,7 @@ The roster scales twice. First by **gate policy** ("Gate policy" below): `full` 
 
 | Concern | Asks | Default subagent reads |
 |---|---|---|
-| `claude-md-compliance` | Does the diff violate any **documented** rule in the applicable CLAUDE.md chain / rules / glossary? | diff + CLAUDE.md chain |
+| `agents-md-compliance` | Does the diff violate any **documented** rule in the applicable AGENTS.md chain / rules / glossary? | diff + instruction chain |
 | `spec-fidelity` | Is it **truly done** — every `## Acceptance` bullet satisfied, every cited seam implemented, every `## Produces` anchor real, no requirement silently dropped? | diff + contract + PRD/SDD |
 | `logic-correctness` | Works for all reasonable inputs? Bugs, edges, null-handling, error paths, races. | diff (+ repo for context) |
 | `code-quality` | Smell / anti-pattern / "a senior dev wouldn't do this." Dead code, duplication, god methods, leaky abstractions, naming, magic values, debug logs, hardcoded secrets/tokens, TODO left in. | diff |
@@ -58,16 +58,16 @@ The roster scales twice. First by **gate policy** ("Gate policy" below): `full` 
 | `resilience` | Every new out-of-process touchpoint: timeouts, failure story, unbounded results, N+1, idempotency, dual writes. | diff + repo |
 | `api-contract` | New/changed public surface: minimal, misuse-resistant, expand-contract compatible, coherent with the local dialect. | diff + repo + contract |
 
-**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `claude-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule, the four design-level concerns→`design` (escalation and `pattern-debt` rules live in their checklist files + `PRECEDENCE.md`). A cross-class finding takes the class naming the underlying cause. `delta-sweep` has no single default — its checklist stamps `class` per item.
+**Default `class` per concern** — each subagent stamps `class` on its findings so the caller's routing is deterministic: `agents-md-compliance`→`compliance`, `spec-fidelity`→`spec`, `logic-correctness`→`correctness`, `code-quality`→`smell`, `test-veracity`→`test`, `scope-and-impact`→`scope` (but a genuinely broken direct caller is `correctness`), `refactor-safety`→`correctness` or `scope` per its rule, the four design-level concerns→`design` (escalation and `pattern-debt` rules live in their checklist files + `PRECEDENCE.md`). A cross-class finding takes the class naming the underlying cause. `delta-sweep` has no single default — its checklist stamps `class` per item.
 
 ### Gate policy (slice mode)
 
 Slice rosters scale by a per-plan **review policy**. Resolution, first hit wins: the contract's `## Review` `policy:` line → the PLAN.md header `> Review policy:` → `full` (absent everywhere — older plans keep full).
 
 - **`full`** — the six always-on concerns plus the trigger table below.
-- **`lean`** — always-on shrinks to **`spec-fidelity` + `scope-and-impact` + `test-veracity`**. `refactor-safety`, `api-contract`, `domain-alignment` keep their trigger rows; `logic-correctness` activates only on the lean trigger: the slice has a downstream consumer (a later contract's `## Consumes` cites this id, or the seam register lists it under *Used by*) or its `## Complexity` is `complex`. Everything else — `code-quality`, `claude-md-compliance`, `design-quality`, `resilience`, untriggered `logic-correctness` — **defers to the feature-level review**.
+- **`lean`** — always-on shrinks to **`spec-fidelity` + `scope-and-impact` + `test-veracity`**. `refactor-safety`, `api-contract`, `domain-alignment` keep their trigger rows; `logic-correctness` activates only on the lean trigger: the slice has a downstream consumer (a later contract's `## Consumes` cites this id, or the seam register lists it under *Used by*) or its `## Complexity` is `complex`. Everything else — `code-quality`, `agents-md-compliance`, `design-quality`, `resilience`, untriggered `logic-correctness` — **defers to the feature-level review**.
 
-One criterion decides the split: **does the defect compound if caught late?** Scope creep and per-slice acceptance are invisible at feature altitude; a weak test poisons every later gate that trusts green tiers; a wrong producer contract, refactor, or entity shape propagates into every dependent — those review per slice. A smell, a documented-rule breach, a module-shape or resilience gap costs the same fixed at the feature gate, whose roster already covers the deferred set (`--feature` above; under a lean plan it also gains `claude-md-compliance`). Deferral is routing, never dropping — a deferred concern is recorded in the report header and the caller's later gate sweeps deferred findings back in (`SETTLEMENT.md` "Deferral rule").
+One criterion decides the split: **does the defect compound if caught late?** Scope creep and per-slice acceptance are invisible at feature altitude; a weak test poisons every later gate that trusts green tiers; a wrong producer contract, refactor, or entity shape propagates into every dependent — those review per slice. A smell, a documented-rule breach, a module-shape or resilience gap costs the same fixed at the feature gate, whose roster already covers the deferred set (`--feature` above; under a lean plan it also gains `agents-md-compliance`). Deferral is routing, never dropping — a deferred concern is recorded in the report header and the caller's later gate sweeps deferred findings back in (`SETTLEMENT.md` "Deferral rule").
 
 A contract's `## Review` section (grammar: `skills/afk/to-subtasks/SUBTASK-CONTRACT.md`) overrides per slice: its `policy:` line replaces the plan default; its `opt-in:` line forces named deferred concerns onto this slice's roster as if always-on.
 
@@ -93,13 +93,13 @@ On a delta round (`--base` + `--tag` together — see "Delta rounds" above), the
 
 1. **`delta-sweep`** — always, one reviewer, `checklists/delta-sweep.md`: the full-roster always-set's highest-yield items condensed to a remediation-delta lens. Not a 12th concern — a delta-round consolidation; its prompt names any co-spawned specialists so one-owner exclusions hold.
 2. **Fix-owner specialists** — every concern that owned a `critical`/`high` finding remediated since the previous round runs in full: the lens that demanded the fix re-examines the territory. Roster selection is orchestrator metadata — the reviewer is spawned cold, its prompt carrying no finding history or round context.
-3. **Delta triggers** — the design-level table above, scanned on the delta, plus: `test-veracity` when the delta touches test code; `claude-md-compliance` when the delta touches a directory whose CLAUDE.md chain no prior round collected; `scope-and-impact` only when the orchestrator's **own** Scope-glob/forbidden-pattern grep over the delta hits (run that check inline first — it's a grep, not an agent); `logic-correctness` + `code-quality` when the delta exceeds ~150 changed lines or ~6 files (below that, the sweep owns their territory).
+3. **Delta triggers** — the design-level table above, scanned on the delta, plus: `test-veracity` when the delta touches test code; `agents-md-compliance` when the delta touches a directory whose AGENTS.md chain no prior round collected; `scope-and-impact` only when the orchestrator's **own** Scope-glob/forbidden-pattern grep over the delta hits (run that check inline first — it's a grep, not an agent); `logic-correctness` + `code-quality` when the delta exceeds ~150 changed lines or ~6 files (below that, the sweep owns their territory).
 
 The report header's activation line records the delta roster like any other run. `--only`/`--skip` still override.
 
 ### Scope-escalation roster (`consistency-sweep`)
 
-When the caller's settle loop escalates past the delta (`SETTLEMENT.md` "Scope escalation" owns the trigger), it passes `--scope-escalated`. That adds one reviewer, **`consistency-sweep`** (`checklists/consistency-sweep.md`), and widens every reviewer's reading surface from the delta to the whole surface the feature touches: the component's code and its `CLAUDE.md`, the specs and ADRs stating the same facts, the review records the loop has written, and the cross-service consumers of anything the feature publishes. `consistency-sweep` takes every finding an earlier round recorded `fixed` and searches that surface for an uncorrected copy of the same claim — the one defect class a delta reviewer cannot see. Like `delta-sweep` it is a roster entry, not a 12th concern; its checklist stamps `class` per item.
+When the caller's settle loop escalates past the delta (`SETTLEMENT.md` "Scope escalation" owns the trigger), it passes `--scope-escalated`. That adds one reviewer, **`consistency-sweep`** (`checklists/consistency-sweep.md`), and widens every reviewer's reading surface from the delta to the whole surface the feature touches: the component's code and its `AGENTS.md`, the specs and ADRs stating the same facts, the review records the loop has written, and the cross-service consumers of anything the feature publishes. `consistency-sweep` takes every finding an earlier round recorded `fixed` and searches that surface for an uncorrected copy of the same claim — the one defect class a delta reviewer cannot see. Like `delta-sweep` it is a roster entry, not a 12th concern; its checklist stamps `class` per item.
 
 ### Checklists
 
@@ -112,7 +112,7 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 ```json
 {
   "id": "r-001",
-  "concern": "claude-md-compliance",
+  "concern": "agents-md-compliance",
   "criterion": "<checklist item name, e.g. 'Shallow Module (APoSD)', or 'open-question'>",
   "severity": "critical|high|medium|low",
   "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt|product-debt",
@@ -131,19 +131,19 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 |---|---|
 | `correctness` | a real bug — wrong behaviour on a reachable path |
 | `spec` | a requirement / acceptance bullet unmet or silently dropped |
-| `compliance` | a documented CLAUDE.md-chain rule broken |
+| `compliance` | a documented AGENTS.md-chain rule broken |
 | `smell` | code-quality substance a senior reviewer would flag |
 | `scope` | an out-of-scope or unwarranted change riding the slice |
 | `test` | a test that doesn't prove the behaviour it claims to |
 | `design` | a design-level judgment call — module shape, domain boundary, resilience gap, contract-surface defect |
 | `pattern-debt` | the diff follows a documented repo pattern where the baseline catalog disagrees — never blocks, feeds the debt ledger |
-| `product-debt` | a real shortcoming in shipped product code, understood and deliberately not fixed — never blocks, routes to the code's own `CLAUDE.md` |
+| `product-debt` | a real shortcoming in shipped product code, understood and deliberately not fixed — never blocks, routes to the code's own `AGENTS.md` |
 
 `criterion` names the checklist item that produced the finding (`open-question` for the open-question slot) — the key for per-criterion outcome telemetry: the caller records each finding's remediation outcome as `plan/review/{basename}-{base-short}.outcomes.json` (`--tag` appends `-{tag}`) (`{"r-001": "fixed" | "dismissed(<reason>)" | "deferred"}` — the caller's own artifact in this directory, like the adversary's reports), and `/afk:retro` aggregates which criteria earn their keep.
 
 ## Verify pass (design-level findings)
 
-After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the CLAUDE.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
+After merge/dedup, take every finding from a design-level concern with severity ≥ `medium` and spawn one fresh skeptic subagent per finding — all in a single message, parallel. Each skeptic gets the finding, the diff, and the AGENTS.md-chain + spec paths, with one brief: **refute it** — show the flagged design is justified by the spec, an established repo pattern, or a constraint the reviewer missed; return `upheld` only when no refutation holds, else `downgraded (<reason>)` or `refuted (<reason>)`. Refuted → drop the finding; downgraded → severity − 1, keep. Stamp the report header `verified: <n> upheld / <n> downgraded / <n> dropped`. Implementation-level findings skip the pass — they're cheap to dismiss at remediation.
 
 Severity rubric:
 
@@ -185,16 +185,16 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 
 Classify a finding `product-debt` when all three hold: it is real, the obvious fix was considered and rejected for a stated reason, and the reason will not be obvious to the next reader. A finding nobody has adjudicated is not product-debt — it is an open finding.
 
-The home is the **nearest `CLAUDE.md` to the code**, under a `## Known debt` heading, written through `/afk:claude-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
+The home is the **nearest `AGENTS.md` to the code**, under a `## Known debt` heading, written through `/afk:agents-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
 
 What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) — **kit path**: author the round JSON per `LAVISH-KIT.md`, one table-group row per finding, never HTML — for findings triage; markdown fallback and driven mode use the written report above instead.
 
 ## Hard rules
 
 - **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk:fix`) remediates.
-- **Independence.** Reviewer subagents get the diff, contract, spec, and CLAUDE.md chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
+- **Independence.** Reviewer subagents get the diff, contract, spec, and instruction chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
 - **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — the record's own grep returns the record's own answer, so agreement with the record carries no information, and two reviewers sharing that method do not corroborate each other. Design a separate check every time: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found instead of reporting a number, and state the pattern you used so a reader can see its blind spots. (`LANGUAGE.md` "Truth grounding" states this for one reviewer; this states it for the roster.)
-- **Open the document, not its title.** Before overturning a cited rule — or asserting that no rule, ADR, or contract states something — read the cited file, and re-read the `CLAUDE.md` that auto-loads for the directory under review. A title names a document's original concern; an accepted amendment can add a rule the title never mentions. Overturning a correct citation costs more than repeating a wrong one: it writes the error into the record and into the fix the finding drives.
+- **Open the document, not its title.** Before overturning a cited rule — or asserting that no rule, ADR, or contract states something — read the cited file, and re-read the `AGENTS.md` that auto-loads for the directory under review. A title names a document's original concern; an accepted amendment can add a rule the title never mentions. Overturning a correct citation costs more than repeating a wrong one: it writes the error into the record and into the fix the finding drives.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (rule text, failing input, unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.
 - **Verify pass fan-out.** The verify pass is a second single-message parallel wave.
 - **Don't re-run the build or tests.** Tiers are already green at the gate; this is static review — read the diff and search the repo for callers; don't compile or run. **One carve-out:** the `test-veracity` concern's sampled mutation probe (its checklist owns the sampling rule) — it measures test *strength*, which no static read can, and fails open to "no signal".
@@ -202,4 +202,4 @@ What the caller does with the verdict is the caller's policy; each blocking find
 
 ## See also
 
-- The plugin `CLAUDE.md` — Section ownership invariants + the outcome-status lockstep.
+- The plugin `AGENTS.md` — Section ownership invariants + the outcome-status lockstep.

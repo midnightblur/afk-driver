@@ -284,7 +284,7 @@ so the human knows what kind of checking the accept asks of them.
 |---|---|---|
 | `repo` | `file:line`, registry row, config value, measured fact | clicked through; the line says what the card says |
 | `spec` | a quoted PRD / SDD / ADR / glossary passage, or a standing steer | read the passage; it means what the card says |
-| `pattern` | a documented house convention cited by path (`CLAUDE.md`, `.claude/rules`, a staples registry) | agreed the convention applies here |
+| `pattern` | a documented house convention cited by path (`AGENTS.md`, `.claude/rules`, a staples registry) | agreed the convention applies here |
 | `judgment` | agent reasoning, no citation | cannot occur on a decided card, by condition 2; on a `confirm` or `debate` card it labels the recommendation honestly |
 
 ### Record home

@@ -1,6 +1,6 @@
 # Provider mapping
 
-The committed workflow plugin is one native tree. `CAPABILITIES.md` owns capability degradation. `providers/CONFORMANCE.md` owns live proof.
+The committed workflow plugin is one native tree. `CAPABILITIES.md` owns capability degradation. `providers/CONFORMANCE.md` owns live proof. `providers/HARNESS-MATRIX.md` owns per-harness instruction-file discovery facts (which file each harness reads, walk order, size caps).
 
 ## Supported harnesses
 
@@ -30,7 +30,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Job scratch | Native job directory | Plugin-data scratch directory |
 | Jira MCP tools | Plugin-scoped server; call the bare tool name | Plugin-scoped server; call the bare tool name |
 | User steering | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
-| Per-directory steering | `CLAUDE.md` | `AGENTS.md`, then configured `CLAUDE.md` fallback |
+| Per-directory steering | `AGENTS.md` (root `CLAUDE.md` bridges `@AGENTS.md`) | `AGENTS.md` |
 | Reload | Reload enabled plugins | Refresh plugin cache and restart; exact proof lives in conformance |
 
 Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex, compatibility root/runtime markers as Claude, then `unknown`. `CLAUDECODE` can be inherited by another harness and never vetoes `PLUGIN_ROOT`.

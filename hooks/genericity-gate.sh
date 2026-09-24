@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop gate (ships with the afk plugin): genericity gate — prose added to this
 # plugin's *.md files must stay generic, never feature- or incident-specific.
-# The doctrine (plugin CLAUDE.md "generic, never feature-specific") existed and
+# The doctrine (plugin AGENTS.md "generic, never feature-specific") existed and
 # was still violated by an agent hardening the harness after an incident —
 # instruction alone demonstrably isn't enough, hence enforcement.
 #

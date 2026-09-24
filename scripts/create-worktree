@@ -299,15 +299,15 @@ if [[ "$CONFIGS_FLAG" == true && "$COPY_PERSONAL" == true ]]; then
   done
 
   if [[ "$COPY_CLAUDE_MD" == true ]]; then
-    # Ignored CLAUDE.md files are personal instructions git will never carry over.
+    # Ignored AGENTS.md / CLAUDE.md files are personal instructions git will never carry over.
     CLAUDE_MD_COUNT=0
     while IFS= read -r relpath; do
       [[ -z "$relpath" ]] && continue
       copy_file_with_substitution "$REPO_DIR/$relpath" "$DEST/$relpath"
       CLAUDE_MD_COUNT=$((CLAUDE_MD_COUNT + 1))
-    done < <(git -C "$REPO_DIR" ls-files --others --ignored --exclude-standard | grep -E '(^|/)CLAUDE\.md$' || true)
+    done < <(git -C "$REPO_DIR" ls-files --others --ignored --exclude-standard | grep -E '(^|/)(AGENTS|CLAUDE)\.md$' || true)
     if (( CLAUDE_MD_COUNT > 0 )); then
-      echo -e "${GREEN}Copied $CLAUDE_MD_COUNT CLAUDE.md file(s)${NC}" >&2
+      echo -e "${GREEN}Copied $CLAUDE_MD_COUNT instruction file(s)${NC}" >&2
     fi
   fi
 fi

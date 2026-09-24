@@ -16,8 +16,23 @@
           },
           {
             "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin agents-md-config-check.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
             "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "timeout": 15
           }
         ]
       }
@@ -46,6 +61,41 @@
             "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PreToolUse",
             "timeout": 60,
             "statusMessage": "repository PreToolUse hooks"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PostToolUse",
+            "timeout": 60,
+            "statusMessage": "repository PostToolUse hooks"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list PostCompact",
+            "timeout": 60
           }
         ]
       }

@@ -75,7 +75,7 @@ def read(path: Path) -> str:
 # Provider mapping, capability matrix, and conformance evidence are the named
 # homes for provider-specific vocabulary. Historical CHANGELOG lines stay in
 # scope and carry narrow allowlist entries so new coupling cannot hide there.
-excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md"}
+excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
     if rel(path) not in excluded_prose
@@ -223,37 +223,52 @@ def declaration(label: str) -> set[str] | None:
 
 shared_events = declaration("Shared hook events")
 shared_matchers = declaration("Shared hook matchers")
-hooks_path = plugin / "hooks/hooks.json"
-try:
-    hooks_payload = json.loads(read(hooks_path))
-except json.JSONDecodeError as exc:
-    problems.append(f"hooks/hooks.json: invalid JSON ({exc})")
-    hooks_payload = {}
-hook_map = hooks_payload.get("hooks", {})
-if not isinstance(hook_map, dict):
-    problems.append("hooks/hooks.json: hooks must be an object")
-    hook_map = {}
-if shared_events is not None:
-    for event in sorted(set(hook_map) - shared_events):
-        problems.append(f"hooks/hooks.json: event {event!r} is outside the shared subset")
-if shared_matchers is not None:
-    for event, groups in hook_map.items():
+
+
+def load_hook_map(rel_name: str) -> dict:
+    path = plugin / rel_name
+    try:
+        payload = json.loads(read(path))
+    except json.JSONDecodeError as exc:
+        problems.append(f"{rel_name}: invalid JSON ({exc})")
+        return {}
+    hmap = payload.get("hooks", {})
+    if not isinstance(hmap, dict):
+        problems.append(f"{rel_name}: hooks must be an object")
+        return {}
+    return hmap
+
+
+def check_subset(rel_name: str, hmap: dict) -> None:
+    # Both native twins are held to the shared subset: the twin equality test
+    # keeps them identical modulo the root variable, and this guards each file.
+    if shared_events is not None:
+        for event in sorted(set(hmap) - shared_events):
+            problems.append(f"{rel_name}: event {event!r} is outside the shared subset")
+    if shared_matchers is None:
+        return
+    for event, groups in hmap.items():
         if not isinstance(groups, list):
-            problems.append(f"hooks/hooks.json: event {event!r} handlers must be an array")
+            problems.append(f"{rel_name}: event {event!r} handlers must be an array")
             continue
         for index, group in enumerate(groups):
             if not isinstance(group, dict):
-                problems.append(f"hooks/hooks.json: {event}[{index}] must be an object")
+                problems.append(f"{rel_name}: {event}[{index}] must be an object")
                 continue
             matcher = group.get("matcher", "*")
             if not isinstance(matcher, str):
-                problems.append(f"hooks/hooks.json: {event}[{index}] matcher must be a string")
+                problems.append(f"{rel_name}: {event}[{index}] matcher must be a string")
                 continue
             for token in filter(None, (part.strip() for part in matcher.split("|"))):
                 if token not in shared_matchers:
                     problems.append(
-                        f"hooks/hooks.json: matcher {token!r} is outside the shared subset"
+                        f"{rel_name}: matcher {token!r} is outside the shared subset"
                     )
+
+
+hook_map = load_hook_map("hooks/hooks.json")
+check_subset("hooks/hooks.json", hook_map)
+check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 
 
 # J. One launch mechanism. A command string is parsed by whichever shell the
@@ -263,7 +278,7 @@ launcher = re.compile(
     r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.py"'
     r'(?: --soft)?'
     r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-    r'| repo-list (?:SessionStart|PreToolUse|Stop))$'
+    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))$'
 )
 for event, groups in hook_map.items():
     if not isinstance(groups, list):
@@ -333,7 +348,7 @@ else:
 # I. A CR byte in a shell handler is fatal wherever a POSIX shell runs it, and
 # the failure is silent: the harness reports a failed hook, never a gate verdict.
 # Judge the working tree, which is what a harness copies, not the index.
-for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/*.py"))):
+for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.py"))):
     try:
         if b"\r" in script.read_bytes():
             problems.append(

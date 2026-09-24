@@ -19,7 +19,8 @@ Usage:
     --soft     always exit 0 (advisory handlers that must never block a turn)
 
 `.afk/hooks.json` is a JSON array of objects, each with `event`
-(SessionStart|PreToolUse|Stop), `matcher` (a regular expression matched against
+(SessionStart|PreToolUse|PostToolUse|PostCompact|Stop), `matcher` (a regular
+expression matched against
 the envelope tool name, or `*`), `timeout` (seconds), and `script` (a path
 relative to the repository root). A script path that resolves outside the
 repository root is refused. Handlers run in declaration order, each receives the
@@ -47,9 +48,10 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 REPO_HOOKS_MANIFEST = ".afk/hooks.json"
-EVENTS = {"SessionStart", "PreToolUse", "Stop"}
+EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop"}
 # The events whose whole point is to stop a turn. A handler that cannot run is
-# a missing verdict on these, so the launcher answers for it.
+# a missing verdict on these, so the launcher answers for it. PostToolUse and
+# PostCompact carry context injections, never a block, so they only warn.
 BLOCKING_EVENTS = {"Stop", "PreToolUse"}
 
 

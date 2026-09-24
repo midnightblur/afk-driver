@@ -4,6 +4,7 @@
 # taking the whole hook surface (guards, Stop gates, provider shim) with it.
 *.sh text eol=lf
 
-# The hook launcher is executed by the same copied tree; keep it LF for the
-# same reason (gate rule I covers hooks/*.py).
-hooks/*.py text eol=lf
+# The hook launcher and the python modules its handlers import are executed by
+# the same copied tree; keep them LF for the same reason (gate rule I covers
+# hooks/**/*.py).
+hooks/**/*.py text eol=lf

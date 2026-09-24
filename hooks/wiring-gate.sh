@@ -31,7 +31,7 @@ WIRING_LEDGER=.claude/wiring-ious.md
 # Filenames consumed by convention (framework/tooling reads them by name/location).
 _wiring_conventional() {
   case "${1##*/}" in
-    README*|CLAUDE.md|GLOSSARY.md|SKILL.md|MEMORY.md|pom.xml|package.json|package-lock.json|\
+    README*|AGENTS.md|CLAUDE.md|GLOSSARY.md|SKILL.md|MEMORY.md|pom.xml|package.json|package-lock.json|\
     .gitignore|.gitattributes|Dockerfile|Jenkinsfile|VERSION|*.feature) return 0 ;;
   esac
   case "$1" in

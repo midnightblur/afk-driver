@@ -35,6 +35,13 @@ afk_codex_stop_block_code() {
   printf '0\n'
 }
 
+# Nested-steering policy. This harness loads instruction files once at the start
+# of a run (project root down to the launch directory), so an AGENTS.md nested
+# below the launch directory never reaches it — always inject. It also has no
+# native path-scoped rules, so inject matching `.claude/rules` bodies.
+afk_codex_nested_inject_mode() { printf 'always\n'; }
+afk_codex_nested_inject_rules() { printf '1\n'; }
+
 afk_codex_plugin_data() {
   if [ -n "${PLUGIN_DATA:-}" ]; then
     printf '%s\n' "$PLUGIN_DATA"

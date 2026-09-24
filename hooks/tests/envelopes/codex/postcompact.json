@@ -1,0 +1,7 @@
+{
+  "session_id": "codex-session",
+  "turn_id": "codex-turn",
+  "cwd": "/workspace/example-repo",
+  "hook_event_name": "PostCompact",
+  "model": "gpt-5.6"
+}
