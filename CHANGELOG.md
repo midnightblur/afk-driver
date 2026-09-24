@@ -37,13 +37,52 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-24
+
 ### Added
 
+- **Nested `AGENTS.md` files reach harnesses that load them only at start.**
+  A new plugin hook (`nested_steering`) injects the `AGENTS.md` chain of a
+  directory below the launch directory when the session first reads a file
+  there, plus the `.claude/rules` bodies whose `paths:` match. It injects once
+  per agent and directory, and again after a compaction or a new session. On
+  a harness that reads nested `AGENTS.md` natively, the hook stays silent.
+  `NESTED_STEERING_DISABLE=1` turns it off.
+- **`/afk:setup` turns on native `AGENTS.md` reading for Claude (row H11).** It
+  merges `instructionFiles: claude-md-and-agents-md` into the user settings.
+  Without it, a Claude session in a repository with a root `CLAUDE.md` skips
+  every nested `AGENTS.md`.
+- **`/afk:setup` flags instruction files above the repository (row H12).** An
+  `AGENTS.md` or `CLAUDE.md` in the directory above the git root, or higher,
+  loads into every repository below it. Setup reports each one and asks before
+  it changes anything.
+- **`/afk:setup` re-checks hook trust after an upgrade (row O4).** A harness
+  that asks again for trust when the plugin's hook definitions change leaves
+  the hooks off if that prompt is dismissed.
 - **SessionStart notice for the AGENTS.md instruction-file setting.** A plugin
   hook (`hooks/agents-md-config-check.sh`) warns, never blocks, when a
   repository tracks an `AGENTS.md` but the Claude `instructionFiles` setting is
   not `claude-md-and-agents-md` (setup H11); it names the setting and points the
   dev at `/afk:setup`. Claude only; silent everywhere else.
+
+### Changed
+
+- **`AGENTS.md` is the instruction-file standard; `/afk:claude-md` is now
+  `/afk:agents-md`.** Every directory keeps its instructions in `AGENTS.md`;
+  the only `CLAUDE.md` is a root file holding `@AGENTS.md`. The old skill name
+  is gone: invoke `/afk:agents-md`. Its placement rules live in
+  `skills/afk/agents-md/PLACEMENT.md`, and `providers/HARNESS-MATRIX.md` records
+  how each harness finds instruction files.
+- **The review concern `claude-md-compliance` is now `agents-md-compliance`.**
+  It reviews `AGENTS.md`, `CLAUDE.md` and `.claude/rules`. Plans that still
+  name `claude-md-compliance` validate.
+- **The instruction-file check covers the new standard.** `mechanical_check.py`
+  now reports a root-to-directory chain over 32 KiB, `@` imports, `CLAUDE.md`
+  files left to migrate, `AGENTS.override.md` and tracked `CLAUDE.local.md`
+  files, and rules without `paths:`. It no longer counts every `*.md` under a
+  directory named `rules`.
+- **`copy-ignored-claude-md` also copies ignored `AGENTS.md` files** into a new
+  worktree. The key keeps its name.
 
 ## [1.6.1] - 2026-09-22
 
