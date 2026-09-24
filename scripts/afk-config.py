@@ -61,13 +61,14 @@ TOP_LEVEL = {
 # checkout on the machine; the gitignored `.afk/config.local.yaml` overlay is for
 # a value that differs in ONE checkout. Never the committed file.
 #
-# `trackerAssignee` and `mrReviewer` NAME A PERSON, so they have no default at
-# any layer: a committed file may not name one, and no toolkit may pick one for
-# a team. Setup asks each developer, and a value nobody supplied fails closed
-# (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix). `worktreeBasePath`
+# `trackerAssignee`, `mrReviewer` and `mrAssignee` NAME A PERSON, so they have no
+# default at any layer: a committed file may not name one, and no toolkit may
+# pick one for a team. Setup asks each developer, and a value nobody supplied
+# resolves to nothing (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix;
+# `mrAssignee` never gates — an unset one means no assignee). `worktreeBasePath`
 # has a default because it is DERIVED (`worktree_base`) and names no person;
 # `ideBinary` has none because no default could be right.
-DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary"}
+DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary"}
 
 # What a new worktree carries over from the checkout it was cut from. These are
 # personal, untracked files a fresh `git worktree add` would leave behind — the

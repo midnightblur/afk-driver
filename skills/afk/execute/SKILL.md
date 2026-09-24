@@ -14,7 +14,7 @@ Everything **local**: contract, design docs, progress tracker live on disk under
 Before starting, ensure:
 
 - cwd is a clean worktree on the parent branch (named by `git.branch-template` in `.afk/config.yaml`). Absent, create it with the plugin's `scripts/create-worktree` (`--no-open` in a non-interactive run), which also provisions it for the repository's build gates — never a bare `git worktree add`, which leaves a worktree nothing can build in.
-- A Draft change for that branch exists (`afk_adapter forge change-create-draft` if not). Carries the auto-maintained subtask checklist block.
+- A Draft change for that branch exists (`afk_adapter forge change-create-draft` if not). When creating it, resolve `mrAssignee` with `afk-config.py resolve mrAssignee` and pass it as the create call's `assignee`, so the change is assigned to this developer; an unresolved value opens it with no assignee. Carries the auto-maintained subtask checklist block.
 
 Job: take one subtask through `designing` → `developing` → `verifying` → `reviewing`, get **every declared verification tier green** and the independent review gate **settled** (every finding fixed or settled — `skills/afk/review/SETTLEMENT.md`), commit + push, update the Draft MR, advance its row in `PLAN.md`, then **stop**. CR/Merge is the human's call — see Step 12.
 

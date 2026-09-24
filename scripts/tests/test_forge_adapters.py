@@ -157,6 +157,61 @@ def test_ci_wait_reports_failure_on_stdout(tmp_path):
     assert json.loads(done.stdout)["status"] == "failed"
 
 
+# ---- change-create-draft threads the assignee through -----------------------
+
+# The stub records the argv `mr create` / `pr create` was called with, so the
+# test reads exactly what the adapter asked the CLI for. A URL on stdout keeps
+# the adapter's own success parse happy.
+CREATE_STUB = {
+    "gitlab": (
+        'case "$1 $2" in\n'
+        '  "mr create") printf "%s\\n" "$*" > "$AFK_ARGS"; '
+        'echo "https://gitlab.example/x/y/-/merge_requests/7" ;;\n'
+        '  *) echo "{}" ;;\n'
+        "esac\n"
+    ),
+    "github": (
+        'case "$1 $2" in\n'
+        '  "pr create") printf "%s\\n" "$*" > "$AFK_ARGS"; '
+        'echo "https://github.com/x/y/pull/7" ;;\n'
+        '  *) echo "{}" ;;\n'
+        "esac\n"
+    ),
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_create_draft_passes_the_assignee_when_set(tmp_path, kind):
+    environ = stub(tmp_path, kind, CREATE_STUB[kind])
+    args_file = tmp_path / "create-args.txt"
+    environ["AFK_ARGS"] = str(args_file)
+    done = forge(
+        kind, environ, "change-create-draft",
+        '{"title":"t","target":"main","source":"b","body":"x","assignee":"octocat"}',
+        cwd=tmp_path,
+    )
+    answer = json.loads(done.stdout)
+    assert "error" not in answer, done.stdout
+    assert answer["draft"] is True
+    assert "--assignee octocat" in args_file.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_create_draft_omits_the_assignee_when_unset(tmp_path, kind):
+    """An unset assignee changes nothing: no `--assignee` reaches the CLI."""
+    environ = stub(tmp_path, kind, CREATE_STUB[kind])
+    args_file = tmp_path / "create-args.txt"
+    environ["AFK_ARGS"] = str(args_file)
+    done = forge(
+        kind, environ, "change-create-draft",
+        '{"title":"t","target":"main","source":"b","body":"x"}',
+        cwd=tmp_path,
+    )
+    answer = json.loads(done.stdout)
+    assert "error" not in answer, done.stdout
+    assert "--assignee" not in args_file.read_text(encoding="utf-8")
+
+
 # ---- the family's own exits still hold -------------------------------------
 
 @pytest.mark.parametrize("kind", KINDS)

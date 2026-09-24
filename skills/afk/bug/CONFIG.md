@@ -1,8 +1,7 @@
 # Config contract — the per-developer values
 
-The bug pipeline reads four per-developer values. Every one is optional, and two
-of them have a committed team-wide fallback, so a developer can often run the
-pipeline having configured nothing at all.
+The bug pipeline reads five per-developer values. Every one is optional, so a
+developer can often run the pipeline having configured nothing at all.
 
 Read them through `scripts/afk-config.py resolve`, never by opening a file and
 never with `get`: `resolve` applies the whole chain in one place, so no caller
@@ -34,10 +33,11 @@ then fail closed.
 
 | ID | Key | Type | Meaning | Falls back to | Gates |
 |----|-----|------|---------|---------------|-------|
-| K1 | `trackerAssignee` | string | Account id or email the bug ticket is assigned to — the tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
+| K1 | `trackerAssignee` | string | Account id or email a work item the plugin creates is assigned to — the bug ticket (fail-closed, below) and spinoff tickets via `/afk:to-ticket` (unset → no assignee). The tracker adapter resolves it by user search | nothing — a person has no default | Tracker publish |
 | K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready. The literal `none` is a valid answer: it records "nobody reviews my changes", and every consumer reads it exactly as an absent key | nothing — a person has no default | Change Ready flip |
 | K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right | (optional) interactive worktree open |
+| K5 | `mrAssignee` | string | Forge user every MR/PR the plugin opens is assigned to, the fix change included. Unset means no assignee — it never gates | nothing — a person has no default | (optional) MR/PR create |
 
 K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
 MAIN checkout even from inside a worktree, so every worktree of one repository
@@ -66,6 +66,7 @@ agrees on the directory. A repository whose git directory is not inside the tree
 | Fixer dispatch | K3 | Dispatch refused; no worktree created, no fixer spawned; the reason names the key. Only reachable when the derivation also failed. |
 | Change Ready flip | K2 (absent, or the literal `none`) | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
 | Interactive worktree open | K4 | Worktree is still created; the IDE simply isn't launched (K4 is optional — its absence never blocks) |
+| MR/PR create | K5 | The change opens with no assignee; creation is never blocked (K5 is optional — its absence never blocks) |
 
 ## Hypothetical files
 
@@ -77,10 +78,12 @@ developer:
   trackerAssignee: dev@example.com
   # the forge username who reviews this developer's changes
   mrReviewer: reviewer.name
+  # the forge username every MR/PR this developer's runs open is assigned to
+  mrAssignee: my.name
   ideBinary: C:/Program Files/JetBrains/IntelliJ IDEA/bin/idea64.exe
 ```
 
-That one file satisfies every gate above: K1, K2 and K4 from the machine, K3
+That one file satisfies every gate above: K1, K2, K4 and K5 from the machine, K3
 derived. Nothing is per-checkout, so nothing needs writing again when a worktree
 is created.
 

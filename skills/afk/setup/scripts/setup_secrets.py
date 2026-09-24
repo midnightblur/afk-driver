@@ -117,7 +117,35 @@ def resolved_default(key: str):
     return value if out.returncode == 0 and value else None
 
 
-DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary")
+DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary")
+
+
+def forge_user(kind: str) -> str | None:
+    """The username the forge CLI is logged in as, best-effort.
+
+    Suggested as the `mrAssignee` answer: the common case assigns a change to
+    its author. `None` when the CLI is absent or not yet authenticated — the
+    prompt then offers no suggestion and the developer types their own name.
+    """
+    cli, args = {
+        "gitlab": ("glab", ["api", "user"]),
+        "github": ("gh", ["api", "user", "--jq", ".login"]),
+    }.get(kind, (None, None))
+    if not cli or not shutil.which(cli):
+        return None
+    try:
+        out = subprocess.run([cli, *args], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    text = out.stdout.strip()
+    if kind == "gitlab":
+        try:
+            text = str(json.loads(text).get("username") or "")
+        except (ValueError, AttributeError):
+            return None
+    return text or None
 
 
 def read_developer_block(p: Path) -> dict:
@@ -359,16 +387,22 @@ if TRACKER_KIND == "none":
     skip("tracker: none — nothing is assigned, so no assignee is asked for")
     cfg.pop("trackerAssignee", None)
 else:
-    # Pre-filled with the account the token itself belongs to: the common answer
-    # is "me", and it is the one value this script can know without guessing.
+    # Pre-filled with the account this developer is "me": the Jira `/myself`
+    # accountId when jira validated a token above, else the GitHub login the
+    # `gh` CLI is authenticated as. The common answer is "me", and it is the one
+    # value this script can know without guessing.
+    prefill = cfg.get("trackerAssignee") or account_id
+    if not prefill and TRACKER_KIND == "github-issues":
+        prefill = forge_user("github")
     cfg["trackerAssignee"] = ask(
         "assignee account id or email (yours, unless work goes to someone else)",
-        cfg.get("trackerAssignee") or account_id,
+        prefill,
     )
 
 if FORGE_KIND == "none":
-    skip("forge: none — no change is reviewed, so no reviewer is asked for")
+    skip("forge: none — no change is reviewed, so no reviewer or assignee is asked for")
     cfg.pop("mrReviewer", None)
+    cfg.pop("mrAssignee", None)
 else:
     # No pre-fill: who reviews your work is not something anyone else may pick.
     # `none` is the way to say "nobody", and the Ready flip then fails closed.
@@ -382,6 +416,18 @@ else:
         skip("reviewer recorded as none — the change Ready flip will fail closed")
     else:
         cfg["mrReviewer"] = answer
+
+    # mrAssignee: who every MR/PR this plugin opens is assigned to. Pre-filled
+    # with the account the forge CLI is logged in as — the common answer assigns
+    # a change to its author. `none` leaves it unset, and an unset assignee
+    # never gates: the change simply opens with no assignee.
+    answer = ask("MR/PR assignee (forge username, or `none` for no assignee)",
+                 cfg.get("mrAssignee") or forge_user(FORGE_KIND))
+    if answer.strip().lower() == "none":
+        cfg.pop("mrAssignee", None)
+        skip("assignee left unset — every MR/PR opens with no assignee")
+    else:
+        cfg["mrAssignee"] = answer
 
 # The worktree base is derived from git when unset, so it is asked for only when
 # the derivation cannot answer or the developer wants somewhere else.
@@ -410,7 +456,7 @@ ide_default = cfg.get("ideBinary") or (ide.as_posix() if ide else None)
 if ide_default:
     cfg["ideBinary"] = ask("IDE binary (optional)", ide_default).replace("\\", "/")
 
-write_developer_block(cfg_path, {k: cfg[k] for k in ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary") if cfg.get(k)})
+write_developer_block(cfg_path, {k: cfg[k] for k in ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary") if cfg.get(k)})
 ok(f"wrote the developer block in {cfg_path}")
 
 # ------------------------------------------------------------- forge CLI auth
