@@ -219,6 +219,68 @@ else
 fi
 rm -rf "$ns_repo" "$ns_data"
 
+# ---- agents-md-config-check.sh: the SessionStart notice for the instructionFiles setting.
+echo "== agents-md config notice =="
+amc_repo_a=$(mktemp -d)          # tracks an AGENTS.md
+git -C "$amc_repo_a" init -q
+printf 'root steering\n' > "$amc_repo_a/AGENTS.md"
+git -C "$amc_repo_a" add AGENTS.md
+git -C "$amc_repo_a" -c user.email=a@b.c -c user.name=x commit -q -m init
+amc_repo_b=$(mktemp -d)          # no AGENTS.md
+git -C "$amc_repo_b" init -q
+printf 'x\n' > "$amc_repo_b/README.md"
+git -C "$amc_repo_b" add README.md
+git -C "$amc_repo_b" -c user.email=a@b.c -c user.name=x commit -q -m init
+
+amc_wrong=$(mktemp -d)           # settings with the wrong value
+printf '{"pluginConfigs":{"agents-md@builtin":{"options":{"instructionFiles":"claude-md"}}}}\n' \
+  > "$amc_wrong/settings.json"
+amc_right=$(mktemp -d)           # settings with the required value
+printf '{"pluginConfigs":{"agents-md@builtin":{"options":{"instructionFiles":"claude-md-and-agents-md"}}}}\n' \
+  > "$amc_right/settings.json"
+amc_missing=$(mktemp -d)         # no settings.json at all
+
+amc_run() {  # provider repo config_dir -> handler stdout
+  ( cd "$2" && env AFK_PROVIDER="$1" CLAUDE_CONFIG_DIR="$3" \
+      bash "$workflow/hooks/agents-md-config-check.sh" )
+}
+
+a1=$(amc_run claude "$amc_repo_a" "$amc_wrong")
+if printf '%s' "$a1" | grep -q 'instructionFiles'; then
+  pass "claude + tracked AGENTS.md + wrong value -> warns and names the setting"
+else
+  fail "claude wrong-value should warn (out=$a1)"
+fi
+
+a2=$(amc_run claude "$amc_repo_a" "$amc_right")
+if [ -z "$a2" ]; then
+  pass "claude + tracked AGENTS.md + right value -> silent"
+else
+  fail "claude right-value should be silent (out=$a2)"
+fi
+
+a3=$(amc_run claude "$amc_repo_b" "$amc_wrong")
+if [ -z "$a3" ]; then
+  pass "claude + no tracked AGENTS.md -> silent"
+else
+  fail "no-AGENTS.md should be silent (out=$a3)"
+fi
+
+a4=$(amc_run codex "$amc_repo_a" "$amc_wrong")
+if [ -z "$a4" ]; then
+  pass "codex -> silent (setting is Claude-only)"
+else
+  fail "codex should be silent (out=$a4)"
+fi
+
+a5=$(amc_run claude "$amc_repo_a" "$amc_missing")
+if [ -z "$a5" ]; then
+  pass "claude + missing settings file -> silent"
+else
+  fail "missing settings file should be silent (out=$a5)"
+fi
+rm -rf "$amc_repo_a" "$amc_repo_b" "$amc_wrong" "$amc_right" "$amc_missing"
+
 # ---- the launcher every hook command goes through.
 launcher="$workflow/hooks/run-hook.py"
 py=python

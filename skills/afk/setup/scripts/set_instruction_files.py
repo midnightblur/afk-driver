@@ -15,6 +15,14 @@ Path resolution when no path argument: $CLAUDE_CONFIG_DIR/settings.json, else
 --check: exit 0 when already set to the value, 1 otherwise; never writes.
 Exit 2 on argv/JSON-shape errors (a settings file that is not a JSON object, or
 a non-object parent on the merge path).
+
+--get: print the current value (empty when unset), never write, always exit 0 —
+a missing, unreadable, or malformed settings file prints an empty value. This is
+the read path a `--soft` hook uses; it never fails a session start.
+
+--path: print the resolved settings path (honouring $CLAUDE_CONFIG_DIR) and exit
+0, without reading it — a caller that must tell "no settings file" (stay silent)
+from "settings file with the wrong value" (warn) tests this path for existence.
 """
 import json
 import os
@@ -32,7 +40,7 @@ def die(msg):
 
 
 def resolve_path(argv):
-    args = [a for a in argv[1:] if a != "--check"]
+    args = [a for a in argv[1:] if a not in ("--check", "--get", "--path")]
     if len(args) > 1:
         die("usage: set_instruction_files.py [settings.json] [--check]")
     if args:
@@ -56,6 +64,19 @@ def current_value(data):
         return None
 
 
+def read_value(path):
+    """The current value as a string, or "" — never raises, for the --get path."""
+    try:
+        text = path.read_text(encoding="utf-8")
+        data = json.loads(text) if text.strip() else {}
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    value = current_value(data)
+    return value if isinstance(value, str) else ""
+
+
 def child_object(parent, key, path):
     """setdefault a dict child; abort if the existing value is not an object."""
     if key in parent and not isinstance(parent[key], dict):
@@ -64,6 +85,12 @@ def child_object(parent, key, path):
 
 
 def main():
+    if "--path" in sys.argv:
+        print(resolve_path(sys.argv), end="")
+        sys.exit(0)
+    if "--get" in sys.argv:
+        print(read_value(resolve_path(sys.argv)), end="")
+        sys.exit(0)
     check = "--check" in sys.argv
     path = resolve_path(sys.argv)
     text = ""

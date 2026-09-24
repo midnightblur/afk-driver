@@ -21,6 +21,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `issue_egress` | `gh` CLI, logged in | `gh` CLI, logged in | Queue the draft on disk and print the publish command |
 | `reload` | Reload the enabled plugin | Re-add the plugin, then start a new session | Report stale cache |
 | `nested_steering` | Native nested `AGENTS.md` read with the root `CLAUDE.md` bridge and `instructionFiles=claude-md-and-agents-md` (setup H11) | Loads instruction files once at run start, so nested files never reach it | The plugin `PostToolUse` hook injects the `AGENTS.md` chain below the launch directory (deepest last) and, where the harness has no native path-scoped rules, the matching `.claude/rules` bodies; policy lives in `hooks/lib/providers/<name>.sh` |
+| `agents_md_config_notice` | SessionStart `--soft` notice (`hooks/agents-md-config-check.sh`): warns, never blocks, when the repository tracks an `AGENTS.md` but the `instructionFiles` setting is not `claude-md-and-agents-md` (setup H11) | Not applicable — `instructionFiles` is a Claude-only setting; the hook is present in the twin manifest (twin law) and its provider gate exits 0 silently here | None — advisory only; the notice names the setting and points to `/afk:setup` |
 
 ## Shared hook subset
 

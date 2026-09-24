@@ -37,6 +37,14 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- **SessionStart notice for the AGENTS.md instruction-file setting.** A plugin
+  hook (`hooks/agents-md-config-check.sh`) warns, never blocks, when a
+  repository tracks an `AGENTS.md` but the Claude `instructionFiles` setting is
+  not `claude-md-and-agents-md` (setup H11); it names the setting and points the
+  dev at `/afk:setup`. Claude only; silent everywhere else.
+
 ## [1.6.1] - 2026-09-22
 
 ### Changed

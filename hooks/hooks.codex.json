@@ -16,6 +16,11 @@
           },
           {
             "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin agents-md-config-check.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
             "timeout": 60
           }

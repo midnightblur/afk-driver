@@ -54,6 +54,10 @@ events it says so on stderr. They are deliberately NOT resolved under the
 plugin root: a repository's gates must track the checkout, not the installed
 plugin. Their escape hatch is the repository's own.
 
+`.afk/hooks.json` carries only hooks specific to that repository. A check that
+applies to every repository ships as a plugin hook (the table below), not in
+`.afk/hooks.json`.
+
 | Gate | Trigger | Blocks when | Typical cost |
 |---|---|---|---|
 | `stop-gates.sh` | the Stop hook itself | any gate below it dispatches blocks | measured on a ~19-file working tree: **7.5–12.5s** idle (unchanged tree), **56–95s** all four cold. Hook `timeout` is 300s for that reason — a killed Stop hook skips every gate *and* writes no stamp, so the next turn pays full cost again |
@@ -72,6 +76,7 @@ plugin. Their escape hatch is the repository's own.
 | `adapters/build-gate/maven/mutation-probe.sh` | on demand (NOT a Stop hook) | never blocks — prints PIT mutation results (`ok` with survived/no-coverage mutants, or `unavailable`) for the review gate's test-strength signal | 2–15min |
 | `lesson-append.sh` / `lesson-digest.sh` | on demand (NOT Stop hooks) | never block — sole emitting/parsing sites of the workflow lesson ledger (main-checkout `.claude/lessons/LEDGER.jsonl`; grammar: `skills/afk/lessons/LEDGER-FORMAT.md`); appends are best-effort like metrics emission | <1s |
 | `update-notice.sh` | SessionStart, `--soft` | never blocks — prints the changelog sections newer than the installed version when the origin carries a higher SemVer tag; two steps, 2s budget each, both cached 24h in the plugin data dir; any failure, absent remote, or timeout exits 0 in silence | <2s cold, ~0s cached |
+| `agents-md-config-check.sh` | SessionStart, `--soft` | never blocks — Claude only; warns (≤3 lines) when the repository at `$PWD` tracks an `AGENTS.md` but the `instructionFiles` setting is not `claude-md-and-agents-md` (setup H11), naming the setting and pointing at `/afk:setup`; silent on every uncertain path (not Claude, no git, no tracked `AGENTS.md`, no python, no readable value) | <1s |
 | `release-gate.sh` | on demand + `.github/workflows/release-gate.yml` (tag push, and any PR touching a manifest or the changelog) | the tag's version disagrees with `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, the marketplace entry, or CHANGELOG.md's first released heading | <1s |
 | `stall-watchdog.sh` | on demand, **background** (NOT a Stop hook) | never blocks — armed beside a long-running child spawn; exits 3 (stale: nothing under the watched paths changed for `--stale-min`) or 4 (cap: `--cap-min` total runtime) so its exit wakes the waiting orchestrator; disarmed by killing the background task | <1s per poll (one short-circuiting `find`) |
 | `branch-name-gate.sh` | **git** `reference-transaction` hook (NOT an agent-harness hook); auto-installed on `SessionStart`; **enforces only under an agent** (agent-runtime env marker set — see rule below) | an **agent** **creating** a new local branch whose name doesn't match the repository's `git.branch-pattern` — human-driven creation, and checkouts/updates of existing or remote-tracking branches, are never gated | <10ms |
