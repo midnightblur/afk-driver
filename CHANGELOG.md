@@ -79,8 +79,6 @@ release page from its section here. Nobody tags by hand.
   `github-issues` tracker with the authenticated `gh` user, matching the Jira
   `/myself` pre-fill. Unset still means no assignee.
 
-### Changed
-
 - **`AGENTS.md` is the instruction-file standard; `/afk:claude-md` is now
   `/afk:agents-md`.** Every directory keeps its instructions in `AGENTS.md`;
   the only `CLAUDE.md` is a root file holding `@AGENTS.md`. The old skill name
