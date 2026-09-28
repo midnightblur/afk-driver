@@ -1,41 +1,37 @@
 ---
 name: settle-change
-description: Review a GitLab MR and settle it through the review settle loop, using the MR itself as the ledger. Use when the user drops an MR URL/IID for review, wants an MR made ready, or asks to re-check one after fixes landed. Outside the AFK chain; explanatory tours go to /afk:understand.
+description: Review a forge change and settle it through the review loop, using the change as the ledger. Use for a change URL or provider id that needs review or another check after fixes.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
 
-# settle-change — review a forge change request until it settles
+# settle-change — review a forge change until it settles
 
-Reviews an MR of the current repo against a real checkout of its head and settles it through the settle loop (`skills/afk/review/SETTLEMENT.md`) — this skill is the loop's **referee**, and **the MR is the ledger**: findings live as inline discussions, every fix, dispute, and adjudication verdict is a reply on its finding's thread, and a managed summary comment carries the round accounting. Any later session — or another dev — resumes from the MR alone; local files are scratch, never load-bearing.
+Reviews a change of the current repository against a real checkout of its head. This skill is the referee for `${AFK_PLUGIN_ROOT}/skills/afk/review/SETTLEMENT.md`. The change is the review record. A later session reconstructs the loop from the forge alone.
 
 Two modes:
 
-- **Settle (default)** — reviewer subagents find → findings post inline → fixer subagents fix or dispute, each reading its finding from the MR thread → commit + push per round → repeat until nothing actionable remains — never merging (full never-list: Hard rules).
-- **Review-only** — post findings and stop. Each later invocation is one more settle round, paced by the MR author: new commits are the round's delta, thread replies are the fix claims and disputes.
+- **Settle (default)** — reviewer subagents find → findings post inline → fixer subagents fix or dispute, each reading its finding from the change thread → commit + push per round → repeat until nothing actionable remains — never merging (full never-list: Hard rules).
+- **Review-only** — post findings and stop. Each later invocation is one more settle round, paced by the change author: new commits are the round's delta, thread replies are the fix claims and disputes.
 
-Mode resolution: explicit flag wins; otherwise **settle** when the authenticated forge user (`afk_adapter forge auth-status`) is the change's author and the change isn't cross-fork, **review-only** otherwise — announce which mode ran and why. `--settle` on someone else's MR pushes to their branch: stop and get the human's go-ahead first.
+Mode resolution: explicit flag wins. Otherwise use **settle** when the authenticated forge user is the author and `cross_fork=false`; use **review-only** otherwise. A cross-fork change is always review-only because no writable push target is modelled. Refuse `--settle` with that reason. `--settle` on another author's change requires the human's approval.
 
 ## Argument
 
-MR URL or bare IID. Optional:
+Change URL or provider id. Optional:
 
 - `--settle` / `--review-only` — force the mode (resolution above).
-- `--skip-build` — skip Phase 2 except the orphan hunt. A **draft** MR implies it.
+- `--skip-build` — skip Phase 2 except the orphan hunt. A draft change implies it.
 - `--only <concerns>` / `--skip <concerns>` — narrow the roster (overrides triggers).
 
 ## Constants
 
-- `MAIN` = the invoking checkout's root — run from the target repo's main checkout, never from inside an MR worktree. Checklists and plugin files are read from `MAIN`; code under review from the worktree (`WT`).
-- Scratch (fetched MR data, `spec.md`, diff files, per-round report drafts): provider scratch directory (`CAPABILITIES.md`), else a session-temp `mr-<iid>` directory.
+- `MAIN` = the invoking checkout's root — run from the target repo's main checkout, never from inside a change worktree. Checklists and plugin files are read from `MAIN`; code under review from the worktree (`WT`).
+- Scratch (fetched change data, `spec.md`, diff files, per-round report drafts): provider scratch directory (`CAPABILITIES.md`), else a session-temp `change-<id>` directory.
 
-## The MR as ledger
+## The change as the review record
 
-- **One inline discussion per finding**, body carrying its id (`r-NNN`), finding/why/fix, evidence in a `<details>`, and a trailing AI-review attribution line.
-- **Thread replies** record the rest: `Fixed — <what> (<short-sha>)`, dispute rationales, adjudication verdicts. `fixed` and `settled` threads get **resolved**; open findings stay unresolved.
-- **Summary comment** — one managed note, first line sentinel `<!-- afk:settle-mr:summary -->`, upserted every round (find by sentinel, `PUT` the note; `POST` when absent): round number, reviewed head, `REVIEW:` verdict line, fixed/settled/open counts. This is the referee's durable accounting — the next round's `--base` and the SETTLEMENT round cap read from here.
-- **Ledger reconstruction** (any invocation): fetch the summary comment + discussions (`afk_adapter forge thread-list '{"id":"<change-ref>"}'` — it paginates to the end); settle-change threads are identified by the attribution line. Unresolved = the open set; resolved via an accepted dispute = the settled set for SETTLEMENT step 2's filter.
-- **Information diet** (SETTLEMENT's hard rule) applied here: reviewer and adjudicator prompts never contain the summary comment, the round count, or thread contents beyond what SETTLEMENT step 5 grants the adjudicator; fixers read their own finding's thread — the implementor side may see its dispute history, never the round accounting.
+Follow `${AFK_PLUGIN_ROOT}/skills/afk/review/SETTLEMENT.md`. Run `${AFK_PLUGIN_ROOT}/skills/afk/review/scripts/forge_ledger.py` for `post`, `reply`, `resolve`, `summary`, `reconstruct`, `trailers`, and both `gate` phases. Do not call the forge adapter directly for these verbs. The script preserves exact inline locations, immutable records, trust, and closure.
 
 ## Shared machinery (the DRY seam)
 
@@ -43,86 +39,82 @@ The reviewer machinery is one-home in `skills/afk/review/SKILL.md` — run its "
 
 | review SKILL.md input | here |
 |---|---|
-| slice / feature diff | round 1: `mr.diff`; round n≥2: the delta since the summary comment's reviewed head, full MR diff as the context-only sibling (its "Delta rounds" + delta roster apply) |
+| slice / feature diff | round 1: fetched diff; round n≥2: delta since `reconstruct`'s prior `reviewed_head`, with the full change diff as context |
 | subtask contract + parent PRD/SDD | `spec.md` (Phase 0) |
 | AGENTS.md chain | unchanged — walked from `$WT` |
-| artifact dir `plan/review/` | the MR: findings post inline, accounting in the summary comment; no `INDEX.md` rollup, no outcomes files. `pattern-debt` findings post as regular (non-blocking) threads, noted as such |
-| mutation probe | never runs — CI owns test execution; the summary comment notes "no signal" |
+| artifact dir `plan/review/` | the forge change; no local gate record. `pattern-debt` findings still post before disposition |
+| mutation probe | never runs — CI owns test execution |
 
 `scope-and-impact` runs without `## Scope` globs: stray churn + blast radius only. Reviewer prompts: `PRECEDENCE.md` + checklist pasted verbatim from `MAIN`, spawn per `DELEGATION.md` (plugin root).
 
 The loop protocol — round structure, fix-or-dispute, dispute adjudication, termination — is SETTLEMENT.md's. The caller-side pieces it leaves to this skill:
 
 - **Review pass** — the fan-out above; `$WT` stays checked out across rounds.
-- **Fix routing (settle mode)** — every class fixes inline in `$WT`: one fixer subagent per finding, spawned as `afk-implementor` (it writes product code against the finding's brief — `DELEGATION.md` named types; parallel when files don't overlap), briefed with its finding's **discussion id** — it reads the finding and thread from the MR — plus `$WT`, `spec.md`, and the AGENTS.md-chain paths. It fixes, or returns an evidence-cited dispute rationale (the implementor side of SETTLEMENT step 4), which the referee posts as the thread reply before adjudicating. Adjudicators (SETTLEMENT step 5) are briefed with the discussion id (the thread carries finding + rationale) plus the diff and spec/AGENTS.md paths. `scope` findings fix by reverting the stray churn. A fixer whose fix adds or modifies a test self-applies the `test-veracity` checklist and the nearest `TESTING.md` antipattern list to the code it adds before returning — the fix is next round's delta and will be reviewed at that bar. Unfixable within the MR's stated intent → thread stays open, named in the summary as deferred.
+- **Fix routing (settle mode)** — every class fixes inline in `$WT`. Brief each fixer with the ledger key, active location, `$WT`, `spec.md`, and the `AGENTS.md` chain. A fixer returns a fix or an evidence-cited dispute. Write the dispute record before adjudication. `scope` findings revert stray churn. A fixer that changes a test applies the `test-veracity` checklist and nearest `TESTING.md`.
 - **Cheap re-verification per round (settle mode)** — reactor compile of fix-touched modules + the tests covering the fixed code + the Phase-2 checks whose file set the fixes touched. CI runs on each round's push — the loop never waits on it; a red pipeline is the author's signal, not a round gate.
 - **Commit/push (settle mode)** — one commit per round in `$WT` (`review r{n}: <what>`), pushed at round close: inline anchors only exist on pushed heads, so posting round n+1's findings requires round n's fixes on the remote. Agent-driven commits run the commit-time code gates (`hooks/precommit-gates.sh`), so a round touching `.java` commits in minutes, not seconds: invoke `git commit` with an explicit **600000 ms tool timeout** — a commit dying on the default timeout is not a signal to retry with `--no-verify`. After the push, post the `Fixed — … (<short-sha>)` replies and resolve those threads.
-- **Settled / stalemate** — update the summary comment and end with the terminal `SETTLE:` line (Verdict below); no park states.
+- **Settled / stalemate** — write a new summary note. Run closure only for a settled result. End with the terminal `SETTLE:` line.
 
-## Phase 0 — fetch MR + spec
+## Phase 0 — fetch change + spec
 
-1. `afk_adapter forge change-fetch '{"id":"<change-ref-or-url>","out_dir":"<job-dir>"}'` (run in `MAIN`) → `mr.json` + `mr.diff`, plus the normalized change object (id, url, title, state, draft, source, target, author, pipeline.status) on stdout.
-2. `mr.diff` is written by the same call; `git diff base...head` after Phase 1 is the fallback when the forge cannot serve it.
-3. Spec: extract the tracker key from title/source branch (`[A-Z][A-Z0-9]+-\d+`); `tracker_get` with full fields (summary, description, comments) → digest acceptance criteria into `spec.md`. No key → **no-spec mode**: the MR description is the only intent statement; `spec-fidelity` reviews scope-creep + description-vs-diff instead of acceptance bullets.
+If the selected forge is `none`, refuse with the adapter's reason.
 
-## Phase 1 — checkout the MR head
+1. Source `${AFK_PLUGIN_ROOT}/hooks/lib/adapter.sh` once. Run `afk_adapter forge change-fetch` in `MAIN`. Read the normalized id, URL, author, `head_sha`, immutable `base_sha`, `head_ref`, `cross_fork`, and `blob_base`.
+2. Use the fetched diff. After checkout, `git diff {base_sha}...{head_sha}` is the fallback.
+3. Spec: extract the tracker key from title or source branch. Fetch it through the selected tracker adapter and digest acceptance criteria into `spec.md`. Without a key, use the change description as the intent statement.
 
-Never review from diff text alone — reviewers must navigate real MR-head code (new files exist, modified files post-MR, surrounding/similar code greppable).
+## Phase 1 — checkout the change head
 
-```bash
-git -C "$MAIN" fetch origin "merge-requests/<iid>/head:review/mr-<iid>"
-"$AFK_PLUGIN_ROOT/scripts/create-worktree" --branch "review/mr-<iid>" --dir "mr-<iid>-review" --skip-build-gate npm --no-open
-```
+Never review from diff text alone. Reviewers navigate the checked-out change head.
 
-`WORKTREE_PATH` from the last line = `WT`. The fetch-into-local-branch works for cross-fork MRs too (the MR ref always exists on origin). Verify `git -C "$WT" rev-parse HEAD` == `diff_refs.head_sha`; if the MR moved since Phase 0, re-fetch `mr.json` + `mr.diff` so anchors match. Settle mode additionally sets the worktree branch to track the MR's **source branch**, the push target.
+Fetch the adapter-provided `head_ref` into a local review branch. Create the worktree through `${AFK_PLUGIN_ROOT}/scripts/create-worktree`. Verify its HEAD equals `head_sha`. Fetch the change again when it moved.
+
+`WORKTREE_PATH` from the last line is `WT`. In settle mode, configure the writable source branch as the push target.
 
 Changed-module list (drives Phase 2 and triggers): `git -C "$WT" diff --name-only <base_sha>...HEAD`, mapped to `NNNNN-x/module` via `sed -nE 's|^([0-9]+-[^/]+/[^/]+)/src/.*|\1|p' | sort -u`.
 
-## Phase 2 — local gates (only what CI does NOT catch)
+## Phase 2 — local gates
 
-No double work with the MR pipeline: **never compile, run unit tests, or anything the CI build already enforces**; nothing that boots the app. Run in `$WT`, in parallel; failures become findings merged into the round-1 pool. Round n≥2 re-runs only the checks whose file set the delta touches.
+Discover the selected build gates with `afk_build_gate_discover`. Run applicable gates with `afk_build_gate_run`. Skip this work for a draft change or `--skip-build`. Keep the orphan hunt. Run no live application.
 
-1. **Java format** (`class: compliance`) — per changed module: `./mvnw -f all-modules-pom.xml -pl <mod> net.revelc.code.formatter:formatter-maven-plugin:2.28.0:validate -Dconfigfile=$WT/eclipse-code-formatter.xml -Dformatter.includes=<changed files relative to module source roots>` (harness convention CI doesn't enforce). One `afk:afk-runner-lite` subagent (exit-code verdict — `DELEGATION.md` "Runner split").
-2. **UI lint** (`class: compliance`) — only if the diff touches files under a dir with an ancestor `.eslintrc.*` (vite builds don't lint): `npm ci` at `$WT` root, then `npx --no-install eslint <changed ui files>` from the nearest eslintrc dir. eslint unresolvable → record "skipped (infra absent)", don't fail. One `afk:afk-runner-lite` subagent (exit-code verdict — `DELEGATION.md` "Runner split").
-3. **Orphan hunt (wiring)** (`class: design`, medium) — one `afk:afk-reader` subagent: for each NEW public class/endpoint/config key in the diff, prove a consumer exists at MR head (grep `$WT`); default to "orphan" when reachability can't be proven.
+Run one orphan hunt. For each new public class, endpoint, or config key, prove a consumer exists at the change head. Unproved reachability is an orphan finding.
 
 ## The rounds
 
-Run rounds per SETTLEMENT.md "The round", with the substitutions above. Every round, both modes: reconstruct the ledger from the MR → review pass → filter against the settled set → **post every new finding inline** (Posting below) → update the summary comment. Then the modes diverge:
+Run SETTLEMENT.md's round. Every round reconstructs the forge record, reviews, posts every finding, and passes the progress gate before any fixer. Then the modes diverge:
 
 - **Settle** — fix/dispute → adjudicate → commit → push → reply + resolve → next round, in-session, until settled or stalemate.
-- **Review-only** — stop; the round's findings await the author. On the next invocation: nothing new (head equals the summary's reviewed head AND no new thread replies) → report that and stop. Otherwise delete any leftover `review/mr-<iid>` worktree/branch, re-run Phase 1 at the new head, and run the next round — the delta review (empty delta → skip the fan-out) plus **thread triage**, SETTLEMENT steps 4–6 with the author as implementor:
+- **Review-only** — stop; the round's findings await the author. On the next invocation: nothing new (head equals the summary's reviewed head AND no new thread replies) → report that and stop. Otherwise delete any leftover `review/change-<id>` worktree/branch, re-run Phase 1 at the new head, and run the next round — the delta review (empty delta → skip the fan-out) plus **thread triage**, SETTLEMENT steps 4–6 with the author as implementor:
   - **Fix claim / no reply but code changed** — verify in `$WT` against the finding's evidence (read the file, never trust the claim). Verified → reply confirming + resolve; not fixed → stays open, reply stating what's still wrong.
   - **Pushback** — the author's dispute: adjudicate per SETTLEMENT step 5. `withdrawn` → reply the verdict + resolve (settled); `stands` → stays open, reply the evaluation (concede any partial points).
   - **No reply, no code change** — stays open.
 
-## Posting inline comments (every round, both modes)
+For a verified author fix, write `verified` with the full current head SHA and
+exact locator. State `verified at <full-head-sha>`. Name an author commit only
+when the forge or git history proves which commit fixed the key.
 
-Script it (parse the diff → anchor → POST per finding). Rules that bite:
+## Publishing findings
 
-- One inline comment per finding: `afk_adapter forge change-comment '{"id":"<change-ref>","file":"<path>","line":<n>,"text":"<finding>"}'`. The adapter owns the position payload and the forge's traps with it — see `adapters/forge/<kind>/CONTRACT.md` "Notes that bite".
-- The answer carries `"ok"`. `"ok": false` means the position was rejected and the comment landed as a plain note: treat that finding as UNANCHORED, not as posted-on-the-line.
-- Anchor fallback is the caller's: exact line → nearest added line within 60 → context line. File not in the diff → a plain comment (omit `file`/`line`) prefixed `file:line`.
-- Replies go inside the finding's existing thread (`thread-reply` with its `thread` id from `thread-list`); resolving is `thread-resolve`. A forge that answers `unsupported` for `thread-resolve` leaves the thread OPEN — say so in the summary rather than pretending it closed.
+Use `forge_ledger.py post`. It publishes each finding at its exact diff location or as a counted unanchored note. Run `gate --phase progress` before briefing fixers. Use `reply` and `resolve` for later records. Write the final summary, then run `gate --phase closure` before reporting settled. An unanchored key or unresolved thread blocks closure.
 
 ## Cleanup
 
-After the terminal report: `git -C "$MAIN" worktree remove <WT>` (`--force` only if the worktree is clean but has untracked scratch) and `git -C "$MAIN" branch -D review/mr-<iid>`. In review-only mode the worktree never outlives the invocation; keep it only when the user says they want to poke at the checkout.
+After the terminal report: `git -C "$MAIN" worktree remove <WT>` (`--force` only if the worktree is clean but has untracked scratch) and `git -C "$MAIN" branch -D review/change-<id>`. In review-only mode the worktree never outlives the invocation; keep it only when the user says they want to inspect the checkout.
 
 ## Verdict
 
-Every round stamps its `REVIEW:` line (grammar: review SKILL.md "Verdict & output") into the summary comment. The invocation then ends:
+Every closed round writes a new immutable summary note. The invocation then ends:
 
 ```
-SETTLE: <settled|stalemate|open> — round={n} fixed={f} settled={s} open={o} [MR: <url>]
-In plain terms: <one jargon-free sentence — where the MR stands and what happens next>
+SETTLE: <settled|stalemate|open> — round={n} fixed={f} settled={s} open={o} posted={p}/{a} anchored={x} unanchored={y} [change: <url>]
+In plain terms: <one jargon-free sentence — where the change stands and what happens next>
 ```
 
-`settled` / `stalemate` per SETTLEMENT "Termination" (stalemate leftovers = the threads still open, the human's worklist — named in the summary comment); `open` = a review-only round finished with findings awaiting the author. Layered per `REPORTING.md` (plugin root).
+`settled` requires a green closure gate. `stalemate` names each open key. `open` means a review-only round awaits the author.
 
 ## Hard rules
 
-- **Review-only mode is read-only on project source** (main + worktree); it writes only scratch and GitLab notes. Settle mode may edit/commit in `$WT` and push to the MR source branch — never merge, never touch Draft/Ready, never rewrite the author's existing commits.
+- **Review-only mode is read-only on project source.** It writes only scratch and forge comments. Settle mode may edit, commit, and push to the change source branch. It never merges, changes Draft status, or rewrites existing commits.
 - Checklists always from `$MAIN`, code always from `$WT`.
 - Never boot the app or hit a live environment.
 - All fan-outs single-message parallel; the verify pass and adjudications are their own parallel waves.

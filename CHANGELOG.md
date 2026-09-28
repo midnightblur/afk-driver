@@ -37,6 +37,14 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- **Forge changes now hold the review record.** Review findings, disputes,
+  fixes, deferrals, and round summaries use immutable forge comments. A
+  restarted settle loop reconstructs and validates closure from the change.
+  Local `plan/review/` files remain telemetry. Repositories can widen the
+  narrow ledger-only path default with `review.ledger-only-paths`.
+
 ## [1.7.0] - 2026-09-24
 
 ### Added

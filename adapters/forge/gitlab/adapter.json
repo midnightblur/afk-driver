@@ -13,6 +13,7 @@
     "change-state",
     "change-close",
     "change-fetch",
+    "note-list",
     "thread-list",
     "thread-reply",
     "thread-resolve",
