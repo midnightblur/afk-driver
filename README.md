@@ -261,6 +261,10 @@ changes `hooks/hooks.codex.json`. The five agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
+Setup can also install the managed behavior layer in both user instruction
+files. It asks before the first install. Any legacy AFK behavior block proves
+prior consent. Run `/afk:setup teardown` before disabling the plugin.
+
 ### Upgrading a pinned install
 
 Both harnesses record an installed version, and a pin is stated in more than
@@ -328,7 +332,8 @@ from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 
 `/afk:setup` probes external dependencies against
 `skills/afk/setup/MANIFEST.md`. Use `/afk:setup base` for the pinned workstation
-toolchain. Use `/afk:setup audit` before shipping plugin changes.
+toolchain. Use `/afk:setup audit` before shipping plugin changes. The audit
+also checks the managed behavior revision, hash, targets, and legacy blocks.
 
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per

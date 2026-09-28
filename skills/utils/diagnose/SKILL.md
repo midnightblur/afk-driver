@@ -9,6 +9,11 @@ description: "Disciplined diagnosis loop: reproduce → minimise → hypothesise
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 
+For a regression that starts after a merge, inspect the merge diff before
+forming other hypotheses. Trace the changed path to the reported symptom.
+
+Before changing a public contract: `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
+
 **Be certain before you fix.** A fix on a wrong diagnosis wastes the fix *and* buries the bug deeper. Don't edit code to "try" a fix until the loop has **confirmed** the cause. Exhaust every tool below first — a guess is a last resort, taken only after you've said so explicitly and stated your confidence.
 
 When exploring the codebase, use the project's domain glossary for a clear mental model of the relevant modules, and check ADRs in the area you're touching.

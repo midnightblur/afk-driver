@@ -1,5 +1,8 @@
 # ADR template
 
+Before writing, read `LANGUAGE.md` at the plugin root. Its final-state rule
+binds this template.
+
 <adr-template>
 
 # ADR-NNNN — {Decision Title}

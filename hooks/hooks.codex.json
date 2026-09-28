@@ -21,6 +21,11 @@
           },
           {
             "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin behavior-drift.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
             "timeout": 60
           }

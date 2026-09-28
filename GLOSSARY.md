@@ -83,6 +83,10 @@ A delivered capability that became a standing expectation (registry: `{service}/
 `skills/afk/setup/MANIFEST.md` — the register of every external dependency the workflow needs (CLIs, MCP servers, secrets, sibling checkouts), one entry each with a runnable `Probe:` (exit 0 = healthy) and a `Fix:` (`auto:` runnable / `human:` guided). The one home for install steps; skills point at entry ids instead of restating them.
 _Avoid_: prerequisites list (scattered inline — the failure the manifest retires)
 
+**Managed behavior**:
+One row in the versioned registry `BEHAVIORS.md` (plugin root) — a standing instruction `/afk:setup` installs into a developer's own user-global steering file as part of the single `afk:behaviors` sentinel block, so every agent session on every project follows it without the skill that needs it restating it. Scope is `all-repos` (every project) or `configured-repos` (only a repository carrying `.afk/config.yaml`). Distinct from a *staple* (a delivered product capability) and from repository-scoped `AGENTS.md`/`.claude/rules` steering, which live in the target repository, not a developer's own machine.
+_Avoid_: team behavior, user-level behavior (both name the same registry row — use "managed behavior")
+
 **Artifact registry**:
 The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs. One row is a *registry row*.
 _Avoid_: freshness registry (the file is `FRESHNESS.md`, but the table is the artifact registry)

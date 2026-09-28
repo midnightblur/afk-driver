@@ -71,6 +71,233 @@ else
   fail "Claude root/data precedence (actual=$actual)"
 fi
 
+actual=$(CLAUDE_CONFIG_DIR=/claude-home CODEX_HOME=/codex-home CLAUDECODE=1 \
+  bash -c '. "$1"; afk_user_instruction_file' _ "$shim")
+if [ "$actual" = "/claude-home/CLAUDE.md" ]; then
+  pass "afk_user_instruction_file targets Claude's own file under a Claude session"
+else
+  fail "afk_user_instruction_file (claude session, actual=$actual)"
+fi
+
+actual=$(CLAUDE_CONFIG_DIR=/claude-home CODEX_HOME=/codex-home PLUGIN_ROOT=1 \
+  bash -c '. "$1"; afk_user_instruction_file' _ "$shim")
+if [ "$actual" = "/codex-home/AGENTS.md" ]; then
+  pass "afk_user_instruction_file targets Codex's own file under a Codex session"
+else
+  fail "afk_user_instruction_file (codex session, actual=$actual)"
+fi
+
+# Fields are NUL-terminated (see hooks/lib/provider.sh's doc comment): a
+# printable delimiter — including the ASCII unit separator this repo used
+# before — can legally occur inside a filesystem path and would silently
+# shift a field boundary; only NUL cannot. `$(...)` command substitution also
+# strips embedded NULs from a captured string, so every assertion below
+# decodes the raw byte stream with the real 4-sequential-read consumer
+# pattern rather than grepping a captured string.
+read_provider_rows() {
+  row_name=(); row_target=(); row_root=(); row_enablement=()
+  local n t r e
+  while IFS= read -r -d '' n && IFS= read -r -d '' t \
+    && IFS= read -r -d '' r && IFS= read -r -d '' e; do
+    row_name+=("$n"); row_target+=("$t"); row_root+=("$r"); row_enablement+=("$e")
+  done
+}
+
+find_row() {
+  local want=$1 i
+  for i in "${!row_name[@]}"; do
+    if [ "${row_name[$i]}" = "$want" ]; then
+      printf '%s\n' "$i"
+      return 0
+    fi
+  done
+  printf -- '-1\n'
+}
+
+apt_claude=$(mktemp -d)
+mkdir -p "$apt_claude/plugins"
+workflow_win=$(command -v cygpath >/dev/null 2>&1 && cygpath -m "$workflow" || printf '%s' "$workflow")
+cat > "$apt_claude/plugins/installed_plugins.json" <<JSON
+{"plugins": {"afk@afk-toolkit": [{"installPath": "$workflow_win"}]}}
+JSON
+read_provider_rows < <(CLAUDE_CONFIG_DIR="$apt_claude" CODEX_HOME=/codex-home-unset \
+  bash -c '. "$1"; afk_all_provider_targets' _ "$shim")
+claude_idx=$(find_row claude)
+codex_idx=$(find_row codex)
+
+if [ "$claude_idx" -ge 0 ] && [ "${row_target[$claude_idx]}" = "$apt_claude/CLAUDE.md" ] \
+  && [ -n "${row_root[$claude_idx]}" ]; then
+  pass "afk_all_provider_targets resolves the claude target and root through the adapter"
+else
+  fail "afk_all_provider_targets should emit claude's own verified target/root (idx=$claude_idx target=${row_target[$claude_idx]:-<unset>} root=${row_root[$claude_idx]:-<unset>})"
+fi
+if [ "$codex_idx" -ge 0 ] && [ -z "${row_root[$codex_idx]}" ] \
+  && [[ "${row_enablement[$codex_idx]}" =~ ^(enabled|disabled|absent)$ ]]; then
+  pass "afk_all_provider_targets still lists codex with an empty root when it cannot be verified"
+else
+  fail "afk_all_provider_targets should never omit a target row, only leave root empty (idx=$codex_idx root=${row_root[$codex_idx]:-<unset>} enablement=${row_enablement[$codex_idx]:-<unset>})"
+fi
+# Enablement is a 4th, independent field — $apt_claude has no settings.json
+# at all, so claude's enablement must be "absent" regardless of whether its
+# root resolved (checked above).
+if [ "$claude_idx" -ge 0 ] && [ "${row_enablement[$claude_idx]}" = "absent" ]; then
+  pass "afk_all_provider_targets reports claude's own enablement alongside its root"
+else
+  fail "afk_all_provider_targets should report claude enablement=absent with no settings.json (enablement=${row_enablement[$claude_idx]:-<unset>})"
+fi
+# A resolver subprocess's own stdout can carry a CRLF line terminator on
+# Windows; a newline-preserving capture scheme that strips only the final
+# LF would leave a trailing CR baked into ROOT, pointing H7's render at a
+# path that doesn't exist — a regression this repo hit and reverted; plain
+# `$(...)` command substitution is what stays correct here. Exercise the
+# REAL resolver (no stub) and check the exact trailing byte of both
+# fields.
+if [ "$claude_idx" -ge 0 ] \
+  && [[ "${row_target[$claude_idx]}" != *$'\r' && "${row_target[$claude_idx]}" != *$'\n' \
+    && "${row_root[$claude_idx]}" != *$'\r' && "${row_root[$claude_idx]}" != *$'\n' ]]; then
+  pass "afk_all_provider_targets' real resolver leaves no trailing CR or LF on TARGET or ROOT"
+else
+  fail "afk_all_provider_targets should never leave a trailing CR or LF byte on TARGET/ROOT (target_last=$(printf '%s' "${row_target[$claude_idx]:-}" | tail -c1 | od -An -tx1) root_last=$(printf '%s' "${row_root[$claude_idx]:-}" | tail -c1 | od -An -tx1))"
+fi
+rm -rf "$apt_claude"
+
+# A provider whose plugin is installed (root resolves) but turned off must
+# report enablement=disabled — a distinct fact from an unresolved root.
+apt_disabled=$(mktemp -d)
+mkdir -p "$apt_disabled/plugins"
+cat > "$apt_disabled/plugins/installed_plugins.json" <<JSON
+{"plugins": {"afk@afk-toolkit": [{"installPath": "$workflow_win"}]}}
+JSON
+cat > "$apt_disabled/settings.json" <<JSON
+{"enabledPlugins": {"afk@afk-toolkit": false}}
+JSON
+read_provider_rows < <(CLAUDE_CONFIG_DIR="$apt_disabled" CODEX_HOME=/codex-home-unset \
+  bash -c '. "$1"; afk_all_provider_targets' _ "$shim")
+claude_idx=$(find_row claude)
+if [ "$claude_idx" -ge 0 ] && [ -n "${row_root[$claude_idx]}" ] \
+  && [ "${row_enablement[$claude_idx]}" = "disabled" ]; then
+  pass "afk_all_provider_targets reports enablement=disabled for a resolved-root disabled provider"
+else
+  fail "afk_all_provider_targets should report claude enablement=disabled alongside a resolved root (root=${row_root[$claude_idx]:-<unset>} enablement=${row_enablement[$claude_idx]:-<unset>})"
+fi
+rm -rf "$apt_disabled"
+
+# A raw byte that used to be this format's own field delimiter (the ASCII
+# unit separator) must now pass straight through TARGET and ROOT untouched
+# — proof the NUL-only delimiter has no path byte that can collide with it.
+us_byte=$(printf '\x1f')
+target_with_us="target-us${us_byte}path/AGENTS.md"
+root_with_us="root-us${us_byte}path"
+
+# Extract the fenced shell block that immediately follows a heading line, up
+# to the closing fence — the real recipe text the two consumers below run,
+# never a restated copy. Extraction returning nothing would make every
+# assertion below vacuously pass, so that is checked first.
+extract_fence() {
+  local file=$1 heading=$2
+  awk -v heading="$heading" '
+    { sub(/\r$/, "") }
+    $0 == heading { in_section = 1 }
+    in_section && /```sh/ { in_fence = 1; next }
+    in_fence && /```/ { exit }
+    in_fence { sub(/^  /, ""); print }
+  ' "$file"
+}
+
+h7_block=$(extract_fence "$workflow/skills/afk/setup/MANIFEST.md" '### H7 · managed agent behavior **[opt-in]**')
+audit_block=$(extract_fence "$workflow/skills/afk/setup/AUDIT.md" '## 7 · Managed behavior')
+if [ -n "$h7_block" ]; then
+  pass "H7's fenced recipe extracted non-empty content"
+else
+  fail "H7's fenced recipe extraction returned nothing; the real-loop assertions below would pass vacuously"
+fi
+if [ -n "$audit_block" ]; then
+  pass "AUDIT check 7's fenced recipe extracted non-empty content"
+else
+  fail "AUDIT check 7's fenced recipe extraction returned nothing; the real-loop assertions below would pass vacuously"
+fi
+
+# Four synthetic rows fed to the real loops below, NUL-delimited, generated
+# straight onto the pipe (never round-tripped through a bash variable, which
+# cannot hold an embedded NUL): 3 empty-root rows, one per enablement value
+# (if a consumer's `read` ever let an empty ROOT bleed into ENABLEMENT — the
+# whitespace-delimiter field-collapsing bug an earlier scheme had — one of these would parse with a
+# non-empty root and trigger a render/install attempt), plus a 4th enabled
+# row with a real, non-empty TARGET/ROOT that each embed the retired
+# unit-separator byte, proving both that an enabled+resolved row is
+# installed at all and that the byte survives intact.
+emit_fixture_rows() {
+  printf 'codex\0target-empty-x\0\0enabled\0'
+  printf 'codex\0target-empty-x\0\0disabled\0'
+  printf 'codex\0target-empty-x\0\0absent\0'
+  printf 'codex\0%s\0%s\0enabled\0' "$target_with_us" "$root_with_us"
+}
+
+# H7's install loop, run for real against the fixture: a stub `python` on
+# PATH records every invocation and always exits 0 (so the loop's `|| exit 1`
+# guards never cut the run short before the 4th row is reached).
+stub_bin=$(mktemp -d)
+py_log="$stub_bin/py.log"
+cat > "$stub_bin/python" <<'STUB'
+#!/usr/bin/env bash
+echo "python $*" >> "$PY_LOG"
+exit 0
+STUB
+chmod +x "$stub_bin/python"
+h7_script=$(printf '%s\n' "$h7_block" | grep -vF '. "$AFK_PLUGIN_ROOT/hooks/lib/provider.sh"')
+(
+  PATH="$stub_bin:$PATH"
+  PY_LOG="$py_log"
+  export PATH PY_LOG
+  AFK_PLUGIN_ROOT="$workflow"
+  . "$AFK_PLUGIN_ROOT/hooks/lib/provider.sh"
+  afk_all_provider_targets() { emit_fixture_rows; }
+  afk_provider() { printf 'unknown\n'; }
+  eval "$h7_script"
+) 2>/dev/null
+py_log_line_count=$(grep -c '^python ' "$py_log" 2>/dev/null || printf '0')
+if [ "$py_log_line_count" = "2" ]; then
+  pass "H7's real install loop calls python exactly twice: only the enabled, resolved-root row triggers render+install"
+else
+  fail "H7's real install loop should call python exactly twice, once each for render and install (line_count=$py_log_line_count log=$(cat "$py_log" 2>/dev/null))"
+fi
+rendered_path=$(grep -oE -- '--output [^ ]+' "$py_log" 2>/dev/null | awk '{print $2}')
+if grep -qF -- "--plugin-root $root_with_us --output" "$py_log" 2>/dev/null; then
+  pass "H7's real install loop passes ROOT to render with the unit-separator byte intact"
+else
+  fail "H7's real install loop should pass --plugin-root '$root_with_us' unmodified (log=$(cat "$py_log" 2>/dev/null))"
+fi
+if [ -n "$rendered_path" ] && grep -qF -- "install $rendered_path $target_with_us" "$py_log" 2>/dev/null; then
+  pass "H7's real install loop passes TARGET to install with the unit-separator byte intact"
+else
+  fail "H7's real install loop should pass install target '$target_with_us' unmodified (log=$(cat "$py_log" 2>/dev/null))"
+fi
+rm -rf "$stub_bin"
+
+# AUDIT.md check 7's argument-building loop, run for real against the same
+# 4-row fixture: each of the 3 empty-root rows' ROOT must stay empty and its
+# own ENABLEMENT must reach the matching `--target-root` triple, never
+# shifted into a neighboring field; the 4th row's TARGET/ROOT — each
+# carrying the retired unit-separator byte — must reach the audit intact.
+audit_loop=$(printf '%s\n' "$audit_block" | sed -n '/^args=()/,/^done < <(afk_all_provider_targets)/p')
+args=()
+afk_all_provider_targets() { emit_fixture_rows; }
+eval "$audit_loop"
+if [ "${#args[@]}" -eq 16 ] \
+  && [ "${args[0]}" = "--target-root" ] && [ "${args[1]}" = "target-empty-x" ] \
+  && [ "${args[2]}" = "" ] && [ "${args[3]}" = "enabled" ] \
+  && [ "${args[4]}" = "--target-root" ] && [ "${args[5]}" = "target-empty-x" ] \
+  && [ "${args[6]}" = "" ] && [ "${args[7]}" = "disabled" ] \
+  && [ "${args[8]}" = "--target-root" ] && [ "${args[9]}" = "target-empty-x" ] \
+  && [ "${args[10]}" = "" ] && [ "${args[11]}" = "absent" ] \
+  && [ "${args[12]}" = "--target-root" ] && [ "${args[13]}" = "$target_with_us" ] \
+  && [ "${args[14]}" = "$root_with_us" ] && [ "${args[15]}" = "enabled" ]; then
+  pass "AUDIT check 7's real loop builds all 4 --target-root triples intact, including the unit-separator row"
+else
+  fail "AUDIT check 7's real loop should build 4 clean --target-root triples (actual=${args[*]})"
+fi
+unset -f afk_all_provider_targets
+
 for adapter in "$workflow"/hooks/lib/providers/*.sh; do
   provider=${adapter##*/}
   provider=${provider%.sh}
@@ -280,6 +507,140 @@ else
   fail "missing settings file should be silent (out=$a5)"
 fi
 rm -rf "$amc_repo_a" "$amc_repo_b" "$amc_wrong" "$amc_right" "$amc_missing"
+
+# ---- behavior-drift.sh: the SessionStart notice for managed behavior.
+echo "== managed behavior drift notice =="
+bd_claude=$(mktemp -d)
+bd_codex=$(mktemp -d)
+bd_rendered=$(mktemp)
+behavior_py=python
+command -v python >/dev/null 2>&1 || behavior_py=python3
+
+bd_run() {
+  env CLAUDECODE=1 CLAUDE_CONFIG_DIR="$bd_claude" CODEX_HOME="$bd_codex" \
+    bash "$workflow/hooks/behavior-drift.sh"
+}
+
+if [ -z "$(bd_run)" ]; then
+  pass "no managed behavior opt-in -> drift notice silent"
+else
+  fail "no managed behavior opt-in should be silent"
+fi
+
+"$behavior_py" "$workflow/scripts/behavior_registry.py" render \
+  --registry "$workflow/BEHAVIORS.md" --plugin-root "$workflow" \
+  --output "$bd_rendered"
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  install "$bd_rendered" "$bd_claude/CLAUDE.md" >/dev/null
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  install "$bd_rendered" "$bd_codex/AGENTS.md" >/dev/null
+if [ -z "$(bd_run)" ]; then
+  pass "current managed behavior -> drift notice silent"
+else
+  fail "current managed behavior should be silent"
+fi
+
+sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd_claude/CLAUDE.md"
+bd_stale=$(bd_run)
+if [ "$(printf '%s\n' "$bd_stale" | wc -l)" -eq 1 ] \
+   && printf '%s' "$bd_stale" | grep -q '/afk:setup'; then
+  pass "stale managed behavior -> one setup instruction"
+else
+  fail "stale managed behavior notice (out=$bd_stale)"
+fi
+
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  teardown "$bd_claude/CLAUDE.md" >/dev/null
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  teardown "$bd_codex/AGENTS.md" >/dev/null
+printf '<!-- afk:plain-language:start -->\nlegacy\n<!-- afk:plain-language:end -->\n' \
+  > "$bd_claude/CLAUDE.md"
+if bd_run | grep -q '/afk:setup'; then
+  pass "legacy behavior block -> migration notice"
+else
+  fail "legacy behavior block should request migration"
+fi
+
+# Each provider's own SessionStart hook checks only its own target, never the
+# other harness's file — a developer who only opted in on one harness must
+# never see a stale notice from the other harness's absent file.
+bd2_claude=$(mktemp -d)
+bd2_codex=$(mktemp -d)
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  install "$bd_rendered" "$bd2_claude/CLAUDE.md" >/dev/null
+# bd2_codex/AGENTS.md is left absent: never opted in on Codex.
+bd2_claude_out=$(env CLAUDECODE=1 CLAUDE_CONFIG_DIR="$bd2_claude" CODEX_HOME="$bd2_codex" \
+  bash "$workflow/hooks/behavior-drift.sh")
+if [ -z "$bd2_claude_out" ]; then
+  pass "claude session stays silent for a codex target never opted into"
+else
+  fail "claude session should not flag the other harness's absent target (out=$bd2_claude_out)"
+fi
+bd2_codex_out=$(env CLAUDE_CONFIG_DIR="$bd2_claude" CODEX_HOME="$bd2_codex" PLUGIN_ROOT="$workflow" \
+  bash "$workflow/hooks/behavior-drift.sh")
+if [ -z "$bd2_codex_out" ]; then
+  pass "codex session (PLUGIN_ROOT set) also stays silent: it never opted in either"
+else
+  fail "codex session should be silent on its own absent target (out=$bd2_codex_out)"
+fi
+rm -rf "$bd2_claude" "$bd2_codex"
+rm -rf "$bd_claude" "$bd_codex" "$bd_rendered"
+
+# A tool/config problem (unreadable registry) must never read as drift.
+bd_broken=$(mktemp -d)
+mkdir -p "$bd_broken/hooks" "$bd_broken/scripts"
+cp "$workflow/hooks/behavior-drift.sh" "$bd_broken/hooks/behavior-drift.sh"
+cp -r "$workflow/hooks/lib" "$bd_broken/hooks/lib"
+cp "$workflow/scripts/behavior_registry.py" "$bd_broken/scripts/behavior_registry.py"
+printf 'not a valid registry\n' > "$bd_broken/BEHAVIORS.md"
+bd_broken_claude=$(mktemp -d)
+printf '<!-- afk:behaviors:start -->\nx\n<!-- afk:behaviors:end -->\n' \
+  > "$bd_broken_claude/CLAUDE.md"
+bd_broken_out=$(env CLAUDECODE=1 CLAUDE_CONFIG_DIR="$bd_broken_claude" \
+  bash "$bd_broken/hooks/behavior-drift.sh" 2>&1)
+if printf '%s' "$bd_broken_out" | grep -qi 'check failed' \
+   && ! printf '%s' "$bd_broken_out" | grep -q 'is stale'; then
+  pass "broken registry reports a check failure, never a stale-drift instruction"
+else
+  fail "broken registry should report a distinct tool-error notice (out=$bd_broken_out)"
+fi
+rm -rf "$bd_broken" "$bd_broken_claude"
+
+# An end-only marker (malformed or partial install) still reaches the audit,
+# never a silent skip at the prefilter stage.
+bd4_claude=$(mktemp -d)
+printf 'preamble\n<!-- afk:behaviors:end -->\n' > "$bd4_claude/CLAUDE.md"
+bd4_out=$(env CLAUDECODE=1 CLAUDE_CONFIG_DIR="$bd4_claude" \
+  bash "$workflow/hooks/behavior-drift.sh" 2>&1)
+if [ -n "$bd4_out" ]; then
+  pass "end-only marker still reaches the audit, not a silent skip"
+else
+  fail "end-only marker should not silently skip the audit"
+fi
+rm -rf "$bd4_claude"
+
+# Drive the hook through the production launcher (hooks/run-hook.py) — the
+# real entry point every hook command goes through — under a genuine Codex
+# provider signal (PLUGIN_ROOT, per providers/CONFORMANCE.md row 21). PLUGIN_ROOT
+# here is only a detection signal: the hook's own root stays self-path-derived,
+# never taken from PLUGIN_ROOT's value.
+bd5_codex=$(mktemp -d)
+bd5_rendered=$(mktemp)
+"$behavior_py" "$workflow/scripts/behavior_registry.py" render \
+  --registry "$workflow/BEHAVIORS.md" --plugin-root "$workflow" \
+  --output "$bd5_rendered"
+"$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
+  install "$bd5_rendered" "$bd5_codex/AGENTS.md" >/dev/null
+sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd5_codex/AGENTS.md"
+bd5_out=$(env -u CLAUDECODE -u CLAUDE_PLUGIN_ROOT -u CLAUDE_CONFIG_DIR \
+  PLUGIN_ROOT=1 CODEX_HOME="$bd5_codex" \
+  "$behavior_py" "$workflow/hooks/run-hook.py" plugin behavior-drift.sh)
+if printf '%s' "$bd5_out" | grep -q '/afk:setup'; then
+  pass "production launcher drives the codex target through the adapter"
+else
+  fail "production launcher should surface stale codex drift (out=$bd5_out)"
+fi
+rm -rf "$bd5_codex" "$bd5_rendered"
 
 # ---- the launcher every hook command goes through.
 launcher="$workflow/hooks/run-hook.py"

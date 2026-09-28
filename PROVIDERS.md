@@ -26,10 +26,12 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
 | Plugin root/data | Compatibility root/data variables | `PLUGIN_ROOT`/`PLUGIN_DATA`; compatibility variables also exist |
 | Managed plugin directory | `~/.claude/plugins`, moved by `CLAUDE_CONFIG_DIR` | `~/.codex/plugins`, moved by `CODEX_HOME` |
+| Installed root, resolved from a different session | Native env var when set (only when Codex is not the active provider — its `PLUGIN_ROOT` also sets the Claude compatibility variable), else `installed_plugins.json`'s `afk@afk-toolkit` entry's `installPath` | Native env var when set, else the `VERSION` column of `codex plugin list`'s `afk@afk-toolkit` row (located by header column name; no config field names this) → `${CODEX_HOME:-~/.codex}/plugins/cache/afk-toolkit/afk/<VERSION>` |
 | Project root | `CLAUDE_PROJECT_DIR` when present | Resolve from `$PWD` through Git |
 | Job scratch | Native job directory | Plugin-data scratch directory |
 | Jira MCP tools | Plugin-scoped server; call the bare tool name | Plugin-scoped server; call the bare tool name |
 | User steering | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
+| Managed behavior | `afk:behaviors` sentinel in user steering | `afk:behaviors` sentinel in user steering |
 | Per-directory steering | `AGENTS.md` (root `CLAUDE.md` bridges `@AGENTS.md`) | `AGENTS.md` |
 | Reload | Reload enabled plugins | Refresh plugin cache and restart; exact proof lives in conformance |
 
@@ -45,8 +47,17 @@ Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex
   reads the Codex marketplace manifest from that path. Nothing else under `.agents/`
   may be tracked, and `native-contract-gate.sh` enforces exactly that.
 - Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
+- Run `/afk:setup teardown` before disabling the plugin. It removes the managed
+  behavior block from both user instruction files. No shipped provider has a
+  proven uninstall callback.
 - Copy Codex agent TOML stubs into `~/.codex/agents/` under their own filenames, replacing only the `{{PLUGIN_ROOT}}` placeholder with the installed plugin root that Codex plugin metadata reports; never render a mirror.
-- Add provider behavior only in `hooks/lib/providers/<name>.sh` and this file.
+- Add provider behavior only in `hooks/lib/providers/<name>.sh`, this file,
+  and — only where the algorithm is naturally table/JSON-shaped, never as a
+  default — a `hooks/lib/providers/<name>_*.py` helper that `<name>.sh` alone
+  calls. No other file may reference that helper, except a unit test under
+  `scripts/tests/` loading the helper module directly to test it.
+  `hooks/native-contract-gate.sh` enforces both the naming and the
+  single-caller rule.
 - Add harness #N through the checklist in `providers/CONFORMANCE.md`; do not edit skill prose.
 
 ## Model tiers

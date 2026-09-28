@@ -51,6 +51,9 @@ Push too little down and the top bloats; push too much and you hide material the
 
 ## Steps and completion criteria
 
+Use instructions for judgment-based quality bars. Use deterministic gates for
+contracts that a script can decide without interpretation.
+
 Every step ends on a **completion criterion** — the condition that tells the agent the work is done. Two properties make it a lever:
 
 - **Clarity** — can the agent tell done from not-done? A vague bound ("understanding reached") invites **premature completion**: ending the step before it is genuinely done, attention slipping to _being done_. The visible steps still ahead — the **post-completion steps** — supply the pull; the criterion's clarity is the resistance. Defend in order: **sharpen the bound first** (local and cheap); only if it is irreducibly fuzzy _and_ you observe the rush, hide the later steps by splitting the sequence — and hiding only works across a real context boundary (a hand-off or a subagent dispatch; an inline call leaves the later steps in context and clears nothing).

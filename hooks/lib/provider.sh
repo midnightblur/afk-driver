@@ -68,6 +68,66 @@ afk_plugin_root() {
   printf '%s\n' "$root"
 }
 
+afk_user_instruction_file() {
+  local provider function file=""
+  provider=$(afk_provider)
+  function="afk_${provider}_user_instruction_file"
+  if command -v "$function" >/dev/null 2>&1; then
+    file=$("$function")
+  fi
+  printf '%s\n' "$file"
+}
+
+# Every registered provider's own (user instruction file, installed root,
+# enablement) triple, resolved independently of which provider is the current
+# session — 4 NUL-terminated fields per provider that has a target, in
+# registration order: name<NUL>target<NUL>root<NUL>enablement<NUL>, with no
+# extra separator between records (every 4 fields is one record). ROOT is
+# empty when it cannot be independently verified. ENABLEMENT is one of
+# enabled|disabled|absent, always a definite value (never empty). TARGET and
+# ROOT are filesystem paths, which POSIX allows to contain any byte except
+# NUL and `/` — a printable delimiter (tab, the ASCII unit separator, a
+# newline) can legally occur inside one, silently shifting a field boundary;
+# NUL is the one byte guaranteed never to appear in a path, so it is the
+# only safe terminator. A consumer reads exactly 4 NUL-terminated fields per
+# record with `IFS= read -r -d '' name && IFS= read -r -d '' target &&
+# IFS= read -r -d '' root && IFS= read -r -d '' enablement` — never a single
+# `read` with IFS set to a printable delimiter, and never a record-per-line
+# format, since a path can itself contain a newline.
+#
+# A target is never omitted: an install must never write a guessed root, so
+# it skips a row with an empty root — but a read like an audit can still
+# inspect that target's existing content for a leftover managed marker
+# without needing the root at all, and omitting the row outright would hide
+# exactly that (a block left behind after a provider is disabled, whose root
+# can then no longer resolve, is the case the audit most needs to catch).
+# Enablement is a second, independent reason to skip an install: a provider
+# whose root still resolves (the plugin is installed, just not currently
+# turned on) must not receive a fresh block either, and a read must reject a
+# leftover marker there too — root resolving is not the same fact as the
+# provider being on.
+afk_all_provider_targets() {
+  local name target_fn root_fn enablement_fn target root enablement
+  for name in $AFK_PROVIDER_NAMES; do
+    target_fn="afk_${name}_user_instruction_file"
+    root_fn="afk_${name}_installed_root"
+    enablement_fn="afk_${name}_enablement"
+    command -v "$target_fn" >/dev/null 2>&1 || continue
+    target=$("$target_fn")
+    [ -n "$target" ] || continue
+    root=""
+    if command -v "$root_fn" >/dev/null 2>&1; then
+      root=$("$root_fn") || root=""
+    fi
+    enablement="absent"
+    if command -v "$enablement_fn" >/dev/null 2>&1; then
+      enablement=$("$enablement_fn") || enablement="absent"
+      [ -n "$enablement" ] || enablement="absent"
+    fi
+    printf '%s\0%s\0%s\0%s\0' "$name" "$target" "$root" "$enablement"
+  done
+}
+
 afk_plugin_data() {
   local provider function dir=""
   provider=$(afk_provider)

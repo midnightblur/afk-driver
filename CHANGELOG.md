@@ -37,6 +37,13 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- **Managed agent behavior now comes from one versioned registry.** Setup can
+  install, audit, migrate, and remove one `afk:behaviors` block for both
+  supported harnesses. Session start reports stale installed behavior. Run
+  `/afk:setup teardown` before disabling the plugin.
+
 ### Changed
 
 - **Forge changes now hold the review record.** Review findings, disputes,

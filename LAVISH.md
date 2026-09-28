@@ -101,6 +101,17 @@ file per question forfeits the resume.
 **Re-render cadence.** A continuously-updated artifact (ledger, log, matrix)
 re-renders at question/turn boundaries, never per row write.
 
+## Managed-session runtime
+
+These rules bind every session-default render:
+
+1. Rebuild and re-render the artifact at each round boundary.
+2. Do not rewrite or re-render the page while the human answers it.
+3. Run each blocking poll as a tracked background job. Stop that job when the
+   session ends or the poll returns.
+4. When editing this plugin in a worktree, use that worktree's renderer and
+   doctrine. Do not use an installed copy from another checkout.
+
 **The page runtime lives in the file, so a rewrite drops it.** The tooltip
 dictionary and the dark-mode override are injected into the artifact HTML by
 `hooks/lavish-tips.sh` and `hooks/lavish-dark.sh`, which fire on a render **and
