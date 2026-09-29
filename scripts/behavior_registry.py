@@ -111,6 +111,7 @@ EXPECTED_INVENTORY_IDS = frozenset(
         "rebuild-round-page",
         "never-reload-answering-page",
         "poll-lavish-tracked-job",
+        "rationale-on-change",
         "render-lavish-repo-renderer",
     }
 )

@@ -9,7 +9,7 @@ the merge request's diff refs.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
-- `note-list`
+- `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
 
@@ -60,6 +60,8 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
   `inline: false` and the reason.
 - `require_inline: true` deletes that degraded note. A cleanup failure returns
   an error with the orphan note identifier.
+- `commit-changes` reads the merge requests that contain one commit (`sha`), paginated. A failing `glab`, a non-list answer, or an entry with no `iid` is an error.
+- `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference.
 - `note-list` reads paginated merge-request notes. It removes system and inline
   notes and sorts the result oldest first.
 - `thread-list` paginates to the end. A round that read only the first page

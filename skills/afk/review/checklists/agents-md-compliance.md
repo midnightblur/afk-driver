@@ -10,6 +10,6 @@ Load the resolved AGENTS.md chain (the instruction files the orchestrator walked
 - Jackson 3 / SB4: a new enum needs `@Skip` or `@GenerateEnumSwaggerSchema`; `@JsonDeserialize` annotations live under `tools.jackson.databind.annotation`; a `@Builder` DTO without `@NoArgsConstructor` breaks J3 creator visibility.
 - `*-ui` npm deps must be ≥30 days old and **exact-pinned** (incl. transitive) — no carets/tildes, no fresh-published versions.
 - The access boundary to verify is **company and/or vendor**, not tenant (build-per-tenant = single-tenant at runtime).
-- Cross-module edits (outside the home module) carry a `// {TICKET-ID}:` marker comment in the added hunks.
+- Cross-module edits (outside the home module) carry their reason as a rationale entry on the change (`RATIONALE.md`). A tracker reference or a comment run over 2 lines in an added comment is a violation.
 - Commits start with `[{NNNN-slug}]`.
 - Any rule stated in a service/sub-package `AGENTS.md` that the diff contradicts — quote the rule and the offending line.

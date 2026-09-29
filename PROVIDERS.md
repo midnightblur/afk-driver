@@ -46,6 +46,7 @@ Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex
   `.agents/plugins/marketplace.json` is committed, because `codex plugin marketplace add`
   reads the Codex marketplace manifest from that path. Nothing else under `.agents/`
   may be tracked, and `native-contract-gate.sh` enforces exactly that.
+- The comment gate runs only from the `pre-commit` hook that `install-git-hooks.sh` installs for an enabled plugin, on agent-driven commits. Rationale support writes only to the forge change and to two local places: pending entries under the repository's git directory and a cache outside the repository. A developer without the plugin sees neither.
 - Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
 - Run `/afk:setup teardown` before disabling the plugin. It removes the managed
   behavior block from both user instruction files. No shipped provider has a

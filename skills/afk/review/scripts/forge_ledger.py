@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
 from pathlib import Path
 from types import SimpleNamespace
@@ -36,6 +37,10 @@ OBSERVED_FIELDS = {"key", "concern", "severity", "class"}
 
 class LedgerError(Exception):
     pass
+
+
+class MissingChange(LedgerError):
+    """The forge confirmed that no change exists for the reference."""
 
 
 class UsageError(Exception):
@@ -695,6 +700,8 @@ def parse_adapter_output(stdout, mode):
         raise LedgerError("adapter answer is not an object")
     if mode == "move" and value.get("error") and value.get("note"):
         return value
+    if value.get("error") and value.get("missing"):
+        raise MissingChange(value.get("reason") or "no such change")
     if any(value.get(k) for k in ("error", "unsupported", "unavailable")):
         raise LedgerError(value.get("reason") or "adapter operation failed")
     if mode == "write" and value.get("ok") is not True:
@@ -730,6 +737,9 @@ def shell_env(bash):
     return env
 
 
+ADAPTER_TIMEOUT = 120.0
+
+
 class Adapter:
     def __init__(self, cwd=None):
         self.cwd = Path(cwd or Path.cwd())
@@ -748,14 +758,22 @@ class Adapter:
             env = shell_env(bash)
             env["AFK_PLUGIN_ROOT"] = str(self.root)
             command = [str(bash), "-c", '. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh"; afk_adapter forge "$1"', "--", verb]
-        run = subprocess.run(command, cwd=self.cwd, env=env, input=json.dumps(payload),
-                             text=True, capture_output=True)
+        try:
+            limit = float(os.environ.get("AFK_LEDGER_ADAPTER_TIMEOUT") or ADAPTER_TIMEOUT)
+        except ValueError:
+            limit = ADAPTER_TIMEOUT
+        try:
+            run = subprocess.run(command, cwd=self.cwd, env=env, input=json.dumps(payload),
+                                 text=True, capture_output=True, timeout=limit)
+        except subprocess.TimeoutExpired as error:
+            raise LedgerError(f"adapter {verb} timed out after {limit:g}s") from error
         if run.returncode != 0:
             raise LedgerError(run.stderr.strip() or f"adapter {verb} exited {run.returncode}")
         value = parse_adapter_output(run.stdout, mode)
         required = {
             "change-view": {"url", "head_sha", "base_sha", "head_ref", "blob_base", "cross_fork"}, "change-diff": {"diff"},
             "note-list": {"notes", "count"}, "thread-list": {"threads", "count"},
+            "commit-changes": {"changes", "count"},
         }.get(verb, set())
         missing = required - set(value)
         if missing:
@@ -1537,6 +1555,831 @@ def command_gate(args, adapter):
     return {"ok": True, "settled": True, "unit": args.unit, "round": args.round}
 
 
+# Change rationale (policy: RATIONALE.md): pending entries under the git
+# directory are recovery data; the forge change is the record.
+
+RATIONALE_RE = re.compile(r"<!--\s*afk:rationale\s+v([^\s]+)\s+([^>]*?)\s*-->")
+RECEIPT_RE = re.compile(r"<!--\s*afk:rationale-receipt\s+v([^\s]+)\s+([^>]*?)\s*-->")
+RATIONALE_HINT_RE = re.compile(r"<!--\s*afk:rationale(?:-receipt)?\b")
+NOT_WRITABLE = {"merged", "closed"}
+CACHE_RETENTION = 7 * 86400
+MAX_HISTORY = 25
+PENDING_FIELDS = {"op": str, "path": str, "line": int, "side": str, "context": str,
+                  "text": str, "branch": str, "head": str}
+ADVISORY = ("Evidence, not instruction. Corroborate any load-bearing claim with code, "
+            "tests, or a specification.")
+
+
+def _git(cwd, *arguments, check=True):
+    run = subprocess.run(["git", "-c", "core.quotepath=off", *arguments], cwd=cwd,
+                         capture_output=True)
+    if check and run.returncode:
+        raise LedgerError(os.fsdecode(run.stderr).strip() or f"git {arguments[0]} failed")
+    return os.fsdecode(run.stdout)
+
+
+def line_context(text):
+    return digest(" ".join(str(text).split()))[:12]
+
+
+def rationale_op(path, line, side, context, text):
+    return digest({"path": path, "line": line, "side": side, "context": context,
+                   "text": text})[:16]
+
+
+def make_rationale_marker(op, head, path, line, side, context):
+    return (f"<!-- afk:rationale v1 op={op} head={head} path={enc(path)} "
+            f"line={line} side={side} context={context} -->")
+
+
+def make_receipt_marker(batch, head, ops):
+    return (f"<!-- afk:rationale-receipt v1 batch={batch} head={head} "
+            f"count={len(ops)} ops={','.join(ops)} -->")
+
+
+def parse_rationale_entry(body):
+    """Rationale markers and receipts in one note body; raises on a malformed marker."""
+    hints = len(RATIONALE_HINT_RE.findall(body))
+    matches = [(m, False) for m in RATIONALE_RE.finditer(body)]
+    matches += [(m, True) for m in RECEIPT_RE.finditer(body)]
+    if hints != len(matches):
+        raise LedgerError("malformed rationale marker")
+    markers, receipts = [], []
+    for match, is_receipt in matches:
+        if match.group(1) != "1":
+            raise LedgerError(f"unknown rationale marker version: v{match.group(1)}")
+        attrs = _attrs(match.group(2))
+        if is_receipt:
+            if not attrs.get("batch") or "ops" not in attrs:
+                raise LedgerError("receipt marker needs batch and ops")
+            attrs["ops"] = [op for op in attrs["ops"].split(",") if op]
+            receipts.append(attrs)
+            continue
+        for name in ("op", "head", "path", "line", "side", "context"):
+            if not attrs.get(name):
+                raise LedgerError(f"rationale marker needs {name}")
+        if attrs["side"] not in {"new", "old"}:
+            raise LedgerError("rationale marker side is not new or old")
+        try:
+            attrs["line"] = int(attrs["line"])
+        except ValueError as error:
+            raise LedgerError("rationale marker line is not an integer") from error
+        markers.append(attrs)
+    return markers, receipts
+
+
+def strip_markers(body):
+    return RECEIPT_RE.sub("", RATIONALE_RE.sub("", body)).strip()
+
+
+def is_edited(entry):
+    return bool(entry.get("updated_at") and entry.get("created_at")
+                and entry["updated_at"] > entry["created_at"])
+
+
+def rationale_scan(entries, trusted, rejected, label=False):
+    """Rationale entries with parsed markers.
+
+    Strict (write path): trusted authors, unedited notes. Label mode (read path):
+    every author and edit state; only rejected authors drop out. Markers in plain
+    notes never count as rationale; their URLs are listed as recovery evidence.
+    """
+    found = []
+    excluded = {"edited": [], "untrusted": set(), "rejected": 0, "malformed": 0, "plain": []}
+    for entry in entries:
+        body = entry.get("body", "")
+        if not RATIONALE_HINT_RE.search(body):
+            continue
+        author = entry.get("author", "")
+        if author in rejected:
+            excluded["rejected"] += 1
+            continue
+        if not label:
+            if author not in trusted:
+                excluded["untrusted"].add(author)
+                continue
+            if is_edited(entry):
+                excluded["edited"].append(entry.get("url", ""))
+                continue
+        try:
+            markers, receipts = parse_rationale_entry(body)
+        except LedgerError:
+            excluded["malformed"] += 1
+            continue
+        if markers and not entry.get("inline"):
+            excluded["plain"].append(entry.get("url", ""))
+            markers = []
+            if not receipts:
+                continue
+        found.append((entry, markers, receipts))
+    excluded["untrusted"] = sorted(excluded["untrusted"])
+    return found, excluded
+
+
+def pending_dir(cwd):
+    git_dir = Path(_git(cwd, "rev-parse", "--absolute-git-dir").strip())
+    return git_dir / "afk" / "rationale"
+
+
+def _read_entry(file, extra=()):
+    try:
+        entry = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LedgerError(f"unreadable pending entry {file.name}") from error
+    valid = isinstance(entry, dict)
+    if valid:
+        for name, kind in PENDING_FIELDS.items():
+            value = entry.get(name)
+            valid = valid and isinstance(value, kind) and not isinstance(value, bool)
+        for name in extra:
+            valid = valid and isinstance(entry.get(name), str)
+        valid = valid and entry["side"] in {"new", "old"} and entry["line"] > 0 \
+            and file.stem == entry["op"]
+    if not valid:
+        raise LedgerError(f"invalid pending entry {file.name}")
+    return entry
+
+
+def load_pending(cwd, ops=None):
+    folder = pending_dir(cwd)
+    entries = []
+    if folder.is_dir():
+        for file in sorted(folder.glob("*.json")):
+            entry = _read_entry(file)
+            if ops is None or entry["op"] in ops:
+                entries.append(entry)
+    return entries
+
+
+def load_dropped(cwd):
+    folder = pending_dir(cwd) / "dropped"
+    return [_read_entry(file, ("reason",)) for file in sorted(folder.glob("*.json"))] \
+        if folder.is_dir() else []
+
+
+def _write_atomic(target, text):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp = target.with_suffix(target.suffix + ".tmp")
+    temp.write_text(text, encoding="utf-8")
+    os.replace(temp, target)
+
+
+def _branch_state(cwd):
+    """`(local branch, tracked branch)`; both empty on a detached HEAD."""
+    branch = _git(cwd, "rev-parse", "--abbrev-ref", "HEAD", check=False).strip()
+    if not branch or branch == "HEAD":
+        return "", ""
+    merge = _git(cwd, "config", f"branch.{branch}.merge", check=False).strip()
+    return branch, merge[len("refs/heads/"):] if merge.startswith("refs/heads/") else branch
+
+
+def _scoped_pending(cwd, branch):
+    everything = load_pending(cwd)
+    mine = [e for e in everything if e["branch"] == branch]
+    return mine, len(everything) - len(mine)
+
+
+def command_rationale_add(args):
+    cwd = Path.cwd()
+    path = norm_path(args.path)
+    line = normalize_positive_int(args.line, "line")
+    side = args.side or "new"
+    if side not in {"new", "old"}:
+        raise UsageError("side must be new or old")
+    if args.text and args.text_file:
+        raise UsageError("pass --text or --text-file, not both")
+    text = args.text
+    if args.text_file:
+        text = Path(args.text_file).read_text(encoding="utf-8")
+    text = (text or "").strip()
+    if not text:
+        raise UsageError("rationale needs text")
+    if RATIONALE_HINT_RE.search(text) or MARKER_HINT_RE.search(text):
+        raise UsageError("rationale text cannot carry a marker")
+    line_text = args.line_text
+    if line_text is None:
+        try:
+            rows = (cwd / path).read_text(encoding="utf-8").splitlines()
+            line_text = rows[line - 1]
+        except (OSError, IndexError) as error:
+            raise UsageError(f"cannot read {path}:{line}; pass --line-text") from error
+    context = line_context(line_text)
+    op = rationale_op(path, line, side, context, text)
+    entry = {"op": op, "path": path, "line": line, "side": side, "context": context,
+             "text": text, "branch": _branch_state(cwd)[0],
+             "head": _git(cwd, "rev-parse", "HEAD", check=False).strip()}
+    target = pending_dir(cwd) / f"{op}.json"
+    _write_atomic(target, json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\n")
+    return {"ok": True, "op": op, "pending": str(target)}
+
+
+def command_rationale_drop(args):
+    cwd = Path.cwd()
+    reason = (args.reason or "").strip()
+    if not reason:
+        raise UsageError("drop needs a reason")
+    entry = next((e for e in load_pending(cwd) if e["op"] == args.op), None)
+    if entry is None:
+        raise UsageError(f"no pending entry {args.op}")
+    folder = pending_dir(cwd)
+    _write_atomic(folder / "dropped" / f"{args.op}.json",
+                  json.dumps({**entry, "reason": reason}, sort_keys=True, ensure_ascii=False) + "\n")
+    (folder / f"{args.op}.json").unlink(missing_ok=True)
+    return {"ok": True, "op": args.op, "dropped": True, "reason": reason}
+
+
+def _trusted_set(adapter, trust, reject):
+    trusted, rejected = set(trust), set(reject)
+    auth = adapter.call("auth-status", {})
+    current = _author(auth.get("user") or auth.get("username") or auth.get("login"))
+    if current:
+        trusted.add(current)
+    validate_trust(trusted, rejected)
+    return trusted, rejected
+
+
+def _fetch_entries(adapter, change):
+    notes = adapter.call("note-list", {"id": change})
+    threads = adapter.call("thread-list", {"id": change})
+    truncated = bool(notes.get("truncated") or threads.get("truncated"))
+    if notes.get("count") is not None and notes["count"] != len(notes.get("notes", [])):
+        truncated = True
+    if threads.get("count") is not None and threads["count"] != len(threads.get("threads", [])):
+        truncated = True
+    return _entries(notes, threads), truncated
+
+
+def _blocked(stage, reason, **extra):
+    return {"ok": False, "durable": False, "blocker": stage, "reason": reason, **extra}
+
+
+def _pushed_check(cwd, branch, tracked, head):
+    remote = _git(cwd, "config", f"branch.{branch}.remote", check=False).strip() or "origin"
+    run = subprocess.run(["git", "ls-remote", "--heads", remote, f"refs/heads/{tracked}"],
+                         cwd=cwd, capture_output=True)
+    if run.returncode:
+        return f"cannot reach remote {remote}: " + (os.fsdecode(run.stderr).strip() or "ls-remote failed")
+    rows = os.fsdecode(run.stdout).split()
+    if not rows:
+        return f"branch {tracked} is not on remote {remote}; push it first"
+    if rows[0] != head:
+        return f"remote {remote} has {tracked} at {rows[0][:12]}, local HEAD is {head[:12]}; push first"
+    return ""
+
+
+def _writable_change(adapter, tracked):
+    """The open change for `tracked`, or None when the forge confirms there is none."""
+    try:
+        view = adapter.call("change-view", {"id": tracked})
+    except MissingChange:
+        return None
+    if str(view.get("state") or "").lower() in NOT_WRITABLE:
+        return None
+    return view.get("id") or tracked
+
+
+def _retarget(cwd, head, entry):
+    """The entry's line at the pushed head: same line, or the one line sharing its context."""
+    try:
+        rows = _git(cwd, "show", f"{head}:{entry['path']}").splitlines()
+    except LedgerError:
+        return None
+    if 0 < entry["line"] <= len(rows) and line_context(rows[entry["line"] - 1]) == entry["context"]:
+        return entry["line"]
+    hits = [i for i, row in enumerate(rows, 1) if line_context(row) == entry["context"]]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _is_ancestor(cwd, older, newer):
+    if not older:
+        return False
+    run = subprocess.run(["git", "merge-base", "--is-ancestor", older, newer], cwd=cwd,
+                         capture_output=True)
+    return run.returncode == 0
+
+
+def _valid_receipt(receipts, ops, change_head, cwd):
+    """A receipt whose batch, count, operation set, and head match the pending operations."""
+    wanted = sorted(ops)
+    batch = digest(wanted)[:16]
+    for receipt in receipts:
+        if receipt["batch"] == batch and receipt.get("count") == str(len(wanted)) \
+                and sorted(receipt["ops"]) == wanted \
+                and _is_ancestor(cwd, receipt.get("head", ""), change_head):
+            return receipt
+    return None
+
+
+def command_rationale_post(args, adapter):
+    cwd = Path.cwd()
+    branch, tracked = _branch_state(cwd)
+    pending, other = _scoped_pending(cwd, branch)
+    if not pending:
+        return {"ok": True, "durable": True, "pending": 0, "posted": [], "skipped": [],
+                "receipt": None, "other_branches": other}
+    head = args.head or _git(cwd, "rev-parse", "HEAD").strip()
+    try:
+        result = _post_pending(cwd, adapter, args, branch, tracked, head, pending)
+    except LedgerError as error:
+        return _blocked("forge-unavailable", str(error))
+    result["other_branches"] = other
+    return result
+
+
+def _post_pending(cwd, adapter, args, branch, tracked, head, pending):
+    change = args.change or _writable_change(adapter, tracked)
+    created = False
+    if not change:
+        if not branch:
+            return _blocked("no-branch", "detached HEAD: no branch to open a Draft change for")
+        problem = _pushed_check(cwd, branch, tracked, head)
+        if problem:
+            return _blocked("push", problem)
+        try:
+            draft = adapter.call("change-create-draft", {
+                "title": args.title or f"Draft: {tracked}", "source": tracked,
+                "target": args.target or "",
+                "body": "Draft opened to hold change rationale."})
+        except LedgerError as error:
+            return _blocked("draft-create", str(error))
+        change = str(draft.get("id") or "")
+        if not change:
+            return _blocked("draft-create", "the forge returned no change id")
+        created = True
+    view = adapter.call("change-view", {"id": change})
+    if view["head_sha"] != head:
+        return _blocked("head-mismatch",
+                        f"change head {view['head_sha'][:12]} differs from local HEAD {head[:12]}; push first",
+                        change=change)
+    diff = parse_diff(adapter.call("change-diff", {"id": change})["diff"])
+    trusted, rejected = _trusted_set(adapter, args.trust, args.reject)
+    entries, truncated = _fetch_entries(adapter, change)
+    if truncated:
+        return _blocked("truncated", "the change comment list is truncated; cannot dedupe", change=change)
+    found, _ = rationale_scan(entries, trusted, rejected)
+    posted_ops = {m["op"] for _e, markers, _r in found for m in markers}
+    receipts = [r for _e, _m, rs in found for r in rs]
+    posted, skipped, failed = [], [], []
+    for entry in pending:
+        op = entry["op"]
+        if op in posted_ops:
+            skipped.append(op)
+            continue
+        line = _retarget(cwd, head, entry) if entry["side"] == "new" else entry["line"]
+        if line is None:
+            failed.append({"op": op, "reason": "stale context: the line changed since it was recorded"})
+            continue
+        if entry["side"] == "old":
+            locator = normalize_locator({"file": entry["path"], "old_path": entry["path"],
+                                         "line": line, "side": "old"})
+        else:
+            locator = resolved_locator({"file": entry["path"], "line": line, "side": "new"}, diff)
+        if not is_anchorable(locator, diff):
+            failed.append({"op": op, "reason": "target line is not in the change diff"})
+            continue
+        marker = make_rationale_marker(op, head, entry["path"], line, entry["side"], entry["context"])
+        try:
+            answer = _post_comment(adapter, change, entry["text"] + "\n\n" + marker, locator, True)
+        except LedgerError as error:
+            failed.append({"op": op, "reason": str(error)})
+            continue
+        if answer.get("ok") is not True or answer.get("inline") is False:
+            failed.append({"op": op, "reason": answer.get("reason") or "inline position degraded; comment removed"})
+            continue
+        posted.append(op)
+    result = {"ok": not failed, "durable": False, "change": change, "created_draft": created,
+              "pending": len(pending), "posted": posted, "skipped": skipped, "failed": failed,
+              "receipt": None}
+    if failed:
+        result["reason"] = f"{len(failed)} of {len(pending)} comments not posted"
+        return result
+    ops = sorted(entry["op"] for entry in pending)
+    batch = digest(ops)[:16]
+    if _valid_receipt(receipts, ops, head, cwd):
+        result["receipt"] = {"batch": batch, "url": "", "reused": True}
+        return result
+    answer = _post_comment(adapter, change,
+                           f"Rationale receipt: {len(ops)} comment(s).\n\n"
+                           + make_receipt_marker(batch, head, ops))
+    result["receipt"] = {"batch": batch, "url": answer.get("url", ""), "reused": False}
+    return result
+
+
+def command_rationale_verify(args, adapter):
+    cwd = Path.cwd()
+    branch, tracked = _branch_state(cwd)
+    pending, other = _scoped_pending(cwd, branch)
+    dropped = [{"op": d["op"], "reason": d["reason"]} for d in load_dropped(cwd)
+               if d["branch"] == branch]
+    base = {"pending": len(pending), "dropped": dropped, "other_branches": other}
+    if not pending:
+        if args.clear:
+            _clear_pending(cwd, [], branch)
+        return {"ok": True, "durable": True, "missing": [], "unreceipted": [], **base}
+    try:
+        return _verify_pending(cwd, adapter, args, branch, tracked, pending, base)
+    except LedgerError as error:
+        return _blocked("forge-unavailable", str(error), **base)
+
+
+def _clear_pending(cwd, pending, branch):
+    folder = pending_dir(cwd)
+    for entry in pending:
+        (folder / f"{entry['op']}.json").unlink(missing_ok=True)
+    for entry in load_dropped(cwd):
+        if entry["branch"] == branch:
+            (folder / "dropped" / f"{entry['op']}.json").unlink(missing_ok=True)
+
+
+def _verify_pending(cwd, adapter, args, branch, tracked, pending, base):
+    change = args.change or _writable_change(adapter, tracked)
+    if not change:
+        return {"ok": False, "durable": False, "missing": [e["op"] for e in pending],
+                "unreceipted": [], "reason": "no writable change carries the pending rationale",
+                **base}
+    view = adapter.call("change-view", {"id": change})
+    trusted, rejected = _trusted_set(adapter, args.trust, args.reject)
+    entries, truncated = _fetch_entries(adapter, change)
+    found, excluded = rationale_scan(entries, trusted, rejected)
+    posted = {m["op"] for _e, markers, _r in found for m in markers}
+    wanted = [e["op"] for e in pending]
+    receipt = _valid_receipt([r for _e, _m, rs in found for r in rs], wanted, view["head_sha"], cwd)
+    missing = [op for op in wanted if op not in posted]
+    unreceipted = [op for op in wanted if op in posted] if receipt is None else []
+    ok = not missing and not unreceipted and not truncated
+    result = {"ok": ok, "durable": ok, "change": change, "missing": missing,
+              "unreceipted": unreceipted, "excluded": excluded, **base}
+    if truncated:
+        result["reason"] = "the change comment list is truncated"
+    if ok and args.clear:
+        _clear_pending(cwd, pending, branch)
+        result["cleared"] = len(pending)
+    return result
+
+
+def map_line(cwd, old_rev, new_rev, path, line):
+    """`(path, line, edited)` of `path:line` at `new_rev`; None when the line is gone.
+
+    `edited` is true when an in-place rewrite of the line kept its position.
+    """
+    text = _git(cwd, "diff", "-M", "-U0", "--no-color", "--no-ext-diff", old_rev, new_rev)
+    blocks, block = [], None
+    for raw in text.splitlines():
+        if raw.startswith("diff --git "):
+            block = {"old": None, "new": None, "hunks": []}
+            blocks.append(block)
+        elif block is None:
+            continue
+        elif raw.startswith("rename from "):
+            block["old"] = _git_path_field(raw[12:])
+        elif raw.startswith("rename to "):
+            block["new"] = _git_path_field(raw[10:])
+        elif raw.startswith("--- ") and block["old"] is None:
+            block["old"] = _git_path_field(raw[4:], "a/")
+        elif raw.startswith("+++ ") and block["new"] is None:
+            block["new"] = _git_path_field(raw[4:], "b/")
+        elif raw.startswith("@@"):
+            match = re.search(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", raw)
+            if match:
+                block["hunks"].append((int(match.group(1)), int(match.group(2) or 1),
+                                       int(match.group(4) or 1)))
+    block = next((b for b in blocks if b["old"] == path), None)
+    if block is None:
+        return path, line, False
+    delta = 0
+    for start, count, added in block["hunks"]:
+        if count == 0:
+            if line <= start:
+                break
+            delta += added
+            continue
+        if line < start:
+            break
+        if line < start + count:
+            if added != count:
+                return None
+            return block["new"] or path, line + delta, True
+        delta += added - count
+    return block["new"] or path, line + delta, False
+
+
+def blame_line(cwd, path, line, head):
+    out = _git(cwd, "blame", "-M", "-C", "--porcelain", "-L", f"{line},{line}", head, "--", path)
+    rows = out.splitlines()
+    if not rows:
+        raise LedgerError(f"cannot blame {path}:{line}")
+    first = rows[0].split()
+    origin = next((r[9:] for r in rows if r.startswith("filename ")), path)
+    return {"commit": first[0], "orig_line": int(first[1]), "path": origin}
+
+
+def line_history(cwd, path, line, head):
+    """Commits that touched `path:line`, newest first, capped at MAX_HISTORY + 1."""
+    out = _git(cwd, "log", f"-L{line},{line}:{path}", "--format=%H", "-s",
+               f"-n{MAX_HISTORY + 1}", head, check=False)
+    return [row.strip() for row in out.splitlines() if re.fullmatch(r"[0-9a-f]{40}", row.strip())]
+
+
+def cache_root(cwd):
+    """Per-repository, per-forge cache directory; a base inside the repository is refused."""
+    if os.environ.get("AFK_RATIONALE_CACHE"):
+        source, base = "AFK_RATIONALE_CACHE", os.environ["AFK_RATIONALE_CACHE"]
+    elif os.environ.get("XDG_CACHE_HOME"):
+        source, base = "XDG_CACHE_HOME", str(Path(os.environ["XDG_CACHE_HOME"]) / "afk" / "rationale")
+    else:
+        source, base = "default", str(Path.home() / ".cache" / "afk" / "rationale")
+    common = Path(_git(cwd, "rev-parse", "--git-common-dir").strip())
+    common = (common if common.is_absolute() else Path(cwd) / common).resolve()
+    root = Path(base).expanduser().resolve()
+    guards = {common, Path(_git(cwd, "rev-parse", "--show-toplevel").strip()).resolve(),
+              Path(_git(cwd, "rev-parse", "--absolute-git-dir").strip()).resolve()}
+    if any(root == guard or guard in root.parents for guard in guards):
+        raise LedgerError(f"cache path is inside the repository ({source}): {root}")
+    remote = _git(cwd, "config", "--get", "remote.origin.url", check=False).strip()
+    scope = "\n".join((str(common), os.environ.get("AFK_CFG_FORGE", ""), remote))
+    return root / digest(scope)[:16]
+
+
+_PURGED = set()
+
+
+def _cache_purge(root):
+    if str(root) in _PURGED:
+        return
+    _PURGED.add(str(root))
+    cutoff = time.time() - CACHE_RETENTION
+    try:
+        for file in root.rglob("*.json"):
+            if file.stat().st_mtime < cutoff:
+                file.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _cache_read(root, name, max_age=None):
+    try:
+        value = json.loads((root / name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    value["age_s"] = max(0, int(time.time() - value.get("fetched_at", 0)))
+    if max_age is not None and value["age_s"] > max_age:
+        return None
+    return value
+
+
+def _cache_write(root, name, value):
+    _cache_purge(root)
+    try:
+        _write_atomic(root / name, json.dumps({**value, "fetched_at": int(time.time())}) + "\n")
+    except OSError:
+        pass
+
+
+MATCH_ORDER = {"exact": 0, "mapped": 1, "stale": 2, "context-only": 3}
+
+
+def sort_candidates(candidates):
+    """Trusted unedited notes first, then match quality, then a stable change and op order."""
+    return sorted(candidates, key=lambda c: (
+        0 if c["author_class"] != "other" and c["edit_state"] == "unedited" else 1,
+        MATCH_ORDER[c["match"]], str(c["change"].get("id", "")), c["op"]))
+
+
+class RationaleReader:
+    """Resolves lines to rationale candidates, sharing every forge lookup across targets."""
+
+    def __init__(self, cwd, adapter, args):
+        self.cwd, self.adapter = cwd, adapter
+        self.head = args.head or _git(cwd, "rev-parse", "HEAD").strip()
+        self.root = cache_root(cwd)
+        self.use_cache = not args.no_cache
+        self.offline = bool(args.offline)
+        self.rejected = set(args.reject)
+        self.trusted = set(args.trust)
+        self.base_problems = ["offline: requested"] if self.offline else []
+        self.identity = self._identity()
+        if self.identity["user"]:
+            self.trusted.add(self.identity["user"])
+        validate_trust(self.trusted, self.rejected)
+        self._commits, self._changes, self._scans = {}, {}, {}
+        self._active = self._active_change()
+
+    def _identity(self):
+        cached = _cache_read(self.root, "identity.json") if self.use_cache else None
+        if not self.offline:
+            try:
+                auth = self.adapter.call("auth-status", {})
+                user = _author(auth.get("user") or auth.get("username") or auth.get("login"))
+                if user and self.use_cache:
+                    _cache_write(self.root, "identity.json", {"user": user})
+                return {"user": user, "source": "live"}
+            except LedgerError as error:
+                self.base_problems.append(f"offline: {error}")
+        if cached and cached.get("user"):
+            return {"user": cached["user"], "source": "cache"}
+        return {"user": "", "source": "none"}
+
+    def _active_change(self):
+        branch, tracked = _branch_state(self.cwd)
+        if not tracked or self.offline:
+            return None
+        try:
+            view = self.adapter.call("change-view", {"id": tracked})
+        except LedgerError:
+            return None
+        if view.get("head_sha") == self.head and str(view.get("state") or "").lower() not in NOT_WRITABLE:
+            return str(view.get("id") or tracked)
+        return None
+
+    def change_ids_for(self, commit):
+        if commit not in self._commits:
+            self._commits[commit] = self._lookup_commit(commit)
+        return self._commits[commit]
+
+    def _lookup_commit(self, commit):
+        name = f"commits/{commit}.json"
+        problems = []
+        if not self.offline:
+            try:
+                answer = self.adapter.call("commit-changes", {"sha": commit})
+                ids = [str(c["id"]) for c in answer["changes"] if c.get("id")]
+                if self.use_cache:
+                    _cache_write(self.root, name, {"ids": ids})
+                return ids, [], None
+            except (LedgerError, KeyError, TypeError) as error:
+                problems.append(f"offline: {error}")
+        cached = _cache_read(self.root, name) if self.use_cache else None
+        if cached:
+            return cached["ids"], problems, {"commit": commit, "source": "cache",
+                                             "age_s": cached["age_s"]}
+        if self.offline:
+            problems.append("offline: no cached lookup")
+        return [], problems, None
+
+    def fetch_change(self, change):
+        if change not in self._changes:
+            self._changes[change] = self._lookup_change(change)
+        return self._changes[change]
+
+    def _lookup_change(self, change):
+        name = f"changes/{change}.json"
+        problems = []
+        if not self.offline:
+            try:
+                view = self.adapter.call("change-view", {"id": change})
+                entries, truncated = _fetch_entries(self.adapter, change)
+                value = {"change": {"id": str(view.get("id") or change), "url": view.get("url", ""),
+                                    "state": view.get("state", "")},
+                         "fetched_head": view["head_sha"], "truncated": truncated,
+                         "entries": [e for e in entries if RATIONALE_HINT_RE.search(e.get("body", ""))]}
+                if self.use_cache and not truncated:
+                    _cache_write(self.root, name, value)
+                value["age_s"] = 0
+                return value, "live", problems
+            except LedgerError as error:
+                problems.append(f"offline: {error}")
+        cached = _cache_read(self.root, name) if self.use_cache else None
+        if cached:
+            return cached, "cache", problems
+        return None, "", problems
+
+    def scan(self, change, value):
+        if change not in self._scans:
+            self._scans[change] = rationale_scan(value["entries"], self.trusted, self.rejected,
+                                                 label=True)
+        return self._scans[change]
+
+    def author_class(self, author):
+        if self.identity["user"] and author == self.identity["user"]:
+            return "self"
+        return "trusted" if author in self.trusted else "other"
+
+    def evaluate(self, marker, entry, ctx, problems):
+        """One marker as a candidate for the target line, or None when it names another line."""
+        if marker["side"] != ctx["side"]:
+            return None
+        edited = False
+        if marker["head"] == self.head:
+            place = (marker["path"], marker["line"])
+        else:
+            try:
+                mapped = map_line(self.cwd, marker["head"], self.head, marker["path"], marker["line"])
+            except LedgerError:
+                mapped = None
+                problems.append(f"missing commit {marker['head'][:12]}")
+            place = mapped[:2] if mapped else None
+            edited = bool(mapped and mapped[2])
+        same_context = marker["context"] == ctx["context"]
+        if place == (ctx["path"], ctx["line"]):
+            match = "stale" if edited or not same_context else \
+                ("exact" if marker["head"] == self.head else "mapped")
+        elif place is None and same_context:
+            match = "context-only"
+        else:
+            return None
+        author = entry.get("author", "")
+        return {"match": match, "op": marker["op"], "author": author,
+                "author_class": self.author_class(author),
+                "edit_state": "edited" if is_edited(entry) else "unedited",
+                "url": entry.get("url", ""), "text": strip_markers(entry.get("body", "")),
+                "marker": {k: marker[k] for k in ("head", "path", "line", "side", "context")}}
+
+    def resolve(self, path, line, side):
+        problems = list(self.base_problems)
+        try:
+            current = _git(self.cwd, "show", f"{self.head}:{path}").splitlines()[line - 1]
+        except (LedgerError, IndexError) as error:
+            raise LedgerError(f"cannot read {path}:{line} at {self.head[:12]}") from error
+        ctx = {"path": path, "line": line, "side": side, "context": line_context(current)}
+        blamed = blame_line(self.cwd, path, line, self.head)
+        commits = line_history(self.cwd, path, line, self.head)
+        if blamed["commit"] not in commits and set(blamed["commit"]) != {"0"}:
+            commits.insert(0, blamed["commit"])
+        if len(commits) > MAX_HISTORY:
+            commits = commits[:MAX_HISTORY]
+            problems.append(f"history truncated at {MAX_HISTORY} commits")
+        change_ids = [self._active] if self._active else []
+        sources = []
+        for commit in commits:
+            ids, lookup_problems, source = self.change_ids_for(commit)
+            problems += lookup_problems
+            if source:
+                sources.append(source)
+            change_ids += [c for c in ids if c not in change_ids]
+        excluded = {"edited": [], "untrusted": [], "rejected": 0, "malformed": 0, "plain": []}
+        candidates = []
+        for change in change_ids:
+            value, origin, change_problems = self.fetch_change(change)
+            problems += change_problems
+            if value is None:
+                continue
+            if value.get("truncated"):
+                problems.append(f"truncated: change {change} comment list")
+            found, skipped = self.scan(change, value)
+            excluded["rejected"] += skipped["rejected"]
+            excluded["malformed"] += skipped["malformed"]
+            excluded["plain"] += skipped["plain"]
+            sources.append({"change": change, "source": origin, "age_s": value.get("age_s", 0),
+                            "fetched_head": value.get("fetched_head", "")})
+            for entry, markers, _receipts in found:
+                for marker in markers:
+                    candidate = self.evaluate(marker, entry, ctx, problems)
+                    if candidate:
+                        candidate.update({"change": value.get("change", {"id": change}),
+                                          "source": origin, "age_s": value.get("age_s", 0),
+                                          "fetched_head": value.get("fetched_head", "")})
+                        candidates.append(candidate)
+        candidates = sort_candidates(candidates)
+        if problems:
+            status = "unverified(" + "; ".join(dict.fromkeys(problems)) + ")"
+        else:
+            status = "found" if candidates else "none"
+        pending = [e for e in load_pending(self.cwd)
+                   if e["path"] == path and e["line"] == line and e["side"] == side]
+        return {"ok": True, "status": status, "path": path, "line": line, "side": side,
+                "head": self.head, "blame": blamed, "ambiguous": len(candidates) > 1,
+                "candidates": candidates,
+                "pending": [{"op": e["op"], "text": e["text"]} for e in pending],
+                "sources": sources, "excluded": excluded, "identity": self.identity,
+                "advisory": ADVISORY}
+
+
+def _read_targets(args):
+    """The `(path, line, side)` targets: one from the options, or many from a batch file."""
+    if getattr(args, "batch_file", None):
+        if args.path or args.line is not None or args.side:
+            raise UsageError("--batch-file excludes --path, --line and --side")
+        try:
+            rows = json.loads(Path(args.batch_file).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            raise UsageError(f"cannot read batch file: {args.batch_file}") from error
+        if not isinstance(rows, list) or not rows:
+            raise UsageError("batch file must be a non-empty JSON list")
+        raw = [(r.get("path"), r.get("line"), r.get("side")) if isinstance(r, dict) else (None, None, None)
+               for r in rows]
+    else:
+        raw = [(args.path, args.line, args.side)]
+    targets = []
+    for path, line, side in raw:
+        if not path or line is None:
+            raise UsageError("each target needs path and line")
+        side = side or "new"
+        if side not in {"new", "old"}:
+            raise UsageError("side must be new or old")
+        targets.append((norm_path(path), normalize_positive_int(line, "line"), side))
+    return targets
+
+
+def command_rationale_read(args, adapter):
+    cwd = Path.cwd()
+    targets = _read_targets(args)
+    reader = RationaleReader(cwd, adapter, args)
+    results = [reader.resolve(*target) for target in targets]
+    if getattr(args, "batch_file", None):
+        return {"ok": True, "results": results}
+    return results[0]
+
+
 def parse_bool(value):
     if value not in {"true", "false"}:
         raise argparse.ArgumentTypeError("expected true or false")
@@ -1559,6 +2402,11 @@ def parser():
     p = sub.add_parser("resolve"); p.add_argument("--change", required=True); p.add_argument("--key", required=True); p.add_argument("--reopen", action="store_true"); p.add_argument("--state"); trust_flags(p)
     p = sub.add_parser("summary"); p.add_argument("--change", required=True); p.add_argument("--unit", required=True); p.add_argument("--round", required=True, type=int); p.add_argument("--head", required=True); p.add_argument("--clean", required=True, type=parse_bool); p.add_argument("--ledger-only", required=True, type=parse_bool); p.add_argument("--text-file", required=True); p.add_argument("--history-file", required=True); p.add_argument("--state"); trust_flags(p)
     p = sub.add_parser("gate"); p.add_argument("--change", required=True); p.add_argument("--unit", required=True); p.add_argument("--phase", choices=("progress", "closure"), required=True); p.add_argument("--head", required=True); p.add_argument("--expected"); p.add_argument("--round", type=int); p.add_argument("--state"); trust_flags(p)
+    p = sub.add_parser("rationale-add"); p.add_argument("--path", required=True); p.add_argument("--line", required=True); p.add_argument("--side", choices=("new", "old")); text = p.add_mutually_exclusive_group(); text.add_argument("--text"); text.add_argument("--text-file"); p.add_argument("--line-text")
+    p = sub.add_parser("rationale-drop"); p.add_argument("--op", required=True); p.add_argument("--reason", required=True)
+    p = sub.add_parser("rationale-post"); p.add_argument("--change"); p.add_argument("--head"); p.add_argument("--title"); p.add_argument("--target"); trust_flags(p)
+    p = sub.add_parser("rationale-verify"); p.add_argument("--change"); p.add_argument("--clear", action="store_true"); trust_flags(p)
+    p = sub.add_parser("rationale-read"); p.add_argument("--path"); p.add_argument("--line"); p.add_argument("--batch-file"); p.add_argument("--head"); p.add_argument("--side", choices=("new", "old")); p.add_argument("--offline", action="store_true"); p.add_argument("--no-cache", action="store_true"); trust_flags(p)
     return root
 
 
@@ -1567,6 +2415,10 @@ def main(argv=None):
         args = parser().parse_args(argv)
         if args.command == "trailers":
             result = trailers(args.keys)
+        elif args.command == "rationale-add":
+            result = command_rationale_add(args)
+        elif args.command == "rationale-drop":
+            result = command_rationale_drop(args)
         else:
             adapter = Adapter()
             if args.command == "reconstruct":
@@ -1576,6 +2428,9 @@ def main(argv=None):
             elif args.command == "resolve": result = command_resolve(args, adapter)
             elif args.command == "summary": result = command_summary(args, adapter)
             elif args.command == "gate": result = command_gate(args, adapter)
+            elif args.command == "rationale-post": result = command_rationale_post(args, adapter)
+            elif args.command == "rationale-verify": result = command_rationale_verify(args, adapter)
+            elif args.command == "rationale-read": result = command_rationale_read(args, adapter)
             else: raise UsageError("unknown command")
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         state_path = getattr(args, "state", None)
@@ -1584,7 +2439,8 @@ def main(argv=None):
             temp = target.with_suffix(target.suffix + ".tmp")
             temp.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
             os.replace(temp, target)
-        return 0
+        blocked = args.command.startswith("rationale-") and result.get("ok") is False
+        return 2 if blocked else 0
     except UsageError as error:
         print(json.dumps({"error": True, "reason": str(error)}, sort_keys=True))
         return 3

@@ -22,6 +22,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `reload` | Reload the enabled plugin | Re-add the plugin, then start a new session | Report stale cache |
 | `nested_steering` | Native nested `AGENTS.md` read with the root `CLAUDE.md` bridge and `instructionFiles=claude-md-and-agents-md` (setup H11) | Loads instruction files once at run start, so nested files never reach it | The plugin `PostToolUse` hook injects the `AGENTS.md` chain below the launch directory (deepest last) and, where the harness has no native path-scoped rules, the matching `.claude/rules` bodies; policy lives in `hooks/lib/providers/<name>.sh` |
 | `agents_md_config_notice` | SessionStart `--soft` notice (`hooks/agents-md-config-check.sh`): warns, never blocks, when the repository tracks an `AGENTS.md` but the `instructionFiles` setting is not `claude-md-and-agents-md` (setup H11) | Not applicable — `instructionFiles` is a Claude-only setting; the hook is present in the twin manifest (twin law) and its provider gate exits 0 silently here | None — advisory only; the notice names the setting and points to `/afk:setup` |
+| `change_rationale` | Forge adapter with inline `change-comment`, `commit-changes`, and `git blame`; commit-time comment gate on agent commits | Same | Rationale stays pending under the git directory; the run reports the exact blocker and never claims durable rationale |
 | `managed_behavior` | Setup-managed `afk:behaviors` block in `~/.claude/CLAUDE.md`; SessionStart drift notice | Setup-managed `afk:behaviors` block in `~/.codex/AGENTS.md`; SessionStart drift notice | Unavailable until the user opts in through `/afk:setup`; teardown before plugin disable |
 
 ## Shared hook subset
@@ -46,5 +47,6 @@ Shared hook matchers: *, Bash, PowerShell, Glob, Grep, startup, clear, mcp__inte
 | `/afk:to-ticket`, `/afk:bug` | `plugin_mcp` | — |
 | `/afk:prototype`, `/afk:design-system` | — | `design_push` |
 | `/afk:report-issue` | — | `issue_egress` |
+| `/afk:execute`, `/afk:settle-change`, `/afk:diagnose`, `/afk:fix`, `/afk:review` | — | `change_rationale` |
 
 Provider spellings, enable flags, and model names live in `PROVIDERS.md`. Live proofs and unresolved capabilities live in `providers/CONFORMANCE.md`.

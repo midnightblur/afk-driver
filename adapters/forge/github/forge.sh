@@ -82,6 +82,14 @@ unavailable() {
 
 command -v gh >/dev/null 2>&1 || unavailable "forge: github — the \`gh\` CLI is not on PATH"
 
+# A stalled connection must not hang the caller: every `gh` call gets a time
+# limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
+_forge_limit=
+timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+gh() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P gh)" "$@"; else command gh "$@"; fi
+}
+
 arg() {
   printf '%s' "$payload" | "$PY" -c '
 import json, sys
@@ -139,7 +147,7 @@ _repo=$(resolve_repo)
 VIEW_FIELDS=number,url,title,state,isDraft,headRefName,baseRefName,headRefOid,baseRefOid,isCrossRepository,headRepository,author,statusCheckRollup
 
 view_json() {  # $1 = change ref (branch name, number or URL)
-  gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>/dev/null
+  gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>"${VIEW_ERR:-/dev/null}"
 }
 
 review_threads_json() {  # $1 repo, $2 pull request number
@@ -220,7 +228,19 @@ print(json.dumps({
 case "$verb" in
 
 change-view)
-  view_json "$(arg id)" | normalize
+  # A failed lookup names whether the forge confirmed there is no such change.
+  VIEW_ERR=$(mktemp)
+  if out=$(view_json "$(arg id)"); then
+    rm -f "$VIEW_ERR"
+    printf '%s' "$out" | normalize
+  else
+    reason=$(head -c 300 "$VIEW_ERR"); rm -f "$VIEW_ERR"
+    missing=false
+    printf '%s' "$reason" | grep -qiE 'no pull requests? found|could not resolve to a pullrequest|not found' && missing=true
+    "$PY" -c 'import json, sys
+print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] == "true",
+                  "reason": sys.argv[2] or "change lookup failed"}))' "$missing" "$reason"
+  fi
   ;;
 
 change-diff)
@@ -441,6 +461,42 @@ notes = [{"id": str(n.get("id") or ""),
           "updated_at": n.get("updated_at") or ""} for n in data]
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
+'
+  ;;
+
+commit-changes)
+  # The changes that carry one commit, in the shape `change-view` answers. One
+  # fetch per commit; the caller decides which change a note belongs to.
+  sha=$(arg sha)
+  [ -n "$sha" ] || { printf '{"error":true,"verb":"commit-changes","reason":"commit-changes needs `sha`"}
+'; exit 0; }
+  repo=$_repo
+  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
+  if ! raw=$(gh api --paginate "repos/$repo/commits/$sha/pulls?per_page=100" 2>/dev/null); then
+    printf '{"error":true,"verb":"commit-changes","reason":"gh api failed for the commit lookup"}
+'
+    exit 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "gh returned no readable JSON"}))
+    raise SystemExit(0)
+if not isinstance(data, list) or not all(isinstance(c, dict) and c.get("number") for c in data):
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "gh returned an unexpected commit lookup"}))
+    raise SystemExit(0)
+changes = []
+for c in data:
+    state = "merged" if c.get("merged_at") else {"open": "opened"}.get(c.get("state") or "", c.get("state") or "")
+    changes.append({"id": str(c.get("number") or ""), "url": c.get("html_url") or "",
+                    "state": state, "draft": bool(c.get("draft")),
+                    "source": (c.get("head") or {}).get("ref") or "",
+                    "target": (c.get("base") or {}).get("ref") or "",
+                    "author": (c.get("user") or {}).get("login") or ""})
+changes.sort(key=lambda c: int(c["id"] or 0))
+print(json.dumps({"changes": changes, "count": len(changes)}))
 '
   ;;
 

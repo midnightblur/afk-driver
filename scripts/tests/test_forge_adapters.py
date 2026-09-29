@@ -686,3 +686,138 @@ def test_none_reports_note_list_as_unsupported(tmp_path):
     )
     assert done.returncode == 3
     assert json.loads(done.stdout)["unsupported"] is True
+
+
+# ---- commit-changes: the changes that carry a commit ------------------------
+
+COMMIT_CHANGES = {
+    "gitlab": """
+case "$1 $2" in
+  "api --paginate"*)
+    echo '[{"iid":9,"web_url":"https://gitlab.example/acme/widget/-/merge_requests/9","state":"merged","draft":false,"source_branch":"topic","target_branch":"main","author":{"username":"a"}}]'
+    echo '[{"iid":4,"web_url":"https://gitlab.example/acme/widget/-/merge_requests/4","state":"opened","draft":true,"source_branch":"other","target_branch":"main","author":{"username":"b"}}]' ;;
+  *) echo '{}' ;;
+esac
+""",
+    "github": """
+case "$1 $2" in
+  "repo view") echo 'acme/widget' ;;
+  "api --paginate"*)
+    echo '[{"number":9,"html_url":"https://github.example/acme/widget/pull/9","state":"closed","merged_at":"2025-01-01T00:00:00Z","draft":false,"head":{"ref":"topic"},"base":{"ref":"main"},"user":{"login":"a"}}]'
+    echo '[{"number":4,"html_url":"https://github.example/acme/widget/pull/4","state":"open","merged_at":null,"draft":true,"head":{"ref":"other"},"base":{"ref":"main"},"user":{"login":"b"}}]' ;;
+  *) echo '{}' ;;
+esac
+""",
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_lists_every_page_in_the_common_shape(tmp_path, kind):
+    environ = stub(tmp_path, kind, COMMIT_CHANGES[kind])
+    done = forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path)
+    answer = json.loads(done.stdout)
+    assert answer["count"] == 2, done.stdout
+    by_id = {change["id"]: change for change in answer["changes"]}
+    assert by_id["9"]["state"] == "merged"
+    assert by_id["9"]["source"] == "topic" and by_id["9"]["target"] == "main"
+    assert by_id["9"]["author"] == "a"
+    assert by_id["9"]["url"].endswith("/9")
+    assert by_id["4"]["state"] == "opened" and by_id["4"]["draft"] is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_needs_a_sha(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo '[]'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", "{}", cwd=tmp_path).stdout)
+    assert answer.get("error") is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_reports_an_unreadable_answer_as_an_error(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo 'not json'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True
+
+
+def test_none_forge_answers_commit_changes_as_unsupported(tmp_path):
+    done = subprocess.run(
+        [str(BASH), str(PLUGIN_ROOT / "adapters" / "forge" / "none" / "forge.sh"), "commit-changes"],
+        capture_output=True, text=True, cwd=str(tmp_path), stdin=subprocess.DEVNULL)
+    assert done.returncode == 3
+    assert json.loads(done.stdout)["unsupported"] is True
+
+
+@pytest.mark.parametrize("kind", (*KINDS, "none"))
+def test_manifests_declare_commit_changes(kind):
+    manifest = json.loads(
+        (PLUGIN_ROOT / "adapters" / "forge" / kind / "adapter.json").read_text(encoding="utf-8"))
+    assert "commit-changes" in manifest["operations"]
+
+
+# ---- commit-changes: exact endpoint, failure propagation, bounded time -----------
+
+ENDPOINT = {"gitlab": "commits/abc123/merge_requests", "github": "commits/abc123/pulls"}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_calls_the_endpoint_of_the_requested_commit(tmp_path, kind):
+    log = tmp_path / "args.log"
+    environ = stub(tmp_path, kind, f'echo "$@" >> "{log.as_posix()}"\n' + COMMIT_CHANGES[kind])
+    forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path)
+    paged = [row for row in log.read_text(encoding="utf-8").splitlines() if "--paginate" in row]
+    assert len(paged) == 1 and ENDPOINT[kind] in paged[0], paged
+    assert "per_page=100" in paged[0]
+
+
+FAILING_PAGE = {
+    "gitlab": "echo '[{\"iid\":9,\"state\":\"merged\"}]'\nexit 1\n",
+    "github": "echo '[{\"number\":9,\"state\":\"closed\"}]'\nexit 1\n",
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_reports_a_failing_cli_as_an_error_not_an_empty_answer(tmp_path, kind):
+    environ = stub(tmp_path, kind, FAILING_PAGE[kind])
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True and "changes" not in answer
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("body", ['{"message":"404 Not Found"}', '[{"title":"no id"}]', '[7]'])
+def test_commit_changes_rejects_an_answer_that_is_not_a_list_of_changes(tmp_path, kind, body):
+    environ = stub(tmp_path, kind, f"echo '{body}'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True and "changes" not in answer
+
+
+@pytest.mark.parametrize("kind,message", [("github", 'no pull requests found for branch "x"'),
+                                          ("gitlab", "404 Not Found")])
+def test_change_view_names_a_change_the_forge_says_is_missing(tmp_path, kind, message):
+    environ = stub(tmp_path, kind, f"echo '{message}' >&2\nexit 1\n")
+    answer = json.loads(forge(kind, environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_view_does_not_call_a_timeout_a_missing_change(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo 'dial tcp: i/o timeout' >&2\nexit 1\n")
+    answer = json.loads(forge(kind, environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is False
+    assert "timeout" in answer["reason"]
+
+
+def _has_gnu_timeout():
+    probe = subprocess.run([str(BASH), "-c", "timeout --version | grep -q GNU"], capture_output=True)
+    return probe.returncode == 0
+
+
+@pytest.mark.skipif(not _has_gnu_timeout(), reason="GNU timeout is not installed")
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_stalled_forge_cli_is_stopped_at_the_time_limit(tmp_path, kind):
+    import time
+    environ = stub(tmp_path, kind, "sleep 30\n")
+    environ["AFK_FORGE_TIMEOUT"] = "1"
+    started = time.time()
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert time.time() - started < 20
+    assert answer.get("error") is True

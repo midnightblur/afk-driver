@@ -70,3 +70,7 @@ Read `${AFK_PLUGIN_ROOT}/SAFETY.md`; respect protected branches and prove a Git 
 state: active | scope: configured-repos | revision: 1 | doctrine: DECISIONS.md §Phase boundaries
 self-contained: yes
 Pause at each phase boundary in a manual phased plan. Continue without that prompt in an explicit hands-off mode.
+
+## rationale-on-change
+state: active | scope: configured-repos | revision: 1 | doctrine: RATIONALE.md §Classification test
+Read `${AFK_PLUGIN_ROOT}/RATIONALE.md`; keep source comments to 2 lines and post the reasons for a change on the change.

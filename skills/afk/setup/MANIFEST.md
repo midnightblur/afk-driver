@@ -254,7 +254,7 @@ a token value — not even partially.
 - **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
   genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every
   turn**; the commit gates — Maven compile, Java format, UI lint via
-  `precommit-gates.sh` — fire on agent-driven commits; plus the on-demand
+  `precommit-gates.sh` (with `comment-gate.sh`) — fire on agent-driven commits; plus the on-demand
   `app-start-gate.sh`), the forge adapters' `forge.sh`,
   `skills/afk/review/scripts/forge_ledger.py`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
@@ -754,6 +754,8 @@ Each var is documented at its consumer — this table is just the map.
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
 | `BEHAVIOR_REGISTRY_GATE_DISABLE` | `hooks/behavior-registry-gate.sh` | disable the managed behavior registry gate |
+| `COMMENT_GATE_DISABLE` | `hooks/comment-gate.sh` | disable the commit-time comment gate |
+| `AFK_RATIONALE_CACHE` | `skills/afk/review/scripts/forge_ledger.py` | relocate the rationale lookup cache (default: `$XDG_CACHE_HOME/afk/rationale`, else `~/.cache/afk/rationale`); refused when the base, from any source, is inside the repository or its Git directory |
 | `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |
 | `NESTED_STEERING_DISABLE` | `hooks/nested-steering.sh` | disable the nested-steering injector (`nested_steering` capability) for one session |
 | `AFK_PROVIDER` | `hooks/lib/provider.sh` | force provider detection before adapter probes |
@@ -763,6 +765,8 @@ Each var is documented at its consumer — this table is just the map.
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh`, `skills/afk/review/scripts/forge_ledger.py` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
 | `AFK_LEDGER_ADAPTER_CMD` | `skills/afk/review/scripts/forge_ledger.py` | test seam that replaces forge adapter dispatch with a named command |
+| `AFK_LEDGER_ADAPTER_TIMEOUT` | `skills/afk/review/scripts/forge_ledger.py` | seconds one adapter call may run before the ledger reports a timeout (default 120) |
+| `AFK_FORGE_TIMEOUT` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | seconds one `gh` or `glab` call may run where GNU `timeout` exists (default 60) |
 | `JIRA_DEFAULT_PROJECT` | `adapters/tracker/jira/api.py` | project key used when a caller names none; absent, a create is refused with a message naming this variable rather than guessing a project |
 | `GH_REPO` | `adapters/tracker/github-issues/api.py` | `owner/name` fallback when the configuration names no `repo`; the configuration wins where both are set |
 | `AFK_CFG_GITHUB_REMOTE` / `AFK_CFG_GITLAB_REMOTE` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | the git remote whose URL identifies the project, exported by `hooks/lib/config.sh` from `<kind>.remote`; unset lets the forge CLI derive the project from the checkout |
@@ -775,6 +779,7 @@ Each var is documented at its consumer — this table is just the map.
 | `WAVETERM` / `WAVETERM_CONN` / `WAVETERM_TABID` / `WAVETERM_BLOCKID` | `scripts/lavish/wave_host.py` | local Wave eligibility and the current tab/block scope; values are never printed |
 | `LOCALAPPDATA` | `scripts/lavish/wave_host.py` | native Windows application-data root used only to resolve the generic Wave `wsh.exe` fallback |
 | `AFK_CFG_BUILD_GATES_*` | `hooks/lib/config.sh`, `hooks/lib/adapter.sh` | the `build-gates:` list (`_COUNT` plus indexed names) selecting which build-gate adapters load |
+| `AFK_CFG_TRACKER` / `AFK_CFG_JIRA_PROJECT` | `hooks/comment-gate.sh` | the selected tracker kind exported by `hooks/lib/config.sh` from `tracker`, and the Jira project key from `jira.project`; the comment gate reads that kind's `referencePatterns` from its `adapter.json`, matches only the configured key when one is set, and falls back to the shared ticket shape when neither exists |
 | `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |

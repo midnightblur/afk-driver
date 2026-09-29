@@ -94,7 +94,7 @@ Every live object is named `afk-toolkit-proof-2026-09-03`.
 | notes / notion | dispatch answered the instruction object for each declared verb and `unsupported` exit 3 for an undeclared one; live page created under the configured parent, fetched, local copy deleted | two Notion pages | **not archived — see unresolved** |
 | tracker / jira | all nine: `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | one issue in the live project | closed |
 | tracker / github-issues | `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | issue #6 on `midnightblur/afk-driver` | closed |
-| forge / github | `change-create-draft`, `change-view`, `change-diff`, `change-update-body`, `change-comment` (plain and inline), `thread-list`, `thread-reply`, `thread-resolve` (documented `unsupported`), `change-reviewers`, `change-ready`, `change-state`, `change-fetch`, `ci-status`, `ci-wait`, `change-close`, `auth-status` | pull requests 7 and 8 | both closed, both branches deleted |
+| forge / github | `change-create-draft`, `change-view`, `change-diff`, `change-update-body`, `change-comment` (plain and inline), `thread-list`, `thread-reply`, `thread-resolve` (documented `unsupported`), `change-reviewers`, `change-ready`, `change-state`, `change-fetch`, `ci-status`, `ci-wait`, `change-close`, `auth-status` (`commit-changes`: stub-tested only — see Unresolved) | pull requests 7 and 8 | both closed, both branches deleted |
 | forge / gitlab | the same set, with `thread-resolve` supported | one draft merge request on the monorepo | closed, branch deleted, pipeline canceled |
 | build-gate / maven | `gate-discover` → `java-format`, `maven-compile`; `java-format` blocked an unformatted file exit 2 and passed exit 0 once formatted; `maven-compile` exit 0 in 148 s with its metrics line | one tracked Java file staged in a disposable worktree | worktree restored |
 | build-gate / npm | `gate-discover` → `ui-lint`; exit 0 clean, exit 2 on a lint error, both with metrics lines | minimal workspace fixture | directory removed |
@@ -156,6 +156,7 @@ that finds nothing has usually proved nothing.
 
 ### Unresolved
 
+- The forge `commit-changes` verb and the `rationale-*` ledger commands are proven with stub `gh` / `glab` tools, a bare-repository remote, and a fake forge (`scripts/tests/test_forge_adapters.py`, `scripts/tests/test_rationale_ledger.py`). No live pull request or merge request has carried a rationale comment or a batch receipt yet. Run the live proof before the next release.
 - The connected Notion MCP server exposes no archive or trash tool, so
   `notes/notion`'s `note-delete` cannot archive its mirror. This is now
   documented in that kind's `CONTRACT.md` and `NOTES.md` as a local delete plus

@@ -89,6 +89,14 @@ unavailable() {
 
 command -v glab >/dev/null 2>&1 || unavailable "forge: gitlab — the \`glab\` CLI is not on PATH"
 
+# A stalled connection must not hang the caller: every `glab` call gets a time
+# limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
+_forge_limit=
+timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+glab() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P glab)" "$@"; else command glab "$@"; fi
+}
+
 # arg <key> [default] — one value out of the JSON payload, as text.
 arg() {
   printf '%s' "$payload" | "$PY" -c '
@@ -209,13 +217,25 @@ except Exception: print("")')
 }
 
 view_json() {  # $1 = change ref (branch name or id)
-  glab mr view "$1" "${REPO_FLAG[@]}" -F json 2>/dev/null
+  glab mr view "$1" "${REPO_FLAG[@]}" -F json 2>"${VIEW_ERR:-/dev/null}"
 }
 
 case "$verb" in
 
 change-view)
-  view_json "$(arg id)" | normalize_change
+  # A failed lookup names whether the forge confirmed there is no such change.
+  VIEW_ERR=$(mktemp)
+  if out=$(view_json "$(arg id)"); then
+    rm -f "$VIEW_ERR"
+    printf '%s' "$out" | normalize_change
+  else
+    reason=$(head -c 300 "$VIEW_ERR"); rm -f "$VIEW_ERR"
+    missing=false
+    printf '%s' "$reason" | grep -qiE 'no open merge requests?|merge request .*not found|404|not found' && missing=true
+    "$PY" -c 'import json, sys
+print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] == "true",
+                  "reason": sys.argv[2] or "change lookup failed"}))' "$missing" "$reason"
+  fi
   ;;
 
 change-diff)
@@ -496,6 +516,39 @@ notes = [{"id": str(n.get("id") or ""),
          for n in data if not n.get("system") and not n.get("type")]
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
+'
+  ;;
+
+commit-changes)
+  # The changes that carry one commit, in the shape `change-view` answers. One
+  # fetch per commit; the caller decides which change a note belongs to.
+  sha=$(arg sha)
+  [ -n "$sha" ] || { printf '{"error":true,"verb":"commit-changes","reason":"commit-changes needs `sha`"}
+'; exit 0; }
+  if ! raw=$(glab api --paginate "projects/:id/repository/commits/$sha/merge_requests?per_page=100" 2>/dev/null); then
+    printf '{"error":true,"verb":"commit-changes","reason":"glab api failed for the commit lookup"}
+'
+    exit 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "glab returned no readable JSON"}))
+    raise SystemExit(0)
+if not isinstance(data, list) or not all(isinstance(c, dict) and c.get("iid") for c in data):
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "glab returned an unexpected commit lookup"}))
+    raise SystemExit(0)
+changes = []
+for c in data:
+    changes.append({"id": str(c.get("iid") or ""), "url": c.get("web_url") or "",
+                    "state": c.get("state") or "",
+                    "draft": bool(c.get("draft") or c.get("work_in_progress")),
+                    "source": c.get("source_branch") or "", "target": c.get("target_branch") or "",
+                    "author": (c.get("author") or {}).get("username") or ""})
+changes.sort(key=lambda c: int(c["id"] or 0))
+print(json.dumps({"changes": changes, "count": len(changes)}))
 '
   ;;
 
