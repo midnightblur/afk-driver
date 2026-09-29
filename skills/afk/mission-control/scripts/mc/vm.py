@@ -1,4 +1,4 @@
-"""Section view-model contract (ADR-0007, extended by the two-layer rebuild):
+"""Section view-model contract:
 parse(spec_dir) -> SectionVM | Absent.
 
 A missing or unparseable source is a *value*, never an exception, so one
@@ -32,7 +32,7 @@ class SectionVM:
 
     `data` must be JSON-serializable (dict/list/str/num/bool/None) and free
     of wall-clock values — the page must stay a pure function of the source
-    artifacts (requirement ADR-0005; idempotent re-render, SDD §5).
+    artifacts.
     """
 
     section_id: str

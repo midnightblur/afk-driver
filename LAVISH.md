@@ -25,7 +25,7 @@ verification (registry `time` field checked directly against
 it — after a pin change, `stop` once no session is open so the next render
 starts the pinned version.
 
-No package.json, no npm root for this plugin (ADR-0002) — every invocation
+No package.json, no npm root for this plugin — every invocation
 goes through pinned `npx`:
 
 | Shape | Command | Use |
@@ -424,7 +424,7 @@ side-question, never round feedback:
 **Human-present-only.** Rendering (and its blocking `poll`) is only ever
 invoked from an interactive phase with a human at the keyboard by
 definition — the render points in the table above. **A driven-mode run never
-renders and never polls** (requirement ADR-0004): a no-timeout poll inside a
+renders and never polls**: a no-timeout poll inside a
 hands-off run would wedge it on a human who is, by design, away.
 
 **Markdown fallback.** Any failure — `npx` failing to resolve, no browser

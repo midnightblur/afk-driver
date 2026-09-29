@@ -73,6 +73,9 @@ release page from its section here. Nobody tags by hand.
   first reply. `note-list` and `thread-list` now carry `edited` from the
   forge's own GraphQL `lastEditedAt`; a failed query is an error, and a note
   without the flag is refused instead of read as unedited.
+- **Stale design-record citations removed.** Skill files no longer cite
+  another feature's ADR numbers, which now collide with the plugin's own
+  `adr/` records. Each fact stays; only the foreign citation is gone.
 
 ## [1.7.0] - 2026-09-24
 

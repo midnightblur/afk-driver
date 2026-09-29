@@ -2,7 +2,7 @@
 
 One home for the shape of the understanding artifact. Three consumers read this file: the **generator** (synthesises sections into the shell copy), the **skeptic verifier** (judges a draft against the self-eval criteria before emit), and the **mission-control panel** (parses only the meta header). This is the module's public interface (SDD §8 row "format contract") — implement it here unmodified; every other skill points at this file, never restates it.
 
-An artifact is one self-contained HTML file per subject: a **frozen copy of the shell template asset** with the section payload and meta header injected. All rules below are pass/fail — the skeptic verify pass grades a draft against them and blocks emit on any failure (ADR-0003).
+An artifact is one self-contained HTML file per subject: a **frozen copy of the shell template asset** with the section payload and meta header injected. All rules below are pass/fail — the skeptic verify pass grades a draft against them and blocks emit on any failure.
 
 ## Subjects
 
@@ -22,7 +22,7 @@ No real feature, ticket, product-symbol, or person name appears in this format c
 
 ## Section shapes — SEC-1..SEC-6
 
-Section **kinds** appear in this fixed order. The shell's tour renders **one step per `<section>` element**; every kind is exactly one section **except SEC-3, which spans one section per walkthrough group** — a large subject gets a paced tour, not one wall-of-scroll step. SEC-1, SEC-2, SEC-3, SEC-5, and SEC-6 are always present (SEC-6's quiz is generated every time — taking it is opt-in, per ADR-0002); SEC-4 is present **exactly when** the subject is a feature **and** a notable deviation exists (omitted entirely otherwise — the only conditional kind). Each kind's **Rules** are pass/fail criteria the skeptic checks.
+Section **kinds** appear in this fixed order. The shell's tour renders **one step per `<section>` element**; every kind is exactly one section **except SEC-3, which spans one section per walkthrough group** — a large subject gets a paced tour, not one wall-of-scroll step. SEC-1, SEC-2, SEC-3, SEC-5, and SEC-6 are always present (SEC-6's quiz is generated every time — taking it is opt-in); SEC-4 is present **exactly when** the subject is a feature **and** a notable deviation exists (omitted entirely otherwise — the only conditional kind). Each kind's **Rules** are pass/fail criteria the skeptic checks.
 
 ### SEC-1 — Background & objectives
 - **Content:** three blocks, in order:
@@ -55,7 +55,7 @@ Section **kinds** appear in this fixed order. The shell's tour renders **one ste
 ### SEC-4 — Deviations (feature subjects only)
 - **Content:** notable divergences from plan → landed. Sourced from `plan/JOURNAL.md`, `plan/review/` (`*.outcomes.json`, `PATTERN-DEBT.md`), and the subtask contracts.
 - **Rules (pass/fail):**
-  - **Notable-only**, and the section is **omitted entirely when clean** — a purely as-planned feature yields no SEC-4 (AC-005, AC-007; ADR-0003). mr/code subjects never carry one.
+  - **Notable-only**, and the section is **omitted entirely when clean** — a purely as-planned feature yields no SEC-4 (AC-005, AC-007). mr/code subjects never carry one.
   - Every entry is drawn from the closed **notable-deviation** enumeration below and carries its source citation. No editorial additions.
 
 ### SEC-5 — Recap
@@ -68,7 +68,7 @@ Section **kinds** appear in this fixed order. The shell's tour renders **one ste
 ### SEC-6 — Quiz
 - **Content:** N application-style multiple-choice questions over SEC-1..5 content, client-side scored with immediate feedback.
 - **Rules (pass/fail):**
-  - **Opt-in**, no result recorded anywhere (ADR-0002). See the quiz rules below for question shape and count.
+  - **Opt-in**, no result recorded anywhere. See the quiz rules below for question shape and count.
   - Correct-answer position and length are randomized.
 
 ## Trivial-file predicate (SDD §6 row "Trivial-file")
@@ -97,7 +97,7 @@ The artifact embeds exactly one machine-readable meta element. **This is the mis
 - **Element name:** `afk-understanding` — a single meta element (e.g. `<meta name="afk-understanding" …>` or an equivalent element the shell asset stamps) carrying the fields below as its content.
 - **Content fields (both mandatory):**
   1. **generated date** — the date the artifact was generated.
-  2. **diff SHA range** — feature: the derived diff range (branch tip stamped at generation; retro per SDD §4 / ADR-0004); mr: the MR's diff range; code: the repo `HEAD` SHA at generation (the degenerate range — the code state the artifact describes).
+  2. **diff SHA range** — feature: the derived diff range (branch tip stamped at generation); mr: the MR's diff range; code: the repo `HEAD` SHA at generation (the degenerate range — the code state the artifact describes).
 - **Well-formedness:** the element is present and both fields are populated. Guardian: mechanical check (pre-verify); the panel is the consuming parser and returns its `Absent(reason)` case rather than raising when the header is missing or malformed.
 
 Separately from the parse target, the page `<header>` carries a **`data-source-hint`** attribute — the subject locator (plan-dir path, MR URL, or `path:`/`symbol:` argument) — which the shell's ask-the-teacher affordance embeds in the prompt it assembles, so an aided session knows where the sources live. Not part of the panel's grammar.
@@ -111,7 +111,7 @@ Interactive elements are sourced from the **interactive-walkthrough widget catal
 
 ## Anti-slop self-eval criteria — the skeptic's checklist {#interactivity-justification}
 
-The qualitative criteria a fresh-context skeptic subagent judges a draft against before emit (PRD AC-009; ADR-0003; SDD §10). An artifact failing any criterion is **revised once, then re-checked**; still failing → fail-soft (nothing emitted). The skeptic returns a per-criterion verdict:
+The qualitative criteria a fresh-context skeptic subagent judges a draft against before emit (PRD AC-009; SDD §10). An artifact failing any criterion is **revised once, then re-checked**; still failing → fail-soft (nothing emitted). The skeptic returns a per-criterion verdict:
 
 1. **Size cap — artifact ≤ 500 KB** (single HTML file, measured at the mechanical check; SDD §10). Over budget fails.
 2. **One mental model per section** — each section develops a single mental model; a section juggling several unrelated models fails.
@@ -122,14 +122,14 @@ The qualitative criteria a fresh-context skeptic subagent judges a draft against
 7. **Ordering rationale** — the walkthrough's stated group order (entry-point / request-flow / dependency) is named and actually followed; each group opens plain-language before code.
 8. **Grounded misconceptions** — every "where you'd naturally go wrong" callout cites its source (a review/adversary/fix record, or the code behaviour itself); an invented gotcha fails.
 
-Mechanical criteria (offline / zero external requests, full coverage, meta-header well-formedness, size) are checked deterministically **before** the skeptic wave (ADR-0003); the criteria above are the skeptic's judgement.
+Mechanical criteria (offline / zero external requests, full coverage, meta-header well-formedness, size) are checked deterministically **before** the skeptic wave; the criteria above are the skeptic's judgement.
 
-## Quiz rules (SDD §6 row "Quiz"; PRD AC-008; ADR-0002)
+## Quiz rules (SDD §6 row "Quiz"; PRD AC-008)
 
 - **Stem:** application-style (tests applying the change, not recalling a fact).
 - **Options:** exactly **one correct answer + three distractors**.
 - **Explanation:** mandatory on every question, and names the section it re-tests (the quiz is the artifact's second pass over the same knowledge).
 - **Randomization:** the correct answer's **position and length** are randomized (the correct option is not systematically first, nor systematically the longest).
 - **Count:** **5 by default** (auto mode); in standalone the prompted count is honoured.
-- **Opt-in and untracked:** taking the quiz is voluntary; it is scored client-side with immediate feedback and **no result is written to any file, MR, or tracker** (ADR-0002).
+- **Opt-in and untracked:** taking the quiz is voluntary; it is scored client-side with immediate feedback and **no result is written to any file, MR, or tracker**.
 - **Formative checks** (SEC-3 group closers) follow the same question shape and the same opt-in/untracked rule — at most one per group.

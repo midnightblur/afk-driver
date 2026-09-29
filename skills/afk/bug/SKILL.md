@@ -39,7 +39,7 @@ Every heavy leg runs as a subagent so this session stays in control of the ledge
 - **Fixer** — spawned with [FIXER-PROMPT.md](FIXER-PROMPT.md); works only in its own worktree; returns exactly one trailing `BUGFIX:` line (grammar below).
 - **Retester** — spawned with [RETEST-PROMPT.md](RETEST-PROMPT.md); runs the reproduction read-only; returns evidence (commands + output) and a claimed verdict for this session to spot-check.
 
-**Authorization lives in the prompt, not the tool** (ADR-0003). A subagent prompt carries its own scope grant and procedure and is **blind to this skill** — it never references `/afk:bug`, this spine, or the ledger. The orchestrator parses **only** the subagent's trailing result line; everything above it is working notes. This session — never a subagent — records the outcome into `state.json`.
+**Authorization lives in the prompt, not the tool**. A subagent prompt carries its own scope grant and procedure and is **blind to this skill** — it never references `/afk:bug`, this spine, or the ledger. The orchestrator parses **only** the subagent's trailing result line; everything above it is working notes. This session — never a subagent — records the outcome into `state.json`.
 
 ## Refuse hands-off invocation (PRD AC-019)
 

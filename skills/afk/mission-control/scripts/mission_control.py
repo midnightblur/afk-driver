@@ -33,7 +33,7 @@ EXIT_PATH_FENCE = 2
 
 DEFAULT_PORT = 8420
 
-# ADR-0007 (extended): independent parsers behind one registry; each yields
+# Independent parsers behind one registry; each yields
 # SectionVM | Absent(reason), never an exception (see mc/vm.py). Overview is
 # composed from these in mc/compose.py; nav order lives there too.
 SECTION_PARSERS = [
