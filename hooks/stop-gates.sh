@@ -140,6 +140,7 @@ ctx_scoped() {
 # the stamp mid-truncate would otherwise see a torn value (worst case an empty
 # "pass:" matching an empty digest).
 write_stamp() {
+  mkdir -p "${STOP_STAMP%/*}" 2>/dev/null || return 0
   printf '%s\n' "$1" > "$STOP_STAMP.$$" 2>/dev/null \
     && mv -f "$STOP_STAMP.$$" "$STOP_STAMP" 2>/dev/null
   rm -f "$STOP_STAMP.$$" 2>/dev/null
