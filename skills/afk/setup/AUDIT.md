@@ -24,7 +24,7 @@ patterns are a **floor, not the definition** — an unfamiliar tool name is what
 this check exists to catch, so the generic shapes are mandatory:
 
 - MCP tools: `mcp__[a-z_]+`
-- Known CLIs: `glab|gh|mmdc|npx |npm |node |python|mvnw|bash `
+- Known CLIs: `glab|gh|mmdc|npx |npm |node |python|mvnw|bash |lavish-axi |herdr `
 - **Generic command shapes:** any backticked invocation carrying flags
   (`` [a-z][a-z0-9_-]+ --[a-z-]+ ``) and any `scripts/*.{py,sh,mjs,cmd}`
   execution — a hit whose leading token is not a known CLI above is a candidate,

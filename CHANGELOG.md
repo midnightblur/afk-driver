@@ -37,6 +37,25 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-29
+
+### Added
+
+- **`/afk:setup` offers herdr.** herdr is a terminal workspace manager for AI
+  coding agents. Setup lists it as an opt-in row (`MANIFEST.md` · C15), off by
+  default, on every branch. Accept it and setup runs the vendor installer, then
+  checks `herdr --version`. No skill needs it.
+
+### Changed
+
+- **lavish-axi is now a required global install, not a per-call `npx`
+  download.** `/afk:setup` installs `lavish-axi` globally at the pin in
+  `LAVISH.md` and checks that the binary on `PATH` reports that exact version
+  (`MANIFEST.md` · N4, no longer deferred). Every render point calls the
+  `lavish-axi` binary directly. After updating, run `/afk:setup` once — it
+  runs `npm i -g lavish-axi@<pin>` — then `lavish-axi stop` with no session
+  open. A failed render still falls back to markdown.
+
 ## [1.8.0] - 2026-09-29
 
 ### Added
