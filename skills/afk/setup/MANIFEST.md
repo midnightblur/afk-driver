@@ -266,6 +266,7 @@ a token value — not even partially.
   turn**; the commit gates — Maven compile, Java format, UI lint via
   `precommit-gates.sh` — fire on agent-driven commits; plus the on-demand
   `app-start-gate.sh`), the forge adapters' `forge.sh`,
+  `skills/afk/review/scripts/forge_ledger.py`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
   in `skills/afk/autopilot` and `skills/afk/to-subtasks/SMOKE-GATE.md`.
 - **Probe:** `bash -c 'command -v awk && command -v sed && command -v grep' >/dev/null`
@@ -468,6 +469,7 @@ a token value — not even partially.
   `skills/afk/agents-md/scripts/*.py`, the repository's `verification.env` command,
   the shared Jira lib `adapters/tracker/jira/api.py`,
   `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
+  `skills/afk/review/scripts/forge_ledger.py`, and
   `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
 - **Probe:** `python --version || python3 --version`
 - **Fix:** `human:` install Python 3 and put it on PATH.
@@ -763,7 +765,8 @@ Each var is documented at its consumer — this table is just the map.
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
 | `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
-| `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
+| `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh`, `skills/afk/review/scripts/forge_ledger.py` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
+| `AFK_LEDGER_ADAPTER_CMD` | `skills/afk/review/scripts/forge_ledger.py` | test seam that replaces forge adapter dispatch with a named command |
 | `JIRA_DEFAULT_PROJECT` | `adapters/tracker/jira/api.py` | project key used when a caller names none; absent, a create is refused with a message naming this variable rather than guessing a project |
 | `GH_REPO` | `adapters/tracker/github-issues/api.py` | `owner/name` fallback when the configuration names no `repo`; the configuration wins where both are set |
 | `AFK_CFG_GITHUB_REMOTE` / `AFK_CFG_GITLAB_REMOTE` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | the git remote whose URL identifies the project, exported by `hooks/lib/config.sh` from `<kind>.remote`; unset lets the forge CLI derive the project from the checkout |

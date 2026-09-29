@@ -56,6 +56,10 @@ git:
   branch-pattern: ''
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+review:
+  ledger-only-paths:
+    - plan/review/**
+    - plan/JOURNAL.md
 ```
 
 `build-gates` has no default: the key is absent, and absent means no build
@@ -104,6 +108,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored instruction-file sweep — the key name is kept for compatibility, but the sweep now copies gitignored `AGENTS.md` files as well as `CLAUDE.md`). Build-system state is NOT here: each build gate provisions its own. |
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (`false` makes an agent-invoked run queue every draft for a human; absent means `true`) |
+| `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own, pre-filling each assignee with the developer's own account. The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset means no assignee. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
@@ -114,6 +119,10 @@ Every map in the table is validated one level down: a child key that is not
 listed is refused, named by its full dotted path. Below that level the names
 are the repository's own — a transition name, a state name, a tier name — so
 they are not constrained.
+
+`review.ledger-only-paths` uses `/` separators. `*` matches one path segment.
+`**` matches any number of segments. Globs are relative to the repository root.
+Negation is not supported. A repository must list each wider path explicitly.
 
 ### Path templates
 

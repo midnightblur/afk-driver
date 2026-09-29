@@ -126,6 +126,16 @@ def test_the_scaffold_leaves_the_investigation_block_as_a_todo(tmp_path):
     assert "investigation" not in config
 
 
+def test_the_scaffold_writes_the_ledger_only_defaults(tmp_path):
+    root = make_repo(tmp_path, "review-defaults")
+    text, config = scaffold_of(root)
+    assert "review:\n  ledger-only-paths:\n    - plan/review/**\n    - plan/JOURNAL.md" in text
+    assert config["review"]["ledger-only-paths"] == [
+        "plan/review/**",
+        "plan/JOURNAL.md",
+    ]
+
+
 # ---------------------------------------------------------------- writing
 
 def test_init_writes_the_file_and_refuses_to_overwrite(tmp_path):

@@ -189,6 +189,40 @@ def test_no_config_gives_the_documented_defaults(tmp_path, monkeypatch):
     assert effective["git"]["base-branch"] == "auto"
     assert effective["git"]["branch-pattern"] == ""
     assert effective["repo-files"]["spec-dir"] == "docs/afk/{workId}"
+    assert effective["review"]["ledger-only-paths"] == [
+        "plan/review/**",
+        "plan/JOURNAL.md",
+    ]
+
+
+def test_review_ledger_only_paths_override_replaces_the_default(tmp_path, monkeypatch):
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(
+        "schema: 1\nreview:\n  ledger-only-paths:\n    - docs/review/**\n",
+        encoding="utf-8",
+    )
+
+    assert cfg.load(root)["review"]["ledger-only-paths"] == ["docs/review/**"]
+
+
+@pytest.mark.parametrize(
+    "value,problem",
+    [
+        ("plan/review/**", "block list"),
+        (["!plan/review/private/**"], "does not support negation"),
+        (["/plan/review/**"], "repository-relative"),
+        (["plan\\review\\**"], "forward slashes"),
+        ([1], "must be a path glob"),
+    ],
+)
+def test_review_ledger_only_paths_rejects_invalid_values(value, problem):
+    problems = cfg.validate(
+        {"schema": 1, "review": {"ledger-only-paths": value}}
+    )
+    assert any(problem in item for item in problems)
 
 
 # ---- the three views agree ------------------------------------------------
@@ -250,6 +284,7 @@ TYPOS = {
     "setup": "typo-extra",
     "worktree": "typo-copy",
     "developer": "typoReviewer",
+    "review": "typo-ledger-paths",
 }
 
 

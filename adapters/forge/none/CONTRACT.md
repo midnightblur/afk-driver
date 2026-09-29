@@ -9,6 +9,7 @@ set forge: gitlab|github in .afk/config.yaml"}` and exits 3.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
+- `note-list`
 - `ci-status`, `ci-wait`
 - `auth-status`
 

@@ -53,7 +53,7 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
-    "report-issue",
+    "report-issue", "review",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
@@ -123,6 +123,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
     "report-issue": {"repository", "auto-publish"},
+    "review": {"ledger-only-paths"},
 }
 
 DEFAULTS: dict = {
@@ -136,6 +137,9 @@ DEFAULTS: dict = {
         "copy": list(WORKTREE_COPY_DEFAULT),
         "copy-personal": True,
         "copy-ignored-claude-md": True,
+    },
+    "review": {
+        "ledger-only-paths": ["plan/review/**", "plan/JOURNAL.md"],
     },
 }
 
@@ -597,6 +601,23 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                 f"{', '.join(sorted(allowed))}"
             )
 
+    ledger_paths = (config.get("review") or {}).get("ledger-only-paths") if isinstance(
+        config.get("review"), dict) else None
+    if ledger_paths is not None:
+        if not isinstance(ledger_paths, list):
+            problems.append("review.ledger-only-paths: must be a block list of path globs")
+        else:
+            for entry in ledger_paths:
+                where = "review.ledger-only-paths"
+                if not isinstance(entry, str) or not entry.strip():
+                    problems.append(f"{where}: {entry!r} must be a path glob")
+                elif entry.startswith("!"):
+                    problems.append(f"{where}: {entry!r} does not support negation")
+                elif "\\" in entry:
+                    problems.append(f"{where}: {entry!r} must use forward slashes")
+                else:
+                    _relative_path(problems, where, entry)
+
     creds = (config.get("jira") or {}).get("credentials-env") if isinstance(
         config.get("jira"), dict) else None
     if creds is not None and not isinstance(creds, list):
@@ -908,6 +929,11 @@ def scaffold(root: Path) -> str:
         "",
         "repo-files:",
         "  spec-dir: docs/afk/{workId}",
+        "",
+        "review:",
+        "  ledger-only-paths:",
+        "    - plan/review/**",
+        "    - plan/JOURNAL.md",
         "",
     ]
 

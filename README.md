@@ -86,6 +86,10 @@ What makes it trustworthy while you're away:
   subagents that return terse cited digests (`DELEGATION.md` at the plugin root).
   The driving agent stays lean for the decisions only it can make; every heavy
   judgment gets a fresh pair of eyes.
+- **The change keeps the review record.** Findings, disputes, fixes, and round
+  summaries use immutable forge comments. A restarted loop reconstructs its
+  state from the change. `plan/review/` remains telemetry, not a ship gate
+  (ADR-0004, `adr/0004-change-request-is-the-review-ledger.md`).
 
 ---
 
@@ -775,8 +779,9 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
   drafts. Details: `skills/utils/report-issue/SKILL.md`.
 - **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
-- **`/afk:settle-change`** — settle any forge change request through the review loop, the change
-  itself the ledger; for MRs outside the AFK chain. Details:
+- **`/afk:settle-change`** — settle any forge change request through the review loop. The change
+  is the review record. Findings use exact inline locations, and every settled
+  result passes a reconstructed closure check. Details:
   `skills/utils/settle-change/SKILL.md`. `/afk:settle-mr` stays as a
   deprecated alias for one major version and forwards here.
 - **`/afk:sred`** — user-invoked: write or revise SR&ED (Scientific Research
