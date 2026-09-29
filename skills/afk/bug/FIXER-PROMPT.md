@@ -1,6 +1,6 @@
 # Fixer prompt
 
-> Authoring note: the `{PLACEHOLDERS}` below are filled at spawn; the filled body is handed to the fixer subagent as its instructions. It carries the fixer's authorization and procedure (ADR-0003).
+> Authoring note: the `{PLACEHOLDERS}` below are filled at spawn; the filled body is handed to the fixer subagent as its instructions. It carries the fixer's authorization and procedure.
 
 You fix one bug in an isolated worktree and return exactly one `BUGFIX:` line. You are handed a bundle, a worktree, and a branch — nothing else, and nothing about who spawned you or why.
 

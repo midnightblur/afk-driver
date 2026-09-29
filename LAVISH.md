@@ -25,7 +25,7 @@ verification (registry `time` field checked directly against
 it — after a pin change, `stop` once no session is open so the next render
 starts the pinned version.
 
-No package.json, no npm root for this plugin (ADR-0002) — every invocation
+No package.json, no npm root for this plugin — every invocation
 goes through pinned `npx`:
 
 | Shape | Command | Use |

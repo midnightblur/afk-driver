@@ -60,9 +60,9 @@ Delegate every heavy read (diff/code digestion, journal/review mining, context g
 
 4. **Synthesize into a copy of the shell.** Copy `shell-template.html` verbatim; author the sections per `UNDERSTANDING-FORMAT.md` (SEC-1..SEC-6; SEC-3 as one `<section>` per walkthrough group) and inject them into its slots (sections mount, header chips + `data-source-hint`, quiz JSON, and the meta header). **Strip HTML comments before matching any slot** — anchor on the real element, never on its first textual occurrence; the same binds the step-5 checks that read the emitted file back. Emit the **meta header** with the generated date + the subject's SHA range per the `afk-understanding` grammar. Interactive elements per the format contract's "Interactive elements" section; execution: filled DATA, unique ids per instance, one `<style>` block per widget type.
 
-5. **Mechanical checks** (deterministic, before the skeptic — ADR-0003): fully offline / zero external request targets; full coverage (every changed/in-scope file walked or listed skipped-trivial); size cap (≤ 500 KB); meta-header well-formedness. Any fail → revise (step 7).
+5. **Mechanical checks** (deterministic, before the skeptic): fully offline / zero external request targets; full coverage (every changed/in-scope file walked or listed skipped-trivial); size cap (≤ 500 KB); meta-header well-formedness. Any fail → revise (step 7).
 
-6. **Fresh-context skeptic emit gate.** A **fresh-context subagent that has not seen this run's synthesis** judges the draft against the format contract's qualitative self-eval criteria (`UNDERSTANDING-FORMAT.md#interactivity-justification`) and returns per-criterion verdicts (ADR-0003).
+6. **Fresh-context skeptic emit gate.** A **fresh-context subagent that has not seen this run's synthesis** judges the draft against the format contract's qualitative self-eval criteria (`UNDERSTANDING-FORMAT.md#interactivity-justification`) and returns per-criterion verdicts.
 
 7. **Revise at most once.** On any mechanical or skeptic failure, revise once and re-run steps 5–6. Still failing → **fail-soft**: write nothing, journal `failed(self_eval)` (feature subjects).
 
