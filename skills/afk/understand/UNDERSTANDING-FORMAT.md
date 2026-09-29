@@ -97,7 +97,7 @@ The artifact embeds exactly one machine-readable meta element. **This is the mis
 - **Element name:** `afk-understanding` — a single meta element (e.g. `<meta name="afk-understanding" …>` or an equivalent element the shell asset stamps) carrying the fields below as its content.
 - **Content fields (both mandatory):**
   1. **generated date** — the date the artifact was generated.
-  2. **diff SHA range** — feature: the derived diff range (branch tip stamped at generation; retro per SDD §4 / ADR-0004); mr: the MR's diff range; code: the repo `HEAD` SHA at generation (the degenerate range — the code state the artifact describes).
+  2. **diff SHA range** — feature: the derived diff range (branch tip stamped at generation); mr: the MR's diff range; code: the repo `HEAD` SHA at generation (the degenerate range — the code state the artifact describes).
 - **Well-formedness:** the element is present and both fields are populated. Guardian: mechanical check (pre-verify); the panel is the consuming parser and returns its `Absent(reason)` case rather than raising when the header is missing or malformed.
 
 Separately from the parse target, the page `<header>` carries a **`data-source-hint`** attribute — the subject locator (plan-dir path, MR URL, or `path:`/`symbol:` argument) — which the shell's ask-the-teacher affordance embeds in the prompt it assembles, so an aided session knows where the sources live. Not part of the panel's grammar.

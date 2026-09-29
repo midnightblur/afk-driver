@@ -4,7 +4,7 @@ Every panel reads one or more of the plugin's lockstep markdown formats
 (the plan progress tracker, the smoke-gate table, the journal, the review
 rollup, ...). These helpers are intentionally forgiving: a heading or table
 that can't be found returns `None` / `[]` rather than raising, so a caller
-can turn that into an `Absent(reason)` value (ADR-0007).
+can turn that into an `Absent(reason)` value.
 """
 from __future__ import annotations
 

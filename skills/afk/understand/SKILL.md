@@ -50,7 +50,7 @@ Delegate every heavy read (diff/code digestion, journal/review mining, context g
    - *mr / code:* run the intake below (fetch/scope + size gate + optional spec discovery).
    - Auto mode uses defaults; standalone prompts for quiz size + background depth first.
 
-2. **Derive the code scope, and close it.** *feature:* the diff-derivation ladder below (the git-CLI seam, ADR-0004) — on exhaustion, **refuse**: `no_derivable_diff`, nothing written, naming the missing input. *mr:* the fetched MR diff. *code:* the resolved file set at repo `HEAD` (no diff).
+2. **Derive the code scope, and close it.** *feature:* the diff-derivation ladder below (the git-CLI seam) — on exhaustion, **refuse**: `no_derivable_diff`, nothing written, naming the missing input. *mr:* the fetched MR diff. *code:* the resolved file set at repo `HEAD` (no diff).
    - *code:* one `/afk:investigate` Q1 run on the resolved entry symbol, here in the orchestrator, `--out` set to this artifact's build directory — the digest children are read-only and each would otherwise enumerate the same boundaries again. Its ledger path rides in the diff/code digest's brief.
 
 3. **Three parallel digest subagents** (one message, per `DELEGATION.md`), **1 retry each**, any failure after its retry → whole generation fails-soft:
@@ -72,7 +72,7 @@ Delegate every heavy read (diff/code digestion, journal/review mining, context g
 
 9. **Journal and report.** Feature subjects: append the journal event (below). All subjects: emit the terminal report (below).
 
-## Diff derivation ladder (feature subjects — git-CLI seam, SDD §9b, ADR-0004)
+## Diff derivation ladder (feature subjects — git-CLI seam)
 
 First hit wins:
 
