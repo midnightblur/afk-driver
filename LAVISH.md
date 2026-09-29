@@ -305,8 +305,11 @@ models, one per row):
 Color is a dimension, not decoration: one fixed semantic set across every
 page of a session — green = settled/pass, amber = open/undecided,
 red = blocked/rejected, neutral = existing/unchanged, accent = new/proposed —
-and never color alone (pair it with a label or icon). Diagrams follow the
-`draw-charts` skill (render-safe Mermaid).
+and never color alone (pair it with a label or icon). Diagrams are
+hand-authored inline SVG; the upstream `diagram` playbook
+(`lavish-axi playbook diagram`) owns their design rules. Mermaid only when the
+human asks for an editable whiteboard — `skills/utils/draw-charts` then owns
+its render safety.
 
 ## Authoring delegation (binding on the authored path)
 
@@ -326,7 +329,7 @@ HTML in its context (`DELEGATION.md`). Who does what:
   continuation vocabulary: `PROVIDERS.md`), so it keeps the page's structure
   and style in its own context; never a fresh spawn per round. The first
   spawn carries the artifact path, this file's path, the render point's
-  playbook id, and `skills/utils/draw-charts` for diagrams; every round after
+  playbook id, and the `diagram` playbook id for figures; every round after
   hands only the brief. The on-disk artifact stays the durable state: a lost
   child, or a provider without continuation, gets a fresh spawn that reads
   the artifact — degraded, not broken.

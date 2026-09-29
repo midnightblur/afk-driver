@@ -59,6 +59,9 @@ release page from its section here. Nobody tags by hand.
   days old. `poll` no longer returns on detected layout issues: they wait in the
   page's Layout issues inbox and reach the agent only when the user queues them.
   `/afk:setup` installs the new pin.
+- **Lavish page diagrams are hand-authored inline SVG**, per lavish-axi's own
+  `diagram` playbook. Mermaid on a lavish page is now only for an editable
+  whiteboard the human asks for. Markdown specs keep Mermaid.
 
 ## [1.8.0] - 2026-09-29
 
