@@ -20,7 +20,10 @@
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
 #   J. every hooks.json command goes through hooks/run-hook.py, so no command
-#      string depends on a shell dialect or on a bare `bash`.
+#      string depends on a shell dialect or on a bare `bash`;
+#   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
+#      that references it, and no other plugin file references it (unit
+#      tests under scripts/tests/ exempted — they load the helper directly).
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -357,6 +360,35 @@ for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.p
             )
     except OSError as exc:
         problems.append(f"{rel(script)}: cannot read ({exc})")
+
+
+# K. A hooks/lib/providers/<name>_*.py helper is provider-owned code: its own
+# <name>.sh adapter is its one permitted caller (AGENTS.md "Harness-agnostic
+# by default", PROVIDERS.md "Distribution law"). scripts/tests/ is exempt —
+# a unit test legitimately loads the helper module directly.
+for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
+    name = helper.stem.split("_", 1)[0]
+    adapter = plugin / "hooks/lib/providers" / f"{name}.sh"
+    if not adapter.is_file() or helper.name not in read(adapter):
+        problems.append(
+            f"{rel(helper)}: no hooks/lib/providers/{name}.sh references it by name"
+        )
+    for candidate in plugin.rglob("*"):
+        if not candidate.is_file() or candidate in (helper, adapter):
+            continue
+        if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
+            continue
+        if "scripts/tests" in candidate.relative_to(plugin).as_posix():
+            continue
+        try:
+            text = read(candidate)
+        except OSError:
+            continue
+        if helper.name in text:
+            problems.append(
+                f"{rel(candidate)}: references provider helper {helper.name!r}; "
+                f"only hooks/lib/providers/{name}.sh may call it"
+            )
 
 
 if problems:

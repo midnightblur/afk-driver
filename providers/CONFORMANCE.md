@@ -29,6 +29,7 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Cache refresh after source-only change | n/a | pass 2026-09-01 | Minimum sequence: re-run the plugin add, then start a new session. Removal first is not required |
 | Script-only hook change trust behavior | n/a | pass 2026-09-01 | Editing a referenced script body left the trust hash unchanged and raised no new prompt — trust covers the handler definition, not the script it runs. Security consequence: an approved handler keeps running whatever its script later says, so the shell handlers are gated content, and the pre-commit and Stop gates are the control | Round 4 recording nuance: a trust prompt (8 hooks) did appear on the second harness, and it is consistent with this row rather than against it — round 3 had run with the trust bypass, so the command-definition change that introduced the launcher had never been persisted on that machine. The prompt was the delayed approval for those handler definitions; the later script-body-only change raised none.
 | Disable or uninstall leaves repository inert | pass (static) 2026-09-01 | pass 2026-09-01 | Second harness: after removal, zero skills, agents, MCP tools or plugin hooks, and no tracked repository file was touched. Caveat: pre-native ignored mirrors survive on a machine that once had them — the setup register's stale-activation entry offers the cleanup |
+| Managed behavior install, refresh, and teardown | deterministic tests 2026-09-28; model receipt unverified | deterministic tests 2026-09-28; model receipt unverified | Native user files are the v1 transport. The `.afk/config.yaml` guard is model-evaluated. Setup tests prove hash, revision, migration, duplicate cleanup, and teardown. Live receipt after compaction remains unclaimed. |
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 | Hook launcher runs handlers whatever the PATH | pass 2026-09-02 | pass 2026-09-02 (round 3) | First harness: the launcher ran the repository guard and carried its deny envelope, stayed silent on an absent handler, and still produced the denial when PATH held only the system directory (the WSL-stub case the second harness hit). Covered by `hooks/tests/hook-smoke.sh`; gate rule J rejected a hand-written bare-`bash` command with the expected diagnostic and exit 2, then passed once restored |
 | Stop block decision object is honoured | pass 2026-09-02 | pass 2026-09-02 (round 4) | First harness, live rig: with the adapter exit code set to 0 so only the decision object could carry the verdict, an unregistered scratch skill produced a real Stop block carrying the gate findings. Second harness: same emission, `Stop Blocked` with the same reason. One emission serves both |
@@ -413,3 +414,25 @@ recorded as the reason the pending Codex verdict does not gate the release.
 9. Install through the harness enable flag. Run every probe in this ledger.
 10. Record version, date, commands, verdicts, and unresolved capabilities here.
 11. Confirm no skill prose changed for the harness.
+
+## Managed behavior receipt matrix
+
+Native user files are the v1 transport. A generated block and a hook envelope
+do not prove model receipt. Do not claim compaction survival until each harness
+passes this matrix with the earliest decision turn showing the behavior.
+
+| Session shape | Claude Code | Codex CLI |
+|---|---|---|
+| Default agent | pending | pending |
+| Custom agent | pending | pending |
+| Subagent | pending | pending |
+| Fresh session | pending | pending |
+| Resume | pending | pending |
+| Clear | pending | pending |
+| First turn after compaction | pending | pending |
+
+Probe from a disposable plugin copy and disposable harness home. Add a temporary
+behavior whose decision-turn response contains a nonce. Install its generated
+block, start each session shape, and ask the matching nonce prompt. Record the
+launch command, first decision-turn response, plugin root, revision, and body
+hash. Remove the disposable home and run teardown after the probe.

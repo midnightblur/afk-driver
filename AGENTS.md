@@ -38,7 +38,12 @@ These `SKILL.md` + sibling `.md` files are the program the agent runs — same e
 - Keep harness-specific tool names and environment variables out of skill prose.
 - Use only Agent Skills frontmatter and documented harness extensions. Declare capability needs in `CAPABILITIES.md`.
 - Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback. Use only hook events in `CAPABILITIES.md`'s shared subset.
-- Put provider behavior in `hooks/lib/providers/<name>.sh`. Update `PROVIDERS.md` in the same change.
+- Put provider behavior in `hooks/lib/providers/<name>.sh`, or, where the
+  algorithm is naturally table/JSON-shaped and porting it into POSIX shell
+  would itself be the defect, a helper file named `hooks/lib/providers/<name>_*.py`
+  that only `<name>.sh` calls — no other file may reference it. Update
+  `PROVIDERS.md` in the same change; `hooks/native-contract-gate.sh` enforces
+  the naming and the single-caller rule.
 - Add a harness through `providers/CONFORMANCE.md`'s checklist.
 
 ## Human followability (binding on every skill)
@@ -71,6 +76,16 @@ Repository-specific boundary instances live in the target repository's
 ## Freshness (binding on every change)
 
 No plugin-source artifact may go stale — an agent trusts what it reads. **`FRESHNESS.md`** (plugin root) owns the doctrine: **same-commit rule** (a change adding/removing/changing an external dependency updates the dependency register `skills/afk/setup/MANIFEST.md` in the same commit; a change adding/renaming/removing a skill or plugin artifact updates every surface its registry row names in the same commit) and **artifact registry** (plugin-source artifact → steward → update triggers). Drift catcher: **`/afk:setup audit`** (`skills/afk/setup/AUDIT.md`) — run before shipping plugin changes. Skills point here, never restate. (Runtime artifacts — plan/, INDEX.md, journal — governed by "Section ownership invariants" below.)
+
+## Managed behavior
+
+`BEHAVIORS.md` is the only registry and body source for managed behavior.
+`/afk:setup` installs one `afk:behaviors` block in each user instruction file.
+The behavior registry gate checks its grammar, doctrine homes, inventory map,
+transport parity, and size. Change a behavior with its doctrine, setup path,
+tests, provider declarations, and changelog in the same commit.
+Read `adr/0005-managed-behavior-transport.md` before changing the transport,
+consent reuse, repository guard, or target files.
 
 ## The skills
 
@@ -188,6 +203,8 @@ Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket desc
 - `CHANGELOG.md` — one section per released version, newest first, in Keep a Changelog form with SemVer versions and dates. `hooks/release-gate.sh` refuses a release whose changelog heading, both plugin manifests, the marketplace entry and the tag do not agree (update trigger in `FRESHNESS.md` registry). Its header owns the version-bump rule and the release path: which part a release bumps, who decides it, and the merge to `main` that `.github/workflows/release.yml` turns into a tag and a release page.
 - `skills/afk/AGENTS.md` — how to invoke/extend mission control, preflight, and render points (the Mission Control, Preflight & Lavish adoption feature); same file also covers extending the `/afk:bug` pipeline (subcommands, lifecycle states, subagent prompts) and the `/afk:understand` artifact (format contract, shell template, dashboard panel).
 - `LAVISH.md` — one home for lavish-axi doctrine: exact pin, `npx` invocation shapes, render-point → playbook map, session-default weaves + user opt-out, tooltip layer (persistent dictionary, injected by `hooks/lavish-tips.sh`), visualization doctrine, authoring delegation (page markup → `afk-implementor` child, brief stays with the orchestrator), human-present-only + markdown-fallback rules, forbidden operations. Render-point skills carry only a pointer here.
+- `BEHAVIORS.md` — managed behavior registry and injected body source. The behavior gate and setup transport consume it.
+- `VERIFICATION.md` / `SAFETY.md` — shared verification rules and write boundaries used by managed behavior.
 - `LAVISH-KIT.md` — one home for the kit path: the round document, the six components, the skeleton, the two failure modes (a decided card degrades, everything else fails the render), the runtime contract and the round response grammar. Emitter: `scripts/lavish_render.py`. `LAVISH.md`'s Production-path rule says which pages take it.
 - `SPINOFF-TICKET.md` — one home for the spinoff protocol: capturing grill-deferred work as a tracked stub (candidate row → `/afk:to-ticket` spinoff-mode mint → link-debt → dedup). Grills carry only a pointer here.
 - `LANGUAGE.md` — one home for the writing doctrine (which words, whose terms, how much) binding every reply and every artifact; skills, agents, and emitters carry only pointer lines.
@@ -203,4 +220,4 @@ Exactly two Jira writers (ADR-0001): **`/afk:to-ticket`** — parent-ticket desc
 - `CAPABILITIES.md` — shared capability contract and degradation rules.
 - `PROVIDERS.md` — enable flags, provider mappings, model tiers, credentials, and distribution law. Provider behavior lives in `hooks/lib/providers/`.
 - `providers/CONFORMANCE.md` — live proof, unresolved capabilities, and the add-harness checklist.
-- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-registry-gate.sh`, `native-contract-gate.sh`, and `genericity-gate.sh`, plus adopted harness gates. Commit: `precommit-gates.sh` dispatches the native contract and code gates. PreToolUse: whatever the repository declares in its own `.afk/hooks.json` — this plugin ships none. On demand: `stall-watchdog.sh`, `lesson-append.sh`, and `lesson-digest.sh` here, plus `app-start-gate.sh` and `mutation-probe.sh` under `adapters/build-gate/maven/`, which is where every build-shaped gate lives. **Gate cost is subprocess count**: use shared context, batch scans, and cache passes. Details: `hooks/README.md`.
+- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-registry-gate.sh`, `native-contract-gate.sh`, `genericity-gate.sh`, and `behavior-registry-gate.sh`, plus adopted harness gates. Commit: `precommit-gates.sh` dispatches the native contract and code gates. SessionStart runs the advisory behavior drift check. PreToolUse: whatever the repository declares in its own `.afk/hooks.json` — this plugin ships none. On demand: `stall-watchdog.sh`, `lesson-append.sh`, and `lesson-digest.sh` here, plus `app-start-gate.sh` and `mutation-probe.sh` under `adapters/build-gate/maven/`, which is where every build-shaped gate lives. **Gate cost is subprocess count**: use shared context, batch scans, and cache passes. Details: `hooks/README.md`.

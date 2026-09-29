@@ -127,59 +127,72 @@ a token value — not even partially.
   are optional and not probed — an unset `mrAssignee` means no assignee, never a
   failure.
 
-### H7 · plain-language replies (ASD-STE100) **[opt-in]**
-- **Needed by:** nothing — a user preference: every agent session of this user
-  (all projects, both providers) answers in Simplified Technical English, not
-  only the AFK-plugin sessions `LANGUAGE.md` §1 already binds.
-- **Probe:** `grep -q 'afk:plain-language:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:plain-language:start' ~/.codex/AGENTS.md 2>/dev/null; }`
-- **Fix:** `auto:` write the sentinel block from
-  [`PLAIN-LANGUAGE.md`](PLAIN-LANGUAGE.md) (the one home) into the user-global
-  steering files — `~/.codex/AGENTS.md` only when Codex (O1) is installed.
-  A file without the sentinel gets the block appended; a file that already
-  carries one gets it REPLACED, because a release that changes the block leaves
-  every machine holding the old text. Only the lines between the sentinels are
-  touched, so anything the human wrote around them survives:
+### H7 · managed agent behavior **[opt-in]**
+- **Needed by:** users who want the managed behavior in `BEHAVIORS.md` available
+  in every supported harness.
+- **Probe:** run the managed behavior audit from `AUDIT.md` check 7. With no
+  unified or legacy sentinel in either target, classify this row as
+  `opt-in available`. Any sentinel proves prior consent; a failed audit then
+  classifies as `missing/broken`, so refresh or migration runs automatically.
+- **Fix:** `auto:` generate one block per target, each rendered against *that
+  target's own verified* provider root — never this session's own root reused
+  for the other harness's target. Root resolution is the provider adapter's
+  job — `hooks/lib/provider.sh`'s `afk_all_provider_targets` (backed by each
+  provider's own `hooks/lib/providers/<name>.sh` adapter and the per-provider
+  resolver beside it, the one home for each provider's algorithm) — this
+  recipe never re-implements it, and target/root pass as separate arguments,
+  never colon-joined (a Windows root starts with a drive letter's own colon).
+  The installer removes every duplicate unified block and
+  every H7, H8, and H10 legacy block while preserving all other bytes:
   ```sh
-  src=$AFK_PLUGIN_ROOT/skills/afk/setup/PLAIN-LANGUAGE.md
-  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
-    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
-    mkdir -p "$(dirname "$f")"
-    if grep -q 'afk:plain-language:start' "$f" 2>/dev/null; then
-      python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" "$src" "$f"
-    else
-      { [ -s "$f" ] && echo; sed -n '/afk:plain-language:start/,/afk:plain-language:end/p' "$src"; } >> "$f"
-    fi
-  done
-  ```
-- **Notes:** user-global, per-machine — never rides git (file map:
-  `PROVIDERS.md`). Opt out later by deleting the sentinel block from the
-  file(s); opt in any time by re-running `/afk:setup`. Re-running it is also how
-  a machine picks up a release that changed the block — the probe cannot see a
-  stale block, so a release changing `PLAIN-LANGUAGE.md` says so in its
-  `CHANGELOG.md` migration line.
+  py=python
+  command -v python >/dev/null 2>&1 || py=python3
+  rendered=$(mktemp "${TMPDIR:-/tmp}/afk-behaviors.XXXXXX") || exit 1
+  trap 'rm -f "$rendered"' EXIT INT TERM
 
-### H8 · lavish for grilling sessions **[opt-in]**
-- **Needed by:** nothing — a user preference: grilling sessions (agent
-  explains or asks in rounds, human answers, picks, or gives feedback) render
-  through lavish-axi even when no skill's own render point is in play.
-- **Probe:** `grep -q 'afk:lavish-sessions:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:lavish-sessions:start' ~/.codex/AGENTS.md 2>/dev/null; }`
-- **Fix:** `auto:` append the sentinel block from
-  [`LAVISH-SESSIONS.md`](LAVISH-SESSIONS.md) (the one home) to the user-global
-  steering files — same targets and skip guards as H7's loop:
-  ```sh
-  src=$AFK_PLUGIN_ROOT/skills/afk/setup/LAVISH-SESSIONS.md
-  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
-    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
-    grep -q 'afk:lavish-sessions:start' "$f" 2>/dev/null && continue
-    mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk:lavish-sessions:start/,/afk:lavish-sessions:end/p' "$src"; } >> "$f"
-  done
+  . "$AFK_PLUGIN_ROOT/hooks/lib/provider.sh"
+
+  active=$(afk_provider)
+  active_resolved=0
+  while IFS= read -r -d '' name && IFS= read -r -d '' target \
+    && IFS= read -r -d '' root && IFS= read -r -d '' enablement; do
+    [ "$name" = "$active" ] && [ -n "$root" ] && active_resolved=1
+    [ -n "$root" ] || continue
+    [ "$enablement" = "enabled" ] || continue
+    "$py" "$AFK_PLUGIN_ROOT/scripts/behavior_registry.py" render \
+      --registry "$AFK_PLUGIN_ROOT/BEHAVIORS.md" \
+      --plugin-root "$root" --output "$rendered" || exit 1
+    "$py" "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" \
+      install "$rendered" "$target" || exit 1
+  done < <(afk_all_provider_targets)
+
+  if [ "$active" != unknown ] && [ "$active_resolved" -ne 1 ]; then
+    echo "afk: this session's own provider ($active) could not resolve its installed root; managed behavior was not installed for it. See AUDIT.md check 7's unresolved-target note for likely causes." >&2
+    exit 1
+  fi
   ```
-- **Notes:** user-global, per-machine — never rides git (file map:
-  `PROVIDERS.md`). The installed block self-guards: outside a repo carrying
-  the plugin's `LAVISH.md` it is inert. Render doctrine (RP-10, session-default
-  weave, fallback) stays in `LAVISH.md`. Opt out by deleting the sentinel
-  block; opt in any time by re-running `/afk:setup`.
+- **Notes:** ask before a first install. Do not ask again when either target
+  carries `afk:behaviors`, `plain-language`, `lavish-sessions`, or
+  `investigation`. When the OTHER harness's own root cannot be independently
+  verified (its CLI is absent or not yet configured), `afk_all_provider_targets`
+  reports an empty root for it and this recipe skips writing it — never a
+  guessed root; that target self-heals the next time the other harness runs
+  its own `/afk:setup`. A provider whose plugin is disabled is skipped the
+  same way even when its root DOES resolve — `afk_all_provider_targets`
+  reports its enablement alongside the root, and installing for a disabled
+  provider would create a block nobody can see or act on until it is
+  re-enabled. When it is instead THIS session's own active provider whose
+  root cannot resolve, that is a failure to report, not a silent skip — the
+  recipe above exits 1 rather than completing as if nothing were wrong. A
+  frequent cause on a not-yet-released plugin build: the resolved root exists
+  but has no `BEHAVIORS.md` (the installed plugin predates this feature) —
+  `unresolved: installed plugin has no BEHAVIORS.md (update the plugin)`.
+  Re-run setup to refresh a stale revision or hash. Run `/afk:setup teardown`
+  before plugin disable; it calls `install_block.py teardown` for both
+  targets. Setup reports likely duplicate behavior outside managed sentinels
+  and leaves that text unchanged. The SessionStart drift notice
+  (`hooks/behavior-drift.sh`) checks only the current session's own target
+  and root through the same adapter — never the other harness's file.
 
 ### H9 · Notion MCP server *(only when `notes: notion`)*
 - **Needed by:** `adapters/notes/notion` — every notes verb mirrors its local
@@ -190,29 +203,6 @@ a token value — not even partially.
   either way, so an unconnected server delays the mirror, never the note.
 - **Notes:** the page every work item is created under is
   `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
-
-### H10 · investigate code questions to closure **[opt-in]**
-- **Needed by:** nothing — a user preference: every agent session of this user
-  answers a question or claim about existing code by running
-  `/afk:investigate`, not from a partial read.
-- **Probe:** `grep -q 'afk:investigation:start' ~/.claude/CLAUDE.md 2>/dev/null && { ! command -v codex >/dev/null || grep -q 'afk:investigation:start' ~/.codex/AGENTS.md 2>/dev/null; }`
-- **Fix:** `auto:` append the sentinel block from
-  [`INVESTIGATION-SESSIONS.md`](INVESTIGATION-SESSIONS.md) (the one home) to the
-  user-global steering files — same targets and skip guards as H7's loop:
-  ```sh
-  src=$AFK_PLUGIN_ROOT/skills/afk/setup/INVESTIGATION-SESSIONS.md
-  for f in ~/.claude/CLAUDE.md ~/.codex/AGENTS.md; do
-    [ "$f" = "$HOME/.codex/AGENTS.md" ] && ! command -v codex >/dev/null && continue
-    grep -q 'afk:investigation:start' "$f" 2>/dev/null && continue
-    mkdir -p "$(dirname "$f")"
-    { [ -s "$f" ] && echo; sed -n '/afk:investigation:start/,/afk:investigation:end/p' "$src"; } >> "$f"
-  done
-  ```
-- **Notes:** user-global, per-machine — never rides git (file map:
-  `PROVIDERS.md`). The installed block deliberately carries no scope guard: a
-  wrong answer about existing code costs the same in any repository. Completion
-  doctrine stays in `INVESTIGATION.md`. Opt out by deleting the sentinel block;
-  opt in any time by re-running `/afk:setup`.
 
 ### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
 - **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
@@ -640,9 +630,14 @@ Gating rule: if O1 misses, report the whole section as
   fails. Re-run `/afk:setup` after every version change on that harness — not
   only when a changelog entry says the dependency set changed. The last clause of the
   probe is what catches it.
-- **Fix:** `auto:` read the installed plugin root from Codex plugin metadata — the
-  `[plugins."afk@afk-toolkit"]` entry in `~/.codex/config.toml`, else the
-  `Installed plugin root:` line of `codex plugin list`. Never list a cache directory
+- **Fix:** `auto:` resolve Codex's installed plugin root via
+  `hooks/lib/providers/codex.sh`'s `afk_codex_installed_root()` (one home for
+  the resolution algorithm; point there, do not restate it — its own
+  provider-owned Python helper is that adapter's implementation detail, never
+  called directly from here), then verify the result by this row's own
+  criterion — distinct from that adapter's own `BEHAVIORS.md` check, which
+  serves a different consumer: it exists on disk and contains `LANGUAGE.md`
+  and `agents/`. Never list a cache directory
   and never pick a "newest" directory. Create missing destinations, copy each
   `providers/codex/agents/afk-afk-*.toml` to `~/.codex/agents/` under the same
   filename, and replace every `{{PLUGIN_ROOT}}` occurrence with that root verbatim.
@@ -758,6 +753,7 @@ Each var is documented at its consumer — this table is just the map.
 | `WIRING_GATE_DISABLE` / `WIRING_FINAL` | `hooks/wiring-gate.sh` | disable / final-mode the wiring gate |
 | `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |
 | `GENERICITY_GATE_DISABLE` | `hooks/genericity-gate.sh` | disable the genericity gate |
+| `BEHAVIOR_REGISTRY_GATE_DISABLE` | `hooks/behavior-registry-gate.sh` | disable the managed behavior registry gate |
 | `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |
 | `NESTED_STEERING_DISABLE` | `hooks/nested-steering.sh` | disable the nested-steering injector (`nested_steering` capability) for one session |
 | `AFK_PROVIDER` | `hooks/lib/provider.sh` | force provider detection before adapter probes |

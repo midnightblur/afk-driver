@@ -56,3 +56,39 @@ afk_claude_plugin_data() {
     printf '%s\n' "$PLUGIN_DATA"
   fi
 }
+
+# This harness's user-global instruction file. Contract: `hooks/lib/provider.sh`
+# afk_user_instruction_file. A static path from env or default — safe to call
+# regardless of which harness is the current session.
+afk_claude_user_instruction_file() {
+  printf '%s\n' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/CLAUDE.md"
+}
+
+# This harness's installed plugin root, resolved WITHOUT assuming the current
+# session is this harness — used to install/audit this harness's own target
+# from a different session (e.g. setup running under Codex). Prints nothing
+# and fails when the root cannot be independently verified: the
+# caller must then leave this harness's target unchanged, never write a
+# guessed root. Resolution: `claude_resolve.py`, beside this adapter (the one
+# home for this algorithm; not restated here).
+afk_claude_installed_root() {
+  local py=python script
+  command -v python >/dev/null 2>&1 || py=python3
+  script="$AFK_PROVIDER_CORE_DIR/providers/claude_resolve.py"
+  [ -f "$script" ] || return 1
+  "$py" "$script"
+}
+
+# This harness's plugin enablement state: enabled|disabled|absent. Always has
+# a value — unlike a root, enablement is never "unresolved". Resolution:
+# `claude_resolve.py`, beside this adapter (the one home; not restated here).
+afk_claude_enablement() {
+  local py=python script
+  command -v python >/dev/null 2>&1 || py=python3
+  script="$AFK_PROVIDER_CORE_DIR/providers/claude_resolve.py"
+  if [ -f "$script" ]; then
+    "$py" "$script" --enablement
+  else
+    printf 'absent\n'
+  fi
+}

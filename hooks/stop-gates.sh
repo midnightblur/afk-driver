@@ -132,6 +132,10 @@ ctx_scoped() {
 # genericity — only when plugin prose moved.
 [ -n "$PLUGIN_DIR" ] && ctx_scoped "$PLUGIN_SCOPE*.md" && run_gate genericity
 
+# behavior registry — every plugin path is in scope because an active doctrine
+# pointer can target any Markdown file under the plugin root.
+[ -n "$PLUGIN_DIR" ] && ctx_scoped "$PLUGIN_SCOPE*" && run_gate behavior-registry
+
 # Stamp writes are write-to-temp + rename: a concurrent session's Stop reading
 # the stamp mid-truncate would otherwise see a torn value (worst case an empty
 # "pass:" matching an empty digest).

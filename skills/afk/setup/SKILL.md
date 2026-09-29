@@ -24,6 +24,18 @@ exactly what the pull broke. Run via the agent (this skill) or follow
   `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
+- **`teardown`** (`/afk:setup teardown`) — remove every AFK-managed behavior
+  block from both user instruction files. Run this before disabling the plugin.
+  It preserves all bytes outside managed sentinels. Re-run the behavior audit
+  from `AUDIT.md` check 7; done means both targets contain no unified or legacy
+  sentinel.
+
+  ```sh
+  for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/CLAUDE.md" \
+           "${CODEX_HOME:-$HOME/.codex}/AGENTS.md"; do
+    python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" teardown "$f"
+  done
+  ```
 
 ## Doctor loop
 
