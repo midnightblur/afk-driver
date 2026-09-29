@@ -39,6 +39,19 @@ release page from its section here. Nobody tags by hand.
 
 ### Added
 
+- **Reasons for a change now live on the change, not in source comments.**
+  Source keeps at most 2 comment lines that pass one test. `/afk:execute`
+  records every other reason, posts it as an inline comment on the Draft change
+  (opening the Draft when none exists), and completes only after an immutable
+  batch receipt verifies. A commit-time gate blocks tracker references in added
+  comments and comment runs over 2 lines, and matches only the configured Jira
+  project key. `forge_ledger.py rationale-read` finds the reasons behind a line
+  through `git blame` and line history, labels every note by author and edit
+  state, and batches many lines into one run, refetching online and using its
+  cache only offline; `rationale-drop` withdraws an
+  entry that can no longer post. Every forge adapter gains a `commit-changes`
+  verb, and forge calls stop at a time limit. Existing comments stay as they are. Policy:
+  `RATIONALE.md`.
 - **Managed agent behavior now comes from one versioned registry.** Setup can
   install, audit, migrate, and remove one `afk:behaviors` block for both
   supported harnesses. Session start reports stale installed behavior. Run
@@ -51,6 +64,15 @@ release page from its section here. Nobody tags by hand.
   restarted settle loop reconstructs and validates closure from the change.
   Local `plan/review/` files remain telemetry. Repositories can widen the
   narrow ledger-only path default with `review.ledger-only-paths`.
+
+### Fixed
+
+- **A note counts as edited only when the forge says so.** The review ledger
+  and the rationale reader compared `updated_at` with `created_at`, and GitHub
+  moves `updated_at` on an untouched reply, so a settle loop halted after its
+  first reply. `note-list` and `thread-list` now carry `edited` from the
+  forge's own GraphQL `lastEditedAt`; a failed query is an error, and a note
+  without the flag is refused instead of read as unedited.
 
 ## [1.7.0] - 2026-09-24
 

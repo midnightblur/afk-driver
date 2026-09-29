@@ -130,6 +130,9 @@ while IFS= read -r _bg_kind; do
   done < <("$_bg_discover")
 done < <(afk_config_list build-gates)
 
+# The comment policy (RATIONALE.md) is cheap and reads only staged bytes.
+run_gate comment
+
 # The native plugin contract is cheap enough for Stop and commit. Commit-time
 # enforcement is independently required: a --no-hooks session must not be able
 # to land a harness-coupled plugin edit. It reads the live plugin tree; bypass

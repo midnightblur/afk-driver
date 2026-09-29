@@ -870,6 +870,24 @@ else
 fi
 rm -rf "$emptypat"
 
+# ---- comment gate: a staged tracker reference blocks; COMMENT_GATE_DISABLE lets it through.
+cg=$(mktemp -d)
+(cd "$cg" && git init -q && git config user.name t && git config user.email t@example.test   && printf 'class A {
+  int a; // PAY-142 why
+}
+' > A.java && git add A.java)
+err=$(cd "$cg" && bash -c '
+  . "$1"/hooks/gate-metrics.sh; GATE_METRICS_DISABLE=1
+  . "$1"/hooks/comment-gate.sh; gate_comment' _ "$workflow" 2>&1 >/dev/null); rc=$?
+if [ "$rc" = 2 ] && printf '%s' "$err" | grep -q 'A.java:2'; then
+  pass "comment gate blocks a staged tracker reference"
+else
+  fail "comment gate block (rc=$rc err=$err)"
+fi
+(cd "$cg" && COMMENT_GATE_DISABLE=1 bash -c '
+  . "$1"/hooks/gate-metrics.sh; . "$1"/hooks/comment-gate.sh; gate_comment' _ "$workflow")   && pass "COMMENT_GATE_DISABLE=1 skips the comment gate"   || fail "COMMENT_GATE_DISABLE=1 did not skip"
+rm -rf "$cg"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

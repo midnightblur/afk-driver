@@ -601,6 +601,7 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `review_fail` | the Step 10 review settle loop hit its 10-round cap with findings still open (stalemate — unusual by construction) | read the open findings in `plan/review/` and judge them yourself |
 | `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived its remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
 | `adversary_unrun` | the run ended before the Step 10.5 gate could spawn — tiers green, findings settled, but nothing independent judged the slice | re-run the subtask; it resumes at the gate rather than from the top |
+| `rationale_unposted` | the Step 11 receipt check failed — a recorded reason is unposted or unreceipted, or the push or Draft creation is blocked | fix the blocker named in the outcome; re-run the subtask, which resumes at Step 7 |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
 | `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk:grill-solution` → superseding ADR |
@@ -836,9 +837,12 @@ first:
 - **Never alter a schema by hand where the repository generates it.** Declare
   the model and let the repository's migration tool pick it up; `/afk:execute`
   Step 9 runs the pickup verification the repository configures.
-- **Cross-module edits need a marker comment** — a ticket-prefixed line like
-  `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
-  home module.
+- **Reasons for a change live on the change, not in source comments.** Source
+  keeps at most 2 comment lines that pass the classification test; the commit-time
+  comment gate blocks tracker references. `/afk:execute` records each moved reason
+  as a rationale entry, posts it as an inline comment on the Draft change, and
+  completes only after the batch receipt verifies. Policy and commands:
+  [`RATIONALE.md`](RATIONALE.md).
 - **Re-run `/afk:to-ticket`** after the PRD changes (idempotent; the re-publish
   posts the requirements delta as a comment). Jira-writer boundary: [§2 ④](#2-the-mental-model).
 

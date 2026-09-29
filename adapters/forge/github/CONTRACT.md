@@ -8,7 +8,7 @@ GitHub pull requests through `gh`.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
-- `note-list`
+- `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
 
@@ -52,7 +52,13 @@ The adapter tests use a stub command-line tool. They do not contact GitHub.
   the real resolution state from paginated GraphQL review threads.
 - `thread-resolve` maps the REST root identifier to the GraphQL node. An
   unmapped root returns an error and changes nothing.
-- `note-list` reads paginated issue comments. It returns plain notes only.
+- `note-list` reads paginated issue comments. It returns plain notes only, each
+  with `edited` from GraphQL `lastEditedAt` (keyed by `databaseId`). A failed
+  query, or a comment the query does not answer, is an error.
+- `thread-list` carries `edited` on every note from the same GraphQL review-thread
+  query that gives the resolution state; a comment missing from the answer is an error.
+- `commit-changes` reads the pull requests that contain one commit (`sha`), paginated. A merged request reports `merged`; an open one reports `opened`. A failing `gh`, a non-list answer, or an entry with no number is an error.
+- `change-view` answers `missing: true` in its error only when `gh` says no pull request exists for the reference.
 - `change-view` and `change-fetch` return the metadata in `ADAPTERS.md`.
 - `blob_base` names the source repository. It is empty when that repository is
   unavailable.

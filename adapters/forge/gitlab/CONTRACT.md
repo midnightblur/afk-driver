@@ -9,7 +9,7 @@ the merge request's diff refs.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
-- `note-list`
+- `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
 
@@ -60,11 +60,17 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
   `inline: false` and the reason.
 - `require_inline: true` deletes that degraded note. A cleanup failure returns
   an error with the orphan note identifier.
+- `commit-changes` reads the merge requests that contain one commit (`sha`), paginated. A failing `glab`, a non-list answer, or an entry with no `iid` is an error.
+- `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference.
 - `note-list` reads paginated merge-request notes. It removes system and inline
-  notes and sorts the result oldest first.
+  notes and sorts the result oldest first. Each note carries `edited` from
+  GraphQL `Note.lastEditedAt`, keyed by the numeric part of the note's global
+  id; the REST note entity has no edit field. A failed query, or a note the
+  query does not answer, is an error.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
-- Each thread includes its URL, side, lines, paths, and note timestamps.
+- Each thread includes its URL, side, lines, paths, and note timestamps. Each
+  note carries `edited`, read as in `note-list`.
 - `change-view` and `change-fetch` return the metadata in `ADAPTERS.md`.
 - `blob_base` names the source project. It is empty when that project is gone.
 - `glab mr update --description` clears the Draft flag: the new title comes back

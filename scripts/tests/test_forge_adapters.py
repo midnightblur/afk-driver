@@ -102,6 +102,8 @@ def test_payload_can_arrive_on_stdin(tmp_path, kind):
 GITLAB_PAGES = """
 case "$1 $2" in
   "mr view") echo '{"iid":7,"draft":true}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/1","lastEditedAt":null},{"id":"gid://gitlab/DiffNote/2","lastEditedAt":null}]}}}}}' ;;
+  "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":"a","notes":[{"id":1,"body":"one","author":{"username":"x"}}]}]'
     echo '[{"id":"b","notes":[{"id":2,"body":"two","author":{"username":"y"}}]}]' ;;
@@ -113,7 +115,7 @@ GITHUB_PAGES = """
 case "$1 $2" in
   "repo view") echo 'acme/widget' ;;
   "pr view") echo '7' ;;
-  "api graphql") echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":false,"comments":{"nodes":[{"databaseId":1}]}},{"id":"T2","isResolved":true,"comments":{"nodes":[{"databaseId":2}]}}]}}}}}' ;;
+  "api graphql") echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"T1","isResolved":false,"comments":{"nodes":[{"databaseId":1,"lastEditedAt":null}]}},{"id":"T2","isResolved":true,"comments":{"nodes":[{"databaseId":2,"lastEditedAt":null}]}}]}}}}}' ;;
   "api --paginate"*)
     echo '[{"id":1,"body":"one","path":"a.txt","user":{"login":"x"}}]'
     echo '[{"id":2,"body":"two","path":"b.txt","user":{"login":"y"}}]' ;;
@@ -135,6 +137,8 @@ NOTE_PAGES = {
     "gitlab": """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/Note/1","lastEditedAt":"2025-02-03T00:00:00Z"},{"id":"gid://gitlab/Note/2","lastEditedAt":null},{"id":"gid://gitlab/Note/3","lastEditedAt":null}]}}}}}' ;;
+  "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":2,"body":"later","author":{"username":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02","system":false}]'
     echo '[{"id":1,"body":"first","author":{"username":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01","system":false},{"id":3,"body":"system","system":true}]' ;;
@@ -145,6 +149,7 @@ esac
 case "$1 $2" in
   "repo view") echo 'acme/widget' ;;
   "pr view") echo '7' ;;
+  "api graphql") echo '{"data":{"repository":{"pullRequest":{"comments":{"nodes":[{"databaseId":2,"lastEditedAt":null},{"databaseId":1,"lastEditedAt":"2025-02-03T00:00:00Z"}]}}}}}' ;;
   "api --paginate"*)
     echo '[{"id":2,"body":"later","user":{"login":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02"}]'
     echo '[{"id":1,"body":"first","user":{"login":"a"},"created_at":"2025-02-01","updated_at":"2025-02-01"}]' ;;
@@ -161,8 +166,10 @@ def test_note_list_is_paginated_normalized_and_oldest_first(tmp_path, kind):
     answer = json.loads(done.stdout)
     assert answer == {
         "notes": [
-            {"id": "1", "author": "a", "body": "first", "created_at": "2025-02-01", "updated_at": "2025-02-01"},
-            {"id": "2", "author": "b", "body": "later", "created_at": "2025-02-02", "updated_at": "2025-02-02"},
+            {"id": "1", "author": "a", "body": "first", "created_at": "2025-02-01",
+             "updated_at": "2025-02-01", "edited": True},
+            {"id": "2", "author": "b", "body": "later", "created_at": "2025-02-02",
+             "updated_at": "2025-02-02", "edited": False},
         ],
         "count": 2,
     }
@@ -427,6 +434,8 @@ def test_gitlab_thread_list_exposes_locator_url_and_note_times(tmp_path):
     body = """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/61","lastEditedAt":null}]}}}}}' ;;
+  "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*) echo '[{"id":"d1","notes":[{"id":61,"type":"DiffNote","resolved":false,"body":"x","created_at":"2025-03-01","updated_at":"2025-03-02","web_url":"https://gitlab.example/n/61","author":{"username":"a"},"position":{"old_path":"old.txt","new_path":"new.txt","old_line":4,"new_line":5}}]}]' ;;
   *) echo '{}' ;;
 esac
@@ -439,6 +448,7 @@ esac
     }
     assert thread["notes"][0]["created_at"] == "2025-03-01"
     assert thread["notes"][0]["updated_at"] == "2025-03-02"
+    assert thread["notes"][0]["edited"] is False
 
 
 GITHUB_THREADS = """
@@ -449,7 +459,7 @@ case "$1 $2" in
   "api graphql")
     case "$*" in
       *resolveReviewThread*) printf '%s\n' "$*" > "$AFK_MUTATION"; echo '{"data":{"resolveReviewThread":{"thread":{"id":"RT1","isResolved":true}}}}' ;;
-      *) echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT1","isResolved":true,"comments":{"nodes":[{"databaseId":71}]}}]}}}}}' ;;
+      *) echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT1","isResolved":true,"comments":{"nodes":[{"databaseId":71,"lastEditedAt":null}]}}]}}}}}' ;;
     esac ;;
   *) echo '{}' ;;
 esac
@@ -475,8 +485,8 @@ case "$1 $2" in
   "api --paginate"*)
     echo '[{"id":71,"body":"one","path":"a.txt","line":5,"side":"RIGHT","user":{"login":"a"}},{"id":72,"body":"two","path":"b.txt","line":6,"side":"RIGHT","user":{"login":"b"}}]' ;;
   "api graphql")
-    echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT1","isResolved":false,"comments":{"nodes":[{"databaseId":71}]}}]}}}}}'
-    echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT2","isResolved":true,"comments":{"nodes":[{"databaseId":72}]}}]}}}}}' ;;
+    echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT1","isResolved":false,"comments":{"nodes":[{"databaseId":71,"lastEditedAt":null}]}}]}}}}}'
+    echo '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"id":"RT2","isResolved":true,"comments":{"nodes":[{"databaseId":72,"lastEditedAt":null}]}}]}}}}}' ;;
   *) echo '{}' ;;
 esac
 """
@@ -503,7 +513,7 @@ case "$1 $2" in
   "repo view") echo 'acme/widget' ;;
   "pr view") echo '7' ;;
   "api --paginate"*) echo '{json.dumps([root])}' ;;
-  "api graphql") echo '{{"data":{{"repository":{{"pullRequest":{{"reviewThreads":{{"nodes":[{{"id":"RT1","isResolved":false,"comments":{{"nodes":[{{"databaseId":71}}]}}}}]}}}}}}}}}}' ;;
+  "api graphql") echo '{{"data":{{"repository":{{"pullRequest":{{"reviewThreads":{{"nodes":[{{"id":"RT1","isResolved":false,"comments":{{"nodes":[{{"databaseId":71,"lastEditedAt":null}}]}}}}]}}}}}}}}}}' ;;
   *) echo '{{}}' ;;
 esac
 """
@@ -686,3 +696,197 @@ def test_none_reports_note_list_as_unsupported(tmp_path):
     )
     assert done.returncode == 3
     assert json.loads(done.stdout)["unsupported"] is True
+
+
+# ---- commit-changes: the changes that carry a commit ------------------------
+
+COMMIT_CHANGES = {
+    "gitlab": """
+case "$1 $2" in
+  "api --paginate"*)
+    echo '[{"iid":9,"web_url":"https://gitlab.example/acme/widget/-/merge_requests/9","state":"merged","draft":false,"source_branch":"topic","target_branch":"main","author":{"username":"a"}}]'
+    echo '[{"iid":4,"web_url":"https://gitlab.example/acme/widget/-/merge_requests/4","state":"opened","draft":true,"source_branch":"other","target_branch":"main","author":{"username":"b"}}]' ;;
+  *) echo '{}' ;;
+esac
+""",
+    "github": """
+case "$1 $2" in
+  "repo view") echo 'acme/widget' ;;
+  "api --paginate"*)
+    echo '[{"number":9,"html_url":"https://github.example/acme/widget/pull/9","state":"closed","merged_at":"2025-01-01T00:00:00Z","draft":false,"head":{"ref":"topic"},"base":{"ref":"main"},"user":{"login":"a"}}]'
+    echo '[{"number":4,"html_url":"https://github.example/acme/widget/pull/4","state":"open","merged_at":null,"draft":true,"head":{"ref":"other"},"base":{"ref":"main"},"user":{"login":"b"}}]' ;;
+  *) echo '{}' ;;
+esac
+""",
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_lists_every_page_in_the_common_shape(tmp_path, kind):
+    environ = stub(tmp_path, kind, COMMIT_CHANGES[kind])
+    done = forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path)
+    answer = json.loads(done.stdout)
+    assert answer["count"] == 2, done.stdout
+    by_id = {change["id"]: change for change in answer["changes"]}
+    assert by_id["9"]["state"] == "merged"
+    assert by_id["9"]["source"] == "topic" and by_id["9"]["target"] == "main"
+    assert by_id["9"]["author"] == "a"
+    assert by_id["9"]["url"].endswith("/9")
+    assert by_id["4"]["state"] == "opened" and by_id["4"]["draft"] is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_needs_a_sha(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo '[]'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", "{}", cwd=tmp_path).stdout)
+    assert answer.get("error") is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_reports_an_unreadable_answer_as_an_error(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo 'not json'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True
+
+
+def test_none_forge_answers_commit_changes_as_unsupported(tmp_path):
+    done = subprocess.run(
+        [str(BASH), str(PLUGIN_ROOT / "adapters" / "forge" / "none" / "forge.sh"), "commit-changes"],
+        capture_output=True, text=True, cwd=str(tmp_path), stdin=subprocess.DEVNULL)
+    assert done.returncode == 3
+    assert json.loads(done.stdout)["unsupported"] is True
+
+
+@pytest.mark.parametrize("kind", (*KINDS, "none"))
+def test_manifests_declare_commit_changes(kind):
+    manifest = json.loads(
+        (PLUGIN_ROOT / "adapters" / "forge" / kind / "adapter.json").read_text(encoding="utf-8"))
+    assert "commit-changes" in manifest["operations"]
+
+
+# ---- commit-changes: exact endpoint, failure propagation, bounded time -----------
+
+ENDPOINT = {"gitlab": "commits/abc123/merge_requests", "github": "commits/abc123/pulls"}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_calls_the_endpoint_of_the_requested_commit(tmp_path, kind):
+    log = tmp_path / "args.log"
+    environ = stub(tmp_path, kind, f'echo "$@" >> "{log.as_posix()}"\n' + COMMIT_CHANGES[kind])
+    forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path)
+    paged = [row for row in log.read_text(encoding="utf-8").splitlines() if "--paginate" in row]
+    assert len(paged) == 1 and ENDPOINT[kind] in paged[0], paged
+    assert "per_page=100" in paged[0]
+
+
+FAILING_PAGE = {
+    "gitlab": "echo '[{\"iid\":9,\"state\":\"merged\"}]'\nexit 1\n",
+    "github": "echo '[{\"number\":9,\"state\":\"closed\"}]'\nexit 1\n",
+}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_commit_changes_reports_a_failing_cli_as_an_error_not_an_empty_answer(tmp_path, kind):
+    environ = stub(tmp_path, kind, FAILING_PAGE[kind])
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True and "changes" not in answer
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("body", ['{"message":"404 Not Found"}', '[{"title":"no id"}]', '[7]'])
+def test_commit_changes_rejects_an_answer_that_is_not_a_list_of_changes(tmp_path, kind, body):
+    environ = stub(tmp_path, kind, f"echo '{body}'\n")
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert answer.get("error") is True and "changes" not in answer
+
+
+@pytest.mark.parametrize("kind,message", [("github", 'no pull requests found for branch "x"'),
+                                          ("gitlab", "404 Not Found")])
+def test_change_view_names_a_change_the_forge_says_is_missing(tmp_path, kind, message):
+    environ = stub(tmp_path, kind, f"echo '{message}' >&2\nexit 1\n")
+    answer = json.loads(forge(kind, environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is True
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_change_view_does_not_call_a_timeout_a_missing_change(tmp_path, kind):
+    environ = stub(tmp_path, kind, "echo 'dial tcp: i/o timeout' >&2\nexit 1\n")
+    answer = json.loads(forge(kind, environ, "change-view", '{"id":"x"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and answer["missing"] is False
+    assert "timeout" in answer["reason"]
+
+
+def _has_gnu_timeout():
+    probe = subprocess.run([str(BASH), "-c", "timeout --version | grep -q GNU"], capture_output=True)
+    return probe.returncode == 0
+
+
+@pytest.mark.skipif(not _has_gnu_timeout(), reason="GNU timeout is not installed")
+@pytest.mark.parametrize("kind", KINDS)
+def test_a_stalled_forge_cli_is_stopped_at_the_time_limit(tmp_path, kind):
+    import time
+    environ = stub(tmp_path, kind, "sleep 30\n")
+    environ["AFK_FORGE_TIMEOUT"] = "1"
+    started = time.time()
+    answer = json.loads(forge(kind, environ, "commit-changes", '{"sha":"abc123"}', cwd=tmp_path).stdout)
+    assert time.time() - started < 20
+    assert answer.get("error") is True
+
+
+# ---- the forge's own edit flag ---------------------------------------------
+
+def failing_graphql(body: str) -> str:
+    """The same stub, but its GraphQL call exits non-zero."""
+    return body.replace('case "$1 $2" in\n', 'case "$1 $2" in\n  "api graphql") exit 1 ;;\n', 1)
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_note_list_fails_when_the_graphql_call_fails(tmp_path, kind):
+    body = failing_graphql(NOTE_PAGES[kind])
+    answer = json.loads(forge(kind, stub(tmp_path, kind, body), "note-list", '{"id":"7"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and "notes" not in answer
+
+
+@pytest.mark.parametrize("kind,node", [
+    ("github", '{"databaseId":2,"lastEditedAt":null},'),
+    ("gitlab", '{"id":"gid://gitlab/Note/2","lastEditedAt":null},'),
+])
+def test_note_list_fails_when_a_note_has_no_graphql_edit_state(tmp_path, kind, node):
+    assert node in NOTE_PAGES[kind]
+    body = NOTE_PAGES[kind].replace(node, "")
+    answer = json.loads(forge(kind, stub(tmp_path, kind, body), "note-list", '{"id":"7"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and "notes" not in answer
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_note_list_fails_when_graphql_omits_lastEditedAt(tmp_path, kind):
+    body = NOTE_PAGES[kind].replace(',"lastEditedAt":null', "").replace(
+        ',"lastEditedAt":"2025-02-03T00:00:00Z"', "")
+    answer = json.loads(forge(kind, stub(tmp_path, kind, body), "note-list", '{"id":"7"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and "notes" not in answer
+
+
+@pytest.mark.parametrize("kind,body,old", [
+    ("gitlab", GITLAB_PAGES, 'DiffNote/1","lastEditedAt":null'),
+    ("github", GITHUB_PAGES, '{"databaseId":1,"lastEditedAt":null'),
+])
+def test_thread_list_carries_the_forge_edit_flag_per_note(tmp_path, kind, body, old):
+    assert old in body
+    edited = body.replace(old, old.replace("null", '"2025-01-01T00:00:00Z"'))
+    answer = json.loads(forge(kind, stub(tmp_path, kind, edited), "thread-list", '{"id":"7"}', cwd=tmp_path).stdout)
+    flags = sorted((t["notes"][0]["id"], t["notes"][0]["edited"]) for t in answer["threads"])
+    assert flags == [(1, True), (2, False)]
+
+
+@pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
+def test_thread_list_fails_when_the_graphql_call_fails(tmp_path, kind, body):
+    answer = json.loads(forge(kind, stub(tmp_path, kind, failing_graphql(body)), "thread-list",
+                              '{"id":"7"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and "threads" not in answer
+
+
+@pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
+def test_thread_list_fails_when_graphql_omits_lastEditedAt(tmp_path, kind, body):
+    answer = json.loads(forge(kind, stub(tmp_path, kind, body.replace(',"lastEditedAt":null', "")),
+                              "thread-list", '{"id":"7"}', cwd=tmp_path).stdout)
+    assert answer["error"] is True and "threads" not in answer

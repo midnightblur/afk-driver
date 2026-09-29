@@ -63,7 +63,7 @@ tracker does not carry them.
 `change-view`, `change-diff`, `change-create-draft`, `change-ready`,
 `change-reviewers`, `change-update-body`, `change-comment`, `change-state`,
 `change-close`, `change-fetch`, `thread-list`, `thread-reply`, `thread-resolve`,
-`note-list`, `ci-status`, `ci-wait`, `auth-status`.
+`note-list`, `commit-changes`, `ci-status`, `ci-wait`, `auth-status`.
 
 The normalized change object includes `id`, `url`, `title`, `state`, `draft`,
 `source`, `target`, and `pipeline.status`. `change-view` and `change-fetch` add
@@ -84,9 +84,21 @@ Each thread carries its current resolution, URL, side, lines, paths, and notes.
 reason. `require_inline: true` requests cleanup after a degraded write. A
 cleanup error identifies the orphan note.
 
+`commit-changes` takes `sha` and returns `changes` and `count`. Each change carries `id`, `url`,
+`state` (`opened`, `closed`, `merged`), `draft`, `source`, `target`, and `author`. A failing CLI, a non-list
+answer, or an entry with no `id` is an error, never an empty list.
+
+A `change-view` for a reference the forge confirms is absent answers `error` with `missing: true`. Any other
+failure answers `missing: false`; callers must not read it as absence. Each `gh` or `glab` call stops at
+`AFK_FORGE_TIMEOUT` seconds.
+
 `note-list` returns `notes` and `count`. Each note carries `id`, `author`,
-`body`, `created_at`, and `updated_at`. Each thread carries the same fields for
-its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`, and `url`.
+`body`, `created_at`, `updated_at`, and `edited`. Each thread carries the same
+fields for its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`,
+and `url`. `edited` is a boolean from the forge's own edit signal (GraphQL
+`lastEditedAt`). `updated_at` is ordering data only: it moves on activity that is
+not an edit. A verb that cannot read the signal answers `error`; it never guesses
+`false`, and a caller refuses a note without the field.
 
 `ci-wait` is the one verb with an exit-code contract, because a caller routes on
 it rather than on a body: 0 the pipeline succeeded, 1 it failed or was cancelled,

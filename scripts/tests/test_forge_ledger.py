@@ -53,7 +53,8 @@ class FakeAdapter:
     def _note(self, body, note_id):
         return {"id": note_id, "author": self.author, "body": body,
                 "created_at": "2026-01-01T00:00:00Z",
-                "updated_at": "2026-01-01T00:00:00Z", "url": f"https://f/{note_id}"}
+                "updated_at": "2026-01-01T00:00:00Z", "edited": False,
+                "url": f"https://f/{note_id}"}
 
     def call(self, verb, payload, mode="read"):
         self.calls.append((verb, payload))
@@ -279,10 +280,36 @@ def test_edited_marker_is_counted_before_trust():
         "author": "mallory",
         "body": "<!-- afk:record v1 key=slice%2Ff001 seq=2 kind=carried op=x -->",
         "created_at": "2026-01-01T00:00:00Z",
-        "updated_at": "2026-01-01T00:01:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "edited": True,
     }
     scan = ledger.scan_entries([note], trusted={"bob"}, rejected={"mallory"})
     assert scan.edited_markers == 1
+
+
+MARKER_NOTE = {
+    "id": "1", "author": "bob",
+    "body": "<!-- afk:record v1 key=slice%2Ff001 seq=2 kind=carried op=x -->",
+    "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+}
+
+
+def test_a_later_updated_at_is_not_an_edit():
+    ledger = load_module()
+    note = {**MARKER_NOTE, "updated_at": "2026-01-01T00:00:05Z", "edited": False}
+    scan = ledger.scan_entries([note], trusted={"bob"}, rejected=set())
+    assert scan.edited_markers == 0 and len(scan.found) == 1
+    assert ledger.is_edited(note) is False
+
+
+def test_a_note_without_the_forge_edit_flag_fails_closed():
+    ledger = load_module()
+    with pytest.raises(ledger.LedgerError, match="edit flag"):
+        ledger.scan_entries([MARKER_NOTE], trusted={"bob"}, rejected=set())
+    with pytest.raises(ledger.LedgerError, match="edit flag"):
+        ledger.is_edited(MARKER_NOTE)
+    plain = {**MARKER_NOTE, "body": "no marker here"}
+    assert ledger.scan_entries([plain], trusted={"bob"}, rejected=set()).found == []
 
 
 def test_reconstruct_rejects_malformed_version_sequence_op_and_transition():
@@ -1172,7 +1199,7 @@ def test_every_stateful_command_fails_closed_before_write(tmp_path, edited):
         adapter = FakeAdapter(author="current")
         note = adapter._note(marker, "1")
         if edited:
-            note["updated_at"] = "2026-01-01T00:01:00Z"
+            note["edited"] = True
         else:
             note["author"] = "foreign"
         adapter.notes.append(note)
