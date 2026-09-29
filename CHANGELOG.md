@@ -37,6 +37,32 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-29
+
+### Added
+
+- **`/afk:setup` offers herdr.** herdr is a terminal workspace manager for AI
+  coding agents. Setup lists it as an opt-in row (`MANIFEST.md` · C15), off by
+  default, on every branch. Accept it and setup runs the vendor installer, then
+  checks `herdr --version`. No skill needs it.
+
+### Changed
+
+- **lavish-axi is now a required global install, not a per-call `npx`
+  download.** `/afk:setup` installs `lavish-axi` globally at the pin in
+  `LAVISH.md` and checks that the binary on `PATH` reports that exact version
+  (`MANIFEST.md` · N4, no longer deferred). Every render point calls the
+  `lavish-axi` binary directly. After updating, run `/afk:setup` once — it
+  runs `npm i -g lavish-axi@<pin>` — then `lavish-axi stop` with no session
+  open. A failed render still falls back to markdown.
+- **lavish-axi pin bumped 0.1.43 → 0.1.63**, the newest release at least 30
+  days old. `poll` no longer returns on detected layout issues: they wait in the
+  page's Layout issues inbox and reach the agent only when the user queues them.
+  `/afk:setup` installs the new pin.
+- **Lavish page diagrams are hand-authored inline SVG**, per lavish-axi's own
+  `diagram` playbook. Mermaid on a lavish page is now only for an editable
+  whiteboard the human asks for. Markdown specs keep Mermaid.
+
 ## [1.8.0] - 2026-09-29
 
 ### Added

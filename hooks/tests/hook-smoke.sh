@@ -351,6 +351,25 @@ postcompact:PostCompact|stop:Stop)
   fi
 done
 
+# ---- lavish render shape: the global binary's bare `lavish-axi <file>` command
+# (LAVISH.md "Pin and invocation") reaches both injection hooks.
+echo "== lavish bare render =="
+lv_dir=$(mktemp -d)
+lv_page="$lv_dir/page.html"
+printf '<!doctype html><html><head></head><body><p>PRD</p></body></html>\n' > "$lv_page"
+# A native Windows Python cannot open a POSIX temp path; hand it a mixed one.
+lv_arg=$(cygpath -m "$lv_page" 2>/dev/null || printf '%s' "$lv_page")
+lv_env=$(jq -n --arg cmd "lavish-axi $lv_arg --no-open" --arg cwd "$lv_dir" \
+  '{session_id:"s", cwd:$cwd, hook_event_name:"PreToolUse", tool_name:"Bash", tool_input:{command:$cmd}}')
+printf '%s' "$lv_env" | AFK_PROVIDER=claude bash "$lavish" >/dev/null 2>&1
+printf '%s' "$lv_env" | AFK_PROVIDER=claude bash "$lavish_tips" >/dev/null 2>&1
+if grep -q 'afk-lavish-dark' "$lv_page" && grep -q 'afk-tips-dict' "$lv_page"; then
+  pass "bare lavish-axi render injects dark mode and the tips runtime"
+else
+  fail "bare lavish-axi render left the page uninjected"
+fi
+rm -rf "$lv_dir"
+
 # ---- nested-steering handler: inject nested AGENTS.md below the launch dir on
 # a harness that loaded only the launch chain, dedup, reset, and stay silent on
 # the harness that reads nested files natively.

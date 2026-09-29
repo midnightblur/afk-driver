@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # lavish-dark.sh — PreToolUse hook (Bash/PowerShell): force dark mode on lavish-axi artifacts.
 #
-# Intercepts a `npx lavish-axi@<ver> <file>` RENDER command and injects a
+# Intercepts a `lavish-axi <file>` RENDER command and injects a
 # self-contained dark-mode override into the artifact HTML on disk before the
 # render runs. Deterministic enforcement — no skill instruction involved; the
 # authoring agent stays unaware.

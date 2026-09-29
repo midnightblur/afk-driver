@@ -451,6 +451,20 @@ a token value — not even partially.
   then put its `program` directory on `PATH`.
 - **Notes:** the Windows installer does not add `soffice` to `PATH`.
 
+### C15 · herdr **[opt-in]**
+- **Needed by:** developers who run several agent sessions side by side —
+  herdr is a terminal workspace manager for AI coding agents (workspaces, tabs,
+  panes, per-agent status). No skill invokes it; every skill runs without it.
+- **Probe:** `herdr --version`
+- **Fix:** `auto:` the vendor installer (<https://herdr.dev/docs/install/>):
+  - native Windows: `powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"`
+  - macOS / Linux: `curl -fsSL https://herdr.dev/install.sh | sh`
+  Then re-probe. The installer puts the binary on the user `PATH`, so a running
+  session reaches it only after a relaunch (`SKILL.md` step 2's stale-environment
+  rule).
+- **Notes:** setup installs and verifies only. It does not start herdr, create
+  a workspace, or move a session. `herdr update` self-updates later.
+
 ### P1 · Python 3
 - **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
   runs through, so without it no gate or guard fires at all — the shared
@@ -529,14 +543,23 @@ a token value — not even partially.
   (that file is the one home for suite setup — browsers included); the `api`
   suite is dependency-free (`node --test` on N1 alone).
 
-### N4 · lavish-axi (render points) **[deferred: first human-present render point]**
-- **Needed by:** any skill woven with a `render per LAVISH.md` point — the pin,
-  invocation shapes, and forbidden operations live in `LAVISH.md` (plugin
-  root), never restated here.
-- **Probe:** `command -v npx` (the pinned package resolves on first use; no
-  global install, no package.json — see `LAVISH.md`).
-- **Fix:** `human:` install Node/npx per N1; a failing render is **never** a
-  phase failure — every render point falls back to markdown (`LAVISH.md`).
+### N4 · lavish-axi (render points), global install at the pin
+- **Needed by:** any skill woven with a `render per LAVISH.md` point, and every
+  session-default render — the pin, invocation shapes, and forbidden operations
+  live in `LAVISH.md` (plugin root), never restated here.
+- **Probe:** the `lavish-axi` on `PATH` reports exactly the pin `LAVISH.md` states:
+  ```
+  want=$(sed -n 's/^\*\*Pin: `lavish-axi@\([0-9][0-9.]*\)`\*\*.*/\1/p' "$AFK_PLUGIN_ROOT/LAVISH.md")
+  test -n "$want" && [ "$(lavish-axi --version 2>/dev/null)" = "$want" ]
+  ```
+- **Fix:** `auto:` install Node/npm per N1 first, then
+  `npm i -g "lavish-axi@$want"` (`want` from the probe) — the same command
+  replaces a global install at another version. After a version change, run
+  `lavish-axi stop` with no session open so the background server restarts on
+  the pin.
+- **Notes:** a pin bump in `LAVISH.md` flips this probe red until setup re-runs.
+  A failing render at run time is still **never** a phase failure — every render
+  point falls back to markdown (`LAVISH.md`).
 
 ## S — Secrets
 

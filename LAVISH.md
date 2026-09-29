@@ -14,30 +14,32 @@ below says which pages take it.
 
 ## Pin and invocation
 
-**Pin: `lavish-axi@0.1.43`** — the only place this version string appears in
+**Pin: `lavish-axi@0.1.63`** — the only place this version string appears in
 the plugin.
 
 Chosen for the repo's dependency-age floor (exact pins, ≥30 days old):
-published 2026-07-22, 34 days old as of the 2026-08-25 CLI-surface
-verification (registry `time` field checked directly against
-`registry.npmjs.org`; every invocation shape below re-verified against the
-0.1.43 `--help` surface). The background server keeps whatever version launched
+published 2026-08-29, 31 days old as of the 2026-09-29 CLI-surface
+verification — the newest release past the floor (registry `time` field checked
+directly against `registry.npmjs.org`; every invocation shape below re-verified
+against the 0.1.63 `--help` surface). The background server keeps whatever version launched
 it — after a pin change, `stop` once no session is open so the next render
 starts the pinned version.
 
-No package.json, no npm root for this plugin — every invocation
-goes through pinned `npx`:
+Every invocation runs the global `lavish-axi` binary, installed at the pin by
+`/afk:setup` (`skills/afk/setup/MANIFEST.md` · N4). No package.json, no npm
+root for this plugin, no per-call `npx` resolution. `lavish-axi` missing from
+`PATH`, or reporting another version → run `/afk:setup`.
 
 | Shape | Command | Use |
 |---|---|---|
-| Render (open) | `npx lavish-axi@0.1.43 <file>` | the session's **first** render — opens or resumes a session and opens the browser |
-| Render (no browser) | `npx lavish-axi@0.1.43 <file> --no-open` | the warm-up and **every render after the first** — same, no browser window |
-| Reopen | `npx lavish-axi@0.1.43 <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
-| Poll | `npx lavish-axi@0.1.43 poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
-| Poll + reply | `npx lavish-axi@0.1.43 poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
-| End | `npx lavish-axi@0.1.43 end <file>` | end a session the agent initiated |
-| Stop | `npx lavish-axi@0.1.43 stop` | shut down the background server |
-| Playbook | `npx lavish-axi@0.1.43 playbook [id]` | show guidance for one playbook, or list all |
+| Render (open) | `lavish-axi <file>` | the session's **first** render — opens or resumes a session and opens the browser |
+| Render (no browser) | `lavish-axi <file> --no-open` | the warm-up and **every render after the first** — same, no browser window |
+| Reopen | `lavish-axi <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
+| Poll | `lavish-axi poll <file>` | long-poll until the user sends feedback or ends the session; detected layout issues wait in the page's Layout issues inbox and arrive only as a `layout-warnings` prompt the user queues, so the agent fixes only what the user queued |
+| Poll + reply | `lavish-axi poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
+| End | `lavish-axi end <file>` | end a session the agent initiated |
+| Stop | `lavish-axi stop` | shut down the background server |
+| Playbook | `lavish-axi playbook [id]` | show guidance for one playbook, or list all |
 
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.
@@ -70,7 +72,7 @@ command and block-list output that is not usable JSON.
 Exit `0` uses this sequence for the first visible render and each later visible
 render:
 
-1. Run the literal `npx lavish-axi@0.1.43 <file> --no-open` command. Do not
+1. Run the literal `lavish-axi <file> --no-open` command. Do not
    wrap it. Both injection hooks must see `lavish-axi` in the tool command.
 2. Take the exact generated session URL from that command. Pass it unchanged:
    `python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" open "<url>"`.
@@ -93,7 +95,7 @@ adds page JavaScript, or adds a terminal-command bridge. The existing
 
 **Warm-up.** At the start of an interactive phase with render points ahead,
 run one background render (`--no-open`) on the phase's artifact file so the
-first real render pays no `npx` resolution or server spin-up. Warm-up never
+first real render pays no server spin-up. Warm-up never
 checks Wave and never opens or replaces a Wave block. Reuse one
 artifact file per phase — a render opens **or resumes** a session; a fresh
 file per question forfeits the resume.
@@ -303,8 +305,11 @@ models, one per row):
 Color is a dimension, not decoration: one fixed semantic set across every
 page of a session — green = settled/pass, amber = open/undecided,
 red = blocked/rejected, neutral = existing/unchanged, accent = new/proposed —
-and never color alone (pair it with a label or icon). Diagrams follow the
-`draw-charts` skill (render-safe Mermaid).
+and never color alone (pair it with a label or icon). Diagrams are
+hand-authored inline SVG; the upstream `diagram` playbook
+(`lavish-axi playbook diagram`) owns their design rules. Mermaid only when the
+human asks for an editable whiteboard — `skills/utils/draw-charts` then owns
+its render safety.
 
 ## Authoring delegation (binding on the authored path)
 
@@ -324,7 +329,7 @@ HTML in its context (`DELEGATION.md`). Who does what:
   continuation vocabulary: `PROVIDERS.md`), so it keeps the page's structure
   and style in its own context; never a fresh spawn per round. The first
   spawn carries the artifact path, this file's path, the render point's
-  playbook id, and `skills/utils/draw-charts` for diagrams; every round after
+  playbook id, and the `diagram` playbook id for figures; every round after
   hands only the brief. The on-disk artifact stays the durable state: a lost
   child, or a provider without continuation, gets a fresh spawn that reads
   the artifact — degraded, not broken.
@@ -427,7 +432,7 @@ definition — the render points in the table above. **A driven-mode run never
 renders and never polls**: a no-timeout poll inside a
 hands-off run would wedge it on a human who is, by design, away.
 
-**Markdown fallback.** Any failure — `npx` failing to resolve, no browser
+**Markdown fallback.** Any failure — `lavish-axi` absent from `PATH`, no browser
 available, a `poll` that errors out — falls back to the skill's existing
 markdown flow. **Never a phase failure**: the phase completes via
 markdown, work is not lost, the skill continues exactly as before lavish
