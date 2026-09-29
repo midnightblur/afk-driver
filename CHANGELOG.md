@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-29
+
 ### Added
 
 - **Reasons for a change now live on the change, not in source comments.**
