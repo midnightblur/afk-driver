@@ -76,6 +76,9 @@ release page from its section here. Nobody tags by hand.
 - **Stale design-record citations removed.** Skill files no longer cite
   another feature's ADR numbers, which now collide with the plugin's own
   `adr/` records. Each fact stays; only the foreign citation is gone.
+- **No stray error on the first Stop in a fresh worktree.** The Stop gates
+  create their cache directory before writing the pass stamp, so a new
+  worktree no longer prints `No such file or directory`.
 
 ## [1.7.0] - 2026-09-24
 
