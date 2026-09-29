@@ -14,14 +14,14 @@ below says which pages take it.
 
 ## Pin and invocation
 
-**Pin: `lavish-axi@0.1.43`** — the only place this version string appears in
+**Pin: `lavish-axi@0.1.63`** — the only place this version string appears in
 the plugin.
 
 Chosen for the repo's dependency-age floor (exact pins, ≥30 days old):
-published 2026-07-22, 34 days old as of the 2026-08-25 CLI-surface
-verification (registry `time` field checked directly against
-`registry.npmjs.org`; every invocation shape below re-verified against the
-0.1.43 `--help` surface). The background server keeps whatever version launched
+published 2026-08-29, 31 days old as of the 2026-09-29 CLI-surface
+verification — the newest release past the floor (registry `time` field checked
+directly against `registry.npmjs.org`; every invocation shape below re-verified
+against the 0.1.63 `--help` surface). The background server keeps whatever version launched
 it — after a pin change, `stop` once no session is open so the next render
 starts the pinned version.
 
@@ -35,7 +35,7 @@ root for this plugin, no per-call `npx` resolution. `lavish-axi` missing from
 | Render (open) | `lavish-axi <file>` | the session's **first** render — opens or resumes a session and opens the browser |
 | Render (no browser) | `lavish-axi <file> --no-open` | the warm-up and **every render after the first** — same, no browser window |
 | Reopen | `lavish-axi <file> --reopen` | a **user-ended** session refuses a plain render; reopen only when the user asks for further review or something genuinely needs their eyes |
-| Poll | `lavish-axi poll <file>` | long-poll until the user sends feedback, ends the session, or the browser reports layout warnings |
+| Poll | `lavish-axi poll <file>` | long-poll until the user sends feedback or ends the session; detected layout issues wait in the page's Layout issues inbox and arrive only as a `layout-warnings` prompt the user queues, so the agent fixes only what the user queued |
 | Poll + reply | `lavish-axi poll <file> --agent-reply "<message>"` | same long-poll, but first surfaces the agent's reply in the editor's conversation panel — use when answering feedback just applied |
 | End | `lavish-axi end <file>` | end a session the agent initiated |
 | Stop | `lavish-axi stop` | shut down the background server |

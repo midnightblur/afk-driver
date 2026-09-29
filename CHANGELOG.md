@@ -55,6 +55,10 @@ release page from its section here. Nobody tags by hand.
   `lavish-axi` binary directly. After updating, run `/afk:setup` once — it
   runs `npm i -g lavish-axi@<pin>` — then `lavish-axi stop` with no session
   open. A failed render still falls back to markdown.
+- **lavish-axi pin bumped 0.1.43 → 0.1.63**, the newest release at least 30
+  days old. `poll` no longer returns on detected layout issues: they wait in the
+  page's Layout issues inbox and reach the agent only when the user queues them.
+  `/afk:setup` installs the new pin.
 
 ## [1.8.0] - 2026-09-29
 
