@@ -150,31 +150,83 @@ view_json() {  # $1 = change ref (branch name, number or URL)
   gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>"${VIEW_ERR:-/dev/null}"
 }
 
+# Prints {threads, edited} (a null flag: no `lastEditedAt` answered) or {error}.
 review_threads_json() {  # $1 repo, $2 pull request number
-  local owner=${1%%/*} name=${1#*/}
-  gh api graphql --paginate -F owner="$owner" -F name="$name" -F number="$2" -f query='
+  local owner=${1%%/*} name=${1#*/} raw
+  if ! raw=$(gh api graphql --paginate -F owner="$owner" -F name="$name" -F number="$2" -f query='
 query($owner:String!,$name:String!,$number:Int!,$endCursor:String) {
   repository(owner:$owner,name:$name) {
     pullRequest(number:$number) {
       reviewThreads(first:100,after:$endCursor) {
-        nodes { id isResolved comments(first:100) { nodes { databaseId } } }
+        nodes { id isResolved comments(first:100) { nodes { databaseId lastEditedAt } } }
         pageInfo { hasNextPage endCursor }
       }
     }
   }
-}' 2>/dev/null | "$PY" -c '
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL review-thread query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
 import json, sys
-decoder=json.JSONDecoder(); text=sys.stdin.read(); i=0; out={}
-while True:
-    while i < len(text) and text[i].isspace(): i += 1
-    if i >= len(text): break
-    doc, i = decoder.raw_decode(text, i)
-    threads=((((doc.get("data") or {}).get("repository") or {}).get("pullRequest") or {}).get("reviewThreads") or {}).get("nodes") or []
-    for thread in threads:
-        comments=(thread.get("comments") or {}).get("nodes") or []
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL review-thread answer is unreadable")
+threads, edited = {}, {}
+for doc in docs:
+    pull = ((((doc.get("data") or {}).get("repository") or {}).get("pullRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(pull, dict) or doc.get("errors"):
+        fail("the GraphQL review-thread answer holds no pull request")
+    for thread in (pull.get("reviewThreads") or {}).get("nodes") or []:
+        comments = (thread.get("comments") or {}).get("nodes") or []
         if comments and comments[0].get("databaseId") is not None:
-            out[str(comments[0]["databaseId"])]={"node":thread.get("id") or "", "resolved":bool(thread.get("isResolved"))}
-print(json.dumps(out))
+            threads[str(comments[0]["databaseId"])] = {"node": thread.get("id") or "", "resolved": bool(thread.get("isResolved"))}
+        for comment in comments:
+            if comment.get("databaseId") is not None:
+                edited[str(comment["databaseId"])] = bool(comment["lastEditedAt"]) if "lastEditedAt" in comment else None
+print(json.dumps({"threads": threads, "edited": edited}))
+'
+}
+
+# Prints {edited} for the issue comments of a pull request, or {error}.
+issue_comment_edits_json() {  # $1 repo, $2 pull request number
+  local owner=${1%%/*} name=${1#*/} raw
+  if ! raw=$(gh api graphql --paginate -F owner="$owner" -F name="$name" -F number="$2" -f query='
+query($owner:String!,$name:String!,$number:Int!,$endCursor:String) {
+  repository(owner:$owner,name:$name) {
+    pullRequest(number:$number) {
+      comments(first:100,after:$endCursor) {
+        nodes { databaseId lastEditedAt }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL comment query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL comment answer is unreadable")
+edited = {}
+for doc in docs:
+    pull = ((((doc.get("data") or {}).get("repository") or {}).get("pullRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(pull, dict) or doc.get("errors"):
+        fail("the GraphQL comment answer holds no pull request")
+    for comment in (pull.get("comments") or {}).get("nodes") or []:
+        if comment.get("databaseId") is not None:
+            edited[str(comment["databaseId"])] = bool(comment["lastEditedAt"]) if "lastEditedAt" in comment else None
+print(json.dumps({"edited": edited}))
 '
 }
 
@@ -446,22 +498,35 @@ note-list)
   repo=$_repo
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
+  edits=$(issue_comment_edits_json "$repo" "$number")
   gh api --paginate "repos/$repo/issues/$number/comments?per_page=100" 2>/dev/null \
     | "$PY" -c "$PAGES"'
 import json, sys
+edits = json.loads(sys.argv[1])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "gh returned no readable JSON"}))
     raise SystemExit(0)
-notes = [{"id": str(n.get("id") or ""),
-          "author": (n.get("user") or {}).get("login") or "",
-          "body": n.get("body") or "",
-          "created_at": n.get("created_at") or "",
-          "updated_at": n.get("updated_at") or ""} for n in data]
+notes = []
+for n in data:
+    ident = str(n.get("id") or "")
+    flag = edits["edited"].get(ident)
+    if flag is None:
+        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for comment " + ident}))
+        raise SystemExit(0)
+    notes.append({"id": ident,
+                  "author": (n.get("user") or {}).get("login") or "",
+                  "body": n.get("body") or "",
+                  "created_at": n.get("created_at") or "",
+                  "updated_at": n.get("updated_at") or "",
+                  "edited": flag})
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
-'
+' "$edits"
   ;;
 
 commit-changes)
@@ -512,6 +577,9 @@ thread-list)
   gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
 graph=json.loads(sys.argv[1])
+if "error" in graph:
+    print(json.dumps({"error": True, "reason": graph["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
@@ -524,9 +592,13 @@ for c in data if isinstance(data, list) else []:
         roots[root] = []
         order.append(root)
     roots[root].append(c)
-missing = [str(root) for root in order if str(root) not in graph]
+missing = [str(root) for root in order if str(root) not in graph["threads"]]
 if missing:
     print(json.dumps({"error": True, "reason": "GraphQL review thread missing for REST roots: " + ", ".join(missing)}))
+    raise SystemExit(0)
+unknown = [str(n.get("id")) for root in order for n in roots[root] if graph["edited"].get(str(n.get("id"))) is None]
+if unknown:
+    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for review comments: " + ", ".join(unknown)}))
     raise SystemExit(0)
 threads = []
 for root in order:
@@ -539,7 +611,7 @@ for root in order:
                 if side == "old" else None)
     threads.append({
         "id": str(root),
-        "resolved": bool((graph.get(str(root)) or {}).get("resolved")),
+        "resolved": bool((graph["threads"].get(str(root)) or {}).get("resolved")),
         "file": first.get("path"),
         "side": side, "line": line, "old_line": old_line,
         "old_path": first.get("old_path") or first.get("path"),
@@ -550,7 +622,8 @@ for root in order:
                    "type": "ReviewComment",
                    "body": n.get("body") or "",
                    "created_at": n.get("created_at") or "",
-                   "updated_at": n.get("updated_at") or ""} for n in notes],
+                   "updated_at": n.get("updated_at") or "",
+                   "edited": graph["edited"][str(n.get("id"))]} for n in notes],
     })
 threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), t["id"]))
 print(json.dumps({"threads": threads, "count": len(threads)}))
@@ -577,8 +650,8 @@ thread-resolve)
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
   graph=$(review_threads_json "$repo" "$number")
-  node=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print((json.load(sys.stdin).get(sys.argv[1]) or {}).get("node", ""))' "$thread")
-  current=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print("true" if (json.load(sys.stdin).get(sys.argv[1]) or {}).get("resolved") else "false")' "$thread")
+  node=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print((json.load(sys.stdin).get("threads", {}).get(sys.argv[1]) or {}).get("node", ""))' "$thread")
+  current=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print("true" if (json.load(sys.stdin).get("threads", {}).get(sys.argv[1]) or {}).get("resolved") else "false")' "$thread")
   if [ -z "$node" ]; then
     printf '{"error":true,"verb":"thread-resolve","reason":"could not map REST root %s to a GraphQL review thread"}\n' "$thread"
     exit 0

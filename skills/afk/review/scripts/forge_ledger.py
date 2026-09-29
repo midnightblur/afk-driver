@@ -616,7 +616,7 @@ def scan_entries(entries, trusted, rejected):
         marker_bearing = bool(MARKER_HINT_RE.search(body) or LEGACY_SUMMARY_RE.search(body))
         if not marker_bearing:
             continue
-        if entry.get("updated_at") and entry.get("created_at") and entry["updated_at"] > entry["created_at"]:
+        if is_edited(entry):
             edited += 1
             continue
         author = entry.get("author", "")
@@ -1633,8 +1633,10 @@ def strip_markers(body):
 
 
 def is_edited(entry):
-    return bool(entry.get("updated_at") and entry.get("created_at")
-                and entry["updated_at"] > entry["created_at"])
+    """The forge's own edit flag; a note without it is unusable, never assumed unedited."""
+    if not isinstance(entry.get("edited"), bool):
+        raise LedgerError(f"note lacks the forge edit flag: {entry.get('id') or entry.get('url') or '?'}")
+    return entry["edited"]
 
 
 def rationale_scan(entries, trusted, rejected, label=False):

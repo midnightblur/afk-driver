@@ -220,6 +220,51 @@ view_json() {  # $1 = change ref (branch name or id)
   glab mr view "$1" "${REPO_FLAG[@]}" -F json 2>"${VIEW_ERR:-/dev/null}"
 }
 
+# Prints {edited} for the notes of a merge request, or {error}; GraphQL needs the project path.
+note_edits_json() {  # $1 = merge request iid
+  local path raw
+  path=$(glab api "projects/:id" 2>/dev/null \
+    | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("path_with_namespace",""))' 2>/dev/null)
+  if [ -z "$path" ]; then
+    printf '{"error":"the project path could not be resolved for GraphQL"}\n'
+    return 0
+  fi
+  if ! raw=$(glab api graphql --paginate -f path="$path" -f iid="$1" -f query='
+query($path:ID!,$iid:String!,$endCursor:String) {
+  project(fullPath:$path) {
+    mergeRequest(iid:$iid) {
+      notes(first:100,after:$endCursor) {
+        nodes { id lastEditedAt }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL note query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL note answer is unreadable")
+edited = {}
+for doc in docs:
+    mr = ((((doc.get("data") or {}).get("project") or {}).get("mergeRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(mr, dict) or doc.get("errors"):
+        fail("the GraphQL note answer holds no merge request")
+    for node in (mr.get("notes") or {}).get("nodes") or []:
+        ident = str(node.get("id") or "").rsplit("/", 1)[-1]
+        if ident:
+            edited[ident] = bool(node["lastEditedAt"]) if "lastEditedAt" in node else None
+print(json.dumps({"edited": edited}))
+'
+}
+
 case "$verb" in
 
 change-view)
@@ -500,23 +545,37 @@ print(json.dumps({"ok": bool(ident), "inline": inline,
 
 note-list)
   iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
+  edits=$(note_edits_json "$iid")
   glab api --paginate "projects/:id/merge_requests/$iid/notes?per_page=100&sort=asc&order_by=created_at" 2>/dev/null \
     | "$PY" -c "$PAGES"'
 import json, sys
+edits = json.loads(sys.argv[1])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "glab returned no readable JSON"}))
     raise SystemExit(0)
-notes = [{"id": str(n.get("id") or ""),
-          "author": (n.get("author") or {}).get("username") or "",
-          "body": n.get("body") or "",
-          "created_at": n.get("created_at") or "",
-          "updated_at": n.get("updated_at") or ""}
-         for n in data if not n.get("system") and not n.get("type")]
+notes = []
+for n in data:
+    if n.get("system") or n.get("type"):
+        continue
+    ident = str(n.get("id") or "")
+    flag = edits["edited"].get(ident)
+    if flag is None:
+        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for note " + ident}))
+        raise SystemExit(0)
+    notes.append({"id": ident,
+                  "author": (n.get("author") or {}).get("username") or "",
+                  "body": n.get("body") or "",
+                  "created_at": n.get("created_at") or "",
+                  "updated_at": n.get("updated_at") or "",
+                  "edited": flag})
 notes.sort(key=lambda n: (n["created_at"], n["id"]))
 print(json.dumps({"notes": notes, "count": len(notes)}))
-'
+' "$edits"
   ;;
 
 commit-changes)
@@ -560,12 +619,22 @@ thread-list)
   meta=$(view_json "$(arg id)")
   iid=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
   change_url=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("web_url", ""))')
+  edits=$(note_edits_json "$iid")
   glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
+edits = json.loads(sys.argv[2])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "glab returned no readable JSON"}))
+    raise SystemExit(0)
+unknown = [str(n.get("id")) for d in (data if isinstance(data, list) else []) for n in d.get("notes") or []
+           if edits["edited"].get(str(n.get("id"))) is None]
+if unknown:
+    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for notes: " + ", ".join(unknown)}))
     raise SystemExit(0)
 threads = []
 for d in data if isinstance(data, list) else []:
@@ -587,11 +656,12 @@ for d in data if isinstance(data, list) else []:
                    "type": n.get("type"),
                    "body": n.get("body") or "",
                    "created_at": n.get("created_at") or "",
-                   "updated_at": n.get("updated_at") or ""} for n in notes],
+                   "updated_at": n.get("updated_at") or "",
+                   "edited": edits["edited"][str(n.get("id"))]} for n in notes],
     })
 threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), str(t["id"] or "")))
 print(json.dumps({"threads": threads, "count": len(threads)}))
-' "$change_url"
+' "$change_url" "$edits"
   ;;
 
 thread-reply)

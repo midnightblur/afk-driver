@@ -69,7 +69,8 @@ class Forge:
 
     def note(self, author, body, number):
         return {"id": number, "author": author, "body": body, "url": f"https://f/n{number}",
-                "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}
+                "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+                "edited": False}
 
     def call(self, verb, payload, mode="read"):
         self.calls.append((verb, payload))
@@ -353,7 +354,7 @@ def test_verify_ignores_a_marker_from_an_untrusted_author_and_an_edited_one(worl
     assert result["ok"] is False and result["missing"] == [op]
     assert "stranger" in result["excluded"]["untrusted"]
     assert verify(world, trust=["stranger"])["ok"] is True
-    change["threads"][0]["notes"][0]["updated_at"] = "2026-02-01T00:00:00Z"
+    change["threads"][0]["notes"][0]["edited"] = True
     edited = verify(world, trust=["stranger"])
     assert edited["ok"] is False and edited["excluded"]["edited"]
 
@@ -594,7 +595,8 @@ elif verb == "change-comment":
     change = find(payload["id"])
     number = ident()
     note = {"id": number, "author": "bot", "body": payload["text"], "url": "https://f/n" + number,
-            "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}
+            "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+            "edited": False}
     if payload.get("line") is not None:
         change["threads"].append({"id": "t" + number, "resolved": False, "url": note["url"], "notes": [note]})
         out({"ok": True, "inline": True, "thread": "t" + number, "comment": number, "url": note["url"]})
@@ -838,7 +840,7 @@ def test_read_returns_an_edited_note_labeled_edited(world):
     add(world)
     push(world)
     post(world)
-    world.forge.changes["1"]["threads"][0]["notes"][0]["updated_at"] = "2026-02-01T00:00:00Z"
+    world.forge.changes["1"]["threads"][0]["notes"][0]["edited"] = True
     candidate = read(world)["candidates"][0]
     assert candidate["edit_state"] == "edited" and candidate["author_class"] == "self"
 
@@ -853,7 +855,7 @@ def test_read_ranks_trusted_unedited_notes_first_and_excludes_only_rejected(worl
     ordered = sorted(threads, key=lambda t: t["notes"][0]["body"])
     for note, author in zip((t["notes"][0] for t in ordered), ("stranger", "teammate", "bot")):
         note["author"] = author
-    ordered[1]["notes"][0]["updated_at"] = "2026-02-01T00:00:00Z"
+    ordered[1]["notes"][0]["edited"] = True
     found = read(world, reject=["stranger"])
     assert [c["author"] for c in found["candidates"]] == ["bot", "teammate"]
     assert found["excluded"]["rejected"] == 1
@@ -1023,3 +1025,25 @@ def test_batch_input_and_a_direct_target_are_exclusive(world, monkeypatch):
     done = cli(world, monkeypatch, "rationale-read", "--batch-file", str(batch), "--path",
                "src/App.java", "--line", "3")
     assert done.returncode != 0
+
+
+# ---- forge edit flag ---------------------------------------------------------
+
+def test_a_later_updated_at_does_not_label_a_note_edited(world):
+    add(world)
+    push(world)
+    post(world)
+    note = world.forge.changes["1"]["threads"][0]["notes"][0]
+    note["updated_at"] = "2026-03-01T00:00:00Z"
+    candidate = read(world)["candidates"][0]
+    assert candidate["edit_state"] == "unedited"
+    assert verify(world)["ok"] is True
+
+
+def test_a_note_without_the_edit_flag_fails_the_read_closed(world):
+    add(world)
+    push(world)
+    post(world)
+    del world.forge.changes["1"]["threads"][0]["notes"][0]["edited"]
+    with pytest.raises(ledger.LedgerError, match="edit flag"):
+        read(world)

@@ -65,6 +65,15 @@ release page from its section here. Nobody tags by hand.
   Local `plan/review/` files remain telemetry. Repositories can widen the
   narrow ledger-only path default with `review.ledger-only-paths`.
 
+### Fixed
+
+- **A note counts as edited only when the forge says so.** The review ledger
+  and the rationale reader compared `updated_at` with `created_at`, and GitHub
+  moves `updated_at` on an untouched reply, so a settle loop halted after its
+  first reply. `note-list` and `thread-list` now carry `edited` from the
+  forge's own GraphQL `lastEditedAt`; a failed query is an error, and a note
+  without the flag is refused instead of read as unedited.
+
 ## [1.7.0] - 2026-09-24
 
 ### Added

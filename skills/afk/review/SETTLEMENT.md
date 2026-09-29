@@ -150,7 +150,7 @@ Accept markers only from trusted authors. Ignore rejected authors and count them
 
 The `afk:settle:trust` marker records the declared author lists for audit only. Reconstruction uses the command's `--trust` and `--reject` options, not this marker.
 
-Ignore a marker-bearing note or comment when `updated_at` is later than `created_at`. Count it as `edited_markers`. Any positive count fails every reconstructing command before any state change.
+Ignore a marker-bearing note or comment whose `edited` flag is true. The forge sets the flag; `updated_at` is not an edit signal. A marker-bearing note without the flag is corruption. Count the edited one as `edited_markers`. Any positive count fails every reconstructing command before any state change.
 
 ### Reconstruction
 

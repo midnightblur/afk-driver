@@ -93,8 +93,12 @@ failure answers `missing: false`; callers must not read it as absence. Each `gh`
 `AFK_FORGE_TIMEOUT` seconds.
 
 `note-list` returns `notes` and `count`. Each note carries `id`, `author`,
-`body`, `created_at`, and `updated_at`. Each thread carries the same fields for
-its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`, and `url`.
+`body`, `created_at`, `updated_at`, and `edited`. Each thread carries the same
+fields for its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`,
+and `url`. `edited` is a boolean from the forge's own edit signal (GraphQL
+`lastEditedAt`). `updated_at` is ordering data only: it moves on activity that is
+not an edit. A verb that cannot read the signal answers `error`; it never guesses
+`false`, and a caller refuses a note without the field.
 
 `ci-wait` is the one verb with an exit-code contract, because a caller routes on
 it rather than on a body: 0 the pipeline succeeded, 1 it failed or was cancelled,
