@@ -6,7 +6,7 @@
   },
   "priority": 10,
   "harness_class": "H-2",
-  "move_hint": "move the session into a linked worktree: start the harness through the plugin launch command, or create one with `{plugin_root}/scripts/create-worktree --name <name>` and type `/cd <worktree path>`.",
+  "move_hint": "move the session into a linked worktree: start the harness through `{plugin_root}/scripts/afk-launch.py <harness>`, or create one with `{plugin_root}/scripts/create-worktree --name <name>` and type `/cd <worktree path>`.",
   "tool_class": {
     "edit": [
       "apply_patch",

@@ -300,7 +300,7 @@ afk_stop_block_code() {
   if command -v "$function" >/dev/null 2>&1; then
     "$function"
   else
-    printf '2\n'
+    printf '0\n'
   fi
 }
 

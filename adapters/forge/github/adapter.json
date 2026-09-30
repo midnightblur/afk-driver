@@ -20,8 +20,7 @@
     "thread-resolve",
     "ci-status",
     "ci-wait",
-    "auth-status",
-    "branch-protection"
+    "auth-status"
   ],
   "runner": {
     "type": "cli",

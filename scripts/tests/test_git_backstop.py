@@ -59,6 +59,13 @@ def install(repo: Path, env: dict | None = None) -> subprocess.CompletedProcess:
                           env=env or agent(), timeout=120)
 
 
+def installed(repo: Path) -> None:
+    """Install and prove both hooks landed, so a later refusal test never runs against a bare repo."""
+    done = install(repo)
+    assert done.returncode == 0, done.stderr
+    assert (hooks_dir(repo) / "pre-commit").is_file() and (hooks_dir(repo) / "reference-transaction").is_file(), done.stderr
+
+
 def hooks_dir(repo: Path) -> Path:
     return Path(git(repo, "rev-parse", "--path-format=absolute", "--git-path", "hooks").stdout.strip())
 
@@ -91,7 +98,7 @@ def commit(where: Path, env: dict, *extra: str) -> subprocess.CompletedProcess:
 
 
 def test_an_agent_commit_in_the_main_checkout_is_refused_and_a_human_one_passes(repo):
-    install(repo)
+    installed(repo)
     head = git(repo, "rev-parse", "HEAD").stdout
     refused = commit(repo, agent())
     assert refused.returncode != 0 and "main checkout" in refused.stderr
@@ -100,19 +107,19 @@ def test_an_agent_commit_in_the_main_checkout_is_refused_and_a_human_one_passes(
 
 
 def test_no_verify_still_meets_the_ref_transaction_veto(repo):
-    install(repo)
+    installed(repo)
     refused = commit(repo, agent(), "--no-verify")
-    assert refused.returncode != 0 and "main checkout" in refused.stderr
+    assert refused.returncode != 0 and "main checkout" in refused.stderr, (refused.returncode, refused.stderr)
 
 
 @pytest.mark.parametrize("override", [{"AFK_ALLOW_PROTECTED": "1"}, {"AFK_WORKTREE_OP": "1"}])
 def test_the_override_and_the_plugin_marker_pass(repo, override):
-    install(repo)
+    installed(repo)
     assert commit(repo, agent(**override)).returncode == 0
 
 
 def test_an_agent_commit_in_a_worktree_is_refused_only_on_a_protected_branch(repo, tmp_path):
-    install(repo)
+    installed(repo)
     assert git(repo, "worktree", "add", "-q", str(tmp_path / "prot"), "main").returncode == 0
     assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
     refused = commit(tmp_path / "prot", agent())
@@ -124,7 +131,7 @@ def test_an_agent_commit_in_a_worktree_is_refused_only_on_a_protected_branch(rep
 @pytest.mark.parametrize("move", [("switch", "-q", "feature"), ("checkout", "-q", "feature"),
                                   ("reset", "-q", "--hard", "HEAD"), ("switch", "-q", "--detach")])
 def test_an_agent_branch_move_in_the_main_checkout_is_refused_and_a_human_one_passes(repo, move):
-    install(repo)
+    installed(repo)
     commit(repo, human())
     head = git(repo, "symbolic-ref", "-q", "HEAD").stdout
     if move[0] == "reset":
@@ -137,7 +144,7 @@ def test_an_agent_branch_move_in_the_main_checkout_is_refused_and_a_human_one_pa
 
 
 def test_a_new_worktree_branch_from_the_main_checkout_is_not_a_move(repo, tmp_path):
-    install(repo)
+    installed(repo)
     made = git(repo, "worktree", "add", "-q", "-b", "fresh", str(tmp_path / "fresh"), env=agent())
     assert made.returncode == 0, made.stderr
     made = git(repo, "worktree", "add", "-q", "--detach", str(tmp_path / "det"), env=agent())
@@ -148,19 +155,19 @@ def test_a_new_worktree_branch_from_the_main_checkout_is_not_a_move(repo, tmp_pa
 
 
 def test_the_marker_of_the_plugin_is_not_left_on_for_plain_git(repo):
-    install(repo)
+    installed(repo)
     assert git(repo, "switch", "-q", "feature", env=agent()).returncode != 0
 
 
 def test_a_human_is_never_gated_even_with_the_hooks_installed(repo):
-    install(repo)
+    installed(repo)
     assert git(repo, "switch", "-q", "feature", env=human()).returncode == 0
     assert commit(repo, human()).returncode == 0
 
 
 @pytest.mark.parametrize("route", ["merge", "rebase"])
 def test_r4_8_an_agent_merge_or_rebase_in_the_main_checkout_moves_nothing(repo, route):
-    install(repo)
+    installed(repo)
     git(repo, "switch", "-q", "feature", env=human())
     commit(repo, human())
     git(repo, "switch", "-q", "trunk", env=human())
@@ -173,7 +180,7 @@ def test_r4_8_an_agent_merge_or_rebase_in_the_main_checkout_moves_nothing(repo, 
 
 
 def test_r4_8_an_agent_fetch_passes(repo, tmp_path):
-    install(repo)
+    installed(repo)
     remote = tmp_path / "remote.git"
     assert subprocess.run(["git", "init", "-q", "--bare", str(remote)], capture_output=True).returncode == 0
     git(repo, "remote", "add", "origin", str(remote))
@@ -182,7 +189,7 @@ def test_r4_8_an_agent_fetch_passes(repo, tmp_path):
 
 
 def test_r4_4_an_agent_stash_in_the_main_checkout_is_not_a_move(repo):
-    install(repo)
+    installed(repo)
     (repo / "f.txt").write_text("x\n", encoding="utf-8")
     git(repo, "add", "f.txt")
     done = git(repo, "stash", env=agent())
@@ -191,7 +198,7 @@ def test_r4_4_an_agent_stash_in_the_main_checkout_is_not_a_move(repo):
 
 
 def test_r4_2_a_stale_head_lock_does_not_open_the_head_veto(repo):
-    install(repo)
+    installed(repo)
     lock = repo / ".git" / "worktrees" / "ghost" / "HEAD.lock"
     lock.parent.mkdir(parents=True)
     lock.write_text("", encoding="utf-8")
@@ -203,7 +210,7 @@ def test_r4_2_a_stale_head_lock_does_not_open_the_head_veto(repo):
 
 
 def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path):
-    install(repo)
+    installed(repo)
     assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
     (tmp_path / "free" / "a.py").write_text("# 1\n# 2\n# 3\n# 4\nx = 1\n", encoding="utf-8")
     git(tmp_path / "free", "add", "a.py")
@@ -214,7 +221,7 @@ def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path)
 @pytest.mark.parametrize("route", [("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"),
                                    ("cherry-pick", "side"), ("rebase", "side")])
 def test_r4_5_a_protected_linked_worktree_cannot_move_its_branch(repo, tmp_path, route):
-    install(repo)
+    installed(repo)
     git(repo, "branch", "side", "feature")
     git(repo, "switch", "-q", "side", env=human())
     commit(repo, human())
@@ -227,7 +234,7 @@ def test_r4_5_a_protected_linked_worktree_cannot_move_its_branch(repo, tmp_path,
 
 
 def test_r4_5_an_unprotected_linked_worktree_still_moves_its_branch(repo, tmp_path):
-    install(repo)
+    installed(repo)
     assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
     assert git(tmp_path / "free", "commit", "-q", "--allow-empty", "-m", "c", "--no-verify", env=agent()).returncode == 0
 

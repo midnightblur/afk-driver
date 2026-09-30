@@ -116,7 +116,7 @@ def prompts(log: Path) -> list[list[str]]:
 
 
 def test_inside_herdr_the_helper_types_the_unquoted_cd_line_once(repo, tmp_path):
-    herdr, log = stub_herdr(tmp_path, "Working directory changed to: x")
+    herdr, log = stub_herdr(tmp_path, "\u203a\nWorking directory changed to: x")
     done = refuse(repo, "s3", HERDR_ENV="1", HERDR_PANE_ID="w:p1", HERDR_BIN_PATH=herdr)
     path = typed_path(done.stderr)
     end = time.time() + 600
@@ -132,7 +132,7 @@ def test_the_helper_retries_only_when_the_harness_refused_the_line(tmp_path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.SETTLE = 0
-    herdr, log = stub_herdr(tmp_path, "'/cd' is disabled while a task is in progress.")
+    herdr, log = stub_herdr(tmp_path, "\u203a\n'/cd' is disabled while a task is in progress.")
     module.type_line(herdr, "w:p2", Path("C:/x"))
     assert len(prompts(log)) == module.ATTEMPTS
 
@@ -254,6 +254,14 @@ def test_r5_6_the_helper_does_not_type_over_the_humans_half_written_message(tmp_
     assert not any(c[:2] in (["agent", "prompt"], ["agent", "send-keys"]) for c in calls)
 
 
+@pytest.mark.parametrize("shown", ["", "no composer on screen"])
+def test_r8_4_an_unreadable_pane_gets_nothing_typed(tmp_path, shown):
+    herdr, log = stub_herdr(tmp_path, shown)
+    load_move().type_line(herdr, "w:p5", Path("C:/x"))
+    calls = [json.loads(c) for c in log.read_text(encoding="utf-8").splitlines()]
+    assert not any(c[:2] in (["agent", "prompt"], ["agent", "send-keys"]) for c in calls)
+
+
 @pytest.mark.parametrize("shown", ["\u203a", "\u203a /cd C:/old"])
 def test_r5_6_an_empty_composer_or_the_helpers_own_earlier_line_gets_the_line(tmp_path, shown):
     herdr, log = stub_herdr(tmp_path, shown)
@@ -306,3 +314,4 @@ def test_r5_10_the_creation_records_the_owner_the_guard_resolved(repo):
         time.sleep(1)  # the record is written after the worktree appears
     found = json.loads(next((repo / ".git" / "afk-worktrees").glob("*.json")).read_text(encoding="utf-8"))
     assert found["owner"]["pid"] == os.getpid()
+

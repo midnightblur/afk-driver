@@ -11,7 +11,6 @@ GitHub pull requests through `gh`.
 - `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
-- `branch-protection`
 
 
 Every verb takes its arguments as JSON on the command line or on stdin, and

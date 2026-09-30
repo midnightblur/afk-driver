@@ -367,12 +367,6 @@ print(json.dumps({"status": p.get("status") or "", "url": p.get("web_url") or ""
 '
   ;;
 
-branch-protection)
-  # The reads and the verdict rule live in adapters/forge/branch_protection.py.
-  branch=$(arg branch)
-  "$PY" "$FORGE_DIR/../branch_protection.py" gitlab --branch "$branch" ${REPO_FLAG[1]:+--repo "${REPO_FLAG[1]}"}
-  ;;
-
 auth-status)
   if glab auth status >/dev/null 2>&1; then
     user=$(glab api user 2>/dev/null | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("username",""))' 2>/dev/null)

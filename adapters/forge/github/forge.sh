@@ -363,12 +363,6 @@ print(json.dumps({"status": (d.get("pipeline") or {}).get("status", ""), "url": 
 '
   ;;
 
-branch-protection)
-  # The reads and the verdict rule live in adapters/forge/branch_protection.py.
-  branch=$(arg branch)
-  "$PY" "$FORGE_DIR/../branch_protection.py" github --branch "$branch" ${REPO_FLAG[1]:+--repo "${REPO_FLAG[1]}"}
-  ;;
-
 auth-status)
   if gh auth status >/dev/null 2>&1; then
     user=$(gh api user --jq .login 2>/dev/null)

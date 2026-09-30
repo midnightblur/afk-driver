@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Is one branch protected on the forge? The `branch-protection` verb's one home.
+"""Is one branch protected on the forge? The forge family's shared read.
 
     python branch_protection.py github|gitlab --branch <name> [--repo <slug>] [--timeout <s>]
       -> {"protected": bool, "via": "branch"|"ruleset"|"none"}
        | {"error": true, "verb": "branch-protection", "reason": "..."}
 
-The forge adapters' verb and `scripts/protected-lookup.py` both call `protection`.
+`scripts/protected-lookup.py` calls `protection` in-process; no adapter verb fronts it.
 A failing read is an error, never "not protected". The time cap is wall-clock: a
 child still running at the cap is killed with its process tree.
 

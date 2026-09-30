@@ -110,6 +110,8 @@ def type_line(binary: str, pane: str, path: Path) -> None:
         if not idle(binary, pane):
             continue
         text = composer_text(read_pane(binary, pane))
+        if text is None:
+            return  # an unreadable pane may hold the human's half-written message
         if text and not text.startswith("/cd "):
             return  # the human is typing: the refusal already printed the line
         if text:

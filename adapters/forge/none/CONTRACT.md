@@ -12,7 +12,6 @@ set forge: gitlab|github in .afk/config.yaml"}` and exits 3.
 - `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
-- `branch-protection`
 
 
 Every verb takes its arguments as JSON on the command line or on stdin, and
