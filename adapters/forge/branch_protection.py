@@ -116,20 +116,27 @@ def _together(reads: dict, deadline: float) -> dict:
 def _github(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict:
     enc = urllib.parse.quote(branch, safe="/")
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    answers = None
     if api and token and repo:
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
                    "User-Agent": "afk-protected-lookup"}
 
-        def get(path: str):
+        def by_token(path: str):
             done = _https_get(f"{api}/repos/{repo}/{path}/{enc}", headers, deadline)
-            return None if done is None else (done[0] if done[0] in (200, 404) else 0, done[1])
-    else:
+            return None if done is None else (done[0] if done[0] in (200, 404, 401, 403) else 0, done[1])
+
+        answers = _together({"branch": lambda: by_token("branches"), "rules": lambda: by_token("rules/branches")},
+                            deadline)
+        if any(a and a[0] in (401, 403) for a in answers.values()):
+            answers = None  # this token is not good for this host: the CLI may hold a login that is
+    if answers is None:
         base = f"repos/{repo}" if repo else "repos/{owner}/{repo}"
 
-        def get(path: str):
+        def by_cli(path: str):
             return _cli_get(["gh", "api", f"{base}/{path}/{enc}"], cwd, deadline)
 
-    answers = _together({"branch": lambda: get("branches"), "rules": lambda: get("rules/branches")}, deadline)
+        answers = _together({"branch": lambda: by_cli("branches"), "rules": lambda: by_cli("rules/branches")},
+                            deadline)
     flag = answers.get("branch")
     if flag is None:
         return _error("the branch read did not answer (missing CLI, network or timeout)")
@@ -176,16 +183,20 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
     project = urllib.parse.quote(repo, safe="") if repo else ":id"
     token = os.environ.get("GITLAB_TOKEN") or ""
     texts: list[str] = []
+    refused = False
     if api and token and repo:
         page = "1"
         while page:
             done = _https_get(f"{api}/projects/{project}/protected_branches?per_page=100&page={page}",
                               {"PRIVATE-TOKEN": token}, deadline)
+            if done is not None and done[0] in (401, 403):
+                refused, texts = True, []  # this token is not good for this host: try the CLI
+                break
             if done is None or done[0] != 200:
                 return _error("the protected-branch read failed")
             texts.append(done[1])
             page = {k.lower(): v for k, v in done[2].items()}.get("x-next-page", "").strip()
-    else:
+    if refused or not (api and token and repo):
         done = _run(["glab", "api", "--paginate", f"projects/{project}/protected_branches?per_page=100"],
                     cwd, deadline)
         if done is None or done[0] != 0:

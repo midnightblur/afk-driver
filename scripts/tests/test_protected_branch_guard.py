@@ -57,7 +57,7 @@ def repo(tmp_path: Path):
 def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
                if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
-                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_FORGE_API_URL")}
+                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
     environ.update({"AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
     return environ
 
@@ -415,7 +415,7 @@ def forge(repo):
     threading.Thread(target=server.serve_forever, daemon=True).start()
     git(repo["main"], "remote", "add", "origin", "https://github.com/acme/widget.git")
     yield {"routes": Forge.routes, "seen": Forge.seen, "env": {
-        "GH_TOKEN": "t", "AFK_FORGE_API_URL": f"http://127.0.0.1:{server.server_address[1]}"}}
+        "GH_TOKEN": "t", "AFK_GITHUB_API_URL": f"http://127.0.0.1:{server.server_address[1]}"}}
     server.shutdown()
 
 
@@ -457,7 +457,7 @@ def test_a15_the_two_reads_run_at_once(repo, forge):
     started = time.monotonic()
     done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
     assert done.returncode == 0
-    assert time.monotonic() - started < 2.9 + 3.0  # two 1.5 s reads in series would exceed the sum bound
+    assert time.monotonic() - started < 1.5 + 2.5  # in series two 1.5 s reads cost 3.0 s before start-up
 
 
 def test_r1_5_the_cap_is_wall_clock(repo, forge):
@@ -506,3 +506,28 @@ def test_r0_13_a_submodule_inside_a_p4_worktree_is_allowed(tmp_path):
 def test_a_path_that_does_not_exist_yet_is_judged_by_its_nearest_folder(repo):
     target = repo["main"] / "new" / "deep" / "b.md"
     assert run("claude", repo["topic"], "Write", {"file_path": str(target)}).returncode == 2
+
+
+def guard_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("guard_under_test", PLUGIN_ROOT / "hooks" / "lib" / "protected_branch_guard.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_r3_1_a_git_call_past_the_deadline_is_a_fault(repo):
+    module = guard_module()
+    module.deadline[0] = time.monotonic() - 1
+    with pytest.raises(module.Fault, match="ran out of time"):
+        module.git(repo["topic"], "rev-parse", "HEAD")
+
+
+def test_r3_4_with_no_provider_matched_reads_are_still_allowed(repo):
+    environ = clean_env("none")
+    environ.pop("AFK_PROVIDER")
+    for tool, wanted in (("Read", 0), ("Grep", 0), ("Edit", 2)):
+        done = subprocess.run([sys.executable, str(GUARD)], text=True, capture_output=True, cwd=repo["main"],
+                              input=json.dumps(envelope_of(repo["main"], tool, {"file_path": str(repo["main"] / "a")})),
+                              env=environ, timeout=120)
+        assert done.returncode == wanted, (tool, done.stderr)

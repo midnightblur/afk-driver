@@ -815,7 +815,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
 | `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
 | `AFK_PROTECTED_TIMEOUT` | `scripts/protected-lookup.py` | seconds the forge protected-branch read may take before the guard falls back to the default-branch, `main`, `master` rule (default 5) |
-| `AFK_FORGE_API_URL` | `scripts/protected-lookup.py` | API root the protected-branch read uses instead of the public forge API when `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` is set (tests, proxies) |
+| `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API when `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` is set (tests, proxies) |
 | `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |

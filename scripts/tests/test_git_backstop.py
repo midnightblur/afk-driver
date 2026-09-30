@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(BASH is None, reason="no POSIX shell on this mac
 
 IDENTITY = ("-c", "user.name=t", "-c", "user.email=t@example.com")
 AGENT_VARS = ("AFK_PROVIDER", "PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT", "CLAUDECODE", "AFK_ALLOW_PROTECTED",
-              "AFK_WORKTREE_OP", "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_FORGE_API_URL")
+              "AFK_WORKTREE_OP", "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")
 
 
 def human() -> dict:

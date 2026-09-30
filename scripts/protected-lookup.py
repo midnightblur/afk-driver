@@ -10,7 +10,7 @@ the one branch (`ADAPTERS.md`); it runs in this process, and no shell starts.
 Nothing is cached: every call asks again.
 
 Fallback (`source: fallback`, with a `reason`): no forge, no login, no network, a
-timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s, wall-clock; `AFK_FORGE_API_URL` replaces the
+timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s, wall-clock; `AFK_GITHUB_API_URL` / `AFK_GITLAB_API_URL` replace the
 forge's public API root for the token path), or an unreadable
 answer. Then exactly the remote's default branch, `main` and `master` are
 protected. The remote is the branch's own, else `origin`.
@@ -42,8 +42,8 @@ def _load(name: str, path: Path):
 def _git(checkout: Path, *args: str) -> str:
     try:
         done = subprocess.run(["git", "-C", str(checkout), *args], capture_output=True,
-                              text=True, timeout=20)
-    except (OSError, subprocess.SubprocessError):
+                              text=True, timeout=float(os.environ.get("AFK_PROTECTED_TIMEOUT") or 5) + 1)
+    except (OSError, ValueError, subprocess.SubprocessError):
         return ""
     return done.stdout.strip() if done.returncode == 0 else ""
 
@@ -69,7 +69,7 @@ def read_config(common: Path) -> dict[str, dict[str, str]]:
             continue
         pair = re.match(r"^\s*([A-Za-z][A-Za-z0-9-]*)\s*=\s*(.*?)\s*$", line)
         if pair and current is not None:
-            current[pair.group(1).lower()] = pair.group(2).strip('"')
+            current[pair.group(1).lower()] = re.sub(r"\s+[;#].*$", "", pair.group(2)).strip('"')
     return sections
 
 
@@ -112,6 +112,14 @@ def facts(checkout: Path, common: Path, branch: str) -> dict:
         remote = pinned if f"remote {pinned}" in config else remote
     url = config.get(f"remote {remote}", {}).get("url", "") if remote else ""
     host = _host_of(url) if url else ""
+    aliased = any(key.startswith(("url ", "include")) for key in config)
+    if remote and (aliased or (url and "." not in host)):
+        url = _git(checkout, "remote", "get-url", remote) or url  # git resolves insteadOf and includes
+        host = _host_of(url) if url else ""
+    elif not remote and any(key.startswith("include") for key in config):
+        remote = (_git(checkout, "remote").splitlines() or [""])[0]
+        url = _git(checkout, "remote", "get-url", remote) if remote else ""
+        host = _host_of(url) if url else ""
     if forge not in ("github", "gitlab"):
         forge = "gitlab" if "gitlab" in host else "github" if "github" in host else "none"
     repo = _load("afk_project_for_lookup", ROOT / "adapters" / "forge" / "project_from_remote.py").project(url) if url else ""
@@ -147,7 +155,8 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     except ValueError:
         limit = TIMEOUT
     public_host, api = PUBLIC_API[forge]
-    api = os.environ.get("AFK_FORGE_API_URL") or (api if found["host"] == public_host else "")
+    override = os.environ.get("AFK_GITHUB_API_URL" if forge == "github" else "AFK_GITLAB_API_URL")
+    api = override or (api if found["host"] == public_host else "")
     answer = _load("afk_branch_protection", ROOT / "adapters" / "forge" / "branch_protection.py").protection(
         forge, branch, found["repo"], str(checkout), limit, api)
     if answer.get("error") or not isinstance(answer.get("protected"), bool):

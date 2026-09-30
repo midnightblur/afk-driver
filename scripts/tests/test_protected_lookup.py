@@ -47,7 +47,7 @@ def stub(tmp_path: Path, tool: str, body: str) -> dict[str, str]:
         (binaries / tool).write_text(f'#!/bin/sh\nexec sh "{script}" "$@"\n', encoding="utf-8")
         (binaries / tool).chmod(0o755)
     environ = {k: v for k, v in os.environ.items()
-               if k not in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_FORGE_API_URL")}
+               if k not in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
     environ["PATH"] = str(binaries) + os.pathsep + environ["PATH"]
     environ["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
     return environ
@@ -285,3 +285,82 @@ def test_slow_forge_times_out_into_the_fallback(tmp_path):
     assert time.monotonic() - started < 8, "the cap is wall-clock"
     assert answer["source"] == "fallback" and answer["protected"] is True
     assert "did not answer" in answer["reason"]
+
+
+class _Status:
+    """A tiny HTTP server answering every request with one status; `seen` records the paths."""
+
+    def __init__(self, status: int, body: str = "[]"):
+        import http.server
+        import threading
+        seen = self.seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append(self.path)
+                payload = body.encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+
+@pytest.mark.parametrize("status", (401, 403))
+def test_r3_2_a_refused_github_token_falls_through_to_the_cli(tmp_path, status):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    server = _Status(status)
+    environ.update(GH_TOKEN="wrong-host", AFK_GITHUB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "release")
+    server.server.shutdown()
+    assert server.seen, "the token path was tried first"
+    assert answer["source"] == "github" and answer["protected"] is True
+
+
+def test_r3_2_a_refused_gitlab_token_falls_through_to_the_cli(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    server = _Status(401)
+    environ.update(GITLAB_TOKEN="wrong-host", AFK_GITLAB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://gitlab.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "main")
+    server.server.shutdown()
+    assert server.seen and answer["source"] == "gitlab" and answer["protected"] is True
+
+
+def test_r3_2_the_override_of_the_other_forge_is_never_used(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    server = _Status(200)
+    environ.update(GITLAB_TOKEN="secret", AFK_GITHUB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://gitlab.com/acme/widget.git")
+    lookup(environ, repo, "main")
+    server.server.shutdown()
+    assert server.seen == [], "a GitLab token must not reach a URL meant for GitHub"
+
+
+def test_r3_3_an_insteadof_alias_and_an_inline_comment_are_resolved_by_git(tmp_path):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    repo = make_repo(tmp_path, "gh:acme/widget.git")
+    git(repo, "config", "url.https://github.com/.insteadOf", "gh:")
+    answer, _ = lookup(environ, repo, "release")
+    assert answer["source"] == "github" and answer["protected"] is True
+    config = repo / ".git" / "config"
+    text = config.read_text(encoding="utf-8").replace("url = gh:acme", "url = https://github.com/acme")
+    config.write_text(text.replace(".git\n", ".git ; the mirror\n", 1), encoding="utf-8")
+    answer, _ = lookup(environ, repo, "release")
+    assert answer["source"] == "github"
+
+
+def test_r3_5_the_cli_cap_is_wall_clock_without_a_token(tmp_path):
+    environ = stub(tmp_path, "gh", "sleep 30\n")
+    environ["AFK_PROTECTED_TIMEOUT"] = "1"
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    started = time.monotonic()
+    answer, _ = lookup(environ, repo, "main")
+    assert time.monotonic() - started < 6 and answer["source"] == "fallback"

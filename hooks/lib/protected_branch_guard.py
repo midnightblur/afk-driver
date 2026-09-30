@@ -21,6 +21,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -38,8 +39,20 @@ OUTSIDE_HINT = ("this session is not inside a repository, so no worktree can be 
                 "worktree tool (its path form).")
 
 
+DEADLINE_SECONDS = 20  # below the manifest's 30 s hook timeout: a killed hook would fail open
+deadline = [0.0]
+
+
 class Fault(Exception):
     """The verdict could not be computed."""
+
+
+def remaining() -> float:
+    """Seconds left of this run's deadline; the run's Fault when none is."""
+    left = deadline[0] - time.monotonic() if deadline[0] else float(DEADLINE_SECONDS)
+    if left <= 0:
+        raise Fault("the guard ran out of time")
+    return left
 
 
 def norm(path: str | Path) -> str:
@@ -71,10 +84,23 @@ def mcp_class(tool: str) -> str:
     return "other" if MUTATING & set(re.split(r"[^A-Za-z0-9]+", words.lower())) else "allow"
 
 
+def known_tools() -> dict:
+    """Every provider file's tool names by class, for a run no provider file claims."""
+    merged: dict = {}
+    for path in sorted(PROVIDERS.glob("*.json")):
+        try:
+            classes = json.loads(path.read_text(encoding="utf-8")).get("tool_class") or {}
+        except (OSError, ValueError):
+            continue
+        for kind, names in classes.items():
+            merged.setdefault(kind, []).extend(names)
+    return merged
+
+
 def tool_class(tool: str, facts: dict) -> str:
     if tool.startswith("mcp__"):
         return mcp_class(tool)
-    for kind, names in (facts.get("tool_class") or {}).items():
+    for kind, names in (facts.get("tool_class") or known_tools()).items():
         if tool in names:
             return kind
     return "other"
@@ -83,7 +109,7 @@ def tool_class(tool: str, facts: dict) -> str:
 def git(directory: Path, *args: str) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(["git", "-C", str(directory), *args], capture_output=True,
-                              text=True, timeout=20)
+                              text=True, timeout=min(20, remaining()))
     except FileNotFoundError as problem:
         raise Fault("git is not installed") from problem
     except subprocess.TimeoutExpired as problem:
@@ -256,6 +282,8 @@ class Judge:
         key = (place["key"], branch)
         if key not in self.asked:
             try:
+                os.environ["AFK_PROTECTED_TIMEOUT"] = str(min(remaining(), float(
+                    os.environ.get("AFK_PROTECTED_TIMEOUT") or 5)))
                 self.asked[key] = lookup_module().lookup(branch, Path(place["root"]), place["common"])
             except Exception as problem:  # the lookup must never decide by crashing
                 raise Fault(f"the protected-branch lookup failed: {problem}") from problem
@@ -346,6 +374,7 @@ def main() -> int:
         return 0
     cwd = Path.cwd()
     facts: dict = {}
+    deadline[0] = time.monotonic() + DEADLINE_SECONDS
     try:
         envelope = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}")
         if not isinstance(envelope, dict):
