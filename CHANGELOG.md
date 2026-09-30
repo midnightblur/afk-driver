@@ -71,10 +71,8 @@ release page from its section here. Nobody tags by hand.
   fallback exits 0 like both adapters. `CONFIG.md` "Repository hooks" states the
   verdict shapes.
 
-- **Session end inside a worktree no longer strands it.** On Windows the harness still
-  stands in the folder when its session-end handler runs; removal now waits for the next
-  session start, which also clears an empty folder git no longer lists together with its
-  record and branch.
+- **A worktree is never half-removed under a live session.** The next session start
+  clears an empty folder git no longer lists together with its record and branch.
 - **A repository gate's refusal is one verdict.** On `Stop` and `PreToolUse` the launcher
   never passes a handler's own JSON or exit code through: every refusal is gathered into
   one verdict in the provider's block shape.
