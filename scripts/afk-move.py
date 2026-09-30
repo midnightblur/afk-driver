@@ -59,6 +59,7 @@ def log_path(repo: str, name: str) -> Path | None:
             return None
         folder = Path(done.stdout.strip()) / "afk-worktrees"
         folder.mkdir(exist_ok=True)
+        (folder / f"{name}.log").write_text("", encoding="utf-8")  # one move per log
         return folder / f"{name}.log"
     except (OSError, subprocess.SubprocessError):
         return None
@@ -152,7 +153,8 @@ def type_line(binary: str, pane: str, path: Path) -> None:
         if not idle(binary, pane):
             continue
         text = composer_text(read_pane(binary, pane, "ansi"))
-        log(f"composer: {text!r}")
+        log("composer: " + ("no composer" if text is None else "empty" if not text
+                            else "own /cd line" if text.startswith("/cd ") else f"human text ({len(text)} chars)"))
         if text is None:
             log("stop: no composer on screen")
             return  # an unreadable pane may hold the human's half-written message

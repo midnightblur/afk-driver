@@ -183,6 +183,12 @@ def move_in_flight(common: Path, path: Path) -> bool:
     return False
 
 
+def drop_record(record_file: Path) -> None:
+    """Delete an owner record and the move log beside it."""
+    record_file.unlink(missing_ok=True)
+    record_file.with_suffix(".log").unlink(missing_ok=True)
+
+
 def record_branch(record_file: Path) -> str:
     try:
         return json.loads(record_file.read_text(encoding="utf-8")).get("branch") or ""
@@ -211,7 +217,7 @@ def clear_leftover(common: Path, path: Path, record_file: Path) -> None:
     except OSError:
         return  # not empty: someone's files, not a leftover
     drop_branch(main_of(common), record_file)
-    record_file.unlink(missing_ok=True)
+    drop_record(record_file)
     drop_markers(common, path)
     sys.stderr.write(f"afk: cleared the leftover folder {path.as_posix()}.\n")
 
@@ -240,7 +246,7 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
         sys.stderr.write(f"afk: could not remove {path.as_posix()}: {done.stderr.strip()[:300]}\n")
         return False
     drop_branch(main, record_file)
-    record_file.unlink(missing_ok=True)
+    drop_record(record_file)
     drop_markers(common, path)
     sys.stderr.write(f"afk: removed worktree {path.as_posix()}.\n")
     return True
@@ -325,7 +331,7 @@ def prune(repo: Path) -> None:
     for record_file, record in records(common):
         path = Path(record.get("path") or "")
         if not path.is_dir():
-            record_file.unlink(missing_ok=True)
+            drop_record(record_file)
             git(main_of(common), "worktree", "prune")
             continue
         if inside(SESSION_CWD, path):  # a resumed session stands here: it owns the worktree now

@@ -396,3 +396,19 @@ def test_p7_a_repo_that_is_not_one_gets_no_log_folder_in_the_current_directory(t
     monkeypatch.chdir(tmp_path)
     assert load_move().log_path(str(tmp_path / "missing"), "x") is None
     assert not (tmp_path / "afk-worktrees").exists()
+
+
+def test_r11_4_the_log_names_the_composer_class_never_the_humans_text(tmp_path, monkeypatch):
+    module = load_move()
+    monkeypatch.setattr(module, "LOG", tmp_path / "move.log")
+    herdr, _ = stub_herdr(tmp_path, "› hunter2-secret-words")
+    module.type_line(herdr, "w:p10", Path("C:/x"))
+    text = (tmp_path / "move.log").read_text(encoding="utf-8")
+    assert "hunter2" not in text and "human text (20 chars)" in text
+
+
+def test_r11_5_a_new_move_starts_its_log_empty(repo):
+    module = load_move()
+    first = module.log_path(str(repo), "session-reuse")
+    first.write_text("old run\n", encoding="utf-8")
+    assert module.log_path(str(repo), "session-reuse").read_text(encoding="utf-8") == ""

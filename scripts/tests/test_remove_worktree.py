@@ -467,3 +467,20 @@ def test_r11_2_reaching_the_cap_keeps_the_worktree(repo, monkeypatch):
     finally:
         child.kill()
         child.wait()
+
+
+def test_r11_5_removing_a_worktree_deletes_its_move_log(repo):
+    path = made(repo, "logged")
+    log = repo / ".git" / "afk-worktrees" / "logged.log"
+    log.write_text("a move\n", encoding="utf-8")
+    run("--path", str(path))
+    assert not path.exists() and not log.exists()
+
+
+def test_r11_5_the_prune_of_a_leftover_deletes_its_move_log(repo):
+    path = made(repo, "stale", {"pid": 2147483000, "ctime": "1"})
+    log = repo / ".git" / "afk-worktrees" / "stale.log"
+    log.write_text("a move\n", encoding="utf-8")
+    git(repo, "worktree", "remove", "--force", str(path))
+    run("--prune", cwd=repo)
+    assert not log.exists() and not (repo / ".git" / "afk-worktrees" / "stale.json").exists()
