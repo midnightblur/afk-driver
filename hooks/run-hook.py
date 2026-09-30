@@ -37,9 +37,10 @@ missing, the matcher is not a regular expression, the manifest does not parse,
 the handler returns no verdict inside its timeout — is a configuration error,
 never a silent skip. On Stop and PreToolUse the launcher blocks the turn with
 the decision object a failed gate emits, so a gate cannot disappear by being
-misdeclared. A Stop or PreToolUse handler that exits non-zero without printing
-its own verdict object is a refusal: the launcher answers in the provider's
-block shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
+misdeclared. A Stop or PreToolUse handler that exits non-zero, or prints a refusal
+object, is a refusal: its own stdout and exit code are never passed through. The
+launcher gathers every refusal and emits one verdict in the provider's block
+shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
 events block too. On the remaining events it writes the reason to stderr.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
@@ -253,9 +254,20 @@ def resolved_script(root: Path, entry: dict) -> tuple[Path | None, str | None]:
     return candidate, None
 
 
-def decided(event: str, stdout: bytes) -> bool:
-    """Did a handler already print the verdict object its event reads?"""
-    return (b"permissionDecision" if event == "PreToolUse" else b'"decision"') in stdout
+def denial(event: str, stdout: bytes) -> str | None:
+    """The reason in a refusal object a handler printed, or None when it printed none."""
+    try:
+        said = json.loads(stdout.decode("utf-8", "replace"))
+    except ValueError:
+        return None
+    if not isinstance(said, dict):
+        return None
+    inner = said.get("hookSpecificOutput")
+    if event == "PreToolUse" and isinstance(inner, dict) and inner.get("permissionDecision") == "deny":
+        return str(inner.get("permissionDecisionReason") or "denied")
+    if said.get("decision") in ("block", "deny"):
+        return str(said.get("reason") or "blocked")
+    return None
 
 
 def block_without_shell(event: str) -> int:
@@ -405,6 +417,7 @@ def main(argv: list[str]) -> int:
 
     failure = 0
     refused: list[str] = []
+    allowed: list[bytes] = []
     blocking = event in BLOCKING_EVENTS and not soft
     for entry in entries:
         named = entry.get("script")
@@ -433,15 +446,16 @@ def main(argv: list[str]) -> int:
             continue
         if blocking:
             said = (completed.stderr or b"").decode("utf-8", "replace").strip()
-            if completed.stdout:
-                sys.stdout.buffer.write(completed.stdout)
-                sys.stdout.flush()
-            if completed.returncode and not decided(event, completed.stdout or b""):
-                # A verdict has to be the provider's block shape; a bare non-zero exit is not one.
-                refused.append(said or f"{named} exited {completed.returncode}")
+            reason = denial(event, completed.stdout or b"")
+            if reason is not None or completed.returncode:
+                # One verdict leaves this launcher, in the provider's shape: never a handler's own.
+                refused.append(reason or said or f"{named} exited {completed.returncode}")
                 continue
+            if completed.stdout:
+                allowed.append(completed.stdout)
             if said:
                 sys.stderr.write(said + "\n")
+            continue
         if completed.returncode and event == "WorktreeCreated":
             faults.append(f"{named}: exited {completed.returncode}; the worktree is kept")
             continue
@@ -453,6 +467,9 @@ def main(argv: list[str]) -> int:
             sys.stderr.write(f"run-hook.py: {fault}\n")
     if (faults or refused) and blocking:
         return block(event, faults, bash, env, refused)
+    for out in allowed:  # context a handler printed while nothing refused
+        sys.stdout.buffer.write(out)
+    sys.stdout.flush()
     return 0 if soft else failure
 
 

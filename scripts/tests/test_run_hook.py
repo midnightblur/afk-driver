@@ -171,13 +171,51 @@ def test_r7_1_a_stop_script_that_exits_nonzero_becomes_the_block_object(tmp_path
     assert decision(done.stdout)["decision"] == "block" and "not allowed here" in done.stdout
 
 
-def test_r7_1_a_script_that_printed_its_own_deny_is_passed_through(tmp_path):
+def test_r8_2_a_script_that_printed_its_own_deny_leaves_one_verdict_at_exit_zero(tmp_path):
     own = ("#!/bin/sh\necho '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\","
            "\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"mine\"}}'\nexit 0\n")
     root = repository(
         tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/own.sh"}]), {"own.sh": own})
     done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
-    assert done.returncode == 0 and decision(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"] == "mine"
+    assert done.returncode == 0 and decision(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"] is not None
+    assert "mine" in done.stdout
+
+
+def _denies(reason: str, code: int) -> str:
+    deny = ('{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",'
+            f'"permissionDecisionReason":"{reason}"}}}}')
+    return f"#!/bin/sh\necho '{deny}'\nexit {code}\n"
+
+
+def test_r8_2_deny_json_with_exit_two_is_rewritten_to_exit_zero(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"}]),
+        {"a.sh": _denies("belt", 2)})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    assert decision(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny" and "belt" in done.stdout
+
+
+def test_r8_2_two_refusing_handlers_leave_one_document(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"},
+                              {"event": "PreToolUse", "matcher": "*", "script": ".afk/b.sh"}]),
+        {"a.sh": _denies("first-no", 0), "b.sh": EXITS_2})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert done.stdout.count('"permissionDecision"') == 1
+    assert "first-no" in body["permissionDecisionReason"] and "not allowed here" in body["permissionDecisionReason"]
+
+
+def test_r8_2_a_stop_block_object_with_a_nonzero_exit_is_one_block_at_exit_zero(tmp_path):
+    own = "#!/bin/sh\necho '{\"decision\":\"block\",\"reason\":\"mine\"}'\nexit 2\n"
+    root = repository(
+        tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/s.sh"},
+                              {"event": "Stop", "matcher": "*", "script": ".afk/t.sh"}]),
+        {"s.sh": own, "t.sh": own})
+    done = run(root, "Stop", {"hook_event_name": "Stop"})
+    assert done.returncode == 0 and done.stdout.count('"decision"') == 1 and "mine" in done.stdout
 
 
 @pytest.mark.parametrize("event", ["PreToolUse", "Stop"])

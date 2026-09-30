@@ -179,9 +179,10 @@ is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
 turn and names the entry, so a gate cannot go missing quietly. A `PreToolUse` verdict
 is the deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) at exit 0: one
 harness treats exit 2 as a failed hook and runs the tool. A `Stop` verdict is the
-`{"decision":"block","reason":...}` object. A script that exits non-zero without
-printing one is turned into that shape by the launcher, and with no POSIX shell the
-launcher blocks such a call too.
+`{"decision":"block","reason":...}` object. A script that exits non-zero, or prints its
+own refusal, is a refusal: the launcher never passes a handler's own verdict or exit
+code through on these events. It gathers every refusal and prints one verdict in that
+shape at the adapter's code. With no POSIX shell a matching call is blocked too.
 
 `WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
 matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
