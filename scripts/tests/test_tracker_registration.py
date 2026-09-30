@@ -213,6 +213,8 @@ def test_a_server_started_with_credentials_in_its_env_keeps_them_until_restarted
         assert rpc.start() is not None
         write_creds(home, f"http://127.0.0.1:{server.server_address[1]}")
         stale = rpc.call("tracker_get", {"ticket_key": "A-1"})
+        assert stale is not None and rpc.alive()
+        assert "URLError" in text_of(stale)              # it still called the old, dead host
         assert "reached the fake host" not in text_of(stale)
     finally:
         rpc.close()
