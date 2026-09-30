@@ -106,10 +106,12 @@ def test_worktree_base_failure_still_reported_beside_h0(tmp_path, home):
     assert "unresolved: worktreeBasePath" in out.stdout
 
 
-def test_root_follows_claude_project_dir(tmp_path, repo, home):
+def test_root_is_the_working_directorys_git_root(tmp_path, repo, home):
+    """CLAUDE_PROJECT_DIR is ignored: `get` reads the working directory too."""
     other = tmp_path / "other"
     other.mkdir()
     subprocess.run(["git", "-C", str(other), "init", "-q"], check=True)
     write(other / ".afk" / "config.yaml", NONE)
     out = run(repo, home, CLAUDE_PROJECT_DIR=str(other))
-    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.returncode == 1
+    assert "needs-human: see H0" in out.stdout

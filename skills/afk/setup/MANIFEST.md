@@ -122,8 +122,7 @@ a token value — not even partially.
   ```
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
-  P="${CLAUDE_PROJECT_DIR:-.}"
-  R="$(git -C "$P" rev-parse --show-toplevel 2>/dev/null || echo "$P")"
+  R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
   says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
       "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
     [ -n "$f" ] && grep -qsE "^$1:[[:space:]]*none([[:space:]#]|$)" "$f" \
