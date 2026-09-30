@@ -459,3 +459,28 @@ def test_p4_a_failing_token_call_falls_back_to_the_cli_reads(tmp_path, monkeypat
         monkeypatch.delenv(name, raising=False)
     answer = _read_module().protection("github", "main", "o/r", str(tmp_path), 20.0, "http://127.0.0.1:9")
     assert answer == {"protected": True, "via": "branch"}, answer
+
+
+@pytest.mark.parametrize("forge,token", [("github", "GH_TOKEN"), ("gitlab", "GITLAB_TOKEN")])
+def test_r10_2_no_token_goes_over_plain_http_to_another_host(tmp_path, monkeypatch, forge, token):
+    body = GITHUB_STUB if forge == "github" else GITLAB_PAGES
+    environ = stub(tmp_path, TOOL[forge], body)
+    monkeypatch.setenv("PATH", environ["PATH"])
+    monkeypatch.setenv(token, "secret")
+    module = _read_module()
+    sent: list = []
+    monkeypatch.setattr(module, "_https_get", lambda *a, **k: sent.append(a) or (200, "[]", {}))
+    answer = module.protection(forge, "main", "o/r", str(tmp_path), 20.0, "http://192.0.2.1:9")
+    assert sent == [], "a token must not be sent in the clear"
+    assert answer.get("protected") is True, answer
+
+
+def test_r10_2_plain_http_to_loopback_still_carries_the_token(tmp_path, monkeypatch):
+    environ = stub(tmp_path, "gh", "exit 1\n")
+    monkeypatch.setenv("PATH", environ["PATH"])
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    module = _read_module()
+    sent: list = []
+    monkeypatch.setattr(module, "_https_get", lambda url, headers, deadline: sent.append(url) or (200, "[]", {}))
+    module.protection("github", "main", "o/r", str(tmp_path), 20.0, "http://127.0.0.1:9")
+    assert len(sent) == 2

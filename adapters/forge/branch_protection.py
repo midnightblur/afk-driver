@@ -16,7 +16,7 @@ rules read is the only source for a branch not yet pushed. GitLab: an exact or
 wildcard entry (`*` spans `/`) among the paginated protected branches.
 
 Credentials: with `api` given and `GH_TOKEN`/`GITHUB_TOKEN` (GitLab: `GITLAB_TOKEN`)
-set, the reads go straight over HTTPS. GitHub without one, and only for the public API
+set, the reads go straight over HTTPS (plain http only to loopback; otherwise the CLI path). GitHub without one, and only for the public API
 (`https://api.github.com`), asks `gh auth token` once (glab has no such command) and does the same; if that fails, both reads go through `gh api` / `glab api`.
 The token lives in memory only: nothing is written to disk.
 """
@@ -118,6 +118,12 @@ def _together(reads: dict, deadline: float) -> dict:
     return dict(answers)
 
 
+def _may_send_token(api: str) -> bool:
+    """A token travels over HTTPS, or over plain http only to this machine; anything else takes the CLI."""
+    parts = urllib.parse.urlsplit(api or "")
+    return parts.scheme == "https" or (parts.scheme == "http" and parts.hostname in ("127.0.0.1", "localhost", "::1"))
+
+
 def _login_token(cwd: str, deadline: float) -> str:
     """The CLI's own login token for the public API, asked once; "" falls back to the CLI reads.
 
@@ -134,7 +140,7 @@ def _github(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
     if api == PUBLIC_GITHUB_API and repo and not token and deadline - time.monotonic() > 0.3:
         token = _login_token(cwd, deadline)  # with the budget nearly spent a spawn cannot pay for itself
     answers = None
-    if api and token and repo:
+    if _may_send_token(api) and token and repo:
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
                    "User-Agent": "afk-protected-lookup"}
 
@@ -201,7 +207,7 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
     token = os.environ.get("GITLAB_TOKEN") or ""
     texts: list[str] = []
     refused = False
-    if api and token and repo:
+    if _may_send_token(api) and token and repo:
         page = "1"
         while page:
             done = _https_get(f"{api}/projects/{project}/protected_branches?per_page=100&page={page}",
@@ -213,7 +219,7 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
                 return _error("the protected-branch read failed")
             texts.append(done[1])
             page = {k.lower(): v for k, v in done[2].items()}.get("x-next-page", "").strip()
-    if refused or not (api and token and repo):
+    if refused or not (_may_send_token(api) and token and repo):
         done = _run(["glab", "api", "--paginate", f"projects/{project}/protected_branches?per_page=100"],
                     cwd, deadline)
         if done is None or done[0] != 0:

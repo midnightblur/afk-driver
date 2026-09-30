@@ -12,7 +12,8 @@ Anything else is kept, recorded for the next session start, and the resume and r
 commands are printed. `--force` removes a kept one: the human's call. A stale worktree is
 one whose recorded owner process is dead; an unknown owner is kept. The worktree the
 calling session stands in, and the target of a move in flight, are never pruned. Exit is
-0 unless the call is malformed, so a hook never fails.
+0 unless the call is malformed or a forced removal is asked from inside the worktree (exit 1),
+so a hook never fails.
 """
 from __future__ import annotations
 
