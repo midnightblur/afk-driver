@@ -44,7 +44,8 @@ a token value — not even partially.
 - **Notes:** the defaults answer `none` for a repository that never chose. A
   leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
   configuration file at any layer says `none`; with no repository file and no
-  such line it is `needs-human: create .afk/config.yaml (H0)`. A resolved
+  such line it is `needs-human: see H0` — step 0 then either creates the file
+  (re-probe) or the human declines (`skipped (no repository config)`). A resolved
   non-`none` value is a choice and probes normally, whichever layer supplied
   it (machine file, local overlay, `$AFK_CONFIG`); `H0` itself still fails
   until the repository file exists. Every other leg (the `O7` catalog, `H6`
@@ -121,6 +122,12 @@ a token value — not even partially.
   ```
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
+  R="$(git rev-parse --show-toplevel)"
+  if [ ! -f "$R/.afk/config.yaml" ] && [ "$("$PY" "$AC" get tracker)" = none ] \
+     && [ ! -f "$HOME/.afk/config.yaml" ] && [ ! -f "$R/.afk/config.local.yaml" ] \
+     && [ -z "$AFK_CONFIG" ]; then
+    echo "needs-human: see H0"; exit 1
+  fi
   keys="worktreeBasePath"
   [ "$("$PY" "$AC" get tracker)" = none ] || keys="trackerAssignee $keys"
   [ "$("$PY" "$AC" get forge)" = none ] || keys="$keys mrReviewer"
