@@ -33,6 +33,9 @@ MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", 
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_DEPTH = 3
+OUTSIDE_HINT = ("this session is not inside a repository, so no worktree can be cut for it: start the "
+                "session inside the repository, or switch into an existing worktree with the harness's "
+                "worktree tool (its path form).")
 
 
 class Fault(Exception):
@@ -329,7 +332,8 @@ def decide(envelope: dict, facts: dict) -> int:
     else:
         action = f"use {tool or 'a tool'}"
     if cause:
-        return deny(refusal(action, cause, hint_of(facts), judge.notice_once()))
+        hint = hint_of(facts) if here is not None else OUTSIDE_HINT
+        return deny(refusal(action, cause, hint, judge.notice_once()))
     notice = judge.notice_once()
     if notice:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",

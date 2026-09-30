@@ -44,6 +44,7 @@ install locations, then PATH excluding the Windows system directory.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -295,6 +296,23 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str])
     return 0
 
 
+# Handlers that record who launched them. A walk up the process tree from inside bash
+# loses the chain at the first bash-to-bash hop, so the first native process resolves it.
+OWNER_HANDLERS = {"worktree-create.sh"}
+
+
+def owner_env() -> dict[str, str]:
+    """`AFK_WORKTREE_OWNER=<pid>:<creation time>` of the harness above this launcher, or {}."""
+    try:
+        spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        found = module.find_owner()
+    except Exception:
+        return {}
+    return {"AFK_WORKTREE_OWNER": f"{found['pid']}:{found['ctime']}"} if found else {}
+
+
 def main(argv: list[str]) -> int:
     soft = False
     while argv and argv[0] == "--soft":
@@ -324,6 +342,8 @@ def main(argv: list[str]) -> int:
         if not script.is_file():
             # An optional handler this checkout does not ship is not a failure.
             return 0
+        if argv[1] in OWNER_HANDLERS:
+            env.update(owner_env())
         completed = subprocess.run([str(bash), str(script), *argv[2:]], env=env)
         return 0 if soft else completed.returncode
 

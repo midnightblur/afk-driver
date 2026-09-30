@@ -52,12 +52,12 @@ def make_repo(tmp_path: Path, config: str = "", files: dict[str, str] | None = N
     return repo
 
 
-def create(repo: Path, *args: str, session: str = "s1"):
+def create(repo: Path, *args: str, session: str = "s1", cwd: Path | None = None):
     environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
     environ.pop("CLAUDE_PROJECT_DIR", None)
     return subprocess.run(
         [str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--session", session, *args],
-        capture_output=True, text=True, cwd=repo, env=environ, timeout=600)
+        capture_output=True, text=True, cwd=cwd or repo, env=environ, timeout=600)
 
 
 def path_of(done) -> Path:
@@ -105,7 +105,7 @@ def test_a_taken_name_is_refused_and_nothing_else_changes(tmp_path):
     assert len(git(repo, "worktree", "list").splitlines()) == 2
 
 
-@pytest.mark.parametrize("bad", ["../x", "a b", ".hidden", "x.lock", "a..b", "-lead", "n" * 65, "x/y", "end."])
+@pytest.mark.parametrize("bad", ["../x", "a b", ".hidden", "x.lock", "a..b", "-lead", "n" * 65, "end.", "/x", "/"])
 def test_a_bad_name_is_rejected_before_any_filesystem_or_git_change(tmp_path, bad):
     repo = make_repo(tmp_path)
     done = create(repo, "--name", bad)
@@ -125,13 +125,29 @@ def test_the_branch_template_is_filled_with_name_and_user(tmp_path):
     assert git(wt, "rev-parse", "--abbrev-ref", "HEAD") == "team/test-user/feat"
 
 
-def test_a_template_with_other_placeholders_falls_back_and_a_pattern_miss_is_rejected(tmp_path):
-    other = "git:\n  branch-pattern: '^team/'\n  branch-template: 'team/{ticket}/{name}'\n"
-    repo = make_repo(tmp_path, other)
+TICKET = ("git:\n  branch-pattern: '^team/[a-z0-9-]+/proj-[0-9]+$'\n"
+          "  branch-template: 'team/{user}/{ticket_lower}'\n")
+
+
+def test_r2_3_an_unresolvable_placeholder_is_filled_with_the_name(tmp_path):
+    repo = make_repo(tmp_path, TICKET)
+    wt = path_of(create(repo, "--name", "proj-123"))
+    assert git(wt, "rev-parse", "--abbrev-ref", "HEAD") == "team/test-user/proj-123"
+
+
+def test_r2_3_a_name_that_cannot_match_is_refused_with_pattern_template_and_the_rule(tmp_path):
+    repo = make_repo(tmp_path, TICKET)
     done = create(repo, "--name", "feat")
     assert done.returncode != 0
-    assert "^team/" in done.stderr and "worktree-<name>" in done.stderr
+    assert "^team/[a-z0-9-]+/proj-[0-9]+$" in done.stderr and "team/{user}/{ticket_lower}" in done.stderr
+    assert "must make the expanded template match" in done.stderr
     assert not (repo / ".claude" / "worktrees" / "feat").exists()
+
+
+def test_r2_5_a_slash_separated_name_becomes_one_folder_name(tmp_path):
+    repo = make_repo(tmp_path)
+    wt = path_of(create(repo, "--name", "fix/login"))
+    assert wt.samefile(repo / ".claude" / "worktrees" / "fix-login")
 
 
 def test_a_template_without_name_never_reuses_one_branch(tmp_path):
@@ -260,3 +276,104 @@ def test_the_creation_hook_fails_with_no_stdout_on_a_rejected_name(tmp_path):
     repo = make_repo(tmp_path)
     done = handler(repo, {"cwd": str(repo), "name": "../escape"})
     assert done.returncode != 0 and done.stdout.strip() == "" and "not allowed" in done.stderr
+
+
+def add_linked(repo: Path, name: str, branch: str) -> Path:
+    linked = repo.parent / name
+    git(repo, "worktree", "add", "-q", "-b", branch, str(linked))
+    (linked / "work.txt").write_text("parent work\n", encoding="utf-8")
+    git(linked, "add", "-A")
+    git(linked, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "parent-work")
+    return linked
+
+
+def test_r2_2_the_base_is_the_session_checkouts_head_not_the_main_checkouts(tmp_path):
+    repo = make_repo(tmp_path)
+    parent = add_linked(repo, "parent", "topic")
+    wt = path_of(create(repo, "--name", "child", cwd=parent))
+    assert git(wt, "rev-parse", "HEAD") == git(parent, "rev-parse", "HEAD")
+    assert git(wt, "rev-parse", "HEAD") != git(repo, "rev-parse", "HEAD")
+    assert (wt / "work.txt").is_file()
+
+
+def test_r2_2_a_session_in_the_main_checkout_branches_from_its_head(tmp_path):
+    repo = make_repo(tmp_path)
+    wt = path_of(create(repo, "--name", "plain"))
+    assert git(wt, "rev-parse", "HEAD") == git(repo, "rev-parse", "HEAD")
+
+
+def test_r2_4_a_repository_with_no_commit_gets_an_orphan_worktree(tmp_path):
+    repo = tmp_path / "fresh"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "dev")
+    done = create(repo, "--name", "first")
+    version = tuple(int(n) for n in git(repo, "--version").split()[-1].split(".")[:2] if n.isdigit())
+    if version < (2, 42):
+        assert done.returncode != 0 and "AFK_ALLOW_PROTECTED=1" in done.stderr
+        return
+    assert done.returncode == 0, done.stderr
+    wt = path_of(done)
+    assert git(wt, "symbolic-ref", "--short", "HEAD") == "worktree-first"
+    git(wt, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "first commit")
+
+
+def owner_module():
+    spec = importlib.util.spec_from_file_location("owner_under_test", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_r2_6_a_lock_held_by_a_dead_process_is_broken(tmp_path):
+    repo = make_repo(tmp_path)
+    lock = repo / ".git" / "afk-worktrees" / ".lock"
+    lock.mkdir(parents=True)
+    (lock / "holder").write_text("2147483000:1", encoding="utf-8")
+    done = create(repo, "--name", "after-crash")
+    assert done.returncode == 0, done.stderr
+    assert not lock.exists()
+
+
+def test_r2_6_a_lock_held_by_a_live_process_is_kept_and_only_its_holder_releases_it(tmp_path):
+    import time
+    owner = owner_module()
+    repo = make_repo(tmp_path)
+    lock = repo / ".git" / "afk-worktrees" / ".lock"
+    lock.mkdir(parents=True)
+    (lock / "holder").write_text(f"{os.getpid()}:{owner.creation_time(os.getpid())}", encoding="utf-8")
+    environ = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER="claude")
+    waiting = subprocess.Popen([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--name", "waits"],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=repo, env=environ)
+    time.sleep(6)
+    assert waiting.poll() is None, "a live holder's lock must not be broken"
+    assert not (repo / ".claude" / "worktrees" / "waits").exists()
+    (lock / "holder").unlink()
+    lock.rmdir()
+    out, err = waiting.communicate(timeout=300)
+    assert waiting.returncode == 0, err
+    assert not lock.exists()
+
+
+def test_r2_1_the_registered_creation_hook_records_the_launching_process_as_owner(tmp_path):
+    """The command a harness runs: the test's python process stands in for the harness."""
+    import shlex
+    repo = make_repo(tmp_path)
+    manifest = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    command = manifest["hooks"]["WorktreeCreate"][0]["hooks"][0]["command"]
+    argv = shlex.split(command.replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN_ROOT).replace("\\", "/")))
+    argv[0] = __import__("sys").executable
+    environ = dict(os.environ, AFK_PROVIDER="claude", AFK_OWNER_PROCESS="python,python3")
+    environ.pop("AFK_WORKTREE_OWNER", None)
+    done = subprocess.run(argv, input=json.dumps({"session_id": "s1", "cwd": str(repo), "name": "own"}),
+                          text=True, capture_output=True, cwd=repo, env=environ, timeout=600)
+    assert done.returncode == 0, done.stderr
+    record = json.loads((repo / ".git" / "afk-worktrees" / "own.json").read_text(encoding="utf-8"))
+    assert record["owner"]["pid"] == os.getpid() and record["owner"]["ctime"]
+
+
+def test_r2_8_a_session_outside_any_repository_gets_a_move_that_can_work(tmp_path):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    done = handler(plain, {"cwd": str(plain), "name": "nowhere"})
+    assert done.returncode != 0 and done.stdout.strip() == ""
+    assert "inside the repository" in done.stderr and "path form" in done.stderr

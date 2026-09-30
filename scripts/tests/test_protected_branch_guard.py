@@ -148,6 +148,7 @@ def test_r1_1_a_session_outside_git_cannot_edit_a_main_checkout(repo):
     outside.mkdir()
     done = run("claude", outside, "Edit", {"file_path": str(repo["main"] / "a.txt")})
     assert done.returncode == 2 and "main checkout" in done.stderr
+    assert "start the session inside the repository" in done.stderr  # R2-8: the move that can work
     done = run("claude", outside, "Edit", {"file_path": str(repo["protected"] / "a.txt")})
     assert done.returncode == 2
     assert run("claude", outside, "Edit", {"file_path": str(repo["topic"] / "a.txt")}).returncode == 0

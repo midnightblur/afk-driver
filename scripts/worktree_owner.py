@@ -3,11 +3,14 @@
 
     python worktree_owner.py find             -> {"pid": N, "ctime": "...", "name": "..."}
     python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
+    python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
     python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
 
-The owner is the first ancestor of this process that is not a shell, an
-interpreter, git or a console host. The creation time pins the pid: a live pid
+The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
+native process of a hook chain, since a walk from inside bash loses the chain), the
+first ancestor of this process that is not a shell, an interpreter, git or a console
+host, then the pid in the env name the provider file declares (`owner_pid_env`). The creation time pins the pid: a live pid
 with another creation time is a recycled one and reads `unknown`. Never
 `os.kill(pid, 0)`: on Windows that terminates the process.
 """
@@ -116,18 +119,42 @@ else:
 
 
 def find_owner(start: int | None = None) -> dict | None:
-    """The nearest ancestor that is not a shell, interpreter, git or console host."""
+    """The nearest ancestor that is not a shell, interpreter, git or console host.
+
+    `AFK_OWNER_PROCESS` (comma-separated process names) names the owner outright:
+    the nearest ancestor with one of those names wins over the skip list.
+    """
+    wanted = {name.strip().lower() for name in os.environ.get("AFK_OWNER_PROCESS", "").split(",") if name.strip()}
     table = snapshot()
     pid = table.get(start or os.getpid(), (0, ""))[0]
     seen = set()
     while pid and pid not in seen and pid in table:
         seen.add(pid)
         parent, name = table[pid]
-        if basename(name) not in SKIPPED:
+        if basename(name) in wanted or (not wanted and basename(name) not in SKIPPED):
             ctime = creation_time(pid)
             return {"pid": pid, "ctime": ctime, "name": name} if ctime else None
         pid = parent
     return None
+
+
+def env_owner() -> dict | None:
+    """The owner a native ancestor resolved and passed down as `AFK_WORKTREE_OWNER=<pid>:<ctime>`."""
+    pid, _, ctime = os.environ.get("AFK_WORKTREE_OWNER", "").partition(":")
+    return {"pid": int(pid), "ctime": ctime} if pid.isdigit() and ctime else None
+
+
+def provider_owner(harness: str) -> dict | None:
+    """The harness's own pid from the env name its provider file declares, pinned by creation time."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hooks", "lib", "providers",
+                               f"{harness}.json"), encoding="utf-8") as handle:
+            name = json.load(handle).get("owner_pid_env") or ""
+    except (OSError, ValueError):
+        return None
+    pid = os.environ.get(name, "") if name else ""
+    ctime = creation_time(int(pid)) if pid.isdigit() else None
+    return {"pid": int(pid), "ctime": ctime} if ctime else None
 
 
 def state(pid: int, ctime: str) -> str:
@@ -155,7 +182,7 @@ def record(argv: list[str]) -> int:
     if not fields["dir"] or not fields["name"]:
         sys.stderr.write("record needs --dir and --name\n")
         return 2
-    found = find_owner() or {}
+    found = env_owner() or find_owner() or provider_owner(fields["harness"]) or {}
     document = {"name": fields["name"], "path": fields["path"], "branch": fields["branch"],
                 "harness": fields["harness"], "session": fields["session"],
                 "owner": {"pid": found.get("pid"), "ctime": found.get("ctime")},
@@ -174,6 +201,9 @@ def main(argv: list[str]) -> int:
         return record(argv[1:])
     if argv[:1] == ["find"]:
         print(json.dumps(find_owner()))
+        return 0
+    if len(argv) == 2 and argv[0] == "ctime" and argv[1].isdigit():
+        print(creation_time(int(argv[1])) or "")
         return 0
     if len(argv) == 3 and argv[0] == "state" and argv[1].isdigit():
         print(state(int(argv[1]), argv[2]))

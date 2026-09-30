@@ -61,5 +61,6 @@
       "ArtifactData",
       "EndConversation"
     ]
-  }
+  },
+  "owner_pid_env": "CLAUDE_PID"
 }

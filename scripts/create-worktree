@@ -72,6 +72,7 @@ error_exit() { echo "ERROR=$1" >&2; exit 1; }
 # bare death with no ERROR= line. -E guarantees every failure routes through error_exit.
 trap 'error_exit "unexpected failure near line $LINENO"' ERR
 set -eE
+export AFK_WORKTREE_OP=1   # the backstop passes the plugin's own git calls
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -87,6 +88,8 @@ NAME=""
 SESSION_ID=""
 FOLDER=""
 LOCK_DIR=""
+LOCK_ID=""
+ORPHAN=false
 IDEA_BIN=""
 TRACK_FLAG=false
 CONFIGS_FLAG=true
@@ -154,7 +157,8 @@ valid_name() {
 
 if [[ -n "$NAME" ]]; then
   [[ -z "$BRANCH$DIR_NAME" ]] || error_exit "--name cannot be combined with --branch or --dir"
-  valid_name "$NAME" || error_exit "worktree name '$NAME' is not allowed: use 1-64 of A-Z a-z 0-9 . _ - starting with a letter or digit, no '..', not ending in '.' or '.lock'. Example: fix-login"
+  NAME="${NAME//\//-}"   # a `/`-separated name (`fix/login`) becomes `fix-login`
+  valid_name "$NAME" || error_exit "worktree name '$NAME' is not allowed: use 1-64 of A-Z a-z 0-9 . _ - (a '/' becomes '-') starting with a letter or digit, no '..', not ending in '.' or '.lock'. Example: fix-login"
   OPEN_FLAG=false
 else
   [[ -n "$BRANCH" ]]   || error_exit "--branch is required"
@@ -183,30 +187,33 @@ read_config_key() {
   ( cd "$repo" && "$PY_BIN" "$script" resolve "$key" 2>/dev/null ) || true
 }
 
+# The session's own checkout: where a new named worktree branches from.
+SESSION_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
 # Resolve the main repo dir first (config lives under it).
 if [[ -z "$REPO_DIR" ]]; then
   # sed (not awk $2) so a main-repo path containing spaces isn't truncated to its first word.
   REPO_DIR="$(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -1)"
   [[ -n "$REPO_DIR" ]] || REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 fi
-[[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir (pass --repo)"
+[[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir: this folder is not inside a git repository. Start the session inside the repository, or switch into an existing worktree with the harness's worktree tool (its path form), or pass --repo"
 [[ -d "$REPO_DIR/.git" || -f "$REPO_DIR/.git" ]] || error_exit "git repo not found at $REPO_DIR"
 
-# The branch a name gets: the repository's template when `{name}` and `{user}` fill
-# every placeholder in it, else `worktree-<name>`. Prints the branch.
+# The branch a name gets. With a `git.branch-template` that holds a placeholder other
+# than `{user}`, the template is expanded: `{user}` is the git user name as a slug
+# (`CONFIG.md` "Path templates"), every other placeholder is the name, so a name like
+# `PROJ-123` can satisfy a ticket-shaped pattern. Otherwise `worktree-<name>`.
+BRANCH_TEMPLATE=""
 branch_for_name() {
-  local name="$1" template user branch
-  template="$(cd "$REPO_DIR" && "$PY_BIN" "$PLUGIN_ROOT/scripts/afk-config.py" get git.branch-template 2>/dev/null || true)"
+  local name="$1" user filled
   user="$(git -C "$REPO_DIR" config user.name 2>/dev/null | tr '[:upper:] ' '[:lower:]--' | tr -cd 'a-z0-9-' || true)"
-  branch="worktree-$name"
-  if [[ "$template" == *"{name}"* ]]; then
-    local filled="${template//\{name\}/$name}"
-    if [[ "$filled" == *"{user}"* ]]; then
-      [[ -n "$user" ]] && filled="${filled//\{user\}/$user}"
-    fi
-    [[ "$filled" != *"{"* && "$filled" != *"}"* ]] && branch="$filled"
+  [[ -n "$user" ]] || user="$name"
+  if [[ "${BRANCH_TEMPLATE//\{user\}/}" == *"{"*"}"* ]]; then
+    filled="${BRANCH_TEMPLATE//\{user\}/$user}"
+    printf '%s\n' "$filled" | sed -E "s/\{[A-Za-z0-9_]+\}/$name/g"
+  else
+    printf 'worktree-%s\n' "$name"
   fi
-  printf '%s\n' "$branch"
 }
 
 if [[ -n "$NAME" ]]; then
@@ -217,11 +224,11 @@ if [[ -n "$NAME" ]]; then
   [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
   WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"
   DIR_NAME="$NAME"
+  BRANCH_TEMPLATE="$(cd "$REPO_DIR" && "$PY_BIN" "$PLUGIN_ROOT/scripts/afk-config.py" get git.branch-template 2>/dev/null || true)"
   BRANCH="$(branch_for_name "$NAME")"
-  BASE_BRANCH="${BASE_BRANCH:-HEAD}"
   load_branch_pattern
   validate_branch_name "$BRANCH" || \
-    error_exit "branch '$BRANCH' does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created. Pick a name whose branch matches the pattern; the branch is named from git.branch-template with {name} and {user} filled, else worktree-<name>"
+    error_exit "branch '$BRANCH' (name '$NAME', git.branch-template '${BRANCH_TEMPLATE:-none}') does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created. The name must make the expanded template match: {user} is your git user name, every other placeholder is filled with the name"
 fi
 
 
@@ -329,27 +336,59 @@ copy_dir_with_substitution() {
 
 COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"
 
-release_lock() { [[ -n "$LOCK_DIR" ]] && rmdir "$LOCK_DIR" 2>/dev/null || true; LOCK_DIR=""; }
+# The lock holder as `pid:creation-time`, in the process table's own terms.
+holder_id() {
+  local pid=$$
+  [[ -r /proc/$$/winpid ]] && pid="$(cat /proc/$$/winpid)"
+  printf '%s:%s' "$pid" "$("$PY_BIN" "$PLUGIN_ROOT/scripts/worktree_owner.py" ctime "$pid")"
+}
 
-# One creator at a time per checkout: an atomic mkdir, broken when older than 2 minutes.
+release_lock() {
+  # Remove the lock only when this process still holds it: a broken lock is another creator's.
+  if [[ -n "$LOCK_DIR" && "$(cat "$LOCK_DIR/holder" 2>/dev/null)" == "$LOCK_ID" ]]; then
+    rm -rf "$LOCK_DIR"
+  fi
+  LOCK_DIR=""
+}
+
+# One creator at a time per checkout: an atomic mkdir whose holder is recorded, broken
+# only when that holder is dead (or, with no holder recorded, after 2 minutes).
 acquire_lock() {
-  local dir="$COMMON_DIR/afk-worktrees" tries=0
+  local dir="$COMMON_DIR/afk-worktrees" tries=0 holder
   mkdir -p "$dir"
+  LOCK_ID="$(holder_id)"
   until mkdir "$dir/.lock" 2>/dev/null; do
-    if [[ -n "$(find "$dir/.lock" -maxdepth 0 -mmin +2 2>/dev/null)" ]]; then
-      rmdir "$dir/.lock" 2>/dev/null || true
+    holder="$(cat "$dir/.lock/holder" 2>/dev/null || true)"
+    if [[ -n "$holder" ]]; then
+      if [[ "$("$PY_BIN" "$PLUGIN_ROOT/scripts/worktree_owner.py" state "${holder%%:*}" "${holder#*:}")" == dead ]]; then
+        rm -rf "$dir/.lock"
+        continue
+      fi
+    elif [[ -n "$(find "$dir/.lock" -maxdepth 0 -mmin +2 2>/dev/null)" ]]; then
+      rm -rf "$dir/.lock"
       continue
     fi
     tries=$((tries + 1))
-    [[ $tries -le 300 ]] || error_exit "another worktree creation holds $dir/.lock"
+    [[ $tries -le 600 ]] || error_exit "another worktree creation holds $dir/.lock"
     sleep 0.2
   done
+  printf '%s' "$LOCK_ID" > "$dir/.lock/holder"
   LOCK_DIR="$dir/.lock"
   trap release_lock EXIT
 }
 
 if [[ -n "$NAME" ]]; then
   acquire_lock
+  # A new worktree continues where the session is: the HEAD commit of the session's own
+  # checkout, never the main checkout's unless they are the same.
+  if [[ -z "$BASE_BRANCH" ]]; then
+    session_common=""
+    [[ -z "$SESSION_DIR" ]] || session_common="$(git -C "$SESSION_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    base_from="$REPO_DIR"
+    [[ "$session_common" != "$COMMON_DIR" ]] || base_from="$SESSION_DIR"
+    BASE_BRANCH="$(git -C "$base_from" rev-parse -q --verify 'HEAD^{commit}' 2>/dev/null || true)"
+    [[ -n "$BASE_BRANCH" ]] || ORPHAN=true
+  fi
   [[ ! -e "$DEST" && ! -e "$COMMON_DIR/afk-worktrees/$NAME.json" ]] || error_exit "worktree name '$NAME' is already taken"
   ! git -C "$REPO_DIR" rev-parse --verify -q "refs/heads/$BRANCH" >/dev/null || error_exit "branch '$BRANCH' already exists; choose another name"
 fi
@@ -368,6 +407,10 @@ fi
 if [[ "$BRANCH_EXISTS" == true ]]; then
   git -C "$REPO_DIR" worktree add "$DEST" "$BRANCH" >&2 \
     || error_exit "git worktree add failed for existing branch '$BRANCH'"
+elif [[ "$ORPHAN" == true ]]; then
+  # No commit yet: an orphan branch, so the first commit can be made in a worktree.
+  git -C "$REPO_DIR" worktree add --orphan -b "$BRANCH" "$DEST" >&2 \
+    || error_exit "this repository has no commit yet and this git cannot create an orphan worktree (needs git 2.42). A human makes the first commit by starting the session with AFK_ALLOW_PROTECTED=1"
 else
   [[ -n "$BASE_BRANCH" ]] \
     || error_exit "branch '$BRANCH' does not exist and --base was not given"

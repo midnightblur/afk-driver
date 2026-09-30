@@ -43,6 +43,15 @@ release page from its section here. Nobody tags by hand.
   the active harness's folder, records its owner, and runs the repository's
   `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
   that has a worktree-creation hook calls it.
+- **Git backstop for the protected-branch guard.** `install-git-hooks.sh` now
+  installs in every git repository, with or without `.afk/`, and skips one that
+  sets `core.hooksPath`. For an agent only, `pre-commit` refuses a commit in the
+  main checkout and on a protected branch of a worktree, and
+  `reference-transaction` refuses a move of the main checkout's HEAD or of the
+  branch it has checked out. Creating refs, so a new worktree, passes; so does
+  `AFK_ALLOW_PROTECTED=1` or `AFK_WORKTREE_OP=1`. A refused `checkout` can leave
+  the index switched and a refused `rebase` in progress: the tool-call guard
+  stays the primary gate.
 
 ## [1.9.0] - 2026-09-29
 
