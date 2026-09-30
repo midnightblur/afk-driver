@@ -127,11 +127,14 @@ Negation is not supported. A repository must list each wider path explicitly.
 ### Path templates
 
 `repo-files.spec-dir` and `git.branch-template` expand a fixed placeholder set:
-`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`, `{name}`.
-`{user}` is the git `user.name` as a slug: lower case, spaces to `-`, only `a-z 0-9 -`.
-`{name}` is the worktree name given to `scripts/create-worktree --name`; in that mode every
-placeholder the plugin cannot resolve is filled with the name too. Elsewhere an unknown
-placeholder is left alone rather than guessed.
+`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`. In
+`repo-files.spec-dir`, `{user}` is the `USER`/`USERNAME` environment value, unchanged, and
+an unknown placeholder is left alone rather than guessed.
+
+`git.branch-template` under `scripts/create-worktree --name` adds `{name}`, the worktree
+name, and reads `{user}` as the git `user.name` slug: lower case, spaces to `-`, only
+`a-z 0-9 -`. In that mode every placeholder the plugin cannot resolve is filled with the
+name too.
 
 ### Worktree provisioning
 
