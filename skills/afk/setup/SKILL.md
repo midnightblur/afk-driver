@@ -43,10 +43,13 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    `.afk/config.yaml`, so a repository without one has nothing to check against.
    `<git root>/.afk/config.yaml` present → skip this step, silently. Absent:
    - run `python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
-     starter file from what the repository can answer about itself (forge from
-     the origin remote, build gates from a root `pom.xml` / `package.json`, base
-     branch from `origin/HEAD`), and leaves a commented `TODO` wherever it
-     cannot;
+     starter file from what the repository can answer about itself
+     (`${AFK_PLUGIN_ROOT}/CONFIG.md` "Starting a repository off"), and leaves a
+     commented `TODO` wherever it cannot;
+   - `init` refusing because the base branch or main worktree already has a
+     config: never pass `--force`. Tell the human to merge or rebase the base
+     branch into this branch, then re-run setup; record the row as
+     `needs-human: merge <base> for .afk/config.yaml`;
    - show the file and walk the human through every `TODO` it left — at minimum
      the tracker (project key and issue types, or `none`) and the build gate's
      default module;

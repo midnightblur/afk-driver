@@ -71,6 +71,11 @@ release page from its section here. Nobody tags by hand.
 - **`init` no longer shadows a tracker or forge the machine layer sets.** It
   wrote `tracker: none` over a machine-level `tracker: jira`; it now writes that
   value as a `TODO` comment and lists the key in the `TODO left` line.
+- **`afk-config.py init` no longer scaffolds a second config in a worktree.** On
+  a branch cut before `.afk/config.yaml` was committed, `init` wrote a fresh
+  `tracker: none` file that diverged from the repository's contract. It now
+  refuses when the base branch or the main worktree already has one; merge or
+  rebase that branch instead, or pass `--force`.
 
 ## [1.9.0] - 2026-09-29
 

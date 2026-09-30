@@ -1082,6 +1082,28 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def committed_elsewhere(root: Path) -> str | None:
+    """Where a config already exists outside `root`'s own file, else `None`.
+
+    A worktree on a branch cut before the config commit sees no file, yet the
+    base branch and the main worktree still carry the repository's contract."""
+    base = detect_base_branch(root)
+    names = [base] if base != "auto" else ["main", "master"]
+    refs = [f"refs/remotes/origin/{n}" for n in names] + [f"refs/heads/{n}" for n in names]
+    for ref in refs:
+        found = subprocess.run(
+            ["git", "-C", str(root), "cat-file", "-e", f"{ref}:.afk/config.yaml"],
+            capture_output=True, timeout=20)
+        if found.returncode == 0:
+            return f"`{ref.removeprefix('refs/remotes/').removeprefix('refs/heads/')}`"
+    common = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common:
+        main = Path(common).parent
+        if main.resolve() != root.resolve() and (main / ".afk" / "config.yaml").is_file():
+            return f"the main worktree {main}"
+    return None
+
+
 def init(root: Path, force: bool = False,
          todos: list[str] | None = None) -> tuple[Path, list[str]]:
     """Write the starter file. Returns its path and any validation problems;
@@ -1091,6 +1113,12 @@ def init(root: Path, force: bool = False,
         raise ConfigError(
             f"{target} already exists; nothing was written. "
             f"Pass --force to replace it (the current file is not backed up)."
+        )
+    where = None if force or target.is_file() else committed_elsewhere(root)
+    if where:
+        raise ConfigError(
+            f"{where} already has .afk/config.yaml; merge or rebase that branch "
+            f"instead of scaffolding a second contract. Pass --force to scaffold anyway."
         )
     target.parent.mkdir(parents=True, exist_ok=True)
     text = scaffold(root, todos)
