@@ -93,6 +93,13 @@ release page from its section here. Nobody tags by hand.
 - **Setup no longer removes an unrelated `jira` MCP server.** It reused and
   deleted any user-scoped `jira` entry; it now touches one only when its args
   point under this plugin root, into an `afk` plugin cache, or at the launcher.
+- **The tracker server's launcher starts the newest copy of this harness's
+  install.** When a harness does not hand over the plugin root, the launcher
+  searched the home directory and sorted whole paths as text, so `1.9.0`
+  outranked `1.10.0` and a stale copy under another harness's directory outranked
+  the running harness's own. It now
+  prefers its own harness's directory, compares versions as numbers, and skips
+  a copy the harness marked orphaned.
 
 ## [1.9.0] - 2026-09-29
 
