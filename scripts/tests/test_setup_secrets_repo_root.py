@@ -118,3 +118,4 @@ def test_no_manifest_row_calls_a_missing_config_file_n_a():
     text = MANIFEST.read_text(encoding="utf-8")
     outside_h0 = text.replace(text.split("### H0 · ", 1)[1].split("\n### ", 1)[0], "")
     assert "no `.afk/config.yaml`" not in outside_h0
+    assert "no config layer" not in " ".join(outside_h0.lower().split())
