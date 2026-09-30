@@ -59,7 +59,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 
 1. **Load the register.** Read [`MANIFEST.md`](MANIFEST.md) — the complete
    dependency set; probe nothing outside it (a known dep missing from it is a
-   FRESHNESS.md violation — flag it, then probe it anyway).
+   FRESHNESS.md violation — flag it, then probe it anyway). Then read each
+   `setup.extra` file (MANIFEST section X); a listed file that is absent is
+   `needs-human: setup.extra file {path} missing`.
 2. **Probe everything.** Run every entry's `Probe:` — `sh:` probes from the
    repository root, `agent:` probes in-session. Under `base`, also run
    every `Base probe:` where present — a version miss there is `missing/broken`

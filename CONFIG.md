@@ -12,6 +12,10 @@ python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.comma
 python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
 ```
 
+`validate` fails only on schema problems. For each configured path that is
+absent under the repository root it prints a `warning:` line to stderr and
+still exits 0.
+
 Bash gates source the flat export once per Stop through `hooks/lib/config.sh`
 and read the fixed `AFK_CFG_*` names.
 

@@ -738,6 +738,37 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     return problems
 
 
+# (dotted key, file or directory) for each configured path a gate reads from disk.
+PATH_KEYS = (
+    ("repo-hooks", "file"), ("setup.extra", "file"),
+    ("maven.reactor-pom", "file"), ("maven.formatter-config", "file"),
+    ("maven.default-module", "dir"), ("maven.worktree-seed", "dir"),
+    ("npm.workspace-root", "dir"),
+)
+
+
+def path_warnings(config: dict, root: Path | None) -> list[str]:
+    """One warning per configured path that is absent under `root`.
+
+    Not a problem: a missing path leaves a gate inert, and a sample or a fresh
+    clone may name files it does not carry. Non-string values are `validate`'s.
+    """
+    if root is None:
+        return []
+    warnings: list[str] = []
+    for dotted, kind in PATH_KEYS:
+        value: object = config
+        for part in dotted.split("."):
+            value = value.get(part) if isinstance(value, dict) else None
+        for path in value if isinstance(value, list) else [value]:
+            if not isinstance(path, str) or not path or path in ("auto", "none"):
+                continue
+            target = root / os.path.expanduser(path)
+            if not (target.is_dir() if kind == "dir" else target.is_file()):
+                warnings.append(f"{dotted}: {path} does not exist under the repository root")
+    return warnings
+
+
 # --------------------------------------------------------------------------
 # Resolving a developer value
 # --------------------------------------------------------------------------
@@ -1112,9 +1143,13 @@ def main(argv: list[str]) -> int:
             problems = validate(config, root)
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
+            warnings = path_warnings(config, root)
+            for warning in warnings:
+                sys.stderr.write(f"afk-config: warning: {warning}\n")
             if problems:
                 return 2
-            sys.stdout.write("afk-config: configuration is valid\n")
+            noted = f" ({len(warnings)} warning{'s' * (len(warnings) != 1)})" if warnings else ""
+            sys.stdout.write(f"afk-config: configuration is valid{noted}\n")
             return 0
 
         config = load(root)
