@@ -163,6 +163,222 @@ def test_r8_8_no_forge_adapter_declares_a_branch_protection_verb():
         assert "branch-protection" not in manifest["operations"]
 
 
+# ---- the lookup, per catalog S row ------------------------------------------
+
+def test_github_listed_branch_is_protected(tmp_path):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "release")
+    assert answer == {"protected": True, "source": "github"}
+
+
+def test_github_unlisted_branch_is_not_protected(tmp_path):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    repo = make_repo(tmp_path, "git@github.com:acme/widget.git")
+    answer, _ = lookup(environ, repo, "feature-x")
+    assert answer == {"protected": False, "source": "github"}
+
+
+def test_github_ruleset_only_branch_is_protected(tmp_path):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "ruled")
+    assert answer == {"protected": True, "source": "github"}
+
+
+def test_gitlab_wildcard_on_a_later_page_is_protected(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    repo = make_repo(tmp_path, "https://gitlab.example.com/grp/sub/widget.git")
+    answer, _ = lookup(environ, repo, "release/2.1")
+    assert answer == {"protected": True, "source": "gitlab"}
+
+
+def test_gitlab_no_match_is_not_protected(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    repo = make_repo(tmp_path, "https://gitlab.example.com/grp/widget.git")
+    answer, _ = lookup(environ, repo, "topic/x")
+    assert answer == {"protected": False, "source": "gitlab"}
+
+
+def test_config_forge_wins_over_the_remote_address(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text("forge: gitlab\n", encoding="utf-8")
+    answer, _ = lookup(environ, repo, "main")
+    assert answer == {"protected": True, "source": "gitlab"}
+
+
+def test_answer_is_asked_live_each_time(tmp_path):
+    """AC-010: a branch protected after the first call is protected on the next."""
+    marker = tmp_path / "second"
+    body = (f'case "$*" in *rules/*) echo "[]" ;; *) if [ -e "{marker.as_posix()}" ]; '
+            'then echo \'{"protected": true}\'; else echo \'{"protected": false}\'; fi ;; esac\n')
+    environ = stub(tmp_path, "gh", body)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    first, _ = lookup(environ, repo, "topic")
+    marker.write_text("x", encoding="utf-8")
+    second, _ = lookup(environ, repo, "topic")
+    assert (first["protected"], second["protected"]) == (False, True)
+
+
+# ---- fallback S-3 --------------------------------------------------------------
+
+@pytest.mark.parametrize("branch,hit", [("main", True), ("master", True), ("trunk", True),
+                                        ("feature-x", False)])
+def test_unknown_forge_falls_back_to_default_main_master(tmp_path, branch, hit):
+    repo = make_repo(tmp_path, "https://git.example.org/team/widget.git")
+    git(repo, "update-ref", "refs/remotes/origin/trunk", "HEAD")
+    git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
+    answer, _ = lookup(dict(os.environ), repo, branch)
+    assert answer["protected"] is hit
+    assert answer["source"] == "fallback"
+    assert answer["reason"]
+
+
+def test_no_remote_falls_back(tmp_path):
+    repo = make_repo(tmp_path, None)
+    answer, _ = lookup(dict(os.environ), repo, "main")
+    assert answer["protected"] is True and answer["source"] == "fallback"
+
+
+def test_forge_error_falls_back(tmp_path):
+    environ = stub(tmp_path, "gh", "exit 1\n")
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "master")
+    assert answer["protected"] is True and answer["source"] == "fallback"
+    assert answer["reason"]
+
+
+def test_missing_cli_falls_back(tmp_path):
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    keep = {str(Path(shutil.which(t)).parent) for t in ("git", "bash")} | {str(Path(sys.executable).parent)}
+    environ = dict(os.environ)
+    environ["PATH"] = os.pathsep.join([str(empty), *keep])
+    answer, _ = lookup(environ, repo, "main")
+    assert answer["protected"] is True and answer["source"] == "fallback"
+
+
+def test_slow_forge_times_out_into_the_fallback(tmp_path):
+    environ = stub(tmp_path, "gh", "sleep 30\n")
+    environ["AFK_PROTECTED_TIMEOUT"] = "1"
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    started = time.monotonic()
+    answer, done = lookup(environ, repo, "main")
+    assert time.monotonic() - started < 8, "the cap is wall-clock"
+    assert answer["source"] == "fallback" and answer["protected"] is True
+    assert "did not answer" in answer["reason"]
+
+
+class _Status:
+    """A tiny HTTP server answering every request with one status; `seen` records the paths."""
+
+    def __init__(self, status: int, body: str = "[]"):
+        import http.server
+        import threading
+        seen = self.seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append(self.path)
+                payload = body.encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+
+@pytest.mark.parametrize("status", (401, 403))
+def test_r3_2_a_refused_github_token_falls_through_to_the_cli(tmp_path, status):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    server = _Status(status)
+    environ.update(GH_TOKEN="wrong-host", AFK_GITHUB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "release")
+    server.server.shutdown()
+    assert server.seen, "the token path was tried first"
+    assert answer["source"] == "github" and answer["protected"] is True
+
+
+def test_r3_2_a_refused_gitlab_token_falls_through_to_the_cli(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    server = _Status(401)
+    environ.update(GITLAB_TOKEN="wrong-host", AFK_GITLAB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://gitlab.com/acme/widget.git")
+    answer, _ = lookup(environ, repo, "main")
+    server.server.shutdown()
+    assert server.seen and answer["source"] == "gitlab" and answer["protected"] is True
+
+
+def test_r3_2_the_override_of_the_other_forge_is_never_used(tmp_path):
+    environ = stub(tmp_path, "glab", GITLAB_PAGES)
+    server = _Status(200)
+    environ.update(GITLAB_TOKEN="secret", AFK_GITHUB_API_URL=server.url)
+    repo = make_repo(tmp_path, "https://gitlab.com/acme/widget.git")
+    lookup(environ, repo, "main")
+    server.server.shutdown()
+    assert server.seen == [], "a GitLab token must not reach a URL meant for GitHub"
+
+
+def test_r3_3_an_insteadof_alias_and_an_inline_comment_are_resolved_by_git(tmp_path):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    repo = make_repo(tmp_path, "gh:acme/widget.git")
+    git(repo, "config", "url.https://github.com/.insteadOf", "gh:")
+    answer, _ = lookup(environ, repo, "release")
+    assert answer["source"] == "github" and answer["protected"] is True
+    config = repo / ".git" / "config"
+    text = config.read_text(encoding="utf-8").replace("url = gh:acme", "url = https://github.com/acme")
+    config.write_text(text.replace(".git\n", ".git ; the mirror\n", 1), encoding="utf-8")
+    answer, _ = lookup(environ, repo, "release")
+    assert answer["source"] == "github"
+
+
+def test_r3_5_the_cli_cap_is_wall_clock_without_a_token(tmp_path):
+    environ = stub(tmp_path, "gh", "sleep 30\n")
+    environ["AFK_PROTECTED_TIMEOUT"] = "1"
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    started = time.monotonic()
+    answer, _ = lookup(environ, repo, "main")
+    assert time.monotonic() - started < 6 and answer["source"] == "fallback"
+
+
+def test_r4_6_the_lookups_git_reads_share_one_deadline(tmp_path, monkeypatch):
+    """A git that hangs must cost the cap once, not once per read plus the forge read."""
+    spec = importlib.util.spec_from_file_location("afk_lookup_deadline", LOOKUP)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".git" / "config").write_text(
+        '[remote "origin"]\n\turl = https://github.com/o/r.git\n[url "https://github.com/"]\n\tinsteadOf = gh:\n',
+        encoding="utf-8")
+    for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_CONFIG"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AFK_PROTECTED_TIMEOUT", "1")
+    real_run = subprocess.run
+
+    def hanging(argv, **kwargs):
+        if argv and argv[0] == "git":
+            time.sleep(kwargs.get("timeout") or 30)
+            raise subprocess.TimeoutExpired(argv, kwargs.get("timeout") or 30)
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "run", hanging)
+    started = time.monotonic()
+    answer = module.lookup("feature", repo, repo / ".git")
+    assert time.monotonic() - started < 2.0
+    assert answer["source"] == "fallback"
+
+
 # ---- the login token is asked once and used over HTTPS ------------------------
 
 def _serve(seen: list):
@@ -198,8 +414,30 @@ def test_p4_no_env_token_asks_the_cli_once_and_reads_over_https(tmp_path, monkey
     body = (f'echo "$*" >> "{calls.as_posix()}"\n'
             'case "$*" in "auth token"*) echo tok-from-cli ;; *) echo "gh api must not run" >&2; exit 1 ;; esac\n')
     environ = stub(tmp_path, "gh", body)
-    for name in ("PATH",):
-        monkeypatch.setenv(name, environ[name])
+    monkeypatch.setenv("PATH", environ["PATH"])
+    for name in ("GH_TOKEN", "GITHUB_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    module = _read_module()
+    seen: list = []
+
+    def reply(url, headers, deadline):
+        seen.append((url, headers.get("Authorization")))
+        return 200, '{"protected": true}' if "/rules/" not in url else "[]", {}
+
+    monkeypatch.setattr(module, "_https_get", reply)
+    answer = module.protection("github", "main", "o/r", str(tmp_path), 20.0, "https://api.github.com")
+    assert answer == {"protected": True, "via": "branch"}, answer
+    assert len(seen) == 2 and all(auth == "Bearer tok-from-cli" for _, auth in seen)
+    assert calls.read_text(encoding="utf-8").splitlines() == ["auth token --hostname github.com"]
+
+
+def test_r9_1_an_override_host_never_gets_the_cli_login_token(tmp_path, monkeypatch):
+    calls = tmp_path / "calls.log"
+    body = (f'echo "$*" >> "{calls.as_posix()}"\n'
+            'case "$*" in "auth token"*) echo github-dot-com-login ;; *rules/*) echo "[]" ;; '
+            '*) echo \'{"protected": true}\' ;; esac\n')
+    environ = stub(tmp_path, "gh", body)
+    monkeypatch.setenv("PATH", environ["PATH"])
     for name in ("GH_TOKEN", "GITHUB_TOKEN"):
         monkeypatch.delenv(name, raising=False)
     seen: list = []
@@ -210,8 +448,8 @@ def test_p4_no_env_token_asks_the_cli_once_and_reads_over_https(tmp_path, monkey
     finally:
         server.shutdown()
     assert answer == {"protected": True, "via": "branch"}, answer
-    assert len(seen) == 2 and all(auth == "Bearer tok-from-cli" for _, auth in seen)
-    assert calls.read_text(encoding="utf-8").splitlines() == ["auth token --hostname github.com"]
+    assert seen == [], "no request, and so no credential, reaches the override"
+    assert not any(line.startswith("auth token") for line in calls.read_text(encoding="utf-8").splitlines())
 
 
 def test_p4_a_failing_token_call_falls_back_to_the_cli_reads(tmp_path, monkeypatch):
