@@ -350,7 +350,7 @@ def test_jira_credentials_leave_a_tracker_hint(tmp_path, monkeypatch):
     repo = make_repo(tmp_path, "jira", "git@gitlab.com:acme/w.git")
     text, config = scaffold_of(repo)
     assert config["tracker"] == "none"
-    assert "# TODO: JIRA_BASE_URL is set in this environment; set tracker: jira" in text
+    assert "# TODO: JIRA_BASE_URL is set (environment or the tracker server's credentials); set tracker: jira" in text
     assert "secret-corp" not in text
 
 
@@ -456,3 +456,51 @@ def test_jira_hint_reads_the_tracker_env_block_in_claude_json(tmp_path, monkeypa
     assert "JIRA_BASE_URL is set" in text
     assert "secret-corp" not in text
     assert todos[:2] == ["tracker", "jira.project"]
+
+
+def test_the_hint_reads_the_codex_credential_store(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    codex = tmp_path / "home" / ".codex"
+    codex.mkdir()
+    (codex / "config.toml").write_text(
+        '[mcp_servers.tracker.env]\nJIRA_BASE_URL = "https://secret-corp.example.net"\n',
+        encoding="utf-8")
+    repo = make_repo(tmp_path, "codex", "git@gitlab.com:acme/w.git")
+    text = ac.scaffold(repo, [])
+    assert "JIRA_BASE_URL is set" in text and "secret-corp" not in text
+
+
+def test_the_hint_is_absent_when_the_adapter_dependencies_are_missing(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"tracker": {"env": {"JIRA_BASE_URL": "https://x.example.net"}}}}'))
+    monkeypatch.setitem(sys.modules, "markdown_it", None)
+    repo = make_repo(tmp_path, "nodeps", "git@gitlab.com:acme/w.git")
+    assert "JIRA_BASE_URL is set" not in ac.scaffold(repo, [])
+
+
+def test_only_the_machine_layer_can_be_shadowed(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    repo = make_repo(tmp_path, "overlay", "git@gitlab.com:acme/w.git")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.local.yaml").write_text("tracker: jira\n", encoding="utf-8")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "TODO: tracker" not in text
+    assert "tracker" not in todos
+
+
+def test_a_machine_github_issues_tracker_gets_the_github_block(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: github-issues\n")
+    repo = make_repo(tmp_path, "ghm", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "github-issues:" in text and "set `tracker: jira`" not in text
+    assert todos == ["tracker"]
+    assert _effective(repo, text)["tracker"] == "github-issues"
+
+
+def test_init_names_the_machine_tracker_todos_exactly(tmp_path, monkeypatch, capsys):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: jira\n")
+    repo = make_repo(tmp_path, "exact", "git@gitlab.com:acme/w.git")
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: tracker, jira.project"

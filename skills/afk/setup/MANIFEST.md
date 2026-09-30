@@ -574,7 +574,8 @@ a token value — not even partially.
   (attachment upload has no MCP tool, and both engines PUT the description via
   REST directly rather than inline a large ADF through an MCP tool call),
   the shared Jira lib `adapters/tracker/jira/api.py` and
-  `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
+  `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001),
+  and `scripts/afk-config.py init` (presence-only: the `JIRA_BASE_URL` hint).
 - **Probe:** presence-only through the shared resolver; prints no values:
   `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it

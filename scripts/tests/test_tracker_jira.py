@@ -184,6 +184,18 @@ class TestCreds(unittest.TestCase):
         self.assertEqual((base, email, token),
                          ("https://env.atlassian.net", "env@x.test", "env-tok"))
 
+    def test_resolve_creds_env_returns_what_it_finds_and_never_exits(self):
+        for k in self._saved:
+            os.environ.pop(k, None)
+        with tempfile.TemporaryDirectory() as home:
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                self.assertEqual(api.resolve_creds_env(), {})
+            self._write_claude_json(home, "https://file.atlassian.net")
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                found = api.resolve_creds_env()
+        self.assertEqual(found["JIRA_BASE_URL"], "https://file.atlassian.net")
+        self.assertEqual(set(found), {"JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN"})
+
     def test_creds_merge_per_field(self):
         # load_creds fills each missing field from the file independently:
         # base comes from env here, email/token from the file.
