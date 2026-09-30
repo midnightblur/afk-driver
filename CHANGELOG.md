@@ -37,6 +37,10 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- `/afk:report-issue` keeps plugin terms (config keys, file names) when run from an installed plugin.
+
 ## [1.9.0] - 2026-09-29
 
 ### Added

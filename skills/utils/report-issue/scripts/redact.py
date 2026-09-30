@@ -302,6 +302,20 @@ def _remote_parts(url: str) -> tuple[str | None, list[str]]:
     return m.group(1), [s for s in m.group(2).split("/") if s]
 
 
+def _tracked(plugin_root: Path) -> set[str]:
+    """Relative POSIX paths the plugin publishes: git's list, else — for an
+    installed copy carrying a plugin manifest — every walked file."""
+    listed = set(_git(plugin_root, "ls-files").splitlines())
+    if listed or not any((plugin_root / d / "plugin.json").is_file()
+                         for d in (".claude-plugin", ".codex-plugin")):
+        return listed
+    walked: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(plugin_root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        walked.update((Path(dirpath) / n).relative_to(plugin_root).as_posix() for n in filenames)
+    return walked
+
+
 @functools.lru_cache(maxsize=4)
 def _plugin_inventory(plugin_root: Path) -> tuple[set[str], set[str], set[str], set[str], set[str]]:
     """Basenames the plugin ships, the PascalCase and lowercase words its own
@@ -316,10 +330,9 @@ def _plugin_inventory(plugin_root: Path) -> tuple[set[str], set[str], set[str], 
     pascal: set[str] = set()
     words: set[str] = set()
     dotted: set[str] = set()
-    # TRACKED text only. A cache or a build artifact under the plugin root is
-    # not something the plugin publishes, and git is the one authority on which
-    # is which. No git, no allowance — the redacting answer is the safe one.
-    tracked = set(_git(plugin_root, "ls-files").splitlines())
+    # Git is the authority on what the plugin publishes. An installed copy has
+    # no git but a manifest: the tree is the published one. Neither: no allowance.
+    tracked = _tracked(plugin_root)
     mine = Path(__file__).resolve()
     for dirpath, dirnames, filenames in os.walk(plugin_root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
