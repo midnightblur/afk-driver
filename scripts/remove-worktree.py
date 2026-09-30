@@ -210,8 +210,14 @@ def clear_leftover(common: Path, path: Path, record_file: Path) -> None:
     sys.stderr.write(f"afk: cleared the leftover folder {path.as_posix()}.\n")
 
 
+class StandingInside(Exception):
+    """A forced removal asked from inside the folder it would delete."""
+
+
 def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
     if inside(SESSION_CWD, path):
+        if force:
+            raise StandingInside(path)
         # Deleting the folder this process stands in half-removes it on Windows; a later prune takes it.
         sys.stderr.write(f"afk: worktree {path.as_posix()} is this session's folder; "
                          "it is removed at a later session start.\n")
@@ -319,6 +325,12 @@ def main(argv: list[str]) -> int:
         else:
             sys.stderr.write(__doc__ or "")
             return 2
+    except StandingInside as inner:
+        sys.stderr.write(f"afk: not removed: this shell is inside {Path(inner.args[0]).as_posix()}. "
+                         "Run this from outside the worktree:\n"
+                         f"afk:   python {(HERE / 'remove-worktree.py').as_posix()} --path "
+                         f"{Path(inner.args[0]).as_posix()} --force\n")
+        return 1
     except Exception as problem:  # a cleanup hook must never fail the harness
         sys.stderr.write(f"afk: worktree cleanup skipped ({problem}).\n")
     return 0

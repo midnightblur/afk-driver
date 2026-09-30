@@ -321,3 +321,13 @@ def test_p4_a_tracked_change_under_a_runtime_path_keeps_the_worktree(repo):
     git(path, "add", "-f", ".claude/metrics/kept.txt")
     run("--path", str(path))
     assert path.is_dir()
+
+
+def test_r9_4_a_forced_removal_from_inside_the_folder_says_to_run_it_from_outside(repo):
+    path = made(repo, "forcein")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    done = run("--path", str(path), "--force", cwd=path)
+    assert done.returncode != 0 and path.is_dir()
+    assert "from outside the worktree" in done.stderr and "--force" in done.stderr
+    assert "later session start" not in done.stderr
+    assert run("--path", str(path), "--force", cwd=repo).returncode == 0 and not path.exists()
