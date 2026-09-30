@@ -486,13 +486,55 @@ def test_r10_2_plain_http_to_loopback_still_carries_the_token(tmp_path, monkeypa
     assert len(sent) == 2
 
 
-@pytest.mark.parametrize("forge,body", [("github", GITHUB_STUB), ("gitlab", GITLAB_PAGES)])
-def test_r11_3_the_cli_read_goes_to_the_remotes_own_host(tmp_path, monkeypatch, forge, body):
+def cli_reads(tmp_path, monkeypatch, forge, host, logged_in, ssh_says=None):
+    """Run the CLI path for `host`; return the argument lines the stubbed CLI saw."""
     calls = tmp_path / "calls.log"
+    body = GITHUB_STUB if forge == "github" else GITLAB_PAGES
     environ = stub(tmp_path, TOOL[forge], f'echo "$*" >> "{calls.as_posix()}"\n' + body)
+    if ssh_says is not None:
+        environ = stub(tmp_path, "ssh", f'echo "hostname {ssh_says}"\n')
+    config = tmp_path / "config"
+    config.mkdir(exist_ok=True)
+    if forge == "github":
+        (config / "hosts.yml").write_text("".join(f"{h}:\n    user: u\n" for h in logged_in), encoding="utf-8")
+        monkeypatch.setenv("GH_CONFIG_DIR", str(config))
+    else:
+        (config / "config.yml").write_text("hosts:\n" + "".join(f"  {h}:\n    token: x\n" for h in logged_in),
+                                           encoding="utf-8")
+        monkeypatch.setenv("GLAB_CONFIG_DIR", str(config))
     monkeypatch.setenv("PATH", environ["PATH"])
     for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN"):
         monkeypatch.delenv(name, raising=False)
-    _read_module().protection(forge, "main", "o/r", str(tmp_path), 20.0, "", "ghe.example.com")
-    lines = calls.read_text(encoding="utf-8").splitlines()
+    answer = _read_module().protection(forge, "main", "o/r", str(tmp_path), 20.0, "", host)
+    return calls.read_text(encoding="utf-8").splitlines(), answer
+
+
+@pytest.mark.parametrize("forge", ["github", "gitlab"])
+def test_r12_1_a_host_the_cli_is_logged_in_to_gets_the_flag(tmp_path, monkeypatch, forge):
+    lines, _ = cli_reads(tmp_path, monkeypatch, forge, "ghe.example.com", ["ghe.example.com"])
     assert lines and all("--hostname ghe.example.com" in line for line in lines), lines
+
+
+@pytest.mark.parametrize("forge", ["github", "gitlab"])
+def test_r12_1_an_unknown_host_gets_no_flag_so_the_default_still_answers(tmp_path, monkeypatch, forge):
+    lines, answer = cli_reads(tmp_path, monkeypatch, forge, "never-logged-in.example.com", ["other.example.com"])
+    assert lines and not any("--hostname" in line for line in lines), lines
+    assert answer.get("protected") is True, answer
+
+
+def test_r12_1_an_ssh_alias_resolves_to_the_real_host_the_cli_knows(tmp_path, monkeypatch):
+    lines, _ = cli_reads(tmp_path, monkeypatch, "github", "github.com-work", ["ghe.example.com"],
+                         ssh_says="ghe.example.com")
+    assert lines and all("--hostname ghe.example.com" in line for line in lines), lines
+
+
+def test_r12_1_an_ssh_alias_for_a_host_the_cli_does_not_know_gets_no_flag(tmp_path, monkeypatch):
+    lines, answer = cli_reads(tmp_path, monkeypatch, "github", "github.com-work", ["ghe.example.com"],
+                              ssh_says="elsewhere.example.org")
+    assert lines and not any("--hostname" in line for line in lines), lines
+    assert answer.get("protected") is True, answer
+
+
+def test_r12_1_the_public_host_needs_no_flag(tmp_path, monkeypatch):
+    lines, _ = cli_reads(tmp_path, monkeypatch, "github", "github.com", ["github.com"])
+    assert lines and not any("--hostname" in line for line in lines), lines

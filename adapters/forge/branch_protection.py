@@ -34,6 +34,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 PUBLIC_GITHUB_API = "https://api.github.com"
 NOT_FOUND = re.compile(r"HTTP 404|\"status\":\s*\"?404|Not Found")
@@ -124,9 +125,50 @@ def _may_send_token(api: str) -> bool:
     return parts.scheme == "https" or (parts.scheme == "http" and parts.hostname in ("127.0.0.1", "localhost", "::1"))
 
 
-def _hostname(host: str) -> list[str]:
-    """The CLI flag that sends a read to the remote's own host, not the CLI's default."""
-    return ["--hostname", host] if host else []
+PUBLIC_HOSTS = {"github": "github.com", "gitlab": "gitlab.com"}
+
+
+def _config_hosts(forge: str) -> set[str]:
+    """The hosts the CLI is logged in to, read from its own config file (no process)."""
+    home, xdg, appdata = Path.home(), os.environ.get("XDG_CONFIG_HOME"), os.environ.get("APPDATA")
+    if forge == "github":
+        name, dirs = "hosts.yml", [os.environ.get("GH_CONFIG_DIR"), xdg and f"{xdg}/gh",
+                                   appdata and f"{appdata}/GitHub CLI", home / ".config" / "gh"]
+    else:  # glab's directory list is from its docs, not measured on every platform
+        name, dirs = "config.yml", [os.environ.get("GLAB_CONFIG_DIR"), xdg and f"{xdg}/glab-cli",
+                                    appdata and f"{appdata}/glab-cli", home / ".config" / "glab-cli"]
+    for folder in filter(None, dirs):
+        try:
+            text = (Path(folder) / name).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if forge == "gitlab":
+            found = re.search(r"^hosts:", text, re.M)
+            text = text[found.end():] if found else ""
+            return set(re.findall(r"^  ([A-Za-z0-9][A-Za-z0-9.-]*):\s*$", text, re.M))
+        return set(re.findall(r"^([A-Za-z0-9][A-Za-z0-9.-]*):\s*$", text, re.M))
+    return set()
+
+
+def _ssh_host(alias: str, cwd: str, deadline: float) -> str:
+    """The real host an SSH alias names, from `ssh -G`'s hostname line; "" when it cannot tell."""
+    done = _run(["ssh", "-G", alias], cwd, deadline)
+    found = re.search(r"^hostname (\S+)", done[1], re.M) if done is not None and done[0] == 0 else None
+    return found.group(1).lower() if found else ""
+
+
+def _hostname(forge: str, host: str, cwd: str, deadline: float) -> list[str]:
+    """`--hostname <h>` only for a host the CLI is logged in to, else the CLI's own default.
+
+    An SSH alias is resolved with `ssh -G` and re-checked; a host the CLI does not know gets
+    no flag, because naming it would fail the read where the default answers.
+    """
+    if not host or host == PUBLIC_HOSTS.get(forge):
+        return []
+    known = _config_hosts(forge)
+    if host not in known:
+        host = _ssh_host(host, cwd, deadline)
+    return ["--hostname", host] if host in known and host != PUBLIC_HOSTS.get(forge) else []
 
 
 def _login_token(cwd: str, deadline: float) -> str:
@@ -161,7 +203,7 @@ def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
         base = f"repos/{repo}" if repo else "repos/{owner}/{repo}"
 
         def by_cli(path: str):
-            return _cli_get(["gh", "api", *_hostname(host), f"{base}/{path}/{enc}"], cwd, deadline)
+            return _cli_get(["gh", "api", *_hostname("github", host, cwd, deadline), f"{base}/{path}/{enc}"], cwd, deadline)
 
         answers = _together({"branch": lambda: by_cli("branches"), "rules": lambda: by_cli("rules/branches")},
                             deadline)
@@ -225,7 +267,7 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
             texts.append(done[1])
             page = {k.lower(): v for k, v in done[2].items()}.get("x-next-page", "").strip()
     if refused or not (_may_send_token(api) and token and repo):
-        done = _run(["glab", "api", *_hostname(host), "--paginate", f"projects/{project}/protected_branches?per_page=100"],
+        done = _run(["glab", "api", *_hostname("gitlab", host, cwd, deadline), "--paginate", f"projects/{project}/protected_branches?per_page=100"],
                     cwd, deadline)
         if done is None or done[0] != 0:
             return _error("the protected-branch read failed")
@@ -244,7 +286,7 @@ def protection(forge: str, branch: str, repo: str = "", cwd: str = ".", limit: f
                api: str = "", host: str = "") -> dict:
     """`api` is the forge's HTTPS API root: with a token in the environment it replaces the CLI.
 
-    `host` is the remote's host name; the CLI reads go to it, never to the CLI's default host.
+    `host` is the remote's host name; a CLI read names it only when the CLI is logged in to it.
     """
     if not branch:
         return _error("branch is required")
