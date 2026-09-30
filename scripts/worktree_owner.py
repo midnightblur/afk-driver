@@ -3,6 +3,7 @@
 
     python worktree_owner.py find             -> {"pid": N, "ctime": "...", "name": "..."}
     python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
+    python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
     python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
     python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
@@ -21,6 +22,10 @@ import os
 import subprocess
 import sys
 import time
+
+# Paths the plugin's own gates write inside a checkout. `create-worktree` excludes them and
+# `remove-worktree.py` does not count them as work; this is their one home.
+RUNTIME_PATHS = (".claude/hooks/.gate-cache/", ".claude/metrics/")
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",
            "py", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
@@ -205,6 +210,9 @@ def record(argv: list[str]) -> int:
 def main(argv: list[str]) -> int:
     if argv[:1] == ["record"]:
         return record(argv[1:])
+    if argv[:1] == ["runtime-paths"]:
+        print("\n".join(RUNTIME_PATHS))
+        return 0
     if argv[:1] == ["find"]:
         print(json.dumps(find_owner()))
         return 0

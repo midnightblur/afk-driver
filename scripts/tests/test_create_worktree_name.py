@@ -88,6 +88,18 @@ def test_the_folder_stays_out_of_the_main_checkouts_status(tmp_path):
     assert exclude.count("/.claude/worktrees/") == 1
 
 
+def test_p4_the_plugins_runtime_paths_are_excluded_once_for_every_worktree(tmp_path):
+    repo = make_repo(tmp_path)
+    create(repo, "--name", "one")
+    done = create(repo, "--name", "two")
+    exclude = (repo / ".git" / "info" / "exclude").read_text(encoding="utf-8").splitlines()
+    assert exclude.count("/.claude/hooks/.gate-cache/") == 1 and exclude.count("/.claude/metrics/") == 1
+    wt = path_of(done)
+    (wt / ".claude" / "metrics").mkdir(parents=True)
+    (wt / ".claude" / "metrics" / "gate-latency.jsonl").write_text("x", encoding="utf-8")
+    assert git(wt, "status", "--porcelain") == ""
+
+
 def test_an_owner_record_names_harness_session_and_branch(tmp_path):
     repo = make_repo(tmp_path)
     create(repo, "--name", "rec", session="sess-9")

@@ -80,12 +80,23 @@ def count(where: Path, *args: str) -> int:
     return int(done.stdout.strip()) if done.returncode == 0 and done.stdout.strip().isdigit() else 1
 
 
+def work_in(path: Path) -> bool:
+    """Tracked changes, or an untracked file outside the plugin's own runtime paths."""
+    runtime = tuple(owner_module().RUNTIME_PATHS)
+    for line in git(path, "status", "--porcelain", "--untracked-files=all").stdout.splitlines():
+        if line.startswith("?? ") and line[3:].strip('"').replace("\\", "/").startswith(runtime):
+            continue
+        if line.strip():
+            return True
+    return False
+
+
 def assess(path: Path) -> str:
     """The reason this worktree must be kept, or "" when it is clean and nothing is unpushed."""
     top = git(path, "rev-parse", "--show-toplevel").stdout.strip()
     if not top or not same(top, path):
         return "git does not know it as a worktree"
-    if git(path, "status", "--porcelain").stdout.strip():
+    if work_in(path):
         return "it has uncommitted changes"
     named = git(path, "symbolic-ref", "-q", "--short", "HEAD")
     branch = named.stdout.strip() if named.returncode == 0 else ""
@@ -211,7 +222,7 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
         return False
     main = main_of(common)
     os.chdir(main)  # a process must not stand in the folder it deletes
-    done = git(main, "worktree", "remove", *(["--force"] if force else []), str(path))
+    done = git(main, "worktree", "remove", "--force", str(path))  # assess already judged it
     if done.returncode != 0:
         sys.stderr.write(f"afk: could not remove {path.as_posix()}: {done.stderr.strip()[:300]}\n")
         return False

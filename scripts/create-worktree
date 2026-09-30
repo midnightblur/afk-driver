@@ -434,6 +434,11 @@ if [[ -n "$NAME" ]]; then
   exclude="$COMMON_DIR/info/exclude"
   mkdir -p "$COMMON_DIR/info"
   grep -qxF "/${FOLDER%/}/" "$exclude" 2>/dev/null || printf '/%s/\n' "${FOLDER%/}" >> "$exclude"
+  # The plugin's own runtime state (gate cache, metrics) must not read as work in any worktree.
+  while IFS= read -r runtime; do
+    runtime="${runtime%$'\r'}"
+    [[ -n "$runtime" ]] && { grep -qxF "/$runtime" "$exclude" 2>/dev/null || printf '/%s\n' "$runtime" >> "$exclude"; }
+  done < <("$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" runtime-paths)
   "$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" record --dir "$COMMON_DIR/afk-worktrees" \
     --name "$NAME" --path "$DEST_DIR_FWD" --branch "$BRANCH" --harness "$(afk_provider)" \
     --session "$SESSION_ID" >&2 || echo -e "  ${YELLOW}Could not write the owner record; the worktree will not be pruned automatically${NC}" >&2

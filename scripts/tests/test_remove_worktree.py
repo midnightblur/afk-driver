@@ -289,3 +289,35 @@ def test_r8_1_a_folder_that_is_not_its_own_worktree_is_kept_not_judged_by_the_ma
     assert (path / "mine.txt").exists()
     assert "uncommitted" not in (repo / ".git" / "afk-session" / "kept.json").read_text() \
         if (repo / ".git" / "afk-session" / "kept.json").exists() else True
+
+
+def _runtime_files(path: Path) -> None:
+    for rel in (".claude/hooks/.gate-cache/stop", ".claude/metrics/gate-latency.jsonl"):
+        (path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (path / rel).write_text("x", encoding="utf-8")
+
+
+def test_p4_a_worktree_holding_only_the_plugins_runtime_files_is_removed(repo):
+    path = made(repo, "runtime")
+    _runtime_files(path)
+    run("--path", str(path))
+    assert not path.exists()
+
+
+def test_p4_any_other_untracked_file_still_keeps_the_worktree(repo):
+    path = made(repo, "mixed")
+    _runtime_files(path)
+    (path / ".claude" / "metrics" / "notes.md").write_text("mine", encoding="utf-8")
+    (path / "extra.txt").write_text("mine", encoding="utf-8")
+    done = run("--path", str(path))
+    assert path.is_dir() and "uncommitted" in done.stderr
+
+
+def test_p4_a_tracked_change_under_a_runtime_path_keeps_the_worktree(repo):
+    path = made(repo, "tracked")
+    target = path / ".claude" / "metrics" / "kept.txt"
+    target.parent.mkdir(parents=True)
+    target.write_text("x", encoding="utf-8")
+    git(path, "add", "-f", ".claude/metrics/kept.txt")
+    run("--path", str(path))
+    assert path.is_dir()

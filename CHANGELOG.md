@@ -77,6 +77,10 @@ release page from its section here. Nobody tags by hand.
 - **A worktree guard check without a token in the environment runs one process, not two.**
   The GitHub reads ask `gh auth token` once and go concurrently over HTTPS; a failing token
   call falls back to the CLI reads. The token stays in memory.
+- **The plugin's own runtime files no longer read as work.** The gate cache and metrics
+  folders are added to the clone's shared exclude file by `create-worktree`, and cleanup
+  ignores untracked files that live only under them, so a worktree whose only change is gate
+  output is removed.
 - **Setup detects untrusted guard hooks** by reading the harness config, instead of asking
   the user to run `/hooks`.
 
