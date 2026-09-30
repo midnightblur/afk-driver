@@ -310,7 +310,7 @@ def git_root(start: Path | None = None) -> Path | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(start or Path.cwd()), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -787,6 +787,7 @@ def _git(root: Path, *args: str) -> str:
     try:
         out = subprocess.run(
             ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=20,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return ""

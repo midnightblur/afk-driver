@@ -96,8 +96,9 @@ def _gh(*args, stdin=None):
                 "reason": "tracker: github-issues — the `gh` CLI is not on PATH"}
     argv = ["gh", *args]
     try:
-        done = subprocess.run(argv, input=stdin, capture_output=True,
-                              text=True, timeout=60)
+        # A child inheriting the server's stdin pipe hangs on Windows.
+        feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, **feed)
     except Exception as e:
         return {"error": True, "reason": f"{type(e).__name__}: {e}"}
     if done.returncode != 0:

@@ -55,7 +55,8 @@ release page from its section here. Nobody tags by hand.
   root.** It used to read the config once at start, from its working directory,
   so a server started below the repository root, or before `.afk/config.yaml`
   existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
-  block the same way. A config change now applies without a restart.
+  block the same way, and `CLAUDE_PROJECT_DIR`, when set, names the repository
+  that publisher scripts read. A config change now applies without a restart.
 
 ## [1.9.0] - 2026-09-29
 

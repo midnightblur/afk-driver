@@ -8,6 +8,8 @@ becomes unknown mid-session is an answer, not an exit.
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 import types
@@ -154,3 +156,78 @@ def test_the_github_adapter_sees_a_config_edit_without_a_restart(load_server, mo
     assert adapter.repo() == "acme/one"
     _github_config(root, "acme/two")
     assert adapter.repo() == "acme/two"
+
+
+# ---------------------------------------- the real server over piped stdio
+
+def _rpc_session(env, cwd):
+    """Spawn server.py with piped stdio, as a harness does, and return an `ask`."""
+    import json
+    import queue
+    import threading
+
+    proc = subprocess.Popen([sys.executable, str(SERVER), str(PLUGIN_ROOT)], cwd=cwd, env=env,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, text=True)
+    lines: queue.Queue = queue.Queue()
+    threading.Thread(target=lambda: [lines.put(l) for l in proc.stdout], daemon=True).start()
+
+    def send(message):
+        proc.stdin.write(json.dumps(message) + "\n")
+        proc.stdin.flush()
+
+    def ask(ident, method, params, timeout=20):
+        send({"jsonrpc": "2.0", "id": ident, "method": method, "params": params})
+        while True:
+            reply = json.loads(lines.get(timeout=timeout))
+            if reply.get("id") == ident:
+                return reply
+
+    ask(1, "initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
+                          "clientInfo": {"name": "t", "version": "0"}})
+    send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    return proc, ask
+
+
+def _tool_answer(reply):
+    import json
+    return json.loads(reply["result"]["content"][0]["text"])
+
+
+def test_a_call_over_piped_stdio_from_a_subdirectory_answers_fast(tmp_path, monkeypatch):
+    pytest.importorskip("mcp")
+    import time
+    root = repo(tmp_path / "repo", "github-issues")
+    sub = root / "sub"
+    sub.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+    git_dir = str(Path(shutil.which("git")).parent)  # git yes, gh no
+    env.update(HOME=str(home), USERPROFILE=str(home), PATH=git_dir + os.pathsep + str(Path(sys.executable).parent))
+    proc, ask = _rpc_session(env, sub)
+    try:
+        started = time.monotonic()
+        answer = _tool_answer(ask(2, "tools/call", {"name": "tracker_get",
+                                                    "arguments": {"ticket_key": "1"}}))
+        elapsed = time.monotonic() - started
+    finally:
+        proc.kill()
+    assert answer.get("unavailable") is True and "github-issues" in answer["reason"], answer
+    assert elapsed < 10, f"a git spawn inherited the server's stdin pipe and hung ({elapsed:.0f}s)"
+
+
+def test_gh_never_inherits_the_servers_stdin(monkeypatch):
+    adapter = _github_adapter()
+    seen = []
+
+    def fake_run(argv, **kwargs):
+        seen.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout="{}", stderr="")
+
+    monkeypatch.setattr(adapter.shutil, "which", lambda name: "/usr/bin/gh")
+    monkeypatch.setattr(adapter.subprocess, "run", fake_run)
+    adapter._gh("issue", "view", "1")
+    adapter._gh("issue", "comment", "1", "--body-file", "-", stdin="text")
+    assert seen[0]["stdin"] is subprocess.DEVNULL and "input" not in seen[0]
+    assert seen[1]["input"] == "text" and "stdin" not in seen[1]
