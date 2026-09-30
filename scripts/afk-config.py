@@ -1082,6 +1082,17 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def _git_ok(root: Path, *args: str) -> bool:
+    """Whether a git command exits 0; a timeout or missing git is `False`."""
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, timeout=20,
+            stdin=subprocess.DEVNULL,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def committed_elsewhere(root: Path) -> str | None:
     """Where a config already exists outside `root`'s own file, else `None`.
 
@@ -1091,10 +1102,7 @@ def committed_elsewhere(root: Path) -> str | None:
     names = [base] if base != "auto" else ["main", "master"]
     refs = [f"refs/remotes/origin/{n}" for n in names] + [f"refs/heads/{n}" for n in names]
     for ref in refs:
-        found = subprocess.run(
-            ["git", "-C", str(root), "cat-file", "-e", f"{ref}:.afk/config.yaml"],
-            capture_output=True, timeout=20)
-        if found.returncode == 0:
+        if _git_ok(root, "cat-file", "-e", f"{ref}:.afk/config.yaml"):
             return f"`{ref.removeprefix('refs/remotes/').removeprefix('refs/heads/')}`"
     common = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
     if common:
@@ -1117,8 +1125,8 @@ def init(root: Path, force: bool = False,
     where = None if force or target.is_file() else committed_elsewhere(root)
     if where:
         raise ConfigError(
-            f"{where} already has .afk/config.yaml; merge or rebase that branch "
-            f"instead of scaffolding a second contract. Pass --force to scaffold anyway."
+            f"{where} already has .afk/config.yaml; restore it, or merge or rebase "
+            f"that branch, instead of scaffolding a second contract. Pass --force to scaffold anyway."
         )
     target.parent.mkdir(parents=True, exist_ok=True)
     text = scaffold(root, todos)

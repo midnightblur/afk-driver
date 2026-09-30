@@ -581,3 +581,20 @@ def test_init_still_writes_in_a_repo_with_no_config_anywhere(tmp_path):
     repo = make_repo(tmp_path, "fresh")
     target, problems = ac.init(repo)
     assert target.is_file() and problems == []
+
+
+def test_a_git_that_times_out_does_not_stop_init(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, "slowgit")
+    real = subprocess.run
+    seen = []
+
+    def flaky(argv, **kwargs):
+        if "cat-file" in argv:
+            seen.append(kwargs)
+            raise subprocess.TimeoutExpired(argv, 20)
+        return real(argv, **kwargs)
+
+    monkeypatch.setattr(ac.subprocess, "run", flaky)
+    target, problems = ac.init(repo)
+    assert target.is_file() and problems == []
+    assert seen and seen[0]["stdin"] is subprocess.DEVNULL

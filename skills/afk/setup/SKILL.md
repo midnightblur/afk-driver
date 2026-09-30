@@ -48,7 +48,7 @@ exactly what the pull broke. Run via the agent (this skill) or follow
      commented `TODO` wherever it cannot;
    - `init` refusing because the base branch or main worktree already has a
      config: never pass `--force`. Tell the human to merge or rebase the base
-     branch into this branch, then re-run setup; record the row as
+     branch into this branch, then re-run setup; report it in step 6 as
      `needs-human: merge <base> for .afk/config.yaml`;
    - show the file and walk the human through every `TODO` it left — at minimum
      the tracker (project key and issue types, or `none`) and the build gate's
