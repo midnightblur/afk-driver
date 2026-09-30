@@ -57,6 +57,9 @@ release page from its section here. Nobody tags by hand.
   existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
   block the same way, and the project-directory variable, when set, names the
   repository that publisher scripts read. A config change now applies without a restart.
+  `afk-config.py` (`get`, `resolve`, `validate`, `effective`, `export-shell`)
+  follows the same root rule, so a probe run from a worktree agrees with the
+  server.
 
 ## [1.9.0] - 2026-09-29
 
