@@ -96,10 +96,11 @@ release page from its section here. Nobody tags by hand.
 - **The tracker server's launcher starts the newest copy of this harness's
   install.** When a harness does not hand over the plugin root, the launcher
   searched the home directory and sorted whole paths as text, so `1.9.0`
-  outranked `1.10.0` and a stale copy under another harness's directory outranked
-  the running harness's own. It now
-  prefers its own harness's directory, compares versions as numbers, and skips
-  a copy the harness marked orphaned.
+  outranked `1.10.0` and a stale copy under another harness's directory
+  outranked the running harness's own. It now prefers its own harness's
+  directory, compares versions as numbers, and skips a copy the harness marked
+  orphaned. A root handed over explicitly that is marked orphaned is tried
+  only after the search.
 
 ## [1.9.0] - 2026-09-29
 

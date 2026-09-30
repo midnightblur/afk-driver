@@ -33,10 +33,10 @@ def install(home: Path, harness: str, version: str, orphaned: bool = False) -> P
     return base
 
 
-def ran(registration: str, home: Path) -> str:
+def ran(registration: str, home: Path, *pinned: Path) -> str:
     env = {k: v for k, v in os.environ.items() if k not in ROOT_ENV}
     env.update(HOME=str(home), USERPROFILE=str(home))
-    done = subprocess.run([sys.executable, "-c", launcher(registration)], cwd=home,
+    done = subprocess.run([sys.executable, "-c", launcher(registration), *map(str, pinned)], cwd=home,
                           env=env, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     return done.stdout.strip()
@@ -83,3 +83,23 @@ def test_the_two_registrations_differ_only_by_their_harness():
     claude, codex = launcher(CLAUDE), launcher(CODEX)
     assert claude.replace('own = ".claude"', 'own = "<OWN>"') == \
         codex.replace('own = ".codex"', 'own = "<OWN>"')
+
+
+@pytest.mark.parametrize("registration,own", [(CLAUDE, ".claude"), (CODEX, ".codex")])
+def test_a_pinned_orphaned_root_yields_to_a_live_install(home, registration, own):
+    old = install(home, own, "1.9.0", orphaned=True)
+    install(home, own, "1.10.0")
+    assert ran(registration, home, old) == f"RAN {own}/1.10.0"
+
+
+@pytest.mark.parametrize("registration,own", [(CLAUDE, ".claude"), (CODEX, ".codex")])
+def test_a_pinned_orphaned_root_still_runs_when_nothing_else_exists(home, registration, own):
+    old = install(home, own, "1.9.0", orphaned=True)
+    assert ran(registration, home, old) == f"RAN {own}/1.9.0"
+
+
+@pytest.mark.parametrize("registration,own", [(CLAUDE, ".claude"), (CODEX, ".codex")])
+def test_a_pinned_live_root_stays_first(home, registration, own):
+    pinned = install(home, own, "1.9.0")
+    install(home, own, "1.10.0")
+    assert ran(registration, home, pinned) == f"RAN {own}/1.9.0"
