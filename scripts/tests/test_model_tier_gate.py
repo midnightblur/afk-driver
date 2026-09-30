@@ -96,3 +96,41 @@ def test_agent_without_table_row_fails(tmp_path: pathlib.Path) -> None:
     result = run_gate(plugin)
     assert result.returncode == 2
     assert "afk-runner-lite" in result.stderr
+
+
+def test_quoted_frontmatter_value_is_not_drift(tmp_path: pathlib.Path) -> None:
+    plugin = make_copy(tmp_path)
+    edit(plugin / "agents/afk-reader.md", "model: sonnet", 'model: "sonnet"')
+    assert run_gate(plugin).returncode == 0
+    edit(plugin / "agents/afk-reader.md", 'model: "sonnet"', 'model: "opus"')
+    result = run_gate(plugin)
+    assert result.returncode == 2 and "got 'opus'" in result.stderr
+
+
+def test_claude_column_pin_names_only_that_tiers_agent_files(tmp_path: pathlib.Path) -> None:
+    plugin = make_copy(tmp_path)
+    edit(plugin / "PROVIDERS.md", "| Frontier | `opus` |", "| Frontier | `claude-opus-5-5` |")
+    result = run_gate(plugin)
+    assert result.returncode == 2
+    assert "agents/afk-tracer.md" in result.stderr
+    assert "agents/afk-reader.md" not in result.stderr
+    edit(plugin / "agents/afk-tracer.md", "model: opus", "model: claude-opus-5-5")
+    assert run_gate(plugin).returncode == 0
+
+
+def test_missing_model_tiers_section_fails(tmp_path: pathlib.Path) -> None:
+    plugin = make_copy(tmp_path)
+    edit(plugin / "PROVIDERS.md", "## Model tiers", "## Model choices")
+    result = run_gate(plugin)
+    assert result.returncode == 2
+    assert "missing the `## Model tiers` section" in result.stderr
+
+
+def test_tier_without_a_tier_row_fails(tmp_path: pathlib.Path) -> None:
+    plugin = make_copy(tmp_path)
+    text = (plugin / "PROVIDERS.md").read_text(encoding="utf-8")
+    text = re.sub(r"(?m)^\| Deterministic \| `haiku`.*\n", "", text)
+    (plugin / "PROVIDERS.md").write_text(text, encoding="utf-8", newline="")
+    result = run_gate(plugin)
+    assert result.returncode == 2
+    assert "tier 'Deterministic' with no tier row" in result.stderr

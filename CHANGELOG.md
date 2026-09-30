@@ -40,11 +40,10 @@ release page from its section here. Nobody tags by hand.
 ### Added
 
 - **Pin a model tier in one place.** The `PROVIDERS.md` "Model tiers" table
-  holds each tier's model per harness and the reasoning effort, and a
-  second table maps each agent to its tier. A cell takes an alias or an exact
-  model id. The native contract gate now fails when an agent file or its
-  provider stub
-  differs from its cell, and names every file that must follow a pin.
+  holds each tier's model per harness and the reasoning effort, and a second
+  table maps each agent to its tier. A cell takes an alias or an exact model
+  id. The native contract gate now fails when an agent file or its provider
+  stub differs from its cell, and names every file that must follow a pin.
 
 ### Fixed
 

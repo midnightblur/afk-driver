@@ -239,10 +239,11 @@ else:
         md = plugin / "agents" / f"{name}.md"
         fm = re.match(r"(?s)---\r?\n(.*?)\r?\n---", read(md))
         got = re.search(r"(?m)^model:\s*(\S+)\s*$", fm.group(1)) if fm else None
-        if not got or got.group(1) != claude:
+        actual = re.sub(r"^(['\"])(.*)\1$", r"\2", got.group(1)) if got else None
+        if actual != claude:
             problems.append(
                 f"{rel(md)}: model expected {claude!r} (tier {agent_tier[name]}), "
-                f"got {got.group(1) if got else 'none'!r}; the home is {home}"
+                f"got {actual!r}; the home is {home}"
             )
         toml = plugin / "providers/codex/agents" / f"afk-{name}.toml"
         if toml.is_file():
