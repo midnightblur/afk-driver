@@ -1086,7 +1086,7 @@ def _git_ok(root: Path, *args: str) -> bool:
     """Whether a git command exits 0; a timeout or missing git is `False`."""
     try:
         return subprocess.run(
-            ["git", "-C", str(root), *args], capture_output=True, timeout=20,
+            ["git", "-C", str(root), *args], capture_output=True, timeout=5,
             stdin=subprocess.DEVNULL,
         ).returncode == 0
     except (OSError, subprocess.SubprocessError):
@@ -1125,8 +1125,10 @@ def init(root: Path, force: bool = False,
     where = None if force or target.is_file() else committed_elsewhere(root)
     if where:
         raise ConfigError(
-            f"{where} already has .afk/config.yaml; restore it, or merge or rebase "
-            f"that branch, instead of scaffolding a second contract. Pass --force to scaffold anyway."
+            f"{where} already has .afk/config.yaml; restore it "
+            f"(`git checkout <base> -- .afk/config.yaml`), or merge or rebase "
+            f"that branch, instead of scaffolding a second contract. "
+            f"Pass --force to scaffold anyway."
         )
     target.parent.mkdir(parents=True, exist_ok=True)
     text = scaffold(root, todos)

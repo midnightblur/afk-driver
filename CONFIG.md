@@ -64,7 +64,8 @@ unless the remote is on `github.com`.
 The file it writes always passes `validate`. `/afk:setup` runs it for you when
 the file is absent.
 `init` refuses when the base branch or the main worktree already carries
-a config: restore it, or merge or rebase that branch, instead of scaffolding a second contract.
+a config: restore it (`git checkout <base> -- .afk/config.yaml`), or merge
+or rebase that branch, instead of scaffolding a second contract.
 
 ## Built-in defaults
 
