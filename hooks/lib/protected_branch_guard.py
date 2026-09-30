@@ -318,11 +318,12 @@ def targets_of(tool_input: dict, cwd: Path) -> list[Path]:
 
 
 def deny(reason: str) -> int:
+    """The JSON deny at exit 0 blocks under both harnesses; exit 2 is a failed hook to the H-2 one."""
     sys.stderr.write(reason + "\n")
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
                                              "permissionDecision": "deny",
                                              "permissionDecisionReason": reason}}))
-    return 2
+    return 0
 
 
 def refusal(action: str, cause: str, hint: str, extra: str = "") -> str:

@@ -68,11 +68,19 @@ def envelope_of(cwd: Path, tool: str, tool_input: dict, extra=None) -> dict:
             "tool_name": tool, "tool_input": tool_input, **(extra or {})}
 
 
+def denies(done) -> bool:
+    """A refusal is exit 0 plus the deny JSON: the H-2 harness runs the command on exit 2."""
+    return done.returncode == 0 and '"permissionDecision": "deny"' in done.stdout
+
+
 def run(harness: str, cwd: Path, tool: str, tool_input: dict, envelope_extra=None, **env):
-    return subprocess.run([sys.executable, str(GUARD)],
+    done = subprocess.run([sys.executable, str(GUARD)],
                           input=json.dumps(envelope_of(cwd, tool, tool_input, envelope_extra)),
                           text=True, capture_output=True, cwd=cwd, env=clean_env(harness, **env),
                           timeout=120)
+    if denies(done):
+        done.returncode = 2  # in this file 2 reads "denied"; the raw exit is pinned by test_p2_*
+    return done
 
 
 SHAPES = {
@@ -193,7 +201,7 @@ def test_the_live_apply_patch_envelope_with_spaces_in_absolute_paths(repo):
     envelope = json.loads(text, object_hook=lambda d: {k: sub(v) if isinstance(v, str) else v for k, v in d.items()})
     done = subprocess.run([sys.executable, str(GUARD)], input=json.dumps(envelope), text=True,
                           capture_output=True, cwd=spaced, env=clean_env("codex"), timeout=120)
-    assert done.returncode == 2 and "main checkout" in done.stderr
+    assert denies(done) and "main checkout" in done.stderr
 
 
 def test_refusal_names_cause_and_move_per_harness_class(repo):
@@ -276,7 +284,7 @@ def test_a_missing_git_outside_a_work_tree_allows(tmp_path):
 def test_the_layout_reader_needs_no_git_for_a_plain_placement(repo):
     """A14: no git process starts on the ordinary linked or main layout."""
     done = helper("claude", repo["main"], "Bash", raise_for_git=True)
-    assert done.returncode == 2 and "main checkout" in done.stderr
+    assert denies(done) and "main checkout" in done.stderr
     done = helper("claude", repo["topic"], "Bash", raise_for_git=True)
     assert done.returncode == 0
 
@@ -341,7 +349,7 @@ def test_the_superproject_chain_is_capped(repo, monkeypatch):
 def test_an_unreadable_envelope_fails_closed_in_a_work_tree(repo):
     done = subprocess.run([sys.executable, str(GUARD)], input='{"tool_name": "Bash", broken',
                           text=True, capture_output=True, cwd=repo["topic"], env=clean_env("claude"))
-    assert done.returncode == 2
+    assert denies(done)
 
 
 def test_an_unloadable_judge_still_refuses_inside_a_work_tree(repo, tmp_path):
@@ -352,7 +360,7 @@ def test_an_unloadable_judge_still_refuses_inside_a_work_tree(repo, tmp_path):
     stdin = json.dumps(envelope_of(repo["topic"], "Bash", {"command": "ls"}))
     done = subprocess.run([sys.executable, str(copy / "protected-branch-guard.py")], input=stdin, text=True,
                           capture_output=True, cwd=repo["topic"], env=clean_env("claude"))
-    assert done.returncode == 2 and "could not load" in done.stderr
+    assert denies(done) and "could not load" in done.stderr
     assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
     outside = tmp_path / "plain"
     outside.mkdir()
@@ -373,8 +381,18 @@ def test_r1_5_the_registered_command_denies_from_a_main_checkout(repo, manifest,
     done = subprocess.run(argv, input=json.dumps(envelope_of(repo["main"], "Bash", {"command": "ls"})),
                           text=True, capture_output=True, cwd=repo["main"],
                           env=clean_env("claude" if root_var.startswith("CLAUDE") else "codex"), timeout=120)
-    assert done.returncode == 2
+    assert denies(done)
     assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize("harness", ["claude", "codex"])
+def test_p2_a_refusal_is_exit_zero_with_the_deny_json_never_exit_two(repo, harness):
+    """PROBES P-2: the H-2 harness treats a PreToolUse exit 2 as a failed hook and runs the command."""
+    call = json.dumps(envelope_of(repo["main"], "Bash", {"command": "ls"}))
+    raw = subprocess.run([sys.executable, str(GUARD)], input=call, text=True, capture_output=True,
+                         cwd=repo["main"], env=clean_env(harness), timeout=120)
+    assert raw.returncode == 0
+    assert json.loads(raw.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_the_guard_is_the_last_pretooluse_group_in_both_manifests():
@@ -527,8 +545,8 @@ def test_r3_1_a_git_call_past_the_deadline_is_a_fault(repo):
 def test_r3_4_with_no_provider_matched_reads_are_still_allowed(repo):
     environ = clean_env("none")
     environ.pop("AFK_PROVIDER")
-    for tool, wanted in (("Read", 0), ("Grep", 0), ("Edit", 2)):
+    for tool, wanted in (("Read", 0), ("Grep", 0), ("Edit", "deny")):
         done = subprocess.run([sys.executable, str(GUARD)], text=True, capture_output=True, cwd=repo["main"],
                               input=json.dumps(envelope_of(repo["main"], tool, {"file_path": str(repo["main"] / "a")})),
                               env=environ, timeout=120)
-        assert done.returncode == wanted, (tool, done.stderr)
+        assert (denies(done) if wanted == "deny" else done.returncode == wanted and not denies(done)), (tool, done.stderr)

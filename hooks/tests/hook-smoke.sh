@@ -361,14 +361,14 @@ postcompact:PostCompact|stop:Stop)
   else
     fail "protected-branch-guard outside git (rc=$rc)"
   fi
-  sed "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" >/dev/null 2>&1
+  sed "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" 2>/dev/null >"$guard_repo.out"
   rc=$?
-  if [ "$rc" = 2 ]; then
+  if [ "$rc" = 0 ] && grep -q '"permissionDecision": "deny"' "$guard_repo.out"; then
     pass "protected-branch-guard refuses a command in a main checkout"
   else
-    fail "protected-branch-guard main checkout (rc=$rc)"
+    fail "protected-branch-guard main checkout (rc=$rc, exit 0 plus the deny JSON expected)"
   fi
-  rm -rf "$guard_repo"
+  rm -rf "$guard_repo" "$guard_repo.out"
 done
 
 # ---- lavish render shape: the global binary's bare `lavish-axi <file>` command

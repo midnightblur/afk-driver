@@ -67,7 +67,8 @@ def wait_for(path: Path, seconds: float = 600) -> bool:
 def test_the_refusal_names_the_pending_path_at_once_and_the_worktree_appears(repo):
     started = time.time()
     done = refuse(repo, "s1")
-    assert done.returncode == 2 and time.time() - started < 15, done.stderr
+    assert done.returncode == 0 and '"permissionDecision": "deny"' in done.stdout, done.stderr
+    assert time.time() - started < 15
     path = Path(typed_path(done.stderr))
     assert path.parent.name == "worktrees" and path.parent.parent.name == ".codex"
     assert wait_for(path), "the detached creation cut the worktree"

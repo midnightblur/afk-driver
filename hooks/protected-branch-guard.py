@@ -28,7 +28,7 @@ def unloadable(problem: BaseException) -> int:
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
                                                      "permissionDecision": "deny",
                                                      "permissionDecisionReason": reason}}))
-            return 2
+            return 0  # the JSON deny blocks at exit 0; the H-2 harness runs the command on exit 2
         if walk.parent == walk:
             return 0
         walk = walk.parent
