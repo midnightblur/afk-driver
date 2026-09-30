@@ -57,5 +57,11 @@ def test_a_key_without_a_hash_is_not_trusted(tmp_path):
     assert check(tmp_path, text).returncode == 1
 
 
+def test_r9_5_another_plugins_key_at_the_same_position_is_not_afks(tmp_path):
+    text = "".join(table(p).replace("afk@some-market", "other@some-market") for p in keys())
+    done = check(tmp_path, text)
+    assert done.returncode == 1 and done.stdout.count("missing:") == 3
+
+
 def test_no_config_file_is_not_applicable(tmp_path):
     assert check(tmp_path, None).returncode == 2

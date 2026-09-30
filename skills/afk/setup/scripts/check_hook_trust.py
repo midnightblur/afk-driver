@@ -41,8 +41,17 @@ def positions(manifest: Path) -> list[tuple[str, int, int, str]]:
     return found
 
 
-def trusted(config: str, event: str, group: int, handler: int) -> bool:
-    key = re.compile(r'^\[hooks\.state\."[^"\n]*:hooks/hooks\.codex\.json:'
+def plugin_name(manifest: Path) -> str:
+    """The plugin's name in the codex plugin manifest beside the hooks folder, or "afk"."""
+    try:
+        found = json.loads((manifest.parent.parent / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        return str(found.get("name") or "afk")
+    except (OSError, ValueError):
+        return "afk"
+
+
+def trusted(config: str, plugin: str, event: str, group: int, handler: int) -> bool:
+    key = re.compile(r'^\[hooks\.state\."' + re.escape(plugin) + r'@[^"\n]*:hooks/hooks\.codex\.json:'
                      + re.escape(f"{event}:{group}:{handler}") + r'"\]', re.M)
     found = key.search(config)
     return bool(found) and "trusted_hash" in config[found.end():].split("\n[", 1)[0]
@@ -61,8 +70,9 @@ def main(argv: list[str]) -> int:
         print(f"no harness config at {args.config}")
         return 2
     missing = 0
+    plugin = plugin_name(Path(args.manifest))
     for event, group, handler, script in positions(Path(args.manifest)):
-        if not trusted(config, event, group, handler):
+        if not trusted(config, plugin, event, group, handler):
             missing += 1
             print(f"missing: {event}:{group}:{handler} ({script})")
     if missing:
