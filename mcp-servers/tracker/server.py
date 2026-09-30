@@ -63,18 +63,10 @@ _CONFIG = _load(PLUGIN_ROOT / "scripts" / "afk-config.py", "afk_config")
 _ADAPTERS: dict[str, Any] = {}
 
 
-def _project_root() -> Path | None:
-    """PROVIDERS.md "Project root": `CLAUDE_PROJECT_DIR`, else the Git root of
-    the working directory. Below a repository root, `cwd` alone misses the config."""
-    value = os.environ.get("CLAUDE_PROJECT_DIR")
-    return Path(value) if value else _CONFIG.git_root(Path.cwd())
-
-
 def _api():
     """`(kind, api module)` from `tracker:` as configured now. Read per call, so
     a config written or changed after start applies without a restart."""
-    root = _project_root()
-    kind = str(_CONFIG.get(_CONFIG.load(root), "tracker") or "none")
+    kind = str(_CONFIG.get(_CONFIG.load(_CONFIG.project_root()), "tracker") or "none")
     if kind not in _ADAPTERS:
         api = PLUGIN_ROOT / "adapters" / "tracker" / kind / "api.py"
         if not api.is_file():

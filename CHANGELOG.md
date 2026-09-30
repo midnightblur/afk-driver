@@ -54,7 +54,8 @@ release page from its section here. Nobody tags by hand.
 - **The tracker MCP server reads `tracker:` on every call, from the project
   root.** It used to read the config once at start, from its working directory,
   so a server started below the repository root, or before `.afk/config.yaml`
-  existed, stayed on `none`. A config change now applies without a restart.
+  existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
+  block the same way. A config change now applies without a restart.
 
 ## [1.9.0] - 2026-09-29
 

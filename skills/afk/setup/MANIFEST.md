@@ -59,8 +59,8 @@ a token value — not even partially.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
-  The server reads `tracker` from the project root (`CLAUDE_PROJECT_DIR`, else the
-  Git root of its working directory) on every call: creating or changing
+  The server reads `tracker` from the project root
+  (`${CLAUDE_PROJECT_DIR:-<git root of the working directory>}`) on every call: creating or changing
   `.afk/config.yaml` needs no restart. Registering the server or changing its `env`
   block does.
 
@@ -770,7 +770,7 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json`, `hooks/lib/providers/claude.sh` | compatibility root set by supported plugin hooks |
-| `CLAUDE_PROJECT_DIR` | `hooks/run-hook.py` | optional fast project root, read with the `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` fallback |
+| `CLAUDE_PROJECT_DIR` | `hooks/run-hook.py`, `scripts/afk-config.py` `project_root` (tracker server and adapter) | optional fast project root, read with the `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` fallback; the config reader falls back to the Git root of the working directory |
 | `AFK_BASH` / `GIT_BASH` | `hooks/run-hook.py` | POSIX shell the hook launcher runs handlers with, ahead of its own lookup |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `adapters/build-gate/maven/app-start-gate.sh` | boot timebox (seconds, default 300) |

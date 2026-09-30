@@ -318,6 +318,14 @@ def git_root(start: Path | None = None) -> Path | None:
     return Path(top) if out.returncode == 0 and top else None
 
 
+def project_root(start: Path | None = None) -> Path | None:
+    """`CLAUDE_PROJECT_DIR` when set, else `start` (default cwd); the Git root of
+    either. Config lives under the Git root, so a subdirectory resolves to it."""
+    value = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(value) if value else (start or Path.cwd())
+    return git_root(base) or (Path(value) if value else None)
+
+
 def deep_merge(base: dict, overlay: dict) -> dict:
     result = dict(base)
     for key, value in overlay.items():

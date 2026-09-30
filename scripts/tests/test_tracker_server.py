@@ -110,3 +110,47 @@ def test_an_unknown_kind_at_start_still_exits(load_server, monkeypatch, tmp_path
     monkeypatch.chdir(root)
     with pytest.raises(SystemExit):
         load_server()
+
+
+def test_claude_project_dir_below_the_git_root_still_finds_the_repo_config(load_server, monkeypatch, tmp_path):
+    root = repo(tmp_path / "repo", "github-issues")
+    sub = root / "sub"
+    sub.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(sub))
+    assert load_server()._api()[0] == "github-issues"
+
+
+def _github_adapter():
+    spec = importlib.util.spec_from_file_location(
+        "afk_tracker_github_under_test", PLUGIN_ROOT / "adapters" / "tracker" / "github-issues" / "api.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _github_config(root: Path, repo_name: str) -> None:
+    (root / ".afk").mkdir(exist_ok=True)
+    (root / ".afk" / "config.yaml").write_text(
+        f"schema: 1\ntracker: github-issues\ngithub-issues:\n  repo: {repo_name}\n", encoding="utf-8")
+
+
+def test_the_github_adapter_reads_its_block_from_the_repo_root(load_server, monkeypatch, tmp_path):
+    monkeypatch.delenv("GH_REPO", raising=False)
+    root = repo(tmp_path / "repo")
+    _github_config(root, "acme/one")
+    sub = root / "sub"
+    sub.mkdir()
+    monkeypatch.chdir(sub)
+    assert _github_adapter().repo() == "acme/one"
+
+
+def test_the_github_adapter_sees_a_config_edit_without_a_restart(load_server, monkeypatch, tmp_path):
+    monkeypatch.delenv("GH_REPO", raising=False)
+    root = repo(tmp_path / "repo")
+    _github_config(root, "acme/one")
+    monkeypatch.chdir(root)
+    adapter = _github_adapter()
+    assert adapter.repo() == "acme/one"
+    _github_config(root, "acme/two")
+    assert adapter.repo() == "acme/two"
