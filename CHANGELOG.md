@@ -51,6 +51,10 @@ release page from its section here. Nobody tags by hand.
   built its allowlist from `git ls-files`, which is empty in a harness install,
   so file names and config keys became `<host>`. An install carrying a plugin
   manifest now counts its own files.
+- **The tracker MCP server reads `tracker:` on every call, from the project
+  root.** It used to read the config once at start, from its working directory,
+  so a server started below the repository root, or before `.afk/config.yaml`
+  existed, stayed on `none`. A config change now applies without a restart.
 
 ## [1.9.0] - 2026-09-29
 

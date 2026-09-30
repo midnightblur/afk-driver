@@ -59,6 +59,10 @@ a token value — not even partially.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
+  The server reads `tracker` from the project root (`CLAUDE_PROJECT_DIR`, else the
+  Git root of its working directory) on every call: creating or changing
+  `.afk/config.yaml` needs no restart. Registering the server or changing its `env`
+  block does.
 
 ### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,
