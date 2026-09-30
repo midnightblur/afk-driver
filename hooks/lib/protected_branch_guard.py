@@ -68,6 +68,7 @@ def provider_facts() -> dict:
             facts = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        facts.setdefault("name", path.stem)
         if forced:
             hit = path.stem == forced
         else:
@@ -335,6 +336,20 @@ def hint_of(facts: dict) -> str:
     return text.replace("{plugin_root}", str(PLUGIN_ROOT).replace("\\", "/"))
 
 
+def h2_hint(place: dict, envelope: dict, facts: dict, fallback: str) -> str:
+    """The pending worktree's path and the exact line to type; creation runs detached."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import h2_move
+        chosen = h2_move.plan(place, envelope, facts)
+    except Exception as problem:
+        return f"{fallback} (the worktree could not be started: {problem})"
+    typed = ("It is typed into this pane for you once it exists; if it is not, type" if chosen["pane"]
+             else "Once it exists, type")
+    return (f"a linked worktree is being created for this session at {chosen['path']}. {typed} this line:\n"
+            f"/cd {chosen['path']}\n")
+
+
 def decide(envelope: dict, facts: dict) -> int:
     tool_input = envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {}
     cwd = Path(envelope.get("cwd") or os.getcwd())
@@ -347,9 +362,11 @@ def decide(envelope: dict, facts: dict) -> int:
     here = placement(cwd)
     cause = judge.verdict(here)
     where = "the session folder"
+    refused = here
     if cause is None and kind == "edit":
         for target in targets_of(tool_input, cwd):
-            cause = judge.verdict(placement(target))
+            refused = placement(target)
+            cause = judge.verdict(refused)
             if cause:
                 where = str(target)
                 break
@@ -361,6 +378,8 @@ def decide(envelope: dict, facts: dict) -> int:
         action = f"use {tool or 'a tool'}"
     if cause:
         hint = hint_of(facts) if here is not None else OUTSIDE_HINT
+        if facts.get("harness_class") == "H-2" and refused is not None:
+            hint = h2_hint(refused, envelope, facts, hint)
         return deny(refusal(action, cause, hint, judge.notice_once()))
     notice = judge.notice_once()
     if notice:

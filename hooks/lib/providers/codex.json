@@ -45,5 +45,6 @@
       "read_mcp_resource",
       "tool_search"
     ]
-  }
+  },
+  "worktree_folder": ".codex/worktrees"
 }

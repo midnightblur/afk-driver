@@ -43,6 +43,12 @@ release page from its section here. Nobody tags by hand.
   the active harness's folder, records its owner, and runs the repository's
   `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
   that has a worktree-creation hook calls it.
+- **Session move for harnesses without a worktree tool.** When the guard
+  refuses such a session, it names the worktree it is creating and the exact
+  `/cd <path>` line to type, and refuses at once; a detached helper cuts the
+  worktree and, inside a herdr pane, types the line for you.
+  `scripts/afk-launch.py <harness>` starts a harness in a new worktree from the
+  main checkout or a protected branch, and in place anywhere else.
 - **Worktree cleanup.** `scripts/remove-worktree.py` removes a worktree the
   plugin made when it is clean and holds nothing unpushed, with its branch if
   the branch has no commit of its own; otherwise it keeps it and prints the

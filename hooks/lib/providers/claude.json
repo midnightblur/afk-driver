@@ -62,5 +62,6 @@
       "EndConversation"
     ]
   },
-  "owner_pid_env": "CLAUDE_PID"
+  "owner_pid_env": "CLAUDE_PID",
+  "worktree_folder": ".claude/worktrees"
 }

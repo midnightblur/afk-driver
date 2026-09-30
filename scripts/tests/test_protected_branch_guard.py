@@ -11,6 +11,7 @@ import http.server
 import importlib.util
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -58,7 +59,7 @@ def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
                if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
                             "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
-    environ.update({"AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
+    environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
     return environ
 
 
@@ -200,7 +201,7 @@ def test_refusal_names_cause_and_move_per_harness_class(repo):
     assert "main checkout" in claude.stderr and "EnterWorktree" in claude.stderr
     codex = run("codex", repo["protected"], "Bash", {"command": "ls"})
     assert "`main` is protected" in codex.stderr and "/cd" in codex.stderr
-    assert str(PLUGIN_ROOT).replace("\\", "/") in codex.stderr
+    assert re.search(r"^/cd .+\.codex.worktrees.session-[0-9a-f]{8}\s*$", codex.stderr, re.M), codex.stderr
     decision = json.loads(claude.stdout)["hookSpecificOutput"]
     assert decision["permissionDecision"] == "deny"
     assert "main checkout" in decision["permissionDecisionReason"]
