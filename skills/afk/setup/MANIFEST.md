@@ -36,14 +36,17 @@ a token value — not even partially.
 ## H — Harness
 
 ### H0 · repository configuration (`.afk/config.yaml`)
-- **Needed by:** every skill that reads the configuration, and the rows gated on
-  the resolved `tracker` or `forge`: `H2`, `H6`, `O7`, `C3`, `C3b`.
+- **Needed by:** every skill that reads the configuration, and the legs that
+  read the resolved `tracker` or `forge`: `H2`, `H6` (K1, K2), `O7`'s
+  `tracker_get`, `C3`, and `C3b`'s forge leg.
 - **Probe:** `test -f "$(git rev-parse --show-toplevel)/.afk/config.yaml"`
 - **Fix:** `human:` `/afk:setup` step 0 (`init`, walk the `TODO`s, commit).
-- **Notes:** the defaults answer `none` for a repository that never chose, so
-  while this row fails, every row gated on `tracker` or `forge` is `needs-human:
-  create .afk/config.yaml (H0)`, never n/a. n/a is reserved for an explicit
-  `none` read from a configuration file.
+- **Notes:** the defaults answer `none` for a repository that never chose. A
+  leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
+  configuration file at any layer says `none`; with no repository file and no
+  such line it is `needs-human: create .afk/config.yaml (H0)`. A resolved
+  non-`none` value is a choice and probes normally. Every other leg (the `O7`
+  catalog, `H6` K3) keeps its own probe.
 
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
@@ -138,9 +141,8 @@ a token value — not even partially.
   and fails closed. The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
-  probed; each is then **n/a** when the configuration file says so, and
-  `needs-human` per `H0` when there is no file. `worktreeBasePath` normally resolves without
-  anyone setting it (it derives beside the main checkout), so an unresolved K3
+  probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
+  resolves without anyone setting it (it derives beside the main checkout), so an unresolved K3
   means git could not answer — a bare clone. K4 `ideBinary` and K5 `mrAssignee`
   are optional and not probed — an unset `mrAssignee` means no assignee, never a
   failure.
@@ -699,9 +701,9 @@ Gating rule: if O1 misses, report the whole section as
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
   in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
-  callable `tracker_get` (n/a under an explicit `tracker: none`, per `H2` — the catalog and
-  role legs still stand on their own). Count the manifest rather than a number written here:
-  a number in prose goes stale the first time a skill is added.
+  callable `tracker_get` (n/a under `tracker: none`, per `H0` — the catalog and
+  role legs still stand on their own). Count the manifest rather than a number
+  written here: a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 
 ### O8 · stale generated activation cleanup **[opt-in]**

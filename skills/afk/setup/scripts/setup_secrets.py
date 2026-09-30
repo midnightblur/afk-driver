@@ -259,7 +259,7 @@ if (REPO / ".afk" / "config.yaml").is_file():
     ok(f"tracker: {TRACKER_KIND}   forge: {FORGE_KIND}")
 else:
     warn("no .afk/config.yaml in this repository — tracker and forge default "
-         "to none; run /afk:setup first")
+         "to none; run /afk:setup step 0 (afk-config.py init) first")
 
 if not SERVER.exists():
     die(f"MCP server missing at {SERVER} — pull a revision that ships it, then re-run.")

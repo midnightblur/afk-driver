@@ -56,9 +56,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    - re-run `afk-config.py validate` after their edits and fix what it names;
    - tell them to **commit it**: the file is the repository's contract, not a
      personal setting, and every other developer's setup depends on it;
-   - the human declines `init` → `H0` reports `skipped (user choice)` and every
-     row `H0` names reports `skipped (no repository config)` in step 6 — never
-     n/a, never `ok`.
+   - the human declines `init` → `H0` reports `skipped (user choice)` and each
+     leg `H0`'s Notes gates reports `skipped (no repository config)` in step 6
+     — never n/a, never `ok`.
 
    Refuse to guess a tracker project or a module name on their behalf. This step
    is idempotent, and `init` refuses to overwrite an existing file.
