@@ -231,3 +231,32 @@ def test_gh_never_inherits_the_servers_stdin(monkeypatch):
     adapter._gh("issue", "comment", "1", "--body-file", "-", stdin="text")
     assert seen[0]["stdin"] is subprocess.DEVNULL and "input" not in seen[0]
     assert seen[1]["input"] == "text" and "stdin" not in seen[1]
+
+
+def test_a_refusal_names_the_checkout_the_server_read(tmp_path):
+    """H2 decides from the server's answer: CPD = A, the prober stands in B."""
+    pytest.importorskip("mcp")
+    a = repo(tmp_path / "a", "none")
+    b = repo(tmp_path / "b", "jira")
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+    env.update(HOME=str(home), USERPROFILE=str(home), CLAUDE_PROJECT_DIR=str(a))
+    proc, ask = _rpc_session(env, b)
+    try:
+        answer = _tool_answer(ask(2, "tools/call", {"name": "tracker_get",
+                                                    "arguments": {"ticket_key": "1"}}))
+    finally:
+        proc.kill()
+    assert answer.get("unsupported") is True and "tracker: none" in answer["reason"]
+    assert Path(answer["config_root"]).resolve() == a.resolve()
+
+
+def test_an_error_answer_names_the_checkout_too(load_server, monkeypatch, tmp_path):
+    root = repo(tmp_path / "repo", "jira")
+    monkeypatch.chdir(root)
+    server = load_server()
+    write_config(root, "no-such-kind")
+    answer = server.tracker_get("1")
+    assert answer["error"] is True
+    assert Path(answer["config_root"]).resolve() == root.resolve()

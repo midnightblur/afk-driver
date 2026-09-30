@@ -1066,8 +1066,7 @@ def main(argv: list[str]) -> int:
         sys.stderr.write(__doc__ or "")
         return 2
     command, rest = argv[0], argv[1:]
-    # Readers share the tracker server's root rule; `init` writes where the human stands.
-    root = git_root() if command == "init" else project_root()
+    root = git_root()
 
     try:
         if command == "init":

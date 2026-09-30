@@ -85,12 +85,20 @@ except (LookupError, _CONFIG.ConfigError) as exc:
 mcp = FastMCP("tracker")
 
 
+def _named(answer: Any) -> Any:
+    """A refusal names the checkout whose config the server read, so a caller
+    in another checkout can tell which one the answer is about."""
+    if isinstance(answer, dict) and (answer.get("unsupported") or answer.get("error")):
+        return {**answer, "config_root": str(_CONFIG.project_root() or "")}
+    return answer
+
+
 def _call(operation: str, **payload: Any) -> Any:
     try:
         _, api = _api()
     except (LookupError, _CONFIG.ConfigError) as exc:
-        return {"error": True, "operation": operation, "reason": str(exc)}
-    return api.call(operation, {k: v for k, v in payload.items() if v not in (None, "")})
+        return _named({"error": True, "operation": operation, "reason": str(exc)})
+    return _named(api.call(operation, {k: v for k, v in payload.items() if v not in (None, "")}))
 
 
 @mcp.tool()

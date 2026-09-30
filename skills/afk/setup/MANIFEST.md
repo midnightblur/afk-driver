@@ -49,11 +49,12 @@ a token value — not even partially.
   `adapters/tracker/jira/api.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
-  known key succeeds. Resolve the tracker first (`scripts/afk-config.py get
-  tracker`): `none` — including the case of a working directory with no
-  `.afk/config.yaml` — makes this row **n/a**, not a failure. `tracker_get`
-  answering `unsupported` under `tracker: none` is the adapter contract working,
-  and `O7`'s `tracker_get` leg is n/a for the same reason.
+  known key succeeds. Decide from the server's answer, not from
+  `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none` —
+  including a checkout with no `.afk/config.yaml` — makes this row **n/a**,
+  not a failure, and is the adapter contract working. `O7`'s `tracker_get` leg is n/a
+  for the same reason. An `unsupported` or `error` answer carries `config_root`,
+  the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
@@ -62,7 +63,8 @@ a token value — not even partially.
   The server reads `tracker` from the project root
   (`${CLAUDE_PROJECT_DIR:-<git root of the working directory>}`) on every call: creating or changing
   `.afk/config.yaml` needs no restart. Registering the server or changing its `env`
-  block does.
+  block does. The server reads the checkout the session was launched in; to
+  probe another worktree's config, launch the session there.
 
 ### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
 - **Needed by:** `skills/afk/prototype/CLAUDE-DESIGN-PUSH.md`,

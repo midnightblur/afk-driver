@@ -27,9 +27,6 @@ Highest precedence first:
 | machine | `~/.afk/config.yaml` | per-machine defaults across repositories — the recommended home for a developer's own `developer:` block |
 | built-in | — | the defaults below |
 
-`<git root>` is the Git root of `${CLAUDE_PROJECT_DIR:-<working directory>}` — the tracker server's rule, which every `afk-config.py`
-command shares except `init`, which writes where the human stands.
-
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
 files absent is a supported state — the built-in defaults apply.
 
