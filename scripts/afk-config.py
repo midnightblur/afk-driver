@@ -944,10 +944,11 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     forge, remote, host = detect_forge(root)
     # Only a github.com remote names a GitHub Issues repository; any other host's
     # slug would point the adapter at a repository nobody chose.
-    slug = repo_slug(root, remote) if forge == "github" and host.endswith("github.com") else ""
+    on_github = forge == "github" and (host == "github.com" or host.endswith(".github.com"))
+    slug = repo_slug(root, remote) if on_github else ""
     gates, blocks, pom_candidates = detect_build_gates(root)
     base = detect_base_branch(root)
-    tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
+    tracker = "github-issues" if on_github else "none"
     lower = _machine_layer()
     # A `none` written here would shadow the machine layer's value.
     inherited = {

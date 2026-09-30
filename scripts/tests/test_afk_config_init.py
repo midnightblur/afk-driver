@@ -504,3 +504,15 @@ def test_init_names_the_machine_tracker_todos_exactly(tmp_path, monkeypatch, cap
     repo = make_repo(tmp_path, "exact", "git@gitlab.com:acme/w.git")
     out = _init_stdout(repo, monkeypatch, capsys)
     assert out[1] == "afk-config: TODO left: tracker, jira.project"
+
+
+def test_a_host_that_merely_ends_in_github_com_is_not_github(tmp_path):
+    repo = make_repo(tmp_path, "lookalike", "https://notgithub.com/acme/w.git")
+    text, config = scaffold_of(repo)
+    assert config["tracker"] == "none" and "repo: acme/w" not in text
+
+
+def test_a_github_enterprise_subdomain_counts_as_github(tmp_path):
+    repo = make_repo(tmp_path, "sub", "https://api.github.com/acme/w.git")
+    _, config = scaffold_of(repo)
+    assert config["tracker"] == "github-issues"
