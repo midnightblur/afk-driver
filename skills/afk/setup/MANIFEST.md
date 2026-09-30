@@ -35,6 +35,16 @@ a token value — not even partially.
 
 ## H — Harness
 
+### H0 · repository configuration (`.afk/config.yaml`)
+- **Needed by:** every skill that reads the configuration, and the rows gated on
+  the resolved `tracker` or `forge`: `H2`, `H6`, `O7`, `C3`, `C3b`.
+- **Probe:** `test -f "$(git rev-parse --show-toplevel)/.afk/config.yaml"`
+- **Fix:** `human:` `/afk:setup` step 0 (`init`, walk the `TODO`s, commit).
+- **Notes:** the defaults answer `none` for a repository that never chose, so
+  while this row fails, every row gated on `tracker` or `forge` is `needs-human:
+  create .afk/config.yaml (H0)`, never n/a. n/a is reserved for an explicit
+  `none` read from a configuration file.
+
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
 - **Probe:** `agent:` the active harness reports `afk@afk-toolkit` enabled
@@ -50,11 +60,12 @@ a token value — not even partially.
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
   known key succeeds. Decide from the server's answer, not from
-  `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none` —
-  including a checkout with no `.afk/config.yaml` — makes this row **n/a**,
-  not a failure, and is the adapter contract working. `O7`'s `tracker_get` leg is n/a
-  for the same reason. An `unsupported` or `error` answer carries `config_root`,
-  the checkout whose config the server read.
+  `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none`
+  makes this row **n/a**, not a failure, as `H0` defines; with no
+  `.afk/config.yaml` at `config_root`, the row reads `needs-human: see H0`.
+  That answer is the adapter contract working, and `O7`'s `tracker_get` leg
+  follows the same rule. An `unsupported` or `error` answer carries
+  `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
@@ -127,7 +138,8 @@ a token value — not even partially.
   and fails closed. The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
-  probed; each is then **n/a**. `worktreeBasePath` normally resolves without
+  probed; each is then **n/a** when the configuration file says so, and
+  `needs-human` per `H0` when there is no file. `worktreeBasePath` normally resolves without
   anyone setting it (it derives beside the main checkout), so an unresolved K3
   means git could not answer — a bare clone. K4 `ideBinary` and K5 `mrAssignee`
   are optional and not probed — an unset `mrAssignee` means no assignee, never a
@@ -687,7 +699,7 @@ Gating rule: if O1 misses, report the whole section as
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
   in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
-  callable `tracker_get` (n/a under `tracker: none`, per `H2` — the catalog and
+  callable `tracker_get` (n/a under an explicit `tracker: none`, per `H2` — the catalog and
   role legs still stand on their own). Count the manifest rather than a number written here:
   a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.

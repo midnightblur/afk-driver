@@ -255,7 +255,11 @@ ok(f"repo {REPO}")
 # Which adapters this repository selected decides what there is to provision.
 TRACKER_KIND = config_kind("tracker", REPO)
 FORGE_KIND = config_kind("forge", REPO)
-ok(f"tracker: {TRACKER_KIND}   forge: {FORGE_KIND}")
+if (REPO / ".afk" / "config.yaml").is_file():
+    ok(f"tracker: {TRACKER_KIND}   forge: {FORGE_KIND}")
+else:
+    warn("no .afk/config.yaml in this repository — tracker and forge default "
+         "to none; run /afk:setup first")
 
 if not SERVER.exists():
     die(f"MCP server missing at {SERVER} — pull a revision that ships it, then re-run.")

@@ -55,7 +55,10 @@ exactly what the pull broke. Run via the agent (this skill) or follow
      default module;
    - re-run `afk-config.py validate` after their edits and fix what it names;
    - tell them to **commit it**: the file is the repository's contract, not a
-     personal setting, and every other developer's setup depends on it.
+     personal setting, and every other developer's setup depends on it;
+   - the human declines `init` → `H0` reports `skipped (user choice)` and every
+     row `H0` names reports `skipped (no repository config)` in step 6 — never
+     n/a, never `ok`.
 
    Refuse to guess a tracker project or a module name on their behalf. This step
    is idempotent, and `init` refuses to overwrite an existing file.
@@ -117,8 +120,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    `PATH`-affecting install never reaches the running session).
 6. **Summarize** per `REPORTING.md` (plugin root): final table (`ok` / `fixed`
    / `deferred (until <first use>)` / `skipped (user choice)` /
-   `needs-human: <what>`), then one plain-terms sentence — is the workflow
-   runnable now, and what still blocks which stage.
+   `skipped (no repository config)` / `needs-human: <what>`), then one
+   plain-terms sentence — is the workflow runnable now, and what still blocks
+   which stage.
 
 **Done when** every non-deferred, non-skipped entry probes `ok`, or the remainder are
 `needs-human` items named precisely (which secret, snippet, doc). Nothing else

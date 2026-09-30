@@ -67,3 +67,43 @@ def test_aborts_when_the_caller_is_outside_any_repository(tmp_path):
     outside = tmp_path / "no-repo"
     outside.mkdir()
     assert "not inside a git checkout" in preflight(outside)
+
+
+def test_no_repository_config_is_a_warning(repo):
+    out = slashes(preflight(repo))
+    assert "no .afk/config.yaml in this repository" in out
+    assert "run /afk:setup first" in out
+
+
+def test_a_repository_config_silences_the_warning(repo):
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text("schema: 1" + chr(10), encoding="utf-8")
+    assert "no .afk/config.yaml" not in slashes(preflight(repo))
+
+
+MANIFEST = SCRIPT.parents[1] / "MANIFEST.md"
+
+
+def h0_probe() -> str:
+    """The backticked command on the H0 entry's Probe line, exactly as written."""
+    import re
+    text = MANIFEST.read_text(encoding="utf-8")
+    entry = text.split("### H0 · ", 1)[1].split(chr(10) + "### ", 1)[0]
+    return re.search(r"\*\*Probe:\*\* `([^`]+)`", entry).group(1)
+
+
+def test_the_h0_probe_fails_without_a_config_and_passes_with_one(repo):
+    probe = h0_probe()
+    run = lambda: subprocess.run(["bash", "-c", probe], cwd=str(repo),
+                                 capture_output=True, text=True).returncode
+    assert run() == 1
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text("schema: 1" + chr(10), encoding="utf-8")
+    assert run() == 0
+
+
+def test_no_manifest_row_calls_a_missing_config_file_n_a():
+    text = MANIFEST.read_text(encoding="utf-8")
+    outside_h0 = text.replace(text.split("### H0 · ", 1)[1].split(chr(10) + "### ", 1)[0], "")
+    assert "no `.afk/config.yaml`" not in outside_h0
+

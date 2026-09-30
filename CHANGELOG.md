@@ -76,6 +76,11 @@ release page from its section here. Nobody tags by hand.
   `tracker: none` file that diverged from the repository's contract. It now
   refuses when the base branch or the main worktree already has one; merge or
   rebase that branch instead, or pass `--force`.
+- **`/afk:setup` reports a missing `.afk/config.yaml` instead of skipping.**
+  Without the file the tracker and forge default to `none`, so the Jira,
+  per-developer and catalog rows read as n/a and setup looked healthy. A new
+  register row (`H0`) probes the file, those rows report `needs-human` while it
+  is absent, and `setup_secrets.py` warns instead of printing `tracker: none`.
 
 ## [1.9.0] - 2026-09-29
 
