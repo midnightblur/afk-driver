@@ -320,24 +320,24 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
 def captured(name: str) -> str:
-    return (FIXTURES / f"codex-composer-{name}.ansi").read_text(encoding="utf-8")
+    return (FIXTURES / name).read_text(encoding="utf-8")
 
 
 def test_p3_a_live_empty_composer_with_its_dim_placeholder_reads_as_empty():
-    assert load_move().composer_text(captured("empty")) == ""
+    assert load_move().composer_text(captured("codex-composer-empty.ansi")) == ""
 
 
 def test_p3_a_live_composer_with_typed_text_reads_as_that_text():
-    assert load_move().composer_text(captured("typed")) == "hello I was about to ask"
+    assert load_move().composer_text(captured("codex-composer-typed.ansi")) == "hello I was about to ask"
 
 
 def test_p3_the_helper_types_into_the_live_empty_composer(tmp_path):
-    herdr, log = stub_herdr(tmp_path, captured("empty"))
+    herdr, log = stub_herdr(tmp_path, captured("codex-composer-empty.ansi"))
     load_move().type_line(herdr, "w:p6", Path("C:/x"))
     assert prompts(log) and prompts(log)[0][3] == f"/cd {Path('C:/x')}"
 
 
 def test_p3_the_helper_leaves_live_typed_text_alone(tmp_path):
-    herdr, log = stub_herdr(tmp_path, captured("typed"))
+    herdr, log = stub_herdr(tmp_path, captured("codex-composer-typed.ansi"))
     load_move().type_line(herdr, "w:p7", Path("C:/x"))
     assert not prompts(log)
