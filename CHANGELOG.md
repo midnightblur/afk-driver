@@ -52,6 +52,11 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- A session that ends standing inside its plugin-made worktree no longer leaves
+  removal to the next session start: a `SessionEnd` handler starts a detached waiter
+  that assesses the worktree once the harness has exited (clean: removed; with work:
+  kept and reported at the next session start, as the harness shows its own Keep line at
+  exit).
 - The worktree move into a terminal-workspace pane waits up to 10 minutes per attempt for the agent to go idle
   before typing `/cd` (it gave up after about 2 minutes while a slow turn ran), and
   logs each step of a move to `<git dir>/afk-worktrees/<name>.log`.

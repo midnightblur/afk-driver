@@ -46,10 +46,12 @@ def owner_is_dead(common: Path, name: str) -> bool:
         return False
 
 
-def spawn(argv: list[str], env: dict | None = None) -> None:
+def spawn(argv: list[str], env: dict | None = None, cwd: str | None = None) -> None:
     """Start `argv` fully detached from this hook: it must outlive the hook's exit."""
     kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL,
                     "close_fds": True, "env": dict(os.environ, **(env or {}))}
+    if cwd:
+        kwargs["cwd"] = cwd
     if os.name != "nt":
         subprocess.Popen(argv, start_new_session=True, **kwargs)
         return

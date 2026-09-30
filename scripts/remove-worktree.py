@@ -4,6 +4,7 @@
     remove-worktree.py --path <dir> [--force]   remove one plugin-made worktree
     remove-worktree.py --prune [--repo <dir>]   remove every stale one of a repository
     remove-worktree.py --report-kept            print the kept worktrees not yet shown, as hook context
+    remove-worktree.py --after-exit <pid>:<ctime> --path <dir>   detached: wait for that process, then remove
 
 Only a worktree with an owner record (`<common>/afk-worktrees/<name>.json`, written by
 `create-worktree --name`) is ever touched. A clean worktree with no unpushed commit is
@@ -13,7 +14,9 @@ commands are printed. `--force` removes a kept one: the human's call. A stale wo
 one whose recorded owner process is dead; an unknown owner is kept. The worktree the
 calling session stands in, and the target of a move in flight, are never pruned. Exit is
 0 unless the call is malformed or a forced removal is asked from inside the worktree (exit 1),
-so a hook never fails.
+so a hook never fails. A session that ends standing in its own worktree starts the detached
+`--after-exit` waiter (same spawn flags as `afk-move.py`, up to 24 h) for the assessment; the
+next session start prune stays the backstop.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ HERE = Path(__file__).resolve().parent
 ENV = dict(os.environ, AFK_WORKTREE_OP="1")
 SESSION_CWD = Path.cwd()
 MOVE_GRACE = 600  # seconds a recorded move target counts as in use
+WAIT_CAP = 24 * 3600  # seconds a detached waiter outlives the session it follows
 
 
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
@@ -219,9 +223,10 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
     if inside(SESSION_CWD, path):
         if force:
             raise StandingInside(path)
-        # Deleting the folder this process stands in half-removes it on Windows; a later prune takes it.
+        # Deleting the folder this process stands in half-removes it on Windows.
         sys.stderr.write(f"afk: worktree {path.as_posix()} is this session's folder; "
-                         "it is removed at a later session start.\n")
+                         "it is removed when the session exits, or at a later session start.\n")
+        wait_for_exit(path, record_file, common)
         return False
     reason = assess(path)
     if reason and not force:
@@ -238,6 +243,45 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
     drop_markers(common, path)
     sys.stderr.write(f"afk: removed worktree {path.as_posix()}.\n")
     return True
+
+
+def wait_for_exit(path: Path, record_file: Path, common: Path) -> None:
+    """Start a detached waiter that removes `path` once the harness above this hook has exited."""
+    owner = owner_module()
+    found = owner.env_owner() or owner.find_owner()
+    if not found or not found.get("pid") or not found.get("ctime"):
+        who = json.loads(record_file.read_text(encoding="utf-8")).get("owner") or {}
+        found = who if who.get("pid") and who.get("ctime") else None
+    if not found:
+        return
+    flag = common / "afk-worktrees" / f"{record_file.stem}.wait"
+    try:
+        if flag.exists() and time.time() - flag.stat().st_mtime < WAIT_CAP:
+            return
+        flag.write_text(str(os.getpid()), encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("afk_h2_move", HERE.parent / "hooks" / "lib" / "h2_move.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.spawn([sys.executable, str(HERE / "remove-worktree.py"), "--after-exit",
+                      f"{found['pid']}:{found['ctime']}", "--path", str(path)], cwd=str(main_of(common)))
+    except (OSError, ValueError):
+        pass
+
+
+def after_exit(spec: str, target: Path) -> None:
+    """Wait (up to WAIT_CAP) until the process `spec` is gone, then run the normal removal."""
+    pid, _, ctime = spec.partition(":")
+    owner = owner_module()
+    poll = float(os.environ.get("AFK_WAIT_POLL") or 2.0)
+    deadline = time.monotonic() + WAIT_CAP
+    while pid.isdigit() and owner.state(int(pid), ctime) == "alive" and time.monotonic() < deadline:
+        time.sleep(poll)
+    common = common_dir(target)
+    try:
+        remove_one(target, False)
+    finally:
+        if common is not None:
+            (common / "afk-worktrees" / f"{target.name}.wait").unlink(missing_ok=True)
 
 
 def remove_one(target: Path, force: bool) -> None:
@@ -321,6 +365,8 @@ def main(argv: list[str]) -> int:
             remove_one(Path(args[1]), force)
         elif args[:1] == ["--prune"] and len(args) in (1, 3):
             prune(Path(args[2]) if len(args) == 3 else Path.cwd())
+        elif args[:1] == ["--after-exit"] and len(args) == 4 and args[2] == "--path":
+            after_exit(args[1], Path(args[3]))
         elif args == ["--report-kept"]:
             report_kept(Path.cwd())
         else:

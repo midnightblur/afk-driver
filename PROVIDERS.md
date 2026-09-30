@@ -47,7 +47,7 @@ and `owner_pid_env`.
 
 | Class | Harness | How a refused session moves | Cleanup |
 |---|---|---|---|
-| H-1 | `claude` | The agent calls its own worktree tool. The `WorktreeCreate` handler runs `scripts/create-worktree`. | `WorktreeRemove` handler runs `scripts/remove-worktree.py` |
+| H-1 | `claude` | The agent calls its own worktree tool. The `WorktreeCreate` handler runs `scripts/create-worktree`. | `WorktreeRemove` and `SessionEnd` handlers run `scripts/remove-worktree.py`; a session ending inside its worktree starts a detached waiter that removes it once the harness exits |
 | H-2 | `codex` | The guard names a new worktree and the `/cd <path>` line, then a detached helper cuts it and, in a herdr pane, types the line. `scripts/afk-launch.py` starts a harness in a worktree. | `SessionEnd` handler runs `scripts/remove-worktree.py` |
 
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that

@@ -19,7 +19,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `question_cards` | Native | No | Ask one plain-text question |
 | `design_push` | Native | No | Keep local HTML canonical |
 | `issue_egress` | `gh` CLI, logged in | `gh` CLI, logged in | Queue the draft on disk and print the publish command |
-| `protected_branch_guard` | PreToolUse guard; `EnterWorktree` moves the session; `WorktreeCreate` and `WorktreeRemove` handlers | PreToolUse guard; the `/cd` line, typed by a detached helper in a herdr pane or by the human; `SessionEnd` handler | Without hooks the installed git backstop still refuses an agent's commit and branch move in the main checkout, and the behavior line instructs |
+| `protected_branch_guard` | PreToolUse guard; `EnterWorktree` moves the session; `WorktreeCreate`, `WorktreeRemove` and `SessionEnd` handlers | PreToolUse guard; the `/cd` line, typed by a detached helper in a herdr pane or by the human; `SessionEnd` handler | Without hooks the installed git backstop still refuses an agent's commit and branch move in the main checkout, and the behavior line instructs |
 | `reload` | Reload the enabled plugin | Re-add the plugin, then start a new session | Report stale cache |
 | `nested_steering` | Native nested `AGENTS.md` read with the root `CLAUDE.md` bridge and `instructionFiles=claude-md-and-agents-md` (setup H11) | Loads instruction files once at run start, so nested files never reach it | The plugin `PostToolUse` hook injects the `AGENTS.md` chain below the launch directory (deepest last) and, where the harness has no native path-scoped rules, the matching `.claude/rules` bodies; policy lives in `hooks/lib/providers/<name>.sh` |
 | `agents_md_config_notice` | SessionStart `--soft` notice (`hooks/agents-md-config-check.sh`): warns, never blocks, when the repository tracks an `AGENTS.md` but the `instructionFiles` setting is not `claude-md-and-agents-md` (setup H11) | Not applicable — `instructionFiles` is a Claude-only setting; the hook is present in the twin manifest (twin law) and its provider gate exits 0 silently here | None — advisory only; the notice names the setting and points to `/afk:setup` |
@@ -32,7 +32,7 @@ Shared hook events: SessionStart, PreToolUse, PostToolUse, PostCompact, Stop
 
 Shared hook matchers: *, Bash, PowerShell, Glob, Grep, startup, clear, mcp__intellij__search_in_files_by_regex, mcp__intellij__search_in_files_by_text, mcp__intellij__search_text, mcp__intellij__search_regex
 
-Provider-specific hook events: claude=WorktreeCreate, claude=WorktreeRemove, codex=SessionEnd
+Provider-specific hook events: claude=WorktreeCreate, claude=WorktreeRemove, claude=SessionEnd, codex=SessionEnd
 
 - Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `PostCompact`, `Stop`. Both harnesses carry `PostToolUse` with an additional-context injection and `PostCompact` as a session reset (`providers/CONFORMANCE.md`).
 - Provider-specific events: an event only one harness has lives in that harness's manifest alone, declared by the `Provider-specific hook events` line (`<provider>=<event>`, comma separated). `hooks/native-contract-gate.sh` accepts it there and nowhere else, and the twin test ignores exactly those keys.

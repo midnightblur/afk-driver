@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -141,6 +142,7 @@ def test_the_removal_handler_takes_worktree_path_or_cwd(repo):
 
 
 @pytest.mark.parametrize("manifest,var,event", [("hooks.json", "CLAUDE_PLUGIN_ROOT", "WorktreeRemove"),
+                                                ("hooks.json", "CLAUDE_PLUGIN_ROOT", "SessionEnd"),
                                                 ("hooks.codex.json", "PLUGIN_ROOT", "SessionEnd")])
 def test_the_manifests_register_the_removal_and_the_prune(manifest, var, event):
     document = json.loads((PLUGIN_ROOT / "hooks" / manifest).read_text(encoding="utf-8"))["hooks"]
@@ -249,7 +251,7 @@ def test_r5_10_the_owner_walk_stops_at_a_parent_created_after_its_child(monkeypa
 
 def test_r8_1_a_removal_run_from_inside_the_folder_leaves_it_for_the_next_prune(repo):
     path = made(repo, "held", {"pid": 2147483000, "ctime": "1"})
-    done = run("--path", str(path), cwd=path)
+    done = run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=f"{os.getpid()}:{OWNER.creation_time(os.getpid())}")
     assert done.returncode == 0 and path.is_dir(), done.stderr
     assert "later session start" in done.stderr
     assert (repo / ".git" / "afk-worktrees" / "held.json").exists() and "worktree-held" in branches(repo)
@@ -331,3 +333,59 @@ def test_r9_4_a_forced_removal_from_inside_the_folder_says_to_run_it_from_outsid
     assert "from outside the worktree" in done.stderr and "--force" in done.stderr
     assert "later session start" not in done.stderr
     assert run("--path", str(path), "--force", cwd=repo).returncode == 0 and not path.exists()
+
+
+def harness() -> tuple[subprocess.Popen, str]:
+    """A stand-in for the harness process a session-end waiter follows."""
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
+    return child, f"{child.pid}:{OWNER.creation_time(child.pid)}"
+
+
+def until(check, seconds: float = 60) -> bool:
+    end = time.time() + seconds
+    while time.time() < end:
+        if check():
+            return True
+        time.sleep(0.25)
+    return check()
+
+
+def test_p6_a_session_ending_inside_its_worktree_removes_it_once_the_harness_exits(repo):
+    path = made(repo, "waited")
+    child, owner = harness()
+    try:
+        done = run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=owner, AFK_WAIT_POLL="0.2")
+        assert done.returncode == 0 and "when the session exits" in done.stderr, done.stderr
+        time.sleep(2)
+        assert path.is_dir(), "the waiter must wait for the harness"
+    finally:
+        child.kill()
+        child.wait()
+    assert until(lambda: not path.exists() and "worktree-waited" not in branches(repo)),         "the waiter removes the worktree and its branch after the harness exits"
+
+
+def test_p6_the_waiter_keeps_a_dirty_worktree_and_records_it(repo):
+    path = made(repo, "waited-dirty")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    child, owner = harness()
+    try:
+        run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=owner, AFK_WAIT_POLL="0.2")
+    finally:
+        child.kill()
+        child.wait()
+    kept = repo / ".git" / "afk-session" / "kept.json"
+    assert until(lambda: kept.exists()), "a kept worktree is recorded for the next session start"
+    assert path.is_dir() and "worktree-waited-dirty" in branches(repo)
+
+
+def test_p6_a_session_end_without_an_owner_record_removes_nothing(repo):
+    path = made(repo, "unowned", record=False)
+    child, owner = harness()
+    try:
+        done = run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=owner, AFK_WAIT_POLL="0.2")
+    finally:
+        child.kill()
+        child.wait()
+    time.sleep(2)
+    assert done.returncode == 0 and path.is_dir() and "worktree-unowned" in branches(repo)
+    assert not list((repo / ".git").glob("afk-worktrees/*.wait"))
