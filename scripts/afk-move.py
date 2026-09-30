@@ -8,9 +8,11 @@ The guard starts this and refuses at once, naming the path it will create. Outsi
 terminal workspace (no `--pane`) it only creates; the refusal already printed the `/cd` line.
 Inside one it waits for the agent to be idle and reads the pane: it types the unquoted
 line only when the composer is empty or holds the helper's own earlier `/cd` line, then
-reads the pane back. A refusal message from the harness means try again (up to 3 times,
-about 2 minutes); silence, an unreadable pane or a composer with the human's text means
-stop, never type twice. The outcome goes into `--marker`: `created` or `error`.
+reads the pane back. The wait for idle lasts up to 10 minutes per attempt: the agent may
+still be answering the refusal. A refusal message from the harness means try again (up to 3
+times); silence, an unreadable pane or a composer with the human's text means stop, never
+type twice. The outcome goes into `--marker`: `created` or `error`. Every step, wait result
+and exception goes to `<git dir>/afk-worktrees/<name>.log`, never a token.
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -32,7 +35,33 @@ REFUSED = re.compile(r"disabled while a task|Cannot access directory|not trusted
 SGR = re.compile(r"\x1b\[[0-9;]*m")
 DIM = re.compile(r"^(?:\x1b\[0?m| )*\x1b\[2m")
 COMPOSER = re.compile(r"^\s*[›>❯]\s?(.*?)\s*$")
-ATTEMPTS, WAIT_IDLE, SETTLE = 3, 40.0, 2.0
+ATTEMPTS, WAIT_IDLE, SETTLE = 3, 600.0, 2.0
+LOG: Path | None = None
+
+
+def log(message: str) -> None:
+    """Append one timestamped line to this move's log; logging never fails the move."""
+    if LOG is None:
+        return
+    try:
+        with open(LOG, "a", encoding="utf-8") as out:
+            out.write(f"{time.strftime('%H:%M:%S')} {message}\n")
+    except OSError:
+        pass
+
+
+def log_path(repo: str, name: str) -> Path | None:
+    """`<git dir>/afk-worktrees/<name>.log`, beside the owner records."""
+    try:
+        done = subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                              capture_output=True, text=True, timeout=30)
+        if done.returncode != 0 or not done.stdout.strip():
+            return None
+        folder = Path(done.stdout.strip()) / "afk-worktrees"
+        folder.mkdir(exist_ok=True)
+        return folder / f"{name}.log"
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def bash() -> str | None:
@@ -83,12 +112,17 @@ def herdr_json(binary: str, *argv: str):
 
 def idle(binary: str, pane: str) -> bool:
     deadline = time.monotonic() + WAIT_IDLE
+    last = None
     while time.monotonic() < deadline:
         answer = herdr_json(binary, "agent", "get", pane) or {}
         status = ((answer.get("result") or {}).get("agent") or {}).get("agent_status")
+        if status != last:
+            log(f"wait: agent status {status!r}")
+            last = status
         if status in ("idle", "done"):
             return True
         time.sleep(1.0)
+    log(f"wait: gave up after {WAIT_IDLE:.0f}s, last status {last!r}")
     return False
 
 
@@ -113,13 +147,17 @@ def composer_text(seen: str) -> str | None:
 
 def type_line(binary: str, pane: str, path: Path) -> None:
     """Type `/cd <path>` until the harness confirms it or refuses for good."""
-    for _ in range(ATTEMPTS):
+    for attempt in range(1, ATTEMPTS + 1):
+        log(f"attempt {attempt}: waiting for pane {pane} to be idle")
         if not idle(binary, pane):
             continue
         text = composer_text(read_pane(binary, pane, "ansi"))
+        log(f"composer: {text!r}")
         if text is None:
+            log("stop: no composer on screen")
             return  # an unreadable pane may hold the human's half-written message
         if text and not text.startswith("/cd "):
+            log("stop: the human is typing")
             return  # the human is typing: the refusal already printed the line
         if text:
             subprocess.run([binary, "agent", "send-keys", pane, "ctrl+u"], capture_output=True, timeout=30)
@@ -127,7 +165,10 @@ def type_line(binary: str, pane: str, path: Path) -> None:
         time.sleep(SETTLE)
         seen = read_pane(binary, pane)
         if DONE.search(seen) or not REFUSED.search(seen):
+            log("done: typed, no refusal after it")
             return
+        log("refused: trying again")
+    log("stop: attempts used up")
 
 
 def main(argv: list[str]) -> int:
@@ -135,11 +176,27 @@ def main(argv: list[str]) -> int:
     for flag in ("repo", "name", "session", "provider", "pane", "cwd", "marker"):
         parser.add_argument(f"--{flag}", default="")
     args = parser.parse_args(argv)
-    path, error = create(args)
-    record(args.marker, **({"created": str(path)} if path is not None else {"error": error}))
+    global LOG
+    LOG = log_path(args.repo, args.name)
+    try:
+        return run(args)
+    except BaseException:
+        log("exception:\n" + traceback.format_exc())
+        raise
+    finally:
+        log("exit")
+
+
+def run(args) -> int:
     binary = os.environ.get("HERDR_BIN_PATH") or shutil.which("herdr")
+    log(f"start: pid {os.getpid()} pane {args.pane!r} herdr {binary!r} provider {args.provider!r}")
+    path, error = create(args)
+    log(f"create: {path}" if path is not None else f"create failed: {error}")
+    record(args.marker, **({"created": str(path)} if path is not None else {"error": error}))
     if path is not None and args.pane and binary:
         type_line(binary, args.pane, path)
+    elif path is not None:
+        log("no pane or no herdr binary: nothing typed")
     return 0 if path is not None else 1
 
 

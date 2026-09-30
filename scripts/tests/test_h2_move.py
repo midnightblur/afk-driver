@@ -88,14 +88,16 @@ def test_two_sessions_get_two_paths(repo):
     assert a != b
 
 
-def stub_herdr(tmp_path: Path, read_text: str = "") -> tuple[str, Path]:
+def stub_herdr(tmp_path: Path, read_text: str = "", working_polls: int = 0) -> tuple[str, Path]:
     log = tmp_path / "herdr.log"
     script = tmp_path / "herdr_stub.py"
     script.write_text(
         "import json, sys\n"
         f"open(r'{log}', 'a').write(json.dumps(sys.argv[1:]) + chr(10))\n"
         "if sys.argv[1:3] == ['agent', 'get']:\n"
-        "    print(json.dumps({'result': {'agent': {'agent': 'codex', 'agent_status': 'idle'}}}))\n"
+        f"    polls = sum(1 for l in open(r'{log}') if json.loads(l)[:2] == ['agent', 'get'])\n"
+        f"    status = 'working' if polls <= {working_polls} else 'idle'\n"
+        "    print(json.dumps({'result': {'agent': {'agent': 'codex', 'agent_status': status}}}))\n"
         "elif sys.argv[1:3] == ['agent', 'read']:\n"
         f"    sys.stdout.buffer.write({read_text!r}.encode('utf-8') + chr(10).encode())\n"
         "else:\n"
@@ -341,3 +343,56 @@ def test_p3_the_helper_leaves_live_typed_text_alone(tmp_path):
     herdr, log = stub_herdr(tmp_path, captured("codex-composer-typed.ansi"))
     load_move().type_line(herdr, "w:p7", Path("C:/x"))
     assert not prompts(log)
+
+
+class FakeClock:
+    """Time that only `sleep` moves, so a ten-minute wait takes no real time."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+    def strftime(self, fmt):
+        return "00:00:00"
+
+
+def test_p7_the_helper_waits_out_a_long_turn_before_typing(tmp_path, monkeypatch):
+    module = load_move()
+    monkeypatch.setattr(module, "time", FakeClock())
+    herdr, log = stub_herdr(tmp_path, "\u203a", working_polls=300)
+    module.type_line(herdr, "w:p8", Path("C:/x"))
+    assert prompts(log) and prompts(log)[0][3] == f"/cd {Path('C:/x')}", "a long turn must not make it give up"
+
+
+def test_p7_the_wait_for_idle_budget_is_at_least_ten_minutes():
+    assert load_move().WAIT_IDLE >= 600
+
+
+def test_p7_every_step_and_the_exit_reason_reach_the_moves_log(tmp_path, monkeypatch):
+    module = load_move()
+    monkeypatch.setattr(module, "LOG", tmp_path / "move.log")
+    herdr, _ = stub_herdr(tmp_path, "\u203a hello, I was about to ask")
+    module.type_line(herdr, "w:p9", Path("C:/x"))
+    text = (tmp_path / "move.log").read_text(encoding="utf-8")
+    assert "wait: agent status 'idle'" in text and "stop: the human is typing" in text
+
+
+def test_p7_a_crash_of_the_helper_is_logged_with_its_traceback(repo, monkeypatch):
+    module = load_move()
+    name = "session-crash"
+    monkeypatch.setattr(module, "run", lambda args: 1 // 0)
+    with pytest.raises(ZeroDivisionError):
+        module.main(["--repo", str(repo), "--name", name])
+    text = (repo / ".git" / "afk-worktrees" / f"{name}.log").read_text(encoding="utf-8")
+    assert "ZeroDivisionError" in text and text.rstrip().endswith("exit")
+
+
+def test_p7_a_repo_that_is_not_one_gets_no_log_folder_in_the_current_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert load_move().log_path(str(tmp_path / "missing"), "x") is None
+    assert not (tmp_path / "afk-worktrees").exists()

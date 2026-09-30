@@ -52,6 +52,9 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- The worktree move into a terminal-workspace pane waits up to 10 minutes per attempt for the agent to go idle
+  before typing `/cd` (it gave up after about 2 minutes while a slow turn ran), and
+  logs each step of a move to `<git dir>/afk-worktrees/<name>.log`.
 - **A plugin PreToolUse refusal now blocks under every harness.** The second
   supported harness treats a PreToolUse hook that exits 2 as a failed hook and
   runs the command anyway. A refusal is now exit 0 plus the deny JSON, which
