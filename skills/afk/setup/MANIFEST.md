@@ -299,7 +299,8 @@ a token value — not even partially.
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
   wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
   `skills/afk/gc` (the merged proof).
-- **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
+- **Probe:** `glab auth status` (exit 0 = logged in; prints no token). No config
+  layer selecting `forge: gitlab`: n/a, as `H0` defines.
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host this repository pushes to>` — the token lives in glab's own store, never in
   this plugin. `skills/afk/setup/scripts/setup_secrets.py` drives that login as
@@ -315,7 +316,8 @@ a token value — not even partially.
   whatever the repository selects, `skills/utils/report-issue/scripts/publish.sh`
   (issue search, label create, issue create or comment; absent or logged out →
   the draft queues on disk, so it is optional there).
-- **Probe:** `gh auth status` (exit 0 = logged in; prints no token).
+- **Probe:** `gh auth status` (exit 0 = logged in; prints no token). No config
+  layer selecting `forge: github` or `tracker: github-issues`: n/a, as `H0` defines.
 - **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
   drives that login when `forge: github` is configured (it shells out to `gh`;
