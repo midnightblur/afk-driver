@@ -15,8 +15,9 @@ one whose recorded owner process is dead; an unknown owner is kept. The worktree
 calling session stands in, and the target of a move in flight, are never pruned. Exit is
 0 unless the call is malformed or a forced removal is asked from inside the worktree (exit 1),
 so a hook never fails. A session that ends standing in its own worktree starts the detached
-`--after-exit` waiter (same spawn flags as `afk-move.py`, up to 24 h) for the assessment; the
-next session start prune stays the backstop.
+`--after-exit` waiter (same spawn flags as `afk-move.py`, up to 24 h). It removes only when
+every owner the record lists is dead; an alive or unknown owner, or the cap, leaves the
+worktree to the next session start prune.
 """
 from __future__ import annotations
 
@@ -269,7 +270,7 @@ def wait_for_exit(path: Path, record_file: Path, common: Path) -> None:
 
 
 def after_exit(spec: str, target: Path) -> None:
-    """Wait (up to WAIT_CAP) until the process `spec` is gone, then run the normal removal."""
+    """Wait (up to WAIT_CAP) for process `spec` to die, then remove only if every recorded owner is dead."""
     pid, _, ctime = spec.partition(":")
     owner = owner_module()
     poll = float(os.environ.get("AFK_WAIT_POLL") or 2.0)
@@ -278,7 +279,10 @@ def after_exit(spec: str, target: Path) -> None:
         time.sleep(poll)
     common = common_dir(target)
     try:
-        remove_one(target, False)
+        if (pid.isdigit() and owner.state(int(pid), ctime) == "dead" and common is not None
+                and all(owner.all_dead(record) for _, record in records(common)
+                        if same(record.get("path") or "", target))):
+            remove_one(target, False)
     finally:
         if common is not None:
             (common / "afk-worktrees" / f"{target.name}.wait").unlink(missing_ok=True)
@@ -299,11 +303,14 @@ def remove_one(target: Path, force: bool) -> None:
 
 
 def adopt(owner, record_file: Path, record: dict) -> None:
-    """Re-record the current session as the owner of a worktree it starts in."""
+    """Add the current session to the owners of a worktree it starts in; earlier owners stay."""
     found = owner.env_owner() or owner.find_owner()
     if not found or not found.get("pid"):
         return
-    record["owner"] = {"pid": found["pid"], "ctime": found.get("ctime")}
+    mine = {"pid": found["pid"], "ctime": found.get("ctime")}
+    known = owner.owners_of(record)
+    record["owners"] = known + ([] if mine in known else [mine])
+    record["owner"] = mine
     try:
         record_file.write_text(json.dumps(record), encoding="utf-8")
     except OSError:
@@ -324,10 +331,7 @@ def prune(repo: Path) -> None:
         if inside(SESSION_CWD, path):  # a resumed session stands here: it owns the worktree now
             adopt(owner, record_file, record)
             continue
-        who = record.get("owner") or {}
-        if not who.get("pid") or not who.get("ctime"):
-            continue
-        if owner.state(int(who["pid"]), str(who["ctime"])) != "dead" or move_in_flight(common, path):
+        if not owner.all_dead(record) or move_in_flight(common, path):
             continue
         if registered(common, path):
             remove(path, record_file, common, False)

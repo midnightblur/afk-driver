@@ -341,6 +341,11 @@ def harness() -> tuple[subprocess.Popen, str]:
     return child, f"{child.pid}:{OWNER.creation_time(child.pid)}"
 
 
+def spec_of(owner: str) -> dict:
+    pid, _, ctime = owner.partition(":")
+    return {"pid": int(pid), "ctime": ctime}
+
+
 def until(check, seconds: float = 60) -> bool:
     end = time.time() + seconds
     while time.time() < end:
@@ -351,8 +356,8 @@ def until(check, seconds: float = 60) -> bool:
 
 
 def test_p6_a_session_ending_inside_its_worktree_removes_it_once_the_harness_exits(repo):
-    path = made(repo, "waited")
     child, owner = harness()
+    path = made(repo, "waited", owner=spec_of(owner))
     try:
         done = run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=owner, AFK_WAIT_POLL="0.2")
         assert done.returncode == 0 and "when the session exits" in done.stderr, done.stderr
@@ -365,9 +370,9 @@ def test_p6_a_session_ending_inside_its_worktree_removes_it_once_the_harness_exi
 
 
 def test_p6_the_waiter_keeps_a_dirty_worktree_and_records_it(repo):
-    path = made(repo, "waited-dirty")
-    (path / "w.txt").write_text("x", encoding="utf-8")
     child, owner = harness()
+    path = made(repo, "waited-dirty", owner=spec_of(owner))
+    (path / "w.txt").write_text("x", encoding="utf-8")
     try:
         run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=owner, AFK_WAIT_POLL="0.2")
     finally:
@@ -389,3 +394,76 @@ def test_p6_a_session_end_without_an_owner_record_removes_nothing(repo):
     time.sleep(2)
     assert done.returncode == 0 and path.is_dir() and "worktree-unowned" in branches(repo)
     assert not list((repo / ".git").glob("afk-worktrees/*.wait"))
+
+
+def waiter(path: Path, owner: str, **env: str) -> subprocess.CompletedProcess:
+    """Run the waiter in the foreground against an owner that has already died."""
+    return run_env("--after-exit", owner, "--path", str(path), cwd=path.parents[2], **env)
+
+
+def dead_harness() -> str:
+    child, owner = harness()
+    child.kill()
+    child.wait()
+    return owner
+
+
+def test_r11_1_a_worktree_another_live_session_shares_is_kept(repo):
+    gone = dead_harness()
+    child, alive = harness()
+    try:
+        path = made(repo, "shared")
+        record = repo / ".git" / "afk-worktrees" / "shared.json"
+        body = json.loads(record.read_text(encoding="utf-8"))
+        body["owners"] = [spec_of(gone), spec_of(alive)]
+        record.write_text(json.dumps(body), encoding="utf-8")
+        waiter(path, gone)
+        assert path.is_dir() and "worktree-shared" in branches(repo)
+    finally:
+        child.kill()
+        child.wait()
+
+
+def test_r11_1_adopt_appends_an_owner_and_keeps_the_earlier_ones(repo):
+    first = dead_harness()
+    path = made(repo, "joined", owner=spec_of(first))
+    me = f"{os.getpid()}:{OWNER.creation_time(os.getpid())}"
+    run_env("--prune", cwd=path, AFK_WORKTREE_OWNER=me)
+    body = json.loads((repo / ".git" / "afk-worktrees" / "joined.json").read_text(encoding="utf-8"))
+    assert [item["pid"] for item in OWNER.owners_of(body)] == [spec_of(first)["pid"], os.getpid()]
+
+
+def test_r11_1_a_record_in_the_old_single_owner_shape_reads_as_one_owner():
+    assert OWNER.owners_of({"owner": {"pid": 7, "ctime": "1"}}) == [{"pid": 7, "ctime": "1"}]
+    assert OWNER.owners_of({}) == [] and not OWNER.all_dead({})
+
+
+def load_remove():
+    return _load("afk_remove", SCRIPT)
+
+
+def test_r11_2_an_unknown_owner_state_keeps_the_worktree(repo, monkeypatch):
+    gone = dead_harness()
+    path = made(repo, "unsure", owner=spec_of(gone))
+    module = load_remove()
+    real = module.owner_module()
+    stub = type("Stub", (), {"state": staticmethod(lambda pid, ctime: "unknown"),
+                             "all_dead": staticmethod(lambda record: False), "owners_of": real.owners_of})
+    monkeypatch.setattr(module, "owner_module", lambda: stub)
+    monkeypatch.chdir(repo)
+    module.after_exit(gone, path)
+    assert path.is_dir() and "worktree-unsure" in branches(repo)
+
+
+def test_r11_2_reaching_the_cap_keeps_the_worktree(repo, monkeypatch):
+    child, alive = harness()
+    try:
+        path = made(repo, "capped", owner=spec_of(alive))
+        module = load_remove()
+        monkeypatch.setattr(module, "WAIT_CAP", 0)
+        monkeypatch.chdir(repo)
+        module.after_exit(alive, path)
+        assert path.is_dir() and "worktree-capped" in branches(repo)
+    finally:
+        child.kill()
+        child.wait()

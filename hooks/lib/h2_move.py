@@ -37,11 +37,11 @@ def owner_env() -> dict:
 def owner_is_dead(common: Path, name: str) -> bool:
     """Has the session that made worktree `name` ended?"""
     try:
-        who = json.loads((common / "afk-worktrees" / f"{name}.json").read_text(encoding="utf-8")).get("owner") or {}
+        record = json.loads((common / "afk-worktrees" / f"{name}.json").read_text(encoding="utf-8"))
         spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        return bool(who.get("pid") and who.get("ctime")) and module.state(int(who["pid"]), str(who["ctime"])) == "dead"
+        return module.all_dead(record)
     except Exception:
         return False
 

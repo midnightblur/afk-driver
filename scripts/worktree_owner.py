@@ -181,6 +181,21 @@ def state(pid: int, ctime: str) -> str:
     return "alive" if now == str(ctime) else "unknown"
 
 
+def owners_of(record: dict) -> list[dict]:
+    """Every owner a record names: its `owners` list, else its single `owner` as a one-item list."""
+    listed = record.get("owners")
+    if isinstance(listed, list):
+        return [item for item in listed if isinstance(item, dict)]
+    return [record["owner"]] if isinstance(record.get("owner"), dict) else []
+
+
+def all_dead(record: dict) -> bool:
+    """True only when the record names at least one owner and every one is provably `dead`."""
+    found = owners_of(record)
+    return bool(found) and all(item.get("pid") and item.get("ctime")
+                               and state(int(item["pid"]), str(item["ctime"])) == "dead" for item in found)
+
+
 def record(argv: list[str]) -> int:
     fields = {"dir": "", "name": "", "path": "", "branch": "", "harness": "", "session": ""}
     args = iter(argv)
