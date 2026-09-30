@@ -23,7 +23,8 @@
 #      string depends on a shell dialect or on a bare `bash`;
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
-#      tests under scripts/tests/ exempted — they load the helper directly).
+#      tests under scripts/tests/ exempted — they load the helper directly);
+#   L. agent files carry the model and effort of their PROVIDERS.md tier.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -204,6 +205,56 @@ for agent in sorted(plugin.glob("agents/*.md")):
     stub = plugin / "providers/codex/agents" / f"afk-{agent.stem}.toml"
     if not stub.is_file():
         problems.append(f"{rel(agent)}: missing {rel(stub)}")
+
+
+# L. PROVIDERS.md "Model tiers" is the one home of each tier's model; agent
+# files are literal copies the harness parses, so they must equal their cell.
+providers_text = read(plugin / "PROVIDERS.md") if (plugin / "PROVIDERS.md").is_file() else ""
+tiers_sec = re.search(r"(?ms)^##\s+Model tiers\s*$(.*?)(?=^##\s|\Z)", providers_text)
+if not tiers_sec:
+    problems.append("PROVIDERS.md: missing the `## Model tiers` section")
+else:
+    tier_cells = {}
+    agent_tier = {}
+    for line in tiers_sec.group(1).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        ticks = [re.fullmatch(r"`([^`]+)`", c) for c in cells]
+        if len(cells) == 4 and all(ticks[1:]):
+            tier_cells[cells[0]] = tuple(m.group(1) for m in ticks[1:])
+        elif len(cells) == 2 and ticks[0] and cells[1] and not set(cells[1]) <= set("-: "):
+            agent_tier[ticks[0].group(1)] = cells[1]
+    home = "PROVIDERS.md `## Model tiers`"
+    on_disk = {a.stem for a in plugin.glob("agents/*.md")}
+    for name in sorted(on_disk - set(agent_tier)):
+        problems.append(f"agents/{name}.md: no row in the {home} Agent table")
+    for name in sorted(set(agent_tier) - on_disk):
+        problems.append(f"{home}: Agent row {name!r} has no agents/{name}.md")
+    for tier in sorted(set(agent_tier.values()) - set(tier_cells)):
+        problems.append(f"{home}: Agent table names tier {tier!r} with no tier row")
+    for name in sorted(on_disk & set(agent_tier)):
+        cells = tier_cells.get(agent_tier[name])
+        if not cells:
+            continue
+        claude, codex, effort = cells
+        md = plugin / "agents" / f"{name}.md"
+        fm = re.match(r"(?s)---\r?\n(.*?)\r?\n---", read(md))
+        got = re.search(r"(?m)^model:\s*(\S+)\s*$", fm.group(1)) if fm else None
+        if not got or got.group(1) != claude:
+            problems.append(
+                f"{rel(md)}: model expected {claude!r} (tier {agent_tier[name]}), "
+                f"got {got.group(1) if got else 'none'!r}; the home is {home}"
+            )
+        toml = plugin / "providers/codex/agents" / f"afk-{name}.toml"
+        if toml.is_file():
+            body = read(toml)
+            for key, want, label in (("model", codex, "model"),
+                                     ("model_reasoning_effort", effort, "effort")):
+                m = re.search(rf'(?m)^{key}\s*=\s*"([^"]*)"', body)
+                if not m or m.group(1) != want:
+                    problems.append(
+                        f"{rel(toml)}: {label} expected {want!r} (tier {agent_tier[name]}), "
+                        f"got {m.group(1) if m else 'none'!r}; the home is {home}"
+                    )
 
 
 # E. CAPABILITIES.md owns the shared hooks.json event and matcher subset. The

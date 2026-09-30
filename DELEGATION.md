@@ -40,7 +40,7 @@ Only completion re-invokes a waiting orchestrator. A hung child never completes,
 
 ## Model selection
 
-Role-based tiers — the role decides the model, named explicitly per provider in `PROVIDERS.md` ("Model tiers"). "Inherit the session model" is never a tier: every spawn names its tier.
+Role-based tiers — the role decides the model, named explicitly per provider in `PROVIDERS.md` ("Model tiers"). Pinning a tier is one cell edit there. "Inherit the session model" is never a tier: every spawn names its tier.
 
 - **frontier tier — judgment that shapes the work**: grilling, planning/slicing, code review and dispute adjudication, adversarial probes, closure tracing (`afk-tracer` — a coverage verdict a design or ship step then rests on), and any verdict acted on without re-checking (a confirm/refute gating a spec, ship, or publish step). Best model available, explicitly. A judge is never a cheaper model than the implementor it judges.
 - **implementation tier — executing work the frontier tier laid out**: any child writing product code against a plan/contract/design authored at the frontier tier. The frontier model at a lower reasoning effort (the frontier intelligence is already in the plan); one rung lower again when the slice is on the simpler side. It travels as the `afk-implementor` **agent type**, whose definition carries the model — never as a model argument (`PROVIDERS.md` "Model tiers").
