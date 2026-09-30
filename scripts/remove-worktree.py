@@ -82,6 +82,9 @@ def count(where: Path, *args: str) -> int:
 
 def assess(path: Path) -> str:
     """The reason this worktree must be kept, or "" when it is clean and nothing is unpushed."""
+    top = git(path, "rev-parse", "--show-toplevel").stdout.strip()
+    if not top or not same(top, path):
+        return "git does not know it as a worktree"
     if git(path, "status", "--porcelain").stdout.strip():
         return "it has uncommitted changes"
     named = git(path, "symbolic-ref", "-q", "--short", "HEAD")
@@ -170,7 +173,38 @@ def record_branch(record_file: Path) -> str:
         return ""
 
 
+def drop_branch(main: Path, record_file: Path) -> None:
+    """Delete the branch the record names when it holds no commit of its own."""
+    branch = record_branch(record_file)
+    if branch and git(main, "rev-parse", "-q", "--verify", f"refs/heads/{branch}").returncode == 0 \
+            and own_commits(main, branch) == 0:
+        git(main, "branch", "-D", branch)
+
+
+def registered(common: Path, path: Path) -> bool:
+    """Does git still list `path` as a worktree of this repository?"""
+    listed = git(main_of(common), "worktree", "list", "--porcelain").stdout.splitlines()
+    return any(same(line[len("worktree "):], path) for line in listed if line.startswith("worktree "))
+
+
+def clear_leftover(common: Path, path: Path, record_file: Path) -> None:
+    """A folder git no longer lists (a removal that failed on the folder): clear it when empty."""
+    try:
+        path.rmdir()
+    except OSError:
+        return  # not empty: someone's files, not a leftover
+    drop_branch(main_of(common), record_file)
+    record_file.unlink(missing_ok=True)
+    drop_markers(common, path)
+    sys.stderr.write(f"afk: cleared the leftover folder {path.as_posix()}.\n")
+
+
 def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
+    if inside(SESSION_CWD, path):
+        # Deleting the folder this process stands in half-removes it on Windows; a later prune takes it.
+        sys.stderr.write(f"afk: worktree {path.as_posix()} is this session's folder; "
+                         "it is removed at a later session start.\n")
+        return False
     reason = assess(path)
     if reason and not force:
         keep(path, reason, common)
@@ -181,10 +215,7 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
     if done.returncode != 0:
         sys.stderr.write(f"afk: could not remove {path.as_posix()}: {done.stderr.strip()[:300]}\n")
         return False
-    branch = record_branch(record_file)
-    if branch and git(main, "rev-parse", "-q", "--verify", f"refs/heads/{branch}").returncode == 0 \
-            and own_commits(main, branch) == 0:
-        git(main, "branch", "-D", branch)
+    drop_branch(main, record_file)
     record_file.unlink(missing_ok=True)
     drop_markers(common, path)
     sys.stderr.write(f"afk: removed worktree {path.as_posix()}.\n")
@@ -197,10 +228,11 @@ def remove_one(target: Path, force: bool) -> None:
         return
     top = git(target, "rev-parse", "--show-toplevel").stdout.strip() if target.is_dir() else str(target)
     for record_file, record in records(common):
-        if same(record.get("path") or "", top):
-            if not force and move_in_flight(common, Path(top)):
+        named = record.get("path") or ""
+        if same(named, target) or same(named, top):
+            if not force and move_in_flight(common, Path(named)):
                 return
-            remove(Path(top), record_file, common, force)
+            remove(Path(named), record_file, common, force)
             return
 
 
@@ -233,8 +265,12 @@ def prune(repo: Path) -> None:
         who = record.get("owner") or {}
         if not who.get("pid") or not who.get("ctime"):
             continue
-        if owner.state(int(who["pid"]), str(who["ctime"])) == "dead" and not move_in_flight(common, path):
+        if owner.state(int(who["pid"]), str(who["ctime"])) != "dead" or move_in_flight(common, path):
+            continue
+        if registered(common, path):
             remove(path, record_file, common, False)
+        else:
+            clear_leftover(common, path, record_file)
 
 
 def report_kept(repo: Path) -> None:
@@ -246,7 +282,7 @@ def report_kept(repo: Path) -> None:
     fresh = [(path, item) for path, item in kept.items() if not item.get("shown")]
     if fresh:
         script = (HERE / "remove-worktree.py").as_posix()
-        lines = ["afk kept these worktrees when a session ended; the harness reported them as removed:"]
+        lines = ["afk kept these worktrees because they hold work:"]
         for path, item in fresh:
             lines.append(f"- {path}: {item.get('reason')}. Resume: cd {path}. "
                          f"Remove and discard its work: python {script} --path {path} --force")

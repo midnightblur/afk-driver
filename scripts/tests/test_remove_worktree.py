@@ -245,3 +245,47 @@ def test_r5_10_the_owner_walk_stops_at_a_parent_created_after_its_child(monkeypa
     assert OWNER.find_owner()["pid"] == 100
     born[100] = "90"
     assert OWNER.find_owner() is None
+
+
+def test_r8_1_a_removal_run_from_inside_the_folder_leaves_it_for_the_next_prune(repo):
+    path = made(repo, "held", {"pid": 2147483000, "ctime": "1"})
+    done = run("--path", str(path), cwd=path)
+    assert done.returncode == 0 and path.is_dir(), done.stderr
+    assert "later session start" in done.stderr
+    assert (repo / ".git" / "afk-worktrees" / "held.json").exists() and "worktree-held" in branches(repo)
+    run("--prune", cwd=repo)
+    assert not path.exists() and "worktree-held" not in branches(repo)
+
+
+def test_r8_1_a_child_holding_the_folder_does_not_strand_a_leftover(repo):
+    path = made(repo, "child", {"pid": 2147483000, "ctime": "1"})
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], cwd=path)
+    try:
+        run("--path", str(path))
+    finally:
+        child.kill()
+        child.wait()
+    run("--prune", cwd=repo)
+    assert not path.exists() and "worktree-child" not in branches(repo)
+    assert not (repo / ".git" / "afk-worktrees" / "child.json").exists()
+
+
+def test_r8_1_an_empty_folder_git_no_longer_lists_is_cleared_with_its_record_and_branch(repo):
+    path = made(repo, "ghost", {"pid": 2147483000, "ctime": "1"})
+    git(repo, "worktree", "remove", "--force", str(path))
+    path.mkdir(parents=True)
+    done = run("--prune", cwd=repo)
+    assert done.returncode == 0, done.stderr
+    assert not path.exists() and "worktree-ghost" not in branches(repo)
+    assert not (repo / ".git" / "afk-worktrees" / "ghost.json").exists()
+
+
+def test_r8_1_a_folder_that_is_not_its_own_worktree_is_kept_not_judged_by_the_main_checkout(repo):
+    path = made(repo, "plain", {"pid": 2147483000, "ctime": "1"})
+    git(repo, "worktree", "remove", "--force", str(path))
+    path.mkdir(parents=True)
+    (path / "mine.txt").write_text("x", encoding="utf-8")
+    run("--prune", cwd=repo)
+    assert (path / "mine.txt").exists()
+    assert "uncommitted" not in (repo / ".git" / "afk-session" / "kept.json").read_text() \
+        if (repo / ".git" / "afk-session" / "kept.json").exists() else True
