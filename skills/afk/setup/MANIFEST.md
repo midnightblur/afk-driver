@@ -74,7 +74,7 @@ a token value — not even partially.
   follows the same rule. An `unsupported` or `error` answer carries
   `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3. Registering the server needs that restart. Without credentials a call answers `error: true` and the server stays up; credentials written afterwards apply on the next call while no call has yet succeeded, and after one has, changing them needs a restart. The registration uses the plugin's `.mcp.json` launcher, so a plugin update needs no re-run; a checkout outside a harness cache is pinned to its path, so re-run setup after moving it. `setup_secrets.py` leaves a `jira` server entry alone unless its args point at this plugin's server.
+  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3. Registering the server needs that restart. Credentials apply on the next call, no restart: without them a call answers `error: true` and the server stays up. The registration passes this plugin root, so re-run setup after a plugin update or after moving a checkout. `setup_secrets.py` leaves a `jira` server entry alone unless its args point under this plugin root, into an `afk` plugin cache, or at the launcher; it then warns that a `jira` server remains.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.

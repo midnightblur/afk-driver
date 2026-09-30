@@ -290,7 +290,9 @@ if TRACKER_KIND == "none":
 else:
     cj = read_json(CLAUDE_JSON)
     servers = cj.get("mcpServers") or {}
-    existing_env = tracker_registration.prior_env(servers)
+    existing_env = tracker_registration.prior_env(servers, PLUGIN_ROOT)
+    if tracker_registration.foreign_legacy(servers, PLUGIN_ROOT):
+        warn("A `jira` MCP server remains; if it is an old afk registration, remove it by hand.")
     if existing_env:
         skip("An existing server entry was found — it will be updated in place.")
 

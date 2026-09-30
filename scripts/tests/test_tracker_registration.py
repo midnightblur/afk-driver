@@ -6,6 +6,7 @@ HOME and speaks JSON-RPC to it: a mock would pass against the failures pinned.
 """
 from __future__ import annotations
 
+import http.server
 import importlib.util
 import json
 import os
@@ -153,9 +154,7 @@ def test_credentials_written_after_the_failed_call_apply_without_a_restart(home,
     try:
         assert rpc.start() is not None
         assert "could not resolve Jira creds" in text_of(rpc.call("tracker_get", {"ticket_key": "A-1"}))
-        (home / ".claude.json").write_text(json.dumps({"mcpServers": {"tracker": {"env": {
-            "JIRA_BASE_URL": "http://127.0.0.1:9", "JIRA_EMAIL": "dev@example.com",
-            "JIRA_API_TOKEN": "t"}}}}), encoding="utf-8")
+        write_creds(home, "http://127.0.0.1:9")
         later = rpc.call("tracker_get", {"ticket_key": "A-1"})
         assert later is not None and rpc.alive()
         assert "could not resolve Jira creds" not in text_of(later)
@@ -163,26 +162,67 @@ def test_credentials_written_after_the_failed_call_apply_without_a_restart(home,
         rpc.close()
 
 
+def write_creds(home: Path, base: str) -> None:
+    (home / ".claude.json").write_text(json.dumps({"mcpServers": {"tracker": {"env": {
+        "JIRA_BASE_URL": base, "JIRA_EMAIL": "dev@example.com",
+        "JIRA_API_TOKEN": "t"}}}}), encoding="utf-8")
+
+
+class FakeJira(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = json.dumps({"key": "A-1", "fields": {"summary": "reached the fake host"}}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+def test_corrected_credentials_reach_the_new_host_without_a_restart(home, jira_repo):
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeJira)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    env = clean_env(home)
+    env["AFK_PLUGIN_ROOT"] = str(ROOT)
+    rpc = Rpc(sys.executable, [str(SERVER)], jira_repo, env)
+    try:
+        assert rpc.start() is not None
+        write_creds(home, "http://127.0.0.1:9")                      # a wrong host
+        first = rpc.call("tracker_get", {"ticket_key": "A-1"})
+        assert "reached the fake host" not in text_of(first)
+        write_creds(home, f"http://127.0.0.1:{server.server_address[1]}")   # the right one
+        second = rpc.call("tracker_get", {"ticket_key": "A-1"})
+        assert "reached the fake host" in text_of(second)
+    finally:
+        rpc.close()
+        server.shutdown()
+
+
 # ---- G7: the registered entry starts ---------------------------------------
 
-def fake_cache_install(home: Path) -> Path:
-    """The parts of the plugin the server loads, under a harness cache path."""
-    root = home / ".claude" / "plugins" / "cache" / "afk-toolkit" / "afk" / "9.9.9"
+def copy_plugin(dest: Path) -> Path:
+    """The parts of the plugin the server loads, at `dest`."""
     for part in ("mcp-servers", "adapters", "scripts/afk-config.py"):
-        src, dst = ROOT / part, root / part
-        dst.parent.mkdir(parents=True, exist_ok=True)
+        src, target = ROOT / part, dest / part
+        target.parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
-            shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(src, target, ignore=shutil.ignore_patterns("__pycache__"))
         else:
-            shutil.copy2(src, dst)
-    shutil.copy2(ROOT / ".mcp.json", root / ".mcp.json")
-    return root
+            shutil.copy2(src, target)
+    shutil.copy2(ROOT / ".mcp.json", dest / ".mcp.json")
+    return dest
 
 
-def test_the_registered_entry_starts_with_no_plugin_root_in_the_environment(home, jira_repo):
-    installed = fake_cache_install(home)
+def cache_dir(base: Path, version: str = "9.9.9") -> Path:
+    return base / "plugins" / "cache" / "afk-toolkit" / "afk" / version
+
+
+def assert_registered_entry_starts(installed: Path, home: Path, repo: Path):
     entry = registration().entry({}, installed, sys.executable)
-    rpc = Rpc(entry["command"], entry["args"], jira_repo, clean_env(home))
+    assert entry["args"][-1] == str(installed)      # the root is always passed
+    rpc = Rpc(entry["command"], entry["args"], repo, clean_env(home))
     try:
         reply = rpc.start()
         assert reply is not None, rpc.stderr_text()
@@ -191,33 +231,37 @@ def test_the_registered_entry_starts_with_no_plugin_root_in_the_environment(home
         rpc.close()
 
 
-def test_a_cache_registration_carries_no_versioned_path(home):
-    installed = fake_cache_install(home)
-    entry = registration().entry({}, installed, sys.executable)
-    assert all(str(installed) not in arg for arg in entry["args"])
-    assert len(entry["args"]) == 2 and entry["args"][0] == "-c"    # launcher only, no root
+def test_the_entry_starts_from_a_cache_install_with_no_root_in_the_environment(home, jira_repo):
+    assert_registered_entry_starts(copy_plugin(cache_dir(home / ".claude")), home, jira_repo)
 
 
-def test_a_checkout_outside_any_cache_is_passed_as_the_root(home, jira_repo, tmp_path):
-    checkout = tmp_path / "dev-clone"
-    for part in ("mcp-servers", "adapters", "scripts/afk-config.py"):
-        src, dst = ROOT / part, checkout / part
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        (shutil.copytree if src.is_dir() else shutil.copy2)(src, dst)
-    shutil.copy2(ROOT / ".mcp.json", checkout / ".mcp.json")
-    entry = registration().entry({}, checkout, sys.executable)
-    assert str(checkout) in entry["args"]
+def test_the_entry_starts_from_a_dev_clone(home, jira_repo, tmp_path):
+    assert_registered_entry_starts(copy_plugin(tmp_path / "dev-clone"), home, jira_repo)
+
+
+def test_the_entry_starts_from_a_cache_outside_home(home, jira_repo, tmp_path):
+    assert_registered_entry_starts(copy_plugin(cache_dir(tmp_path / "cfg")), home, jira_repo)
+
+
+def test_a_newer_and_an_older_version_registers_the_one_setup_ran_from(home, jira_repo):
+    older = copy_plugin(cache_dir(home / ".claude", "1.9.0"))
+    newer = copy_plugin(cache_dir(home / ".claude", "1.10.0"))
+    (older / "mcp-servers" / "tracker" / "server.py").write_text(
+        'raise SystemExit("ran OLD 1.9.0")\n', encoding="utf-8")
+    entry = registration().entry({}, newer, sys.executable)
     rpc = Rpc(entry["command"], entry["args"], jira_repo, clean_env(home))
     try:
-        assert rpc.start() is not None, rpc.stderr_text()
+        reply = rpc.start()
+        assert reply is not None, rpc.stderr_text()
     finally:
         rpc.close()
 
 
 # ---- G8: only afk's own legacy entry is legacy ------------------------------
 
-UNRELATED = {"type": "stdio", "command": "node",
-             "args": ["C:/work/core-services/mcp-servers/jira/server.js"],
+# The shape another plugin's hand-registered Jira server has on a real machine.
+UNRELATED = {"type": "stdio", "command": "python",
+             "args": ["C:\\work\\core-services\\plugins\\workflow\\mcp-servers\\jira\\server.py"],
              "env": {"JIRA_BASE_URL": "https://other.example.net", "JIRA_API_TOKEN": "theirs"}}
 
 
@@ -229,24 +273,36 @@ def test_an_unrelated_jira_server_survives_byte_identical():
     assert json.dumps(result["jira"], sort_keys=True) == before
     assert result["other"] == {"command": "x"}
     assert result["tracker"]["env"] == {"JIRA_BASE_URL": "https://mine.example.net"}
+    assert reg.foreign_legacy(servers, ROOT) is True
 
 
 def test_an_unrelated_jira_servers_env_is_not_prior_credentials():
-    reg = registration()
-    assert reg.prior_env({"jira": json.loads(json.dumps(UNRELATED))}) == {}
+    assert registration().prior_env({"jira": json.loads(json.dumps(UNRELATED))}, ROOT) == {}
 
 
-def test_afks_own_legacy_jira_entry_is_reused_and_replaced():
+@pytest.mark.parametrize("path", [
+    "{root}/mcp-servers/jira/server.py",
+    "C:/Users/x/.claude/plugins/cache/afk-toolkit/afk/1.9.0/mcp-servers/jira/server.py",
+    "C:\\Users\\x\\.claude\\plugins\\cache\\afk-marketplace-dev\\afk-dev\\1.0.3\\mcp-servers\\jira\\server.py",
+])
+def test_afks_own_legacy_jira_entry_is_reused_and_replaced(path):
     reg = registration()
-    legacy = {"type": "stdio", "command": "python",
-              "args": ["C:/x/plugins/cache/m/afk/1.0.0/mcp-servers/jira/server.py"],
+    legacy = {"type": "stdio", "command": "python", "args": [path.format(root=ROOT.as_posix())],
               "env": {"JIRA_BASE_URL": "https://mine.example.net"}}
-    assert reg.prior_env({"jira": legacy}) == legacy["env"]
+    assert reg.prior_env({"jira": legacy}, ROOT) == legacy["env"]
     result = reg.register({"jira": legacy}, dict(legacy["env"]), ROOT, sys.executable)
     assert "jira" not in result and "tracker" in result
+    assert reg.foreign_legacy({"jira": legacy}, ROOT) is False
+
+
+def test_the_launcher_entry_under_either_key_is_afks_own():
+    reg = registration()
+    entry = reg.entry({"JIRA_BASE_URL": "https://mine.example.net"}, ROOT, sys.executable)
+    assert reg.prior_env({"jira": entry}, ROOT) == entry["env"]
 
 
 def test_setup_secrets_places_the_entry_through_the_registration_module():
     source = (ROOT / "skills" / "afk" / "setup" / "scripts" / "setup_secrets.py").read_text(encoding="utf-8")
     assert "tracker_registration" in source
+    assert "foreign_legacy" in source
     assert 'servers.pop(LEGACY_MCP_KEY' not in source

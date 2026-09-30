@@ -438,13 +438,16 @@ SEARCH_FIELDS = ["summary", "status", "issuetype", "assignee", "priority",
                  "created", "updated"]
 
 _CLIENT = None
+_CLIENT_CREDS = None
 
 
 def client():
-    """The one REST client, built from the resolved credentials on first use."""
-    global _CLIENT
-    if _CLIENT is None:
-        _CLIENT = Jira(*load_creds())
+    """The one REST client. Credentials resolve on every call and the client is
+    rebuilt when they differ, so a corrected token or URL needs no restart."""
+    global _CLIENT, _CLIENT_CREDS
+    creds = load_creds()
+    if _CLIENT is None or creds != _CLIENT_CREDS:
+        _CLIENT, _CLIENT_CREDS = Jira(*creds), creds
     return _CLIENT
 
 

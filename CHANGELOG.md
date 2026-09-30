@@ -84,13 +84,14 @@ release page from its section here. Nobody tags by hand.
   warns instead of printing `tracker: none`. The per-developer probe (`H6`)
   exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
 - **A Jira tracker call with no credentials answers an error instead of ending
-  the server.** Credentials added afterwards apply on the next call.
+  the server.** Credentials are read on every call, so adding or correcting
+  them applies on the next call with no restart.
 - **The `tracker` server that setup registers now starts.** It was registered
   without a plugin root and exited at launch; it now uses the plugin's own
-  launcher, which finds the newest installed version.
+  launcher with the plugin root, so re-run setup after a plugin update.
 - **Setup no longer removes an unrelated `jira` MCP server.** It reused and
   deleted any user-scoped `jira` entry; it now touches one only when its args
-  point at this plugin's server.
+  point under this plugin root, into an `afk` plugin cache, or at the launcher.
 
 ## [1.9.0] - 2026-09-29
 
