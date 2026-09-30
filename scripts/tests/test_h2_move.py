@@ -141,7 +141,11 @@ def fake_harness(tmp_path: Path) -> tuple[Path, Path]:
     bin_dir = tmp_path / "fake-bin"
     bin_dir.mkdir()
     record = tmp_path / "ran.json"
-    body = f'import json, os, sys\njson.dump({{"cwd": os.getcwd(), "argv": sys.argv[1:]}}, open(r"{record}", "w"))\n'
+    body = ('import json, os, subprocess, sys\n'
+            'branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True,'
+            ' text=True).stdout.strip()\n'
+            f'json.dump({{"cwd": os.getcwd(), "argv": sys.argv[1:], "branch": branch}}, open(r"{record}", "w"))\n'
+            'if os.environ.get("FAKE_DIRTY"):\n    open("w.txt", "w").write("x")\n')
     (bin_dir / "codex.py").write_text(body, encoding="utf-8")
     if os.name == "nt":
         (bin_dir / "codex.cmd").write_text(f'@"{sys.executable}" "{bin_dir / "codex.py"}" %*\r\n', encoding="utf-8")
@@ -152,8 +156,8 @@ def fake_harness(tmp_path: Path) -> tuple[Path, Path]:
     return bin_dir, record
 
 
-def launch(where: Path, bin_dir: Path, *args: str) -> subprocess.CompletedProcess:
-    env = env_of()
+def launch(where: Path, bin_dir: Path, *args: str, dirty: bool = False) -> subprocess.CompletedProcess:
+    env = env_of(**({"FAKE_DIRTY": "1"} if dirty else {}))
     env["PATH"] = str(bin_dir) + os.pathsep + env["PATH"]
     return subprocess.run([sys.executable, str(LAUNCH), "codex", *args], capture_output=True, text=True,
                           cwd=where, env=env, timeout=600)
@@ -165,7 +169,23 @@ def test_launch_from_the_main_checkout_runs_the_harness_in_a_new_worktree(repo, 
     assert done.returncode == 0, done.stderr
     ran = json.loads(record.read_text(encoding="utf-8"))
     assert ran["argv"] == ["--model", "x"] and Path(ran["cwd"]).resolve() != repo.resolve()
-    assert git(Path(ran["cwd"]), "rev-parse", "--abbrev-ref", "HEAD").startswith("worktree-session-")
+    assert ran["branch"].startswith("worktree-session-")
+
+
+def test_r5_1_a_clean_launched_worktree_is_removed_when_the_harness_exits(repo, tmp_path):
+    bin_dir, record = fake_harness(tmp_path)
+    assert launch(repo, bin_dir).returncode == 0
+    ran = json.loads(record.read_text(encoding="utf-8"))
+    assert not Path(ran["cwd"]).exists()
+    assert ran["branch"] not in git(repo, "branch", "--format=%(refname:short)").split()
+
+
+def test_r5_1_a_launched_worktree_with_work_is_kept_under_this_launcher_as_owner(repo, tmp_path):
+    bin_dir, record = fake_harness(tmp_path)
+    assert launch(repo, bin_dir, dirty=True).returncode == 0
+    assert Path(json.loads(record.read_text(encoding="utf-8"))["cwd"]).is_dir()
+    found = list((repo / ".git" / "afk-worktrees").glob("*.json"))
+    assert len(found) == 1 and json.loads(found[0].read_text(encoding="utf-8"))["owner"]["pid"]
 
 
 def test_launch_from_an_unprotected_worktree_makes_no_worktree(repo, tmp_path):
@@ -179,9 +199,110 @@ def test_launch_from_an_unprotected_worktree_makes_no_worktree(repo, tmp_path):
     assert git(repo, "worktree", "list", "--porcelain") == before
 
 
-def test_the_provider_json_and_shell_folder_declarations_agree():
+def test_r5_8_the_provider_json_is_the_one_home_of_the_worktree_folder():
     for name in ("claude", "codex"):
         declared = json.loads((PLUGIN_ROOT / "hooks" / "lib" / "providers" / f"{name}.json").read_text(
             encoding="utf-8"))["worktree_folder"]
+        assert declared
         shell = (PLUGIN_ROOT / "hooks" / "lib" / "providers" / f"{name}.sh").read_text(encoding="utf-8")
-        assert f"'{declared}'" in shell
+        assert "worktree_folder" not in shell
+
+
+def test_r5_8_the_folder_override_reaches_the_promised_path_and_the_created_one(repo):
+    path = Path(typed_path(refuse(repo, "sf", AFK_WORKTREE_FOLDER=".wt").stderr))
+    assert path.parent.name == ".wt"
+    assert wait_for(path)
+
+
+def test_r5_2_a_target_outside_a_good_session_worktree_moves_nothing(repo, tmp_path):
+    linked = tmp_path / "topic-wt"
+    git(repo, "worktree", "add", "-q", "-b", "topic", str(linked))
+    call = {"session_id": "s5", "cwd": str(linked), "hook_event_name": "PreToolUse", "tool_name": "Write",
+            "tool_input": {"file_path": str(repo / "stray.txt"), "content": "x"}}
+    done = subprocess.run([sys.executable, str(GUARD)], input=json.dumps(call), capture_output=True, text=True,
+                          cwd=linked, env=env_of(), timeout=120)
+    assert '"permissionDecision": "deny"' in done.stdout
+    assert "/cd " not in done.stderr and "write inside this session's worktree" in done.stderr
+    assert not list((repo / ".git").glob("afk-session/*.move"))
+
+
+def test_r5_3_the_helper_starts_without_a_console_window(monkeypatch):
+    spec = importlib.util.spec_from_file_location("afk_h2_move", PLUGIN_ROOT / "hooks" / "lib" / "h2_move.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    seen = {}
+    monkeypatch.setattr(module.subprocess, "Popen", lambda argv, **kw: seen.update(kw))
+    module.spawn(["x"])
+    if os.name == "nt":
+        assert seen["creationflags"] & 0x08000000 and not seen["creationflags"] & 0x00000008
+    else:
+        assert seen["start_new_session"] is True
+
+
+def load_move():
+    spec = importlib.util.spec_from_file_location("afk_move", PLUGIN_ROOT / "scripts" / "afk-move.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.SETTLE = 0
+    return module
+
+
+def test_r5_6_the_helper_does_not_type_over_the_humans_half_written_message(tmp_path):
+    herdr, log = stub_herdr(tmp_path, "\u203a hello, I was about to ask")
+    load_move().type_line(herdr, "w:p3", Path("C:/x"))
+    calls = [json.loads(c) for c in log.read_text(encoding="utf-8").splitlines()]
+    assert not any(c[:2] in (["agent", "prompt"], ["agent", "send-keys"]) for c in calls)
+
+
+@pytest.mark.parametrize("shown", ["\u203a", "\u203a /cd C:/old"])
+def test_r5_6_an_empty_composer_or_the_helpers_own_earlier_line_gets_the_line(tmp_path, shown):
+    herdr, log = stub_herdr(tmp_path, shown)
+    load_move().type_line(herdr, "w:p4", Path("C:/x"))
+    assert prompts(log) and prompts(log)[0][3] == f"/cd {Path('C:/x')}"
+
+
+def test_r5_7_a_failed_creation_is_recorded_and_later_refusals_say_why(tmp_path):
+    repo = tmp_path / "strict"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "commit", "-q", "--allow-empty", "-m", "seed")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text("schema: 1\ngit:\n  branch-pattern: '^never/match$'\n",
+                                               encoding="utf-8")
+    path = typed_path(refuse(repo, "s7").stderr)
+    end, marker = time.time() + 600, None
+    while time.time() < end and marker is None:
+        for found in (repo / ".git" / "afk-session").glob("*.move"):
+            if "error" in json.loads(found.read_text(encoding="utf-8")):
+                marker = found
+        time.sleep(1)
+    assert marker is not None, "the helper recorded why creation failed"
+    second = refuse(repo, "s7")
+    assert "/cd " not in second.stderr and "could not be created" in second.stderr
+    assert not Path(path).exists()
+
+
+def test_r5_9_a_marker_of_an_earlier_sessions_dead_worktree_is_not_reused(repo):
+    first = typed_path(refuse(repo, "s9", AFK_MOVE_SPAWN="0").stderr)
+    marker = next((repo / ".git" / "afk-session").glob("*.move"))
+    name = json.loads(marker.read_text(encoding="utf-8"))["name"]
+    Path(first).mkdir(parents=True)
+    records = repo / ".git" / "afk-worktrees"
+    records.mkdir()
+    (records / f"{name}.json").write_text(json.dumps({"owner": {"pid": 999999, "ctime": "1"}}), encoding="utf-8")
+    second = typed_path(refuse(repo, "s9", AFK_MOVE_SPAWN="0").stderr)
+    assert second != first
+
+
+def test_r5_10_the_creation_records_the_owner_the_guard_resolved(repo):
+    spec = importlib.util.spec_from_file_location("afk_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    pinned = f"{os.getpid()}:{module.creation_time(os.getpid())}"
+    path = Path(typed_path(refuse(repo, "s10", AFK_WORKTREE_OWNER=pinned).stderr))
+    assert wait_for(path)
+    end = time.time() + 120
+    while time.time() < end and not list((repo / ".git" / "afk-worktrees").glob("*.json")):
+        time.sleep(1)  # the record is written after the worktree appears
+    found = json.loads(next((repo / ".git" / "afk-worktrees").glob("*.json")).read_text(encoding="utf-8"))
+    assert found["owner"]["pid"] == os.getpid()

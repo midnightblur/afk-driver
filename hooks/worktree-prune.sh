@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # worktree-prune.sh - SessionStart: remove this repository's plugin-made worktrees whose
-# owning session is gone (clean, nothing unpushed). A repository with none costs one stat.
+# owning session is gone (clean, nothing unpushed), then show worktrees a past session kept.
 
 set -u
 
@@ -11,4 +11,5 @@ common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || e
 py=python
 command -v python >/dev/null 2>&1 || py=python3
 "$py" "$AFK_ROOT_DIR/scripts/remove-worktree.py" --prune >&2
+"$py" "$AFK_ROOT_DIR/scripts/remove-worktree.py" --report-kept
 exit 0

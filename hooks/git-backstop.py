@@ -47,13 +47,25 @@ def creating_worktree(place: dict) -> bool:
     return False
 
 
+def rebasing_branch(place: dict) -> str | None:
+    """The branch a rebase in this worktree will move, read from its state directory."""
+    for state in ("rebase-merge", "rebase-apply"):
+        try:
+            name = (Path(place["gitdir"]) / state / "head-name").read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if name.startswith("refs/heads/"):
+            return name[len("refs/heads/"):]
+    return None
+
+
 def ref_transaction(lines: list[str]) -> int:
     import protected_branch_guard as guard
     place = guard.placement(Path.cwd())
     if place is None:
         return 0
-    current = guard.branch_of(place)
     linked = place["kind"] != "main"
+    current = guard.branch_of(place) or (rebasing_branch(place) if linked else None)
     judge = guard.Judge("")
     for line in lines:
         parts = line.split()
@@ -64,7 +76,7 @@ def ref_transaction(lines: list[str]) -> int:
             continue  # nothing moves, as in a stash's internal `reset --hard` to the same commit
         if linked:
             if current and ref == f"refs/heads/{current}":
-                cause = judge.verdict(place)
+                cause = judge.verdict(place, current)
                 if cause:
                     return refuse(f"update `{current}`", cause)
             continue

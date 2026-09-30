@@ -92,7 +92,3 @@ afk_claude_enablement() {
     printf 'absent\n'
   fi
 }
-
-# The folder inside the main checkout this harness's worktrees live in.
-afk_claude_worktree_folder() { printf '%s
-' '.claude/worktrees'; }

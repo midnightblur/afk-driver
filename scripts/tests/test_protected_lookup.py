@@ -364,3 +364,31 @@ def test_r3_5_the_cli_cap_is_wall_clock_without_a_token(tmp_path):
     started = time.monotonic()
     answer, _ = lookup(environ, repo, "main")
     assert time.monotonic() - started < 6 and answer["source"] == "fallback"
+
+
+def test_r4_6_the_lookups_git_reads_share_one_deadline(tmp_path, monkeypatch):
+    """A git that hangs must cost the cap once, not once per read plus the forge read."""
+    spec = importlib.util.spec_from_file_location("afk_lookup_deadline", LOOKUP)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / ".git" / "config").write_text(
+        '[remote "origin"]\n\turl = https://github.com/o/r.git\n[url "https://github.com/"]\n\tinsteadOf = gh:\n',
+        encoding="utf-8")
+    for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_CONFIG"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AFK_PROTECTED_TIMEOUT", "1")
+    real_run = subprocess.run
+
+    def hanging(argv, **kwargs):
+        if argv and argv[0] == "git":
+            time.sleep(kwargs.get("timeout") or 30)
+            raise subprocess.TimeoutExpired(argv, kwargs.get("timeout") or 30)
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(module.subprocess, "run", hanging)
+    started = time.monotonic()
+    answer = module.lookup("feature", repo, repo / ".git")
+    assert time.monotonic() - started < 2.0
+    assert answer["source"] == "fallback"

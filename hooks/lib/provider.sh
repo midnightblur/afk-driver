@@ -280,7 +280,7 @@ afk_nested_inject_rules() {
 # A Stop verdict has to reach the session, and harnesses read it differently:
 # one takes stderr with exit 2, another only honours a decision object on
 # stdout. Emit both, and let the adapter say which exit code its harness
-# reads a block from (afk_<provider>_stop_block_code, default 2).
+# reads a block from (afk_<provider>_stop_block_code, default 0).
 afk_emit_stop_block() {
   # A gate that prints through a Windows text stream can leave CR bytes in the
   # middle of the findings; they corrupt the decision value, not just the view.
@@ -343,13 +343,4 @@ afk_plugin_scope() {
     ""|".") printf '\n' ;;
     *) printf '%s/\n' "$dir" ;;
   esac
-}
-
-# The current harness's answer to a declaration such as worktree_folder, or
-# failure when the provider is unknown. The guard's own facts are in <name>.json.
-afk_provider_declared() {
-  local suffix=$1 function
-  shift
-  function="afk_$(afk_provider)_${suffix}"
-  if command -v "$function" >/dev/null 2>&1; then "$function" "$@"; else return 1; fi
 }

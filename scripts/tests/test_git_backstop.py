@@ -212,7 +212,7 @@ def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path)
 
 
 @pytest.mark.parametrize("route", [("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"),
-                                   ("cherry-pick", "side")])
+                                   ("cherry-pick", "side"), ("rebase", "side")])
 def test_r4_5_a_protected_linked_worktree_cannot_move_its_branch(repo, tmp_path, route):
     install(repo)
     git(repo, "branch", "side", "feature")
@@ -243,3 +243,22 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     refused = subprocess.run(["python", str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
                              capture_output=True, text=True, cwd=repo, env=agent(), timeout=120)
     assert refused.returncode == 3
+
+
+def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
+    import shutil
+    plugin = tmp_path / "plugin"
+    shutil.copytree(PLUGIN_ROOT / "hooks", plugin / "hooks", ignore=shutil.ignore_patterns("__pycache__", "tests"))
+    mark = tmp_path / "started"
+    (plugin / "hooks" / "git-backstop.py").write_text(
+        "import os, sys\nopen(os.environ['MARK'], 'a').write('x')\n", encoding="utf-8")
+    assert install(repo, dict(agent(), CLAUDE_PLUGIN_ROOT=str(plugin))).returncode == 0
+    remote = tmp_path / "remote.git"
+    assert subprocess.run(["git", "init", "-q", "--bare", str(remote)], capture_output=True).returncode == 0
+    git(repo, "remote", "add", "origin", str(remote))
+    git(repo, "push", "-q", "origin", "trunk", env=human())
+    assert git(repo, "fetch", "-q", "origin", env=agent(MARK=str(mark))).returncode == 0
+    assert git(repo, "tag", "t1", env=agent(MARK=str(mark))).returncode == 0
+    assert not mark.exists(), "a fetch and a tag never start python"
+    assert git(repo, "branch", "newb", env=agent(MARK=str(mark))).returncode == 0
+    assert mark.exists(), "a branch line does start it"

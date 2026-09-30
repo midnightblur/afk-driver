@@ -2,7 +2,7 @@
 
 Called by hooks/protected-branch-guard.py with the tool envelope on stdin. Allow:
 exit 0 (a one-line context note on stdout when the forge could not answer). Refuse:
-exit 2, the reason on stderr and as a deny decision on stdout.
+exit 0, the reason on stderr and a deny decision on stdout (PROBES P-2: exit 2 fails open).
 
 Placement (PRD catalog P): the main checkout is refused on any branch; a linked
 worktree is refused on a protected branch; a detached or unborn HEAD and any
@@ -270,14 +270,14 @@ class Judge:
         self.fallback_reason = ""
         self.common = ""
 
-    def verdict(self, place: dict | None) -> str | None:
-        """The refusal cause for a placement, or None to allow."""
+    def verdict(self, place: dict | None, branch: str | None = None) -> str | None:
+        """The refusal cause for a placement, or None to allow. `branch` names one the HEAD does not."""
         if place is None:
             return None
         self.common = str(place["common"])
         if place["kind"] == "main":
             return "this is the main checkout"
-        branch = branch_of(place)
+        branch = branch or branch_of(place)
         if branch is None:
             return None
         key = (place["key"], branch)
@@ -345,6 +345,10 @@ def h2_hint(place: dict, envelope: dict, facts: dict, fallback: str) -> str:
         chosen = h2_move.plan(place, envelope, facts)
     except Exception as problem:
         return f"{fallback} (the worktree could not be started: {problem})"
+    if chosen.get("error"):
+        root = str(PLUGIN_ROOT).replace("\\", "/")
+        return (f"the session worktree could not be created: {chosen['error']}. Fix that, or run "
+                f"`{root}/scripts/create-worktree --name <name>` and continue there.")
     typed = ("It is typed into this pane for you once it exists; if it is not, type" if chosen["pane"]
              else "Once it exists, type")
     return (f"a linked worktree is being created for this session at {chosen['path']}. {typed} this line:\n"
@@ -362,6 +366,7 @@ def decide(envelope: dict, facts: dict) -> int:
 
     here = placement(cwd)
     cause = judge.verdict(here)
+    session_refused = cause is not None
     where = "the session folder"
     refused = here
     if cause is None and kind == "edit":
@@ -379,8 +384,11 @@ def decide(envelope: dict, facts: dict) -> int:
         action = f"use {tool or 'a tool'}"
     if cause:
         hint = hint_of(facts) if here is not None else OUTSIDE_HINT
-        if facts.get("harness_class") == "H-2" and refused is not None:
-            hint = h2_hint(refused, envelope, facts, hint)
+        if facts.get("harness_class") == "H-2":
+            if session_refused and here is not None:
+                hint = h2_hint(here, envelope, facts, hint)  # only a refused session folder moves the session
+            elif here is not None:
+                hint = f"write inside this session's worktree {here['root']}, not outside it."
         return deny(refusal(action, cause, hint, judge.notice_once()))
     notice = judge.notice_once()
     if notice:

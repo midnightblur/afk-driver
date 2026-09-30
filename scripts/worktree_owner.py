@@ -122,18 +122,24 @@ def find_owner(start: int | None = None) -> dict | None:
     """The nearest ancestor that is not a shell, interpreter, git or console host.
 
     `AFK_OWNER_PROCESS` (comma-separated process names) names the owner outright:
-    the nearest ancestor with one of those names wins over the skip list.
+    the nearest ancestor with one of those names wins over the skip list. The walk stops
+    at a parent created after its child: that pid was reused and is no ancestor.
     """
     wanted = {name.strip().lower() for name in os.environ.get("AFK_OWNER_PROCESS", "").split(",") if name.strip()}
     table = snapshot()
-    pid = table.get(start or os.getpid(), (0, ""))[0]
+    child = start or os.getpid()
+    pid = table.get(child, (0, ""))[0]
+    born = creation_time(child)
     seen = set()
     while pid and pid not in seen and pid in table:
         seen.add(pid)
         parent, name = table[pid]
+        made = creation_time(pid)
+        if born and made and born.isdigit() and made.isdigit() and int(made) > int(born):
+            return None
+        born = made
         if basename(name) in wanted or (not wanted and basename(name) not in SKIPPED):
-            ctime = creation_time(pid)
-            return {"pid": pid, "ctime": ctime, "name": name} if ctime else None
+            return {"pid": pid, "ctime": made, "name": name} if made else None
         pid = parent
     return None
 

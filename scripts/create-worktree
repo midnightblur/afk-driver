@@ -221,7 +221,9 @@ branch_for_name() {
 if [[ -n "$NAME" ]]; then
   # shellcheck source=/dev/null
   source "$AFK_ROOT_DIR/hooks/lib/provider.sh"
-  FOLDER="${AFK_WORKTREE_FOLDER:-$(afk_provider_declared worktree_folder || true)}"
+  provider_json="$AFK_ROOT_DIR/hooks/lib/providers/$(afk_provider).json"
+  provider_json="$(cygpath -m "$provider_json" 2>/dev/null || echo "$provider_json")"
+  FOLDER="${AFK_WORKTREE_FOLDER:-$("$PY_BIN" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("worktree_folder", ""))' "$provider_json" 2>/dev/null || true)}"
   FOLDER="${FOLDER:-.claude/worktrees}"
   [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
   WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"

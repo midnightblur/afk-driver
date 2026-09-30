@@ -148,3 +148,100 @@ def test_the_manifests_register_the_removal_and_the_prune(manifest, var, event):
     assert any("worktree-remove.sh" in c and var in c for c in commands)
     start = [h["command"] for g in document["SessionStart"] for h in g["hooks"]]
     assert any("worktree-prune.sh" in c for c in start)
+
+
+def run_env(*args: str, cwd: Path | None = None, **env: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True, cwd=cwd,
+                          env=dict(os.environ, **env), timeout=120)
+
+
+def test_r5_4_a_prune_run_from_inside_a_worktree_keeps_it_and_adopts_it(repo):
+    path = made(repo, "resumed", owner={"pid": 999999, "ctime": "1"})
+    me = f"{os.getpid()}:{OWNER.creation_time(os.getpid())}"
+    done = run_env("--prune", cwd=path, AFK_WORKTREE_OWNER=me)
+    assert done.returncode == 0 and path.is_dir() and "worktree-resumed" in branches(repo), done.stderr
+    record = json.loads((repo / ".git" / "afk-worktrees" / "resumed.json").read_text(encoding="utf-8"))
+    assert record["owner"]["pid"] == os.getpid()
+    other = made(repo, "gone", owner={"pid": 999999, "ctime": "1"})
+    run_env("--prune", cwd=path, AFK_WORKTREE_OWNER=me)
+    assert not other.exists() and path.is_dir()
+
+
+def test_r5_5_only_the_recorded_branch_is_deleted(repo):
+    path = made(repo, "moved")
+    git(repo, "branch", "human-feature")
+    git(path, "switch", "-q", "human-feature")
+    run("--path", str(path))
+    assert not path.exists()
+    assert "human-feature" in branches(repo) and "worktree-moved" not in branches(repo)
+
+
+@pytest.mark.parametrize("flags", [(), ("--force",)])
+def test_r5_5_a_recorded_branch_with_commits_of_its_own_survives(repo, flags):
+    path = made(repo, "mine")
+    git(path, "commit", "-q", "--allow-empty", "-m", "own work")
+    git(repo, "branch", "safe", "worktree-mine")
+    git(path, "switch", "-q", "--detach", "dev")
+    git(repo, "branch", "-f", "safe", "dev")
+    run("--path", str(path), *flags)
+    assert "worktree-mine" in branches(repo)
+
+
+def test_r5_9_a_removed_worktree_forgets_its_pane_marker(repo):
+    path = made(repo, "paned")
+    session = repo / ".git" / "afk-session"
+    session.mkdir()
+    marker = session / "w_p1.move"
+    marker.write_text(json.dumps({"path": path.as_posix()}), encoding="utf-8")
+    old = marker.stat().st_mtime - 3600
+    os.utime(marker, (old, old))
+    run("--path", str(path))
+    assert not path.exists() and not marker.exists()
+
+
+def test_r5_11_a_pending_move_target_is_not_removed_at_session_end(repo):
+    path = made(repo, "target")
+    session = repo / ".git" / "afk-session"
+    session.mkdir()
+    marker = session / "w_p2.move"
+    marker.write_text(json.dumps({"path": path.as_posix()}), encoding="utf-8")
+    run("--path", str(path))
+    assert path.is_dir()
+    old = marker.stat().st_mtime - 3600
+    os.utime(marker, (old, old))
+    run("--path", str(path))
+    assert not path.exists()
+
+
+def test_r5_12_a_kept_worktree_is_shown_once_in_the_next_session_context(repo):
+    path = made(repo, "unseen")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    run("--path", str(path))
+    first = run("--report-kept", cwd=repo)
+    context = json.loads(first.stdout)["hookSpecificOutput"]
+    assert context["hookEventName"] == "SessionStart"
+    assert path.as_posix() in context["additionalContext"] and "uncommitted" in context["additionalContext"]
+    assert run("--report-kept", cwd=repo).stdout.strip() == ""
+    run("--path", str(path))  # kept again: not reported a second time
+    assert run("--report-kept", cwd=repo).stdout.strip() == ""
+
+
+def test_r5_12_the_prune_handler_prints_the_report_on_stdout(repo):
+    path = made(repo, "handler")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    run("--path", str(path))
+    env = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT))
+    done = subprocess.run([str(BASH), (PLUGIN_ROOT / "hooks" / "worktree-prune.sh").as_posix()], cwd=repo,
+                          capture_output=True, text=True, env=env, timeout=120)
+    assert json.loads(done.stdout)["hookSpecificOutput"]["hookEventName"] == "SessionStart", done.stderr
+
+
+def test_r5_10_the_owner_walk_stops_at_a_parent_created_after_its_child(monkeypatch):
+    table = {os.getpid(): (100, "python.exe"), 100: (0, "codex.exe")}
+    born = {os.getpid(): "50", 100: "10"}
+    monkeypatch.setattr(OWNER, "snapshot", lambda: table)
+    monkeypatch.setattr(OWNER, "creation_time", lambda pid: born.get(pid))
+    monkeypatch.delenv("AFK_OWNER_PROCESS", raising=False)
+    assert OWNER.find_owner()["pid"] == 100
+    born[100] = "90"
+    assert OWNER.find_owner() is None

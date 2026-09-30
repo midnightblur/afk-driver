@@ -85,7 +85,3 @@ afk_codex_enablement() {
     printf 'absent\n'
   fi
 }
-
-# The folder inside the main checkout this harness's worktrees live in.
-afk_codex_worktree_folder() { printf '%s
-' '.codex/worktrees'; }
