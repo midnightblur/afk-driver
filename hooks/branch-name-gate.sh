@@ -3,6 +3,8 @@
 # hook, NOT a Stop hook (those live in hooks.json). Opt-in per clone:
 #   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
 # (or `/afk:setup`, register entry H5). Uninstall by removing the installed hook.
+# The same hook first runs the protected-branch backstop (hooks/git-backstop.py) for an agent
+# call, in every repository, whether or not a branch pattern is set.
 #
 # Blocks creating a NEW local branch whose name does not match
 # `git.branch-pattern` from the repository's `.afk/config.yaml`. The key empty or

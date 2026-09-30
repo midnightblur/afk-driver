@@ -2,7 +2,7 @@
 
 Called by hooks/protected-branch-guard.py with the tool envelope on stdin. Allow:
 exit 0 (a one-line context note on stdout when the forge could not answer). Refuse:
-exit 0, the reason on stderr and a deny decision on stdout (PROBES P-2: exit 2 fails open).
+exit 0, the reason on stderr and a deny decision on stdout (`providers/CONFORMANCE.md` row P-2: exit 2 fails open).
 
 Placement (PRD catalog P): the main checkout is refused on any branch; a linked
 worktree is refused on a protected branch; a detached or unborn HEAD and any

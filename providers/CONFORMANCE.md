@@ -401,7 +401,8 @@ recorded as the reason the pending Codex verdict does not gate the release.
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
-2. Add `hooks/lib/providers/<name>.sh` with the adapter functions
+2. Add `hooks/lib/providers/<name>.json` (the guard's provider facts: tool classes, move hint, worktree folder) and
+   `hooks/lib/providers/<name>.sh` with the adapter functions
    `hooks/lib/provider.sh` dispatches by name: detect, priority, plugin root,
    plugin data, stop block code, and the plugin directory the harness manages.
    A missing one makes the managed-path answer undecidable, and every caller
@@ -440,14 +441,21 @@ hash. Remove the disposable home and run teardown after the probe.
 
 ## Protected-branch guard (2026-09-30)
 
-Proof lives in the probe log of the build (`PROBES.md`, P0-a to P0-i) and in
-`scripts/tests/`. Verified live: the H-2 harness `/cd` keeps the conversation and
-takes an unquoted path; a detached helper started from a hook types the line into
-its own pane; a `reference-transaction` veto leaves the index switched on
-`checkout` and a rebase in progress; an untrusted plugin hook is silent under the
-full-bypass flag and under `exec`. Live-only, not automated: the H-1 native move
-in every permission mode, herdr's agent-kind detection through a wrapper, and the
-conversation kept after a typed `/cd`.
+Proof lives in the probe rows below and in `scripts/tests/`. Every row was run live
+on 2026-09-29/30 (Windows 11, Git Bash, git 2.53, claude 2.1.285, codex-cli 0.159.0,
+herdr 0.9.1) unless it says *source* or *inferred*. Live-only, not automated: the H-1
+native move in every permission mode, and herdr's agent-kind detection through a wrapper.
+
+| Probe | Result |
+|---|---|
+| P0-a H-2 `/cd` in herdr | The path must not be quoted: quotes become part of the path. An unquoted path with a space works. The conversation is kept: the session forks and history carries over. A worktree of a trusted repository needs no trust answer. Sent during a turn, `/cd` is refused (`'/cd' is disabled while a task is in progress`) and stays in the composer; the next typed text appends to it. A bash caller of `herdr agent prompt` must disable MSYS path conversion or call from python. The session id changes on `/cd`. |
+| P0-c H-2 PreToolUse envelope | Fields `session_id, turn_id, cwd, hook_event_name, model, permission_mode, tool_name, tool_input, tool_use_id`; no `workdir`. Shell is `Bash` (`tool_input.command`); a patch is `apply_patch` with absolute Windows paths that may hold spaces. `HERDR_*` reaches the hook. SessionStart fires lazily at the first turn. |
+| P0-d H-1 worktree events | `WorktreeCreate` and `WorktreeRemove` (input carries `worktree_path`) replace the native pair; no approval prompt in default mode, inside or outside `.claude/worktrees/`. Removal is delegated to the hook: the folder stays if the hook removes nothing. `-p` session end and the Keep choice fire no removal. `CLAUDE_PID` is the harness process. |
+| P0-e git `reference-transaction` | A `prepared` veto aborts `commit`, `reset`, `merge`, `rebase` and the ref update of `checkout`/`switch`, but leaves the index and work tree switched on `checkout` and a rebase in progress. `git worktree add -b` emits the new branch and `ref:refs/heads/<b> HEAD` in the main checkout's context, so the backstop must let a fresh `worktrees/*/HEAD.lock` through. |
+| P0-h detached helper from a hook | A helper spawned detached from an H-2 hook survives the hook's exit, waits for `idle`/`done` through `herdr agent get`, and types `/cd <path>` into its own pane. |
+| P0-i untrusted plugin hook | Trust keys are positional: `[hooks.state."<plugin>@<marketplace>:hooks/hooks.codex.json:<event>:<group>:<handler>"] trusted_hash`; the hash covers event, matcher and handler, so inserting a group shifts every later key (inferred, not run on an upgraded install). The TUI shows "Hooks need review" at startup without the full-bypass flag. Under the full-bypass flag and under `exec` the hooks silently do not run. `/hooks` then `t` trusts them; `--dangerously-bypass-hook-trust` skips trust for one run. |
+| P-2 H-2 deny shape | The H-2 harness treats PreToolUse exit 2 as a failed hook and runs the command. Exit 0 plus the `permissionDecision: deny` JSON blocks. The H-1 harness honours both. The guard and every plugin refusal therefore use exit 0 plus the JSON. |
+| H-2 `SessionEnd` on `/cd` and exit | Fires on `/cd` with the old session id and the old `cwd`, on the next turn, and on exit with the current `cwd`; `reason` is `other` in both. A session that moves between two plugin worktrees has the one it left judged for removal. |
 
 | Choice | Taken | Why |
 |---|---|---|

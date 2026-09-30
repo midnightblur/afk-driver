@@ -189,7 +189,7 @@ def test_patch_with_a_target_in_the_main_checkout_is_refused(repo):
 
 
 def test_the_live_apply_patch_envelope_with_spaces_in_absolute_paths(repo):
-    """R1-5: the envelope shape a real codex session sent (PROBES P0-c)."""
+    """R1-5: the envelope shape a real codex session sent (`providers/CONFORMANCE.md` row P0-c)."""
     fixture = PLUGIN_ROOT / "hooks" / "tests" / "envelopes" / "codex" / "pretooluse-apply-patch.json"
     text = fixture.read_text(encoding="utf-8")
     spaced = repo["tmp"] / "cx wt"
@@ -387,7 +387,7 @@ def test_r1_5_the_registered_command_denies_from_a_main_checkout(repo, manifest,
 
 @pytest.mark.parametrize("harness", ["claude", "codex"])
 def test_p2_a_refusal_is_exit_zero_with_the_deny_json_never_exit_two(repo, harness):
-    """PROBES P-2: the H-2 harness treats a PreToolUse exit 2 as a failed hook and runs the command."""
+    """`providers/CONFORMANCE.md` row P-2: the H-2 harness treats a PreToolUse exit 2 as a failed hook and runs the command."""
     call = json.dumps(envelope_of(repo["main"], "Bash", {"command": "ls"}))
     raw = subprocess.run([sys.executable, str(GUARD)], input=call, text=True, capture_output=True,
                          cwd=repo["main"], env=clean_env(harness), timeout=120)

@@ -78,8 +78,9 @@ a token value — not even partially.
 - **Notes:** normally auto-installs on `SessionStart` (`hooks/install-git-hooks.sh
   --quiet`, wired in `hooks.json`) whenever the plugin is enabled in a
   checkout — this entry is the fallback for non-session / CI. One
-  `reference-transaction` hook in the shared (common) hooks dir covers every
-  worktree. Gates branch **creation** only — checkouts of existing/remote
+  `reference-transaction` hook and one `pre-commit` hook in the shared (common)
+  hooks dir cover every worktree; the same pair runs the protected-branch
+  backstop, for every repository, not only one with `git.branch-pattern`. Gates branch **creation** only — checkouts of existing/remote
   branches pass untouched.
   Bypass one command: `AFK_SKIP_BRANCH_CHECK=1`. Disable: `git config
   afk.branchNameGate false`. The installer refuses to clobber a pre-existing
@@ -209,10 +210,15 @@ a token value — not even partially.
   Such a harness runs a plugin hook only after the user trusts it
   (`PROVIDERS.md` "Protected-branch guard", which names the harness and the
   exact screens).
-- **Probe:** `human:` type `/hooks` in a session; no "need review" line means
-  trusted. Unverified: the key spelling of the guard's trust entry in the
-  harness's own config, so setup does not grep for it.
-- **Fix:** `human:` start the harness once in its terminal UI without the
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py"`
+  reads the harness config (`$CODEX_HOME/config.toml`, else `~/.codex/config.toml`)
+  for a `hooks.state` key at the guard's position (the last `PreToolUse`
+  group), at the `SessionEnd` cleanup and at the `SessionStart` prune. Exit 1
+  prints `missing: <event>:<group>:<handler>` per absent key and the step; exit 2
+  means no harness config (not applicable). A key that is present but stale
+  (the hash no longer matches) is invisible to the probe: `human:` type `/hooks`
+  and look for a "need review" line.
+- **Fix:** `human:` for a `missing` key, start the harness once in its terminal UI without the
   full-bypass flag and choose "Trust all and continue", or type `/hooks` and
   press `t`. Setup never writes a trust entry.
 - **Notes:** with the full-bypass flag or a non-interactive run, untrusted
@@ -469,6 +475,10 @@ a token value — not even partially.
 - **Needed by:** developers who run several agent sessions side by side —
   herdr is a terminal workspace manager for AI coding agents (workspaces, tabs,
   panes, per-agent status). No skill invokes it; every skill runs without it.
+  Also needed by the H-2 worktree move (`scripts/afk-move.py`, which types the
+  `/cd` line into the agent's pane through `herdr agent get|read|prompt|send-keys`);
+  without herdr the refusal prints the line for the human to type. Minimum
+  version: unverified, built against 0.9.1.
 - **Probe:** `herdr --version`
 - **Fix:** `auto:` the vendor installer (<https://herdr.dev/docs/install/>):
   - native Windows: `powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"`
@@ -833,6 +843,10 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
 | `AFK_MOVE_SPAWN` | `hooks/lib/h2_move.py` | `0` names the H-2 worktree path in a refusal without cutting it (tests only) |
+| `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
+| `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
+| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |
 | `LESSON_LEDGER_FILE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | relocate the lesson ledger (default: main-checkout `.claude/lessons/LEDGER.jsonl`) |
