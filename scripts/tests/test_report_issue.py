@@ -1124,11 +1124,21 @@ def _installed(tmp_path: Path, name: str, manifest: bool = True) -> Path:
 
 def test_an_installed_plugin_keeps_its_dotted_terms(tmp_path):
     r = redact.Redactor(_installed(tmp_path, "afk"), None, "midnightblur/afk-driver")
-    text = "init reads pom.xml and setup.extra"
+    text = "init reads pom.xml and setup.extra via Path.cwd()"
     assert r.redact(text) == text
+    assert "review.policy" in r.redact("set review.policy")
     assert "build01.corp" not in r.redact("ssh build01.corp failed")
 
 
 def test_no_git_and_no_manifest_keeps_no_allowance(tmp_path):
     r = redact.Redactor(_installed(tmp_path, "bare", manifest=False), None, "midnightblur/afk-driver")
     assert "setup.extra" not in r.redact("init reads pom.xml and setup.extra")
+
+
+def test_a_broken_git_checkout_keeps_no_allowance(tmp_path):
+    root = _installed(tmp_path, "broken")
+    (root / ".git").write_text("gitdir: /nonexistent/broken\n", encoding="utf-8")
+    (root / "notes.md").write_text("ssh orders.internal.acme\n", encoding="utf-8")
+    r = redact.Redactor(root, None, "midnightblur/afk-driver")
+    assert "orders.internal.acme" not in r.redact("deploy failed on orders.internal.acme")
+

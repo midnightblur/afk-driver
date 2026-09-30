@@ -306,8 +306,9 @@ def _tracked(plugin_root: Path) -> set[str]:
     """Relative POSIX paths the plugin publishes: git's list, else — for an
     installed copy carrying a plugin manifest — every walked file."""
     listed = set(_git(plugin_root, "ls-files").splitlines())
-    if listed or not any((plugin_root / d / "plugin.json").is_file()
-                         for d in (".claude-plugin", ".codex-plugin")):
+    if listed or (plugin_root / ".git").exists() or not any(
+            (plugin_root / d / "plugin.json").is_file()
+            for d in (".claude-plugin", ".codex-plugin")):
         return listed
     walked: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(plugin_root):
@@ -330,8 +331,8 @@ def _plugin_inventory(plugin_root: Path) -> tuple[set[str], set[str], set[str], 
     pascal: set[str] = set()
     words: set[str] = set()
     dotted: set[str] = set()
-    # Git is the authority on what the plugin publishes. An installed copy has
-    # no git but a manifest: the tree is the published one. Neither: no allowance.
+    # Git decides what is published. With no `.git` but a manifest, we trust the
+    # installed tree to be the published one. Otherwise: no allowance.
     tracked = _tracked(plugin_root)
     mine = Path(__file__).resolve()
     for dirpath, dirnames, filenames in os.walk(plugin_root):
