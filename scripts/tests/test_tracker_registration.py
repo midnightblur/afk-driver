@@ -200,6 +200,25 @@ def test_corrected_credentials_reach_the_new_host_without_a_restart(home, jira_r
         server.shutdown()
 
 
+def test_a_server_started_with_credentials_in_its_env_keeps_them_until_restarted(home, jira_repo):
+    """The premise of the H2 wording: the user-scoped entry carries `env`, and
+    process env outranks `~/.claude.json`, so a corrected file does not reach it."""
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeJira)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    env = clean_env(home)
+    env.update(AFK_PLUGIN_ROOT=str(ROOT), JIRA_BASE_URL="http://127.0.0.1:9",
+               JIRA_EMAIL="dev@example.com", JIRA_API_TOKEN="t")
+    rpc = Rpc(sys.executable, [str(SERVER)], jira_repo, env)
+    try:
+        assert rpc.start() is not None
+        write_creds(home, f"http://127.0.0.1:{server.server_address[1]}")
+        stale = rpc.call("tracker_get", {"ticket_key": "A-1"})
+        assert "reached the fake host" not in text_of(stale)
+    finally:
+        rpc.close()
+        server.shutdown()
+
+
 # ---- G7: the registered entry starts ---------------------------------------
 
 def copy_plugin(dest: Path) -> Path:
@@ -284,6 +303,7 @@ def test_an_unrelated_jira_servers_env_is_not_prior_credentials():
     "{root}/mcp-servers/jira/server.py",
     "C:/Users/x/.claude/plugins/cache/afk-toolkit/afk/1.9.0/mcp-servers/jira/server.py",
     "C:\\Users\\x\\.claude\\plugins\\cache\\afk-marketplace-dev\\afk-dev\\1.0.3\\mcp-servers\\jira\\server.py",
+    "C:/Users/x/.claude/plugins/cache/afk-marketplace/afk-toolkit/1.0.8/mcp-servers/jira/server.py",
 ])
 def test_afks_own_legacy_jira_entry_is_reused_and_replaced(path):
     reg = registration()

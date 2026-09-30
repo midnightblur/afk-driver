@@ -84,8 +84,9 @@ release page from its section here. Nobody tags by hand.
   warns instead of printing `tracker: none`. The per-developer probe (`H6`)
   exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
 - **A Jira tracker call with no credentials answers an error instead of ending
-  the server.** Credentials are read on every call, so adding or correcting
-  them applies on the next call with no restart.
+  the server.** The plugin's own server reads credentials on every call, so
+  adding or correcting them applies on the next call; the user-scoped `tracker`
+  entry holds them in its `env` and takes a change after a restart.
 - **The `tracker` server that setup registers now starts.** It was registered
   without a plugin root and exited at launch; it now uses the plugin's own
   launcher with the plugin root, so re-run setup after a plugin update.

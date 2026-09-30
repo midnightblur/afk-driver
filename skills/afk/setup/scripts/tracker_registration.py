@@ -6,6 +6,7 @@ Split out of `setup_secrets.py` (which runs on import) so a test can drive it.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -14,7 +15,7 @@ LEGACY_MCP_KEY = "jira"        # a machine set up before the server was renamed
 
 # afk's own server under a harness cache: `plugins/cache/<market>/<plugin>/<version>/`.
 _CACHE_SERVER = re.compile(
-    r"/plugins/cache/[^/]+/(?:afk|afk-dev)/[^/]+/mcp-servers/(?:tracker|jira)/server\.py$")
+    r"/plugins/cache/[^/]+/(?:afk|afk-dev|afk-toolkit)/[^/]+/mcp-servers/(?:tracker|jira)/server\.py$")
 _LAUNCHER_MARK = '"mcp-servers", "tracker", "server.py"'
 
 
@@ -31,13 +32,13 @@ def is_afk_entry(entry, plugin_root: Path) -> bool:
     """
     if not isinstance(entry, dict):
         return False
-    root = _posix(str(plugin_root.resolve())).rstrip("/") + "/"
+    root = os.path.normcase(_posix(str(plugin_root.resolve())).rstrip("/") + "/")
     for arg in entry.get("args") or []:
         text = str(arg)
         if _LAUNCHER_MARK in text:
             return True
         path = _posix(text)
-        if path.startswith(root) or _CACHE_SERVER.search(path):
+        if os.path.normcase(path).startswith(root) or _CACHE_SERVER.search(path):
             return True
     return False
 
