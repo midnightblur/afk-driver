@@ -37,6 +37,32 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- **Behavior change for every plugin user: an agent no longer edits or commits
+  in the main checkout or on a protected branch.** The managed behavior block
+  gains a `worktree-per-session` line; run `/afk:setup` to refresh it. A
+  tool-call guard refuses an agent's edit and shell tools there and names the
+  move; the installed git hooks refuse its commit and branch move. Set
+  `AFK_ALLOW_PROTECTED=1` when you launch a session that must work there.
+  **Where the harness asks you to trust new hooks** (`PROVIDERS.md`
+  "Protected-branch guard" names it): trust them once. Start the harness in its
+  terminal UI without the full-bypass flag and choose "Trust all and
+  continue", or type `/hooks` and press `t`. Until then the guard does not run.
+
+### Fixed
+
+- **A plugin PreToolUse refusal now blocks under every harness.** The second
+  supported harness treats a PreToolUse hook that exits 2 as a failed hook and
+  runs the command anyway. A refusal is now exit 0 plus the deny JSON, which
+  both harnesses honour.
+- **A repository gate that blocks the first harness's way still blocks under
+  the second.** A `PreToolUse` or `Stop` script in `.afk/hooks.json` that exits
+  non-zero without printing its own verdict is answered in the provider's block
+  shape, and a matching entry blocks when no POSIX shell can be found; the Stop
+  fallback exits 0 like both adapters. `CONFIG.md` "Repository hooks" states the
+  verdict shapes.
+
 ### Added
 
 - **Named worktrees.** `scripts/create-worktree --name <name>` cuts a worktree under
@@ -51,8 +77,11 @@ release page from its section here. Nobody tags by hand.
   main checkout or a protected branch, and in place anywhere else.
 - **Worktree cleanup.** `scripts/remove-worktree.py` removes a worktree the
   plugin made when it is clean and holds nothing unpushed, with its branch if
-  the branch has no commit of its own; otherwise it keeps it and prints the
-  resume and remove commands. The harness's worktree-removal event, or its
+  the branch has no commit of its own; otherwise it keeps it, prints the
+  resume and remove commands, and shows them again at the next session start.
+  A session that resumes inside a kept worktree is not pruned out from under
+  itself, and a worktree launched by `scripts/afk-launch.py` goes when the
+  harness exits. The harness's worktree-removal event, or its
   session-end event where that is what it has, calls it, and each session start
   prunes the worktrees whose owning session is gone.
 - **Git backstop for the protected-branch guard.** `install-git-hooks.sh` now
@@ -61,7 +90,9 @@ release page from its section here. Nobody tags by hand.
   main checkout and on a protected branch of a worktree, and
   `reference-transaction` refuses a move of the main checkout's HEAD or of the
   branch it has checked out. Creating refs, so a new worktree, passes; so does
-  `AFK_ALLOW_PROTECTED=1` or `AFK_WORKTREE_OP=1`. A refused `checkout` can leave
+  `AFK_ALLOW_PROTECTED=1` or `AFK_WORKTREE_OP=1`. A linked worktree on a
+  protected branch also refuses moving that branch, a rebase included. The git
+  hooks run no python for a fetch or a tag. A refused `checkout` can leave
   the index switched and a refused `rebase` in progress: the tool-call guard
   stays the primary gate.
 

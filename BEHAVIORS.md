@@ -74,3 +74,7 @@ Pause at each phase boundary in a manual phased plan. Continue without that prom
 ## rationale-on-change
 state: active | scope: configured-repos | revision: 1 | doctrine: RATIONALE.md §Classification test
 Read `${AFK_PLUGIN_ROOT}/RATIONALE.md`; keep source comments to 2 lines and post the reasons for a change on the change.
+
+## worktree-per-session
+state: active | scope: all-repos | revision: 1 | doctrine: SAFETY.md §Worktree per session
+Read `${AFK_PLUGIN_ROOT}/SAFETY.md`; change a repository only from a linked worktree on an unprotected branch.

@@ -204,6 +204,20 @@ a token value — not even partially.
 - **Notes:** the page every work item is created under is
   `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
 
+### H12 · hook trust for the protected-branch guard *(harnesses that gate new hooks behind trust)*
+- **Needed by:** the guard, the session-end cleanup and the session-start prune.
+  Such a harness runs a plugin hook only after the user trusts it
+  (`PROVIDERS.md` "Protected-branch guard", which names the harness and the
+  exact screens).
+- **Probe:** `human:` type `/hooks` in a session; no "need review" line means
+  trusted. Unverified: the key spelling of the guard's trust entry in the
+  harness's own config, so setup does not grep for it.
+- **Fix:** `human:` start the harness once in its terminal UI without the
+  full-bypass flag and choose "Trust all and continue", or type `/hooks` and
+  press `t`. Setup never writes a trust entry.
+- **Notes:** with the full-bypass flag or a non-interactive run, untrusted
+  hooks stay silent.
+
 ### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
 - **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
   this settings key — this plugin's own `skills/afk/AGENTS.md` and the

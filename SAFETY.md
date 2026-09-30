@@ -19,3 +19,16 @@ owns it. Leave an active or uncertain lock unchanged and report the blocker.
 
 Use one branch and one Draft change by default. Split only for independent
 delivery or review. Do not merge the target branch locally.
+
+## Worktree per session
+
+An agent changes a repository only from a linked worktree on an unprotected
+branch. The main checkout counts as protected on every branch. A branch is
+protected when the forge says so (a protection setting or a ruleset); when the
+forge does not answer, the remote's default branch, `main` and `master` count.
+A detached or unborn HEAD, a folder outside Git, and `AFK_ALLOW_PROTECTED=1`
+set by a human at launch pass. The tool-call guard
+(`hooks/protected-branch-guard.py`) enforces the rule first; the installed git
+hooks (`hooks/git-backstop.py`) refuse an agent's commit and branch move
+again. Move a refused session with the harness's worktree tool, else
+`scripts/create-worktree --name <name>`.

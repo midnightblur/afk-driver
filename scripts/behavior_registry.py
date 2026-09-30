@@ -113,6 +113,7 @@ EXPECTED_INVENTORY_IDS = frozenset(
         "poll-lavish-tracked-job",
         "rationale-on-change",
         "render-lavish-repo-renderer",
+        "worktree-per-session",
     }
 )
 

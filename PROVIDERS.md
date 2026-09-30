@@ -37,6 +37,32 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 
 Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex, compatibility root/runtime markers as Claude, then `unknown`. `CLAUDECODE` can be inherited by another harness and never vetoes `PLUGIN_ROOT`.
 
+## Protected-branch guard
+
+An agent changes a repository only from a linked worktree on an unprotected
+branch (`SAFETY.md` "Worktree per session"). Each provider file
+`hooks/lib/providers/<name>.json` declares what the guard needs: the detect
+variables, `harness_class`, the tool classes, `move_hint`, `worktree_folder`
+and `owner_pid_env`.
+
+| Class | Harness | How a refused session moves | Cleanup |
+|---|---|---|---|
+| H-1 | `claude` | The agent calls its own worktree tool. The `WorktreeCreate` handler runs `scripts/create-worktree`. | `WorktreeRemove` handler runs `scripts/remove-worktree.py` |
+| H-2 | `codex` | The guard names a new worktree and the `/cd <path>` line, then a detached helper cuts it and, in a herdr pane, types the line. `scripts/afk-launch.py` starts a harness in a worktree. | `SessionEnd` handler runs `scripts/remove-worktree.py` |
+
+`WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
+creates a worktree through the plugin must also remove it through the plugin.
+Every session start prunes worktrees whose owner is gone.
+
+**One-time hook trust for Codex.** Codex runs a new or changed plugin hook only
+after you trust it. Trust is positional, so the guard is the last `PreToolUse`
+group and the older hooks keep their trust. Three entries are new: the guard,
+the `SessionEnd` handler, and the session-start prune. Start `codex` once in
+the terminal UI without the full-bypass flag and choose `2. Trust all and
+continue` on the "Hooks need review" screen, or type `/hooks` in a session and
+press `t`. With the full-bypass flag, or with `codex exec`, the hooks do not
+run and Codex prints nothing until you have done this once.
+
 ## Distribution law
 
 - The committed plugin tree stays inert until the harness enable flag names it.
@@ -47,6 +73,7 @@ Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex
   reads the Codex marketplace manifest from that path. Nothing else under `.agents/`
   may be tracked, and `native-contract-gate.sh` enforces exactly that.
 - The comment gate runs only from the `pre-commit` hook that `install-git-hooks.sh` installs for an enabled plugin, on agent-driven commits. Rationale support writes only to the forge change and to two local places: pending entries under the repository's git directory and a cache outside the repository. A developer without the plugin sees neither.
+- `install-git-hooks.sh` installs the git backstop in every repository a session opens once the plugin is enabled, with or without `.afk/`. Both hooks act only under an agent-runtime marker, so a human's git is never gated. A repository that sets `core.hooksPath` is skipped with one notice.
 - Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
 - Run `/afk:setup teardown` before disabling the plugin. It removes the managed
   behavior block from both user instruction files. No shipped provider has a

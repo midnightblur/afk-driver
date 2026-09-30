@@ -437,3 +437,21 @@ behavior whose decision-turn response contains a nonce. Install its generated
 block, start each session shape, and ask the matching nonce prompt. Record the
 launch command, first decision-turn response, plugin root, revision, and body
 hash. Remove the disposable home and run teardown after the probe.
+
+## Protected-branch guard (2026-09-30)
+
+Proof lives in the probe log of the build (`PROBES.md`, P0-a to P0-i) and in
+`scripts/tests/`. Verified live: the H-2 harness `/cd` keeps the conversation and
+takes an unquoted path; a detached helper started from a hook types the line into
+its own pane; a `reference-transaction` veto leaves the index switched on
+`checkout` and a rebase in progress; an untrusted plugin hook is silent under the
+full-bypass flag and under `exec`. Live-only, not automated: the H-1 native move
+in every permission mode, herdr's agent-kind detection through a wrapper, and the
+conversation kept after a typed `/cd`.
+
+| Choice | Taken | Why |
+|---|---|---|
+| `WorktreeCreate` and `WorktreeRemove` | shipped together | a harness that replaces its own creation must also replace its removal, or plugin-made worktrees are never cleaned |
+| Hook order in the Codex manifest | guard last in `PreToolUse` | trust is positional, so earlier trusted entries keep their keys |
+| H-2 creation | detached from the guard | the hook timeout is 30 s and a checkout plus provisioning can pass it |
+| `/cd` retry | only after a refusal shown in the pane | typing twice into a session that already moved would break it |

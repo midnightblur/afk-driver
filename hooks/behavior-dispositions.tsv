@@ -41,3 +41,4 @@ never-reload-answering-page	team	registry	lavish-grilling-render
 poll-lavish-tracked-job	team	registry	lavish-grilling-render
 render-lavish-repo-renderer	team	registry	lavish-grilling-render
 rationale-on-change	team	registry	rationale-on-change
+worktree-per-session	team	registry	worktree-per-session
