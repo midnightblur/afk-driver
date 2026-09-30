@@ -43,6 +43,12 @@ release page from its section here. Nobody tags by hand.
   the active harness's folder, records its owner, and runs the repository's
   `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
   that has a worktree-creation hook calls it.
+- **Worktree cleanup.** `scripts/remove-worktree.py` removes a worktree the
+  plugin made when it is clean and holds nothing unpushed, with its branch if
+  the branch has no commit of its own; otherwise it keeps it and prints the
+  resume and remove commands. The harness's worktree-removal event, or its
+  session-end event where that is what it has, calls it, and each session start
+  prunes the worktrees whose owning session is gone.
 - **Git backstop for the protected-branch guard.** `install-git-hooks.sh` now
   installs in every git repository, with or without `.afk/`, and skips one that
   sets `core.hooksPath`. For an agent only, `pre-commit` refuses a commit in the

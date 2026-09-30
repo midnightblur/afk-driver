@@ -31,7 +31,7 @@ Shared hook events: SessionStart, PreToolUse, PostToolUse, PostCompact, Stop
 
 Shared hook matchers: *, Bash, PowerShell, Glob, Grep, startup, clear, mcp__intellij__search_in_files_by_regex, mcp__intellij__search_in_files_by_text, mcp__intellij__search_text, mcp__intellij__search_regex
 
-Provider-specific hook events: claude=WorktreeCreate
+Provider-specific hook events: claude=WorktreeCreate, claude=WorktreeRemove, codex=SessionEnd
 
 - Events: `SessionStart`, `PreToolUse`, `PostToolUse`, `PostCompact`, `Stop`. Both harnesses carry `PostToolUse` with an additional-context injection and `PostCompact` as a session reset (`providers/CONFORMANCE.md`).
 - Provider-specific events: an event only one harness has lives in that harness's manifest alone, declared by the `Provider-specific hook events` line (`<provider>=<event>`, comma separated). `hooks/native-contract-gate.sh` accepts it there and nowhere else, and the twin test ignores exactly those keys.
