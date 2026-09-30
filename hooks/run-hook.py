@@ -270,6 +270,39 @@ def denial(event: str, stdout: bytes) -> str | None:
     return None
 
 
+def merge_allowed(outputs: list[bytes]) -> str:
+    """One JSON document from every handler's allowed output, `additionalContext` joined by newlines.
+
+    A harness reads one document; two concatenated ones lose both. Output that is not a JSON
+    object cannot be merged: it goes to stderr.
+    """
+    merged: dict = {}
+    context: list[str] = []
+    for out in outputs:
+        text = out.decode("utf-8", "replace").strip()
+        try:
+            said = json.loads(text)
+        except ValueError:
+            said = None
+        if not isinstance(said, dict):
+            if text:
+                sys.stderr.write(text + "\n")
+            continue
+        inner = said.get("hookSpecificOutput")
+        if isinstance(inner, dict) and isinstance(inner.get("additionalContext"), str):
+            context.append(inner["additionalContext"])
+        for key, value in said.items():
+            if key == "hookSpecificOutput" and isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key].update(value)
+            elif key not in ("additional_context",):
+                merged[key] = value
+    if context:
+        joined = "\n".join(context)
+        merged.setdefault("hookSpecificOutput", {})["additionalContext"] = joined
+        merged["additional_context"] = joined
+    return json.dumps(merged) if merged else ""
+
+
 def block_without_shell(event: str) -> int:
     """No POSIX shell: a repository gate that matches this call still blocks it."""
     env = dict(os.environ)
@@ -467,9 +500,10 @@ def main(argv: list[str]) -> int:
             sys.stderr.write(f"run-hook.py: {fault}\n")
     if (faults or refused) and blocking:
         return block(event, faults, bash, env, refused)
-    for out in allowed:  # context a handler printed while nothing refused
-        sys.stdout.buffer.write(out)
-    sys.stdout.flush()
+    merged = merge_allowed(allowed)  # context printed while nothing refused: one document
+    if merged:
+        sys.stdout.write(merged + "\n")
+        sys.stdout.flush()
     return 0 if soft else failure
 
 

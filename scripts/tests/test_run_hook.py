@@ -232,3 +232,18 @@ def test_r7_2_with_no_shell_a_matching_blocking_entry_blocks(tmp_path, monkeypat
     out = capsys.readouterr()
     assert "no POSIX shell to run .afk/g.sh" in out.out + out.err
     assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in out.out
+
+
+def test_r9_3_two_context_printing_handlers_leave_one_document(tmp_path):
+    def printer(text: str) -> str:
+        doc = json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}})
+        return f"#!/bin/sh\necho '{doc}'\n"
+
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"},
+                              {"event": "PreToolUse", "matcher": "*", "script": ".afk/b.sh"}]),
+        {"a.sh": printer("first note"), "b.sh": printer("second note")})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["additionalContext"] == "first note\nsecond note"
