@@ -270,14 +270,21 @@ def denial(event: str, stdout: bytes) -> str | None:
     return None
 
 
-def merge_allowed(outputs: list[bytes]) -> str:
-    """One JSON document from every handler's allowed output, `additionalContext` joined by newlines.
+DECISION_RANK = {"allow": 0, "ask": 1}
 
-    A harness reads one document; two concatenated ones lose both. Output that is not a JSON
-    object cannot be merged: it goes to stderr.
+
+def merge_allowed(outputs: list[bytes]) -> str:
+    """One JSON document from every handler's allowed output.
+
+    A harness reads one document; two concatenated ones lose both. `additionalContext` and
+    `systemMessage` are joined by newlines. `permissionDecision` takes the strictest answer
+    (ask over allow) with that handler's reason, so one handler's prompt for a human is never
+    turned into an approval by another. Output that is not a JSON object goes to stderr.
     """
     merged: dict = {}
     context: list[str] = []
+    messages: list[str] = []
+    decision: tuple[int, str, str | None] | None = None
     for out in outputs:
         text = out.decode("utf-8", "replace").strip()
         try:
@@ -289,17 +296,32 @@ def merge_allowed(outputs: list[bytes]) -> str:
                 sys.stderr.write(text + "\n")
             continue
         inner = said.get("hookSpecificOutput")
-        if isinstance(inner, dict) and isinstance(inner.get("additionalContext"), str):
-            context.append(inner["additionalContext"])
+        if isinstance(inner, dict):
+            if isinstance(inner.get("additionalContext"), str):
+                context.append(inner["additionalContext"])
+            asked = inner.get("permissionDecision")
+            if asked in DECISION_RANK and (decision is None or DECISION_RANK[asked] > decision[0]):
+                decision = (DECISION_RANK[asked], asked, inner.get("permissionDecisionReason"))
+        if isinstance(said.get("systemMessage"), str):
+            messages.append(said["systemMessage"])
         for key, value in said.items():
-            if key == "hookSpecificOutput" and isinstance(value, dict) and isinstance(merged.get(key), dict):
-                merged[key].update(value)
-            elif key not in ("additional_context",):
+            if key == "hookSpecificOutput" and isinstance(value, dict):
+                merged.setdefault(key, {}).update(
+                    {k: v for k, v in value.items()
+                     if k not in ("additionalContext", "permissionDecision", "permissionDecisionReason")})
+            elif key not in ("additional_context", "systemMessage"):
                 merged[key] = value
     if context:
         joined = "\n".join(context)
         merged.setdefault("hookSpecificOutput", {})["additionalContext"] = joined
         merged["additional_context"] = joined
+    if decision is not None:
+        body = merged.setdefault("hookSpecificOutput", {})
+        body["permissionDecision"] = decision[1]
+        if decision[2] is not None:
+            body["permissionDecisionReason"] = decision[2]
+    if messages:
+        merged["systemMessage"] = "\n".join(messages)
     return json.dumps(merged) if merged else ""
 
 

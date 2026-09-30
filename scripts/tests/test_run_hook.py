@@ -247,3 +247,17 @@ def test_r9_3_two_context_printing_handlers_leave_one_document(tmp_path):
     assert done.returncode == 0
     body = decision(done.stdout)["hookSpecificOutput"]
     assert body["additionalContext"] == "first note\nsecond note"
+
+
+def test_r10_1_an_ask_is_never_turned_into_an_allow_by_another_handler():
+    def doc(decision: str, reason: str, message: str) -> bytes:
+        return json.dumps({"systemMessage": message, "hookSpecificOutput": {
+            "hookEventName": "PreToolUse", "permissionDecision": decision,
+            "permissionDecisionReason": reason}}).encode()
+
+    for order in ((("ask", "gate A asks", "note A"), ("allow", "gate B ok", "note B")),
+                  (("allow", "gate B ok", "note B"), ("ask", "gate A asks", "note A"))):
+        merged = json.loads(launcher.merge_allowed([doc(*item) for item in order]))
+        body = merged["hookSpecificOutput"]
+        assert body["permissionDecision"] == "ask" and body["permissionDecisionReason"] == "gate A asks"
+        assert sorted(merged["systemMessage"].split("\n")) == ["note A", "note B"]
