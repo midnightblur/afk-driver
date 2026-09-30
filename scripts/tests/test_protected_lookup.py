@@ -13,6 +13,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -37,10 +38,16 @@ pytestmark = pytest.mark.skipif(BASH is None, reason="no POSIX shell on this mac
 def stub(tmp_path: Path, tool: str, body: str) -> dict[str, str]:
     binaries = tmp_path / "bin"
     binaries.mkdir(exist_ok=True)
-    script = binaries / tool
-    script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    script = binaries / (tool + ".sh")
+    script.write_text("#!/bin/sh\n" + body, encoding="utf-8", newline="\n")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    environ = dict(os.environ)
+    if os.name == "nt":
+        (binaries / (tool + ".cmd")).write_text(f'@"{BASH}" "%~dp0{tool}.sh" %*\r\n', encoding="utf-8")
+    else:
+        (binaries / tool).write_text(f'#!/bin/sh\nexec sh "{script}" "$@"\n', encoding="utf-8")
+        (binaries / tool).chmod(0o755)
+    environ = {k: v for k, v in os.environ.items()
+               if k not in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_FORGE_API_URL")}
     environ["PATH"] = str(binaries) + os.pathsep + environ["PATH"]
     environ["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
     return environ
@@ -90,11 +97,14 @@ def lookup(environ: dict, repo: Path, branch: str, *extra: str):
 # gh: branch flag per name, rulesets per name. glab: one paginated list.
 GITHUB_STUB = """
 case "$*" in
+  *rules/branches/broken*) echo boom >&2; exit 1 ;;
+  *rules/branches/notlist*) echo '{"message":"nope"}' ;;
   *rules/branches/ruled*) echo '[{"type":"pull_request"}]' ;;
   *rules/branches/loose*) echo '[{"type":"creation"}]' ;;
   *rules/branches/*) echo '[]' ;;
-  *branches/main*|*branches/release*) echo true ;;
-  *branches/*) echo false ;;
+  *branches/main*|*branches/release*) echo '{"protected": true}' ;;
+  *branches/unpushed*) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  *branches/*) echo '{"protected": false}' ;;
 esac
 """
 
@@ -116,11 +126,19 @@ def protection(kind: str, environ: dict, branch: str, cwd: Path):
     ("ruled", True, "ruleset"),       # protected by a ruleset rule only
     ("loose", False, "none"),         # a rule that does not restrict pushes
     ("topic", False, "none"),
+    ("unpushed", False, "none"),      # the branch read 404s: not classically protected
 ])
 def test_github_branch_flag_or_restricting_ruleset(tmp_path, branch, hit, via):
     environ = stub(tmp_path, "gh", GITHUB_STUB)
     answer, done = protection("github", environ, branch, tmp_path)
     assert (answer["protected"], answer["via"]) == (hit, via), done.stdout
+
+
+@pytest.mark.parametrize("branch", ("broken", "notlist"))
+def test_r1_2_a_failed_or_malformed_rules_read_is_an_error(tmp_path, branch):
+    environ = stub(tmp_path, "gh", GITHUB_STUB)
+    answer, done = protection("github", environ, branch, tmp_path)
+    assert answer.get("error") is True and "protected" not in answer, done.stdout
 
 
 @pytest.mark.parametrize("branch,hit", [
@@ -209,7 +227,8 @@ def test_config_forge_wins_over_the_remote_address(tmp_path):
 def test_answer_is_asked_live_each_time(tmp_path):
     """AC-010: a branch protected after the first call is protected on the next."""
     marker = tmp_path / "second"
-    body = f'if [ -e "{marker.as_posix()}" ]; then echo true; else echo false; fi\n'
+    body = (f'case "$*" in *rules/*) echo "[]" ;; *) if [ -e "{marker.as_posix()}" ]; '
+            'then echo \'{"protected": true}\'; else echo \'{"protected": false}\'; fi ;; esac\n')
     environ = stub(tmp_path, "gh", body)
     repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
     first, _ = lookup(environ, repo, "topic")
@@ -261,6 +280,8 @@ def test_slow_forge_times_out_into_the_fallback(tmp_path):
     environ = stub(tmp_path, "gh", "sleep 30\n")
     environ["AFK_PROTECTED_TIMEOUT"] = "1"
     repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    started = time.monotonic()
     answer, done = lookup(environ, repo, "main")
+    assert time.monotonic() - started < 8, "the cap is wall-clock"
     assert answer["source"] == "fallback" and answer["protected"] is True
-    assert "timed out" in answer["reason"]
+    assert "did not answer" in answer["reason"]

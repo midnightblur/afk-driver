@@ -1,0 +1,49 @@
+{
+  "detect": {
+    "any_env": [
+      "PLUGIN_ROOT"
+    ]
+  },
+  "priority": 10,
+  "harness_class": "H-2",
+  "move_hint": "move the session into a linked worktree: start the harness through the plugin launch command, or create one with `{plugin_root}/scripts/create-worktree --name <name>` and type `/cd <worktree path>`.",
+  "tool_class": {
+    "edit": [
+      "apply_patch",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "NotebookEdit"
+    ],
+    "shell": [
+      "Bash",
+      "shell",
+      "shell_command",
+      "exec_command",
+      "local_shell",
+      "unified_exec",
+      "write_stdin",
+      "container.exec"
+    ],
+    "allow": [
+      "Read",
+      "read_file",
+      "list_dir",
+      "grep_files",
+      "view_image",
+      "update_plan",
+      "web_search",
+      "request_user_input",
+      "spawn_agent",
+      "send_input",
+      "wait",
+      "wait_agent",
+      "close_agent",
+      "resume_agent",
+      "list_mcp_resources",
+      "list_mcp_resource_templates",
+      "read_mcp_resource",
+      "tool_search"
+    ]
+  }
+}

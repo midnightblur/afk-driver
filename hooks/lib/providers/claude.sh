@@ -93,25 +93,6 @@ afk_claude_enablement() {
   fi
 }
 
-# Protected-branch guard declarations (hooks/protected-branch-guard.sh).
-# Class H-1: the agent moves its own session with a native worktree tool.
-afk_claude_harness_class() { printf 'H-1\n'; }
-
-# What a tool name means to the guard: edit | shell | allow | other. `other`
-# is a built-in the guard does not know; it is judged like a change.
-afk_claude_tool_class() {
-  case "$1" in
-    Edit|MultiEdit|Write|NotebookEdit) printf 'edit\n' ;;
-    Bash|PowerShell|Monitor) printf 'shell\n' ;;
-    Read|Grep|Glob|LS|BashOutput|KillShell|AskUserQuestion|TodoWrite|TaskCreate|TaskGet|TaskList|TaskUpdate|TaskOutput|TaskStop|ToolSearch|Skill|Agent|Task|SendMessage|ListAgents|WebFetch|WebSearch|EnterPlanMode|ExitPlanMode|EnterWorktree|ExitWorktree|ScheduleWakeup|CronCreate|CronDelete|CronList|PushNotification|SendFeedback|ListMcpResourcesTool|ReadMcpResourceTool|ReadMcpResourceDirTool|Artifact|ArtifactComments|ArtifactData|EndConversation) printf 'allow\n' ;;
-    *) printf 'other\n' ;;
-  esac
-}
-
-afk_claude_move_hint() {
-  printf 'call the native worktree tool (EnterWorktree) with a new name, then continue there.'
-}
-
 # The folder inside the main checkout this harness's worktrees live in.
 afk_claude_worktree_folder() { printf '%s
 ' '.claude/worktrees'; }

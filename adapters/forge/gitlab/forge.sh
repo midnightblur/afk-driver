@@ -368,38 +368,9 @@ print(json.dumps({"status": p.get("status") or "", "url": p.get("web_url") or ""
   ;;
 
 branch-protection)
-  # Protected: an exact or wildcard entry (`*` spans `/`), every page.
-  # A failing read is an error, never "not protected".
+  # The reads and the verdict rule live in adapters/forge/branch_protection.py.
   branch=$(arg branch)
-  [ -n "$branch" ] || { printf '{"error":true,"verb":"branch-protection","reason":"branch is required"}\n'; exit 0; }
-  project=${REPO_FLAG[1]:-:id}
-  project=${project//\//%2F}
-  if ! raw=$(glab api --paginate "projects/$project/protected_branches?per_page=100" 2>/dev/null); then
-    printf '{"error":true,"verb":"branch-protection","reason":"the protected-branch read failed"}\n'
-    exit 0
-  fi
-  printf '%s' "$raw" | "$PY" -c '
-import json, re, sys
-def documents(text):
-    decoder, index, out = json.JSONDecoder(), 0, []
-    while True:
-        while index < len(text) and text[index].isspace():
-            index += 1
-        if index >= len(text):
-            return out
-        value, index = decoder.raw_decode(text, index)
-        out.append(value)
-def hit(pattern, branch):
-    return re.fullmatch(".*".join(re.escape(p) for p in pattern.split("*")), branch, re.DOTALL) is not None
-try:
-    names = []
-    for document in documents(sys.stdin.read()):
-        names.extend(b["name"] for b in (document if isinstance(document, list) else [document]))
-except Exception:
-    print(json.dumps({"error": True, "verb": "branch-protection", "reason": "the protected-branch answer is unreadable"}))
-    raise SystemExit(0)
-print(json.dumps({"protected": any(hit(n, sys.argv[1]) for n in names), "via": "branch"}))
-' "$branch"
+  "$PY" "$FORGE_DIR/../branch_protection.py" gitlab --branch "$branch" ${REPO_FLAG[1]:+--repo "${REPO_FLAG[1]}"}
   ;;
 
 auth-status)

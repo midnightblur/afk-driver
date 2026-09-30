@@ -86,10 +86,11 @@ reason. `require_inline: true` requests cleanup after a degraded write. A
 cleanup error identifies the orphan note.
 
 `branch-protection` takes `branch` (optional `repo`) and returns `protected` and `via`. GitHub:
-the branch's own flag, else a ruleset rule that restricts pushes. GitLab: a protected-branch
+the branch's own flag (a 404 there means not classically protected), or a ruleset rule that
+restricts pushes; both reads run at once. GitLab: a protected-branch
 entry, exact or wildcard (`*` matches any run of characters, `/` included), every page. A failing
-read is `error`, never "not protected". `scripts/protected-lookup.py` is the caller and owns
-the fallback.
+read, or a malformed rules answer, is `error`, never "not protected". `adapters/forge/branch_protection.py`
+holds the reads for the verb and for `scripts/protected-lookup.py`, which owns the fallback.
 
 `commit-changes` takes `sha` and returns `changes` and `count`. Each change carries `id`, `url`,
 `state` (`opened`, `closed`, `merged`), `draft`, `source`, `target`, and `author`. A failing CLI, a non-list

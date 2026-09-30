@@ -345,8 +345,8 @@ afk_plugin_scope() {
   esac
 }
 
-# The current harness's answer to a guard declaration (harness_class,
-# tool_class, move_hint), or the caller's default when the provider is unknown.
+# The current harness's answer to a declaration such as worktree_folder, or
+# failure when the provider is unknown. The guard's own facts are in <name>.json.
 afk_provider_declared() {
   local suffix=$1 function
   shift

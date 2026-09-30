@@ -5,14 +5,15 @@
       -> {"protected": bool, "source": "github"|"gitlab"|"fallback"[, "reason": "..."]}
 
 The forge is the repository's `forge:` (`CONFIG.md`) when it names one, else the
-one the origin remote's host implies. The forge adapter's `protected-branches`
-`branch-protection` verb answers for the one branch (`ADAPTERS.md`). Nothing is
-cached: every call asks again.
+one the branch's remote host implies. `adapters/forge/branch_protection.py` reads
+the one branch (`ADAPTERS.md`); it runs in this process, and no shell starts.
+Nothing is cached: every call asks again.
 
 Fallback (`source: fallback`, with a `reason`): no forge, no login, no network, a
-timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s), or an unreadable answer. Then
-exactly the remote's default branch, `main` and `master` are protected. The remote
-is the current branch's own, else `origin`.
+timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s, wall-clock; `AFK_FORGE_API_URL` replaces the
+forge's public API root for the token path), or an unreadable
+answer. Then exactly the remote's default branch, `main` and `master` are
+protected. The remote is the branch's own, else `origin`.
 """
 from __future__ import annotations
 
@@ -20,13 +21,22 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[1])
 TIMEOUT = 5.0
+PUBLIC_API = {"github": ("github.com", "https://api.github.com"),
+              "gitlab": ("gitlab.com", "https://gitlab.com/api/v4")}
+
+
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _git(checkout: Path, *args: str) -> str:
@@ -38,105 +48,111 @@ def _git(checkout: Path, *args: str) -> str:
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
-def _config_module():
-    spec = importlib.util.spec_from_file_location("afk_config_for_lookup",
-                                                  ROOT / "scripts" / "afk-config.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def _common_dir(checkout: Path) -> Path | None:
+    found = _git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return Path(found) if found else None
 
 
-def forge_of(checkout: Path) -> str:
-    """`github`, `gitlab` or `none`: the configuration first, the remote host second."""
+def read_config(common: Path) -> dict[str, dict[str, str]]:
+    """The repository's own config file as `{"remote origin": {"url": ...}, ...}`."""
     try:
-        config = _config_module()
-        configured = config.load(checkout).get("forge") or "none"
-        if configured != "none":
-            return configured
-        return config.detect_forge(checkout)[0]
+        text = (common / "config").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    sections: dict[str, dict[str, str]] = {}
+    current: dict[str, str] | None = None
+    for line in text.splitlines():
+        head = re.match(r'^\s*\[\s*([A-Za-z0-9.-]+)(?:\s+"((?:[^"\\]|\\.)*)")?\s*\]', line)
+        if head:
+            name = f"{head.group(1).lower()} {head.group(2)}" if head.group(2) is not None else head.group(1).lower()
+            current = sections.setdefault(name, {})
+            continue
+        pair = re.match(r"^\s*([A-Za-z][A-Za-z0-9-]*)\s*=\s*(.*?)\s*$", line)
+        if pair and current is not None:
+            current[pair.group(1).lower()] = pair.group(2).strip('"')
+    return sections
+
+
+def _remote_of(config: dict, branch: str) -> str:
+    own = config.get(f"branch {branch}", {}).get("remote", "")
+    if own and f"remote {own}" in config:
+        return own
+    if "remote origin" in config:
+        return "origin"
+    names = [key.split(" ", 1)[1] for key in config if key.startswith("remote ")]
+    return names[0] if names else ""
+
+
+def _host_of(url: str) -> str:
+    rest = re.sub(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", "", url.strip())
+    rest = re.sub(r"^[^@/]+@", "", rest)
+    return re.split(r"[/:]", rest, maxsplit=1)[0].lower()
+
+
+def _configured(checkout: Path) -> dict:
+    """The repository configuration, read only when a configuration file exists."""
+    files = [Path.home() / ".afk" / "config.yaml", checkout / ".afk" / "config.yaml",
+             checkout / ".afk" / "config.local.yaml"]
+    if not (os.environ.get("AFK_CONFIG") or any(path.is_file() for path in files)):
+        return {}
+    try:
+        return _load("afk_config_for_lookup", ROOT / "scripts" / "afk-config.py").load(checkout)
     except Exception:
-        return "none"
+        return {}
 
 
-def default_branch(checkout: Path) -> str:
-    current = _git(checkout, "symbolic-ref", "--short", "HEAD")
-    remote = (_git(checkout, "config", f"branch.{current}.remote") if current else "") or "origin"
-    prefix = f"{remote}/"
-    ref = _git(checkout, "symbolic-ref", "--short", f"refs/remotes/{remote}/HEAD")
-    return ref[len(prefix):] if ref.startswith(prefix) else ""
+def facts(checkout: Path, common: Path, branch: str) -> dict:
+    """`forge`, `repo` (owner/name or ""), `host` and `remote` of the branch's remote."""
+    config = read_config(common)
+    settings = _configured(checkout)
+    forge = settings.get("forge") or "none"
+    remote = _remote_of(config, branch)
+    if forge in ("github", "gitlab"):
+        pinned = (settings.get(forge) or {}).get("remote") or ""
+        remote = pinned if f"remote {pinned}" in config else remote
+    url = config.get(f"remote {remote}", {}).get("url", "") if remote else ""
+    host = _host_of(url) if url else ""
+    if forge not in ("github", "gitlab"):
+        forge = "gitlab" if "gitlab" in host else "github" if "github" in host else "none"
+    repo = _load("afk_project_for_lookup", ROOT / "adapters" / "forge" / "project_from_remote.py").project(url) if url else ""
+    return {"forge": forge, "repo": repo, "host": host, "remote": remote}
 
 
-def fallback(branch: str, checkout: Path, reason: str) -> dict:
-    names = {"main", "master", default_branch(checkout)} - {""}
+def default_branch(common: Path, remote: str) -> str:
+    """The remote's default branch, from its symbolic HEAD ref; "" when unset."""
+    try:
+        text = (common / "refs" / "remotes" / (remote or "origin") / "HEAD").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    prefix = f"ref: refs/remotes/{remote or 'origin'}/"
+    return text[len(prefix):] if text.startswith(prefix) else ""
+
+
+def fallback(branch: str, common: Path, remote: str, reason: str) -> dict:
+    names = {"main", "master", default_branch(common, remote)} - {""}
     return {"protected": branch in names, "source": "fallback", "reason": reason}
 
 
-def _kill_tree(process: subprocess.Popen) -> None:
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)],
-                       capture_output=True, timeout=10)
-    else:
-        try:
-            os.killpg(process.pid, 9)
-        except OSError:
-            process.kill()
-
-
-def ask_forge(forge: str, branch: str, checkout: Path, limit: float) -> tuple[bool | None, str]:
-    """The forge's verdict for one branch, or `(None, reason)`."""
-    script = ROOT / "adapters" / "forge" / forge / "forge.sh"
-    bash = _bash()
-    if bash is None or not script.is_file():
-        return None, f"no shell to run the {forge} adapter"
-    environ = dict(os.environ, AFK_PLUGIN_ROOT=str(ROOT))
-    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as payload:
-        payload.write(json.dumps({"branch": branch}).encode("utf-8"))
-        payload.seek(0)
-        try:
-            process = subprocess.Popen(
-                [bash, str(script), "branch-protection"], cwd=str(checkout),
-                env=environ, stdout=out, stderr=subprocess.DEVNULL, stdin=payload,
-                start_new_session=(os.name != "nt"))
-        except OSError as problem:
-            return None, f"the {forge} adapter did not start: {problem}"
-        try:
-            process.wait(timeout=limit)
-        except subprocess.TimeoutExpired:
-            _kill_tree(process)
-            return None, f"the {forge} read timed out after {limit:g} s"
-        out.seek(0)
-        text = out.read().decode("utf-8", "replace")
-    try:
-        answer = json.loads(text)
-    except ValueError:
-        return None, f"the {forge} answer is unreadable"
-    if not isinstance(answer, dict) or not isinstance(answer.get("protected"), bool):
-        detail = answer.get("reason") if isinstance(answer, dict) else ""
-        return None, detail or f"the {forge} forge did not answer"
-    return answer["protected"], ""
-
-
-def _bash() -> str | None:
-    spec = importlib.util.spec_from_file_location("afk_run_hook_for_lookup",
-                                                  ROOT / "hooks" / "run-hook.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    found = module.find_bash()
-    return str(found) if found else None
-
-
-def lookup(branch: str, checkout: Path) -> dict:
-    forge = forge_of(checkout)
+def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
+    common = common or _common_dir(checkout)
+    if common is None:
+        return {"protected": branch in ("main", "master"), "source": "fallback",
+                "reason": "the repository's git directory could not be found"}
+    found = facts(checkout, common, branch)
+    forge = found["forge"]
     if forge not in ("github", "gitlab"):
-        return fallback(branch, checkout, "the forge is not GitHub or GitLab")
+        return fallback(branch, common, found["remote"], "the forge is not GitHub or GitLab")
     try:
         limit = float(os.environ.get("AFK_PROTECTED_TIMEOUT") or TIMEOUT)
     except ValueError:
         limit = TIMEOUT
-    verdict, reason = ask_forge(forge, branch, checkout, limit)
-    if verdict is None:
-        return fallback(branch, checkout, reason)
-    return {"protected": verdict, "source": forge}
+    public_host, api = PUBLIC_API[forge]
+    api = os.environ.get("AFK_FORGE_API_URL") or (api if found["host"] == public_host else "")
+    answer = _load("afk_branch_protection", ROOT / "adapters" / "forge" / "branch_protection.py").protection(
+        forge, branch, found["repo"], str(checkout), limit, api)
+    if answer.get("error") or not isinstance(answer.get("protected"), bool):
+        return fallback(branch, common, found["remote"], answer.get("reason") or f"the {forge} forge did not answer")
+    return {"protected": answer["protected"], "source": forge}
 
 
 def main(argv: list[str]) -> int:
