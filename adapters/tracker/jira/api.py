@@ -617,6 +617,10 @@ def call(operation, payload=None):
     except KeyError as e:
         return {"error": True, "operation": operation,
                 "reason": f"missing required argument {e}"}
+    except SystemExit as e:
+        # `load_creds` exits for the CLI; in the server that would end it. No
+        # client is cached, so the next call re-reads the credentials.
+        return {"error": True, "operation": operation, "reason": str(e.code)}
 
 
 def main(argv):
