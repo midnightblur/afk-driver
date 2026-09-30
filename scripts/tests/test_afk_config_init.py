@@ -495,7 +495,7 @@ def test_a_machine_github_issues_tracker_gets_the_github_block(tmp_path, monkeyp
     todos = []
     text = ac.scaffold(repo, todos)
     assert "github-issues:" in text and "set `tracker: jira`" not in text
-    assert todos == ["tracker"]
+    assert todos == ["tracker", "github-issues.repo"] and "repo: TODO" in text
     assert _effective(repo, text)["tracker"] == "github-issues"
 
 
