@@ -52,8 +52,12 @@ notice than a missing one.
 
 A Maven reactor POM is a `TODO` that lists the candidates, unless it is a root
 `pom.xml` or the only root `*pom.xml`. When `init` cannot decide the tracker
-and `JIRA_BASE_URL` is set in the environment, `tracker` and `jira.project`
-are `TODO`s too. `init` prints the keys it left as `TODO` on one line.
+and `JIRA_BASE_URL` is set, in the environment or in the tracker server's env
+block in `~/.claude.json`, `tracker` and `jira.project` are `TODO`s too. When
+a lower layer (`~/.afk/config.yaml`) already resolves a `tracker` or `forge`
+other than `none` that `init` cannot detect, `init` writes that value as a
+`TODO` comment instead of `none`, so the repository file does not shadow it.
+`init` prints the keys it left as `TODO` on one line.
 
 The file it writes always passes `validate`. `/afk:setup` runs it for you when
 the file is absent.

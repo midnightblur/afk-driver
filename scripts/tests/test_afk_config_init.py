@@ -22,6 +22,16 @@ ac = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ac)
 
 
+@pytest.fixture(autouse=True)
+def _empty_home(tmp_path, monkeypatch):
+    """No test reads the developer's real `~/.afk` or `~/.claude.json`."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+
+
 def git(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True,
                    capture_output=True, text=True)
@@ -386,3 +396,63 @@ def test_a_github_remote_without_a_slug_leaves_the_repo_key(tmp_path, monkeypatc
     git(repo, "remote", "set-url", "origin", "https://github.com/")
     out = _init_stdout(repo, monkeypatch, capsys)
     assert out[1] == "afk-config: TODO left: github-issues.repo"
+
+
+# ------------------------------------- lower layers and the Jira env block
+
+def _home_with(tmp_path, monkeypatch, config_yaml=None, claude_json=None):
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True)
+    if config_yaml:
+        (home / ".afk" / "config.yaml").write_text(config_yaml, encoding="utf-8")
+    if claude_json:
+        (home / ".claude.json").write_text(claude_json, encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+
+
+def _effective(repo, text):
+    """The configuration every layer resolves to once `text` is the repo file."""
+    (repo / ".afk").mkdir(exist_ok=True)
+    (repo / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
+    return ac.load(repo)
+
+
+def test_a_machine_tracker_is_not_shadowed_by_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: jira\n")
+    repo = make_repo(tmp_path, "shadow", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert _effective(repo, text)["tracker"] == "jira"
+    assert "TODO" in text and "tracker: jira" in text
+    assert "tracker" in todos
+
+
+def test_no_lower_tracker_still_writes_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    repo = make_repo(tmp_path, "plainhome", "git@gitlab.com:acme/w.git")
+    _, config = scaffold_of(repo)
+    assert config["tracker"] == "none"
+
+
+def test_a_machine_forge_is_not_shadowed_by_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\nforge: gitlab\n")
+    repo = make_repo(tmp_path, "noremote")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert _effective(repo, text)["forge"] == "gitlab"
+    assert "forge" in todos
+
+
+def test_jira_hint_reads_the_tracker_env_block_in_claude_json(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"tracker": {"env": '
+        '{"JIRA_BASE_URL": "https://secret-corp.example.net"}}}}'))
+    repo = make_repo(tmp_path, "blk", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "JIRA_BASE_URL is set" in text
+    assert "secret-corp" not in text
+    assert todos[:2] == ["tracker", "jira.project"]

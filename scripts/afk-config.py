@@ -33,6 +33,7 @@ the values come from the environment or a harness credential store.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -900,6 +901,41 @@ def repo_slug(root: Path, remote: str) -> str:
     return f"{match.group(1)}/{match.group(2)}" if match else ""
 
 
+def _lower_layers(root: Path) -> dict:
+    """What every layer except the repository file already sets."""
+    merged: dict = {}
+    for kind, path in layers(root):
+        if kind != "repo":
+            merged = deep_merge(merged, parse(path.read_text(encoding="utf-8"), str(path)))
+    return merged
+
+
+def _jira_env_present() -> bool:
+    """Whether `JIRA_BASE_URL` is set: process env, or the tracker server's env
+    block in `~/.claude.json`, found by the adapter's own lookup. Presence only."""
+    if os.environ.get("JIRA_BASE_URL"):
+        return True
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "afk_jira_api", Path(__file__).resolve().parent.parent / "adapters/tracker/jira/api.py")
+        api = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(api)
+        cfg = json.loads((Path.home() / ".claude.json").read_text(encoding="utf-8"))
+        return bool((api._walk_for_jira_env(cfg) or {}).get("JIRA_BASE_URL"))
+    except Exception:
+        return False
+
+
+def _inherited_line(key: str, found: str, inherited: dict, left: list[str]) -> list[str]:
+    """The `key: value` line, or a TODO naming the lower layer's value when
+    writing `found` would shadow it."""
+    if key not in inherited:
+        return [f"{key}: {found}"]
+    left.append(key)
+    return [f"# TODO: {key}: {inherited[key]} comes from a lower layer; uncomment to pin it here",
+            f"# {key}: {inherited[key]}"]
+
+
 def scaffold(root: Path, todos: list[str] | None = None) -> str:
     """A starter configuration for this repository, as text.
 
@@ -914,6 +950,12 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     gates, blocks, pom_candidates = detect_build_gates(root)
     base = detect_base_branch(root)
     tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
+    lower = _lower_layers(root)
+    # A `none` written here would shadow a value a lower layer already resolved.
+    inherited = {
+        key: lower[key] for key, found in (("tracker", tracker), ("forge", forge))
+        if found == "none" and lower.get(key) not in (None, "none")
+    }
 
     lines = [
         "# AFK configuration for this repository. Committed: it is the contract",
@@ -924,8 +966,8 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
         "# repository could not answer for itself.",
         f"schema: {SCHEMA}",
         "",
-        f"tracker: {tracker}",
-        f"forge: {forge}",
+        *(_inherited_line("tracker", tracker, inherited, left)),
+        *(_inherited_line("forge", forge, inherited, left)),
         "notes: repo-files",
     ]
 
@@ -940,7 +982,9 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
 
     lines.append("")
     if tracker == "none":
-        if os.environ.get("JIRA_BASE_URL"):
+        if inherited.get("tracker") == "jira":
+            left.append("jira.project")
+        elif "tracker" not in inherited and _jira_env_present():
             lines.append("# TODO: JIRA_BASE_URL is set in this environment; set tracker: jira")
             left += ["tracker", "jira.project"]
         lines += [
