@@ -45,12 +45,18 @@ python scripts/afk-config.py init          # --force to replace an existing file
 
 Writes a starter `.afk/config.yaml` from what the repository can answer about
 itself: the forge from the origin remote's host, the build gates from a root
-`pom.xml` (or a `mvnw` / `mvnw.cmd` wrapper) / `package.json`, the base branch from `origin/HEAD`. Anything it
-cannot read is written as a commented `TODO` rather than a plausible guess: a Maven reactor POM that is neither a root
-`pom.xml` nor the only root `*pom.xml` is a `TODO` listing the candidates. A
-wrong value that validates is harder to notice than a missing one. The file it
-writes always passes `validate`, and `init` prints the `TODO` keys it left. `/afk:setup` runs it for you when the file is
-absent.
+`pom.xml` or a `mvnw` / `mvnw.cmd` wrapper and from `package.json`, the base
+branch from `origin/HEAD`. Anything it cannot read is written as a commented
+`TODO` rather than a plausible guess; a wrong value that validates is harder to
+notice than a missing one.
+
+A Maven reactor POM is a `TODO` that lists the candidates, unless it is a root
+`pom.xml` or the only root `*pom.xml`. When `JIRA_BASE_URL` is set in the
+environment, `tracker` and `jira.project` are `TODO`s too. `init` prints the
+keys it left as `TODO` on one line.
+
+The file it writes always passes `validate`. `/afk:setup` runs it for you when
+the file is absent.
 
 ## Built-in defaults
 

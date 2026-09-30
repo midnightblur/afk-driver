@@ -900,13 +900,15 @@ def repo_slug(root: Path, remote: str) -> str:
     return f"{match.group(1)}/{match.group(2)}" if match else ""
 
 
-def scaffold(root: Path) -> str:
+def scaffold(root: Path, todos: list[str] | None = None) -> str:
     """A starter configuration for this repository, as text.
 
     Every value it cannot read from the repository is written as a commented
     TODO rather than a plausible guess: a wrong value that validates is harder
-    to notice than a missing one.
+    to notice than a missing one. `todos`, when given, receives the dotted key
+    of each value the human must answer; an optional template block is not one.
     """
+    left = todos if todos is not None else []
     forge, remote, host = detect_forge(root)
     slug = repo_slug(root, remote)
     gates, blocks, pom_candidates = detect_build_gates(root)
@@ -939,7 +941,8 @@ def scaffold(root: Path) -> str:
     lines.append("")
     if tracker == "none":
         if os.environ.get("JIRA_BASE_URL"):
-            lines.append("# TODO: Jira credentials are set in this environment; set tracker: jira")
+            lines.append("# TODO: JIRA_BASE_URL is set in this environment; set tracker: jira")
+            left += ["tracker", "jira.project"]
         lines += [
             "# Jira: set `tracker: jira` above and fill this block in.",
             "# jira:",
@@ -955,6 +958,8 @@ def scaffold(root: Path) -> str:
             "#     - JIRA_API_TOKEN",
         ]
     else:
+        if not slug:
+            left.append("github-issues.repo")
         lines += [
             "github-issues:",
             f"  repo: {slug or 'TODO                # owner/name'}",
@@ -994,6 +999,7 @@ def scaffold(root: Path) -> str:
         if gate == "maven":
             if "reactor-pom" not in block:
                 found = ", ".join(pom_candidates) or "none found at the root"
+                left.append("maven.reactor-pom")
                 lines.append(f"  # reactor-pom: TODO      # the aggregator POM; candidates: {found}")
             lines.append("  # default-module: TODO      # the module the gates build when a")
             lines.append("  # change names none; omit to build the whole reactor.")
@@ -1031,25 +1037,10 @@ def scaffold(root: Path) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-def todo_keys(text: str) -> list[str]:
-    """The dotted keys a scaffold left as `TODO`, commented or not, in order."""
-    keys: list[str] = []
-    section = ""
-    for line in text.splitlines():
-        top = re.match(r"^(?:#\s)?([a-z][\w-]*):\s*(?:#.*)?$", line)
-        if top:
-            section = top.group(1)
-            continue
-        todo = re.match(r"^\s*#?\s*([a-z][\w-]*):\s*TODO\b", line)
-        if todo:
-            key = f"{section}.{todo.group(1)}" if section else todo.group(1)
-            if key not in keys:
-                keys.append(key)
-    return keys
-
-
-def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:
-    """Write the starter file. Returns its path and any validation problems."""
+def init(root: Path, force: bool = False,
+         todos: list[str] | None = None) -> tuple[Path, list[str]]:
+    """Write the starter file. Returns its path and any validation problems;
+    `todos` receives the keys the scaffold left for the human."""
     target = root / ".afk" / "config.yaml"
     if target.is_file() and not force:
         raise ConfigError(
@@ -1057,7 +1048,7 @@ def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:
             f"Pass --force to replace it (the current file is not backed up)."
         )
     target.parent.mkdir(parents=True, exist_ok=True)
-    text = scaffold(root)
+    text = scaffold(root, todos)
     target.write_text(text, encoding="utf-8", newline="\n")
     config = deep_merge(dict(DEFAULTS), parse(text, str(target)))
     return target, validate(config, root)
@@ -1133,7 +1124,8 @@ def main(argv: list[str]) -> int:
             if root is None:
                 sys.stderr.write("afk-config: init must run inside a git repository\n")
                 return 2
-            target, problems = init(root, force="--force" in rest)
+            left: list[str] = []
+            target, problems = init(root, force="--force" in rest, todos=left)
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
             if problems:
@@ -1145,7 +1137,6 @@ def main(argv: list[str]) -> int:
                 )
                 return 2
             sys.stdout.write(f"afk-config: wrote {target}\n")
-            left = todo_keys(target.read_text(encoding="utf-8"))
             if left:
                 sys.stdout.write(f"afk-config: TODO left: {', '.join(left)}\n")
             return 0

@@ -340,7 +340,7 @@ def test_jira_credentials_leave_a_tracker_hint(tmp_path, monkeypatch):
     repo = make_repo(tmp_path, "jira", "git@gitlab.com:acme/w.git")
     text, config = scaffold_of(repo)
     assert config["tracker"] == "none"
-    assert "# TODO: Jira credentials are set in this environment; set tracker: jira" in text
+    assert "# TODO: JIRA_BASE_URL is set in this environment; set tracker: jira" in text
     assert "secret-corp" not in text
 
 
@@ -348,16 +348,41 @@ def test_no_jira_hint_without_credentials(tmp_path, monkeypatch):
     monkeypatch.delenv("JIRA_BASE_URL", raising=False)
     repo = make_repo(tmp_path, "nojira", "git@gitlab.com:acme/w.git")
     text, _ = scaffold_of(repo)
-    assert "Jira credentials are set" not in text
+    assert "JIRA_BASE_URL is set" not in text
+
+
+def _init_stdout(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    assert ac.main(["init"]) == 0
+    return capsys.readouterr().out.splitlines()
 
 
 def test_init_names_what_it_left_as_todo(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("JIRA_BASE_URL", "https://secret-corp.example.net")
     repo = make_repo(tmp_path, "cli", "git@gitlab.com:acme/w.git",
-                     [("mvnw", "#!/bin/sh\n")])
-    monkeypatch.chdir(repo)
-    assert ac.main(["init"]) == 0
-    out = capsys.readouterr().out
-    assert "afk-config: wrote" in out
-    line = [l for l in out.splitlines() if l.startswith("afk-config: TODO left:")]
-    assert len(line) == 1
-    assert "maven.reactor-pom" in line[0] and "jira.project" in line[0]
+                     [("mvnw", "#!/bin/sh\n"), ("10010-service-pom.xml", "<project/>\n"),
+                      ("all-modules-pom.xml", "<project/>\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: tracker, jira.project, maven.reactor-pom"
+    assert len(out) == 2
+
+
+def test_an_optional_template_block_is_not_a_todo_to_answer(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "plain", "git@gitlab.com:acme/w.git", [("mvnw", "#!/bin/sh\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: maven.reactor-pom"
+
+
+def test_nothing_left_prints_no_todo_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "done", "git@gitlab.com:acme/w.git", [("pom.xml", "<project/>\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert len(out) == 1 and out[0].startswith("afk-config: wrote")
+
+
+def test_a_github_remote_without_a_slug_leaves_the_repo_key(tmp_path, monkeypatch, capsys):
+    repo = make_repo(tmp_path, "ghrepo", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", "https://github.com/")
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: github-issues.repo"
