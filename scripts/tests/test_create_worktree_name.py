@@ -377,3 +377,19 @@ def test_r2_8_a_session_outside_any_repository_gets_a_move_that_can_work(tmp_pat
     done = handler(plain, {"cwd": str(plain), "name": "nowhere"})
     assert done.returncode != 0 and done.stdout.strip() == ""
     assert "inside the repository" in done.stderr and "path form" in done.stderr
+
+
+def test_p1_a_claude_session_gets_the_claude_folder(tmp_path):
+    repo = make_repo(tmp_path)
+    environ = {k: v for k, v in os.environ.items() if not k.startswith(("AFK_", "CODEX", "PLUGIN_ROOT"))}
+    environ.update(AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), CLAUDECODE="1", CLAUDE_PLUGIN_ROOT=str(PLUGIN_ROOT))
+    done = subprocess.run([str(BASH), str(SCRIPT), "--repo", repo.as_posix(), "--session", "p1", "--name", "p1x"],
+                          capture_output=True, text=True, cwd=repo, env=environ, timeout=600)
+    assert done.returncode == 0, done.stderr
+    assert (repo / ".claude" / "worktrees" / "p1x").is_dir() and not (repo / ".codex").exists()
+
+
+def test_q1_an_explicit_branch_refusal_names_the_template(tmp_path):
+    repo = make_repo(tmp_path, "git:\n  branch-pattern: '^feat/[a-z0-9-]+$'\n  branch-template: 'feat/{name}'\n")
+    done = create(repo, "--branch", "Bad_Name", "--dir", "bad")
+    assert done.returncode != 0 and "^feat/[a-z0-9-]+$" in done.stderr and "feat/{name}" in done.stderr

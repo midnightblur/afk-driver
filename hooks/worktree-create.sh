@@ -5,7 +5,7 @@
 set -u
 
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$DIR/.." && pwd)}
+AFK_ROOT_DIR=${AFK_PLUGIN_ROOT:-$(cd "$DIR/.." && pwd)}
 py=python
 command -v python >/dev/null 2>&1 || py=python3
 
@@ -23,7 +23,7 @@ session=$(field session_id)
 [ -n "$name" ] || name="session-$(date +%s)"
 [ -n "$cwd" ] && cd "$cwd" 2>/dev/null
 
-out=$(AFK_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PLUGIN_ROOT/scripts/create-worktree" --name "$name" --session "$session")
+out=$(AFK_PLUGIN_ROOT="$AFK_ROOT_DIR" bash "$AFK_ROOT_DIR/scripts/create-worktree" --name "$name" --session "$session")
 rc=$?
 path=$(printf '%s\n' "$out" | sed -n 's/^WORKTREE_PATH=//p' | tail -1)
 if [ "$rc" -ne 0 ] || [ -z "$path" ]; then

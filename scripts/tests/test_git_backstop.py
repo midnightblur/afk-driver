@@ -156,3 +156,90 @@ def test_a_human_is_never_gated_even_with_the_hooks_installed(repo):
     install(repo)
     assert git(repo, "switch", "-q", "feature", env=human()).returncode == 0
     assert commit(repo, human()).returncode == 0
+
+
+@pytest.mark.parametrize("route", ["merge", "rebase"])
+def test_r4_8_an_agent_merge_or_rebase_in_the_main_checkout_moves_nothing(repo, route):
+    install(repo)
+    git(repo, "switch", "-q", "feature", env=human())
+    commit(repo, human())
+    git(repo, "switch", "-q", "trunk", env=human())
+    head = git(repo, "rev-parse", "HEAD").stdout
+    branch = git(repo, "rev-parse", "trunk").stdout
+    args = ("merge", "-q", "--no-ff", "-m", "m", "feature") if route == "merge" else ("rebase", "feature")
+    assert git(repo, *args, env=agent()).returncode != 0
+    git(repo, "rebase", "--abort", env=human())
+    assert git(repo, "rev-parse", "HEAD").stdout == head and git(repo, "rev-parse", "trunk").stdout == branch
+
+
+def test_r4_8_an_agent_fetch_passes(repo, tmp_path):
+    install(repo)
+    remote = tmp_path / "remote.git"
+    assert subprocess.run(["git", "init", "-q", "--bare", str(remote)], capture_output=True).returncode == 0
+    git(repo, "remote", "add", "origin", str(remote))
+    git(repo, "push", "-q", "origin", "trunk", env=human())
+    assert git(repo, "fetch", "-q", "origin", env=agent()).returncode == 0
+
+
+def test_r4_4_an_agent_stash_in_the_main_checkout_is_not_a_move(repo):
+    install(repo)
+    (repo / "f.txt").write_text("x\n", encoding="utf-8")
+    git(repo, "add", "f.txt")
+    done = git(repo, "stash", env=agent())
+    assert done.returncode == 0, done.stderr
+    assert not (repo / "f.txt").exists()
+
+
+def test_r4_2_a_stale_head_lock_does_not_open_the_head_veto(repo):
+    install(repo)
+    lock = repo / ".git" / "worktrees" / "ghost" / "HEAD.lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_text("", encoding="utf-8")
+    old = lock.stat().st_mtime - 3600
+    os.utime(lock, (old, old))
+    assert git(repo, "switch", "-q", "feature", env=agent()).returncode != 0
+    lock.touch()
+    assert git(repo, "switch", "-q", "feature", env=agent()).returncode == 0
+
+
+def test_r4_1_a_repository_without_afk_gets_no_plugin_code_gates(repo, tmp_path):
+    install(repo)
+    assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
+    (tmp_path / "free" / "a.py").write_text("# 1\n# 2\n# 3\n# 4\nx = 1\n", encoding="utf-8")
+    git(tmp_path / "free", "add", "a.py")
+    done = git(tmp_path / "free", "commit", "-q", "-m", "c", env=agent())
+    assert done.returncode == 0, done.stderr
+
+
+@pytest.mark.parametrize("route", [("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"),
+                                   ("cherry-pick", "side")])
+def test_r4_5_a_protected_linked_worktree_cannot_move_its_branch(repo, tmp_path, route):
+    install(repo)
+    git(repo, "branch", "side", "feature")
+    git(repo, "switch", "-q", "side", env=human())
+    commit(repo, human())
+    git(repo, "switch", "-q", "trunk", env=human())
+    assert git(repo, "worktree", "add", "-q", str(tmp_path / "prot"), "main").returncode == 0
+    before = git(repo, "rev-parse", "main").stdout
+    assert git(tmp_path / "prot", *route, env=agent()).returncode != 0
+    assert git(repo, "rev-parse", "main").stdout == before
+    assert git(repo, "rev-parse", "main").stdout == before
+
+
+def test_r4_5_an_unprotected_linked_worktree_still_moves_its_branch(repo, tmp_path):
+    install(repo)
+    assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
+    assert git(tmp_path / "free", "commit", "-q", "--allow-empty", "-m", "c", "--no-verify", env=agent()).returncode == 0
+
+
+def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
+    import shutil
+    lonely = tmp_path / "hooks"
+    lonely.mkdir()
+    shutil.copy(PLUGIN_ROOT / "hooks" / "git-backstop.py", lonely / "git-backstop.py")
+    done = subprocess.run(["python", str(lonely / "git-backstop.py"), "pre-commit"], capture_output=True, text=True,
+                          cwd=repo, env=agent(), timeout=120)
+    assert done.returncode == 0 and "skipped" in done.stderr
+    refused = subprocess.run(["python", str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
+                             capture_output=True, text=True, cwd=repo, env=agent(), timeout=120)
+    assert refused.returncode == 3

@@ -24,10 +24,12 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[1])
 TIMEOUT = 5.0
+end = [0.0]  # monotonic time by which one lookup, git reads included, must finish
 PUBLIC_API = {"github": ("github.com", "https://api.github.com"),
               "gitlab": ("gitlab.com", "https://gitlab.com/api/v4")}
 
@@ -39,10 +41,16 @@ def _load(name: str, path: Path):
     return module
 
 
+def _left() -> float:
+    if end[0]:
+        return max(end[0] - time.monotonic(), 0.05)
+    return float(os.environ.get("AFK_PROTECTED_TIMEOUT") or TIMEOUT)
+
+
 def _git(checkout: Path, *args: str) -> str:
     try:
         done = subprocess.run(["git", "-C", str(checkout), *args], capture_output=True,
-                              text=True, timeout=float(os.environ.get("AFK_PROTECTED_TIMEOUT") or 5) + 1)
+                              text=True, timeout=_left())
     except (OSError, ValueError, subprocess.SubprocessError):
         return ""
     return done.stdout.strip() if done.returncode == 0 else ""
@@ -142,6 +150,11 @@ def fallback(branch: str, common: Path, remote: str, reason: str) -> dict:
 
 
 def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
+    try:
+        cap = float(os.environ.get("AFK_PROTECTED_TIMEOUT") or TIMEOUT)
+    except ValueError:
+        cap = TIMEOUT
+    end[0] = time.monotonic() + cap
     common = common or _common_dir(checkout)
     if common is None:
         return {"protected": branch in ("main", "master"), "source": "fallback",
@@ -150,10 +163,7 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     forge = found["forge"]
     if forge not in ("github", "gitlab"):
         return fallback(branch, common, found["remote"], "the forge is not GitHub or GitLab")
-    try:
-        limit = float(os.environ.get("AFK_PROTECTED_TIMEOUT") or TIMEOUT)
-    except ValueError:
-        limit = TIMEOUT
+    limit = _left()
     public_host, api = PUBLIC_API[forge]
     override = os.environ.get("AFK_GITHUB_API_URL" if forge == "github" else "AFK_GITLAB_API_URL")
     api = override or (api if found["host"] == public_host else "")

@@ -458,7 +458,7 @@ def test_a15_the_two_reads_run_at_once(repo, forge):
     started = time.monotonic()
     done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
     assert done.returncode == 0
-    assert time.monotonic() - started < 1.5 + 2.5  # in series two 1.5 s reads cost 3.0 s before start-up
+    assert time.monotonic() - started < 1.5 + 1.2  # in series two 1.5 s reads cost 3.0 s before start-up
 
 
 def test_r1_5_the_cap_is_wall_clock(repo, forge):

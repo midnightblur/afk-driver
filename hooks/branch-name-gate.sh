@@ -43,9 +43,12 @@ fi
 # the naming rule only. It reads the ref lines, so they are held for the loop.
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 refs=$(cat)
-if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
+# Python starts only for a HEAD or branch line; fetch, tags, notes and stash skip it.
+# Exit 3 is a refusal; any other failure is a fault and lets git continue.
+if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]    && grep -Eq ' (HEAD|refs/heads/.*)$' <<<"$refs"; then
   py=python; command -v python >/dev/null 2>&1 || py=python3
-  "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs" || exit 1
+  "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs"
+  [ $? -eq 3 ] && exit 1
 fi
 
 # Escape hatches.
