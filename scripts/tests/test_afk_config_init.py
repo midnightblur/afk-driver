@@ -306,3 +306,58 @@ def test_a_committed_team_default_block_is_now_an_unknown_key():
                for p in ac.validate({**base, "tracker-defaults": {"assignee": "x"}}))
     assert any("unknown" in p
                for p in ac.validate({**base, "forge-defaults": {"reviewer": "x"}}))
+
+
+# ------------------------------------------------- reactor POM and TODO hints
+
+def test_several_root_poms_leave_a_todo_not_a_guess(tmp_path):
+    repo = make_repo(tmp_path, "many", "git@gitlab.com:acme/w.git",
+                     [("mvnw", "#!/bin/sh\n"), ("10010-service-pom.xml", "<project/>\n"),
+                      ("all-modules-pom.xml", "<project/>\n")])
+    text, config = scaffold_of(repo)
+    assert "reactor-pom" not in (config.get("maven") or {})
+    todo = [l for l in text.splitlines() if l.lstrip().startswith("# reactor-pom: TODO")]
+    assert len(todo) == 1
+    assert "10010-service-pom.xml" in todo[0] and "all-modules-pom.xml" in todo[0]
+
+
+def test_mvnw_without_a_pom_leaves_a_todo(tmp_path):
+    repo = make_repo(tmp_path, "wrapper", None, [("mvnw", "#!/bin/sh\n")])
+    text, config = scaffold_of(repo)
+    assert "reactor-pom" not in (config.get("maven") or {})
+    assert "# reactor-pom: TODO" in text and "none found" in text
+
+
+def test_one_named_pom_is_the_reactor(tmp_path):
+    repo = make_repo(tmp_path, "one", None,
+                     [("mvnw", "#!/bin/sh\n"), ("x-pom.xml", "<project/>\n")])
+    _, config = scaffold_of(repo)
+    assert config["maven"]["reactor-pom"] == "x-pom.xml"
+
+
+def test_jira_credentials_leave_a_tracker_hint(tmp_path, monkeypatch):
+    monkeypatch.setenv("JIRA_BASE_URL", "https://secret-corp.example.net")
+    repo = make_repo(tmp_path, "jira", "git@gitlab.com:acme/w.git")
+    text, config = scaffold_of(repo)
+    assert config["tracker"] == "none"
+    assert "# TODO: Jira credentials are set in this environment; set tracker: jira" in text
+    assert "secret-corp" not in text
+
+
+def test_no_jira_hint_without_credentials(tmp_path, monkeypatch):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "nojira", "git@gitlab.com:acme/w.git")
+    text, _ = scaffold_of(repo)
+    assert "Jira credentials are set" not in text
+
+
+def test_init_names_what_it_left_as_todo(tmp_path, monkeypatch, capsys):
+    repo = make_repo(tmp_path, "cli", "git@gitlab.com:acme/w.git",
+                     [("mvnw", "#!/bin/sh\n")])
+    monkeypatch.chdir(repo)
+    assert ac.main(["init"]) == 0
+    out = capsys.readouterr().out
+    assert "afk-config: wrote" in out
+    line = [l for l in out.splitlines() if l.startswith("afk-config: TODO left:")]
+    assert len(line) == 1
+    assert "maven.reactor-pom" in line[0] and "jira.project" in line[0]

@@ -853,24 +853,31 @@ def detect_forge(root: Path) -> tuple[str, str, str]:
     return "none", remote, host
 
 
-def detect_build_gates(root: Path) -> tuple[list[str], dict]:
-    """The build gates this repository can run, and their configuration blocks."""
+def detect_build_gates(root: Path) -> tuple[list[str], dict, list[str]]:
+    """The build gates this repository can run, their configuration blocks, and
+    the root POM candidates when the reactor POM is not decidable."""
     gates: list[str] = []
     blocks: dict = {}
+    candidates: list[str] = []
 
     root_pom = root / "pom.xml"
     if root_pom.is_file() or (root / "mvnw").is_file() or (root / "mvnw.cmd").is_file():
         gates.append("maven")
-        # An aggregator that is not `pom.xml` is common enough that guessing is
-        # worse than naming what was found.
+        # Only a root `pom.xml` or a single `*pom.xml` names the reactor; any
+        # other count is a guess, so it stays a TODO listing what was found.
         poms = sorted(p.name for p in root.glob("*pom.xml"))
-        reactor = "pom.xml" if root_pom.is_file() else (poms[0] if poms else "pom.xml")
-        blocks["maven"] = {"reactor-pom": reactor}
+        if root_pom.is_file():
+            blocks["maven"] = {"reactor-pom": "pom.xml"}
+        elif len(poms) == 1:
+            blocks["maven"] = {"reactor-pom": poms[0]}
+        else:
+            blocks["maven"] = {}
+            candidates = poms
 
     if (root / "package.json").is_file():
         gates.append("npm")
         blocks["npm"] = {"workspace-root": "."}
-    return gates, blocks
+    return gates, blocks, candidates
 
 
 def detect_base_branch(root: Path) -> str:
@@ -902,7 +909,7 @@ def scaffold(root: Path) -> str:
     """
     forge, remote, host = detect_forge(root)
     slug = repo_slug(root, remote)
-    gates, blocks = detect_build_gates(root)
+    gates, blocks, pom_candidates = detect_build_gates(root)
     base = detect_base_branch(root)
     tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
 
@@ -931,6 +938,8 @@ def scaffold(root: Path) -> str:
 
     lines.append("")
     if tracker == "none":
+        if os.environ.get("JIRA_BASE_URL"):
+            lines.append("# TODO: Jira credentials are set in this environment; set tracker: jira")
         lines += [
             "# Jira: set `tracker: jira` above and fill this block in.",
             "# jira:",
@@ -983,6 +992,9 @@ def scaffold(root: Path) -> str:
         for key, value in block.items():
             lines.append(f"  {key}: {value}")
         if gate == "maven":
+            if "reactor-pom" not in block:
+                found = ", ".join(pom_candidates) or "none found at the root"
+                lines.append(f"  # reactor-pom: TODO      # the aggregator POM; candidates: {found}")
             lines.append("  # default-module: TODO      # the module the gates build when a")
             lines.append("  # change names none; omit to build the whole reactor.")
         lines.append("")
@@ -1017,6 +1029,23 @@ def scaffold(root: Path) -> str:
     ]
 
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def todo_keys(text: str) -> list[str]:
+    """The dotted keys a scaffold left as `TODO`, commented or not, in order."""
+    keys: list[str] = []
+    section = ""
+    for line in text.splitlines():
+        top = re.match(r"^(?:#\s)?([a-z][\w-]*):\s*(?:#.*)?$", line)
+        if top:
+            section = top.group(1)
+            continue
+        todo = re.match(r"^\s*#?\s*([a-z][\w-]*):\s*TODO\b", line)
+        if todo:
+            key = f"{section}.{todo.group(1)}" if section else todo.group(1)
+            if key not in keys:
+                keys.append(key)
+    return keys
 
 
 def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:
@@ -1116,6 +1145,9 @@ def main(argv: list[str]) -> int:
                 )
                 return 2
             sys.stdout.write(f"afk-config: wrote {target}\n")
+            left = todo_keys(target.read_text(encoding="utf-8"))
+            if left:
+                sys.stdout.write(f"afk-config: TODO left: {', '.join(left)}\n")
             return 0
 
         if command == "validate":
