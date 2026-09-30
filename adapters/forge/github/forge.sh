@@ -363,6 +363,30 @@ print(json.dumps({"status": (d.get("pipeline") or {}).get("status", ""), "url": 
 '
   ;;
 
+branch-protection)
+  # Protected: the branch flag, or a ruleset rule that restricts pushes.
+  # A failing branch read is an error, never "not protected".
+  branch=$(arg branch)
+  [ -n "$branch" ] || { printf '{"error":true,"verb":"branch-protection","reason":"branch is required"}\n'; exit 0; }
+  if [ "${#REPO_FLAG[@]}" -gt 0 ]; then base="repos/${REPO_FLAG[1]}"; else base='repos/{owner}/{repo}'; fi
+  enc=$("$PY" -c 'import sys,urllib.parse as u;print(u.quote(sys.argv[1],safe="/"))' "$branch")
+  if ! flag=$(gh api "$base/branches/$enc" --jq '.protected' 2>/dev/null); then
+    printf '{"error":true,"verb":"branch-protection","reason":"the branch read failed"}\n'
+    exit 0
+  fi
+  if [ "$flag" = "true" ]; then printf '{"protected":true,"via":"branch"}\n'; exit 0; fi
+  rules=$(gh api "$base/rules/branches/$enc" 2>/dev/null) || rules='[]'
+  printf '%s' "$rules" | "$PY" -c '
+import json, sys
+try:
+    kinds = [r.get("type", "") for r in json.load(sys.stdin)]
+except Exception:
+    kinds = []
+hit = [k for k in kinds if k in ("pull_request", "update", "non_fast_forward", "deletion") or k.startswith("required_")]
+print(json.dumps({"protected": bool(hit), "via": "ruleset" if hit else "none"}))
+'
+  ;;
+
 auth-status)
   if gh auth status >/dev/null 2>&1; then
     user=$(gh api user --jq .login 2>/dev/null)

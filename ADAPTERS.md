@@ -63,7 +63,8 @@ tracker does not carry them.
 `change-view`, `change-diff`, `change-create-draft`, `change-ready`,
 `change-reviewers`, `change-update-body`, `change-comment`, `change-state`,
 `change-close`, `change-fetch`, `thread-list`, `thread-reply`, `thread-resolve`,
-`note-list`, `commit-changes`, `ci-status`, `ci-wait`, `auth-status`.
+`note-list`, `commit-changes`, `ci-status`, `ci-wait`, `auth-status`,
+`branch-protection`.
 
 The normalized change object includes `id`, `url`, `title`, `state`, `draft`,
 `source`, `target`, and `pipeline.status`. `change-view` and `change-fetch` add
@@ -83,6 +84,12 @@ Each thread carries its current resolution, URL, side, lines, paths, and notes.
 `inline`, `thread`, `comment`, and `url`. A degraded position also returns its
 reason. `require_inline: true` requests cleanup after a degraded write. A
 cleanup error identifies the orphan note.
+
+`branch-protection` takes `branch` (optional `repo`) and returns `protected` and `via`. GitHub:
+the branch's own flag, else a ruleset rule that restricts pushes. GitLab: a protected-branch
+entry, exact or wildcard (`*` matches any run of characters, `/` included), every page. A failing
+read is `error`, never "not protected". `scripts/protected-lookup.py` is the caller and owns
+the fallback.
 
 `commit-changes` takes `sha` and returns `changes` and `count`. Each change carries `id`, `url`,
 `state` (`opened`, `closed`, `merged`), `draft`, `source`, `target`, and `author`. A failing CLI, a non-list
