@@ -25,6 +25,12 @@ def probe_block() -> str:
     return re.search(r"```\n(.*?)```", section, re.S).group(1)
 
 
+def h0_notes() -> str:
+    text = MANIFEST.read_text(encoding="utf-8")
+    section = text.split("### H0 ", 1)[1].split("\n### ", 1)[0]
+    return " ".join(section.split("**Notes:**", 1)[1].split())
+
+
 def run(cwd: Path, home: Path, **extra):
     env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home),
            "AFK_PLUGIN_ROOT": str(ROOT).replace("\\", "/"), **extra}
@@ -58,8 +64,9 @@ def home(tmp_path):
 def test_no_config_anywhere_needs_human(repo, home):
     out = run(repo, home)
     assert out.returncode == 1
-    assert "needs-human: see H0 (trackerAssignee mrReviewer)" in out.stdout
-    assert "resolved: tracker=none forge=none" in out.stdout
+    assert out.stdout.splitlines() == [
+        "resolved: tracker=none forge=none",
+        "needs-human: see H0 (trackerAssignee mrReviewer)"]
 
 
 def test_developer_only_machine_file_still_needs_human(repo, home):
@@ -73,14 +80,36 @@ def test_unset_forge_is_reported_when_tracker_says_none(repo, home):
     write(home / ".afk" / "config.yaml", "tracker: none\n" + DEV)
     out = run(repo, home)
     assert out.returncode == 1
-    assert "needs-human: see H0 (mrReviewer)" in out.stdout
+    assert out.stdout.splitlines()[-1] == "needs-human: see H0 (mrReviewer)"
 
 
 def test_repo_file_with_key_left_unset_needs_human(repo, home):
     write(repo / ".afk" / "config.yaml", "schema: 1\n# tracker: jira  # TODO\n")
     out = run(repo, home)
     assert out.returncode == 1
-    assert "needs-human: see H0 (trackerAssignee mrReviewer)" in out.stdout
+    assert out.stdout.splitlines()[-1] == (
+        "needs-human: see H0 (trackerAssignee mrReviewer)")
+
+
+def test_present_file_naming_no_forge_points_at_a_working_fix(repo, home):
+    """Step 0 skips a present file, so H0 Notes must carry the fix themselves."""
+    write(repo / ".afk" / "config.yaml",
+          "schema: 1\ntracker: jira\njira:\n  project: XX\n")
+    write(home / ".afk" / "config.yaml", DEV)
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert out.stdout.splitlines()[-1] == "needs-human: see H0 (mrReviewer)"
+    notes = h0_notes()
+    assert "set `tracker:` and `forge:` in `.afk/config.yaml`" in notes
+    assert "`CONFIG.md`" in notes and "re-probe" in notes
+
+
+def test_a_quoted_none_counts_as_saying_none(repo, home):
+    write(repo / ".afk" / "config.yaml",
+          "schema: 1\ntracker: \"none\"\nforge: 'none'\n")
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "ok"
 
 
 def test_repo_config_none_is_ok(repo, home):

@@ -44,12 +44,13 @@ a token value — not even partially.
 - **Notes:** the defaults answer `none` for a repository that never chose. A
   leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
   configuration file at any layer says `none`; with no such line it is
-  `needs-human: see H0` — whether the repository file is absent or present with
-  the key left unset (a commented `TODO`); `/afk:setup` step 0 settles it, the
-  `TODO` walk included. A resolved non-`none` value is a choice and probes
-  normally, whichever layer supplied it (machine file, local overlay,
-  `$AFK_CONFIG`); `H0` itself still fails until the repository file exists.
-  Every other leg (the `O7` catalog, `H6` K3) keeps its own probe.
+  `needs-human: see H0`. File absent: `/afk:setup` step 0 settles it. File
+  present with the key left unset (a commented `TODO`, or never named): step 0
+  is skipped, so set `tracker:` and `forge:` in `.afk/config.yaml` (a value, or
+  `none`; values in `CONFIG.md`), then re-probe. A resolved non-`none` value is
+  a choice and probes normally, whichever layer supplied it (machine file,
+  local overlay, `$AFK_CONFIG`); `H0` itself still fails until the repository
+  file exists. Every other leg (the `O7` catalog, `H6` K3) keeps its own probe.
 
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
@@ -125,7 +126,7 @@ a token value — not even partially.
   R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
   says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
       "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
-    [ -n "$f" ] && grep -qsE "^$1:[[:space:]]*none([[:space:]#]|$)" "$f" \
+    [ -n "$f" ] && grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
   done; return 1; }
   keys="worktreeBasePath"; h=""

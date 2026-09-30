@@ -82,7 +82,7 @@ release page from its section here. Nobody tags by hand.
   register row (`H0`) probes the file, those rows report `needs-human` while it
   is absent (their status reads `needs-human: see H0`), and `setup_secrets.py`
   warns instead of printing `tracker: none`. The per-developer probe (`H6`)
-  exits non-zero in that state instead of printing `ok`.
+  exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
 
 ## [1.9.0] - 2026-09-29
 
