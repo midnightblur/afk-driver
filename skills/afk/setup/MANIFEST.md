@@ -45,8 +45,10 @@ a token value — not even partially.
   leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
   configuration file at any layer says `none`; with no repository file and no
   such line it is `needs-human: create .afk/config.yaml (H0)`. A resolved
-  non-`none` value is a choice and probes normally. Every other leg (the `O7`
-  catalog, `H6` K3) keeps its own probe.
+  non-`none` value is a choice and probes normally, whichever layer supplied
+  it (machine file, local overlay, `$AFK_CONFIG`); `H0` itself still fails
+  until the repository file exists. Every other leg (the `O7` catalog, `H6`
+  K3) keeps its own probe.
 
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).

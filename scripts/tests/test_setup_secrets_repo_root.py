@@ -73,7 +73,8 @@ def test_aborts_when_the_caller_is_outside_any_repository(tmp_path):
 def test_no_repository_config_is_a_warning(repo):
     out = slashes(preflight(repo))
     assert "no .afk/config.yaml in this repository" in out
-    assert "run /afk:setup step 0" in out
+    assert "create it with /afk:setup step 0" in out
+    assert "tracker: none   forge: none" in out
 
 
 def test_a_repository_config_silences_the_warning(repo):
