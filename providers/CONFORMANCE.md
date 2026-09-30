@@ -457,6 +457,7 @@ native move in every permission mode, and herdr's agent-kind detection through a
 | P-2 H-2 deny shape | The H-2 harness treats PreToolUse exit 2 as a failed hook and runs the command. Exit 0 plus the `permissionDecision: deny` JSON blocks. The H-1 harness honours both. The guard and every plugin refusal therefore use exit 0 plus the JSON. |
 | H-2 `SessionEnd` on `/cd` and exit | Fires on `/cd` with the old session id and the old `cwd`, on the next turn, and on exit with the current `cwd`; `reason` is `other` in both. A session that moves between two plugin worktrees has the one it left judged for removal. |
 | P-3 H-2 composer placeholder | An empty composer shows a rotating placeholder after the prompt glyph (`Ask Codex to do anything`). `herdr agent read --format ansi` paints the glyph bold (SGR 1) and the placeholder dim (SGR 2); typed text follows a reset and has no dim. The helper reads the ANSI pane and treats a dim composer line as empty. Captures: `scripts/tests/fixtures/codex-composer-empty.ansi` and `codex-composer-typed.ansi`. Herdr output is UTF-8: decoding it with the Windows code page corrupts the glyph. Live 2026-09-30, codex-cli 0.159.0 in an isolated `CODEX_HOME`. |
+| Latency: login token | `gh auth token` costs about 0.15 s and avoids the second `gh api` process. Real `cli/cli` branch read on a quiet machine, 5 runs: CLI path median 0.92 s (min 0.65), token path median 0.71 s (min 0.66). `glab` has no token command, so GitLab keeps its single paginated CLI call. |
 
 | Choice | Taken | Why |
 |---|---|---|

@@ -162,3 +162,62 @@ def test_r8_8_no_forge_adapter_declares_a_branch_protection_verb():
                               .read_text(encoding="utf-8"))
         assert "branch-protection" not in manifest["operations"]
 
+
+# ---- the login token is asked once and used over HTTPS ------------------------
+
+def _serve(seen: list):
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append((self.path, self.headers.get("Authorization")))
+            body = b'{"protected": true}' if "/branches/" in self.path and "/rules/" not in self.path else b"[]"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def _read_module():
+    spec = importlib.util.spec_from_file_location("afk_bp_token", READ)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_p4_no_env_token_asks_the_cli_once_and_reads_over_https(tmp_path, monkeypatch):
+    calls = tmp_path / "calls.log"
+    body = (f'echo "$*" >> "{calls.as_posix()}"\n'
+            'case "$*" in "auth token"*) echo tok-from-cli ;; *) echo "gh api must not run" >&2; exit 1 ;; esac\n')
+    environ = stub(tmp_path, "gh", body)
+    for name in ("PATH",):
+        monkeypatch.setenv(name, environ[name])
+    for name in ("GH_TOKEN", "GITHUB_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    seen: list = []
+    server = _serve(seen)
+    try:
+        answer = _read_module().protection("github", "main", "o/r", str(tmp_path), 20.0,
+                                           f"http://127.0.0.1:{server.server_port}")
+    finally:
+        server.shutdown()
+    assert answer == {"protected": True, "via": "branch"}, answer
+    assert len(seen) == 2 and all(auth == "Bearer tok-from-cli" for _, auth in seen)
+    assert calls.read_text(encoding="utf-8").splitlines() == ["auth token --hostname github.com"]
+
+
+def test_p4_a_failing_token_call_falls_back_to_the_cli_reads(tmp_path, monkeypatch):
+    environ = stub(tmp_path, "gh", GITHUB_STUB.replace("case", 'case "$*" in "auth token"*) exit 1 ;; esac\ncase', 1))
+    monkeypatch.setenv("PATH", environ["PATH"])
+    for name in ("GH_TOKEN", "GITHUB_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    answer = _read_module().protection("github", "main", "o/r", str(tmp_path), 20.0, "http://127.0.0.1:9")
+    assert answer == {"protected": True, "via": "branch"}, answer

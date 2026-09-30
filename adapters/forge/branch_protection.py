@@ -16,8 +16,9 @@ rules read is the only source for a branch not yet pushed. GitLab: an exact or
 wildcard entry (`*` spans `/`) among the paginated protected branches.
 
 Credentials: with `api` given and `GH_TOKEN`/`GITHUB_TOKEN` (GitLab: `GITLAB_TOKEN`)
-set, the reads go straight over HTTPS; otherwise through `gh api` / `glab api`.
-Nothing is written to disk.
+set, the reads go straight over HTTPS. GitHub without one asks `gh auth token` once (glab has
+no such command) and does the same; if that fails, both reads go through `gh api` / `glab api`.
+The token lives in memory only: nothing is written to disk.
 """
 from __future__ import annotations
 
@@ -113,9 +114,17 @@ def _together(reads: dict, deadline: float) -> dict:
     return dict(answers)
 
 
+def _login_token(cwd: str, deadline: float) -> str:
+    """The CLI's own login token, asked once so both reads can go over HTTPS; "" falls back to the CLI."""
+    done = _run(["gh", "auth", "token", "--hostname", "github.com"], cwd, deadline)
+    return done[1].strip() if done is not None and done[0] == 0 else ""
+
+
 def _github(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict:
     enc = urllib.parse.quote(branch, safe="/")
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    if api and repo and not token:
+        token = _login_token(cwd, deadline)
     answers = None
     if api and token and repo:
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",

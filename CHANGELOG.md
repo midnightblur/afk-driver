@@ -74,6 +74,9 @@ release page from its section here. Nobody tags by hand.
   placeholder was read as the human's text, so the line was never typed. The helper now
   reads the pane with styling and treats the dim placeholder as empty, and decodes the
   pane as UTF-8.
+- **A worktree guard check without a token in the environment runs one process, not two.**
+  The GitHub reads ask `gh auth token` once and go concurrently over HTTPS; a failing token
+  call falls back to the CLI reads. The token stays in memory.
 - **Setup detects untrusted guard hooks** by reading the harness config, instead of asking
   the user to run `/hooks`.
 
