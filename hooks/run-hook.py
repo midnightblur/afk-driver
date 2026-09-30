@@ -37,7 +37,10 @@ missing, the matcher is not a regular expression, the manifest does not parse,
 the handler returns no verdict inside its timeout — is a configuration error,
 never a silent skip. On Stop and PreToolUse the launcher blocks the turn with
 the decision object a failed gate emits, so a gate cannot disappear by being
-misdeclared. On the remaining events it writes the reason to stderr.
+misdeclared. A Stop or PreToolUse handler that exits non-zero without printing
+its own verdict object is a refusal: the launcher answers in the provider's
+block shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
+events block too. On the remaining events it writes the reason to stderr.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
 install locations, then PATH excluding the Windows system directory.
@@ -250,20 +253,49 @@ def resolved_script(root: Path, entry: dict) -> tuple[Path | None, str | None]:
     return candidate, None
 
 
-def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str]) -> int:
-    """Answer for the handlers that could not run, the way a gate answers.
+def decided(event: str, stdout: bytes) -> bool:
+    """Did a handler already print the verdict object its event reads?"""
+    return (b"permissionDecision" if event == "PreToolUse" else b'"decision"') in stdout
+
+
+def block_without_shell(event: str) -> int:
+    """No POSIX shell: a repository gate that matches this call still blocks it."""
+    env = dict(os.environ)
+    root = repo_root(env)
+    entries, faults = repo_entries(root, event) if root is not None else ([], [])
+    tool = ""
+    try:
+        raw = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
+        tool = str(json.loads(raw.decode("utf-8", "replace")).get("tool_name") or "") if raw else ""
+    except (ValueError, AttributeError):
+        tool = ""
+    for entry in entries:
+        if matcher_fault(entry.get("matcher")) or matches(entry.get("matcher"), tool):
+            faults.append(f"no POSIX shell to run {entry.get('script')}")
+    return block(event, faults, None, env) if faults else 0
+
+
+def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
+          refused: list[str] | None = None) -> int:
+    """Answer for the handlers that could not run or refused, the way a gate answers.
 
     The decision travels the same path a failed gate travels — the provider
     library owns the shape of a verdict and the exit code its harness reads one
     from — so a broken gate blocks exactly like a failing one.
     """
-    listed = "\n".join(f"  - {fault}" for fault in faults)
-    reason = (
-        f"afk: this repository declares {event} handlers this checkout cannot run, "
-        "so the gates they carry did not judge this turn:\n"
-        f"{listed}\n"
-        f"Fix {REPO_HOOKS_MANIFEST}, or remove the entries that no longer apply."
-    )
+    parts = []
+    if faults:
+        listed = "\n".join(f"  - {fault}" for fault in faults)
+        parts.append(
+            f"afk: this repository declares {event} handlers this checkout cannot run, "
+            "so the gates they carry did not judge this turn:\n"
+            f"{listed}\n"
+            f"Fix {REPO_HOOKS_MANIFEST}, or remove the entries that no longer apply."
+        )
+    if refused:
+        listed = "\n".join(f"  - {item}" for item in refused)
+        parts.append(f"afk: this repository's {event} handlers refused:\n{listed}")
+    reason = "\n".join(parts)
     library = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
     if bash is not None and library.is_file():
         snippet = (
@@ -287,7 +319,7 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str])
     sys.stderr.write(reason + "\n")
     if event == "Stop":
         sys.stdout.write(json.dumps({"decision": "block", "reason": reason}) + "\n")
-        return 2
+        return 0  # both adapters name 0 as the Stop block code: the decision object is the verdict
     sys.stdout.write(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
@@ -331,7 +363,11 @@ def main(argv: list[str]) -> int:
             f"run-hook.py: no POSIX shell found for {argv[1]}. Install Git Bash, "
             "or point AFK_BASH at a bash executable.\n"
         )
-        return 0 if soft else 1
+        if soft:
+            return 0
+        if argv[0] == "repo-list" and argv[1] in BLOCKING_EVENTS:
+            return block_without_shell(argv[1])
+        return 1
     # The shell's own toolchain sits on this PATH, so git resolves here even
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
@@ -368,6 +404,8 @@ def main(argv: list[str]) -> int:
             tool = ""
 
     failure = 0
+    refused: list[str] = []
+    blocking = event in BLOCKING_EVENTS and not soft
     for entry in entries:
         named = entry.get("script")
         fault = matcher_fault(entry.get("matcher"))
@@ -385,6 +423,7 @@ def main(argv: list[str]) -> int:
         try:
             completed = subprocess.run(
                 [str(bash), str(script)], env=env, input=envelope, timeout=timeout,
+                capture_output=blocking,
             )
         except subprocess.TimeoutExpired:
             faults.append(f"{named}: no verdict within {timeout:g} seconds")
@@ -392,6 +431,17 @@ def main(argv: list[str]) -> int:
         except OSError as problem:
             faults.append(f"{named}: {problem}")
             continue
+        if blocking:
+            said = (completed.stderr or b"").decode("utf-8", "replace").strip()
+            if completed.stdout:
+                sys.stdout.buffer.write(completed.stdout)
+                sys.stdout.flush()
+            if completed.returncode and not decided(event, completed.stdout or b""):
+                # A verdict has to be the provider's block shape; a bare non-zero exit is not one.
+                refused.append(said or f"{named} exited {completed.returncode}")
+                continue
+            if said:
+                sys.stderr.write(said + "\n")
         if completed.returncode and event == "WorktreeCreated":
             faults.append(f"{named}: exited {completed.returncode}; the worktree is kept")
             continue
@@ -401,8 +451,8 @@ def main(argv: list[str]) -> int:
     if faults:
         for fault in faults:
             sys.stderr.write(f"run-hook.py: {fault}\n")
-        if not soft and event in BLOCKING_EVENTS:
-            return block(event, faults, bash, env)
+    if (faults or refused) and blocking:
+        return block(event, faults, bash, env, refused)
     return 0 if soft else failure
 
 

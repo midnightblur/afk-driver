@@ -148,3 +148,49 @@ def test_no_manifest_is_not_a_fault(tmp_path):
     done = run(root, "Stop", {"hook_event_name": "Stop"})
     assert done.stdout == ""
     assert done.returncode == 0
+
+
+EXITS_2 = "#!/bin/sh\necho 'not allowed here' >&2\nexit 2\n"
+
+
+def test_r7_1_a_pretooluse_script_that_exits_nonzero_becomes_the_deny_json_at_exit_zero(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/no.sh"}]),
+        {"no.sh": EXITS_2})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["permissionDecision"] == "deny" and "not allowed here" in body["permissionDecisionReason"]
+
+
+def test_r7_1_a_stop_script_that_exits_nonzero_becomes_the_block_object(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/no.sh"}]), {"no.sh": EXITS_2})
+    done = run(root, "Stop", {"hook_event_name": "Stop"})
+    assert done.returncode == 0
+    assert decision(done.stdout)["decision"] == "block" and "not allowed here" in done.stdout
+
+
+def test_r7_1_a_script_that_printed_its_own_deny_is_passed_through(tmp_path):
+    own = ("#!/bin/sh\necho '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\","
+           "\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"mine\"}}'\nexit 0\n")
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/own.sh"}]), {"own.sh": own})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0 and decision(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"] == "mine"
+
+
+@pytest.mark.parametrize("event", ["PreToolUse", "Stop"])
+def test_r7_2_with_no_shell_a_matching_blocking_entry_blocks(tmp_path, monkeypatch, capsys, event):
+    import io
+    import types
+    root = repository(tmp_path, json.dumps([{"event": event, "matcher": "*", "script": ".afk/g.sh"}]),
+                      {"g.sh": OK})
+    monkeypatch.setattr(launcher, "find_bash", lambda: None)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(root))
+    monkeypatch.setattr(sys, "stdin", types.SimpleNamespace(
+        buffer=io.BytesIO(json.dumps({"tool_name": "Bash"}).encode()), isatty=lambda: False))
+    assert launcher.main(["repo-list", event]) == 0
+    out = capsys.readouterr()
+    assert "no POSIX shell to run .afk/g.sh" in out.out + out.err
+    assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in out.out

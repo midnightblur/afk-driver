@@ -741,8 +741,8 @@ fi
 out=$(cd "$fixture_repo" && "$py" "$launcher" repo-list Stop \
   < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
-if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
-  pass "launcher carries a repository Stop handler's blocking exit code"
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "fixture stop finding" && printf '%s' "$out" | grep -q '"decision": "block"'; then
+  pass "launcher turns a repository Stop handler's non-zero exit into the block object"
 else
   fail "launcher stop exit code (rc=$rc out=$out)"
 fi
