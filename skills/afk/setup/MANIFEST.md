@@ -126,7 +126,8 @@ a token value — not even partially.
   R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
   says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
       "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
-    [ -n "$f" ] && grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
+    [ -n "$f" ] || continue
+    grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
   done; return 1; }
   keys="worktreeBasePath"; h=""

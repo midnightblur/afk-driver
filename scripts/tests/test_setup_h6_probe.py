@@ -92,7 +92,7 @@ def test_repo_file_with_key_left_unset_needs_human(repo, home):
 
 
 def test_present_file_naming_no_forge_points_at_a_working_fix(repo, home):
-    """Step 0 skips a present file, so H0 Notes must carry the fix themselves."""
+    """Step 0 skips a present file, so H0 Notes carry the fix themselves."""
     write(repo / ".afk" / "config.yaml",
           "schema: 1\ntracker: jira\njira:\n  project: XX\n")
     write(home / ".afk" / "config.yaml", DEV)
