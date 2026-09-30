@@ -85,3 +85,20 @@ afk_codex_enablement() {
     printf 'absent\n'
   fi
 }
+
+# Protected-branch guard declarations (hooks/protected-branch-guard.sh).
+# Class H-2: the session moves with the harness's own `/cd` command.
+afk_codex_harness_class() { printf 'H-2\n'; }
+
+afk_codex_tool_class() {
+  case "$1" in
+    apply_patch|Edit|Write|MultiEdit|NotebookEdit) printf 'edit\n' ;;
+    Bash|shell|shell_command|exec_command|local_shell|unified_exec|write_stdin|container.exec) printf 'shell\n' ;;
+    Read|read_file|list_dir|grep_files|view_image|update_plan|web_search|request_user_input|spawn_agent|send_input|wait|wait_agent|close_agent|resume_agent|list_mcp_resources|list_mcp_resource_templates|read_mcp_resource|tool_search) printf 'allow\n' ;;
+    *) printf 'other\n' ;;
+  esac
+}
+
+afk_codex_move_hint() {
+  printf 'move the session into a linked worktree: start the harness through the plugin launch command, or create one with `scripts/create-worktree` and type `/cd <worktree path>`.'
+}

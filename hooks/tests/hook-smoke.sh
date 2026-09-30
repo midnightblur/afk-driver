@@ -13,6 +13,7 @@ envelopes="$here/envelopes"
 shim="$workflow/hooks/lib/provider.sh"
 lavish="$workflow/hooks/lavish-dark.sh"
 lavish_tips="$workflow/hooks/lavish-tips.sh"
+guard="$workflow/hooks/protected-branch-guard.sh"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not on PATH" >&2; exit 0; }
 
@@ -349,6 +350,25 @@ postcompact:PostCompact|stop:Stop)
   else
     fail "lavish-tips pass-through (rc=$rc)"
   fi
+
+  guard_repo=$(mktemp -d)
+  git -C "$guard_repo" init -q -b dev
+  guard_cwd=$(cd "$guard_repo" && pwd -W 2>/dev/null || pwd)
+  AFK_PROVIDER="$provider" bash "$guard" < "$provider_envelopes/pretooluse-bash-safe.json" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" = 0 ]; then
+    pass "protected-branch-guard passes a command outside any repository"
+  else
+    fail "protected-branch-guard outside git (rc=$rc)"
+  fi
+  sed "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" bash "$guard" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" = 2 ]; then
+    pass "protected-branch-guard refuses a command in a main checkout"
+  else
+    fail "protected-branch-guard main checkout (rc=$rc)"
+  fi
+  rm -rf "$guard_repo"
 done
 
 # ---- lavish render shape: the global binary's bare `lavish-axi <file>` command

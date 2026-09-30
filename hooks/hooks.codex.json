@@ -44,6 +44,17 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin protected-branch-guard.sh",
+            "timeout": 600,
+            "statusMessage": "protected-branch guard"
+          }
+        ]
+      },
+      {
         "matcher": "Bash|PowerShell",
         "hooks": [
           {

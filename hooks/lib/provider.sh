@@ -344,3 +344,12 @@ afk_plugin_scope() {
     *) printf '%s/\n' "$dir" ;;
   esac
 }
+
+# The current harness's answer to a guard declaration (harness_class,
+# tool_class, move_hint), or the caller's default when the provider is unknown.
+afk_provider_declared() {
+  local suffix=$1 function
+  shift
+  function="afk_$(afk_provider)_${suffix}"
+  if command -v "$function" >/dev/null 2>&1; then "$function" "$@"; else return 1; fi
+}
