@@ -1,21 +1,22 @@
-"""The H6 probe in `MANIFEST.md` must not report a repository nobody configured as healthy.
+"""The H6 probe in `MANIFEST.md` must not call an unconfigured repository ok.
 
-The probe block is lifted from the manifest and run, so the test binds the text
-a human or agent executes, not a copy of it.
+The probe block is lifted from the manifest and run, so the test binds the
+text a human or agent executes, not a copy of it.
 """
 import os
 import re
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
+from test_setup_secrets_repo_root import bash_executable
+
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "skills" / "afk" / "setup" / "MANIFEST.md"
-BASH = shutil.which("bash")
-
-pytestmark = pytest.mark.skipif(BASH is None, reason="needs a POSIX shell")
+BASH = bash_executable()
+NONE = "schema: 1\ntracker: none\nforge: none\n"
+DEV = "developer:\n  trackerAssignee: me\n  mrReviewer: you\n"
 
 
 def probe_block() -> str:
@@ -24,13 +25,19 @@ def probe_block() -> str:
     return re.search(r"```\n(.*?)```", section, re.S).group(1)
 
 
-def run(repo: Path, home: Path):
+def run(cwd: Path, home: Path, **extra):
     env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home),
-           "AFK_PLUGIN_ROOT": str(ROOT).replace("\\", "/"),
-           "CLAUDE_PROJECT_DIR": str(repo)}
+           "AFK_PLUGIN_ROOT": str(ROOT).replace("\\", "/"), **extra}
     env.pop("AFK_CONFIG", None)
-    return subprocess.run([BASH, "-c", probe_block()], cwd=repo, env=env,
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    env.update(extra)
+    return subprocess.run([BASH, "-c", probe_block()], cwd=cwd, env=env,
                           capture_output=True, text=True)
+
+
+def write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
 
 
 @pytest.fixture
@@ -38,30 +45,71 @@ def repo(tmp_path):
     r = tmp_path / "repo"
     r.mkdir()
     subprocess.run(["git", "-C", str(r), "init", "-q", "-b", "main"], check=True)
-    (tmp_path / "home").mkdir()
     return r
 
 
-def test_no_config_anywhere_needs_human(repo, tmp_path):
-    out = run(repo, tmp_path / "home")
-    assert out.returncode != 0
-    assert out.stdout.strip() == "needs-human: see H0"
-    assert "ok" not in out.stdout.split()
+@pytest.fixture
+def home(tmp_path):
+    h = tmp_path / "home"
+    h.mkdir()
+    return h
 
 
-def test_repo_config_none_is_ok(repo, tmp_path):
-    (repo / ".afk").mkdir()
-    (repo / ".afk" / "config.yaml").write_text("schema: 1\ntracker: none\nforge: none\n",
-                                               encoding="utf-8")
-    out = run(repo, tmp_path / "home")
+def test_no_config_anywhere_needs_human(repo, home):
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert "needs-human: see H0 (trackerAssignee mrReviewer)" in out.stdout
+    assert "resolved: tracker=none forge=none" in out.stdout
+
+
+def test_developer_only_machine_file_still_needs_human(repo, home):
+    write(home / ".afk" / "config.yaml", DEV)
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert "needs-human: see H0" in out.stdout
+
+
+def test_unset_forge_is_reported_when_tracker_says_none(repo, home):
+    write(home / ".afk" / "config.yaml", "tracker: none\n" + DEV)
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert "needs-human: see H0 (mrReviewer)" in out.stdout
+
+
+def test_repo_file_with_key_left_unset_needs_human(repo, home):
+    write(repo / ".afk" / "config.yaml", "schema: 1\n# tracker: jira  # TODO\n")
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert "needs-human: see H0 (trackerAssignee mrReviewer)" in out.stdout
+
+
+def test_repo_config_none_is_ok(repo, home):
+    write(repo / ".afk" / "config.yaml", NONE)
+    out = run(repo, home)
     assert out.returncode == 0, out.stdout + out.stderr
     assert out.stdout.strip() == "ok"
 
 
-def test_machine_layer_none_is_ok(repo, tmp_path):
-    home = tmp_path / "home"
-    (home / ".afk").mkdir()
-    (home / ".afk" / "config.yaml").write_text("schema: 1\ntracker: none\nforge: none\n",
-                                               encoding="utf-8")
+def test_machine_layer_none_is_ok(repo, home):
+    write(home / ".afk" / "config.yaml", NONE)
     out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "ok"
+
+
+def test_worktree_base_failure_still_reported_beside_h0(tmp_path, home):
+    bare = tmp_path / "not-a-repo"
+    bare.mkdir()
+    out = run(bare, home)
+    assert out.returncode == 1
+    assert "needs-human: see H0" in out.stdout
+    assert "unresolved: worktreeBasePath" in out.stdout
+
+
+def test_root_follows_claude_project_dir(tmp_path, repo, home):
+    other = tmp_path / "other"
+    other.mkdir()
+    subprocess.run(["git", "-C", str(other), "init", "-q"], check=True)
+    write(other / ".afk" / "config.yaml", NONE)
+    out = run(repo, home, CLAUDE_PROJECT_DIR=str(other))
     assert out.returncode == 0, out.stdout + out.stderr

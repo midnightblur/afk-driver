@@ -43,13 +43,13 @@ a token value — not even partially.
 - **Fix:** `human:` `/afk:setup` step 0 (`init`, walk the `TODO`s, commit).
 - **Notes:** the defaults answer `none` for a repository that never chose. A
   leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
-  configuration file at any layer says `none`; with no repository file and no
-  such line it is `needs-human: see H0` — step 0 then either creates the file
-  (re-probe) or the human declines (`skipped (no repository config)`). A resolved
-  non-`none` value is a choice and probes normally, whichever layer supplied
-  it (machine file, local overlay, `$AFK_CONFIG`); `H0` itself still fails
-  until the repository file exists. Every other leg (the `O7` catalog, `H6`
-  K3) keeps its own probe.
+  configuration file at any layer says `none`; with no such line it is
+  `needs-human: see H0` — whether the repository file is absent or present with
+  the key left unset (a commented `TODO`); `/afk:setup` step 0 settles it, the
+  `TODO` walk included. A resolved non-`none` value is a choice and probes
+  normally, whichever layer supplied it (machine file, local overlay,
+  `$AFK_CONFIG`); `H0` itself still fails until the repository file exists.
+  Every other leg (the `O7` catalog, `H6` K3) keeps its own probe.
 
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
@@ -122,20 +122,34 @@ a token value — not even partially.
   ```
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
-  R="$(git rev-parse --show-toplevel)"
-  if [ ! -f "$R/.afk/config.yaml" ] && [ "$("$PY" "$AC" get tracker)" = none ] \
-     && [ ! -f "$HOME/.afk/config.yaml" ] && [ ! -f "$R/.afk/config.local.yaml" ] \
-     && [ -z "$AFK_CONFIG" ]; then
-    echo "needs-human: see H0"; exit 1
+  P="${CLAUDE_PROJECT_DIR:-.}"
+  R="$(git -C "$P" rev-parse --show-toplevel 2>/dev/null || echo "$P")"
+  says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
+      "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
+    [ -n "$f" ] && grep -qsE "^$1:[[:space:]]*none([[:space:]#]|$)" "$f" \
+      && return 0
+  done; return 1; }
+  keys="worktreeBasePath"; h=""
+  if [ "$("$PY" "$AC" get tracker)" != none ]; then
+    keys="trackerAssignee $keys"
+  elif ! says_none tracker; then
+    h="$h trackerAssignee"
   fi
-  keys="worktreeBasePath"
-  [ "$("$PY" "$AC" get tracker)" = none ] || keys="trackerAssignee $keys"
-  [ "$("$PY" "$AC" get forge)" = none ] || keys="$keys mrReviewer"
+  if [ "$("$PY" "$AC" get forge)" != none ]; then
+    keys="$keys mrReviewer"
+  elif ! says_none forge; then
+    h="$h mrReviewer"
+  fi
   m=""
   for k in $keys; do
     "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
-  [ -z "$m" ] && echo ok || { echo "unresolved:$m"; exit 1; }
+  [ -z "$h$m" ] && { echo ok; exit 0; }
+  echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
+       "forge=$("$PY" "$AC" get forge)"
+  [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
+  [ -z "$m" ] || echo "unresolved:$m"
+  exit 1
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
