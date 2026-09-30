@@ -124,6 +124,11 @@ def _may_send_token(api: str) -> bool:
     return parts.scheme == "https" or (parts.scheme == "http" and parts.hostname in ("127.0.0.1", "localhost", "::1"))
 
 
+def _hostname(host: str) -> list[str]:
+    """The CLI flag that sends a read to the remote's own host, not the CLI's default."""
+    return ["--hostname", host] if host else []
+
+
 def _login_token(cwd: str, deadline: float) -> str:
     """The CLI's own login token for the public API, asked once; "" falls back to the CLI reads.
 
@@ -134,7 +139,7 @@ def _login_token(cwd: str, deadline: float) -> str:
     return done[1].strip() if done is not None and done[0] == 0 else ""
 
 
-def _github(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict:
+def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: str = "") -> dict:
     enc = urllib.parse.quote(branch, safe="/")
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
     if api == PUBLIC_GITHUB_API and repo and not token and deadline - time.monotonic() > 0.3:
@@ -156,7 +161,7 @@ def _github(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
         base = f"repos/{repo}" if repo else "repos/{owner}/{repo}"
 
         def by_cli(path: str):
-            return _cli_get(["gh", "api", f"{base}/{path}/{enc}"], cwd, deadline)
+            return _cli_get(["gh", "api", *_hostname(host), f"{base}/{path}/{enc}"], cwd, deadline)
 
         answers = _together({"branch": lambda: by_cli("branches"), "rules": lambda: by_cli("rules/branches")},
                             deadline)
@@ -202,7 +207,7 @@ def _wildcard(pattern: str, branch: str) -> bool:
                         branch, re.DOTALL) is not None
 
 
-def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict:
+def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str, host: str = "") -> dict:
     project = urllib.parse.quote(repo, safe="") if repo else ":id"
     token = os.environ.get("GITLAB_TOKEN") or ""
     texts: list[str] = []
@@ -220,7 +225,7 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
             texts.append(done[1])
             page = {k.lower(): v for k, v in done[2].items()}.get("x-next-page", "").strip()
     if refused or not (_may_send_token(api) and token and repo):
-        done = _run(["glab", "api", "--paginate", f"projects/{project}/protected_branches?per_page=100"],
+        done = _run(["glab", "api", *_hostname(host), "--paginate", f"projects/{project}/protected_branches?per_page=100"],
                     cwd, deadline)
         if done is None or done[0] != 0:
             return _error("the protected-branch read failed")
@@ -236,15 +241,18 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str) -> dict
 
 
 def protection(forge: str, branch: str, repo: str = "", cwd: str = ".", limit: float = 30.0,
-               api: str = "") -> dict:
-    """`api` is the forge's HTTPS API root: with a token in the environment it replaces the CLI."""
+               api: str = "", host: str = "") -> dict:
+    """`api` is the forge's HTTPS API root: with a token in the environment it replaces the CLI.
+
+    `host` is the remote's host name; the CLI reads go to it, never to the CLI's default host.
+    """
     if not branch:
         return _error("branch is required")
     deadline = time.monotonic() + limit
     if forge == "github":
-        return _github(branch, repo, cwd, deadline, api)
+        return _github(branch, repo, cwd, deadline, api, host)
     if forge == "gitlab":
-        return _gitlab(branch, repo, cwd, deadline, api)
+        return _gitlab(branch, repo, cwd, deadline, api, host)
     return _error(f"forge {forge!r} has no branch-protection read")
 
 

@@ -484,3 +484,15 @@ def test_r10_2_plain_http_to_loopback_still_carries_the_token(tmp_path, monkeypa
     monkeypatch.setattr(module, "_https_get", lambda url, headers, deadline: sent.append(url) or (200, "[]", {}))
     module.protection("github", "main", "o/r", str(tmp_path), 20.0, "http://127.0.0.1:9")
     assert len(sent) == 2
+
+
+@pytest.mark.parametrize("forge,body", [("github", GITHUB_STUB), ("gitlab", GITLAB_PAGES)])
+def test_r11_3_the_cli_read_goes_to_the_remotes_own_host(tmp_path, monkeypatch, forge, body):
+    calls = tmp_path / "calls.log"
+    environ = stub(tmp_path, TOOL[forge], f'echo "$*" >> "{calls.as_posix()}"\n' + body)
+    monkeypatch.setenv("PATH", environ["PATH"])
+    for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN"):
+        monkeypatch.delenv(name, raising=False)
+    _read_module().protection(forge, "main", "o/r", str(tmp_path), 20.0, "", "ghe.example.com")
+    lines = calls.read_text(encoding="utf-8").splitlines()
+    assert lines and all("--hostname ghe.example.com" in line for line in lines), lines

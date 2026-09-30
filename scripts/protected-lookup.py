@@ -168,7 +168,7 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     override = os.environ.get("AFK_GITHUB_API_URL" if forge == "github" else "AFK_GITLAB_API_URL")
     api = override or (api if found["host"] == public_host else "")
     answer = _load("afk_branch_protection", ROOT / "adapters" / "forge" / "branch_protection.py").protection(
-        forge, branch, found["repo"], str(checkout), limit, api)
+        forge, branch, found["repo"], str(checkout), limit, api, found["host"])
     if answer.get("error") or not isinstance(answer.get("protected"), bool):
         return fallback(branch, common, found["remote"], answer.get("reason") or f"the {forge} forge did not answer")
     return {"protected": answer["protected"], "source": forge}
