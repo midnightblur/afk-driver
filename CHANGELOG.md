@@ -70,6 +70,10 @@ release page from its section here. Nobody tags by hand.
 - **A repository gate's refusal is one verdict.** On `Stop` and `PreToolUse` the launcher
   never passes a handler's own JSON or exit code through: every refusal is gathered into
   one verdict in the provider's block shape.
+- **The worktree move types `/cd` into an empty composer.** The harness's rotating
+  placeholder was read as the human's text, so the line was never typed. The helper now
+  reads the pane with styling and treats the dim placeholder as empty, and decodes the
+  pane as UTF-8.
 - **Setup detects untrusted guard hooks** by reading the harness config, instead of asking
   the user to run `/hooks`.
 

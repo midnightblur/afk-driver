@@ -29,6 +29,8 @@ HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
 DONE = re.compile(r"Working directory changed", re.I)
 REFUSED = re.compile(r"disabled while a task|Cannot access directory|not trusted|background terminal", re.I)
+SGR = re.compile(r"\x1b\[[0-9;]*m")
+DIM = re.compile(r"^(?:\x1b\[0?m| )*\x1b\[2m")
 COMPOSER = re.compile(r"^\s*[›>❯]\s?(.*?)\s*$")
 ATTEMPTS, WAIT_IDLE, SETTLE = 3, 40.0, 2.0
 
@@ -90,17 +92,22 @@ def idle(binary: str, pane: str) -> bool:
     return False
 
 
-def read_pane(binary: str, pane: str) -> str:
-    return subprocess.run([binary, "agent", "read", pane, "--lines", "40"], capture_output=True,
-                          text=True, timeout=30).stdout
+def read_pane(binary: str, pane: str, fmt: str = "text") -> str:
+    return subprocess.run([binary, "agent", "read", pane, "--lines", "40", "--format", fmt],
+                          capture_output=True, encoding="utf-8", errors="replace", timeout=30).stdout
 
 
 def composer_text(seen: str) -> str | None:
-    """The text after the last prompt glyph in the pane, or None when no composer line shows."""
+    """The human's text after the last prompt glyph, "" for an empty composer, None when none shows.
+
+    The harness paints its empty-composer placeholder dim (SGR 2); typed text is plain, so a
+    dim line reads as empty. `seen` is an ANSI read.
+    """
     for line in reversed(seen.splitlines()):
-        found = COMPOSER.match(line)
+        found = COMPOSER.match(SGR.sub("", line))
         if found:
-            return found.group(1)
+            after = line[re.search("[›>❯]", line).end():]
+            return "" if DIM.match(after) else found.group(1)
     return None
 
 
@@ -109,7 +116,7 @@ def type_line(binary: str, pane: str, path: Path) -> None:
     for _ in range(ATTEMPTS):
         if not idle(binary, pane):
             continue
-        text = composer_text(read_pane(binary, pane))
+        text = composer_text(read_pane(binary, pane, "ansi"))
         if text is None:
             return  # an unreadable pane may hold the human's half-written message
         if text and not text.startswith("/cd "):

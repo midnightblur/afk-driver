@@ -18,3 +18,4 @@ scripts/afk-move.py text eol=lf
 adapters/forge/branch_protection.py text eol=lf
 scripts/worktree_owner.py text eol=lf
 scripts/protected-lookup.py text eol=lf
+scripts/tests/fixtures/*.ansi -text
