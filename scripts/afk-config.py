@@ -738,11 +738,11 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     return problems
 
 
-# (dotted key, file or directory) for each configured path a gate reads from disk.
+# (dotted key, file or directory) for each repository-relative path a gate reads.
 PATH_KEYS = (
     ("repo-hooks", "file"), ("setup.extra", "file"),
     ("maven.reactor-pom", "file"), ("maven.formatter-config", "file"),
-    ("maven.default-module", "dir"), ("maven.worktree-seed", "dir"),
+    ("maven.default-module", "dir"),
     ("npm.workspace-root", "dir"),
 )
 
@@ -763,7 +763,7 @@ def path_warnings(config: dict, root: Path | None) -> list[str]:
         for path in value if isinstance(value, list) else [value]:
             if not isinstance(path, str) or not path or path in ("auto", "none"):
                 continue
-            target = root / os.path.expanduser(path)
+            target = root / path
             if not (target.is_dir() if kind == "dir" else target.is_file()):
                 warnings.append(f"{dotted}: {path} does not exist under the repository root")
     return warnings

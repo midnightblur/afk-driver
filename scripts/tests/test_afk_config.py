@@ -429,9 +429,8 @@ def test_no_config_no_path_warnings(tmp_path):
 
 def test_path_warnings_unit(tmp_path):
     (tmp_path / "a-pom.xml").write_text("x", encoding="utf-8")
-    config = {"maven": {"reactor-pom": "a-pom.xml", "worktree-seed": "auto"},
+    config = {"maven": {"reactor-pom": "a-pom.xml", "worktree-seed": "~/nowhere/.m2"},
               "setup": {"extra": ["gone.md", 7]}}
     assert cfg.path_warnings(config, None) == []
     assert cfg.path_warnings(config, tmp_path) == [
         "setup.extra: gone.md does not exist under the repository root"]
-
