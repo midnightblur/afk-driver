@@ -166,7 +166,7 @@ holds can become shell syntax.
 ### Repository hooks
 
 `repo-hooks` names a JSON array. Each entry has `event`
-(`SessionStart` | `PreToolUse` | `Stop`), `matcher` (a regular expression
+(`SessionStart` | `PreToolUse` | `Stop` | `WorktreeCreated`), `matcher` (a regular expression
 matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
 refused. What the launcher does with a handler it cannot run is pinned by
@@ -174,6 +174,11 @@ refused. What the launcher does with a handler it cannot run is pinned by
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
 is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
 turn and names the entry, so a gate cannot go missing quietly.
+
+`WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
+matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
+`AFK_WORKTREE_BRANCH` set and the event JSON on stdin. A script that fails adds a
+warning naming it; the worktree stays.
 
 ### Investigation boundaries
 

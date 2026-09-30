@@ -102,3 +102,7 @@ afk_codex_tool_class() {
 afk_codex_move_hint() {
   printf 'move the session into a linked worktree: start the harness through the plugin launch command, or create one with `scripts/create-worktree` and type `/cd <worktree path>`.'
 }
+
+# The folder inside the main checkout this harness's worktrees live in.
+afk_codex_worktree_folder() { printf '%s
+' '.codex/worktrees'; }

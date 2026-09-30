@@ -37,6 +37,13 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- **Named worktrees.** `scripts/create-worktree --name <name>` cuts a worktree under
+  the active harness's folder, records its owner, and runs the repository's
+  `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
+  that has a worktree-creation hook calls it.
+
 ## [1.9.0] - 2026-09-29
 
 ### Added

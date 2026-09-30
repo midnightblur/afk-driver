@@ -111,3 +111,7 @@ afk_claude_tool_class() {
 afk_claude_move_hint() {
   printf 'call the native worktree tool (EnterWorktree) with a new name, then continue there.'
 }
+
+# The folder inside the main checkout this harness's worktrees live in.
+afk_claude_worktree_folder() { printf '%s
+' '.claude/worktrees'; }

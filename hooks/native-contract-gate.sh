@@ -242,11 +242,22 @@ def load_hook_map(rel_name: str) -> dict:
     return hmap
 
 
+# `Provider-specific hook events: <provider>=<event>, ...` names events one harness
+# has and the other lacks; each may appear in that provider's manifest only.
+specific_events: dict[str, set[str]] = {}
+_specific = re.search(r"(?mi)^\s*Provider-specific hook events\s*:\s*(.+?)\s*$", cap_text)
+for _pair in (_specific.group(1).split(",") if _specific else []):
+    _provider, _, _event = _pair.strip().strip("`").partition("=")
+    if _event:
+        specific_events.setdefault(_provider.strip(), set()).add(_event.strip().strip("`"))
+MANIFEST_PROVIDER = {"hooks/hooks.json": "claude", "hooks/hooks.codex.json": "codex"}
+
+
 def check_subset(rel_name: str, hmap: dict) -> None:
-    # Both native twins are held to the shared subset: the twin equality test
-    # keeps them identical modulo the root variable, and this guards each file.
+    # Each twin: the shared subset plus its own provider's declared events.
+    own = specific_events.get(MANIFEST_PROVIDER.get(rel_name, ""), set())
     if shared_events is not None:
-        for event in sorted(set(hmap) - shared_events):
+        for event in sorted(set(hmap) - shared_events - own):
             problems.append(f"{rel_name}: event {event!r} is outside the shared subset")
     if shared_matchers is None:
         return

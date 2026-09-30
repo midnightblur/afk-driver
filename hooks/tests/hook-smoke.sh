@@ -785,10 +785,15 @@ rm -rf "$fixture_repo" "$bare_repo"
 echo "== native twins =="
 twin() {
   local label=$1 claude_file=$2 codex_file=$3
-  if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" <<'PY'
-import json, sys
+  if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" "$workflow/CAPABILITIES.md" <<'PY'
+import json, re, sys
 claude = json.load(open(sys.argv[1], encoding="utf-8"))
 codex = json.load(open(sys.argv[2], encoding="utf-8"))
+declared = re.search(r"(?m)^Provider-specific hook events:\s*(.+)$",
+                     open(sys.argv[3], encoding="utf-8").read())
+for pair in (declared.group(1).split(",") if declared else []):
+    provider, _, event = pair.strip().partition("=")
+    (claude if provider == "claude" else codex).get("hooks", {}).pop(event, None)
 left = json.dumps(claude, sort_keys=True).replace("${CLAUDE_PLUGIN_ROOT}", "<ROOT>")
 right = json.dumps(codex, sort_keys=True).replace("${PLUGIN_ROOT}", "<ROOT>")
 sys.exit(0 if left == right else 1)

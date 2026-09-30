@@ -23,6 +23,15 @@
 #                     If it doesn't exist, --base is required to create it.
 #   --dir <name>      Worktree directory name, created under the base parent dir.
 #
+# Or, instead of --branch/--dir, a name (the agent path):
+#   --name <name>     Worktree name: 1-64 of A-Z a-z 0-9 . _ - (no `..`), checked before any
+#                     filesystem or git call. The worktree goes under the current harness's
+#                     folder inside the main checkout (hidden through the clone's local
+#                     exclude file); the branch is `git.branch-template` with `{name}` and
+#                     `{user}` filled when it holds no other placeholder, else `worktree-<name>`.
+#                     An owner record and a lock live under the git common directory.
+#   --session <id>    Session id to record in the owner record (with --name).
+#
 # Options:
 #   --base <branch>   Base branch to branch from when --branch doesn't exist yet.
 #   --track           Pass --track to `git worktree add` (use when the branch will be pushed).
@@ -74,6 +83,10 @@ DIR_NAME=""
 BASE_BRANCH=""
 REPO_DIR=""
 WORKTREE_PARENT=""
+NAME=""
+SESSION_ID=""
+FOLDER=""
+LOCK_DIR=""
 IDEA_BIN=""
 TRACK_FLAG=false
 CONFIGS_FLAG=true
@@ -90,6 +103,8 @@ while [[ $# -gt 0 ]]; do
     --base)       BASE_BRANCH="${2:-}"; shift 2 ;;
     --repo)       REPO_DIR="${2:-}"; shift 2 ;;
     --parent)     WORKTREE_PARENT="${2:-}"; shift 2 ;;
+    --name)       NAME="${2:-}"; shift 2 ;;
+    --session)    SESSION_ID="${2:-}"; shift 2 ;;
     --idea-bin)   IDEA_BIN="${2:-}"; shift 2 ;;
     --skip-build-gate) SKIP_GATES+=("${2:-}"); shift 2 ;;
     --track)      TRACK_FLAG=true; shift ;;
@@ -132,11 +147,22 @@ validate_branch_name() {
   [[ "$name" =~ $BRANCH_PATTERN ]]
 }
 
-[[ -n "$BRANCH" ]]   || error_exit "--branch is required"
-[[ -n "$DIR_NAME" ]] || error_exit "--dir is required"
-load_branch_pattern
-validate_branch_name "$BRANCH" || \
-  error_exit "branch '$BRANCH' does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created"
+valid_name() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || return 1
+  [[ "$1" != *..* && "$1" != *. && "$1" != *.lock ]]
+}
+
+if [[ -n "$NAME" ]]; then
+  [[ -z "$BRANCH$DIR_NAME" ]] || error_exit "--name cannot be combined with --branch or --dir"
+  valid_name "$NAME" || error_exit "worktree name '$NAME' is not allowed: use 1-64 of A-Z a-z 0-9 . _ - starting with a letter or digit, no '..', not ending in '.' or '.lock'. Example: fix-login"
+  OPEN_FLAG=false
+else
+  [[ -n "$BRANCH" ]]   || error_exit "--branch is required"
+  [[ -n "$DIR_NAME" ]] || error_exit "--dir is required"
+  load_branch_pattern
+  validate_branch_name "$BRANCH" || \
+    error_exit "branch '$BRANCH' does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created"
+fi
 
 # --- per-dev config: the `developer:` block supplies defaults; CLI flags override ----------
 # Read through afk-config.py, which owns discovery and the overlay rules, so this script
@@ -166,6 +192,39 @@ fi
 [[ -n "$REPO_DIR" ]] || error_exit "could not determine the main repo dir (pass --repo)"
 [[ -d "$REPO_DIR/.git" || -f "$REPO_DIR/.git" ]] || error_exit "git repo not found at $REPO_DIR"
 
+# The branch a name gets: the repository's template when `{name}` and `{user}` fill
+# every placeholder in it, else `worktree-<name>`. Prints the branch.
+branch_for_name() {
+  local name="$1" template user branch
+  template="$(cd "$REPO_DIR" && "$PY_BIN" "$PLUGIN_ROOT/scripts/afk-config.py" get git.branch-template 2>/dev/null || true)"
+  user="$(git -C "$REPO_DIR" config user.name 2>/dev/null | tr '[:upper:] ' '[:lower:]--' | tr -cd 'a-z0-9-' || true)"
+  branch="worktree-$name"
+  if [[ "$template" == *"{name}"* ]]; then
+    local filled="${template//\{name\}/$name}"
+    if [[ "$filled" == *"{user}"* ]]; then
+      [[ -n "$user" ]] && filled="${filled//\{user\}/$user}"
+    fi
+    [[ "$filled" != *"{"* && "$filled" != *"}"* ]] && branch="$filled"
+  fi
+  printf '%s\n' "$branch"
+}
+
+if [[ -n "$NAME" ]]; then
+  # shellcheck source=/dev/null
+  source "$PLUGIN_ROOT/hooks/lib/provider.sh"
+  FOLDER="${AFK_WORKTREE_FOLDER:-$(afk_provider_declared worktree_folder || true)}"
+  FOLDER="${FOLDER:-.claude/worktrees}"
+  [[ "$FOLDER" != /* && "$FOLDER" != *..* ]] || error_exit "the worktree folder '$FOLDER' must stay inside the repository"
+  WORKTREE_PARENT="$REPO_DIR/${FOLDER%/}"
+  DIR_NAME="$NAME"
+  BRANCH="$(branch_for_name "$NAME")"
+  BASE_BRANCH="${BASE_BRANCH:-HEAD}"
+  load_branch_pattern
+  validate_branch_name "$BRANCH" || \
+    error_exit "branch '$BRANCH' does not match this repository's git.branch-pattern $BRANCH_PATTERN — no worktree created. Pick a name whose branch matches the pattern; the branch is named from git.branch-template with {name} and {user} filled, else worktree-<name>"
+fi
+
+
 if [[ -z "$WORKTREE_PARENT" ]]; then
   WORKTREE_PARENT="$(read_config_key worktreeBasePath "$REPO_DIR")"
   WORKTREE_SOURCE="developer.worktreeBasePath (or its derived default)"
@@ -183,7 +242,15 @@ if [[ -z "$IDEA_BIN" ]]; then
 fi
 
 DEST="$WORKTREE_PARENT/$DIR_NAME"
-[[ ! -d "$DEST" ]] || error_exit "worktree already exists at $DEST"
+[[ ! -d "$DEST" ]] || error_exit "worktree ${NAME:+name '$NAME' is already taken: }already exists at $DEST"
+
+# Paths a copy walk never enters: the worktrees already cut from this checkout,
+# and the folder new ones go in, whether or not it lies under a copied directory.
+PRUNE_PATHS=()
+while IFS= read -r wt; do
+  [[ -n "$wt" && "$wt" != "$REPO_DIR" ]] && PRUNE_PATHS+=("$wt")
+done < <(git -C "$REPO_DIR" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
+[[ "$WORKTREE_PARENT" == "$REPO_DIR"/* ]] && PRUNE_PATHS+=("${WORKTREE_PARENT%/}")
 
 # --- what to carry over. One list, read from configuration, so a repository whose personal
 # files live elsewhere changes a config key instead of this script.
@@ -247,11 +314,45 @@ copy_dir_with_substitution() {
   local src_dir="$1" dest_dir="$2" skip_name="${3:-}"
   [[ -d "$src_dir" ]] || return 0
   mkdir -p "$dest_dir"
+  local prune=() p
+  for p in ${PRUNE_PATHS+"${PRUNE_PATHS[@]}"}; do
+    [[ ${#prune[@]} -gt 0 ]] && prune+=(-o)
+    prune+=(-path "$p")
+  done
+  local walk=()
+  [[ ${#prune[@]} -gt 0 ]] && walk=(-type d '(' "${prune[@]}" ')' -prune -o)
   while IFS= read -r -d '' f; do
     rel="${f#"$src_dir"/}"
     copy_file_with_substitution "$f" "$dest_dir/$rel"
-  done < <(find "$src_dir" -type f ${skip_name:+-not -name "$skip_name"} -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
+  done < <(find "$src_dir" ${walk+"${walk[@]}"} -type f ${skip_name:+-not -name "$skip_name"} -print0 || true)  # || true: keep a find traversal error under set -E from firing the ERR trap (spurious ERROR=)
 }
+
+COMMON_DIR="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-common-dir)"
+
+release_lock() { [[ -n "$LOCK_DIR" ]] && rmdir "$LOCK_DIR" 2>/dev/null || true; LOCK_DIR=""; }
+
+# One creator at a time per checkout: an atomic mkdir, broken when older than 2 minutes.
+acquire_lock() {
+  local dir="$COMMON_DIR/afk-worktrees" tries=0
+  mkdir -p "$dir"
+  until mkdir "$dir/.lock" 2>/dev/null; do
+    if [[ -n "$(find "$dir/.lock" -maxdepth 0 -mmin +2 2>/dev/null)" ]]; then
+      rmdir "$dir/.lock" 2>/dev/null || true
+      continue
+    fi
+    tries=$((tries + 1))
+    [[ $tries -le 300 ]] || error_exit "another worktree creation holds $dir/.lock"
+    sleep 0.2
+  done
+  LOCK_DIR="$dir/.lock"
+  trap release_lock EXIT
+}
+
+if [[ -n "$NAME" ]]; then
+  acquire_lock
+  [[ ! -e "$DEST" && ! -e "$COMMON_DIR/afk-worktrees/$NAME.json" ]] || error_exit "worktree name '$NAME' is already taken"
+  ! git -C "$REPO_DIR" rev-parse --verify -q "refs/heads/$BRANCH" >/dev/null || error_exit "branch '$BRANCH' already exists; choose another name"
+fi
 
 echo -e "${YELLOW}Pruning stale worktrees...${NC}" >&2
 git -C "$REPO_DIR" worktree prune
@@ -265,7 +366,7 @@ if git -C "$REPO_DIR" rev-parse --verify "$BRANCH" &>/dev/null; then
 fi
 
 if [[ "$BRANCH_EXISTS" == true ]]; then
-  git -C "$REPO_DIR" worktree add "$DEST" "$BRANCH" \
+  git -C "$REPO_DIR" worktree add "$DEST" "$BRANCH" >&2 \
     || error_exit "git worktree add failed for existing branch '$BRANCH'"
 else
   [[ -n "$BASE_BRANCH" ]] \
@@ -273,12 +374,23 @@ else
   git -C "$REPO_DIR" rev-parse --verify "$BASE_BRANCH" &>/dev/null \
     || error_exit "base branch '$BASE_BRANCH' does not exist in $REPO_DIR"
   if [[ "$TRACK_FLAG" == true ]]; then
-    git -C "$REPO_DIR" worktree add --track -b "$BRANCH" "$DEST" "$BASE_BRANCH" \
+    git -C "$REPO_DIR" worktree add --track -b "$BRANCH" "$DEST" "$BASE_BRANCH" >&2 \
       || error_exit "git worktree add --track failed for '$BRANCH'"
   else
-    git -C "$REPO_DIR" worktree add -b "$BRANCH" "$DEST" "$BASE_BRANCH" \
+    git -C "$REPO_DIR" worktree add -b "$BRANCH" "$DEST" "$BASE_BRANCH" >&2 \
       || error_exit "git worktree add failed for '$BRANCH'"
   fi
+fi
+
+if [[ -n "$NAME" ]]; then
+  # Hide the folder from the main checkout's `git status`, once, under the lock.
+  exclude="$COMMON_DIR/info/exclude"
+  mkdir -p "$COMMON_DIR/info"
+  grep -qxF "/${FOLDER%/}/" "$exclude" 2>/dev/null || printf '/%s/\n' "${FOLDER%/}" >> "$exclude"
+  "$PY_BIN" "$PLUGIN_ROOT/scripts/worktree_owner.py" record --dir "$COMMON_DIR/afk-worktrees" \
+    --name "$NAME" --path "$DEST_DIR_FWD" --branch "$BRANCH" --harness "$(afk_provider)" \
+    --session "$SESSION_ID" >&2 || echo -e "  ${YELLOW}Could not write the owner record; the worktree will not be pruned automatically${NC}" >&2
+  release_lock
 fi
 
 if [[ "$CONFIGS_FLAG" == true && "$COPY_PERSONAL" == true ]]; then
@@ -331,6 +443,13 @@ if [[ "$OPEN_FLAG" == true ]]; then
     echo -e "  ${YELLOW}No developer.ideBinary configured and no --idea-bin — skipping IDE launch${NC}" >&2
   fi
 fi
+
+# Repository setup scripts (the `WorktreeCreated` event of the repository hook
+# manifest): a failure warns and never removes the worktree. Output goes to stderr
+# so the last stdout line stays the contract line.
+EVENT_JSON="$("$PY_BIN" -c 'import json,sys; print(json.dumps({"hook_event_name":"WorktreeCreated","worktree":sys.argv[1],"branch":sys.argv[2]}))' "$DEST_DIR_FWD" "$BRANCH")"
+( cd "$DEST" && env -u CLAUDE_PROJECT_DIR -u PROJECT_DIR AFK_WORKTREE_PATH="$DEST_DIR_FWD" AFK_WORKTREE_BRANCH="$BRANCH" \
+    "$PY_BIN" "$PLUGIN_ROOT/hooks/run-hook.py" --soft repo-list WorktreeCreated <<<"$EVENT_JSON" >&2 ) || true
 
 echo -e "${GREEN}Worktree ready: $DEST${NC}" >&2
 echo "WORKTREE_PATH=$DEST"
