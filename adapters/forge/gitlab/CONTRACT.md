@@ -96,4 +96,4 @@ Every forge verb is supported. A rejected line position follows the
 
 ## Notes on the shared protected-branch read
 
-Reads the project's own `protected_branches`. Protection inherited from a group setting is not read (unverified: no live probe of the group-level endpoint yet).
+Reads the project's `protected_branches`. That list also carries rules inherited from the group, marked `"inherited": true` (https://docs.gitlab.com/api/protected_branches/), so a group rule protects like a project rule. A wildcard rule comes back as the pattern, not the matching branch names.

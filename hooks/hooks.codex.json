@@ -146,7 +146,7 @@
           {
             "type": "command",
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin worktree-remove.sh",
-            "timeout": 120
+            "timeout": 3
           }
         ]
       }

@@ -21,6 +21,12 @@ def make_root(tmp_path, name="plugin-root"):
     return root
 
 
+def no_home(monkeypatch, tmp_path):
+    """An empty home, so a real install on this machine cannot answer; Windows reads USERPROFILE."""
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(tmp_path / "no-home"))
+
+
 def test_resolves_from_native_env_var_when_it_is_a_verified_root(tmp_path, monkeypatch):
     module = load_module()
     root = make_root(tmp_path)
@@ -34,7 +40,7 @@ def test_ignores_native_env_var_pointing_at_an_unverified_root(tmp_path, monkeyp
     monkeypatch.delenv("PLUGIN_ROOT", raising=False)
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(tmp_path / "does-not-exist"))
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path / "no-home"))
+    no_home(monkeypatch, tmp_path)
     assert module.resolve() is None
 
 
@@ -49,7 +55,7 @@ def test_does_not_trust_the_codex_compatibility_alias(tmp_path, monkeypatch):
     monkeypatch.setenv("PLUGIN_ROOT", str(codex_root))
     monkeypatch.setenv("CLAUDE_PLUGIN_ROOT", str(codex_root))
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path / "no-home"))
+    no_home(monkeypatch, tmp_path)
     assert module.resolve() is None
 
 
@@ -132,7 +138,7 @@ def test_cli_prints_resolved_root_and_exits_1_when_unresolved(tmp_path, monkeypa
 
     monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path / "no-home"))
+    no_home(monkeypatch, tmp_path)
     assert module.main([]) == 1
     assert capsys.readouterr().out == ""
 
