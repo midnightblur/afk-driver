@@ -88,10 +88,14 @@ def _codex_jira_env():
     return _walk_for_jira_env(data.get("mcp_servers") or data.get("mcpServers") or {})
 
 
-def load_creds():
-    base = os.environ.get("JIRA_BASE_URL")
-    email = os.environ.get("JIRA_EMAIL")
-    token = os.environ.get("JIRA_API_TOKEN")
+CRED_KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
+
+
+def resolve_creds_env():
+    """The `JIRA_*` values the credential chain resolves, per field, in order:
+    exported variables, `~/.claude.json`, `~/.codex/config.toml`. Never exits;
+    an unresolved field is absent."""
+    found = {k: os.environ[k] for k in CRED_KEYS if os.environ.get(k)}
     sources = []
     cfg_path = Path.home() / ".claude.json"
     if cfg_path.exists():
@@ -101,17 +105,19 @@ def load_creds():
             pass
     sources.append(_codex_jira_env())
     for env in sources:
-        if base and email and token:
-            break
-        if env:
-            base = base or env.get("JIRA_BASE_URL")
-            email = email or env.get("JIRA_EMAIL")
-            token = token or env.get("JIRA_API_TOKEN")
-    if not (base and email and token):
+        for k in CRED_KEYS:
+            if env and k not in found and env.get(k):
+                found[k] = env[k]
+    return found
+
+
+def load_creds():
+    found = resolve_creds_env()
+    if len(found) < len(CRED_KEYS):
         sys.exit("ERROR: could not resolve Jira creds (JIRA_BASE_URL/EMAIL/API_TOKEN "
                  "from env, ~/.claude.json mcpServers.tracker.env, or "
                  "~/.codex/config.toml [mcp_servers.tracker.env]).")
-    return base.rstrip("/"), email, token
+    return found["JIRA_BASE_URL"].rstrip("/"), found["JIRA_EMAIL"], found["JIRA_API_TOKEN"]
 
 
 class Jira:

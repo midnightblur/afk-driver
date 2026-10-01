@@ -63,6 +63,14 @@ release page from its section here. Nobody tags by hand.
   only the schema, so a wrong `maven.reactor-pom` or `repo-hooks` path passed
   and left its gate inert. Each missing path now prints a `warning:` line;
   the exit code stays 0. `/afk:setup` reports a missing `setup.extra` file.
+- **`init` no longer guesses the Maven reactor POM.** With no root `pom.xml`
+  it took the first `*pom.xml` by name, often a leaf service. Two or more
+  candidates are now a `TODO` that lists them. `init` also prints the keys it
+  left as `TODO` and hints when the Jira credential chain resolves
+  `JIRA_BASE_URL`.
+- **`init` no longer shadows a tracker or forge the machine layer sets.** It
+  wrote `tracker: none` over a machine-level `tracker: jira`; it now writes that
+  value as a `TODO` comment and lists the key in the `TODO left` line.
 
 ## [1.9.0] - 2026-09-29
 
