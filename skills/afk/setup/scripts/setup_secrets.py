@@ -35,8 +35,10 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parents[4]
 SERVER = PLUGIN_ROOT / "mcp-servers" / "tracker" / "server.py"
 CLAUDE_JSON = Path.home() / ".claude.json"
-MCP_KEY = "tracker"
-LEGACY_MCP_KEY = "jira"        # a machine set up before the server was renamed
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import tracker_registration  # noqa: E402  (the registration shape and the legacy-key rule)
+
+MCP_KEY = tracker_registration.MCP_KEY
 
 
 def config_kind(family: str, root: Path) -> str:
@@ -288,8 +290,9 @@ if TRACKER_KIND == "none":
 else:
     cj = read_json(CLAUDE_JSON)
     servers = cj.get("mcpServers") or {}
-    prior = servers.get(MCP_KEY) or servers.get(LEGACY_MCP_KEY)
-    existing_env = (prior.get("env") or {}) if isinstance(prior, dict) else {}
+    existing_env = tracker_registration.prior_env(servers, PLUGIN_ROOT)
+    if tracker_registration.foreign_legacy(servers, PLUGIN_ROOT):
+        warn("A `jira` MCP server remains; if it is an old afk registration, remove it by hand.")
     if existing_env:
         skip("An existing server entry was found — it will be updated in place.")
 
@@ -350,17 +353,7 @@ else:
         shutil.copy2(CLAUDE_JSON, backup)
         ok(f"backed up harness config -> {backup.name}")
 
-    entry = {
-        "type": "stdio",
-        # Absolute interpreter, not bare "python": a freshly installed interpreter
-        # is absent from any process whose environment predates the install.
-        "command": sys.executable,
-        "args": [str(SERVER)],
-        "env": env,
-    }
-
-    servers[MCP_KEY] = entry               # key + user scope are load-bearing (register H2 Notes)
-    servers.pop(LEGACY_MCP_KEY, None)      # the rename must not leave a duplicate behind
+    servers = tracker_registration.register(servers, env, PLUGIN_ROOT, sys.executable)
     cj["mcpServers"] = servers
     write_json_atomic(CLAUDE_JSON, cj)
     ok(f"server registered user-scoped under key '{MCP_KEY}' (no secret shown)")
@@ -531,5 +524,5 @@ A restart is required: the MCP tools only register at launch, and a terminal
 opened before an install still carries the pre-install PATH.
 
 If the server fails to connect, run it directly to see the real error:
-  {sys.executable} {SERVER}
+  {sys.executable} {SERVER} {PLUGIN_ROOT}
 """)

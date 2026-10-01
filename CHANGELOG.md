@@ -83,6 +83,16 @@ release page from its section here. Nobody tags by hand.
   is absent (their status reads `needs-human: see H0`), and `setup_secrets.py`
   warns instead of printing `tracker: none`. The per-developer probe (`H6`)
   exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
+- **A Jira tracker call with no credentials answers an error instead of ending
+  the server.** The plugin's own server reads credentials on every call, so
+  adding or correcting them applies on the next call; the user-scoped `tracker`
+  entry holds them in its `env` and takes a change after a restart.
+- **The `tracker` server that setup registers now starts.** It was registered
+  without a plugin root and exited at launch; it now uses the plugin's own
+  launcher with the plugin root, so re-run setup after a plugin update.
+- **Setup no longer removes an unrelated `jira` MCP server.** It reused and
+  deleted any user-scoped `jira` entry; it now touches one only when its args
+  point under this plugin root, into an `afk` plugin cache, or at the launcher.
 
 ## [1.9.0] - 2026-09-29
 
