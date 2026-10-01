@@ -36,8 +36,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def repository(tmp_path: Path, manifest: str, scripts: dict[str, str] | None = None) -> Path:
-    root = tmp_path / "repo"
+def repository(
+    tmp_path: Path, manifest: str, scripts: dict[str, str] | None = None, name: str = "repo"
+) -> Path:
+    root = tmp_path / name
     (root / ".afk").mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     (root / ".afk" / "hooks.json").write_text(manifest, encoding="utf-8")
@@ -46,16 +48,23 @@ def repository(tmp_path: Path, manifest: str, scripts: dict[str, str] | None = N
     return root
 
 
-def run(root: Path, event: str, envelope: dict, soft: bool = False):
+UNSET = object()
+
+
+def run(root: Path, event: str, envelope: dict, soft: bool = False, *, project_dir=UNSET, cwd=None):
     argv = [sys.executable, str(LAUNCHER)]
     if soft:
         argv.append("--soft")
     environ = dict(os.environ)
-    environ["CLAUDE_PROJECT_DIR"] = str(root)
+    environ.pop("PROJECT_DIR", None)
+    environ.pop("CLAUDE_PROJECT_DIR", None)
+    named = root if project_dir is UNSET else project_dir
+    if named is not None:
+        environ["CLAUDE_PROJECT_DIR"] = str(named)
     return subprocess.run(
         [*argv, "repo-list", event],
         input=json.dumps(envelope), capture_output=True, text=True,
-        cwd=str(root), env=environ, timeout=180,
+        cwd=str(cwd or root), env=environ, timeout=180,
     )
 
 
@@ -148,3 +157,38 @@ def test_no_manifest_is_not_a_fault(tmp_path):
     done = run(root, "Stop", {"hook_event_name": "Stop"})
     assert done.stdout == ""
     assert done.returncode == 0
+
+
+BLOCK = OK.replace("exit 0", "echo gate-ran >&2\nexit 2")
+STOP_GATE = json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/gate.sh"}])
+
+
+@pytest.mark.parametrize(
+    "case, project_dir, where, expected",
+    [
+        ("A", "x", "y", 0),
+        ("B", "y", "x", 2),
+        ("C", "x", "xwt", 0),
+        ("D", None, "xwt", 0),
+        ("E", None, "x", 2),
+        ("F", "x/sub", "x/sub", 2),
+        ("G", None, "x/sub", 2),
+    ],
+)
+def test_repo_list_reads_the_working_tree_not_the_project_dir(
+    tmp_path, case, project_dir, where, expected
+):
+    x = repository(tmp_path, STOP_GATE, {"gate.sh": BLOCK}, name="x")
+    y = repository(tmp_path, "[]", name="y")
+    (x / "sub").mkdir()
+    subprocess.run(["git", "-C", str(x), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(x), "-c", "user.name=t", "-c", "user.email=t@t", "commit",
+         "-q", "-m", "init"], check=True)
+    xwt = tmp_path / "xwt"
+    subprocess.run(["git", "-C", str(x), "worktree", "add", "-q", "-b", "nogate", str(xwt)], check=True)
+    (xwt / ".afk" / "hooks.json").write_text("[]", encoding="utf-8")
+    dirs = {"x": x, "y": y, "xwt": xwt, "x/sub": x / "sub"}
+    named = dirs[project_dir] if project_dir else None
+    done = run(x, "Stop", {"hook_event_name": "Stop"}, project_dir=named, cwd=dirs[where])
+    assert (done.returncode, "gate-ran" in done.stderr) == (expected, expected == 2), case

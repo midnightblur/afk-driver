@@ -43,7 +43,7 @@ without knowing what they are. It declares them in `.afk/hooks.json`
 (`CONFIG.md` "Repository hooks"): one entry per handler with its `event`,
 `matcher`, `timeout` and repository-relative `script`. `hooks.json` invokes
 `run-hook.py repo-list <event>` once per event; the launcher resolves each
-script under the checkout, refuses one that resolves outside it, and exits 0
+script under the working tree's toplevel (the root every plugin gate uses), refuses one that resolves outside it, and exits 0
 when the manifest is absent — so the plugin stays inert in a repository that
 declares none. A handler a repository DOES declare and this checkout cannot run
 — missing script, unusable matcher, unparsable manifest, no verdict inside its
