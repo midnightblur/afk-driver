@@ -30,7 +30,7 @@ def _load_module(path: Path, name: str):
 
 def configured_kind(root: Path | None = None) -> str:
     config = _load_module(PLUGIN_ROOT / "scripts" / "afk-config.py", "afk_config")
-    return str(config.get(config.load(root or Path.cwd()), "tracker") or "none")
+    return str(config.get(config.load(root or config.project_root()), "tracker") or "none")
 
 
 def load(required: tuple[str, ...] = ()):

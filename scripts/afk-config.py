@@ -310,12 +310,20 @@ def git_root(start: Path | None = None) -> Path | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(start or Path.cwd()), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None
     top = out.stdout.strip()
     return Path(top) if out.returncode == 0 and top else None
+
+
+def project_root(start: Path | None = None) -> Path | None:
+    """`CLAUDE_PROJECT_DIR` when set, else `start` (default cwd); the Git root of
+    either. Config lives under the Git root, so a subdirectory resolves to it."""
+    value = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(value) if value else (start or Path.cwd())
+    return git_root(base) or (Path(value) if value else None)
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:
@@ -779,6 +787,7 @@ def _git(root: Path, *args: str) -> str:
     try:
         out = subprocess.run(
             ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=20,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return ""

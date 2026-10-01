@@ -51,6 +51,14 @@ release page from its section here. Nobody tags by hand.
   built its allowlist from `git ls-files`, which is empty in a harness install,
   so file names and config keys became `<host>`. An install carrying a plugin
   manifest now counts its own files.
+- **The tracker MCP server reads `tracker:` on every call, from the project
+  root.** It used to read the config once at start, from its working directory,
+  so a server started below the repository root, or before `.afk/config.yaml`
+  existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
+  block the same way, and the project-directory variable, when set, names the
+  repository that publisher scripts read. A config change now applies without a restart.
+  The server's `unsupported` and `error` answers carry `config_root`, the
+  checkout it read, so the setup probe decides from the server's own view.
 
 ## [1.9.0] - 2026-09-29
 

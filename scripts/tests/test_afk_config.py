@@ -36,6 +36,7 @@ cfg = _module()
 def run(args, cwd, env=None):
     environ = dict(os.environ)
     environ.pop("AFK_CONFIG", None)
+    environ.pop("CLAUDE_PROJECT_DIR", None)
     environ.update(env or {})
     return subprocess.run(
         [sys.executable, str(SCRIPTS / "afk-config.py"), *args],
