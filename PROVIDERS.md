@@ -97,14 +97,28 @@ run and Codex prints nothing until you have done this once.
 
 ## Model tiers
 
-Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not a vendor claim: pick the first available model in the active harness column, else the nearest capability-compatible model that harness can drive.
+Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not a vendor claim: use the model in the active harness column; if that harness cannot drive it, use the nearest capability-compatible model.
 
-| Tier | Claude Code | Codex CLI |
-|---|---|---|
-| Frontier | `opus` | `gpt-6-sol` at high effort; `gpt-5.6-sol` fallback |
-| Implementation | `opus`, carried by the `afk-implementor` definition; `sonnet` for simple slices | `gpt-6-sol` at medium effort; lower effort for simple slices |
-| Digest | `sonnet` | `gpt-5.6-terra` at medium effort |
-| Deterministic | `haiku`, carried by the `afk-runner-lite` definition | `gpt-6-luna` at low effort |
+| Tier | Claude Code | Codex CLI | Codex effort |
+|---|---|---|---|
+| Frontier | `opus` | `gpt-6-sol` | `high` |
+| Implementation | `opus` | `gpt-6-sol` | `medium` |
+| Digest | `sonnet` | `gpt-5.6-terra` | `medium` |
+| Deterministic | `haiku` | `gpt-6-luna` | `low` |
+
+| Agent | Tier |
+|---|---|
+| `afk-tracer` | Frontier |
+| `afk-implementor` | Implementation |
+| `afk-reader` | Digest |
+| `afk-runner` | Digest |
+| `afk-runner-lite` | Deterministic |
+
+A model cell is the one home of that tier's model. A cell holds an alias to follow the harness default, or an exact model id to pin. Claude Code accepts both in agent frontmatter `model:` (https://code.claude.com/docs/en/sub-agents).
+
+Each agent file repeats its tier's cell literally, because the harness reads frontmatter and TOML as written. To pin a tier, edit its cell; `hooks/native-contract-gate.sh` check L names every `agents/*.md` and `providers/codex/agents/*.toml` that must follow. Codex users re-run `/afk:setup` afterwards, since setup register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the TOMLs.
+
+A spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell.
 
 A Fable-class or Astra-class model is never a tier. Name one only where a skill
 requires that model for one specific usage.

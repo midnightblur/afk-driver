@@ -90,6 +90,11 @@ release page from its section here. Nobody tags by hand.
   refused `checkout` can leave the index switched and a refused `rebase` in
   progress: the tool-call guard stays the primary gate.
 - **Setup detects untrusted guard hooks** by reading the harness config.
+- **Pin a model tier in one place.** The `PROVIDERS.md` "Model tiers" table
+  holds each tier's model per harness and the reasoning effort, and a second
+  table maps each agent to its tier. A cell takes an alias or an exact model
+  id. The native contract gate now fails when an agent file or its provider
+  stub differs from its cell, and names every file that must follow a pin.
 
 ### Fixed
 
@@ -110,6 +115,22 @@ release page from its section here. Nobody tags by hand.
 - **The plugin's own runtime files no longer read as work.** The gate cache and
   metrics folders go to the clone's shared exclude file, and worktree cleanup
   ignores untracked files that live only under them.
+- **Issue reports keep plugin terms from an installed plugin.** The redactor
+  built its allowlist from `git ls-files`, which is empty in a harness install,
+  so file names and config keys became `<host>`. An install carrying a plugin
+  manifest now counts its own files.
+- **The tracker MCP server reads `tracker:` on every call, from the project
+  root.** It used to read the config once at start, from its working directory,
+  so a server started below the repository root, or before `.afk/config.yaml`
+  existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
+  block the same way, and the project-directory variable, when set, names the
+  repository that publisher scripts read. A config change now applies without a restart.
+  The server's `unsupported` and `error` answers carry `config_root`, the
+  checkout it read, so the setup probe decides from the server's own view.
+- **`validate` warns about configured paths that do not exist.** It checked
+  only the schema, so a wrong `maven.reactor-pom` or `repo-hooks` path passed
+  and left its gate inert. Each missing path now prints a `warning:` line;
+  the exit code stays 0. `/afk:setup` reports a missing `setup.extra` file.
 
 ## [1.9.0] - 2026-09-29
 

@@ -12,6 +12,13 @@ python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.comma
 python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
 ```
 
+`validate` fails only on schema problems. For each repository-relative path
+that is absent under the repository root it prints a `warning:` line to stderr
+and still exits 0. The keys are `repo-hooks`, `setup.extra`,
+`maven.reactor-pom`, `maven.formatter-config`, `maven.default-module` and
+`npm.workspace-root`; `maven.worktree-seed` is a per-machine path and is not
+checked.
+
 Bash gates source the flat export once per Stop through `hooks/lib/config.sh`
 and read the fixed `AFK_CFG_*` names.
 
