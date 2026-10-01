@@ -434,7 +434,7 @@ if [[ -n "$NAME" ]]; then
   exclude="$COMMON_DIR/info/exclude"
   mkdir -p "$COMMON_DIR/info"
   grep -qxF "/${FOLDER%/}/" "$exclude" 2>/dev/null || printf '/%s/\n' "${FOLDER%/}" >> "$exclude"
-  # The plugin's own runtime state (gate cache, metrics) must not read as work in any worktree.
+  # Gate cache and metrics that older plugin versions wrote in the tree must not read as work.
   while IFS= read -r runtime; do
     runtime="${runtime%$'\r'}"
     [[ -n "$runtime" ]] && { grep -qxF "/$runtime" "$exclude" 2>/dev/null || printf '/%s\n' "$runtime" >> "$exclude"; }

@@ -46,6 +46,9 @@ release page from its section here. Nobody tags by hand.
 - **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
   relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
   longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
+- **Gates no longer leave files in your checkout.** Their pass cache and timing
+  log now live under the git directory, so `.claude/` stops showing in `git
+  status`; delete any old `.claude/hooks/.gate-cache/` and `.claude/metrics/`.
 
 ## [1.10.0] - 2026-10-01
 
