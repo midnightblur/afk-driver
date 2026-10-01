@@ -15,7 +15,8 @@ Credentials are read from same-named OS env vars, or from the tracker MCP
 server's env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL /
 JIRA_API_TOKEN), or from ~/.codex/config.toml [mcp_servers.tracker.env];
 resolution order env > claude.json > codex config.toml. The server was once
-registered as `jira`, so both names are accepted. Nothing is hardcoded.
+registered as `jira`; that name counts only for afk's own entry (setup's
+`is_afk_entry`). Nothing is hardcoded.
 """
 
 from __future__ import annotations

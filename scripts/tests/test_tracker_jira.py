@@ -209,7 +209,6 @@ class TestCreds(unittest.TestCase):
         self.assertEqual(base, "https://env.atlassian.net")  # env field kept
         self.assertEqual((email, token), ("file@x.test", "file-tok"))  # file fills the rest
 
-
     # --- a `jira` server counts only when it is afk's own (setup's rule) ---
     FOREIGN = {"JIRA_BASE_URL": "https://foreign.example.net", "JIRA_EMAIL": "f@example.com",
                "JIRA_API_TOKEN": "foreign-tok"}
