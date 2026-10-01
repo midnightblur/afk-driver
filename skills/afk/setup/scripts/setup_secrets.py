@@ -256,6 +256,10 @@ ok(f"repo {REPO}")
 TRACKER_KIND = config_kind("tracker", REPO)
 FORGE_KIND = config_kind("forge", REPO)
 ok(f"tracker: {TRACKER_KIND}   forge: {FORGE_KIND}")
+if not (REPO / ".afk" / "config.yaml").is_file():
+    warn("no .afk/config.yaml in this repository — tracker and forge come from "
+         "other layers or default to none; create it with /afk:setup step 0 "
+         "(afk-config.py init)")
 
 if not SERVER.exists():
     die(f"MCP server missing at {SERVER} — pull a revision that ships it, then re-run.")
