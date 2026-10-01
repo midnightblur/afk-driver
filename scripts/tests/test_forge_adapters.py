@@ -890,3 +890,24 @@ def test_thread_list_fails_when_graphql_omits_lastEditedAt(tmp_path, kind, body)
     answer = json.loads(forge(kind, stub(tmp_path, kind, body.replace(',"lastEditedAt":null', "")),
                               "thread-list", '{"id":"7"}', cwd=tmp_path).stdout)
     assert answer["error"] is True and "threads" not in answer
+
+
+def _project():
+    spec = importlib.util.spec_from_file_location(
+        "afk_project_from_remote", PLUGIN_ROOT / "adapters" / "forge" / "project_from_remote.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.project
+
+
+@pytest.mark.parametrize("url, expected", [
+    ("https://github.com/acme/widget.git/", "acme/widget"),
+    ("https://gitlab.com/g/sub/n.git/", "g/sub/n"),
+    ("git@github.com:owner/name.git", "owner/name"),
+    ("https://gitlab.com/group/sub/name.git", "group/sub/name"),
+    ("ssh://git@host:2222/group/name", "group/name"),
+    ("https://github.com/acme", ""),
+    ("https://github.com", ""),
+])
+def test_project_from_remote(url, expected):
+    assert _project()(url) == expected
