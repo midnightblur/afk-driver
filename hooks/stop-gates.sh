@@ -15,6 +15,7 @@
 #   2. Scope-driven dispatch — a gate is only entered when the change set holds
 #      a path it could possibly gate. Scope tests are fork-free list matches, so
 #      "no .java changed" costs a string compare, not a bash startup + git call.
+# Rule 3, at the end, bounds how often one unchanged tree can block.
 #
 # Heavy code gates (maven-compile, java-format, ui-lint) are NOT here: they run
 # at commit/push time via precommit-gates.sh (installed by install-git-hooks.sh),
@@ -52,13 +53,21 @@ while IFS= read -r _l; do [ -n "$_l" ] && n_changed=$((n_changed + 1)); done <<<
 gate_metrics_emit context pass "\"changed\":$n_changed"
 
 # ---- rule 1: nothing changed since the last all-green Stop -> no gate runs.
-# Only a PASS verdict may short-circuit: an unchanged tree that BLOCKED last time
-# must block again, or the agent could finish simply by trying twice.
+# Only a PASS verdict may short-circuit; a block on this tree counts toward rule 3.
 STOP_STAMP=".claude/hooks/.gate-cache/.last-stop"
-if [ "${GATE_CACHE_DISABLE:-0}" != "1" ] && [ -f "$STOP_STAMP" ]; then
-  if [ "$(<"$STOP_STAMP")" = "pass:$AFK_CTX_TREE" ]; then
+STOP_BLOCK_LIMIT=3
+prior_blocks=0
+if [ -f "$STOP_STAMP" ]; then
+  stop_stamp=$(<"$STOP_STAMP")
+  if [ "${GATE_CACHE_DISABLE:-0}" != "1" ] && [ "$stop_stamp" = "pass:$AFK_CTX_TREE" ]; then
     exit 0
   fi
+  case "$stop_stamp" in
+    "blocked:"*":$AFK_CTX_TREE")
+      prior_blocks=${stop_stamp#blocked:}
+      prior_blocks=${prior_blocks%%:*}
+      case "$prior_blocks" in ''|*[!0-9]*) prior_blocks=0 ;; esac ;;
+  esac
 fi
 
 PLUGIN_DIR=$(afk_plugin_dir)
@@ -67,6 +76,7 @@ PLUGIN_SCOPE=$(afk_plugin_scope)
 # ---- rule 2: scope-driven dispatch. Each entry is "<gate>:<scope-test>", where
 # the scope test is fork-free and answers "could this gate have anything to say?"
 blocked=0
+blocked_gates=""
 crashed=0
 
 # Gate findings are the block reason, and a reason has to be a value, not a
@@ -94,7 +104,7 @@ run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   "$fn"; rc=$?
   case "$rc" in
     0) ;;
-    2) blocked=1 ;;
+    2) blocked=1; blocked_gates="${blocked_gates:+$blocked_gates, }$name" ;;
     *) printf '[afk] gate %s crashed (rc %s) — verdict unknown.\n' "$name" "$rc" >&2
        crashed=1 ;;
   esac
@@ -148,11 +158,16 @@ write_stamp() {
 
 release_stderr
 
+# ---- rule 3: one unchanged tree blocks at most STOP_BLOCK_LIMIT Stops in a row;
+# later Stops on it are allowed with a notice. No pass stamp: the findings stand.
 if [ "$blocked" = "1" ]; then
-  write_stamp "blocked:$AFK_CTX_TREE"
+  write_stamp "blocked:$((prior_blocks + 1)):$AFK_CTX_TREE"
   reason=$(cat "$GATE_ERR" 2>/dev/null)
   rm -f "$GATE_ERR" 2>/dev/null
-  afk_block_stop "$reason"
+  [ "$prior_blocks" -lt "$STOP_BLOCK_LIMIT" ] && afk_block_stop "$reason"
+  printf '%s\n' "$reason" >&2
+  afk_emit_stop_notice "[afk] The Stop gates blocked this unchanged tree $prior_blocks times in a row, so this Stop is allowed. The findings still stand: $blocked_gates. A change to the tree resets the count, and the gates block again."
+  exit 0
 fi
 
 # Not blocking: a crashed gate or an advisory line still has to be seen.
