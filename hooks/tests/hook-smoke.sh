@@ -766,11 +766,14 @@ echo "== native twins =="
 twin() {
   local label=$1 claude_file=$2 codex_file=$3
   if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" <<'PY'
-import json, sys
+import json, re, sys
 claude = json.load(open(sys.argv[1], encoding="utf-8"))
 codex = json.load(open(sys.argv[2], encoding="utf-8"))
 left = json.dumps(claude, sort_keys=True).replace("${CLAUDE_PLUGIN_ROOT}", "<ROOT>")
 right = json.dumps(codex, sort_keys=True).replace("${PLUGIN_ROOT}", "<ROOT>")
+# The MCP launcher names its own harness directory once; nothing else differs.
+own = re.compile(r'own = \\*"\.(claude|codex)\\*"')
+left, right = own.sub("own = <OWN>", left), own.sub("own = <OWN>", right)
 sys.exit(0 if left == right else 1)
 PY
   then
