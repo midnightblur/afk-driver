@@ -77,7 +77,7 @@ def repo_root(env: dict[str, str]) -> Path | None:
     try:
         out = subprocess.run(
             [git, "-C", os.getcwd(), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=20, env=env,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env=env,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -99,7 +99,7 @@ def git_relative_bash() -> Path | None:
     """Git for Windows ships bash.exe in <git>/bin, beside its exec-path tree."""
     try:
         out = subprocess.run(
-            ["git", "--exec-path"], capture_output=True, text=True, timeout=20,
+            ["git", "--exec-path"], capture_output=True, encoding="utf-8", errors="replace", timeout=20,
         )
     except (OSError, subprocess.SubprocessError):
         return None

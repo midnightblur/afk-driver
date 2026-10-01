@@ -78,7 +78,7 @@ def log_path(repo: str, name: str) -> Path | None:
     """`<git dir>/afk-worktrees/<name>.log`, beside the owner records."""
     try:
         done = subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                              capture_output=True, text=True, timeout=30)
+                              capture_output=True, encoding="utf-8", errors="replace", timeout=30)
         if done.returncode != 0 or not done.stdout.strip():
             return None
         folder = Path(done.stdout.strip()) / "afk-worktrees"
@@ -104,7 +104,7 @@ def create(args) -> tuple[Path | None, str]:
         return None, "no POSIX shell to run create-worktree"
     env = dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT), AFK_PROVIDER=args.provider)
     done = subprocess.run([shell, (HERE / "create-worktree").as_posix(), "--repo", Path(args.repo).as_posix(),
-                           "--name", args.name, "--session", args.session], capture_output=True, text=True,
+                           "--name", args.name, "--session", args.session], capture_output=True, encoding="utf-8", errors="replace",
                           cwd=args.cwd or args.repo, env=env, timeout=900)
     found = re.findall(r"^WORKTREE_PATH=(.+)$", done.stdout, re.M)
     if done.returncode == 0 and found:
@@ -128,10 +128,10 @@ def record(marker: str, **outcome: str) -> None:
 
 
 def herdr_json(binary: str, *argv: str):
-    done = subprocess.run([binary, *argv], capture_output=True, text=True, timeout=30)
+    done = subprocess.run([binary, *argv], capture_output=True, encoding="utf-8", errors="replace", timeout=30)
     try:
-        return json.loads(done.stdout)
-    except ValueError:
+        return json.loads(done.stdout or "")  # None or empty output is no answer
+    except (ValueError, TypeError):
         return None
 
 

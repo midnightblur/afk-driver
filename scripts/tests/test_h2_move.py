@@ -97,7 +97,8 @@ def stub_herdr(tmp_path: Path, read_text: str = "", working_polls: int = 0) -> t
         "if sys.argv[1:3] == ['agent', 'get']:\n"
         f"    polls = sum(1 for l in open(r'{log}') if json.loads(l)[:2] == ['agent', 'get'])\n"
         f"    status = 'working' if polls <= {working_polls} else 'idle'\n"
-        "    print(json.dumps({'result': {'agent': {'agent': 'codex', 'agent_status': status}}}))\n"
+        "    body = {'result': {'agent': {'agent': 'codex', 'agent_status': status, 'terminal_title': '\\u271d \\u2733'}}}\n"
+        "    sys.stdout.buffer.write(json.dumps(body, ensure_ascii=False).encode('utf-8') + chr(10).encode())\n"
         "elif sys.argv[1:3] == ['agent', 'read']:\n"
         f"    sys.stdout.buffer.write({read_text!r}.encode('utf-8') + chr(10).encode())\n"
         "else:\n"
@@ -414,3 +415,22 @@ def test_r11_5_a_new_move_starts_its_log_empty(repo):
     first = module.log_path(str(repo), "session-reuse")
     first.write_text("old run\n", encoding="utf-8")
     assert module.log_path(str(repo), "session-reuse").read_text(encoding="utf-8") == ""
+
+
+def test_p8_agent_output_with_bytes_the_locale_code_page_cannot_decode_still_parses(tmp_path):
+    herdr, log = stub_herdr(tmp_path, "\u203a")
+    module = load_move()
+    answer = module.herdr_json(herdr, "agent", "get", "w:p11")
+    assert answer["result"]["agent"]["terminal_title"] == "\u271d \u2733"
+    module.type_line(herdr, "w:p11", Path("C:/x"))
+    assert prompts(log), "the helper must get past the first agent get and type"
+
+
+def test_p8_an_empty_or_missing_answer_is_no_answer_not_a_crash(monkeypatch):
+    module = load_move()
+
+    class Done:
+        stdout = None
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: Done())
+    assert module.herdr_json("x", "agent", "get", "p") is None

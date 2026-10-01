@@ -102,7 +102,7 @@ if os.name == "nt":
         return True if code == _ACCESS_DENIED else None
 else:
     def snapshot() -> dict[int, tuple[int, str]]:
-        out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,comm="], capture_output=True, text=True)
+        out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,comm="], capture_output=True, encoding="utf-8", errors="replace")
         table: dict[int, tuple[int, str]] = {}
         for line in out.stdout.splitlines():
             parts = line.split(None, 2)
@@ -116,7 +116,7 @@ else:
                 return stat.read().rsplit(")", 1)[1].split()[19]
         except (OSError, IndexError):
             pass
-        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True)
+        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, encoding="utf-8", errors="replace")
         return out.stdout.strip() or None
 
     def exists(pid: int) -> bool | None:

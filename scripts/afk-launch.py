@@ -55,7 +55,7 @@ def cut(where: Path, provider: str) -> Path:
     if (guard.PROVIDERS / f"{provider}.json").is_file():
         env["AFK_PROVIDER"] = provider
     done = subprocess.run([str(shell), (HERE / "create-worktree").as_posix(), "--name",
-                           f"session-{uuid.uuid4().hex[:8]}"], capture_output=True, text=True, cwd=where, env=env,
+                           f"session-{uuid.uuid4().hex[:8]}"], capture_output=True, encoding="utf-8", errors="replace", cwd=where, env=env,
                           timeout=900)
     found = re.findall(r"^WORKTREE_PATH=(.+)$", done.stdout, re.M)
     if done.returncode != 0 or not found:

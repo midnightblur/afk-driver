@@ -50,7 +50,7 @@ def _left() -> float:
 def _git(checkout: Path, *args: str) -> str:
     try:
         done = subprocess.run(["git", "-C", str(checkout), *args], capture_output=True,
-                              text=True, timeout=_left())
+                              encoding="utf-8", errors="replace", timeout=_left())
     except (OSError, ValueError, subprocess.SubprocessError):
         return ""
     return done.stdout.strip() if done.returncode == 0 else ""

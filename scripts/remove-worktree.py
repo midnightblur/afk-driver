@@ -37,7 +37,7 @@ WAIT_CAP = 24 * 3600  # seconds a detached waiter outlives the session it follow
 
 
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env=ENV, timeout=120)
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, encoding="utf-8", errors="replace", env=ENV, timeout=120)
 
 
 def owner_module():

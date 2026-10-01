@@ -110,7 +110,7 @@ def tool_class(tool: str, facts: dict) -> str:
 def git(directory: Path, *args: str) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(["git", "-C", str(directory), *args], capture_output=True,
-                              text=True, timeout=min(20, remaining()))
+                              encoding="utf-8", errors="replace", timeout=min(20, remaining()))
     except FileNotFoundError as problem:
         raise Fault("git is not installed") from problem
     except subprocess.TimeoutExpired as problem:
