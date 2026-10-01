@@ -489,6 +489,15 @@ a token value — not even partially.
 - **Notes:** setup installs and verifies only. It does not start herdr, create
   a workspace, or move a session. `herdr update` self-updates later.
 
+### C16 · herdr session reporting for the H-2 harness **[opt-in]**
+- **Needed by:** the H-2 worktree move (`scripts/afk-move.py`): it types the `/cd`
+  line only into a pane whose session id herdr reports, and herdr learns that id from
+  its own integration hook. Without it the refusal's printed line is the human's to type.
+- **Probe:** `herdr integration status | grep -q '^codex: current'`
+- **Fix:** `auto:` `herdr integration install codex`, then re-probe. Restart `codex`
+  so the new hook runs.
+- **Notes:** needs C15. Opt-in: a miss never blocks the guard.
+
 ### P1 · Python 3
 - **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
   runs through, so without it no gate or guard fires at all — the shared

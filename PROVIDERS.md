@@ -50,6 +50,11 @@ and `owner_pid_env`.
 | H-1 | `claude` | The agent calls its own worktree tool. The `WorktreeCreate` handler runs `scripts/create-worktree`. | `WorktreeRemove` and `SessionEnd` handlers run `scripts/remove-worktree.py`; a session ending inside its worktree starts a detached waiter that removes it once the harness exits |
 | H-2 | `codex` | The guard names a new worktree and the `/cd <path>` line, then a detached helper cuts it and, in a herdr pane, types the line. `scripts/afk-launch.py` starts a harness in a worktree. | `SessionEnd` handler runs `scripts/remove-worktree.py` |
 
+Typing the `/cd` line needs herdr's session reporting for the H-2 harness: herdr learns a
+pane's session id from its own integration hook (`herdr integration install codex`), and the
+helper types only into a pane whose reported session is the refused one. Without it the helper
+types nothing and logs why; the human types the printed `/cd` line.
+
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
 creates a worktree through the plugin must also remove it through the plugin.
 Every session start prunes worktrees whose owner is gone.

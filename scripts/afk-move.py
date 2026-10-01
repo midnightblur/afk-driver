@@ -192,6 +192,8 @@ def owns_pane(binary: str, pane: str) -> bool:
     cwd = str(agent.get("cwd") or "")
     ok = (kind == WHO.get("provider") and bool(seen) and seen == WHO.get("session")
           and same_dir(cwd, WHO.get("cwd", "")))
+    if kind == WHO.get("provider") and not seen:
+        log(f"herdr reports no session for pane {pane}; install herdr's integration for {kind} to get the line typed")
     if not ok:
         log(f"pane {pane} belongs to another agent ({kind or '?'}/{seen or '?'}/{cwd or '?'}): nothing typed")
     return ok

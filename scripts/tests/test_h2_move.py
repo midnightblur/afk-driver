@@ -479,7 +479,9 @@ def test_r15_1_a_pane_with_no_reported_session_gets_nothing_typed_and_the_log_sa
     herdr, log = stub_herdr(tmp_path, "\u203a", session=None)
     module.type_line(herdr, "w:pE", Path("C:/x"))
     assert not prompts(log)
-    assert "nothing typed" in (tmp_path / "move.log").read_text(encoding="utf-8")
+    text = (tmp_path / "move.log").read_text(encoding="utf-8")
+    assert "nothing typed" in text
+    assert "herdr reports no session for pane w:pE; install herdr's integration for codex to get the line typed" in text
 
 
 def test_r15_2_two_sessions_sharing_an_inherited_pane_id_each_get_their_own_worktree(repo):
