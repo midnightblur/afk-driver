@@ -6,7 +6,9 @@
 
 The guard starts this and refuses at once, naming the path it will create. Outside a
 terminal workspace (no `--pane`) it only creates; the refusal already printed the `/cd` line.
-Inside one it waits for the agent to be idle and reads the pane: it types the unquoted
+Inside one it first proves the pane is the refused session's own agent (kind, session id,
+cwd; an agent started from another agent's pane inherits its pane id), waits for it to be
+idle, proves it again, and reads the pane: it types the unquoted
 line only when the composer is empty or holds the helper's own earlier `/cd` line, then
 reads the pane back. The wait for idle lasts up to 10 minutes per attempt: the agent may
 still be answering the refusal. A refusal message from the harness means try again (up to 3
@@ -36,6 +38,7 @@ UI: dict = {}  # the harness's move_ui facts, from hooks/lib/providers/<provider
 DONE = REFUSED = COMPOSER = GLYPH = None
 ATTEMPTS, WAIT_IDLE, SETTLE = 3, 600.0, 2.0
 LOG: Path | None = None
+WHO: dict = {}  # the refused session: provider name, session id, main checkout path
 
 
 def configure(provider: str) -> bool:
@@ -170,15 +173,42 @@ def composer_text(seen: str) -> str | None:
     return None
 
 
+def same_dir(a: str, b: str) -> bool:
+    def norm(text: str) -> str:
+        return os.path.normcase(os.path.normpath(text.removeprefix("\\\\?\\"))) if text else ""
+    return bool(a) and norm(a) == norm(b)
+
+
+def owns_pane(binary: str, pane: str) -> bool:
+    """Is `pane` the refused session's own agent? A pane that cannot be proven theirs gets no typing.
+
+    An agent started inside another agent's pane inherits that pane's id, so the id alone proves
+    nothing: the pane's agent kind, session id (when herdr reports one) and cwd must all match.
+    """
+    agent = ((herdr_json(binary, "agent", "get", pane) or {}).get("result") or {}).get("agent") or {}
+    kind = str(agent.get("agent") or "")
+    seen = str((agent.get("agent_session") or {}).get("value") or "")
+    cwd = str(agent.get("cwd") or "")
+    ok = (kind == WHO.get("provider") and (not seen or seen == WHO.get("session"))
+          and same_dir(cwd, WHO.get("cwd", "")))
+    if not ok:
+        log(f"pane {pane} belongs to another agent ({kind or '?'}/{seen or '?'}/{cwd or '?'}): nothing typed")
+    return ok
+
+
 def type_line(binary: str, pane: str, path: Path) -> None:
     """Type the provider's move line until the harness confirms it or refuses for good."""
     if not UI:
         log("stop: no move_ui facts for this provider")
         return
     for attempt in range(1, ATTEMPTS + 1):
+        if not owns_pane(binary, pane):
+            return
         log(f"attempt {attempt}: waiting for pane {pane} to be idle")
         if not idle(binary, pane):
             continue
+        if not owns_pane(binary, pane):
+            return  # the pane's agent changed during the wait
         text = composer_text(read_pane(binary, pane, "ansi"))
         log("composer: " + ("no composer" if text is None else "empty" if not text
                             else "own move line" if text.startswith(line_prefix())
@@ -209,6 +239,7 @@ def main(argv: list[str]) -> int:
     global LOG
     LOG = log_path(args.repo, args.name)
     configure(args.provider)
+    WHO.update(provider=args.provider, session=args.session, cwd=args.cwd or args.repo)
     try:
         return run(args)
     except BaseException:

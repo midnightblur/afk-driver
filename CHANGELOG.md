@@ -80,6 +80,11 @@ release page from its section here. Nobody tags by hand.
   placeholder was read as the human's text, so the line was never typed. The helper now
   reads the pane with styling and treats the dim placeholder as empty, and decodes the
   pane as UTF-8.
+- **The worktree move types only into the refused session's own pane.** An agent started
+  from a shell inside another agent's terminal pane inherits that pane's id, and the move
+  typed `/cd` into the parent agent. The helper now checks that the pane's agent kind,
+  session id (when reported) and directory match the refused session, before the idle wait
+  and again before typing; otherwise it types nothing and the refusal's `/cd` line stands.
 - **A worktree guard check without a token in the environment runs one process, not two.**
   The GitHub reads ask `gh auth token` once and go concurrently over HTTPS; a failing token
   call falls back to the CLI reads. The token stays in memory.

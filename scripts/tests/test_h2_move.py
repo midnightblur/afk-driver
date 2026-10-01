@@ -88,7 +88,8 @@ def test_two_sessions_get_two_paths(repo):
     assert a != b
 
 
-def stub_herdr(tmp_path: Path, read_text: str = "", working_polls: int = 0) -> tuple[str, Path]:
+def stub_herdr(tmp_path: Path, read_text: str = "", working_polls: int = 0, kind: str = "codex",
+               session: str | None = "sess", cwd: str = "C:/main", switch_after: int = 10**6) -> tuple[str, Path]:
     log = tmp_path / "herdr.log"
     script = tmp_path / "herdr_stub.py"
     script.write_text(
@@ -97,7 +98,10 @@ def stub_herdr(tmp_path: Path, read_text: str = "", working_polls: int = 0) -> t
         "if sys.argv[1:3] == ['agent', 'get']:\n"
         f"    polls = sum(1 for l in open(r'{log}') if json.loads(l)[:2] == ['agent', 'get'])\n"
         f"    status = 'working' if polls <= {working_polls} else 'idle'\n"
-        "    body = {'result': {'agent': {'agent': 'codex', 'agent_status': status, 'terminal_title': '\\u271d \\u2733'}}}\n"
+        f"    who = {kind!r} if polls <= {switch_after} else 'claude'\n"
+        f"    agent = {{'agent': who, 'agent_status': status, 'cwd': {cwd!r}, 'terminal_title': '\\u271d \\u2733'}}\n"
+        f"    if {session is not None}: agent['agent_session'] = {{'value': {session!r}}}\n"
+        "    body = {'result': {'agent': agent}}\n"
         "    sys.stdout.buffer.write(json.dumps(body, ensure_ascii=False).encode('utf-8') + chr(10).encode())\n"
         "elif sys.argv[1:3] == ['agent', 'read']:\n"
         f"    sys.stdout.buffer.write({read_text!r}.encode('utf-8') + chr(10).encode())\n"
@@ -119,7 +123,7 @@ def prompts(log: Path) -> list[list[str]]:
 
 
 def test_inside_herdr_the_helper_types_the_unquoted_cd_line_once(repo, tmp_path):
-    herdr, log = stub_herdr(tmp_path, "\u203a\nWorking directory changed to: x")
+    herdr, log = stub_herdr(tmp_path, "\u203a\nWorking directory changed to: x", session="s3", cwd=str(repo))
     done = refuse(repo, "s3", HERDR_ENV="1", HERDR_PANE_ID="w:p1", HERDR_BIN_PATH=herdr)
     path = typed_path(done.stderr)
     end = time.time() + 600
@@ -136,6 +140,7 @@ def test_the_helper_retries_only_when_the_harness_refused_the_line(tmp_path):
     spec.loader.exec_module(module)
     module.SETTLE = 0
     module.configure("codex")
+    module.WHO.update(provider="codex", session="sess", cwd="C:/main")
     herdr, log = stub_herdr(tmp_path, "\u203a\n'/cd' is disabled while a task is in progress.")
     module.type_line(herdr, "w:p2", Path("C:/x"))
     assert len(prompts(log)) == module.ATTEMPTS
@@ -249,6 +254,7 @@ def load_move():
     spec.loader.exec_module(module)
     module.SETTLE = 0
     module.configure("codex")
+    module.WHO.update(provider="codex", session="sess", cwd="C:/main")
     return module
 
 
@@ -434,3 +440,49 @@ def test_p8_an_empty_or_missing_answer_is_no_answer_not_a_crash(monkeypatch):
 
     monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: Done())
     assert module.herdr_json("x", "agent", "get", "p") is None
+
+
+def test_p10_a_pane_of_another_agent_kind_gets_nothing_typed(tmp_path, monkeypatch):
+    module = load_move()
+    monkeypatch.setattr(module, "LOG", tmp_path / "move.log")
+    herdr, log = stub_herdr(tmp_path, "\u203a", kind="claude")
+    module.type_line(herdr, "w:pA", Path("C:/x"))
+    assert not prompts(log)
+    text = (tmp_path / "move.log").read_text(encoding="utf-8")
+    assert "belongs to another agent (claude/sess/C:/main): nothing typed" in text
+
+
+def test_p10_a_pane_of_the_right_kind_but_another_session_gets_nothing_typed(tmp_path):
+    module = load_move()
+    herdr, log = stub_herdr(tmp_path, "\u203a", session="someone-else")
+    module.type_line(herdr, "w:pB", Path("C:/x"))
+    assert not prompts(log)
+
+
+def test_p10_a_pane_in_another_directory_gets_nothing_typed(tmp_path):
+    module = load_move()
+    herdr, log = stub_herdr(tmp_path, "\u203a", cwd="C:/elsewhere")
+    module.type_line(herdr, "w:pC", Path("C:/x"))
+    assert not prompts(log)
+
+
+def test_p10_the_matching_pane_is_typed_into_and_a_reported_cwd_compares_normalised(tmp_path):
+    module = load_move()
+    herdr, log = stub_herdr(tmp_path, "\u203a", cwd="c:\\MAIN\\")
+    module.type_line(herdr, "w:pD", Path("C:/x"))
+    assert prompts(log)
+
+
+def test_p10_a_pane_with_no_reported_session_matches_on_kind_and_cwd(tmp_path):
+    module = load_move()
+    herdr, log = stub_herdr(tmp_path, "\u203a", session=None)
+    module.type_line(herdr, "w:pE", Path("C:/x"))
+    assert prompts(log)
+
+
+def test_p10_the_check_is_redone_after_the_idle_wait(tmp_path, monkeypatch):
+    module = load_move()
+    monkeypatch.setattr(module, "time", FakeClock())
+    herdr, log = stub_herdr(tmp_path, "\u203a", working_polls=5, switch_after=3)
+    module.type_line(herdr, "w:pF", Path("C:/x"))
+    assert not prompts(log)
