@@ -847,6 +847,8 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
 | `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
+| `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |
 | `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |

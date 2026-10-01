@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Who owns a worktree: the harness process that made it, and whether it still runs.
 
-    python worktree_owner.py find             -> {"pid": N, "ctime": "...", "name": "..."}
     python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
     python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
     python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
@@ -227,9 +226,6 @@ def main(argv: list[str]) -> int:
         return record(argv[1:])
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
-        return 0
-    if argv[:1] == ["find"]:
-        print(json.dumps(find_owner()))
         return 0
     if len(argv) == 2 and argv[0] == "ctime" and argv[1].isdigit():
         print(creation_time(int(argv[1])) or "")

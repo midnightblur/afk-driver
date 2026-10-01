@@ -2,7 +2,7 @@
 """Remove a worktree the plugin made, or prune the ones whose session is gone.
 
     remove-worktree.py --path <dir> [--force]   remove one plugin-made worktree
-    remove-worktree.py --prune [--repo <dir>]   remove every stale one of a repository
+    remove-worktree.py --prune                  remove every stale one of this repository
     remove-worktree.py --report-kept            print the kept worktrees not yet shown, as hook context
     remove-worktree.py --after-exit <pid>:<ctime> --path <dir>   detached: wait for that process, then remove
 
@@ -373,8 +373,8 @@ def main(argv: list[str]) -> int:
     try:
         if args[:1] == ["--path"] and len(args) == 2:
             remove_one(Path(args[1]), force)
-        elif args[:1] == ["--prune"] and len(args) in (1, 3):
-            prune(Path(args[2]) if len(args) == 3 else Path.cwd())
+        elif args == ["--prune"]:
+            prune(Path.cwd())
         elif args[:1] == ["--after-exit"] and len(args) == 4 and args[2] == "--path":
             after_exit(args[1], Path(args[3]))
         elif args == ["--report-kept"]:
