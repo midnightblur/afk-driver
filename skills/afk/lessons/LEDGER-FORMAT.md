@@ -20,7 +20,7 @@ every feature worktree, so lessons recorded in one worktree are visible in all:
 Resolution: `git rev-parse --path-format=absolute --git-common-dir` → the
 ledger root is that path's parent directory. Override with `LESSON_LEDGER_FILE`.
 A gitignored **runtime artifact of the target repo** (same standing as
-`.claude/bugs/` and `.claude/metrics/`) — never committed, never a plugin file.
+`.claude/bugs/`) — never committed, never a plugin file.
 
 ## Event model
 

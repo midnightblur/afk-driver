@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-01
+
 ### Fixed
 
 - **The Jira adapter no longer reads credentials from another vendor's `jira`
@@ -46,6 +48,17 @@ release page from its section here. Nobody tags by hand.
 - **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
   relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
   longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
+- **A Stop gate block no longer repeats forever on an unchanged tree.** An
+  agent that made no change was blocked on every turn until a run cap stopped
+  it. Now the same tree blocks at most 3 Stops in a row in one session. The
+  next Stop is allowed, and a notice tells you which gates still have
+  findings. A new session or any change to the tree resets the count.
+- **Gates no longer leave files in your checkout.** Their pass cache and timing
+  log now live under the git directory, so `.claude/` stops showing in `git
+  status`; delete any old `.claude/hooks/.gate-cache/` and `.claude/metrics/`.
+- **The H-2 harness no longer warns about the session-end hook at every
+  start.** It caps that hook at 3 seconds; the plugin now declares 3, and the
+  hook takes under 1 second.
 
 ## [1.10.0] - 2026-10-01
 

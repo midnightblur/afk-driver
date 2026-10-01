@@ -156,6 +156,13 @@ def test_gitlab_exact_and_wildcard_over_every_page(tmp_path, branch, hit):
     assert answer["protected"] is hit, done.stdout
 
 
+def test_gitlab_a_rule_inherited_from_the_group_protects(tmp_path):
+    rules = '[{"name":"develop","inherited":true},{"name":"main","inherited":false}]'
+    environ = stub(tmp_path, "glab", f"echo '{rules}'\n")
+    answer, done = protection("gitlab", environ, "develop", tmp_path)
+    assert answer["protected"] is True, done.stdout
+
+
 def test_gitlab_wildcard_dot_is_literal(tmp_path):
     environ = stub(tmp_path, "glab", "echo '[{\"name\":\"a.b\"}]'\n")
     answer, _ = protection("gitlab", environ, "aXb", tmp_path)

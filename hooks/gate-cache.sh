@@ -22,7 +22,8 @@
 # A failed run stores nothing — the stored key stays the last passing tree,
 # which by construction differs from any tree that can fail.
 #
-# Cache lives in the GATED repo at .claude/hooks/.gate-cache/<gate>.
+# Cache: `git rev-parse --git-path afk/gate-cache`/<gate> (AFK_CTX_CACHE_DIR),
+# never the working tree; outside a repository nothing is read or written.
 # GATE_CACHE_DISABLE=1 bypasses (every run does real work).
 # Assumes cwd = repo root (all gates cd there first).
 
@@ -71,11 +72,23 @@ gate_cache_key() {
   printf '%s:%s\n%s' "$gate" "$AFK_CTX_HEAD" "$scoped"
 }
 
+_gate_cache_dir() {
+  # True once AFK_CTX_CACHE_DIR names this worktree's cache dir (free after a context build).
+  if ! declare -F gate_ctx_gitdirs >/dev/null; then
+    local d=${BASH_SOURCE[0]%/*}
+    [ "$d" = "${BASH_SOURCE[0]}" ] && d=.
+    . "$d/gate-context.sh"
+  fi
+  gate_ctx_gitdirs
+  [ -n "${AFK_CTX_CACHE_DIR:-}" ]
+}
+
 gate_cache_hit() {
   # $1 = gate name, $2 = key. True only when the stored last-pass key matches.
   [ "${GATE_CACHE_DISABLE:-0}" = "1" ] && return 1
   [ -n "${2:-}" ] || return 1
-  local f=".claude/hooks/.gate-cache/$1"
+  _gate_cache_dir || return 1
+  local f="$AFK_CTX_CACHE_DIR/$1"
   [ -f "$f" ] || return 1
   [ "$(<"$f")" = "$2" ]
 }
@@ -86,8 +99,9 @@ gate_cache_store() {
   # file mid-truncate must see old-or-new, never a torn key.
   [ "${GATE_CACHE_DISABLE:-0}" = "1" ] && return 0
   [ -n "${2:-}" ] || return 0
-  mkdir -p .claude/hooks/.gate-cache 2>/dev/null || return 0
-  local f=".claude/hooks/.gate-cache/$1"
+  _gate_cache_dir || return 0
+  [ -d "$AFK_CTX_CACHE_DIR" ] || mkdir -p "$AFK_CTX_CACHE_DIR" 2>/dev/null || return 0
+  local f="$AFK_CTX_CACHE_DIR/$1"
   printf '%s\n' "$2" > "$f.$$" 2>/dev/null && mv -f "$f.$$" "$f" 2>/dev/null
   rm -f "$f.$$" 2>/dev/null
   return 0

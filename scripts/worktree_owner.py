@@ -22,8 +22,8 @@ import subprocess
 import sys
 import time
 
-# Paths the plugin's own gates write inside a checkout. `create-worktree` excludes them and
-# `remove-worktree.py` does not count them as work; this is their one home.
+# Paths gates of plugin versions before the git-dir move left inside a checkout. `create-worktree`
+# excludes them and `remove-worktree.py` does not count them as work; this is their one home.
 RUNTIME_PATHS = (".claude/hooks/.gate-cache/", ".claude/metrics/")
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",

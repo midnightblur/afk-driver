@@ -904,7 +904,32 @@ if [ -n "$before" ] && [ "$before" != "$(key_of "")" ]; then
 else
   fail "a removed allow line reused the cached verdict"
 fi
+# Cache and metrics live under the git dir: storing a pass and emitting a line
+# (from a subdirectory too) adds nothing to the working tree.
+(cd "$cachefix" && git checkout -q -- . && mkdir -p src/deep && cd src/deep && bash -c '
+  unset GATE_METRICS_FILE; GATE_METRICS_DISABLE=0; GATE_CACHE_DISABLE=0
+  . "$1"/hooks/gate-cache.sh; . "$1"/hooks/gate-metrics.sh
+  gate_cache_store probe somekey; gate_metrics_begin; gate_metrics_emit probe pass' _ "$workflow")
+if [ -z "$(git -C "$cachefix" status --porcelain -uall)" ] &&
+   [ "$(<"$cachefix/.git/afk/gate-cache/probe")" = somekey ] &&
+   grep -q '"gate":"probe"' "$cachefix/.git/afk/metrics/gate-latency.jsonl"; then
+  pass "gate cache and metrics stay under the git dir"
+else
+  fail "gate cache or metrics wrote into the working tree ($(git -C "$cachefix" status --porcelain -uall))"
+fi
 rm -rf "$cachefix"
+nogit=$(mktemp -d)
+(cd "$nogit" && GIT_CEILING_DIRECTORIES=$(dirname "$nogit") bash -c '
+  unset GATE_METRICS_FILE; GATE_METRICS_DISABLE=0; GATE_CACHE_DISABLE=0
+  . "$1"/hooks/gate-cache.sh; . "$1"/hooks/gate-metrics.sh
+  gate_cache_store probe k; gate_cache_hit probe k && exit 3
+  gate_metrics_begin; gate_metrics_emit probe pass' _ "$workflow"); rc=$?
+if [ "$rc" = 0 ] && [ -z "$(ls -A "$nogit")" ]; then
+  pass "outside a repository the cache and metrics write nothing"
+else
+  fail "outside a repository: rc=$rc files=$(ls -A "$nogit")"
+fi
+rm -rf "$nogit"
 
 # A shared pattern that does not compile must block, not match nothing and pass.
 badpat=$(mktemp -d)
