@@ -131,6 +131,36 @@ release page from its section here. Nobody tags by hand.
   only the schema, so a wrong `maven.reactor-pom` or `repo-hooks` path passed
   and left its gate inert. Each missing path now prints a `warning:` line;
   the exit code stays 0. `/afk:setup` reports a missing `setup.extra` file.
+- **`init` no longer guesses the Maven reactor POM.** With no root `pom.xml`
+  it took the first `*pom.xml` by name, often a leaf service. Two or more
+  candidates are now a `TODO` that lists them. `init` also prints the keys it
+  left as `TODO` and hints when the Jira credential chain resolves
+  `JIRA_BASE_URL`.
+- **`init` no longer shadows a tracker or forge the machine layer sets.** It
+  wrote `tracker: none` over a machine-level `tracker: jira`; it now writes that
+  value as a `TODO` comment and lists the key in the `TODO left` line.
+- **`afk-config.py init` no longer scaffolds a second config in a worktree.**
+  On a branch cut before `.afk/config.yaml` was committed, `init` wrote a fresh
+  `tracker: none` file that diverged from the repository's contract. It now
+  refuses when the base branch or the main worktree already has one; merge or
+  rebase that branch instead, or pass `--force`.
+- **`/afk:setup` reports a missing `.afk/config.yaml` instead of skipping.**
+  Without the file the tracker and forge default to `none`, so the Jira,
+  per-developer and catalog rows read as n/a and setup looked healthy. A new
+  register row (`H0`) probes the file, those rows report `needs-human` while it
+  is absent (their status reads `needs-human: see H0`), and `setup_secrets.py`
+  warns instead of printing `tracker: none`. The per-developer probe (`H6`)
+  exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
+- **A Jira tracker call with no credentials answers an error instead of ending
+  the server.** The plugin's own server reads credentials on every call, so
+  adding or correcting them applies on the next call; the user-scoped `tracker`
+  entry holds them in its `env` and takes a change after a restart.
+- **The `tracker` server that setup registers now starts.** It was registered
+  without a plugin root and exited at launch; it now uses the plugin's own
+  launcher with the plugin root, so re-run setup after a plugin update.
+- **Setup no longer removes an unrelated `jira` MCP server.** It reused and
+  deleted any user-scoped `jira` entry; it now touches one only when its args
+  point under this plugin root, into an `afk` plugin cache, or at the launcher.
 
 ## [1.9.0] - 2026-09-29
 

@@ -35,6 +35,23 @@ a token value — not even partially.
 
 ## H — Harness
 
+### H0 · repository configuration (`.afk/config.yaml`)
+- **Needed by:** every skill that reads the configuration, and the legs that
+  read the resolved `tracker` or `forge`: `H2`, `H6` (K1, K2), `O7`'s
+  `tracker_get`, `C3`, and `C3b`'s forge leg.
+- **Probe:** `test -f "$(git rev-parse --show-toplevel)/.afk/config.yaml"`
+- **Fix:** `human:` `/afk:setup` step 0 (`init`, walk the `TODO`s, commit).
+- **Notes:** the defaults answer `none` for a repository that never chose. A
+  leg above whose resolved `tracker` or `forge` is `none` is n/a only when a
+  configuration file at any layer says `none`; with no such line it is
+  `needs-human: see H0`. File absent: `/afk:setup` step 0 settles it. File
+  present with the key left unset (a commented `TODO`, or never named): step 0
+  is skipped, so set `tracker:` and `forge:` in `.afk/config.yaml` (a value, or
+  `none`; values in `CONFIG.md`), then re-probe. A resolved non-`none` value is
+  a choice and probes normally, whichever layer supplied it (machine file,
+  local overlay, `$AFK_CONFIG`); `H0` itself still fails until the repository
+  file exists. Every other leg (the `O7` catalog, `H6` K3) keeps its own probe.
+
 ### H1 · plugin installed + enabled
 - **Needed by:** everything (`/afk:*` skills, the Stop-hook gates).
 - **Probe:** `agent:` the active harness reports `afk@afk-toolkit` enabled
@@ -50,20 +67,30 @@ a token value — not even partially.
   creds-fallback env block; ADR-0001).
 - **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
   known key succeeds. Decide from the server's answer, not from
-  `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none` —
-  including a checkout with no `.afk/config.yaml` — makes this row **n/a**,
-  not a failure, and is the adapter contract working. `O7`'s `tracker_get` leg is n/a
-  for the same reason. An `unsupported` or `error` answer carries `config_root`,
-  the checkout whose config the server read.
+  `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none`
+  makes this row **n/a**, not a failure, as `H0` defines; with no
+  `.afk/config.yaml` at `config_root`, the row reads `needs-human: see H0`.
+  That answer is the adapter contract working, and `O7`'s `tracker_get` leg
+  follows the same rule. An `unsupported` or `error` answer carries
+  `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then restart the session. Python deps: P3.
+  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then
+  restart the session. Python deps: P3. Registering the server needs that
+  restart. The plugin's own server applies added or corrected credentials on the
+  next call, no restart; without them a call answers `error: true` and the
+  server stays up. The user-scoped `tracker` entry holds them in its `env`, so
+  it takes a change only after a restart. The registration passes this plugin
+  root, so re-run setup after a plugin update or after moving a checkout.
+  `setup_secrets.py` leaves a `jira` server entry alone unless its args point
+  under this plugin root, into an `afk` plugin cache, or at the launcher; it
+  then warns that a `jira` server remains.
 - **Notes:** the host is whatever `tracker` selects and its credentials name. Server source ships
   in this plugin at `mcp-servers/tracker/server.py`; `.mcp.json` is the shared
   registration. Tool prefixes vary by harness, so skills use bare tool names.
   The server reads `tracker` from the project root
   (`${CLAUDE_PROJECT_DIR:-<git root of the working directory>}`) on every call: creating or changing
-  `.afk/config.yaml` needs no restart. Registering the server or changing its `env`
-  block does. The server reads the checkout the session was launched in; to
+  `.afk/config.yaml` needs no restart; **Fix** says when registering the server or
+  changing a credential does. The server reads the checkout the session was launched in; to
   probe another worktree's config, launch the session there.
 
 ### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
@@ -106,14 +133,34 @@ a token value — not even partially.
   ```
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
-  keys="worktreeBasePath"
-  [ "$("$PY" "$AC" get tracker)" = none ] || keys="trackerAssignee $keys"
-  [ "$("$PY" "$AC" get forge)" = none ] || keys="$keys mrReviewer"
+  R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+  says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
+      "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
+    [ -n "$f" ] || continue
+    grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
+      && return 0
+  done; return 1; }
+  keys="worktreeBasePath"; h=""
+  if [ "$("$PY" "$AC" get tracker)" != none ]; then
+    keys="trackerAssignee $keys"
+  elif ! says_none tracker; then
+    h="$h trackerAssignee"
+  fi
+  if [ "$("$PY" "$AC" get forge)" != none ]; then
+    keys="$keys mrReviewer"
+  elif ! says_none forge; then
+    h="$h mrReviewer"
+  fi
   m=""
   for k in $keys; do
     "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
-  [ -z "$m" ] && echo ok || { echo "unresolved:$m"; exit 1; }
+  [ -z "$h$m" ] && { echo ok; exit 0; }
+  echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
+       "forge=$("$PY" "$AC" get forge)"
+  [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
+  [ -z "$m" ] || echo "unresolved:$m"
+  exit 1
   ```
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
@@ -128,8 +175,8 @@ a token value — not even partially.
   and fails closed. The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
-  probed; each is then **n/a**. `worktreeBasePath` normally resolves without
-  anyone setting it (it derives beside the main checkout), so an unresolved K3
+  probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
+  resolves without anyone setting it (it derives beside the main checkout), so an unresolved K3
   means git could not answer — a bare clone. K4 `ideBinary` and K5 `mrAssignee`
   are optional and not probed — an unset `mrAssignee` means no assignee, never a
   failure.
@@ -303,7 +350,8 @@ a token value — not even partially.
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
   wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
   `skills/afk/gc` (the merged proof).
-- **Probe:** `glab auth status` (exit 0 = logged in; prints no token).
+- **Probe:** `glab auth status` (exit 0 = logged in; prints no token). Another
+  forge selected: n/a. `forge` resolving to `none`: as `H0` defines.
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host this repository pushes to>` — the token lives in glab's own store, never in
   this plugin. `skills/afk/setup/scripts/setup_secrets.py` drives that login as
@@ -319,7 +367,10 @@ a token value — not even partially.
   whatever the repository selects, `skills/utils/report-issue/scripts/publish.sh`
   (issue search, label create, issue create or comment; absent or logged out →
   the draft queues on disk, so it is optional there).
-- **Probe:** `gh auth status` (exit 0 = logged in; prints no token).
+- **Probe:** `gh auth status` (exit 0 = logged in; prints no token). Neither
+  `forge: github` nor `tracker: github-issues` selected: the forge and tracker
+  leg is n/a, or as `H0` defines when they resolve to `none`; the report-issue
+  leg keeps this probe.
 - **Fix:** `human:` install gh, then `gh auth login` — the token lives in gh's
   own store, never in this plugin. `skills/afk/setup/scripts/setup_secrets.py`
   drives that login when `forge: github` is configured (it shells out to `gh`;
@@ -607,7 +658,8 @@ a token value — not even partially.
   (attachment upload has no MCP tool, and both engines PUT the description via
   REST directly rather than inline a large ADF through an MCP tool call),
   the shared Jira lib `adapters/tracker/jira/api.py` and
-  `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001).
+  `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001),
+  and `scripts/afk-config.py init` (presence-only: the `JIRA_BASE_URL` hint).
 - **Probe:** presence-only through the shared resolver; prints no values:
   `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
@@ -719,9 +771,9 @@ Gating rule: if O1 misses, report the whole section as
 - **Needed by:** all workflow skills and the two Jira-writing skills.
 - **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
   in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
-  callable `tracker_get` (n/a under `tracker: none`, per `H2` — the catalog and
-  role legs still stand on their own). Count the manifest rather than a number written here:
-  a number in prose goes stale the first time a skill is added.
+  callable `tracker_get` (n/a under `tracker: none`, per `H0` — the catalog and
+  role legs still stand on their own). Count the manifest rather than a number
+  written here: a number in prose goes stale the first time a skill is added.
 - **Fix:** repair O2–O6, then restart. Never print Jira secrets.
 
 ### O8 · stale generated activation cleanup **[opt-in]**
