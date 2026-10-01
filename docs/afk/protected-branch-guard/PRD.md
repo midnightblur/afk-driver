@@ -131,7 +131,7 @@ Override:
 Cleanup:
 
 - [ ] AC-027 A plugin-made worktree whose session ends with no uncommitted change and no unpushed commit is removed; its branch is deleted when it has no commit of its own.
-- [ ] AC-028 A plugin-made worktree whose session ends with an uncommitted change or an unpushed commit is kept, and the session's last output names the resume command and the remove command.
+- [ ] AC-028 A plugin-made worktree whose session ends with an uncommitted change or an unpushed commit is kept, and the session's last output names the resume command and the remove command. Where the harness shows no session-end output, the report appears at the next session start.
 - [ ] AC-029 A stale plugin-made worktree is pruned only when its owner process is gone and it holds no uncommitted change and no unpushed commit; a worktree the plugin did not make is never removed.
 
 Behavior line:
