@@ -37,6 +37,13 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Issue reports keep plugin terms from an installed plugin.** The redactor
+  built its allowlist from `git ls-files`, which is empty in a harness install,
+  so file names and config keys became `<host>`. An install carrying a plugin
+  manifest now counts its own files.
+
 ## [1.9.0] - 2026-09-29
 
 ### Added
