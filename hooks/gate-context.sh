@@ -20,6 +20,8 @@
 #   AFK_CTX_NEW       added + untracked + rename/copy-target paths
 #   AFK_CTX_LIVE      AFK_CTX_CHANGED minus deletions (paths that exist on disk)
 #   AFK_CTX_TREE      content digest of HEAD + every working-tree change
+#   AFK_CTX_CACHE_DIR  this worktree's gate cache: <git dir>/afk/gate-cache
+#   AFK_CTX_COMMON_DIR the git dir all worktrees share (both absolute; "" outside a repo)
 #   AFK_CTX_READY     1 once built — re-sourcing/rebuilding is a no-op
 #
 # Deliberately NOT exported. Every consumer is sourced into the same shell (or a
@@ -35,11 +37,29 @@
 # Scope filtering is bash-native and fork-free — see gate_ctx_filter below.
 # AFK_GATE_CTX_DISABLE=1 makes gate_ctx_build rebuild on every call (debug only).
 
+# _gate_ctx_revparse [HEAD] — one rev-parse sets both git dirs and, given HEAD,
+# AFK_CTX_HEAD. git prints the dirs relative to cwd in a main checkout: pin them.
+_gate_ctx_revparse() {
+  local cache="" common="" head=""
+  { IFS= read -r cache; IFS= read -r common; IFS= read -r head; } \
+    <<<"$(git rev-parse --git-path afk/gate-cache --git-common-dir "$@" 2>/dev/null)"
+  case "$cache" in ''|/*|[A-Za-z]:/*) ;; *) cache="$PWD/$cache" ;; esac
+  case "$common" in ''|/*|[A-Za-z]:/*) ;; *) common="$PWD/$common" ;; esac
+  AFK_CTX_CACHE_DIR=$cache; AFK_CTX_COMMON_DIR=$common; AFK_CTX_GITDIRS_READY=1
+  [ "$#" -gt 0 ] && AFK_CTX_HEAD=$head
+  return 0
+}
+
+# gate_ctx_gitdirs — AFK_CTX_CACHE_DIR + AFK_CTX_COMMON_DIR on first use, then reuse.
+gate_ctx_gitdirs() {
+  [ "${AFK_CTX_GITDIRS_READY:-0}" = "1" ] || _gate_ctx_revparse
+}
+
 # gate_ctx_build — idempotent; assumes cwd = repo root.
 gate_ctx_build() {
   [ "${AFK_CTX_READY:-0}" = "1" ] && [ "${AFK_GATE_CTX_DISABLE:-0}" != "1" ] && return 0
 
-  AFK_CTX_HEAD=$(git rev-parse HEAD 2>/dev/null || true)
+  _gate_ctx_revparse HEAD
 
   # Integration base. The consuming repository names it (`git.base-branch` in
   # .afk/config.yaml); `auto` and an unset value fall back to origin/main, then
@@ -179,7 +199,7 @@ gate_ctx_branch() {
 gate_ctx_build_staged() {
   [ "${AFK_CTX_READY:-0}" = "1" ] && return 0
 
-  AFK_CTX_HEAD=$(git rev-parse HEAD 2>/dev/null || true)
+  _gate_ctx_revparse HEAD
   AFK_CTX_BASE=HEAD
   AFK_CTX_MERGEBASE=HEAD
 

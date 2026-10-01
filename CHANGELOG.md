@@ -51,6 +51,12 @@ release page from its section here. Nobody tags by hand.
   it. Now the same tree blocks at most 3 Stops in a row. The next Stop is
   allowed, and a notice tells you which gates still have findings. Any change
   to the tree resets the count.
+- **Gates no longer leave files in your checkout.** Their pass cache and timing
+  log now live under the git directory, so `.claude/` stops showing in `git
+  status`; delete any old `.claude/hooks/.gate-cache/` and `.claude/metrics/`.
+- **The H-2 harness no longer warns about the session-end hook at every
+  start.** It caps that hook at 3 seconds; the plugin now declares 3, and the
+  hook takes under 1 second.
 
 ## [1.10.0] - 2026-10-01
 

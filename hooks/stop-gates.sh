@@ -54,10 +54,10 @@ gate_metrics_emit context pass "\"changed\":$n_changed"
 
 # ---- rule 1: nothing changed since the last all-green Stop -> no gate runs.
 # Only a PASS verdict may short-circuit; a block on this tree counts toward rule 3.
-STOP_STAMP=".claude/hooks/.gate-cache/.last-stop"
+STOP_STAMP=${AFK_CTX_CACHE_DIR:+$AFK_CTX_CACHE_DIR/.last-stop}
 STOP_BLOCK_LIMIT=3
 prior_blocks=0
-if [ -f "$STOP_STAMP" ]; then
+if [ -n "$STOP_STAMP" ] && [ -f "$STOP_STAMP" ]; then
   stop_stamp=$(<"$STOP_STAMP")
   if [ "${GATE_CACHE_DISABLE:-0}" != "1" ] && [ "$stop_stamp" = "pass:$AFK_CTX_TREE" ]; then
     exit 0
@@ -150,7 +150,8 @@ ctx_scoped() {
 # the stamp mid-truncate would otherwise see a torn value (worst case an empty
 # "pass:" matching an empty digest).
 write_stamp() {
-  mkdir -p "${STOP_STAMP%/*}" 2>/dev/null || return 0
+  [ -n "$STOP_STAMP" ] || return 0
+  [ -d "${STOP_STAMP%/*}" ] || mkdir -p "${STOP_STAMP%/*}" 2>/dev/null || return 0
   printf '%s\n' "$1" > "$STOP_STAMP.$$" 2>/dev/null \
     && mv -f "$STOP_STAMP.$$" "$STOP_STAMP" 2>/dev/null
   rm -f "$STOP_STAMP.$$" 2>/dev/null
