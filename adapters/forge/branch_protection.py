@@ -157,18 +157,21 @@ def _ssh_host(alias: str, cwd: str, deadline: float) -> str:
     return found.group(1).lower() if found else ""
 
 
-def _hostname(forge: str, host: str, cwd: str, deadline: float) -> list[str]:
-    """`--hostname <h>` only for a host the CLI is logged in to, else the CLI's own default.
+def _hostname(forge: str, host: str, cwd: str, deadline: float) -> list[str] | None:
+    """`--hostname <h>` for a host the CLI is logged in to; [] for the public host; None otherwise.
 
-    An SSH alias is resolved with `ssh -G` and re-checked; a host the CLI does not know gets
-    no flag, because naming it would fail the read where the default answers.
+    An SSH alias is resolved with `ssh -G` and re-checked. None means the CLI has no login for
+    the host: asking its default host instead would answer for another repository.
     """
-    if not host or host == PUBLIC_HOSTS.get(forge):
+    public = PUBLIC_HOSTS.get(forge)
+    if not host or host == public:
         return []
     known = _config_hosts(forge)
     if host not in known:
         host = _ssh_host(host, cwd, deadline)
-    return ["--hostname", host] if host in known and host != PUBLIC_HOSTS.get(forge) else []
+    if host == public:
+        return []
+    return ["--hostname", host] if host in known else None
 
 
 def _login_token(cwd: str, deadline: float) -> str:
@@ -201,9 +204,12 @@ def _github(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
             answers = None  # this token is not good for this host: the CLI may hold a login that is
     if answers is None:
         base = f"repos/{repo}" if repo else "repos/{owner}/{repo}"
+        target = _hostname("github", host, cwd, deadline)
+        if target is None:
+            return _error(f"the CLI is not logged in to {host}")
 
         def by_cli(path: str):
-            return _cli_get(["gh", "api", *_hostname("github", host, cwd, deadline), f"{base}/{path}/{enc}"], cwd, deadline)
+            return _cli_get(["gh", "api", *target, f"{base}/{path}/{enc}"], cwd, deadline)
 
         answers = _together({"branch": lambda: by_cli("branches"), "rules": lambda: by_cli("rules/branches")},
                             deadline)
@@ -267,7 +273,10 @@ def _gitlab(branch: str, repo: str, cwd: str, deadline: float, api: str, host: s
             texts.append(done[1])
             page = {k.lower(): v for k, v in done[2].items()}.get("x-next-page", "").strip()
     if refused or not (_may_send_token(api) and token and repo):
-        done = _run(["glab", "api", *_hostname("gitlab", host, cwd, deadline), "--paginate", f"projects/{project}/protected_branches?per_page=100"],
+        target = _hostname("gitlab", host, cwd, deadline)
+        if target is None:
+            return _error(f"the CLI is not logged in to {host}")
+        done = _run(["glab", "api", *target, "--paginate", f"projects/{project}/protected_branches?per_page=100"],
                     cwd, deadline)
         if done is None or done[0] != 0:
             return _error("the protected-branch read failed")

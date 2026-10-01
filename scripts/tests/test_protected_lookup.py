@@ -50,7 +50,20 @@ def stub(tmp_path: Path, tool: str, body: str) -> dict[str, str]:
                if k not in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
     environ["PATH"] = str(binaries) + os.pathsep + environ["PATH"]
     environ["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
+    environ.update(logged_in_cli(tmp_path))
     return environ
+
+
+def logged_in_cli(tmp_path: Path) -> dict[str, str]:
+    """Config folders in which both CLIs are logged in to every host the remotes below use."""
+    hosts = ("github.com", "gitlab.example.com", "gitlab.com")
+    gh, glab = tmp_path / "gh-config", tmp_path / "glab-config"
+    gh.mkdir(exist_ok=True)
+    glab.mkdir(exist_ok=True)
+    (gh / "hosts.yml").write_text("".join(f"{h}:\n    user: u\n" for h in hosts), encoding="utf-8")
+    (glab / "config.yml").write_text("hosts:\n" + "".join(f"  {h}:\n    token: x\n" for h in hosts),
+                                     encoding="utf-8")
+    return {"GH_CONFIG_DIR": str(gh), "GLAB_CONFIG_DIR": str(glab)}
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -506,7 +519,8 @@ def cli_reads(tmp_path, monkeypatch, forge, host, logged_in, ssh_says=None):
     for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN"):
         monkeypatch.delenv(name, raising=False)
     answer = _read_module().protection(forge, "main", "o/r", str(tmp_path), 20.0, "", host)
-    return calls.read_text(encoding="utf-8").splitlines(), answer
+    seen = calls.read_text(encoding="utf-8").splitlines() if calls.exists() else []
+    return seen, answer
 
 
 @pytest.mark.parametrize("forge", ["github", "gitlab"])
@@ -516,10 +530,10 @@ def test_r12_1_a_host_the_cli_is_logged_in_to_gets_the_flag(tmp_path, monkeypatc
 
 
 @pytest.mark.parametrize("forge", ["github", "gitlab"])
-def test_r12_1_an_unknown_host_gets_no_flag_so_the_default_still_answers(tmp_path, monkeypatch, forge):
+def test_r13_2_an_unknown_host_is_an_error_not_a_read_of_the_default_host(tmp_path, monkeypatch, forge):
     lines, answer = cli_reads(tmp_path, monkeypatch, forge, "never-logged-in.example.com", ["other.example.com"])
-    assert lines and not any("--hostname" in line for line in lines), lines
-    assert answer.get("protected") is True, answer
+    assert lines == [], lines
+    assert answer.get("error") and "not logged in to never-logged-in.example.com" in answer["reason"], answer
 
 
 def test_r12_1_an_ssh_alias_resolves_to_the_real_host_the_cli_knows(tmp_path, monkeypatch):
@@ -528,11 +542,16 @@ def test_r12_1_an_ssh_alias_resolves_to_the_real_host_the_cli_knows(tmp_path, mo
     assert lines and all("--hostname ghe.example.com" in line for line in lines), lines
 
 
-def test_r12_1_an_ssh_alias_for_a_host_the_cli_does_not_know_gets_no_flag(tmp_path, monkeypatch):
+def test_r12_1_an_ssh_alias_for_a_host_the_cli_does_not_know_is_an_error(tmp_path, monkeypatch):
     lines, answer = cli_reads(tmp_path, monkeypatch, "github", "github.com-work", ["ghe.example.com"],
                               ssh_says="elsewhere.example.org")
-    assert lines and not any("--hostname" in line for line in lines), lines
-    assert answer.get("protected") is True, answer
+    assert lines == [] and answer.get("error"), (lines, answer)
+
+
+def test_r13_2_an_ssh_alias_for_the_public_host_reads_the_default(tmp_path, monkeypatch):
+    lines, answer = cli_reads(tmp_path, monkeypatch, "github", "github.com-work", ["ghe.example.com"],
+                              ssh_says="github.com")
+    assert lines and not any("--hostname" in line for line in lines) and answer.get("protected") is True
 
 
 def test_r12_1_the_public_host_needs_no_flag(tmp_path, monkeypatch):
