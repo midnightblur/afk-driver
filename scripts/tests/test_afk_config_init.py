@@ -458,6 +458,17 @@ def test_jira_hint_reads_the_tracker_env_block_in_claude_json(tmp_path, monkeypa
     assert todos[:2] == ["tracker", "jira.project"]
 
 
+def test_a_foreign_jira_server_leaves_no_tracker_hint(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"jira": {"command": "npx", "args": ["-y", "mcp-atlassian"], '
+        '"env": {"JIRA_BASE_URL": "https://foreign.example.net"}}}}'))
+    repo = make_repo(tmp_path, "foreign", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "JIRA_BASE_URL is set" not in text
+    assert "tracker" not in todos
+
+
 def test_the_hint_reads_the_codex_credential_store(tmp_path, monkeypatch):
     _home_with(tmp_path, monkeypatch)
     codex = tmp_path / "home" / ".codex"

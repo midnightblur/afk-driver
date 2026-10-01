@@ -149,7 +149,7 @@ class TestCreds(unittest.TestCase):
         self.assertEqual(token, "tok123")
 
     def test_walk_for_jira_env_nested(self):
-        cfg = {"mcpServers": {"jira": {"env": {"JIRA_BASE_URL": "https://n.test"}}}}
+        cfg = {"mcpServers": {"tracker": {"env": {"JIRA_BASE_URL": "https://n.test"}}}}
         env = api._walk_for_jira_env(cfg)
         self.assertEqual(env, {"JIRA_BASE_URL": "https://n.test"})
 
@@ -157,7 +157,7 @@ class TestCreds(unittest.TestCase):
         self.assertIsNone(api._walk_for_jira_env({"other": {"x": 1}}))
 
     def _write_claude_json(self, home, base):
-        cfg = {"mcpServers": {"jira": {"env": {
+        cfg = {"mcpServers": {"tracker": {"env": {
             "JIRA_BASE_URL": base, "JIRA_EMAIL": "file@x.test",
             "JIRA_API_TOKEN": "file-tok"}}}}
         (Path(home) / ".claude.json").write_text(json.dumps(cfg), encoding="utf-8")
@@ -208,6 +208,62 @@ class TestCreds(unittest.TestCase):
                 base, email, token = api.load_creds()
         self.assertEqual(base, "https://env.atlassian.net")  # env field kept
         self.assertEqual((email, token), ("file@x.test", "file-tok"))  # file fills the rest
+
+
+    # --- a `jira` server counts only when it is afk's own (setup's rule) ---
+    FOREIGN = {"JIRA_BASE_URL": "https://foreign.example.net", "JIRA_EMAIL": "f@example.com",
+               "JIRA_API_TOKEN": "foreign-tok"}
+
+    def _resolve_with(self, claude_json=None, codex_toml=None):
+        for k in self._saved:
+            os.environ.pop(k, None)
+        with tempfile.TemporaryDirectory() as home:
+            if claude_json is not None:
+                (Path(home) / ".claude.json").write_text(json.dumps(claude_json), encoding="utf-8")
+            if codex_toml is not None:
+                (Path(home) / ".codex").mkdir()
+                (Path(home) / ".codex" / "config.toml").write_text(codex_toml, encoding="utf-8")
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                return api.resolve_creds_env()
+
+    def test_a_foreign_jira_server_is_not_a_credential_source(self):
+        foreign = {"command": "npx", "args": ["-y", "mcp-atlassian"], "env": self.FOREIGN}
+        self.assertEqual(self._resolve_with({"mcpServers": {"jira": foreign}}), {})
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / ".claude.json").write_text(
+                json.dumps({"mcpServers": {"jira": foreign}}), encoding="utf-8")
+            with mock.patch.object(api.Path, "home", return_value=Path(home)):
+                with self.assertRaises(SystemExit):
+                    api.load_creds()
+
+    def test_a_foreign_jira_does_not_hide_a_project_tracker(self):
+        own = {"JIRA_BASE_URL": "https://own.example.net", "JIRA_EMAIL": "o@example.com",
+               "JIRA_API_TOKEN": "own-tok"}
+        cfg = {"mcpServers": {"jira": {"args": ["mcp-atlassian"], "env": self.FOREIGN}},
+               "projects": {"/work/p": {"mcpServers": {"tracker": {"env": own}}}}}
+        self.assertEqual(self._resolve_with(cfg), own)
+
+    def test_a_foreign_codex_jira_server_is_ignored(self):
+        try:
+            import tomllib  # noqa: F401
+        except ImportError:
+            self.skipTest("no tomllib on this interpreter")
+        toml = chr(10).join([
+            "[mcp_servers.jira]", 'args = ["mcp-atlassian"]', "[mcp_servers.jira.env]",
+            'JIRA_BASE_URL = "https://foreign.example.net"', 'JIRA_EMAIL = "f@example.com"',
+            'JIRA_API_TOKEN = "foreign-tok"', ""])
+        self.assertEqual(self._resolve_with(codex_toml=toml), {})
+
+    def test_afks_own_legacy_jira_entry_still_resolves(self):
+        own_args = [
+            [str(_PLUGIN_ROOT / "mcp-servers" / "jira" / "server.py")],
+            ["/h/.claude/plugins/cache/m/afk/1.9.0/mcp-servers/jira/server.py"],
+            ["-c", '"mcp-servers", "tracker", "server.py"'],
+        ]
+        for args in own_args:
+            with self.subTest(args=args):
+                cfg = {"mcpServers": {"jira": {"args": args, "env": self.FOREIGN}}}
+                self.assertEqual(self._resolve_with(cfg), self.FOREIGN)
 
 
 # ---------------------------------------------------------------------------

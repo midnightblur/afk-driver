@@ -110,6 +110,10 @@ release page from its section here. Nobody tags by hand.
   only an owner or a nested path.** It used to write a wrong `owner/name`
   that still validated.
 - **The forge adapters read the project from a remote URL ending in `.git/`.**
+- **The Jira adapter no longer reads credentials from another vendor's `jira`
+  server.** It, and `init`'s Jira hint, took the `env` block of any `jira` MCP
+  server in `~/.claude.json` or `~/.codex/config.toml`. Only the `tracker`
+  server, or afk's own pre-rename `jira` entry, counts now.
 
 ## [1.9.0] - 2026-09-29
 
