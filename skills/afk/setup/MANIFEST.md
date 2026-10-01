@@ -826,7 +826,7 @@ Each var is documented at its consumer — this table is just the map.
 | Var | Consumer | Role |
 |---|---|---|
 | `CLAUDE_PLUGIN_ROOT` | `hooks/hooks.json`, `hooks/lib/providers/claude.sh` | compatibility root set by supported plugin hooks |
-| `CLAUDE_PROJECT_DIR` | `scripts/afk-config.py` `project_root` (tracker server and adapter) | optional fast project root, read with the `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` fallback; the config reader falls back to the Git root of the working directory |
+| `CLAUDE_PROJECT_DIR` | `scripts/afk-config.py` `project_root` (tracker server and adapter) | optional project root for the tracker config: `project_root` reads `${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}` |
 | `AFK_BASH` / `GIT_BASH` | `hooks/run-hook.py` | POSIX shell the hook launcher runs handlers with, ahead of its own lookup |
 | `APP_START_KEEP` / `APP_START_PORT` / `APP_START_SKIP_UI` / `APP_START_REUSE` | `skills/afk/autopilot` | app-start-gate provisioning mode |
 | `APP_START_TIMEOUT` | `adapters/build-gate/maven/app-start-gate.sh` | boot timebox (seconds, default 300) |

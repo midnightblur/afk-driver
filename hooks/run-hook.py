@@ -56,8 +56,9 @@ BLOCKING_EVENTS = {"Stop", "PreToolUse"}
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
-    # The working tree's toplevel, like every plugin gate: the launch checkout
-    # (CLAUDE_PROJECT_DIR) can differ from the tree the session works in.
+    # The working tree's Git root, like every plugin gate; CLAUDE_PROJECT_DIR
+    # names the launch checkout, which can differ.
+
     # Windows resolves the executable name against this process's PATH, not the
     # PATH being handed to the child, so name git absolutely when it is only on
     # the shell's own PATH.

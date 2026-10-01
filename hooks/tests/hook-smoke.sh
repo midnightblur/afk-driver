@@ -749,21 +749,24 @@ fi
 clean_repo=$(mktemp -d)
 git -C "$clean_repo" init -q
 mkdir -p "$fixture_repo/sub"
-out=$(cd "$clean_repo" && CLAUDE_PROJECT_DIR="$fixture_repo" "$py" "$launcher" repo-list Stop \n  < "$envelopes/claude/stop.json" 2>&1)
+out=$(cd "$clean_repo" && CLAUDE_PROJECT_DIR="$fixture_repo" "$py" "$launcher" repo-list Stop \
+  < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
 if [ "$rc" = 0 ] && [ -z "$out" ]; then
   pass "launcher ignores a CLAUDE_PROJECT_DIR that is not the working tree"
 else
   fail "launcher project-dir override (rc=$rc out=$out)"
 fi
-out=$(cd "$fixture_repo" && CLAUDE_PROJECT_DIR="$clean_repo" "$py" "$launcher" repo-list Stop \n  < "$envelopes/claude/stop.json" 2>&1)
+out=$(cd "$fixture_repo" && CLAUDE_PROJECT_DIR="$clean_repo" "$py" "$launcher" repo-list Stop \
+  < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
 if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
   pass "launcher gates the working tree despite a clean CLAUDE_PROJECT_DIR"
 else
   fail "launcher working-tree gate (rc=$rc out=$out)"
 fi
-out=$(cd "$fixture_repo/sub" && CLAUDE_PROJECT_DIR="$fixture_repo/sub" "$py" "$launcher" repo-list Stop \n  < "$envelopes/claude/stop.json" 2>&1)
+out=$(cd "$fixture_repo/sub" && CLAUDE_PROJECT_DIR="$fixture_repo/sub" "$py" "$launcher" repo-list Stop \
+  < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
 if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
   pass "launcher gates the repository when the session starts in a subdirectory"

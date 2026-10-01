@@ -99,7 +99,7 @@ this evidence, and the last section says what would close it.
 
 | Row | Verdict | Evidence |
 |---|---|---|
-| run-hook.py | proven | `ledger` — root is the working tree's toplevel on every harness; repo kind resolves from `.afk/hooks.json` |
+| run-hook.py | proven | `gate` — the `hook-smoke.sh` launcher cases: the root is the working tree's Git root; `ledger` — repo kind resolves from `.afk/hooks.json` |
 | hooks.json | covered | `gate` — `claude plugin validate .` and the registry gate |
 | hooks.codex.json | covered | `gate` — the native-contract gate diffs the twin modulo the root variable |
 | stop-gates.sh | proven | `ledger` — real Stop blocks observed on both harnesses |
