@@ -359,10 +359,13 @@ def h2_hint(place: dict, envelope: dict, facts: dict, fallback: str) -> str:
         root = str(PLUGIN_ROOT).replace("\\", "/")
         return (f"the session worktree could not be created: {chosen['error']}. Fix that, or run "
                 f"`{root}/scripts/create-worktree --name <name>` and continue there.")
+    command = (facts.get("move_ui") or {}).get("command")
+    if not command:
+        return fallback
     typed = ("It is typed into this pane for you once it exists; if it is not, type" if chosen["pane"]
              else "Once it exists, type")
     return (f"a linked worktree is being created for this session at {chosen['path']}. {typed} this line:\n"
-            f"/cd {chosen['path']}\n")
+            f"{command.format(path=chosen['path'])}\n")
 
 
 def decide(envelope: dict, facts: dict) -> int:

@@ -30,13 +30,37 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
-DONE = re.compile(r"Working directory changed", re.I)
-REFUSED = re.compile(r"disabled while a task|Cannot access directory|not trusted|background terminal", re.I)
 SGR = re.compile(r"\x1b\[[0-9;]*m")
 DIM = re.compile(r"^(?:\x1b\[0?m| )*\x1b\[2m")
-COMPOSER = re.compile(r"^\s*[›>❯]\s?(.*?)\s*$")
+UI: dict = {}  # the harness's move_ui facts, from hooks/lib/providers/<provider>.json
+DONE = REFUSED = COMPOSER = GLYPH = None
 ATTEMPTS, WAIT_IDLE, SETTLE = 3, 600.0, 2.0
 LOG: Path | None = None
+
+
+def configure(provider: str) -> bool:
+    """Load the provider's `move_ui` facts (typed command, outcome patterns, prompt glyphs)."""
+    global UI, DONE, REFUSED, COMPOSER, GLYPH
+    try:
+        name = re.sub(r"[^a-z0-9_-]", "", provider.lower())
+        ui = json.loads((PLUGIN_ROOT / "hooks" / "lib" / "providers" / f"{name}.json")
+                        .read_text(encoding="utf-8"))["move_ui"]
+        glyphs = f"[{re.escape(ui['prompt_glyphs'])}]"
+        DONE, REFUSED = re.compile(ui["done"], re.I), re.compile(ui["refused"], re.I)
+        GLYPH, COMPOSER = re.compile(glyphs), re.compile(rf"^\s*{glyphs}\s?(.*?)\s*$")
+        UI = ui
+    except (OSError, ValueError, KeyError, TypeError, re.error):
+        UI = {}
+    return bool(UI)
+
+
+def typed_line(path: Path) -> str:
+    return UI["command"].format(path=path)
+
+
+def line_prefix() -> str:
+    """The head of the typed line before the path: how the helper recognises its own earlier line."""
+    return UI["command"].partition("{path}")[0]
 
 
 def log(message: str) -> None:
@@ -141,29 +165,33 @@ def composer_text(seen: str) -> str | None:
     for line in reversed(seen.splitlines()):
         found = COMPOSER.match(SGR.sub("", line))
         if found:
-            after = line[re.search("[›>❯]", line).end():]
+            after = line[GLYPH.search(line).end():]
             return "" if DIM.match(after) else found.group(1)
     return None
 
 
 def type_line(binary: str, pane: str, path: Path) -> None:
-    """Type `/cd <path>` until the harness confirms it or refuses for good."""
+    """Type the provider's move line until the harness confirms it or refuses for good."""
+    if not UI:
+        log("stop: no move_ui facts for this provider")
+        return
     for attempt in range(1, ATTEMPTS + 1):
         log(f"attempt {attempt}: waiting for pane {pane} to be idle")
         if not idle(binary, pane):
             continue
         text = composer_text(read_pane(binary, pane, "ansi"))
         log("composer: " + ("no composer" if text is None else "empty" if not text
-                            else "own /cd line" if text.startswith("/cd ") else f"human text ({len(text)} chars)"))
+                            else "own move line" if text.startswith(line_prefix())
+                            else f"human text ({len(text)} chars)"))
         if text is None:
             log("stop: no composer on screen")
             return  # an unreadable pane may hold the human's half-written message
-        if text and not text.startswith("/cd "):
+        if text and not text.startswith(line_prefix()):
             log("stop: the human is typing")
             return  # the human is typing: the refusal already printed the line
         if text:
             subprocess.run([binary, "agent", "send-keys", pane, "ctrl+u"], capture_output=True, timeout=30)
-        subprocess.run([binary, "agent", "prompt", pane, f"/cd {path}"], capture_output=True, timeout=30)
+        subprocess.run([binary, "agent", "prompt", pane, typed_line(path)], capture_output=True, timeout=30)
         time.sleep(SETTLE)
         seen = read_pane(binary, pane)
         if DONE.search(seen) or not REFUSED.search(seen):
@@ -180,6 +208,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     global LOG
     LOG = log_path(args.repo, args.name)
+    configure(args.provider)
     try:
         return run(args)
     except BaseException:

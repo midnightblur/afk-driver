@@ -79,7 +79,9 @@ run and Codex prints nothing until you have done this once.
   behavior block from both user instruction files. No shipped provider has a
   proven uninstall callback.
 - Copy Codex agent TOML stubs into `~/.codex/agents/` under their own filenames, replacing only the `{{PLUGIN_ROOT}}` placeholder with the installed plugin root that Codex plugin metadata reports; never render a mirror.
-- Add provider behavior only in `hooks/lib/providers/<name>.sh`, this file,
+- Add provider behavior only in `hooks/lib/providers/<name>.sh`, its facts file
+  `hooks/lib/providers/<name>.json` (detection, tool classes, the move hint and the
+  `move_ui` block: typed command, outcome patterns, prompt glyphs), this file,
   and — only where the algorithm is naturally table/JSON-shaped, never as a
   default — a `hooks/lib/providers/<name>_*.py` helper that `<name>.sh` alone
   calls. No other file may reference that helper, except a unit test under

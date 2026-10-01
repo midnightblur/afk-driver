@@ -134,6 +134,7 @@ def test_the_helper_retries_only_when_the_harness_refused_the_line(tmp_path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.SETTLE = 0
+    module.configure("codex")
     herdr, log = stub_herdr(tmp_path, "\u203a\n'/cd' is disabled while a task is in progress.")
     module.type_line(herdr, "w:p2", Path("C:/x"))
     assert len(prompts(log)) == module.ATTEMPTS
@@ -246,6 +247,7 @@ def load_move():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.SETTLE = 0
+    module.configure("codex")
     return module
 
 

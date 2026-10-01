@@ -6,6 +6,12 @@
   },
   "priority": 10,
   "harness_class": "H-2",
+  "move_ui": {
+    "command": "/cd {path}",
+    "done": "Working directory changed",
+    "refused": "disabled while a task|Cannot access directory|not trusted|background terminal",
+    "prompt_glyphs": "\u203a>\u276f"
+  },
   "move_hint": "move the session into a linked worktree: start the harness through `{plugin_root}/scripts/afk-launch.py <harness>`, or create one with `{plugin_root}/scripts/create-worktree --name <name>` and type `/cd <worktree path>`.",
   "tool_class": {
     "edit": [
