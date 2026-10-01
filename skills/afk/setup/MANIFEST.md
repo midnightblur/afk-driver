@@ -89,8 +89,8 @@ a token value — not even partially.
   registration. Tool prefixes vary by harness, so skills use bare tool names.
   The server reads `tracker` from the project root
   (`${CLAUDE_PROJECT_DIR:-<git root of the working directory>}`) on every call: creating or changing
-  `.afk/config.yaml` needs no restart. Registering the server or changing its `env`
-  block does. The server reads the checkout the session was launched in; to
+  `.afk/config.yaml` needs no restart; **Fix** says when registering the server or
+  changing a credential does. The server reads the checkout the session was launched in; to
   probe another worktree's config, launch the session there.
 
 ### H4 · design-push service *(optional)* **[deferred: first `/afk:prototype` or `/afk:design-system` push]**
