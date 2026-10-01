@@ -500,3 +500,22 @@ def test_r12_5_the_session_start_prune_clears_fallback_markers_older_than_a_day(
                    capture_output=True, text=True, env=dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT)),
                    timeout=120)
     assert not old.exists() and new.exists()
+
+
+def test_p9_the_session_start_report_reaches_the_human_and_the_model_when_the_provider_can_show_it(repo):
+    path = made(repo, "seen")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    run("--path", str(path))
+    done = run_env("--report-kept", cwd=repo, AFK_PROVIDER="claude")
+    document = json.loads(done.stdout)
+    context = document["hookSpecificOutput"]["additionalContext"]
+    assert document["systemMessage"] == context and "Resume: cd" in context and "--force" in context
+
+
+def test_p9_a_provider_without_a_user_message_gets_context_only(repo):
+    path = made(repo, "quiet")
+    (path / "w.txt").write_text("x", encoding="utf-8")
+    run("--path", str(path))
+    done = run_env("--report-kept", cwd=repo, AFK_PROVIDER="no-such-provider")
+    document = json.loads(done.stdout)
+    assert "systemMessage" not in document and "additionalContext" in document["hookSpecificOutput"]

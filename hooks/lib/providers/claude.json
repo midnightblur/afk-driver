@@ -7,6 +7,7 @@
   },
   "priority": 20,
   "harness_class": "H-1",
+  "session_start_user_message": true,
   "move_hint": "call the native worktree tool (EnterWorktree) with a new name, then continue there.",
   "tool_class": {
     "edit": [

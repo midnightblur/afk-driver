@@ -345,8 +345,25 @@ def prune(repo: Path) -> None:
             clear_leftover(common, path, record_file)
 
 
+def user_message_supported() -> bool:
+    """Does this harness's provider file declare a user-visible SessionStart message?"""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "afk_guard", HERE.parent / "hooks" / "lib" / "protected_branch_guard.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return bool(module.provider_facts().get("session_start_user_message"))
+    except Exception:
+        return False
+
+
 def report_kept(repo: Path) -> None:
-    """Print the kept worktrees not yet shown as SessionStart context, once."""
+    """Print the kept worktrees not yet shown as SessionStart output, once.
+
+    The text goes to the model as `additionalContext`, and to the human as `systemMessage`
+    when the provider file declares `session_start_user_message`. `shown` is set after the
+    report is written out.
+    """
     common = common_dir(repo)
     if common is None:
         return
@@ -358,9 +375,13 @@ def report_kept(repo: Path) -> None:
         for path, item in fresh:
             lines.append(f"- {path}: {item.get('reason')}. Resume: cd {path}. "
                          f"Remove and discard its work: python {script} --path {path} --force")
+        text = "\n".join(lines)
+        document = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}
+        if user_message_supported():
+            document["systemMessage"] = text
+        print(json.dumps(document), flush=True)
+        for _, item in fresh:
             item["shown"] = True
-        print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart",
-                                                 "additionalContext": "\n".join(lines)}}))
     try:
         write_kept(common, kept)
     except OSError:

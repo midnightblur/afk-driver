@@ -6,6 +6,7 @@
   },
   "priority": 10,
   "harness_class": "H-2",
+  "session_start_user_message": true,
   "move_ui": {
     "command": "/cd {path}",
     "done": "Working directory changed",
