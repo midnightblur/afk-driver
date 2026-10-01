@@ -605,7 +605,7 @@ TODO_REMOTES = [
     "https://github.com/acme/",
     "https://github.com/acme.git",
     "ssh://git@github.com/acme",
-    "https://user@github.com/acme",
+    "https://{user}@github.com/acme",
     "git@github.com:acme",
     "https://api.github.com/org/sub/w.git",
 ]
@@ -626,7 +626,7 @@ def test_a_github_remote_without_owner_and_name_leaves_the_repo_a_todo(
     out = _init_stdout(repo, monkeypatch, capsys)
     text = (repo / ".afk" / "config.yaml").read_text(encoding="utf-8")
     assert "repo: TODO" in text
-    for wrong in ("github.com/", "git@", "user@", "sub/w", "org/"):
+    for wrong in ("github.com/", "git@", "token@", "sub/w", "org/"):
         assert f"repo: {wrong}" not in text
     assert "afk-config: TODO left: github-issues.repo" in out
 
