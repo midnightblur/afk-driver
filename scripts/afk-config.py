@@ -1082,6 +1082,36 @@ def scaffold(root: Path, todos: list[str] | None = None) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def _git_ok(root: Path, *args: str) -> bool:
+    """Whether a git command exits 0; a timeout or missing git is `False`."""
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, timeout=5,
+            stdin=subprocess.DEVNULL,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def committed_elsewhere(root: Path) -> str | None:
+    """Where a config already exists outside `root`'s own file, else `None`.
+
+    A worktree on a branch cut before the config commit sees no file, yet the
+    base branch and the main worktree still carry the repository's contract."""
+    base = detect_base_branch(root)
+    names = [base] if base != "auto" else ["main", "master"]
+    refs = [f"refs/remotes/origin/{n}" for n in names] + [f"refs/heads/{n}" for n in names]
+    for ref in refs:
+        if _git_ok(root, "cat-file", "-e", f"{ref}:.afk/config.yaml"):
+            return f"`{ref.removeprefix('refs/remotes/').removeprefix('refs/heads/')}`"
+    common = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common:
+        main = Path(common).parent
+        if main.resolve() != root.resolve() and (main / ".afk" / "config.yaml").is_file():
+            return f"the main worktree {main}"
+    return None
+
+
 def init(root: Path, force: bool = False,
          todos: list[str] | None = None) -> tuple[Path, list[str]]:
     """Write the starter file. Returns its path and any validation problems;
@@ -1091,6 +1121,14 @@ def init(root: Path, force: bool = False,
         raise ConfigError(
             f"{target} already exists; nothing was written. "
             f"Pass --force to replace it (the current file is not backed up)."
+        )
+    where = None if force or target.is_file() else committed_elsewhere(root)
+    if where:
+        raise ConfigError(
+            f"{where} already has .afk/config.yaml; restore it "
+            f"(`git checkout <base> -- .afk/config.yaml`), or merge or rebase "
+            f"that branch, instead of scaffolding a second contract. "
+            f"Pass --force to scaffold anyway."
         )
     target.parent.mkdir(parents=True, exist_ok=True)
     text = scaffold(root, todos)

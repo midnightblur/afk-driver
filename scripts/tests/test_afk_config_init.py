@@ -516,3 +516,85 @@ def test_a_github_enterprise_subdomain_counts_as_github(tmp_path):
     repo = make_repo(tmp_path, "sub", "https://api.github.com/acme/w.git")
     _, config = scaffold_of(repo)
     assert config["tracker"] == "github-issues"
+
+
+# ------------------------------------- an existing contract elsewhere
+
+CONFIG_BODY = "schema: 1\ntracker: jira\n"
+
+
+def test_init_refuses_when_the_base_branch_has_a_config(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "config")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(wt)
+    assert "main" in str(refused.value) and "merge or rebase" in str(refused.value)
+    assert not (wt / ".afk" / "config.yaml").exists()
+
+
+def test_force_scaffolds_anyway(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "config")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    target, problems = ac.init(wt, force=True)
+    assert target.is_file() and problems == []
+
+
+def test_init_refuses_when_a_remote_base_ref_has_the_config(tmp_path):
+    repo = make_repo(tmp_path, "solo", files=[(".afk/config.yaml", CONFIG_BODY)])
+    tip = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
+                         capture_output=True, text=True).stdout.strip()
+    git(repo, "update-ref", "refs/remotes/origin/main", tip)
+    git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    git(repo, "rm", "-q", "-r", "--cached", ".afk")
+    git(repo, "commit", "-qm", "drop config from local base")
+    (repo / ".afk" / "config.yaml").unlink()
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(repo)
+    assert "origin/main" in str(refused.value)
+
+
+def test_init_refuses_when_the_main_worktree_has_a_config(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(wt)
+    assert str(repo.resolve()).replace("\\", "/") in str(refused.value).replace("\\", "/")
+
+
+def test_init_still_writes_in_a_repo_with_no_config_anywhere(tmp_path):
+    repo = make_repo(tmp_path, "fresh")
+    target, problems = ac.init(repo)
+    assert target.is_file() and problems == []
+
+
+def test_a_git_that_times_out_does_not_stop_init(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, "slowgit")
+    real = subprocess.run
+    seen = []
+
+    def flaky(argv, **kwargs):
+        if "cat-file" in argv:
+            seen.append(kwargs)
+            raise subprocess.TimeoutExpired(argv, 20)
+        return real(argv, **kwargs)
+
+    monkeypatch.setattr(ac.subprocess, "run", flaky)
+    target, problems = ac.init(repo)
+    assert target.is_file() and problems == []
+    assert seen and seen[0]["stdin"] is subprocess.DEVNULL
