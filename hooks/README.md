@@ -1,6 +1,6 @@
 # Harness gates
 
-Deterministic quality gates shipped with the afk-toolkit plugin. All gates run against the repository the session works in (`git rev-parse --show-toplevel`); a build gate no-ops unless the repository selects its kind in `build-gates` and the kind's own key resolves (no `maven.reactor-pom` on disk ⇒ silent allow).
+Deterministic quality gates shipped with the afk-toolkit plugin. All gates run against the working tree's Git root (`git rev-parse --show-toplevel`); a build gate no-ops unless the repository selects its kind in `build-gates` and the kind's own key resolves (no `maven.reactor-pom` on disk ⇒ silent allow).
 
 **Where each gate fires.** Three surfaces, wired differently:
 
@@ -43,9 +43,9 @@ without knowing what they are. It declares them in `.afk/hooks.json`
 (`CONFIG.md` "Repository hooks"): one entry per handler with its `event`,
 `matcher`, `timeout` and repository-relative `script`. `hooks.json` invokes
 `run-hook.py repo-list <event>` once per event; the launcher resolves each
-script under the checkout, refuses one that resolves outside it, and exits 0
-when the manifest is absent — so the plugin stays inert in a repository that
-declares none. A handler a repository DOES declare and this checkout cannot run
+script under the working tree's Git root (the root every plugin gate uses),
+refuses one that resolves outside it, and exits 0 when the manifest is
+absent — so the plugin stays inert in a repository that declares none. A handler a repository DOES declare and this checkout cannot run
 — missing script, unusable matcher, unparsable manifest, no verdict inside its
 timeout — is a configuration error, not a skip: on Stop and PreToolUse the
 launcher blocks with the decision object a failed gate emits, naming each

@@ -170,6 +170,10 @@ release page from its section here. Nobody tags by hand.
   directory, compares versions as numbers, and skips a copy the harness marked
   orphaned. A root handed over explicitly that is marked orphaned is tried
   only after the search.
+- **Repository Stop gates come from the working tree.** They read the
+  `.afk/hooks.json` of the checkout the session was launched in, while the
+  plugin gates checked the working tree, and a session started in a
+  subdirectory skipped them. Both now use the working tree's Git root.
 
 ## [1.9.0] - 2026-09-29
 
