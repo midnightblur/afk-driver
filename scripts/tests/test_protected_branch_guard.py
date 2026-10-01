@@ -550,3 +550,11 @@ def test_r3_4_with_no_provider_matched_reads_are_still_allowed(repo):
                               input=json.dumps(envelope_of(repo["main"], tool, {"file_path": str(repo["main"] / "a")})),
                               env=environ, timeout=120)
         assert (denies(done) if wanted == "deny" else done.returncode == wanted and not denies(done)), (tool, done.stderr)
+
+
+def test_r12_5_sessions_without_an_id_but_with_different_owners_each_get_the_notice(repo):
+    first = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
+    again = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
+    other = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="222:2")
+    assert "additionalContext" in first.stdout and again.stdout.strip() == ""
+    assert "additionalContext" in other.stdout

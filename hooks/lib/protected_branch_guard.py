@@ -293,12 +293,22 @@ class Judge:
             self.fallback_reason = answer.get("reason") or "the forge did not answer"
         return f"branch `{branch}` is protected" if answer["protected"] else None
 
+    def owner_key(self) -> str:
+        """A session without an id is told apart by the harness process above this hook."""
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import h2_move
+            found = h2_move.owner_env().get("AFK_WORKTREE_OWNER", "")
+        except Exception:
+            found = ""
+        return f"owner-{found}" if found else "nosession"
+
     def notice_once(self) -> str:
         """The fallback notice, the first time this session needs it."""
         if not self.fallback_reason or not self.common:
             return ""
         marker_dir = Path(self.common) / "afk-session"
-        name = re.sub(r"[^A-Za-z0-9._-]", "_", self.session or "nosession")
+        name = re.sub(r"[^A-Za-z0-9._-]", "_", self.session or self.owner_key())
         try:
             marker_dir.mkdir(exist_ok=True)
             os.close(os.open(marker_dir / f"{name}.fallback", os.O_CREAT | os.O_EXCL | os.O_WRONLY))

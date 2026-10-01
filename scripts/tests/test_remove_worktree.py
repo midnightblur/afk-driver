@@ -484,3 +484,19 @@ def test_r11_5_the_prune_of_a_leftover_deletes_its_move_log(repo):
     git(repo, "worktree", "remove", "--force", str(path))
     run("--prune", cwd=repo)
     assert not log.exists() and not (repo / ".git" / "afk-worktrees" / "stale.json").exists()
+
+
+def test_r12_5_the_session_start_prune_clears_fallback_markers_older_than_a_day(repo):
+    if BASH is None:
+        pytest.skip("no POSIX shell")
+    folder = repo / ".git" / "afk-session"
+    folder.mkdir(exist_ok=True)
+    old, new = folder / "old.fallback", folder / "new.fallback"
+    old.write_text("", encoding="utf-8")
+    new.write_text("", encoding="utf-8")
+    aged = time.time() - 3 * 86400
+    os.utime(old, (aged, aged))
+    subprocess.run([str(BASH), (PLUGIN_ROOT / "hooks" / "worktree-prune.sh").as_posix()], cwd=repo,
+                   capture_output=True, text=True, env=dict(os.environ, AFK_PLUGIN_ROOT=str(PLUGIN_ROOT)),
+                   timeout=120)
+    assert not old.exists() and new.exists()
