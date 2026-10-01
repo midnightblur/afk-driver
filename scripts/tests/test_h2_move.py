@@ -473,11 +473,21 @@ def test_p10_the_matching_pane_is_typed_into_and_a_reported_cwd_compares_normali
     assert prompts(log)
 
 
-def test_p10_a_pane_with_no_reported_session_matches_on_kind_and_cwd(tmp_path):
+def test_r15_1_a_pane_with_no_reported_session_gets_nothing_typed_and_the_log_says_so(tmp_path, monkeypatch):
     module = load_move()
+    monkeypatch.setattr(module, "LOG", tmp_path / "move.log")
     herdr, log = stub_herdr(tmp_path, "\u203a", session=None)
     module.type_line(herdr, "w:pE", Path("C:/x"))
-    assert prompts(log)
+    assert not prompts(log)
+    assert "nothing typed" in (tmp_path / "move.log").read_text(encoding="utf-8")
+
+
+def test_r15_2_two_sessions_sharing_an_inherited_pane_id_each_get_their_own_worktree(repo):
+    first = typed_path(refuse(repo, "child-1", HERDR_ENV="1", HERDR_PANE_ID="w:parent").stderr)
+    second = typed_path(refuse(repo, "child-2", HERDR_ENV="1", HERDR_PANE_ID="w:parent").stderr)
+    assert first != second
+    assert wait_for(Path(first)) and wait_for(Path(second))
+    assert len(list((repo / ".git" / "afk-session").glob("*.move"))) == 2
 
 
 def test_p10_the_check_is_redone_after_the_idle_wait(tmp_path, monkeypatch):

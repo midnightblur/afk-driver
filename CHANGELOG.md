@@ -83,8 +83,9 @@ release page from its section here. Nobody tags by hand.
 - **The worktree move types only into the refused session's own pane.** An agent started
   from a shell inside another agent's terminal pane inherits that pane's id, and the move
   typed `/cd` into the parent agent. The helper now checks that the pane's agent kind,
-  session id (when reported) and directory match the refused session, before the idle wait
+  reported session id and directory match the refused session, before the idle wait
   and again before typing; otherwise it types nothing and the refusal's `/cd` line stands.
+  Sessions that share an inherited pane id each get their own worktree.
 - **A worktree guard check without a token in the environment runs one process, not two.**
   The GitHub reads ask `gh auth token` once and go concurrently over HTTPS; a failing token
   call falls back to the CLI reads. The token stays in memory.

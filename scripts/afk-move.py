@@ -183,13 +183,14 @@ def owns_pane(binary: str, pane: str) -> bool:
     """Is `pane` the refused session's own agent? A pane that cannot be proven theirs gets no typing.
 
     An agent started inside another agent's pane inherits that pane's id, so the id alone proves
-    nothing: the pane's agent kind, session id (when herdr reports one) and cwd must all match.
+    nothing: the pane's agent kind, a reported session id and cwd must all match. A pane herdr
+    reports no session for gets nothing typed; the refusal already printed the line.
     """
     agent = ((herdr_json(binary, "agent", "get", pane) or {}).get("result") or {}).get("agent") or {}
     kind = str(agent.get("agent") or "")
     seen = str((agent.get("agent_session") or {}).get("value") or "")
     cwd = str(agent.get("cwd") or "")
-    ok = (kind == WHO.get("provider") and (not seen or seen == WHO.get("session"))
+    ok = (kind == WHO.get("provider") and bool(seen) and seen == WHO.get("session")
           and same_dir(cwd, WHO.get("cwd", "")))
     if not ok:
         log(f"pane {pane} belongs to another agent ({kind or '?'}/{seen or '?'}/{cwd or '?'}): nothing typed")

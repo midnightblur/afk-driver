@@ -69,7 +69,7 @@ def plan(place: dict, envelope: dict, facts: dict) -> dict:
     root = common.parent if common.name == ".git" else Path(place["root"])
     pane = os.environ.get("HERDR_PANE_ID", "") if os.environ.get("HERDR_ENV") else ""
     session = str(envelope.get("session_id") or "")
-    key = re.sub(r"[^A-Za-z0-9._-]", "_", pane or session or "nosession")
+    key = re.sub(r"[^A-Za-z0-9._-]", "_", session or f"{pane}:nosession")  # a pane id is inherited by child agents
     marker_dir = common / "afk-session"
     marker_dir.mkdir(exist_ok=True)
     marker = marker_dir / f"{key}.move"
