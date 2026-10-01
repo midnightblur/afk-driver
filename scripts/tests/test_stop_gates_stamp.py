@@ -86,10 +86,11 @@ def test_stop_outside_a_repository_writes_nothing(tmp_path):
 
 
 
-def _stop_as(repo, provider):
+def _stop_as(repo, provider, session="s-1"):
     result = subprocess.run([str(BASH), str(ROOT / "hooks" / "stop-gates.sh")], cwd=repo,
                             env={**_env(), "AFK_PROVIDER": provider},
-                            input="{}", capture_output=True, text=True, timeout=300)
+                            input=json.dumps({"hook_event_name": "Stop", "session_id": session}),
+                            capture_output=True, text=True, timeout=300)
     said = json.loads(result.stdout) if result.stdout.strip() else {}
     return result, said
 
@@ -113,6 +114,10 @@ def test_an_unchanged_blocked_tree_is_released_after_three_blocks(tmp_path, prov
         assert "findings still stand: wiring" in said["systemMessage"]
         assert "findings still stand: wiring" in result.stderr
         assert not stamp.read_text(encoding="utf-8").startswith("pass:")
+
+    result, said = _stop_as(tmp_path, provider, session="s-2")
+    assert said.get("decision") == "block", "a new session on the same tree must be blocked again"
+    assert stamp.read_text(encoding="utf-8").startswith("blocked:1:s-2:")
 
     orphan.write_text("second\n", encoding="utf-8")
     result, said = _stop_as(tmp_path, provider)

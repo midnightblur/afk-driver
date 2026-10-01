@@ -57,13 +57,17 @@ gate_metrics_emit context pass "\"changed\":$n_changed"
 STOP_STAMP=${AFK_CTX_CACHE_DIR:+$AFK_CTX_CACHE_DIR/.last-stop}
 STOP_BLOCK_LIMIT=3
 prior_blocks=0
+# Rule 3 counts per session: a new session on the same tree starts blocked again.
+stop_payload="" stop_session=""
+[ -t 0 ] || IFS= read -r -d '' stop_payload || true
+[[ $stop_payload =~ \"session_id\"[[:space:]]*:[[:space:]]*\"([A-Za-z0-9._-]+)\" ]] && stop_session=${BASH_REMATCH[1]}
 if [ -n "$STOP_STAMP" ] && [ -f "$STOP_STAMP" ]; then
   stop_stamp=$(<"$STOP_STAMP")
   if [ "${GATE_CACHE_DISABLE:-0}" != "1" ] && [ "$stop_stamp" = "pass:$AFK_CTX_TREE" ]; then
     exit 0
   fi
   case "$stop_stamp" in
-    "blocked:"*":$AFK_CTX_TREE")
+    "blocked:"*":$stop_session:$AFK_CTX_TREE")
       prior_blocks=${stop_stamp#blocked:}
       prior_blocks=${prior_blocks%%:*}
       case "$prior_blocks" in ''|*[!0-9]*) prior_blocks=0 ;; esac ;;
@@ -162,12 +166,12 @@ release_stderr
 # ---- rule 3: one unchanged tree blocks at most STOP_BLOCK_LIMIT Stops in a row;
 # later Stops on it are allowed with a notice. No pass stamp: the findings stand.
 if [ "$blocked" = "1" ]; then
-  write_stamp "blocked:$((prior_blocks + 1)):$AFK_CTX_TREE"
+  write_stamp "blocked:$((prior_blocks + 1)):$stop_session:$AFK_CTX_TREE"
   reason=$(cat "$GATE_ERR" 2>/dev/null)
   rm -f "$GATE_ERR" 2>/dev/null
   [ "$prior_blocks" -lt "$STOP_BLOCK_LIMIT" ] && afk_block_stop "$reason"
   printf '%s\n' "$reason" >&2
-  afk_emit_stop_notice "[afk] The Stop gates blocked this unchanged tree $prior_blocks times in a row, so this Stop is allowed. The findings still stand: $blocked_gates. A change to the tree resets the count, and the gates block again."
+  afk_emit_stop_notice "[afk] The Stop gates blocked this unchanged tree $STOP_BLOCK_LIMIT times in a row in this session, so this Stop is allowed. The findings still stand: $blocked_gates. A change to the tree resets the count, and the gates block again."
   exit 0
 fi
 

@@ -48,7 +48,7 @@ release page from its section here. Nobody tags by hand.
   longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
 - **A Stop gate block no longer repeats forever on an unchanged tree.** An
   agent that made no change was blocked on every turn until a run cap stopped
-  it. Now the same tree blocks at most 3 Stops in a row. The next Stop is
+  it. Now the same tree blocks at most 3 Stops in a row in one session. The next Stop is
   allowed, and a notice tells you which gates still have findings. Any change
   to the tree resets the count.
 - **Gates no longer leave files in your checkout.** Their pass cache and timing
