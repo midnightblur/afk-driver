@@ -37,6 +37,16 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Jira adapter no longer reads credentials from another vendor's `jira`
+  server.** It, and `init`'s Jira hint, took the `env` block of any `jira` MCP
+  server in `~/.claude.json` or `~/.codex/config.toml`. Only the `tracker`
+  server, or afk's own pre-rename `jira` entry, counts now.
+- **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
+  relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
+  longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
+
 ## [1.10.0] - 2026-10-01
 
 ### Changed
@@ -178,13 +188,6 @@ release page from its section here. Nobody tags by hand.
   only an owner or a nested path.** It used to write a wrong `owner/name`
   that still validated.
 - **The forge adapters read the project from a remote URL ending in `.git/`.**
-- **The Jira adapter no longer reads credentials from another vendor's `jira`
-  server.** It, and `init`'s Jira hint, took the `env` block of any `jira` MCP
-  server in `~/.claude.json` or `~/.codex/config.toml`. Only the `tracker`
-  server, or afk's own pre-rename `jira` entry, counts now.
-- **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
-  relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
-  longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
 
 ## [1.9.0] - 2026-09-29
 
