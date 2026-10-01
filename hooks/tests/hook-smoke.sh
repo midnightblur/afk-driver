@@ -796,6 +796,9 @@ for pair in (declared.group(1).split(",") if declared else []):
     (claude if provider == "claude" else codex).get("hooks", {}).pop(event, None)
 left = json.dumps(claude, sort_keys=True).replace("${CLAUDE_PLUGIN_ROOT}", "<ROOT>")
 right = json.dumps(codex, sort_keys=True).replace("${PLUGIN_ROOT}", "<ROOT>")
+# The MCP launcher names its own harness directory once; nothing else differs.
+own = re.compile(r'own = \\*"\.(claude|codex)\\*"')
+left, right = own.sub("own = <OWN>", left), own.sub("own = <OWN>", right)
 sys.exit(0 if left == right else 1)
 PY
   then

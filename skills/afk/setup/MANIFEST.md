@@ -80,7 +80,9 @@ a token value — not even partially.
   next call, no restart; without them a call answers `error: true` and the
   server stays up. The user-scoped `tracker` entry holds them in its `env`, so
   it takes a change only after a restart. The registration passes this plugin
-  root, so re-run setup after a plugin update or after moving a checkout.
+  root; after a plugin update the launcher moves to the new install once the
+  harness marks the old copy orphaned. Re-run setup if the old copy is not
+  marked, or after moving a checkout.
   `setup_secrets.py` leaves a `jira` server entry alone unless its args point
   under this plugin root, into an `afk` plugin cache, or at the launcher; it
   then warns that a `jira` server remains.
