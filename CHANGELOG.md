@@ -184,7 +184,7 @@ release page from its section here. Nobody tags by hand.
   server, or afk's own pre-rename `jira` entry, counts now.
 - **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
   relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
-  longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy demotion.
+  longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
 
 ## [1.9.0] - 2026-09-29
 
