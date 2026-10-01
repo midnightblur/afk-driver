@@ -59,6 +59,10 @@ release page from its section here. Nobody tags by hand.
   repository that publisher scripts read. A config change now applies without a restart.
   The server's `unsupported` and `error` answers carry `config_root`, the
   checkout it read, so the setup probe decides from the server's own view.
+- **`validate` warns about configured paths that do not exist.** It checked
+  only the schema, so a wrong `maven.reactor-pom` or `repo-hooks` path passed
+  and left its gate inert. Each missing path now prints a `warning:` line;
+  the exit code stays 0. `/afk:setup` reports a missing `setup.extra` file.
 
 ## [1.9.0] - 2026-09-29
 
