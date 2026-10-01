@@ -13,6 +13,7 @@ envelopes="$here/envelopes"
 shim="$workflow/hooks/lib/provider.sh"
 lavish="$workflow/hooks/lavish-dark.sh"
 lavish_tips="$workflow/hooks/lavish-tips.sh"
+guard="$workflow/hooks/protected-branch-guard.py"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not on PATH" >&2; exit 0; }
 
@@ -349,6 +350,25 @@ postcompact:PostCompact|stop:Stop)
   else
     fail "lavish-tips pass-through (rc=$rc)"
   fi
+
+  guard_repo=$(mktemp -d)
+  git -C "$guard_repo" init -q -b dev
+  guard_cwd=$(cd "$guard_repo" && pwd -W 2>/dev/null || pwd)
+  AFK_PROVIDER="$provider" python "$guard" < "$provider_envelopes/pretooluse-bash-safe.json" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" = 0 ]; then
+    pass "protected-branch-guard passes a command outside any repository"
+  else
+    fail "protected-branch-guard outside git (rc=$rc)"
+  fi
+  sed "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" 2>/dev/null >"$guard_repo.out"
+  rc=$?
+  if [ "$rc" = 0 ] && grep -q '"permissionDecision": "deny"' "$guard_repo.out"; then
+    pass "protected-branch-guard refuses a command in a main checkout"
+  else
+    fail "protected-branch-guard main checkout (rc=$rc, exit 0 plus the deny JSON expected)"
+  fi
+  rm -rf "$guard_repo" "$guard_repo.out"
 done
 
 # ---- lavish render shape: the global binary's bare `lavish-axi <file>` command
@@ -721,8 +741,8 @@ fi
 out=$(cd "$fixture_repo" && "$py" "$launcher" repo-list Stop \
   < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
-if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
-  pass "launcher carries a repository Stop handler's blocking exit code"
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q "fixture stop finding" && printf '%s' "$out" | grep -q '"decision": "block"'; then
+  pass "launcher turns a repository Stop handler's non-zero exit into the block object"
 else
   fail "launcher stop exit code (rc=$rc out=$out)"
 fi
@@ -760,7 +780,7 @@ fi
 out=$(cd "$fixture_repo" && CLAUDE_PROJECT_DIR="$clean_repo" "$py" "$launcher" repo-list Stop \
   < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
-if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '"decision": "block"'   && printf '%s' "$out" | grep -q "fixture stop finding"; then
   pass "launcher gates the working tree despite a clean CLAUDE_PROJECT_DIR"
 else
   fail "launcher working-tree gate (rc=$rc out=$out)"
@@ -768,7 +788,7 @@ fi
 out=$(cd "$fixture_repo/sub" && CLAUDE_PROJECT_DIR="$fixture_repo/sub" "$py" "$launcher" repo-list Stop \
   < "$envelopes/claude/stop.json" 2>&1)
 rc=$?
-if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q "fixture stop finding"; then
+if [ "$rc" = 0 ] && printf '%s' "$out" | grep -q '"decision": "block"'   && printf '%s' "$out" | grep -q "fixture stop finding"; then
   pass "launcher gates the repository when the session starts in a subdirectory"
 else
   fail "launcher subdirectory gate (rc=$rc out=$out)"
@@ -794,10 +814,15 @@ rm -rf "$fixture_repo" "$bare_repo" "$clean_repo"
 echo "== native twins =="
 twin() {
   local label=$1 claude_file=$2 codex_file=$3
-  if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" <<'PY'
+  if "$py" - "$workflow/$claude_file" "$workflow/$codex_file" "$workflow/CAPABILITIES.md" <<'PY'
 import json, re, sys
 claude = json.load(open(sys.argv[1], encoding="utf-8"))
 codex = json.load(open(sys.argv[2], encoding="utf-8"))
+declared = re.search(r"(?m)^Provider-specific hook events:\s*(.+)$",
+                     open(sys.argv[3], encoding="utf-8").read())
+for pair in (declared.group(1).split(",") if declared else []):
+    provider, _, event = pair.strip().partition("=")
+    (claude if provider == "claude" else codex).get("hooks", {}).pop(event, None)
 left = json.dumps(claude, sort_keys=True).replace("${CLAUDE_PLUGIN_ROOT}", "<ROOT>")
 right = json.dumps(codex, sort_keys=True).replace("${PLUGIN_ROOT}", "<ROOT>")
 # The MCP launcher names its own harness directory once; nothing else differs.

@@ -84,6 +84,14 @@ Each thread carries its current resolution, URL, side, lines, paths, and notes.
 reason. `require_inline: true` requests cleanup after a degraded write. A
 cleanup error identifies the orphan note.
 
+The forge family also ships a shared protected-branch read, `adapters/forge/branch_protection.py`,
+which `scripts/protected-lookup.py` calls in-process (no adapter round trip: the guard has a latency
+budget) and which owns the fallback. It takes `branch` (optional `repo`) and returns `protected` and `via`. GitHub:
+the branch's own flag (a 404 there means not classically protected), or a ruleset rule that
+restricts pushes; both reads run at once. GitLab: a protected-branch
+entry, exact or wildcard (`*` matches any run of characters, `/` included), every page. A failing
+read, or a malformed rules answer, is `error`, never "not protected".
+
 `commit-changes` takes `sha` and returns `changes` and `count`. Each change carries `id`, `url`,
 `state` (`opened`, `closed`, `merged`), `draft`, `source`, `target`, and `author`. A failing CLI, a non-list
 answer, or an entry with no `id` is an error, never an empty list.

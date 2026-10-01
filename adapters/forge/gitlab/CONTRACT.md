@@ -93,3 +93,7 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
 
 Every forge verb is supported. A rejected line position follows the
 `change-comment` rule above.
+
+## Notes on the shared protected-branch read
+
+Reads the project's own `protected_branches`. Protection inherited from a group setting is not read (unverified: no live probe of the group-level endpoint yet).

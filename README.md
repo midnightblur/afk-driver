@@ -828,6 +828,11 @@ first:
 
 ## 12. Conventions & gotchas
 
+- **One linked worktree per session.** The plugin refuses an agent's edits,
+  shell commands and commits in the main checkout or on a protected branch, and
+  moves the session into a worktree instead (`SAFETY.md` "Worktree per
+  session"; `PROVIDERS.md` for each harness's move). A human sets
+  `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
 - **Branch names** must match the repository's own `git.branch-pattern`, and a
   new branch is named from its `git.branch-template`. A repository that
   declares neither gets no branch gate.

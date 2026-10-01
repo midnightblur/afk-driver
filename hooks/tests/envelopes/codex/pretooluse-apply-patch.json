@@ -1,0 +1,13 @@
+{
+  "session_id": "01a0f079-0000-0000-0000-000000000001",
+  "turn_id": "01a0f079-0000-0000-0000-000000000002",
+  "cwd": "C:\\work\\cx wt",
+  "hook_event_name": "PreToolUse",
+  "model": "example-model",
+  "permission_mode": "default",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Add File: C:\\work\\cx wt\\b.txt\n+x\n*** Update File: C:\\work\\cx wt\\a\n@@\n-x\n+y\n*** End Patch"
+  },
+  "tool_use_id": "call-1"
+}

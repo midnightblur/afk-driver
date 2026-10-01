@@ -3,6 +3,8 @@
 # hook, NOT a Stop hook (those live in hooks.json). Opt-in per clone:
 #   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
 # (or `/afk:setup`, register entry H5). Uninstall by removing the installed hook.
+# The same hook first runs the protected-branch backstop (hooks/git-backstop.py) for an agent
+# call, in every repository, whether or not a branch pattern is set.
 #
 # Blocks creating a NEW local branch whose name does not match
 # `git.branch-pattern` from the repository's `.afk/config.yaml`. The key empty or
@@ -39,6 +41,18 @@ fi
 # "aborted" are informational (a non-zero exit there does nothing useful).
 [ "${1:-}" = "prepared" ] || exit 0
 
+# Protected-branch backstop (git-backstop.py) runs first: the hatches below are for
+# the naming rule only. It reads the ref lines, so they are held for the loop.
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+refs=$(cat)
+# Python starts only for a HEAD or branch line; fetch, tags, notes and stash skip it.
+# Exit 3 is a refusal; any other failure is a fault and lets git continue.
+if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]    && grep -Eq ' (HEAD|refs/heads/.*)$' <<<"$refs"; then
+  py=python; command -v python >/dev/null 2>&1 || py=python3
+  "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs"
+  [ $? -eq 3 ] && exit 1
+fi
+
 # Escape hatches.
 [ "${AFK_SKIP_BRANCH_CHECK:-}" = "1" ] && exit 0
 [ "$(git config --bool afk.branchNameGate 2>/dev/null)" = "false" ] && exit 0
@@ -51,8 +65,6 @@ pattern_loaded=0
 load_pattern() {
   [ "$pattern_loaded" = 1 ] && return 0
   pattern_loaded=1
-  local here
-  here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   # shellcheck source=/dev/null
   . "$here/lib/config.sh" 2>/dev/null || return 0
   afk_config_load
@@ -81,7 +93,7 @@ while read -r old new ref; do
   [ -z "$pattern" ] && continue
   printf '%s\n' "$branch" | grep -Eq "$pattern" && continue
   block="$branch"
-done
+done <<<"$refs"
 
 [ -z "$block" ] && exit 0
 

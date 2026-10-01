@@ -37,8 +37,59 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-01
+
+### Changed
+
+- **Behavior change for every plugin user: an agent no longer edits or commits
+  in the main checkout or on a protected branch.** The managed behavior block
+  gains a `worktree-per-session` line; run `/afk:setup` to refresh it. A
+  tool-call guard refuses an agent's edit and shell tools there and names the
+  move; the installed git hooks refuse its commit and branch move. Protected
+  branches are read live from GitHub or GitLab on every check (the default
+  branch plus `main`/`master` when the forge cannot answer, with a notice). Set
+  `AFK_ALLOW_PROTECTED=1` when you launch a session that must work there.
+  **Where the harness asks you to trust new hooks** (`PROVIDERS.md`
+  "Protected-branch guard" names it): trust them once. Start the harness in its
+  terminal UI without the full-bypass flag and choose "Trust all and
+  continue", or type `/hooks` and press `t`. Until then the guard does not run;
+  `/afk:setup` reports it.
+
 ### Added
 
+- **Named worktrees.** `scripts/create-worktree --name <name>` cuts a worktree under
+  the active harness's folder, records its owner, and runs the repository's
+  `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
+  that has a worktree-creation hook calls it.
+- **Session move for harnesses without a worktree tool.** When the guard
+  refuses such a session, it names the worktree it is creating and the exact
+  `/cd <path>` line to type, and refuses at once. A detached helper cuts the
+  worktree and, inside a herdr pane, types the line for you once the agent is
+  idle and the composer is empty — only into the refused session's own pane.
+  Each move logs to `<git dir>/afk-worktrees/<name>.log`.
+  `scripts/afk-launch.py <harness>` starts a harness in a new worktree from the
+  main checkout or a protected branch, and in place anywhere else.
+- **Worktree cleanup.** `scripts/remove-worktree.py` removes a worktree the
+  plugin made when it is clean and holds nothing unpushed, with its branch if
+  the branch has no commit of its own; otherwise it keeps it and names the
+  resume and remove commands. The harness's worktree-removal and session-end
+  events call it; a session that ends inside its worktree hands removal to a
+  detached waiter that runs once the harness has exited. A worktree is removed
+  only when every session recorded in it is gone. Each session start prunes the
+  rest and shows the kept worktrees to you and the agent. Where the harness
+  shows no session-end output, the kept report appears at the next session
+  start.
+- **Git backstop for the protected-branch guard.** `install-git-hooks.sh` now
+  installs in every git repository, with or without `.afk/`, and skips one that
+  sets `core.hooksPath`. For an agent only, `pre-commit` refuses a commit in the
+  main checkout and on a protected branch of a worktree, and
+  `reference-transaction` refuses a move of the main checkout's HEAD or of the
+  branch it has checked out. Creating refs, so a new worktree, passes; so does
+  `AFK_ALLOW_PROTECTED=1` or `AFK_WORKTREE_OP=1`. A linked worktree on a
+  protected branch also refuses moving that branch, a rebase included. A
+  refused `checkout` can leave the index switched and a refused `rebase` in
+  progress: the tool-call guard stays the primary gate.
+- **Setup detects untrusted guard hooks** by reading the harness config.
 - **Pin a model tier in one place.** The `PROVIDERS.md` "Model tiers" table
   holds each tier's model per harness and the reasoning effort, and a second
   table maps each agent to its tier. A cell takes an alias or an exact model
@@ -47,6 +98,23 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- **A plugin PreToolUse refusal now blocks under every harness.** The second
+  supported harness treats a PreToolUse hook that exits 2 as a failed hook and
+  runs the command anyway. A refusal is now exit 0 plus the deny JSON, which
+  both harnesses honour.
+- **A repository gate that blocks the first harness's way still blocks under
+  the second.** A `PreToolUse` or `Stop` script in `.afk/hooks.json` that exits
+  non-zero without printing its own verdict is answered in the provider's block
+  shape, and a matching entry blocks when no POSIX shell can be found; the Stop
+  fallback exits 0 like both adapters. `CONFIG.md` "Repository hooks" states the
+  verdict shapes.
+- **Repository gates answer in one document.** On `Stop` and `PreToolUse` every
+  refusal is gathered into one verdict in the provider's block shape; allowed
+  outputs merge into one document, and an `ask` from one handler is never
+  turned into an `allow` by another.
+- **The plugin's own runtime files no longer read as work.** The gate cache and
+  metrics folders go to the clone's shared exclude file, and worktree cleanup
+  ignores untracked files that live only under them.
 - **Issue reports keep plugin terms from an installed plugin.** The redactor
   built its allowlist from `git ls-files`, which is empty in a harness install,
   so file names and config keys became `<host>`. An install carrying a plugin

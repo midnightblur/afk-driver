@@ -150,8 +150,14 @@ Negation is not supported. A repository must list each wider path explicitly.
 ### Path templates
 
 `repo-files.spec-dir` and `git.branch-template` expand a fixed placeholder set:
-`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`.
-An unknown placeholder is left alone rather than guessed.
+`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`. In
+`repo-files.spec-dir`, `{user}` is the `USER`/`USERNAME` environment value, unchanged, and
+an unknown placeholder is left alone rather than guessed.
+
+`git.branch-template` under `scripts/create-worktree --name` adds `{name}`, the worktree
+name, and reads `{user}` as the git `user.name` slug: lower case, spaces to `-`, only
+`a-z 0-9 -`. In that mode every placeholder the plugin cannot resolve is filled with the
+name too.
 
 ### Worktree provisioning
 
@@ -189,14 +195,25 @@ holds can become shell syntax.
 ### Repository hooks
 
 `repo-hooks` names a JSON array. Each entry has `event`
-(`SessionStart` | `PreToolUse` | `Stop`), `matcher` (a regular expression
+(`SessionStart` | `PreToolUse` | `Stop` | `WorktreeCreated`), `matcher` (a regular expression
 matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
 refused. What the launcher does with a handler it cannot run is pinned by
 `scripts/tests/test_run_hook.py`. `hooks/run-hook.py` runs the matching entries in declaration order and
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
 is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
-turn and names the entry, so a gate cannot go missing quietly.
+turn and names the entry, so a gate cannot go missing quietly. A `PreToolUse` verdict
+is the deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) at exit 0: one
+harness treats exit 2 as a failed hook and runs the tool. A `Stop` verdict is the
+`{"decision":"block","reason":...}` object. A script that exits non-zero, or prints its
+own refusal, is a refusal: the launcher never passes a handler's own verdict or exit
+code through on these events. It gathers every refusal and prints one verdict in that
+shape at the adapter's code. With no POSIX shell a matching call is blocked too.
+
+`WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
+matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
+`AFK_WORKTREE_BRANCH` set and the event JSON on stdin. A script that fails adds a
+warning naming it; the worktree stays.
 
 ### Investigation boundaries
 

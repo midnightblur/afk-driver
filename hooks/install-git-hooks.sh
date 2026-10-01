@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installer for the afk-toolkit git hooks:
-#   reference-transaction -> branch-name-gate.sh  (agent-only branch naming)
-#   pre-commit            -> precommit-gates.sh   (build-gate adapters)
+#   reference-transaction -> branch-name-gate.sh (naming + protected-branch backstop)
+#   pre-commit            -> precommit-gates.sh  (backstop, then build gates)
 #
 # The pre-commit hook is where the expensive code gates live. They used to run on
 # every turn end, which made interactive sessions pay a reactor build per
@@ -13,9 +13,8 @@
 #   bash "$AFK_PLUGIN_ROOT/hooks/install-git-hooks.sh"
 #
 # Behaviour:
-#   - Opt-in per repository: installs ONLY where the repository root carries an
-#     `.afk/` directory. The toolkit is installed globally on a harness, so a
-#     repository that never opted in never receives a git hook.
+#   - Every git repository, `.afk/` or not; agent-only at run time.
+#   - `core.hooksPath` set: skipped with one notice.
 #   - Root-aware: the installed stub carries the ABSOLUTE plugin root resolved at
 #     install time, on an `# afk-plugin-root:` line. A session whose plugin root
 #     differs (a version upgrade moves the install cache) rewrites the stub.
@@ -44,9 +43,9 @@ plugin_root=$(cd "$plugin_root" 2>/dev/null && pwd) || {
 # Must be inside a git repo.
 top=$(git rev-parse --show-toplevel 2>/dev/null) || { say "afk: not inside a git repo — nothing to do."; exit 0; }
 
-# Opt-in marker: this repository asked for AFK.
-if [ ! -d "$top/.afk" ]; then
-  say "afk: $top has no .afk/ — repository has not opted in, skipping git hooks."
+# A configured hooks path (a shared or per-repo dir such as .husky) is not ours to write.
+if [ -n "$(git config --get core.hooksPath 2>/dev/null)" ]; then
+  echo "afk: core.hooksPath is set in $top — git hooks NOT installed; the protected-branch backstop is off here." >&2
   exit 0
 fi
 
