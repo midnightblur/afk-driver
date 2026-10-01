@@ -225,7 +225,8 @@ def test_a_server_started_with_credentials_in_its_env_keeps_them_until_restarted
 
 def copy_plugin(dest: Path) -> Path:
     """The parts of the plugin the server loads, at `dest`."""
-    for part in ("mcp-servers", "adapters", "scripts/afk-config.py"):
+    for part in ("mcp-servers", "adapters", "scripts/afk-config.py",
+                 "skills/afk/setup/scripts/tracker_registration.py"):
         src, target = ROOT / part, dest / part
         target.parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():

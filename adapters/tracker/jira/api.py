@@ -15,7 +15,8 @@ Credentials are read from same-named OS env vars, or from the tracker MCP
 server's env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL /
 JIRA_API_TOKEN), or from ~/.codex/config.toml [mcp_servers.tracker.env];
 resolution order env > claude.json > codex config.toml. The server was once
-registered as `jira`, so both names are accepted. Nothing is hardcoded.
+registered as `jira`; that name counts only for afk's own entry (setup's
+`is_afk_entry`). Nothing is hardcoded.
 """
 
 from __future__ import annotations
@@ -38,10 +39,22 @@ from markdown_it import MarkdownIt
 # ============================================================================
 # Credentials
 # ============================================================================
-# The MCP server that carries these credentials is registered as `tracker`; it
-# was `jira` before the adapter split, and an existing machine still holds that
-# registration, so both names resolve.
-SERVER_NAMES = ("tracker", "jira")
+# Setup owns both server names and the test for "is this entry afk's own". The
+# legacy `jira` name counts only for afk's own entry, never another vendor's.
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _registration_module():
+    spec = importlib.util.spec_from_file_location(
+        "afk_tracker_registration",
+        PLUGIN_ROOT / "skills" / "afk" / "setup" / "scripts" / "tracker_registration.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+registration = _registration_module()
+SERVER_NAMES = (registration.MCP_KEY, registration.LEGACY_MCP_KEY)
 
 
 # The shared payload reader (adapters/tracker/payload.py). The adapters folder
@@ -62,6 +75,9 @@ def _walk_for_jira_env(obj):
     if isinstance(obj, dict):
         for name in SERVER_NAMES:
             server = obj.get(name)
+            if (name == registration.LEGACY_MCP_KEY and isinstance(server, dict)
+                    and not registration.is_afk_entry(server, PLUGIN_ROOT)):
+                continue
             if isinstance(server, dict) and isinstance(server.get("env"), dict):
                 return server["env"]
         for v in obj.values():
