@@ -106,6 +106,10 @@ release page from its section here. Nobody tags by hand.
   `.afk/hooks.json` of the checkout the session was launched in, while the
   plugin gates checked the working tree, and a session started in a
   subdirectory skipped them. Both now use the working tree's Git root.
+- **`init` leaves `github-issues.repo` as a TODO when the GitHub remote names
+  only an owner or a nested path.** It used to write a wrong `owner/name`
+  that still validated.
+- **The forge adapters read the project from a remote URL ending in `.git/`.**
 
 ## [1.9.0] - 2026-09-29
 

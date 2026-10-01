@@ -897,8 +897,13 @@ def repo_slug(root: Path, remote: str) -> str:
     if not remote:
         return ""
     url = _git(root, "remote", "get-url", remote) or ""
-    match = re.search(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?/?$", url.strip())
-    return f"{match.group(1)}/{match.group(2)}" if match else ""
+    spec = importlib.util.spec_from_file_location(
+        "afk_project_from_remote",
+        Path(__file__).resolve().parent.parent / "adapters/forge/project_from_remote.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    path = module.project(url)
+    return path if path.count("/") == 1 else ""
 
 
 def _machine_layer() -> dict:

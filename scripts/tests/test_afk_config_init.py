@@ -598,3 +598,45 @@ def test_a_git_that_times_out_does_not_stop_init(tmp_path, monkeypatch):
     target, problems = ac.init(repo)
     assert target.is_file() and problems == []
     assert seen and seen[0]["stdin"] is subprocess.DEVNULL
+
+
+TODO_REMOTES = [
+    "https://github.com/acme",
+    "https://github.com/acme/",
+    "https://github.com/acme.git",
+    "ssh://git@github.com/acme",
+    "https://user@github.com/acme",
+    "git@github.com:acme",
+    "https://api.github.com/org/sub/w.git",
+]
+SLUG_REMOTES = [
+    "https://github.com/acme/widget",
+    "git@github.com:acme/widget.git",
+    "ssh://git@github.com:22/acme/widget.git",
+    "https://github.com:443/acme/widget",
+    "https://github.com/acme/widget.git/",
+]
+
+
+@pytest.mark.parametrize("remote", TODO_REMOTES)
+def test_a_github_remote_without_owner_and_name_leaves_the_repo_a_todo(
+        tmp_path, monkeypatch, capsys, remote):
+    repo = make_repo(tmp_path, "owner-only", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", remote)
+    out = _init_stdout(repo, monkeypatch, capsys)
+    text = (repo / ".afk" / "config.yaml").read_text(encoding="utf-8")
+    assert "repo: TODO" in text
+    for wrong in ("github.com/", "git@", "user@", "sub/w", "org/"):
+        assert f"repo: {wrong}" not in text
+    assert "afk-config: TODO left: github-issues.repo" in out
+
+
+@pytest.mark.parametrize("remote", SLUG_REMOTES)
+def test_a_github_remote_with_owner_and_name_writes_the_slug(
+        tmp_path, monkeypatch, capsys, remote):
+    repo = make_repo(tmp_path, "slug", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", remote)
+    out = _init_stdout(repo, monkeypatch, capsys)
+    text = (repo / ".afk" / "config.yaml").read_text(encoding="utf-8")
+    assert "repo: acme/widget" in text and "repo: TODO" not in text
+    assert not any("github-issues.repo" in line for line in out)
