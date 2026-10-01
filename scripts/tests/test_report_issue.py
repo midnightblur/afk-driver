@@ -1141,4 +1141,3 @@ def test_a_broken_git_checkout_keeps_no_allowance(tmp_path):
     (root / "notes.md").write_text("ssh orders.internal.acme\n", encoding="utf-8")
     r = redact.Redactor(root, None, "midnightblur/afk-driver")
     assert "orders.internal.acme" not in r.redact("deploy failed on orders.internal.acme")
-
