@@ -20,6 +20,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess
 import time
 import sys
@@ -32,6 +33,16 @@ TARGET_KEYS = ("file_path", "notebook_path", "path")
 MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", "rename", "move",
             "exec", "execute", "run", "terminal", "apply", "patch", "commit", "push", "insert", "set",
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
+READ_COMMANDS = {"cat", "dir", "get-childitem", "get-content", "get-item", "get-location", "grep", "head",
+                 "ls", "pwd", "resolve-path", "rg", "select-string", "stat", "tail", "test-path", "type",
+                 "wc", "which"}
+READ_GIT = {"cat-file", "describe", "diff", "for-each-ref", "grep", "log", "ls-files", "merge-base",
+            "name-rev", "rev-parse", "show", "show-ref", "status"}
+READ_GH = {("issue", "list"), ("issue", "status"), ("issue", "view"), ("pr", "checks"),
+           ("pr", "diff"), ("pr", "list"), ("pr", "status"), ("pr", "view"), ("release", "list"),
+           ("release", "view"), ("repo", "view"), ("run", "list"), ("run", "view"), ("run", "watch")}
+UNSAFE_GIT_READ = {"--ext-diff", "--filters", "--open-files-in-pager", "--output", "--textconv"}
+SHELL_CONTROL = re.compile(r"[;&|<>`(){}\r\n]")
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_DEPTH = 3
 OUTSIDE_HINT = ("this session is not inside a repository, so no worktree can be cut for it: start the "
@@ -85,6 +96,42 @@ def mcp_class(tool: str) -> str:
     return "other" if MUTATING & set(re.split(r"[^A-Za-z0-9]+", words.lower())) else "allow"
 
 
+def shell_class(command: str) -> str:
+    """Allow one conservative read command. Composition and unknown commands remain guarded."""
+    if not command.strip() or SHELL_CONTROL.search(command):
+        return "shell"
+    try:
+        words = shlex.split(command, posix=True)
+    except ValueError:
+        return "shell"
+    if not words:
+        return "shell"
+    token = words[0]
+    if Path(token).name != token or "/" in token or "\\" in token:
+        return "shell"
+    program = token.lower()
+    if program.endswith(".exe"):
+        program = program[:-4]
+    if program in READ_COMMANDS:
+        if program == "rg" and any(word == "--pre" or word.startswith("--pre=") for word in words[1:]):
+            return "shell"
+        return "allow"
+    if program == "git":
+        if any(word in UNSAFE_GIT_READ or any(word.startswith(flag + "=") for flag in UNSAFE_GIT_READ)
+               for word in words[1:]):
+            return "shell"
+        index = 1
+        while index < len(words) and words[index] in ("--no-pager", "--paginate"):
+            index += 1
+        while index + 1 < len(words) and words[index] in ("-C", "--git-dir", "--work-tree"):
+            index += 2
+        return "allow" if index < len(words) and words[index].lower() in READ_GIT else "shell"
+    if program == "gh":
+        route = tuple(word.lower() for word in words[1:3])
+        return "allow" if route in READ_GH else "shell"
+    return "shell"
+
+
 def known_tools() -> dict:
     """Every provider file's tool names by class, for a run no provider file claims."""
     merged: dict = {}
@@ -99,11 +146,11 @@ def known_tools() -> dict:
 
 
 def tool_class(tool: str, facts: dict) -> str:
-    if tool.startswith("mcp__"):
-        return mcp_class(tool)
     for kind, names in (facts.get("tool_class") or known_tools()).items():
         if tool in names:
             return kind
+    if tool.startswith("mcp__"):
+        return mcp_class(tool)
     return "other"
 
 
@@ -373,6 +420,10 @@ def decide(envelope: dict, facts: dict) -> int:
     cwd = Path(envelope.get("cwd") or os.getcwd())
     tool = str(envelope.get("tool_name") or "")
     kind = tool_class(tool, facts)
+    if kind == "shell":
+        command = str(tool_input.get("command") or tool_input.get("cmd") or "")
+        if shell_class(command) == "allow":
+            return 0
     if kind == "allow":
         return 0
     judge = Judge(str(envelope.get("session_id") or ""))

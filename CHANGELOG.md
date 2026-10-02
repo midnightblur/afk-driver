@@ -37,6 +37,12 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-02
+
+### Fixed
+
+- **The protected-branch guard permits conservative read-only inspection before a session moves.** Single recognized file, repository, and GitHub reads now pass in the main checkout or on a protected branch. Composition, redirection, unknown programs, edits, and write-capable commands remain blocked. Read-only web tools no longer fail because their names contain `run`.
+
 ### Added
 
 - **`/afk:setup` reports a git hook that starts background work.** Register row

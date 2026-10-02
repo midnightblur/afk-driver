@@ -1,6 +1,6 @@
 # Every shell command is refused until the session moves
 
-> Status: Accepted
+> Status: Superseded by ADR-0009
 > Audited: 2026-09-29
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)

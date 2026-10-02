@@ -30,5 +30,6 @@ In a linked worktree a detached or unborn HEAD passes; a folder outside Git
 and `AFK_ALLOW_PROTECTED=1` set by a human at launch pass everywhere. The tool-call guard
 (`hooks/protected-branch-guard.py`) enforces the rule first; the installed git
 hooks (`hooks/git-backstop.py`) refuse an agent's commit and branch move
-again. Move a refused session with the harness's worktree tool, else
+again. The tool-call guard allows its conservative set of single read-only
+commands before the move. Move a refused session with the harness's worktree tool, else
 `${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <name>`.
