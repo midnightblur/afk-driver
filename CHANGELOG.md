@@ -37,6 +37,15 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- **`/afk:setup` reports a git hook that starts background work.** Register row
+  H13 flags a hook in the checkout's hooks directory that detaches a process
+  (a trailing `&`, `nohup`, `setsid`, `disown`, `start /b`, `Start-Process`).
+  Git does not wait for that process, so each commit can stack another run and
+  stall the machine. The fix lists each hook and line; you decide whether to
+  remove it. Run `/afk:setup` to check your checkouts.
+
 ## [1.10.1] - 2026-10-01
 
 ### Fixed

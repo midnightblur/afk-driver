@@ -323,6 +323,22 @@ a token value — not even partially.
   its own. The two remediations and the harness that walks above the repository
   are in `providers/HARNESS-MATRIX.md` and the standard.
 
+### H13 · no git hook that starts background work
+- **Needed by:** every afk developer — git runs one hooks directory for every
+  worktree of a checkout and does not wait for a process a hook detaches. A
+  hook that detaches work on each commit stacks runs behind agent commits; the
+  load stalls the machine and the tool-call gates time out.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/background_git_hooks.py" --check`
+  — reads `git rev-parse --git-path hooks` (follows `core.hooksPath`), skips
+  `*.sample` files and the H5 stubs, and flags a non-comment line with a
+  trailing `&`, `nohup`, `setsid`, `disown`, `start /b`, or `Start-Process`;
+  exit 0 when none is found, 1 when one is.
+- **Fix:** `human:` run the probe without `--check` to list each hook with the
+  line that detaches, then per hook offer the developer **remove the hook** or
+  **remove that line**. Never delete without the developer's answer — a hook
+  may be theirs on purpose.
+- **Notes:** report-only; the toolkit edits no hook it did not install.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
