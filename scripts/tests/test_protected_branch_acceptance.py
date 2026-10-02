@@ -430,6 +430,41 @@ def test_ac004_read_search_and_worktree_tool_allowed(row, tool, tool_input, repo
     assert not verdict.denied, verdict
 
 
+@pytest.mark.parametrize("harness,tool", [("claude", "Bash"), ("codex", "exec_command")])
+@pytest.mark.parametrize("command", ["Get-Content README.md", "git status --short", "gh issue list"])
+def test_ac031_read_only_shell_command_allowed_in_guarded_place(harness, tool, command, repo, stubs):
+    verdict = guard(harness, envelope(harness, tool, repo, {"command": command}), repo, stubs)
+    assert not verdict.denied, verdict
+
+
+def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
+    verdict = guard("codex", envelope("codex", "exec_command", repo, {"cmd": "git status --short"}), repo, stubs)
+    assert not verdict.denied, verdict
+
+
+@pytest.mark.parametrize("command", [
+    "Set-Content README.md changed",
+    "Get-Content README.md > copy.txt",
+    "Get-Content README.md; Remove-Item README.md",
+    "Get-Content README.md | Set-Content copy.txt",
+    "Get-Content @(Set-Content copy.txt changed)",
+    "Get-Content (Set-Content copy.txt changed)",
+    "Get-ChildItem -Filter { Set-Content copy.txt changed }",
+    "C:/tmp/git.exe status",
+    "/tmp/rg pattern",
+    "unknown-reader README.md",
+])
+def test_ac031_write_capable_or_unrecognized_shell_command_refused(command, repo, stubs):
+    verdict = guard("codex", envelope("codex", "exec_command", repo, {"command": command}), repo, stubs)
+    assert verdict.denied, verdict
+
+
+@pytest.mark.parametrize("tool", ["web__run", "webrun", "mcp__web__run"])
+def test_ac004_read_only_web_tools_allowed_in_guarded_place(tool, repo, stubs):
+    verdict = guard("codex", envelope("codex", tool, repo, {}), repo, stubs)
+    assert not verdict.denied, verdict
+
+
 def test_ac005_patch_refused_in_main_checkout(repo, stubs):
     verdict = guard("codex", edit_call("codex", repo, repo / "README.md"), repo, stubs)
     assert verdict.denied, verdict

@@ -1,13 +1,13 @@
 # protected-branch-guard — start here
 
-Developers run several AI agent sessions on one repository at once, and a session that forgets to move into its own worktree edits the same files and branch as another, or commits straight onto a protected branch. For every developer who installed the afk plugin, in every repository, each agent session now moves into its own linked worktree before its first change, and the plugin refuses edits and shell commands until it does. Protected branches come live from GitHub or GitLab. Every new worktree runs the repository's own registered setup scripts, and worktrees the plugin made are cleaned up once nothing in them is unsaved.
+Developers run several AI agent sessions on one repository at once, and a session that forgets to move into its own worktree edits the same files and branch as another, or commits straight onto a protected branch. For every developer who installed the afk plugin, in every repository, each agent session now moves into its own linked worktree before its first change, and the plugin refuses edits and write-capable commands until it does. Read-only inspection remains available. Protected branches come live from GitHub or GitLab. Every new worktree runs the repository's own registered setup scripts, and worktrees the plugin made are cleaned up once nothing in them is unsaved.
 
 ## Artifacts
 
 | Artifact | Where | State |
 |---|---|---|
 | PRD | PRD.md | draft |
-| Requirement ADRs | adr/requirements/ | 8 records |
+| Requirement ADRs | adr/requirements/ | 9 records |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | — |
 | Design ADRs | adr/design/ | — |

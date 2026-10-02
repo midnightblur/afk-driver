@@ -44,7 +44,7 @@ def repo(tmp_path: Path) -> Path:
 
 def refuse(cwd: Path, session: str, **extra: str) -> subprocess.CompletedProcess:
     call = {"session_id": session, "cwd": str(cwd), "hook_event_name": "PreToolUse", "tool_name": "Bash",
-            "tool_input": {"command": "ls"}}
+            "tool_input": {"command": "touch changed"}}
     return subprocess.run([sys.executable, str(GUARD)], input=json.dumps(call), capture_output=True, text=True,
                           cwd=cwd, env=env_of(**extra), timeout=120)
 

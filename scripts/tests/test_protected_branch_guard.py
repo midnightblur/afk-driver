@@ -85,9 +85,9 @@ def run(harness: str, cwd: Path, tool: str, tool_input: dict, envelope_extra=Non
 
 SHAPES = {
     "claude": (lambda p: ("Edit", {"file_path": str(p / "a.txt")}),
-               lambda: ("Bash", {"command": "ls"})),
+               lambda: ("Bash", {"command": "touch changed"})),
     "codex": (lambda p: ("apply_patch", {"command": PATCH.format(path=p / "a.txt")}),
-              lambda: ("Bash", {"command": "ls"})),
+              lambda: ("Bash", {"command": "touch changed"})),
 }
 
 
@@ -205,9 +205,9 @@ def test_the_live_apply_patch_envelope_with_spaces_in_absolute_paths(repo):
 
 
 def test_refusal_names_cause_and_move_per_harness_class(repo):
-    claude = run("claude", repo["main"], "Bash", {"command": "ls"})
+    claude = run("claude", repo["main"], "Bash", {"command": "touch changed"})
     assert "main checkout" in claude.stderr and "EnterWorktree" in claude.stderr
-    codex = run("codex", repo["protected"], "Bash", {"command": "ls"})
+    codex = run("codex", repo["protected"], "Bash", {"command": "touch changed"})
     assert "`main` is protected" in codex.stderr and "/cd" in codex.stderr
     assert re.search(r"^/cd .+\.codex.worktrees.session-[0-9a-f]{8}\s*$", codex.stderr, re.M), codex.stderr
     decision = json.loads(claude.stdout)["hookSpecificOutput"]
@@ -220,6 +220,44 @@ def test_refusal_names_cause_and_move_per_harness_class(repo):
 def test_read_and_worktree_tools_are_allowed_in_the_main_checkout(repo, tool):
     """AC-004 (A-3, A-4)."""
     assert run("claude", repo["main"], tool, {"file_path": "x"}).returncode == 0
+
+
+@pytest.mark.parametrize("harness,tool", [("claude", "Bash"), ("codex", "exec_command")])
+@pytest.mark.parametrize("command", [
+    "Get-Content -Raw README.md",
+    "ls",
+    "git status --short --branch",
+    "gh issue list --state open --limit 100",
+])
+def test_read_only_shell_commands_are_allowed_in_the_main_checkout(repo, harness, tool, command):
+    assert run(harness, repo["main"], tool, {"command": command}).returncode == 0
+
+
+def test_codex_exec_command_reads_its_native_cmd_field(repo):
+    assert run("codex", repo["main"], "exec_command", {"cmd": "git status --short"}).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "Set-Content README.md changed",
+    "Get-Content README.md > copy.txt",
+    "Get-Content README.md; Remove-Item README.md",
+    "Get-Content README.md | Set-Content copy.txt",
+    "Get-Content @(Set-Content copy.txt changed)",
+    "Get-Content (Set-Content copy.txt changed)",
+    "Get-ChildItem -Filter { Set-Content copy.txt changed }",
+    "C:/tmp/git.exe status",
+    "/tmp/rg pattern",
+    "git diff --output=copy.diff",
+    "gh issue create --title changed --body changed",
+    "rg --pre mutate pattern",
+])
+def test_write_capable_shell_commands_remain_refused_in_the_main_checkout(repo, command):
+    assert run("codex", repo["main"], "exec_command", {"command": command}).returncode == 2
+
+
+@pytest.mark.parametrize("tool", ["web__run", "webrun", "mcp__web__run"])
+def test_read_only_web_tools_are_allowed_in_the_main_checkout(repo, tool):
+    assert run("codex", repo["main"], tool, {}).returncode == 0
 
 
 @pytest.mark.parametrize("tool,code", [
@@ -269,7 +307,7 @@ sys.exit(guard.main())
 
 def helper(harness: str, cwd: Path, tool: str, mode="missing", raise_for_git=False, **env):
     """The judge in a process whose `git` is missing, fatal, or forbidden."""
-    envelope = json.dumps(envelope_of(cwd, tool, {"command": "ls"}))
+    envelope = json.dumps(envelope_of(cwd, tool, {"command": "touch changed"}))
     return subprocess.run([sys.executable, "-c", WRAPPER, str(LIB), "forbid" if raise_for_git else mode],
                           input=envelope, text=True, capture_output=True, cwd=cwd,
                           env=clean_env(harness, **env), timeout=120)
@@ -311,13 +349,13 @@ def test_r1_3_a_broken_gitdir_pointer_fails_closed(repo):
     (repo["topic"] / ".git").unlink()
     (repo["topic"] / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
                                         encoding="utf-8")
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"})
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
     assert done.returncode == 2 and "could not compute a verdict" in done.stderr
 
 
 def test_r1_4_a_tag_with_the_branch_name_does_not_hide_the_protected_branch(repo):
     git(repo["main"], "tag", "main")
-    done = run("claude", repo["protected"], "Bash", {"command": "ls"})
+    done = run("claude", repo["protected"], "Bash", {"command": "touch changed"})
     assert done.returncode == 2 and "`main` is protected" in done.stderr
 
 
@@ -357,14 +395,14 @@ def test_an_unloadable_judge_still_refuses_inside_a_work_tree(repo, tmp_path):
     copy = tmp_path / "plugin" / "hooks"
     copy.mkdir(parents=True)
     (copy / "protected-branch-guard.py").write_text(GUARD.read_text(encoding="utf-8"), encoding="utf-8")
-    stdin = json.dumps(envelope_of(repo["topic"], "Bash", {"command": "ls"}))
+    stdin = json.dumps(envelope_of(repo["topic"], "Bash", {"command": "touch changed"}))
     done = subprocess.run([sys.executable, str(copy / "protected-branch-guard.py")], input=stdin, text=True,
                           capture_output=True, cwd=repo["topic"], env=clean_env("claude"))
     assert denies(done) and "could not load" in done.stderr
     assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
     outside = tmp_path / "plain"
     outside.mkdir()
-    stdin = json.dumps(envelope_of(outside, "Bash", {"command": "ls"}))
+    stdin = json.dumps(envelope_of(outside, "Bash", {"command": "touch changed"}))
     done = subprocess.run([sys.executable, str(copy / "protected-branch-guard.py")], input=stdin, text=True,
                           capture_output=True, cwd=outside, env=clean_env("claude"))
     assert done.returncode == 0
@@ -378,7 +416,7 @@ def test_r1_5_the_registered_command_denies_from_a_main_checkout(repo, manifest,
     assert "protected-branch-guard.py" in command, "A22: the guard is the last PreToolUse group"
     argv = shlex.split(command.replace(f"${{{root_var}}}", str(PLUGIN_ROOT).replace("\\", "/")))
     argv[0] = sys.executable
-    done = subprocess.run(argv, input=json.dumps(envelope_of(repo["main"], "Bash", {"command": "ls"})),
+    done = subprocess.run(argv, input=json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"})),
                           text=True, capture_output=True, cwd=repo["main"],
                           env=clean_env("claude" if root_var.startswith("CLAUDE") else "codex"), timeout=120)
     assert denies(done)
@@ -388,7 +426,7 @@ def test_r1_5_the_registered_command_denies_from_a_main_checkout(repo, manifest,
 @pytest.mark.parametrize("harness", ["claude", "codex"])
 def test_p2_a_refusal_is_exit_zero_with_the_deny_json_never_exit_two(repo, harness):
     """`providers/CONFORMANCE.md` row P-2: the H-2 harness treats a PreToolUse exit 2 as a failed hook and runs the command."""
-    call = json.dumps(envelope_of(repo["main"], "Bash", {"command": "ls"}))
+    call = json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"}))
     raw = subprocess.run([sys.executable, str(GUARD)], input=call, text=True, capture_output=True,
                          cwd=repo["main"], env=clean_env(harness), timeout=120)
     assert raw.returncode == 0
@@ -441,21 +479,21 @@ def forge(repo):
 def test_the_forge_answer_decides_protection(repo, forge):
     forge["routes"]["branches/topic"] = (200, {"protected": True}, 0)
     forge["routes"]["rules/branches"] = (200, [], 0)
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 2 and "`topic` is protected" in done.stderr
     forge["routes"].clear()
     forge["routes"]["branches/"] = (200, {"protected": False}, 0)
     forge["routes"]["rules/branches"] = (200, [], 0)
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 0 and done.stdout.strip() == ""
 
 
 def test_a15_an_unpushed_branch_404_is_unprotected_and_a_rule_protects_it(repo, forge):
     forge["routes"]["rules/branches"] = (200, [{"type": "copilot_code_review"}], 0)
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 0 and done.stdout.strip() == ""
     forge["routes"]["rules/branches"] = (200, [{"type": "pull_request"}], 0)
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 2 and "`topic` is protected" in done.stderr
 
 
@@ -463,9 +501,9 @@ def test_a15_an_unpushed_branch_404_is_unprotected_and_a_rule_protects_it(repo, 
 def test_r1_2_a_failed_or_malformed_rules_read_takes_the_fallback(repo, forge, answer):
     forge["routes"]["rules/branches"] = answer
     forge["routes"]["branches/"] = (200, {"protected": False}, 0)
-    done = run("claude", repo["protected"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["protected"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 2 and "`main` is protected" in done.stderr and "could not answer" in done.stderr
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": "s9"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": "s9"}, **forge["env"])
     assert done.returncode == 0
     assert "could not answer" in json.loads(done.stdout)["hookSpecificOutput"]["additionalContext"]
 
@@ -474,7 +512,7 @@ def test_a15_the_two_reads_run_at_once(repo, forge):
     forge["routes"]["branches/"] = (200, {"protected": False}, 1.5)
     forge["routes"]["rules/branches"] = (200, [], 1.5)
     started = time.monotonic()
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, **forge["env"])
     assert done.returncode == 0
     assert time.monotonic() - started < 1.5 + 1.2  # in series two 1.5 s reads cost 3.0 s before start-up
 
@@ -484,18 +522,18 @@ def test_r1_5_the_cap_is_wall_clock(repo, forge):
     forge["routes"]["branches/"] = (200, {"protected": False}, 12)
     forge["routes"]["rules/branches"] = (200, [], 12)
     started = time.monotonic()
-    done = run("claude", repo["topic"], "Bash", {"command": "ls"}, AFK_PROTECTED_TIMEOUT="1", **forge["env"])
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, AFK_PROTECTED_TIMEOUT="1", **forge["env"])
     elapsed = time.monotonic() - started
     assert done.returncode == 0 and "could not answer" in done.stdout
     assert elapsed < 6.0, elapsed
 
 
 def test_fallback_notice_appears_once_per_session(repo):
-    first = run("claude", repo["topic"], "Bash", {"command": "ls"})
-    second = run("claude", repo["topic"], "Bash", {"command": "ls"})
+    first = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
+    second = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
     assert "default branch" in json.loads(first.stdout)["hookSpecificOutput"]["additionalContext"]
     assert second.stdout.strip() == ""
-    other = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": "s2"})
+    other = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": "s2"})
     assert "additionalContext" in other.stdout
 
 
@@ -509,7 +547,7 @@ def make_submodule_repo(tmp_path: Path):
 
 def test_a_submodule_of_a_main_checkout_is_refused(tmp_path):
     outer = make_submodule_repo(tmp_path)
-    assert run("claude", outer / "sub", "Bash", {"command": "ls"}).returncode == 2
+    assert run("claude", outer / "sub", "Bash", {"command": "touch changed"}).returncode == 2
 
 
 def test_r0_13_a_submodule_inside_a_p4_worktree_is_allowed(tmp_path):
@@ -518,7 +556,7 @@ def test_r0_13_a_submodule_inside_a_p4_worktree_is_allowed(tmp_path):
     linked = add_worktree(outer, "topic", "topic")
     git(linked, "-c", "protocol.file.allow=always", "submodule", "update", "--init", "-q")
     assert (linked / "sub" / ".git").exists()
-    assert run("claude", linked / "sub", "Bash", {"command": "ls"}).returncode == 0
+    assert run("claude", linked / "sub", "Bash", {"command": "touch changed"}).returncode == 0
     assert run("claude", linked / "sub", "Edit", {"file_path": str(linked / "sub" / "a.txt")}).returncode == 0
 
 
@@ -553,8 +591,8 @@ def test_r3_4_with_no_provider_matched_reads_are_still_allowed(repo):
 
 
 def test_r12_5_sessions_without_an_id_but_with_different_owners_each_get_the_notice(repo):
-    first = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
-    again = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
-    other = run("claude", repo["topic"], "Bash", {"command": "ls"}, {"session_id": ""}, AFK_WORKTREE_OWNER="222:2")
+    first = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
+    again = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": ""}, AFK_WORKTREE_OWNER="111:1")
+    other = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": ""}, AFK_WORKTREE_OWNER="222:2")
     assert "additionalContext" in first.stdout and again.stdout.strip() == ""
     assert "additionalContext" in other.stdout

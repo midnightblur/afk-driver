@@ -45,6 +45,10 @@ branch (`SAFETY.md` "Worktree per session"). Each provider file
 variables, `harness_class`, the tool classes, `move_hint`, `worktree_folder`
 and `owner_pid_env`.
 
+Declared read tools pass before placement checks. Shell tools pass only when
+the guard recognizes one read-only command with no composition or redirection.
+An exact provider declaration overrides the fallback tool-name classifier.
+
 | Class | Harness | How a refused session moves | Cleanup |
 |---|---|---|---|
 | H-1 | `claude` | The agent calls its own worktree tool. The `WorktreeCreate` handler runs `scripts/create-worktree`. | `WorktreeRemove` and `SessionEnd` handlers run `scripts/remove-worktree.py`; a session ending inside its worktree starts a detached waiter that removes it once the harness exits |

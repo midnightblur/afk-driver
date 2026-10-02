@@ -15,7 +15,7 @@ A developer runs several agent sessions on one repository at the same time.
 For every agent of a developer who installed the afk plugin, in every repository:
 
 - Before its first change, the agent moves into its own linked worktree on its own branch. The session continues there with no human step where the harness allows it (catalog `M`).
-- The plugin enforces the rule. It refuses every edit and every shell command while the session sits on a protected branch or in the main checkout (catalog `P`).
+- The plugin enforces the rule. It refuses edits and write-capable commands while the session sits on a protected branch or in the main checkout (catalog `P`).
 - The plugin learns which branches are protected from GitHub or GitLab (catalog `S`).
 - Every new worktree is made one way: branch name checked, personal files copied, build set up, and the repository's own registered setup scripts run.
 - The plugin removes the worktrees it made once they hold nothing unsaved.
@@ -34,7 +34,7 @@ Requirements name a harness by what its agent can do. `PROVIDERS.md` maps each s
 
 ### P — session placement and verdict
 
-A guarded action is an edit or a shell command (catalog `A`). The verdict applies to the session's working directory and, for an edit, also to the target file's location.
+A guarded action is an edit or a write-capable command (catalog `A`). The verdict applies to the session's working directory and, for an edit, also to the target file's location.
 
 | ID | Checkout | Branch | Verdict |
 |----|----------|--------|---------|
@@ -50,9 +50,10 @@ A guarded action is an edit or a shell command (catalog `A`). The verdict applie
 | ID | Action | In P-1..P-3 |
 |----|--------|-------------|
 | A-1 | file edit, file write, notebook edit, patch apply | refused |
-| A-2 | shell command, in any shell the harness offers, including background commands | refused |
+| A-2 | one recognized read-only shell command, with no composition or redirection | allowed |
 | A-3 | built-in file read and search tools | allowed |
 | A-4 | the harness's native worktree tool (H-1) | allowed |
+| A-5 | write-capable, composed, redirected, or unrecognized shell command | refused |
 
 ### S — where the protected-branch list comes from
 
@@ -86,10 +87,10 @@ The forge comes from the repository's afk configuration when present, else from 
 
 Guard:
 
-- [ ] AC-001 For every row of catalog `P`, a guarded action (A-1, A-2) from a session in that placement gets the row's verdict, on every supported harness.
+- [ ] AC-001 For every row of catalog `P`, a guarded action (A-1, A-5) from a session in that placement gets the row's verdict, on every supported harness.
 - [ ] AC-002 An edit whose target file lies in a P-1..P-3 location is refused, even when the session itself sits in a P-4 worktree.
 - [ ] AC-003 A refusal names its cause (the protected branch by name, or "main checkout") and the move for the session's harness class from catalog `M`.
-- [ ] AC-004 In a P-1..P-3 placement, A-3 and A-4 actions succeed.
+- [ ] AC-004 In a P-1..P-3 placement, A-2, A-3 and A-4 actions succeed.
 - [ ] AC-005 A patch apply in a P-1..P-3 placement is refused; the same patch from a P-4 worktree whose targets all lie in that worktree is allowed.
 - [ ] AC-006 The guard is active in a repository with no afk configuration, for every developer who installed the plugin.
 
@@ -133,6 +134,7 @@ Cleanup:
 - [ ] AC-027 A plugin-made worktree whose session ends with no uncommitted change and no unpushed commit is removed; its branch is deleted when it has no commit of its own.
 - [ ] AC-028 A plugin-made worktree whose session ends with an uncommitted change or an unpushed commit is kept, and the session's last output names the resume command and the remove command. Where the harness shows no session-end output, the report appears at the next session start.
 - [ ] AC-029 A stale plugin-made worktree is pruned only when its owner process is gone and it holds no uncommitted change and no unpushed commit; a worktree the plugin did not make is never removed.
+- [ ] AC-031 In a P-1..P-3 placement, a single recognized command that only reads files, repository state, or forge state succeeds; composition, redirection, an unrecognized program, or a write-capable command is refused before execution.
 
 Behavior line:
 
@@ -153,7 +155,7 @@ Behavioural decisions with a record:
 
 - Every plugin user, every repository, on by default: [ADR-0001](adr/requirements/0001-on-for-every-plugin-user.md).
 - The main checkout is refused on any branch, not only on protected branches: [ADR-0002](adr/requirements/0002-main-checkout-refused-on-any-branch.md).
-- Every shell command is refused in P-1..P-3, not only commands that look like writes: [ADR-0003](adr/requirements/0003-refuse-every-shell-command.md).
+- A conservative set of single read-only shell commands succeeds in P-1..P-3: [ADR-0009](adr/requirements/0009-allow-conservative-read-only-shell-commands.md), superseding [ADR-0003](adr/requirements/0003-refuse-every-shell-command.md).
 - The protected-branch list is asked from the forge on every check: [ADR-0004](adr/requirements/0004-protected-list-asked-live.md).
 - Protection covers sessions that forget; deliberate writes into another folder are out of scope: [ADR-0005](adr/requirements/0005-guard-against-forgetting-not-intent.md).
 - An H-1 session moves with its native worktree tool; no launch wrapper for H-1: [ADR-0006](adr/requirements/0006-self-moving-harness-moves-natively.md).
