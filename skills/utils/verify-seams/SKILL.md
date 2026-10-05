@@ -26,7 +26,7 @@ The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this pl
 3. **Resolve every non-wired row.** For each `weak`/`orphan`: wire a real consumer now, or add an IOU to the repo's `.claude/wiring-ious.md` anchored to a plan step, ticket, or contract naming *your* symbol the future consumer will call (never a guessed future filename — implementers choose their own names). An anchor-less "used later" is not a resolution.
 
 4. **Final mode only** (`verify-seams final` — run before push/ship):
-   - Run `WIRING_FINAL=1 bash <plugin-root>/hooks/wiring-gate.sh` — open IOUs now block.
+   - Run `WIRING_FINAL=1 bash <plugin-root>/hooks/wiring-gate.sh` — open IOUs now block. Exit 3 means verdict unknown (the scan timed out, found the lock held, or failed): rerun it. Exit 3 is neither a pass nor an orphan.
    - Hand still-open IOUs to the step-2 subagent with one extra question: "Is this anchor real (the step/ticket exists and still plans to consume it), or a hand-wave?" Hand-waves get wired or waived-with-reason before shipping — never carried across the ship line.
 
 Done when: every artifact in the verifier's table is `wired`, or `pending` behind an anchored IOU (non-final), and in final mode the IOU list is empty or all-waived-with-reason.
