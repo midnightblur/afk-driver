@@ -1,6 +1,6 @@
 # ADR-0002 — Plugin issues go to the plugin's own GitHub repository
 
-> Status: Accepted
+> Status: Superseded by ADR-0007
 > Date: 2026-09-10
 
 ## Context
@@ -35,5 +35,7 @@ flowchart LR
 
 - **Positive** — plugin defects found in any consuming repository reach one place, deduplicated, with evidence a maintainer can act on cold.
 - **Negative** — a new network egress. The redactor is its only content guard, so a shape it does not know leaves the machine on an agent run that passes the residual scan.
-- **Negative** — human approval is enforced by prose only. `publish.sh` cannot tell a human's yes from an agent that passes `--approved`; the skill allows the flag only after an explicit yes in the conversation. An agent that disobeys it bypasses `auto-publish: false` and the residual stop, but never the redaction of the title and body.
+- **Negative** — `publish.sh` cannot tell a human's yes from an agent that passes
+  `--approved`. ADR-0007 adds a receipt that binds the preview to the write, but
+  the skill still controls whether the flag follows an explicit yes.
 - **Follow-ups** — widen `redact.py` shapes when a leaked shape is observed; no dashboard of queued drafts.

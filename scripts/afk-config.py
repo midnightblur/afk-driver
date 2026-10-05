@@ -123,6 +123,7 @@ CHILD_KEYS: dict[str, set[str]] = {
     "setup": {"extra"},
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
+    # Keep auto-publish valid for old configs. Report publishing always needs approval.
     "report-issue": {"repository", "auto-publish"},
     "review": {"ledger-only-paths"},
 }
