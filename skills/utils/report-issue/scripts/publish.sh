@@ -45,7 +45,7 @@
 #        | preview-unverified <repo> reason=<r>
 #        | queued <path> reason=<r> | would-queue reason=<r>
 # Exit: 0 created/commented/preview/list, 2 usage, 3 queued or would-queue,
-#       4 residual refused.
+#       4 residual or approval-receipt mismatch refused.
 
 set -u
 
