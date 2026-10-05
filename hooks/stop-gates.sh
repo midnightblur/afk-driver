@@ -90,6 +90,16 @@ if [ -n "$GATE_ERR" ]; then
   exec 3>&2 2>"$GATE_ERR"
 fi
 
+# Any exit — normal, signal — removes this Stop's temp files and any gate scratch.
+stop_cleanup() {
+  [ -n "$GATE_ERR" ] && rm -f "$GATE_ERR" 2>/dev/null
+  [ -n "${STOP_STAMP:-}" ] && rm -f "$STOP_STAMP.$$" 2>/dev/null
+  declare -F _wiring_cleanup >/dev/null && _wiring_cleanup
+  return 0
+}
+trap stop_cleanup EXIT
+trap 'stop_cleanup; exit 143' TERM INT HUP
+
 release_stderr() {
   [ -n "$GATE_ERR" ] || return 0
   exec 2>&3 3>&-
@@ -109,6 +119,7 @@ run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   case "$rc" in
     0) ;;
     2) blocked=1; blocked_gates="${blocked_gates:+$blocked_gates, }$name" ;;
+    3) crashed=1 ;;  # unknown verdict: the gate said why on stderr; no block, no pass stamp
     *) printf '[afk] gate %s crashed (rc %s) — verdict unknown.\n' "$name" "$rc" >&2
        crashed=1 ;;
   esac

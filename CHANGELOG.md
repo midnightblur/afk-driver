@@ -37,6 +37,10 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- The wiring Stop gate no longer re-runs a whole-tree `git grep -o` per Stop. A bounded scanner (`hooks/lib/bounded_scan.py`) searches the changed files first, then the tree for only the unresolved tokens, under a deadline and a repository lock. A scan that fails, times out, or finds the lock held is an unknown verdict that neither blocks nor stamps the Stop, never a false orphan. Stop's temp files are removed on any exit.
+
 ## [1.11.1] - 2026-10-05
 
 ### Changed
@@ -48,6 +52,7 @@ release page from its section here. Nobody tags by hand.
   human approval is required before the script creates an issue or adds evidence
   to an existing issue. A preview receipt prevents the approved body, target, or
   action from changing before publication.
+
 ## [1.11.0] - 2026-10-02
 
 ### Fixed
