@@ -9,14 +9,18 @@ path, locates a real Git Bash, forwards stdin, stdout, stderr and the exit
 code, and stays silent when an optional handler is absent.
 
 Usage:
-    python run-hook.py [--soft] plugin <handler.sh> [args...]
-    python run-hook.py [--soft] repo-list <event>
+    python run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]
+    python run-hook.py [--soft] [--deadline <seconds>] repo-list <event>
 
     plugin     handler under this plugin's own hooks/ directory
     repo-list  every repository-owned handler the consuming repository declares
                for <event> in `.afk/hooks.json`; absent file or repository
                exits 0
     --soft     always exit 0 (advisory handlers that must never block a turn)
+    --deadline one aggregate budget for the whole invocation, below the harness
+               timeout. Past it the handler's whole process tree is killed: a
+               plugin handler exits 0 with a one-line notice (verdict unknown,
+               never a block); a repository handler fails closed as before.
 
 `.afk/hooks.json` is a JSON array of objects, each with `event`
 (SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated), `matcher` (a regular
@@ -53,8 +57,10 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
@@ -64,6 +70,196 @@ EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "W
 # a missing verdict on these, so the launcher answers for it. PostToolUse and
 # PostCompact carry context injections, never a block, so they only warn.
 BLOCKING_EVENTS = {"Stop", "PreToolUse"}
+
+
+# ---- the process-tree primitive: every handler this launcher starts runs through
+# run_tree, so a deadline or a killed launcher takes the handler's whole tree with it.
+#
+# Windows: the launcher joins a kill-on-close Job Object (the harness killing the
+# launcher closes it), and each handler gets a nested job of its own, so a deadline
+# ends that tree and the launcher survives to answer. Neither job allows breakaway:
+# MSYS bash starts its children with the breakaway flag, so a job that allowed it
+# would let every bash descendant leave. A handler that must leave a deliberately
+# detached helper behind (DETACHES_HELPERS) runs with no job and, past a deadline,
+# is ended by walking its parent chain.
+# POSIX: each handler is a session leader; signals and deadlines kill its group.
+_DEADLINE_AT: float | None = None
+_DEADLINE_S = 0.0
+_ACTIVE: list[subprocess.Popen] = []
+_JOBS: dict = {}
+_KILL_ON_CLOSE = 0x2000
+DETACHES_HELPERS = {"worktree-remove.sh"}
+_CREATE_SUSPENDED = 0x00000004
+
+
+def budget_left() -> float | None:
+    return None if _DEADLINE_AT is None else max(_DEADLINE_AT - time.monotonic(), 0.0)
+
+
+def _job_api():
+    if "api" in _JOBS:
+        return _JOBS["api"]
+    api = None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class Basic(ctypes.Structure):
+            _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                        ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                        ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                        ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                        ("SchedulingClass", wintypes.DWORD)]
+
+        class Extended(ctypes.Structure):
+            _fields_ = [("Basic", Basic), ("Io", ctypes.c_uint64 * 6), ("ProcessMemoryLimit", ctypes.c_size_t),
+                        ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                        ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        kernel.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.GetCurrentProcess.restype = wintypes.HANDLE
+        ntdll = ctypes.WinDLL("ntdll")
+        ntdll.NtResumeProcess.argtypes = [wintypes.HANDLE]
+        api = (ctypes, kernel, ntdll, Extended)
+    except Exception:
+        api = None
+    _JOBS["api"] = api
+    return api
+
+
+def _make_job():
+    api = _job_api()
+    if api is None:
+        return None
+    ctypes, kernel, _ntdll, Extended = api
+    job = kernel.CreateJobObjectW(None, None)
+    if not job:
+        return None
+    info = Extended()
+    info.Basic.LimitFlags = _KILL_ON_CLOSE
+    if not kernel.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info)):
+        kernel.CloseHandle(job)
+        return None
+    return job
+
+
+def enter_launcher_job() -> None:
+    """Windows: put this launcher in a kill-on-close job; say so when that fails."""
+    if os.name != "nt" or "launcher" in _JOBS:
+        return
+    job = _make_job()
+    api = _job_api()
+    if job is not None and api is not None:
+        _ctypes, kernel, _ntdll, _ext = api
+        if kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess()):
+            _JOBS["launcher"] = job
+            return
+    _JOBS["launcher"] = None
+    sys.stderr.write("[afk] run-hook.py: tree cleanup degraded (no job object for the launcher).\n")
+
+
+def _spawn(args: list[str], jobbed: bool, **kwargs) -> tuple[subprocess.Popen, object]:
+    """Start `args` as the root of a killable tree; the second value is its Windows job, if any."""
+    if os.name != "nt":
+        return subprocess.Popen(args, start_new_session=True, **kwargs), None
+    job = _make_job() if jobbed else None
+    if job is None:
+        return subprocess.Popen(args, **kwargs), None
+    proc = subprocess.Popen(args, creationflags=_CREATE_SUSPENDED, **kwargs)
+    _ctypes, kernel, ntdll, _ext = _job_api()
+    owned = bool(kernel.AssignProcessToJobObject(job, int(proc._handle)))
+    ntdll.NtResumeProcess(int(proc._handle))
+    if owned:
+        return proc, job
+    kernel.CloseHandle(job)
+    return proc, None
+
+
+def _kill_group(proc: subprocess.Popen, job: object) -> None:
+    if os.name == "nt":
+        if job is not None:
+            _ctypes, kernel, _ntdll, _ext = _job_api()
+            kernel.TerminateJobObject(job, 1)
+        else:
+            sys.stderr.write("[afk] run-hook.py: tree cleanup degraded (no job object for the handler).\n")
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True, timeout=20)
+        try:
+            proc.kill()
+        except OSError:
+            pass
+        return
+    for sig, grace in ((signal.SIGTERM, 1.0), (signal.SIGKILL, 0.0)):
+        try:
+            os.killpg(proc.pid, sig)
+        except OSError:
+            return
+        stop = time.monotonic() + grace
+        while time.monotonic() < stop:
+            try:
+                os.killpg(proc.pid, 0)
+            except OSError:
+                return
+            time.sleep(0.05)
+
+
+def _drain(proc: subprocess.Popen) -> tuple[bytes | None, bytes | None]:
+    """Collect what a killed tree left in the pipes without ever waiting on a survivor."""
+    try:
+        return proc.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        for pipe in (proc.stdin, proc.stdout, proc.stderr):
+            try:
+                if pipe:
+                    pipe.close()
+            except OSError:
+                pass
+        return None, None
+
+
+def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None,
+             capture: bool = False, timeout: float | None = None,
+             jobbed: bool = True) -> subprocess.CompletedProcess:
+    """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal."""
+    pipes = subprocess.PIPE if capture else None
+    proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None else None,
+                       stdout=pipes, stderr=pipes)
+    _ACTIVE.append(proc)
+    try:
+        try:
+            out, err = proc.communicate(input=input, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            _kill_group(proc, job)
+            out, err = _drain(proc)
+            raise subprocess.TimeoutExpired(args, timeout, output=out, stderr=err)
+        except BaseException:
+            _kill_group(proc, job)
+            raise
+        return subprocess.CompletedProcess(args, proc.returncode, out, err)
+    finally:
+        _ACTIVE.remove(proc)
+        if job is not None:
+            _ctypes, kernel, _ntdll, _ext = _job_api()
+            kernel.CloseHandle(job)
+
+
+def install_signal_handlers() -> None:
+    """POSIX: a signal to the launcher ends every handler group first."""
+    if os.name == "nt":
+        return
+
+    def stop(signum, _frame):
+        for proc in list(_ACTIVE):
+            _kill_group(proc, None)
+        os._exit(128 + signum)
+
+    for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(signum, stop)
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
@@ -373,9 +569,9 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
             'esac\n'
         )
         try:
-            completed = subprocess.run(
+            completed = run_tree(
                 [str(bash), "-c", snippet, "run-hook", str(library), event, reason],
-                env=env, timeout=60,
+                env, timeout=10 if _DEADLINE_AT is not None else 60,
             )
             if completed.returncode != 70:
                 return completed.returncode
@@ -413,14 +609,29 @@ def owner_env() -> dict[str, str]:
 
 
 def main(argv: list[str]) -> int:
+    global _DEADLINE_AT, _DEADLINE_S
     soft = False
-    while argv and argv[0] == "--soft":
-        soft = True
-        argv = argv[1:]
+    budget = None
+    while argv and argv[0] in ("--soft", "--deadline"):
+        if argv[0] == "--soft":
+            soft = True
+            argv = argv[1:]
+            continue
+        try:
+            budget = float(argv[1])
+        except (IndexError, ValueError):
+            budget = -1.0
+        if budget <= 0:
+            sys.stderr.write("run-hook.py: --deadline needs a positive number of seconds\n")
+            return 0 if soft else 2
+        argv = argv[2:]
+    if budget is not None:
+        _DEADLINE_S = budget
+        _DEADLINE_AT = time.monotonic() + budget
     if len(argv) < 2 or argv[0] not in {"plugin", "repo-list"}:
         sys.stderr.write(
-            "run-hook.py: usage: run-hook.py [--soft] plugin <handler.sh> [args...]\n"
-            "run-hook.py: usage: run-hook.py [--soft] repo-list <event>\n"
+            "run-hook.py: usage: run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]\n"
+            "run-hook.py: usage: run-hook.py [--soft] [--deadline <seconds>] repo-list <event>\n"
         )
         return 0 if soft else 2
 
@@ -439,6 +650,9 @@ def main(argv: list[str]) -> int:
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
     env["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
+    if argv[1] not in DETACHES_HELPERS:
+        enter_launcher_job()
+    install_signal_handlers()
 
     if argv[0] == "plugin":
         script = PLUGIN_ROOT / "hooks" / argv[1]
@@ -447,7 +661,13 @@ def main(argv: list[str]) -> int:
             return 0
         if argv[1] in OWNER_HANDLERS:
             env.update(owner_env())
-        completed = subprocess.run([str(bash), str(script), *argv[2:]], env=env)
+        try:
+            completed = run_tree([str(bash), str(script), *argv[2:]], env, timeout=budget_left(),
+                                 jobbed=argv[1] not in DETACHES_HELPERS)
+        except subprocess.TimeoutExpired:
+            sys.stderr.write(
+                f"[afk] {argv[1]} exceeded its {_DEADLINE_S:g}s budget — stopped, verdict unknown.\n")
+            return 0
         return 0 if soft else completed.returncode
 
     event = argv[1]
@@ -488,10 +708,12 @@ def main(argv: list[str]) -> int:
             continue
         timeout = entry.get("timeout")
         timeout = float(timeout) if isinstance(timeout, (int, float)) else None
+        left = budget_left()
+        if left is not None:
+            timeout = left if timeout is None else min(timeout, left)
         try:
-            completed = subprocess.run(
-                [str(bash), str(script)], env=env, input=envelope, timeout=timeout,
-                capture_output=blocking,
+            completed = run_tree(
+                [str(bash), str(script)], env, input=envelope, timeout=timeout, capture=blocking,
             )
         except subprocess.TimeoutExpired:
             faults.append(f"{named}: no verdict within {timeout:g} seconds")

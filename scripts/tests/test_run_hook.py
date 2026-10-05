@@ -306,3 +306,127 @@ def test_repo_list_reads_the_working_tree_not_the_project_dir(
     done = run(x, "Stop", {"hook_event_name": "Stop"}, project_dir=named, cwd=dirs[where])
     assert done.returncode == 0, case
     assert ('"decision"' in done.stdout and "gate-ran" in done.stdout) == blocks, case
+
+
+# ---- process-tree ownership: a deadline or a killed launcher ends the whole tree --
+
+import shutil
+import time
+
+CHILD = """\
+import os, subprocess, sys, time
+subprocess.Popen([sys.executable, "-c", "import os, time\\nopen(os.environ['MARK'] + '.grand', 'w').write(str(os.getpid()))\\ntime.sleep(120)"])
+open(os.environ["MARK"] + ".child", "w").write(str(os.getpid()))
+time.sleep(120)
+"""
+
+WAITER = """\
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("h2", os.environ["H2"])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.spawn([sys.executable, "-c", "import os, time\\nopen(os.environ['MARK'] + '.waiter', 'w').write(str(os.getpid()))\\ntime.sleep(60)"],
+             env={"MARK": os.environ["MARK"]})
+"""
+
+
+def _alive(pid: int) -> bool:
+    if os.name == "nt":
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
+        return str(pid) in out
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _pids(mark: Path, kinds: tuple[str, ...], wait: float = 20.0) -> list[int]:
+    end = time.monotonic() + wait
+    while time.monotonic() < end:
+        files = [Path(f"{mark}.{k}") for k in kinds]
+        if all(f.is_file() and f.read_text().strip() for f in files):
+            return [int(f.read_text()) for f in files]
+        time.sleep(0.1)
+    raise AssertionError(f"handler never recorded {kinds}")
+
+
+def _gone(pids: list[int], within: float = 10.0) -> bool:
+    end = time.monotonic() + within
+    while time.monotonic() < end:
+        if not any(_alive(p) for p in pids):
+            return True
+        time.sleep(0.2)
+    return False
+
+
+@pytest.fixture()
+def plugin_copy(tmp_path):
+    root = tmp_path / "plugin"
+    (root / "hooks").mkdir(parents=True)
+    shutil.copy(LAUNCHER, root / "hooks" / "run-hook.py")
+    (tmp_path / "child.py").write_text(CHILD, encoding="utf-8")
+    (tmp_path / "waiter.py").write_text(WAITER, encoding="utf-8")
+    for name, script in (("slow.sh", "child.py"), ("worktree-remove.sh", "waiter.py")):
+        (root / "hooks" / name).write_text(
+            f'#!/bin/sh\n"$PY" "{(tmp_path / script).as_posix()}"\n',
+            encoding="utf-8", newline="\n")
+    mark = tmp_path / "mark"
+    env = {**os.environ, "PY": sys.executable, "MARK": str(mark),
+           "H2": str(PLUGIN_ROOT / "hooks" / "lib" / "h2_move.py")}
+    return root, mark, env
+
+
+def _launch(root: Path, env, *args: str):
+    return subprocess.Popen([sys.executable, str(root / "hooks" / "run-hook.py"), *args],
+                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def test_deadline_kills_the_handler_tree(plugin_copy):
+    root, mark, env = plugin_copy
+    start = time.monotonic()
+    proc = _launch(root, env, "--deadline", "2", "plugin", "slow.sh")
+    out, err = proc.communicate(timeout=60)
+    assert time.monotonic() - start < 10
+    assert proc.returncode == 0
+    assert "slow.sh exceeded its 2s budget — stopped, verdict unknown." in err
+    assert _gone(_pids(mark, ("child", "grand")))
+
+
+def test_terminating_the_launcher_kills_the_tree(plugin_copy):
+    root, mark, env = plugin_copy
+    proc = _launch(root, env, "plugin", "slow.sh")
+    pids = _pids(mark, ("child", "grand"))
+    proc.terminate()
+    proc.communicate(timeout=30)
+    assert _gone(pids)
+
+
+def test_a_detached_waiter_survives_a_normal_launcher_exit(plugin_copy):
+    root, mark, env = plugin_copy
+    proc = _launch(root, env, "plugin", "worktree-remove.sh")
+    proc.communicate(timeout=60)
+    (waiter,) = _pids(mark, ("waiter",))
+    try:
+        time.sleep(1.0)
+        assert _alive(waiter)
+    finally:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/PID", str(waiter)], capture_output=True)
+        else:
+            os.kill(waiter, 9)
+
+
+def test_repo_list_timeout_returns_promptly_and_still_blocks(tmp_path, plugin_copy):
+    _root, mark, env = plugin_copy
+    repo_root_ = repository(
+        tmp_path,
+        json.dumps([{"event": "Stop", "matcher": "*", "timeout": 1, "script": ".afk/slow.sh"}]),
+        {"slow.sh": f'#!/bin/sh\n"$PY" "{(tmp_path / "child.py").as_posix()}"\n'},
+    )
+    start = time.monotonic()
+    done = subprocess.run([sys.executable, str(LAUNCHER), "repo-list", "Stop"], input=json.dumps({}),
+                          capture_output=True, text=True, cwd=str(repo_root_), env=env, timeout=120)
+    assert time.monotonic() - start < 10
+    assert decision(done.stdout)["decision"] == "block" and "no verdict" in done.stderr
+    assert _gone(_pids(mark, ("child", "grand")))
