@@ -1,5 +1,5 @@
 """The watch -> render -> serve loop, and the shared `render_once` path used
-by both `--once` (retro mode, AC-013) and watch mode (AC-011) — ADR-0001.
+by both `--once` (retro mode, AC-013) and watch mode (AC-011).
 
 Binds 127.0.0.1 only; `http.server`'s default handler answers GET/HEAD and
 responds 501 to any other verb, satisfying the GET-only / read-only

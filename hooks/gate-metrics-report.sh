@@ -5,13 +5,19 @@
 # decision is data-driven, not vibes-driven (see hooks/README.md "Latency
 # metrics & budget").
 #
-# Usage (from the gated repo root):
+# Usage (from inside any worktree of the gated repo):
 #   bash "$AFK_PLUGIN_ROOT/hooks/gate-metrics-report.sh" [metrics-file]
-# Default metrics file: .claude/metrics/gate-latency.jsonl
+# Default metrics file: the one gate-metrics.sh writes (GATE_METRICS_FILE, else
+# <git common dir>/afk/metrics/gate-latency.jsonl).
 
 set -u
 
-file=${1:-.claude/metrics/gate-latency.jsonl}
+file=${1:-}
+if [ -z "$file" ]; then
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/gate-metrics.sh"
+  gate_metrics_file || { echo "no metrics: not inside a git repository" >&2; exit 0; }
+  file=$_GATE_METRICS_PATH
+fi
 [ -f "$file" ] || { echo "no metrics yet: $file" >&2; exit 0; }
 
 # Extract "gate result duration_ms" per line, sort by gate then duration,

@@ -63,11 +63,50 @@ tracker does not carry them.
 `change-view`, `change-diff`, `change-create-draft`, `change-ready`,
 `change-reviewers`, `change-update-body`, `change-comment`, `change-state`,
 `change-close`, `change-fetch`, `thread-list`, `thread-reply`, `thread-resolve`,
-`ci-status`, `ci-wait`, `auth-status`.
+`note-list`, `commit-changes`, `ci-status`, `ci-wait`, `auth-status`.
 
-Normalized object: `id`, `url`, `title`, `state`, `draft`, `source`, `target`,
-`pipeline.status`. A forge's own field names never leave the adapter — a skill
-that read `iid` would break the day the repository moved.
+The normalized change object includes `id`, `url`, `title`, `state`, `draft`,
+`source`, `target`, and `pipeline.status`. `change-view` and `change-fetch` add
+`head_sha`, `base_sha`, `head_ref`,
+`cross_fork`, and `blob_base` to the normalized change object. Use
+`<blob_base>/<sha>/<percent-encoded-path>#L<line>` for a line link. An empty
+`blob_base` means the source project is gone. The caller then uses the target
+project and states that fallback.
+
+`note-list` returns plain change notes. It excludes inline and system notes.
+`thread-list` returns inline threads. Both reads paginate and sort oldest first.
+Each thread carries its current resolution, URL, side, lines, paths, and notes.
+
+`change-comment` accepts `id`, `text`, optional `file`, `old_path`, `new_path`,
+`line`, `old_line`, `side`, and `require_inline`. `side` is `new`, `old`, or
+`context`. Both paths default to `file`. A written comment returns `ok`,
+`inline`, `thread`, `comment`, and `url`. A degraded position also returns its
+reason. `require_inline: true` requests cleanup after a degraded write. A
+cleanup error identifies the orphan note.
+
+The forge family also ships a shared protected-branch read, `adapters/forge/branch_protection.py`,
+which `scripts/protected-lookup.py` calls in-process (no adapter round trip: the guard has a latency
+budget) and which owns the fallback. It takes `branch` (optional `repo`) and returns `protected` and `via`. GitHub:
+the branch's own flag (a 404 there means not classically protected), or a ruleset rule that
+restricts pushes; both reads run at once. GitLab: a protected-branch
+entry, exact or wildcard (`*` matches any run of characters, `/` included), every page. A failing
+read, or a malformed rules answer, is `error`, never "not protected".
+
+`commit-changes` takes `sha` and returns `changes` and `count`. Each change carries `id`, `url`,
+`state` (`opened`, `closed`, `merged`), `draft`, `source`, `target`, and `author`. A failing CLI, a non-list
+answer, or an entry with no `id` is an error, never an empty list.
+
+A `change-view` for a reference the forge confirms is absent answers `error` with `missing: true`. Any other
+failure answers `missing: false`; callers must not read it as absence. Each `gh` or `glab` call stops at
+`AFK_FORGE_TIMEOUT` seconds.
+
+`note-list` returns `notes` and `count`. Each note carries `id`, `author`,
+`body`, `created_at`, `updated_at`, and `edited`. Each thread carries the same
+fields for its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`,
+and `url`. `edited` is a boolean from the forge's own edit signal (GraphQL
+`lastEditedAt`). `updated_at` is ordering data only: it moves on activity that is
+not an edit. A verb that cannot read the signal answers `error`; it never guesses
+`false`, and a caller refuses a note without the field.
 
 `ci-wait` is the one verb with an exit-code contract, because a caller routes on
 it rather than on a body: 0 the pipeline succeeded, 1 it failed or was cancelled,

@@ -34,12 +34,22 @@
 
 set -u
 
-[ "${AFK_SKIP_PRECOMMIT_GATES:-0}" = "1" ] && exit 0
-
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 . "$SCRIPT_DIR/lib/provider.sh"
 afk_agent_session || exit 0
+
+# Protected-branch backstop (git-backstop.py) first: the skip below is for the code gates.
+if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
+  py=python; command -v python >/dev/null 2>&1 || py=python3
+  "$py" "$SCRIPT_DIR/git-backstop.py" pre-commit
+  [ $? -eq 3 ] && exit 1   # 3 refuses; any other failure is a fault and lets the commit go on
+fi
+
+# The code gates below belong to repositories that adopted the plugin.
+[ -d "$(git rev-parse --show-toplevel 2>/dev/null)/.afk" ] || exit 0
+
+[ "${AFK_SKIP_PRECOMMIT_GATES:-0}" = "1" ] && exit 0
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$repo_root" || exit 0
@@ -129,6 +139,9 @@ while IFS= read -r _bg_kind; do
     run_gate "$_bg_name" "$_bg_kind"
   done < <("$_bg_discover")
 done < <(afk_config_list build-gates)
+
+# The comment policy (RATIONALE.md) is cheap and reads only staged bytes.
+run_gate comment
 
 # The native plugin contract is cheap enough for Stop and commit. Commit-time
 # enforcement is independently required: a --no-hooks session must not be able

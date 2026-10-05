@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-10-05
+
 ### Changed
 
 - **`/afk:report-issue` now proposes reports before any GitHub write.** Agents
@@ -45,6 +47,256 @@ release page from its section here. Nobody tags by hand.
   then show the redacted context and whether it will create or comment. An explicit
   human approval is required before the script creates an issue or adds evidence
   to an existing issue.
+## [1.11.0] - 2026-10-02
+
+### Fixed
+
+- **The protected-branch guard permits conservative read-only inspection before a session moves.** Single recognized file, repository, and GitHub reads now pass in the main checkout or on a protected branch. Composition, redirection, unknown programs, edits, and write-capable commands remain blocked. Read-only web tools no longer fail because their names contain `run`.
+
+### Added
+
+- **`/afk:setup` reports a git hook that starts background work.** Register row
+  H13 flags a hook in the checkout's hooks directory that detaches a process
+  (a trailing `&`, `nohup`, `setsid`, `disown`, `start /b`, `Start-Process`).
+  Git does not wait for that process, so each commit can stack another run and
+  stall the machine. The fix lists each hook and line; you decide whether to
+  remove it. Run `/afk:setup` to check your checkouts.
+
+## [1.10.1] - 2026-10-01
+
+### Fixed
+
+- **The Jira adapter no longer reads credentials from another vendor's `jira`
+  server.** It, and `init`'s Jira hint, took the `env` block of any `jira` MCP
+  server in `~/.claude.json` or `~/.codex/config.toml`. Only the `tracker`
+  server, or afk's own pre-rename `jira` entry, counts now.
+- **`PROVIDERS.md` states the tracker launcher's real plugin-root order and the
+  relocated-`CODEX_HOME` limit.** It still listed a `$PWD` step the launcher no
+  longer has, and omitted `AFK_PLUGIN_ROOT` and the orphaned-copy rule.
+- **A Stop gate block no longer repeats forever on an unchanged tree.** An
+  agent that made no change was blocked on every turn until a run cap stopped
+  it. Now the same tree blocks at most 3 Stops in a row in one session. The
+  next Stop is allowed, and a notice tells you which gates still have
+  findings. A new session or any change to the tree resets the count.
+- **Gates no longer leave files in your checkout.** Their pass cache and timing
+  log now live under the git directory, so `.claude/` stops showing in `git
+  status`; delete any old `.claude/hooks/.gate-cache/` and `.claude/metrics/`.
+- **The H-2 harness no longer warns about the session-end hook at every
+  start.** It caps that hook at 3 seconds; the plugin now declares 3, and the
+  hook takes under 1 second.
+
+## [1.10.0] - 2026-10-01
+
+### Changed
+
+- **Behavior change for every plugin user: an agent no longer edits or commits
+  in the main checkout or on a protected branch.** The managed behavior block
+  gains a `worktree-per-session` line; run `/afk:setup` to refresh it. A
+  tool-call guard refuses an agent's edit and shell tools there and names the
+  move; the installed git hooks refuse its commit and branch move. Protected
+  branches are read live from GitHub or GitLab on every check (the default
+  branch plus `main`/`master` when the forge cannot answer, with a notice). Set
+  `AFK_ALLOW_PROTECTED=1` when you launch a session that must work there.
+  **Where the harness asks you to trust new hooks** (`PROVIDERS.md`
+  "Protected-branch guard" names it): trust them once. Start the harness in its
+  terminal UI without the full-bypass flag and choose "Trust all and
+  continue", or type `/hooks` and press `t`. Until then the guard does not run;
+  `/afk:setup` reports it.
+
+### Added
+
+- **Named worktrees.** `scripts/create-worktree --name <name>` cuts a worktree under
+  the active harness's folder, records its owner, and runs the repository's
+  `WorktreeCreated` setup scripts (`CONFIG.md` "Repository hooks"). A harness
+  that has a worktree-creation hook calls it.
+- **Session move for harnesses without a worktree tool.** When the guard
+  refuses such a session, it names the worktree it is creating and the exact
+  `/cd <path>` line to type, and refuses at once. A detached helper cuts the
+  worktree and, inside a herdr pane, types the line for you once the agent is
+  idle and the composer is empty — only into the refused session's own pane.
+  Each move logs to `<git dir>/afk-worktrees/<name>.log`.
+  `scripts/afk-launch.py <harness>` starts a harness in a new worktree from the
+  main checkout or a protected branch, and in place anywhere else.
+- **Worktree cleanup.** `scripts/remove-worktree.py` removes a worktree the
+  plugin made when it is clean and holds nothing unpushed, with its branch if
+  the branch has no commit of its own; otherwise it keeps it and names the
+  resume and remove commands. The harness's worktree-removal and session-end
+  events call it; a session that ends inside its worktree hands removal to a
+  detached waiter that runs once the harness has exited. A worktree is removed
+  only when every session recorded in it is gone. Each session start prunes the
+  rest and shows the kept worktrees to you and the agent. Where the harness
+  shows no session-end output, the kept report appears at the next session
+  start.
+- **Git backstop for the protected-branch guard.** `install-git-hooks.sh` now
+  installs in every git repository, with or without `.afk/`, and skips one that
+  sets `core.hooksPath`. For an agent only, `pre-commit` refuses a commit in the
+  main checkout and on a protected branch of a worktree, and
+  `reference-transaction` refuses a move of the main checkout's HEAD or of the
+  branch it has checked out. Creating refs, so a new worktree, passes; so does
+  `AFK_ALLOW_PROTECTED=1` or `AFK_WORKTREE_OP=1`. A linked worktree on a
+  protected branch also refuses moving that branch, a rebase included. A
+  refused `checkout` can leave the index switched and a refused `rebase` in
+  progress: the tool-call guard stays the primary gate.
+- **Setup detects untrusted guard hooks** by reading the harness config.
+- **Pin a model tier in one place.** The `PROVIDERS.md` "Model tiers" table
+  holds each tier's model per harness and the reasoning effort, and a second
+  table maps each agent to its tier. A cell takes an alias or an exact model
+  id. The native contract gate now fails when an agent file or its provider
+  stub differs from its cell, and names every file that must follow a pin.
+
+### Fixed
+
+- **A plugin PreToolUse refusal now blocks under every harness.** The second
+  supported harness treats a PreToolUse hook that exits 2 as a failed hook and
+  runs the command anyway. A refusal is now exit 0 plus the deny JSON, which
+  both harnesses honour.
+- **A repository gate that blocks the first harness's way still blocks under
+  the second.** A `PreToolUse` or `Stop` script in `.afk/hooks.json` that exits
+  non-zero without printing its own verdict is answered in the provider's block
+  shape, and a matching entry blocks when no POSIX shell can be found; the Stop
+  fallback exits 0 like both adapters. `CONFIG.md` "Repository hooks" states the
+  verdict shapes.
+- **Repository gates answer in one document.** On `Stop` and `PreToolUse` every
+  refusal is gathered into one verdict in the provider's block shape; allowed
+  outputs merge into one document, and an `ask` from one handler is never
+  turned into an `allow` by another.
+- **The plugin's own runtime files no longer read as work.** The gate cache and
+  metrics folders go to the clone's shared exclude file, and worktree cleanup
+  ignores untracked files that live only under them.
+- **Issue reports keep plugin terms from an installed plugin.** The redactor
+  built its allowlist from `git ls-files`, which is empty in a harness install,
+  so file names and config keys became `<host>`. An install carrying a plugin
+  manifest now counts its own files.
+- **The tracker MCP server reads `tracker:` on every call, from the project
+  root.** It used to read the config once at start, from its working directory,
+  so a server started below the repository root, or before `.afk/config.yaml`
+  existed, stayed on `none`. The GitHub Issues adapter reads its `github-issues:`
+  block the same way, and the project-directory variable, when set, names the
+  repository that publisher scripts read. A config change now applies without a restart.
+  The server's `unsupported` and `error` answers carry `config_root`, the
+  checkout it read, so the setup probe decides from the server's own view.
+- **`validate` warns about configured paths that do not exist.** It checked
+  only the schema, so a wrong `maven.reactor-pom` or `repo-hooks` path passed
+  and left its gate inert. Each missing path now prints a `warning:` line;
+  the exit code stays 0. `/afk:setup` reports a missing `setup.extra` file.
+- **`init` no longer guesses the Maven reactor POM.** With no root `pom.xml`
+  it took the first `*pom.xml` by name, often a leaf service. Two or more
+  candidates are now a `TODO` that lists them. `init` also prints the keys it
+  left as `TODO` and hints when the Jira credential chain resolves
+  `JIRA_BASE_URL`.
+- **`init` no longer shadows a tracker or forge the machine layer sets.** It
+  wrote `tracker: none` over a machine-level `tracker: jira`; it now writes that
+  value as a `TODO` comment and lists the key in the `TODO left` line.
+- **`afk-config.py init` no longer scaffolds a second config in a worktree.**
+  On a branch cut before `.afk/config.yaml` was committed, `init` wrote a fresh
+  `tracker: none` file that diverged from the repository's contract. It now
+  refuses when the base branch or the main worktree already has one; merge or
+  rebase that branch instead, or pass `--force`.
+- **`/afk:setup` reports a missing `.afk/config.yaml` instead of skipping.**
+  Without the file the tracker and forge default to `none`, so the Jira,
+  per-developer and catalog rows read as n/a and setup looked healthy. A new
+  register row (`H0`) probes the file, those rows report `needs-human` while it
+  is absent (their status reads `needs-human: see H0`), and `setup_secrets.py`
+  warns instead of printing `tracker: none`. The per-developer probe (`H6`)
+  exits non-zero, naming the legs `H0` gates, instead of printing `ok`.
+- **A Jira tracker call with no credentials answers an error instead of ending
+  the server.** The plugin's own server reads credentials on every call, so
+  adding or correcting them applies on the next call; the user-scoped `tracker`
+  entry holds them in its `env` and takes a change after a restart.
+- **The `tracker` server that setup registers now starts.** It was registered
+  without a plugin root and exited at launch; it now uses the plugin's own
+  launcher with the plugin root; after a plugin update it follows the new
+  install once the harness marks the old copy orphaned.
+- **Setup no longer removes an unrelated `jira` MCP server.** It reused and
+  deleted any user-scoped `jira` entry; it now touches one only when its args
+  point under this plugin root, into an `afk` plugin cache, or at the launcher.
+- **The tracker server's launcher starts the newest copy of this harness's
+  install.** When a harness does not hand over the plugin root, the launcher
+  searched the home directory and sorted whole paths as text, so `1.9.0`
+  outranked `1.10.0` and a stale copy under another harness's directory
+  outranked the running harness's own. It now prefers its own harness's
+  directory, compares versions as numbers, and skips a copy the harness marked
+  orphaned. A root handed over explicitly that is marked orphaned is tried
+  only after the search.
+- **Repository Stop gates come from the working tree.** They read the
+  `.afk/hooks.json` of the checkout the session was launched in, while the
+  plugin gates checked the working tree, and a session started in a
+  subdirectory skipped them. Both now use the working tree's Git root.
+- **`init` leaves `github-issues.repo` as a TODO when the GitHub remote names
+  only an owner or a nested path.** It used to write a wrong `owner/name`
+  that still validated.
+- **The forge adapters read the project from a remote URL ending in `.git/`.**
+
+## [1.9.0] - 2026-09-29
+
+### Added
+
+- **`/afk:setup` offers herdr.** herdr is a terminal workspace manager for AI
+  coding agents. Setup lists it as an opt-in row (`MANIFEST.md` · C15), off by
+  default, on every branch. Accept it and setup runs the vendor installer, then
+  checks `herdr --version`. No skill needs it.
+
+### Changed
+
+- **lavish-axi is now a required global install, not a per-call `npx`
+  download.** `/afk:setup` installs `lavish-axi` globally at the pin in
+  `LAVISH.md` and checks that the binary on `PATH` reports that exact version
+  (`MANIFEST.md` · N4, no longer deferred). Every render point calls the
+  `lavish-axi` binary directly. After updating, run `/afk:setup` once — it
+  runs `npm i -g lavish-axi@<pin>` — then `lavish-axi stop` with no session
+  open. A failed render still falls back to markdown.
+- **lavish-axi pin bumped 0.1.43 → 0.1.63**, the newest release at least 30
+  days old. `poll` no longer returns on detected layout issues: they wait in the
+  page's Layout issues inbox and reach the agent only when the user queues them.
+  `/afk:setup` installs the new pin.
+- **Lavish page diagrams are hand-authored inline SVG**, per lavish-axi's own
+  `diagram` playbook. Mermaid on a lavish page is now only for an editable
+  whiteboard the human asks for. Markdown specs keep Mermaid.
+
+## [1.8.0] - 2026-09-29
+
+### Added
+
+- **Reasons for a change now live on the change, not in source comments.**
+  Source keeps at most 2 comment lines that pass one test. `/afk:execute`
+  records every other reason, posts it as an inline comment on the Draft change
+  (opening the Draft when none exists), and completes only after an immutable
+  batch receipt verifies. A commit-time gate blocks tracker references in added
+  comments and comment runs over 2 lines, and matches only the configured Jira
+  project key. `forge_ledger.py rationale-read` finds the reasons behind a line
+  through `git blame` and line history, labels every note by author and edit
+  state, and batches many lines into one run, refetching online and using its
+  cache only offline; `rationale-drop` withdraws an
+  entry that can no longer post. Every forge adapter gains a `commit-changes`
+  verb, and forge calls stop at a time limit. Existing comments stay as they are. Policy:
+  `RATIONALE.md`.
+- **Managed agent behavior now comes from one versioned registry.** Setup can
+  install, audit, migrate, and remove one `afk:behaviors` block for both
+  supported harnesses. Session start reports stale installed behavior. Run
+  `/afk:setup teardown` before disabling the plugin.
+
+### Changed
+
+- **Forge changes now hold the review record.** Review findings, disputes,
+  fixes, deferrals, and round summaries use immutable forge comments. A
+  restarted settle loop reconstructs and validates closure from the change.
+  Local `plan/review/` files remain telemetry. Repositories can widen the
+  narrow ledger-only path default with `review.ledger-only-paths`.
+
+### Fixed
+
+- **A note counts as edited only when the forge says so.** The review ledger
+  and the rationale reader compared `updated_at` with `created_at`, and GitHub
+  moves `updated_at` on an untouched reply, so a settle loop halted after its
+  first reply. `note-list` and `thread-list` now carry `edited` from the
+  forge's own GraphQL `lastEditedAt`; a failed query is an error, and a note
+  without the flag is refused instead of read as unedited.
+- **Stale design-record citations removed.** Skill files no longer cite
+  another feature's ADR numbers, which now collide with the plugin's own
+  `adr/` records. Each fact stays; only the foreign citation is gone.
+- **No stray error on the first Stop in a fresh worktree.** The Stop gates
+  create their cache directory before writing the pass stamp, so a new
+  worktree no longer prints `No such file or directory`.
 
 ## [1.7.0] - 2026-09-24
 
@@ -87,8 +339,6 @@ release page from its section here. Nobody tags by hand.
   it too, resolved through the one resolver. `/afk:setup` pre-fills it for a
   `github-issues` tracker with the authenticated `gh` user, matching the Jira
   `/myself` pre-fill. Unset still means no assignee.
-
-### Changed
 
 - **`AGENTS.md` is the instruction-file standard; `/afk:claude-md` is now
   `/afk:agents-md`.** Every directory keeps its instructions in `AGENTS.md`;
@@ -1637,7 +1887,7 @@ they were at the time.
 - Lavish is now the **default surface for the grill skills** (`grill-requirements`, `grill-solution`, `grill-verification` + the confirm-batch round): every question/round renders into the session's page, from the first question — the only ways out are driven mode, a render failure, or **telling the agent to stop** (new session-scoped user opt-out in `LAVISH.md`). The on-page **legend is retired** in favor of an exhaustive **tooltip layer**: a persistent term → explanation dictionary (plugin seed `hooks/lavish-tips.json` — acronyms, L1–L9, HL-1..6, RP ids, workflow + architecture vocabulary — plus a growing per-repo overlay `.claude/lavish-tips.json` for domain terms) is injected **deterministically** into every artifact at render time by the new `lavish-tips.sh` hook, so hover explanations cost the LLM one definition ever, then ride every future page free; per-artifact item ids stay authored inline (`data-tip`) and share the same hover UI. `LAVISH.md` also gains a **visualization doctrine** — content-type → proven form (C4-altitude zoom for architecture, sequence/state diagrams, option cards, before/after pairs) with fixed color semantics. `/reload-plugins` to pick it up.
 - Review checklists sharpened from a 365-day mine of two senior reviewers' MR comments (756 comments → 55 verified themes): `logic-correctness` gains a lifecycle & persistence block (state-constrained queries on revisioned entities, orphaned link rows, string-assembled SQL, persisted-identifier renames without migration); `code-quality` gains **magic value without provenance**. The bulk of the mine (~40 write-time standards: nullability, naming, validation placement, exceptions, REST/DTO conventions, DB-side work, entity columns, Vue idioms, background-job security) landed in the team harness shared docs + service rules, not the plugin.
 - Artifacts the chain writes are now **compact by default**: new plugin-root doctrine `CONCISION.md` (one home — fact-dense prose, cut words never facts, one-fact-one-home, tables for parallel structure, formats stay contracts) read-before-writing by every markdown-writing skill/template (PRD/SDD templates, plan slicer, review + adversary reports, retro, verification plan, design brief, handoff, `/afk-toolkit:claude-md`); the former `claude-md/STYLE.md` is merged in as its steering-notes section — one home. Same criteria applied retroactively to the team harness: `tools/payable/ai-agents/harness/*` trimmed ~23% with stale claims fixed (jira MCP tools wrap plain text into ADF — the "wiki markup" claim was wrong; crowdstrike-guard log location; dead `lean-ctx` recommendations and the orphan `shared/coding-standards.md` tombstone removed), and the 11xxx CLAUDE.md/IMPL/TESTING/GLOSSARY steering tree swept with verification. New `tools/payable/ai-agents/CLAUDE.md` auto-loads the authoring doctrine (DRY one-fact-one-home et al. + the CONCISION bar) for any agent editing the plugin/harness tree — previously nothing loaded outside `plugins/workflow/`.
-- Always-loaded context slimmed further (~2.5k tokens per session, every teammate): the 28 `afk` chain-skill descriptions cut to ~170 chars average — triggers kept, detail lives in each `SKILL.md` body — and the monorepo root `CLAUDE.md` drops the dead GitNexus block (revivable from git history) and moves the new-UI-project checklist to `docs/new-ui-project.md`. `/reload-plugins` to pick up.
+- Always-loaded context slimmed further (~2.5k tokens per session, every teammate): the 28 `afk` chain-skill descriptions cut to ~170 chars average — triggers kept, detail lives in each `SKILL.md` body — and the monorepo root `CLAUDE.md` drops the dead code-graph tool block (revivable from git history) and moves the new-UI-project checklist to `docs/new-ui-project.md`. `/reload-plugins` to pick up.
 - Four mechanical prose-walks are now **scripts** (deterministic, smoke-tested): `/afk-toolkit:to-subtasks` validation checks (a)/(b)/(e)/(g) → `scripts/validate_plan.py` (owns the forbidden-anchor-token list + glob→tier table); `/afk-toolkit:execute` cited-mode consumer/producer preflights → `scripts/verify-contract.sh`; its tracker-cell flips → `scripts/plan-status.sh`; `/afk-toolkit:gc`'s refusal guards + worktree verify-safe checks → `scripts/gc-check.sh` (hands-off invokers export `AFK_DRIVEN=1`). Prose in those skills now just invokes them.
 - Correctness fixes: `/afk-toolkit:bug`'s fixer no longer flips the MR Ready when no reviewer is configured (K2 absent → stays Draft, fail-closed); `PLAN-TEMPLATE.md`'s smoke-gate table regained the `Requires target` column `/afk-toolkit:smoke-test` reads; `/afk-toolkit:review` reviewer prompts no longer carry checklist `## Guardrails` blocks they must ignore; spinoff rows in `GRILL-LOG.md` now carry `pain`/`why-out` (what the mint actually reads); stale claims that the SDD publishes to the ticket removed everywhere.
 - Plugin-wide token slim-down (~10k words): root `CLAUDE.md`/`README.md` per-skill catalogs collapsed to pointer tables (each skill's `SKILL.md` is the one home), `hooks/README.md` defers to script headers, frontmatter descriptions tightened. New doctrine in `CLAUDE.md` "How to write these skill files": **Minimal-first** (least instruction that works; add only on observed failure) and **Deterministic-first** (mechanical work goes in scripts, not prose). `/reload-plugins` to pick everything up.

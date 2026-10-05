@@ -36,6 +36,7 @@ cfg = _module()
 def run(args, cwd, env=None):
     environ = dict(os.environ)
     environ.pop("AFK_CONFIG", None)
+    environ.pop("CLAUDE_PROJECT_DIR", None)
     environ.update(env or {})
     return subprocess.run(
         [sys.executable, str(SCRIPTS / "afk-config.py"), *args],
@@ -189,6 +190,40 @@ def test_no_config_gives_the_documented_defaults(tmp_path, monkeypatch):
     assert effective["git"]["base-branch"] == "auto"
     assert effective["git"]["branch-pattern"] == ""
     assert effective["repo-files"]["spec-dir"] == "docs/afk/{workId}"
+    assert effective["review"]["ledger-only-paths"] == [
+        "plan/review/**",
+        "plan/JOURNAL.md",
+    ]
+
+
+def test_review_ledger_only_paths_override_replaces_the_default(tmp_path, monkeypatch):
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(
+        "schema: 1\nreview:\n  ledger-only-paths:\n    - docs/review/**\n",
+        encoding="utf-8",
+    )
+
+    assert cfg.load(root)["review"]["ledger-only-paths"] == ["docs/review/**"]
+
+
+@pytest.mark.parametrize(
+    "value,problem",
+    [
+        ("plan/review/**", "block list"),
+        (["!plan/review/private/**"], "does not support negation"),
+        (["/plan/review/**"], "repository-relative"),
+        (["plan\\review\\**"], "forward slashes"),
+        ([1], "must be a path glob"),
+    ],
+)
+def test_review_ledger_only_paths_rejects_invalid_values(value, problem):
+    problems = cfg.validate(
+        {"schema": 1, "review": {"ledger-only-paths": value}}
+    )
+    assert any(problem in item for item in problems)
 
 
 # ---- the three views agree ------------------------------------------------
@@ -250,6 +285,7 @@ TYPOS = {
     "setup": "typo-extra",
     "worktree": "typo-copy",
     "developer": "typoReviewer",
+    "review": "typo-ledger-paths",
 }
 
 
@@ -318,3 +354,83 @@ def test_validate_still_reads_a_good_file(tmp_path):
     target.write_text("schema: 1\n", encoding="utf-8")
     done = run(["validate", str(target)], tmp_path)
     assert done.returncode == 0 and "valid" in done.stdout
+
+
+# ------------------------------------------------- configured paths must exist
+
+PATH_CONFIG = """schema: 1
+repo-hooks: .afk/missing-hooks.json
+maven:
+  reactor-pom: missing-pom.xml
+  formatter-config: missing-format.xml
+  default-module: missing-module
+setup:
+  extra:
+    - docs/x.md
+npm:
+  workspace-root: missing-ui
+"""
+
+MISSING_KEYS = ("repo-hooks", "maven.reactor-pom", "maven.formatter-config",
+                "maven.default-module", "setup.extra", "npm.workspace-root")
+
+
+def _git_repo(tmp_path, text):
+    repo = tmp_path / "repo"
+    (repo / ".afk").mkdir(parents=True)
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, capture_output=True)
+    (repo / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
+    return repo
+
+
+def test_a_missing_configured_path_is_a_warning(tmp_path):
+    result = run(["validate"], _git_repo(tmp_path, PATH_CONFIG))
+    assert result.returncode == 0, result.stderr
+    lines = [l for l in result.stderr.splitlines() if l.startswith("afk-config: warning: ")]
+    assert len(lines) == len(MISSING_KEYS)
+    for key in MISSING_KEYS:
+        assert sum(l.startswith(f"afk-config: warning: {key}: ") for l in lines) == 1
+    assert "docs/x.md does not exist under the repository root" in result.stderr
+    assert "configuration is valid (6 warnings)" in result.stdout
+
+
+def test_present_paths_warn_nothing(tmp_path):
+    repo = _git_repo(tmp_path, PATH_CONFIG)
+    for name in (".afk/missing-hooks.json", "missing-pom.xml", "missing-format.xml", "docs/x.md"):
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text("x", encoding="utf-8")
+    for name in ("missing-module", "missing-ui"):
+        (repo / name).mkdir()
+    result = run(["validate"], repo)
+    assert result.returncode == 0 and "warning" not in result.stderr
+    assert result.stdout.strip() == "afk-config: configuration is valid"
+
+
+def test_a_warning_never_masks_a_problem(tmp_path):
+    repo = _git_repo(tmp_path, """schema: 1
+tracker: trello
+maven:
+  reactor-pom: nope-pom.xml
+""")
+    result = run(["validate"], repo)
+    assert result.returncode == 2
+    assert "trello" in result.stderr and "maven.reactor-pom: nope-pom.xml" in result.stderr
+
+
+def test_no_config_no_path_warnings(tmp_path):
+    repo = tmp_path / "bare"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, capture_output=True)
+    home = tmp_path / "home"
+    home.mkdir()
+    result = run(["validate"], repo, env={"HOME": str(home), "USERPROFILE": str(home)})
+    assert result.returncode == 0 and "warning" not in result.stderr
+
+
+def test_path_warnings_unit(tmp_path):
+    (tmp_path / "a-pom.xml").write_text("x", encoding="utf-8")
+    config = {"maven": {"reactor-pom": "a-pom.xml", "worktree-seed": "~/nowhere/.m2"},
+              "setup": {"extra": ["gone.md", 7]}}
+    assert cfg.path_warnings(config, None) == []
+    assert cfg.path_warnings(config, tmp_path) == [
+        "setup.extra: gone.md does not exist under the repository root"]

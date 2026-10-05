@@ -20,7 +20,12 @@
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
 #   J. every hooks.json command goes through hooks/run-hook.py, so no command
-#      string depends on a shell dialect or on a bare `bash`.
+#      string depends on a shell dialect or on a bare `bash`; the one exception
+#      is the guard, a python file run directly for speed;
+#   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
+#      that references it, and no other plugin file references it (unit
+#      tests under scripts/tests/ exempted — they load the helper directly);
+#   L. agent files carry the model and effort of their PROVIDERS.md tier.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -203,6 +208,57 @@ for agent in sorted(plugin.glob("agents/*.md")):
         problems.append(f"{rel(agent)}: missing {rel(stub)}")
 
 
+# L. PROVIDERS.md "Model tiers" is the one home of each tier's model; agent
+# files are literal copies the harness parses, so they must equal their cell.
+providers_text = read(plugin / "PROVIDERS.md") if (plugin / "PROVIDERS.md").is_file() else ""
+tiers_sec = re.search(r"(?ms)^##\s+Model tiers\s*$(.*?)(?=^##\s|\Z)", providers_text)
+if not tiers_sec:
+    problems.append("PROVIDERS.md: missing the `## Model tiers` section")
+else:
+    tier_cells = {}
+    agent_tier = {}
+    for line in tiers_sec.group(1).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        ticks = [re.fullmatch(r"`([^`]+)`", c) for c in cells]
+        if len(cells) == 4 and all(ticks[1:]):
+            tier_cells[cells[0]] = tuple(m.group(1) for m in ticks[1:])
+        elif len(cells) == 2 and ticks[0] and cells[1] and not set(cells[1]) <= set("-: "):
+            agent_tier[ticks[0].group(1)] = cells[1]
+    home = "PROVIDERS.md `## Model tiers`"
+    on_disk = {a.stem for a in plugin.glob("agents/*.md")}
+    for name in sorted(on_disk - set(agent_tier)):
+        problems.append(f"agents/{name}.md: no row in the {home} Agent table")
+    for name in sorted(set(agent_tier) - on_disk):
+        problems.append(f"{home}: Agent row {name!r} has no agents/{name}.md")
+    for tier in sorted(set(agent_tier.values()) - set(tier_cells)):
+        problems.append(f"{home}: Agent table names tier {tier!r} with no tier row")
+    for name in sorted(on_disk & set(agent_tier)):
+        cells = tier_cells.get(agent_tier[name])
+        if not cells:
+            continue
+        claude, codex, effort = cells
+        md = plugin / "agents" / f"{name}.md"
+        fm = re.match(r"(?s)---\r?\n(.*?)\r?\n---", read(md))
+        got = re.search(r"(?m)^model:\s*(\S+)\s*$", fm.group(1)) if fm else None
+        actual = re.sub(r"^(['\"])(.*)\1$", r"\2", got.group(1)) if got else None
+        if actual != claude:
+            problems.append(
+                f"{rel(md)}: model expected {claude!r} (tier {agent_tier[name]}), "
+                f"got {actual!r}; the home is {home}"
+            )
+        toml = plugin / "providers/codex/agents" / f"afk-{name}.toml"
+        if toml.is_file():
+            body = read(toml)
+            for key, want, label in (("model", codex, "model"),
+                                     ("model_reasoning_effort", effort, "effort")):
+                m = re.search(rf'(?m)^{key}\s*=\s*"([^"]*)"', body)
+                if not m or m.group(1) != want:
+                    problems.append(
+                        f"{rel(toml)}: {label} expected {want!r} (tier {agent_tier[name]}), "
+                        f"got {m.group(1) if m else 'none'!r}; the home is {home}"
+                    )
+
+
 # E. CAPABILITIES.md owns the shared hooks.json event and matcher subset. The
 # exact machine-readable declarations intentionally keep this parser trivial.
 capabilities = plugin / "CAPABILITIES.md"
@@ -239,11 +295,22 @@ def load_hook_map(rel_name: str) -> dict:
     return hmap
 
 
+# `Provider-specific hook events: <provider>=<event>, ...` names events one harness
+# has and the other lacks; each may appear in that provider's manifest only.
+specific_events: dict[str, set[str]] = {}
+_specific = re.search(r"(?mi)^\s*Provider-specific hook events\s*:\s*(.+?)\s*$", cap_text)
+for _pair in (_specific.group(1).split(",") if _specific else []):
+    _provider, _, _event = _pair.strip().strip("`").partition("=")
+    if _event:
+        specific_events.setdefault(_provider.strip(), set()).add(_event.strip().strip("`"))
+MANIFEST_PROVIDER = {"hooks/hooks.json": "claude", "hooks/hooks.codex.json": "codex"}
+
+
 def check_subset(rel_name: str, hmap: dict) -> None:
-    # Both native twins are held to the shared subset: the twin equality test
-    # keeps them identical modulo the root variable, and this guards each file.
+    # Each twin: the shared subset plus its own provider's declared events.
+    own = specific_events.get(MANIFEST_PROVIDER.get(rel_name, ""), set())
     if shared_events is not None:
-        for event in sorted(set(hmap) - shared_events):
+        for event in sorted(set(hmap) - shared_events - own):
             problems.append(f"{rel_name}: event {event!r} is outside the shared subset")
     if shared_matchers is None:
         return
@@ -275,10 +342,11 @@ check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 # harness chose, and `bash` names the WSL stub on many Windows machines, so
 # every handler goes through the launcher and no command carries shell syntax.
 launcher = re.compile(
-    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.py"'
-    r'(?: --soft)?'
+    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/(?:'
+    r'run-hook\.py"(?: --soft)?'
     r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))$'
+    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
+    r'|protected-branch-guard\.py")$'
 )
 for event, groups in hook_map.items():
     if not isinstance(groups, list):
@@ -294,7 +362,7 @@ for event, groups in hook_map.items():
                 problems.append(
                     f"hooks/hooks.json: {event}[{index}] command must be "
                     f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] plugin <handler.sh> [args] | repo-list <event> - got {command!r}"
+                    f"[--soft] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
                 )
 
 
@@ -357,6 +425,35 @@ for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.p
             )
     except OSError as exc:
         problems.append(f"{rel(script)}: cannot read ({exc})")
+
+
+# K. A hooks/lib/providers/<name>_*.py helper is provider-owned code: its own
+# <name>.sh adapter is its one permitted caller (AGENTS.md "Harness-agnostic
+# by default", PROVIDERS.md "Distribution law"). scripts/tests/ is exempt —
+# a unit test legitimately loads the helper module directly.
+for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
+    name = helper.stem.split("_", 1)[0]
+    adapter = plugin / "hooks/lib/providers" / f"{name}.sh"
+    if not adapter.is_file() or helper.name not in read(adapter):
+        problems.append(
+            f"{rel(helper)}: no hooks/lib/providers/{name}.sh references it by name"
+        )
+    for candidate in plugin.rglob("*"):
+        if not candidate.is_file() or candidate in (helper, adapter):
+            continue
+        if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
+            continue
+        if "scripts/tests" in candidate.relative_to(plugin).as_posix():
+            continue
+        try:
+            text = read(candidate)
+        except OSError:
+            continue
+        if helper.name in text:
+            problems.append(
+                f"{rel(candidate)}: references provider helper {helper.name!r}; "
+                f"only hooks/lib/providers/{name}.sh may call it"
+            )
 
 
 if problems:

@@ -14,7 +14,7 @@ A bug's whole world is one gitignored directory under the ledger root
 - **Single writer.** Only the main interactive session writes `state.json`.
   Subagents (publisher, fixer, retester) return results; the writer records
   them. No subagent path targets a ledger file. Guards against concurrent-write
-  corruption (ADR-0002).
+  corruption.
 - **Every write is a state transition or a history append**, never a silent
   field mutation: a changed `state` MUST be an allowed edge below and MUST push
   one `history` entry in the same write.

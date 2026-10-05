@@ -1,0 +1,60 @@
+{
+  "detect": {
+    "any_env": [
+      "PLUGIN_ROOT"
+    ]
+  },
+  "priority": 10,
+  "harness_class": "H-2",
+  "session_start_user_message": true,
+  "move_ui": {
+    "command": "/cd {path}",
+    "done": "Working directory changed",
+    "refused": "disabled while a task|Cannot access directory|not trusted|background terminal",
+    "prompt_glyphs": "\u203a>\u276f"
+  },
+  "move_hint": "move the session into a linked worktree: start the harness through `{plugin_root}/scripts/afk-launch.py <harness>`, or create one with `{plugin_root}/scripts/create-worktree --name <name>` and type `/cd <worktree path>`.",
+  "tool_class": {
+    "edit": [
+      "apply_patch",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "NotebookEdit"
+    ],
+    "shell": [
+      "Bash",
+      "shell",
+      "shell_command",
+      "exec_command",
+      "local_shell",
+      "unified_exec",
+      "write_stdin",
+      "container.exec"
+    ],
+    "allow": [
+      "Read",
+      "read_file",
+      "list_dir",
+      "grep_files",
+      "view_image",
+      "update_plan",
+      "web_search",
+      "web__run",
+      "webrun",
+      "mcp__web__run",
+      "request_user_input",
+      "spawn_agent",
+      "send_input",
+      "wait",
+      "wait_agent",
+      "close_agent",
+      "resume_agent",
+      "list_mcp_resources",
+      "list_mcp_resource_templates",
+      "read_mcp_resource",
+      "tool_search"
+    ]
+  },
+  "worktree_folder": ".codex/worktrees"
+}

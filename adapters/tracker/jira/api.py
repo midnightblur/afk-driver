@@ -15,7 +15,8 @@ Credentials are read from same-named OS env vars, or from the tracker MCP
 server's env block in ~/.claude.json (JIRA_BASE_URL / JIRA_EMAIL /
 JIRA_API_TOKEN), or from ~/.codex/config.toml [mcp_servers.tracker.env];
 resolution order env > claude.json > codex config.toml. The server was once
-registered as `jira`, so both names are accepted. Nothing is hardcoded.
+registered as `jira`; that name counts only for afk's own entry (setup's
+`is_afk_entry`). Nothing is hardcoded.
 """
 
 from __future__ import annotations
@@ -38,10 +39,22 @@ from markdown_it import MarkdownIt
 # ============================================================================
 # Credentials
 # ============================================================================
-# The MCP server that carries these credentials is registered as `tracker`; it
-# was `jira` before the adapter split, and an existing machine still holds that
-# registration, so both names resolve.
-SERVER_NAMES = ("tracker", "jira")
+# Setup owns both server names and the test for "is this entry afk's own". The
+# legacy `jira` name counts only for afk's own entry, never another vendor's.
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _registration_module():
+    spec = importlib.util.spec_from_file_location(
+        "afk_tracker_registration",
+        PLUGIN_ROOT / "skills" / "afk" / "setup" / "scripts" / "tracker_registration.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+registration = _registration_module()
+SERVER_NAMES = (registration.MCP_KEY, registration.LEGACY_MCP_KEY)
 
 
 # The shared payload reader (adapters/tracker/payload.py). The adapters folder
@@ -62,6 +75,9 @@ def _walk_for_jira_env(obj):
     if isinstance(obj, dict):
         for name in SERVER_NAMES:
             server = obj.get(name)
+            if (name == registration.LEGACY_MCP_KEY and isinstance(server, dict)
+                    and not registration.is_afk_entry(server, PLUGIN_ROOT)):
+                continue
             if isinstance(server, dict) and isinstance(server.get("env"), dict):
                 return server["env"]
         for v in obj.values():
@@ -88,10 +104,14 @@ def _codex_jira_env():
     return _walk_for_jira_env(data.get("mcp_servers") or data.get("mcpServers") or {})
 
 
-def load_creds():
-    base = os.environ.get("JIRA_BASE_URL")
-    email = os.environ.get("JIRA_EMAIL")
-    token = os.environ.get("JIRA_API_TOKEN")
+CRED_KEYS = ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN")
+
+
+def resolve_creds_env():
+    """The `JIRA_*` values the credential chain resolves, per field, in order:
+    exported variables, `~/.claude.json`, `~/.codex/config.toml`. Never exits;
+    an unresolved field is absent."""
+    found = {k: os.environ[k] for k in CRED_KEYS if os.environ.get(k)}
     sources = []
     cfg_path = Path.home() / ".claude.json"
     if cfg_path.exists():
@@ -101,17 +121,19 @@ def load_creds():
             pass
     sources.append(_codex_jira_env())
     for env in sources:
-        if base and email and token:
-            break
-        if env:
-            base = base or env.get("JIRA_BASE_URL")
-            email = email or env.get("JIRA_EMAIL")
-            token = token or env.get("JIRA_API_TOKEN")
-    if not (base and email and token):
+        for k in CRED_KEYS:
+            if env and k not in found and env.get(k):
+                found[k] = env[k]
+    return found
+
+
+def load_creds():
+    found = resolve_creds_env()
+    if len(found) < len(CRED_KEYS):
         sys.exit("ERROR: could not resolve Jira creds (JIRA_BASE_URL/EMAIL/API_TOKEN "
                  "from env, ~/.claude.json mcpServers.tracker.env, or "
                  "~/.codex/config.toml [mcp_servers.tracker.env]).")
-    return base.rstrip("/"), email, token
+    return found["JIRA_BASE_URL"].rstrip("/"), found["JIRA_EMAIL"], found["JIRA_API_TOKEN"]
 
 
 class Jira:
@@ -432,13 +454,16 @@ SEARCH_FIELDS = ["summary", "status", "issuetype", "assignee", "priority",
                  "created", "updated"]
 
 _CLIENT = None
+_CLIENT_CREDS = None
 
 
 def client():
-    """The one REST client, built from the resolved credentials on first use."""
-    global _CLIENT
-    if _CLIENT is None:
-        _CLIENT = Jira(*load_creds())
+    """The one REST client. Credentials resolve on every call and the client is
+    rebuilt when they differ, so a corrected token or URL needs no restart."""
+    global _CLIENT, _CLIENT_CREDS
+    creds = load_creds()
+    if _CLIENT is None or creds != _CLIENT_CREDS:
+        _CLIENT, _CLIENT_CREDS = Jira(*creds), creds
     return _CLIENT
 
 
@@ -611,6 +636,10 @@ def call(operation, payload=None):
     except KeyError as e:
         return {"error": True, "operation": operation,
                 "reason": f"missing required argument {e}"}
+    except SystemExit as e:
+        # `load_creds` exits for the CLI; in the server that would end it. No
+        # client is cached, so the next call re-reads the credentials.
+        return {"error": True, "operation": operation, "reason": str(e.code)}
 
 
 def main(argv):

@@ -32,7 +32,8 @@ Secrets are never read from a configuration file. `jira.credentials-env` names
 the environment variables; the values come from the environment, from the
 `tracker` MCP registration's `env` block in the harness configuration, or from
 the harness credential store. The registration was named `jira` before the
-adapter split, so both names resolve.
+adapter split; that name counts only for afk's own entry (`is_afk_entry` in
+`skills/afk/setup/scripts/tracker_registration.py`), never another server's.
 
 ## Beyond the nine operations
 

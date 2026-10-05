@@ -28,7 +28,12 @@ PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$FORGE_DIR/../../.." && pwd)}
 afk_config_load
 
 verb=${1:-}
-payload=${2:-'{}'}
+if [ "$#" -ge 2 ]; then
+  payload=$2
+else
+  payload=$(cat)
+  [ -n "$payload" ] || payload='{}'
+fi
 
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
@@ -84,6 +89,14 @@ unavailable() {
 
 command -v glab >/dev/null 2>&1 || unavailable "forge: gitlab — the \`glab\` CLI is not on PATH"
 
+# A stalled connection must not hang the caller: every `glab` call gets a time
+# limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
+_forge_limit=
+timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+glab() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P glab)" "$@"; else command glab "$@"; fi
+}
+
 # arg <key> [default] — one value out of the JSON payload, as text.
 arg() {
   printf '%s' "$payload" | "$PY" -c '
@@ -104,6 +117,18 @@ elif isinstance(value, (list, tuple)):
     value = ",".join(str(v) for v in value)
 print(value)
 ' "$1" "${2:-}"
+}
+
+bool_arg() {
+  printf '%s' "$payload" | "$PY" -c '
+import json, sys
+key, default = sys.argv[1], sys.argv[2] == "true"
+try:
+    value = json.load(sys.stdin).get(key, default)
+except Exception:
+    value = default
+print("true" if value is True else "false")
+' "$1" "${2:-false}"
 }
 
 
@@ -159,19 +184,103 @@ print(json.dumps({
     "source": source,
     "target": d.get("target_branch") or "",
     "author": (d.get("author") or {}).get("username") or "",
+    "head_sha": d.get("sha") or (d.get("diff_refs") or {}).get("head_sha") or "",
+    "base_sha": (d.get("diff_refs") or {}).get("base_sha") or "",
+    "head_ref": "merge-requests/{}/head".format(d.get("iid") or d.get("id") or ""),
+    "cross_fork": bool(d.get("source_project_id") and d.get("target_project_id") and
+                       d.get("source_project_id") != d.get("target_project_id")),
+    "blob_base": (((d.get("source_project") or {}).get("web_url") or "") + "/-/blob"
+                  if (d.get("source_project") or {}).get("web_url") else ""),
     "pipeline": {"status": pipeline.get("status") or ""},
 }))
 '
 }
 
+normalize_change() {
+  local raw normalized source_id blob
+  raw=$(cat)
+  normalized=$(printf '%s' "$raw" | normalize)
+  blob=$(printf '%s' "$normalized" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("blob_base", ""))')
+  if [ -z "$blob" ]; then
+    source_id=$(printf '%s' "$raw" | "$PY" -c 'import json,sys
+try: print(json.load(sys.stdin).get("source_project_id") or "")
+except Exception: print("")')
+    if [ -n "$source_id" ]; then
+      blob=$(glab api "projects/$source_id" 2>/dev/null | "$PY" -c 'import json,sys
+try:
+    url=json.load(sys.stdin).get("web_url") or ""
+    print(url + "/-/blob" if url else "")
+except Exception: print("")')
+    fi
+  fi
+  printf '%s' "$normalized" | "$PY" -c 'import json,sys;d=json.load(sys.stdin);d["blob_base"]=sys.argv[1];print(json.dumps(d))' "$blob"
+}
+
 view_json() {  # $1 = change ref (branch name or id)
-  glab mr view "$1" "${REPO_FLAG[@]}" -F json 2>/dev/null
+  glab mr view "$1" "${REPO_FLAG[@]}" -F json 2>"${VIEW_ERR:-/dev/null}"
+}
+
+# Prints {edited} for the notes of a merge request, or {error}; GraphQL needs the project path.
+note_edits_json() {  # $1 = merge request iid
+  local path raw
+  path=$(glab api "projects/:id" 2>/dev/null \
+    | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("path_with_namespace",""))' 2>/dev/null)
+  if [ -z "$path" ]; then
+    printf '{"error":"the project path could not be resolved for GraphQL"}\n'
+    return 0
+  fi
+  if ! raw=$(glab api graphql --paginate -f path="$path" -f iid="$1" -f query='
+query($path:ID!,$iid:String!,$endCursor:String) {
+  project(fullPath:$path) {
+    mergeRequest(iid:$iid) {
+      notes(first:100,after:$endCursor) {
+        nodes { id lastEditedAt }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL note query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL note answer is unreadable")
+edited = {}
+for doc in docs:
+    mr = ((((doc.get("data") or {}).get("project") or {}).get("mergeRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(mr, dict) or doc.get("errors"):
+        fail("the GraphQL note answer holds no merge request")
+    for node in (mr.get("notes") or {}).get("nodes") or []:
+        ident = str(node.get("id") or "").rsplit("/", 1)[-1]
+        if ident:
+            edited[ident] = bool(node["lastEditedAt"]) if "lastEditedAt" in node else None
+print(json.dumps({"edited": edited}))
+'
 }
 
 case "$verb" in
 
 change-view)
-  view_json "$(arg id)" | normalize
+  # A failed lookup names whether the forge confirmed there is no such change.
+  VIEW_ERR=$(mktemp)
+  if out=$(view_json "$(arg id)"); then
+    rm -f "$VIEW_ERR"
+    printf '%s' "$out" | normalize_change
+  else
+    reason=$(head -c 300 "$VIEW_ERR"); rm -f "$VIEW_ERR"
+    missing=false
+    printf '%s' "$reason" | grep -qiE 'no open merge requests?|merge request .*not found|404|not found' && missing=true
+    "$PY" -c 'import json, sys
+print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] == "true",
+                  "reason": sys.argv[2] or "change lookup failed"}))' "$missing" "$reason"
+  fi
   ;;
 
 change-diff)
@@ -215,7 +324,7 @@ change-fetch)
     printf '{"error":true,"verb":"change-fetch","reason":"glab mr diff failed; see %s"}\n' "$err"
     exit 0
   fi
-  normalized=$(normalize < "$out_dir/mr.json")
+  normalized=$(normalize_change < "$out_dir/mr.json")
   printf '%s' "$normalized" | "$PY" -c '
 import json, os, sys
 d = json.load(sys.stdin)
@@ -346,35 +455,53 @@ change-comment)
   # note is a DiffNote and needs the change's four diff refs: `glab mr note` has
   # no flag for that, and passing -f position[...] posts a plain note instead —
   # silently, which is why this builds the JSON body and posts it through the API.
-  ref=$(arg id); text=$(arg text); file=$(arg file); line=$(arg line)
-  if [ -z "$file" ]; then
-    out=$(glab mr note "$ref" "${REPO_FLAG[@]}" --message "$text" 2>&1) || {
+  ref=$(arg id); text=$(arg text); file=$(arg file)
+  old_path=$(arg old_path "$file"); new_path=$(arg new_path "$file")
+  line=$(arg line); old_line=$(arg old_line); side=$(arg side new)
+  require_inline=$(arg require_inline)
+  if [ -z "$file" ] && [ -z "$old_path" ] && [ -z "$new_path" ]; then
+    meta=$(view_json "$ref")
+    iid=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
+    change_url=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("web_url", ""))')
+    out=$(glab api -X POST "projects/:id/merge_requests/$iid/notes" -f body="$text" 2>&1) || {
       printf '{"error":true,"verb":"change-comment","reason":%s}\n' \
         "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
       exit 0
     }
-    printf '{"ok":true,"id":"%s","inline":false}\n' "$ref"
+    printf '%s' "$out" | "$PY" -c '
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: d={}
+ident=str(d.get("id") or "")
+url=d.get("web_url") or ((sys.argv[1] + "#note_" + ident) if sys.argv[1] and ident else "")
+print(json.dumps({"ok":bool(ident),"inline":False,"thread":"","comment":ident,
+                  "url":url,
+                  **({} if ident else {"reason":"no readable response"})}))
+' "$change_url"
     exit 0
   fi
   meta=$(view_json "$ref")
+  change_url=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("web_url", ""))')
   body_file=$(mktemp -t afk-forge-note.XXXXXX.json)
   printf '%s' "$meta" | "$PY" -c '
 import json, sys
 d = json.load(sys.stdin)
 refs = d.get("diff_refs") or {}
-text, path, line = sys.argv[1], sys.argv[2], sys.argv[3]
+text, old_path, new_path, line, old_line, side = sys.argv[1:]
+position = {
+    "position_type": "text", "new_path": new_path, "old_path": old_path,
+    "base_sha": refs.get("base_sha"), "start_sha": refs.get("start_sha"),
+    "head_sha": refs.get("head_sha"),
+}
+if side in ("new", "context") and line:
+    position["new_line"] = int(line)
+if side in ("old", "context") and old_line:
+    position["old_line"] = int(old_line)
 print(json.dumps({
     "body": text,
-    "position": {
-        "position_type": "text",
-        "new_path": path, "old_path": path,
-        "new_line": int(line),
-        "base_sha": refs.get("base_sha"),
-        "start_sha": refs.get("start_sha"),
-        "head_sha": refs.get("head_sha"),
-    },
+    "position": position,
 }))
-' "$text" "$file" "$line" > "$body_file"
+' "$text" "$old_path" "$new_path" "$line" "$old_line" "$side" > "$body_file"
   iid=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
   out=$(glab api -X POST -H "Content-Type: application/json" \
         "projects/:id/merge_requests/$iid/discussions" --input "$body_file" 2>&1) || {
@@ -383,21 +510,104 @@ print(json.dumps({
     rm -f "$body_file"; exit 0
   }
   rm -f "$body_file"
-  # Verify the note actually landed as a DiffNote: a rejected position degrades
-  # to a plain note, and a review that believes it commented on a line did not.
-  printf '%s' "$out" | "$PY" -c '
+  parsed=$(printf '%s' "$out" | "$PY" -c '
 import json, sys
 try:
     d = json.load(sys.stdin)
 except Exception:
-    print(json.dumps({"ok": False, "reason": "no readable response"}))
+    print(json.dumps({"ok": False, "inline": False, "thread": "", "comment": "",
+                      "url": "", "reason": "no readable response"}))
     raise SystemExit(0)
 notes = d.get("notes") or []
-kind = notes[0].get("type") if notes else None
-print(json.dumps({"ok": kind == "DiffNote", "inline": True, "type": kind,
-                  "discussion": d.get("id"),
+note = notes[0] if notes else {}
+kind = note.get("type")
+inline = kind == "DiffNote"
+ident = str(note.get("id") or "")
+url = note.get("web_url") or d.get("web_url") or ((sys.argv[1] + "#note_" + ident) if sys.argv[1] and ident else "")
+print(json.dumps({"ok": bool(ident), "inline": inline,
+                  "thread": str(d.get("id") or "") if inline else "", "comment": ident,
+                  "url": url,
                   **({} if kind == "DiffNote" else
                      {"reason": "the position was rejected; this landed as a plain note"})}))
+' "$change_url")
+  kind=$(printf '%s' "$parsed" | "$PY" -c 'import json,sys;print("ok" if json.load(sys.stdin).get("inline") else "plain")')
+  if [ "$kind" = plain ] && [ "$require_inline" = true ]; then
+    note=$(printf '%s' "$parsed" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("comment", ""))')
+    if [ -n "$note" ] && glab api -X DELETE "projects/:id/merge_requests/$iid/notes/$note" >/dev/null 2>&1; then
+      printf '%s' "$parsed" | "$PY" -c 'import json,sys;d=json.load(sys.stdin);d.update({"ok":False,"cleaned":True,"comment":"","url":""});print(json.dumps(d))'
+    else
+      printf '{"error":true,"note":"%s","reason":"the position degraded to a plain note and cleanup failed"}\n' "$note"
+    fi
+  else
+    printf '%s\n' "$parsed"
+  fi
+  ;;
+
+note-list)
+  iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
+  edits=$(note_edits_json "$iid")
+  glab api --paginate "projects/:id/merge_requests/$iid/notes?per_page=100&sort=asc&order_by=created_at" 2>/dev/null \
+    | "$PY" -c "$PAGES"'
+import json, sys
+edits = json.loads(sys.argv[1])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "reason": "glab returned no readable JSON"}))
+    raise SystemExit(0)
+notes = []
+for n in data:
+    if n.get("system") or n.get("type"):
+        continue
+    ident = str(n.get("id") or "")
+    flag = edits["edited"].get(ident)
+    if flag is None:
+        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for note " + ident}))
+        raise SystemExit(0)
+    notes.append({"id": ident,
+                  "author": (n.get("author") or {}).get("username") or "",
+                  "body": n.get("body") or "",
+                  "created_at": n.get("created_at") or "",
+                  "updated_at": n.get("updated_at") or "",
+                  "edited": flag})
+notes.sort(key=lambda n: (n["created_at"], n["id"]))
+print(json.dumps({"notes": notes, "count": len(notes)}))
+' "$edits"
+  ;;
+
+commit-changes)
+  # The changes that carry one commit, in the shape `change-view` answers. One
+  # fetch per commit; the caller decides which change a note belongs to.
+  sha=$(arg sha)
+  [ -n "$sha" ] || { printf '{"error":true,"verb":"commit-changes","reason":"commit-changes needs `sha`"}
+'; exit 0; }
+  if ! raw=$(glab api --paginate "projects/:id/repository/commits/$sha/merge_requests?per_page=100" 2>/dev/null); then
+    printf '{"error":true,"verb":"commit-changes","reason":"glab api failed for the commit lookup"}
+'
+    exit 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "glab returned no readable JSON"}))
+    raise SystemExit(0)
+if not isinstance(data, list) or not all(isinstance(c, dict) and c.get("iid") for c in data):
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "glab returned an unexpected commit lookup"}))
+    raise SystemExit(0)
+changes = []
+for c in data:
+    changes.append({"id": str(c.get("iid") or ""), "url": c.get("web_url") or "",
+                    "state": c.get("state") or "",
+                    "draft": bool(c.get("draft") or c.get("work_in_progress")),
+                    "source": c.get("source_branch") or "", "target": c.get("target_branch") or "",
+                    "author": (c.get("author") or {}).get("username") or ""})
+changes.sort(key=lambda c: int(c["id"] or 0))
+print(json.dumps({"changes": changes, "count": len(changes)}))
 '
   ;;
 
@@ -406,28 +616,52 @@ thread-list)
   # needs: id, resolved, and each note's author, body and type. Paginated to the
   # end — a round that read only the first page would re-open findings it had
   # already settled.
-  iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
+  meta=$(view_json "$(arg id)")
+  iid=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
+  change_url=$(printf '%s' "$meta" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("web_url", ""))')
+  edits=$(note_edits_json "$iid")
   glab api --paginate "projects/:id/merge_requests/$iid/discussions?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
+edits = json.loads(sys.argv[2])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
     print(json.dumps({"error": True, "reason": "glab returned no readable JSON"}))
     raise SystemExit(0)
+unknown = [str(n.get("id")) for d in (data if isinstance(data, list) else []) for n in d.get("notes") or []
+           if edits["edited"].get(str(n.get("id"))) is None]
+if unknown:
+    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for notes: " + ", ".join(unknown)}))
+    raise SystemExit(0)
 threads = []
 for d in data if isinstance(data, list) else []:
-    notes = d.get("notes") or []
+    notes = sorted(d.get("notes") or [], key=lambda n: (n.get("created_at") or "", str(n.get("id") or "")))
+    root = notes[0] if notes else {}
+    position = root.get("position") or {}
+    new_line, old_line = position.get("new_line"), position.get("old_line")
+    side = "context" if new_line and old_line else ("old" if old_line else "new")
     threads.append({
         "id": d.get("id"),
         "resolved": any(n.get("resolved") for n in notes),
-        "file": ((notes[0].get("position") or {}).get("new_path") if notes else None),
+        "file": position.get("new_path") or position.get("old_path"),
+        "side": side, "line": new_line, "old_line": old_line,
+        "old_path": position.get("old_path"), "new_path": position.get("new_path"),
+        "url": root.get("web_url") or d.get("web_url") or
+               ((sys.argv[1] + "#note_" + str(root.get("id"))) if sys.argv[1] and root.get("id") else ""),
         "notes": [{"id": n.get("id"),
                    "author": (n.get("author") or {}).get("username"),
                    "type": n.get("type"),
-                   "body": n.get("body") or ""} for n in notes],
+                   "body": n.get("body") or "",
+                   "created_at": n.get("created_at") or "",
+                   "updated_at": n.get("updated_at") or "",
+                   "edited": edits["edited"][str(n.get("id"))]} for n in notes],
     })
+threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), str(t["id"] or "")))
 print(json.dumps({"threads": threads, "count": len(threads)}))
-'
+' "$change_url" "$edits"
   ;;
 
 thread-reply)
@@ -444,7 +678,7 @@ thread-reply)
 
 thread-resolve)
   iid=$(view_json "$(arg id)" | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("iid",""))')
-  thread=$(arg thread); state=$(arg resolved true)
+  thread=$(arg thread); state=$(bool_arg resolved true)
   out=$(glab api -X PUT "projects/:id/merge_requests/$iid/discussions/$thread?resolved=$state" 2>&1) || {
     printf '{"error":true,"verb":"thread-resolve","reason":%s}
 '       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"

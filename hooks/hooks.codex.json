@@ -21,7 +21,17 @@
           },
           {
             "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin behavior-drift.sh",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin worktree-prune.sh",
             "timeout": 60
           }
         ]
@@ -61,6 +71,17 @@
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PreToolUse",
             "timeout": 60,
             "statusMessage": "repository PreToolUse hooks"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/protected-branch-guard.py\"",
+            "timeout": 30,
+            "statusMessage": "protected-branch guard"
           }
         ]
       }
@@ -115,6 +136,17 @@
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list Stop",
             "timeout": 300,
             "statusMessage": "repository Stop gates"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin worktree-remove.sh",
+            "timeout": 3
           }
         ]
       }

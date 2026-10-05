@@ -36,8 +36,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def repository(tmp_path: Path, manifest: str, scripts: dict[str, str] | None = None) -> Path:
-    root = tmp_path / "repo"
+def repository(
+    tmp_path: Path, manifest: str, scripts: dict[str, str] | None = None, name: str = "repo"
+) -> Path:
+    root = tmp_path / name
     (root / ".afk").mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     (root / ".afk" / "hooks.json").write_text(manifest, encoding="utf-8")
@@ -46,16 +48,23 @@ def repository(tmp_path: Path, manifest: str, scripts: dict[str, str] | None = N
     return root
 
 
-def run(root: Path, event: str, envelope: dict, soft: bool = False):
+UNSET = object()
+
+
+def run(root: Path, event: str, envelope: dict, soft: bool = False, *, project_dir=UNSET, cwd=None):
     argv = [sys.executable, str(LAUNCHER)]
     if soft:
         argv.append("--soft")
     environ = dict(os.environ)
-    environ["CLAUDE_PROJECT_DIR"] = str(root)
+    environ.pop("PROJECT_DIR", None)
+    environ.pop("CLAUDE_PROJECT_DIR", None)
+    named = root if project_dir is UNSET else project_dir
+    if named is not None:
+        environ["CLAUDE_PROJECT_DIR"] = str(named)
     return subprocess.run(
         [*argv, "repo-list", event],
         input=json.dumps(envelope), capture_output=True, text=True,
-        cwd=str(root), env=environ, timeout=180,
+        cwd=str(cwd or root), env=environ, timeout=180,
     )
 
 
@@ -148,3 +157,152 @@ def test_no_manifest_is_not_a_fault(tmp_path):
     done = run(root, "Stop", {"hook_event_name": "Stop"})
     assert done.stdout == ""
     assert done.returncode == 0
+
+
+EXITS_2 = "#!/bin/sh\necho 'not allowed here' >&2\nexit 2\n"
+
+
+def test_r7_1_a_pretooluse_script_that_exits_nonzero_becomes_the_deny_json_at_exit_zero(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/no.sh"}]),
+        {"no.sh": EXITS_2})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["permissionDecision"] == "deny" and "not allowed here" in body["permissionDecisionReason"]
+
+
+def test_r7_1_a_stop_script_that_exits_nonzero_becomes_the_block_object(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/no.sh"}]), {"no.sh": EXITS_2})
+    done = run(root, "Stop", {"hook_event_name": "Stop"})
+    assert done.returncode == 0
+    assert decision(done.stdout)["decision"] == "block" and "not allowed here" in done.stdout
+
+
+def test_r8_2_a_script_that_printed_its_own_deny_leaves_one_verdict_at_exit_zero(tmp_path):
+    own = ("#!/bin/sh\necho '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\","
+           "\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"mine\"}}'\nexit 0\n")
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/own.sh"}]), {"own.sh": own})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0 and decision(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"] is not None
+    assert "mine" in done.stdout
+
+
+def _denies(reason: str, code: int) -> str:
+    deny = ('{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",'
+            f'"permissionDecisionReason":"{reason}"}}}}')
+    return f"#!/bin/sh\necho '{deny}'\nexit {code}\n"
+
+
+def test_r8_2_deny_json_with_exit_two_is_rewritten_to_exit_zero(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"}]),
+        {"a.sh": _denies("belt", 2)})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    assert decision(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny" and "belt" in done.stdout
+
+
+def test_r8_2_two_refusing_handlers_leave_one_document(tmp_path):
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"},
+                              {"event": "PreToolUse", "matcher": "*", "script": ".afk/b.sh"}]),
+        {"a.sh": _denies("first-no", 0), "b.sh": EXITS_2})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert done.stdout.count('"permissionDecision"') == 1
+    assert "first-no" in body["permissionDecisionReason"] and "not allowed here" in body["permissionDecisionReason"]
+
+
+def test_r8_2_a_stop_block_object_with_a_nonzero_exit_is_one_block_at_exit_zero(tmp_path):
+    own = "#!/bin/sh\necho '{\"decision\":\"block\",\"reason\":\"mine\"}'\nexit 2\n"
+    root = repository(
+        tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/s.sh"},
+                              {"event": "Stop", "matcher": "*", "script": ".afk/t.sh"}]),
+        {"s.sh": own, "t.sh": own})
+    done = run(root, "Stop", {"hook_event_name": "Stop"})
+    assert done.returncode == 0 and done.stdout.count('"decision"') == 1 and "mine" in done.stdout
+
+
+@pytest.mark.parametrize("event", ["PreToolUse", "Stop"])
+def test_r7_2_with_no_shell_a_matching_blocking_entry_blocks(tmp_path, monkeypatch, capsys, event):
+    import io
+    import types
+    root = repository(tmp_path, json.dumps([{"event": event, "matcher": "*", "script": ".afk/g.sh"}]),
+                      {"g.sh": OK})
+    monkeypatch.setattr(launcher, "find_bash", lambda: None)
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(sys, "stdin", types.SimpleNamespace(
+        buffer=io.BytesIO(json.dumps({"tool_name": "Bash"}).encode()), isatty=lambda: False))
+    assert launcher.main(["repo-list", event]) == 0
+    out = capsys.readouterr()
+    assert "no POSIX shell to run .afk/g.sh" in out.out + out.err
+    assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in out.out
+
+
+def test_r9_3_two_context_printing_handlers_leave_one_document(tmp_path):
+    def printer(text: str) -> str:
+        doc = json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}})
+        return f"#!/bin/sh\necho '{doc}'\n"
+
+    root = repository(
+        tmp_path, json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/a.sh"},
+                              {"event": "PreToolUse", "matcher": "*", "script": ".afk/b.sh"}]),
+        {"a.sh": printer("first note"), "b.sh": printer("second note")})
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["additionalContext"] == "first note\nsecond note"
+
+
+def test_r10_1_an_ask_is_never_turned_into_an_allow_by_another_handler():
+    def doc(decision: str, reason: str, message: str) -> bytes:
+        return json.dumps({"systemMessage": message, "hookSpecificOutput": {
+            "hookEventName": "PreToolUse", "permissionDecision": decision,
+            "permissionDecisionReason": reason}}).encode()
+
+    for order in ((("ask", "gate A asks", "note A"), ("allow", "gate B ok", "note B")),
+                  (("allow", "gate B ok", "note B"), ("ask", "gate A asks", "note A"))):
+        merged = json.loads(launcher.merge_allowed([doc(*item) for item in order]))
+        body = merged["hookSpecificOutput"]
+        assert body["permissionDecision"] == "ask" and body["permissionDecisionReason"] == "gate A asks"
+        assert sorted(merged["systemMessage"].split("\n")) == ["note A", "note B"]
+
+
+BLOCK = OK.replace("exit 0", "echo gate-ran >&2\nexit 2")
+STOP_GATE = json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/gate.sh"}])
+
+
+@pytest.mark.parametrize(
+    "case, project_dir, where, blocks",
+    [
+        ("A", "x", "y", False),
+        ("B", "y", "x", True),
+        ("C", "x", "xwt", False),
+        ("D", None, "xwt", False),
+        ("E", None, "x", True),
+        ("F", "x/sub", "x/sub", True),
+        ("G", None, "x/sub", True),
+    ],
+)
+def test_repo_list_reads_the_working_tree_not_the_project_dir(
+    tmp_path, case, project_dir, where, blocks
+):
+    x = repository(tmp_path, STOP_GATE, {"gate.sh": BLOCK}, name="x")
+    y = repository(tmp_path, "[]", name="y")
+    (x / "sub").mkdir()
+    subprocess.run(["git", "-C", str(x), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(x), "-c", "user.name=t", "-c", "user.email=t@t", "commit",
+         "-q", "-m", "init"], check=True)
+    xwt = tmp_path / "xwt"
+    subprocess.run(["git", "-C", str(x), "worktree", "add", "-q", "-b", "nogate", str(xwt)], check=True)
+    (xwt / ".afk" / "hooks.json").write_text("[]", encoding="utf-8")
+    dirs = {"x": x, "y": y, "xwt": xwt, "x/sub": x / "sub"}
+    named = dirs[project_dir] if project_dir else None
+    done = run(x, "Stop", {"hook_event_name": "Stop"}, project_dir=named, cwd=dirs[where])
+    assert done.returncode == 0, case
+    assert ('"decision"' in done.stdout and "gate-ran" in done.stdout) == blocks, case

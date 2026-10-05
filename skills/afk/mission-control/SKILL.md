@@ -81,7 +81,7 @@ pure function of the current artifacts + digests, so nothing is lost.
 
 - **Status stays derived.** Never edits `PLAN.md`, `JOURNAL.md`, or any other
   artifact the live sections derive from. Digests carry design synthesis
-  only — a digest restating status is a defect (requirement ADR-0005: the
+  only — a digest restating status is a defect (the
   page is never a second home for status).
 - **Build mode writes only `{spec_dir}/plan/digests/`** (digest files + the
   manifest). Watch/retro modes write only the gitignored render output.

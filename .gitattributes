@@ -8,3 +8,14 @@
 # the same copied tree; keep them LF for the same reason (gate rule I covers
 # hooks/**/*.py).
 hooks/**/*.py text eol=lf
+
+# The worktree scripts run under git-bash as well: same rule, same reason.
+scripts/create-worktree text eol=lf
+scripts/worktree-provision text eol=lf
+scripts/remove-worktree.py text eol=lf
+scripts/afk-launch.py text eol=lf
+scripts/afk-move.py text eol=lf
+adapters/forge/branch_protection.py text eol=lf
+scripts/worktree_owner.py text eol=lf
+scripts/protected-lookup.py text eol=lf
+scripts/tests/fixtures/*.ansi -text

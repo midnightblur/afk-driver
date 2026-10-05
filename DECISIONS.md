@@ -2,6 +2,18 @@
 
 One home for how an agent running hands-off resolves a **decision point** — a fork where specs, contract, findings, or reality disagree and more than one defensible option exists. Skills point here; this file names no caller. A decision point must not stop a run the human would have waved through: the agent decides **two-way doors** itself, on the record; it parks **one-way doors** and **ties** for the human.
 
+## Automation mode
+
+An explicit hands-off mode provisions safe prerequisites and disposable test
+data without a permission turn. It still stops at consent boundaries,
+destructive actions, one-way doors, and ties.
+
+## Phase boundaries
+
+A manual phased plan pauses for review at each phase boundary. An explicit
+hands-off mode continues across that boundary and records decisions under this
+protocol.
+
 ## Classify the fork
 
 Weigh the options and form a recommendation exactly as if presenting the choice to a human: the options, the evidence, one winner. Then classify.

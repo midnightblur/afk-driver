@@ -92,14 +92,14 @@ No trigger hit → skip the concern and record it in the report header (`activat
 On a delta round (`--base` + `--tag` together — see "Delta rounds" above), the always-set does **not** all respawn — a small remediation doesn't warrant a specialist per concern each re-reading the contract and rule chain. The roster:
 
 1. **`delta-sweep`** — always, one reviewer, `checklists/delta-sweep.md`: the full-roster always-set's highest-yield items condensed to a remediation-delta lens. Not a 12th concern — a delta-round consolidation; its prompt names any co-spawned specialists so one-owner exclusions hold.
-2. **Fix-owner specialists** — every concern that owned a `critical`/`high` finding remediated since the previous round runs in full: the lens that demanded the fix re-examines the territory. Roster selection is orchestrator metadata — the reviewer is spawned cold, its prompt carrying no finding history or round context.
+2. **Fix-owner specialists** — every concern that owned a `critical`/`high` finding remediated since the previous round runs in full. The referee builds this roster from `forge_ledger.py reconstruct` history. The reviewer is spawned cold, with no finding history or round context.
 3. **Delta triggers** — the design-level table above, scanned on the delta, plus: `test-veracity` when the delta touches test code; `agents-md-compliance` when the delta touches a directory whose AGENTS.md chain no prior round collected; `scope-and-impact` only when the orchestrator's **own** Scope-glob/forbidden-pattern grep over the delta hits (run that check inline first — it's a grep, not an agent); `logic-correctness` + `code-quality` when the delta exceeds ~150 changed lines or ~6 files (below that, the sweep owns their territory).
 
 The report header's activation line records the delta roster like any other run. `--only`/`--skip` still override.
 
 ### Scope-escalation roster (`consistency-sweep`)
 
-When the caller's settle loop escalates past the delta (`SETTLEMENT.md` "Scope escalation" owns the trigger), it passes `--scope-escalated`. That adds one reviewer, **`consistency-sweep`** (`checklists/consistency-sweep.md`), and widens every reviewer's reading surface from the delta to the whole surface the feature touches: the component's code and its `AGENTS.md`, the specs and ADRs stating the same facts, the review records the loop has written, and the cross-service consumers of anything the feature publishes. `consistency-sweep` takes every finding an earlier round recorded `fixed` and searches that surface for an uncorrected copy of the same claim — the one defect class a delta reviewer cannot see. Like `delta-sweep` it is a roster entry, not a 12th concern; its checklist stamps `class` per item.
+When the caller's settle loop escalates past the delta (`SETTLEMENT.md` "Scope escalation" owns the trigger), it passes `--scope-escalated`. That adds one reviewer, **`consistency-sweep`** (`checklists/consistency-sweep.md`), and widens every reviewer's reading surface to the whole touched surface. The referee supplies every fixed key's finding data and fix locator from `forge_ledger.py reconstruct`. The reviewer searches for an uncorrected copy of each claim. Like `delta-sweep`, it is a roster entry, not a 12th concern.
 
 ### Checklists
 
@@ -115,15 +115,18 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
   "concern": "agents-md-compliance",
   "criterion": "<checklist item name, e.g. 'Shallow Module (APoSD)', or 'open-question'>",
   "severity": "critical|high|medium|low",
-  "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt|product-debt",
+  "class": "correctness|spec|compliance|smell|scope|test|design|pattern-debt",
   "file": "services/billing/.../Foo.java",
   "line": 42,
+  "side": "new|old|context",
   "finding": "One-line headline.",
   "why": "One sentence — the rule broken / input that fails / requirement missed.",
   "fix": "One-line remediation.",
   "evidence": "Quoted rule text or the diff line."
 }
 ```
+
+`side` is optional. Omit it when the reviewer cannot identify the diff side.
 
 `class` names the finding's cause and drives the caller's routing:
 
@@ -137,7 +140,6 @@ Each subagent returns a JSON array; the orchestrator merges, dedups by `file:lin
 | `test` | a test that doesn't prove the behaviour it claims to |
 | `design` | a design-level judgment call — module shape, domain boundary, resilience gap, contract-surface defect |
 | `pattern-debt` | the diff follows a documented repo pattern where the baseline catalog disagrees — never blocks, feeds the debt ledger |
-| `product-debt` | a real shortcoming in shipped product code, understood and deliberately not fixed — never blocks, routes to the code's own `AGENTS.md` |
 
 `criterion` names the checklist item that produced the finding (`open-question` for the open-question slot) — the key for per-criterion outcome telemetry: the caller records each finding's remediation outcome as `plan/review/{basename}-{base-short}.outcomes.json` (`--tag` appends `-{tag}`) (`{"r-001": "fixed" | "dismissed(<reason>)" | "deferred"}` — the caller's own artifact in this directory, like the adversary's reports), and `/afk:retro` aggregates which criteria earn their keep.
 
@@ -175,7 +177,7 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 
 | Verdict | When |
 |---|---|
-| `clean` | zero findings (`pattern-debt` and `product-debt` excluded — neither counts toward any verdict) |
+| `clean` | zero findings (`pattern-debt` excluded — it does not count toward a verdict) |
 | `advisory` | only `medium`/`low` findings |
 | `blocking` | any `critical`/`high` finding |
 
@@ -183,9 +185,9 @@ In plain terms: <one jargon-free sentence — the worst thing found and whether 
 
 **Product-debt homes.** `pattern-debt` and `product-debt` both name something known and unfixed, and they differ in what goes stale. Pattern-debt is about *this review* — a baseline criterion the repo's own idiom overrides — so its ledger belongs with the run and dies with it. Product-debt is about *the code*, and outlives every run that touches it.
 
-Classify a finding `product-debt` when all three hold: it is real, the obvious fix was considered and rejected for a stated reason, and the reason will not be obvious to the next reader. A finding nobody has adjudicated is not product-debt — it is an open finding.
+The referee assigns `product-debt` only after a dispute receives `verdict stands`. The shortcoming must be real, the obvious fix rejected for a stated reason, and that reason non-obvious to the next reader. Reviewers report the original class and severity; `checklists/PRECEDENCE.md` prohibits them from assigning product debt.
 
-The home is the **nearest `AGENTS.md` to the code**, under a `## Known debt` heading, written through `/afk:agents-md` (its sole writer — that skill owns the entry shape). Never `plan/review/PATTERN-DEBT.md`: `plan/` is a run artifact and `/afk:gc` deletes it at merge, so a product-level fact filed there is lost exactly when it starts mattering. Record the accepted finding's home path in its `*.outcomes.json` entry — `"settled(product-debt: <path>)"` — which is what `/afk:preflight` PF-4d reads.
+The home is the **nearest `AGENTS.md` to the code**, under a `## Known debt` heading, written through `/afk:agents-md`. The entry carries the finding's forge ledger key. The referee writes `disposition result=product-debt home=<path>` only after that entry lands. `plan/review/*.outcomes.json` can mirror this as telemetry, but no gate reads it.
 
 What the caller does with the verdict is the caller's policy; each blocking finding's `class` drives the caller's routing. Standalone mode stops here — print the verdict and the report path; gate nothing. When a human is present, render per LAVISH.md (RP-4, playbook `table`) — **kit path**: author the round JSON per `LAVISH-KIT.md`, one table-group row per finding, never HTML — for findings triage; markdown fallback and driven mode use the written report above instead.
 
@@ -193,6 +195,7 @@ What the caller does with the verdict is the caller's policy; each blocking find
 
 - **Read-only.** Never edit, commit, push, or fix. This skill finds; the caller (or `/afk:fix`) remediates.
 - **Independence.** Reviewer subagents get the diff, contract, spec, and instruction chain — **never** the implementor's chat or rationale. A reviewer told "the author says this is fine" isn't a reviewer.
+- **Rationale after findings.** Change rationale (`RATIONALE.md`) is implementor rationale. The first pass never reads it. Once findings exist, the orchestrator may run `rationale-read` on a finding's line and attach the candidates as context. A candidate is evidence, never a reason to drop a finding.
 - **Method independence.** Never verify a claim by re-running the command the artefact under review quotes as its own evidence — the record's own grep returns the record's own answer, so agreement with the record carries no information, and two reviewers sharing that method do not corroborate each other. Design a separate check every time: a different pattern, a different tool, or an enumeration by reading. For a count or an absence, list the sites you found instead of reporting a number, and state the pattern you used so a reader can see its blind spots. (`LANGUAGE.md` "Truth grounding" states this for one reviewer; this states it for the roster.)
 - **Open the document, not its title.** Before overturning a cited rule — or asserting that no rule, ADR, or contract states something — read the cited file, and re-read the `AGENTS.md` that auto-loads for the directory under review. A title names a document's original concern; an accepted amendment can add a rule the title never mentions. Overturning a correct citation costs more than repeating a wrong one: it writes the error into the record and into the fix the finding drives.
 - **Cite or drop.** Every finding carries `file:line` and quoted evidence (rule text, failing input, unmet acceptance bullet). No vibes-only findings; if unsure of the line, cite the hunk header.

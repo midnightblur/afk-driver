@@ -7,7 +7,7 @@ Rules binding every checklist item marked as **baseline** (book-derived catalog 
 3. **Skip what tooling enforces.** Formatter, ESLint, compile gates own style, length limits, magic-number mechanics, import order. Never report their territory.
 4. **One owner per smell.** Report only items on YOUR checklist. Adjacent smells named under your checklist's "Not yours" line belong to another reviewer — skip them even when obvious.
 5. **The open question.** After the checklist pass, add at most ONE finding answering: what is the most important problem in this diff that no checklist item covers? Mark it `concern: <yours>`, evidence-cited like any other; none is a fine answer.
-6. **Never stamp `product-debt`.** That class marks a shortcoming already adjudicated and deliberately left unfixed, and it is assigned by the gate's referee at settle time — never by a reviewer, who sees no adjudication history. It does not gate, so a reviewer reaching for it would be suppressing its own finding. Report what you found at the severity you judge; if the fix was already considered and rejected, the settle loop is where that surfaces.
+6. **Never stamp `product-debt`.** Report the finding at its judged severity. Only the referee can assign product debt after a dispute receives `verdict stands`, a durable `## Known debt` home lands, and the referee writes the disposition. A reviewer sees none of that adjudication history. Stamping the class here would suppress the finding before adjudication.
 
 ## Evidence method — binding on every finding, baseline or not
 
