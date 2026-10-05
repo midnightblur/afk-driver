@@ -23,6 +23,11 @@ TOKEN = "ghp" + "_" + "A1b2C3d4" * 5
 ACCOUNT = "a1" * 12
 
 
+def test_issue_template_requires_current_context():
+    template = (SCRIPTS.parent / "ISSUE-TEMPLATE.md").read_text(encoding="utf-8")
+    assert "## Current context" in template
+
+
 def run(*args: str, stdin: str = "") -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, *args], input=stdin.encode("utf-8"), capture_output=True,

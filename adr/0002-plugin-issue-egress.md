@@ -1,6 +1,6 @@
 # ADR-0002 — Plugin issues go to the plugin's own GitHub repository
 
-> Status: Accepted
+> Status: Superseded by ADR-0004
 > Date: 2026-09-10
 
 ## Context

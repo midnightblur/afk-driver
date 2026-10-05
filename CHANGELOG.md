@@ -37,6 +37,15 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- **`/afk:report-issue` now proposes reports before any GitHub write.** Agents
+  first sweep the session for failed hooks, timeouts, workarounds, inefficiency,
+  slowness, and unexpected behavior. They investigate each plausible AFK signal,
+  then show the redacted context and whether it will create or comment. An explicit
+  human approval is required before the script creates an issue or adds evidence
+  to an existing issue.
+
 ## [1.7.0] - 2026-09-24
 
 ### Added
