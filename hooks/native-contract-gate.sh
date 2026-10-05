@@ -25,7 +25,12 @@
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
 #      tests under scripts/tests/ exempted — they load the helper directly);
-#   L. agent files carry the model and effort of their PROVIDERS.md tier.
+#   L. agent files carry the model and effort of their PROVIDERS.md tier;
+#   M. every hook entry in both manifests runs through the launcher with an
+#      explicit timeout and a launcher deadline below it, and no Stop-path gate
+#      source scans repository content except through hooks/lib/bounded_scan.py.
+#      An exception names its own bound in native-contract-allow.txt (rules
+#      hook-deadline, repo-scan).
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -344,6 +349,7 @@ check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 launcher = re.compile(
     r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/(?:'
     r'run-hook\.py"(?: --soft)?'
+    r'(?: --deadline [0-9]+)?'
     r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
     r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
     r'|protected-branch-guard\.py")$'
@@ -362,7 +368,7 @@ for event, groups in hook_map.items():
                 problems.append(
                     f"hooks/hooks.json: {event}[{index}] command must be "
                     f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
+                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
                 )
 
 
@@ -453,6 +459,63 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
             problems.append(
                 f"{rel(candidate)}: references provider helper {helper.name!r}; "
                 f"only hooks/lib/providers/{name}.sh may call it"
+            )
+
+
+# M. Bounded hooks. A hook that outlives its harness timeout is killed with no
+# verdict, so every launcher entry carries a deadline below its timeout; and a
+# repository-wide content scan in a Stop-path gate must take the one bounded route.
+for manifest_rel in ("hooks/hooks.json", "hooks/hooks.codex.json"):
+    for event, groups in load_hook_map(manifest_rel).items():
+        for group in groups if isinstance(groups, list) else []:
+            for handler in (group.get("hooks", []) if isinstance(group, dict) else []) or []:
+                if not isinstance(handler, dict):
+                    continue
+                command = handler.get("command", "")
+                if not isinstance(command, str):
+                    continue
+                if "run-hook.py" not in command:
+                    if not allowed(manifest_rel, "hook-deadline", command):
+                        problems.append(
+                            f"{manifest_rel}: {event} entry bypasses run-hook.py with no hook-deadline "
+                            f"entry in hooks/native-contract-allow.txt naming its own deadline: {command}"
+                        )
+                    continue
+                timeout = handler.get("timeout")
+                if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                    problems.append(f"{manifest_rel}: {event} entry has no explicit timeout: {command}")
+                    continue
+                found = re.search(r"--deadline ([0-9]+(?:\.[0-9]+)?)", command)
+                if not found:
+                    problems.append(f"{manifest_rel}: {event} entry has no --deadline: {command}")
+                elif float(found.group(1)) > min(0.95 * timeout, timeout - 1):
+                    problems.append(
+                        f"{manifest_rel}: {event} --deadline {found.group(1)} is not below "
+                        f"min(0.95*timeout, timeout-1) for timeout {timeout}: {command}"
+                    )
+
+repo_scans = [
+    re.compile(r"\bgit\s+grep\b"),
+    re.compile(r"(?<![\w-])rg\s"),
+    re.compile(r"\bgrep\s+(?:-\w+\s+)*-\w*[rR]"),
+    re.compile(r"\bfind\s+\.(?:\s|/|$)"),
+    re.compile(r"\bos\.walk\("),
+    re.compile(r"\.rglob\("),
+]
+stop_path = {
+    path for pattern in ("hooks/*-gate.sh", "hooks/stop-gates.sh", "hooks/gate-*.sh",
+                         "hooks/lib/*.sh", "hooks/lib/*.py")
+    for path in plugin.glob(pattern)
+} - {plugin / "hooks/lib/bounded_scan.py"}
+for path in sorted(stop_path):
+    path_rel = rel(path)
+    for number, line in enumerate(read(path).splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        if any(pattern.search(line) for pattern in repo_scans) and not allowed(path_rel, "repo-scan", line):
+            problems.append(
+                f"{path_rel}:{number}: repository-wide content scan outside hooks/lib/bounded_scan.py; "
+                f"route it through the bounded scanner or add a repo-scan entry to hooks/native-contract-allow.txt"
             )
 
 
