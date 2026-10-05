@@ -122,3 +122,13 @@ def test_no_python_is_unknown(repo):
     result = _gate(repo, path=path)
     assert result.returncode == 3, result.stderr
     assert "verdict unknown (no_python)" in result.stderr
+
+
+def test_metrics_report_counts_unknown_apart_from_red(tmp_path):
+    log = tmp_path / "m.jsonl"
+    log.write_text('{"gate":"wiring","result":"pass","duration_ms":10}\n'
+                   '{"gate":"wiring","result":"unknown","duration_ms":20}\n'
+                   '{"gate":"wiring","result":"blocked","duration_ms":30}\n', encoding="utf-8")
+    done = subprocess.run([str(BASH), str(ROOT / "hooks" / "gate-metrics-report.sh"), str(log)],
+                          capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+    assert "runs=3" in done.stdout and "red=1" in done.stdout and "unknown=1" in done.stdout
