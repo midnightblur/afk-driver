@@ -33,6 +33,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | User steering | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
 | Managed behavior | `afk:behaviors` sentinel in user steering | `afk:behaviors` sentinel in user steering |
 | Per-directory steering | `AGENTS.md` (root `CLAUDE.md` bridges `@AGENTS.md`) | `AGENTS.md` |
+| Handler process tree | Launcher behavior, harness-neutral: a Job Object on Windows, a process group on POSIX; `--deadline` ends the tree before the hook timeout | Same |
 | Reload | Reload enabled plugins | Refresh plugin cache and restart; exact proof lives in conformance |
 
 Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex, compatibility root/runtime markers as Claude, then `unknown`. `CLAUDECODE` can be inherited by another harness and never vetoes `PLUGIN_ROOT`.

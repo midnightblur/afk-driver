@@ -40,6 +40,8 @@ release page from its section here. Nobody tags by hand.
 ### Fixed
 
 - The wiring Stop gate no longer re-runs a whole-tree `git grep -o` per Stop. A bounded scanner (`hooks/lib/bounded_scan.py`) searches the changed files first, then the tree for only the unresolved tokens, under a deadline and a repository lock. A scan that fails, times out, or finds the lock held is an unknown verdict that neither blocks nor stamps the Stop, never a false orphan. Stop's temp files are removed on any exit.
+- A hook launcher kill or timeout no longer leaves the handler's children running. Every hook entry now carries `--deadline` below its `timeout`; past it the launcher ends the handler's whole process tree (a Job Object on Windows, a process group elsewhere) and a plugin handler reports verdict unknown instead of blocking. A repository handler that overruns still fails closed, but within its budget.
+- The native contract gate (check M) refuses a hook entry without a `timeout` or a lower `--deadline`, and a repository-wide content scan in a Stop-path gate outside `hooks/lib/bounded_scan.py`. `gate-metrics-report.sh` counts unknown verdicts apart from blocks. New setting: `AFK_SCAN_DEADLINE` (seconds, default 120).
 
 ## [1.11.1] - 2026-10-05
 
