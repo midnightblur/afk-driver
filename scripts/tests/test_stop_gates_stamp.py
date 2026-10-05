@@ -155,6 +155,7 @@ def test_temp_files_are_removed_when_stop_is_terminated(tmp_path):
     shim = tmp_path / "shim"
     shim.mkdir()
     (shim / "python").write_text("#!/bin/sh\nkill -TERM $PPID\nsleep 2\nexit 0\n", encoding="utf-8", newline="\n")
+    os.chmod(shim / "python", 0o755)
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     env = {**_env(), "TMPDIR": scratch.as_posix(), "PATH": shim.as_posix() + os.pathsep + os.environ["PATH"]}
