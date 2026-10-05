@@ -82,7 +82,7 @@ BLOCKING_EVENTS = {"Stop", "PreToolUse"}
 # would let every bash descendant leave. A handler that must leave a deliberately
 # detached helper behind (DETACHES_HELPERS) runs with no job and, past a deadline,
 # is ended by walking its parent chain.
-# POSIX: each handler is a session leader; signals and deadlines kill its group.
+# POSIX: each handler is a session leader; signals, deadlines and a normal exit kill its group.
 _DEADLINE_AT: float | None = None
 _DEADLINE_S = 0.0
 _ACTIVE: list[subprocess.Popen] = []
@@ -243,6 +243,11 @@ def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None
         return subprocess.CompletedProcess(args, proc.returncode, out, err)
     finally:
         _ACTIVE.remove(proc)
+        if os.name != "nt" and jobbed:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
         if job is not None:
             _ctypes, kernel, _ntdll, _ext = _job_api()
             kernel.CloseHandle(job)

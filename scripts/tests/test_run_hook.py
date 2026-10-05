@@ -430,3 +430,26 @@ def test_repo_list_timeout_returns_promptly_and_still_blocks(tmp_path, plugin_co
     assert time.monotonic() - start < 10
     assert decision(done.stdout)["decision"] == "block" and "no verdict" in done.stderr
     assert _gone(_pids(mark, ("child", "grand")))
+
+
+BACKGROUNDER = """\
+import os, subprocess, sys
+child = subprocess.Popen([sys.executable, "-c", "import os, time\\nopen(os.environ['MARK'] + '.bg', 'w').write(str(os.getpid()))\\ntime.sleep(120)"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+import time
+for _ in range(100):
+    if os.path.isfile(os.environ["MARK"] + ".bg") and os.path.getsize(os.environ["MARK"] + ".bg"):
+        break
+    time.sleep(0.1)
+"""
+
+
+def test_a_background_child_ends_when_its_handler_exits(plugin_copy, tmp_path):
+    root, mark, env = plugin_copy
+    (tmp_path / "bg.py").write_text(BACKGROUNDER, encoding="utf-8")
+    (root / "hooks" / "leaver.sh").write_text(
+        f'#!/bin/sh\n"$PY" "{(tmp_path / "bg.py").as_posix()}"\nexit 0\n', encoding="utf-8", newline="\n")
+    proc = _launch(root, env, "plugin", "leaver.sh")
+    proc.communicate(timeout=60)
+    assert proc.returncode == 0
+    assert _gone(_pids(mark, ("bg",)))
