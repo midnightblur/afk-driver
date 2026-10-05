@@ -46,7 +46,8 @@ release page from its section here. Nobody tags by hand.
   slowness, and unexpected behavior. They investigate each plausible AFK signal,
   then show the redacted context and whether it will create or comment. An explicit
   human approval is required before the script creates an issue or adds evidence
-  to an existing issue.
+  to an existing issue. A preview receipt prevents the approved body, target, or
+  action from changing before publication.
 ## [1.11.0] - 2026-10-02
 
 ### Fixed

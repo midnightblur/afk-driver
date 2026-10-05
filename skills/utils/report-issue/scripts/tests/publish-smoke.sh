@@ -5,7 +5,7 @@
 # Runs in a disposable git repository with a fake `gh` first on PATH, so no
 # network call and no real issue or label ever happens. Asserts, per the
 # publish.sh header: dry-run makes read-only gh calls; every write needs
-# approval; create adds missing labels; a fingerprint or selected existing issue
+# approval receipt; create adds missing labels; a fingerprint or selected existing issue
 # gets a comment; the title is redacted like the body; no auth, a residual hit,
 # an incomplete body, and invalid configuration queue safely; an approved
 # residual refuses until --accept-residual; queue operations enforce approval;
@@ -65,6 +65,7 @@ token="ghp""_""A1b2C3d4A1b2C3d4A1b2C3d4A1b2C3d4"
 
 pub() { (cd "$repo" && bash "$PUBLISH" "$@"); }
 reset() { : > "$log"; rm -rf "$repo/.claude"; unset FAKE_GH_AUTH FAKE_GH_FOUND FAKE_GH_VIEW; }
+receipt_of() { sed -n 's/^--- receipt: //p'; }
 
 echo "== dry-run =="
 reset
@@ -78,7 +79,8 @@ printf '%s' "$out" | grep -q '^ISSUE: preview-create midnightblur/afk-driver$' \
 
 echo "== create =="
 reset
-out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved); rc=$?
+receipt=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run | receipt_of)
+out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && [ "$out" = "ISSUE: created https://github.com/o/n/issues/7" ] && ok "creates the issue" || bad "create (rc=$rc out=$out)"
 grep -q '^label create agent-filed' "$log" && ! grep -q '^label create bug' "$log" \
   && ok "creates only the missing label" || bad "labels: $(cat "$log")"
@@ -87,20 +89,42 @@ grep -q '^issue create .*--label bug --label agent-filed' "$log" && ok "agent ru
 echo "== dedup =="
 reset
 export FAKE_GH_FOUND='[{"number":5,"url":"https://github.com/o/n/issues/5","body":"x\n| Fingerprint | `0123456789ab` |\n"}]'
-out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved); rc=$?
+receipt=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run | receipt_of)
+out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && [ "$out" = "ISSUE: commented https://github.com/o/n/issues/5" ] && ok "visible Fingerprint row match comments" || bad "dedup (rc=$rc out=$out)"
 ! grep -q '^issue create' "$log" && grep -q '^issue comment 5' "$log" && ok "no duplicate issue" || bad "dedup calls"
 reset
 export FAKE_GH_FOUND='[{"number":5,"url":"https://github.com/o/n/issues/5","body":"x 0123456789ab elsewhere"}]'
-out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved); rc=$?
+receipt=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run | receipt_of)
+out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && grep -q '^issue create' "$log" && ok "a bare hash without the row is no match" || bad "dedup false match (out=$out)"
 
 reset
 out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --existing 9 --dry-run); rc=$?
 [ $rc = 0 ] && printf '%s' "$out" | grep -q '^ISSUE: preview-comment https://github.com/o/n/issues/9$' \
   && ! grep -Eq '^issue (create|comment) ' "$log" && ok "preview resolves a selected existing issue" || bad "existing preview (rc=$rc out=$out)"
-out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --existing 9 --approved); rc=$?
+receipt=$(printf '%s\n' "$out" | receipt_of)
+out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --existing 9 --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && grep -q '^issue comment 9 ' "$log" && ok "approval comments on the selected existing issue" || bad "existing comment (rc=$rc out=$out)"
+
+echo "== approval receipt =="
+reset
+preview=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run)
+receipt=$(printf '%s\n' "$preview" | receipt_of)
+export FAKE_GH_FOUND='[{"number":5,"url":"https://github.com/o/n/issues/5","body":"| Fingerprint | `0123456789ab` |"}]'
+out=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
+[ $rc = 4 ] && printf '%s' "$out" | grep -q 'approval-receipt-mismatch' && ! grep -Eq '^issue (create|comment) ' "$log" \
+  && ok "a create-to-comment drift needs fresh approval" || bad "action drift (rc=$rc out=$out log=$(cat "$log"))"
+reset
+preview=$(pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run)
+receipt=$(printf '%s\n' "$preview" | receipt_of)
+body "$sandbox/changed.md" "new evidence"
+out=$(pub --body "$sandbox/changed.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
+[ $rc = 4 ] && printf '%s' "$out" | grep -q 'approval-receipt-mismatch' && ! grep -Eq '^issue (create|comment) ' "$log" \
+  && ok "a changed body needs fresh approval" || bad "body drift (rc=$rc out=$out log=$(cat "$log"))"
+reset
+pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved >/dev/null 2>&1; rc=$?
+[ $rc = 2 ] && ! grep -Eq '^issue (create|comment) ' "$log" && ok "approval without a receipt cannot write" || bad "missing receipt (rc=$rc)"
 
 echo "== queue =="
 reset
@@ -122,9 +146,24 @@ list=$(pub --list)
 printf '%s' "$list" | grep -q "hook crash" && ok "--list names the draft" || bad "--list: $list"
 pub --from-queue "$q" >/dev/null 2>&1; rc=$?
 [ $rc = 2 ] && [ -f "$q" ] && ok "--from-queue without --approved exits 2" || bad "from-queue unapproved (rc=$rc)"
-out=$(pub --from-queue "$q" --approved); rc=$?
+receipt=$(pub --from-queue "$q" --dry-run | receipt_of)
+out=$(pub --from-queue "$q" --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && [ ! -f "$q" ] && grep -q '^issue create .*--label bug --label agent-filed$' "$log" \
   && ok "--from-queue --approved publishes and deletes" || bad "from-queue (rc=$rc out=$out)"
+
+reset
+mkdir -p "$repo/.claude/afk-issues"
+q="$repo/.claude/afk-issues/legacy.md"
+{
+  printf '<!-- afk-issue-meta\ntitle: legacy\nkind: bug\nfp: %s\nrepo: o/n\nexisting: \nlabels: bug,agent-filed\nreason: approval-required\n-->\n' "$fp"
+  awk '$0 == "## Current context" { drop = 1; next } drop && $0 == "## Expected" { drop = 0 } !drop { print }' "$sandbox/clean.md"
+} > "$q"
+preview=$(pub --from-queue "$q" --dry-run); rc=$?
+receipt=$(printf '%s\n' "$preview" | receipt_of)
+[ $rc = 0 ] && printf '%s' "$preview" | grep -q '^## Current context$' \
+  && ok "a legacy queued draft gains current context" || bad "legacy preview (rc=$rc out=$preview)"
+out=$(pub --from-queue "$q" --approved --receipt "$receipt"); rc=$?
+[ $rc = 0 ] && [ ! -f "$q" ] && ok "a legacy queued draft drains after approval" || bad "legacy drain (rc=$rc out=$out)"
 
 echo "== incomplete body =="
 reset
@@ -153,7 +192,8 @@ pub --body "$sandbox/residual.md" --title t --kind bug --fp $fp --repo o/n --app
 [ $rc = 4 ] && [ ! -s "$log" ] && ok "approved run refuses residual" || bad "human residual (rc=$rc)"
 pub --body "$sandbox/residual.md" --title t --kind bug --fp $fp --repo o/n --accept-residual >/dev/null 2>&1; rc=$?
 [ $rc = 2 ] && ok "--accept-residual without --approved exits 2" || bad "accept unapproved (rc=$rc)"
-out=$(pub --body "$sandbox/residual.md" --title t --kind bug --fp $fp --repo o/n --approved --accept-residual 2>/dev/null); rc=$?
+receipt=$(pub --body "$sandbox/residual.md" --title t --kind bug --fp $fp --repo o/n --dry-run 2>/dev/null | receipt_of)
+out=$(pub --body "$sandbox/residual.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt" --accept-residual 2>/dev/null); rc=$?
 [ $rc = 0 ] && ok "accepted residual publishes" || bad "accept-residual (rc=$rc)"
 
 echo "== config =="
@@ -162,7 +202,8 @@ printf 'schema: 1\nreport-issue:\n  auto-publish: false\n' > "$sandbox/cfg.yaml"
 out=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n); rc=$?
 [ $rc = 3 ] && printf '%s' "$out" | grep -q 'reason=approval-required' && ok "legacy auto-publish cannot bypass approval" || bad "approval requirement (rc=$rc out=$out)"
 reset
-out=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved); rc=$?
+receipt=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run | receipt_of)
+out=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --approved --receipt "$receipt"); rc=$?
 [ $rc = 0 ] && ok "an approved run publishes" || bad "approved publish (rc=$rc)"
 reset
 out=$(AFK_CONFIG="$sandbox/cfg.yaml" pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --repo o/n --dry-run); rc=$?

@@ -3,12 +3,13 @@
 #
 #   publish.sh --body FILE --title TEXT --kind bug|feedback --fp HASH
 #              [--repo OWNER/NAME|URL] [--existing NUMBER]
-#              [--approved [--accept-residual]] [--dry-run]
-#   publish.sh --from-queue FILE [--approved [--accept-residual]] [--dry-run]
+#              [--approved --receipt HASH [--accept-residual]] [--dry-run]
+#   publish.sh --from-queue FILE [--approved --receipt HASH [--accept-residual]] [--dry-run]
 #   publish.sh --list
 #
 # --approved marks a human's explicit yes to the previewed body, target, and
-# action. No GitHub write occurs without it. --accept-residual requires it.
+# action. --receipt binds that preview to the write. No GitHub write occurs
+# without both. --accept-residual requires approval.
 #
 # Order, before any gh call:
 #   Config:   `afk-config.py validate`. An unreadable or invalid configuration
@@ -35,7 +36,8 @@
 # itself.
 # --from-queue deletes the draft once it lands. --list prints `<path>\t<title>`.
 # --dry-run writes nothing. It uses read-only gh calls to resolve create versus
-# comment, then prints the target, action, redacted title and body.
+# comment, then prints the target, action, approval receipt, redacted title and
+# body. A preview whose lookup is unverified has no receipt.
 #
 # stdout, last line:
 #   ISSUE: created <url> | commented <url>
@@ -53,7 +55,7 @@ py=python; command -v python >/dev/null 2>&1 || py=python3
 
 usage() { echo "publish: $*" >&2; exit 2; }
 
-body="" title="" kind="" fp="" repo="" existing="" approved=0 accept=0 dry=0 from_queue="" list=0
+body="" title="" kind="" fp="" repo="" existing="" receipt="" approved=0 accept=0 dry=0 from_queue="" list=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --body) body=${2-}; shift 2 || usage "--body needs a file" ;;
@@ -62,6 +64,7 @@ while [ $# -gt 0 ]; do
     --fp) fp=${2-}; shift 2 || usage "--fp needs a hash" ;;
     --repo) repo=${2-}; shift 2 || usage "--repo needs a value" ;;
     --existing) existing=${2-}; shift 2 || usage "--existing needs a value" ;;
+    --receipt) receipt=${2-}; shift 2 || usage "--receipt needs a value" ;;
     --from-queue) from_queue=${2-}; shift 2 || usage "--from-queue needs a file" ;;
     --approved) approved=1; shift ;;
     --accept-residual) accept=1; shift ;;
@@ -95,6 +98,11 @@ if [ -n "$from_queue" ]; then
   fp=$(meta "$from_queue" fp); repo=$(meta "$from_queue" repo); labels=$(meta "$from_queue" labels)
   existing=$(meta "$from_queue" existing)
   sed '/^<!-- afk-issue-meta$/,/^-->$/d' "$from_queue" > "$tmp/body.md"
+  if ! grep -qxF '## Current context' "$tmp/body.md"; then
+    awk '$0 == "## Expected" { print "## Current context\n\nnone captured\n" } { print }' \
+      "$tmp/body.md" > "$tmp/body.migrated.md"
+    mv "$tmp/body.migrated.md" "$tmp/body.md"
+  fi
   body="$tmp/body.md"
 fi
 
@@ -150,7 +158,7 @@ queue() {
     cat "$tmp/issue.md"
   } > "$target"
   echo "ISSUE: queued $target reason=$1"
-  echo "publish after a human's yes: bash \"\$AFK_PLUGIN_ROOT/skills/utils/report-issue/scripts/publish.sh\" --from-queue \"$target\" --approved"
+  echo "preview before asking: bash \"\$AFK_PLUGIN_ROOT/skills/utils/report-issue/scripts/publish.sh\" --from-queue \"$target\" --dry-run"
   exit 3
 }
 
@@ -168,9 +176,24 @@ grep -qF "$fp_row" "$tmp/issue.md" || queue "incomplete:Fingerprint row"
 
 if [ "$residual" = 1 ]; then
   cat "$tmp/residual" >&2
-  [ "$approved" = 1 ] || queue residual
-  [ "$accept" = 1 ] || { echo "ISSUE: refused residual (after the human accepts each hit, re-run with --approved --accept-residual)"; exit 4; }
+  if [ "$dry" = 0 ]; then
+    [ "$approved" = 1 ] || queue residual
+    [ "$accept" = 1 ] || { echo "ISSUE: refused residual (after the human accepts each hit, preview again, then re-run with --approved --receipt HASH --accept-residual)"; exit 4; }
+  fi
 fi
+
+approval_receipt() {
+  "$py" - "$repo" "$kind" "$fp" "$labels" "$title" "$1" "$tmp/issue.md" <<'PYEOF'
+import hashlib, json, pathlib, sys
+repo, kind, fp, labels, title, action, body = sys.argv[1:]
+metadata = json.dumps(
+    {"repo": repo, "kind": kind, "fp": fp, "labels": labels, "title": title, "action": action},
+    sort_keys=True,
+    separators=(",", ":"),
+).encode()
+print(hashlib.sha256(metadata + b"\0" + pathlib.Path(body).read_bytes()).hexdigest())
+PYEOF
+}
 if [ "$approved" = 0 ] && [ "$dry" = 0 ]; then
   [ "$cfg_ok" = 1 ] || { cat "$tmp/config.err" >&2; queue config-invalid; }
   queue approval-required
@@ -208,9 +231,12 @@ if [ "$dry" = 1 ]; then
     printf '%s\n' "--- action: unverified ($lookup_reason)"
   elif [ -n "$found" ]; then
     printf '%s\n' "--- action: comment on ${found#* }"
+    receipt=$(approval_receipt "comment:$found")
   else
     printf '%s\n' "--- action: create issue"
+    receipt=$(approval_receipt create)
   fi
+  [ -z "$receipt" ] || printf '%s\n' "--- receipt: $receipt"
   printf '%s\n' "--- title: $title" '--- body:'
   cat "$tmp/issue.md"
   if [ -n "$lookup_reason" ]; then
@@ -224,6 +250,16 @@ if [ "$dry" = 1 ]; then
 fi
 
 [ -z "$lookup_reason" ] || queue "$lookup_reason"
+
+if [ -n "$found" ]; then
+  current_receipt=$(approval_receipt "comment:$found")
+else
+  current_receipt=$(approval_receipt create)
+fi
+if [ "$approved" = 1 ]; then
+  [ -n "$receipt" ] || usage "--approved needs --receipt from the preview"
+  [ "$receipt" = "$current_receipt" ] || { echo "ISSUE: refused approval-receipt-mismatch (preview again before asking)"; exit 4; }
+fi
 
 if [ -n "$found" ]; then
   number=${found%% *}

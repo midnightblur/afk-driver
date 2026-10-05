@@ -1,4 +1,4 @@
-# ADR-0004 — Plugin issue writes need approval
+# ADR-0007 — Plugin issue writes need approval
 
 > Status: Accepted
 > Date: 2026-10-02
@@ -23,8 +23,9 @@ Every GitHub write needs explicit human approval of that proposal.
 
 `publish.sh --dry-run` performs read-only lookup and shows the action. A matching
 fingerprint selects an existing issue. An agent can also select a reviewed match
-with `--existing`. `publish.sh --approved` performs the shown write. An
-unapproved non-preview run queues the report.
+with `--existing`. The preview prints a receipt binding the redacted body,
+target, and action. `publish.sh --approved --receipt <receipt>` performs only
+that shown write. An unapproved non-preview run queues the report.
 
 ```mermaid
 graph LR
@@ -55,4 +56,5 @@ graph LR
 - A human approval is required for every GitHub issue or comment write.
 - Hands-off runs can queue a redacted report but cannot publish it.
 - `--approved` attests conversation approval. The script cannot inspect the
-  conversation, so the skill remains the approval control.
+  conversation, so the skill remains the approval control; the receipt prevents
+  the approved content or action from changing between preview and publish.

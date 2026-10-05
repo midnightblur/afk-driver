@@ -123,7 +123,7 @@ else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
 design ADRs are local only. `/afk:report-issue` proposes plugin issues and, after
 explicit approval, creates or comments on GitHub issues in the plugin's own
 repository. It never uses the consuming repository's tracker (ADR-0002,
-ADR-0004). `/afk:execute` pushes branches + Draft MRs to
+ADR-0007, `adr/0007-plugin-issue-approval.md`). `/afk:execute` pushes branches + Draft MRs to
 GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
