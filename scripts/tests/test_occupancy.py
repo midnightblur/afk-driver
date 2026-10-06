@@ -257,3 +257,40 @@ def test_the_session_hook_is_registered_for_both_harnesses():
         manifest = json.loads((PLUGIN_ROOT / "hooks" / name).read_text(encoding="utf-8"))
         commands = [h["command"] for group in manifest["hooks"]["SessionStart"] for h in group["hooks"]]
         assert any(f"${{{root}}}/hooks/protected-branch-occupancy.py" in c for c in commands), name
+
+
+def test_f5_003_a_lock_replaced_between_observation_and_takeover_survives(tmp_path, monkeypatch):
+    occ = load("occupancy")
+    monkeypatch.setattr(occ, "LOCK_WAIT", 0.3)
+    record = tmp_path / "afk-occupancy" / "w.json"
+    lock = Path(f"{record}.lock")
+    lock.parent.mkdir()
+    lock.write_text("", encoding="utf-8")
+    old = time.time() - 60
+    os.utime(lock, (old, old))
+    seen = [0]
+    real = Path.stat
+
+    def stat(self, *args, **kwargs):
+        if str(self) == str(lock):
+            seen[0] += 1
+            if seen[0] == 2:  # a fresh holder takes the lock after the stale observation
+                self.unlink()
+                os.close(os.open(self, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", stat)
+    with pytest.raises(occ.Busy):
+        with occ.locked(record):
+            pass
+    assert lock.exists()
+
+
+def test_f5_005_a_busy_record_never_recommends_the_busy_worktree(repo, procs):
+    proc = procs()
+    assert touch_in(repo["topic"], ident(proc)).returncode == 0
+    (repo["main"] / ".git" / "afk-occupancy" / "topic.json.lock").write_text("", encoding="utf-8")
+    done = touch_in(repo["topic"], ident(proc))
+    reason = json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "retry in a moment; if it stays busy, move to a new worktree." in reason
+    assert "write inside this session's worktree" not in reason

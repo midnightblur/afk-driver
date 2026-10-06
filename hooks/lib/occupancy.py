@@ -63,8 +63,11 @@ def locked(path: Path):
             break
         except FileExistsError:
             try:
-                if time.time() - lock.stat().st_mtime > LOCK_STALE:
-                    lock.unlink(missing_ok=True)
+                seen = lock.stat()
+                if time.time() - seen.st_mtime > LOCK_STALE:
+                    again = lock.stat()  # a lock replaced since the observation is not the stale one
+                    if (again.st_ino, again.st_mtime_ns) == (seen.st_ino, seen.st_mtime_ns):
+                        lock.unlink(missing_ok=True)  # residual window: a swap between this stat and unlink
                     continue
             except OSError:
                 continue

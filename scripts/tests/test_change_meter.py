@@ -186,8 +186,8 @@ def test_a_change_made_by_an_unrecognized_command_is_named_and_quarantined(repo)
     assert done.returncode == 0
     text = context(done)
     assert "tracked.txt" in text and "generated.txt" in text
-    assert "git restore --staged --worktree -- tracked.txt" in text
-    assert "rm -- generated.txt" in text
+    assert f"git -C {main.as_posix()} restore --staged --worktree -- tracked.txt" in text
+    assert f"rm -- {main.as_posix()}/generated.txt" in text
     [hold] = files(main, ".quarantine")
     assert hold.name.startswith("s1.") and files(main, ".pre") == []
 
@@ -418,7 +418,7 @@ def test_s3_001_a_path_dirty_before_the_call_is_copied_back_never_restored_to_he
     text = context(post(main))
     assert "restore --staged --worktree -- other.txt" not in text
     [copy] = printed(text, "cp --")
-    for line in printed(text, "git restore"):
+    for line in printed(text, "git -C"):
         assert not denied(pre(main, line.strip()))
         run_line(line, main)
     run_line(copy, main)
@@ -463,9 +463,9 @@ def test_s3_003_a_staged_new_file_is_removed_with_git_rm_and_the_hold_clears(rep
     (main / "added.txt").write_text("a\n", encoding="utf-8")
     git(main, "add", "added.txt")
     text = context(post(main))
-    assert "git rm -f -- added.txt" in text and "rm -- added.txt" not in text.replace("git rm -f -- added.txt", "")
+    assert "rm -f -- added.txt" in text and "rm -- " not in text.replace("rm -f -- added.txt", "")
     assert denied(pre(main, "rm -- added.txt"))
-    [line] = printed(text, "git rm")
+    [line] = printed(text, "git -C")
     assert not denied(pre(main, line.strip()))
     run_line(line, main)
     assert not denied(pre(main, "ls")) and files(main, ".quarantine") == []
@@ -479,7 +479,7 @@ def test_s3_005_printed_paths_survive_a_shell(repo):
     (main / odd).write_text("n\n", encoding="utf-8")
     text = context(post(main))
     [line] = printed(text, "rm --")
-    assert shlex.split(line.strip()) == ["rm", "--", odd]
+    assert shlex.split(line.strip()) == ["rm", "--", main.as_posix() + "/" + odd]
 
 
 @pytest.mark.parametrize("command", [
@@ -507,3 +507,25 @@ def test_o3_5_an_unknown_or_writing_form_is_still_metered(repo, command):
 def test_o3_5_a_post_without_a_pre_returns_at_once_and_silently(repo):
     done = post(repo["main"])
     assert done.returncode == 0 and done.stdout.strip() == ""
+
+
+def test_f5_001_the_printed_recovery_lines_run_verbatim_from_another_worktree(repo):
+    main, topic = repo["main"], repo["topic"]
+    pre(main, "npm install")
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    (main / "generated.txt").write_text("g\n", encoding="utf-8")
+    text = context(post(main))
+    lines = [line.strip() for line in text.splitlines() if line.strip().startswith(("git ", "rm "))]
+    assert len(lines) == 2 and all(str(main.as_posix()) in line for line in lines), lines
+    for line in lines:
+        assert not denied(pre(topic, line)), line
+        run_line(line, topic)
+    assert not denied(pre(main, "ls")) and files(main, ".quarantine") == []
+
+
+@pytest.mark.parametrize("command", [
+    "git branch --set-upstream-to=origin/main", "git branch --set-upstream-to origin/main", "git branch -u origin/main",
+    "git branch --unset-upstream", "git branch --edit-description"])
+def test_f5_002_branch_config_is_a_mutation_not_a_read(repo, command):
+    assert denied(pre(repo["main"], command))
+    assert not cm.read_only(command, repo["main"])

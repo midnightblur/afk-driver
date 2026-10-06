@@ -20,7 +20,9 @@ ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 GIT_ALWAYS = {"add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull", "rebase", "reset",
               "restore", "revert", "rm", "switch", "update-ref", "update-index"}
-GIT_BRANCH_EDIT = set("dDmMfcC")
+GIT_BRANCH_EDIT = set("dDmMfcCu")
+BRANCH_CONFIG = {"--delete", "--move", "--force", "--copy", "--set-upstream-to", "--unset-upstream",
+                 "--edit-description"}
 PULL_QUIET = {"-q", "--quiet", "-v", "--verbose", "--progress", "--no-progress", "-p", "--prune", "--no-prune"}
 TAG_READ = {"-l", "--list", "-v", "--verify", "-n", "--contains", "--no-contains", "--merged", "--no-merged",
             "--points-at", "--sort", "--column"}
@@ -378,7 +380,7 @@ def git_mutates(verb: str, args: list[str]) -> bool:
         return bool([a for a in args if not a.startswith("-")]) or any(set(s) & set("dasfmu") for s in shorts) \
             or "--delete" in args
     if verb == "branch":
-        return bool({"--delete", "--move", "--force", "--copy"} & set(args)) \
+        return bool(BRANCH_CONFIG & {a.split("=")[0] for a in args}) \
             or any(set(s) & GIT_BRANCH_EDIT for s in shorts)
     if verb == "worktree":
         return bool(args) and args[0] in ("move", "remove")

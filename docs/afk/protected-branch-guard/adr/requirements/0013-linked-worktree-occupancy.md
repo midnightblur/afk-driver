@@ -16,7 +16,8 @@ Two agent sessions in one linked worktree collide as surely as two in the main c
 - **The lock.** Read, prune, decide and write happen under one cross-process lock, `<record>.lock`, created with `O_EXCL`, taken over after 10 seconds, waited on for at most 2 seconds. A busy record refuses with "occupancy record busy". A record that cannot be read or written names no occupant, so it allows.
 - **SessionStart** (`hooks/protected-branch-occupancy.py`) registers the session first, under the same lock, then prints one advisory line when another live session holds the worktree. It never blocks.
 - **The main checkout has no occupancy.** Every mutation there except the sync is refused, and the sync needs a clean tree, so a second session can only read; a session that moved away keeps its process alive and would block every later pull.
-- **The hint.** A refusal for the session's own occupied worktree gets the normal move hint, not "write inside this worktree".
+- **The hint.** A refusal for the session's own occupied worktree gets the normal move hint, not "write inside this worktree". A busy record says to retry in a moment, then move to a new worktree.
+- **Stale takeover.** The lock's inode and modification time are read at the stale observation and read again before removal; a lock replaced in between stays. A swap between that last read and the removal is the residual window.
 
 ## Accepted gap
 

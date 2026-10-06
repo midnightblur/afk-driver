@@ -267,18 +267,19 @@ def message(held: dict, detected: bool = False) -> str:
 
 def recovery(held: dict) -> str:
     restore, remove, human = classify(held)
+    root = held["root"].replace(chr(92), "/")
     lines = ["Recover in this order: (1) move into a worktree (the native worktree tool, or the plugin's "
              "scripts/create-worktree); (2) copy the changed files from the main checkout into it; (3) restore the "
              "main checkout with these commands, which are allowed from any folder:"]
     if restore:
-        lines.append("  git restore --staged --worktree -- " + " ".join(quote(p) for p in restore))
+        lines.append(f"  git -C {quote(root)} restore --staged --worktree -- " + " ".join(quote(p) for p in restore))
     for path in remove:
-        lines.append(f"  git rm -f -- {quote(path)}" if staged_add(held["paths"][path]) else f"  rm -- {quote(path)}")
+        lines.append(f"  git -C {quote(root)} rm -f -- {quote(path)}" if staged_add(held["paths"][path])
+                     else f"  rm -- {quote(root + chr(47) + path)}")
     if human:
         lines.append("These paths were already changed before the command, so an agent never touches them; a human "
                      "copies the content they had before the command back (their index state is not restored):")
         base = Path(held.get("common") or "") / "afk-session" / "blobs"
-        root = held["root"].replace("\\", "/")
         for path in human:
             name = ((held["paths"][path].get("f0") or {}).get("hash"))
             if name and (base / name).exists():
@@ -332,7 +333,8 @@ def _git_reads(args: list[str]) -> bool:
     if any(a == "--output" or a.startswith("--output=") for a in rest):
         return False
     if verb == "branch":
-        return not plain and not {"-d", "-D", "-m", "-M", "-c", "-C", "-f", "--delete", "--move", "--copy", "--force"} & set(rest)
+        return not plain and not ({"-d", "-D", "-m", "-M", "-c", "-C", "-f", "-u"} | sm.BRANCH_CONFIG) & {
+            a.split("=")[0] for a in rest}
     if verb == "remote":
         return not plain
     if verb == "worktree":

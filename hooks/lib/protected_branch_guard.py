@@ -556,6 +556,8 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         def build_hint() -> str:
             pulled = {norm(found["root"]) for found in map(placement, pulls) if found is not None}
             hint = OUTSIDE_HINT
+            if "occupancy record busy" in cause:
+                return "retry in a moment; if it stays busy, move to a new worktree."
             if here is not None:
                 hint = hint_of(facts)
                 occupied = "is in use by another live session" in cause
