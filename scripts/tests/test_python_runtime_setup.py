@@ -5,6 +5,7 @@ import ast
 import importlib.util
 import io
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -28,10 +29,13 @@ class Machine:
 
     def __init__(self, paths: dict, *, uv_version: str | None = None, fail: str | None = None,
                  said: str = "error: simulated failure", reported: str | None = None,
-                 in_sync: tuple[int, str] = (0, "Checked 41 packages\nWould make no changes")):
+                 in_sync: tuple[int, str] = (0, "Checked 41 packages\nWould make no changes"),
+                 lookup=None):
         self.paths, self.calls = paths, []
         self.uv_version, self.fail, self.said, self.in_sync = uv_version, fail, said, in_sync
         self.reported = reported or "\t".join([PINS["python"], str(paths["launcher"]), str(paths["env"])])
+        # What the hook shell's `command -v` prints; a real shell's answer when `lookup` is given.
+        self.lookup = lookup or (lambda: f"afk-command\t/spelled/afk-python\t/spelled/{paths['launcher'].name}")
 
     def __call__(self, argv, env):
         self.calls.append((argv, dict(env)))
@@ -45,10 +49,11 @@ class Machine:
         if " sync " in line:
             self.paths["interpreter"].parent.mkdir(parents=True, exist_ok=True)
             self.paths["interpreter"].write_text("interpreter", encoding="utf-8")
+            self.paths["interpreter"].chmod(0o755)
             for windows in (True, False):
                 pr.site_packages(self.paths, PINS["python"], windows).mkdir(parents=True, exist_ok=True)
         if "afk-python -c" in line:
-            return 0, self.reported
+            return 0, (self.lookup() + "\n" if "afk-command" in line else "") + self.reported
         return 0, ""
 
     def lines(self) -> list[str]:
@@ -101,14 +106,8 @@ def test_layout_keeps_everything_under_one_private_home(tmp_path, windows):
     assert paths["bin"].parent == paths["env"] and paths["launcher"].parent == paths["bin"]
 
 
-def test_the_stamp_spells_the_launcher_the_way_a_posix_shell_finds_it():
-    assert pr.shell_command(Path(r"C:\Users\Dev\AppData\Local\afk\python\afk-bin\afk-python.exe"), True) \
-        == "/c/Users/Dev/AppData/Local/afk/python/afk-bin/afk-python"
-    assert pr.shell_command(Path("/home/dev/.local/share/afk/python/afk-bin/afk-python"), False) \
-        == str(Path("/home/dev/.local/share/afk/python/afk-bin/afk-python"))
-
-
-def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path):
+def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path, monkeypatch):
+    monkeypatch.setattr(pr, "find_bash", lambda: "/git/bin/bash")
     env = machine_env(tmp_path)
     paths = pr.layout(env, True)
     machine, out = Machine(paths), io.StringIO()
@@ -128,9 +127,13 @@ def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path
     assert paths["launcher"].read_text(encoding="utf-8") == "interpreter"
     pth = pr.site_packages(paths, PINS["python"], True) / pr.PTH
     assert pth.read_bytes() == b'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
+    # The hook shell's own spelling, verbatim: setup never derives it from the launcher path.
     assert pr.read_stamp(paths) == {
         "python": PINS["python"], "uv": PINS["uv"], "lock": PINS["lock"], "extras": "",
-        "launcher": str(paths["launcher"]), "command": pr.shell_command(paths["launcher"], True)}
+        "launcher": str(paths["launcher"]), "command": "/spelled/afk-python", "file": "/spelled/afk-python.exe"}
+    probes = {a[0]: a[-1] for a, _ in machine.calls if "afk-python -c" in str(a) and isinstance(a, list)}
+    assert probes["/git/bin/bash"].startswith(pr.RESOLVE + "; ")
+    assert "afk-command" not in probes["powershell"]
     assert not paths["stamp"].with_name(pr.STAMP + ".new").exists()
     report = out.getvalue()
     # Published only after the last shell probe passed.
@@ -193,7 +196,10 @@ def test_the_installer_and_uv_never_see_the_users_source_overrides(tmp_path):
     }
     kept = {"HTTPS_PROXY": "http://proxy:3128", "HTTP_PROXY": "http://proxy:3128", "NO_PROXY": "corp",
             "SSL_CERT_FILE": "/corp/ca.pem", "SSL_CERT_DIR": "/corp/certs", "REQUESTS_CA_BUNDLE": "/corp/ca.pem",
-            "UV_NATIVE_TLS": "1"}
+            "UV_NATIVE_TLS": "1", "UV_SYSTEM_CERTS": "1",
+            # Transport only: how long and how often uv talks to the sources the lock names.
+            "UV_HTTP_TIMEOUT": "300", "UV_HTTP_CONNECT_TIMEOUT": "60", "UV_REQUEST_TIMEOUT": "300",
+            "UV_HTTP_RETRIES": "8", "UV_CONCURRENT_DOWNLOADS": "2"}
     env.update(hostile, **kept)
     paths = pr.layout(env, True)
     machine = Machine(paths)
@@ -255,16 +261,24 @@ def test_a_repair_whose_final_probe_fails_leaves_no_stamp(tmp_path, machine_kwar
 def test_a_failed_repair_does_not_cost_the_test_extra(tmp_path):
     env = machine_env(tmp_path)
     paths = pr.layout(env, True)
-    paths["stamp"].parent.mkdir(parents=True)
-    paths["stamp"].write_text("extras=test\n", encoding="utf-8")
-    site = pr.site_packages(paths, PINS["python"], True)
-    site.mkdir(parents=True)
-    (site / "pytest-9.0.1.dist-info").mkdir()
+    assert pr.install(env, True, True, Machine(paths), io.StringIO()) == 0
+    # The repair dies in the sync, the environment keeps nothing of pytest, and the stamp is gone.
+    failing = Machine(paths, fail="uv-installer")
+    first_call = failing.__call__
+
+    def records_intent_first(argv, env):
+        if not failing.calls:
+            assert paths["intent"].read_text(encoding="utf-8").strip() == "test"
+        return first_call(argv, env)
+
+    assert pr.install(env, True, False, records_intent_first, io.StringIO()) == 1
     assert pr.install(env, True, False, Machine(paths, fail=" sync "), io.StringIO()) == 1
-    assert not paths["stamp"].exists()
+    site = pr.site_packages(paths, PINS["python"], True)
+    assert not paths["stamp"].exists() and not list(site.glob("pytest*"))
     machine = Machine(paths)
     assert pr.install(env, True, False, machine, io.StringIO()) == 0
-    assert all("--extra test" in l for l in machine.lines() if " sync " in l)
+    syncs = [l for l in machine.lines() if " sync " in l]
+    assert syncs and all("--extra test" in l for l in syncs)
     assert pr.read_stamp(paths)["extras"] == "test"
 
 
@@ -332,6 +346,15 @@ def test_check_names_each_kind_of_drift(tmp_path, override, reported, expected):
     assert expected in out.getvalue()
 
 
+def test_check_fails_when_the_hook_shell_finds_another_file_than_the_stamp_names(tmp_path):
+    env, paths = stamped(tmp_path, command="/old/afk-python", file="/old/afk-python")
+    machine, out = Machine(paths), io.StringIO()
+    assert pr.check(env, False, False, machine, out) == 1
+    assert "fail bash login spelling: the stamp names /old/afk-python, the shell finds /spelled/afk-python" \
+        in out.getvalue()
+    assert "ok sh" in out.getvalue()
+
+
 def test_check_fails_when_a_package_drifts_after_the_stamp(tmp_path):
     env, paths = stamped(tmp_path)
     machine, out = Machine(paths, in_sync=(1, DRIFT)), io.StringIO()
@@ -374,46 +397,77 @@ def test_the_probe_imports_the_modules_the_tracker_server_imports():
 
 
 NOTICE = "AFK will switch to afk-python in the next release; run /afk:setup"
+WINDOWS = os.name == "nt"
 
 
-def session_notice(tmp_path: Path, *, command: bool, stamp: str | None, stamped_at: str = "same") -> str:
+def shell_script(path: Path, text: str) -> None:
+    # A native write: Git Bash's own redirection into `afk-python` would land in `afk-python.exe`.
+    path.write_bytes(text.encode())
+    path.chmod(0o755)
+
+
+def session_notice(tmp_path: Path, monkeypatch, *, setup: bool, after: str = "") -> tuple[str, dict]:
+    """Run setup's install with the real hook shell answering its lookup, alter the PATH per `after`,
+    then run the SessionStart hook in that same shell and PATH."""
     bash = FIND_BASH()
     if not bash:
         pytest.skip("no POSIX shell")
+    monkeypatch.setattr(pr, "find_bash", lambda: bash)
     root = tmp_path / "plugin"
     (root / "runtime").mkdir(parents=True)
     (root / "runtime" / "pyproject.toml").write_bytes((PLUGIN_ROOT / "runtime" / "pyproject.toml").read_bytes())
-    data = tmp_path / "data"
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    # Git Bash spells a pytest temp dir through its /tmp mount, which a stamp cannot predict.
-    shell_path = subprocess.run([bash, "-c", 'cygpath -u "$1" 2>/dev/null || printf %s "$1"', "_", str(bin_dir)],
-                                capture_output=True, text=True).stdout.strip()
-    named = (shell_path if stamped_at == "same" else shell_path + "-other") + "/afk-python"
-    if stamp is not None:
-        (data / "afk" / "python").mkdir(parents=True)
-        # A CRLF stamp: the notice must read either line ending.
-        body = f"python={stamp}\r\ncommand={named}\r\n"
-        (data / "afk" / "python" / "AFK-RUNTIME").write_bytes(body.encode())
-    if command:
-        launcher = bin_dir / "afk-python"
-        launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        launcher.chmod(0o755)
-    env = dict(os.environ, AFK_PLUGIN_ROOT=str(root), LOCALAPPDATA=str(data), XDG_DATA_HOME=str(data))
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, WINDOWS)
+    decoys = tmp_path / "decoys"
+    decoys.mkdir()
+    sep = ";" if WINDOWS else ":"
+    shell_env = {k: v for k, v in os.environ.items() if not k.startswith(("XDG_", "AFK_"))}
+    shell_env.update(HOME=env["HOME"], LOCALAPPDATA=env["LOCALAPPDATA"], AFK_PLUGIN_ROOT=str(root),
+                     PATH=sep.join([str(paths["bin"])] + ([] if WINDOWS else ["/usr/bin", "/bin"])))
+
+    def lookup() -> str:
+        done = subprocess.run([bash, "-c", pr.RESOLVE], env=shell_env, capture_output=True, text=True, timeout=60)
+        return done.stdout.strip()
+
+    if setup:
+        out = io.StringIO()
+        assert pr.install(env, WINDOWS, False, Machine(paths, lookup=lookup), out) == 0, out.getvalue()
+    stamp = pr.read_stamp(paths)
+    if after == "old python":
+        paths["stamp"].write_text(paths["stamp"].read_text(encoding="utf-8").replace(
+            f"python={PINS['python']}", "python=3.13.1"), encoding="utf-8")
+    elif after == "unstamped":
+        paths["stamp"].unlink()
+    elif after == "elsewhere":
+        shell_script(decoys / "afk-python", "#!/bin/sh\nexit 0\n")
+        shell_env["PATH"] = sep.join([str(decoys), shell_env["PATH"]])
+    elif after == "replaced":
+        paths["launcher"].unlink()
+        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
+    elif after == "beside":
+        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
     script = PLUGIN_ROOT / "hooks" / "update-notice.sh"
-    done = subprocess.run([bash, "-c", f'PATH="{shell_path}:/usr/bin:/bin"; . "$0"', str(script)],
-                          env=env, capture_output=True, text=True, timeout=60)
+    done = subprocess.run([bash, str(script)], env=shell_env, capture_output=True, text=True, timeout=60)
     assert done.returncode == 0, done.stderr
-    return done.stdout
+    return done.stdout, stamp
 
 
-@pytest.mark.parametrize("command, stamp, stamped_at, shown", [
-    (False, None, "same", True),
-    (True, None, "same", True),
-    (True, "3.13.1", "same", True),
-    (True, PINS["python"], "elsewhere", True),
-    (True, PINS["python"], "same", False),
+@pytest.mark.parametrize("setup, after, shown", [
+    (False, "", True),
+    (True, "unstamped", True),
+    (True, "old python", True),
+    (True, "elsewhere", True),
+    pytest.param(True, "replaced", True, marks=pytest.mark.skipif(
+        not WINDOWS, reason="only Git Bash drops .exe, so only there can a script take the entry's spelling")),
+    pytest.param(True, "beside", True, marks=pytest.mark.skipif(not WINDOWS, reason="as above")),
+    (True, "", False),
 ])
-def test_the_session_notice_shows_until_the_stamped_entry_resolves(tmp_path, command, stamp, stamped_at, shown):
-    out = session_notice(tmp_path, command=command, stamp=stamp, stamped_at=stamped_at)
+def test_the_session_notice_shows_until_the_stamped_file_resolves(tmp_path, monkeypatch, setup, after, shown):
+    out, stamp = session_notice(tmp_path, monkeypatch, setup=setup, after=after)
     assert (NOTICE in out) is shown
+    if setup and WINDOWS:
+        # pytest's temp dir sits under Git Bash's /tmp mount: the stamp holds the alias, not /c/...
+        assert stamp["command"].startswith("/tmp/") and not re.match(r"/[a-z]/", stamp["command"])
+        assert stamp["file"] == stamp["command"] + ".exe"
+    elif setup:
+        assert stamp["command"] == stamp["file"] == str(pr.layout(machine_env(tmp_path), False)["launcher"])

@@ -642,9 +642,11 @@ a token value — not even partially.
   with bytecode compiled. It then places the `afk-python` entry and the
   `AFK_PYTHON` line in the environment, and adds the entry's directory to the
   user PATH unless the startup files already add it. The installer and uv run
-  without the user's `UV_*` settings and installer download overrides; proxy
-  and TLS variables pass through. It deletes the stamp first and publishes it
-  only after the probe passes. It prints one `ok`/`fail` line per step.
+  without the user's `UV_*` settings and installer download overrides; proxy,
+  TLS and uv's HTTP timeout, retry and concurrency variables pass through. It
+  deletes the stamp first and publishes it only after the probe passes, with
+  the `afk-python` spelling and file the SessionStart hook's shell resolved.
+  It prints one `ok`/`fail` line per step.
   `plan` prints the same steps and changes nothing. The running harness keeps
   its old PATH: report `needs-human: restart the harness` (step 2's
   stale-environment rule). A `fail environment` line saying the platform has no
@@ -655,7 +657,8 @@ a token value — not even partially.
 - **Base probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check --test`
 - **Base fix:** `auto:` the Fix command with `--test`: adds the `test` extra
   (pytest). The suites under `scripts/tests/` then run as `afk-python -m pytest`.
-  A later run without `--test` keeps the extra.
+  A later run without `--test` keeps the extra, even after a failed run:
+  `AFK-RUNTIME.extras` records it before anything changes.
 - **Notes:** the user's own `python` and `python3` stay untouched. `afk-python`
   is the interpreter itself, so every CPython option works. `-S` skips the
   `AFK_PYTHON` line. Layout: the `python_runtime.py` docstring. Network: the uv

@@ -67,12 +67,12 @@ release page from its section here. Nobody tags by hand.
   `python` stays untouched. `/afk:setup base` adds pytest, and
   `/afk:setup audit` checks the command, the version, the environment, the
   installed packages against the lock, and the imports. Setup ignores your
-  `UV_*` settings and installer download overrides, and keeps proxy and TLS
-  settings. Windows on ARM and Intel macOS are not supported yet: the
+  `UV_*` settings and installer download overrides, and keeps proxy, TLS and
+  uv's HTTP timeout, retry and download-concurrency settings. Windows on ARM and Intel macOS are not supported yet: the
   lock has no prebuilt `cryptography` wheel there, and setup stops with that
   reason.
 - A one-line SessionStart notice asks you to run `/afk:setup` until
-  `afk-python` resolves to the entry setup installed and verified.
+  `afk-python` resolves to the same file setup installed and verified.
 - **Migration:** run `/afk:setup` and restart the harness. The next release
   runs every hook and MCP command through `afk-python`.
 

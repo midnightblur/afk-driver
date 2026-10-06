@@ -7,8 +7,9 @@
 
 Pins and the dependency lock live in `runtime/` at the plugin root:
 `pyproject.toml` (`requires-python`, `[tool.uv] required-version`, the import
-names) and `uv.lock`. `--test` adds the `test` extra (pytest); a runtime that
-already has it keeps it.
+names) and `uv.lock`. `--test` adds the `test` extra (pytest). Requested extras
+persist in `AFK-RUNTIME.extras` beside the environment, written before any
+change, so every later install keeps them, even after a failed one.
 
 Layout, under `%LOCALAPPDATA%\\afk` on Windows or
 `${XDG_DATA_HOME:-~/.local/share}/afk` elsewhere: `uv/` (the pinned uv),
@@ -23,12 +24,14 @@ environment sets `AFK_PYTHON` to `sys.executable`; `-S` skips it.
 Packages install from wheels only (`--no-build`): a platform the lock has no
 wheel for fails the sync with the package's name, never a source build. The
 installer and uv run without the user's `UV_*` settings and installer download
-overrides; proxy and TLS variables pass through.
+overrides; proxy, TLS and uv's HTTP timeout, retry and concurrency variables
+pass through.
 
 `install` deletes the stamp before it changes anything and publishes a new one
 only after every `check` probe passes, so a stamp always names a healthy
-runtime. Its `command=` line is the launcher as a POSIX shell's PATH lookup
-spells it; the SessionStart notice compares the two.
+runtime. Its `command=` and `file=` lines are what the SessionStart hook's
+shell (Git Bash, or the login shell) printed for `afk-python` during that
+check; the notice compares its own lookup with them.
 
 `check` compares the installed packages with the lock (`uv sync --check
 --offline`), then resolves `afk-python` through the PATH a new terminal would
@@ -58,8 +61,10 @@ COMMAND = "afk-python"
 PTH = "afk_python.pth"
 PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
 NO_WHEEL = "marked as `--no-build` but has no binary distribution"
-# uv reads every UV_* variable as a setting (uv 0.12.23 crates/uv-static/src/env_vars.rs); keep only TLS.
-UV_KEEP = ("UV_NATIVE_TLS", "UV_SYSTEM_CERTS")
+# uv reads every UV_* variable as a setting (uv 0.12.23 crates/uv-static/src/env_vars.rs); keep only
+# TLS and transport controls, which pick no package source or location.
+UV_KEEP = ("UV_NATIVE_TLS", "UV_SYSTEM_CERTS", "UV_HTTP_TIMEOUT", "UV_HTTP_CONNECT_TIMEOUT",
+           "UV_REQUEST_TIMEOUT", "UV_HTTP_RETRIES", "UV_CONCURRENT_DOWNLOADS")
 # Non-UV_ download and location overrides in uv-installer.{sh,ps1} 0.12.23, and an active venv.
 INSTALLER_OVERRIDES =("INSTALLER_DOWNLOAD_URL", "INSTALLER_NO_MODIFY_PATH",
                        "CARGO_DIST_FORCE_INSTALL_DIR", "CARGO_HOME", "VIRTUAL_ENV")
@@ -101,10 +106,9 @@ def pins(root: Path = RUNTIME) -> dict:
 
     # Line endings vary with the checkout (core.autocrlf), the lock's content does not.
     lock = lock.replace(b"\r\n", b"\n")
-    test = table("test-imports")
     return {"python": python.group(1), "uv": uv.group(1),
-            "imports": list(table("imports").values()), "test_imports": list(test.values()),
-            "test_dists": list(test), "lock": hashlib.sha256(lock).hexdigest()}
+            "imports": list(table("imports").values()), "test_imports": list(table("test-imports").values()),
+            "lock": hashlib.sha256(lock).hexdigest()}
 
 
 # ---- layout ----------------------------------------------------------------
@@ -121,16 +125,10 @@ def layout(env: Mapping[str, str], windows: bool) -> dict:
     return {
         "base": base, "uv": base / "uv" / f"uv{exe}", "pythons": base / "pythons",
         "cache": base / "cache", "env": env_dir, "stamp": env_dir / STAMP,
+        "intent": base / f"{STAMP}.extras",
         "interpreter": env_dir / ("Scripts" if windows else "bin") / f"python{exe}",
         "bin": bin_dir, "launcher": bin_dir / f"{COMMAND}{exe}",
     }
-
-
-def has_test_extra(p: dict, paths: dict, windows: bool) -> bool:
-    # The stamp is gone after a failed run; the installed distributions still say what to keep.
-    site = site_packages(paths, p["python"], windows)
-    return bool(p["test_dists"]) and all(
-        any(site.glob(f"{re.sub(r'[-.]+', '_', name)}-*.dist-info")) for name in p["test_dists"])
 
 
 def site_packages(paths: dict, python: str, windows: bool) -> Path:
@@ -158,13 +156,20 @@ def uv_env(env: Mapping[str, str], paths: dict, windows: bool) -> dict:
     return out
 
 
-def shell_command(launcher: Path, windows: bool) -> str:
-    """The launcher as a POSIX shell's PATH lookup spells it: `/c/...`, no `.exe`, on Windows."""
-    text = str(launcher)
-    if windows and len(text) > 2 and text[1] == ":":
-        text = "/" + text[0].lower() + text[2:].replace("\\", "/")
-        text = text[:-4] if text.lower().endswith(".exe") else text
-    return text
+def requested_extras(paths: dict) -> set[str]:
+    """Extras any install asked for: the intent file, else a stamp written before it existed."""
+    try:
+        text = paths["intent"].read_text(encoding="utf-8")
+    except OSError:
+        text = read_stamp(paths).get("extras", "")
+    return {extra for extra in re.split(r"[,\s]+", text) if extra}
+
+
+def write_atomically(path: Path, text: str) -> None:
+    staged = path.with_name(path.name + ".new")
+    with open(staged, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    os.replace(staged, path)
 
 
 def read_stamp(paths: dict) -> dict:
@@ -230,10 +235,13 @@ def place_entry(paths: dict, python: str, windows: bool) -> None:
 def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
             out=sys.stdout) -> int:
     p, paths = pins(), layout(env, windows)
-    test = test or "test" in read_stamp(paths).get("extras", "").split(",") or has_test_extra(p, paths, windows)
+    extras = requested_extras(paths) | ({"test"} if test else set())
+    test = "test" in extras
     child_env = uv_env(env, paths, windows)
-    # A repair that fails part-way must not leave a stamp vouching for the old runtime.
+    # The request outlives a failed run; the stamp must not vouch for a half-repaired runtime.
     try:
+        paths["intent"].parent.mkdir(parents=True, exist_ok=True)
+        write_atomically(paths["intent"], ",".join(sorted(extras)) + "\n")
         paths["stamp"].unlink(missing_ok=True)
     except OSError as exc:
         print(f"fail stamp: {exc}", file=out)
@@ -266,14 +274,13 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
             return 1
         print(f"ok {name}", file=out)
     stamp = {"python": p["python"], "uv": p["uv"], "lock": p["lock"], "extras": "test" if test else "",
-             "launcher": str(paths["launcher"]), "command": shell_command(paths["launcher"], windows)}
-    if check(env, windows, test, runner, out, stamp) != 0:
+             "launcher": str(paths["launcher"])}
+    spelling: dict = {}
+    if check(env, windows, test, runner, out, stamp, spelling) != 0:
         return 1
-    staged = paths["stamp"].with_name(STAMP + ".new")
+    stamp.update(spelling)
     try:
-        with open(staged, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write("".join(f"{key}={value}\n" for key, value in stamp.items()))
-        os.replace(staged, paths["stamp"])
+        write_atomically(paths["stamp"], "".join(f"{key}={value}\n" for key, value in stamp.items()))
     except OSError as exc:
         print(f"fail stamp: {exc}", file=out)
         return 1
@@ -322,19 +329,34 @@ def find_bash() -> str | None:
     return str(found) if found else None
 
 
-def shells(env: Mapping[str, str], windows: bool) -> list[tuple[str, Callable[[str], object]]]:
-    """Each shell a hook or a human may resolve the command from, and how to hand it a line."""
+# How the SessionStart hook's shell spells the command, and the file it runs: Git Bash drops `.exe`
+# from the spelling, and `-ef` tells the .exe from an extensionless file beside or instead of it.
+RESOLVE = ('p=$(command -v afk-python) && f=$p && { [ "$p" -ef "$p.exe" ] && f=$p.exe; :; } '
+           '&& printf "afk-command\\t%s\\t%s\\n" "$p" "$f"')
+
+
+def resolved(said: str) -> dict:
+    for line in said.splitlines():
+        if line.startswith("afk-command\t") and line.count("\t") == 2:
+            _, command, entry = line.split("\t")
+            return {"command": command, "file": entry}
+    return {}
+
+
+def shells(env: Mapping[str, str], windows: bool) -> list[tuple[str, Callable[[str], object], bool]]:
+    """Each shell a hook or a human may resolve the command from, how to hand it a line, and
+    whether it is the shell the SessionStart hook runs in, whose spelling the stamp records."""
     if windows:
         # cmd keeps the inner quotes only when /s strips one outer pair.
-        found = [("powershell", lambda line: ["powershell", "-NoProfile", "-Command", line]),
-                 ("cmd", lambda line: f'cmd /d /s /c "{line}"')]
+        found = [("powershell", lambda line: ["powershell", "-NoProfile", "-Command", line], False),
+                 ("cmd", lambda line: f'cmd /d /s /c "{line}"', False)]
         bash = find_bash()
         if bash:
-            found.append(("git-bash", lambda line: [bash, "-c", line]))
+            found.append(("git-bash", lambda line: [bash, "-c", line], True))
         return found
     login = env.get("SHELL") or "/bin/sh"
-    return [("sh", lambda line: ["/bin/sh", "-c", line]),
-            (Path(login).name + " login", lambda line: [login, "-l", "-c", line])]
+    return [("sh", lambda line: ["/bin/sh", "-c", line], False),
+            (Path(login).name + " login", lambda line: [login, "-l", "-c", line], True)]
 
 
 def probe_code(modules: list[str]) -> str:
@@ -354,8 +376,11 @@ def same_file(a: str, b: Path) -> bool:
 
 
 def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
-          out=sys.stdout, stamp: dict | None = None) -> int:
-    """Probe the runtime; `stamp` stands in for the stamp file while install has not published it."""
+          out=sys.stdout, stamp: dict | None = None, spelling: dict | None = None) -> int:
+    """Probe the runtime; `stamp` stands in for the stamp file while install has not published it.
+
+    `spelling` receives the hook shell's `command` and `file` for the stamp.
+    """
     p, paths = pins(), layout(env, windows)
     stamp = read_stamp(paths) if stamp is None else stamp
     test = test or "test" in stamp.get("extras", "").split(",")
@@ -381,8 +406,14 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
     probe_env["PATH"] = fresh_path(probe_env, windows)
     probe_env.pop("AFK_PYTHON", None)
     quoted = '"' + probe_code(p["imports"] + (p["test_imports"] if test else [])) + '"'
-    for name, build in shells(env, windows):
-        status, said = runner(build(f"{COMMAND} -c {quoted}"), probe_env)
+    for name, build, hook_shell in shells(env, windows):
+        line = f"{COMMAND} -c {quoted}"
+        status, said = runner(build(f"{RESOLVE}; {line}" if hook_shell else line), probe_env)
+        spelled = resolved(said) if hook_shell else {}
+        if spelled and spelling is not None:
+            spelling.update(spelled)
+        if spelled and "command" in stamp and spelled != {k: stamp.get(k) for k in spelled}:
+            verdict(f"{name} spelling", f"the stamp names {stamp.get('file')}, the shell finds {spelled['file']}")
         seen = said.splitlines()[-1].split("\t") if status == 0 and said else []
         if len(seen) != 3:
             verdict(name, said.splitlines()[-1] if said else f"exit {status}")
