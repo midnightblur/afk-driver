@@ -579,7 +579,7 @@ else
   fail "current managed behavior should be silent"
 fi
 
-sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd_claude/CLAUDE.md"
+sed -i 's/registry-revision: [0-9]*/registry-revision: 0/' "$bd_claude/CLAUDE.md"
 bd_stale=$(bd_run)
 if [ "$(printf '%s\n' "$bd_stale" | wc -l)" -eq 1 ] \
    && printf '%s' "$bd_stale" | grep -q '/afk:setup'; then
@@ -670,7 +670,7 @@ bd5_rendered=$(mktemp)
   --output "$bd5_rendered"
 "$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
   install "$bd5_rendered" "$bd5_codex/AGENTS.md" >/dev/null
-sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd5_codex/AGENTS.md"
+sed -i 's/registry-revision: [0-9]*/registry-revision: 0/' "$bd5_codex/AGENTS.md"
 bd5_out=$(env -u CLAUDECODE -u CLAUDE_PLUGIN_ROOT -u CLAUDE_CONFIG_DIR \
   PLUGIN_ROOT=1 CODEX_HOME="$bd5_codex" \
   "$behavior_py" "$workflow/hooks/run-hook.py" plugin behavior-drift.sh)
