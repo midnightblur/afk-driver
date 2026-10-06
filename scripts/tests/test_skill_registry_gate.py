@@ -5,6 +5,7 @@ import pathlib
 import shutil
 import subprocess
 
+import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 GATE = ROOT / "hooks" / "skill-registry-gate.sh"
@@ -77,3 +78,12 @@ def test_unregistered_env_toggle_blocks(tmp_path: pathlib.Path) -> None:
     result = run_gate(plugin)
     assert result.returncode == 2
     assert "AFK_FIXTURE_UNREGISTERED_TOGGLE" in result.stderr
+
+
+@pytest.mark.parametrize("name", ["BASH_PROJECT_GATE_DISABLE", "COMP_PROJECT_MODE"])
+def test_a_toggle_with_a_bash_like_prefix_still_blocks(tmp_path: pathlib.Path, name: str) -> None:
+    plugin = plugin_copy(tmp_path)
+    (plugin / "hooks" / "zz-fixture.sh").write_text(f'[ "${{{name}:-0}}" = 1 ] && exit 0\n', encoding="utf-8")
+    result = run_gate(plugin)
+    assert result.returncode == 2
+    assert name in result.stderr
