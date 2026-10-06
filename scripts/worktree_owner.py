@@ -6,6 +6,8 @@
     python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
     python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
+    python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
+        writes <P's git dir>/afk-copied.json: the SHA-256 of each file the copy step placed
 
 The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
 native process of a hook chain, since a walk from inside bash loses the chain), the
@@ -16,6 +18,7 @@ with another creation time is a recycled one and reads `unknown`. Never
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -221,9 +224,68 @@ def record(argv: list[str]) -> int:
     return 0
 
 
+COPIED = "afk-copied.json"
+
+
+def git_dir_of(worktree: str) -> str:
+    """The git dir a linked worktree's `.git` file names, or "" when it names none."""
+    try:
+        with open(os.path.join(worktree, ".git"), encoding="utf-8") as handle:
+            line = handle.readline().strip()
+    except OSError:
+        return ""
+    if not line.startswith("gitdir:"):
+        return ""
+    found = line[len("gitdir:"):].strip()
+    return found if os.path.isabs(found) else os.path.normpath(os.path.join(worktree, found))
+
+
+def sha256_of(path: str) -> str | None:
+    try:
+        with open(path, "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def copied_manifest(worktree: str) -> dict:
+    """`{relative path: SHA-256}` of the files the copy step placed in this worktree."""
+    try:
+        with open(os.path.join(git_dir_of(worktree), COPIED), encoding="utf-8") as handle:
+            found = json.load(handle)
+        return found if isinstance(found, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def copied(argv: list[str]) -> int:
+    if len(argv) != 2 or argv[0] != "--worktree":
+        sys.stderr.write("copied needs --worktree <path>\n")
+        return 2
+    worktree = argv[1]
+    gitdir = git_dir_of(worktree)
+    if not gitdir:
+        sys.stderr.write(f"copied: {worktree} is not a linked worktree\n")
+        return 2
+    manifest = copied_manifest(worktree)
+    for rel in sys.stdin.read().split("\0"):
+        rel = rel.strip("\r\n").replace("\\", "/")
+        digest = sha256_of(os.path.join(worktree, rel)) if rel else None
+        if digest:
+            manifest[rel] = digest
+    target = os.path.join(gitdir, COPIED)
+    scratch = f"{target}.{os.getpid()}.tmp"
+    with open(scratch, "w", encoding="utf-8") as out:
+        json.dump(manifest, out)
+    os.replace(scratch, target)
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["record"]:
         return record(argv[1:])
+    if argv[:1] == ["copied"]:
+        return copied(argv[1:])
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
         return 0

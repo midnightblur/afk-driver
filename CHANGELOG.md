@@ -49,6 +49,13 @@ release page from its section here. Nobody tags by hand.
   before the block decision, so the harness read plain text and ignored the
   block. `stop-gates.sh` now sends each gate's stdout to stderr, and
   `behavior_registry.py validate` prints nothing on success unless `--verbose`.
+- Automatic worktree cleanup keeps more work. A worktree is kept, with the
+  reason and the remove command printed, when another live or unknown session
+  owns it, when `git status` fails, when a personal file the worktree copy step
+  placed has changed, or when it holds an ignored file that git cannot restore.
+  An ignored folder, such as build output, still does not count as work.
+- Each git call in worktree cleanup now fits inside the hook's time budget. When
+  the budget runs out, the worktree is kept and the cleanup says so (#73).
 
 ## [1.13.0] - 2026-10-06
 

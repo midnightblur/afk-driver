@@ -9,9 +9,14 @@
 Only a worktree with an owner record (`<common>/afk-worktrees/<name>.json`, written by
 `create-worktree --name`) is ever touched. A clean worktree with no unpushed commit is
 removed, and its recorded branch with it when that branch has no commit of its own.
-Anything else is kept, recorded for the next session start, and the resume and remove
-commands are printed. `--force` removes a kept one: the human's call. A stale worktree is
-one whose recorded owner process is dead; an unknown owner is kept. The worktree the
+Clean means: no tracked change, no untracked file, no copied file changed since the copy
+(hashes in `<worktree git dir>/afk-copied.json`), and no ignored file the copy did not
+place; an ignored folder is build output and does not count. A git call that fails or
+does not finish inside the hook budget (`AFK_HOOK_DEADLINE`) leaves the state unknown,
+and an unknown worktree is kept. Anything else is kept, recorded for the next session
+start, and the resume and remove commands are printed. `--force` removes a kept one: the
+human's call. Without `--force`, `--path` keeps a worktree any other recorded owner may
+still use. A stale worktree is one whose recorded owner process is dead; an unknown owner is kept. The worktree the
 calling session stands in, and the target of a move in flight, are never pruned. Exit is
 0 unless the call is malformed or a forced removal is asked from inside the worktree (exit 1),
 so a hook never fails. A session that ends standing in its own worktree starts the detached
@@ -34,10 +39,35 @@ ENV = dict(os.environ, AFK_WORKTREE_OP="1")
 SESSION_CWD = Path.cwd()
 MOVE_GRACE = 600  # seconds a recorded move target counts as in use
 WAIT_CAP = 24 * 3600  # seconds a detached waiter outlives the session it follows
+GIT_TIMEOUT = 120.0
+RESERVE = 0.3  # seconds kept back from the hook budget to record a keep and exit
+
+
+def _deadline() -> float | None:
+    try:
+        return float(os.environ["AFK_HOOK_DEADLINE"])
+    except (KeyError, ValueError):
+        return None
+
+
+DEADLINE = _deadline()  # wall-clock second the hook launcher kills this process
+
+
+class Unknown(Exception):
+    """git could not answer: a worktree in this state is kept, never judged clean."""
 
 
 def git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, encoding="utf-8", errors="replace", env=ENV, timeout=120)
+    timeout = GIT_TIMEOUT
+    if DEADLINE is not None:
+        timeout = min(timeout, DEADLINE - time.time() - RESERVE)
+        if timeout <= 0:
+            raise Unknown("the hook ran out of time")
+    try:
+        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, encoding="utf-8",
+                              errors="replace", env=ENV, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise Unknown(f"git {args[0]} timed out") from None
 
 
 def owner_module():
@@ -86,15 +116,60 @@ def count(where: Path, *args: str) -> int:
     return int(done.stdout.strip()) if done.returncode == 0 and done.stdout.strip().isdigit() else 1
 
 
-def work_in(path: Path) -> bool:
-    """Tracked changes, or an untracked file outside the plugin's own runtime paths."""
-    runtime = tuple(owner_module().RUNTIME_PATHS)
-    for line in git(path, "status", "--porcelain", "--untracked-files=all").stdout.splitlines():
-        if line.startswith("?? ") and line[3:].strip('"').replace("\\", "/").startswith(runtime):
+def work_in(path: Path) -> str:
+    """Why this worktree holds work git cannot restore, or "".
+
+    Work: a tracked change; an untracked file; a copied file whose content changed since the
+    copy; an ignored file the copy did not place. An ignored folder (build output) is not work.
+    """
+    owner = owner_module()
+    runtime = tuple(owner.RUNTIME_PATHS)
+    copied = owner.copied_manifest(str(path))
+    changed = sorted(rel for rel, digest in copied.items()
+                     if owner.sha256_of(str(path / rel)) not in (None, digest))
+    if changed:
+        return "copied files changed since the copy: " + ", ".join(changed[:5])
+    done = git(path, "status", "--porcelain", "-z", "--untracked-files=all", "--ignored=matching")
+    if done.returncode != 0:
+        raise Unknown(f"git status failed: {done.stderr.strip()[:200]}")
+    unrestorable = []
+    entries = iter(done.stdout.split("\0"))
+    for entry in entries:
+        code, rel = entry[:2], entry[3:]
+        if not rel:
             continue
-        if line.strip():
-            return True
-    return False
+        if code[0] in "RC":
+            next(entries, None)  # -z puts a rename's source path in the next field
+        if code not in ("??", "!!"):
+            return "it has uncommitted changes"
+        if rel.startswith(runtime) or (code == "!!" and rel.endswith("/")):
+            continue
+        if copied.get(rel) and owner.sha256_of(str(path / rel)) == copied[rel]:
+            continue
+        if code == "??":
+            return "it has uncommitted changes"
+        unrestorable.append(rel)
+    if unrestorable:
+        return "it holds ignored files git cannot restore: " + ", ".join(unrestorable[:5])
+    return ""
+
+
+def other_owner(record: dict) -> str:
+    """Why an owner other than the calling session may still use this worktree, or ""."""
+    owner = owner_module()
+    mine = owner.env_owner() or owner.find_owner()
+    me = (str(mine["pid"]), str(mine.get("ctime"))) if mine else None
+    for item in owner.owners_of(record) or [{}]:
+        if me and (str(item.get("pid")), str(item.get("ctime"))) == me:
+            continue
+        if not (item.get("pid") and item.get("ctime")):
+            return "its owner is unknown"
+        found = owner.state(int(item["pid"]), str(item["ctime"]))
+        if found == "alive":
+            return "another session still uses it"
+        if found != "dead":
+            return "another session that used it is in an unknown state"
+    return ""
 
 
 def assess(path: Path) -> str:
@@ -102,8 +177,9 @@ def assess(path: Path) -> str:
     top = git(path, "rev-parse", "--show-toplevel").stdout.strip()
     if not top or not same(top, path):
         return "git does not know it as a worktree"
-    if work_in(path):
-        return "it has uncommitted changes"
+    work = work_in(path)
+    if work:
+        return work
     named = git(path, "symbolic-ref", "-q", "--short", "HEAD")
     branch = named.stdout.strip() if named.returncode == 0 else ""
     if branch:
@@ -235,7 +311,10 @@ def remove(path: Path, record_file: Path, common: Path, force: bool) -> bool:
                          "it is removed when the session exits, or at a later session start.\n")
         wait_for_exit(path, record_file, common)
         return False
-    reason = assess(path)
+    try:
+        reason = assess(path)
+    except Unknown as why:
+        reason = f"its state is unknown ({why})"
     if reason and not force:
         keep(path, reason, common)
         return False
@@ -303,6 +382,10 @@ def remove_one(target: Path, force: bool) -> None:
         named = record.get("path") or ""
         if same(named, target) or same(named, top):
             if not force and move_in_flight(common, Path(named)):
+                return
+            busy = "" if force else other_owner(record)
+            if busy:
+                sys.stderr.write(f"afk: kept worktree {Path(named).as_posix()}: {busy}.\n")
                 return
             remove(Path(named), record_file, common, force)
             return
@@ -389,8 +472,11 @@ def report_kept(repo: Path) -> None:
 
 
 def main(argv: list[str]) -> int:
+    global DEADLINE
     force = "--force" in argv
     args = [a for a in argv if a != "--force"]
+    if args[:1] == ["--after-exit"]:
+        DEADLINE = None  # the detached waiter outlives the hook whose budget it inherited
     try:
         if args[:1] == ["--path"] and len(args) == 2:
             remove_one(Path(args[1]), force)
@@ -409,6 +495,8 @@ def main(argv: list[str]) -> int:
                          f"afk:   python {(HERE / 'remove-worktree.py').as_posix()} --path "
                          f"{Path(inner.args[0]).as_posix()} --force\n")
         return 1
+    except Unknown as why:
+        sys.stderr.write(f"afk: worktree cleanup stopped and removed nothing: {why}.\n")
     except Exception as problem:  # a cleanup hook must never fail the harness
         sys.stderr.write(f"afk: worktree cleanup skipped ({problem}).\n")
     return 0

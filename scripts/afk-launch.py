@@ -85,8 +85,10 @@ def main(argv: list[str]) -> int:
         return subprocess.run([exe, *argv[1:]], cwd=where).returncode
     finally:
         if made is not None:
+            own = own_process()  # this launcher is the owner, so removal does not count it as another session
             subprocess.run([sys.executable, str(HERE / "remove-worktree.py"), "--path", str(made)],
-                           cwd=made.parent, check=False)
+                           cwd=made.parent, check=False,
+                           env=dict(os.environ, **({"AFK_WORKTREE_OWNER": own} if own else {})))
 
 
 if __name__ == "__main__":

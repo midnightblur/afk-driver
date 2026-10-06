@@ -211,6 +211,20 @@ def test_the_repository_copy_list_is_carried_over(tmp_path):
     assert (wt / "notes.local").read_text(encoding="utf-8") == "mine"
 
 
+def test_the_copied_files_are_recorded_with_their_content_hash(tmp_path):
+    import hashlib
+    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n    - tooling\n",
+                     files={".gitignore": "notes.local\ntooling/\n"})
+    (repo / "notes.local").write_text("mine", encoding="utf-8")
+    (repo / "tooling").mkdir()
+    (repo / "tooling" / "a.txt").write_text("a", encoding="utf-8")
+    wt = path_of(create(repo, "--name", "hashed"))
+    gitdir = Path(git(wt, "rev-parse", "--absolute-git-dir"))
+    manifest = json.loads((gitdir / "afk-copied.json").read_text(encoding="utf-8"))
+    for rel in ("notes.local", "tooling/a.txt"):
+        assert manifest[rel] == hashlib.sha256((wt / rel).read_bytes()).hexdigest()
+
+
 HOOKS = [
     {"event": "WorktreeCreated", "matcher": "*", "timeout": 30, "script": "setup/one.sh"},
     {"event": "WorktreeCreated", "matcher": "*", "timeout": 30, "script": "setup/fails.sh"},

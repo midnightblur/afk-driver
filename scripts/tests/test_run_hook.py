@@ -379,7 +379,8 @@ def plugin_copy(tmp_path):
 
 def _launch(root: Path, env, *args: str):
     return subprocess.Popen([sys.executable, str(root / "hooks" / "run-hook.py"), *args],
-                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8",
+                            errors="replace")
 
 
 def test_deadline_kills_the_handler_tree(plugin_copy):
@@ -453,3 +454,17 @@ def test_a_background_child_ends_when_its_handler_exits(plugin_copy, tmp_path):
     proc.communicate(timeout=60)
     assert proc.returncode == 0
     assert _gone(_pids(mark, ("bg",)))
+
+
+def test_a_plugin_handler_learns_the_wall_clock_deadline(plugin_copy):
+    root, _, env = plugin_copy
+    (root / "hooks" / "budget.sh").write_text('#!/bin/sh\nprintf "%s" "${AFK_HOOK_DEADLINE:-}"\n',
+                                              encoding="utf-8", newline="\n")
+    start = time.time()
+    proc = _launch(root, env, "--deadline", "30", "plugin", "budget.sh")
+    out, err = proc.communicate(timeout=60)
+    assert proc.returncode == 0, err
+    assert start + 25 < float(out) <= time.time() + 30
+    proc = _launch(root, {k: v for k, v in env.items() if k != "AFK_HOOK_DEADLINE"}, "plugin", "budget.sh")
+    out, _ = proc.communicate(timeout=60)
+    assert out == ""
