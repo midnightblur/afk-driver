@@ -159,28 +159,38 @@ a token value — not even partially.
   for k in $keys; do
     "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
-  [ -z "$h$m" ] && { echo ok; exit 0; }
+  i="$("$PY" "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py" \
+      status 2>/dev/null | "$PY" -c \
+      'import json,sys; print(" ".join(json.load(sys.stdin)["inherited"]))' \
+      2>/dev/null)"
+  [ -z "$h$m$i" ] && { echo ok; exit 0; }
   echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
        "forge=$("$PY" "$AC" get forge)"
   [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
   [ -z "$m" ] || echo "unresolved:$m"
+  [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
   exit 1
   ```
 - **Fix:** `auto:` in session, from the main checkout or any worktree. None of
   these values is a secret, so ask the human in the conversation.
   1. Run `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py" status`.
      It reports each key's `need`, resolved `value`, `source` layer and
-     `suggestion`, and lists `missing`.
+     `suggestion`, and lists `missing` and `inherited`.
   2. Ask the human for every `missing` key, offering its `suggestion` as the
      first option. Offer the optional keys too, unless they already resolve.
      The reviewer has no suggestion: nobody else picks who reviews the
-     developer's work.
+     developer's work. For every `inherited` key, show the machine value and
+     ask whether it holds for this repository, then record the answer for this
+     repository — a confirmed value too, so the probe stops asking. A machine
+     `worktreeBasePath` also shows its `derived` value; offer to drop it from
+     the machine file with `worktreeBasePath= --machine`.
   3. Ask once where the answers go: this repository (the default — the file
      the main checkout and all its worktrees read) or `--machine` (the default
      for every repository).
   4. Run `developer_values.py set KEY=VALUE ... [--machine]`, then re-probe.
   `set` changes only the keys it names, so another repository's values
-  survive. `KEY=` removes a key. `--machine` refuses `worktreeBasePath`.
+  survive. `KEY=` removes a key. `--machine` refuses a `worktreeBasePath`
+  value and accepts only its removal.
 - **Notes:** a developer with no reviewer answers the literal `none`, which
   resolves and so satisfies this row; every consumer reads it as an absent key
   and fails closed. A recorded `mrAssignee=none` resolves to no assignee and

@@ -7,12 +7,13 @@ asks the human in session and records the answers here.
 
 `status` names, per key: `need` (required | optional | n/a for this repository's
 adapters), the resolved `value`, its `source` layer, and a `suggestion` to offer.
-`missing` lists the required keys nothing resolves.
+`missing` lists the required keys nothing resolves; `inherited` the keys naming a
+person or a location that only the machine file supplies. A `worktreeBasePath` set in a file also shows its `derived` value.
 
 `set` writes the repository file `<git common dir>/afk/config.yaml`, which the main
 checkout and every worktree read; `--machine` writes `~/.afk/config.yaml`, the
 default for every repository. It changes only the keys named; `KEY=` removes one.
-`worktreeBasePath` is one repository's location, so `--machine` refuses it.
+`worktreeBasePath` is one repository's location, so `--machine` only removes it.
 """
 from __future__ import annotations
 
@@ -158,12 +159,18 @@ def status(root: Path) -> dict:
         entry = {"need": need[key], "value": value, "source": source}
         if value is None and need[key] != "n/a":
             entry["suggestion"] = suggest[key]()
+        if key == "worktreeBasePath" and source not in (None, "derived"):
+            derived = ac.worktree_base(root)
+            entry["derived"] = str(derived).replace("\\", "/") if derived else None
         keys[key] = entry
     return {
         "tracker": tracker, "forge": forge,
         "repository_file": str(shared) if shared else None,
         "machine_file": str(machine_file()),
         "missing": [k for k, e in keys.items() if e["need"] == "required" and e["value"] is None],
+        # A machine default may name another repository's person or folder.
+        "inherited": [k for k, e in keys.items()
+                      if e["need"] != "n/a" and e["source"] == "machine" and k != "ideBinary"],
         "keys": keys,
     }
 
@@ -178,7 +185,7 @@ def record(root: Path, pairs: list[str], machine: bool) -> Path:
         key, sep, value = pair.partition("=")
         if not sep or key not in ORDER:
             raise ValueError(f"expected KEY=VALUE with KEY one of {', '.join(ORDER)}: {pair!r}")
-        if machine and key == "worktreeBasePath":
+        if machine and key == "worktreeBasePath" and value.strip():
             raise ValueError("worktreeBasePath is one repository's location; record it without --machine")
         updates[key] = value.strip().replace("\\", "/") if key in ("worktreeBasePath", "ideBinary") else value.strip()
     values = read_block(target)

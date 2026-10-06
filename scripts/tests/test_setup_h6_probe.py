@@ -98,7 +98,7 @@ def test_present_file_naming_no_forge_points_at_a_working_fix(repo, home):
     write(home / ".afk" / "config.yaml", DEV)
     out = run(repo, home)
     assert out.returncode == 1
-    assert out.stdout.splitlines()[-1] == "needs-human: see H0 (mrReviewer)"
+    assert "needs-human: see H0 (mrReviewer)" in out.stdout.splitlines()
     notes = h0_notes()
     assert "set `tracker:` and `forge:` in `.afk/config.yaml`" in notes
     assert "`CONFIG.md`" in notes and "re-probe" in notes
@@ -124,6 +124,18 @@ def test_machine_layer_none_is_ok(repo, home):
     out = run(repo, home)
     assert out.returncode == 0, out.stdout + out.stderr
     assert out.stdout.strip() == "ok"
+
+
+def test_a_machine_only_person_is_confirmed_per_repository(repo, home):
+    write(repo / ".afk" / "config.yaml", "schema: 1\ntracker: jira\nforge: none\n")
+    write(home / ".afk" / "config.yaml", DEV)
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert out.stdout.splitlines()[-1] == "inherited from the machine file, confirm: trackerAssignee"
+
+    write(repo / ".git" / "afk" / "config.yaml", "developer:\n  trackerAssignee: me\n")
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
 
 
 def test_shared_overlay_none_is_ok(repo, home):

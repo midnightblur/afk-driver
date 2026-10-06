@@ -104,6 +104,20 @@ def test_a_worktree_location_is_refused_for_the_machine_file(tmp_path, home):
     assert not (home / ".afk" / "config.yaml").exists()
 
 
+def test_machine_values_are_reported_as_inherited(tmp_path, home):
+    repo = make_repo(tmp_path, "a", forge="github")
+    dv.write_block(home / ".afk" / "config.yaml",
+                   {"mrReviewer": "rev", "worktreeBasePath": "/elsewhere"})
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["inherited"] == ["mrReviewer", "worktreeBasePath"]
+    assert report["keys"]["worktreeBasePath"]["derived"].endswith("/a-worktrees")
+
+    assert cli(repo, "set", "worktreeBasePath=", "--machine").returncode == 0
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["inherited"] == ["mrReviewer"]
+    assert report["keys"]["worktreeBasePath"]["source"] == "derived"
+
+
 def test_an_empty_value_removes_only_that_key(tmp_path):
     repo = make_repo(tmp_path, "a", forge="github")
     cli(repo, "set", "mrReviewer=rev", "mrAssignee=me")

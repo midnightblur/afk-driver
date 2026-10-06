@@ -147,8 +147,8 @@ gate_genericity() {
         printf '%s\n' "$ident_hits"
         echo
         echo "Fix: replace the account id, address or handle with a placeholder"
-        echo "({user}, dev@example.com), or move the value into a developer's own"
-        echo "~/.afk/config.yaml - a committed file never names a person."
+        echo "({user}, dev@example.com), or record the value as a developer value"
+        echo "with /afk:setup (H6) - a committed file never names a person."
       } >&2
       return 2
     fi
