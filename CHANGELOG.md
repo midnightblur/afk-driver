@@ -45,6 +45,10 @@ release page from its section here. Nobody tags by hand.
 - The UI lint gate no longer lints files that no ESLint configuration covers. With `npm.workspace-root: .`, which `afk-config.py init` writes for any repository with a root `package.json`, it linted every staged `.js/.mjs/.ts/.vue` file from the repository root, so in a repository whose configurations sit in each UI project, a script outside those projects failed with ESLint's "couldn't find a configuration file". The lint workspace is now the nearest directory, the repository root included, holding a lint configuration or a `package.json` with `eslintConfig`. `npm.workspace-root` now only sets where a new worktree installs.
 - The skill-registry Stop gate no longer blocks a clean tree on variables
   that bash itself sets, such as `BASH_REMATCH` (#76).
+- A Stop gate block now reaches the harness. Gate output on stdout went out
+  before the block decision, so the harness read plain text and ignored the
+  block. `stop-gates.sh` now sends each gate's stdout to stderr, and
+  `behavior_registry.py validate` prints nothing on success unless `--verbose`.
 
 ## [1.13.0] - 2026-10-06
 

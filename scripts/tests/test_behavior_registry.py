@@ -750,6 +750,10 @@ Apply it.
     assert behavior_registry.main(
         ["validate", "--registry", str(registry_path), "--plugin-root", str(tmp_path)]
     ) == 0
+    assert capsys.readouterr().out == ""
+    assert behavior_registry.main(
+        ["validate", "--registry", str(registry_path), "--plugin-root", str(tmp_path), "--verbose"]
+    ) == 0
     assert "valid: 1 rows" in capsys.readouterr().out
 
     with pytest.raises(SystemExit) as error:
