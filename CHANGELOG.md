@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-05
+
 ### Fixed
 
 - The wiring Stop gate no longer re-runs a whole-tree `git grep -o` per Stop. A bounded scanner (`hooks/lib/bounded_scan.py`) searches the changed files first, then the tree for only the unresolved tokens, under a deadline and a repository lock. A scan that fails, times out, or finds the lock held is an unknown verdict that neither blocks nor stamps the Stop, never a false orphan. Stop's temp files are removed on any exit.
