@@ -11,8 +11,9 @@ the one branch (`ADAPTERS.md`); it runs in this process, and no shell starts.
 A definite forge answer is cached in `<git common dir>/afk/protection-cache.json`
 per forge, host, repository, API root and branch for `AFK_PROTECTION_CACHE_TTL`
 seconds (default and maximum 300; `0` asks the forge every time). The remote's
-default branch, `main` and `master` are always asked live. A fallback is never
-cached, and an unreadable cache file counts as empty.
+default branch, `main` and `master` are always asked live, and so is every branch
+while the default branch is unknown (no `refs/remotes/<remote>/HEAD`). A fallback
+is never cached, and an unreadable cache file counts as empty.
 
 Fallback (`source: fallback`, with a `reason`): no forge, no login, no network, a
 timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s, wall-clock; `AFK_GITHUB_API_URL` / `AFK_GITLAB_API_URL` replace the
@@ -169,7 +170,7 @@ def _fresh(entries, ttl: float) -> dict:
         try:
             if 0 <= now - float(entry["at"]) < ttl and isinstance(entry["protected"], bool):
                 kept[key] = {"protected": entry["protected"], "at": entry["at"]}
-        except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError, OverflowError):
             continue
     return kept
 
@@ -216,8 +217,8 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     override = os.environ.get("AFK_GITHUB_API_URL" if forge == "github" else "AFK_GITLAB_API_URL")
     api = override or (api if found["host"] == public_host else "")
     ttl = _cache_ttl()
-    live = {"main", "master", default_branch(common, found["remote"])}
-    cacheable = ttl > 0 and bool(found["repo"]) and branch not in live
+    default = default_branch(common, found["remote"])
+    cacheable = ttl > 0 and bool(found["repo"]) and bool(default) and branch not in {"main", "master", default}
     cache = common / "afk" / "protection-cache.json"
     key = json.dumps([forge, found["host"], found["repo"], api, branch])
     if cacheable and key in (entries := _read_cache(cache, ttl)):

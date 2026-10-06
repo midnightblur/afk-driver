@@ -80,7 +80,9 @@ release page from its section here. Nobody tags by hand.
   `<git common dir>/afk/protection-cache.json`, so a guarded action in a linked
   worktree no longer asks the forge every time. The remote's default branch,
   `main` and `master` are still asked at every check, and a failed read is never
-  reused. `AFK_PROTECTION_CACHE_TTL=0` asks the forge every time.
+  reused. `AFK_PROTECTION_CACHE_TTL=0` asks the forge every time. A clone with
+  no `refs/remotes/origin/HEAD` asks the forge every time for every branch; run
+  `git remote set-head origin --auto` to set it.
 
 ### Fixed
 

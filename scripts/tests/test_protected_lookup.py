@@ -365,6 +365,68 @@ def test_the_cache_is_per_branch(cached):
     assert forge.calls == 2
 
 
+def test_an_unknown_default_branch_turns_the_cache_off(cached, tmp_path):
+    ask, forge, _, cache = cached
+    git(tmp_path / "repo", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+    ask("trunk")
+    ask("trunk")
+    ask("topic")
+    ask("topic")
+    assert forge.calls == 4
+    assert not cache.exists()
+
+
+@pytest.mark.parametrize("at", ("10" * 200, "1e400", "-1e400"))
+def test_an_out_of_range_timestamp_is_a_miss(cached, at):
+    ask, forge, _, cache = cached
+    ask()
+    entries = json.loads(cache.read_text(encoding="utf-8"))
+    cache.write_text(json.dumps(entries).replace(str(next(iter(entries.values()))["at"]), at), encoding="utf-8")
+    assert ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+
+
+def test_a_timestamp_in_the_future_is_a_miss(cached):
+    ask, forge, clock, _ = cached
+    ask()
+    clock.now -= 1
+    ask()
+    assert forge.calls == 2
+
+
+@pytest.mark.parametrize("remote", ("https://github.com/other/widget.git", "https://github.example.com/acme/widget.git"))
+def test_the_cache_is_per_repository_and_host(cached, tmp_path, remote):
+    ask, forge, _, _ = cached
+    ask()
+    git(tmp_path / "repo", "remote", "set-url", "origin", remote)
+    ask()
+    assert forge.calls == 2
+
+
+def test_an_unreadable_cache_path_asks_live_and_still_answers(cached):
+    ask, forge, _, cache = cached
+    cache.mkdir(parents=True)
+    assert ask() == ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+    assert cache.is_dir() and list(cache.parent.iterdir()) == [cache]
+
+
+def test_a_failed_replace_still_answers_and_publishes_nothing(cached, monkeypatch):
+    ask, forge, _, cache = cached
+    refused = []
+
+    def refuse(*args):
+        refused.append(args)
+        raise PermissionError("in use")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    assert ask() == {"protected": True, "source": "github"}
+    assert refused, "the cache is published through os.replace"
+    assert not cache.exists() and list(cache.parent.iterdir()) == []
+    ask()
+    assert forge.calls == 2
+
+
 def test_the_cache_write_leaves_no_temporary_file(cached):
     ask, _, _, cache = cached
     ask()
