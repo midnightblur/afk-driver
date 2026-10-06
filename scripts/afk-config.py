@@ -21,12 +21,13 @@ Discovery, highest precedence first:
 
     $AFK_CONFIG                        (an explicit file)
     <git root>/.afk/config.local.yaml  (gitignored per-developer overlay)
+    <git common dir>/afk/config.yaml   (untracked, shared by every worktree)
     <git root>/.afk/config.yaml        (committed, the repository's contract)
     ~/.afk/config.yaml                 (per-machine defaults)
     built-in defaults
 
 Layers are deep-merged: a mapping merges key by key, any other value replaces.
-The local overlay may not change `schema`.
+Neither overlay may change `schema`.
 
 Secrets never live in a configuration file. A file names ENVIRONMENT VARIABLES;
 the values come from the environment or a harness credential store.
@@ -58,15 +59,15 @@ TOP_LEVEL = {
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
-# Every one is OPTIONAL. Their home is `~/.afk/config.yaml`, which covers every
-# checkout on the machine; the gitignored `.afk/config.local.yaml` overlay is for
-# a value that differs in ONE checkout. Never the committed file.
+# Every one is OPTIONAL. The shared overlay holds one repository's values for all
+# its worktrees, `~/.afk/config.yaml` defaults for every repository, and the
+# gitignored `.afk/config.local.yaml` a value for ONE checkout. Never the committed file.
 #
 # `trackerAssignee`, `mrReviewer` and `mrAssignee` NAME A PERSON, so they have no
 # default at any layer: a committed file may not name one, and no toolkit may
 # pick one for a team. Setup asks each developer, and a value nobody supplied
 # resolves to nothing (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix;
-# `mrAssignee` never gates — an unset one means no assignee). `worktreeBasePath`
+# `mrAssignee` never gates — an unset or `none` one means no assignee). `worktreeBasePath`
 # has a default because it is DERIVED (`worktree_base`) and names no person;
 # `ideBinary` has none because no default could be right.
 DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary"}
@@ -338,6 +339,27 @@ def deep_merge(base: dict, overlay: dict) -> dict:
     return result
 
 
+def shared_overlay(root: Path) -> Path | None:
+    """`<git common dir>/afk/config.yaml`: the one file every worktree of `root` reads.
+
+    Read from `.git` itself rather than by spawning git: `load` runs on every Stop.
+    """
+    dot_git = root / ".git"
+    if dot_git.is_dir():
+        common = dot_git
+    elif dot_git.is_file():
+        text = dot_git.read_text(encoding="utf-8", errors="replace").strip()
+        if not text.startswith("gitdir:"):
+            return None
+        admin = (root / text[len("gitdir:"):].strip()).resolve()
+        pointer = admin / "commondir"
+        common = ((admin / pointer.read_text(encoding="utf-8").strip()).resolve()
+                  if pointer.is_file() else admin)
+    else:
+        return None
+    return common / "afk" / "config.yaml"
+
+
 def layers(root: Path | None) -> list[tuple[str, Path]]:
     """Configuration files, LOWEST precedence first."""
     found: list[tuple[str, Path]] = []
@@ -348,6 +370,9 @@ def layers(root: Path | None) -> list[tuple[str, Path]]:
         repo = root / ".afk" / "config.yaml"
         if repo.is_file():
             found.append(("repo", repo))
+        shared = shared_overlay(root)
+        if shared is not None and shared.is_file():
+            found.append(("shared", shared))
         local = root / ".afk" / "config.local.yaml"
         if local.is_file():
             found.append(("local", local))
@@ -366,8 +391,8 @@ def load(root: Path | None = None) -> dict:
     effective = dict(DEFAULTS)
     for kind, path in layers(root):
         document = parse(path.read_text(encoding="utf-8"), str(path))
-        if kind == "local" and "schema" in document:
-            raise ConfigError(f"{path}: the local overlay may not set `schema`")
+        if kind in ("local", "shared") and "schema" in document:
+            raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
         effective = deep_merge(effective, document)
     return effective
 
@@ -802,6 +827,8 @@ def developer_value(config: dict, key: str, root: Path | None = None) -> str | N
     say which developer value is missing, never invent one.
     """
     value = get(config, f"developer.{key}")
+    if key == "mrAssignee" and isinstance(value, str) and value.strip().lower() == "none":
+        return None      # a recorded "no assignee" lets a narrower layer override a broader one
     if isinstance(value, str) and value.strip():
         return value
     if key == "worktreeBasePath":

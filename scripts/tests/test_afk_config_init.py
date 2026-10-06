@@ -200,6 +200,12 @@ def test_mr_assignee_unset_resolves_to_nothing():
     assert ac.developer_value({"developer": {}}, "mrAssignee") is None
 
 
+def test_mr_assignee_none_resolves_to_nothing():
+    # A recorded `none` must beat a broader layer's assignee, so it resolves as unset.
+    assert ac.developer_value({"developer": {"mrAssignee": "none"}}, "mrAssignee") is None
+    assert ac.developer_value({"developer": {"mrReviewer": "none"}}, "mrReviewer") == "none"
+
+
 # ------------------------------------------------------- derived worktrees
 
 def test_worktree_base_is_derived_beside_the_main_checkout(tmp_path):

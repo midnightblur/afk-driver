@@ -126,6 +126,13 @@ def test_machine_layer_none_is_ok(repo, home):
     assert out.stdout.strip() == "ok"
 
 
+def test_shared_overlay_none_is_ok(repo, home):
+    write(repo / ".git" / "afk" / "config.yaml", NONE.replace("schema: 1\n", ""))
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "ok"
+
+
 def test_worktree_base_failure_still_reported_beside_h0(tmp_path, home):
     bare = tmp_path / "not-a-repo"
     bare.mkdir()

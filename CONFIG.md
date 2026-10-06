@@ -29,9 +29,10 @@ Highest precedence first:
 | Layer | Path | Purpose |
 |---|---|---|
 | explicit | `$AFK_CONFIG` | a named file, for tests and one-off runs |
-| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer; may not set `schema` |
+| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer, this checkout only; may not set `schema` |
+| shared overlay | `<git common dir>/afk/config.yaml` | untracked, per developer, read by every worktree of this repository — the default home for a developer's own `developer:` block; may not set `schema` |
 | repository | `<git root>/.afk/config.yaml` | committed, the repository's contract |
-| machine | `~/.afk/config.yaml` | per-machine defaults across repositories — the recommended home for a developer's own `developer:` block |
+| machine | `~/.afk/config.yaml` | per-machine defaults across repositories |
 | built-in | — | the defaults below |
 
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
@@ -132,7 +133,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files approved plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (legacy Boolean, ignored; every GitHub write needs explicit human approval) |
 | `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
-| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own, pre-filling each assignee with the developer's own account. The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset means no assignee. |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own, pre-filling each assignee with the developer's own account. The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
 as a root `GLOSSARY-MAP.md` (`skills/utils/glossary/GLOSSARY-FORMAT.md`), and one
@@ -271,8 +272,9 @@ repository-relative path — absolute, drive-lettered, or holding a `..` segment
 A configuration file holds environment variable NAMES, never values.
 `jira.credentials-env` lists the variables the Jira adapter reads. Values come
 from the environment or the harness credential store. A developer's own
-non-secret values live under `developer:` in `~/.afk/config.yaml`, or in the
-gitignored `.afk/config.local.yaml` when one checkout needs a different value.
+non-secret values live under `developer:` in the shared overlay or
+`~/.afk/config.yaml`, or in the gitignored `.afk/config.local.yaml` when one
+checkout needs a different value.
 
 The subset, the discovery order, the child keys of every map above, the
 readable failure of `validate FILE`, and the agreement between the three views

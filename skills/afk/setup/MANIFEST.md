@@ -136,8 +136,10 @@ a token value — not even partially.
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
   R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+  C="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
-      "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
+      "$R/.afk/config.local.yaml" "${C:+$C/afk/config.yaml}" \
+      "$R/.afk/config.yaml"; do
     [ -n "$f" ] || continue
     grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
@@ -169,9 +171,13 @@ a token value — not even partially.
   the tracker assignee — pre-filled with the account the validated token itself
   belongs to — for the reviewer, which has no pre-fill because no one else may
   pick who reviews your work, and for the MR/PR assignee, pre-filled with the
-  forge account the CLI is logged in as. It offers `~/.afk/config.yaml`, so one answer covers
-  every repository on the machine. By hand: add a `developer:` block there per
-  the example in `skills/afk/bug/CONFIG.md`.
+  forge account the CLI is logged in as. It offers the repository file
+  `<git common dir>/afk/config.yaml`, read by all of this repository's
+  worktrees, else `~/.afk/config.yaml` as a default for every repository. It
+  writes only the keys it asked about, so a repository with tracker or forge
+  `none` never removes another repository's values, and it never writes
+  `worktreeBasePath` to the machine file. By hand: add a `developer:` block
+  per the example in `skills/afk/bug/CONFIG.md`.
 - **Notes:** a developer with no reviewer answers the literal `none`, which
   resolves and so satisfies this row; every consumer reads it as an absent key
   and fails closed. The repository's committed config answers none of these — a

@@ -37,6 +37,16 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- New configuration layer `<git common dir>/afk/config.yaml`: untracked, per developer, and read by every worktree of one repository. It sits above the committed `.afk/config.yaml` and below `.afk/config.local.yaml`, and may not set `schema`.
+
+### Fixed
+
+- `/afk:setup` no longer removes `developer:` values that another repository uses. A repository whose tracker or forge is `none` now leaves the assignee and reviewer keys in place. The script writes only the keys it asked about. It offers the new repository file by default and `~/.afk/config.yaml` as the alternative, and pre-fills each prompt with the value that resolves now.
+- `/afk:setup` never writes `worktreeBasePath` to `~/.afk/config.yaml`. It warns when that file sets one, because the value overrides every repository's derived location, and writes a different answer to the repository file.
+- `mrAssignee: none` now resolves to no assignee, so a repository can override an assignee the machine file sets. A hand-written `none` used to reach the forge as a username.
+
 ## [1.12.0] - 2026-10-05
 
 ### Fixed

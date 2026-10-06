@@ -320,8 +320,9 @@ reviews it are answered by each developer, not by the repository.
 
 Your own values — the tracker account work is assigned to, the reviewer you
 name, the forge user your merge requests are assigned to, your IDE — go under
-`developer:` in `~/.afk/config.yaml`, once per machine rather than once per
-checkout. The two assignees are a pair: `trackerAssignee` is put on every work
+`developer:` in `<git common dir>/afk/config.yaml`, once per repository rather
+than once per worktree, or in `~/.afk/config.yaml` as a default for every
+repository. The two assignees are a pair: `trackerAssignee` is put on every work
 item the plugin creates (bug tickets, spinoff tickets), `mrAssignee` on every
 merge request or pull request it opens. `/afk:setup` asks you for each and
 pre-fills both assignees with your own account — the tracker account the token

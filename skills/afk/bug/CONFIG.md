@@ -18,7 +18,8 @@ fail closed. Provisioned and probed by the workflow doctor (`H6`).
 
 | Layer | File | Holds |
 |-------|------|-------|
-| Machine | `~/.afk/config.yaml` | A `developer:` block. The normal home: one file covers every repository on the machine. |
+| Machine | `~/.afk/config.yaml` | A `developer:` block of defaults for every repository on the machine. |
+| Repository | `<git common dir>/afk/config.yaml` | A `developer:` block for one repository, read by all its worktrees. Untracked. The default `/afk:setup` offers. |
 | Checkout | `<repo>/.afk/config.local.yaml` | A `developer:` block for a value that differs in ONE checkout. Gitignored. |
 
 The committed `<repo>/.afk/config.yaml` holds none of these keys: K1 and K2 name
@@ -26,7 +27,7 @@ a person, and a committed file never names a person. Each developer answers for
 themselves, and `/afk:setup` asks.
 
 Resolution, highest first: the `developer:` value from any layer (checkout
-overlay beats machine), then — for `worktreeBasePath` alone — a derived value,
+beats repository beats machine), then — for `worktreeBasePath` alone — a derived value,
 then fail closed.
 
 ## Keys
@@ -37,7 +38,7 @@ then fail closed.
 | K2 | `mrReviewer` | string | Forge user assigned as reviewer on the fix change at Ready. The literal `none` is a valid answer: it records "nobody reviews my changes", and every consumer reads it exactly as an absent key | nothing — a person has no default | Change Ready flip |
 | K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout | Fixer dispatch |
 | K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right | (optional) interactive worktree open |
-| K5 | `mrAssignee` | string | Forge user every MR/PR the plugin opens is assigned to, the fix change included. Unset means no assignee — it never gates | nothing — a person has no default | (optional) MR/PR create |
+| K5 | `mrAssignee` | string | Forge user every MR/PR the plugin opens is assigned to, the fix change included. Unset or the literal `none` means no assignee — it never gates; `none` overrides a broader layer's value | nothing — a person has no default | (optional) MR/PR create |
 
 K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
 MAIN checkout even from inside a worktree, so every worktree of one repository
@@ -84,8 +85,9 @@ developer:
 ```
 
 That one file satisfies every gate above: K1, K2, K4 and K5 from the machine, K3
-derived. Nothing is per-checkout, so nothing needs writing again when a worktree
-is created.
+derived. A repository with a different reviewer adds its own `developer:` block
+in `<git common dir>/afk/config.yaml`; every worktree of that repository reads
+it, so nothing needs writing again when a worktree is created.
 
-The overlay is gitignored and may not set `schema`; everything else about these
-files is ordinary configuration, documented in `CONFIG.md` at the plugin root.
+Neither overlay may set `schema`; everything else about these files is ordinary
+configuration, documented in `CONFIG.md` at the plugin root.
