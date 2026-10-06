@@ -513,5 +513,9 @@ EVENT_JSON="$("$PY_BIN" -c 'import json,sys; print(json.dumps({"hook_event_name"
 ( cd "$DEST" && env -u CLAUDE_PROJECT_DIR -u PROJECT_DIR AFK_WORKTREE_PATH="$DEST_DIR_FWD" AFK_WORKTREE_BRANCH="$BRANCH" \
     "$PY_BIN" "$AFK_ROOT_DIR/hooks/run-hook.py" --soft repo-list WorktreeCreated <<<"$EVENT_JSON" >&2 ) || true
 
+# Ignored files the steps above placed are restorable; removal reads their hashes.
+"$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" placed --worktree "$DEST_DIR_FWD" >&2 \
+  || echo -e "  ${YELLOW}Could not record the placed ignored files; removal keeps this worktree while they exist${NC}" >&2
+
 echo -e "${GREEN}Worktree ready: $DEST${NC}" >&2
 echo "WORKTREE_PATH=$DEST"

@@ -74,7 +74,10 @@ release page from its section here. Nobody tags by hand.
   reason and the remove command printed, when another live or unknown session
   owns it, when `git status` fails, when a personal file the worktree copy step
   placed has changed, or when it holds an ignored file that git cannot restore.
-  An ignored folder, such as build output, still does not count as work.
+  An ignored file counts as restorable only when it was there, unchanged, when
+  the worktree was made. Only build-output and cache folders such as
+  `node_modules`, `target` and `.venv` go unread; a walk that runs out of time
+  keeps the worktree.
 - Each git call in worktree cleanup now fits inside the hook's time budget. When
   the budget runs out, the worktree is kept and the cleanup says so (#73).
 

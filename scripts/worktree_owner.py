@@ -8,6 +8,8 @@
         writes D/N.json: the owner record `create-worktree --name` leaves behind
     python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
         writes <P's git dir>/afk-copied.json: the SHA-256 of each file the copy step placed
+    python worktree_owner.py placed --worktree P
+        adds to that file every ignored file P holds now, outside DISPOSABLE_DIRS folders
 
 The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
 native process of a hook chain, since a walk from inside bash loses the chain), the
@@ -28,6 +30,12 @@ import time
 # Paths gates of plugin versions before the git-dir move left inside a checkout. `create-worktree`
 # excludes them and `remove-worktree.py` does not count them as work; this is their one home.
 RUNTIME_PATHS = (".claude/hooks/.gate-cache/", ".claude/metrics/")
+
+# Ignored folder names that hold only rebuildable output or caches; `.m2` is the Maven gate's
+# per-worktree repository. Removal treats nothing else that git ignores as disposable.
+DISPOSABLE_DIRS = frozenset({"node_modules", "target", "build", "dist", "out", ".venv", "venv",
+                             "__pycache__", ".pytest_cache", ".gradle", ".mypy_cache", ".ruff_cache",
+                             ".m2"})
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",
            "py", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
@@ -258,17 +266,54 @@ def copied_manifest(worktree: str) -> dict:
         return {}
 
 
-def copied(argv: list[str]) -> int:
+def disposable(rel_dir: str) -> bool:
+    return rel_dir.rstrip("/").rsplit("/", 1)[-1] in DISPOSABLE_DIRS
+
+
+def files_under(worktree: str, rel_dir: str, tick=lambda: None):
+    """Each file below an ignored folder, relative to the worktree, skipping disposable folders.
+    `tick` runs once per folder, so a caller on a budget can stop the walk."""
+    for root, dirs, files in os.walk(os.path.join(worktree, rel_dir)):
+        tick()
+        dirs[:] = [name for name in dirs if name not in DISPOSABLE_DIRS]
+        for name in files:
+            yield os.path.relpath(os.path.join(root, name), worktree).replace(os.sep, "/")
+
+
+def ignored_files(worktree: str) -> list[str] | None:
+    """Every ignored file in the worktree outside disposable folders; None when git cannot say."""
+    done = subprocess.run(["git", "-C", worktree, "status", "--porcelain", "-z", "--untracked-files=all",
+                           "--ignored=matching"], capture_output=True, encoding="utf-8", errors="replace")
+    if done.returncode != 0:
+        return None
+    found = []
+    for entry in done.stdout.split("\0"):
+        rel = entry[3:]
+        if entry[:2] != "!!" or not rel:
+            continue
+        if not rel.endswith("/"):
+            found.append(rel)
+        elif not disposable(rel):
+            found.extend(files_under(worktree, rel))
+    return found
+
+
+def copied(argv: list[str], placed: bool = False) -> int:
+    name = "placed" if placed else "copied"
     if len(argv) != 2 or argv[0] != "--worktree":
-        sys.stderr.write("copied needs --worktree <path>\n")
+        sys.stderr.write(f"{name} needs --worktree <path>\n")
         return 2
     worktree = argv[1]
     gitdir = git_dir_of(worktree)
     if not gitdir:
-        sys.stderr.write(f"copied: {worktree} is not a linked worktree\n")
+        sys.stderr.write(f"{name}: {worktree} is not a linked worktree\n")
         return 2
     manifest = copied_manifest(worktree)
-    for rel in sys.stdin.read().split("\0"):
+    rels = ignored_files(worktree) if placed else sys.stdin.read().split("\0")
+    if rels is None:
+        sys.stderr.write(f"placed: git status failed in {worktree}\n")
+        return 1
+    for rel in rels:
         rel = rel.strip("\r\n").replace("\\", "/")
         digest = sha256_of(os.path.join(worktree, rel)) if rel else None
         if digest:
@@ -286,6 +331,8 @@ def main(argv: list[str]) -> int:
         return record(argv[1:])
     if argv[:1] == ["copied"]:
         return copied(argv[1:])
+    if argv[:1] == ["placed"]:
+        return copied(argv[1:], placed=True)
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
         return 0

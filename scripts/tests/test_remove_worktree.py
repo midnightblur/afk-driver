@@ -661,3 +661,68 @@ def test_a_git_timeout_reads_as_unknown_and_keeps(repo, monkeypatch):
     monkeypatch.chdir(repo)
     module.remove_one(path, False)
     assert path.is_dir() and "worktree-slow" in branches(repo)
+
+
+def _placed(path: Path) -> None:
+    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "worktree_owner.py"), "placed",
+                           "--worktree", str(path)], capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+
+
+def test_a_new_personal_file_in_an_ignored_folder_keeps_the_worktree(repo):
+    _exclude(repo, "scratch/")
+    path = made(repo, "scratch")
+    (path / "scratch").mkdir()
+    (path / "scratch" / "notes.txt").write_text("mine", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "scratch/notes.txt" in done.stderr, done.stderr
+
+
+def test_build_output_inside_an_ignored_folder_does_not_keep_the_worktree(repo):
+    _exclude(repo, "web/", "dist/")
+    path = made(repo, "builds")
+    (path / "web" / "node_modules" / "pkg").mkdir(parents=True)
+    (path / "web" / "node_modules" / "pkg" / "index.js").write_text("x", encoding="utf-8")
+    (path / "dist").mkdir()
+    (path / "dist" / "app.js").write_text("x", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+def test_ignored_files_present_at_creation_are_restorable_until_changed(repo):
+    _exclude(repo, ".mvn/maven.config", ".tool/")
+    path = made(repo, "provisioned")
+    (path / ".mvn").mkdir()
+    (path / ".mvn" / "maven.config").write_text("-Dx=1", encoding="utf-8")
+    (path / ".tool").mkdir()
+    (path / ".tool" / "state.json").write_text("{}", encoding="utf-8")
+    _placed(path)
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+    again = made(repo, "provisioned-edited")
+    (again / ".tool").mkdir()
+    (again / ".tool" / "state.json").write_text("{}", encoding="utf-8")
+    _placed(again)
+    (again / ".tool" / "state.json").write_text('{"edited": true}', encoding="utf-8")
+    done = run("--path", str(again), cwd=repo)
+    assert again.is_dir() and ".tool/state.json" in done.stderr, done.stderr
+
+
+def test_a_folder_walk_past_the_budget_keeps_the_worktree(repo, monkeypatch):
+    _exclude(repo, "scratch/")
+    path = made(repo, "walk")
+    (path / "scratch" / "deep").mkdir(parents=True)
+    module = load_remove()
+    owner = _load("afk_owner_walk", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
+    real_walk = owner.files_under
+
+    def late_walk(worktree, rel, tick=lambda: None):
+        module.DEADLINE = time.time() - 1
+        yield from real_walk(worktree, rel, tick)
+
+    monkeypatch.setattr(owner, "files_under", late_walk)
+    monkeypatch.setattr(module, "owner_module", lambda: owner)
+    monkeypatch.setattr(module, "DEADLINE", time.time() + 60)
+    monkeypatch.chdir(repo)
+    module.remove_one(path, False)
+    assert path.is_dir() and "worktree-walk" in branches(repo)

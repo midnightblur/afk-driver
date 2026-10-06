@@ -10,10 +10,11 @@ Only a worktree with an owner record (`<common>/afk-worktrees/<name>.json`, writ
 `create-worktree --name`) is ever touched. A clean worktree with no unpushed commit is
 removed, and its recorded branch with it when that branch has no commit of its own.
 Clean means: no tracked change, no untracked file, no copied file changed since the copy
-(hashes in `<worktree git dir>/afk-copied.json`), and no ignored file the copy did not
-place; an ignored folder is build output and does not count. A git call that fails or
-does not finish inside the hook budget (`AFK_HOOK_DEADLINE`) leaves the state unknown,
-and an unknown worktree is kept. Anything else is kept, recorded for the next session
+(hashes in `<worktree git dir>/afk-copied.json`), and no ignored file other than one that
+file records unchanged; only ignored folders named in `worktree_owner.DISPOSABLE_DIRS`
+(build output, caches) go unread. A git call or folder walk that fails or does not finish
+inside the hook budget (`AFK_HOOK_DEADLINE`) leaves the state unknown, and an unknown
+worktree is kept. Anything else is kept, recorded for the next session
 start, and the resume and remove commands are printed. `--force` removes a kept one: the
 human's call. Without `--force`, `--path` keeps a worktree any other recorded owner may
 still use. A stale worktree is one whose recorded owner process is dead; an unknown owner is kept. The worktree the
@@ -120,11 +121,19 @@ def work_in(path: Path) -> str:
     """Why this worktree holds work git cannot restore, or "".
 
     Work: a tracked change; an untracked file; a copied file whose content changed since the
-    copy; an ignored file the copy did not place. An ignored folder (build output) is not work.
+    copy; an ignored file not recorded unchanged at creation, outside owner.DISPOSABLE_DIRS.
     """
     owner = owner_module()
     runtime = tuple(owner.RUNTIME_PATHS)
     copied = owner.copied_manifest(str(path))
+
+    def recorded(rel: str) -> bool:
+        return rel.startswith(runtime) or (rel in copied and owner.sha256_of(str(path / rel)) == copied[rel])
+
+    def in_budget() -> None:
+        if DEADLINE is not None and time.time() > DEADLINE - RESERVE:
+            raise Unknown("the hook ran out of time listing ignored files")
+
     changed = sorted(rel for rel, digest in copied.items()
                      if owner.sha256_of(str(path / rel)) not in (None, digest))
     if changed:
@@ -142,9 +151,12 @@ def work_in(path: Path) -> str:
             next(entries, None)  # -z puts a rename's source path in the next field
         if code not in ("??", "!!"):
             return "it has uncommitted changes"
-        if rel.startswith(runtime) or (code == "!!" and rel.endswith("/")):
+        if code == "!!" and rel.endswith("/"):
+            if not rel.startswith(runtime) and not owner.disposable(rel):
+                unrestorable += [inner for inner in owner.files_under(str(path), rel, in_budget)
+                                 if not recorded(inner)]
             continue
-        if copied.get(rel) and owner.sha256_of(str(path / rel)) == copied[rel]:
+        if recorded(rel):
             continue
         if code == "??":
             return "it has uncommitted changes"
