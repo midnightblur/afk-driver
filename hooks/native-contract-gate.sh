@@ -352,7 +352,7 @@ launcher = re.compile(
     r'(?: --deadline [0-9]+)?'
     r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
     r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
-    r'|protected-branch-guard\.py")$'
+    r'|protected-branch-(?:guard|meter)\.py")$'
 )
 for event, groups in hook_map.items():
     if not isinstance(groups, list):
@@ -368,7 +368,7 @@ for event, groups in hook_map.items():
                 problems.append(
                     f"hooks/hooks.json: {event}[{index}] command must be "
                     f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
+                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py / protected-branch-meter.py - got {command!r}"
                 )
 
 

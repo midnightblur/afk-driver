@@ -257,3 +257,9 @@ def test_a_foreign_branch_line_does_not_delete_the_record(sync):
 
 def test_a_human_pull_is_never_gated(sync):
     assert git(sync["main"], "pull", "--ff-only", "-q", env=human()).returncode == 0
+
+
+def test_a_sync_is_not_metered(sync):
+    """The pull legitimately changes tracked files, so no pre-snapshot is taken for it."""
+    assert not denied(verdict(sync["main"], "git pull --ff-only"))
+    assert list(record_dir(sync["main"]).glob("*.pre")) == []

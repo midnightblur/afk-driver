@@ -391,6 +391,29 @@ def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: l
     return found or ([cwd] if kind == "edit" else [])
 
 
+def meter_guarded(place: dict, judge: "Judge") -> bool:
+    """A placement the change meter watches: the main checkout, or a linked worktree on a protected branch."""
+    if place["kind"] == "main":
+        return True
+    branch = branch_of(place)
+    if branch is None:
+        return False
+    names = {"main", "master", lookup_module().default_branch(place["common"], "origin")}
+    return branch in names and judge.verdict(place) is not None
+
+
+def meter_pre(kind: str, here: dict | None, judge: "Judge") -> None:
+    """Snapshot the guarded checkout before an allowed shell call; never changes the verdict."""
+    if kind != "shell" or here is None:
+        return
+    try:
+        if meter_guarded(here, judge):
+            import change_meter
+            change_meter.record_pre(here, change_meter.session_key(judge))
+    except Exception:
+        pass
+
+
 def decide(envelope: dict, facts: dict, state: dict) -> int:
     tool_input = envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {}
     cwd = Path(envelope.get("cwd") or os.getcwd())
@@ -398,16 +421,31 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     kind = tool_class(tool, facts)
     if kind == "allow":
         return 0
+    judge = Judge(str(envelope.get("session_id") or ""))
+    try:
+        here = placement(cwd)
+        held = None
+        if here is not None:
+            import change_meter
+            held = change_meter.active(here, change_meter.session_key(judge))
+    except Exception:  # no verdict on a hold that cannot be read
+        here, held = None, None
+    if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held):
+        return 0  # the named recovery and inspection commands, even where they mutate
+    if held:
+        names = ", ".join(sorted(held["paths"]))
+        cause = (f"this session changed {held['root']} through a form the guard could not refuse in advance "
+                 f"({names}) and has not undone it")
+        return deny(refusal(f"use {tool or 'a tool'}", cause, change_meter.recovery(held)))
     syncs: list = []
     try:
         resources = mutation_targets(kind, tool, tool_input, cwd, syncs)
     except Exception:  # an unreadable call is not an identified mutation
         return 0
     if not resources and not syncs:
+        meter_pre(kind, here, judge)
         return 0
     state["identified"] = True
-    judge = Judge(str(envelope.get("session_id") or ""))
-    here = placement(cwd)
     cause, refused, where = None, None, ""
     grants = []
     for folder, remote, branch in syncs:
@@ -449,6 +487,8 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         import main_sync
         for place, fields in grants:
             main_sync.authorize(place, fields, judge.session or judge.owner_key())
+    else:
+        meter_pre(kind, here, judge)
     notice = judge.notice_once()
     if notice:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
