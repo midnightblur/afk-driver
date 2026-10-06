@@ -61,10 +61,14 @@ release page from its section here. Nobody tags by hand.
   A blocked commit no longer waits for a compile it cannot pass.
 - `/afk:setup` installs the AFK Python runtime, after it asks: a pinned uv, a
   pinned CPython 3.14.8, and a private environment synced from the checked-in
-  hash lock `runtime/uv.lock`. The runtime is exposed only as the `afk-python`
-  command, and its directory is added to your user PATH. Your own `python`
-  stays untouched. `/afk:setup base` adds pytest, and `/afk:setup audit` checks
-  the command, the version, the lock and the imports.
+  hash lock `runtime/uv.lock`, from wheels only. The runtime is exposed only as
+  the `afk-python` command, which is the pinned interpreter itself running in
+  that environment, and its directory is added to your user PATH. Your own
+  `python` stays untouched. `/afk:setup base` adds pytest, and
+  `/afk:setup audit` checks the command, the version, the environment, the lock
+  and the imports. Windows on ARM and Intel macOS are not supported yet: the
+  lock has no prebuilt `cryptography` wheel there, and setup stops with that
+  reason.
 - A one-line SessionStart notice asks you to run `/afk:setup` while
   `afk-python` is missing or not the pinned version.
 - **Migration:** run `/afk:setup` and restart the harness. The next release

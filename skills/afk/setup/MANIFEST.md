@@ -629,27 +629,34 @@ a token value — not even partially.
 - **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check`
   — resolves `afk-python` through the PATH a new terminal gets, from PowerShell,
   cmd and Git Bash on Windows, and from `sh` and the login shell elsewhere. Each
-  shell must report the pinned Python, import every runtime package, and export
-  `AFK_PYTHON`. The environment's stamp must name the pinned Python and the
+  shell must report the pinned Python running in the private environment
+  (`sys.prefix`), import every runtime package, and set `AFK_PYTHON` to the
+  entry itself. The environment's stamp must name the pinned Python and the
   current lock hash.
 - **Fix:** `auto:` per-user install — ask the human first.
   `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" install`
   installs the pinned uv with Astral's versioned installer, then the pinned
-  CPython, then syncs the private environment frozen from the lock with
-  bytecode compiled. It places `afk-python` and adds its directory to the user
-  PATH. It prints one `ok`/`fail` line per step, then re-runs the probe.
+  CPython, then syncs the private environment frozen from the lock, wheels only,
+  with bytecode compiled. It then places the `afk-python` entry and the
+  `AFK_PYTHON` line in the environment, and adds the entry's directory to the
+  user PATH. It prints one `ok`/`fail` line per step, then re-runs the probe.
   `plan` prints the same steps and changes nothing. The running harness keeps
   its old PATH: report `needs-human: restart the harness` (step 2's
-  stale-environment rule).
+  stale-environment rule). A `fail environment` line saying the platform has no
+  prebuilt wheel is final: the lock has none for that platform (Windows on ARM
+  and Intel macOS lack `cryptography` wheels for CPython 3.14), and setup never
+  builds from source — report `needs-human: afk-python unsupported on this
+  platform`.
 - **Base probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check --test`
 - **Base fix:** `auto:` the Fix command with `--test`: adds the `test` extra
   (pytest). The suites under `scripts/tests/` then run as `afk-python -m pytest`.
   A later run without `--test` keeps the extra.
-- **Notes:** the user's own `python` and `python3` stay untouched. Locations:
-  the `python_runtime.py` docstring. Network: the uv release host and PyPI. To
-  remove: delete `%LOCALAPPDATA%\afk` (Windows) or
-  `${XDG_DATA_HOME:-~/.local/share}/afk` plus `~/.local/bin/afk-python`, then
-  drop that directory from the user PATH.
+- **Notes:** the user's own `python` and `python3` stay untouched. `afk-python`
+  is the interpreter itself, so every CPython option works. `-S` skips the
+  `AFK_PYTHON` line. Layout: the `python_runtime.py` docstring. Network: the uv
+  release host and PyPI. To remove: delete `%LOCALAPPDATA%\afk` (Windows) or
+  `${XDG_DATA_HOME:-~/.local/share}/afk`, then drop its `python/afk-bin`
+  directory from the user PATH.
 
 ### P2 · system Python + packages for current callers *(until the afk-python cutover)*
 - **Needed by:** every Python entry point that still runs `python`:

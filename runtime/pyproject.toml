@@ -3,7 +3,7 @@
 [project]
 name = "afk-runtime"
 version = "1.0.0"
-description = "AFK's private Python runtime and its afk-python command"
+description = "AFK's private Python runtime, run as the afk-python command"
 requires-python = "==3.14.8"
 dependencies = [
     "httpx",
@@ -17,15 +17,10 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest"]
 
-[project.scripts]
-afk-python = "afk_runtime.launcher:main"
-
-[build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
-build-backend = "uv_build"
-
 [tool.uv]
 required-version = "==0.12.23"
+# Dependencies only: the command is the interpreter itself, so nothing is built.
+package = false
 
 # The module each dependency is imported as; setup probes these through afk-python.
 [tool.afk-runtime]

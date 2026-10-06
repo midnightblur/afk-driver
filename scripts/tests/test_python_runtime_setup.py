@@ -23,21 +23,23 @@ class Machine:
     """Answers each command the way a healthy uv and launcher would, and records it."""
 
     def __init__(self, paths: dict, *, uv_version: str | None = None, fail: str | None = None,
-                 reported: str | None = None):
+                 said: str = "error: simulated failure", reported: str | None = None):
         self.paths, self.calls = paths, []
-        self.uv_version, self.fail = uv_version, fail
-        self.reported = reported or f"{PINS['python']} {paths['launcher']}"
+        self.uv_version, self.fail, self.said = uv_version, fail, said
+        self.reported = reported or "\t".join([PINS["python"], str(paths["launcher"]), str(paths["env"])])
 
     def __call__(self, argv, env):
         self.calls.append((argv, dict(env)))
         line = argv if isinstance(argv, str) else " ".join(map(str, argv))
         if self.fail and self.fail in line:
-            return 1, "error: simulated failure"
+            return 1, self.said
         if line.endswith("--version") and str(self.paths["uv"]) in line:
             return (0, f"uv {self.uv_version} (abc)") if self.uv_version else (127, "not found")
         if " sync " in line:
-            self.paths["script"].parent.mkdir(parents=True, exist_ok=True)
-            self.paths["script"].write_text("launcher", encoding="utf-8")
+            self.paths["interpreter"].parent.mkdir(parents=True, exist_ok=True)
+            self.paths["interpreter"].write_text("interpreter", encoding="utf-8")
+            for windows in (True, False):
+                pr.site_packages(self.paths, PINS["python"], windows).mkdir(parents=True, exist_ok=True)
         if "afk-python -c" in line:
             return 0, self.reported
         return 0, ""
@@ -60,13 +62,13 @@ def machine_env(tmp_path: Path) -> dict:
 
 def test_plan_names_the_pinned_steps_and_changes_nothing(tmp_path):
     env = dict(os.environ, LOCALAPPDATA=str(tmp_path / "local"), HOME=str(tmp_path / "home"),
-               XDG_DATA_HOME=str(tmp_path / "data"), XDG_BIN_HOME=str(tmp_path / "bin"))
+               XDG_DATA_HOME=str(tmp_path / "data"))
     done = subprocess.run([sys.executable, str(SCRIPT), "plan"], env=env, capture_output=True,
                           text=True, timeout=60)
     assert done.returncode == 0, done.stderr
     assert f"/download/{PINS['uv']}/uv-installer." in done.stdout
     assert f"python install {PINS['python']} --no-bin" in done.stdout
-    assert "sync --project" in done.stdout and "--frozen --no-editable --compile-bytecode" in done.stdout
+    assert "sync --project" in done.stdout and "--frozen --no-build --compile-bytecode" in done.stdout
     assert "--extra test" not in done.stdout
     assert list(tmp_path.iterdir()) == []
     with_test = subprocess.run([sys.executable, str(SCRIPT), "plan", "--test"], env=env,
@@ -80,13 +82,15 @@ def test_layout_keeps_everything_under_one_private_home(tmp_path, windows):
     paths = pr.layout(env, windows)
     if windows:
         assert paths["env"] == tmp_path / "local" / "afk" / "python"
-        assert paths["launcher"] == tmp_path / "local" / "afk" / "bin" / "afk-python.exe"
-        assert paths["script"] == paths["env"] / "Scripts" / "afk-python.exe"
+        assert paths["launcher"] == paths["env"] / "afk-bin" / "afk-python.exe"
+        assert paths["interpreter"] == paths["env"] / "Scripts" / "python.exe"
     else:
         assert paths["env"] == tmp_path / "home" / ".local" / "share" / "afk" / "python"
-        assert paths["launcher"] == tmp_path / "home" / ".local" / "bin" / "afk-python"
-        xdg = pr.layout(dict(env, XDG_DATA_HOME=str(tmp_path / "d"), XDG_BIN_HOME=str(tmp_path / "b")), False)
-        assert xdg["env"] == tmp_path / "d" / "afk" / "python" and xdg["bin"] == tmp_path / "b"
+        assert paths["launcher"] == paths["env"] / "afk-bin" / "afk-python"
+        xdg = pr.layout(dict(env, XDG_DATA_HOME=str(tmp_path / "d")), False)
+        assert xdg["env"] == tmp_path / "d" / "afk" / "python"
+    # The entry finds pyvenv.cfg one level up, which makes sys.prefix the environment.
+    assert paths["bin"].parent == paths["env"] and paths["launcher"].parent == paths["bin"]
 
 
 def test_install_runs_the_transaction_in_order_writes_the_stamp_and_probes(tmp_path):
@@ -106,7 +110,9 @@ def test_install_runs_the_transaction_in_order_writes_the_stamp_and_probes(tmp_p
     assert sync_env["UV_PYTHON_INSTALL_DIR"] == str(paths["pythons"])
     assert sync_env["UV_TOOL_BIN_DIR"] == str(paths["bin"])
     assert "VIRTUAL_ENV" not in sync_env
-    assert paths["launcher"].read_text(encoding="utf-8") == "launcher"
+    assert paths["launcher"].read_text(encoding="utf-8") == "interpreter"
+    pth = pr.site_packages(paths, PINS["python"], True) / pr.PTH
+    assert pth.read_bytes() == b'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
     stamp = pr.read_stamp(paths)
     assert stamp == {"python": PINS["python"], "uv": PINS["uv"], "lock": PINS["lock"],
                      "extras": "", "launcher": str(paths["launcher"])}
@@ -133,6 +139,18 @@ def test_a_bin_directory_already_on_the_new_terminal_path_is_not_added_again(tmp
     assert pr.install(env, windows, False, machine, out) == 0, out.getvalue()
     assert "ok path already set" in out.getvalue()
     assert not any("update-shell" in l for l in machine.lines())
+
+
+def test_a_platform_without_wheels_fails_the_sync_with_a_plain_reason(tmp_path):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    said = ("error: Distribution `cryptography==50.0.2 @ registry+https://pypi.org/simple` can't be "
+            "installed because it is marked as `--no-build` but has no binary distribution")
+    machine, out = Machine(paths, fail=" sync ", said=said), io.StringIO()
+    assert pr.install(env, True, False, machine, out) == 1
+    assert "fail environment: error: Distribution `cryptography==50.0.2" in out.getvalue()
+    assert "afk-python is not supported here yet" in out.getvalue()
+    assert any(" sync " in l and "--no-build" in l for l in machine.lines())
 
 
 def test_a_failing_step_stops_the_transaction_without_a_stamp(tmp_path):
@@ -182,11 +200,15 @@ def test_check_passes_a_healthy_runtime_from_every_shell(tmp_path):
 @pytest.mark.parametrize("override, reported, expected", [
     ({"lock": "0" * 64}, None, "fail lock"),
     ({"python": "3.13.0"}, None, "fail stamp: want Python"),
-    ({}, "3.12.1 /x/afk-python", "runs Python 3.12.1"),
-    ({}, f"{PINS['python']} -", "did not export AFK_PYTHON"),
+    ({}, "3.12.1\t/x/afk-python\t{env}", "runs Python 3.12.1"),
+    ({}, f"{PINS['python']}\t/x/afk-python\t/usr", "want the environment"),
+    ({}, f"{PINS['python']}\t-\t{{env}}", "afk_python.pth is missing"),
+    ({}, f"{PINS['python']}\t/old/bin/afk-python\t{{env}}", "resolves to /old/bin/afk-python"),
+    ({}, "Python 3.14.8", "fail sh: Python 3.14.8"),
 ])
 def test_check_names_each_kind_of_drift(tmp_path, override, reported, expected):
     env, paths = stamped(tmp_path, **override)
+    reported = reported and reported.replace("{env}", str(paths["env"]))
     machine, out = Machine(paths, reported=reported), io.StringIO()
     assert pr.check(env, False, False, machine, out) == 1
     assert expected in out.getvalue()

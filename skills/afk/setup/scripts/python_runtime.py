@@ -13,9 +13,15 @@ already has it keeps it.
 Layout, under `%LOCALAPPDATA%\\afk` on Windows or
 `${XDG_DATA_HOME:-~/.local/share}/afk` elsewhere: `uv/` (the pinned uv),
 `pythons/` (the managed CPython), `cache/`, and `python/` (the environment,
-with its `AFK-RUNTIME` stamp). The command goes in `%LOCALAPPDATA%\\afk\\bin`
-on Windows or `${XDG_BIN_HOME:-~/.local/bin}` elsewhere, and that directory is
-added to the user PATH.
+with its `AFK-RUNTIME` stamp). The command is the interpreter itself:
+`python/afk-bin/afk-python` is a symlink to the managed CPython (a copy of the
+environment's `python.exe` on Windows), and it finds `python/pyvenv.cfg` one
+level up, so `sys.prefix` is the environment. `afk-bin` holds nothing else and
+is the one directory added to the user PATH. `afk_python.pth` in the
+environment sets `AFK_PYTHON` to `sys.executable`; `-S` skips it.
+
+Packages install from wheels only (`--no-build`): a platform the lock has no
+wheel for fails the sync with the package's name, never a source build.
 
 `check` resolves `afk-python` through the PATH a new terminal would get, from
 every shell the platform has, and prints one `ok <probe>` or
@@ -40,6 +46,9 @@ RUNTIME = PLUGIN_ROOT / "runtime"
 INSTALLER = "https://releases.astral.sh/github/uv/releases/download/{version}/uv-installer.{ext}"
 STAMP = "AFK-RUNTIME"
 COMMAND = "afk-python"
+PTH = "afk_python.pth"
+PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
+NO_WHEEL = "marked as `--no-build` but has no binary distribution"
 
 Runner = Callable[[object, Mapping[str, str]], "tuple[int, str]"]
 
@@ -88,18 +97,23 @@ def layout(env: Mapping[str, str], windows: bool) -> dict:
     home_dir = env.get("HOME") or env.get("USERPROFILE") or str(Path.home())
     if windows:
         base = Path(env["LOCALAPPDATA"]) / "afk"
-        bin_dir = base / "bin"
     else:
         base = Path(env.get("XDG_DATA_HOME") or Path(home_dir, ".local", "share")) / "afk"
-        bin_dir = Path(env.get("XDG_BIN_HOME") or Path(home_dir, ".local", "bin"))
     env_dir = base / "python"
     exe = ".exe" if windows else ""
+    bin_dir = env_dir / "afk-bin"
     return {
         "base": base, "uv": base / "uv" / f"uv{exe}", "pythons": base / "pythons",
         "cache": base / "cache", "env": env_dir, "stamp": env_dir / STAMP,
-        "script": env_dir / ("Scripts" if windows else "bin") / f"{COMMAND}{exe}",
+        "interpreter": env_dir / ("Scripts" if windows else "bin") / f"python{exe}",
         "bin": bin_dir, "launcher": bin_dir / f"{COMMAND}{exe}",
     }
+
+
+def site_packages(paths: dict, python: str, windows: bool) -> Path:
+    if windows:
+        return paths["env"] / "Lib" / "site-packages"
+    return paths["env"] / "lib" / ("python" + ".".join(python.split(".")[:2])) / "site-packages"
 
 
 def uv_env(env: Mapping[str, str], paths: dict) -> dict:
@@ -131,20 +145,25 @@ def steps(p: dict, paths: dict, windows: bool, test: bool) -> list[tuple[str, li
         url = INSTALLER.format(version=p["uv"], ext="sh")
         get_uv = ["sh", "-c", 'curl --proto =https --tlsv1.2 -LsSf "$1" | sh', "sh", url]
     py_install = [uv, "python", "install", p["python"], "--no-bin"] + (["--no-registry"] if windows else [])
-    sync = [uv, "sync", "--project", str(RUNTIME), "--frozen", "--no-editable", "--compile-bytecode",
+    sync = [uv, "sync", "--project", str(RUNTIME), "--frozen", "--no-build", "--compile-bytecode",
             "--managed-python", "--python", p["python"]] + (["--extra", "test"] if test else [])
     return [
         ("uv", get_uv),
         ("python", py_install),
         ("environment", sync),
-        ("launcher", ["<copy>", str(paths["script"]), str(paths["launcher"])]),
+        ("launcher", ["<entry>", str(paths["interpreter"]), str(paths["launcher"]), PTH]),
         ("path", [uv, "tool", "update-shell"]),
     ]
 
 
-def place_launcher(source: Path, target: Path, windows: bool) -> None:
+def place_entry(paths: dict, python: str, windows: bool) -> None:
+    """Put `afk-python` in afk-bin and the AFK_PYTHON line in site-packages; a sync may rebuild both."""
+    (site_packages(paths, python, windows) / PTH).write_text(PTH_LINE, encoding="utf-8", newline="\n")
+    target = paths["launcher"]
     target.parent.mkdir(parents=True, exist_ok=True)
     if windows:
+        # The venv's python.exe is a launcher that reads pyvenv.cfg beside it or one level up.
+        source = paths["interpreter"]
         # A running .exe cannot be overwritten, but it can be renamed away.
         staged = target.with_name(target.name + ".new")
         shutil.copy2(source, staged)
@@ -159,7 +178,8 @@ def place_launcher(source: Path, target: Path, windows: bool) -> None:
         return
     if target.is_symlink() or target.exists():
         target.unlink()
-    target.symlink_to(source)
+    # The base interpreter itself: CPython finds pyvenv.cfg from the unresolved link's location.
+    target.symlink_to(os.path.realpath(paths["interpreter"]))
 
 
 def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
@@ -181,7 +201,7 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
             continue
         elif name == "launcher":
             try:
-                place_launcher(paths["script"], paths["launcher"], windows)
+                place_entry(paths, p["python"], windows)
                 code, said = 0, ""
             except OSError as exc:
                 code, said = 1, str(exc)
@@ -189,6 +209,9 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
             code, said = runner(argv, child_env)
         if code != 0:
             print(f"fail {name}: {said.splitlines()[-1] if said else f'exit {code}'}", file=out)
+            if NO_WHEEL in said:
+                print("This platform has no prebuilt wheel for that package, and setup does not "
+                      "build from source. afk-python is not supported here yet.", file=out)
             return 1
         print(f"ok {name}", file=out)
     with open(paths["stamp"], "w", encoding="utf-8", newline="\n") as stamp:
@@ -255,10 +278,19 @@ def shells(env: Mapping[str, str], windows: bool) -> list[tuple[str, Callable[[s
 
 
 def probe_code(modules: list[str]) -> str:
-    # Single quotes only: every shell above passes them through a double-quoted line.
-    return ("import os, platform; "
+    # Single quotes, no shell metacharacters: every shell above gets it inside a double-quoted line.
+    return ("import os, platform, sys; "
             + "".join(f"import {m}; " for m in modules)
-            + "print(platform.python_version(), os.environ.get('AFK_PYTHON', '-'))")
+            + "print(platform.python_version(), os.environ.get('AFK_PYTHON', '-'), sys.prefix, sep=chr(9))")
+
+
+def same_dir(a: str, b: Path) -> bool:
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+
+
+def same_file(a: str, b: Path) -> bool:
+    # Not realpath: on POSIX the entry is a symlink, and its own path is what PATH found.
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
 
 def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
@@ -283,13 +315,17 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
     quoted = '"' + probe_code(p["imports"] + (p["test_imports"] if test else [])) + '"'
     for name, build in shells(env, windows):
         status, said = runner(build(f"{COMMAND} -c {quoted}"), probe_env)
-        seen = said.split() if status == 0 else []
-        if len(seen) < 2:
+        seen = said.splitlines()[-1].split("\t") if status == 0 and said else []
+        if len(seen) != 3:
             verdict(name, said.splitlines()[-1] if said else f"exit {status}")
         elif seen[0] != p["python"]:
             verdict(name, f"afk-python runs Python {seen[0]}, want {p['python']}")
+        elif not same_dir(seen[2], paths["env"]):
+            verdict(name, f"afk-python runs in {seen[2]}, want the environment {paths['env']}")
         elif seen[1] == "-":
-            verdict(name, "afk-python did not export AFK_PYTHON")
+            verdict(name, f"AFK_PYTHON is not set: {PTH} is missing from the environment")
+        elif not same_file(seen[1], paths["launcher"]):
+            verdict(name, f"afk-python resolves to {seen[1]}, want {paths['launcher']}")
         else:
             verdict(name, None)
     return 1 if failures else 0
