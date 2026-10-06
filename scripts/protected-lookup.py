@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Is a branch protected? Asked live from the forge, with a local fallback.
+"""Is a branch protected? Asked from the forge, cached briefly, with a local fallback.
 
     python protected-lookup.py --branch <name> [--checkout <dir>]
       -> {"protected": bool, "source": "github"|"gitlab"|"fallback"[, "reason": "..."]}
