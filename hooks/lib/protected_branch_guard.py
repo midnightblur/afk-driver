@@ -446,6 +446,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         meter_pre(kind, here, judge)
         return 0
     state["identified"] = True
+    state["targets"] = list(resources) + [folder for folder, _, _ in syncs]
     cause, refused, where = None, None, ""
     grants = []
     for folder, remote, branch in syncs:
@@ -475,13 +476,18 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     else:
         action = f"use {tool or 'a tool'}" + (f" on {where}" if cause else "")
     if cause:
-        hint = hint_of(facts) if here is not None else OUTSIDE_HINT
-        own = here is not None and refused is not None and norm(here["root"]) == norm(refused["root"])
-        if facts.get("harness_class") == "H-2" and here is not None:
-            if own:
-                hint = h2_hint(here, envelope, facts, hint)
-            else:
-                hint = f"write inside this session's worktree {here['root']}, not outside it."
+        hint = OUTSIDE_HINT
+        try:  # a hint that cannot be built never changes the verdict
+            if here is not None:
+                hint = hint_of(facts)
+                if judge.verdict(here) is None:
+                    hint = f"write inside this session's worktree {here['root']}, not outside it."
+                elif facts.get("harness_class") == "H-2":
+                    hint = h2_hint(here, envelope, facts, hint)
+        except Exception:
+            pass
+        if kind == "shell" and refused and refused["kind"] == "main" and re.search(r"\bpull\b", command_of(tool_input)):
+            hint = "`git pull --ff-only` on a clean base branch is allowed here; otherwise " + hint
         return deny(refusal(action, cause, hint, judge.notice_once()))
     if grants:
         import main_sync
@@ -515,7 +521,7 @@ def main() -> int:
             return 0  # no mutation was identified, so nothing is owed a refusal
         # Fail closed inside a git work tree, open outside one.
         try:
-            owed = inside_work_tree_by_files(cwd)
+            owed = any(inside_work_tree_by_files(Path(t)) for t in state.get("targets") or [cwd])
         except Exception:
             owed = True
         if not owed:

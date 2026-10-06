@@ -67,8 +67,8 @@ def test_git_options_before_the_verb_are_skipped():
     assert res("git -C sub commit -m x") == at("sub")
     assert res("git -C sub -C deeper add .") == at("sub/deeper")
     assert res("git -C C:/elsewhere add .") == [Path("C:/elsewhere")] if os.name == "nt" else True
-    assert res("git --git-dir=g --work-tree=w add .") == at("w")
-    assert res("git --work-tree w add .") == at("w")
+    assert res("git --git-dir=g --work-tree=w add .") == at("g", "w")
+    assert res("git --work-tree w add .") == at(".", "w")
 
 
 def test_cd_before_a_verb_moves_the_resource():
@@ -211,3 +211,84 @@ def test_repository_state_reads_and_housekeeping_pass(command):
 
 def test_symbolic_ref_delete_is_a_mutation():
     assert res("git symbolic-ref -d HEAD") == at(".")
+
+
+CONT_BASH = "touch \\\nchanged.txt"
+CONT_PS = "Set-Content `\n -Path guarded.txt -Value changed"
+
+
+def test_s1_002_line_continuations_join_before_splitting():
+    assert res(CONT_BASH) == at("changed.txt")
+    assert res(CONT_PS) == at("guarded.txt")
+    assert res("git \\\n  commit -m x") == at(".")
+
+
+def test_s1_001_a_group_and_a_pipeline_do_not_leak_their_folder():
+    assert res("(cd sub && touch safe); touch guarded") == at("sub/safe", "guarded")
+    assert res("cd sub | touch guarded") == at("guarded")
+    assert res("cd sub && touch f") == at("sub/f")
+    assert res("(cd a; (cd b; touch x); touch y); touch z") == at("a/b/x", "a/y", "z")
+
+
+def test_s1_003_work_tree_and_git_dir_name_both_resources():
+    assert res("git --git-dir=g --work-tree=w add .") == at("g", "w")
+    assert res("git --work-tree w add .") == at(".", "w")
+    assert res("git --git-dir g commit -m x") == at("g")
+
+
+def test_s1_004_tee_object_targets():
+    assert res("Get-Content x | Tee-Object -FilePath out.txt") == at("out.txt")
+    assert res("Get-Content x | Tee-Object out.txt") == at("out.txt")
+    assert res("Tee-Object -LiteralPath 'a b'") == at("a b")
+    assert res("Get-Content x | Tee-Object -Variable v") == []
+
+
+def test_s1_006_an_empty_git_c_keeps_the_folder():
+    assert res('git -C "" commit -m x') == at(".")
+    assert res('git -C sub -C "" add .') == at("sub")
+
+
+def test_s1_007_one_argument_ln_links_into_the_folder():
+    assert res("ln /elsewhere/target") == at("target")
+    assert res("ln -s ../x/target") == at("target")
+    assert res("ln $x") == []
+
+
+def test_s1_008_wrapper_long_options_and_env_chdir():
+    assert res("sudo --user root git commit -m x") == at(".")
+    assert res("sudo --group wheel --chdir /tmp touch f") == at("f")
+    assert res("env -C sub git add .") == at("sub")
+    assert res("env --chdir=sub touch f") == at("sub/f")
+    assert res("env -u HOME git commit -m x") == at(".")
+    assert res("env -C sub true; touch f") == at("f")
+
+
+def test_s1_009_what_if_is_not_a_mutation():
+    assert res("Remove-Item tracked.txt -WhatIf") == []
+    assert res("Set-Content -Path f -Value x -whatif") == []
+    assert res("Remove-Item tracked.txt -WhatIf:$false") == at("tracked.txt")
+    assert res("Remove-Item tracked.txt") == at("tracked.txt")
+
+
+@pytest.mark.parametrize("command", [
+    "git diff --output=$env:TEMP\\copy.diff", "git diff --output=$TMP/c", "git log --output=$(mktemp)",
+    "git diff --output=*.diff", "git diff --output $TMP/c",
+])
+def test_s1_010_attached_option_values_keep_opacity(command):
+    assert res(command) == []
+
+
+@pytest.mark.parametrize("command", [
+    "git pull --ff-only -q", "git pull --ff-only --quiet", "git pull --ff-only --prune",
+    "git pull -v --ff-only", "git pull --ff-only --no-progress origin main",
+])
+def test_o2_1_output_and_prune_flags_do_not_stop_a_sync(command):
+    syncs: list = []
+    assert sm.resources(command, CWD, syncs) == []
+    assert len(syncs) == 1
+
+
+def test_o2_1_any_other_pull_option_is_a_plain_mutation():
+    syncs: list = []
+    assert sm.resources("git pull --ff-only --rebase", CWD, syncs) == at(".")
+    assert syncs == []

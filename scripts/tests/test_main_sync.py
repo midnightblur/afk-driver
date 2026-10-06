@@ -263,3 +263,27 @@ def test_a_sync_is_not_metered(sync):
     """The pull legitimately changes tracked files, so no pre-snapshot is taken for it."""
     assert not denied(verdict(sync["main"], "git pull --ff-only"))
     assert list(record_dir(sync["main"]).glob("*.pre")) == []
+
+
+@pytest.mark.parametrize("linked", [False, True])
+def test_the_committed_hook_finds_the_sync_folder_from_git_dir_without_a_subprocess(tmp_path, linked):
+    """O2-2: `$GIT_DIR` (or its `commondir`) names the record folder; no `git rev-parse` runs."""
+    common = tmp_path / "common"
+    (common / "afk-session").mkdir(parents=True)
+    (common / "afk-session" / "sync-s1.json").write_text("{}", encoding="utf-8")
+    gitdir = common / "worktrees" / "w" if linked else common
+    gitdir.mkdir(parents=True, exist_ok=True)
+    if linked:
+        (gitdir / "commondir").write_text("../..\n", encoding="utf-8")
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    marker = tmp_path / "ran"
+    (shim / "python").write_text(f'#!/bin/sh\necho ran > "{marker.as_posix()}"\ncat >/dev/null\n', encoding="utf-8")
+    (shim / "git").write_text('#!/bin/sh\nexit 9\n', encoding="utf-8")
+    for name in ("python", "git"):
+        os.chmod(shim / name, 0o755)
+    env = {**human(), "AFK_PROVIDER": "claude", "GIT_DIR": gitdir.as_posix(),
+           "PATH": f"{shim.as_posix()}{os.pathsep}{os.environ['PATH']}"}
+    done = subprocess.run([BASH, str(PLUGIN_ROOT / "hooks" / "branch-name-gate.sh"), "committed"], input="x\n",
+                          text=True, capture_output=True, cwd=tmp_path, env=env, timeout=60)
+    assert done.returncode == 0 and marker.exists(), done.stderr

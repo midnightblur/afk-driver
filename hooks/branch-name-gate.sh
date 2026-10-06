@@ -40,7 +40,14 @@ fi
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # "committed" and "aborted" cannot veto; they only retire a main-checkout sync authorization.
 if [ "${1:-}" = committed ] || [ "${1:-}" = aborted ]; then
-  common=$(git rev-parse --git-common-dir 2>/dev/null)
+  # git exports GIT_DIR to hooks; a linked worktree's commondir names the shared folder (no subprocess).
+  common=${GIT_DIR:-}
+  if [ -z "$common" ]; then
+    common=$(git rev-parse --git-common-dir 2>/dev/null)
+  elif [ -f "$common/commondir" ]; then
+    link=$(head -n 1 "$common/commondir" | tr -d '\r')
+    case "$link" in /* | [A-Za-z]:*) common=$link ;; *) common="$common/$link" ;; esac
+  fi
   if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1; then
     py=python; command -v python >/dev/null 2>&1 || py=python3
     "$py" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true

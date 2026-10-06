@@ -11,20 +11,24 @@ from pathlib import Path
 
 NO_TARGET = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "nul", "$null"}
 WRAPPERS = {"command", "exec", "nohup", "time", "env", "sudo", "builtin"}
-SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-u"}
+SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "--group", "--host", "--prompt",
+              "--chdir", "--role", "--type", "--close-from"}
+ENV_VALUE = {"-u", "--unset", "-S", "--split-string"}
+ENV_CHDIR = {"-C", "--chdir"}
 CD = {"cd", "chdir", "set-location", "sl", "pushd"}
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 GIT_ALWAYS = {"add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull", "rebase", "reset",
               "restore", "revert", "rm", "switch", "update-ref", "update-index"}
 GIT_BRANCH_EDIT = set("dDmMfcC")
+PULL_QUIET = {"-q", "--quiet", "-v", "--verbose", "--progress", "--no-progress", "-p", "--prune", "--no-prune"}
 TAG_READ = {"-l", "--list", "-v", "--verify", "-n", "--contains", "--no-contains", "--merged", "--no-merged",
             "--points-at", "--sort", "--column"}
 PS_TARGET = {"path", "literalpath", "filepath", "destination"}
-PS_VALUE = {"value", "encoding", "itemtype", "name", "newname", "filter", "include", "exclude", "width",
+PS_VALUE = {"variable", "value", "encoding", "itemtype", "name", "newname", "filter", "include", "exclude", "width",
             "stream", "credential", "erroraction", "errorvariable", "pipelinevariable"}
 WRITE_ALL = {"rm", "rmdir", "unlink", "del", "erase", "rd", "remove-item", "ri", "touch", "mkdir", "md", "tee"}
-WRITE_FIRST = {"set-content", "sc", "add-content", "ac", "out-file", "clear-content", "clc", "new-item", "ni",
+WRITE_FIRST = {"tee-object", "set-content", "sc", "add-content", "ac", "out-file", "clear-content", "clc", "new-item", "ni",
                "rename-item", "rni", "ren"}
 COPY = {"cp", "copy", "copy-item", "cpi"}
 MOVE = {"mv", "move", "move-item", "mi"}
@@ -44,6 +48,8 @@ class Segment:
     def __init__(self):
         self.words: list[Word] = []
         self.redirects: list[Word] = []
+        self.piped = False  # part of a pipeline: runs in a subshell
+        self.mark = ""  # "open" / "close" for a `(` / `)` boundary
 
 
 def read_word(text: str, i: int) -> tuple[Word | None, int]:
@@ -86,6 +92,7 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
 
 
 def segments(text: str) -> list[Segment]:
+    text = re.sub(r"(?:\\|`)\r?\n", "", text)  # line continuations, Bash and PowerShell
     found: list[Segment] = []
     current = Segment()
     heredocs: list[str] = []
@@ -114,9 +121,18 @@ def segments(text: str) -> list[Segment]:
                 line, i = (text[i:], n + 1) if end < 0 else (text[i:end], end + 1)
                 if line.strip() == heredocs[0]:
                     heredocs.pop(0)
-        elif c in ";|()":
+        elif c in "()":
             close()
-            i += 2 if c == "|" and text[i + 1:i + 2] == "|" else 1
+            found.append(Segment())
+            found[-1].mark = "open" if c == "(" else "close"
+            i += 1
+        elif c in ";|":
+            double = c == "|" and text[i + 1:i + 2] == "|"
+            piped = c == "|" and not double
+            current.piped = current.piped or piped
+            close()
+            current.piped = piped
+            i += 2 if double else 1
         elif c == "&" and text[i + 1:i + 2] == ">":
             i += 2 + (text[i + 2:i + 3] == ">")
             skip_blank()
@@ -183,8 +199,11 @@ def program_of(word: Word) -> str:
     return name[:-4] if name.endswith(".exe") else name
 
 
-def strip_prefixes(words: list[Word]) -> list[Word]:
-    """Drop `VAR=1`, `env`, `sudo`, `time` and similar wrappers; [] when the program is opaque."""
+def strip_prefixes(words: list[Word], effects: dict | None = None) -> list[Word]:
+    """Drop `VAR=1`, `env`, `sudo`, `time` and similar wrappers; [] when the program is opaque.
+
+    `effects["chdir"]` receives the folder word of `env -C`.
+    """
     words = list(words)
     while words:
         head = words[0]
@@ -198,6 +217,15 @@ def strip_prefixes(words: list[Word]) -> list[Word]:
             while words and not words[0].opaque and (words[0].text.startswith("-") or ASSIGN.match(words[0].text)):
                 option = words.pop(0).text
                 if wrapper == "sudo" and option in SUDO_VALUE and words:
+                    words.pop(0)
+                if wrapper == "env" and option in ENV_VALUE and words:
+                    words.pop(0)
+                if wrapper == "env" and effects is not None:
+                    if option in ENV_CHDIR and words:
+                        effects["chdir"] = words.pop(0)
+                    elif option.startswith("--chdir="):
+                        effects["chdir"] = Word(option[8:], False)
+                elif wrapper == "env" and option in ENV_CHDIR and words:
                     words.pop(0)
                 if wrapper == "command" and option in ("-v", "-V"):
                     return []
@@ -281,7 +309,7 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
             value = words[i + 1]
             i += 2
             if text == "-C":
-                cwd = resolve(value, cwd)
+                cwd = cwd if not value.opaque and not value.text else resolve(value, cwd)
             elif text == "--git-dir":
                 gitdir = value
             elif text == "--work-tree":
@@ -299,16 +327,17 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
     verb = words[i].text.lower()
     args = [w.text for w in words[i + 1:]]
     found: list[Path] = []
-    folder = resolve(workdir, cwd) if workdir else resolve(gitdir, cwd) if gitdir else cwd
+    repo = resolve(gitdir, cwd) if gitdir else cwd
+    folder = resolve(workdir, cwd) if workdir else repo
     for pos, arg in enumerate(args):
         if arg.startswith("--output="):
-            found.extend(filter(None, [resolve(Word(arg[9:], False), cwd)]))
+            found.extend(filter(None, [resolve(Word(arg[9:], words[i + 1 + pos].opaque), cwd)]))
         elif arg == "--output" and pos + 1 < len(args):
             found.extend(filter(None, [resolve(words[i + 2 + pos], cwd)]))
     if verb == "pull" and syncs is not None and folder is not None and ff_pull(args) is not None:
         syncs.append((folder, *ff_pull(args)))
-    elif git_mutates(verb, args) and folder is not None:
-        found.insert(0, folder)
+    elif git_mutates(verb, args) and (folder is not None or repo is not None):
+        found = [path for path in (repo, folder) if path is not None] + found
     return found
 
 
@@ -316,7 +345,7 @@ def ff_pull(args: list[str]) -> tuple[str | None, str | None] | None:
     """`(remote, branch)` of `pull --ff-only [<remote> <branch>]`, else None: any other option is not a sync."""
     if args.count("--ff-only") != 1:
         return None
-    rest = [a for a in args if a != "--ff-only"]
+    rest = [a for a in args if a != "--ff-only" and a not in PULL_QUIET]
     if any(a.startswith("-") for a in rest) or len(rest) not in (0, 2):
         return None
     return (rest[0], rest[1]) if rest else (None, None)
@@ -372,6 +401,8 @@ def state_mutates(verb: str, args: list[str], shorts: list[str]) -> bool:
 
 def writer_targets(prog: str, words: list[Word]) -> list[Word]:
     rest = words[1:]
+    if any(w.text.lower() in ("-whatif", "-whatif:$true") for w in rest):
+        return []
     if prog in ("sed", "perl"):
         return inplace_files(prog, rest)
     key = "cp" if prog in COPY else "mv" if prog in MOVE else "ln" if prog == "ln" else prog
@@ -386,7 +417,12 @@ def writer_targets(prog: str, words: list[Word]) -> list[Word]:
         every = positional + targets + destination
         return every if len(every) > 1 or destination else []
     if prog == "ln":
-        return destination or (positional[-1:] if len(positional) > 1 else [])
+        if destination or len(positional) > 1:
+            return destination or positional[-1:]
+        one = positional[0] if positional else None
+        if not one or not one.text.strip("/\\"):
+            return []
+        return [Word(re.split(r"[\\/]", one.text.rstrip("/\\"))[-1], one.opaque)]
     return []
 
 
@@ -397,25 +433,36 @@ def resources(command: str, cwd: Path, syncs: list | None = None) -> list[Path]:
     """
     found: list[Path] = []
     here: Path | None = cwd
+    saved: list[Path | None] = []
     for segment in segments(command):
+        if segment.mark:
+            if segment.mark == "open":
+                saved.append(here)
+            elif saved:
+                here = saved.pop()
+            continue
         for target in segment.redirects:
             path = resolve(target, here)
             if path is not None:
                 found.append(path)
-        words = strip_prefixes(segment.words)
+        effects: dict = {}
+        words = strip_prefixes(segment.words, effects)
         if not words:
             continue
         prog = program_of(words[0])
+        spot = resolve(effects["chdir"], here) if effects.get("chdir") else here
         if prog in CD:
             _, targets, _ = parse(words[1:])
             positional = parse(words[1:])[0]
             chosen = (targets or positional[:1])
-            here = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+            moved = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+            if not segment.piped:
+                here = moved
         elif prog == "git":
-            found.extend(git_resources(words, here, syncs))
+            found.extend(git_resources(words, spot, syncs))
         else:
             for word in writer_targets(prog, words):
-                path = resolve(word, here)
+                path = resolve(word, spot)
                 if path is not None:
                     found.append(path)
     unique: list[Path] = []

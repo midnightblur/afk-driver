@@ -671,3 +671,73 @@ def test_r12_5_sessions_without_an_id_but_with_different_owners_each_get_the_not
     other = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": ""}, AFK_WORKTREE_OWNER="222:2")
     assert "additionalContext" in first.stdout and again.stdout.strip() == ""
     assert "additionalContext" in other.stdout
+
+
+def deny_of(done) -> str:
+    return json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("command", [
+    "(cd {topic} && touch safe); touch changed.txt",
+    "cd {topic} | touch changed.txt",
+    "touch \\\nchanged.txt",
+    "Set-Content `\n -Path changed.txt -Value x",
+    "git -C \"\" commit --allow-empty -m x",
+    "ln {topic}/a",
+    "sudo --user root git commit --allow-empty -m x",
+    "env -C . git add .",
+    "git --work-tree={tmp}/elsewhere reset --hard",
+    "Get-Content x | Tee-Object -FilePath changed.txt",
+])
+def test_s1_judge_refuses_in_the_main_checkout(repo, command):
+    text = command.format(topic=repo["topic"], tmp=repo["tmp"])
+    done = run("claude", repo["main"], "Bash", {"command": text})
+    assert done.returncode == 2, text
+
+
+def test_s1_judge_refuses_a_git_dir_with_an_outside_work_tree_from_outside(repo):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    text = f"git --git-dir={repo['main'] / '.git'} --work-tree={outside} reset --hard"
+    assert run("claude", outside, "Bash", {"command": text}).returncode == 2
+    text = f"Get-Content x | Tee-Object -FilePath {repo['main'] / 'out.txt'}"
+    assert run("claude", outside, "Bash", {"command": text}).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "Remove-Item {main}/tracked.txt -WhatIf",
+    "git diff --output=$env:TEMP\\copy.diff",
+    "git diff --output=$TMP/copy.diff",
+    "git status; (cd {topic} && touch ok)",
+])
+def test_s1_judge_allows_previews_and_opaque_values(repo, command):
+    text = command.format(main=repo["main"], topic=repo["topic"])
+    assert run("claude", repo["main"], "Bash", {"command": text}).returncode == 0, text
+
+
+def test_s1_005_a_fault_owes_a_refusal_for_every_identified_target(repo):
+    broken = repo["tmp"] / "broken"
+    broken.mkdir()
+    (broken / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n", encoding="utf-8")
+    outside = repo["tmp"] / "plain"
+    outside.mkdir()
+    done = run("claude", outside, "Bash", {"command": f"touch {broken / 'f'}"})
+    assert done.returncode == 2 and "could not compute a verdict" in done.stderr
+    done = run("claude", outside, "Bash", {"command": f"touch {outside / 'f'}"})
+    assert done.returncode == 0
+
+
+def test_s1_012_the_hint_follows_the_sessions_own_placement(repo):
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['protected']} && touch f"})
+    assert done.returncode == 2 and "write inside this session's worktree" not in deny_of(done)
+    done = run("claude", repo["topic"], "Bash", {"command": f"touch {repo['main'] / 'f'}"})
+    assert done.returncode == 2 and f"write inside this session's worktree {repo['topic']}" in deny_of(done)
+    done = run("claude", repo["protected"], "Bash", {"command": "touch f"})
+    assert done.returncode == 2 and "write inside this session's worktree" not in deny_of(done)
+
+
+def test_o2_1_a_refused_pull_names_the_allowed_form(repo):
+    done = run("claude", repo["main"], "Bash", {"command": "git pull origin main"})
+    assert done.returncode == 2 and "git pull --ff-only" in deny_of(done)
+    done = run("claude", repo["main"], "Bash", {"command": "git commit --allow-empty -m x"})
+    assert "git pull --ff-only" not in deny_of(done)
