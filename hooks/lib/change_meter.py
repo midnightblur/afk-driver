@@ -280,7 +280,8 @@ def recovery(held: dict) -> str:
                      else f"  rm -- {quote(root + chr(47) + path)}")
     if human:
         lines.append("These paths were already changed before the command, so an agent never touches them; a human "
-                     "copies the content they had before the command back (their index state is not restored):")
+                     "runs these lines in their own terminal; an agent never runs them. They copy the content the paths "
+                     "had before the command back (their index state is not restored):")
         base = Path(held.get("common") or "") / "afk-session" / "blobs"
         for path in human:
             name = ((held["paths"][path].get("f0") or {}).get("hash"))
@@ -335,8 +336,9 @@ def _git_reads(args: list[str]) -> bool:
     if any(a == "--output" or a.startswith("--output=") for a in rest):
         return False
     if verb == "branch":
-        return not plain and not ({"-d", "-D", "-m", "-M", "-c", "-C", "-f", "-u"} | sm.BRANCH_CONFIG) & {
-            a.split("=")[0] for a in rest}
+        clusters = [a for a in rest if a.startswith("-") and not a.startswith("--")]
+        return not plain and not sm.BRANCH_CONFIG & {a.split("=")[0] for a in rest} and not any(
+            set(a[1:]) & sm.GIT_BRANCH_EDIT for a in clusters)
     if verb == "remote":
         return not plain
     if verb == "worktree":

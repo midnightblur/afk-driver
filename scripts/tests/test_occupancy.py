@@ -294,3 +294,24 @@ def test_f5_005_a_busy_record_never_recommends_the_busy_worktree(repo, procs):
     reason = json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
     assert "retry in a moment; if it stays busy, move to a new worktree." in reason
     assert "write inside this session's worktree" not in reason
+
+
+def test_f7_002_a_held_session_cannot_copy_into_a_worktree_another_live_session_holds(repo, procs):
+    main, topic = repo["main"], repo["topic"]
+    mine = base.add_worktree(main, "mine", "mine-branch")
+    a, b = ident(procs()), ident(procs())
+    meter = PLUGIN_ROOT / "hooks" / "protected-branch-meter.py"
+    assert touch_in(topic, b, session="sB").returncode == 0
+    assert touch_in(mine, a, session="sA").returncode == 0
+    held_call = {"session_id": "sA", "cwd": str(main), "tool_name": "Bash", "tool_input": {"command": "make"}}
+    run("claude", main, "Bash", {"command": "make"}, {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    after = subprocess.run([sys.executable, str(meter)], input=json.dumps(dict(held_call, hook_event_name="PostToolUse")),
+                           text=True, capture_output=True, cwd=main, env=base.clean_env("claude", AFK_WORKTREE_OWNER=a))
+    assert "tracked.txt" in after.stdout
+    into_b = run("claude", main, "Bash", {"command": f"cp -- tracked.txt {(topic / 'saved.txt').as_posix()}"},
+                 {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    assert into_b.returncode == 2 and "in use by another live session" in into_b.stderr
+    into_mine = run("claude", main, "Bash", {"command": f"cp -- tracked.txt {(mine / 'saved.txt').as_posix()}"},
+                    {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    assert into_mine.returncode == 0, into_mine.stderr

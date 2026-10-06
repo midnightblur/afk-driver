@@ -477,6 +477,15 @@ def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "J
         pass
 
 
+def occupied_destination(judge: "Judge", command: str, cwd: Path) -> str | None:
+    """The refusal cause when a recovery command writes into a worktree another live session holds."""
+    for target in shell_mutations.resources(command, cwd):
+        cause = judge.occupant(placement(target))
+        if cause:
+            return cause
+    return None
+
+
 def outside_guard(judge: "Judge"):
     """A path no guarded checkout holds: outside git, or a linked worktree on an unprotected branch."""
     def check(path: Path) -> bool:
@@ -502,7 +511,10 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     except Exception:  # no verdict on a hold that cannot be read
         here, held = None, None
     if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held, outside_guard(judge)):
-        return 0  # the named recovery and inspection commands, even where they mutate
+        busy = occupied_destination(judge, command_of(tool_input), cwd)
+        if busy is None:
+            return 0  # the named recovery and inspection commands, even where they mutate
+        return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy, lambda: plain_hint(facts))
     if held:
         names = ", ".join(sorted(held["paths"]))
         cause = (f"this session changed {held['root']} through a form the guard could not refuse in advance "
@@ -541,7 +553,11 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
                 import change_meter
                 other = change_meter.active(refused, change_meter.session_key(judge))
                 if other and change_meter.allows(command_of(tool_input), cwd, other, outside_guard(judge)):
-                    return 0  # this session's named recovery of a checkout it holds, from any folder
+                    busy = occupied_destination(judge, command_of(tool_input), cwd)
+                    if busy is None:
+                        return 0  # this session's named recovery of a checkout it holds, from any folder
+                    return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy,
+                                  lambda: plain_hint(facts))
             except Exception:
                 pass
         if cause:

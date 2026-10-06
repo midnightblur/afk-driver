@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -330,9 +331,10 @@ def run_line(line: str, cwd: Path) -> None:
     import shlex
     words = shlex.split(line.strip())
     if words[0] == "cp":
-        import shutil
         shutil.copyfile(words[-2], words[-1])
     else:
+        if words[0] == "rm" and shutil.which("rm") is None:
+            pytest.skip("no rm on PATH to run the printed line")
         subprocess.run(words, cwd=cwd, check=True, capture_output=True)
 
 
@@ -544,3 +546,17 @@ def test_w1_a_quarantine_unseen_for_a_day_is_swept_with_the_blobs(repo):
     fresh.write_text(hold.read_text(encoding="utf-8"), encoding="utf-8")
     pre(main, "make again", session="s2")
     assert not hold.exists() and fresh.exists()
+
+
+@pytest.mark.parametrize("command", ["git branch -uorigin/main", "git branch -vu origin/main", "git branch -fd x"])
+def test_g7_2_a_short_cluster_with_an_edit_letter_is_not_a_read(repo, command):
+    assert not cm.read_only(command, repo["main"])
+
+
+def test_f7_001_the_copy_back_lines_say_a_human_runs_them_in_their_own_terminal(repo):
+    main = repo["main"]
+    (main / "other.txt").write_text("humans wip\n", encoding="utf-8")
+    pre(main, "make")
+    (main / "other.txt").write_text("agent-overwrite\n", encoding="utf-8")
+    text = context(post(main))
+    assert "a human runs these lines in their own terminal; an agent never runs them" in text
