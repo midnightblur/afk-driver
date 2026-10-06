@@ -315,3 +315,56 @@ def test_f7_002_a_held_session_cannot_copy_into_a_worktree_another_live_session_
     into_mine = run("claude", main, "Bash", {"command": f"cp -- tracked.txt {(mine / 'saved.txt').as_posix()}"},
                     {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
     assert into_mine.returncode == 0, into_mine.stderr
+
+
+def hold_main_as(repo, owner: str, session: str) -> None:
+    main = repo["main"]
+    meter = PLUGIN_ROOT / "hooks" / "protected-branch-meter.py"
+    run("claude", main, "Bash", {"command": "make"}, {"session_id": session}, AFK_WORKTREE_OWNER=owner)
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    payload = {"session_id": session, "cwd": str(main), "tool_name": "Bash", "tool_input": {"command": "make"},
+               "hook_event_name": "PostToolUse"}
+    done = subprocess.run([sys.executable, str(meter)], input=json.dumps(payload), text=True, capture_output=True,
+                          cwd=main, env=base.clean_env("claude", AFK_WORKTREE_OWNER=owner))
+    assert "tracked.txt" in done.stdout
+
+
+def record_exists(main: Path, name: str) -> bool:
+    return (main / ".git" / "afk-occupancy" / f"{name}.json").exists()
+
+
+def test_f8_002_a_refused_two_destination_write_claims_nothing(repo, procs):
+    main, topic = repo["main"], repo["topic"]
+    free = base.add_worktree(main, "free", "free-branch")
+    mine = base.add_worktree(main, "mine", "mine-branch")
+    a, b, c = ident(procs()), ident(procs()), ident(procs())
+    assert touch_in(topic, b, session="sB").returncode == 0
+    command = f"touch {(free / 'x.txt').as_posix()} {(topic / 'y.txt').as_posix()}"
+    done = run("claude", mine, "Bash", {"command": command}, {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    assert done.returncode == 2 and "in use by another live session" in done.stderr
+    assert not record_exists(main, "free")
+    assert touch_in(free, c, session="sC").returncode == 0
+
+
+def test_f8_002_a_held_session_refused_on_one_destination_claims_none(repo, procs):
+    main, topic = repo["main"], repo["topic"]
+    free = base.add_worktree(main, "free", "free-branch")
+    a, b, c = ident(procs()), ident(procs()), ident(procs())
+    assert touch_in(topic, b, session="sB").returncode == 0
+    hold_main_as(repo, a, "sA")
+    command = (f"cp -- tracked.txt {(free / 'a.txt').as_posix()} && "
+               f"cp -- tracked.txt {(topic / 'b.txt').as_posix()}")
+    done = run("claude", main, "Bash", {"command": command}, {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    assert done.returncode == 2 and "in use by another live session" in done.stderr
+    assert not record_exists(main, "free")
+    assert touch_in(free, c, session="sC").returncode == 0
+
+
+def test_f8_001_a_powershell_group_destination_is_judged_where_the_folder_change_leads(repo, procs):
+    main, topic = repo["main"], repo["topic"]
+    a, b = ident(procs()), ident(procs())
+    assert touch_in(topic, b, session="sB").returncode == 0
+    hold_main_as(repo, a, "sA")
+    command = f"(Set-Location '{topic}'); Copy-Item '{main / 'tracked.txt'}' saved.txt"
+    done = run("claude", main, "PowerShell", {"command": command}, {"session_id": "sA"}, AFK_WORKTREE_OWNER=a)
+    assert done.returncode == 2 and "in use by another live session" in done.stderr

@@ -88,6 +88,19 @@ def read(path: Path) -> list[dict]:
         return []
 
 
+def _foreign(live: list[dict], who: dict) -> list[dict]:
+    return [o for o in live if not (o["pid"] == who["pid"] and str(o["ctime"]) == who["ctime"])
+            and not (who["group"] and o.get("group") == who["group"])]
+
+
+def inspect(place: dict, who: dict) -> dict | None:
+    """The foreign live occupant that would bar `who`, else None. Writes nothing."""
+    module = owner_module()
+    live = [o for o in read(record_path(place)) if module.state(int(o["pid"]), str(o["ctime"])) != "dead"]
+    foreign = _foreign(live, who)
+    return foreign[0] if foreign else None
+
+
 def claim(place: dict, who: dict) -> dict | None:
     """Register `who` in the worktree; the foreign live occupant that bars it, else None.
 
@@ -99,7 +112,7 @@ def claim(place: dict, who: dict) -> dict | None:
         before = read(path)
         live = [o for o in before if module.state(int(o["pid"]), str(o["ctime"])) != "dead"]
         mine = lambda o: o["pid"] == who["pid"] and str(o["ctime"]) == who["ctime"]  # noqa: E731
-        foreign = [o for o in live if not mine(o) and not (who["group"] and o.get("group") == who["group"])]
+        foreign = _foreign(live, who)
         if not foreign and not any(mine(o) for o in live):
             live.append({"pid": who["pid"], "ctime": who["ctime"], "group": who["group"],
                          "session": who["session"], "since": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})

@@ -276,6 +276,7 @@ class Judge:
         self.asked: dict[tuple[str, str], dict] = {}
         self.fallback_reason = ""
         self.common = ""
+        self.pending: dict[str, tuple[dict, dict]] = {}  # worktrees to claim once the verdict is allow
 
     def verdict(self, place: dict | None, branch: str | None = None) -> str | None:
         """The refusal cause for a placement, or None to allow. `branch` names one the HEAD does not."""
@@ -301,7 +302,7 @@ class Judge:
         return f"branch `{branch}` is protected" if answer["protected"] else None
 
     def occupant(self, place: dict | None) -> str | None:
-        """The refusal cause when another live session holds this linked worktree; registers this one."""
+        """The refusal cause when another live session holds this linked worktree; claims nothing yet."""
         if place is None or place["kind"] != "linked":
             return None
         try:
@@ -312,12 +313,27 @@ class Judge:
             who = occupancy.identity(self.session)
             if who is None:
                 return None
-            held = occupancy.claim(place, who)
-            return occupancy.describe(place, held) if held else None
-        except Exception as problem:
-            if isinstance(problem, occupancy.Busy):
-                return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
+            held = occupancy.inspect(place, who)
+            if held:
+                return occupancy.describe(place, held)
+            self.pending[norm(place["root"])] = (place, who)
+            return None
+        except Exception:
             return None  # an unreadable record names no occupant
+
+    def claim_pending(self) -> str | None:
+        """Claim the worktrees `occupant` cleared, at the final allow; the cause when a claim loses."""
+        pending, self.pending = list(self.pending.values()), {}
+        for place, who in pending:
+            try:
+                import occupancy
+                held = occupancy.claim(place, who)
+                if held:
+                    return occupancy.describe(place, held)
+            except Exception as problem:
+                if type(problem).__name__ == "Busy":
+                    return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
+        return None
 
     def owner_key(self) -> str:
         """A session without an id is told apart by the harness process above this hook."""
@@ -477,13 +493,13 @@ def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "J
         pass
 
 
-def occupied_destination(judge: "Judge", command: str, cwd: Path) -> str | None:
+def occupied_destination(judge: "Judge", command: str, cwd: Path, powershell: bool = False) -> str | None:
     """The refusal cause when a recovery command writes into a worktree another live session holds."""
-    for target in shell_mutations.resources(command, cwd):
+    for target in shell_mutations.resources(command, cwd, powershell=powershell):
         cause = judge.occupant(placement(target))
         if cause:
             return cause
-    return None
+    return judge.claim_pending()
 
 
 def outside_guard(judge: "Judge"):
@@ -511,7 +527,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     except Exception:  # no verdict on a hold that cannot be read
         here, held = None, None
     if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held, outside_guard(judge)):
-        busy = occupied_destination(judge, command_of(tool_input), cwd)
+        busy = occupied_destination(judge, command_of(tool_input), cwd, tool.lower() == "powershell")
         if busy is None:
             return 0  # the named recovery and inspection commands, even where they mutate
         return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy, lambda: plain_hint(facts))
@@ -553,7 +569,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
                 import change_meter
                 other = change_meter.active(refused, change_meter.session_key(judge))
                 if other and change_meter.allows(command_of(tool_input), cwd, other, outside_guard(judge)):
-                    busy = occupied_destination(judge, command_of(tool_input), cwd)
+                    busy = occupied_destination(judge, command_of(tool_input), cwd, tool.lower() == "powershell")
                     if busy is None:
                         return 0  # this session's named recovery of a checkout it holds, from any folder
                     return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy,
@@ -563,6 +579,8 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         if cause:
             where = str(target)
             break
+    if not cause:
+        cause = judge.claim_pending()  # claims only now, so a refused call registers nowhere
     if kind == "shell":
         action = f"run `{command_of(tool_input).strip()[:80]}`"
         if cause and where:
