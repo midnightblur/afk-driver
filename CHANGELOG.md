@@ -42,6 +42,7 @@ release page from its section here. Nobody tags by hand.
 - `/afk:setup` removes legacy native AFK marketplace pins and installs or
   refreshes that marketplace without `--ref`, so later marketplace upgrades are
   not held to an old release.
+- The UI lint gate no longer lints files that no ESLint configuration covers. With `npm.workspace-root: .`, which `afk-config.py init` writes for any repository with a root `package.json`, it linted every staged `.js/.mjs/.ts/.vue` file from the repository root, so in a repository whose configurations sit in each UI project, a script outside those projects failed with ESLint's "couldn't find a configuration file". The lint workspace is now the nearest directory, the repository root included, holding a lint configuration or a `package.json` with `eslintConfig`. `npm.workspace-root` now only sets where a new worktree installs.
 
 ## [1.13.0] - 2026-10-06
 

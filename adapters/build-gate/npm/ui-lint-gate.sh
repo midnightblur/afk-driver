@@ -10,8 +10,8 @@
 # Scope rules:
 #   - Only files in the shared gate context (staged at commit time).
 #   - A file is gated only if a lint configuration exists in an ancestor
-#     directory (nearest one wins — that directory is the lint workspace). With
-#     none, `npm.workspace-root` is the workspace if it is an ancestor.
+#     directory, repository root included; the nearest is the lint workspace.
+#     A `package.json` carrying `eslintConfig` counts as a configuration.
 #   - Deleted files are skipped. Files with no lint workspace are skipped.
 #   - If the lint command cannot be resolved (dependencies not installed), the
 #     gate silently allows — lint infra absence is not the committer's failure.
@@ -25,6 +25,14 @@
 set -u
 
 AFK_NPM_LINT_CONFIGS=".eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml eslint.config.js eslint.config.cjs eslint.config.mjs eslint.config.ts"
+
+_ui_lint_has_config() {
+  local rc_name
+  for rc_name in $AFK_NPM_LINT_CONFIGS; do
+    [ -f "$1/$rc_name" ] && return 0
+  done
+  [ -f "$1/package.json" ] && grep -q '"eslintConfig"[[:space:]]*:' "$1/package.json"
+}
 
 gate_ui_lint() {
   [ -f .claude/hooks/.gate-disabled ] && return 0
@@ -40,7 +48,6 @@ gate_ui_lint() {
   else
     lint_cmd=(npx --no-install eslint --no-error-on-unmatched-pattern)
   fi
-  local ws_root=${AFK_CFG_NPM_WORKSPACE_ROOT:-}
 
   # Map each file to its lint workspace = nearest ancestor holding a lint config.
   local -A ws_files=()
@@ -51,30 +58,11 @@ gate_ui_lint() {
     [ -f "$f" ] || continue
     dir=${f%/*}; [ "$dir" = "$f" ] && dir="."
     ws=""
-    while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
-      for rc_name in $AFK_NPM_LINT_CONFIGS; do
-        if [ -f "$dir/$rc_name" ]; then ws="$dir"; break; fi
-      done
-      [ -n "$ws" ] && break
+    while :; do
+      if _ui_lint_has_config "$dir"; then ws="$dir"; break; fi
+      [ "$dir" = "." ] && break
       [ "${dir%/*}" = "$dir" ] && dir="." || dir=${dir%/*}
     done
-    # The walk above stops one directory short of the repository root, so a
-    # repository whose only lint configuration sits at its root gated nothing.
-    if [ -z "$ws" ]; then
-      for rc_name in $AFK_NPM_LINT_CONFIGS; do
-        if [ -f "./$rc_name" ]; then ws="." ; break; fi
-      done
-    fi
-    # A repository that lints from one hoisted root declares it; use it when the
-    # file sits under it and carries no nearer configuration of its own.
-    if [ -z "$ws" ] && [ -n "$ws_root" ] && [ -d "$ws_root" ]; then
-      # `.` is every file's ancestor; the prefix test below would never match it.
-      if [ "$ws_root" = "." ]; then
-        ws="."
-      else
-        case "$f" in "$ws_root"/*) ws="$ws_root" ;; esac
-      fi
-    fi
     [ -z "$ws" ] && continue
     if [ "$ws" = "." ]; then rel=$f; else rel=${f#"$ws"/}; fi
     ws_files["$ws"]+="$rel"$'\n'
