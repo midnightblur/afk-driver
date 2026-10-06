@@ -1000,7 +1000,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_MAVEN_LOCK_WAIT` | `adapters/build-gate/maven/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `adapters/build-gate/maven/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
-| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
+| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py`, `hooks/protected-branch-meter.py`, `hooks/protected-branch-occupancy.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
 | `AFK_PROTECTED_TIMEOUT` | `scripts/protected-lookup.py` | seconds the forge protected-branch read may take before the guard falls back to the default-branch, `main`, `master` rule (default 5) |
 | `AFK_PROTECTION_CACHE_TTL` | `scripts/protected-lookup.py` | seconds a definite forge protected-branch answer is reused, in `<git common dir>/afk/protection-cache.json` (default and maximum 300; `0` asks the forge every time); the default branch, `main` and `master` are always asked |
 | `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API, used only with a `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` you set yourself; without one the CLI is used, and the CLI login token is never sent to an override (tests, proxies) |
@@ -1011,7 +1011,7 @@ Each var is documented at its consumer — this table is just the map.
 | `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py`, `skills/afk/setup/scripts/codex_marketplace_ref.py` | the H-2 harness's config folder; setup's trust and marketplace-pin probes read `config.toml` there, else `~/.codex` |
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
-| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `hooks/lib/occupancy.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
 | `AFK_HOOK_DEADLINE` | `hooks/run-hook.py` (sets), `scripts/remove-worktree.py` (reads) | Unix time in seconds at which the launcher kills a handler that runs under `--deadline`; worktree cleanup fits each git call inside it and keeps the worktree when time runs out; not for humans to set |
 | `HERDR_TAB_ID` | `hooks/lib/occupancy.py` | with `HERDR_ENV=1`, sessions in one herdr tab share a worktree group |
 | `AFK_WORKTREE_GROUP` | `hooks/lib/occupancy.py` | names a team whose sessions may share one linked worktree; set by the human or launcher |

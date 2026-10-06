@@ -33,6 +33,8 @@ WRITE_ALL = {"rm", "rmdir", "unlink", "del", "erase", "rd", "remove-item", "ri",
 WRITE_FIRST = {"tee-object", "set-content", "sc", "add-content", "ac", "out-file", "clear-content", "clc", "new-item", "ni",
                "rename-item", "rni", "ren"}
 PS_ONLY = {"ri", "sc", "ac", "clc", "ni", "rni", "cpi", "mi", "del", "erase", "rd", "md", "copy", "move", "ren"}
+PS_SHARED = {"rm", "rmdir", "cp", "mv", "mkdir", "tee"}  # a Unix writer too: exempt only in the PowerShell tool
+CMDLET = re.compile(r"^[a-z]+-[a-z]+$")
 COPY = {"cp", "copy", "copy-item", "cpi"}
 MOVE = {"mv", "move", "move-item", "mi"}
 VALUE_OPTS = {"touch": {"t", "d", "r", "date", "reference"}, "mkdir": {"m", "mode"}, "md": {"m", "mode"},
@@ -414,7 +416,8 @@ def state_mutates(verb: str, args: list[str], shorts: list[str]) -> bool:
 
 def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> list[Word]:
     rest = words[1:]
-    if (powershell or "-" in prog or prog in PS_ONLY) and any(
+    exe = words[0].text.lower().endswith(".exe")
+    if not exe and (CMDLET.match(prog) or prog in PS_ONLY or (powershell and prog in PS_SHARED)) and any(
             w.text.lower() in ("-whatif", "-whatif:$true") for w in rest):
         return []
     if prog in ("sed", "perl"):

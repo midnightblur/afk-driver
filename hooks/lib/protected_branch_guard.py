@@ -368,7 +368,7 @@ def deny(reason: str) -> int:
 
 def refusal(action: str, cause: str, hint: str, extra: str = "") -> str:
     return (f"protected-branch guard: refused to {action}. Cause: {cause}. "
-            f"Move: {hint} A human who needs this session here launches the harness "
+            f"Move: {hint}\nA human who needs this session here launches the harness "
             f"with AFK_ALLOW_PROTECTED=1.{(' ' + extra) if extra else ''}")
 
 
@@ -431,6 +431,13 @@ def plain_hint(facts: dict) -> str:
         return "create a linked worktree with the plugin's `scripts/create-worktree --name <name>` and continue there."
 
 
+def safe_refusal(action: str, cause: str, hint: str, extra: str = "") -> str:
+    try:
+        return refusal(action, cause, hint, extra)
+    except Exception:
+        return f"protected-branch guard: refused to {action}. Cause: {cause}."
+
+
 def refuse(state: dict, facts: dict, action: str, cause: str, hint_fn, extra_fn=None) -> int:
     """The JSON deny; a hint, notice or message that fails to build falls back to plain text."""
     state["refused"] = (action, cause)
@@ -442,11 +449,7 @@ def refuse(state: dict, facts: dict, action: str, cause: str, hint_fn, extra_fn=
         extra = extra_fn() if extra_fn else ""
     except Exception:
         extra = ""
-    try:
-        text = refusal(action, cause, hint, extra)
-    except Exception:
-        text = f"protected-branch guard: refused to {action}. Cause: {cause}."
-    return deny(text)
+    return deny(safe_refusal(action, cause, hint, extra))
 
 
 def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "Judge") -> None:
@@ -597,7 +600,7 @@ def main() -> int:
         return decide(envelope, facts, state)
     except Exception as problem:
         if state.get("refused"):
-            return deny(refusal(*state["refused"], plain_hint(facts)))
+            return deny(safe_refusal(*state["refused"], plain_hint(facts)))
         if not state.get("identified"):
             return 0  # no mutation was identified, so nothing is owed a refusal
         # Fail closed inside a git work tree, open outside one.
@@ -607,7 +610,7 @@ def main() -> int:
             owed = True
         if not owed:
             return 0
-        return deny(refusal("act", f"the guard could not compute a verdict ({problem})", hint_of(facts)))
+        return deny(safe_refusal("act", f"the guard could not compute a verdict ({problem})", plain_hint(facts)))
 
 
 if __name__ == "__main__":

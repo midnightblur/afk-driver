@@ -24,6 +24,7 @@ import shell_mutations as sm
 MAX_HASH = 8 * 1024 * 1024
 PRE_STALE = 3600.0
 BLOB_STALE = 24 * 3600.0
+HOLD_STALE = 24 * 3600.0
 READ_GIT = {"status", "diff", "log", "show"}
 RESTORE_FLAGS = {"--staged", "--worktree"}
 READERS = {"cat", "ls", "dir", "pwd", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "find", "stat", "which",
@@ -184,6 +185,7 @@ def record_pre(places: list[dict], key: str, call: str, sha: str, cwd: Path) -> 
     _sweep(where, "*.pre", PRE_STALE)
     for p in places:
         _sweep(folder(p) / "blobs", "*", BLOB_STALE)
+        _sweep(folder(p), "*.quarantine", HOLD_STALE)  # a session that ended held leaves its hold
     _write(where / f"{key}.{call}.{digest(guard.norm(cwd))[:8]}.pre", {"sha": sha, "places": saved})
 
 

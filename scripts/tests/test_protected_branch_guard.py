@@ -802,3 +802,37 @@ def test_f4_003_a_powershell_tool_keeps_a_group_folder_change(repo):
     command = f"(cd '{main}'); touch f"
     assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2
     assert run("claude", repo["topic"], "Bash", {"command": command}).returncode == 0
+
+
+def test_f6_001_a_verdict_fault_with_a_failing_hint_still_denies_with_the_cause(repo, monkeypatch, capsys):
+    guard = load_guard()
+    import io
+
+    def fault(*a, **k):
+        raise RuntimeError("verdict trouble")
+
+    monkeypatch.setattr(guard.Judge, "verdict", fault)
+    monkeypatch.setattr(guard, "hint_of", fault)
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0
+    out = capsys.readouterr().out
+    assert '"permissionDecision": "deny"' in out and "verdict trouble" in out
+
+
+def test_f6_002_whatif_exempts_only_cmdlets_and_aliases_in_every_shell(repo):
+    main = repo["main"]
+    for tool, command in [("PowerShell", "touch f -WhatIf"), ("PowerShell", "rm.exe f -WhatIf"),
+                          ("Bash", "touch f -WhatIf")]:
+        assert run("claude", main, tool, {"command": command}).returncode == 2, command
+    for tool, command in [("PowerShell", "Remove-Item f -WhatIf"), ("PowerShell", "ri f -WhatIf"),
+                          ("Bash", "Remove-Item f -WhatIf")]:
+        assert run("claude", main, tool, {"command": command}).returncode == 0, command
+
+
+def test_b8_the_human_launch_sentence_is_on_its_own_line(repo):
+    done = run("claude", repo["main"], "Bash", {"command": "touch changed"})
+    reason = json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "\nA human who needs this session here launches" in reason

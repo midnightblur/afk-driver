@@ -320,6 +320,9 @@ def test_f4_002_whatif_exempts_only_powershell_commands():
     assert res("Remove-Item tracked.txt -WhatIf") == []
     assert res("ri tracked.txt -WhatIf") == []
     assert sm.resources("rm tracked.txt -WhatIf", CWD, powershell=True) == []
+    assert sm.resources("touch f -WhatIf", CWD, powershell=True) == at("f")
+    assert sm.resources("rm.exe f -WhatIf", CWD, powershell=True) == at("f")
+    assert sm.resources("Test-Thing-Not f -WhatIf", CWD) == []
 
 
 def test_f4_005_a_pull_names_itself_for_the_hint():

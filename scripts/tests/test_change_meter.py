@@ -529,3 +529,18 @@ def test_f5_001_the_printed_recovery_lines_run_verbatim_from_another_worktree(re
 def test_f5_002_branch_config_is_a_mutation_not_a_read(repo, command):
     assert denied(pre(repo["main"], command))
     assert not cm.read_only(command, repo["main"])
+
+
+def test_w1_a_quarantine_unseen_for_a_day_is_swept_with_the_blobs(repo):
+    import time
+    main = repo["main"]
+    pre(main, "make")
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    assert context(post(main))
+    [hold] = files(main, ".quarantine")
+    aged = time.time() - 25 * 3600
+    os.utime(hold, (aged, aged))
+    fresh = hold.with_name("other-session.0123456789.quarantine")
+    fresh.write_text(hold.read_text(encoding="utf-8"), encoding="utf-8")
+    pre(main, "make again", session="s2")
+    assert not hold.exists() and fresh.exists()
