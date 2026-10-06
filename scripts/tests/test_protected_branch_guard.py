@@ -472,7 +472,8 @@ def forge(repo):
     threading.Thread(target=server.serve_forever, daemon=True).start()
     git(repo["main"], "remote", "add", "origin", "https://github.com/acme/widget.git")
     yield {"routes": Forge.routes, "seen": Forge.seen, "env": {
-        "GH_TOKEN": "t", "AFK_GITHUB_API_URL": f"http://127.0.0.1:{server.server_address[1]}"}}
+        "GH_TOKEN": "t", "AFK_GITHUB_API_URL": f"http://127.0.0.1:{server.server_address[1]}",
+        "AFK_PROTECTION_CACHE_TTL": "0"}}  # each test changes the forge answer between guard calls
     server.shutdown()
 
 
