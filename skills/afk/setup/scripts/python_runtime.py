@@ -94,15 +94,17 @@ def pins(root: Path = RUNTIME) -> dict:
     if not (python and uv):
         raise broken_tree(f"{root / 'pyproject.toml'}: exact Python and uv pins not found")
 
-    def table(key: str) -> list[str]:
+    def table(key: str) -> dict[str, str]:
+        """Distribution name -> the module setup imports for it."""
         found = re.search(rf"^{key}\s*=\s*\{{(.*)\}}", text, re.M)
-        return re.findall(r'=\s*"([A-Za-z0-9_.]+)"', found.group(1)) if found else []
+        return dict(re.findall(r'([A-Za-z0-9_.-]+)\s*=\s*"([A-Za-z0-9_.]+)"', found.group(1))) if found else {}
 
     # Line endings vary with the checkout (core.autocrlf), the lock's content does not.
     lock = lock.replace(b"\r\n", b"\n")
+    test = table("test-imports")
     return {"python": python.group(1), "uv": uv.group(1),
-            "imports": table("imports"), "test_imports": table("test-imports"),
-            "lock": hashlib.sha256(lock).hexdigest()}
+            "imports": list(table("imports").values()), "test_imports": list(test.values()),
+            "test_dists": list(test), "lock": hashlib.sha256(lock).hexdigest()}
 
 
 # ---- layout ----------------------------------------------------------------
@@ -122,6 +124,13 @@ def layout(env: Mapping[str, str], windows: bool) -> dict:
         "interpreter": env_dir / ("Scripts" if windows else "bin") / f"python{exe}",
         "bin": bin_dir, "launcher": bin_dir / f"{COMMAND}{exe}",
     }
+
+
+def has_test_extra(p: dict, paths: dict, windows: bool) -> bool:
+    # The stamp is gone after a failed run; the installed distributions still say what to keep.
+    site = site_packages(paths, p["python"], windows)
+    return bool(p["test_dists"]) and all(
+        any(site.glob(f"{re.sub(r'[-.]+', '_', name)}-*.dist-info")) for name in p["test_dists"])
 
 
 def site_packages(paths: dict, python: str, windows: bool) -> Path:
@@ -221,7 +230,7 @@ def place_entry(paths: dict, python: str, windows: bool) -> None:
 def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
             out=sys.stdout) -> int:
     p, paths = pins(), layout(env, windows)
-    test = test or "test" in read_stamp(paths).get("extras", "").split(",")
+    test = test or "test" in read_stamp(paths).get("extras", "").split(",") or has_test_extra(p, paths, windows)
     child_env = uv_env(env, paths, windows)
     # A repair that fails part-way must not leave a stamp vouching for the old runtime.
     try:

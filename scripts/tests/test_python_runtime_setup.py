@@ -252,6 +252,22 @@ def test_a_repair_whose_final_probe_fails_leaves_no_stamp(tmp_path, machine_kwar
     assert not paths["stamp"].with_name(pr.STAMP + ".new").exists()
 
 
+def test_a_failed_repair_does_not_cost_the_test_extra(tmp_path):
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    paths["stamp"].parent.mkdir(parents=True)
+    paths["stamp"].write_text("extras=test\n", encoding="utf-8")
+    site = pr.site_packages(paths, PINS["python"], True)
+    site.mkdir(parents=True)
+    (site / "pytest-9.0.1.dist-info").mkdir()
+    assert pr.install(env, True, False, Machine(paths, fail=" sync "), io.StringIO()) == 1
+    assert not paths["stamp"].exists()
+    machine = Machine(paths)
+    assert pr.install(env, True, False, machine, io.StringIO()) == 0
+    assert all("--extra test" in l for l in machine.lines() if " sync " in l)
+    assert pr.read_stamp(paths)["extras"] == "test"
+
+
 def test_a_runtime_that_has_the_test_extra_keeps_it(tmp_path):
     env = machine_env(tmp_path)
     paths = pr.layout(env, True)
