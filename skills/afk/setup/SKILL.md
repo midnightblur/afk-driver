@@ -41,7 +41,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 
 0. **Configure the repository, if it isn't.** Every probe below reads
    `.afk/config.yaml`, so a repository without one has nothing to check against.
-   `<git root>/.afk/config.yaml` present → skip this step, silently. Absent:
+   `<git root>/.afk/config.yaml` present → skip this step, silently. Not inside
+   a git checkout → skip this step; `H0` and each leg `H0`'s Notes gates report
+   `skipped (no repository)`, never a failure. Absent:
    - run `python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
      starter file from what the repository can answer about itself
      (`${AFK_PLUGIN_ROOT}/CONFIG.md` "Starting a repository off"), and leaves a
@@ -98,7 +100,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    entry's fix in step 4, declined ⇒ `skipped (user choice)`. Beyond those two
    groups nothing is elective — a load-bearing entry's plain `Probe:`/`Fix:`
    surface always runs (an entry carrying both tiers keeps its plain fix even
-   when its base item is deselected). Build the options from the register at
+   when its base item is deselected). On the default and `base` branches
+   `H6` Fix step 0 runs whether its probe passes or not, so the human can name other
+   repositories to set up. Build the options from the register at
    run time, never from a hardcoded list, so a new base-tier or opt-in entry
    is electable the day it lands.
 4. **Fix.**
@@ -120,7 +124,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    `PATH`-affecting install never reaches the running session).
 6. **Summarize** per `REPORTING.md` (plugin root): final table (`ok` / `fixed`
    / `deferred (until <first use>)` / `skipped (user choice)` /
-   `skipped (no repository config)` / `needs-human: <what>`), then one
+   `skipped (no repository config)` / `skipped (no repository)` /
+   `needs-human: <what>`), then one
    plain-terms sentence — is the workflow runnable now, and what still blocks
    which stage.
 

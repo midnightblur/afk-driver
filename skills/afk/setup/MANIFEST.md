@@ -74,7 +74,7 @@ a token value — not even partially.
   follows the same rule. An `unsupported` or `error` answer carries
   `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then
+  does S1/C3 or C3b, whichever the forge selects), enable the plugin, then
   restart the session. Python deps: P3. Registering the server needs that
   restart. The plugin's own server applies added or corrected credentials on the
   next call, no restart; without them a call answers `error: true` and the
@@ -133,11 +133,15 @@ a token value — not even partially.
   answer: unresolved is a FAILURE, not an n/a. Each is asked for only where its
   adapter has the concept, so the selected kind decides which keys are probed.
   ```
+  git rev-parse --git-dir >/dev/null 2>&1 \
+    || { echo "skipped (no repository)"; exit 0; }
   PY="$(command -v python || command -v python3)"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
   R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+  C="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   says_none() { for f in "$AFK_CONFIG" "$HOME/.afk/config.yaml" \
-      "$R/.afk/config.local.yaml" "$R/.afk/config.yaml"; do
+      "$R/.afk/config.local.yaml" "${C:+$C/afk/config.yaml}" \
+      "$R/.afk/config.yaml"; do
     [ -n "$f" ] || continue
     grep -qsE "^$1:[[:space:]]*[\"']?none[\"']?([[:space:]#]|$)" "$f" \
       && return 0
@@ -157,24 +161,51 @@ a token value — not even partially.
   for k in $keys; do
     "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
-  [ -z "$h$m" ] && { echo ok; exit 0; }
+  DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"
+  i="$("$PY" "$DV" status 2>/dev/null | "$PY" -c \
+      'import json,sys; print(" ".join(json.load(sys.stdin)["inherited"]))' \
+      2>/dev/null)"
+  [ -z "$h$m$i" ] && { echo ok; exit 0; }
   echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
        "forge=$("$PY" "$AC" get forge)"
   [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
   [ -z "$m" ] || echo "unresolved:$m"
+  [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
   exit 1
   ```
-- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
-  the tracker assignee — pre-filled with the account the validated token itself
-  belongs to — for the reviewer, which has no pre-fill because no one else may
-  pick who reviews your work, and for the MR/PR assignee, pre-filled with the
-  forge account the CLI is logged in as. It offers `~/.afk/config.yaml`, so one answer covers
-  every repository on the machine. By hand: add a `developer:` block there per
-  the example in `skills/afk/bug/CONFIG.md`.
+- **Fix:** `auto:` in session, from anywhere: a main checkout, a worktree, or
+  no repository. None of these values is a secret, so ask the human in the
+  conversation. `DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"`.
+  0. Ask the human for the main checkout paths to set up, offering this
+     repository's `main_checkout` (from `status`) when there is one. Zero
+     paths is a valid answer: H6 reports `skipped (user choice)` and the
+     human can run `/afk:setup` again later. Run steps 1-4 once per path,
+     adding `--repo <path>` to `status` and `set`, and ask step 3 once for
+     the whole run. A path `status` refuses, or reports `configured: false`,
+     is skipped and named in the summary: run `/afk:setup` in it first.
+  1. Run `python "$DV" status --repo <path>`.
+     It reports each key's `need`, resolved `value`, `source` layer and
+     `suggestion`, and lists `missing` and `inherited`.
+  2. Ask the human for every `missing` key, offering its `suggestion` as the
+     first option. Offer the optional keys too, unless they already resolve.
+     The reviewer has no suggestion: nobody else picks who reviews the
+     developer's work. For every `inherited` key, show the machine value and
+     ask whether it holds for this repository, then record the answer for this
+     repository — a confirmed value too, so the probe stops asking. A machine
+     `worktreeBasePath` also shows its `derived` value; offer to drop it from
+     the machine file with `worktreeBasePath= --machine`.
+  3. Ask once where the answers go: this repository (the default — the file
+     the main checkout and all its worktrees read) or `--machine` (the default
+     for every repository).
+  4. Run `python "$DV" set KEY=VALUE ... [--machine] --repo <path>`, then
+     re-run `status --repo <path>` to confirm each answer resolves.
+  `set` changes only the keys it names, so another repository's values
+  survive. `KEY=` removes a key. `--machine` refuses a `worktreeBasePath`
+  value and accepts only its removal.
 - **Notes:** a developer with no reviewer answers the literal `none`, which
   resolves and so satisfies this row; every consumer reads it as an absent key
-  and fails closed. The repository's committed config answers none of these — a
+  and fails closed. A recorded `mrAssignee=none` resolves to no assignee and
+  overrides a broader layer's assignee. The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
   probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
@@ -682,7 +713,7 @@ a token value — not even partially.
   `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
   prompts for the token without echoing it, validates it against the host before
-  writing, and places it in the H2 `env` block (also does H2/H6/C3 or C3b, whichever the forge selects). By hand:
+  writing, and places it in the H2 `env` block (also does H2/C3 or C3b, whichever the forge selects). By hand:
   create an API token (Atlassian account → Security → API tokens), then set
   `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` through a source listed in
   `PROVIDERS.md`.

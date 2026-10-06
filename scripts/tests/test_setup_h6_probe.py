@@ -98,7 +98,7 @@ def test_present_file_naming_no_forge_points_at_a_working_fix(repo, home):
     write(home / ".afk" / "config.yaml", DEV)
     out = run(repo, home)
     assert out.returncode == 1
-    assert out.stdout.splitlines()[-1] == "needs-human: see H0 (mrReviewer)"
+    assert "needs-human: see H0 (mrReviewer)" in out.stdout.splitlines()
     notes = h0_notes()
     assert "set `tracker:` and `forge:` in `.afk/config.yaml`" in notes
     assert "`CONFIG.md`" in notes and "re-probe" in notes
@@ -126,13 +126,31 @@ def test_machine_layer_none_is_ok(repo, home):
     assert out.stdout.strip() == "ok"
 
 
-def test_worktree_base_failure_still_reported_beside_h0(tmp_path, home):
-    bare = tmp_path / "not-a-repo"
-    bare.mkdir()
-    out = run(bare, home)
+def test_a_machine_only_person_is_confirmed_per_repository(repo, home):
+    write(repo / ".afk" / "config.yaml", "schema: 1\ntracker: jira\nforge: none\n")
+    write(home / ".afk" / "config.yaml", DEV)
+    out = run(repo, home)
     assert out.returncode == 1
-    assert "needs-human: see H0" in out.stdout
-    assert "unresolved: worktreeBasePath" in out.stdout
+    assert out.stdout.splitlines()[-1] == "inherited from the machine file, confirm: trackerAssignee"
+
+    write(repo / ".git" / "afk" / "config.yaml", "developer:\n  trackerAssignee: me\n")
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_no_repository_is_skipped_not_failed(tmp_path, home):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    out = run(outside, home, GIT_CEILING_DIRECTORIES=str(tmp_path))
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "skipped (no repository)"
+
+
+def test_shared_overlay_none_is_ok(repo, home):
+    write(repo / ".git" / "afk" / "config.yaml", NONE.replace("schema: 1\n", ""))
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "ok"
 
 
 def test_root_is_the_working_directorys_git_root(tmp_path, repo, home):

@@ -170,6 +170,59 @@ def test_four_layers_apply_in_the_documented_order(tmp_path, monkeypatch):
     assert cfg.load(root)["notes"] == "obsidian"  # AFK_CONFIG beats everything
 
 
+def _commit(root: Path) -> None:
+    for args in (["config", "user.email", "t@example.com"], ["config", "user.name", "T"],
+                 ["commit", "-q", "--allow-empty", "-m", "init"]):
+        subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
+
+
+def test_the_shared_overlay_sits_between_repository_and_checkout(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text("schema: 1\nforge: github\nnotes: notion\n",
+                                               encoding="utf-8")
+    shared = cfg.shared_overlay(root)
+    assert shared.resolve() == (root / ".git" / "afk" / "config.yaml").resolve()
+    shared.parent.mkdir(parents=True)
+    shared.write_text("forge: gitlab\nnotes: obsidian\n", encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text("notes: repo-files\n", encoding="utf-8")
+
+    effective = cfg.load(root)
+    assert effective["forge"] == "gitlab"        # shared overlay beats repository
+    assert effective["notes"] == "repo-files"    # checkout overlay beats shared overlay
+
+
+def test_every_worktree_reads_the_same_shared_overlay(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    root = repo(tmp_path)
+    _commit(root)
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "-q", str(linked)], cwd=str(root), check=True,
+                   capture_output=True)
+    assert cfg.shared_overlay(linked).resolve() == cfg.shared_overlay(root).resolve()
+
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text("developer:\n  mrReviewer: someone\n", encoding="utf-8")
+    assert cfg.developer_value(cfg.load(linked), "mrReviewer") == "someone"
+
+
+def test_shared_overlay_may_not_change_schema(tmp_path, monkeypatch):
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    root = repo(tmp_path)
+    shared = cfg.shared_overlay(root)
+    shared.parent.mkdir(parents=True)
+    shared.write_text("schema: 2\n", encoding="utf-8")
+    with pytest.raises(cfg.ConfigError):
+        cfg.load(root)
+
+
 def test_local_overlay_may_not_change_schema(tmp_path):
     root = repo(tmp_path)
     (root / ".afk" / "config.yaml").write_text("schema: 1\n", encoding="utf-8")

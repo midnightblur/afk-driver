@@ -37,6 +37,27 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-06
+
+### Added
+
+- New configuration layer `<git common dir>/afk/config.yaml`: untracked, per developer, and read by every worktree of one repository. It sits above the committed `.afk/config.yaml` and below `.afk/config.local.yaml`, and may not set `schema`.
+
+### Changed
+
+- `/afk:setup` asks for `developer:` values in the session, from the main checkout or any worktree. The terminal script `setup_secrets.py` no longer asks for them; it keeps the secrets and CLI logins. The agent runs `skills/afk/setup/scripts/developer_values.py status` to find missing values and suggestions, then `set KEY=VALUE` to record your answers. Answers go to the new repository file by default, or to `~/.afk/config.yaml` with `--machine`.
+- An agent that finds a required developer value missing asks you for it and records it. A hands-off run still stops and names `/afk:setup`.
+- `/afk:setup` H6 now fails while an assignee, reviewer or `worktreeBasePath` comes only from `~/.afk/config.yaml`, because that value may belong to another repository. Confirm or replace it once per repository.
+- `/afk:setup` asks for the main checkout paths you want to set up, then asks for each one's developer values, so you can set up all your repositories in one run or one at a time. It asks on every run, from any directory. Naming no path is fine: H6 reports `skipped (user choice)`. `developer_values.py --repo PATH` points `status` and `set` at one checkout.
+- `/afk:setup` run outside any git repository reports the repository checks as `skipped (no repository)` instead of failing them.
+
+### Fixed
+
+- Recording developer values no longer removes values that another repository uses. `set` changes only the keys it names, and a repository whose tracker or forge is `none` leaves those keys in place.
+- `worktreeBasePath` is never written to `~/.afk/config.yaml`, because a value there overrides every repository's derived location.
+- Developer values that look like a number, `true`, `false` or `null` are quoted, so the config reader accepts them.
+- `mrAssignee: none` now resolves to no assignee, so a repository can override an assignee the machine file sets. A hand-written `none` used to reach the forge as a username.
+
 ## [1.12.0] - 2026-10-05
 
 ### Fixed

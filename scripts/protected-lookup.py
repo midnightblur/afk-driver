@@ -97,10 +97,10 @@ def _host_of(url: str) -> str:
     return re.split(r"[/:]", rest, maxsplit=1)[0].lower()
 
 
-def _configured(checkout: Path) -> dict:
+def _configured(checkout: Path, common: Path) -> dict:
     """The repository configuration, read only when a configuration file exists."""
     files = [Path.home() / ".afk" / "config.yaml", checkout / ".afk" / "config.yaml",
-             checkout / ".afk" / "config.local.yaml"]
+             common / "afk" / "config.yaml", checkout / ".afk" / "config.local.yaml"]
     if not (os.environ.get("AFK_CONFIG") or any(path.is_file() for path in files)):
         return {}
     try:
@@ -112,7 +112,7 @@ def _configured(checkout: Path) -> dict:
 def facts(checkout: Path, common: Path, branch: str) -> dict:
     """`forge`, `repo` (owner/name or ""), `host` and `remote` of the branch's remote."""
     config = read_config(common)
-    settings = _configured(checkout)
+    settings = _configured(checkout, common)
     forge = settings.get("forge") or "none"
     remote = _remote_of(config, branch)
     if forge in ("github", "gitlab"):
