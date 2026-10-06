@@ -29,9 +29,8 @@
 # explicit paths rather than everything, so judging the working tree would gate
 # files the commit does not contain.
 #
-# Order: backstop, comment, native-contract, build gates (format/lint first); the
-# first block (exit 2) ends the run, a gate that cannot run only warns. Escape hatches: .claude/hooks/.gate-disabled in the
-# repo, AFK_SKIP_PRECOMMIT_GATES=1 for a single commit, or `git commit --no-verify`.
+# Order: backstop, comment, native-contract, build gates (format/lint first); first block (exit 2) wins, a gate that cannot run warns.
+# Skip: .claude/hooks/.gate-disabled, AFK_SKIP_PRECOMMIT_GATES=1 for one commit, or `git commit --no-verify`.
 
 set -u
 
