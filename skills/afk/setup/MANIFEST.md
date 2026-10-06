@@ -627,8 +627,10 @@ a token value — not even partially.
   `[tool.uv] required-version`, the dependency set and its import names.
   `runtime/uv.lock` holds every transitive version with its hashes.
 - **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check`
-  — resolves `afk-python` through the PATH a new terminal gets, from PowerShell,
-  cmd and Git Bash on Windows, and from `sh` and the login shell elsewhere. Each
+  — compares the installed packages with `runtime/uv.lock` (`uv sync --check
+  --offline`, read-only), then resolves `afk-python` through the PATH a new
+  terminal gets, never the probing process's own, from PowerShell, cmd and Git
+  Bash on Windows, and from `sh` and the login shell elsewhere. Each
   shell must report the pinned Python running in the private environment
   (`sys.prefix`), import every runtime package, and set `AFK_PYTHON` to the
   entry itself. The environment's stamp must name the pinned Python and the
@@ -639,7 +641,10 @@ a token value — not even partially.
   CPython, then syncs the private environment frozen from the lock, wheels only,
   with bytecode compiled. It then places the `afk-python` entry and the
   `AFK_PYTHON` line in the environment, and adds the entry's directory to the
-  user PATH. It prints one `ok`/`fail` line per step, then re-runs the probe.
+  user PATH unless the startup files already add it. The installer and uv run
+  without the user's `UV_*` settings and installer download overrides; proxy
+  and TLS variables pass through. It deletes the stamp first and publishes it
+  only after the probe passes. It prints one `ok`/`fail` line per step.
   `plan` prints the same steps and changes nothing. The running harness keeps
   its old PATH: report `needs-human: restart the harness` (step 2's
   stale-environment rule). A `fail environment` line saying the platform has no

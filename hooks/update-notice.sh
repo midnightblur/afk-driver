@@ -23,10 +23,10 @@ set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 
-# Python release 1: warn while `afk-python` is missing or not the pinned version.
+# Python release 1: warn until `afk-python` resolves to the entry a current stamp names.
 # Bash builtins only: a fork costs ~100 ms under Git Bash, and this runs every session.
 runtime_notice() {
-  local line want="" have="" home stamp
+  local line want="" have="" command="" found="" home stamp
   [ -f "$ROOT/runtime/pyproject.toml" ] || return 0
   while IFS= read -r line; do
     line=${line%$'\r'}
@@ -41,10 +41,15 @@ runtime_notice() {
   if [ -f "$stamp" ]; then
     while IFS= read -r line; do
       line=${line%$'\r'}
-      case "$line" in python=*) have=${line#python=} ;; esac
+      case "$line" in python=*) have=${line#python=} ;; command=*) command=${line#command=} ;; esac
     done <"$stamp"
   fi
-  if ! command -v afk-python >/dev/null 2>&1 || [ "$have" != "$want" ]; then
+  # `hash` searches PATH without a subshell; the stamp spells the entry as /c/... without .exe.
+  hash afk-python 2>/dev/null && found=${BASH_CMDS[afk-python]:-}
+  found=${found#/cygdrive}
+  found=${found%.exe}
+  case "${OSTYPE:-}" in msys*|cygwin*) found=${found,,} command=${command,,} ;; esac
+  if [ -z "$found" ] || [ "$found" != "$command" ] || [ "$have" != "$want" ]; then
     printf 'AFK will switch to afk-python in the next release; run /afk:setup\n'
   fi
 }

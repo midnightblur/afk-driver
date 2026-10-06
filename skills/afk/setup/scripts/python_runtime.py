@@ -21,10 +21,19 @@ is the one directory added to the user PATH. `afk_python.pth` in the
 environment sets `AFK_PYTHON` to `sys.executable`; `-S` skips it.
 
 Packages install from wheels only (`--no-build`): a platform the lock has no
-wheel for fails the sync with the package's name, never a source build.
+wheel for fails the sync with the package's name, never a source build. The
+installer and uv run without the user's `UV_*` settings and installer download
+overrides; proxy and TLS variables pass through.
 
-`check` resolves `afk-python` through the PATH a new terminal would get, from
-every shell the platform has, and prints one `ok <probe>` or
+`install` deletes the stamp before it changes anything and publishes a new one
+only after every `check` probe passes, so a stamp always names a healthy
+runtime. Its `command=` line is the launcher as a POSIX shell's PATH lookup
+spells it; the SessionStart notice compares the two.
+
+`check` compares the installed packages with the lock (`uv sync --check
+--offline`), then resolves `afk-python` through the PATH a new terminal would
+get, never this process's own, from every shell the platform has. Setup's PATH
+step uses the same PATH. It prints one `ok <probe>` or
 `fail <probe>: <reason>` line per probe. Exit 0 when all pass, 1 otherwise,
 2 on a usage or plugin-tree error.
 """
@@ -49,6 +58,11 @@ COMMAND = "afk-python"
 PTH = "afk_python.pth"
 PTH_LINE = 'import os, sys; os.environ.setdefault("AFK_PYTHON", sys.executable)\n'
 NO_WHEEL = "marked as `--no-build` but has no binary distribution"
+# uv reads every UV_* variable as a setting (uv 0.12.23 crates/uv-static/src/env_vars.rs); keep only TLS.
+UV_KEEP = ("UV_NATIVE_TLS", "UV_SYSTEM_CERTS")
+# Non-UV_ download and location overrides in uv-installer.{sh,ps1} 0.12.23, and an active venv.
+INSTALLER_OVERRIDES =("INSTALLER_DOWNLOAD_URL", "INSTALLER_NO_MODIFY_PATH",
+                       "CARGO_DIST_FORCE_INSTALL_DIR", "CARGO_HOME", "VIRTUAL_ENV")
 
 Runner = Callable[[object, Mapping[str, str]], "tuple[int, str]"]
 
@@ -116,13 +130,32 @@ def site_packages(paths: dict, python: str, windows: bool) -> Path:
     return paths["env"] / "lib" / ("python" + ".".join(python.split(".")[:2])) / "site-packages"
 
 
-def uv_env(env: Mapping[str, str], paths: dict) -> dict:
+def without_entry(env: Mapping[str, str], directory: Path, windows: bool) -> dict:
+    """`env` with `directory` dropped from PATH, so only startup files can put it back."""
     out = dict(env)
+    sep = ";" if windows else ":"
+    out["PATH"] = sep.join(e for e in env.get("PATH", "").split(sep) if e and not on_path(directory, e, windows))
+    return out
+
+
+def uv_env(env: Mapping[str, str], paths: dict, windows: bool) -> dict:
+    """The installer's and uv's environment: the user's, minus every source or location override."""
+    out = {k: v for k, v in without_entry(env, paths["bin"], windows).items()
+           if not (k.upper().startswith("UV_") and k.upper() not in UV_KEEP)
+           and k.upper() not in INSTALLER_OVERRIDES}
     out.update(UV_PYTHON_INSTALL_DIR=str(paths["pythons"]), UV_CACHE_DIR=str(paths["cache"]),
                UV_PROJECT_ENVIRONMENT=str(paths["env"]), UV_TOOL_BIN_DIR=str(paths["bin"]),
                UV_NO_CONFIG="1")
-    out.pop("VIRTUAL_ENV", None)
     return out
+
+
+def shell_command(launcher: Path, windows: bool) -> str:
+    """The launcher as a POSIX shell's PATH lookup spells it: `/c/...`, no `.exe`, on Windows."""
+    text = str(launcher)
+    if windows and len(text) > 2 and text[1] == ":":
+        text = "/" + text[0].lower() + text[2:].replace("\\", "/")
+        text = text[:-4] if text.lower().endswith(".exe") else text
+    return text
 
 
 def read_stamp(paths: dict) -> dict:
@@ -135,6 +168,11 @@ def read_stamp(paths: dict) -> dict:
 
 # ---- the transaction -------------------------------------------------------
 
+def sync_command(p: dict, paths: dict, test: bool) -> list[str]:
+    return ([str(paths["uv"]), "sync", "--project", str(RUNTIME), "--frozen", "--no-build",
+             "--managed-python", "--python", p["python"]] + (["--extra", "test"] if test else []))
+
+
 def steps(p: dict, paths: dict, windows: bool, test: bool) -> list[tuple[str, list]]:
     uv = str(paths["uv"])
     if windows:
@@ -145,12 +183,10 @@ def steps(p: dict, paths: dict, windows: bool, test: bool) -> list[tuple[str, li
         url = INSTALLER.format(version=p["uv"], ext="sh")
         get_uv = ["sh", "-c", 'curl --proto =https --tlsv1.2 -LsSf "$1" | sh', "sh", url]
     py_install = [uv, "python", "install", p["python"], "--no-bin"] + (["--no-registry"] if windows else [])
-    sync = [uv, "sync", "--project", str(RUNTIME), "--frozen", "--no-build", "--compile-bytecode",
-            "--managed-python", "--python", p["python"]] + (["--extra", "test"] if test else [])
     return [
         ("uv", get_uv),
         ("python", py_install),
-        ("environment", sync),
+        ("environment", sync_command(p, paths, test) + ["--compile-bytecode"]),
         ("launcher", ["<entry>", str(paths["interpreter"]), str(paths["launcher"]), PTH]),
         ("path", [uv, "tool", "update-shell"]),
     ]
@@ -186,7 +222,13 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
             out=sys.stdout) -> int:
     p, paths = pins(), layout(env, windows)
     test = test or "test" in read_stamp(paths).get("extras", "").split(",")
-    child_env = uv_env(env, paths)
+    child_env = uv_env(env, paths, windows)
+    # A repair that fails part-way must not leave a stamp vouching for the old runtime.
+    try:
+        paths["stamp"].unlink(missing_ok=True)
+    except OSError as exc:
+        print(f"fail stamp: {exc}", file=out)
+        return 1
     for name, argv in steps(p, paths, windows, test):
         if name == "uv":
             code, said = runner([str(paths["uv"]), "--version"], child_env)
@@ -195,7 +237,7 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
                 continue
             child_env_uv = dict(child_env, UV_UNMANAGED_INSTALL=str(paths["uv"].parent))
             code, said = runner(argv, child_env_uv)
-        elif name == "path" and on_path(paths["bin"], fresh_path(env, windows), windows):
+        elif name == "path" and on_path(paths["bin"], fresh_path(child_env, windows), windows):
             # uv refuses a second update-shell while the running PATH lags the startup files.
             print("ok path already set", file=out)
             continue
@@ -214,13 +256,22 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
                       "build from source. afk-python is not supported here yet.", file=out)
             return 1
         print(f"ok {name}", file=out)
-    with open(paths["stamp"], "w", encoding="utf-8", newline="\n") as stamp:
-        stamp.write(f"python={p['python']}\nuv={p['uv']}\nlock={p['lock']}\n"
-                    f"extras={'test' if test else ''}\nlauncher={paths['launcher']}\n")
-    print("ok stamp", file=out)
+    stamp = {"python": p["python"], "uv": p["uv"], "lock": p["lock"], "extras": "test" if test else "",
+             "launcher": str(paths["launcher"]), "command": shell_command(paths["launcher"], windows)}
+    if check(env, windows, test, runner, out, stamp) != 0:
+        return 1
+    staged = paths["stamp"].with_name(STAMP + ".new")
+    try:
+        with open(staged, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write("".join(f"{key}={value}\n" for key, value in stamp.items()))
+        os.replace(staged, paths["stamp"])
+    except OSError as exc:
+        print(f"fail stamp: {exc}", file=out)
+        return 1
+    print("ok stamp published", file=out)
     print("Restart the harness and any open terminal: a running process keeps its old PATH.",
           file=out)
-    return check(env, windows, test, runner, out)
+    return 0
 
 
 # ---- the probe -------------------------------------------------------------
@@ -294,9 +345,10 @@ def same_file(a: str, b: Path) -> bool:
 
 
 def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
-          out=sys.stdout) -> int:
+          out=sys.stdout, stamp: dict | None = None) -> int:
+    """Probe the runtime; `stamp` stands in for the stamp file while install has not published it."""
     p, paths = pins(), layout(env, windows)
-    stamp = read_stamp(paths)
+    stamp = read_stamp(paths) if stamp is None else stamp
     test = test or "test" in stamp.get("extras", "").split(",")
     failures = 0
 
@@ -310,7 +362,14 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
             else f"want Python {p['python']}, have {stamp.get('python') or 'none'}")
     verdict("lock", None if stamp.get("lock") == p["lock"]
             else "the environment was not built from this plugin's runtime/uv.lock")
-    probe_env = dict(env, PATH=fresh_path(env, windows))
+    # Read-only and offline: the installed distributions against the lock, exactly.
+    status, said = runner(sync_command(p, paths, test) + ["--check", "--offline"], uv_env(env, paths, windows))
+    drift = [line.strip() for line in said.splitlines() if line.startswith((" - ", " + "))]
+    verdict("packages", None if status == 0 else
+            ("differ from runtime/uv.lock: " + ", ".join(drift)) if drift
+            else (said.splitlines()[-1] if said else f"uv exit {status}"))
+    probe_env = without_entry(env, paths["bin"], windows)
+    probe_env["PATH"] = fresh_path(probe_env, windows)
     probe_env.pop("AFK_PYTHON", None)
     quoted = '"' + probe_code(p["imports"] + (p["test_imports"] if test else [])) + '"'
     for name, build in shells(env, windows):

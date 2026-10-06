@@ -22,7 +22,7 @@ required-version = "==0.12.23"
 # Dependencies only: the command is the interpreter itself, so nothing is built.
 package = false
 
-# The module each dependency is imported as; setup probes these through afk-python.
+# The module setup imports through afk-python for each dependency: the one its callers import.
 [tool.afk-runtime]
-imports = { httpx = "httpx", markdown-it-py = "markdown_it", mcp = "mcp", openpyxl = "openpyxl", pyyaml = "yaml" }
+imports = { httpx = "httpx", markdown-it-py = "markdown_it", mcp = "mcp.server.fastmcp", openpyxl = "openpyxl", pyyaml = "yaml" }
 test-imports = { pytest = "pytest" }

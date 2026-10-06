@@ -141,8 +141,9 @@ cross-check for "is the managed-behavior feature itself stale everywhere."
 
 Run the `MANIFEST.md` P1 probe. It is read-only. Each `fail` line is a finding:
 a missing command, a Python version other than the pin, a command that runs
-outside the private environment or is not the installed entry, an environment
-built from another `runtime/uv.lock`, a failed import, or no `AFK_PYTHON`.
+outside the private environment or is not the installed entry, a stamp from
+another `runtime/uv.lock`, installed packages that differ from that lock, a
+failed import, or no `AFK_PYTHON`.
 Route: `/afk:setup` (P1 fix).
 
 ## Report
