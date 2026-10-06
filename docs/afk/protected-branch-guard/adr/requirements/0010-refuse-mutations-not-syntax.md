@@ -36,7 +36,8 @@ The guard guards against forgetting, not intent ([ADR-0005](0005-guard-against-f
 - A path-qualified program is recognized by its base name, so `/usr/bin/git commit` is refused.
 - `git gc`, `prune` and `repack` pass. `git notes --ref <name> add` reads as a non-mutation.
 - `--git-dir=<common>/worktrees/<id>` resolves to the outer repository, not the named linked worktree. The refusal errs to the safe side.
-- A literal `-WhatIf` (or `-WhatIf:$true`) makes a PowerShell writer a non-mutation; `-WhatIf:$false` does not.
+- A literal `-WhatIf` (or `-WhatIf:$true`) makes a PowerShell cmdlet or alias a non-mutation; `-WhatIf:$false` does not. A Unix writer (`rm`, `touch`) ignores it, except in the `PowerShell` tool.
+- A folder change inside `( )` ends at the `)` for a Bash-class tool and persists for the `PowerShell` tool. `sudo -D <dir>` and `--chdir` move the wrapped command's folder.
 - The entry file refuses inside a work tree when the judge module cannot load (a broken install, not a computed verdict).
 
 ## Consequences

@@ -306,13 +306,16 @@ class Judge:
             return None
         try:
             import occupancy
+        except Exception:
+            return None
+        try:
             who = occupancy.identity(self.session)
             if who is None:
                 return None
             held = occupancy.claim(place, who)
             return occupancy.describe(place, held) if held else None
         except Exception as problem:
-            if type(problem).__name__ == "Busy":
+            if isinstance(problem, occupancy.Busy):
                 return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
             return None  # an unreadable record names no occupant
 
@@ -400,10 +403,12 @@ def command_of(tool_input: dict) -> str:
     return " ".join(map(str, value)) if isinstance(value, list) else str(value)
 
 
-def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: list) -> list[Path]:
+def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: list,
+                     pulls: list | None = None) -> list[Path]:
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
-        return shell_mutations.resources(command_of(tool_input), cwd, syncs)
+        return shell_mutations.resources(command_of(tool_input), cwd, syncs, pulls=pulls,
+                                         powershell=tool.lower() == "powershell")
     found = targets_of(tool_input, cwd, loose=kind != "edit")
     return found or ([cwd] if kind == "edit" else [])
 
@@ -419,6 +424,31 @@ def meter_guarded(place: dict, judge: "Judge") -> bool:
     return branch in names and judge.verdict(place) is not None
 
 
+def plain_hint(facts: dict) -> str:
+    try:
+        return hint_of(facts)
+    except Exception:
+        return "create a linked worktree with the plugin's `scripts/create-worktree --name <name>` and continue there."
+
+
+def refuse(state: dict, facts: dict, action: str, cause: str, hint_fn, extra_fn=None) -> int:
+    """The JSON deny; a hint, notice or message that fails to build falls back to plain text."""
+    state["refused"] = (action, cause)
+    try:
+        hint = hint_fn()
+    except Exception:
+        hint = plain_hint(facts)
+    try:
+        extra = extra_fn() if extra_fn else ""
+    except Exception:
+        extra = ""
+    try:
+        text = refusal(action, cause, hint, extra)
+    except Exception:
+        text = f"protected-branch guard: refused to {action}. Cause: {cause}."
+    return deny(text)
+
+
 def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "Judge") -> None:
     """Snapshot every guarded checkout an allowed shell call can enter; never changes the verdict."""
     if kind != "shell":
@@ -429,7 +459,7 @@ def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "J
         if change_meter.read_only(command, cwd):
             return
         folders: list = []
-        shell_mutations.resources(command, cwd, [], folders)
+        shell_mutations.resources(command, cwd, [], folders, powershell=str(envelope.get("tool_name") or "").lower() == "powershell")
         chosen: dict[str, dict] = {}
         for place in [here] + [placement(f) for f in folders]:
             try:
@@ -474,10 +504,11 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         names = ", ".join(sorted(held["paths"]))
         cause = (f"this session changed {held['root']} through a form the guard could not refuse in advance "
                  f"({names}) and has not undone it")
-        return deny(refusal(f"use {tool or 'a tool'}", cause, change_meter.recovery(held)))
+        return refuse(state, facts, f"use {tool or 'a tool'}", cause, lambda: change_meter.recovery(held))
     syncs: list = []
+    pulls: list = []
     try:
-        resources = mutation_targets(kind, tool, tool_input, cwd, syncs)
+        resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls)
     except Exception:  # an unreadable call is not an identified mutation
         return 0
     if not resources and not syncs:
@@ -497,7 +528,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         import main_sync
         why, fields = main_sync.check(place, remote, branch)
         if why:
-            return deny(refusal(f"run `{command_of(tool_input).strip()[:80]}`", why, SYNC_HINT))
+            return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", why, lambda: SYNC_HINT)
         grants.append((place, fields))
     for target in resources:
         refused = placement(target)
@@ -522,8 +553,9 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     else:
         action = f"use {tool or 'a tool'}" + (f" on {where}" if cause else "")
     if cause:
-        hint = OUTSIDE_HINT
-        try:  # a hint that cannot be built never changes the verdict
+        def build_hint() -> str:
+            pulled = {norm(found["root"]) for found in map(placement, pulls) if found is not None}
+            hint = OUTSIDE_HINT
             if here is not None:
                 hint = hint_of(facts)
                 occupied = "is in use by another live session" in cause
@@ -531,11 +563,10 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
                     hint = f"write inside this session's worktree {here['root']}, not outside it."
                 elif facts.get("harness_class") == "H-2":
                     hint = h2_hint(here, envelope, facts, hint)
-        except Exception:
-            pass
-        if kind == "shell" and refused and refused["kind"] == "main" and re.search(r"\bpull\b", command_of(tool_input)):
-            hint = "`git pull --ff-only` on a clean base branch is allowed here; otherwise " + hint
-        return deny(refusal(action, cause, hint, judge.notice_once()))
+            if kind == "shell" and refused and refused["kind"] == "main" and norm(refused["root"]) in pulled:
+                hint = "`git pull --ff-only` on a clean base branch is allowed here; otherwise " + hint
+            return hint
+        return refuse(state, facts, action, cause, build_hint, judge.notice_once)
     if grants:
         import main_sync
         for place, fields in grants:
@@ -563,6 +594,8 @@ def main() -> int:
         facts = provider_facts()
         return decide(envelope, facts, state)
     except Exception as problem:
+        if state.get("refused"):
+            return deny(refusal(*state["refused"], plain_hint(facts)))
         if not state.get("identified"):
             return 0  # no mutation was identified, so nothing is owed a refusal
         # Fail closed inside a git work tree, open outside one.

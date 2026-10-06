@@ -45,7 +45,8 @@ if [ "${1:-}" = committed ] || [ "${1:-}" = aborted ]; then
   if [ -z "$common" ]; then
     common=$(git rev-parse --git-common-dir 2>/dev/null)
   elif [ -f "$common/commondir" ]; then
-    link=$(head -n 1 "$common/commondir" | tr -d '\r')
+    IFS= read -r link <"$common/commondir" || true
+    link=${link%$'\r'}
     case "$link" in /* | [A-Za-z]:*) common=$link ;; *) common="$common/$link" ;; esac
   fi
   if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1; then

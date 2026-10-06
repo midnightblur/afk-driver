@@ -742,3 +742,63 @@ def test_o2_1_a_refused_pull_names_the_allowed_form(repo):
     assert done.returncode == 2 and "git pull --ff-only" in deny_of(done)
     done = run("claude", repo["main"], "Bash", {"command": "git commit --allow-empty -m x"})
     assert "git pull --ff-only" not in deny_of(done)
+
+
+def run_in_process(monkeypatch, capsys, cwd: Path, command: str, harness: str = "claude"):
+    import io
+    guard = load_guard()
+    sys.path.insert(0, str(LIB))
+    for key, value in clean_env(harness).items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("AFK_ALLOW_PROTECTED", raising=False)
+    body = json.dumps(envelope_of(cwd, "Bash", {"command": command})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    monkeypatch.chdir(cwd)
+    code = guard.main()
+    return guard, code, capsys.readouterr()
+
+
+def test_s1_005_a_message_failure_after_a_refusal_still_denies(repo, monkeypatch, capsys):
+    guard = load_guard()
+    calls = []
+
+    def boom(*a, **k):
+        calls.append(1)
+        raise RuntimeError("message trouble")
+
+    monkeypatch.setattr(guard.Judge, "notice_once", boom)
+    import io
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0 and calls
+    out = capsys.readouterr().out
+    assert '"permissionDecision": "deny"' in out and "main checkout" in out
+
+
+def test_s1_005_a_recovery_text_failure_for_a_held_session_still_denies(repo, monkeypatch, capsys):
+    sys.path.insert(0, str(LIB))
+    import change_meter
+    held = {"root": str(repo["main"]), "paths": {"a.txt": ["x"]}}
+    monkeypatch.setattr(change_meter, "active", lambda *a, **k: held)
+    monkeypatch.setattr(change_meter, "allows", lambda *a, **k: False)
+    monkeypatch.setattr(change_meter, "recovery", lambda *a, **k: 1 / 0)
+    guard, code, out = run_in_process(monkeypatch, capsys, repo["main"], "touch changed")
+    assert code == 0 and '"permissionDecision": "deny"' in out.out and "has not undone it" in out.out
+
+
+def test_o2_1_the_sync_hint_names_only_a_refused_pull(repo):
+    pull = run("claude", repo["main"], "Bash", {"command": "git pull --rebase"})
+    assert "git pull --ff-only" in pull.stderr
+    other = run("claude", repo["main"], "Bash", {"command": "git commit -m x && touch a"})
+    assert "git pull --ff-only" not in other.stderr
+    mixed = run("claude", repo["main"], "Bash", {"command": "echo pull && touch a"})
+    assert "git pull --ff-only" not in mixed.stderr
+
+
+def test_f4_003_a_powershell_tool_keeps_a_group_folder_change(repo):
+    main = repo["main"]
+    command = f"(cd '{main}'); touch f"
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2
+    assert run("claude", repo["topic"], "Bash", {"command": command}).returncode == 0

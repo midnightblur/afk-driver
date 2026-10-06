@@ -25,11 +25,12 @@ PULL_QUIET = {"-q", "--quiet", "-v", "--verbose", "--progress", "--no-progress",
 TAG_READ = {"-l", "--list", "-v", "--verify", "-n", "--contains", "--no-contains", "--merged", "--no-merged",
             "--points-at", "--sort", "--column"}
 PS_TARGET = {"path", "literalpath", "filepath", "destination"}
-PS_VALUE = {"variable", "value", "encoding", "itemtype", "name", "newname", "filter", "include", "exclude", "width",
+PS_VALUE = {"inputobject", "outvariable", "variable", "value", "encoding", "itemtype", "name", "newname", "filter", "include", "exclude", "width",
             "stream", "credential", "erroraction", "errorvariable", "pipelinevariable"}
 WRITE_ALL = {"rm", "rmdir", "unlink", "del", "erase", "rd", "remove-item", "ri", "touch", "mkdir", "md", "tee"}
 WRITE_FIRST = {"tee-object", "set-content", "sc", "add-content", "ac", "out-file", "clear-content", "clc", "new-item", "ni",
                "rename-item", "rni", "ren"}
+PS_ONLY = {"ri", "sc", "ac", "clc", "ni", "rni", "cpi", "mi", "del", "erase", "rd", "md", "copy", "move", "ren"}
 COPY = {"cp", "copy", "copy-item", "cpi"}
 MOVE = {"mv", "move", "move-item", "mi"}
 VALUE_OPTS = {"touch": {"t", "d", "r", "date", "reference"}, "mkdir": {"m", "mode"}, "md": {"m", "mode"},
@@ -216,7 +217,12 @@ def strip_prefixes(words: list[Word], effects: dict | None = None) -> list[Word]
             words.pop(0)
             while words and not words[0].opaque and (words[0].text.startswith("-") or ASSIGN.match(words[0].text)):
                 option = words.pop(0).text
-                if wrapper == "sudo" and option in SUDO_VALUE and words:
+                if wrapper == "sudo" and (option in ("-D", "--chdir") or option.startswith("--chdir=")):
+                    folder = words.pop(0) if option in ("-D", "--chdir") and words else (
+                        Word(option[8:], False) if option.startswith("--chdir=") else None)
+                    if folder is not None and effects is not None:
+                        effects["chdir"] = folder
+                elif wrapper == "sudo" and option in SUDO_VALUE and words:
                     words.pop(0)
                 if wrapper == "env" and option in ENV_VALUE and words:
                     words.pop(0)
@@ -302,7 +308,7 @@ def inplace_files(prog: str, words: list[Word]) -> list[Word]:
 
 
 def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,
-                  visited: list | None = None) -> list[Path]:
+                  visited: list | None = None, pulls: list | None = None) -> list[Path]:
     i, workdir, gitdir = 1, None, None
     while i < len(words):
         text = words[i].text
@@ -341,6 +347,8 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
         syncs.append((folder, *ff_pull(args)))
     elif git_mutates(verb, args) and (folder is not None or repo is not None):
         found = [path for path in (repo, folder) if path is not None] + found
+        if verb == "pull" and pulls is not None:
+            pulls.extend(path for path in (repo, folder) if path is not None)
     return found
 
 
@@ -402,9 +410,10 @@ def state_mutates(verb: str, args: list[str], shorts: list[str]) -> bool:
     return verb == "checkout-index"
 
 
-def writer_targets(prog: str, words: list[Word]) -> list[Word]:
+def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> list[Word]:
     rest = words[1:]
-    if any(w.text.lower() in ("-whatif", "-whatif:$true") for w in rest):
+    if (powershell or "-" in prog or prog in PS_ONLY) and any(
+            w.text.lower() in ("-whatif", "-whatif:$true") for w in rest):
         return []
     if prog in ("sed", "perl"):
         return inplace_files(prog, rest)
@@ -429,11 +438,14 @@ def writer_targets(prog: str, words: list[Word]) -> list[Word]:
     return []
 
 
-def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None) -> list[Path]:
+def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None,
+              pulls: list | None = None, powershell: bool = False) -> list[Path]:
     """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
 
     With `syncs` a list, a `git pull --ff-only` is appended as (folder, remote, branch), not returned.
     With `visited` a list, every folder the command runs in or enters (cd, `-C`, `env -C`) is appended.
+    With `pulls` a list, the folders of a mutating `git pull` are appended. `powershell` keeps a
+    folder change made inside `( )` and lets `-WhatIf` exempt every writer.
     """
     found: list[Path] = []
     here: Path | None = cwd
@@ -445,7 +457,8 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
             if segment.mark == "open":
                 saved.append(here)
             elif saved:
-                here = saved.pop()
+                kept = saved.pop()
+                here = here if powershell else kept
             continue
         for target in segment.redirects:
             path = resolve(target, here)
@@ -469,11 +482,11 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
         elif prog == "git":
             if visited is not None and spot is not None:
                 visited.append(spot)
-            found.extend(git_resources(words, spot, syncs, visited))
+            found.extend(git_resources(words, spot, syncs, visited, pulls))
         else:
             if visited is not None and spot is not None:
                 visited.append(spot)
-            for word in writer_targets(prog, words):
+            for word in writer_targets(prog, words, powershell):
                 path = resolve(word, spot)
                 if path is not None:
                     found.append(path)

@@ -256,7 +256,7 @@ def test_s1_007_one_argument_ln_links_into_the_folder():
 
 def test_s1_008_wrapper_long_options_and_env_chdir():
     assert res("sudo --user root git commit -m x") == at(".")
-    assert res("sudo --group wheel --chdir /tmp touch f") == at("f")
+    assert res("sudo --group wheel --chdir /tmp touch f") == [Path(os.path.abspath("/tmp")) / "f"]
     assert res("env -C sub git add .") == at("sub")
     assert res("env --chdir=sub touch f") == at("sub/f")
     assert res("env -u HOME git commit -m x") == at(".")
@@ -292,3 +292,40 @@ def test_o2_1_any_other_pull_option_is_a_plain_mutation():
     syncs: list = []
     assert sm.resources("git pull --ff-only --rebase", CWD, syncs) == at(".")
     assert syncs == []
+
+
+def test_f4_003_a_powershell_group_keeps_its_folder_a_bash_group_restores_it():
+    assert sm.resources("(cd sub); touch f", CWD, powershell=True) == at("sub/f")
+    assert res("(cd sub); touch f") == at("f")
+
+
+def test_f4_004_tee_object_values_are_not_the_file():
+    assert res("Tee-Object -InputObject x out.txt") == at("out.txt")
+    assert res("Tee-Object -Variable v out.txt") == at("out.txt")
+    assert res("Tee-Object -OutVariable v -Append out.txt") == at("out.txt")
+    assert res("Tee-Object -InputObject x -Variable v") == []
+
+
+def test_f4_001_sudo_chdir_moves_the_wrapped_command():
+    away = Path(os.path.abspath("/elsewhere"))
+    assert res("sudo --chdir /elsewhere touch f") == [away / "f"]
+    assert res("sudo -D /elsewhere touch f") == [away / "f"]
+    assert res("sudo --chdir=/elsewhere touch f") == [away / "f"]
+    assert res("sudo --chdir $x touch f") == []
+
+
+def test_f4_002_whatif_exempts_only_powershell_commands():
+    assert res("rm -WhatIf tracked.txt") == at("tracked.txt")
+    assert res("touch -whatif f") == at("f")
+    assert res("Remove-Item tracked.txt -WhatIf") == []
+    assert res("ri tracked.txt -WhatIf") == []
+    assert sm.resources("rm tracked.txt -WhatIf", CWD, powershell=True) == []
+
+
+def test_f4_005_a_pull_names_itself_for_the_hint():
+    pulls: list = []
+    sm.resources("git pull --rebase && touch f", CWD, pulls=pulls)
+    assert set(pulls) == {CWD}
+    pulls.clear()
+    sm.resources("git commit -m x", CWD, pulls=pulls)
+    assert pulls == []
