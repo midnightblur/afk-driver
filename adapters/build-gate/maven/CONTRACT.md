@@ -55,7 +55,9 @@ context to come up. `mutation-probe.sh` is on-demand only and never blocks.
 `worktree-provision.sh` gives a new worktree its own local repository:
 `.mvn/maven.config` sets `maven.repo.local` to `<worktree>/.m2/repository`, and
 both paths go into the COMMON `info/exclude`, so every wrapper run and every IDE
-that reads `maven.config` picks it up and nothing appears in `git status`.
+that reads `maven.config` picks it up and nothing appears in `git status`. A
+`maven.config` it writes is recorded in the worktree's `afk-copied.json`
+(`scripts/worktree_owner.py copied`), so worktree removal knows it is restorable.
 
 | Key | Values | Effect |
 |---|---|---|

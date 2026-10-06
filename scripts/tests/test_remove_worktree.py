@@ -663,12 +663,6 @@ def test_a_git_timeout_reads_as_unknown_and_keeps(repo, monkeypatch):
     assert path.is_dir() and "worktree-slow" in branches(repo)
 
 
-def _placed(path: Path) -> None:
-    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "worktree_owner.py"), "placed",
-                           "--worktree", str(path)], capture_output=True, text=True, timeout=60)
-    assert done.returncode == 0, done.stderr
-
-
 def test_a_new_personal_file_in_an_ignored_folder_keeps_the_worktree(repo):
     _exclude(repo, "scratch/")
     path = made(repo, "scratch")
@@ -689,40 +683,52 @@ def test_build_output_inside_an_ignored_folder_does_not_keep_the_worktree(repo):
     assert not path.exists(), done.stderr
 
 
-def test_ignored_files_present_at_creation_are_restorable_until_changed(repo):
-    _exclude(repo, ".mvn/maven.config", ".tool/")
-    path = made(repo, "provisioned")
-    (path / ".mvn").mkdir()
-    (path / ".mvn" / "maven.config").write_text("-Dx=1", encoding="utf-8")
-    (path / ".tool").mkdir()
-    (path / ".tool" / "state.json").write_text("{}", encoding="utf-8")
-    _placed(path)
+def test_only_the_maven_repository_root_of_m2_is_disposable(repo):
+    _exclude(repo, ".m2/")
+    path = made(repo, "m2-repo")
+    (path / ".m2" / "repository" / "com" / "x").mkdir(parents=True)
+    (path / ".m2" / "repository" / "com" / "x" / "lib.jar").write_text("jar", encoding="utf-8")
     done = run("--path", str(path), cwd=repo)
     assert not path.exists(), done.stderr
-    again = made(repo, "provisioned-edited")
-    (again / ".tool").mkdir()
-    (again / ".tool" / "state.json").write_text("{}", encoding="utf-8")
-    _placed(again)
-    (again / ".tool" / "state.json").write_text('{"edited": true}', encoding="utf-8")
-    done = run("--path", str(again), cwd=repo)
-    assert again.is_dir() and ".tool/state.json" in done.stderr, done.stderr
 
 
-def test_a_folder_walk_past_the_budget_keeps_the_worktree(repo, monkeypatch):
+def test_a_personal_file_beside_the_maven_repository_keeps_the_worktree(repo):
+    _exclude(repo, ".m2/")
+    path = made(repo, "m2-settings")
+    (path / ".m2" / "repository").mkdir(parents=True)
+    (path / ".m2" / "settings.xml").write_text("<settings/>", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".m2/settings.xml" in done.stderr, done.stderr
+
+
+def test_a_nested_m2_folder_is_read_like_any_other(repo):
+    _exclude(repo, "tools/")
+    path = made(repo, "m2-nested")
+    (path / "tools" / ".m2" / "repository").mkdir(parents=True)
+    (path / "tools" / ".m2" / "repository" / "own.jar").write_text("jar", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "tools/.m2/repository/own.jar" in done.stderr, done.stderr
+
+
+def test_a_large_flat_folder_past_the_budget_keeps_the_worktree_and_says_why(repo, monkeypatch, capsys):
     _exclude(repo, "scratch/")
-    path = made(repo, "walk")
-    (path / "scratch" / "deep").mkdir(parents=True)
+    path = made(repo, "flat")
+    (path / "scratch").mkdir()
+    for i in range(2000):
+        (path / "scratch" / f"f{i}.txt").write_text("x", encoding="utf-8")
     module = load_remove()
-    owner = _load("afk_owner_walk", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
-    real_walk = owner.files_under
 
-    def late_walk(worktree, rel, tick=lambda: None):
-        module.DEADLINE = time.time() - 1
-        yield from real_walk(worktree, rel, tick)
+    class Clock:  # each reading advances 10 ms: listing 2000 entries outlasts a 5 s budget
+        now = time.time()
 
-    monkeypatch.setattr(owner, "files_under", late_walk)
-    monkeypatch.setattr(module, "owner_module", lambda: owner)
-    monkeypatch.setattr(module, "DEADLINE", time.time() + 60)
+        def time(self) -> float:
+            self.now += 0.01
+            return self.now
+
+    clock = Clock()
+    monkeypatch.setattr(module, "time", clock)
+    monkeypatch.setattr(module, "DEADLINE", clock.now + 5)
     monkeypatch.chdir(repo)
     module.remove_one(path, False)
-    assert path.is_dir() and "worktree-walk" in branches(repo)
+    assert path.is_dir() and "worktree-flat" in branches(repo)
+    assert "ran out of time listing ignored files" in capsys.readouterr().err

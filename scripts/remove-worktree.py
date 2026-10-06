@@ -10,9 +10,10 @@ Only a worktree with an owner record (`<common>/afk-worktrees/<name>.json`, writ
 `create-worktree --name`) is ever touched. A clean worktree with no unpushed commit is
 removed, and its recorded branch with it when that branch has no commit of its own.
 Clean means: no tracked change, no untracked file, no copied file changed since the copy
-(hashes in `<worktree git dir>/afk-copied.json`), and no ignored file other than one that
-file records unchanged; only ignored folders named in `worktree_owner.DISPOSABLE_DIRS`
-(build output, caches) go unread. A git call or folder walk that fails or does not finish
+(hashes in `<worktree git dir>/afk-copied.json`, written by the copy step and by build-gate
+provisioning only), and no ignored file other than one that file records unchanged; only
+ignored folders matching `worktree_owner.DISPOSABLE_DIRS` or `DISPOSABLE_ROOTS` (build
+output, caches) go unread. A git call or folder walk that fails or does not finish
 inside the hook budget (`AFK_HOOK_DEADLINE`) leaves the state unknown, and an unknown
 worktree is kept. Anything else is kept, recorded for the next session
 start, and the resume and remove commands are printed. `--force` removes a kept one: the
@@ -121,7 +122,7 @@ def work_in(path: Path) -> str:
     """Why this worktree holds work git cannot restore, or "".
 
     Work: a tracked change; an untracked file; a copied file whose content changed since the
-    copy; an ignored file not recorded unchanged at creation, outside owner.DISPOSABLE_DIRS.
+    copy; an ignored file the record does not hold unchanged, outside disposable folders.
     """
     owner = owner_module()
     runtime = tuple(owner.RUNTIME_PATHS)
@@ -153,8 +154,11 @@ def work_in(path: Path) -> str:
             return "it has uncommitted changes"
         if code == "!!" and rel.endswith("/"):
             if not rel.startswith(runtime) and not owner.disposable(rel):
-                unrestorable += [inner for inner in owner.files_under(str(path), rel, in_budget)
-                                 if not recorded(inner)]
+                try:
+                    unrestorable += [inner for inner in owner.files_under(str(path), rel, in_budget)
+                                     if not recorded(inner)]
+                except OSError as error:
+                    raise Unknown(f"cannot list {rel}: {error.strerror or error}") from None
             continue
         if recorded(rel):
             continue

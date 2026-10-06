@@ -170,6 +170,9 @@ mkdir -p "$WORKTREE/.m2/repository" "$WORKTREE/.mvn" || fail "cannot create $WOR
 # Append, never truncate: any other flag already in the file is the developer's.
 printf -- '%s\n' "$REPO_LINE" >> "$MAVEN_CONFIG" || fail "cannot write $MAVEN_CONFIG"
 add DONE '"maven.config"'
+# Worktree removal deletes only recorded plugin outputs; unrecorded, it keeps the worktree.
+printf '.mvn/maven.config\0' | "${AFK_PY:-python}" "$AFK_BG_MAVEN_DIR/../../../scripts/worktree_owner.py" \
+  copied --worktree "$WORKTREE_NATIVE" >/dev/null 2>&1 || true
 printf '%s\n' "afk: private Maven repository at $WORKTREE_NATIVE/.m2/repository" >&2
 
 # ---- seed

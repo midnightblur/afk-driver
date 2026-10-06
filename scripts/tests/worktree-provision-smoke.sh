@@ -121,6 +121,8 @@ if grep -qxF -- "-Dmaven.repo.local=$WT1_WIN/.m2/repository" "$WT1/.mvn/maven.co
 else
   bad "maven.config wrong or missing"
 fi
+COPIED="$(git -C "$WT1" rev-parse --absolute-git-dir)/afk-copied.json"
+grep -qF '".mvn/maven.config"' "$COPIED" 2>/dev/null && ok "maven.config recorded as restorable" || bad "maven.config not in $COPIED"
 [[ -f "$WT1/.m2/repository/com/x/lib/1.0/lib-1.0.jar" ]] && ok "release artifact seeded" || bad "release artifact not seeded"
 [[ -d "$WT1/.m2/repository/com/x/lib/9.9-SNAPSHOT" ]] && bad "excluded glob was seeded" || ok "excluded glob skipped"
 EXCLUDE="$REPO/.git/info/exclude"
