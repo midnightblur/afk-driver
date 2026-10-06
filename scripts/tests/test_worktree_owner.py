@@ -52,9 +52,15 @@ def test_state_of_this_process_is_alive():
     assert owner.state(me, owner.creation_time(me)) == "alive"
 
 
-def test_a_pid_with_another_creation_time_is_unknown_never_alive():
+def test_a_pid_with_another_creation_time_is_a_recycled_one_and_dead():
     me = os.getpid()
-    assert owner.state(me, "1") == "unknown"
+    assert owner.state(me, "1") == "dead"
+
+
+def test_an_unreadable_creation_time_is_unknown(monkeypatch):
+    monkeypatch.setattr(owner, "exists", lambda pid: True)
+    monkeypatch.setattr(owner, "creation_time", lambda pid: None)
+    assert owner.state(os.getpid(), "1") == "unknown"
 
 
 def test_a_pid_that_does_not_exist_is_dead():

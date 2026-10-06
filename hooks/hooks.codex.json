@@ -33,6 +33,12 @@
             "type": "command",
             "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 plugin worktree-prune.sh",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/protected-branch-occupancy.py\"",
+            "timeout": 30,
+            "statusMessage": "protected-branch occupancy"
           }
         ]
       },

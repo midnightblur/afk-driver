@@ -58,7 +58,8 @@ def repo(tmp_path: Path):
 def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
                if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
-                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
+                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL",
+                            "HERDR_ENV", "HERDR_TAB_ID", "AFK_WORKTREE_GROUP", "AFK_WORKTREE_OWNER")}
     environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
     return environ
 

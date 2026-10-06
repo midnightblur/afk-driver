@@ -5,7 +5,8 @@ exit 0 (a one-line context note on stdout when the forge could not answer). Refu
 exit 0, the reason on stderr and a deny decision on stdout (`providers/CONFORMANCE.md` row P-2: exit 2 fails open).
 
 A call is refused only when it is an identified mutation whose resource is guarded: the
-main checkout (any branch) or a linked worktree on a protected branch. Edit tools are
+main checkout (any branch), a linked worktree on a protected branch, or one another live session
+holds (`occupancy.py`). Edit tools are
 judged at every target they name; a shell command at the paths `shell_mutations`
 recognizes; reads, composition, unknown programs and paths outside git pass. A verdict
 that cannot be computed for an identified mutation is a refusal that names the fault.
@@ -299,6 +300,22 @@ class Judge:
             self.fallback_reason = answer.get("reason") or "the forge did not answer"
         return f"branch `{branch}` is protected" if answer["protected"] else None
 
+    def occupant(self, place: dict | None) -> str | None:
+        """The refusal cause when another live session holds this linked worktree; registers this one."""
+        if place is None or place["kind"] != "linked":
+            return None
+        try:
+            import occupancy
+            who = occupancy.identity(self.session)
+            if who is None:
+                return None
+            held = occupancy.claim(place, who)
+            return occupancy.describe(place, held) if held else None
+        except Exception as problem:
+            if type(problem).__name__ == "Busy":
+                return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
+            return None  # an unreadable record names no occupant
+
     def owner_key(self) -> str:
         """A session without an id is told apart by the harness process above this hook."""
         try:
@@ -463,7 +480,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         grants.append((place, fields))
     for target in resources:
         refused = placement(target)
-        cause = judge.verdict(refused)
+        cause = judge.verdict(refused) or judge.occupant(refused)
         if cause:
             where = str(target)
             break
@@ -480,7 +497,8 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         try:  # a hint that cannot be built never changes the verdict
             if here is not None:
                 hint = hint_of(facts)
-                if judge.verdict(here) is None:
+                occupied = "is in use by another live session" in cause
+                if judge.verdict(here) is None and not (occupied and norm(here["root"]) == norm(refused["root"])):
                     hint = f"write inside this session's worktree {here['root']}, not outside it."
                 elif facts.get("harness_class") == "H-2":
                     hint = h2_hint(here, envelope, facts, hint)
