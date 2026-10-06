@@ -37,6 +37,12 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- `python hooks/tests/bench-hooks.py` times every hook command the manifest
+  registers against realistic envelopes and prints p50 and p95 per event and
+  per handler. It is informational and asserts no budget.
+
 ### Changed
 
 - The commit gates stop at the first block and run the cheap gates first: the
