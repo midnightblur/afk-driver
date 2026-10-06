@@ -273,7 +273,7 @@ def inplace_files(prog: str, words: list[Word]) -> list[Word]:
     return positional if script else positional[1:]
 
 
-def git_resources(words: list[Word], cwd: Path | None) -> list[Path]:
+def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None) -> list[Path]:
     i, workdir, gitdir = 1, None, None
     while i < len(words):
         text = words[i].text
@@ -305,9 +305,21 @@ def git_resources(words: list[Word], cwd: Path | None) -> list[Path]:
             found.extend(filter(None, [resolve(Word(arg[9:], False), cwd)]))
         elif arg == "--output" and pos + 1 < len(args):
             found.extend(filter(None, [resolve(words[i + 2 + pos], cwd)]))
-    if git_mutates(verb, args) and folder is not None:
+    if verb == "pull" and syncs is not None and folder is not None and ff_pull(args) is not None:
+        syncs.append((folder, *ff_pull(args)))
+    elif git_mutates(verb, args) and folder is not None:
         found.insert(0, folder)
     return found
+
+
+def ff_pull(args: list[str]) -> tuple[str | None, str | None] | None:
+    """`(remote, branch)` of `pull --ff-only [<remote> <branch>]`, else None: any other option is not a sync."""
+    if args.count("--ff-only") != 1:
+        return None
+    rest = [a for a in args if a != "--ff-only"]
+    if any(a.startswith("-") for a in rest) or len(rest) not in (0, 2):
+        return None
+    return (rest[0], rest[1]) if rest else (None, None)
 
 
 def git_mutates(verb: str, args: list[str]) -> bool:
@@ -353,8 +365,11 @@ def writer_targets(prog: str, words: list[Word]) -> list[Word]:
     return []
 
 
-def resources(command: str, cwd: Path) -> list[Path]:
-    """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order."""
+def resources(command: str, cwd: Path, syncs: list | None = None) -> list[Path]:
+    """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
+
+    With `syncs` a list, a `git pull --ff-only` is appended as (folder, remote, branch), not returned.
+    """
     found: list[Path] = []
     here: Path | None = cwd
     for segment in segments(command):
@@ -372,7 +387,7 @@ def resources(command: str, cwd: Path) -> list[Path]:
             chosen = (targets or positional[:1])
             here = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
         elif prog == "git":
-            found.extend(git_resources(words, here))
+            found.extend(git_resources(words, here, syncs))
         else:
             for word in writer_targets(prog, words):
                 path = resolve(word, here)

@@ -37,6 +37,8 @@ MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", 
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_DEPTH = 3
+SYNC_HINT = ("a human makes the main checkout clean and puts it on its base branch with an upstream, "
+             "or this session continues in a linked worktree.")
 OUTSIDE_HINT = ("this session is not inside a repository, so no worktree can be cut for it: start the "
                 "session inside the repository, or switch into an existing worktree with the harness's "
                 "worktree tool (its path form).")
@@ -376,10 +378,10 @@ def command_of(tool_input: dict) -> str:
     return " ".join(map(str, value)) if isinstance(value, list) else str(value)
 
 
-def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path) -> list[Path]:
+def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: list) -> list[Path]:
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
-        return shell_mutations.resources(command_of(tool_input), cwd)
+        return shell_mutations.resources(command_of(tool_input), cwd, syncs)
     found = targets_of(tool_input, cwd)
     return found or ([cwd] if kind == "edit" else [])
 
@@ -391,16 +393,30 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     kind = tool_class(tool, facts)
     if kind == "allow":
         return 0
+    syncs: list = []
     try:
-        resources = mutation_targets(kind, tool, tool_input, cwd)
+        resources = mutation_targets(kind, tool, tool_input, cwd, syncs)
     except Exception:  # an unreadable call is not an identified mutation
         return 0
-    if not resources:
+    if not resources and not syncs:
         return 0
     state["identified"] = True
     judge = Judge(str(envelope.get("session_id") or ""))
     here = placement(cwd)
     cause, refused, where = None, None, ""
+    grants = []
+    for folder, remote, branch in syncs:
+        place = placement(folder)
+        if place is None:
+            continue
+        if place["kind"] != "main":
+            resources.append(folder)  # a pull into a linked worktree is a plain mutation
+            continue
+        import main_sync
+        why, fields = main_sync.check(place, remote, branch)
+        if why:
+            return deny(refusal(f"run `{command_of(tool_input).strip()[:80]}`", why, SYNC_HINT))
+        grants.append((place, fields))
     for target in resources:
         refused = placement(target)
         cause = judge.verdict(refused)
@@ -424,6 +440,10 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
             else:
                 hint = f"write inside this session's worktree {here['root']}, not outside it."
         return deny(refusal(action, cause, hint, judge.notice_once()))
+    if grants:
+        import main_sync
+        for place, fields in grants:
+            main_sync.authorize(place, fields, judge.session or judge.owner_key())
     notice = judge.notice_once()
     if notice:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",

@@ -152,3 +152,37 @@ def test_unbalanced_quotes_and_garbage_never_raise():
 def test_the_same_verb_inside_quotes_is_text():
     assert res('git commit -m "a; touch b"') == at(".")
     assert res('echo "git commit"') == []
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("git pull --ff-only", (None, None)),
+    ("git pull --ff-only origin main", ("origin", "main")),
+    ("git pull origin main --ff-only", ("origin", "main")),
+    ("GIT pull --ff-only", (None, None)),
+])
+def test_an_ff_only_pull_is_a_sync_not_a_mutation(command, expected):
+    syncs: list = []
+    assert sm.resources(command, CWD, syncs) == []
+    assert syncs == [(CWD, *expected)]
+
+
+def test_a_sync_keeps_its_folder_and_the_rest_of_the_line():
+    syncs: list = []
+    assert sm.resources("cd sub && git pull --ff-only && touch f", CWD, syncs) == at("sub/f")
+    assert syncs == [(CWD / "sub", None, None)]
+    syncs = []
+    assert sm.resources("git -C sub pull --ff-only", CWD, syncs) == [] and syncs == [(CWD / "sub", None, None)]
+
+
+@pytest.mark.parametrize("command", [
+    "git pull", "git pull origin main", "git pull --rebase", "git pull --ff-only --rebase",
+    "git pull --ff-only origin", "git pull --ff-only -s ours", "git pull --ff-only origin main extra",
+    "git pull --no-ff", "git pull --ff-only --ff-only",
+])
+def test_any_other_pull_stays_a_mutation(command):
+    syncs: list = []
+    assert sm.resources(command, CWD, syncs) == at(".") and syncs == []
+
+
+def test_without_a_syncs_list_an_ff_pull_is_a_mutation():
+    assert res("git pull --ff-only") == at(".")

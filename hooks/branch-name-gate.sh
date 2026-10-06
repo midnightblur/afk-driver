@@ -37,13 +37,20 @@ elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || [ -n "${CLAUDECODE:-}" ]; then
 fi
 [ "$afk_git_provider" != unknown ] || exit 0
 
-# Only the "prepared" phase of a ref transaction can veto it; "committed" and
-# "aborted" are informational (a non-zero exit there does nothing useful).
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# "committed" and "aborted" cannot veto; they only retire a main-checkout sync authorization.
+if [ "${1:-}" = committed ] || [ "${1:-}" = aborted ]; then
+  common=$(git rev-parse --git-common-dir 2>/dev/null)
+  if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1; then
+    py=python; command -v python >/dev/null 2>&1 || py=python3
+    "$py" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true
+  fi
+  exit 0
+fi
 [ "${1:-}" = "prepared" ] || exit 0
 
 # Protected-branch backstop (git-backstop.py) runs first: the hatches below are for
 # the naming rule only. It reads the ref lines, so they are held for the loop.
-here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 refs=$(cat)
 # Python starts only for a HEAD or branch line; fetch, tags, notes and stash skip it.
 # Exit 3 is a refusal; any other failure is a fault and lets git continue.
