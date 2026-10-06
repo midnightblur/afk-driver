@@ -325,8 +325,8 @@ than once per worktree, or in `~/.afk/config.yaml` as a default for every
 repository. The two assignees are a pair: `trackerAssignee` is put on every work
 item the plugin creates (bug tickets, spinoff tickets), `mrAssignee` on every
 merge request or pull request it opens. `/afk:setup`, run from the main
-checkout or any worktree, offers your other configured repositories too, so you
-can fill all of them in one run or one at a time. It asks you for each missing value in the session and
+checkout, any worktree or no repository, asks which main checkouts to set up —
+all of them in one run, one at a time, or none for now. For each one it asks you for each missing value in the session and
 suggests your own account for both assignees — the tracker account email, the
 forge user the CLI is logged in as — so you confirm or name someone else;
 leaving one unset means no assignee. An agent that needs a missing value asks

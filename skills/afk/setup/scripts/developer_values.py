@@ -2,16 +2,12 @@
 """Report and record a developer's `developer:` values. None is a secret, so an agent
 asks the human in session and records the answers here.
 
-    python developer_values.py checkouts [FOLDER ...]   # configured main checkouts, below
-    python developer_values.py status [--repo PATH]     # JSON report, below
+    python developer_values.py status [--repo PATH]   # JSON report, below
     python developer_values.py set KEY=VALUE ... [--machine] [--repo PATH]
 
-`checkouts` lists the main checkouts holding `.afk/config.yaml` up to three levels
-below each FOLDER (default: the folder holding this repository's main checkout),
-with each one's `missing` and `inherited` keys; this repository's entry has `current`. `--repo` points `status` and `set`
-at one of them instead of the current checkout.
-
-`status` names, per key: `need` (required | optional | n/a for this repository's
+`--repo` names the checkout to act on; the default is the current one.
+`status` reports `main_checkout` and whether the repository is `configured` (has
+`.afk/config.yaml`), and names, per key: `need` (required | optional | n/a for this repository's
 adapters), the resolved `value`, its `source` layer, and a `suggestion` to offer.
 `missing` lists the required keys nothing resolves; `inherited` the keys naming a
 person or a location that only the machine file supplies. A `worktreeBasePath` set in a file also shows its `derived` value.
@@ -132,7 +128,13 @@ def ide_guess() -> str | None:
     return None
 
 
-def status(root: Path, suggest_values: bool = True) -> dict:
+def main_checkout(root: Path) -> Path | None:
+    shared = ac.shared_overlay(root)
+    common = shared.parent.parent if shared else None
+    return common.parent if common is not None and common.name == ".git" else None
+
+
+def status(root: Path) -> dict:
     config = ac.load(root)
     tracker = str(ac.get(config, "tracker") or "none")
     forge = str(ac.get(config, "forge") or "none")
@@ -163,13 +165,16 @@ def status(root: Path, suggest_values: bool = True) -> dict:
         if value is not None and source is None:
             source = "derived"
         entry = {"need": need[key], "value": value, "source": source}
-        if suggest_values and value is None and need[key] != "n/a":
+        if value is None and need[key] != "n/a":
             entry["suggestion"] = suggest[key]()
         if key == "worktreeBasePath" and source not in (None, "derived"):
             derived = ac.worktree_base(root)
             entry["derived"] = str(derived).replace("\\", "/") if derived else None
         keys[key] = entry
+    main = main_checkout(root)
     return {
+        "main_checkout": main.as_posix() if main else None,
+        "configured": (root / ".afk" / "config.yaml").is_file(),
         "tracker": tracker, "forge": forge,
         "repository_file": str(shared) if shared else None,
         "machine_file": str(machine_file()),
@@ -179,53 +184,6 @@ def status(root: Path, suggest_values: bool = True) -> dict:
                       if e["need"] != "n/a" and e["source"] == "machine" and k != "ideBinary"],
         "keys": keys,
     }
-
-
-def main_checkout(root: Path) -> Path | None:
-    shared = ac.shared_overlay(root)
-    common = shared.parent.parent if shared else None
-    return common.parent if common is not None and common.name == ".git" else None
-
-
-def checkouts(folders: list[Path], current: Path | None = None,
-              depth: int = 3, budget: int = 5000) -> dict:
-    """Configured main checkouts below `folders`; a worktree is covered by its main checkout."""
-    folders = [f.resolve() for f in folders]
-    for folder in folders:
-        if folder == Path(folder.anchor) or not folder.is_dir():
-            raise ValueError(f"name a project folder, not a drive root or a missing path: {folder}")
-    found, queue, seen, truncated = [], [(f, 0) for f in folders], 0, False
-    while queue:
-        folder, level = queue.pop(0)
-        if (folder / ".git").is_dir():
-            if (folder / ".afk" / "config.yaml").is_file():
-                found.append(folder)
-            continue
-        if level >= depth:
-            continue
-        try:
-            children = sorted(e.path for e in os.scandir(folder) if e.is_dir(follow_symlinks=False)
-                              and not e.name.startswith(".") and e.name != "node_modules")
-        except OSError:
-            continue
-        seen += len(children)
-        if seen > budget:
-            truncated = True
-            break
-        queue.extend((Path(c), level + 1) for c in children)
-    listed = []
-    for root in sorted(set(found)):
-        entry = {"path": root.as_posix()}
-        if current is not None and root == current.resolve():
-            entry["current"] = True
-        try:
-            report = status(root, suggest_values=False)
-            entry.update(missing=report["missing"], inherited=report["inherited"])
-        except ac.ConfigError as problem:
-            entry["error"] = str(problem)
-        listed.append(entry)
-    return {"folders": [f.as_posix() for f in folders], "truncated": truncated,
-            "checkouts": listed}
 
 
 def record(root: Path, pairs: list[str], machine: bool) -> Path:
@@ -261,15 +219,9 @@ def main(argv: list[str]) -> int:
             return 2
     root = ac.git_root(Path(repo[0])) if repo else ac.git_root()
     try:
-        if argv[:1] == ["checkouts"]:
-            here = main_checkout(root) if root else None
-            folders = [Path(a) for a in argv[1:]] or ([here.parent] if here else [])
-            if not folders:
-                raise ValueError("outside a git checkout; name the folders to search")
-            sys.stdout.write(json.dumps(checkouts(folders, here), indent=2) + "\n")
-            return 0
         if root is None:
-            raise ValueError("run inside a git checkout, or name one with --repo")
+            raise ValueError(f"not a git checkout: {repo[0]}" if repo
+                             else "run inside a git checkout, or name one with --repo")
         if argv[:1] == ["status"]:
             sys.stdout.write(json.dumps(status(root), indent=2) + "\n")
             return 0

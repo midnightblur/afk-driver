@@ -90,27 +90,6 @@ def test_a_value_recorded_in_a_worktree_is_read_by_the_main_checkout(tmp_path):
     assert (main / ".git" / "afk" / "config.yaml").is_file()
 
 
-def test_checkouts_lists_each_configured_main_checkout_once(tmp_path, home):
-    projects = tmp_path / "projects"
-    a = make_repo(projects, "a", forge="github")
-    make_repo(projects / "group", "b")
-    git(a, "worktree", "add", "-q", str(projects / "a-worktrees" / "task"))
-    bare = projects / "plain"
-    bare.mkdir()
-    git(bare, "init", "-q")
-    dv.write_block(home / ".afk" / "config.yaml", {"mrReviewer": "rev"})
-
-    out = cli(projects / "a-worktrees" / "task", "checkouts")
-    assert out.returncode == 0, out.stderr
-    listed = json.loads(out.stdout)
-    assert listed["folders"] == [projects.resolve().as_posix()]
-    assert listed["checkouts"] == [
-        {"path": (projects / "a").resolve().as_posix(), "current": True,
-         "missing": [], "inherited": ["mrReviewer"]},
-        {"path": (projects / "group" / "b").resolve().as_posix(), "missing": [], "inherited": []},
-    ]
-
-
 def test_set_with_repo_records_another_checkouts_value(tmp_path):
     a = make_repo(tmp_path, "a")
     b = make_repo(tmp_path, "b", forge="github")
@@ -119,9 +98,29 @@ def test_set_with_repo_records_another_checkouts_value(tmp_path):
     assert not (a / ".git" / "afk" / "config.yaml").exists()
 
 
-def test_checkouts_refuses_a_drive_root(tmp_path):
-    out = cli(make_repo(tmp_path, "a"), "checkouts", Path(tmp_path.anchor).as_posix())
-    assert out.returncode == 2 and "drive root" in out.stderr
+def test_status_from_no_repository_reports_a_named_checkout(tmp_path):
+    main = make_repo(tmp_path, "a")
+    linked = tmp_path / "a-worktrees" / "task"
+    git(main, "worktree", "add", "-q", str(linked))
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    report = json.loads(cli(outside, "status", "--repo", str(linked)).stdout)
+    assert report["main_checkout"] == main.resolve().as_posix()
+    assert report["configured"] is True
+
+
+def test_repo_that_is_not_a_checkout_is_refused(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    out = cli(outside, "status", "--repo", str(outside))
+    assert out.returncode == 2 and "not a git checkout" in out.stderr
+
+
+def test_an_unconfigured_checkout_says_so(tmp_path):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    git(plain, "init", "-q")
+    assert json.loads(cli(plain, "status").stdout)["configured"] is False
 
 
 def test_none_assignee_overrides_the_machine_assignee(tmp_path, home):

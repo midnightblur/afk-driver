@@ -138,19 +138,12 @@ def test_a_machine_only_person_is_confirmed_per_repository(repo, home):
     assert out.returncode == 0, out.stdout + out.stderr
 
 
-def test_a_neighbouring_checkout_missing_values_fails_the_probe(tmp_path, repo, home):
-    write(repo / ".afk" / "config.yaml", NONE)
-    other = tmp_path / "other"
-    write(other / ".afk" / "config.yaml", "schema: 1\ntracker: none\nforge: github\n")
-    subprocess.run(["git", "-C", str(other), "init", "-q", "-b", "main"], check=True)
-    out = run(repo, home)
-    assert out.returncode == 1
-    assert out.stdout.splitlines()[-1] == (
-        f"other checkouts need values: {other.resolve().as_posix()}")
-
-    write(other / ".git" / "afk" / "config.yaml", "developer:\n  mrReviewer: you\n")
-    out = run(repo, home)
+def test_no_repository_is_skipped_not_failed(tmp_path, home):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    out = run(outside, home, GIT_CEILING_DIRECTORIES=str(tmp_path))
     assert out.returncode == 0, out.stdout + out.stderr
+    assert out.stdout.strip() == "skipped (no repository)"
 
 
 def test_shared_overlay_none_is_ok(repo, home):
@@ -158,15 +151,6 @@ def test_shared_overlay_none_is_ok(repo, home):
     out = run(repo, home)
     assert out.returncode == 0, out.stdout + out.stderr
     assert out.stdout.strip() == "ok"
-
-
-def test_worktree_base_failure_still_reported_beside_h0(tmp_path, home):
-    bare = tmp_path / "not-a-repo"
-    bare.mkdir()
-    out = run(bare, home)
-    assert out.returncode == 1
-    assert "needs-human: see H0" in out.stdout
-    assert "unresolved: worktreeBasePath" in out.stdout
 
 
 def test_root_is_the_working_directorys_git_root(tmp_path, repo, home):
