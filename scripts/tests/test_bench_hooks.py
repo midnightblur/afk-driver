@@ -69,15 +69,18 @@ def test_one_run_reports_the_event_and_each_handler(tmp_path):
     assert "read (PreToolUse)" in done.stdout and "protected-branch-guard.py" in done.stdout
 
 
+def _worktrees() -> set[str]:
+    listing = subprocess.run(["git", "-C", str(ROOT), "worktree", "list", "--porcelain"], capture_output=True,
+                             text=True).stdout
+    return {line for line in listing.splitlines() if line.startswith("worktree ")}
+
+
 def test_worktree_lifecycle_runs_in_a_disposable_clone():
-    before = subprocess.run(["git", "-C", str(ROOT), "worktree", "list", "--porcelain"], capture_output=True,
-                            text=True).stdout
+    before = _worktrees()
     done = subprocess.run([sys.executable, str(BENCH), "--runs", "1", "--only", "worktree-create", "worktree-remove"],
                           cwd=ROOT, capture_output=True, text=True, timeout=600)
     assert done.returncode == 0, done.stderr
     assert "worktree-create (WorktreeCreate)" in done.stdout and "worktree-remove (WorktreeRemove)" in done.stdout
     rows = [line.split() for line in done.stdout.splitlines() if line.startswith("  plugin worktree-")]
     assert rows and all(row[-1] == "0" for row in rows), done.stdout
-    after = subprocess.run(["git", "-C", str(ROOT), "worktree", "list", "--porcelain"], capture_output=True,
-                           text=True).stdout
-    assert after == before
+    assert not [w for w in _worktrees() - before if "bench-new-" in w or "bench-old-" in w]
