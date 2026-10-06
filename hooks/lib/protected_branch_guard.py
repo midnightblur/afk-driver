@@ -419,16 +419,37 @@ def meter_guarded(place: dict, judge: "Judge") -> bool:
     return branch in names and judge.verdict(place) is not None
 
 
-def meter_pre(kind: str, here: dict | None, judge: "Judge") -> None:
-    """Snapshot the guarded checkout before an allowed shell call; never changes the verdict."""
-    if kind != "shell" or here is None:
+def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "Judge") -> None:
+    """Snapshot every guarded checkout an allowed shell call can enter; never changes the verdict."""
+    if kind != "shell":
         return
     try:
-        if meter_guarded(here, judge):
-            import change_meter
-            change_meter.record_pre(here, change_meter.session_key(judge))
+        import change_meter
+        command = command_of(envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {})
+        if change_meter.read_only(command, cwd):
+            return
+        folders: list = []
+        shell_mutations.resources(command, cwd, [], folders)
+        chosen: dict[str, dict] = {}
+        for place in [here] + [placement(f) for f in folders]:
+            try:
+                if place is not None and norm(place["root"]) not in chosen and meter_guarded(place, judge):
+                    chosen[norm(place["root"])] = place
+            except Exception:
+                continue
+        if chosen:
+            call, sha = change_meter.call_id(envelope, command)
+            change_meter.record_pre(list(chosen.values()), change_meter.session_key(judge), call, sha, cwd)
     except Exception:
         pass
+
+
+def outside_guard(judge: "Judge"):
+    """A path no guarded checkout holds: outside git, or a linked worktree on an unprotected branch."""
+    def check(path: Path) -> bool:
+        place = placement(path)
+        return place is None or (place["kind"] == "linked" and judge.verdict(place) is None)
+    return check
 
 
 def decide(envelope: dict, facts: dict, state: dict) -> int:
@@ -447,7 +468,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
             held = change_meter.active(here, change_meter.session_key(judge))
     except Exception:  # no verdict on a hold that cannot be read
         here, held = None, None
-    if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held):
+    if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held, outside_guard(judge)):
         return 0  # the named recovery and inspection commands, even where they mutate
     if held:
         names = ", ".join(sorted(held["paths"]))
@@ -460,7 +481,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     except Exception:  # an unreadable call is not an identified mutation
         return 0
     if not resources and not syncs:
-        meter_pre(kind, here, judge)
+        meter_pre(kind, envelope, cwd, here, judge)
         return 0
     state["identified"] = True
     state["targets"] = list(resources) + [folder for folder, _, _ in syncs]
@@ -481,6 +502,14 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     for target in resources:
         refused = placement(target)
         cause = judge.verdict(refused) or judge.occupant(refused)
+        if cause and kind == "shell" and refused is not None:
+            try:
+                import change_meter
+                other = change_meter.active(refused, change_meter.session_key(judge))
+                if other and change_meter.allows(command_of(tool_input), cwd, other, outside_guard(judge)):
+                    return 0  # this session's named recovery of a checkout it holds, from any folder
+            except Exception:
+                pass
         if cause:
             where = str(target)
             break
@@ -511,8 +540,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         import main_sync
         for place, fields in grants:
             main_sync.authorize(place, fields, judge.session or judge.owner_key())
-    else:
-        meter_pre(kind, here, judge)
+    meter_pre(kind, envelope, cwd, here, judge)
     notice = judge.notice_once()
     if notice:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",

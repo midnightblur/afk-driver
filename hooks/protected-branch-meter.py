@@ -23,10 +23,10 @@ def run() -> None:
         return
     if guard.tool_class(str(envelope.get("tool_name") or ""), guard.provider_facts()) != "shell":
         return
-    place = guard.placement(Path(envelope.get("cwd") or os.getcwd()))
-    if place is None:
-        return
-    text = change_meter.after(place, change_meter.session_key(guard.Judge(str(envelope.get("session_id") or ""))))
+    cwd = Path(envelope.get("cwd") or os.getcwd())
+    tool_input = envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {}
+    call, sha = change_meter.call_id(envelope, guard.command_of(tool_input))
+    text = change_meter.after(change_meter.session_key(guard.Judge(str(envelope.get("session_id") or ""))), call, sha, cwd)
     if text:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": text},
                           "additional_context": text}))

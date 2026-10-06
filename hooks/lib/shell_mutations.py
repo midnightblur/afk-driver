@@ -301,7 +301,8 @@ def inplace_files(prog: str, words: list[Word]) -> list[Word]:
     return positional if script else positional[1:]
 
 
-def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None) -> list[Path]:
+def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,
+                  visited: list | None = None) -> list[Path]:
     i, workdir, gitdir = 1, None, None
     while i < len(words):
         text = words[i].text
@@ -310,6 +311,8 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
             i += 2
             if text == "-C":
                 cwd = cwd if not value.opaque and not value.text else resolve(value, cwd)
+                if visited is not None and cwd is not None:
+                    visited.append(cwd)
             elif text == "--git-dir":
                 gitdir = value
             elif text == "--work-tree":
@@ -426,14 +429,17 @@ def writer_targets(prog: str, words: list[Word]) -> list[Word]:
     return []
 
 
-def resources(command: str, cwd: Path, syncs: list | None = None) -> list[Path]:
+def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None) -> list[Path]:
     """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
 
     With `syncs` a list, a `git pull --ff-only` is appended as (folder, remote, branch), not returned.
+    With `visited` a list, every folder the command runs in or enters (cd, `-C`, `env -C`) is appended.
     """
     found: list[Path] = []
     here: Path | None = cwd
     saved: list[Path | None] = []
+    if visited is not None:
+        visited.append(cwd)
     for segment in segments(command):
         if segment.mark:
             if segment.mark == "open":
@@ -456,11 +462,17 @@ def resources(command: str, cwd: Path, syncs: list | None = None) -> list[Path]:
             positional = parse(words[1:])[0]
             chosen = (targets or positional[:1])
             moved = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+            if visited is not None and moved is not None:
+                visited.append(moved)
             if not segment.piped:
                 here = moved
         elif prog == "git":
-            found.extend(git_resources(words, spot, syncs))
+            if visited is not None and spot is not None:
+                visited.append(spot)
+            found.extend(git_resources(words, spot, syncs, visited))
         else:
+            if visited is not None and spot is not None:
+                visited.append(spot)
             for word in writer_targets(prog, words):
                 path = resolve(word, spot)
                 if path is not None:

@@ -63,13 +63,18 @@ def call(tool: str, cwd: Path, tool_input: dict, session: str = "s1") -> dict:
     return {"session_id": session, "cwd": str(cwd), "tool_name": tool, "tool_input": tool_input}
 
 
+LAST: dict = {}
+
+
 def pre(cwd: Path, command: str, session: str = "s1", tool: str = "Bash") -> subprocess.CompletedProcess:
+    LAST[(str(cwd), session)] = command
     return subprocess.run([sys.executable, str(GUARD)], input=json.dumps(call(tool, cwd, {"command": command}, session)),
                           text=True, capture_output=True, cwd=cwd, env=env(), timeout=120)
 
 
 def post(cwd: Path, session: str = "s1", tool: str = "Bash", stdin: str | None = None) -> subprocess.CompletedProcess:
-    payload = stdin if stdin is not None else json.dumps(call(tool, cwd, {"command": "x"}, session))
+    command = LAST.get((str(cwd), session), "x")
+    payload = stdin if stdin is not None else json.dumps(call(tool, cwd, {"command": command}, session))
     return subprocess.run([sys.executable, str(METER)], input=payload, text=True, capture_output=True, cwd=cwd,
                           env=env(), timeout=120)
 
@@ -83,6 +88,8 @@ def context(done: subprocess.CompletedProcess) -> str:
 
 
 def files(main: Path, suffix: str) -> list[Path]:
+    if suffix == ".pre":
+        return cm.pre_files("s1", main)
     return sorted((main / ".git" / "afk-session").glob(f"*{suffix}"))
 
 
@@ -142,14 +149,15 @@ def test_a_file_over_the_hash_limit_falls_back_to_size_and_mtime(repo, monkeypat
 # ---------------------------------------------------------------- pre / post
 
 def test_a_shell_call_in_the_main_checkout_records_the_pre_snapshot(repo):
-    done = pre(repo["main"], "echo hi")
+    done = pre(repo["main"], "make")
     assert not denied(done)
     [path] = files(repo["main"], ".pre")
-    assert path.name == "s1.pre" and json.loads(path.read_text(encoding="utf-8"))["entries"] == {}
+    [place] = json.loads(path.read_text(encoding="utf-8"))["places"]
+    assert place["entries"] == {} and place["root"] == str(repo["main"])
 
 
 @pytest.mark.parametrize("where,tool,command", [
-    ("topic", "Bash", "echo hi"),
+    ("topic", "Bash", "make"),
     ("main", "Read", "x"),
 ])
 def test_no_snapshot_for_an_unguarded_placement_or_a_non_shell_tool(repo, where, tool, command):
@@ -163,7 +171,7 @@ def test_a_refused_call_records_nothing(repo):
 
 
 def test_no_change_means_no_output_and_no_quarantine(repo):
-    pre(repo["main"], "echo hi")
+    pre(repo["main"], "make")
     done = post(repo["main"])
     assert done.returncode == 0 and done.stdout.strip() == ""
     assert files(repo["main"], ".quarantine") == [] and files(repo["main"], ".pre") == []
@@ -180,7 +188,8 @@ def test_a_change_made_by_an_unrecognized_command_is_named_and_quarantined(repo)
     assert "tracked.txt" in text and "generated.txt" in text
     assert "git restore --staged --worktree -- tracked.txt" in text
     assert "rm -- generated.txt" in text
-    assert [p.name for p in files(main, ".quarantine")] == ["s1.quarantine"] and files(main, ".pre") == []
+    [hold] = files(main, ".quarantine")
+    assert hold.name.startswith("s1.") and files(main, ".pre") == []
 
 
 def test_a_path_already_dirty_before_the_call_is_left_to_the_human(repo):
@@ -191,7 +200,8 @@ def test_a_path_already_dirty_before_the_call_is_left_to_the_human(repo):
     (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
     text = context(post(main))
     assert "other.txt" in text and "a human" in text.lower()
-    assert "restore --staged --worktree -- other.txt" in text and "agent" in text.lower()
+    assert "restore --staged --worktree -- other.txt" not in text and "agent" in text.lower()
+    assert "cp -- " in text and "not restored" in text
     allowed = pre(main, "git restore --staged --worktree -- other.txt")
     assert denied(allowed)
     assert not denied(pre(main, "git restore --staged --worktree -- tracked.txt"))
@@ -205,7 +215,7 @@ def test_the_meter_never_blocks_on_garbage(repo):
 
 def test_a_non_shell_tool_is_not_metered(repo):
     main = repo["main"]
-    pre(main, "echo hi")
+    pre(main, "make")
     (main / "new.txt").write_text("n\n", encoding="utf-8")
     assert post(main, tool="Write").stdout.strip() == ""
     assert files(main, ".quarantine") == []
@@ -311,3 +321,189 @@ def test_both_manifests_register_the_meter_after_tool_use(manifest, root_var):
     commands = [h["command"] for g in groups for h in g["hooks"]]
     mine = [c for c in commands if "protected-branch-meter.py" in c]
     assert len(mine) == 1 and f"${{{root_var}}}" in mine[0]
+
+
+# ---------------------------------------------------------------- slice 3 review fixes (RULINGS-3)
+
+def run_line(line: str, cwd: Path) -> None:
+    """Run one printed recovery line the way a shell would."""
+    import shlex
+    words = shlex.split(line.strip())
+    if words[0] == "cp":
+        import shutil
+        shutil.copyfile(words[-2], words[-1])
+    else:
+        subprocess.run(words, cwd=cwd, check=True, capture_output=True)
+
+
+def printed(text: str, start: str) -> list[str]:
+    return [line for line in text.splitlines() if line.strip().startswith(start)]
+
+
+def test_o3_1_the_recovery_runs_from_a_worktree_and_clears_the_hold(held):
+    main, topic = held["main"], held["topic"]
+    restore = f'git -C "{main.as_posix()}" restore --staged --worktree -- tracked.txt'
+    assert not denied(pre(topic, restore))
+    run_line(restore.replace('"', ""), topic)
+    remove = f'rm -- "{(main / "generated.txt").as_posix()}"'
+    assert not denied(pre(topic, remove))
+    (main / "generated.txt").unlink()
+    assert not denied(pre(main, "ls")) and files(main, ".quarantine") == []
+
+
+def test_o3_1_a_command_that_is_not_the_recovery_is_still_refused_from_a_worktree(held):
+    main, topic = held["main"], held["topic"]
+    assert denied(pre(topic, f'git -C "{main.as_posix()}" restore --staged --worktree -- other.txt'))
+    assert denied(pre(topic, f'rm -- "{(main / "other.txt").as_posix()}"'))
+    assert denied(pre(topic, f'git -C "{main.as_posix()}" commit --allow-empty -m x'))
+
+
+def test_o3_1_copying_a_changed_file_out_is_allowed_from_the_held_checkout(held):
+    main, topic = held["main"], held["topic"]
+    assert not denied(pre(main, f"cp -- tracked.txt {(topic / 'saved.txt').as_posix()}"))
+    assert not denied(pre(main, f"cp -- tracked.txt {(held['tmp'] / 'outside.txt').as_posix()}"))
+    assert denied(pre(main, "cp -- tracked.txt other.txt"))
+    assert denied(pre(main, f"cp -- other.txt {(topic / 'x.txt').as_posix()}"))
+
+
+def test_o3_3_interleaved_calls_are_each_compared_with_their_own_snapshot(repo):
+    main = repo["main"]
+
+    def envelope(command: str, call_id: str | None) -> dict:
+        return dict(call("Bash", main, {"command": command}), **({"tool_use_id": call_id} if call_id else {}))
+
+    for id_a, id_b in (("a1", "b1"), (None, None)):
+        first, second = envelope("make a", id_a), envelope("make b", id_b)
+        for item in (first,):
+            subprocess.run([sys.executable, str(GUARD)], input=json.dumps(item), text=True, capture_output=True,
+                           cwd=main, env=env())
+        (main / "from_a.txt").write_text("a\n", encoding="utf-8")
+        subprocess.run([sys.executable, str(GUARD)], input=json.dumps(second), text=True, capture_output=True,
+                       cwd=main, env=env())
+        text = context(post(main, stdin=json.dumps(first)))
+        assert "from_a.txt" in text, id_a
+        assert post(main, stdin=json.dumps(second)).stdout.strip() == ""
+        assert files(main, ".pre") == []
+        git(main, "clean", "-fdq")
+        for hold in files(main, ".quarantine"):
+            hold.unlink()
+
+
+def test_o3_3_a_post_without_the_id_the_pre_had_still_finds_its_record(repo):
+    main = repo["main"]
+    first = dict(call("Bash", main, {"command": "make"}), tool_use_id="x1")
+    subprocess.run([sys.executable, str(GUARD)], input=json.dumps(first), text=True, capture_output=True, cwd=main,
+                   env=env())
+    (main / "new.txt").write_text("n\n", encoding="utf-8")
+    assert "new.txt" in context(post(main, stdin=json.dumps(call("Bash", main, {"command": "make"}))))
+
+
+def test_o3_3_a_stale_pre_record_is_swept_on_sight(repo):
+    import time
+    main = repo["main"]
+    pre(main, "make one")
+    [old] = files(main, ".pre")
+    aged = time.time() - 2 * 3600
+    os.utime(old, (aged, aged))
+    pre(main, "make two")
+    assert not old.exists() and len(files(main, ".pre")) == 1
+
+
+def test_s3_001_a_path_dirty_before_the_call_is_copied_back_never_restored_to_head(repo):
+    main = repo["main"]
+    (main / "other.txt").write_text("humans wip\n", encoding="utf-8")
+    pre(main, "make")
+    (main / "other.txt").write_text("agent-overwrite\n", encoding="utf-8")
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    text = context(post(main))
+    assert "restore --staged --worktree -- other.txt" not in text
+    [copy] = printed(text, "cp --")
+    for line in printed(text, "git restore"):
+        assert not denied(pre(main, line.strip()))
+        run_line(line, main)
+    run_line(copy, main)
+    assert (main / "other.txt").read_text(encoding="utf-8") == "humans wip\n"
+    assert not denied(pre(main, "ls")) and files(main, ".quarantine") == []
+
+
+def test_s3_001_blobs_unseen_for_a_day_are_deleted_and_a_referenced_one_is_kept(repo):
+    import time
+    main = repo["main"]
+    (main / "other.txt").write_text("wip" + chr(10), encoding="utf-8")
+    pre(main, "make")
+    folder = main / ".git" / "afk-session" / "blobs"
+    [kept] = list(folder.iterdir())
+    orphan = folder / "deadbeef"
+    orphan.write_bytes(b"x")
+    aged = time.time() - 25 * 3600
+    for path in (kept, orphan):
+        os.utime(path, (aged, aged))
+    pre(main, "make again")
+    assert kept.exists() and not orphan.exists()
+
+
+def test_s3_002_a_cd_into_the_main_checkout_from_a_worktree_is_metered(repo):
+    main, topic = repo["main"], repo["topic"]
+    command = f'cd "{main.as_posix()}" && make'
+    assert not denied(pre(topic, command))
+    (main / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    text = context(post(topic))
+    assert "tracked.txt" in text and main.as_posix() in text
+    assert denied(pre(main, "ls")) and not denied(pre(main, "git status"))
+
+
+def test_s3_002_a_plain_command_in_a_worktree_is_not_metered(repo):
+    pre(repo["topic"], "make")
+    assert files(repo["topic"], ".pre") == []
+
+
+def test_s3_003_a_staged_new_file_is_removed_with_git_rm_and_the_hold_clears(repo):
+    main = repo["main"]
+    pre(main, "make")
+    (main / "added.txt").write_text("a\n", encoding="utf-8")
+    git(main, "add", "added.txt")
+    text = context(post(main))
+    assert "git rm -f -- added.txt" in text and "rm -- added.txt" not in text.replace("git rm -f -- added.txt", "")
+    assert denied(pre(main, "rm -- added.txt"))
+    [line] = printed(text, "git rm")
+    assert not denied(pre(main, line.strip()))
+    run_line(line, main)
+    assert not denied(pre(main, "ls")) and files(main, ".quarantine") == []
+
+
+def test_s3_005_printed_paths_survive_a_shell(repo):
+    import shlex
+    main = repo["main"]
+    odd = "a b$c;d`e'f.txt"
+    pre(main, "make")
+    (main / odd).write_text("n\n", encoding="utf-8")
+    text = context(post(main))
+    [line] = printed(text, "rm --")
+    assert shlex.split(line.strip()) == ["rm", "--", odd]
+
+
+@pytest.mark.parametrize("command", [
+    "git status", "ls -la | head", "cat tracked.txt", "git log --oneline -3 && git diff", "git branch",
+    "git fetch origin", "git worktree list", "rg pattern .", "find . -name x", "jq . x.json",
+    "gh pr view 3", "gh api repos/x/y", "Get-ChildItem -Recurse", "echo hi", "cd sub && ls", "herdr agent list",
+    "git remote -v", "sort a b", "uniq a",
+])
+def test_o3_5_a_known_reader_skips_the_snapshot(repo, command):
+    assert not denied(pre(repo["main"], command))
+    assert files(repo["main"], ".pre") == []
+
+
+@pytest.mark.parametrize("command", [
+    "make", "npm install", "find . -delete", "find . -exec rm {} +", "echo `touch f`", "sort -o out a",
+    "uniq a b", "rg --pre ./x pat", "git branch topic2", "gh api -X POST repos/x/y", "git status; make",
+    "git diff --output=out.diff", "./script.sh",
+])
+def test_o3_5_an_unknown_or_writing_form_is_still_metered(repo, command):
+    done = pre(repo["main"], command)
+    if not denied(done):
+        assert len(files(repo["main"], ".pre")) == 1, command
+
+
+def test_o3_5_a_post_without_a_pre_returns_at_once_and_silently(repo):
+    done = post(repo["main"])
+    assert done.returncode == 0 and done.stdout.strip() == ""
