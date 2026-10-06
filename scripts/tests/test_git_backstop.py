@@ -129,6 +129,16 @@ def test_an_agent_commit_in_a_worktree_is_refused_only_on_a_protected_branch(rep
     assert commit(tmp_path / "free", agent()).returncode == 0
 
 
+def test_the_backstops_fallback_lookup_never_writes_the_protection_cache(repo, tmp_path):
+    installed(repo)
+    assert git(repo, "worktree", "add", "-q", str(tmp_path / "prot"), "main").returncode == 0
+    assert git(repo, "worktree", "add", "-q", str(tmp_path / "free"), "feature").returncode == 0
+    on = agent(AFK_PROTECTION_CACHE_TTL="300")
+    assert commit(tmp_path / "prot", on).returncode != 0, "the lookup ran and fell back for main"
+    assert commit(tmp_path / "free", on).returncode == 0, "the lookup ran and fell back for feature"
+    assert not (repo / ".git" / "afk" / "protection-cache.json").exists()
+
+
 @pytest.mark.parametrize("move", [pytest.param(("switch", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK),
                                   pytest.param(("checkout", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK),
                                   ("reset", "-q", "--hard", "HEAD"), ("switch", "-q", "--detach")])

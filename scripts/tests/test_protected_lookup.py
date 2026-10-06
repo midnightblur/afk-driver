@@ -376,6 +376,17 @@ def test_an_unknown_default_branch_turns_the_cache_off(cached, tmp_path):
     assert not cache.exists()
 
 
+def test_an_unknown_default_branch_stops_cache_reads_too(cached, tmp_path):
+    ask, forge, _, cache = cached
+    forge.reply = {"protected": False, "via": "none"}
+    assert ask("topic") == {"protected": False, "source": "github"}
+    assert cache.exists(), "a cached false is seeded while the default branch is known"
+    git(tmp_path / "repo", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+    forge.reply = {"protected": True, "via": "branch"}
+    assert ask("topic") == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+
+
 @pytest.mark.parametrize("at", ("10" * 200, "1e400", "-1e400"))
 def test_an_out_of_range_timestamp_is_a_miss(cached, at):
     ask, forge, _, cache = cached
