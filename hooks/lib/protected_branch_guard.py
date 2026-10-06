@@ -32,6 +32,7 @@ PLUGIN_ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve()
 PROVIDERS = Path(__file__).resolve().parent / "providers"
 PATCH_TARGET = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$", re.M)
 TARGET_KEYS = ("file_path", "notebook_path", "path")
+PATH_KEY = re.compile(r"path|file", re.I)
 MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", "rename", "move",
             "exec", "execute", "run", "terminal", "apply", "patch", "commit", "push", "insert", "set",
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
@@ -324,8 +325,12 @@ class Judge:
                 "`main` and `master` count as protected.")
 
 
-def targets_of(tool_input: dict, cwd: Path) -> list[Path]:
+def targets_of(tool_input: dict, cwd: Path, loose: bool = False) -> list[Path]:
+    """Paths a tool names; `loose` also takes every string value under a path- or file-like key."""
     found = [str(tool_input[key]) for key in TARGET_KEYS if isinstance(tool_input.get(key), str)]
+    if loose:
+        found.extend(v for k, v in tool_input.items()
+                     if isinstance(v, str) and k not in TARGET_KEYS and PATH_KEY.search(k))
     for value in tool_input.values():
         if isinstance(value, str) and "*** " in value:
             found.extend(PATCH_TARGET.findall(value))
@@ -382,7 +387,7 @@ def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: l
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
         return shell_mutations.resources(command_of(tool_input), cwd, syncs)
-    found = targets_of(tool_input, cwd)
+    found = targets_of(tool_input, cwd, loose=kind != "edit")
     return found or ([cwd] if kind == "edit" else [])
 
 

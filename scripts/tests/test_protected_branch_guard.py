@@ -318,6 +318,27 @@ def test_r1_8_the_server_name_is_ignored(repo):
     assert run("claude", repo["main"], "mcp__write_things__read_page", {}).returncode == 0
 
 
+@pytest.mark.parametrize("tool,key", [
+    ("mcp__jetbrains__replace_text_in_file", "pathInProject"),
+    ("mcp__intellij__create_new_file", "file_name"),
+    ("mcp__ide__reformat_file", "filePath"),
+    ("mcp__fs__move_file", "source_file"),
+])
+def test_a_mutating_mcp_tool_with_a_path_like_key_is_judged_at_that_value(repo, tool, key):
+    assert run("claude", repo["main"], tool, {key: "src/A.java"}).returncode == 2
+    assert run("claude", repo["main"], tool, {key: str(repo["main"] / "src" / "A.java")}).returncode == 2
+    assert run("claude", repo["topic"], tool, {key: "src/A.java"}).returncode == 0
+
+
+@pytest.mark.parametrize("tool,payload", [
+    ("mcp__x__create_page", {"title": "t"}),
+    ("mcp__notion__update_page", {"page_id": "p1", "content": "c"}),
+    ("mcp__tracker__create_issue", {"summary": "s", "pathway": 3}),
+])
+def test_a_mutating_mcp_tool_without_a_path_like_key_is_an_external_service(repo, tool, payload):
+    assert run("claude", repo["main"], tool, payload).returncode == 0
+
+
 def test_an_unknown_builtin_with_no_path_passes(repo):
     assert run("claude", repo["main"], "SomeNewTool", {}).returncode == 0
     assert run("claude", repo["main"], "SomeNewTool", {"file_path": str(repo["main"] / "a")}).returncode == 2

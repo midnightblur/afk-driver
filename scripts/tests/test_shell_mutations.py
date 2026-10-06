@@ -186,3 +186,28 @@ def test_any_other_pull_stays_a_mutation(command):
 
 def test_without_a_syncs_list_an_ff_pull_is_a_mutation():
     assert res("git pull --ff-only") == at(".")
+
+
+@pytest.mark.parametrize("command", [
+    "git config user.name x", "git config --add a.b c", "git config --unset a.b", "git config -e",
+    "git sparse-checkout set a", "git sparse-checkout disable", "git submodule update", "git submodule add u p",
+    "git read-tree -u -m HEAD", "git checkout-index -f -a", "git symbolic-ref HEAD refs/heads/x",
+    "git notes add -m x", "git notes remove", "git notes prune", "git replace a b",
+])
+def test_repository_state_writers_are_git_mutations(command):
+    assert res(command) == at(".")
+
+
+@pytest.mark.parametrize("command", [
+    "git config user.name", "git config --get user.name", "git config --get-all a.b", "git config -l",
+    "git config --list --show-origin", "git config --global user.name x", "git sparse-checkout list",
+    "git submodule", "git submodule status", "git submodule summary", "git submodule foreach pwd",
+    "git read-tree HEAD", "git symbolic-ref HEAD", "git symbolic-ref --short HEAD", "git notes list",
+    "git notes show", "git replace -l", "git replace", "git gc", "git prune", "git repack -d",
+])
+def test_repository_state_reads_and_housekeeping_pass(command):
+    assert res(command) == []
+
+
+def test_symbolic_ref_delete_is_a_mutation():
+    assert res("git symbolic-ref -d HEAD") == at(".")

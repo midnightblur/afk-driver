@@ -342,7 +342,32 @@ def git_mutates(verb: str, args: list[str]) -> bool:
             or any(set(s) & GIT_BRANCH_EDIT for s in shorts)
     if verb == "worktree":
         return bool(args) and args[0] in ("move", "remove")
-    return False
+    return state_mutates(verb, args, shorts)
+
+
+def state_mutates(verb: str, args: list[str], shorts: list[str]) -> bool:
+    """Verbs that write the repository's shared state (`.git`) or its tree outside GIT_ALWAYS."""
+    plain = [a for a in args if not a.startswith("-")]
+    if verb == "config":
+        if {"--global", "--system", "--file", "-f"} & set(args) or any(a.startswith("--file=") for a in args):
+            return False
+        if any(a.startswith(("--get", "--show", "--name-only", "--list")) for a in args) or "-l" in args:
+            return False
+        return len(plain) > 1 or bool({"--add", "--unset", "--unset-all", "--replace-all", "--edit", "-e",
+                                       "--rename-section", "--remove-section"} & set(args))
+    if verb == "sparse-checkout":
+        return not (plain and plain[0] == "list")
+    if verb == "submodule":
+        return bool(plain) and plain[0] not in ("status", "summary", "foreach")
+    if verb == "read-tree":
+        return any("u" in s for s in shorts)
+    if verb == "symbolic-ref":
+        return len(plain) >= 2 or bool({"-d", "--delete"} & set(args))
+    if verb == "notes":
+        return bool(plain) and plain[0] in ("add", "append", "edit", "remove", "prune", "merge", "copy")
+    if verb == "replace":
+        return bool(plain) and not ({"-l", "--list", "--format"} & set(args))
+    return verb == "checkout-index"
 
 
 def writer_targets(prog: str, words: list[Word]) -> list[Word]:
