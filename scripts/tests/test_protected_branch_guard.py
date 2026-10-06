@@ -228,8 +228,19 @@ def test_read_and_worktree_tools_are_allowed_in_the_main_checkout(repo, tool):
     "ls",
     "git status --short --branch",
     "gh issue list --state open --limit 100",
+    "git status && git log -1 2>&1",
+    "ls | head -5",
+    "git fetch origin",
+    "herdr agent list",
+    "gh issue create --title changed --body changed",
+    "C:/tmp/git.exe status",
+    "unknown-reader README.md",
+    "rg --pre mutate pattern",
+    "echo hi > /dev/null",
+    "touch $UNSET/x",
+    'python -c "print(1)"',
 ])
-def test_read_only_shell_commands_are_allowed_in_the_main_checkout(repo, harness, tool, command):
+def test_reads_composition_and_unknown_programs_are_allowed_in_the_main_checkout(repo, harness, tool, command):
     assert run(harness, repo["main"], tool, {"command": command}).returncode == 0
 
 
@@ -245,14 +256,43 @@ def test_codex_exec_command_reads_its_native_cmd_field(repo):
     "Get-Content @(Set-Content copy.txt changed)",
     "Get-Content (Set-Content copy.txt changed)",
     "Get-ChildItem -Filter { Set-Content copy.txt changed }",
-    "C:/tmp/git.exe status",
-    "/tmp/rg pattern",
     "git diff --output=copy.diff",
-    "gh issue create --title changed --body changed",
-    "rg --pre mutate pattern",
+    "git status && git commit -m x",
+    "git -C . add .",
+    "cd . && touch f",
+    "ls | tee out.txt",
+    "sed -i s/a/b/ README.md",
+    "/usr/bin/git commit -m x",
+    "git stash",
 ])
-def test_write_capable_shell_commands_remain_refused_in_the_main_checkout(repo, command):
+def test_identified_mutations_remain_refused_in_the_main_checkout(repo, command):
     assert run("codex", repo["main"], "exec_command", {"command": command}).returncode == 2
+
+
+def test_a_mutation_names_the_resource_it_changes(repo):
+    done = run("claude", repo["topic"], "Bash", {"command": f"git -C {repo['main']} add ."})
+    assert done.returncode == 2 and "main checkout" in done.stderr and str(repo["main"]) in done.stderr
+    done = run("claude", repo["topic"], "Bash", {"command": f"echo x > {repo['main'] / 'a.txt'}"})
+    assert done.returncode == 2
+    done = run("claude", repo["topic"], "Bash", {"command": f"git -C {repo['topic']} status && touch ok.txt"})
+    assert done.returncode == 0
+
+
+def test_a_main_checkout_session_may_mutate_a_worktree_it_names(repo):
+    done = run("claude", repo["main"], "Bash", {"command": f"git -C {repo['topic']} commit --allow-empty -m x"})
+    assert done.returncode == 0
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['topic']} && touch f"})
+    assert done.returncode == 0
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['protected']} && touch f"})
+    assert done.returncode == 2 and "`main` is protected" in done.stderr
+
+
+def test_an_edit_outside_every_repository_passes_from_a_main_checkout_session(repo):
+    """PRD D2: only the resolved target is judged, not the session folder."""
+    outside = repo["tmp"] / "scratch" / "note.md"
+    assert run("claude", repo["main"], "Write", {"file_path": str(outside)}).returncode == 0
+    assert run("claude", repo["main"], "Write", {"file_path": str(repo["main"] / "a.md")}).returncode == 2
+    assert run("claude", repo["main"], "Write", {"file_path": str(repo["topic"] / "a.md")}).returncode == 0
 
 
 @pytest.mark.parametrize("tool", ["web__run", "webrun", "mcp__web__run"])
@@ -260,24 +300,27 @@ def test_read_only_web_tools_are_allowed_in_the_main_checkout(repo, tool):
     assert run("codex", repo["main"], tool, {}).returncode == 0
 
 
-@pytest.mark.parametrize("tool,code", [
-    ("mcp__docs__search", 0), ("mcp__db__query", 0), ("mcp__settings__get_page", 0),
-    ("mcp__assets__list", 0), ("mcp__git__prune_list", 0),
-    ("mcp__docs__update_page", 2), ("mcp__ide__reformat_file", 2), ("mcp__fs__remove-file", 2),
-    ("mcp__fs__writeFile", 2), ("mcp__chat__send_message", 2), ("mcp__kv__put", 2),
-    ("mcp__x__saveDraft", 2), ("mcp__db__drop_table", 2),
+@pytest.mark.parametrize("tool", [
+    "mcp__docs__search", "mcp__db__query", "mcp__docs__update_page", "mcp__chat__send_message",
+    "mcp__db__drop_table", "mcp__kv__put",
 ])
-def test_r1_8_mcp_tools_are_judged_by_whole_verb_tokens_of_the_tool_part(repo, tool, code):
-    assert run("claude", repo["main"], tool, {}).returncode == code
+def test_an_mcp_tool_without_a_path_is_not_an_identified_mutation(repo, tool):
+    assert run("claude", repo["main"], tool, {}).returncode == 0
+
+
+@pytest.mark.parametrize("tool", ["mcp__fs__writeFile", "mcp__fs__remove-file", "mcp__ide__reformat_file"])
+def test_an_mcp_tool_with_a_path_in_a_guarded_place_is_refused(repo, tool):
+    assert run("claude", repo["main"], tool, {"path": str(repo["main"] / "a.txt")}).returncode == 2
+    assert run("claude", repo["main"], tool, {"path": str(repo["topic"] / "a.txt")}).returncode == 0
 
 
 def test_r1_8_the_server_name_is_ignored(repo):
     assert run("claude", repo["main"], "mcp__write_things__read_page", {}).returncode == 0
 
 
-def test_an_unknown_builtin_is_refused_in_the_main_checkout(repo):
-    assert run("claude", repo["main"], "SomeNewTool", {}).returncode == 2
-    assert run("claude", repo["topic"], "SomeNewTool", {}).returncode == 0
+def test_an_unknown_builtin_with_no_path_passes(repo):
+    assert run("claude", repo["main"], "SomeNewTool", {}).returncode == 0
+    assert run("claude", repo["main"], "SomeNewTool", {"file_path": str(repo["main"] / "a")}).returncode == 2
 
 
 def test_allowed_tools_start_no_git(repo):
@@ -384,10 +427,20 @@ def test_the_superproject_chain_is_capped(repo, monkeypatch):
         guard.by_git(repo["tmp"], 0)
 
 
-def test_an_unreadable_envelope_fails_closed_in_a_work_tree(repo):
+def test_an_unreadable_envelope_is_not_an_identified_mutation(repo):
+    """PRD D7: fail closed only for an identified mutation."""
     done = subprocess.run([sys.executable, str(GUARD)], input='{"tool_name": "Bash", broken',
                           text=True, capture_output=True, cwd=repo["topic"], env=clean_env("claude"))
-    assert denies(done)
+    assert done.returncode == 0 and not denies(done)
+
+
+def test_a_fault_passes_a_read_and_refuses_a_mutation(repo):
+    (repo["topic"] / ".git").unlink()
+    (repo["topic"] / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
+                                        encoding="utf-8")
+    assert run("claude", repo["topic"], "Bash", {"command": "git status"}).returncode == 0
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
+    assert done.returncode == 2 and "could not compute a verdict" in done.stderr
 
 
 def test_an_unloadable_judge_still_refuses_inside_a_work_tree(repo, tmp_path):
