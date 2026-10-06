@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 BENCH = ROOT / "hooks" / "tests" / "bench-hooks.py"
 
@@ -27,6 +29,33 @@ def test_handlers_follow_the_manifest_matchers():
     assert "protected-branch-guard.py" in bash and "protected-branch-guard.py" in read
 
 
+@pytest.mark.parametrize("name", ["hooks.json", "hooks.codex.json"])
+def test_every_manifest_command_has_a_scenario(name):
+    bench = _bench()
+    manifest = json.loads((ROOT / "hooks" / name).read_text(encoding="utf-8"))
+    assert bench.uncovered(manifest) == []
+
+
+def test_a_stray_command_is_reported_uncovered():
+    bench = _bench()
+    manifest = {"hooks": {"Notification": [{"hooks": [{"type": "command", "command": "python x.py"}]}]}}
+    assert bench.uncovered(manifest) == ["Notification: python x.py"]
+
+
+@pytest.mark.parametrize("name, provider, own, foreign", [
+    ("hooks.json", "claude", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"),
+    ("hooks.codex.json", "codex", "PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"),
+])
+def test_the_environment_carries_only_the_selected_harness(monkeypatch, tmp_path, name, provider, own, foreign):
+    bench = _bench()
+    for var in ("AFK_PROVIDER", "PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT", "CLAUDECODE", "PROJECT_DIR", "CLAUDE_PID"):
+        monkeypatch.setenv(var, "stale")
+    env = bench.harness_env(name, tmp_path, tmp_path / "data")
+    assert env["AFK_PROVIDER"] == provider and env[own] == str(bench.PLUGIN_ROOT)
+    assert foreign not in env and "CLAUDE_PID" not in env
+    assert ("CLAUDECODE" in env) == (provider == "claude")
+
+
 def test_percentile_is_nearest_rank():
     bench = _bench()
     assert bench.percentile([5.0, 1.0, 3.0, 2.0, 4.0], 0.5) == 3.0
@@ -38,3 +67,17 @@ def test_one_run_reports_the_event_and_each_handler(tmp_path):
                           capture_output=True, text=True, timeout=300)
     assert done.returncode == 0, done.stderr
     assert "read (PreToolUse)" in done.stdout and "protected-branch-guard.py" in done.stdout
+
+
+def test_worktree_lifecycle_runs_in_a_disposable_clone():
+    before = subprocess.run(["git", "-C", str(ROOT), "worktree", "list", "--porcelain"], capture_output=True,
+                            text=True).stdout
+    done = subprocess.run([sys.executable, str(BENCH), "--runs", "1", "--only", "worktree-create", "worktree-remove"],
+                          cwd=ROOT, capture_output=True, text=True, timeout=600)
+    assert done.returncode == 0, done.stderr
+    assert "worktree-create (WorktreeCreate)" in done.stdout and "worktree-remove (WorktreeRemove)" in done.stdout
+    rows = [line.split() for line in done.stdout.splitlines() if line.startswith("  plugin worktree-")]
+    assert rows and all(row[-1] == "0" for row in rows), done.stdout
+    after = subprocess.run(["git", "-C", str(ROOT), "worktree", "list", "--porcelain"], capture_output=True,
+                           text=True).stdout
+    assert after == before

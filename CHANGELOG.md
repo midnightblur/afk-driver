@@ -41,7 +41,9 @@ release page from its section here. Nobody tags by hand.
 
 - `python hooks/tests/bench-hooks.py` times every hook command the manifest
   registers against realistic envelopes and prints p50 and p95 per event and
-  per handler. It is informational and asserts no budget.
+  per handler. It covers every event in both manifests, runs session and
+  worktree events in a disposable clone, and sets only the selected harness's
+  environment. It is informational and asserts no budget.
 - A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
   four plugin-source gates on Linux and on Windows Git Bash for every pull
   request and every push to `main`.
