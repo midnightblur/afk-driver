@@ -123,3 +123,43 @@ def test_an_unchanged_blocked_tree_is_released_after_three_blocks(tmp_path, prov
     result, said = _stop_as(tmp_path, provider)
     assert said.get("decision") == "block", (result.stdout, result.stderr)
     assert stamp.read_text(encoding="utf-8").startswith("blocked:1:")
+
+
+def _orphan_repo(tmp_path):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "unreferenced_artifact.txt").write_text("first\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_unknown_gate_verdict_neither_blocks_nor_stamps_nor_says_crashed(tmp_path):
+    spec = importlib.util.spec_from_file_location("afk_bounded_scan_for_stop", ROOT / "hooks" / "lib" / "bounded_scan.py")
+    scan = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scan)
+    repo = _orphan_repo(tmp_path)
+    holder = scan.LockFile(str(repo / ".git" / "afk" / "locks" / "repository-scan.lock"))
+    assert holder.acquire()
+    try:
+        result, said = _stop_as(repo, "claude")
+    finally:
+        holder.release()
+    assert result.returncode == 0 and "decision" not in said, (result.stdout, result.stderr)
+    assert "verdict unknown (lock_busy)" in result.stderr
+    assert "crashed" not in result.stderr
+    stamp = repo / ".git" / "afk" / "gate-cache" / ".last-stop"
+    assert not stamp.exists() or not stamp.read_text(encoding="utf-8").startswith("pass:")
+
+
+def test_temp_files_are_removed_when_stop_is_terminated(tmp_path):
+    (tmp_path / "repo").mkdir()
+    repo = _orphan_repo(tmp_path / "repo")
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    (shim / "python").write_text("#!/bin/sh\nkill -TERM $PPID\nsleep 2\nexit 0\n", encoding="utf-8", newline="\n")
+    os.chmod(shim / "python", 0o755)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    env = {**_env(), "TMPDIR": scratch.as_posix(), "PATH": shim.as_posix() + os.pathsep + os.environ["PATH"]}
+    result = subprocess.run([str(BASH), str(ROOT / "hooks" / "stop-gates.sh")], cwd=repo, env=env,
+                            input="{}", capture_output=True, text=True, timeout=300)
+    assert result.returncode != 0, "the shim's TERM never reached the Stop process"
+    assert [p.name for p in scratch.iterdir()] == []

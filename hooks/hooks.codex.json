@@ -6,32 +6,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin install-git-hooks.sh --quiet",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin install-git-hooks.sh --quiet",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin update-notice.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin update-notice.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin agents-md-config-check.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin agents-md-config-check.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin behavior-drift.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin behavior-drift.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list SessionStart",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list SessionStart",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin worktree-prune.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 plugin worktree-prune.sh",
             "timeout": 60
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           }
         ]
@@ -53,12 +53,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-dark.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-dark.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin lavish-tips.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-tips.sh",
             "timeout": 15
           }
         ]
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PreToolUse",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PreToolUse",
             "timeout": 60,
             "statusMessage": "repository PreToolUse hooks"
           }
@@ -92,12 +92,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list PostToolUse",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PostToolUse",
             "timeout": 60,
             "statusMessage": "repository PostToolUse hooks"
           }
@@ -110,12 +110,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin nested-steering.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft repo-list PostCompact",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list PostCompact",
             "timeout": 60
           }
         ]
@@ -127,13 +127,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" plugin stop-gates.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 plugin stop-gates.sh",
             "timeout": 300,
             "statusMessage": "AFK gates..."
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" repo-list Stop",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 repo-list Stop",
             "timeout": 300,
             "statusMessage": "repository Stop gates"
           }
@@ -145,7 +145,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft plugin worktree-remove.sh",
+            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 2 plugin worktree-remove.sh",
             "timeout": 3
           }
         ]

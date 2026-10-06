@@ -7,7 +7,8 @@
 # Emits one JSONL line per gate run to <git common dir>/afk/metrics/gate-latency.jsonl,
 # one file for every worktree of the gated repo (GATE_METRICS_FILE overrides):
 #   {"ts":"2026-07-07T12:34:56Z","gate":"maven-compile","result":"pass","duration_ms":45210,...}
-# result: pass | blocked (Stop gates) or ok | code_failure | env_failure | timeout (app-start).
+# result: pass | blocked | unknown (Stop gates; unknown = the gate could not reach a
+# verdict, e.g. a scan that timed out) or ok | code_failure | env_failure | timeout (app-start).
 # Extra fields (lock_wait_ms, detail, module, ...) are passed as a raw JSON fragment.
 #
 # Emission must never break a gate: every write is best-effort (|| true).

@@ -927,6 +927,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API, used only with a `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` you set yourself; without one the CLI is used, and the CLI login token is never sent to an override (tests, proxies) |
 | `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
+| `AFK_SCAN_DEADLINE` | `hooks/lib/bounded_scan.py` | seconds one repository scan may run before the verdict is unknown (default 120; keep below the Stop hook's `--deadline`) |
 | `AFK_MOVE_SPAWN` | `hooks/lib/h2_move.py` | `0` names the H-2 worktree path in a refusal without cutting it (tests only) |
 | `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py` | the H-2 harness's config folder; H12's trust probe reads `config.toml` there, else `~/.codex` |
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
