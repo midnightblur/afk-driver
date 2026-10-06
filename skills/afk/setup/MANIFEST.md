@@ -943,7 +943,7 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDECODE` | `hooks/lib/providers/claude.sh`, `hooks/branch-name-gate.sh`, `hooks/native-contract-gate.sh`, `hooks/skill-registry-gate.sh` | a compatibility marker one harness sets; read only after the native root variable, never as the first thing tried |
 | `CLAUDE_JOB_DIR` | `adapters/forge/github/forge.sh`, `adapters/forge/gitlab/forge.sh` | per-job scratch directory that harness offers; where a forge verb writes a downloaded diff when the caller names no `out_dir` |
 | `AFK_CFG_MAVEN_*` | `adapters/build-gate/maven/maven-lib.sh` and the Maven gates | the `maven:` block exported by `hooks/lib/config.sh` — `reactor-pom`, `formatter-config`, `formatter-plugin`, `default-module`, `skip-ui-flag` |
-| `AFK_CFG_NPM_*` | `adapters/build-gate/npm/ui-lint-gate.sh` | the `npm:` block exported by `hooks/lib/config.sh` — `lint`, `workspace-root` |
+| `AFK_CFG_NPM_*` | `adapters/build-gate/npm/ui-lint-gate.sh`, `adapters/build-gate/npm/worktree-provision.sh` | the `npm:` block exported by `hooks/lib/config.sh` — `lint` (the lint gate); `workspace-root`, `worktree-install`, `worktree-command` (worktree provisioning) |
 | `WAVETERM` / `WAVETERM_CONN` / `WAVETERM_TABID` / `WAVETERM_BLOCKID` | `scripts/lavish/wave_host.py` | local Wave eligibility and the current tab/block scope; values are never printed |
 | `LOCALAPPDATA` | `scripts/lavish/wave_host.py` | native Windows application-data root used only to resolve the generic Wave `wsh.exe` fallback |
 | `AFK_CFG_BUILD_GATES_*` | `hooks/lib/config.sh`, `hooks/lib/adapter.sh` | the `build-gates:` list (`_COUNT` plus indexed names) selecting which build-gate adapters load |

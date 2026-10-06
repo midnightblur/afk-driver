@@ -38,8 +38,9 @@ credential store.
 |---|---|---|
 | `ui-lint` | `ui-lint-gate.sh` | a changed `.js/.cjs/.mjs/.ts/.vue` file fails `npm.lint` |
 
-The lint workspace is the nearest ancestor of a changed file holding a lint
-configuration; with none, `npm.workspace-root` is used when it is an ancestor.
+The lint workspace is the nearest ancestor of a changed file, the repository
+root included, holding a lint configuration or a `package.json` with
+`eslintConfig`. A file with no such ancestor is not linted.
 `npm.lint` is a command and its fixed arguments, split on whitespace, with the
 changed files appended; it defaults to
 `npx --no-install eslint --no-error-on-unmatched-pattern`.
