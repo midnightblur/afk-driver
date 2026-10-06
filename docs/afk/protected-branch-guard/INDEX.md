@@ -1,13 +1,13 @@
 # protected-branch-guard — start here
 
-Developers run several AI agent sessions on one repository at once, and a session that forgets to move into its own worktree edits the same files and branch as another, or commits straight onto a protected branch. For every developer who installed the afk plugin, in every repository, each agent session now moves into its own linked worktree before its first change, and the plugin refuses edits and write-capable commands until it does. Read-only inspection remains available. Protected branches come live from GitHub or GitLab. Every new worktree runs the repository's own registered setup scripts, and worktrees the plugin made are cleaned up once nothing in them is unsaved.
+Developers run several AI agent sessions on one repository at once, and a session that forgets to move into its own worktree edits the same files and branch as another, or commits straight onto a protected branch. For every developer who installed the afk plugin, in every repository, each agent session now works in a linked worktree that it or its team owns, and the plugin refuses a mutation of the main checkout, of a protected branch's worktree, or of a worktree another live session holds. Reads, composed commands and unrecognized programs run anywhere. A change the plugin could not foresee is detected after the call and held until undone. The main checkout may fast-forward its base branch. Protected branches come live from GitHub or GitLab. Every new worktree runs the repository's own registered setup scripts, and worktrees the plugin made are cleaned up once nothing in them is unsaved.
 
 ## Artifacts
 
 | Artifact | Where | State |
 |---|---|---|
 | PRD | PRD.md | draft |
-| Requirement ADRs | adr/requirements/ | 9 records |
+| Requirement ADRs | adr/requirements/ | 13 records |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | — |
 | Design ADRs | adr/design/ | — |

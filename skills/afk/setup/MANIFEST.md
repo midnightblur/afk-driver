@@ -292,14 +292,14 @@ a token value — not even partially.
   `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
 
 ### H12 · hook trust for the protected-branch guard *(harnesses that gate new hooks behind trust)*
-- **Needed by:** the guard, the session-end cleanup and the session-start prune.
+- **Needed by:** the guard, the change meter, the session-end cleanup, the session-start prune and the session-start occupancy registration.
   Such a harness runs a plugin hook only after the user trusts it
   (`PROVIDERS.md` "Protected-branch guard", which names the harness and the
   exact screens).
 - **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py"`
   reads the harness config (`$CODEX_HOME/config.toml`, else `~/.codex/config.toml`)
   for a `hooks.state` key at the guard's position (the last `PreToolUse`
-  group), at the `SessionEnd` cleanup and at the `SessionStart` prune. Exit 1
+  group), at the `PostToolUse` meter, at the `SessionEnd` cleanup and at the two `SessionStart` entries (prune, occupancy). Exit 1
   prints `missing: <event>:<group>:<handler>` per absent key and the step; exit 2
   means no harness config (not applicable). A key that is present but stale
   (the hash no longer matches) is invisible to the probe: `human:` type `/hooks`
@@ -1013,9 +1013,12 @@ Each var is documented at its consumer — this table is just the map.
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
 | `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
 | `AFK_HOOK_DEADLINE` | `hooks/run-hook.py` (sets), `scripts/remove-worktree.py` (reads) | Unix time in seconds at which the launcher kills a handler that runs under `--deadline`; worktree cleanup fits each git call inside it and keeps the worktree when time runs out; not for humans to set |
+| `HERDR_TAB_ID` | `hooks/lib/occupancy.py` | with `HERDR_ENV=1`, sessions in one herdr tab share a worktree group |
+| `AFK_WORKTREE_GROUP` | `hooks/lib/occupancy.py` | names a team whose sessions may share one linked worktree; set by the human or launcher |
 | `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
 | `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |
 | `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |
+| `GIT_DIR` | `hooks/branch-name-gate.sh` | exported by git to its hooks; the gate reads the shared git folder from it to find a sync authorization with no subprocess |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |
 | `LESSON_LEDGER_FILE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | relocate the lesson ledger (default: main-checkout `.claude/lessons/LEDGER.jsonl`) |

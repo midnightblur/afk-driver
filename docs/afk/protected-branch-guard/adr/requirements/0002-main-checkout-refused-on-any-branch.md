@@ -1,6 +1,6 @@
 # The main checkout is refused on any branch
 
-> Status: Accepted
+> Status: Accepted, with one exception: the base-branch fast-forward of ADR-0011 (the main checkout is still refused for every other mutation on any branch)
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
 

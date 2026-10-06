@@ -76,5 +76,5 @@ state: active | scope: configured-repos | revision: 1 | doctrine: RATIONALE.md �
 Read `${AFK_PLUGIN_ROOT}/RATIONALE.md`; keep source comments to 2 lines and post the reasons for a change on the change.
 
 ## worktree-per-session
-state: active | scope: all-repos | revision: 2 | doctrine: SAFETY.md §Worktree per session
-Read `${AFK_PLUGIN_ROOT}/SAFETY.md`; use read-only inspection before the move, and change a repository only from a linked worktree on an unprotected branch.
+state: active | scope: all-repos | revision: 3 | doctrine: SAFETY.md §Worktree per session
+Read `${AFK_PLUGIN_ROOT}/SAFETY.md`; inspect, sync the base branch and use non-repository tools anywhere; change repository files only from a worktree your session or team owns.
