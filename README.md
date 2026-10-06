@@ -266,26 +266,23 @@ Setup can also install the managed behavior layer in both user instruction
 files. It asks before the first install. Any legacy AFK behavior block proves
 prior consent. Run `/afk:setup teardown` before disabling the plugin.
 
-### Upgrading a pinned install
+### Upgrading an install
 
-Both harnesses record an installed version, and a pin is stated in more than
-one file. Move them in this order, or the command refuses:
+Claude records its pin at `~/.claude/settings.json` ->
+`extraKnownMarketplaces.afk-toolkit.source.ref`. Move it in this order:
 
-1. **Bump the ref where the harness declares it.** Claude reads
-   `~/.claude/settings.json` -> `extraKnownMarketplaces.afk-toolkit.source.ref`;
-   the `.codex-plugin` harness reads `~/.codex/config.toml` ->
-   `[marketplaces.afk-toolkit] ref`.
-   Adding a marketplace at a ref the settings file still contradicts fails with
-   "its network source differs from the one declared for it in settings".
-2. **Re-add the marketplace at the new tag.**
-   `claude plugin marketplace add <owner>/<repo>@<tag> --scope user`, or
-   `codex plugin marketplace upgrade afk-toolkit`.
-3. **Update the plugin.** `claude plugin update afk@afk-toolkit`, or
-   `codex plugin add afk@afk-toolkit`. On Claude, `plugin install` answers
-   "already installed" and changes nothing — `update` is the verb that moves a
-   version.
-4. Run `/afk:setup` to rewrite the `.codex-plugin` agent stubs, which hold the
-   versioned root, then restart the harness.
+1. Bump that ref.
+2. Run `claude plugin marketplace add <owner>/<repo>@<tag> --scope user`.
+3. Run `claude plugin update afk@afk-toolkit`. `plugin install` answers
+   "already installed" and changes nothing.
+
+The native AFK marketplace stays unpinned. `/afk:setup` removes a legacy
+`[marketplaces.afk-toolkit] ref` while preserving unrelated settings. To refresh
+manually, run `codex plugin marketplace upgrade afk-toolkit`, then `codex plugin
+add afk@afk-toolkit`.
+
+After either upgrade, run `/afk:setup` to rewrite the `.codex-plugin` agent
+stubs, which hold the versioned root, then restart the harness.
 
 **Checking which version is live.** Ask the harness, never the directories:
 

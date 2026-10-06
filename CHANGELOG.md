@@ -37,6 +37,12 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+
+- `/afk:setup` removes legacy native AFK marketplace pins and installs or
+  refreshes that marketplace without `--ref`, so later marketplace upgrades are
+  not held to an old release.
+
 ## [1.13.0] - 2026-10-06
 
 ### Added

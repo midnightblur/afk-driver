@@ -745,14 +745,19 @@ Gating rule: if O1 misses, report the whole section as
 
 ### O3 · native marketplace, plugin, and fresh cache
 - **Needed by:** native skills, hooks, and MCP registration.
-- **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `codex
-  plugin list` reports `afk@afk-toolkit` installed and enabled; the newest
-  installed plugin root that Codex plugin metadata reports matches the source
-  manifests, `hooks/hooks.codex.json`, and every `skills/*/*/SKILL.md` hash.
-- **Fix:** `auto:` when absent, run `codex plugin marketplace add
-  midnightblur/afk-driver --ref v<toolkit-version>`, then `codex plugin add
-  afk@afk-toolkit`. For a stale cache, ask first; after confirmation run
-  `codex plugin remove afk@afk-toolkit`, add it again, then restart.
+- **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `python
+  "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/codex_marketplace_ref.py" --check`
+  passes; `codex plugin list` reports `afk@afk-toolkit` installed and enabled;
+  the newest installed plugin root that Codex plugin metadata reports matches
+  the source manifests, `hooks/hooks.codex.json`, and every
+  `skills/*/*/SKILL.md` hash.
+- **Fix:** `auto:` run `python
+  "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/codex_marketplace_ref.py"` to remove
+  a legacy pin. When the marketplace is absent, run `codex plugin marketplace
+  add midnightblur/afk-driver` with no `--ref`. Then run `codex plugin
+  marketplace upgrade afk-toolkit` and `codex plugin add afk@afk-toolkit`.
+  For a stale cache, ask first; after confirmation run `codex plugin remove
+  afk@afk-toolkit`, add it again, then restart.
 
 ### O4 · current hook definitions trusted
 - **Needed by:** every handler in `hooks/hooks.json` and its native twin
@@ -960,7 +965,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
 | `AFK_SCAN_DEADLINE` | `hooks/lib/bounded_scan.py` | seconds one repository scan may run before the verdict is unknown (default 120; keep below the Stop hook's `--deadline`) |
 | `AFK_MOVE_SPAWN` | `hooks/lib/h2_move.py` | `0` names the H-2 worktree path in a refusal without cutting it (tests only) |
-| `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py` | the H-2 harness's config folder; H12's trust probe reads `config.toml` there, else `~/.codex` |
+| `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py`, `skills/afk/setup/scripts/codex_marketplace_ref.py` | the H-2 harness's config folder; setup's trust and marketplace-pin probes read `config.toml` there, else `~/.codex` |
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
 | `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
