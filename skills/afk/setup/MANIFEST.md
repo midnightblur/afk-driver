@@ -516,8 +516,9 @@ a token value — not even partially.
   answers.
 - **Probe:** `command -v jq`
 - **Fix:** none needed — `provider.sh` falls back to `grep` + `sed` for both
-  reading and writing, and `hook-smoke.sh` prints `SKIP: jq not on PATH` and
-  exits 0.
+  reading and writing. `hook-smoke.sh` is a test suite, not a hook: without jq
+  it prints `FAIL: jq not on PATH` and exits 1, so a run with zero coverage never
+  reads as green.
 - **Base fix:** `auto:` `winget install --id jqlang.jq -e`
 - **Notes:** fail-open, and the fallback is not a lesser path — it is the one
   most machines take. Registered because shipped code names the binary, not

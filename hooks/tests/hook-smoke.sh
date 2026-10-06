@@ -15,7 +15,7 @@ lavish="$workflow/hooks/lavish-dark.sh"
 lavish_tips="$workflow/hooks/lavish-tips.sh"
 guard="$workflow/hooks/protected-branch-guard.py"
 
-command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not on PATH" >&2; exit 0; }
+command -v jq >/dev/null 2>&1 || { echo "FAIL: jq not on PATH; these smoke tests need it to read hook answers" >&2; exit 1; }
 
 fails=0
 pass() { echo "  ok: $1"; }

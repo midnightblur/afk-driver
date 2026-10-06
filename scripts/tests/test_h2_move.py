@@ -466,6 +466,7 @@ def test_p10_a_pane_in_another_directory_gets_nothing_typed(tmp_path):
     assert not prompts(log)
 
 
+@pytest.mark.skipif(os.name != "nt", reason="drive-letter case and backslash spellings are one path only on Windows")
 def test_p10_the_matching_pane_is_typed_into_and_a_reported_cwd_compares_normalised(tmp_path):
     module = load_move()
     herdr, log = stub_herdr(tmp_path, "\u203a", cwd="c:\\MAIN\\")

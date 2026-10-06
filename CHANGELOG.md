@@ -42,8 +42,14 @@ release page from its section here. Nobody tags by hand.
 - `python hooks/tests/bench-hooks.py` times every hook command the manifest
   registers against realistic envelopes and prints p50 and p95 per event and
   per handler. It is informational and asserts no budget.
+- A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
+  four plugin-source gates on Linux and on Windows Git Bash for every pull
+  request and every push to `main`.
 
 ### Changed
+
+- `hooks/tests/hook-smoke.sh` fails without jq instead of skipping, so a run
+  with no coverage never reads as green.
 
 - The commit gates stop at the first block and run the cheap gates first: the
   comment gate, the plugin contract gate, then format and lint before compile.
