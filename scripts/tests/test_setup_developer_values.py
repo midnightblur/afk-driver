@@ -90,6 +90,40 @@ def test_a_value_recorded_in_a_worktree_is_read_by_the_main_checkout(tmp_path):
     assert (main / ".git" / "afk" / "config.yaml").is_file()
 
 
+def test_checkouts_lists_each_configured_main_checkout_once(tmp_path, home):
+    projects = tmp_path / "projects"
+    a = make_repo(projects, "a", forge="github")
+    make_repo(projects / "group", "b")
+    git(a, "worktree", "add", "-q", str(projects / "a-worktrees" / "task"))
+    bare = projects / "plain"
+    bare.mkdir()
+    git(bare, "init", "-q")
+    dv.write_block(home / ".afk" / "config.yaml", {"mrReviewer": "rev"})
+
+    out = cli(projects / "a-worktrees" / "task", "checkouts")
+    assert out.returncode == 0, out.stderr
+    listed = json.loads(out.stdout)
+    assert listed["folders"] == [projects.resolve().as_posix()]
+    assert listed["checkouts"] == [
+        {"path": (projects / "a").resolve().as_posix(), "current": True,
+         "missing": [], "inherited": ["mrReviewer"]},
+        {"path": (projects / "group" / "b").resolve().as_posix(), "missing": [], "inherited": []},
+    ]
+
+
+def test_set_with_repo_records_another_checkouts_value(tmp_path):
+    a = make_repo(tmp_path, "a")
+    b = make_repo(tmp_path, "b", forge="github")
+    assert cli(a, "set", "mrReviewer=rev", "--repo", str(b)).returncode == 0
+    assert json.loads(cli(b, "status").stdout)["keys"]["mrReviewer"]["source"] == "repository"
+    assert not (a / ".git" / "afk" / "config.yaml").exists()
+
+
+def test_checkouts_refuses_a_drive_root(tmp_path):
+    out = cli(make_repo(tmp_path, "a"), "checkouts", Path(tmp_path.anchor).as_posix())
+    assert out.returncode == 2 and "drive root" in out.stderr
+
+
 def test_none_assignee_overrides_the_machine_assignee(tmp_path, home):
     repo = make_repo(tmp_path, "a", forge="github")
     dv.write_block(home / ".afk" / "config.yaml", {"mrAssignee": "me"})

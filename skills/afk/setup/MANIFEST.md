@@ -159,21 +159,36 @@ a token value — not even partially.
   for k in $keys; do
     "$PY" "$AC" resolve "$k" >/dev/null 2>&1 || m="$m $k"
   done
-  i="$("$PY" "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py" \
-      status 2>/dev/null | "$PY" -c \
+  DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"
+  i="$("$PY" "$DV" status 2>/dev/null | "$PY" -c \
       'import json,sys; print(" ".join(json.load(sys.stdin)["inherited"]))' \
       2>/dev/null)"
-  [ -z "$h$m$i" ] && { echo ok; exit 0; }
+  o="$("$PY" "$DV" checkouts 2>/dev/null | "$PY" -c \
+      'import json,sys; print(" ".join(c["path"] for c in json.load(sys.stdin)["checkouts"] if not c.get("current") and (c.get("missing") or c.get("inherited") or c.get("error"))))' \
+      2>/dev/null)"
+  [ -z "$h$m$i$o" ] && { echo ok; exit 0; }
   echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
        "forge=$("$PY" "$AC" get forge)"
   [ -z "$h" ] || echo "needs-human: see H0 (${h# })"
   [ -z "$m" ] || echo "unresolved:$m"
   [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
+  [ -z "$o" ] || echo "other checkouts need values: $o"
   exit 1
   ```
 - **Fix:** `auto:` in session, from the main checkout or any worktree. None of
   these values is a secret, so ask the human in the conversation.
-  1. Run `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py" status`.
+  `DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"`.
+  0. Pick the checkouts. Run `python "$DV" checkouts`: it lists the configured
+     main checkouts beside this one, with each one's `missing` and `inherited`
+     keys. Ask the human which folders hold their other repositories, and run
+     `checkouts FOLDER ...` for those (a drive root is refused; `truncated`
+     means name a narrower folder). Then offer the checkouts with a `missing`
+     or `inherited` key as a multi-select, all selected by default. When this
+     repository is the only one, skip the question. Run steps 1-4 once per
+     selected checkout, adding `--repo <path>` to `status` and `set`. Ask
+     step 3 once for the whole run. Done when a final `checkouts` run lists no
+     `missing` or `inherited` key for any selected checkout.
+  1. Run `python "$DV" status`.
      It reports each key's `need`, resolved `value`, `source` layer and
      `suggestion`, and lists `missing` and `inherited`.
   2. Ask the human for every `missing` key, offering its `suggestion` as the
@@ -187,7 +202,8 @@ a token value — not even partially.
   3. Ask once where the answers go: this repository (the default — the file
      the main checkout and all its worktrees read) or `--machine` (the default
      for every repository).
-  4. Run `developer_values.py set KEY=VALUE ... [--machine]`, then re-probe.
+  4. Run `python "$DV" set KEY=VALUE ... [--machine] [--repo <path>]`, then
+     re-probe.
   `set` changes only the keys it names, so another repository's values
   survive. `KEY=` removes a key. `--machine` refuses a `worktreeBasePath`
   value and accepts only its removal.

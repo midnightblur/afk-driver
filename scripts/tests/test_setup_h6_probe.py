@@ -138,6 +138,21 @@ def test_a_machine_only_person_is_confirmed_per_repository(repo, home):
     assert out.returncode == 0, out.stdout + out.stderr
 
 
+def test_a_neighbouring_checkout_missing_values_fails_the_probe(tmp_path, repo, home):
+    write(repo / ".afk" / "config.yaml", NONE)
+    other = tmp_path / "other"
+    write(other / ".afk" / "config.yaml", "schema: 1\ntracker: none\nforge: github\n")
+    subprocess.run(["git", "-C", str(other), "init", "-q", "-b", "main"], check=True)
+    out = run(repo, home)
+    assert out.returncode == 1
+    assert out.stdout.splitlines()[-1] == (
+        f"other checkouts need values: {other.resolve().as_posix()}")
+
+    write(other / ".git" / "afk" / "config.yaml", "developer:\n  mrReviewer: you\n")
+    out = run(repo, home)
+    assert out.returncode == 0, out.stdout + out.stderr
+
+
 def test_shared_overlay_none_is_ok(repo, home):
     write(repo / ".git" / "afk" / "config.yaml", NONE.replace("schema: 1\n", ""))
     out = run(repo, home)

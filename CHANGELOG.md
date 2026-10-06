@@ -46,6 +46,7 @@ release page from its section here. Nobody tags by hand.
 - `/afk:setup` asks for `developer:` values in the session, from the main checkout or any worktree. The terminal script `setup_secrets.py` no longer asks for them; it keeps the secrets and CLI logins. The agent runs `skills/afk/setup/scripts/developer_values.py status` to find missing values and suggestions, then `set KEY=VALUE` to record your answers. Answers go to the new repository file by default, or to `~/.afk/config.yaml` with `--machine`.
 - An agent that finds a required developer value missing asks you for it and records it. A hands-off run still stops and names `/afk:setup`.
 - `/afk:setup` H6 now fails while an assignee, reviewer or `worktreeBasePath` comes only from `~/.afk/config.yaml`, because that value may belong to another repository. Confirm or replace it once per repository.
+- `/afk:setup` H6 lists your other configured repositories (main checkouts beside this one, or in folders you name) and lets you fill all of them in one run, or just this one. H6 fails while a configured checkout beside this one still needs values. `developer_values.py checkouts` lists them; `--repo PATH` points `status` and `set` at one.
 
 ### Fixed
 
