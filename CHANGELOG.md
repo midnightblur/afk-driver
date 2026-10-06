@@ -45,6 +45,9 @@ release page from its section here. Nobody tags by hand.
 - A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
   four plugin-source gates on Linux and on Windows Git Bash for every pull
   request and every push to `main`.
+- `/afk:setup` checks for git 2.46 or newer (register row C2b). Older git never
+  shows a branch switch to the protected-branch backstop, and the tests that
+  need it skip there.
 
 ### Changed
 

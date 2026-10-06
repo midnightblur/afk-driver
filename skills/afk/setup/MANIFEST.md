@@ -394,6 +394,19 @@ a token value — not even partially.
 - **Base fix:** `auto:` `winget install --id Git.Git -e` — ships bash + POSIX
   utils + perl, so it also satisfies C1 and C6.
 
+### C2b · git 2.46 or newer *(optional)*
+- **Needed by:** the protected-branch backstop (`hooks/git-backstop.py`, through
+  the `reference-transaction` hook of H5) refusing an agent's `git switch` or
+  `git checkout` in the main checkout.
+- **Probe:** `v=$(git --version | awk '{print $3}'); test "$(printf '%s\n' 2.46.0 "$v" | sort -V | head -1)" = 2.46.0`
+- **Fix:** `human:` upgrade git (Git for Windows, or the distribution's newer
+  git package).
+- **Notes:** git 2.46.0 release notes: "Updates to symbolic refs can now be made
+  as a part of ref transaction." Older git never passes a HEAD switch to the
+  hook, so the backstop misses that one move; it still refuses commits, resets
+  and branch-ref updates. The PreToolUse guard stays the primary gate.
+  `scripts/tests/git_floor.py` skips the tests that need this floor.
+
 ### C3 · glab (GitLab CLI), logged in — **secret** *(only when `forge: gitlab`)*
 - **Needed by:** `adapters/forge/gitlab/forge.sh` — every forge verb, so
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
