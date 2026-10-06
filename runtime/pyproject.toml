@@ -1,0 +1,33 @@
+# AFK's one Python runtime. Setup builds the private environment from this
+# file's pins and `uv.lock`: skills/afk/setup/scripts/python_runtime.py.
+[project]
+name = "afk-runtime"
+version = "1.0.0"
+description = "AFK's private Python runtime and its afk-python command"
+requires-python = "==3.14.8"
+dependencies = [
+    "httpx",
+    "markdown-it-py",
+    # mcp 2 removed mcp.server.fastmcp, which mcp-servers/tracker/server.py imports.
+    "mcp>=1.27,<2",
+    "openpyxl",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+afk-python = "afk_runtime.launcher:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = "==0.12.23"
+
+# The module each dependency is imported as; setup probes these through afk-python.
+[tool.afk-runtime]
+imports = { httpx = "httpx", markdown-it-py = "markdown_it", mcp = "mcp", openpyxl = "openpyxl", pyyaml = "yaml" }
+test-imports = { pytest = "pytest" }

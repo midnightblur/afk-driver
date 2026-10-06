@@ -337,6 +337,13 @@ from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 toolchain. Use `/afk:setup audit` before shipping plugin changes. The audit
 also checks the managed behavior revision, hash, targets, and legacy blocks.
 
+`/afk:setup` also installs the AFK Python runtime: a pinned CPython in a
+private environment, exposed only as the `afk-python` command (register entry
+P1). It asks first, adds one directory to your user PATH, and needs a harness
+restart afterwards. Your own `python` stays untouched. Until it is installed,
+each session starts with a one-line notice to run `/afk:setup`. The next
+release moves every hook and MCP command to `afk-python`.
+
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per
 `PROVIDERS.md`. Live support status is in `providers/CONFORMANCE.md`.

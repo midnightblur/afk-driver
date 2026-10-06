@@ -26,7 +26,7 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 
 ## Prerequisites
 
-Register: `skills/afk/setup/MANIFEST.md` — needs **P1/P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
+Register: `skills/afk/setup/MANIFEST.md` — needs **P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
 
 ## How to run
 

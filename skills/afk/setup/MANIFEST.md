@@ -75,7 +75,7 @@ a token value — not even partially.
   `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
   does S1/C3 or C3b, whichever the forge selects), enable the plugin, then
-  restart the session. Python deps: P3. Registering the server needs that
+  restart the session. Python deps: P2. Registering the server needs that
   restart. The plugin's own server applies added or corrected credentials on the
   next call, no restart; without them a call answers `error: true` and the
   server stays up. The user-scoped `tracker` entry holds them in its `env`, so
@@ -124,7 +124,7 @@ a token value — not even partially.
 ### H6 · per-developer values (`developer:`)
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
-- **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
+- **Probe:** (interpreter resolution mirrors P2 — on Windows `python3` is often
   a Store stub that exits 49 while real `python` works). Ask `afk-config.py
   resolve`, never `get` and never a file: `resolve` applies the whole chain —
   the developer's own value from any layer, then the derived worktree base — so
@@ -618,52 +618,62 @@ a token value — not even partially.
   so the new hook runs.
 - **Notes:** needs C15. Opt-in: a miss never blocks the guard.
 
-### P1 · Python 3
-- **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
-  runs through, so without it no gate or guard fires at all — the shared
-  `.mcp.json` bootstrap,
+### P1 · afk-python runtime
+- **Needed by:** the `afk-python` command, which every hook, MCP registration
+  and skill command adopts at the Python release 2 cutover
+  (`.claude/wiring-ious.md`). Until then: this probe and the SessionStart notice
+  in `hooks/update-notice.sh`.
+- **Pins:** `runtime/pyproject.toml` — CPython in `requires-python`, uv in
+  `[tool.uv] required-version`, the dependency set and its import names.
+  `runtime/uv.lock` holds every transitive version with its hashes.
+- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check`
+  — resolves `afk-python` through the PATH a new terminal gets, from PowerShell,
+  cmd and Git Bash on Windows, and from `sh` and the login shell elsewhere. Each
+  shell must report the pinned Python, import every runtime package, and export
+  `AFK_PYTHON`. The environment's stamp must name the pinned Python and the
+  current lock hash.
+- **Fix:** `auto:` per-user install — ask the human first.
+  `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" install`
+  installs the pinned uv with Astral's versioned installer, then the pinned
+  CPython, then syncs the private environment frozen from the lock with
+  bytecode compiled. It places `afk-python` and adds its directory to the user
+  PATH. It prints one `ok`/`fail` line per step, then re-runs the probe.
+  `plan` prints the same steps and changes nothing. The running harness keeps
+  its old PATH: report `needs-human: restart the harness` (step 2's
+  stale-environment rule).
+- **Base probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check --test`
+- **Base fix:** `auto:` the Fix command with `--test`: adds the `test` extra
+  (pytest). The suites under `scripts/tests/` then run as `afk-python -m pytest`.
+  A later run without `--test` keeps the extra.
+- **Notes:** the user's own `python` and `python3` stay untouched. Locations:
+  the `python_runtime.py` docstring. Network: the uv release host and PyPI. To
+  remove: delete `%LOCALAPPDATA%fk` (Windows) or
+  `${XDG_DATA_HOME:-~/.local/share}/afk` plus `~/.local/bin/afk-python`, then
+  drop that directory from the user PATH.
+
+### P2 · system Python + packages for current callers *(until the afk-python cutover)*
+- **Needed by:** every Python entry point that still runs `python`:
+  `hooks/run-hook.py` — the launcher every registered hook command runs
+  through, so without it no gate or guard fires at all — the shared
+  `.mcp.json` bootstrap and `mcp-servers/tracker/server.py` (H2),
   `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
   `skills/afk/agents-md/scripts/*.py`, the repository's `verification.env` command,
-  the shared Jira lib `adapters/tracker/jira/api.py`,
-  `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
-  `skills/afk/review/scripts/forge_ledger.py`, and
-  `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
-- **Probe:** `python --version || python3 --version`
-- **Fix:** `human:` install Python 3 and put it on PATH.
+  the shared Jira lib `adapters/tracker/jira/api.py` (Markdown → ADF for
+  `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`; ADR-0001),
+  `skills/afk/review/scripts/forge_ledger.py`,
+  `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`, and
+  `skills/utils/review-qa-tests/scripts/annotate_sheet.py`
+  (`skills/utils/review-qa-tests/EXCEL.md`).
+- **Probe:** `(python --version || python3 --version) && python -c "import markdown_it, mcp.server.fastmcp, httpx, openpyxl"`
+- **Fix:** `human:` install Python 3 and put it on PATH; then `auto:`
+  `pip install markdown-it-py "mcp<2" httpx openpyxl`.
 - **Base fix:** `auto:` `winget install --id Python.Python.3.12 -e` (any Python 3
   on PATH passes the probe — the pin here is just a working default).
-
-### P2 · markdown-it-py
-- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
-  (PRD / meeting body → ADF), the shared Jira lib `adapters/tracker/jira/api.py`
-  (imported by both `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`
-  for the same Markdown→ADF conversion; ADR-0001).
-- **Probe:** `python -c "import markdown_it"`
-- **Fix:** `auto:` `pip install markdown-it-py`
-
-### P3 · mcp + httpx (Jira MCP server runtime)
-- **Needed by:** `mcp-servers/tracker/server.py` (H2) — FastMCP host + HTTP client.
-- **Probe:** `python -c "import mcp, httpx"`
-- **Fix:** `auto:` `pip install mcp httpx`
-- **Notes:** missing deps surface as the `jira` server failing to connect at
-  session start, not as a skill error.
-
-### P4 · openpyxl
-- **Needed by:** `skills/utils/review-qa-tests/scripts/annotate_sheet.py` —
-  reads QA's `.xlsx` test sheet and writes the review annotations back into it
-  (`skills/utils/review-qa-tests/EXCEL.md`).
-- **Probe:** `python -c "import openpyxl"`
-- **Fix:** `auto:` `pip install openpyxl`
-
-### P5 · pytest
-- **Needed by:** the `pytest`-based tests under `scripts/tests/` — their cases
-  are `pytest` functions using its fixtures and helpers, so without it they are
-  unrunnable, not merely degraded. The rest of the directory is `unittest` and
-  runs on stock Python, so a green run proves nothing about this row.
-- **Probe:** `python -c "import pytest"`
-- **Fix:** `auto:` `pip install pytest`
-- **Notes:** a miss surfaces only when someone runs the suite, never at session
-  start — nothing at runtime imports it.
+- **Notes:** `mcp` 2 removed `mcp.server.fastmcp`, which the tracker server
+  imports. A missing `mcp` or `httpx` surfaces as the tracker server failing to
+  connect at session start, not as a skill error. On Windows `python3` is often
+  a Store stub that exits 49 while real `python` works. Removed at the cutover,
+  when these callers run `afk-python` (P1).
 
 ## N — Node toolchain
 

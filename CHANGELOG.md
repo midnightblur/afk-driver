@@ -59,9 +59,21 @@ release page from its section here. Nobody tags by hand.
 - The commit gates stop at the first block and run the cheap gates first: the
   comment gate, the plugin contract gate, then format and lint before compile.
   A blocked commit no longer waits for a compile it cannot pass.
+- `/afk:setup` installs the AFK Python runtime, after it asks: a pinned uv, a
+  pinned CPython 3.14.8, and a private environment synced from the checked-in
+  hash lock `runtime/uv.lock`. The runtime is exposed only as the `afk-python`
+  command, and its directory is added to your user PATH. Your own `python`
+  stays untouched. `/afk:setup base` adds pytest, and `/afk:setup audit` checks
+  the command, the version, the lock and the imports.
+- A one-line SessionStart notice asks you to run `/afk:setup` while
+  `afk-python` is missing or not the pinned version.
+- **Migration:** run `/afk:setup` and restart the harness. The next release
+  runs every hook and MCP command through `afk-python`.
 
 ### Fixed
 
+- `/afk:setup` installs `mcp<2` into the system Python. `mcp` 2 removed the
+  module the Jira tracker server imports, so a fresh install failed to connect.
 - `/afk:setup` removes legacy native AFK marketplace pins and installs or
   refreshes that marketplace without `--ref`, so later marketplace upgrades are
   not held to an old release.

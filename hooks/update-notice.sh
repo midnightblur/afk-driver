@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# SessionStart notice: a newer release exists, and here is what is in it.
+# SessionStart notices: the afk-python runtime needs setup (runtime_notice), and
+# a newer release exists, and here is what is in it.
 #
 # Run with `--soft`: it must never block, never slow a session start, and never
 # need a dependency the toolkit does not already require. Every failure path —
@@ -21,6 +22,34 @@
 set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+
+# Python release 1: warn while `afk-python` is missing or not the pinned version.
+# Bash builtins only: a fork costs ~100 ms under Git Bash, and this runs every session.
+runtime_notice() {
+  local line want="" have="" home stamp
+  [ -f "$ROOT/runtime/pyproject.toml" ] || return 0
+  while IFS= read -r line; do
+    line=${line%$'\r'}
+    case "$line" in 'requires-python = "=='*) want=${line#*==}; want=${want%%\"*}; break ;; esac
+  done <"$ROOT/runtime/pyproject.toml"
+  [ -n "$want" ] || return 0
+  case "${OSTYPE:-}" in
+    msys*|cygwin*) home="${LOCALAPPDATA:-}/afk" ;;
+    *) home="${XDG_DATA_HOME:-$HOME/.local/share}/afk" ;;
+  esac
+  stamp="$home/python/AFK-RUNTIME"
+  if [ -f "$stamp" ]; then
+    while IFS= read -r line; do
+      line=${line%$'\r'}
+      case "$line" in python=*) have=${line#python=} ;; esac
+    done <"$stamp"
+  fi
+  if ! command -v afk-python >/dev/null 2>&1 || [ "$have" != "$want" ]; then
+    printf 'AFK will switch to afk-python in the next release; run /afk:setup\n'
+  fi
+}
+runtime_notice
+
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
 command -v git >/dev/null 2>&1 || exit 0
