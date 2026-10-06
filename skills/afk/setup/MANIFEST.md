@@ -647,7 +647,7 @@ a token value — not even partially.
   A later run without `--test` keeps the extra.
 - **Notes:** the user's own `python` and `python3` stay untouched. Locations:
   the `python_runtime.py` docstring. Network: the uv release host and PyPI. To
-  remove: delete `%LOCALAPPDATA%fk` (Windows) or
+  remove: delete `%LOCALAPPDATA%\afk` (Windows) or
   `${XDG_DATA_HOME:-~/.local/share}/afk` plus `~/.local/bin/afk-python`, then
   drop that directory from the user PATH.
 
