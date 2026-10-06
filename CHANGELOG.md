@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-06
+
 ### Added
 
 - New configuration layer `<git common dir>/afk/config.yaml`: untracked, per developer, and read by every worktree of one repository. It sits above the committed `.afk/config.yaml` and below `.afk/config.local.yaml`, and may not set `schema`.
