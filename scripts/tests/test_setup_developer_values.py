@@ -90,6 +90,31 @@ def test_a_worktree_location_never_goes_to_the_machine_file(tmp_path):
     assert dv.read_block(machine)["worktreeBasePath"] == str(tmp_path / "everyone")
 
 
+def _reader():
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "afk-config.py"
+    spec = importlib.util.spec_from_file_location("afk_config_for_setup_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_key_set_matches_the_readers():
+    assert set(dv.DEVELOPER_KEYS) == _reader().DEVELOPER_KEYS
+
+
+@pytest.mark.parametrize("value", ["123", "true", "null", "1.5", "a: b", 'say "hi"',
+                                   r"C:\Program Files\idea64.exe", "plain.name"])
+def test_a_written_value_reads_back_as_the_same_string(tmp_path, value):
+    path = tmp_path / "config.yaml"
+    dv.write_block(path, {"mrReviewer": value})
+    assert dv.read_block(path) == {"mrReviewer": value}
+    reader = _reader()
+    config = reader.parse(path.read_text(encoding="utf-8"), str(path))
+    assert reader.developer_value(config, "mrReviewer") == value
+    assert not reader.validate({"schema": 1, **config})
+
+
 @pytest.mark.parametrize("existing", ["overlay", "shared"])
 def test_an_existing_narrower_block_is_kept_without_asking_for_a_target(tmp_path, existing):
     (tmp_path / "wt").mkdir()

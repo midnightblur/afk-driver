@@ -6,6 +6,7 @@ for may be another repository's answer, so it is never removed.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Callable
 
@@ -29,7 +30,11 @@ def read_block(p: Path) -> dict:
             continue
         if inside and ":" in line:
             key, _, value = line.strip().partition(":")
-            value = value.strip().strip("'\"")
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] == '"':
+                value = value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+            elif len(value) >= 2 and value[0] == value[-1] == "'":
+                value = value[1:-1].replace("''", "'")
             if key.strip() in DEVELOPER_KEYS and value:
                 out[key.strip()] = value
     return out
@@ -59,8 +64,13 @@ def write_block(p: Path, values: dict) -> None:
     for key in DEVELOPER_KEYS:
         value = values.get(key)
         if value:
-            needs_quotes = any(c in str(value) for c in ":#") or str(value).strip() != str(value)
-            block.append("  %s: %s" % (key, ('"%s"' % value) if needs_quotes else value))
+            text = str(value)
+            # Quote anything the reader would not return as this exact string.
+            needs_quotes = (any(c in text for c in ":#\"'") or text.strip() != text
+                            or text.lower() in ("true", "false", "null", "~")
+                            or re.fullmatch(r"[+-]?\d*\.?\d+", text) is not None)
+            quoted = '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+            block.append("  %s: %s" % (key, quoted if needs_quotes else text))
 
     body = "\n".join(kept + ([""] if kept else []) + block) + "\n"
     tmp = p.with_suffix(p.suffix + ".tmp")
