@@ -29,7 +29,8 @@
 # explicit paths rather than everything, so judging the working tree would gate
 # files the commit does not contain.
 #
-# Exit 2 blocks the commit. Escape hatches: .claude/hooks/.gate-disabled in the
+# Order: backstop, comment, native-contract, build gates (format/lint first); the
+# first block (exit 2) ends the run, a gate that cannot run only warns. Escape hatches: .claude/hooks/.gate-disabled in the
 # repo, AFK_SKIP_PRECOMMIT_GATES=1 for a single commit, or `git commit --no-verify`.
 
 set -u
@@ -97,9 +98,9 @@ fi
 # Bound the maven-lock wait on the commit path (see header).
 export AFK_MAVEN_LOCK_WAIT="${AFK_MAVEN_LOCK_WAIT:-240}"
 
-blocked=0
 # $1 = gate name; $2 = the build-gate kind that owns it, or "" for a gate this
 # runner owns itself (a file <name>-gate.sh beside this one).
+# A block is deterministic, so the first one ends the run; later gates add only cost.
 run_gate() {
   local name=$1 kind=${2:-} fn="gate_${1//-/_}" rc=0
   # A gate that cannot load or crashes must not be a SILENT pass — say so, even
@@ -120,27 +121,20 @@ run_gate() {
   fi
   case "$rc" in
     0) ;;
-    2) blocked=1 ;;
+    2) commit_blocked ;;
     *) printf '[afk] gate %s crashed (rc %s) — this commit is NOT gated by it.\n' "$name" "$rc" >&2 ;;
   esac
   return 0
 }
 
-# The selected build-gate adapters decide which of their gates this change set
-# needs; each one's scope test is fork-free, so a commit enters only the gates
-# its paths can possibly break. A repository with no `build-gates:` runs none.
-while IFS= read -r _bg_kind; do
-  [ -n "$_bg_kind" ] || continue
-  afk_build_gate_load "$_bg_kind" || continue
-  _bg_discover="afk_bg_${_bg_kind//-/_}_discover"
-  command -v "$_bg_discover" >/dev/null 2>&1 || continue
-  while IFS= read -r _bg_name; do
-    [ -n "$_bg_name" ] || continue
-    run_gate "$_bg_name" "$_bg_kind"
-  done < <("$_bg_discover")
-done < <(afk_config_list build-gates)
+commit_blocked() {
+  printf '\n[afk] Commit blocked by an AFK gate. Fix the findings above, or commit with\n' >&2
+  printf '      --no-verify (or AFK_SKIP_PRECOMMIT_GATES=1) if you are deliberately\n' >&2
+  printf '      landing a known-red intermediate commit.\n' >&2
+  exit 2
+}
 
-# The comment policy (RATIONALE.md) is cheap and reads only staged bytes.
+# Cheapest first: the comment policy (RATIONALE.md) reads only staged bytes.
 run_gate comment
 
 # The native plugin contract is cheap enough for Stop and commit. Commit-time
@@ -172,10 +166,23 @@ if [ -n "$PLUGIN_DIR" ] && [ "$native_scope" = "1" ]; then
   fi
 fi
 
-if [ "$blocked" = "1" ]; then
-  printf '\n[afk] Commit blocked by an AFK gate. Fix the findings above, or commit with\n' >&2
-  printf '      --no-verify (or AFK_SKIP_PRECOMMIT_GATES=1) if you are deliberately\n' >&2
-  printf '      landing a known-red intermediate commit.\n' >&2
-  exit 2
-fi
+# Selected build-gate adapters name the gates this change set needs (none without
+# `build-gates:`), in configured order except format and lint before the rest.
+cheap_gates=() costly_gates=()
+while IFS= read -r _bg_kind; do
+  [ -n "$_bg_kind" ] || continue
+  afk_build_gate_load "$_bg_kind" || continue
+  _bg_discover="afk_bg_${_bg_kind//-/_}_discover"
+  command -v "$_bg_discover" >/dev/null 2>&1 || continue
+  while IFS= read -r _bg_name; do
+    [ -n "$_bg_name" ] || continue
+    case "$_bg_name" in
+      *format*|*lint*) cheap_gates+=("$_bg_kind:$_bg_name") ;;
+      *) costly_gates+=("$_bg_kind:$_bg_name") ;;
+    esac
+  done < <("$_bg_discover")
+done < <(afk_config_list build-gates)
+for _bg in ${cheap_gates[@]+"${cheap_gates[@]}"} ${costly_gates[@]+"${costly_gates[@]}"}; do
+  run_gate "${_bg#*:}" "${_bg%%:*}"
+done
 exit 0

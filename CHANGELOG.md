@@ -37,6 +37,12 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- The commit gates stop at the first block and run the cheap gates first: the
+  comment gate, the plugin contract gate, then format and lint before compile.
+  A blocked commit no longer waits for a compile it cannot pass.
+
 ### Fixed
 
 - `/afk:setup` removes legacy native AFK marketplace pins and installs or
