@@ -1,51 +1,58 @@
-"""The H6 `developer:` values `setup_secrets.py` asks for, and the file each goes to.
+#!/usr/bin/env python3
+"""Report and record a developer's `developer:` values. None is a secret, so an agent
+asks the human in session and records the answers here.
 
-Split out of `setup_secrets.py` (which runs on import) so a test can drive it.
-A run writes only the keys it asked about: a key this repository has no use
-for may be another repository's answer, so it is never removed.
+    python developer_values.py status                 # JSON report, below
+    python developer_values.py set KEY=VALUE ... [--machine]
+
+`status` names, per key: `need` (required | optional | n/a for this repository's
+adapters), the resolved `value`, its `source` layer, and a `suggestion` to offer.
+`missing` lists the required keys nothing resolves.
+
+`set` writes the repository file `<git common dir>/afk/config.yaml`, which the main
+checkout and every worktree read; `--machine` writes `~/.afk/config.yaml`, the
+default for every repository. It changes only the keys named; `KEY=` removes one.
+`worktreeBasePath` is one repository's location, so `--machine` refuses it.
 """
 from __future__ import annotations
 
+import importlib.util
+import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
-from typing import Callable
 
-DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary")
+PLUGIN_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ac = _module("afk_config_for_developer_values", PLUGIN_ROOT / "scripts" / "afk-config.py")
+ORDER = ("trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary")
+
+
+def machine_file() -> Path:
+    return Path.home() / ".afk" / "config.yaml"
 
 
 def read_block(p: Path) -> dict:
-    """The `developer:` mapping of a config file, or an empty dict.
-
-    Deliberately small: one flat block of `key: value` lines under one heading,
-    which is all this block is ever allowed to be.
-    """
+    """The `developer:` mapping of one file, read by the one parser; {} when absent."""
     if not p.is_file():
         return {}
-    out, inside = {}, False
-    for line in p.read_text(encoding="utf-8").splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if not line[:1].isspace():
-            inside = line.strip() == "developer:"
-            continue
-        if inside and ":" in line:
-            key, _, value = line.strip().partition(":")
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] == '"':
-                value = value[1:-1].replace('\\"', '"').replace("\\\\", "\\")
-            elif len(value) >= 2 and value[0] == value[-1] == "'":
-                value = value[1:-1].replace("''", "'")
-            if key.strip() in DEVELOPER_KEYS and value:
-                out[key.strip()] = value
-    return out
+    block = ac.parse(p.read_text(encoding="utf-8"), str(p)).get("developer") or {}
+    return {k: str(v) for k, v in block.items() if v is not None and str(v).strip()}
 
 
 def write_block(p: Path, values: dict) -> None:
-    """Replace the `developer:` block, leaving every other line untouched.
-
-    The file may hold keys this script knows nothing about, so it is edited
-    rather than rewritten.
-    """
+    """Replace the `developer:` block, leaving every other line of the file untouched."""
     p.parent.mkdir(parents=True, exist_ok=True)
     lines = p.read_text(encoding="utf-8").splitlines() if p.is_file() else []
     kept, skipping = [], False
@@ -60,123 +67,150 @@ def write_block(p: Path, values: dict) -> None:
     while kept and not kept[-1].strip():
         kept.pop()
 
-    block = ["developer:"]
-    for key in DEVELOPER_KEYS:
-        value = values.get(key)
-        if value:
-            text = str(value)
-            # Quote anything the reader would not return as this exact string.
-            needs_quotes = (any(c in text for c in ":#\"'") or text.strip() != text
-                            or text.lower() in ("true", "false", "null", "~")
-                            or re.fullmatch(r"[+-]?\d*\.?\d+", text) is not None)
-            quoted = '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
-            block.append("  %s: %s" % (key, quoted if needs_quotes else text))
+    block = ["developer:"] if values else []
+    for key in sorted(values, key=lambda k: ORDER.index(k) if k in ORDER else len(ORDER)):
+        text = str(values[key])
+        # Quote anything the reader would not return as this exact string.
+        plain = not (any(c in text for c in ":#\"'") or text.strip() != text
+                     or text.lower() in ("true", "false", "null", "~")
+                     or re.fullmatch(r"[+-]?\d*\.?\d+", text))
+        quoted = '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+        block.append("  %s: %s" % (key, text if plain else quoted))
 
-    body = "\n".join(kept + ([""] if kept else []) + block) + "\n"
+    body = "\n".join(kept + ([""] if kept and block else []) + block)
     tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(body, encoding="utf-8")
+    tmp.write_text(body + "\n" if body else "", encoding="utf-8")
     tmp.replace(p)
 
 
-def configure(*, repo: Path, machine: Path, shared: Path | None,
-              tracker_kind: str, forge_kind: str, account_id: str | None,
-              ask: Callable, yes: Callable, ok: Callable, skip: Callable, warn: Callable,
-              resolve: Callable[[str], str | None],
-              forge_user: Callable[[str], str | None],
-              ide_guess: str | None = None) -> list[Path]:
-    """Ask for this developer's values and write them. Returns the files written.
+def forge_user(kind: str) -> str | None:
+    """The username the forge CLI is logged in as, or None when it cannot say."""
+    cli, args = {"gitlab": ("glab", ["api", "user"]),
+                 "github": ("gh", ["api", "user", "--jq", ".login"])}.get(kind, (None, None))
+    if not cli or not shutil.which(cli):
+        return None
+    try:
+        out = subprocess.run([cli, *args], capture_output=True, text=True, timeout=30,
+                             stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    text = out.stdout.strip()
+    if kind == "gitlab":
+        try:
+            text = str(json.loads(text).get("username") or "")
+        except (ValueError, AttributeError):
+            return None
+    return text or None
 
-    `resolve(key)` is the effective value now; it pre-fills each prompt, so a
-    machine-wide answer is offered again rather than retyped.
-    """
-    overlay = repo / ".afk" / "config.local.yaml"
-    if read_block(overlay):
-        skip(f"This checkout already has its own developer block in {overlay} — keeping it there.")
-        target = overlay
-    elif shared is not None and read_block(shared):
-        skip(f"This repository already has its developer block in {shared} — keeping it there.")
-        target = shared
-    elif shared is None:
-        warn("this repository has no git directory to share a file from — using the machine file")
-        target = machine
-    elif yes(f"Write these answers for this repository and all its worktrees, to {shared}? "
-             f"No writes them to {machine}, the default for every repository"):
-        target = shared
-    else:
-        target = machine
-    cfg = read_block(target)
-    if cfg:
-        skip("Existing values — Enter keeps each current value.")
 
-    def current(key: str) -> str | None:
-        return cfg.get(key) or resolve(key)
+def jira_email() -> str | None:
+    """The account email the Jira credential chain holds; an assignee may be an email."""
+    try:
+        api = _module("afk_jira_api_for_developer_values",
+                      PLUGIN_ROOT / "adapters" / "tracker" / "jira" / "api.py")
+        return api.resolve_creds_env().get("JIRA_EMAIL") or None
+    except Exception:
+        return None
 
-    # These name a PERSON, so nothing defaults them: each developer answers for
-    # themselves, and an empty answer is re-asked rather than quietly meaning someone else.
-    if tracker_kind == "none":
-        skip("tracker: none — no assignee asked for; other repositories' values are kept")
-    else:
-        # Pre-filled with the account this developer is: the validated Jira
-        # accountId, else the GitHub login `gh` is authenticated as.
-        prefill = current("trackerAssignee") or account_id
-        if not prefill and tracker_kind == "github-issues":
-            prefill = forge_user("github")
-        cfg["trackerAssignee"] = ask(
-            "assignee account id or email (yours, unless work goes to someone else)", prefill)
 
-    if forge_kind == "none":
-        skip("forge: none — no reviewer or assignee asked for; other repositories' values are kept")
-    else:
-        # No pre-fill beyond an earlier answer: nobody else may pick who reviews your work.
-        answer = ask("reviewer (forge username, or `none` to leave it unset)", current("mrReviewer"))
-        if answer.strip().lower() == "none":
-            # Recorded, not dropped: a recorded answer tells the doctor this
-            # developer was asked, and every consumer reads it as "no reviewer".
-            cfg["mrReviewer"] = "none"
-            skip("reviewer recorded as none — the change Ready flip will fail closed")
+def ide_guess() -> str | None:
+    if os.name != "nt":
+        return None
+    for pf in filter(None, (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432"))):
+        found = sorted(Path(pf).glob("JetBrains/*/bin/idea64.exe"), reverse=True)
+        if found:
+            return found[0].as_posix()
+    return None
+
+
+def status(root: Path) -> dict:
+    config = ac.load(root)
+    tracker = str(ac.get(config, "tracker") or "none")
+    forge = str(ac.get(config, "forge") or "none")
+    shared = ac.shared_overlay(root)
+    named = os.environ.get("AFK_CONFIG")
+    files = [("explicit", Path(named) if named else None),
+             ("checkout", root / ".afk" / "config.local.yaml"),
+             ("repository", shared), ("machine", machine_file())]
+    need = {
+        "trackerAssignee": "required" if tracker != "none" else "n/a",
+        "mrReviewer": "required" if forge != "none" else "n/a",
+        "mrAssignee": "optional" if forge != "none" else "n/a",
+        "worktreeBasePath": "required",
+        "ideBinary": "optional",
+    }
+    suggest = {
+        "trackerAssignee": lambda: (jira_email() if tracker == "jira"
+                                    else forge_user("github") if tracker == "github-issues" else None),
+        "mrReviewer": lambda: None,          # nobody else may pick who reviews this developer's work
+        "mrAssignee": lambda: forge_user(forge),
+        "worktreeBasePath": lambda: None,
+        "ideBinary": ide_guess,
+    }
+    keys = {}
+    for key in ORDER:
+        value = ac.developer_value(config, key, root)
+        source = next((label for label, p in files if p is not None and key in read_block(p)), None)
+        if value is not None and source is None:
+            source = "derived"
+        entry = {"need": need[key], "value": value, "source": source}
+        if value is None and need[key] != "n/a":
+            entry["suggestion"] = suggest[key]()
+        keys[key] = entry
+    return {
+        "tracker": tracker, "forge": forge,
+        "repository_file": str(shared) if shared else None,
+        "machine_file": str(machine_file()),
+        "missing": [k for k, e in keys.items() if e["need"] == "required" and e["value"] is None],
+        "keys": keys,
+    }
+
+
+def record(root: Path, pairs: list[str], machine: bool) -> Path:
+    """Write the named keys to one file; raises ValueError naming a bad request."""
+    target = machine_file() if machine else ac.shared_overlay(root)
+    if target is None:
+        raise ValueError("this repository has no git directory to share a file from; use --machine")
+    updates = {}
+    for pair in pairs:
+        key, sep, value = pair.partition("=")
+        if not sep or key not in ORDER:
+            raise ValueError(f"expected KEY=VALUE with KEY one of {', '.join(ORDER)}: {pair!r}")
+        if machine and key == "worktreeBasePath":
+            raise ValueError("worktreeBasePath is one repository's location; record it without --machine")
+        updates[key] = value.strip().replace("\\", "/") if key in ("worktreeBasePath", "ideBinary") else value.strip()
+    values = read_block(target)
+    for key, value in updates.items():
+        if value:
+            values[key] = value
         else:
-            cfg["mrReviewer"] = answer
+            values.pop(key, None)
+    write_block(target, values)
+    return target
 
-        # Recorded as `none` too, so it overrides an assignee a broader file sets.
-        answer = ask("MR/PR assignee (forge username, or `none` for no assignee)",
-                     current("mrAssignee") or forge_user(forge_kind))
-        cfg["mrAssignee"] = "none" if answer.strip().lower() == "none" else answer
-        if cfg["mrAssignee"] == "none":
-            skip("assignee recorded as none — every MR/PR opens with no assignee")
 
-    # A location belongs to one repository, so it never goes to the machine file.
-    wt_target = shared if target == machine and shared is not None else target
-    wt_cfg = cfg if wt_target == target else read_block(wt_target)
-    machine_wt = read_block(machine).get("worktreeBasePath")
-    wt_effective = resolve("worktreeBasePath")
-    if wt_cfg.get("worktreeBasePath"):
-        wt = ask("worktree base path for this repository", wt_cfg["worktreeBasePath"]).replace("\\", "/")
-        wt_cfg["worktreeBasePath"] = wt
-    elif machine_wt and wt_effective == machine_wt:
-        warn(f"{machine} sets worktreeBasePath for every repository: {machine_wt}")
-        wt = ask("worktree base path for this repository", machine_wt).replace("\\", "/")
-        if wt != machine_wt:
-            wt_cfg["worktreeBasePath"] = wt
-    elif wt_effective:
-        ok(f"worktree base path resolves to {wt_effective} — leaving it unset")
-        wt = wt_effective
-    else:
-        wt = ask("worktree base path (cannot be derived here)", "").replace("\\", "/")
-        if wt:
-            wt_cfg["worktreeBasePath"] = wt
-    if wt and not Path(wt).exists() and yes(f"{wt} does not exist. Create it?"):
-        Path(wt).mkdir(parents=True, exist_ok=True)
-        ok(f"created {wt}")
+def main(argv: list[str]) -> int:
+    root = ac.git_root()
+    if root is None:
+        sys.stderr.write("developer_values: run inside a git checkout\n")
+        return 2
+    try:
+        if argv[:1] == ["status"]:
+            sys.stdout.write(json.dumps(status(root), indent=2) + "\n")
+            return 0
+        if argv[:1] == ["set"] and len(argv) > 1:
+            machine = "--machine" in argv
+            target = record(root, [a for a in argv[1:] if a != "--machine"], machine)
+            sys.stdout.write(f"developer_values: wrote {target}\n")
+            return 0
+    except (ValueError, ac.ConfigError) as problem:
+        sys.stderr.write(f"developer_values: {problem}\n")
+        return 2
+    sys.stderr.write(__doc__ or "")
+    return 2
 
-    ide_default = current("ideBinary") or ide_guess
-    if ide_default:
-        cfg["ideBinary"] = ask("IDE binary (optional)", ide_default).replace("\\", "/")
 
-    written = [target]
-    write_block(target, cfg)
-    ok(f"wrote the developer block in {target}")
-    if wt_target != target and wt_cfg.get("worktreeBasePath"):
-        write_block(wt_target, wt_cfg)
-        ok(f"wrote this repository's worktree base path in {wt_target}")
-        written.append(wt_target)
-    return written
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

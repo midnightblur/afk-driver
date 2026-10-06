@@ -24,7 +24,7 @@ fail closed. Provisioned and probed by the workflow doctor (`H6`).
 
 The committed `<repo>/.afk/config.yaml` holds none of these keys: K1 and K2 name
 a person, and a committed file never names a person. Each developer answers for
-themselves, and `/afk:setup` asks.
+themselves: `/afk:setup` asks in session, from the main checkout or any worktree.
 
 Resolution, highest first: the `developer:` value from any layer (checkout
 beats repository beats machine), then — for `worktreeBasePath` alone — a derived value,
@@ -47,11 +47,13 @@ agrees on the directory. A repository whose git directory is not inside the tree
 
 ## Read contract
 
-- **Fail closed on absence.** A config-gated operation whose required value
-  resolves to nothing does **not** proceed and does **not** partially execute. It
-  reports the value it needed and both places it could have come from, then
-  stops — never guesses, never writes an external side effect with a
-  placeholder.
+- **Ask, then fail closed.** When a required value resolves to nothing and a
+  human is in the conversation, ask them for it, record the answer per
+  `skills/afk/setup/MANIFEST.md` · H6 Fix steps 2-4, and resolve again. With no
+  human present (a hands-off run, a subagent), or when the human declines, the
+  operation does **not** proceed and does **not** partially execute. It reports
+  the value it needed and names `/afk:setup` as the fix, then stops — never
+  guesses, never writes an external side effect with a placeholder.
 - **Capture is never gated.** Writing a bug's evidence bundle + ledger entry
   reads no config and is never blocked by absent config — a capture is never
   lost to it (PRD AC-001).

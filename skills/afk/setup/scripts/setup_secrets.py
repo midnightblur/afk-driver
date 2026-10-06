@@ -2,8 +2,9 @@
 """Interactive fixer for the register's human-gated entries. Usage: python setup_secrets.py
 
 Covers the MANIFEST.md entries whose Fix names this script: the tracker MCP
-registration and whatever credential the configured tracker needs, the per-dev
-config file, the forge CLI login, and the git long-path flag. Each entry's own Fix states what it needs; this
+registration and whatever credential the configured tracker needs, the forge
+CLI login, and the git long-path flag. Developer values (H6) are not secret, so
+the agent asks for them in session (`developer_values.py`). Each entry's own Fix states what it needs; this
 script only automates placing it.
 
 MUST be run by the human, from their own terminal, NOT by the agent:
@@ -37,23 +38,16 @@ SERVER = PLUGIN_ROOT / "mcp-servers" / "tracker" / "server.py"
 CLAUDE_JSON = Path.home() / ".claude.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import tracker_registration  # noqa: E402  (the registration shape and the legacy-key rule)
-import developer_values  # noqa: E402  (the H6 prompts and the file each value goes to)
 
 MCP_KEY = tracker_registration.MCP_KEY
 
 
-def afk_config():
-    """The one configuration reader, `scripts/afk-config.py`, as a module."""
+def config_kind(family: str, root: Path) -> str:
+    """The adapter kind `.afk/config.yaml` selects for a family, or "none"."""
     path = PLUGIN_ROOT / "scripts" / "afk-config.py"
     spec = importlib.util.spec_from_file_location("afk_config", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
-
-
-def config_kind(family: str, root: Path) -> str:
-    """The adapter kind `.afk/config.yaml` selects for a family, or "none"."""
-    module = afk_config()
     return str(module.get(module.load(root), family) or "none")
 
 C = {"cyan": "\033[36m", "green": "\033[32m", "yellow": "\033[33m", "grey": "\033[90m", "off": "\033[0m"}
@@ -103,55 +97,6 @@ def read_json(p: Path) -> dict:
     except Exception as e:
         die(f"{p} is not valid JSON ({e}). Fix or move it, then re-run.")
     return {}
-
-
-def resolved_default(key: str):
-    """What `key` resolves to right now.
-
-    Asks the one reader rather than reimplementing the order, so "already set"
-    and "git can derive this" are answered the way every other caller answers
-    them. A key naming a person resolves only from a `developer:` block.
-    """
-    script = Path(__file__).resolve().parents[4] / "scripts" / "afk-config.py"
-    if not script.is_file():
-        return None
-    try:
-        out = subprocess.run(
-            [sys.executable, str(script), "resolve", key],
-            cwd=str(REPO), capture_output=True, text=True, timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    value = out.stdout.strip()
-    return value if out.returncode == 0 and value else None
-
-
-def forge_user(kind: str) -> str | None:
-    """The username the forge CLI is logged in as, best-effort.
-
-    Suggested as the `mrAssignee` answer: the common case assigns a change to
-    its author. `None` when the CLI is absent or not yet authenticated — the
-    prompt then offers no suggestion and the developer types their own name.
-    """
-    cli, args = {
-        "gitlab": ("glab", ["api", "user"]),
-        "github": ("gh", ["api", "user", "--jq", ".login"]),
-    }.get(kind, (None, None))
-    if not cli or not shutil.which(cli):
-        return None
-    try:
-        out = subprocess.run([cli, *args], capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if out.returncode != 0:
-        return None
-    text = out.stdout.strip()
-    if kind == "gitlab":
-        try:
-            text = str(json.loads(text).get("username") or "")
-        except (ValueError, AttributeError):
-            return None
-    return text or None
 
 
 def write_json_atomic(p: Path, data: dict) -> None:
@@ -231,8 +176,6 @@ if harness_running():
 # ---------------------------------------- tracker MCP server + credentials
 head("Tracker MCP server + credentials")
 
-account_id = None
-
 if TRACKER_KIND == "none":
     skip("tracker: none — no server to register")
 else:
@@ -270,8 +213,7 @@ else:
         if not token:
             die("Empty token.")
 
-        # Validate BEFORE writing. The response also carries the account id the
-        # per-dev config's assignee key wants, so a valid token pre-fills it.
+        # Validate BEFORE writing.
         import httpx
 
         try:
@@ -285,7 +227,6 @@ else:
                 die(f"Tracker rejected the credentials ({r.status_code}). Nothing was written.")
             r.raise_for_status()
             me = r.json()
-            account_id = me.get("accountId")
             ok(f"authenticated as {me.get('displayName')}")
         except SystemExit:
             raise
@@ -305,25 +246,6 @@ else:
     cj["mcpServers"] = servers
     write_json_atomic(CLAUDE_JSON, cj)
     ok(f"server registered user-scoped under key '{MCP_KEY}' (no secret shown)")
-
-# ------------------------------------------------------- per-dev config file
-head("Per-dev config")
-
-ide = None
-if os.name == "nt":
-    for pf in filter(None, (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432"))):
-        ide = next(iter(sorted(Path(pf).glob("JetBrains/*/bin/idea64.exe"), reverse=True)), None)
-        if ide:
-            break
-
-developer_values.configure(
-    repo=REPO, machine=Path.home() / ".afk" / "config.yaml",
-    shared=afk_config().shared_overlay(REPO),
-    tracker_kind=TRACKER_KIND, forge_kind=FORGE_KIND, account_id=account_id,
-    ask=ask, yes=yes, ok=ok, skip=skip, warn=warn,
-    resolve=resolved_default, forge_user=forge_user,
-    ide_guess=ide.as_posix() if ide else None,
-)
 
 # ------------------------------------------------------------- forge CLI auth
 head("Forge CLI auth")
@@ -376,16 +298,6 @@ else:
     env2 = entry2.get("env") or {}
     for v in (("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN") if TRACKER_KIND == "jira" else ()):
         ok(f"{v} set") if env2.get(v) else warn(f"{v} MISSING")
-
-# Re-probe the way H6 does — through `resolve`, not by reading the file — so
-# this line and the doctor row can never disagree.
-wanted = ["worktreeBasePath"]
-if TRACKER_KIND != "none":
-    wanted.insert(0, "trackerAssignee")
-if FORGE_KIND != "none":
-    wanted.append("mrReviewer")
-missing = [k for k in wanted if not resolved_default(k)]
-warn(f"config missing: {', '.join(missing)}") if missing else ok("config complete")
 
 print(f"""
 {C['cyan']}Done.{C['off']} Start the harness in a NEW terminal, then re-run the doctor.

@@ -324,10 +324,12 @@ name, the forge user your merge requests are assigned to, your IDE — go under
 than once per worktree, or in `~/.afk/config.yaml` as a default for every
 repository. The two assignees are a pair: `trackerAssignee` is put on every work
 item the plugin creates (bug tickets, spinoff tickets), `mrAssignee` on every
-merge request or pull request it opens. `/afk:setup` asks you for each and
-pre-fills both assignees with your own account — the tracker account the token
-belongs to, the forge user the CLI is logged in as — so you confirm or name
-someone else; leaving one unset means no assignee. The worktree base is derived
+merge request or pull request it opens. `/afk:setup`, run from the main
+checkout or any worktree, asks you for each missing value in the session and
+suggests your own account for both assignees — the tracker account email, the
+forge user the CLI is logged in as — so you confirm or name someone else;
+leaving one unset means no assignee. An agent that needs a missing value asks
+you the same way. The worktree base is derived
 from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 
 ### Shared setup and development

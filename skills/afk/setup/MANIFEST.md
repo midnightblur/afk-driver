@@ -74,7 +74,7 @@ a token value — not even partially.
   follows the same rule. An `unsupported` or `error` answer carries
   `config_root`, the checkout whose config the server read.
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/H6/C3 or C3b, whichever the forge selects), enable the plugin, then
+  does S1/C3 or C3b, whichever the forge selects), enable the plugin, then
   restart the session. Python deps: P3. Registering the server needs that
   restart. The plugin's own server applies added or corrected credentials on the
   next call, no restart; without them a call answers `error: true` and the
@@ -166,21 +166,25 @@ a token value — not even partially.
   [ -z "$m" ] || echo "unresolved:$m"
   exit 1
   ```
-- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does H2/S1/C3 or C3b, whichever the forge selects). It asks this developer for
-  the tracker assignee — pre-filled with the account the validated token itself
-  belongs to — for the reviewer, which has no pre-fill because no one else may
-  pick who reviews your work, and for the MR/PR assignee, pre-filled with the
-  forge account the CLI is logged in as. It offers the repository file
-  `<git common dir>/afk/config.yaml`, read by all of this repository's
-  worktrees, else `~/.afk/config.yaml` as a default for every repository. It
-  writes only the keys it asked about, so a repository with tracker or forge
-  `none` never removes another repository's values, and it never writes
-  `worktreeBasePath` to the machine file. By hand: add a `developer:` block
-  per the example in `skills/afk/bug/CONFIG.md`.
+- **Fix:** `auto:` in session, from the main checkout or any worktree. None of
+  these values is a secret, so ask the human in the conversation.
+  1. Run `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py" status`.
+     It reports each key's `need`, resolved `value`, `source` layer and
+     `suggestion`, and lists `missing`.
+  2. Ask the human for every `missing` key, offering its `suggestion` as the
+     first option. Offer the optional keys too, unless they already resolve.
+     The reviewer has no suggestion: nobody else picks who reviews the
+     developer's work.
+  3. Ask once where the answers go: this repository (the default — the file
+     the main checkout and all its worktrees read) or `--machine` (the default
+     for every repository).
+  4. Run `developer_values.py set KEY=VALUE ... [--machine]`, then re-probe.
+  `set` changes only the keys it names, so another repository's values
+  survive. `KEY=` removes a key. `--machine` refuses `worktreeBasePath`.
 - **Notes:** a developer with no reviewer answers the literal `none`, which
   resolves and so satisfies this row; every consumer reads it as an absent key
-  and fails closed. The repository's committed config answers none of these — a
+  and fails closed. A recorded `mrAssignee=none` resolves to no assignee and
+  overrides a broader layer's assignee. The repository's committed config answers none of these — a
   committed file never names a person. Under tracker `none` nothing is assigned
   and K1 is not probed; under forge `none` nothing is reviewed and K2 is not
   probed; each is then **n/a**, as `H0` defines. `worktreeBasePath` normally
@@ -688,7 +692,7 @@ a token value — not even partially.
   `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
 - **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
   prompts for the token without echoing it, validates it against the host before
-  writing, and places it in the H2 `env` block (also does H2/H6/C3 or C3b, whichever the forge selects). By hand:
+  writing, and places it in the H2 `env` block (also does H2/C3 or C3b, whichever the forge selects). By hand:
   create an API token (Atlassian account → Security → API tokens), then set
   `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` through a source listed in
   `PROVIDERS.md`.

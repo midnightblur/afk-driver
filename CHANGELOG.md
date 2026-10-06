@@ -41,10 +41,16 @@ release page from its section here. Nobody tags by hand.
 
 - New configuration layer `<git common dir>/afk/config.yaml`: untracked, per developer, and read by every worktree of one repository. It sits above the committed `.afk/config.yaml` and below `.afk/config.local.yaml`, and may not set `schema`.
 
+### Changed
+
+- `/afk:setup` asks for `developer:` values in the session, from the main checkout or any worktree. The terminal script `setup_secrets.py` no longer asks for them; it keeps the secrets and CLI logins. The agent runs `skills/afk/setup/scripts/developer_values.py status` to find missing values and suggestions, then `set KEY=VALUE` to record your answers. Answers go to the new repository file by default, or to `~/.afk/config.yaml` with `--machine`.
+- An agent that finds a required developer value missing asks you for it and records it. A hands-off run still stops and names `/afk:setup`.
+
 ### Fixed
 
-- `/afk:setup` no longer removes `developer:` values that another repository uses. A repository whose tracker or forge is `none` now leaves the assignee and reviewer keys in place. The script writes only the keys it asked about. It offers the new repository file by default and `~/.afk/config.yaml` as the alternative, and pre-fills each prompt with the value that resolves now.
-- `/afk:setup` never writes `worktreeBasePath` to `~/.afk/config.yaml`. It warns when that file sets one, because the value overrides every repository's derived location, and writes a different answer to the repository file.
+- Recording developer values no longer removes values that another repository uses. `set` changes only the keys it names, and a repository whose tracker or forge is `none` leaves those keys in place.
+- `worktreeBasePath` is never written to `~/.afk/config.yaml`, because a value there overrides every repository's derived location.
+- Developer values that look like a number, `true`, `false` or `null` are quoted, so the config reader accepts them.
 - `mrAssignee: none` now resolves to no assignee, so a repository can override an assignee the machine file sets. A hand-written `none` used to reach the forge as a username.
 
 ## [1.12.0] - 2026-10-05

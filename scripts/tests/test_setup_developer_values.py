@@ -1,106 +1,133 @@
-"""`developer_values.configure` writes one repository's answers without changing another's.
+"""`developer_values.py` reports and records developer values without changing another repository's.
 
-Drives the H6 prompts with scripted answers against two repositories that share
-one machine file, the way `setup_secrets.py` calls it.
+Drives `status` and `set` against real git repositories that share one machine
+file, the way an agent runs them after asking the human in session.
 """
+import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "skills" / "afk" / "setup" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+SCRIPT = Path(__file__).resolve().parents[2] / "skills" / "afk" / "setup" / "scripts" / "developer_values.py"
+sys.path.insert(0, str(SCRIPT.parent))
 import developer_values as dv  # noqa: E402
 
 
-class Prompts:
-    """Scripted answers: `ask` pops the next answer ("" keeps the pre-fill); `yes` pops a bool."""
-
-    def __init__(self, asks=(), yeses=()):
-        self.asks, self.yeses, self.seen = list(asks), list(yeses), []
-
-    def ask(self, prompt, current=None):
-        self.seen.append(prompt)
-        answer = self.asks.pop(0)
-        return answer or current
-
-    def yes(self, prompt, default_yes=True):
-        self.seen.append(prompt)
-        return self.yeses.pop(0) if self.yeses else default_yes
+@pytest.fixture(autouse=True)
+def home(tmp_path, monkeypatch):
+    h = tmp_path / "home"
+    h.mkdir()
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(h))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    return h
 
 
-def run(tmp_path, name, prompts, *, tracker="none", forge="none", resolve=None):
+def git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+
+
+def make_repo(tmp_path, name, forge="none", tracker="none"):
     repo = tmp_path / name
-    (repo / ".git").mkdir(parents=True, exist_ok=True)
-    machine = tmp_path / "home" / ".afk" / "config.yaml"
-    shared = repo / ".git" / "afk" / "config.yaml"
-    noop = lambda *_: None
-    written = dv.configure(
-        repo=repo, machine=machine, shared=shared,
-        tracker_kind=tracker, forge_kind=forge, account_id=None,
-        ask=prompts.ask, yes=prompts.yes, ok=noop, skip=noop, warn=noop,
-        resolve=resolve or (lambda key: str(tmp_path / "wt") if key == "worktreeBasePath" else None),
-        forge_user=lambda kind: None,
-    )
-    return machine, shared, written
+    (repo / ".afk").mkdir(parents=True)
+    (repo / ".afk" / "config.yaml").write_text(
+        f"schema: 1\ntracker: {tracker}\nforge: {forge}\n", encoding="utf-8")
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.email", "t@example.com")
+    git(repo, "config", "user.name", "T")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "init")
+    return repo
 
 
-def test_a_repository_without_a_forge_keeps_the_machine_reviewer(tmp_path):
-    # Repository A writes reviewer and assignee to the machine file.
-    (tmp_path / "wt").mkdir()
-    machine, _, _ = run(tmp_path, "a", Prompts(asks=["rev", "me"], yeses=[False]), forge="github")
-    before = dv.read_block(machine)
-    assert before == {"mrReviewer": "rev", "mrAssignee": "me"}
-
-    # Repository B selects no forge and accepts the machine file.
-    run(tmp_path, "b", Prompts(yeses=[False]))
-    assert dv.read_block(machine) == before
+def cli(cwd, *args):
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=str(cwd), env=env,
+                          capture_output=True, text=True, timeout=120)
 
 
-def test_the_default_target_is_shared_by_the_repositorys_worktrees(tmp_path):
-    (tmp_path / "wt").mkdir()
-    machine, shared, written = run(tmp_path, "a", Prompts(asks=["rev", "me"]), forge="gitlab")
-    assert written == [shared]
-    assert dv.read_block(shared) == {"mrReviewer": "rev", "mrAssignee": "me"}
-    assert not machine.exists()
+def test_a_repository_without_a_forge_keeps_the_machine_reviewer(tmp_path, home):
+    a = make_repo(tmp_path, "a", forge="github")
+    assert cli(a, "set", "mrReviewer=rev", "mrAssignee=me", "--machine").returncode == 0
+    machine = home / ".afk" / "config.yaml"
+    before = machine.read_text(encoding="utf-8")
+
+    b = make_repo(tmp_path, "b")
+    report = json.loads(cli(b, "status").stdout)
+    assert report["keys"]["mrReviewer"]["need"] == "n/a"
+    assert "mrReviewer" not in report["missing"]
+    assert cli(b, "set", "ideBinary=/opt/ide").returncode == 0
+    assert machine.read_text(encoding="utf-8") == before
+    assert json.loads(cli(a, "status").stdout)["keys"]["mrReviewer"]["value"] == "rev"
 
 
-def test_a_machine_answer_is_offered_again_and_none_overrides_it(tmp_path):
-    (tmp_path / "wt").mkdir()
-    machine = tmp_path / "home" / ".afk" / "config.yaml"
-    dv.write_block(machine, {"mrReviewer": "rev", "mrAssignee": "me"})
-    inherited = dv.read_block(machine)
-    resolve = lambda key: inherited.get(key) or (str(tmp_path / "wt") if key == "worktreeBasePath" else None)
+def test_status_names_what_is_missing_and_where_a_value_comes_from(tmp_path, home):
+    repo = make_repo(tmp_path, "a", forge="gitlab")
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["missing"] == ["mrReviewer"]
+    assert report["keys"]["mrReviewer"]["suggestion"] is None
+    assert report["keys"]["worktreeBasePath"]["source"] == "derived"
 
-    _, shared, _ = run(tmp_path, "a", Prompts(asks=["", "none"]), forge="github", resolve=resolve)
-    assert dv.read_block(shared) == {"mrReviewer": "rev", "mrAssignee": "none"}
-    assert dv.read_block(machine) == inherited
-
-
-def test_a_worktree_location_never_goes_to_the_machine_file(tmp_path):
-    machine = tmp_path / "home" / ".afk" / "config.yaml"
-    dv.write_block(machine, {"worktreeBasePath": str(tmp_path / "everyone")})
-    (tmp_path / "mine").mkdir()
-    resolve = lambda key: str(tmp_path / "everyone") if key == "worktreeBasePath" else None
-
-    _, shared, written = run(tmp_path, "a", Prompts(asks=[str(tmp_path / "mine")], yeses=[False]),
-                             resolve=resolve)
-    assert written == [machine, shared]
-    assert dv.read_block(shared)["worktreeBasePath"] == str(tmp_path / "mine").replace("\\", "/")
-    assert dv.read_block(machine)["worktreeBasePath"] == str(tmp_path / "everyone")
+    dv.write_block(home / ".afk" / "config.yaml", {"mrReviewer": "rev"})
+    report = json.loads(cli(repo, "status").stdout)
+    assert report["missing"] == []
+    assert report["keys"]["mrReviewer"]["source"] == "machine"
 
 
-def _reader():
-    import importlib.util
-    path = Path(__file__).resolve().parents[1] / "afk-config.py"
-    spec = importlib.util.spec_from_file_location("afk_config_for_setup_test", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def test_a_value_recorded_in_a_worktree_is_read_by_the_main_checkout(tmp_path):
+    main = make_repo(tmp_path, "a", forge="github")
+    linked = tmp_path / "a-worktrees" / "task"
+    git(main, "worktree", "add", "-q", str(linked))
+    assert cli(linked, "set", "mrReviewer=rev").returncode == 0
+    for checkout in (main, linked):
+        keys = json.loads(cli(checkout, "status").stdout)["keys"]
+        assert keys["mrReviewer"] == {"need": "required", "value": "rev", "source": "repository"}
+    assert (main / ".git" / "afk" / "config.yaml").is_file()
 
 
-def test_the_key_set_matches_the_readers():
-    assert set(dv.DEVELOPER_KEYS) == _reader().DEVELOPER_KEYS
+def test_none_assignee_overrides_the_machine_assignee(tmp_path, home):
+    repo = make_repo(tmp_path, "a", forge="github")
+    dv.write_block(home / ".afk" / "config.yaml", {"mrAssignee": "me"})
+    assert cli(repo, "set", "mrAssignee=none").returncode == 0
+    assert json.loads(cli(repo, "status").stdout)["keys"]["mrAssignee"]["value"] is None
+
+
+def test_a_worktree_location_is_refused_for_the_machine_file(tmp_path, home):
+    repo = make_repo(tmp_path, "a")
+    out = cli(repo, "set", "worktreeBasePath=/somewhere", "--machine")
+    assert out.returncode == 2 and "worktreeBasePath" in out.stderr
+    assert not (home / ".afk" / "config.yaml").exists()
+
+
+def test_an_empty_value_removes_only_that_key(tmp_path):
+    repo = make_repo(tmp_path, "a", forge="github")
+    cli(repo, "set", "mrReviewer=rev", "mrAssignee=me")
+    assert cli(repo, "set", "mrAssignee=").returncode == 0
+    assert dv.read_block(repo / ".git" / "afk" / "config.yaml") == {"mrReviewer": "rev"}
+
+
+def test_an_unknown_key_is_refused(tmp_path):
+    out = cli(make_repo(tmp_path, "a"), "set", "reviewer=rev")
+    assert out.returncode == 2 and "KEY=VALUE" in out.stderr
+
+
+def test_the_key_order_covers_the_readers_key_set():
+    assert set(dv.ORDER) == dv.ac.DEVELOPER_KEYS
+
+
+def test_other_lines_of_the_file_survive_a_write(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("tracker: jira\n# note\ndeveloper:\n  mrReviewer: old\nforge: gitlab\n",
+                    encoding="utf-8")
+    dv.write_block(path, {"mrReviewer": "new"})
+    text = path.read_text(encoding="utf-8")
+    assert "tracker: jira" in text and "# note" in text and "forge: gitlab" in text
+    assert dv.read_block(path) == {"mrReviewer": "new"}
 
 
 @pytest.mark.parametrize("value", ["123", "true", "null", "1.5", "a: b", 'say "hi"',
@@ -109,20 +136,6 @@ def test_a_written_value_reads_back_as_the_same_string(tmp_path, value):
     path = tmp_path / "config.yaml"
     dv.write_block(path, {"mrReviewer": value})
     assert dv.read_block(path) == {"mrReviewer": value}
-    reader = _reader()
-    config = reader.parse(path.read_text(encoding="utf-8"), str(path))
-    assert reader.developer_value(config, "mrReviewer") == value
-    assert not reader.validate({"schema": 1, **config})
-
-
-@pytest.mark.parametrize("existing", ["overlay", "shared"])
-def test_an_existing_narrower_block_is_kept_without_asking_for_a_target(tmp_path, existing):
-    (tmp_path / "wt").mkdir()
-    repo = tmp_path / "a"
-    path = (repo / ".afk" / "config.local.yaml") if existing == "overlay" else (repo / ".git" / "afk" / "config.yaml")
-    dv.write_block(path, {"mrReviewer": "old"})
-    prompts = Prompts(asks=["new", "me"])
-    _, _, written = run(tmp_path, "a", prompts, forge="github")
-    assert written == [path]
-    assert dv.read_block(path) == {"mrReviewer": "new", "mrAssignee": "me"}
-    assert not any("No writes them" in p for p in prompts.seen)
+    config = dv.ac.parse(path.read_text(encoding="utf-8"), str(path))
+    assert dv.ac.developer_value(config, "mrReviewer") == value
+    assert not dv.ac.validate({"schema": 1, **config})
