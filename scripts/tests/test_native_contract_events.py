@@ -179,6 +179,28 @@ def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle)
     _refused(gate(tree), needle)
 
 
+@pytest.mark.parametrize("rel, text, needle", [
+    ("hooks/x.sh", f"#!/bin/sh\n{PY}3.14 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\n/usr/bin/{PY}3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\nexec /usr/bin/{PY}3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\ncommand /opt/bin/{PY}3.14 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\nenv -i /usr/bin/{PY} tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", "#!/bin/sh\npy.exe -3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/tool", f"#!/usr/bin/{PY}3\nprint(1)\n", "hooks/tool:1: python source"),
+    ("hooks/tool", f"#!/usr/bin/env afk-{PY}\nimport os\nos.system('{PY} x.py')\n", "hooks/tool:3: python source"),
+    ("hooks/x.ps1", f"& {PY} tool.py\n", "hooks/x.ps1:1: shell command"),
+    ("hooks/x.ps1", f'& "C:\\Py314\\{PY}.exe" tool.py\n', "hooks/x.ps1:1: shell command"),
+    ("hooks/lib/x.py", f'import os\nos.system("{PY} tool.py")\n', "hooks/lib/x.py:2: python source"),
+    ("hooks/lib/x.py", f'import subprocess\nsubprocess.run("{PY}3.14 x.py", shell=True)\n',
+     "hooks/lib/x.py:2: python source"),
+    ("hooks/lib/x.py", f'argv = ["/usr/bin/{PY}3", "x.py"]\n', "hooks/lib/x.py:1: python source"),
+], ids=["versioned", "path", "exec", "command", "env", "py-exe", "shebang-no-suffix", "no-suffix-body",
+        "ps1-call", "ps1-path", "os-system", "subprocess-string", "argv-path"])
+def test_check_j_refuses_each_spelling_of_another_interpreter(tree, rel, text, needle):
+    _write(tree, rel, text)
+    _refused(gate(tree), needle)
+
+
 def _plant_in_gate(tree: Path, after: str, planted: str) -> int:
     """Insert `planted` after the gate's first line ending in `after`; return its line number."""
     path = tree / "hooks" / "native-contract-gate.sh"
@@ -200,7 +222,8 @@ def test_check_j_scans_its_own_gate_file(tree, after, planted, kind):
 
 def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
     _write(tree, "notes/x.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
-    _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n")
+    _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n"
+                               f"ls /usr/lib/{PY}3.14/site-packages\n")
     with (tree / "hooks" / "native-contract-allow.txt").open("a", encoding="utf-8", newline="\n") as allow:
         allow.write("notes/x.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
     done = gate(tree)

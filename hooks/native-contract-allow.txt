@@ -70,3 +70,4 @@ hooks/hooks*.json	hook-deadline	protected-branch-occupancy\.py	The session hook 
 hooks/native-contract-gate.sh	repo-scan	plugin\.rglob\(|fixture_dir\.rglob\(	Plugin-tree inventory of this gate's own files (hundreds of files), not a consuming-repository content scan.
 # Live surfaces naming an interpreter that is not one (check J).
 skills/afk/setup/scripts/bootstrap.sh	interpreter	^"\$uv" python install "\$cpython"	uv's own `python install` subcommand, not an interpreter.
+skills/afk/setup/scripts/bootstrap.ps1	interpreter	^Invoke-Step 'uv python install' \{ & \$uv python install \$python 	uv's own `python install` subcommand, not an interpreter.

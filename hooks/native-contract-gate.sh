@@ -389,11 +389,18 @@ for mcp_rel in (".mcp.json", ".mcp.codex.json"):
 
 # Live surfaces: a named interpreter other than afk-python is a runtime the setup never proved.
 # History (CHANGELOG.md, adr/) is out of scope; explanatory text uses `interpreter` allow entries.
-interpreter_word = re.compile(r"(?<![\w./\\$-])(?:python3?|py -3)(?![\w.-])(?![\"']\s*[:,\]}])")
+# One interpreter name: python, python3, python3.14, any of them .exe, py.exe, or the py launcher's -3.
+name = r"(?:python(?:3(?:\.\d+)?)?(?:\.exe)?|py(?:\.exe)? -3(?:\.\d+)?|py\.exe)"
+interpreter_word = re.compile(r"(?<![\w./\\$-])" + name + r"(?![\w.-])(?![\"']\s*[:,\]}])")
+# A path-qualified name where a command starts: line start, after ; & | ( ` { $(, a keyword or a prefix.
+command_path = re.compile(r"(?:^|[;&|(`{]|\$\(|\b(?:then|do|else|exec|command|env|nohup|time)\b)\s*"
+                          r"(?:-\S+\s+)*[\"']?[^\s\"';|&]*[/\\]" + name + r"(?![\w./\\-])")
 afk_py = re.compile(r"\bAFK_PY\b")
 shebang = re.compile(r"^#!.*(?<![\w-])python3?\b")
 prose_command = re.compile(r"`(?:\$ )?(?:python3?|py -3) [^`]*`|^\s*(?:\$ )?(?:python3?|py -3) \S")
-argv_name = re.compile(r"""\[\s*["'](?:python3?|py)["']\s*,""")
+argv_name = re.compile(r"""\[\s*["'](?:[^"']*[/\\])?""" + name + r"""["']\s*,""")
+shell_string = re.compile(r"""\b(?:os\.(?:system|popen)|subprocess\.\w+|Popen|check_output|check_call)\(\s*"""
+                          r"""[rbfu]*["'](?:[^"']*[/\\])?""" + name + r"(?![\w.-])")
 history = ("CHANGELOG.md", "adr/*")
 
 
@@ -404,17 +411,26 @@ def interpreter_problem(path_rel: str, number: int, line: str, kind: str) -> Non
                         f"hooks/native-contract-allow.txt for explanatory text")
 
 
-def shell_file(path: Path) -> bool:
-    if path.suffix == ".sh":
-        return True
+def source_kind(path: Path) -> str | None:
+    """`python` or `shell` for a file check J reads as code, by suffix or, with none, by its shebang."""
+    if path.suffix == ".py":
+        return "python"
+    if path.suffix in (".sh", ".ps1", ".psm1", ".cmd", ".bat"):
+        return "shell"
     if path.suffix or not path.is_file():
-        return False
+        return None
     try:
         with path.open("rb") as handle:
             first = handle.readline(200)
     except OSError:
-        return False
-    return first.startswith(b"#!") and (b"sh" in first and b"python" not in first)
+        return None
+    if not first.startswith(b"#!"):
+        return None
+    return "python" if b"python" in first else "shell" if b"sh" in first else None
+
+
+def python_problem(line: str) -> bool:
+    return bool(argv_name.search(line) or shell_string.search(line) or afk_py.search(line))
 
 
 for path in sorted(plugin.rglob("*")):
@@ -424,10 +440,11 @@ for path in sorted(plugin.rglob("*")):
             or path_rel.startswith(".git/")):
         continue
     is_ci = path_rel.startswith(".github/")
-    if path.suffix == ".py":
+    kind = source_kind(path)
+    if kind == "python":
         lines = read(path).splitlines()
         for number, line in enumerate(lines, 1):
-            if (number == 1 and shebang.search(line)) or argv_name.search(line) or afk_py.search(line):
+            if (number == 1 and shebang.search(line)) or python_problem(line):
                 interpreter_problem(path_rel, number, line, "python source")
     elif path.suffix == ".md":
         fenced = False
@@ -438,18 +455,18 @@ for path in sorted(plugin.rglob("*")):
             hit = prose_command.search(line) if fenced else re.search(prose_command.pattern.split("|^")[0], line)
             if hit or afk_py.search(line):
                 interpreter_problem(path_rel, number, line, "prose command")
-    elif shell_file(path) or is_ci and path.suffix in (".yml", ".yaml"):
+    elif kind == "shell" or is_ci and path.suffix in (".yml", ".yaml"):
         python_body = False
         for number, line in enumerate(read(path).splitlines(), 1):
             # This gate's own Python body holds the forbidden patterns as data, so it gets the .py rules.
             if python_body:
                 python_body = line != "PY"
-                if python_body and (argv_name.search(line) or afk_py.search(line)):
+                if python_body and python_problem(line):
                     interpreter_problem(path_rel, number, line, "python source")
                 continue
             python_body = path_rel == "hooks/native-contract-gate.sh" and line.endswith("<<'PY'")
             code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
-            if (code and interpreter_word.search(code)) or afk_py.search(line) \
+            if (code and (interpreter_word.search(code) or command_path.search(code))) or afk_py.search(line) \
                     or (is_ci and "setup-python" in line):
                 interpreter_problem(path_rel, number, line, "CI step" if is_ci else "shell command")
 
