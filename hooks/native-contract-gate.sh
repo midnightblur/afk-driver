@@ -19,8 +19,8 @@
 #      one list;
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
-#   J. one runtime: both manifests run `afk-python` (run-hook.py or the guard), equal modulo the
-#      root variable, and no live surface names `python`, `python3`, `py -3` or `AFK_PY`;
+#   J. both manifests run `afk-python` (run-hook.py or a protected-branch hook), equal modulo the root
+#      variable; no live surface, this file included, names `python`, `python3`, `py -3` or the old override;
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
 #      tests under scripts/tests/ exempted — they load the helper directly);
@@ -400,7 +400,7 @@ history = ("CHANGELOG.md", "adr/*")
 def interpreter_problem(path_rel: str, number: int, line: str, kind: str) -> None:
     if not allowed(path_rel, "interpreter", line):
         problems.append(f"{path_rel}:{number}: {kind} names an interpreter other than afk-python "
-                        f"(or AFK_PY); use afk-python, or add an interpreter entry to "
+                        f"(or the retired override); use afk-python, or add an interpreter entry to "
                         f"hooks/native-contract-allow.txt for explanatory text")
 
 
@@ -421,7 +421,7 @@ for path in sorted(plugin.rglob("*")):
     path_rel = rel(path)
     if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
             or any(fnmatch.fnmatchcase(path_rel, glob) for glob in history)
-            or path_rel.startswith(".git/") or path_rel == "hooks/native-contract-gate.sh"):
+            or path_rel.startswith(".git/")):
         continue
     is_ci = path_rel.startswith(".github/")
     if path.suffix == ".py":
@@ -439,7 +439,15 @@ for path in sorted(plugin.rglob("*")):
             if hit or afk_py.search(line):
                 interpreter_problem(path_rel, number, line, "prose command")
     elif shell_file(path) or is_ci and path.suffix in (".yml", ".yaml"):
+        python_body = False
         for number, line in enumerate(read(path).splitlines(), 1):
+            # This gate's own Python body holds the forbidden patterns as data, so it gets the .py rules.
+            if python_body:
+                python_body = line != "PY"
+                if python_body and (argv_name.search(line) or afk_py.search(line)):
+                    interpreter_problem(path_rel, number, line, "python source")
+                continue
+            python_body = path_rel == "hooks/native-contract-gate.sh" and line.endswith("<<'PY'")
             code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
             if (code and interpreter_word.search(code)) or afk_py.search(line) \
                     or (is_ci and "setup-python" in line):

@@ -179,6 +179,25 @@ def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle)
     _refused(gate(tree), needle)
 
 
+def _plant_in_gate(tree: Path, after: str, planted: str) -> int:
+    """Insert `planted` after the gate's first line ending in `after`; return its line number."""
+    path = tree / "hooks" / "native-contract-gate.sh"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    index = next(i for i, line in enumerate(lines) if line.endswith(after)) + 1
+    lines.insert(index, planted)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return index + 1
+
+
+@pytest.mark.parametrize("after, planted, kind", [
+    ("set -u", f": {PY}3 tool.py", "shell command"),
+    ("import fnmatch", f'_argv = ["{PY}", "-c", "pass"]', "python source"),
+], ids=["bash-part", "python-body"])
+def test_check_j_scans_its_own_gate_file(tree, after, planted, kind):
+    number = _plant_in_gate(tree, after, planted)
+    _refused(gate(tree), f"hooks/native-contract-gate.sh:{number}: {kind}")
+
+
 def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
     _write(tree, "notes/x.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
     _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n")
