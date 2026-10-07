@@ -209,6 +209,7 @@ def posix_entry(monkeypatch):
     ("/bin/bash", [".profile"], [".profile", ".bashrc"]),
     ("/usr/bin/zsh", [], [".zshenv"]),
     ("/bin/ksh", [], [".profile", ".kshrc"]),
+    ("/bin/mksh", [], [".profile", ".mkshrc"]),
     ("/bin/dash", [], [".profile"]),
     (None, [], [".profile"]),
 ])
@@ -276,6 +277,20 @@ def test_a_new_login_shell_finds_the_written_line(tmp_path, shell):
     paths = pr.layout(env, False)
     pr.add_to_startup(pr.startup_files(env), pr.path_line(paths))
     assert pr.on_path(paths["bin"], FRESH_PATH(env, False), False)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a POSIX shell reading POSIX startup files")
+@pytest.mark.parametrize("name", ["mksh", "ksh", "bash"])
+def test_a_new_interactive_shell_that_is_not_a_login_shell_finds_the_written_line(tmp_path, name):
+    shell = shutil.which(name)
+    if not shell:
+        pytest.skip(f"{name} absent")
+    env = {"HOME": str(tmp_path), "SHELL": shell, "PATH": "/usr/bin:/bin", "TERM": "dumb"}
+    paths = pr.layout(env, False)
+    pr.add_to_startup(pr.startup_files(env), pr.path_line(paths))
+    done = subprocess.run([shell, "-i", "-c", 'printf "\\n%s\\n" "$PATH"'], env=env, capture_output=True,
+                          text=True, timeout=60, stdin=subprocess.DEVNULL)
+    assert pr.on_path(paths["bin"], done.stdout.strip().splitlines()[-1], False), done.stdout + done.stderr
 
 
 def test_the_installer_and_uv_never_see_the_users_source_overrides(tmp_path):

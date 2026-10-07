@@ -214,8 +214,10 @@ def startup_files(env: Mapping[str, str]) -> list[Path] | None:
     if shell == "zsh":
         found = ([Path(env["ZDOTDIR"]) / ".zshenv"] if env.get("ZDOTDIR") else []) + [h / ".zshenv"]
         return [next((f for f in found if f.is_file()), found[0])]
-    if shell in ("ksh", "mksh"):
+    if shell == "ksh":
         return [h / ".profile", h / ".kshrc"]
+    if shell == "mksh":
+        return [h / ".profile", h / ".mkshrc"]
     if shell in ("sh", "dash", "ash"):
         return [h / ".profile"]
     return None
