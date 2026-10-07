@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Does the harness config hold a trust entry for each protected-branch hook?
 
-    check_hook_trust.py [--config <config.toml>] [--manifest <hooks.codex.json>]
+    check_hook_trust.py [--all] [--config <config.toml>] [--manifest <hooks.codex.json>]
 
 The harness trusts a plugin hook by position: a `[hooks.state."<plugin>@<marketplace>:
-hooks/hooks.codex.json:<event>:<group>:<handler>"]` table carries `trusted_hash`. This reads the
+hooks/hooks.codex.json:<event>:<group>:<handler>"]` table carries `trusted_hash`; `<event>` is
+spelled as in the manifest (`PreToolUse`) or in snake_case (`pre_tool_use`). This reads the
 shipped manifest for the position of the guard (PreToolUse), the change meter (PostToolUse), the
 session-end cleanup (SessionEnd), the session-start prune and the occupancy advisory (SessionStart),
 then checks the config for a key at
-each. A key can be stale (the hash no longer matches): only the harness can tell, so a present
+each; `--all` checks every handler in the manifest instead. A key can be stale (the hash no longer matches): only the harness can tell, so a present
 key is reported as present and `/hooks` stays the place to see "need review".
 
 Exit 0 every key present; 1 at least one missing (one `missing:` line each, plus the step);
@@ -32,10 +33,14 @@ STEP = ("start the harness once in its terminal UI without the full-bypass flag 
         "\"Trust all and continue\", or type `/hooks` and press `t`")
 
 
-def positions(manifest: Path) -> list[tuple[str, int, int, str]]:
-    """`(event, group, handler, script)` of each guarded hook in the shipped manifest."""
+def positions(manifest: Path, every: bool = False) -> list[tuple[str, int, int, str]]:
+    """`(event, group, handler, script)` of each guarded hook (or, `every`, each hook) in the manifest."""
     found = []
     events = json.loads(manifest.read_text(encoding="utf-8")).get("hooks", {})
+    if every:
+        return [(event, group, handler, (str(hook.get("command", "")).split() or [""])[-1].strip('"'))
+                for event, entries in events.items() for group, entry in enumerate(entries)
+                for handler, hook in enumerate(entry.get("hooks", []))]
     for event, script in HOOKS:
         for group, entry in enumerate(events.get(event, [])):
             for handler, hook in enumerate(entry.get("hooks", [])):
@@ -54,8 +59,9 @@ def plugin_name(manifest: Path) -> str:
 
 
 def trusted(config: str, plugin: str, event: str, group: int, handler: int) -> bool:
-    key = re.compile(r'^\[hooks\.state\."' + re.escape(plugin) + r'@[^"\n]*:hooks/hooks\.codex\.json:'
-                     + re.escape(f"{event}:{group}:{handler}") + r'"\]', re.M)
+    names = "|".join(re.escape(e) for e in (event, re.sub(r"(?<!^)(?=[A-Z])", "_", event).lower()))
+    key = re.compile(r'^\[hooks\.state\."' + re.escape(plugin) + r'@[^"\n]*:hooks/hooks\.codex\.json:(?:'
+                     + names + r'):' + re.escape(f"{group}:{handler}") + r'"\]', re.M)
     found = key.search(config)
     return bool(found) and "trusted_hash" in config[found.end():].split("\n[", 1)[0]
 
@@ -64,6 +70,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     root = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[4])
     home = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+    parser.add_argument("--all", action="store_true")
     parser.add_argument("--config", default=str(home / "config.toml"))
     parser.add_argument("--manifest", default=str(root / "hooks" / "hooks.codex.json"))
     args = parser.parse_args(argv)
@@ -74,7 +81,7 @@ def main(argv: list[str]) -> int:
         return 2
     missing = 0
     plugin = plugin_name(Path(args.manifest))
-    for event, group, handler, script in positions(Path(args.manifest)):
+    for event, group, handler, script in positions(Path(args.manifest), args.all):
         if not trusted(config, plugin, event, group, handler):
             missing += 1
             print(f"missing: {event}:{group}:{handler} ({script})")

@@ -18,9 +18,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 - **`base`** (`/afk:setup base`) — the default run **plus** every entry's
   `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
   Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
-  plus the base-only workstation apps & OS config (section W — IDEs, MySQL
-  Server + Workbench, Windows long paths, hosts entries). The base tier is
-  **elective** — step 3 offers it as a pick list; deselected items report
+  plus the base-only workstation apps & OS config (manifest section W). The
+  base tier is **elective** — step 3 offers it as a pick list; deselected items report
   `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
@@ -38,6 +37,10 @@ exactly what the pull broke. Run via the agent (this skill) or follow
   ```
 
 ## Doctor loop
+
+Probes and fixes expand `$AFK_PLUGIN_ROOT`. An agent shell does not set it:
+unless it is set, export it as this skill's directory minus `skills/afk/setup`
+in every shell that runs a probe or fix.
 
 0. **Configure the repository, if it isn't.** Every probe below reads
    `.afk/config.yaml`, so a repository without one has nothing to check against.
