@@ -1,11 +1,18 @@
 # Run python_runtime.py on Windows with no Python installed: fetch the pinned uv, then let
 # uv start the pinned CPython. Usage: powershell -NoProfile -ExecutionPolicy Bypass -File bootstrap.ps1 plan|install|check [--test]
-$pins = Get-Content -Raw (Join-Path $PSScriptRoot '..\..\..\..\runtime\pyproject.toml')
+$ErrorActionPreference = 'Stop'
+function Fail([string]$why, [int]$code = 1) {
+    [Console]::Error.WriteLine("bootstrap: $why")
+    exit $code
+}
+$forward = $args
+try { $pins = Get-Content -Raw (Join-Path $PSScriptRoot '..\..\..\..\runtime\pyproject.toml') }
+catch { Fail "cannot read runtime\pyproject.toml: $($_.Exception.Message)" 2 }
 $python = [regex]::Match($pins, '(?m)^requires-python\s*=\s*"==([0-9.]+)"').Groups[1].Value
 $uvVersion = [regex]::Match($pins, '(?m)^required-version\s*=\s*"==([0-9.]+)"').Groups[1].Value
-if (-not $python -or -not $uvVersion) {
-    [Console]::Error.WriteLine('bootstrap: exact Python and uv pins not found in runtime\pyproject.toml')
-    exit 2
+if (-not $python -or -not $uvVersion) { Fail 'exact Python and uv pins not found in runtime\pyproject.toml' 2 }
+if (-not $env:LOCALAPPDATA -or -not [IO.Path]::IsPathRooted($env:LOCALAPPDATA)) {
+    Fail 'LOCALAPPDATA is not an absolute path; setup installs under it' 2
 }
 $base = Join-Path $env:LOCALAPPDATA 'afk'
 $uv = Join-Path $base 'uv\uv.exe'
@@ -24,17 +31,25 @@ $env:UV_PYTHON_INSTALL_DIR = Join-Path $base 'pythons'
 $env:UV_CACHE_DIR = Join-Path $base 'cache'
 $env:UV_NO_CONFIG = '1'
 
-$have = ''
-if (Test-Path $uv) { $have = (& $uv --version 2>$null) -join '' }
-if ($have -notmatch ('^uv ' + [regex]::Escape($uvVersion) + '(\s|$)')) {
+function Test-PinnedUv {
+    if (-not (Test-Path -LiteralPath $uv -PathType Leaf)) { return $false }
+    try { $have = (& $uv --version 2>$null) -join '' } catch { return $false }
+    return $have -match ('^uv ' + [regex]::Escape($uvVersion) + '(\s|$)')
+}
+# A native command that cannot start throws here; one that starts and fails sets its exit code.
+function Invoke-Step([string]$what, [scriptblock]$step) {
+    try { & $step } catch { Fail "$what could not start: $($_.Exception.Message)" }
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+}
+
+if (-not (Test-PinnedUv)) {
     $url = "https://releases.astral.sh/github/uv/releases/download/$uvVersion/uv-installer.ps1"
     $env:UV_UNMANAGED_INSTALL = Split-Path $uv
-    & powershell -NoProfile -ExecutionPolicy Bypass -Command "irm $url | iex"
-    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    Invoke-Step 'the uv installer' { & powershell -NoProfile -ExecutionPolicy Bypass -Command "irm $url | iex" }
     Remove-Item env:UV_UNMANAGED_INSTALL
+    if (-not (Test-PinnedUv)) { Fail "$uv is not uv $uvVersion after the installer ran" }
 }
-& $uv python install $python --no-bin --no-registry
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
-& $uv run --no-project --managed-python --no-python-downloads --python $python `
-    (Join-Path $PSScriptRoot 'python_runtime.py') @args
-exit $LASTEXITCODE
+Invoke-Step 'uv python install' { & $uv python install $python --no-bin --no-registry }
+$runtime = Join-Path $PSScriptRoot 'python_runtime.py'
+Invoke-Step 'uv run' { & $uv run --no-project --managed-python --no-python-downloads --python $python $runtime @forward }
+exit 0
