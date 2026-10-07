@@ -302,6 +302,23 @@ def test_a_kept_foreign_reference_hook_leaves_the_notice_to_pre_commit(repo):
     assert done.stderr.count(NOTICE) == 1, done.stderr
 
 
+@pytest.mark.parametrize("break_it", [
+    pytest.param("not-executable", marks=pytest.mark.skipif(
+        os.name == "nt", reason="Git for Windows runs a hook by its shebang; there is no execute bit to drop")),
+    "missing-target"])
+def test_an_unusable_afk_reference_hook_leaves_the_notice_to_pre_commit(repo, break_it):
+    installed(repo)
+    ref = hooks_dir(repo) / "reference-transaction"
+    if break_it == "not-executable":
+        ref.chmod(0o644)
+    else:
+        text = ref.read_text(encoding="utf-8")
+        ref.write_text(text.replace('gate="', 'gate="/nonexistent', 1), encoding="utf-8", newline="\n")
+    done = git(repo, "commit", "-q", "--allow-empty", "-m", "c", env=without_afk_python())
+    assert done.returncode == 0, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
+
+
 def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
     import shutil
     plugin = tmp_path / "plugin"

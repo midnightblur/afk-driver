@@ -45,9 +45,12 @@ if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
   if command -v "$py" >/dev/null 2>&1; then
     "$py" "$SCRIPT_DIR/git-backstop.py" pre-commit
     [ $? -eq 3 ] && exit 1   # 3 refuses; any other failure is a fault and lets the commit go on
-  elif ! grep -qs afk-branch-name-gate "$(git rev-parse --git-path hooks 2>/dev/null)/reference-transaction"; then
-    # The AFK reference-transaction delegate, which every commit runs, prints this notice when it is installed.
-    echo "[afk] protected-branch backstop unavailable: afk-python not found. Run /afk:setup." >&2
+  else
+    # A usable AFK reference-transaction delegate, which every commit runs, prints this notice itself.
+    ref="$(git rev-parse --git-path hooks 2>/dev/null)/reference-transaction"
+    target=$(sed -n 's/^gate="\(.*\)"$/\1/p' "$ref" 2>/dev/null)
+    [ -x "$ref" ] && grep -qs afk-branch-name-gate "$ref" && [ -n "$target" ] && [ -f "$target" ] \
+      || echo "[afk] protected-branch backstop unavailable: afk-python not found. Run /afk:setup." >&2
   fi
 fi
 
