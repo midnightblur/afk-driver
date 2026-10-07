@@ -196,8 +196,10 @@ def test_the_live_apply_patch_envelope_with_spaces_in_absolute_paths(repo):
     spaced = repo["tmp"] / "cx wt"
     make_repo(repo["tmp"], "dev", "cx wt")
 
-    def sub(value: str) -> str:
-        return value.replace("C:\\work\\cx wt", str(spaced))
+    def sub(value: str) -> str:  # the fixture's Windows separators become this platform's
+        if "C:\\work\\cx wt" not in value:
+            return value
+        return value.replace("C:\\work\\cx wt", str(spaced)).replace("\\", os.sep)
 
     envelope = json.loads(text, object_hook=lambda d: {k: sub(v) if isinstance(v, str) else v for k, v in d.items()})
     done = subprocess.run([sys.executable, str(GUARD)], input=json.dumps(envelope), text=True,
