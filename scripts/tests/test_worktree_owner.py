@@ -24,13 +24,15 @@ def load():
 
 
 owner = load()
+# afk-python is a venv launcher that cannot run renamed; copy the interpreter it starts.
+BASE = Path(getattr(sys, "_base_executable", None) or sys.executable)
 
 
 def fake_harness(tmp_path: Path) -> Path:
     """A copy of the interpreter under a harness-like name."""
     suffix = ".exe" if os.name == "nt" else ""
     target = tmp_path / f"fakeharness{suffix}"
-    shutil.copy(sys.executable, target)
+    shutil.copy(BASE, target)
     return target
 
 
@@ -43,7 +45,7 @@ def find_in_child() -> str:
 
 def harness_env() -> dict:
     environ = dict(os.environ, PYTHONHOME=sys.base_prefix)
-    environ["PATH"] = str(Path(sys.executable).parent) + os.pathsep + environ["PATH"]
+    environ["PATH"] = str(BASE.parent) + os.pathsep + environ["PATH"]
     return environ
 
 

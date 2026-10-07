@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Report and record a developer's `developer:` values. None is a secret, so an agent
 asks the human in session and records the answers here.
 

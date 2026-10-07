@@ -17,8 +17,7 @@ gate_behavior_registry() {
   gate_cache_hit behavior-registry "$cache_key" && return 0
   gate_metrics_begin
 
-  py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  py="${AFK_PYTHON:-afk-python}"
   "$py" "$PLUGIN_DIR/scripts/behavior_registry.py" validate \
     --registry "$PLUGIN_DIR/BEHAVIORS.md" \
     --plugin-root "$PLUGIN_DIR" \

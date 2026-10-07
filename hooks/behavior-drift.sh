@@ -24,8 +24,7 @@ TARGET=$(afk_user_instruction_file)
 grep -Eq '<!-- afk:(behaviors|plain-language|lavish-sessions|investigation):(start|end) -->' "$TARGET" 2>/dev/null \
   || exit 0
 
-py=python
-command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 "$py" "$AFK_ROOT/scripts/behavior_registry.py" audit \
   --registry "$AFK_ROOT/BEHAVIORS.md" \

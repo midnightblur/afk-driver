@@ -35,13 +35,6 @@ afk_codex_stop_block_code() {
   printf '0\n'
 }
 
-# Nested-steering policy. This harness loads instruction files once at the start
-# of a run (project root down to the launch directory), so an AGENTS.md nested
-# below the launch directory never reaches it — always inject. It also has no
-# native path-scoped rules, so inject matching `.claude/rules` bodies.
-afk_codex_nested_inject_mode() { printf 'always\n'; }
-afk_codex_nested_inject_rules() { printf '1\n'; }
-
 afk_codex_plugin_data() {
   if [ -n "${PLUGIN_DATA:-}" ]; then
     printf '%s\n' "$PLUGIN_DATA"
@@ -65,8 +58,7 @@ afk_codex_user_instruction_file() {
 # guessed root. Resolution: `codex_resolve.py`, beside this adapter (the one
 # home for this algorithm; not restated here).
 afk_codex_installed_root() {
-  local py=python script
-  command -v python >/dev/null 2>&1 || py=python3
+  local py="${AFK_PYTHON:-afk-python}" script
   script="$AFK_PROVIDER_CORE_DIR/providers/codex_resolve.py"
   [ -f "$script" ] || return 1
   "$py" "$script"
@@ -76,8 +68,7 @@ afk_codex_installed_root() {
 # a value — unlike a root, enablement is never "unresolved". Resolution:
 # `codex_resolve.py`, beside this adapter (the one home; not restated here).
 afk_codex_enablement() {
-  local py=python script
-  command -v python >/dev/null 2>&1 || py=python3
+  local py="${AFK_PYTHON:-afk-python}" script
   script="$AFK_PROVIDER_CORE_DIR/providers/codex_resolve.py"
   if [ -f "$script" ]; then
     "$py" "$script" --enablement

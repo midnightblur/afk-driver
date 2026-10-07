@@ -84,3 +84,14 @@ def test_worktree_lifecycle_runs_in_a_disposable_clone():
     rows = [line.split() for line in done.stdout.splitlines() if line.startswith("  plugin worktree-")]
     assert rows and all(row[-1] == "0" for row in rows), done.stdout
     assert not [w for w in _worktrees() - before if "bench-new-" in w or "bench-old-" in w]
+
+
+def test_every_budget_names_a_handler_its_scenario_reaches():
+    bench = _bench()
+    table = bench.scenarios(Path("."), Path("."))
+    for (name, scenario, label), ceiling in bench.BUDGET_MS.items():
+        manifest = json.loads((ROOT / "hooks" / name).read_text(encoding="utf-8"))
+        reached = [bench.label_of(h["command"])
+                   for h in bench.handlers(manifest, table[scenario].event, table[scenario].subject)]
+        assert label in reached, (name, scenario, label)
+        assert ceiling > 0

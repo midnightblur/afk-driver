@@ -6,7 +6,7 @@ Stops never scan at once, and a two-stage search (the changed files first,
 in-process; the whole tree only for the tokens still unresolved, with
 `git grep -l` so output is one path per matching file, never one line per match).
 
-    python bounded_scan.py --repo <root> --candidates <file> --local <file>
+    afk-python bounded_scan.py --repo <root> --candidates <file> --local <file>
         --result <json> [--exclude <pathspec>]... [--deadline <s>] [--lock <path>]
 
     --candidates  NUL-separated `path\\0token\\0` pairs

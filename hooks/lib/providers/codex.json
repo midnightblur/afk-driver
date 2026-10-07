@@ -7,6 +7,9 @@
   "priority": 10,
   "harness_class": "H-2",
   "session_start_user_message": true,
+  "nested_inject_mode": "always",
+  "nested_inject_rules": 1,
+  "instruction_files_setting": false,
   "move_ui": {
     "command": "/cd {path}",
     "done": "Working directory changed",

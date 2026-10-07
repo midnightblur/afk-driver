@@ -75,7 +75,7 @@ cleanup. Record live conformance gaps in `providers/CONFORMANCE.md`.
 
 ## 6 · Glossary term usage
 
-`python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py" "$AFK_PLUGIN_ROOT"` — every
+`afk-python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py" "$AFK_PLUGIN_ROOT"` — every
 `**Term**:` heading in the plugin-root `GLOSSARY.md` must have ≥1 consumer file
 using the term.
 
@@ -101,14 +101,14 @@ one of them was in use.
 Run these read-only checks from the plugin root:
 
 ```sh
-python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root . --verbose
+afk-python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root . --verbose
 . hooks/lib/provider.sh
 args=()
 while IFS= read -r -d '' name && IFS= read -r -d '' target \
   && IFS= read -r -d '' root && IFS= read -r -d '' enablement; do
   args+=(--target-root "$target" "$root" "$enablement")
 done < <(afk_all_provider_targets)
-python scripts/behavior_registry.py audit --registry BEHAVIORS.md --plugin-root . "${args[@]}"
+afk-python scripts/behavior_registry.py audit --registry BEHAVIORS.md --plugin-root . "${args[@]}"
 ```
 
 Each target is checked against *its own* resolved root and *its own*

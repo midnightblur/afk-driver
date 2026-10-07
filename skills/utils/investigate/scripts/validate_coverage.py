@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Validate a coverage ledger, and compute the verdict its answer may claim.
 
 Checks the mechanical half of the completion contract `INVESTIGATION.md`

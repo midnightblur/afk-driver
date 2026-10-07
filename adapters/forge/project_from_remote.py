@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """The project path inside a git remote URL, for the forge adapters and `init`.
 
-    python project_from_remote.py <url>   ->   owner/name
+    afk-python project_from_remote.py <url>   ->   owner/name
 
 Every remote form a forge accepts reduces to the same thing — the path after the
 host, without a `.git` suffix:

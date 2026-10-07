@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Seed map: the deterministic pre-pass of a code investigation.
 
 Enumerates the search space for one subject over the boundary classes

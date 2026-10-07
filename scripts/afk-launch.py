@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Start a harness inside a linked worktree.
 
     afk-launch.py <harness> [harness args...]

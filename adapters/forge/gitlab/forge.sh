@@ -35,8 +35,7 @@ else
   [ -n "$payload" ] || payload='{}'
 fi
 
-PY=python
-command -v python >/dev/null 2>&1 || PY=python3
+PY="${AFK_PYTHON:-afk-python}"
 
 # Text going to or from the forge is UTF-8, and a console encoding is not: on a
 # Windows terminal the default is cp1252, where an emoji in a change body raises

@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Who owns a worktree: the harness process that made it, and whether it still runs.
 
-    python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
-    python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
-    python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
-    python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
+    afk-python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
+    afk-python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
+    afk-python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
+    afk-python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
-    python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
+    afk-python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
         adds to <P's git dir>/afk-copied.json the SHA-256 of each file a trusted plugin step
         placed: the copy step, and a build gate's provisioning outputs
-    python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
+    afk-python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
         appends them; records the expected result's SHA-256 only when the file was absent or
         recorded unchanged before, and reads back exactly that result after
 
@@ -40,7 +40,7 @@ DISPOSABLE_DIRS = frozenset({"node_modules", "target", "build", "dist", "out", "
 DISPOSABLE_ROOTS = frozenset({".m2/repository"})
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",
-           "py", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
+           "py", "afk-python", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
 
 
 def basename(name: str) -> str:

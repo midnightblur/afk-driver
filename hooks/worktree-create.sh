@@ -6,8 +6,7 @@ set -u
 
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 AFK_ROOT_DIR=${AFK_PLUGIN_ROOT:-$(cd "$DIR/.." && pwd)}
-py=python
-command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 envelope=$(cat)
 field() {

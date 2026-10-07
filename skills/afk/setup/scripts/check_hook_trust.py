@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Does the harness config hold a trust entry for each protected-branch hook?
 
     check_hook_trust.py [--all] [--config <config.toml>] [--manifest <hooks.codex.json>]

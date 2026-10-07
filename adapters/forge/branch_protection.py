@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Is one branch protected on the forge? The forge family's shared read.
 
-    python branch_protection.py github|gitlab --branch <name> [--repo <slug>] [--timeout <s>]
+    afk-python branch_protection.py github|gitlab --branch <name> [--repo <slug>] [--timeout <s>]
       -> {"protected": bool, "via": "branch"|"ruleset"|"none"}
        | {"error": true, "verb": "branch-protection", "reason": "..."}
 

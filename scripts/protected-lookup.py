@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Is a branch protected? Asked from the forge, cached briefly, with a local fallback.
 
-    python protected-lookup.py --branch <name> [--checkout <dir>]
+    afk-python protected-lookup.py --branch <name> [--checkout <dir>]
       -> {"protected": bool, "source": "github"|"gitlab"|"fallback"[, "reason": "..."]}
 
 The forge is the repository's `forge:` (`CONFIG.md`) when it names one, else the

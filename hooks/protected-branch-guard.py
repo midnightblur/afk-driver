@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """PreToolUse gate: an agent changes a repository only from a linked worktree on an
 unprotected branch. The manifest runs this file directly (no shell, no launcher);
 the judge is lib/protected_branch_guard.py. If the judge cannot even load, this

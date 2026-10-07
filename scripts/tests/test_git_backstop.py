@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -258,10 +259,10 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     lonely = tmp_path / "hooks"
     lonely.mkdir()
     shutil.copy(PLUGIN_ROOT / "hooks" / "git-backstop.py", lonely / "git-backstop.py")
-    done = subprocess.run(["python", str(lonely / "git-backstop.py"), "pre-commit"], capture_output=True, text=True,
+    done = subprocess.run([sys.executable, str(lonely / "git-backstop.py"), "pre-commit"], capture_output=True, text=True,
                           cwd=repo, env=agent(), timeout=120)
     assert done.returncode == 0 and "skipped" in done.stderr
-    refused = subprocess.run(["python", str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
+    refused = subprocess.run([sys.executable, str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
                              capture_output=True, text=True, cwd=repo, env=agent(), timeout=120)
     assert refused.returncode == 3
 
@@ -280,6 +281,6 @@ def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
     git(repo, "push", "-q", "origin", "trunk", env=human())
     assert git(repo, "fetch", "-q", "origin", env=agent(MARK=str(mark))).returncode == 0
     assert git(repo, "tag", "t1", env=agent(MARK=str(mark))).returncode == 0
-    assert not mark.exists(), "a fetch and a tag never start python"
+    assert not mark.exists(), "a fetch and a tag never start Python"
     assert git(repo, "branch", "newb", env=agent(MARK=str(mark))).returncode == 0
     assert mark.exists(), "a branch line does start it"

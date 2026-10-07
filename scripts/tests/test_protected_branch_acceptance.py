@@ -259,7 +259,7 @@ def hook_argv(command: str) -> list[str]:
     expanded = command.replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT)).replace("${PLUGIN_ROOT}", str(ROOT))
     parts = re.findall(r'"([^"]*)"|(\S+)', expanded)
     argv = [a or b for a, b in parts]
-    if argv and argv[0] in ("python", "python3"):
+    if argv and argv[0] == "afk-python":
         argv[0] = PY
     return argv
 

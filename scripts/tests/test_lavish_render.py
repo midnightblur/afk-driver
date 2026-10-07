@@ -4,8 +4,8 @@ They pin the two things the page kit exists to guarantee: the attribute
 contract the send runtime composes from, and the split between a violation
 that degrades and a violation that fails the render.
 
-    python -m unittest scripts.tests.test_lavish_render
-    python scripts/tests/test_lavish_render.py
+    afk-python -m unittest scripts.tests.test_lavish_render
+    afk-python scripts/tests/test_lavish_render.py
 """
 
 import copy

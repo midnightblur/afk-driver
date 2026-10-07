@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """`background_git_hooks.py` finds git hooks that detach a background process.
 
 Every case builds its own hooks directory or git repository under tmp_path.

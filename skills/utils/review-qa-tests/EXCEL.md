@@ -5,7 +5,7 @@ QA sheets want **threaded comments** (the modern reply-boxes), not legacy **note
 ## Run it
 
 ```
-python scripts/annotate_sheet.py config.json
+afk-python scripts/annotate_sheet.py config.json
 ```
 
 `config.json`:
@@ -49,5 +49,5 @@ If you ever build without the script, replicate a file Excel itself produced —
 ## Before and after writing
 
 - **Check the lock first.** A `~$<name>.xlsx` sibling means the file is open in Excel; the write fails with a permission error. Wait for it to close.
-- **Verify after** — `python scripts/annotate_sheet.py --verify out.xlsx` checks every XML part parses, no dangling relationship targets, no orphan parts, both content-type overrides present. The script runs this automatically after every write. Then leak-scan everything you wrote against the black-box line.
+- **Verify after** — `afk-python scripts/annotate_sheet.py --verify out.xlsx` checks every XML part parses, no dangling relationship targets, no orphan parts, both content-type overrides present. The script runs this automatically after every write. Then leak-scan everything you wrote against the black-box line.
 - **In-place also proves preservation** — after an in-place run, confirm the other sheets' comment parts are unchanged (compare against `<out>.PREV.xlsx`); the mode is built to keep them byte-identical.

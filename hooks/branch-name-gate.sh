@@ -63,7 +63,7 @@ refs=$(cat)
 # Python starts only for a HEAD or branch line; fetch, tags, notes and stash skip it.
 # Exit 3 is a refusal; any other failure is a fault and lets git continue.
 if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]    && grep -Eq ' (HEAD|refs/heads/.*)$' <<<"$refs"; then
-  py=python; command -v python >/dev/null 2>&1 || py=python3
+  py="${AFK_PYTHON:-afk-python}"
   "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs"
   [ $? -eq 3 ] && exit 1
 fi
@@ -72,7 +72,7 @@ fi
 [ "${AFK_SKIP_BRANCH_CHECK:-}" = "1" ] && exit 0
 [ "$(git config --bool afk.branchNameGate 2>/dev/null)" = "false" ] && exit 0
 
-# The pattern comes from the repository, and reading it costs a python call, so
+# The pattern comes from the repository, and reading it costs a Python call, so
 # it is read LAZILY: a `git fetch` transaction moving a hundred refs must not pay
 # for a configuration read it will never use. Empty pattern = gate off.
 pattern=""

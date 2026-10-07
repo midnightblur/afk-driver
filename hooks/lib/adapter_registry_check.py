@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Check E of the registry gate: an adapter kind is coherent across four files.
 
-    python adapter_registry_check.py <plugin-root>
+    afk-python adapter_registry_check.py <plugin-root>
 
 Prints one line per drift and nothing when every adapter agrees. It never
 exits non-zero on a finding — the gate decides the verdict from the output, so

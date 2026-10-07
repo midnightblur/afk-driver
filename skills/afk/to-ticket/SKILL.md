@@ -26,7 +26,7 @@ PRD and meeting mode both write **ADF** into an existing issue's description, ar
 
 ## Prerequisites
 
-Register: `skills/afk/setup/MANIFEST.md` — needs **P2** (Python 3 + `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
+Register: `skills/afk/setup/MANIFEST.md` — needs **P1** (`afk-python`, which carries `markdown-it-py`), **N2** (mermaid-cli; only if the PRD has ```mermaid blocks — engine calls `mmdc` if on PATH, else `npx -y @mermaid-js/mermaid-cli`), and **S1** (Jira REST creds — attachment upload has no MCP tool, so the engine calls the REST API directly). Missing one → `/afk:setup`.
 
 ## How to run
 
@@ -42,7 +42,7 @@ Register: `skills/afk/setup/MANIFEST.md` — needs **P2** (Python 3 + `markdown-
 4. **Dry-run first** — converts + plans, renders nothing, mutates nothing, writes the would-be ADF next to the input as `TICKET.adf.json` (and the would-be comment as `TICKET-CHANGES.adf.json`) for inspection:
 
    ```
-   python scripts/publish_prd.py --parent <KEY> --prd <path/to/TICKET.md> [--changes <path/to/TICKET-CHANGES.md>] --dry-run
+   afk-python scripts/publish_prd.py --parent <KEY> --prd <path/to/TICKET.md> [--changes <path/to/TICKET-CHANGES.md>] --dry-run
    ```
 
    Read the summary lines: `action` (`first publish` / `re-publish`), how many diagrams, and whether existing ticket content will be **preserved** (`N node(s) preserved`) or **absorbed** (`barebone`). Says "barebone" but you know the PO wrote something real → STOP and inspect the ticket; don't overwrite their work — fix the heuristic call by leaving their content and adjusting, or publish into a fresh ticket. Says `re-publish` but you skipped step 3 → confirm the diff really was cosmetic before proceeding.
@@ -76,7 +76,7 @@ The description grows a plain `Meeting Summaries` heading (created once, at the 
 3. **Dry-run** — converts + plans, mutates nothing, writes the would-be ADF next to the body as `MEETING.adf.json`. The summary line's `action` reads `created` (new section) / `inserted` (new meeting) / `replaced` (same-title update) — confirm it matches your intent:
 
    ```
-   python scripts/publish_meeting.py --parent <KEY> --title "<short name>" --date <YYYY-MM-DD> --meeting <path/to/MEETING.md> --dry-run
+   afk-python scripts/publish_meeting.py --parent <KEY> --title "<short name>" --date <YYYY-MM-DD> --meeting <path/to/MEETING.md> --dry-run
    ```
 
 4. **Publish** — drop `--dry-run` (the engine prompts before the single `PUT`; pass `--yes` to skip the prompt in automated context).

@@ -23,8 +23,7 @@
 set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
-PY=python
-command -v python >/dev/null 2>&1 || PY=python3
+PY="${AFK_PYTHON:-afk-python}"
 
 TAG=${1:-}
 if [ -z "$TAG" ]; then

@@ -47,7 +47,7 @@ render, teammate, and retro view.
   (amber banner naming the drifted sources; old content still shown).
 - No manifest entry → the digest renders as stale with "freshness unknown".
 
-Hash recipe: `python -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" <file>`.
+Hash recipe: `afk-python -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" <file>`.
 
 ## Authoring rules (all digests)
 
@@ -204,7 +204,7 @@ definitions in your own plain words; do not paste glossary entries.
 
 ## Build protocol (the skill's `build` mode)
 
-1. `python3 scripts/mission_control.py {spec_dir} --check-digests` — the
+1. `afk-python scripts/mission_control.py {spec_dir} --check-digests` — the
    freshness report. Only `stale`/`missing`/`invalid` digests are rebuilt;
    `ok` ones are never touched.
 2. Fan out **one subagent per digest to rebuild**, in parallel, per

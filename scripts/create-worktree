@@ -132,8 +132,7 @@ done
 BRANCH_PATTERN=""
 AFK_ROOT_DIR="${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 export AFK_PLUGIN_ROOT="$AFK_ROOT_DIR"
-PY_BIN=python
-command -v python >/dev/null 2>&1 || PY_BIN=python3
+PY_BIN="${AFK_PYTHON:-afk-python}"
 
 # The convention belongs to the repository the worktree is being cut FROM, so the
 # reader runs with that repository as its working directory - not the caller's.

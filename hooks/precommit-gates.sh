@@ -41,7 +41,7 @@ afk_agent_session || exit 0
 
 # Protected-branch backstop (git-backstop.py) first: the skip below is for the code gates.
 if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
-  py=python; command -v python >/dev/null 2>&1 || py=python3
+  py="${AFK_PYTHON:-afk-python}"
   "$py" "$SCRIPT_DIR/git-backstop.py" pre-commit
   [ $? -eq 3 ] && exit 1   # 3 refuses; any other failure is a fault and lets the commit go on
 fi

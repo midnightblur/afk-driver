@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Check or remove the AFK marketplace ref in Codex config.
 
     codex_marketplace_ref.py [--check] [--config PATH]

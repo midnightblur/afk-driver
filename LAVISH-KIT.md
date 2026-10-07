@@ -13,8 +13,8 @@ The agent supplies **data**; the script supplies **markup**. No model writes
 HTML on this path.
 
 ```
-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> [-o <artifact.html>]
-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> --check
+afk-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> [-o <artifact.html>]
+afk-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> --check
 ```
 
 **A render must be followed by a `lavish-axi` render or poll before a human

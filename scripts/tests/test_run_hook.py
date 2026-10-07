@@ -258,7 +258,7 @@ def test_r7_2_with_no_shell_a_matching_blocking_entry_blocks(tmp_path, monkeypat
         buffer=io.BytesIO(json.dumps({"tool_name": "Bash"}).encode()), isatty=lambda: False))
     assert launcher.main(["repo-list", event]) == 0
     out = capsys.readouterr()
-    assert "no POSIX shell to run .afk/g.sh" in out.out + out.err
+    assert "no POSIX shell found" in out.err and "cannot run .afk/g.sh" in out.out + out.err
     assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in out.out
 
 
@@ -488,3 +488,116 @@ def test_a_plugin_handler_learns_the_wall_clock_deadline(plugin_copy):
     proc = _launch(root, {k: v for k, v in env.items() if k != "AFK_HOOK_DEADLINE"}, "plugin", "budget.sh")
     out, _ = proc.communicate(timeout=60)
     assert out == ""
+
+
+# ---- bails before any shell, and the AFK_PYTHON check before any handler
+
+class ShellLookups:
+    """Stands in for find_bash and counts the calls: a bail never looks for a shell."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        return None
+
+
+def _main_in(root: Path, monkeypatch, argv: list[str], envelope: dict | None = None) -> tuple[int, ShellLookups]:
+    import io
+    import types
+    lookups = ShellLookups()
+    monkeypatch.setattr(launcher, "find_bash", lookups)
+    monkeypatch.setenv("AFK_PYTHON", sys.executable)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.delenv("PROJECT_DIR", raising=False)
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(sys, "stdin", types.SimpleNamespace(
+        buffer=io.BytesIO(json.dumps(envelope or {}).encode()), isatty=lambda: False))
+    return launcher.main(argv), lookups
+
+
+@pytest.mark.parametrize("declared", [None, "[]", json.dumps([{"event": "Stop", "matcher": "*", "script": "g.sh"}])])
+def test_repo_list_with_nothing_declared_for_the_event_exits_before_any_shell_lookup(tmp_path, monkeypatch, declared):
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    if declared is not None:
+        (root / ".afk").mkdir()
+        (root / ".afk" / "hooks.json").write_text(declared, encoding="utf-8")
+    code, lookups = _main_in(root, monkeypatch, ["repo-list", "PreToolUse"], {"tool_name": "Read"})
+    assert code == 0 and lookups.calls == 0
+
+
+@pytest.mark.parametrize("manifest", [
+    json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/g.sh"}]),
+    "{not json",
+])
+def test_repo_list_with_a_declared_entry_or_a_fault_still_looks_for_a_shell(tmp_path, monkeypatch, manifest):
+    root = repository(tmp_path, manifest, {"g.sh": OK})
+    _code, lookups = _main_in(root, monkeypatch, ["repo-list", "PreToolUse"], {"tool_name": "Read"})
+    assert lookups.calls == 1
+
+
+@pytest.mark.parametrize("handler, provider, bails", [
+    ("nested-steering.sh", "claude", True),
+    ("nested-steering.sh", "codex", False),
+    ("agents-md-config-check.sh", "codex", True),
+    ("agents-md-config-check.sh", "claude", False),
+    ("nested-steering.sh", "nonesuch", True),
+    ("update-notice.sh", "claude", False),
+])
+def test_a_handler_its_provider_declares_a_no_op_exits_before_any_shell_lookup(
+        tmp_path, monkeypatch, handler, provider, bails):
+    monkeypatch.setenv("AFK_PROVIDER", provider)
+    code, lookups = _main_in(tmp_path, monkeypatch, ["--soft", "plugin", handler], {"hook_event_name": "PostToolUse"})
+    assert code == 0 and lookups.calls == (0 if bails else 1)
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_the_launcher_and_the_shell_read_one_policy_declaration(provider):
+    lib = (PLUGIN_ROOT / "hooks" / "lib" / "provider.sh").as_posix()
+    done = subprocess.run(
+        [str(launcher.find_bash()), "-c", f'. "{lib}"; afk_nested_inject_mode; afk_provider_fact instruction_files_setting'],
+        env={**os.environ, "AFK_PROVIDER": provider}, capture_output=True, text=True, timeout=60)
+    mode, setting = done.stdout.split()
+    facts = launcher.load_lib("facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts({"AFK_PROVIDER": provider})
+    assert launcher.POLICY_NOOP["nested-steering.sh"](facts) == (mode == "never")
+    assert launcher.POLICY_NOOP["agents-md-config-check.sh"](facts) == (setting != "true")
+
+
+def _without_afk_python(**extra: str) -> dict:
+    env = {k: v for k, v in os.environ.items() if k not in ("AFK_PYTHON", "CLAUDE_PROJECT_DIR", "PROJECT_DIR")}
+    return {**env, **extra}
+
+
+def _bare(env: dict, cwd: Path, *args: str) -> subprocess.CompletedProcess:
+    # -S skips site, so the entry's .pth cannot fill AFK_PYTHON in: the launcher sees `env` as given.
+    return subprocess.run([sys.executable, "-S", str(LAUNCHER), *args], input="{}", capture_output=True,
+                          text=True, env=env, timeout=120, cwd=str(cwd))
+
+
+@pytest.mark.parametrize("named", [None, "elsewhere"])
+def test_a_handler_never_starts_unless_afk_python_names_this_interpreter(tmp_path, named):
+    env = _without_afk_python(**({"AFK_PYTHON": str(tmp_path / "afk-python")} if named else {}))
+    done = _bare(env, PLUGIN_ROOT, "plugin", "update-notice.sh")
+    assert done.returncode == 1 and "run /afk:setup" in done.stderr
+    assert ("AFK_PYTHON is not set" if named is None else "not this interpreter") in done.stderr
+    assert _bare(env, PLUGIN_ROOT, "--soft", "plugin", "update-notice.sh").returncode == 0
+
+
+@pytest.mark.parametrize("event", ["PreToolUse", "Stop"])
+def test_a_blocking_repository_gate_blocks_when_afk_python_is_missing(tmp_path, event):
+    root = repository(tmp_path, json.dumps([{"event": event, "matcher": "*", "script": ".afk/g.sh"}]), {"g.sh": OK})
+    done = _bare(_without_afk_python(), root, "repo-list", event)
+    assert done.returncode == 0 and "AFK_PYTHON" in done.stdout
+    assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in done.stdout
+
+
+def test_the_afk_python_check_passes_this_interpreter_and_a_handler_sees_it(plugin_copy):
+    root, _, env = plugin_copy
+    (root / "hooks" / "who.sh").write_text('#!/bin/sh\nprintf "%s" "$AFK_PYTHON"\n', encoding="utf-8", newline="\n")
+    proc = _launch(root, {**env, "AFK_PYTHON": sys.executable}, "plugin", "who.sh")
+    out, err = proc.communicate(timeout=60)
+    assert proc.returncode == 0, err
+    assert os.path.normcase(out) == os.path.normcase(sys.executable)

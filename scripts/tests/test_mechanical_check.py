@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Tag-by-tag checks for the AGENTS.md standard mechanical checker.
 
 Each case builds a tmp_path instruction-file tree and asserts on the tagged

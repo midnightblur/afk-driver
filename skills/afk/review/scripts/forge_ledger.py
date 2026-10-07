@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Store and reconstruct the settle ledger on a forge change."""
 from __future__ import annotations
 

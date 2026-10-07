@@ -502,14 +502,7 @@ def test_the_probe_imports_the_modules_the_tracker_server_imports():
     assert f"import {'mcp.server.fastmcp'};" in pr.probe_code(probed)
 
 
-NOTICE = "AFK will switch to afk-python in the next release; run /afk:setup"
 WINDOWS = os.name == "nt"
-
-
-def shell_script(path: Path, text: str) -> None:
-    # A native write: Git Bash's own redirection into `afk-python` would land in `afk-python.exe`.
-    path.write_bytes(text.encode())
-    path.chmod(0o755)
 
 
 def real_lookup(bash: str):
@@ -524,78 +517,40 @@ def bash_path(bash: str, flag: str, path: str) -> str:
     return done.stdout.strip()
 
 
-def session_notice(base: Path, monkeypatch, *, setup: bool, after: str = "") -> tuple[str, dict, dict]:
-    """Install with the hooks' real bash answering the identity probe, alter PATH per `after`, then
-    run the SessionStart hook in that bash."""
+def installed_stamp(base: Path, monkeypatch) -> tuple[dict, dict]:
+    """Install with the hooks' real bash answering the identity probe; the stamp and layout."""
     bash = FIND_BASH()
     if not bash:
         pytest.skip("no POSIX shell")
     monkeypatch.setattr(pr, "find_bash", lambda: bash)
-    root = base / "plugin"
-    (root / "runtime").mkdir(parents=True)
-    (root / "runtime" / "pyproject.toml").write_bytes((PLUGIN_ROOT / "runtime" / "pyproject.toml").read_bytes())
     env = machine_env(base)
     paths = pr.layout(env, WINDOWS)
-    decoys = base / "decoys"
-    decoys.mkdir()
     sep = ";" if WINDOWS else ":"
     # A new terminal's PATH carries the entry, as the startup files or the registry give it.
     monkeypatch.setattr(pr, "fresh_path", lambda env, windows: sep.join([str(paths["bin"]), env.get("PATH", "")]))
-    shell_env = {k: v for k, v in os.environ.items() if not k.startswith(("XDG_", "AFK_"))}
-    shell_env.update(HOME=env["HOME"], LOCALAPPDATA=env["LOCALAPPDATA"], AFK_PLUGIN_ROOT=str(root),
-                     PATH=sep.join([str(paths["bin"])] + ([] if WINDOWS else ["/usr/bin", "/bin"])))
-    if setup:
-        out = io.StringIO()
-        assert pr.install(env, WINDOWS, False, Machine(paths, lookup=real_lookup(bash)), out) == 0, out.getvalue()
-    stamp = pr.read_stamp(paths)
-    if after == "old python":
-        paths["stamp"].write_text(paths["stamp"].read_text(encoding="utf-8").replace(
-            f"python={PINS['python']}", "python=3.13.1"), encoding="utf-8")
-    elif after == "unstamped":
-        paths["stamp"].unlink()
-    elif after == "elsewhere":
-        shell_script(decoys / "afk-python", "#!/bin/sh\nexit 0\n")
-        shell_env["PATH"] = sep.join([str(decoys), shell_env["PATH"]])
-    elif after == "replaced":
-        paths["launcher"].unlink()
-        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
-    elif after == "beside":
-        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
-    script = PLUGIN_ROOT / "hooks" / "update-notice.sh"
-    done = subprocess.run([bash, str(script)], env=shell_env, capture_output=True, text=True, timeout=60)
-    assert done.returncode == 0, done.stderr
-    return done.stdout, stamp, paths
+    out = io.StringIO()
+    assert pr.install(env, WINDOWS, False, Machine(paths, lookup=real_lookup(bash)), out) == 0, out.getvalue()
+    return pr.read_stamp(paths), paths
 
 
 ONLY_GIT_BASH = pytest.mark.skipif(not WINDOWS, reason="only Git Bash drops .exe and has mount aliases")
 
 
-@pytest.mark.parametrize("place, setup, after, shown", [
-    ("tmp_path", False, "", True),
-    ("tmp_path", True, "unstamped", True),
-    ("tmp_path", True, "old python", True),
-    ("tmp_path", True, "elsewhere", True),
-    pytest.param("tmp_path", True, "replaced", True, marks=ONLY_GIT_BASH),
-    pytest.param("tmp_path", True, "beside", True, marks=ONLY_GIT_BASH),
-    ("tmp_path", True, "", False),
-    pytest.param("/tmp mount", True, "", False, marks=ONLY_GIT_BASH),
-])
-def test_the_session_notice_shows_until_the_stamped_file_resolves(tmp_path, monkeypatch, place, setup, after,
-                                                                   shown):
+@pytest.mark.parametrize("place", ["tmp_path", pytest.param("/tmp mount", marks=ONLY_GIT_BASH)])
+def test_the_stamp_holds_the_hooks_bash_spelling_of_the_entry(tmp_path, monkeypatch, place):
     base = tmp_path
     if place == "/tmp mount":
         # Deliberately under Git Bash's /tmp mount, wherever --basetemp put tmp_path.
         base = Path(tempfile.mkdtemp(prefix="afk-alias-", dir=bash_path(FIND_BASH(), "-w", "/tmp")))
     try:
-        out, stamp, paths = session_notice(base, monkeypatch, setup=setup, after=after)
-        assert (NOTICE in out) is shown
-        if setup and WINDOWS:
+        stamp, paths = installed_stamp(base, monkeypatch)
+        if WINDOWS:
             # The stamp holds what bash's mount table makes of the entry's directory, never a made-up /c/...
             assert stamp["command"] == bash_path(FIND_BASH(), "-u", str(paths["bin"])) + "/afk-python"
             assert stamp["file"] == stamp["command"] + ".exe"
             if place == "/tmp mount":
                 assert stamp["command"].startswith("/tmp/afk-alias-")
-        elif setup:
+        else:
             assert stamp["command"] == stamp["file"] == str(paths["launcher"])
     finally:
         if base != tmp_path:

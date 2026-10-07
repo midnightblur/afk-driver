@@ -37,7 +37,7 @@ if [ -z "${LESSON_LEDGER_FILE:-}" ]; then
 fi
 [ -f "$LESSON_LEDGER_FILE" ] || empty
 
-python - "$LESSON_LEDGER_FILE" "$MODE" <<'PY' || unreadable
+"${AFK_PYTHON:-afk-python}" - "$LESSON_LEDGER_FILE" "$MODE" <<'PY' || unreadable
 import json, sys
 
 # Windows pipes default stdout to the console codepage — force UTF-8 or

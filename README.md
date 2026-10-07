@@ -219,6 +219,13 @@ Start where your inputs land: raw idea → `/afk:grill-requirements`; existing P
 
 The committed tree stays inert until a harness enables `afk@afk-toolkit`.
 
+Install the plugin for your harness below, then **run `/afk:setup` before anything
+else**, and restart the harness when it finishes. Every hook and MCP server runs
+under `afk-python`, which setup installs. Until then the harness reports each hook
+as failed and carries on without it: no gate runs, the protected-branch guard is
+off, so the checkout is **not** protected, and the harness's own worktree tool
+cannot create a worktree.
+
 ### `.claude-plugin` harness
 
 ```text
@@ -282,7 +289,9 @@ manually, run `codex plugin marketplace upgrade afk-toolkit`, then `codex plugin
 add afk@afk-toolkit`.
 
 After either upgrade, run `/afk:setup` to rewrite the `.codex-plugin` agent
-stubs, which hold the versioned root, then restart the harness.
+stubs, which hold the versioned root, then restart the harness. Upgrading from a
+release whose hooks still ran `python`: run `/afk:setup` **before** the upgrade,
+so `afk-python` exists when the new hooks first run.
 
 **Checking which version is live.** Ask the harness, never the directories:
 
@@ -308,7 +317,7 @@ what the repository can answer about itself, and walks you through the few
 values it cannot infer. To scaffold it yourself:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
 ```
 
 Commit that file — it is the repository's contract, and every other developer's
@@ -340,9 +349,10 @@ also checks the managed behavior revision, hash, targets, and legacy blocks.
 `/afk:setup` also installs the AFK Python runtime: a pinned CPython in a
 private environment, exposed only as the `afk-python` command (register entry
 P1). It asks first, adds one directory to your user PATH, and needs a harness
-restart afterwards. Your own `python` stays untouched. Until it is installed,
-each session starts with a one-line notice to run `/afk:setup`. The next
-release moves every hook and MCP command to `afk-python`.
+restart afterwards. Your own `python` stays untouched. Every hook, MCP server,
+skill script and CI job runs under `afk-python`. A machine with no Python at all
+still installs it: setup's bootstrap (`skills/afk/setup/scripts/bootstrap.sh`,
+or `bootstrap.ps1` on Windows) fetches the pinned uv, and uv the pinned CPython.
 
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per

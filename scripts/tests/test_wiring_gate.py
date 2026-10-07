@@ -48,6 +48,7 @@ def _gate(cwd, env_extra=None, path=None):
     env.pop("GATE_METRICS_FILE", None)
     if path is not None:
         env["PATH"] = path
+        env.pop("AFK_PYTHON", None)
     return subprocess.run([str(BASH), str(ROOT / "hooks" / "wiring-gate.sh")], cwd=cwd, env=env,
                           capture_output=True, encoding="utf-8", errors="replace", timeout=300)
 
@@ -117,8 +118,8 @@ def test_no_python_is_unknown(repo):
     dirs = [d for d in (bash_root / "usr" / "bin", bash_root / "bin", bash_root / "mingw64" / "bin",
                         bash_root / "cmd") if d.is_dir()]
     path = os.pathsep.join(str(d) for d in dirs)
-    if shutil.which("python", path=path) or shutil.which("python3", path=path):
-        pytest.skip("the shell's own toolchain carries python")
+    if shutil.which("afk-python", path=path):
+        pytest.skip("the shell's own toolchain carries afk-python")
     result = _gate(repo, path=path)
     assert result.returncode == 3, result.stderr
     assert "verdict unknown (no_python)" in result.stderr

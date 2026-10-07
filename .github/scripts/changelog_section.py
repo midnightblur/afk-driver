@@ -1,6 +1,6 @@
 """Print one version's CHANGELOG.md section body, for a release page.
 
-    python .github/scripts/changelog_section.py 1.4.0 [CHANGELOG.md]
+    afk-python .github/scripts/changelog_section.py 1.4.0 [CHANGELOG.md]
 
 The body is every line after `## [<version>]` up to the next `## [` heading,
 trimmed. Exit 1 when the heading is missing or its body is empty.

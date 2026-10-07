@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Interactive fixer for the register's human-gated entries. Usage: python setup_secrets.py
 
 Covers the MANIFEST.md entries whose Fix names this script: the tracker MCP
@@ -38,8 +38,11 @@ SERVER = PLUGIN_ROOT / "mcp-servers" / "tracker" / "server.py"
 CLAUDE_JSON = Path.home() / ".claude.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import tracker_registration  # noqa: E402  (the registration shape and the legacy-key rule)
+import python_runtime  # noqa: E402  (the afk-python entry a registration names)
 
 MCP_KEY = tracker_registration.MCP_KEY
+# Absolute: a stale PATH in the harness that starts the server must still find it.
+AFK_PYTHON = python_runtime.layout(os.environ, os.name == "nt")["launcher"]
 
 
 def config_kind(family: str, root: Path) -> str:
@@ -164,7 +167,7 @@ if TRACKER_KIND == "jira":
     try:
         import httpx  # noqa: F401
     except ImportError:
-        die("Python dep 'httpx' missing (register P2). Run: pip install \"mcp<2\" httpx")
+        die("Python dep 'httpx' missing (register P1). Run /afk:setup to repair afk-python.")
     ok("tracker-client deps importable")
 
 if harness_running():
@@ -242,7 +245,9 @@ else:
         shutil.copy2(CLAUDE_JSON, backup)
         ok(f"backed up harness config -> {backup.name}")
 
-    servers = tracker_registration.register(servers, env, PLUGIN_ROOT, sys.executable)
+    if not AFK_PYTHON.is_file():
+        die(f"afk-python is not installed at {AFK_PYTHON} (register P1). Run /afk:setup first.")
+    servers = tracker_registration.register(servers, env, PLUGIN_ROOT, str(AFK_PYTHON))
     cj["mcpServers"] = servers
     write_json_atomic(CLAUDE_JSON, cj)
     ok(f"server registered user-scoped under key '{MCP_KEY}' (no secret shown)")
@@ -305,5 +310,5 @@ A restart is required: the MCP tools only register at launch, and a terminal
 opened before an install still carries the pre-install PATH.
 
 If the server fails to connect, run it directly to see the real error:
-  {sys.executable} {SERVER} {PLUGIN_ROOT}
+  {AFK_PYTHON} {SERVER} {PLUGIN_ROOT}
 """)

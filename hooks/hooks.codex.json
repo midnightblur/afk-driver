@@ -6,32 +6,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin install-git-hooks.sh --quiet",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin install-git-hooks.sh --quiet",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin update-notice.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin update-notice.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin agents-md-config-check.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin agents-md-config-check.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin behavior-drift.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin behavior-drift.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list SessionStart",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list SessionStart",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 plugin worktree-prune.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 plugin worktree-prune.sh",
             "timeout": 60
           },
           {
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           }
         ]
@@ -59,12 +59,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-dark.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-dark.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-tips.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-tips.sh",
             "timeout": 15
           }
         ]
@@ -74,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PreToolUse",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PreToolUse",
             "timeout": 60,
             "statusMessage": "repository PreToolUse hooks"
           }
@@ -85,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/protected-branch-guard.py\"",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/protected-branch-guard.py\"",
             "timeout": 30,
             "statusMessage": "protected-branch guard"
           }
@@ -98,12 +98,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PostToolUse",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PostToolUse",
             "timeout": 60,
             "statusMessage": "repository PostToolUse hooks"
           }
@@ -127,12 +127,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 14 plugin nested-steering.sh",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list PostCompact",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 repo-list PostCompact",
             "timeout": 60
           }
         ]
@@ -144,13 +144,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 plugin stop-gates.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 plugin stop-gates.sh",
             "timeout": 300,
             "statusMessage": "AFK gates..."
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 repo-list Stop",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 repo-list Stop",
             "timeout": 300,
             "statusMessage": "repository Stop gates"
           }
@@ -162,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 2 plugin worktree-remove.sh",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 2 plugin worktree-remove.sh",
             "timeout": 3
           }
         ]

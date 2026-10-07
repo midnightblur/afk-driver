@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Set Claude Code's project-instructions mode to read AGENTS.md files too.
 
     set_instruction_files.py [settings.json] [--check]

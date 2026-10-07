@@ -29,9 +29,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install afk-python
+        # The setup bootstrap, as a user runs it: the pinned uv and CPython, the locked packages
+        # with the test extra, and no system Python.
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell -NoProfile -ExecutionPolicy Bypass -File skills/afk/setup/scripts/bootstrap.ps1 install --test
+            echo "$LOCALAPPDATA\\afk\\python\\afk-bin" >> "$GITHUB_PATH"
+          else
+            sh skills/afk/setup/scripts/bootstrap.sh install --test
+            echo "${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin" >> "$GITHUB_PATH"
+          fi
 
       - name: Install jq
         run: |
@@ -44,10 +52,6 @@ jobs:
           fi
           jq --version
 
-      - name: Install test dependencies
-        # mcp 2 renamed FastMCP, which the tracker server still imports.
-        run: python -m pip install pytest markdown-it-py "mcp<2" requests pyyaml
-
       - name: Set a git identity for test repositories
         # Name and address tokens stay under 3 characters: the genericity gate treats longer ones as author handles.
         run: |
@@ -56,7 +60,7 @@ jobs:
           git --version
 
       - name: Unit tests
-        run: python -m pytest scripts/tests -q
+        run: afk-python -m pytest scripts/tests -q
 
       - name: Hook smoke tests
         run: bash hooks/tests/hook-smoke.sh
@@ -73,3 +77,10 @@ jobs:
             echo "::endgroup::"
           done
           exit "$rc"
+
+      - name: Hook latency budgets (informational)
+        # Shared runners are noisy: the budget table reports, it does not gate.
+        continue-on-error: true
+        run: |
+          afk-python hooks/tests/bench-hooks.py --runs 5 --manifest hooks.json --budgets
+          afk-python hooks/tests/bench-hooks.py --runs 5 --manifest hooks.codex.json --budgets

@@ -22,7 +22,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
 3. **Seed map.** Run the deterministic pre-pass:
 
    ```sh
-   python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" \
+   afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" \
      --repo <repo root> --subject <name> --type <Q1..Q5> \
      --question "<the question>" [--alias wire=<name> ...] \
      --config auto [--design-phase] --out <scratch>/seed.json
@@ -41,7 +41,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
 5. **Merge and reopen.** Fold every fragment into the staging ledger:
 
    ```sh
-   python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py" \
+   afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/merge_fragments.py" \
      --staging <scratch>/seed.json --fragment <scratch>/fragment-1.json \
      [--fragment ...] --out <scratch>/COVERAGE.json
    ```
@@ -50,7 +50,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
 6. **Validate the staging copy.** Before publishing anything:
 
    ```sh
-   python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/validate_coverage.py" \
+   afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/validate_coverage.py" \
      --ledger <scratch>/COVERAGE.json
    ```
 

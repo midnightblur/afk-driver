@@ -19,9 +19,8 @@
 #      one list;
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
-#   J. every hooks.json command goes through hooks/run-hook.py, so no command
-#      string depends on a shell dialect or on a bare `bash`; the one exception
-#      is the guard, a python file run directly for speed;
+#   J. one runtime: both manifests run `afk-python` (run-hook.py or the guard), equal modulo the
+#      root variable, and no live surface names `python`, `python3`, `py -3` or `AFK_PY`;
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
 #      tests under scripts/tests/ exempted — they load the helper directly);
@@ -343,33 +342,109 @@ check_subset("hooks/hooks.json", hook_map)
 check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 
 
-# J. One launch mechanism. A command string is parsed by whichever shell the
-# harness chose, and `bash` names the WSL stub on many Windows machines, so
-# every handler goes through the launcher and no command carries shell syntax.
-launcher = re.compile(
-    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/(?:'
-    r'run-hook\.py"(?: --soft)?'
-    r'(?: --deadline [0-9]+)?'
-    r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
-    r'|protected-branch-(?:guard|meter|occupancy)\.py")$'
-)
-for event, groups in hook_map.items():
-    if not isinstance(groups, list):
+# J. One runtime, one launch mechanism: any shell may parse a command string, and `bash` can be
+# the WSL stub, so every handler goes through the launcher under `afk-python`.
+def launcher_form(root_var: str) -> re.Pattern[str]:
+    return re.compile(
+        r'^afk-python "\$\{' + root_var + r'\}/hooks/(?:'
+        r'run-hook\.py"(?: --soft)?'
+        r'(?: --deadline [0-9]+)?'
+        r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
+        r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
+        r'|protected-branch-(?:guard|meter|occupancy)\.py")$'
+    )
+
+
+twins: dict[str, str] = {}
+for manifest_rel, root_var in (("hooks/hooks.json", "CLAUDE_PLUGIN_ROOT"),
+                               ("hooks/hooks.codex.json", "PLUGIN_ROOT")):
+    form = launcher_form(root_var)
+    hmap = load_hook_map(manifest_rel)
+    for event, groups in hmap.items():
+        for index, group in enumerate(groups if isinstance(groups, list) else []):
+            for handler in (group.get("hooks", []) if isinstance(group, dict) else []) or []:
+                command = handler.get("command", "") if isinstance(handler, dict) else ""
+                if not isinstance(command, str) or not form.match(command):
+                    problems.append(
+                        f"{manifest_rel}: {event}[{index}] command must be "
+                        f'afk-python "${{{root_var}}}/hooks/run-hook.py" '
+                        f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, "
+                        f"or hooks/protected-branch-guard.py / -meter.py / -occupancy.py - got {command!r}"
+                    )
+    shared = {event: groups for event, groups in hmap.items()
+              if event not in specific_events.get(MANIFEST_PROVIDER[manifest_rel], set())}
+    twins[manifest_rel] = json.dumps(shared, sort_keys=True).replace("${" + root_var + "}", "<ROOT>")
+if len(set(twins.values())) != 1:
+    problems.append("hooks/hooks.json and hooks/hooks.codex.json differ beyond the root variable "
+                    "and the CAPABILITIES.md provider-specific events")
+
+for mcp_rel in (".mcp.json", ".mcp.codex.json"):
+    try:
+        servers = json.loads(read(plugin / mcp_rel)).get("mcpServers", {})
+    except (json.JSONDecodeError, AttributeError):
+        servers = {}
+    for name, server in servers.items():
+        if isinstance(server, dict) and server.get("command") != "afk-python":
+            problems.append(f"{mcp_rel}: server {name!r} command must be afk-python, "
+                            f"got {server.get('command')!r}")
+
+# Live surfaces: a named interpreter other than afk-python is a runtime the setup never proved.
+# History (CHANGELOG.md, adr/) is out of scope; explanatory text uses `interpreter` allow entries.
+interpreter_word = re.compile(r"(?<![\w./\\$-])(?:python3?|py -3)(?![\w.-])(?![\"']\s*[:,\]}])")
+afk_py = re.compile(r"\bAFK_PY\b")
+shebang = re.compile(r"^#!.*(?<![\w-])python3?\b")
+prose_command = re.compile(r"`(?:\$ )?(?:python3?|py -3) [^`]*`|^\s*(?:\$ )?(?:python3?|py -3) \S")
+argv_name = re.compile(r"""\[\s*["'](?:python3?|py)["']\s*,""")
+history = ("CHANGELOG.md", "adr/*")
+
+
+def interpreter_problem(path_rel: str, number: int, line: str, kind: str) -> None:
+    if not allowed(path_rel, "interpreter", line):
+        problems.append(f"{path_rel}:{number}: {kind} names an interpreter other than afk-python "
+                        f"(or AFK_PY); use afk-python, or add an interpreter entry to "
+                        f"hooks/native-contract-allow.txt for explanatory text")
+
+
+def shell_file(path: Path) -> bool:
+    if path.suffix == ".sh":
+        return True
+    if path.suffix or not path.is_file():
+        return False
+    try:
+        with path.open("rb") as handle:
+            first = handle.readline(200)
+    except OSError:
+        return False
+    return first.startswith(b"#!") and (b"sh" in first and b"python" not in first)
+
+
+for path in sorted(plugin.rglob("*")):
+    path_rel = rel(path)
+    if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
+            or any(fnmatch.fnmatchcase(path_rel, glob) for glob in history)
+            or path_rel.startswith(".git/") or path_rel == "hooks/native-contract-gate.sh"):
         continue
-    for index, group in enumerate(groups):
-        if not isinstance(group, dict):
-            continue
-        for handler in group.get("hooks", []) or []:
-            if not isinstance(handler, dict):
+    is_ci = path_rel.startswith(".github/")
+    if path.suffix == ".py":
+        lines = read(path).splitlines()
+        for number, line in enumerate(lines, 1):
+            if (number == 1 and shebang.search(line)) or argv_name.search(line) or afk_py.search(line):
+                interpreter_problem(path_rel, number, line, "python source")
+    elif path.suffix == ".md":
+        fenced = False
+        for number, line in enumerate(read(path).splitlines(), 1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
                 continue
-            command = handler.get("command", "")
-            if not isinstance(command, str) or not launcher.match(command):
-                problems.append(
-                    f"hooks/hooks.json: {event}[{index}] command must be "
-                    f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py / -meter.py / -occupancy.py - got {command!r}"
-                )
+            hit = prose_command.search(line) if fenced else re.search(prose_command.pattern.split("|^")[0], line)
+            if hit or afk_py.search(line):
+                interpreter_problem(path_rel, number, line, "prose command")
+    elif shell_file(path) or is_ci and path.suffix in (".yml", ".yaml"):
+        for number, line in enumerate(read(path).splitlines(), 1):
+            code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
+            if (code and interpreter_word.search(code)) or afk_py.search(line) \
+                    or (is_ci and "setup-python" in line):
+                interpreter_problem(path_rel, number, line, "CI step" if is_ci else "shell command")
 
 
 # F. Generated mirrors/activation surfaces may exist locally, never in git.

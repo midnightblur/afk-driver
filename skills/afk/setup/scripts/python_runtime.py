@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Install or check AFK's private Python runtime and its `afk-python` command.
 
     python_runtime.py plan    [--test]   print the install steps; change nothing
@@ -32,8 +32,8 @@ only after every `check` probe passes, so a stamp always names a healthy
 runtime. Its `command=` and `file=` lines are what the bash every hook runs in
 (`hooks/run-hook.py` `find_bash` and `shell_env`) printed for `afk-python`
 during that check, once that file proved to be the installed entry and passed
-the interpreter probe there; the SessionStart notice compares its own lookup
-with them.
+the interpreter probe there; a later `check` fails when the hooks' bash
+spells it differently.
 
 `check` compares the installed packages with the lock (`uv sync --check
 --offline`), then resolves `afk-python` through the PATH a new terminal would

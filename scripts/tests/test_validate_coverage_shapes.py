@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Adversarial cases for the validator: a malformed ledger that still passes.
 
 Every case here starts from the same question — what shape could reach exit 0
