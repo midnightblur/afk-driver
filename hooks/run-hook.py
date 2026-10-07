@@ -349,13 +349,14 @@ def find_bash() -> Path | None:
     return None
 
 
-def shell_env(bash: Path) -> dict[str, str]:
+def shell_env(bash: Path, base: dict[str, str] | None = None) -> dict[str, str]:
     """Handlers call grep, sed, git and friends.
 
     A parent PATH that never had a POSIX shell on it has none of them either, so
-    put the shell's own toolchain in front of whatever the harness passed down.
+    put the shell's own toolchain in front of whatever the harness passed down
+    (`base`, default this process's environment).
     """
-    env = dict(os.environ)
+    env = dict(os.environ if base is None else base)
     if os.name != "nt":
         return env
     root = bash.resolve().parent.parent

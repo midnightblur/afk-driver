@@ -29,9 +29,9 @@ pass through.
 
 `install` deletes the stamp before it changes anything and publishes a new one
 only after every `check` probe passes, so a stamp always names a healthy
-runtime. Its `command=` and `file=` lines are what the SessionStart hook's
-shell (Git Bash, or the login shell) printed for `afk-python` during that
-check; the notice compares its own lookup with them.
+runtime. Its `command=` and `file=` lines are what the bash every hook runs in
+(`hooks/run-hook.py` `find_bash` and `shell_env`) printed for `afk-python`
+during that check; the SessionStart notice compares its own lookup with them.
 
 `check` compares the installed packages with the lock (`uv sync --check
 --offline`), then resolves `afk-python` through the PATH a new terminal would
@@ -43,6 +43,7 @@ step uses the same PATH. It prints one `ok <probe>` or
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import importlib.util
 import os
@@ -160,7 +161,7 @@ def requested_extras(paths: dict) -> set[str]:
     """Extras any install asked for: the intent file, else a stamp written before it existed."""
     try:
         text = paths["intent"].read_text(encoding="utf-8")
-    except OSError:
+    except FileNotFoundError:
         text = read_stamp(paths).get("extras", "")
     return {extra for extra in re.split(r"[,\s]+", text) if extra}
 
@@ -235,7 +236,12 @@ def place_entry(paths: dict, python: str, windows: bool) -> None:
 def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
             out=sys.stdout) -> int:
     p, paths = pins(), layout(env, windows)
-    extras = requested_extras(paths) | ({"test"} if test else set())
+    try:
+        extras = requested_extras(paths) | ({"test"} if test else set())
+    except OSError as exc:
+        # An intent file that exists but cannot be read is not an empty request: change nothing.
+        print(f"fail extras: cannot read {paths['intent']}: {exc}", file=out)
+        return 1
     test = "test" in extras
     child_env = uv_env(env, paths, windows)
     # The request outlives a failed run; the stamp must not vouch for a half-repaired runtime.
@@ -321,16 +327,26 @@ def on_path(directory: Path, path: str, windows: bool) -> bool:
     return same(str(directory)) in {same(e) for e in path.split(";" if windows else ":")}
 
 
-def find_bash() -> str | None:
+@functools.lru_cache(maxsize=None)
+def hook_launcher():
     spec = importlib.util.spec_from_file_location("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    found = module.find_bash()
+    return module
+
+
+def find_bash() -> str | None:
+    """The bash every hook runs in."""
+    found = hook_launcher().find_bash()
     return str(found) if found else None
 
 
-# How the SessionStart hook's shell spells the command, and the file it runs: Git Bash drops `.exe`
-# from the spelling, and `-ef` tells the .exe from an extensionless file beside or instead of it.
+def hook_env(bash: str, env: Mapping[str, str]) -> dict:
+    return hook_launcher().shell_env(Path(bash), env)
+
+
+# How the hooks' bash spells the command, and the file it runs: Git Bash drops `.exe` from the
+# spelling, and `-ef` tells the .exe from an extensionless file beside or instead of it.
 RESOLVE = ('p=$(command -v afk-python) && f=$p && { [ "$p" -ef "$p.exe" ] && f=$p.exe; :; } '
            '&& printf "afk-command\\t%s\\t%s\\n" "$p" "$f"')
 
@@ -343,20 +359,19 @@ def resolved(said: str) -> dict:
     return {}
 
 
-def shells(env: Mapping[str, str], windows: bool) -> list[tuple[str, Callable[[str], object], bool]]:
-    """Each shell a hook or a human may resolve the command from, how to hand it a line, and
-    whether it is the shell the SessionStart hook runs in, whose spelling the stamp records."""
+def shells(env: Mapping[str, str], windows: bool) -> list[tuple[str, Callable[[str], object]]]:
+    """Each shell a hook or a human may resolve the command from, and how to hand it a line."""
     if windows:
         # cmd keeps the inner quotes only when /s strips one outer pair.
-        found = [("powershell", lambda line: ["powershell", "-NoProfile", "-Command", line], False),
-                 ("cmd", lambda line: f'cmd /d /s /c "{line}"', False)]
+        found = [("powershell", lambda line: ["powershell", "-NoProfile", "-Command", line]),
+                 ("cmd", lambda line: f'cmd /d /s /c "{line}"')]
         bash = find_bash()
         if bash:
-            found.append(("git-bash", lambda line: [bash, "-c", line], True))
+            found.append(("git-bash", lambda line: [bash, "-c", line]))
         return found
     login = env.get("SHELL") or "/bin/sh"
-    return [("sh", lambda line: ["/bin/sh", "-c", line], False),
-            (Path(login).name + " login", lambda line: [login, "-l", "-c", line], True)]
+    return [("sh", lambda line: ["/bin/sh", "-c", line]),
+            (Path(login).name + " login", lambda line: [login, "-l", "-c", line])]
 
 
 def probe_code(modules: list[str]) -> str:
@@ -379,7 +394,7 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
           out=sys.stdout, stamp: dict | None = None, spelling: dict | None = None) -> int:
     """Probe the runtime; `stamp` stands in for the stamp file while install has not published it.
 
-    `spelling` receives the hook shell's `command` and `file` for the stamp.
+    `spelling` receives the hooks' bash's `command` and `file` for the stamp.
     """
     p, paths = pins(), layout(env, windows)
     stamp = read_stamp(paths) if stamp is None else stamp
@@ -406,14 +421,8 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
     probe_env["PATH"] = fresh_path(probe_env, windows)
     probe_env.pop("AFK_PYTHON", None)
     quoted = '"' + probe_code(p["imports"] + (p["test_imports"] if test else [])) + '"'
-    for name, build, hook_shell in shells(env, windows):
-        line = f"{COMMAND} -c {quoted}"
-        status, said = runner(build(f"{RESOLVE}; {line}" if hook_shell else line), probe_env)
-        spelled = resolved(said) if hook_shell else {}
-        if spelled and spelling is not None:
-            spelling.update(spelled)
-        if spelled and "command" in stamp and spelled != {k: stamp.get(k) for k in spelled}:
-            verdict(f"{name} spelling", f"the stamp names {stamp.get('file')}, the shell finds {spelled['file']}")
+    for name, build in shells(env, windows):
+        status, said = runner(build(f"{COMMAND} -c {quoted}"), probe_env)
         seen = said.splitlines()[-1].split("\t") if status == 0 and said else []
         if len(seen) != 3:
             verdict(name, said.splitlines()[-1] if said else f"exit {status}")
@@ -427,6 +436,19 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
             verdict(name, f"afk-python resolves to {seen[1]}, want {paths['launcher']}")
         else:
             verdict(name, None)
+    bash = find_bash()
+    if bash:
+        # The identity probe: the bash and environment run-hook.py gives every hook, never a login shell.
+        status, said = runner([bash, "-c", RESOLVE], hook_env(bash, probe_env))
+        spelled = resolved(said) if status == 0 else {}
+        if not spelled:
+            verdict("hook bash", f"{bash} finds no afk-python" + (f": {said.splitlines()[-1]}" if said else ""))
+        elif "command" in stamp and spelled != {k: stamp.get(k) for k in spelled}:
+            verdict("hook bash", f"the stamp names {stamp.get('file')}, the hooks' bash finds {spelled['file']}")
+        else:
+            verdict("hook bash", None)
+            if spelling is not None:
+                spelling.update(spelled)
     return 1 if failures else 0
 
 

@@ -143,7 +143,7 @@ Run the `MANIFEST.md` P1 probe. It is read-only. Each `fail` line is a finding:
 a missing command, a Python version other than the pin, a command that runs
 outside the private environment or is not the installed entry, a stamp from
 another `runtime/uv.lock`, installed packages that differ from that lock, a
-hook shell that now finds another `afk-python` file than the stamp names, a
+hooks' bash that finds no `afk-python` or another file than the stamp names, a
 failed import, or no `AFK_PYTHON`.
 Route: `/afk:setup` (P1 fix).
 

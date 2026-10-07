@@ -633,8 +633,9 @@ a token value — not even partially.
   Bash on Windows, and from `sh` and the login shell elsewhere. Each
   shell must report the pinned Python running in the private environment
   (`sys.prefix`), import every runtime package, and set `AFK_PYTHON` to the
-  entry itself. The environment's stamp must name the pinned Python and the
-  current lock hash.
+  entry itself. The bash every hook runs in (`hooks/run-hook.py` `find_bash`,
+  with its `shell_env`) must find the `afk-python` file the stamp names. The
+  environment's stamp must name the pinned Python and the current lock hash.
 - **Fix:** `auto:` per-user install — ask the human first.
   `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" install`
   installs the pinned uv with Astral's versioned installer, then the pinned
@@ -645,7 +646,8 @@ a token value — not even partially.
   without the user's `UV_*` settings and installer download overrides; proxy,
   TLS and uv's HTTP timeout, retry and concurrency variables pass through. It
   deletes the stamp first and publishes it only after the probe passes, with
-  the `afk-python` spelling and file the SessionStart hook's shell resolved.
+  the `afk-python` spelling and file the hooks' bash resolved. An intent
+  file that exists but cannot be read stops it before any change.
   It prints one `ok`/`fail` line per step.
   `plan` prints the same steps and changes nothing. The running harness keeps
   its old PATH: report `needs-human: restart the harness` (step 2's
