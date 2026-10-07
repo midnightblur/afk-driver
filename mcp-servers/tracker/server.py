@@ -5,6 +5,9 @@ skill's prose never changes with the tracker. `tracker:` in `.afk/config.yaml`
 picks the adapter under `adapters/tracker/<kind>/`, and each kind's `api.py`
 answers `call(operation, payload)` (ADAPTERS.md).
 
+The kind is read from the project root on every call, so a config change needs
+no restart; an unknown kind at start exits, mid-session it answers with an error.
+
 `tracker: none` is a valid answer, not an error: every tool then returns
 `{"unsupported": true, "reason": ...}` and the skill writes through the `notes`
 adapter instead. A missing tool would leave a skill guessing; a refusal that
@@ -56,26 +59,46 @@ def _load(path: Path, name: str):
     return module
 
 
-def _adapter():
-    """The configured kind's api.py, loaded once at start-up so a misconfigured
-    tracker fails where a human is watching rather than on the first tool call."""
-    config = _load(PLUGIN_ROOT / "scripts" / "afk-config.py", "afk_config")
-    kind = config.get(config.load(Path.cwd()), "tracker") or "none"
-    api = PLUGIN_ROOT / "adapters" / "tracker" / str(kind) / "api.py"
-    if not api.is_file():
-        raise SystemExit(
-            f"tracker MCP server: unknown tracker adapter `{kind}` "
-            f"(set by `tracker:` in .afk/config.yaml); no {api}")
-    return str(kind), _load(api, "afk_tracker_api")
+_CONFIG = _load(PLUGIN_ROOT / "scripts" / "afk-config.py", "afk_config")
+_ADAPTERS: dict[str, Any] = {}
 
 
-KIND, API = _adapter()
+def _api():
+    """`(kind, api module)` from `tracker:` as configured now. Read per call, so
+    a config written or changed after start applies without a restart."""
+    kind = str(_CONFIG.get(_CONFIG.load(_CONFIG.project_root()), "tracker") or "none")
+    if kind not in _ADAPTERS:
+        api = PLUGIN_ROOT / "adapters" / "tracker" / kind / "api.py"
+        if not api.is_file():
+            raise LookupError(
+                f"unknown tracker adapter `{kind}` "
+                f"(set by `tracker:` in .afk/config.yaml); no {api}")
+        _ADAPTERS[kind] = _load(api, f"afk_tracker_api_{kind.replace('-', '_')}")
+    return kind, _ADAPTERS[kind]
+
+
+try:
+    _api()
+except (LookupError, _CONFIG.ConfigError) as exc:
+    raise SystemExit(f"tracker MCP server: {exc}")
 
 mcp = FastMCP("tracker")
 
 
+def _named(answer: Any) -> Any:
+    """A refusal names the checkout whose config the server read, so a caller
+    in another checkout can tell which one the answer is about."""
+    if isinstance(answer, dict) and (answer.get("unsupported") or answer.get("error")):
+        return {**answer, "config_root": str(_CONFIG.project_root() or "")}
+    return answer
+
+
 def _call(operation: str, **payload: Any) -> Any:
-    return API.call(operation, {k: v for k, v in payload.items() if v not in (None, "")})
+    try:
+        _, api = _api()
+    except (LookupError, _CONFIG.ConfigError) as exc:
+        return _named({"error": True, "operation": operation, "reason": str(exc)})
+    return _named(api.call(operation, {k: v for k, v in payload.items() if v not in (None, "")}))
 
 
 @mcp.tool()

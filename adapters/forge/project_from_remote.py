@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The project path inside a git remote URL, for the forge adapters.
+"""The project path inside a git remote URL, for the forge adapters and `init`.
 
     python project_from_remote.py <url>   ->   owner/name
 
@@ -29,7 +29,7 @@ def project(url: str) -> str:
         return ""
     path = url[cut + 1:]
     path = re.sub(r"^\d+/", "", path)                       # a port, scp form
-    path = re.sub(r"\.git$", "", path).strip("/")
+    path = re.sub(r"\.git$", "", path.strip("/")).strip("/")
     return path if "/" in path else ""
 
 

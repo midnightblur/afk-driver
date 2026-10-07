@@ -121,6 +121,10 @@ A delivered capability that became a standing expectation (registry: `{service}/
 `skills/afk/setup/MANIFEST.md` — the register of every external dependency the workflow needs (CLIs, MCP servers, secrets, sibling checkouts), one entry each with a runnable `Probe:` (exit 0 = healthy) and a `Fix:` (`auto:` runnable / `human:` guided). The one home for install steps; skills point at entry ids instead of restating them.
 _Avoid_: prerequisites list (scattered inline — the failure the manifest retires)
 
+**Managed behavior**:
+One row in the versioned registry `BEHAVIORS.md` (plugin root) — a standing instruction `/afk:setup` installs into a developer's own user-global steering file as part of the single `afk:behaviors` sentinel block, so every agent session on every project follows it without the skill that needs it restating it. Scope is `all-repos` (every project) or `configured-repos` (only a repository carrying `.afk/config.yaml`). Distinct from a *staple* (a delivered product capability) and from repository-scoped `AGENTS.md`/`.claude/rules` steering, which live in the target repository, not a developer's own machine.
+_Avoid_: team behavior, user-level behavior (both name the same registry row — use "managed behavior")
+
 **Artifact registry**:
 The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and the changes that must touch it in the same commit — the write-time defense against stale docs. One row is a *registry row*.
 _Avoid_: freshness registry (the file is `FRESHNESS.md`, but the table is the artifact registry)
@@ -226,14 +230,25 @@ _Avoid_: reversible/irreversible decision (rotating synonym)
 A review finding where a baseline catalog item and the target repo's own documented idiom disagree, and the repo wins. Never blocks. Recorded in `plan/review/PATTERN-DEBT.md`, which lives and dies with the run — the evidence trail for whether a documented pattern deserves revisiting, not a fact about the code.
 
 **`product-debt`** (product debt):
-A shortcoming in shipped product code that is real, adjudicated, and deliberately not fixed. Never blocks. Its home is the `## Known debt` section of the nearest `CLAUDE.md`, written by `/afk:claude-md` (`skills/afk/review/SKILL.md` "Product-debt homes"). Distinguished from pattern debt by what it is about: pattern debt is about the review, product debt is about the code.
+A shortcoming in shipped product code that is real, adjudicated, and deliberately not fixed. Never blocks. Its home is the `## Known debt` section of the nearest `AGENTS.md`, written by `/afk:agents-md` (`skills/afk/review/SKILL.md` "Product-debt homes"). Distinguished from pattern debt by what it is about: pattern debt is about the review, product debt is about the code.
 _Avoid_: tech debt (too broad — this is the adjudicated, homed subset)
 
 **Status ladder**:
 The tracker progression `pending → designing → developing → verifying → reviewing → done` that `execute` advances one cell at a time.
 
 **OUTCOME statuses**:
-The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `adversary_unrun`, `blocked_by`, `needs_decision`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
+The structured result tokens of an `execute` run (`success`, `test_fail`, `build_fail`, `review_fail`, `adversary_fail`, `adversary_unrun`, `rationale_unposted`, `blocked_by`, `needs_decision`, `contract_mismatch`, `produces_drift`, `design_conflict`, `timeout`, `other`). Canonical table with meanings and next actions: `README.md` §8.
+
+## Rationale
+
+**Rationale**:
+The reason a line of code exists. It lives as an inline comment on the forge change, not in a source comment. Policy and commands: `RATIONALE.md`.
+
+**Batch receipt**:
+The one immutable note that lists every rationale operation ID posted in a batch. Completion needs a receipt that covers all pending operations.
+
+**Pending entry**:
+A recorded reason not yet posted. It sits under the git directory as recovery data and never counts as the record.
 
 ## Bug pipeline
 
@@ -337,7 +352,7 @@ A concluded workflow-improvement observation — classified, with a drafted dura
 _Avoid_: retro item (aggregation comes later), todo (a lesson carries its own drafted fix)
 
 **Lesson ledger**:
-`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded`), stewarded by `/afk:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
+`.claude/lessons/LEDGER.jsonl` in the **main checkout** (shared across worktrees) — the append-only, event-sourced record of every lesson (`opened → applied → verified`, or `rejected` / `superseded` / `filed`), stewarded by `/afk:lessons`. Grammar, class enum, statuses: `skills/afk/lessons/LEDGER-FORMAT.md`.
 
 **Escalation ladder**:
 The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.

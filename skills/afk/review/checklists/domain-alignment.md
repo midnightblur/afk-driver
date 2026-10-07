@@ -1,7 +1,7 @@
 # domain-alignment — language, aggregates, transactions, ownership
 
 Design-level. Default `class: design` (glossary/documented-pattern breaches → `compliance`; a demonstrable data-integrity bug → `correctness`; repo-pattern overrides → `pattern-debt` per PRECEDENCE.md). Reads the diff against the nearest `GLOSSARY.md`, the SDD/ADRs when present, and the entity/service split.
-**Not yours:** primitive-obsession mechanics → `code-quality`; dual-write/outbox, idempotency → `resilience`; published-DTO compat → `api-contract`; `rollbackFor` override landmine → `claude-md-compliance`.
+**Not yours:** primitive-obsession mechanics → `code-quality`; dual-write/outbox, idempotency → `resilience`; published-DTO compat → `api-contract`; `rollbackFor` override landmine → `agents-md-compliance`.
 
 ## Reviewer checklist
 

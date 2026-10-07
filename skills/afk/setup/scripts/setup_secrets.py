@@ -2,8 +2,9 @@
 """Interactive fixer for the register's human-gated entries. Usage: python setup_secrets.py
 
 Covers the MANIFEST.md entries whose Fix names this script: the tracker MCP
-registration and whatever credential the configured tracker needs, the per-dev
-config file, the forge CLI login, and the git long-path flag. Each entry's own Fix states what it needs; this
+registration and whatever credential the configured tracker needs, the forge
+CLI login, and the git long-path flag. Developer values (H6) are not secret, so
+the agent asks for them in session (`developer_values.py`). Each entry's own Fix states what it needs; this
 script only automates placing it.
 
 MUST be run by the human, from their own terminal, NOT by the agent:
@@ -35,8 +36,10 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parents[4]
 SERVER = PLUGIN_ROOT / "mcp-servers" / "tracker" / "server.py"
 CLAUDE_JSON = Path.home() / ".claude.json"
-MCP_KEY = "tracker"
-LEGACY_MCP_KEY = "jira"        # a machine set up before the server was renamed
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import tracker_registration  # noqa: E402  (the registration shape and the legacy-key rule)
+
+MCP_KEY = tracker_registration.MCP_KEY
 
 
 def config_kind(family: str, root: Path) -> str:
@@ -96,86 +99,6 @@ def read_json(p: Path) -> dict:
     return {}
 
 
-def resolved_default(key: str):
-    """What `key` resolves to right now.
-
-    Asks the one reader rather than reimplementing the order, so "already set"
-    and "git can derive this" are answered the way every other caller answers
-    them. A key naming a person resolves only from a `developer:` block.
-    """
-    script = Path(__file__).resolve().parents[4] / "scripts" / "afk-config.py"
-    if not script.is_file():
-        return None
-    try:
-        out = subprocess.run(
-            [sys.executable, str(script), "resolve", key],
-            cwd=str(REPO), capture_output=True, text=True, timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    value = out.stdout.strip()
-    return value if out.returncode == 0 and value else None
-
-
-DEVELOPER_KEYS = ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary")
-
-
-def read_developer_block(p: Path) -> dict:
-    """The `developer:` mapping of a config overlay, or an empty dict.
-
-    Deliberately small: one flat block of `key: value` lines under one heading,
-    which is all this block is ever allowed to be. Anything richer belongs in
-    the repository's committed config, not in a per-developer overlay.
-    """
-    if not p.is_file():
-        return {}
-    out, inside = {}, False
-    for line in p.read_text(encoding="utf-8").splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if not line[:1].isspace():
-            inside = line.strip() == "developer:"
-            continue
-        if inside and ":" in line:
-            key, _, value = line.strip().partition(":")
-            value = value.strip().strip("'\"")
-            if key.strip() in DEVELOPER_KEYS and value:
-                out[key.strip()] = value
-    return out
-
-
-def write_developer_block(p: Path, values: dict) -> None:
-    """Replace the `developer:` block, leaving every other line untouched.
-
-    The overlay may hold keys this script knows nothing about, so it is edited
-    rather than rewritten.
-    """
-    lines = p.read_text(encoding="utf-8").splitlines() if p.is_file() else []
-    kept, skipping = [], False
-    for line in lines:
-        if not line[:1].isspace() and line.strip():
-            skipping = line.strip() == "developer:"
-            if skipping:
-                continue
-        elif skipping:
-            continue
-        kept.append(line)
-    while kept and not kept[-1].strip():
-        kept.pop()
-
-    block = ["developer:"]
-    for key in DEVELOPER_KEYS:
-        value = values.get(key)
-        if value:
-            needs_quotes = any(c in str(value) for c in ":#") or str(value).strip() != str(value)
-            block.append("  %s: %s" % (key, ('"%s"' % value) if needs_quotes else value))
-
-    body = "\n".join(kept + ([""] if kept else []) + block) + "\n"
-    tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(body, encoding="utf-8")
-    tmp.replace(p)
-
-
 def write_json_atomic(p: Path, data: dict) -> None:
     """temp + replace: an interrupted run must never truncate the target."""
     tmp = p.with_suffix(p.suffix + ".afk-tmp")
@@ -228,6 +151,10 @@ ok(f"repo {REPO}")
 TRACKER_KIND = config_kind("tracker", REPO)
 FORGE_KIND = config_kind("forge", REPO)
 ok(f"tracker: {TRACKER_KIND}   forge: {FORGE_KIND}")
+if not (REPO / ".afk" / "config.yaml").is_file():
+    warn("no .afk/config.yaml in this repository — tracker and forge come from "
+         "other layers or default to none; create it with /afk:setup step 0 "
+         "(afk-config.py init)")
 
 if not SERVER.exists():
     die(f"MCP server missing at {SERVER} — pull a revision that ships it, then re-run.")
@@ -249,15 +176,14 @@ if harness_running():
 # ---------------------------------------- tracker MCP server + credentials
 head("Tracker MCP server + credentials")
 
-account_id = None
-
 if TRACKER_KIND == "none":
     skip("tracker: none — no server to register")
 else:
     cj = read_json(CLAUDE_JSON)
     servers = cj.get("mcpServers") or {}
-    prior = servers.get(MCP_KEY) or servers.get(LEGACY_MCP_KEY)
-    existing_env = (prior.get("env") or {}) if isinstance(prior, dict) else {}
+    existing_env = tracker_registration.prior_env(servers, PLUGIN_ROOT)
+    if tracker_registration.foreign_legacy(servers, PLUGIN_ROOT):
+        warn("A `jira` MCP server remains; if it is an old afk registration, remove it by hand.")
     if existing_env:
         skip("An existing server entry was found — it will be updated in place.")
 
@@ -287,8 +213,7 @@ else:
         if not token:
             die("Empty token.")
 
-        # Validate BEFORE writing. The response also carries the account id the
-        # per-dev config's assignee key wants, so a valid token pre-fills it.
+        # Validate BEFORE writing.
         import httpx
 
         try:
@@ -302,7 +227,6 @@ else:
                 die(f"Tracker rejected the credentials ({r.status_code}). Nothing was written.")
             r.raise_for_status()
             me = r.json()
-            account_id = me.get("accountId")
             ok(f"authenticated as {me.get('displayName')}")
         except SystemExit:
             raise
@@ -318,100 +242,10 @@ else:
         shutil.copy2(CLAUDE_JSON, backup)
         ok(f"backed up harness config -> {backup.name}")
 
-    entry = {
-        "type": "stdio",
-        # Absolute interpreter, not bare "python": a freshly installed interpreter
-        # is absent from any process whose environment predates the install.
-        "command": sys.executable,
-        "args": [str(SERVER)],
-        "env": env,
-    }
-
-    servers[MCP_KEY] = entry               # key + user scope are load-bearing (register H2 Notes)
-    servers.pop(LEGACY_MCP_KEY, None)      # the rename must not leave a duplicate behind
+    servers = tracker_registration.register(servers, env, PLUGIN_ROOT, sys.executable)
     cj["mcpServers"] = servers
     write_json_atomic(CLAUDE_JSON, cj)
     ok(f"server registered user-scoped under key '{MCP_KEY}' (no secret shown)")
-
-# ------------------------------------------------------- per-dev config file
-head("Per-dev config")
-
-# The machine layer by default: one file covers every repository and every
-# worktree on this machine, so a new checkout needs no config step at all. A
-# per-checkout overlay is only for a value that differs in ONE checkout.
-home_path = Path.home() / ".afk" / "config.yaml"
-overlay_path = REPO / ".afk" / "config.local.yaml"
-cfg_path = home_path
-if read_developer_block(overlay_path):
-    skip(f"This checkout already has its own developer block in {overlay_path} — keeping it there.")
-    cfg_path = overlay_path
-elif not yes(f"Write personal values to {home_path} (covers every repository)?"):
-    cfg_path = overlay_path
-cfg_path.parent.mkdir(parents=True, exist_ok=True)
-cfg = read_developer_block(cfg_path)
-if cfg:
-    skip("Existing config — Enter keeps each current value.")
-
-# These two name a PERSON, so nothing defaults them: not the repository, not
-# this script. Each developer answers for themselves, and an empty answer is
-# re-asked rather than quietly meaning someone else.
-if TRACKER_KIND == "none":
-    skip("tracker: none — nothing is assigned, so no assignee is asked for")
-    cfg.pop("trackerAssignee", None)
-else:
-    # Pre-filled with the account the token itself belongs to: the common answer
-    # is "me", and it is the one value this script can know without guessing.
-    cfg["trackerAssignee"] = ask(
-        "assignee account id or email (yours, unless work goes to someone else)",
-        cfg.get("trackerAssignee") or account_id,
-    )
-
-if FORGE_KIND == "none":
-    skip("forge: none — no change is reviewed, so no reviewer is asked for")
-    cfg.pop("mrReviewer", None)
-else:
-    # No pre-fill: who reviews your work is not something anyone else may pick.
-    # `none` is the way to say "nobody", and the Ready flip then fails closed.
-    answer = ask("reviewer (forge username, or `none` to leave it unset)",
-                 cfg.get("mrReviewer"))
-    if answer.strip().lower() == "none":
-        # Recorded, not dropped: `none` is an answer, and a recorded answer is
-        # what tells the doctor this developer was asked. Every consumer reads
-        # `none` as "no reviewer" and fails closed exactly as an absent key does.
-        cfg["mrReviewer"] = "none"
-        skip("reviewer recorded as none — the change Ready flip will fail closed")
-    else:
-        cfg["mrReviewer"] = answer
-
-# The worktree base is derived from git when unset, so it is asked for only when
-# the derivation cannot answer or the developer wants somewhere else.
-wt_derived = resolved_default("worktreeBasePath")
-if cfg.get("worktreeBasePath"):
-    wt = ask("worktree base path", cfg["worktreeBasePath"]).replace("\\", "/")
-    cfg["worktreeBasePath"] = wt
-elif wt_derived:
-    ok(f"worktree base path derives to {wt_derived} — leaving it unset")
-    wt = wt_derived
-else:
-    wt = ask("worktree base path (cannot be derived here)", "").replace("\\", "/")
-    if wt:
-        cfg["worktreeBasePath"] = wt
-if wt and not Path(wt).exists() and yes(f"{wt} does not exist. Create it?"):
-    Path(wt).mkdir(parents=True, exist_ok=True)
-    ok(f"created {wt}")
-
-ide = None
-if os.name == "nt":
-    for pf in filter(None, (os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432"))):
-        ide = next(iter(sorted(Path(pf).glob("JetBrains/*/bin/idea64.exe"), reverse=True)), None)
-        if ide:
-            break
-ide_default = cfg.get("ideBinary") or (ide.as_posix() if ide else None)
-if ide_default:
-    cfg["ideBinary"] = ask("IDE binary (optional)", ide_default).replace("\\", "/")
-
-write_developer_block(cfg_path, {k: cfg[k] for k in ("trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary") if cfg.get(k)})
-ok(f"wrote the developer block in {cfg_path}")
 
 # ------------------------------------------------------------- forge CLI auth
 head("Forge CLI auth")
@@ -465,21 +299,11 @@ else:
     for v in (("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN") if TRACKER_KIND == "jira" else ()):
         ok(f"{v} set") if env2.get(v) else warn(f"{v} MISSING")
 
-# Re-probe the way H6 does — through `resolve`, not by reading the file — so
-# this line and the doctor row can never disagree.
-wanted = ["worktreeBasePath"]
-if TRACKER_KIND != "none":
-    wanted.insert(0, "trackerAssignee")
-if FORGE_KIND != "none":
-    wanted.append("mrReviewer")
-missing = [k for k in wanted if not resolved_default(k)]
-warn(f"config missing: {', '.join(missing)}") if missing else ok("config complete")
-
 print(f"""
 {C['cyan']}Done.{C['off']} Start the harness in a NEW terminal, then re-run the doctor.
 A restart is required: the MCP tools only register at launch, and a terminal
 opened before an install still carries the pre-install PATH.
 
 If the server fails to connect, run it directly to see the real error:
-  {sys.executable} {SERVER}
+  {sys.executable} {SERVER} {PLUGIN_ROOT}
 """)

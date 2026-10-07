@@ -167,8 +167,9 @@ if [ "$ADOPT" = true ]; then
 fi
 
 mkdir -p "$WORKTREE/.m2/repository" "$WORKTREE/.mvn" || fail "cannot create $WORKTREE/.mvn"
-# Append, never truncate: any other flag already in the file is the developer's.
-printf -- '%s\n' "$REPO_LINE" >> "$MAVEN_CONFIG" || fail "cannot write $MAVEN_CONFIG"
+# Append, never truncate: other flags are the developer's. Removal deletes only a file this step owns.
+printf -- '%s\n' "$REPO_LINE" | "${AFK_PY:-python}" "$AFK_BG_MAVEN_DIR/../../../scripts/worktree_owner.py" \
+  append --worktree "$WORKTREE_NATIVE" .mvn/maven.config >/dev/null || fail "cannot write $MAVEN_CONFIG"
 add DONE '"maven.config"'
 printf '%s\n' "afk: private Maven repository at $WORKTREE_NATIVE/.m2/repository" >&2
 

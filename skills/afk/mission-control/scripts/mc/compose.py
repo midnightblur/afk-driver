@@ -1,7 +1,6 @@
 """Composes all section view-models into the one `MC_DATA` dict the shell
 renders. Pure function of (spec_dir, parsers) — no wall-clock, no environment
-lookups — so re-rendering unchanged artifacts is byte-identical (requirement
-ADR-0005; SDD §5 idempotency).
+lookups — so re-rendering unchanged artifacts is byte-identical.
 """
 from __future__ import annotations
 

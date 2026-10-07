@@ -94,8 +94,9 @@ TIER_MANDATES = [
 ]
 POLICY_TOKENS = {"lean", "full"}
 # Deferrable concerns: lockstep copy — owned by skills/afk/review/SKILL.md "Gate policy".
-DEFERRABLE = {"code-quality", "claude-md-compliance", "design-quality",
-              "resilience", "logic-correctness"}
+# `claude-md-compliance` kept as an accepted alias so plans in un-migrated repos still validate.
+DEFERRABLE = {"code-quality", "agents-md-compliance", "claude-md-compliance",
+              "design-quality", "resilience", "logic-correctness"}
 SUBTASK_RE = re.compile(r"^(\d{4})-([a-z0-9][a-z0-9-]*)\.md$")
 ID_RE = re.compile(r"\b\d{4}-[a-z0-9][a-z0-9-]*\b")
 EMDASH = "—"

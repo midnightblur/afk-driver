@@ -24,30 +24,52 @@ exactly what the pull broke. Run via the agent (this skill) or follow
   `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
+- **`teardown`** (`/afk:setup teardown`) — remove every AFK-managed behavior
+  block from both user instruction files. Run this before disabling the plugin.
+  It preserves all bytes outside managed sentinels. Re-run the behavior audit
+  from `AUDIT.md` check 7; done means both targets contain no unified or legacy
+  sentinel.
+
+  ```sh
+  for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/CLAUDE.md" \
+           "${CODEX_HOME:-$HOME/.codex}/AGENTS.md"; do
+    python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" teardown "$f"
+  done
+  ```
 
 ## Doctor loop
 
 0. **Configure the repository, if it isn't.** Every probe below reads
    `.afk/config.yaml`, so a repository without one has nothing to check against.
-   `<git root>/.afk/config.yaml` present → skip this step, silently. Absent:
+   `<git root>/.afk/config.yaml` present → skip this step, silently. Not inside
+   a git checkout → skip this step; `H0` and each leg `H0`'s Notes gates report
+   `skipped (no repository)`, never a failure. Absent:
    - run `python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
-     starter file from what the repository can answer about itself (forge from
-     the origin remote, build gates from a root `pom.xml` / `package.json`, base
-     branch from `origin/HEAD`), and leaves a commented `TODO` wherever it
-     cannot;
+     starter file from what the repository can answer about itself
+     (`${AFK_PLUGIN_ROOT}/CONFIG.md` "Starting a repository off"), and leaves a
+     commented `TODO` wherever it cannot;
+   - `init` refusing because the base branch or main worktree already has a
+     config: never pass `--force`. Tell the human to merge or rebase the base
+     branch into this branch, then re-run setup; report it in step 6 as
+     `needs-human: merge <base> for .afk/config.yaml`;
    - show the file and walk the human through every `TODO` it left — at minimum
      the tracker (project key and issue types, or `none`) and the build gate's
      default module;
    - re-run `afk-config.py validate` after their edits and fix what it names;
    - tell them to **commit it**: the file is the repository's contract, not a
-     personal setting, and every other developer's setup depends on it.
+     personal setting, and every other developer's setup depends on it;
+   - the human declines `init` → `H0` reports `skipped (user choice)` and each
+     leg `H0`'s Notes gates reports `skipped (no repository config)` in step 6
+     — never n/a, never `ok`.
 
    Refuse to guess a tracker project or a module name on their behalf. This step
    is idempotent, and `init` refuses to overwrite an existing file.
 
 1. **Load the register.** Read [`MANIFEST.md`](MANIFEST.md) — the complete
    dependency set; probe nothing outside it (a known dep missing from it is a
-   FRESHNESS.md violation — flag it, then probe it anyway).
+   FRESHNESS.md violation — flag it, then probe it anyway). Then read each
+   `setup.extra` file (MANIFEST section X); a listed file that is absent is
+   `needs-human: setup.extra file <path> missing`.
 2. **Probe everything.** Run every entry's `Probe:` — `sh:` probes from the
    repository root, `agent:` probes in-session. Under `base`, also run
    every `Base probe:` where present — a version miss there is `missing/broken`
@@ -78,7 +100,9 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    entry's fix in step 4, declined ⇒ `skipped (user choice)`. Beyond those two
    groups nothing is elective — a load-bearing entry's plain `Probe:`/`Fix:`
    surface always runs (an entry carrying both tiers keeps its plain fix even
-   when its base item is deselected). Build the options from the register at
+   when its base item is deselected). On the default and `base` branches
+   `H6` Fix step 0 runs whether its probe passes or not, so the human can name other
+   repositories to set up. Build the options from the register at
    run time, never from a hardcoded list, so a new base-tier or opt-in entry
    is electable the day it lands.
 4. **Fix.**
@@ -100,8 +124,10 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    `PATH`-affecting install never reaches the running session).
 6. **Summarize** per `REPORTING.md` (plugin root): final table (`ok` / `fixed`
    / `deferred (until <first use>)` / `skipped (user choice)` /
-   `needs-human: <what>`), then one plain-terms sentence — is the workflow
-   runnable now, and what still blocks which stage.
+   `skipped (no repository config)` / `skipped (no repository)` /
+   `needs-human: <what>`), then one
+   plain-terms sentence — is the workflow runnable now, and what still blocks
+   which stage.
 
 **Done when** every non-deferred, non-skipped entry probes `ok`, or the remainder are
 `needs-human` items named precisely (which secret, snippet, doc). Nothing else

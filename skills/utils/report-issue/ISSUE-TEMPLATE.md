@@ -13,6 +13,10 @@ Title: `<owning file>: <symptom in one line>`, at most 80 characters.
 ## Goal
 <what the run was trying to do: skill, step, mode>
 
+## Current context
+<where the signal occurred: active skill and step, triggering input, relevant
+status before and after, observed cost or delay, and investigation result>
+
 ## Expected
 <the behavior the plugin's own contract states — cite the file and section>
 
@@ -44,4 +48,4 @@ tail from the environment JSON>
 <!-- afk-issue-fp:<fp> -->
 ```
 
-Only plugin-side context enters the body: plugin paths, plugin commands, hook and script output, the environment table. Product code, product paths, ticket ids, and the consuming repository's name or remotes never enter it — describe their role with a placeholder instead.
+Only plugin-side context enters the body: plugin paths, plugin commands, hook and script output, the environment table, and the redacted current context. Product code, product paths, ticket ids, and the consuming repository's name or remotes never enter it — describe their role with a placeholder instead.

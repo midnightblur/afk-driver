@@ -1,0 +1,71 @@
+{
+  "detect": {
+    "any_env": [
+      "CLAUDE_PLUGIN_ROOT",
+      "CLAUDECODE"
+    ]
+  },
+  "priority": 20,
+  "harness_class": "H-1",
+  "session_start_user_message": true,
+  "move_hint": "call the native worktree tool (EnterWorktree) with a new name, then continue there.",
+  "tool_class": {
+    "edit": [
+      "Edit",
+      "MultiEdit",
+      "Write",
+      "NotebookEdit"
+    ],
+    "shell": [
+      "Bash",
+      "PowerShell",
+      "Monitor"
+    ],
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "LS",
+      "BashOutput",
+      "KillShell",
+      "AskUserQuestion",
+      "TodoWrite",
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskUpdate",
+      "TaskOutput",
+      "TaskStop",
+      "ToolSearch",
+      "Skill",
+      "Agent",
+      "Task",
+      "SendMessage",
+      "ListAgents",
+      "WebFetch",
+      "WebSearch",
+      "web__run",
+      "webrun",
+      "mcp__web__run",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "EnterWorktree",
+      "ExitWorktree",
+      "ScheduleWakeup",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "PushNotification",
+      "SendFeedback",
+      "ListMcpResourcesTool",
+      "ReadMcpResourceTool",
+      "ReadMcpResourceDirTool",
+      "Artifact",
+      "ArtifactComments",
+      "ArtifactData",
+      "EndConversation"
+    ]
+  },
+  "owner_pid_env": "CLAUDE_PID",
+  "worktree_folder": ".claude/worktrees"
+}

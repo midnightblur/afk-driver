@@ -45,7 +45,7 @@ this evidence, and the last section says what would close it.
 | afk/adversary | not proven | Loads and registers on both harnesses; no fixture contract was probed |
 | afk/autopilot | not proven | Loads and registers; no fixture plan was driven |
 | afk/bug | not proven | Its tracker calls are proven through `round5`; the dossier shape was not rendered |
-| afk/claude-md | not proven | Loads and registers; no fixture delta was produced |
+| afk/agents-md | not proven | Loads and registers; no fixture delta was produced |
 | afk/design-system | not proven | Loads and registers; the design-system tool is main-session-only and was not driven |
 | afk/execute | not proven | Its build gates are proven through `round5`; no driven slice was run |
 | afk/fix | not proven | Its gate behaviour is proven through `round5` (blocked then passed); the loop was not run |
@@ -81,6 +81,7 @@ this evidence, and the last section says what would close it.
 | utils/review-qa-tests | covered | `gate` |
 | utils/settle-change | covered | `round5` — every forge verb it uses was driven against a live merge request and two live pull requests |
 | utils/settle-mr | covered | `gate` — the registry gate accepts the alias and resolves its forward |
+| utils/sred | covered | `gate` |
 | utils/todo | covered | `gate` |
 | utils/verify-seams | covered | `gate` — the wiring gate is the same machinery, green on this tree |
 | utils/writing-for-agents | covered | `gate` — the genericity gate asserts the no-monorepo-vocabulary claim |
@@ -98,7 +99,7 @@ this evidence, and the last section says what would close it.
 
 | Row | Verdict | Evidence |
 |---|---|---|
-| run-hook.py | proven | `ledger` — both root variables honoured; repo kind resolves from `.afk/hooks.json` |
+| run-hook.py | proven | `gate` — the `hook-smoke.sh` launcher cases: the root is the working tree's Git root; `ledger` — repo kind resolves from `.afk/hooks.json` |
 | hooks.json | covered | `gate` — `claude plugin validate .` and the registry gate |
 | hooks.codex.json | covered | `gate` — the native-contract gate diffs the twin modulo the root variable |
 | stop-gates.sh | proven | `ledger` — real Stop blocks observed on both harnesses |

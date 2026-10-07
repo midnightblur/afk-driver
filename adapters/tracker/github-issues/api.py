@@ -60,19 +60,18 @@ ASSET_URL = re.compile(
 # ---------------------------------------------------------------------------
 # configuration
 # ---------------------------------------------------------------------------
-_CONFIG = None
+_READER = None
 
 
 def config():
-    """The `github-issues:` block, read through the one configuration reader."""
-    global _CONFIG
-    if _CONFIG is None:
+    """The `github-issues:` block, read from the project root on every call."""
+    global _READER
+    if _READER is None:
         spec = importlib.util.spec_from_file_location(
             "afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _CONFIG = module.get(module.load(Path.cwd()), "github-issues") or {}
-    return _CONFIG
+        _READER = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_READER)
+    return _READER.get(_READER.load(_READER.project_root()), "github-issues") or {}
 
 
 def repo():
@@ -97,8 +96,9 @@ def _gh(*args, stdin=None):
                 "reason": "tracker: github-issues — the `gh` CLI is not on PATH"}
     argv = ["gh", *args]
     try:
-        done = subprocess.run(argv, input=stdin, capture_output=True,
-                              text=True, timeout=60)
+        # A child inheriting the server's stdin pipe hangs on Windows.
+        feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, **feed)
     except Exception as e:
         return {"error": True, "reason": f"{type(e).__name__}: {e}"}
     if done.returncode != 0:

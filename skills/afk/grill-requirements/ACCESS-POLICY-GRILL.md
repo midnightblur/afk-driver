@@ -14,7 +14,7 @@ in the PRD's `## Access & validation policy` matrix that `/afk:to-prd` writes:
   `403`) designable later.
 - **Data-scope policy** — *which* entities / surfaces this actor sees only a
   scoped slice of, scoped by **company and/or vendor**. Tenancy here is
-  the tenancy model the repository's own `CLAUDE.md` states (read it first
+  the tenancy model the repository's own `AGENTS.md` states (read it first
   "Tenancy & data scoping"), so scope is company/vendor, **never tenant**.
   Capture *which entity is scoped*, not concrete company/vendor values — those
   are FOS-configured at runtime, not a requirement. ("Unscoped — this actor sees

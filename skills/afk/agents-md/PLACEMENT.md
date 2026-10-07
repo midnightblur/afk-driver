@@ -1,0 +1,85 @@
+# Instruction-file placement
+
+Where a steering fact lands in a repository's instruction tree — a directory `AGENTS.md`, a role sidecar (`IMPL.md`/`TESTING.md`/`DEBUG.md`), or a `.claude/rules` file — and whether it belongs at all. The standard the tree follows (AGENTS.md is the source, one root `CLAUDE.md` bridge, no `@path` imports) is in [SKILL.md](SKILL.md) "The instruction-file standard"; per-harness discovery facts are in `providers/HARNESS-MATRIX.md`. Writes go through the steward `/afk:agents-md` (modes, proposal protocol, write boundaries — [SKILL.md](SKILL.md)). Prose quality for any of these files is `skills/utils/writing-for-agents`.
+
+## Inclusion bar — every line passes ALL 4
+
+1. **non-obvious** — not quickly derivable from code
+2. **durable** — will recur
+3. **steering** — changes what an agent does/decides
+4. **non-dup** — not already in an ancestor file
+
+Unsure → **omit silently**.
+
+## Placement engine
+
+Per candidate fact, route by scope + cohesion. First match wins.
+After picking the directory (steps below), ALSO route by audience — see "Audience routing" at the bottom.
+
+### Decision order
+1. Personal/uncommitted (sandbox URL, local creds)? → `CLAUDE.local.md` (gitignored `**/CLAUDE.local.md`).
+2. Applies to ALL your projects (personal pref)? → the user-global steering file (`~/.claude/CLAUDE.md`; `providers/HARNESS-MATRIX.md` names each harness's). (rare; flag — outside project scope)
+3. Cross-cutting working principle for this repo? → **in-repo per-directory note**
+   at the lowest common ancestor of the current checkout. Do NOT route out to `~/.claude/shared`
+   (write boundary owned by the steward's Safety section, [SKILL.md](SKILL.md)).
+4. About a *kind-of-file* regardless of location (every `*.repository.ts`, every migration, every
+   `*.form.vue`)? → `.claude/rules/<topic>.md` with `paths:` glob.
+5. About one module/dir subtree? → that subdir's `AGENTS.md`.
+6. Project-wide, no tighter home? → the repo-root `AGENTS.md` (the root also carries the one `CLAUDE.md` bridge holding `@AGENTS.md`).
+7. Fails inclusion bar / obvious / one-off? → DROP.
+
+### Cohesion test (the 4-vs-5 tie-break)
+"What is this guidance ABOUT?"
+- a **place** (this module/dir does X, this service's quirk) → subdir `AGENTS.md`
+- a **kind-of-file** anywhere (how to write any X) → `.claude/rules/`+`paths:`
+Pick by the natural unit of the knowledge, NOT by counting files.
+
+| paths glob | matches |
+|---|---|
+| `**/*.repository.ts` | every repository file |
+| `src/main/resources/db/migration/**` | every migration |
+| `**/*.form.vue` | every form component |
+
+`.claude/rules/` files MUST declare `paths:`. Always-on cross-cutting topics live in an in-repo
+per-directory note (decision #3), not in `rules/`.
+
+### Dedup vs specialization
+Before adding to a child, read full root→child ancestor chain + applicable rules.
+- **Dup** (child repeats parent) → don't add; in AUDIT, delete the child copy.
+- **Specialization** (child refines/overrides parent for this scope) → keep, phrase as **delta**:
+  "Unlike root default, here X because Y." Not a dup.
+
+### Dedup direction (AUDIT)
+Shared content lives at the **lowest common ancestor** covering all consumers.
+- Two+ siblings repeat it → lift to nearest common parent (or root).
+- Only one subtree needs it → push down, strip from parent.
+
+## Audience routing — AGENTS.md vs role sidecars
+
+A directory's `AGENTS.md` auto-loads (whole file) for EVERY agent reading any file under it —
+planner, griller, reviewer, implementer alike. Content only one activity needs pollutes the
+others. So within the chosen directory, route each fact by audience into a **closed set** of
+files:
+
+| File | Auto-loads? | Audience / read trigger | Content | Allowed level |
+|---|---|---|---|---|
+| `AGENTS.md` | yes | everyone | invariants, landmines, architecture, placement contracts — anything that can change a plan/design/review decision | any |
+| `IMPL.md` | no — read before editing source here | implementers | procedures, generated-code mechanics, rebuild sequences, hook/proxy mechanics, annotation recipes | any |
+| `TESTING.md` | no — read before writing/fixing tests here | test authors | test harness, conventions, what's wired vs not, naming | module root |
+| `DEBUG.md` | no — read when diagnosing runtime behavior | debuggers | run/attach, ports, logs, failure signatures | service root |
+
+(`GLOSSARY.md` and `STAPLES.md` complete the set but have their own stewards/skills.)
+
+**Litmus per fact:** "could this change a grill/plan/design/review decision?" → `AGENTS.md`.
+"Only matters while typing code / tests here?" → `IMPL.md` / `TESTING.md`. Unsure → `AGENTS.md`
+(under-loading an implementer is worse than over-loading a planner).
+
+**Rules:**
+- Closed nameset — never invent a new sidecar name; extending the set is a convention change, not a placement call.
+- No empty placeholders — a sidecar exists only where content exists (empty sidecar = orphan).
+- Every sidecar announced by exactly one pointer line in the SAME directory's `AGENTS.md`. Keep the tail `Read [<FILE>](<FILE>) first. Otherwise skip it.` verbatim (stable target for the read-before-edit hook); the leading trigger clause may match the sidecar's actual content:
+  - `> **Editing code under this directory? Read [IMPL.md](IMPL.md) first. Otherwise skip it.**` (source dirs) — or `Building, testing, or running this service?` when the IMPL.md holds build/run commands (service root).
+  - `> **Writing or fixing tests in this module? Read [TESTING.md](TESTING.md) first. Otherwise skip it.**`
+  - `> **Diagnosing runtime behavior of this service? Read [DEBUG.md](DEBUG.md) first. Otherwise skip it.**`
+- A sidecar inherits its directory scope — dedup vs ancestor sidecars exactly like `AGENTS.md` (lowest common ancestor).
+- HARVEST/AUDIT proposals must state the audience route alongside the placement rationale; AUDIT flags implementation-procedure content in an `AGENTS.md` as a move candidate (`AGENTS.md → IMPL.md`).

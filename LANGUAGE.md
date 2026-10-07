@@ -23,6 +23,8 @@ pointer.
 - Noun clusters: 3 words maximum. Unstack with a preposition or a verb — "the handler that sets task-queue priority", never "the agent task queue priority handler". English does not mark which noun is the head, so the reader guesses.
 - No idioms, no metaphors, no filler, no rhetorical questions.
 - Numbers, not adjectives: "3 of 9 subtasks parked", never "most subtasks parked".
+- Keep every sentence factual and concise. Omit routine-work narration and
+  repeated request context.
 
 ## 2. Ubiquitous language — whose terms
 
@@ -47,8 +49,11 @@ review/adversary/retro reports, steering notes, handoff docs):
 - **Tables beat prose for parallel structure** — reach for one at the third bullet of the same shape; enumerable sets get a catalog + reference-by-ID, never re-narration.
 - **Directive subject + scope stated.** "Never run migrations against prod DB" ≠ "Never run migrations".
 - **Formats are contracts.** Compactness changes the words inside a section, never the section set or grammar the owning format file defines.
+- **Design artifacts state the final design.** PRDs, SDDs, and ADR decisions
+  describe the accepted state. Put a relevant rejected option only in its ADR
+  alternatives section. Do not narrate the design debate.
 
-### Steering notes (CLAUDE.md tree, role sidecars, `.claude/rules`) — additional rules
+### Steering notes (AGENTS.md tree, role sidecars, `.claude/rules`) — additional rules
 
 Read cold by future agents AND human teammates, and long-lived — unlike run artifacts, so also:
 
@@ -59,7 +64,7 @@ Read cold by future agents AND human teammates, and long-lived — unlike run ar
   - Good: `Auth: token TTL checked in AuthFilter (uses <, off-by-one on expiry). Refresh path skips filter.`
   - Good: `Migrations: Flyway V{n}__ naming. Never edit applied migration — add new. Baseline V1 in db/migration.`
   - Bad (obvious → drop): `This project uses Spring Boot, a popular Java web framework.`
-- **Leaf/subdir CLAUDE.md = directive only.** Emit the steering heading (`## …`) + body, nothing else — no file-title line, no `Scope:`/`Inherits` preamble: the dir path already scopes it and ancestors auto-load, so a banner adds tokens, not steering. Legacy leaf files carrying one are not the pattern to copy.
+- **Leaf/subdir AGENTS.md = directive only.** Emit the steering heading (`## …`) + body, nothing else — no file-title line, no `Scope:`/`Inherits` preamble: the dir path already scopes it and ancestors auto-load, so a banner adds tokens, not steering. Legacy leaf files carrying one are not the pattern to copy.
 - **Match the target file's heading structure + density** — meaning density/heading depth, not replicating a redundant title/`Scope:` banner a legacy file happens to carry.
 - **Block comments** `<!-- … -->` are stripped from agent context (free) but visible to humans in the raw file. Sparingly, for human-maintainer notes — never provenance (we don't track provenance).
 

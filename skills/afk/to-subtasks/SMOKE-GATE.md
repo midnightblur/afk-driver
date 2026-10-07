@@ -21,7 +21,7 @@ subtask per modality the plan carries**:
   plan has real `## API Scenarios`, **the terminal `NNNN-smoke-api` build
   subtask** (API contracts) — Process step 3, using the base subtask contract
   with the fields below. Build recipes live canonically with the repository's
-  own verification code (its `AUTHORING.md`, `README.md` or `CLAUDE.md` beside
+  own verification code (its `AUTHORING.md`, `README.md` or `AGENTS.md` beside
   the suite) — pointed at, never restated. Both blocked by every other subtask.
 
 **Placeholders.** `{e2e-suite}` and `{api-suite}` are the suite directories the
@@ -36,7 +36,7 @@ declares neither tier gets neither build subtask.
 Author the integrated browser smoke specs for {Feature}: one Scenario per
 VERIFICATION-PLAN.md UI journey in {e2e-suite}, run by
 /afk:smoke-test as the gate. Read that suite's authoring recipe first
-(layer rules, conventions, definition-of-done) + sibling README/CLAUDE.md;
+(layer rules, conventions, definition-of-done) + sibling README/AGENTS.md;
 author accordingly.
 
 ## Scope
@@ -65,7 +65,7 @@ Author the integrated API smoke specs for {Feature}: one test per
 VERIFICATION-PLAN.md API scenario, using the suite's shared auth/base-URL/poll
 primitives, in {api-suite}, run by /afk:smoke-test as the gate. Read
 that suite's authoring recipe first (request shape, real envelope incl.
-error/empty, below-the-UI authz, definition-of-done) + sibling CLAUDE.md;
+error/empty, below-the-UI authz, definition-of-done) + sibling AGENTS.md;
 author accordingly.
 
 ## Scope

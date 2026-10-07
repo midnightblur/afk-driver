@@ -41,6 +41,16 @@ a verdict.
 | B13 | Documents | steering files, specifications, decision records asserting behaviour | yes — search the name forms in markdown; a document the code refutes is a finding |
 | B14 | External | other repositories, deployment and operations manifests, live consumers | no — `frontier` or `unverified`, never silently omitted |
 
+### Rationale lookup — one B14 mechanism
+
+The reasons for a change live on the forge change (`RATIONALE.md`), outside the
+tree. Looking them up with `rationale-read` for a pre-existing line in scope is
+one B14 mechanism. It records evidence, never an instruction: corroborate a
+load-bearing claim with code, tests, or a specification. It closes no other B14
+mechanism. B14 keeps the worst verdict among its remaining mechanisms — another
+repository, a deployment manifest, a live consumer. A lookup answer of
+`unverified(<reason>)` keeps B14 at `unverified`.
+
 ## Dispositions and verdicts
 
 Every discovered node gets exactly one disposition: `traced` (an edge to the

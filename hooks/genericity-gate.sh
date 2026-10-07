@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop gate (ships with the afk plugin): genericity gate — prose added to this
 # plugin's *.md files must stay generic, never feature- or incident-specific.
-# The doctrine (plugin CLAUDE.md "generic, never feature-specific") existed and
+# The doctrine (plugin AGENTS.md "generic, never feature-specific") existed and
 # was still violated by an agent hardening the harness after an incident —
 # instruction alone demonstrably isn't enough, hence enforcement.
 #
@@ -78,6 +78,11 @@ gate_genericity() {
   printf '' | grep -E -e "${PAT[ticket-id]}" -e "${PAT[account-id]}" -e "${PAT[email]}" \
     -e "${PAT[source-file]}" -e "^(${PAT[notation-prefixes]})$" >/dev/null 2>&1
   [ $? -le 1 ] || { echo "Genericity gate: $PATTERNS_FILE holds a pattern grep -E cannot compile." >&2; return 2; }
+  # A pattern that matches the empty string matches everywhere and never advances.
+  for pk in ticket-id account-id email source-file; do
+    ! printf '\n' | grep -qE -e "${PAT[$pk]}" 2>/dev/null \
+      || { echo "Genericity gate: $PATTERNS_FILE \`$pk\` matches the empty string." >&2; return 2; }
+  done
   GEN_TICKET_RE="${PAT[ticket-id]}" GEN_FILE_RE="${PAT[source-file]}" \
     awk 'BEGIN { match("", ENVIRON["GEN_TICKET_RE"]); match("", ENVIRON["GEN_FILE_RE"]) }' >/dev/null 2>&1 \
     || { echo "Genericity gate: $PATTERNS_FILE holds a pattern awk cannot compile." >&2; return 2; }
@@ -142,8 +147,8 @@ gate_genericity() {
         printf '%s\n' "$ident_hits"
         echo
         echo "Fix: replace the account id, address or handle with a placeholder"
-        echo "({user}, dev@example.com), or move the value into a developer's own"
-        echo "~/.afk/config.yaml - a committed file never names a person."
+        echo "({user}, dev@example.com), or record the value as a developer value"
+        echo "with /afk:setup (H6) - a committed file never names a person."
       } >&2
       return 2
     fi
@@ -265,7 +270,7 @@ gate_genericity() {
 
       # class 1: Jira-shaped ticket IDs (prefix 2-10 chars, 1-6 digits)
       rest = s
-      while (match(rest, ENVIRON["GEN_TICKET_RE"])) {
+      while (match(rest, ENVIRON["GEN_TICKET_RE"]) && RLENGTH > 0) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)
@@ -276,7 +281,7 @@ gate_genericity() {
 
       # class 2: source-file references
       rest = s
-      while (match(rest, ENVIRON["GEN_FILE_RE"])) {
+      while (match(rest, ENVIRON["GEN_FILE_RE"]) && RLENGTH > 0) {
         pos = length(s) - length(rest) + RSTART
         pre = (pos == 1) ? "" : substr(s, pos-1, 1)
         post = substr(s, pos+RLENGTH, 1)

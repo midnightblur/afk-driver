@@ -24,6 +24,7 @@ A Jira bug key, free-text bug description, or nothing (infer the finding from co
    - **Ad-hoc** (human/QA/agent verification finding): take symptom + repro hints from conversation — already in context, no delegation.
 2. **Session type.** **feature-building (unreleased)** vs **ad-hoc / maintenance**. Feature-building signals: cwd on an AFK feature branch (matching `git.branch-pattern`) (`{enh_id_lower}`); a spec dir with `plan/PLAN.md` whose `Feature:` is not yet shipped; bug came from *this* feature's verification. Otherwise ad-hoc → **skip Phase 3**.
 3. **Locate artifacts** (feature session only): `{service}/specs/{year}r{release}/{TICKET-ID}/` — `PRD.md`, `SDD.md`, `VERIFICATION-PLAN.md`, `adr/{requirements,design}/`, `plan/`.
+4. **Public contract check** — `${AFK_PLUGIN_ROOT}/VERIFICATION.md` §Verification loop item 5.
 
 ## Phase 1 — Diagnose (delegate, do not duplicate)
 
@@ -31,6 +32,8 @@ Run **`/afk:diagnose`**, handing it everything from intake (repro steps, env, ex
 
 - Ticketed or known-env bug → push diagnose toward an **automated** loop (api or e2e/browser) over HITL — you have the env and steps.
 - Diagnose **cannot reproduce**, or surfaces a wrong binding design decision → stop; report `cannot_reproduce` / `design_conflict` and route (Phase 3).
+
+Diagnose reads the rationale of the lines on the failing path (its Phase 2.5); run `rationale-read` (`RATIONALE.md` § Read path) on any other pre-existing line the fix edits. A fix that adds a comment classifies it per `RATIONALE.md` § Classification test and records each moved reason per § Write path. List the pending operation IDs in the exit report.
 
 Exit gate: root cause known, fix applied, seam regression test green (or seam-absence explicitly documented per diagnose Phase 5).
 
@@ -102,7 +105,7 @@ OUTCOME: fixed — <summary> [ticket: <KEY>] [miss: <class>] [lesson: <L-NNNN>]
 ## Hard rules
 
 - **Never commit, push, or merge.** `fix` is not in the commit lane — the human commits, or the calling run does (resumes and drives commit + push + MR itself). Apply edits and stop.
-- **The target repo's CLAUDE.md chain binds here** — notably its DB-migration and commit rules.
+- **The target repo's AGENTS.md chain binds here** — notably its DB-migration and commit rules.
 - **Never hand-edit PRD / SDD / ADRs / VERIFICATION-PLAN / PLAN.md across an ownership boundary.** Route to the owning skill (Phase 3).
 - **Never edit the AFK skills themselves in a fix session.** Phase 3.5's workflow lesson is **recorded in the lesson ledger** (a runtime ledger append via `hooks/lesson-append.sh`, not a skill edit) and applied later via `/afk:lessons apply` — no retrospective side-trips, no in-session edit of any `SKILL.md` under the plugin repo.
 - **Don't gold-plate tests.** No brand-new e2e/api scenario for a trivial cosmetic fix — match tier to bug class (Phase 2).

@@ -15,9 +15,10 @@
 #   - [x] `path` ...                    # auto-closed by this gate when a referrer appears
 #   waive: `path` — <reason>            # permanent silence (build junk etc.)
 #
-# Referrer search is ONE repo scan for ALL candidate tokens (`git grep -o` over
-# the batch), not one scan per candidate — a scan is the gate's dominant cost and
-# N of them is what made a many-new-file change unusable.
+# Referrer search is one bounded scan for ALL candidate tokens, run by
+# lib/bounded_scan.py: the changed files first (in-process), then the whole tree
+# for only the tokens still unresolved, under a deadline and a repository lock.
+# A scan that cannot finish is verdict UNKNOWN (rc 3), never an orphan.
 #
 # Mechanical only: zero-referrer detection. Weak-consumer judgment (test-only
 # consumers, unreachable flows) belongs to /afk:verify-seams, not this gate.
@@ -31,7 +32,7 @@ WIRING_LEDGER=.claude/wiring-ious.md
 # Filenames consumed by convention (framework/tooling reads them by name/location).
 _wiring_conventional() {
   case "${1##*/}" in
-    README*|CLAUDE.md|GLOSSARY.md|SKILL.md|MEMORY.md|pom.xml|package.json|package-lock.json|\
+    README*|AGENTS.md|CLAUDE.md|GLOSSARY.md|SKILL.md|MEMORY.md|pom.xml|package.json|package-lock.json|\
     .gitignore|.gitattributes|Dockerfile|Jenkinsfile|VERSION|*.feature) return 0 ;;
   esac
   case "$1" in
@@ -91,7 +92,38 @@ _wiring_ledger_close()  {
   _wiring_ledger_load
 }
 
+_WIRING_SRC=${BASH_SOURCE[0]//\\//}
+_WIRING_HELPER="${_WIRING_SRC%/*}/lib/bounded_scan.py"
+_WIRING_TMP=""
+
+_wiring_cleanup() {
+  [ -n "$_WIRING_TMP" ] && rm -rf "$_WIRING_TMP" 2>/dev/null
+  _WIRING_TMP=""
+  return 0
+}
+
+# Print "<status>\t<detail>\t<metrics-json>" then each wired path, NUL-separated.
+# An absent or unreadable result is unknown, so the gate can never read it as "no referrers".
+_WIRING_DIGEST='import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+    head = "%s\t%s\t%s" % (d["status"], d["detail"], ",".join(
+        "\"%s\":%d" % (k, d[k]) for k in ("scan_ms", "tokens_local_resolved", "tokens_tree", "restarts", "files_read")))
+    sys.stdout.buffer.write(head.encode() + b"\0")
+    for p in d["wired"]:
+        sys.stdout.buffer.write(p.encode("utf-8", "surrogateescape") + b"\0")
+except Exception:
+    sys.stdout.buffer.write(b"unknown\tscan_failure\t\0")
+'
+
 gate_wiring() {
+  _wiring_main "$@"
+  local rc=$?
+  _wiring_cleanup
+  return $rc
+}
+
+_wiring_main() {
   [ "${WIRING_GATE_DISABLE:-0}" = "1" ] && return 0
   [ -f .claude/hooks/.gate-disabled ] && return 0
 
@@ -118,19 +150,19 @@ gate_wiring() {
   gate_metrics_begin
   _wiring_ledger_load
 
-  # ---- pass 1 (fork-light): drop everything that cannot be an orphan, and
-  # collect the surviving name tokens for a single batched scan. Only fork-free
-  # tests belong here — anything that spawns runs per CANDIDATE, and a long-lived
+  # ---- pass 1 (fork-light): drop everything that cannot be an orphan and
+  # collect the surviving name tokens for one bounded scan. Only fork-free tests
+  # belong here — anything that spawns runs per CANDIDATE, and a long-lived
   # branch carries hundreds. The costly per-file probes wait for pass 3, where
-  # they see only the handful of files the scan found no referrer for.
+  # they see only the few files the scan found no referrer for.
   local f tok n_new=0
   local -a cand_files=() cand_toks=()
-  local -a grep_args=()
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     n_new=$((n_new + 1))
     [ -f "$f" ] || continue
     _wiring_conventional "$f" && continue
+    _wiring_ledger_waived "$f" && continue
     if ! _wiring_text_ext "$f"; then
       grep -Iq . "$f" 2>/dev/null || continue      # binary
     fi
@@ -139,7 +171,6 @@ gate_wiring() {
     [ "${#tok}" -lt 4 ] && continue                # too generic to grep meaningfully
     cand_files+=("$f")
     cand_toks+=("$tok")
-    grep_args+=(-e "$tok")
   done <<<"$new_files"
 
   if [ "${#cand_files[@]}" -eq 0 ]; then
@@ -148,50 +179,60 @@ gate_wiring() {
     return 0
   fi
 
-  # ---- pass 2: ONE scan for every candidate token. -o makes each hit
-  # "<path>:<token>", so a single pass tells us which token was seen in which
-  # file — a token seen in any file other than its own artifact is wired.
-  local hits
-  hits=$(git grep -o -I --untracked -F "${grep_args[@]}" -- \
-           ":(exclude)$WIRING_LEDGER" ":(exclude).claude/hooks/*" 2>/dev/null | sort -u)
-
-  # Fold the scan output into a token lookup in ONE pass. Re-walking the hit list
-  # per candidate is O(candidates x hits) AND re-materialises the here-string
-  # every candidate — on a branch with a hundred-odd new files that dominates
-  # even the repo scan. Per token we keep the first hit path and whether a second
-  # DISTINCT one exists, which is all "referenced by something other than itself"
-  # needs, and stays exact when two new files share a basename.
-  local -A hit_first=() hit_many=()
-  local i line hit_path hit_tok wired
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    hit_tok=${line##*:}
-    hit_path=${line%:*}
-    if [ -z "${hit_first[$hit_tok]:-}" ]; then
-      hit_first[$hit_tok]=$hit_path
-    elif [ "${hit_first[$hit_tok]}" != "$hit_path" ]; then
-      hit_many[$hit_tok]=1
+  # ---- pass 2: the bounded scan. Local universe = everything this change touched.
+  local py=python scan_rc=0 detail="" scan_metrics="" status="" i
+  command -v python >/dev/null 2>&1 || py=python3
+  local -A wired_set=()
+  if ! command -v "$py" >/dev/null 2>&1; then
+    detail=no_python
+  else
+    declare -F gate_ctx_branch >/dev/null && gate_ctx_branch
+    _WIRING_TMP=$(mktemp -d "${TMPDIR:-/tmp}/afk-wiring.XXXXXX") || _WIRING_TMP=""
+    if [ -z "$_WIRING_TMP" ]; then
+      detail=scan_failure
+    else
+      local cfile="$_WIRING_TMP/candidates" lfile="$_WIRING_TMP/local" rfile="$_WIRING_TMP/result.json" p
+      for i in "${!cand_files[@]}"; do printf '%s\0%s\0' "${cand_files[$i]}" "${cand_toks[$i]}"; done >"$cfile"
+      while IFS= read -r p; do
+        [ -n "$p" ] && printf '%s\0' "$p"
+      done >"$lfile" <<<"${AFK_CTX_CHANGED:-}"$'\n'"${AFK_CTX_NEW:-}"$'\n'"${AFK_CTX_BRANCH:-}"$'\n'"$committed_new"
+      "$py" "$_WIRING_HELPER" --repo "$PWD" --candidates "$cfile" --local "$lfile" --result "$rfile" 2>/dev/null
+      scan_rc=$?
+      local first=1 item
+      while IFS= read -r -d '' item; do
+        if [ "$first" = 1 ]; then
+          first=0
+          status=${item%%$'\t'*}
+          item=${item#*$'\t'}
+          detail=${item%%$'\t'*}
+          scan_metrics=${item#*$'\t'}
+        else
+          wired_set[$item]=1
+        fi
+      done < <("$py" -c "$_WIRING_DIGEST" "$rfile")
+      if [ "$scan_rc" -ne 0 ] || [ "$status" != complete ]; then
+        [ -n "$detail" ] || detail=scan_failure
+      fi
     fi
-  done <<<"$hits"
+  fi
+
+  if [ -n "$detail" ]; then
+    gate_metrics_emit wiring unknown "\"new_files\":$n_new,\"candidates\":${#cand_files[@]},\"detail\":\"$detail\""
+    printf '[afk] Wiring gate: verdict unknown (%s) — no orphan check this Stop.\n' "$detail" >&2
+    return 3
+  fi
+  scan_metrics=${scan_metrics:+,$scan_metrics}
 
   local orphans="" pending=""
   for i in "${!cand_files[@]}"; do
-    f=${cand_files[$i]}; tok=${cand_toks[$i]}
-    wired=0
-    if [ -n "${hit_many[$tok]:-}" ]; then
-      wired=1                                     # seen in 2+ files: one is not itself
-    elif [ -n "${hit_first[$tok]:-}" ] && [ "${hit_first[$tok]}" != "$f" ]; then
-      wired=1                                     # sole hit is somewhere other than itself
-    fi
-
-    if [ "$wired" = "1" ]; then
+    f=${cand_files[$i]}
+    if [ -n "${wired_set[$f]:-}" ]; then
       _wiring_ledger_open "$f" && _wiring_ledger_close "$f"   # consumer arrived -> auto-close IOU
       continue
     fi
     # Deferred from pass 1: reads the file, so it only runs for the few that the
     # scan could not clear.
     _wiring_framework_wired "$f" && continue
-    _wiring_ledger_waived "$f" && continue
     if _wiring_ledger_open "$f"; then
       pending="$pending$f"$'\n'
       continue
@@ -200,7 +241,7 @@ gate_wiring() {
   done
 
   if [ -n "$orphans" ]; then
-    gate_metrics_emit wiring blocked "\"new_files\":$n_new,\"candidates\":${#cand_files[@]}"
+    gate_metrics_emit wiring blocked "\"new_files\":$n_new,\"candidates\":${#cand_files[@]}$scan_metrics"
     {
       printf '[afk] Wiring gate: new artifact(s) with NO consumer and NO IOU — cannot finish.\n'
       printf 'Orphans:\n'
@@ -214,7 +255,7 @@ gate_wiring() {
   fi
 
   if [ "$FINAL" = "1" ] && [ -n "$pending" ]; then
-    gate_metrics_emit wiring blocked "\"new_files\":$n_new,\"detail\":\"final: open IOUs\""
+    gate_metrics_emit wiring blocked "\"new_files\":$n_new,\"detail\":\"final: open IOUs\"$scan_metrics"
     {
       printf '[afk] Wiring gate (FINAL): open IOUs remain — consumers never arrived.\n'
       printf '%s' "$pending" | sed 's/^/  - /'
@@ -223,7 +264,7 @@ gate_wiring() {
     return 2
   fi
 
-  gate_metrics_emit wiring pass "\"new_files\":$n_new,\"candidates\":${#cand_files[@]}"
+  gate_metrics_emit wiring pass "\"new_files\":$n_new,\"candidates\":${#cand_files[@]}$scan_metrics"
   [ "$FINAL" != "1" ] && gate_cache_store wiring "$cache_key"
   return 0
 }
@@ -236,5 +277,6 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   . "$_d/gate-context.sh"; gate_ctx_build
   . "$_d/gate-cache.sh"
   . "$_d/gate-metrics.sh"
+  trap '_wiring_cleanup' EXIT TERM INT HUP
   gate_wiring; exit $?
 fi

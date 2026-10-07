@@ -12,6 +12,13 @@ python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.comma
 python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
 ```
 
+`validate` fails only on schema problems. For each repository-relative path
+that is absent under the repository root it prints a `warning:` line to stderr
+and still exits 0. The keys are `repo-hooks`, `setup.extra`,
+`maven.reactor-pom`, `maven.formatter-config`, `maven.default-module` and
+`npm.workspace-root`; `maven.worktree-seed` is a per-machine path and is not
+checked.
+
 Bash gates source the flat export once per Stop through `hooks/lib/config.sh`
 and read the fixed `AFK_CFG_*` names.
 
@@ -22,9 +29,10 @@ Highest precedence first:
 | Layer | Path | Purpose |
 |---|---|---|
 | explicit | `$AFK_CONFIG` | a named file, for tests and one-off runs |
-| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer; may not set `schema` |
+| local overlay | `<git root>/.afk/config.local.yaml` | gitignored, per developer, this checkout only; may not set `schema` |
+| shared overlay | `<git common dir>/afk/config.yaml` | untracked, per developer, read by every worktree of this repository — the default home for a developer's own `developer:` block; may not set `schema` |
 | repository | `<git root>/.afk/config.yaml` | committed, the repository's contract |
-| machine | `~/.afk/config.yaml` | per-machine defaults across repositories — the recommended home for a developer's own `developer:` block |
+| machine | `~/.afk/config.yaml` | per-machine defaults across repositories |
 | built-in | — | the defaults below |
 
 Layers deep-merge: a mapping merges key by key, any other value replaces. Both
@@ -38,11 +46,27 @@ python scripts/afk-config.py init          # --force to replace an existing file
 
 Writes a starter `.afk/config.yaml` from what the repository can answer about
 itself: the forge from the origin remote's host, the build gates from a root
-`pom.xml` / `package.json`, the base branch from `origin/HEAD`. Anything it
-cannot read is written as a commented `TODO` rather than a plausible guess — a
-wrong value that validates is harder to notice than a missing one. The file it
-writes always passes `validate`. `/afk:setup` runs it for you when the file is
-absent.
+`pom.xml` or a `mvnw` / `mvnw.cmd` wrapper and from `package.json`, the base
+branch from `origin/HEAD`. Anything it cannot read is written as a commented
+`TODO` rather than a plausible guess; a wrong value that validates is harder to
+notice than a missing one.
+
+A Maven reactor POM is a `TODO` that lists the candidates, unless it is a root
+`pom.xml` or the only root `*pom.xml`. When `init` cannot decide the tracker
+and the Jira credential chain (`PROVIDERS.md`) resolves `JIRA_BASE_URL`,
+`tracker` and `jira.project` are `TODO`s too. When the machine layer
+(`~/.afk/config.yaml`) already sets a `tracker` or `forge` other than `none`
+that `init` cannot detect, `init` writes that value as a `TODO` comment instead
+of `none`, so the repository file does not shadow it; an inherited `tracker`
+picks the matching template block, and `github-issues.repo` stays a `TODO`
+unless the remote is on `github.com`.
+`init` prints the keys it left as `TODO` on one line.
+
+The file it writes always passes `validate`. `/afk:setup` runs it for you when
+the file is absent.
+`init` refuses when the base branch or the main worktree already carries
+a config: restore it (`git checkout <base> -- .afk/config.yaml`), or merge
+or rebase that branch, instead of scaffolding a second contract.
 
 ## Built-in defaults
 
@@ -56,6 +80,10 @@ git:
   branch-pattern: ''
 repo-files:
   spec-dir: 'docs/afk/{workId}'
+review:
+  ledger-only-paths:
+    - plan/review/**
+    - plan/JOURNAL.md
 ```
 
 `build-gates` has no default: the key is absent, and absent means no build
@@ -97,14 +125,15 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `notion` | map | `parent-page-id` |
 | `artifacts` | map | `service-map` |
 | `maven` | map | `reactor-pom` (the POM every reactor run targets), `formatter-config` (formatter profile file), `formatter-plugin` (`group:artifact:version` of the formatter plugin), `default-module` (app-start's default), `skip-ui-flag` (one argument, e.g. `-DskipUi=true`), `worktree-repo` (`isolated` \| `shared`), `worktree-seed` (`auto` \| `none` \| a path), `worktree-seed-exclude` (globs the seed skips, default `*-SNAPSHOT`) |
-| `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (the hoisted lint workspace, also where a new worktree installs), `worktree-install` (`ci` \| `none`), `worktree-command` (argv words restoring the dependencies, default `npm ci`) |
+| `npm` | map | `lint` (lint command and its fixed arguments, split on whitespace; changed files appended), `workspace-root` (where a new worktree installs), `worktree-install` (`ci` \| `none`), `worktree-command` (argv words restoring the dependencies, default `npm ci`) |
 | `verification` | map | `tiers`, `env` |
 | `repo-hooks` | string | repository-relative path to the hook manifest; default `.afk/hooks.json` |
 | `setup` | map | `extra`: repository files `/afk:setup` reads as extra register rows |
-| `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored `CLAUDE.md` sweep). Build-system state is NOT here: each build gate provisions its own. |
+| `worktree` | map | what a new worktree carries over from the checkout it was cut from — `copy` (repository-relative files and directories, default `.mcp.json`, `.claude`, `.run`, `.idea`), `copy-personal` (`false` copies nothing), `copy-ignored-claude-md` (`false` skips the gitignored instruction-file sweep — the key name is kept for compatibility, but the sweep now copies gitignored `AGENTS.md` files as well as `CLAUDE.md`). Build-system state is NOT here: each build gate provisions its own. |
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
-| `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (`false` makes an agent-invoked run queue every draft for a human; absent means `true`) |
-| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. There is no committed layer for them: `trackerAssignee` and `mrReviewer` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`). |
+| `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files approved plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (legacy Boolean, ignored; every GitHub write needs explicit human approval) |
+| `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
 as a root `GLOSSARY-MAP.md` (`skills/utils/glossary/GLOSSARY-FORMAT.md`), and one
@@ -115,11 +144,21 @@ listed is refused, named by its full dotted path. Below that level the names
 are the repository's own — a transition name, a state name, a tier name — so
 they are not constrained.
 
+`review.ledger-only-paths` uses `/` separators. `*` matches one path segment.
+`**` matches any number of segments. Globs are relative to the repository root.
+Negation is not supported. A repository must list each wider path explicitly.
+
 ### Path templates
 
 `repo-files.spec-dir` and `git.branch-template` expand a fixed placeholder set:
-`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`.
-An unknown placeholder is left alone rather than guessed.
+`{workId}`, `{ticket}`, `{ticket_lower}`, `{service}`, `{release}`, `{user}`. In
+`repo-files.spec-dir`, `{user}` is the `USER`/`USERNAME` environment value, unchanged, and
+an unknown placeholder is left alone rather than guessed.
+
+`git.branch-template` under `scripts/create-worktree --name` adds `{name}`, the worktree
+name, and reads `{user}` as the git `user.name` slug: lower case, spaces to `-`, only
+`a-z 0-9 -`. In that mode every placeholder the plugin cannot resolve is filled with the
+name too.
 
 ### Worktree provisioning
 
@@ -157,14 +196,25 @@ holds can become shell syntax.
 ### Repository hooks
 
 `repo-hooks` names a JSON array. Each entry has `event`
-(`SessionStart` | `PreToolUse` | `Stop`), `matcher` (a regular expression
+(`SessionStart` | `PreToolUse` | `Stop` | `WorktreeCreated`), `matcher` (a regular expression
 matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
 refused. What the launcher does with a handler it cannot run is pinned by
 `scripts/tests/test_run_hook.py`. `hooks/run-hook.py` runs the matching entries in declaration order and
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
 is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
-turn and names the entry, so a gate cannot go missing quietly.
+turn and names the entry, so a gate cannot go missing quietly. A `PreToolUse` verdict
+is the deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) at exit 0: one
+harness treats exit 2 as a failed hook and runs the tool. A `Stop` verdict is the
+`{"decision":"block","reason":...}` object. A script that exits non-zero, or prints its
+own refusal, is a refusal: the launcher never passes a handler's own verdict or exit
+code through on these events. It gathers every refusal and prints one verdict in that
+shape at the adapter's code. With no POSIX shell a matching call is blocked too.
+
+`WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
+matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
+`AFK_WORKTREE_BRANCH` set and the event JSON on stdin. A script that fails adds a
+warning naming it; the worktree stays.
 
 ### Investigation boundaries
 
@@ -222,8 +272,9 @@ repository-relative path — absolute, drive-lettered, or holding a `..` segment
 A configuration file holds environment variable NAMES, never values.
 `jira.credentials-env` lists the variables the Jira adapter reads. Values come
 from the environment or the harness credential store. A developer's own
-non-secret values live under `developer:` in `~/.afk/config.yaml`, or in the
-gitignored `.afk/config.local.yaml` when one checkout needs a different value.
+non-secret values live under `developer:` in the shared overlay or
+`~/.afk/config.yaml`, or in the gitignored `.afk/config.local.yaml` when one
+checkout needs a different value.
 
 The subset, the discovery order, the child keys of every map above, the
 readable failure of `validate FILE`, and the agreement between the three views

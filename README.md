@@ -86,6 +86,10 @@ What makes it trustworthy while you're away:
   subagents that return terse cited digests (`DELEGATION.md` at the plugin root).
   The driving agent stays lean for the decisions only it can make; every heavy
   judgment gets a fresh pair of eyes.
+- **The change keeps the review record.** Findings, disputes, fixes, and round
+  summaries use immutable forge comments. A restarted loop reconstructs its
+  state from the change. `plan/review/` remains telemetry, not a ship gate
+  (ADR-0004, `adr/0004-change-request-is-the-review-ledger.md`).
 
 ---
 
@@ -116,9 +120,10 @@ into the parent ticket and mints stub Enhancements for grill-deferred work
 second, narrowly-scoped Jira writer — create the Bug, one Dev-Pending
 transition, evidence comments, on that ticket only (ADR-0001). **Everything
 else stops at disk or GitLab** — including `/afk:to-sdd`, whose `SDD.md` +
-design ADRs are local only. `/afk:report-issue` files plugin defects as GitHub
-issues on the plugin's own repository, never on the consuming repository's
-tracker (ADR-0002). `/afk:execute` pushes branches + Draft MRs to
+design ADRs are local only. `/afk:report-issue` proposes plugin issues and, after
+explicit approval, creates or comments on GitHub issues in the plugin's own
+repository. It never uses the consuming repository's tracker (ADR-0002,
+ADR-0007, `adr/0007-plugin-issue-approval.md`). `/afk:execute` pushes branches + Draft MRs to
 GitLab but writes no Jira.
 
 **⑤ The human owns the merge.** `/afk:execute` takes a subtask to a pushed,
@@ -197,13 +202,13 @@ Grey is optional design depth — add for complex features, skip for small ones
 
 Every plan `/afk:to-subtasks` emits ends with a terminal `NNNN-sync-harness` doc
 subtask (blocked by all others) that `/afk:execute` runs last to sync the
-CLAUDE.md harness for the shipped feature **and settle the staples registry**
-(`{service}/STAPLES.md`), delegating the write to `/afk:claude-md`.
+AGENTS.md harness for the shipped feature **and settle the staples registry**
+(`{service}/STAPLES.md`), delegating the write to `/afk:agents-md`.
 
 **Staples.** A *staple* is a delivered capability that became a standing
 expectation (e.g. deep-linking, Excel import/export) — every future feature
 matching its trigger must consider adopting it, via the per-service `STAPLES.md`
-registry. Consult/capture loops + stewardship: CLAUDE.md "Staples registry".
+registry. Consult/capture loops + stewardship: AGENTS.md "Staples registry".
 
 Start where your inputs land: raw idea → `/afk:grill-requirements`; existing PRD
 → `/afk:grill-solution`; SDD in hand → `/afk:to-subtasks`.
@@ -257,26 +262,27 @@ changes `hooks/hooks.codex.json`. The five agent stubs are the opposite — they
 hold the installed root, which carries the version, so **every** upgrade needs
 `/afk:setup` again to rewrite them.
 
-### Upgrading a pinned install
+Setup can also install the managed behavior layer in both user instruction
+files. It asks before the first install. Any legacy AFK behavior block proves
+prior consent. Run `/afk:setup teardown` before disabling the plugin.
 
-Both harnesses record an installed version, and a pin is stated in more than
-one file. Move them in this order, or the command refuses:
+### Upgrading an install
 
-1. **Bump the ref where the harness declares it.** Claude reads
-   `~/.claude/settings.json` -> `extraKnownMarketplaces.afk-toolkit.source.ref`;
-   the `.codex-plugin` harness reads `~/.codex/config.toml` ->
-   `[marketplaces.afk-toolkit] ref`.
-   Adding a marketplace at a ref the settings file still contradicts fails with
-   "its network source differs from the one declared for it in settings".
-2. **Re-add the marketplace at the new tag.**
-   `claude plugin marketplace add <owner>/<repo>@<tag> --scope user`, or
-   `codex plugin marketplace upgrade afk-toolkit`.
-3. **Update the plugin.** `claude plugin update afk@afk-toolkit`, or
-   `codex plugin add afk@afk-toolkit`. On Claude, `plugin install` answers
-   "already installed" and changes nothing — `update` is the verb that moves a
-   version.
-4. Run `/afk:setup` to rewrite the `.codex-plugin` agent stubs, which hold the
-   versioned root, then restart the harness.
+Claude records its pin at `~/.claude/settings.json` ->
+`extraKnownMarketplaces.afk-toolkit.source.ref`. Move it in this order:
+
+1. Bump that ref.
+2. Run `claude plugin marketplace add <owner>/<repo>@<tag> --scope user`.
+3. Run `claude plugin update afk@afk-toolkit`. `plugin install` answers
+   "already installed" and changes nothing.
+
+The native AFK marketplace stays unpinned. `/afk:setup` removes a legacy
+`[marketplaces.afk-toolkit] ref` while preserving unrelated settings. To refresh
+manually, run `codex plugin marketplace upgrade afk-toolkit`, then `codex plugin
+add afk@afk-toolkit`.
+
+After either upgrade, run `/afk:setup` to rewrite the `.codex-plugin` agent
+stubs, which hold the versioned root, then restart the harness.
 
 **Checking which version is live.** Ask the harness, never the directories:
 
@@ -310,16 +316,26 @@ setup depends on it. It names no person: who work is assigned to and who
 reviews it are answered by each developer, not by the repository.
 
 Your own values — the tracker account work is assigned to, the reviewer you
-name, your IDE — go under `developer:` in `~/.afk/config.yaml`, once per
-machine rather than once per checkout. `/afk:setup` asks you for the assignee
-and the reviewer; nothing supplies them for you. The worktree base is derived
+name, the forge user your merge requests are assigned to, your IDE — go under
+`developer:` in `<git common dir>/afk/config.yaml`, once per repository rather
+than once per worktree, or in `~/.afk/config.yaml` as a default for every
+repository. The two assignees are a pair: `trackerAssignee` is put on every work
+item the plugin creates (bug tickets, spinoff tickets), `mrAssignee` on every
+merge request or pull request it opens. `/afk:setup`, run from the main
+checkout, any worktree or no repository, asks which main checkouts to set up —
+all of them in one run, one at a time, or none for now. For each one it asks you for each missing value in the session and
+suggests your own account for both assignees — the tracker account email, the
+forge user the CLI is logged in as — so you confirm or name someone else;
+leaving one unset means no assignee. An agent that needs a missing value asks
+you the same way. The worktree base is derived
 from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 
 ### Shared setup and development
 
 `/afk:setup` probes external dependencies against
 `skills/afk/setup/MANIFEST.md`. Use `/afk:setup base` for the pinned workstation
-toolchain. Use `/afk:setup audit` before shipping plugin changes.
+toolchain. Use `/afk:setup audit` before shipping plugin changes. The audit
+also checks the managed behavior revision, hash, targets, and legacy blocks.
 
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per
@@ -524,8 +540,8 @@ ADRs (`adr/design/`, owned by `/afk:to-sdd`).
 Two artifacts live at the **service root**, not the per-ticket spec folder,
 because the whole service shares them: `GLOSSARY.md` (vocabulary, stewarded by
 `/afk:glossary`) and `STAPLES.md` (cross-cutting staples registry, stewarded by
-`/afk:claude-md`). Every design/plan/review stage reads `STAPLES.md`; only
-`/afk:claude-md` writes it.
+`/afk:agents-md`). Every design/plan/review stage reads `STAPLES.md`; only
+`/afk:agents-md` writes it.
 
 One artifact lives in the **main checkout** (shared across every feature
 worktree): `.claude/lessons/LEDGER.jsonl` — the append-only workflow lesson
@@ -539,7 +555,7 @@ The verification suites are **not** in this repo — they live in the consuming
 repository, and `verification.tiers` in its `.afk/config.yaml` says how to run
 each tier. A skill names a tier KEY (`static`, `unit`, `integration`, `api`,
 `e2e/browser`), never a command. A repository that keeps authoring recipes for
-its own suites names them in its own `CLAUDE.md` and in the `setup.extra` files
+its own suites names them in its own `AGENTS.md` and in the `setup.extra` files
 `/afk:setup` reads; AFK skills only *point* at recipes — never embed a
 copy, because a copy drifts from the code it describes.
 
@@ -587,6 +603,7 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `review_fail` | the Step 10 review settle loop hit its 10-round cap with findings still open (stalemate — unusual by construction) | read the open findings in `plan/review/` and judge them yourself |
 | `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived its remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
 | `adversary_unrun` | the run ended before the Step 10.5 gate could spawn — tiers green, findings settled, but nothing independent judged the slice | re-run the subtask; it resumes at the gate rather than from the top |
+| `rationale_unposted` | the Step 11 receipt check failed — a recorded reason is unposted or unreceipted, or the push or Draft creation is blocked | fix the blocker named in the outcome; re-run the subtask, which resumes at Step 7 |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
 | `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk:grill-solution` → superseding ADR |
@@ -630,7 +647,7 @@ graph TD
 Full contract — checkpoint text, the mandatory-`## Produces` rule,
 `design_conflict` routing on a binding-decision break, and the opt-in
 **materialized seams** upgrade (`materialize_seams=true`: compiler-checked
-pre-created seam stubs) — lives in CLAUDE.md "Cited-mode contract".
+pre-created seam stubs) — lives in AGENTS.md "Cited-mode contract".
 
 ---
 
@@ -715,9 +732,9 @@ refactors, tooling.)*
   `skills/afk/retro/SKILL.md`.
 - **`/afk:lessons`** — steward of the workflow lesson ledger
   (`status`/`apply`/`audit`). Details: `skills/afk/lessons/SKILL.md`.
-- **`/afk:claude-md`** — steward of CLAUDE.md harnesses, `.claude/rules`, and
+- **`/afk:agents-md`** — steward of AGENTS.md harnesses, `.claude/rules`, and
   the per-service `STAPLES.md` registry. Details:
-  `skills/afk/claude-md/SKILL.md`.
+  `skills/afk/agents-md/SKILL.md`.
 - **`/afk:design-system`** — per-service (not per-feature) `claude.ai/design`
   catalog mirroring the live frontend; re-run on token/component drift.
   Details: `skills/afk/design-system/SKILL.md`.
@@ -765,15 +782,21 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
 - **`/afk:investigate`** — answer a question about existing code to closure over
   the boundary catalog, and write its coverage ledger. Details:
   `skills/utils/investigate/SKILL.md`.
-- **`/afk:report-issue`** — file a plugin defect or feedback as a redacted,
-  deduplicated GitHub issue on the plugin's repository; `publish` drains queued
-  drafts. Details: `skills/utils/report-issue/SKILL.md`.
+- **`/afk:report-issue`** — investigate suspected AFK problems, propose a
+  redacted report, then create an issue or add context to an existing issue
+  after explicit approval; `publish` drains queued drafts. Details:
+  `skills/utils/report-issue/SKILL.md`.
 - **`/afk:review-qa-tests`** — review + annotate a QA team's manual test sheet
   against the requirements. Details: `skills/utils/review-qa-tests/SKILL.md`.
-- **`/afk:settle-change`** — settle any forge change request through the review loop, the change
-  itself the ledger; for MRs outside the AFK chain. Details:
+- **`/afk:settle-change`** — settle any forge change request through the review loop. The change
+  is the review record. Findings use exact inline locations, and every settled
+  result passes a reconstructed closure check. Details:
   `skills/utils/settle-change/SKILL.md`. `/afk:settle-mr` stays as a
   deprecated alias for one major version and forwards here.
+- **`/afk:sred`** — user-invoked: write or revise SR&ED (Scientific Research
+  and Experimental Development) technical investigation documents for an audit
+  team; Markdown for review, DOCX on acceptance. Details:
+  `skills/utils/sred/SKILL.md`.
 - **`/afk:todo`** — per-project todo list that survives sessions. Details:
   `skills/utils/todo/SKILL.md`.
 - **`writing-for-agents`** — doctrine for writing any document an agent
@@ -789,7 +812,7 @@ General-purpose, under `skills/utils/`, invocable any time in any project.
 
 Mixed human + automated Markdown surfaces have strict single-writer ownership.
 Full map (including SDD-never-published, journal append-only, `plan/review/`
-co-writers): CLAUDE.md "Section ownership invariants". The three you'll meet
+co-writers): AGENTS.md "Section ownership invariants". The three you'll meet
 first:
 
 - **Parent ticket description** — `/afk:to-ticket` writes only its AFK-managed
@@ -802,12 +825,18 @@ first:
   cell; `/afk:smoke-test` a disjoint smoke-gate slice of the same `PLAN.md`.
 
 > **Contributor rules.** Same-commit freshness: `FRESHNESS.md` (plugin root).
-> Emitter/parser lockstep on plan contract sections: CLAUDE.md "Lockstep".
+> Emitter/parser lockstep on plan contract sections: AGENTS.md "Lockstep".
 
 ---
 
 ## 12. Conventions & gotchas
 
+- **One linked worktree per session.** The plugin refuses an agent's edits,
+  write-capable commands and commits in the main checkout or on a protected branch, and
+  moves the session into a worktree instead (`SAFETY.md` "Worktree per
+  session"; `PROVIDERS.md` for each harness's move). Single recognized
+  read-only commands remain available. A human sets
+  `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
 - **Branch names** must match the repository's own `git.branch-pattern`, and a
   new branch is named from its `git.branch-template`. A repository that
   declares neither gets no branch gate.
@@ -817,9 +846,12 @@ first:
 - **Never alter a schema by hand where the repository generates it.** Declare
   the model and let the repository's migration tool pick it up; `/afk:execute`
   Step 9 runs the pickup verification the repository configures.
-- **Cross-module edits need a marker comment** — a ticket-prefixed line like
-  `// {TICKET-ID}: shared helper added` in the added hunks of any file outside the
-  home module.
+- **Reasons for a change live on the change, not in source comments.** Source
+  keeps at most 2 comment lines that pass the classification test; the commit-time
+  comment gate blocks tracker references. `/afk:execute` records each moved reason
+  as a rationale entry, posts it as an inline comment on the Draft change, and
+  completes only after the batch receipt verifies. Policy and commands:
+  [`RATIONALE.md`](RATIONALE.md).
 - **Re-run `/afk:to-ticket`** after the PRD changes (idempotent; the re-publish
   posts the requirements delta as a comment). Jira-writer boundary: [§2 ④](#2-the-mental-model).
 
@@ -841,4 +873,4 @@ returns), and
 a tracked stub — grills carry only a pointer to it).
 
 For contributor-facing internals (the lockstep contract, three-checkpoint
-enforcement, tracker boundary), see [`CLAUDE.md`](CLAUDE.md).
+enforcement, tracker boundary), see [`AGENTS.md`](AGENTS.md).

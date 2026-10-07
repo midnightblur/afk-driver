@@ -22,6 +22,16 @@ ac = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ac)
 
 
+@pytest.fixture(autouse=True)
+def _empty_home(tmp_path, monkeypatch):
+    """No test reads the developer's real `~/.afk` or `~/.claude.json`."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+
+
 def git(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True,
                    capture_output=True, text=True)
@@ -126,6 +136,16 @@ def test_the_scaffold_leaves_the_investigation_block_as_a_todo(tmp_path):
     assert "investigation" not in config
 
 
+def test_the_scaffold_writes_the_ledger_only_defaults(tmp_path):
+    root = make_repo(tmp_path, "review-defaults")
+    text, config = scaffold_of(root)
+    assert "review:\n  ledger-only-paths:\n    - plan/review/**\n    - plan/JOURNAL.md" in text
+    assert config["review"]["ledger-only-paths"] == [
+        "plan/review/**",
+        "plan/JOURNAL.md",
+    ]
+
+
 # ---------------------------------------------------------------- writing
 
 def test_init_writes_the_file_and_refuses_to_overwrite(tmp_path):
@@ -167,6 +187,23 @@ def test_nothing_set_means_fail_closed():
     assert ac.developer_value({}, "trackerAssignee") is None
     assert ac.developer_value({}, "mrReviewer") is None
     assert ac.developer_value({}, "ideBinary") is None
+
+
+def test_mr_assignee_is_a_developer_key_that_resolves_from_the_block():
+    assert "mrAssignee" in ac.DEVELOPER_KEYS
+    assert ac.developer_value({"developer": {"mrAssignee": "me"}}, "mrAssignee") == "me"
+
+
+def test_mr_assignee_unset_resolves_to_nothing():
+    # Unset is a valid state — no assignee — never a derived or defaulted value.
+    assert ac.developer_value({}, "mrAssignee") is None
+    assert ac.developer_value({"developer": {}}, "mrAssignee") is None
+
+
+def test_mr_assignee_none_resolves_to_nothing():
+    # A recorded `none` must beat a broader layer's assignee, so it resolves as unset.
+    assert ac.developer_value({"developer": {"mrAssignee": "none"}}, "mrAssignee") is None
+    assert ac.developer_value({"developer": {"mrReviewer": "none"}}, "mrReviewer") == "none"
 
 
 # ------------------------------------------------------- derived worktrees
@@ -285,3 +322,338 @@ def test_a_committed_team_default_block_is_now_an_unknown_key():
                for p in ac.validate({**base, "tracker-defaults": {"assignee": "x"}}))
     assert any("unknown" in p
                for p in ac.validate({**base, "forge-defaults": {"reviewer": "x"}}))
+
+
+# ------------------------------------------------- reactor POM and TODO hints
+
+def test_several_root_poms_leave_a_todo_not_a_guess(tmp_path):
+    repo = make_repo(tmp_path, "many", "git@gitlab.com:acme/w.git",
+                     [("mvnw", "#!/bin/sh\n"), ("10010-service-pom.xml", "<project/>\n"),
+                      ("all-modules-pom.xml", "<project/>\n")])
+    text, config = scaffold_of(repo)
+    assert "reactor-pom" not in (config.get("maven") or {})
+    todo = [l for l in text.splitlines() if l.lstrip().startswith("# reactor-pom: TODO")]
+    assert len(todo) == 1
+    assert "10010-service-pom.xml" in todo[0] and "all-modules-pom.xml" in todo[0]
+
+
+def test_mvnw_without_a_pom_leaves_a_todo(tmp_path):
+    repo = make_repo(tmp_path, "wrapper", None, [("mvnw", "#!/bin/sh\n")])
+    text, config = scaffold_of(repo)
+    assert "reactor-pom" not in (config.get("maven") or {})
+    assert "# reactor-pom: TODO" in text and "none found" in text
+
+
+def test_one_named_pom_is_the_reactor(tmp_path):
+    repo = make_repo(tmp_path, "one", None,
+                     [("mvnw", "#!/bin/sh\n"), ("x-pom.xml", "<project/>\n")])
+    _, config = scaffold_of(repo)
+    assert config["maven"]["reactor-pom"] == "x-pom.xml"
+
+
+def test_jira_credentials_leave_a_tracker_hint(tmp_path, monkeypatch):
+    monkeypatch.setenv("JIRA_BASE_URL", "https://secret-corp.example.net")
+    repo = make_repo(tmp_path, "jira", "git@gitlab.com:acme/w.git")
+    text, config = scaffold_of(repo)
+    assert config["tracker"] == "none"
+    assert "# TODO: JIRA_BASE_URL is set (environment or the tracker server's credentials); set tracker: jira" in text
+    assert "secret-corp" not in text
+
+
+def test_no_jira_hint_without_credentials(tmp_path, monkeypatch):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "nojira", "git@gitlab.com:acme/w.git")
+    text, _ = scaffold_of(repo)
+    assert "JIRA_BASE_URL is set" not in text
+
+
+def _init_stdout(repo, monkeypatch, capsys):
+    monkeypatch.chdir(repo)
+    assert ac.main(["init"]) == 0
+    return capsys.readouterr().out.splitlines()
+
+
+def test_init_names_what_it_left_as_todo(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("JIRA_BASE_URL", "https://secret-corp.example.net")
+    repo = make_repo(tmp_path, "cli", "git@gitlab.com:acme/w.git",
+                     [("mvnw", "#!/bin/sh\n"), ("10010-service-pom.xml", "<project/>\n"),
+                      ("all-modules-pom.xml", "<project/>\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: tracker, jira.project, maven.reactor-pom"
+    assert len(out) == 2
+
+
+def test_an_optional_template_block_is_not_a_todo_to_answer(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "plain", "git@gitlab.com:acme/w.git", [("mvnw", "#!/bin/sh\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: maven.reactor-pom"
+
+
+def test_nothing_left_prints_no_todo_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+    repo = make_repo(tmp_path, "done", "git@gitlab.com:acme/w.git", [("pom.xml", "<project/>\n")])
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert len(out) == 1 and out[0].startswith("afk-config: wrote")
+
+
+def test_a_github_remote_without_a_slug_leaves_the_repo_key(tmp_path, monkeypatch, capsys):
+    repo = make_repo(tmp_path, "ghrepo", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", "https://github.com/")
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: github-issues.repo"
+
+
+# ------------------------------------- lower layers and the Jira env block
+
+def _home_with(tmp_path, monkeypatch, config_yaml=None, claude_json=None):
+    home = tmp_path / "home"
+    (home / ".afk").mkdir(parents=True)
+    if config_yaml:
+        (home / ".afk" / "config.yaml").write_text(config_yaml, encoding="utf-8")
+    if claude_json:
+        (home / ".claude.json").write_text(claude_json, encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    monkeypatch.delenv("JIRA_BASE_URL", raising=False)
+
+
+def _effective(repo, text):
+    """The configuration every layer resolves to once `text` is the repo file."""
+    (repo / ".afk").mkdir(exist_ok=True)
+    (repo / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
+    return ac.load(repo)
+
+
+def test_a_machine_tracker_is_not_shadowed_by_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: jira\n")
+    repo = make_repo(tmp_path, "shadow", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert _effective(repo, text)["tracker"] == "jira"
+    assert "TODO" in text and "tracker: jira" in text
+    assert "tracker" in todos
+
+
+def test_no_lower_tracker_still_writes_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    repo = make_repo(tmp_path, "plainhome", "git@gitlab.com:acme/w.git")
+    _, config = scaffold_of(repo)
+    assert config["tracker"] == "none"
+
+
+def test_a_machine_forge_is_not_shadowed_by_none(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\nforge: gitlab\n")
+    repo = make_repo(tmp_path, "noremote")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert _effective(repo, text)["forge"] == "gitlab"
+    assert "forge" in todos
+
+
+def test_jira_hint_reads_the_tracker_env_block_in_claude_json(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"tracker": {"env": '
+        '{"JIRA_BASE_URL": "https://secret-corp.example.net"}}}}'))
+    repo = make_repo(tmp_path, "blk", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "JIRA_BASE_URL is set" in text
+    assert "secret-corp" not in text
+    assert todos[:2] == ["tracker", "jira.project"]
+
+
+def test_a_foreign_jira_server_leaves_no_tracker_hint(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"jira": {"command": "npx", "args": ["-y", "mcp-atlassian"], '
+        '"env": {"JIRA_BASE_URL": "https://foreign.example.net"}}}}'))
+    repo = make_repo(tmp_path, "foreign", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "JIRA_BASE_URL is set" not in text
+    assert "tracker" not in todos
+
+
+def test_the_hint_reads_the_codex_credential_store(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    codex = tmp_path / "home" / ".codex"
+    codex.mkdir()
+    (codex / "config.toml").write_text(
+        '[mcp_servers.tracker.env]\nJIRA_BASE_URL = "https://secret-corp.example.net"\n',
+        encoding="utf-8")
+    repo = make_repo(tmp_path, "codex", "git@gitlab.com:acme/w.git")
+    text = ac.scaffold(repo, [])
+    assert "JIRA_BASE_URL is set" in text and "secret-corp" not in text
+
+
+def test_the_hint_is_absent_when_the_adapter_dependencies_are_missing(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, claude_json=(
+        '{"mcpServers": {"tracker": {"env": {"JIRA_BASE_URL": "https://x.example.net"}}}}'))
+    monkeypatch.setitem(sys.modules, "markdown_it", None)
+    repo = make_repo(tmp_path, "nodeps", "git@gitlab.com:acme/w.git")
+    assert "JIRA_BASE_URL is set" not in ac.scaffold(repo, [])
+
+
+def test_only_the_machine_layer_can_be_shadowed(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch)
+    repo = make_repo(tmp_path, "overlay", "git@gitlab.com:acme/w.git")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.local.yaml").write_text("tracker: jira\n", encoding="utf-8")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "TODO: tracker" not in text
+    assert "tracker" not in todos
+
+
+def test_a_machine_github_issues_tracker_gets_the_github_block(tmp_path, monkeypatch):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: github-issues\n")
+    repo = make_repo(tmp_path, "ghm", "git@gitlab.com:acme/w.git")
+    todos = []
+    text = ac.scaffold(repo, todos)
+    assert "github-issues:" in text and "set `tracker: jira`" not in text
+    assert todos == ["tracker", "github-issues.repo"] and "repo: TODO" in text
+    assert _effective(repo, text)["tracker"] == "github-issues"
+
+
+def test_init_names_the_machine_tracker_todos_exactly(tmp_path, monkeypatch, capsys):
+    _home_with(tmp_path, monkeypatch, "schema: 1\ntracker: jira\n")
+    repo = make_repo(tmp_path, "exact", "git@gitlab.com:acme/w.git")
+    out = _init_stdout(repo, monkeypatch, capsys)
+    assert out[1] == "afk-config: TODO left: tracker, jira.project"
+
+
+def test_a_host_that_merely_ends_in_github_com_is_not_github(tmp_path):
+    repo = make_repo(tmp_path, "lookalike", "https://notgithub.com/acme/w.git")
+    text, config = scaffold_of(repo)
+    assert config["tracker"] == "none" and "repo: acme/w" not in text
+
+
+def test_a_github_enterprise_subdomain_counts_as_github(tmp_path):
+    repo = make_repo(tmp_path, "sub", "https://api.github.com/acme/w.git")
+    _, config = scaffold_of(repo)
+    assert config["tracker"] == "github-issues"
+
+
+# ------------------------------------- an existing contract elsewhere
+
+CONFIG_BODY = "schema: 1\ntracker: jira\n"
+
+
+def test_init_refuses_when_the_base_branch_has_a_config(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "config")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(wt)
+    assert "main" in str(refused.value) and "merge or rebase" in str(refused.value)
+    assert not (wt / ".afk" / "config.yaml").exists()
+
+
+def test_force_scaffolds_anyway(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "config")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    target, problems = ac.init(wt, force=True)
+    assert target.is_file() and problems == []
+
+
+def test_init_refuses_when_a_remote_base_ref_has_the_config(tmp_path):
+    repo = make_repo(tmp_path, "solo", files=[(".afk/config.yaml", CONFIG_BODY)])
+    tip = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
+                         capture_output=True, text=True).stdout.strip()
+    git(repo, "update-ref", "refs/remotes/origin/main", tip)
+    git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    git(repo, "rm", "-q", "-r", "--cached", ".afk")
+    git(repo, "commit", "-qm", "drop config from local base")
+    (repo / ".afk" / "config.yaml").unlink()
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(repo)
+    assert "origin/main" in str(refused.value)
+
+
+def test_init_refuses_when_the_main_worktree_has_a_config(tmp_path):
+    repo = make_repo(tmp_path, "main-repo")
+    git(repo, "branch", "old")
+    (repo / ".afk").mkdir()
+    (repo / ".afk" / "config.yaml").write_text(CONFIG_BODY, encoding="utf-8")
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", str(wt), "old")
+    with pytest.raises(ac.ConfigError) as refused:
+        ac.init(wt)
+    assert str(repo.resolve()).replace("\\", "/") in str(refused.value).replace("\\", "/")
+
+
+def test_init_still_writes_in_a_repo_with_no_config_anywhere(tmp_path):
+    repo = make_repo(tmp_path, "fresh")
+    target, problems = ac.init(repo)
+    assert target.is_file() and problems == []
+
+
+def test_a_git_that_times_out_does_not_stop_init(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, "slowgit")
+    real = subprocess.run
+    seen = []
+
+    def flaky(argv, **kwargs):
+        if "cat-file" in argv:
+            seen.append(kwargs)
+            raise subprocess.TimeoutExpired(argv, 20)
+        return real(argv, **kwargs)
+
+    monkeypatch.setattr(ac.subprocess, "run", flaky)
+    target, problems = ac.init(repo)
+    assert target.is_file() and problems == []
+    assert seen and seen[0]["stdin"] is subprocess.DEVNULL
+
+
+TODO_REMOTES = [
+    "https://github.com/acme",
+    "https://github.com/acme/",
+    "https://github.com/acme.git",
+    "ssh://git@github.com/acme",
+    "https://{user}@github.com/acme",
+    "git@github.com:acme",
+    "https://api.github.com/org/sub/w.git",
+]
+SLUG_REMOTES = [
+    "https://github.com/acme/widget",
+    "git@github.com:acme/widget.git",
+    "ssh://git@github.com:22/acme/widget.git",
+    "https://github.com:443/acme/widget",
+    "https://github.com/acme/widget.git/",
+]
+
+
+@pytest.mark.parametrize("remote", TODO_REMOTES)
+def test_a_github_remote_without_owner_and_name_leaves_the_repo_a_todo(
+        tmp_path, monkeypatch, capsys, remote):
+    repo = make_repo(tmp_path, "owner-only", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", remote)
+    out = _init_stdout(repo, monkeypatch, capsys)
+    text = (repo / ".afk" / "config.yaml").read_text(encoding="utf-8")
+    assert "repo: TODO" in text
+    for wrong in ("github.com/", "git@", "{user}@", "sub/w", "org/"):
+        assert f"repo: {wrong}" not in text
+    assert "afk-config: TODO left: github-issues.repo" in out
+
+
+@pytest.mark.parametrize("remote", SLUG_REMOTES)
+def test_a_github_remote_with_owner_and_name_writes_the_slug(
+        tmp_path, monkeypatch, capsys, remote):
+    repo = make_repo(tmp_path, "slug", "https://github.com/acme/widget.git")
+    git(repo, "remote", "set-url", "origin", remote)
+    out = _init_stdout(repo, monkeypatch, capsys)
+    text = (repo / ".afk" / "config.yaml").read_text(encoding="utf-8")
+    assert "repo: acme/widget" in text and "repo: TODO" not in text
+    assert not any("github-issues.repo" in line for line in out)

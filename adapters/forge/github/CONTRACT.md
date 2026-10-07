@@ -8,6 +8,7 @@ GitHub pull requests through `gh`.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
+- `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
 
@@ -28,7 +29,7 @@ CLI already established, and no configuration file holds a token.
 
 ## Notes that bite
 
-The paginated read and every `ci-wait` exit are pinned offline, against a stub command-line tool, by `scripts/tests/test_forge_adapters.py`.
+The adapter tests use a stub command-line tool. They do not contact GitHub.
 
 - A paginated read (`gh api --paginate`) prints one JSON document per page, not
   one document holding every page. `thread-list` decodes the documents in order
@@ -43,12 +44,24 @@ The paginated read and every `ci-wait` exit are pinned offline, against a stub c
   re-parses the command line, and the adapter then reads an unreadable payload
   and uses its defaults. Such a caller puts the payload in the environment and
   lets the shell expand it.
-- GitHub has no discussion object: a thread is a root review comment plus the
-  comments whose `in_reply_to_id` points at it, so `thread-list` does that
-  grouping and reports `resolved: null` — resolution lives on a GraphQL review
-  thread these REST ids are not.
-- `thread-resolve` therefore answers `unsupported`. Leaving a thread open is
-  visible; resolving the wrong one silently hides a finding.
+- `change-comment` uses the issue-comment API for a plain note. It uses the
+  review-comment API for an exact line.
+- `side: old` sends `LEFT`, `old_path`, and `old_line`. `new` and `context`
+  send `RIGHT`, `new_path`, and `line`.
+- `thread-list` groups REST review comments by their root identifier. It joins
+  the real resolution state from paginated GraphQL review threads.
+- `thread-resolve` maps the REST root identifier to the GraphQL node. An
+  unmapped root returns an error and changes nothing.
+- `note-list` reads paginated issue comments. It returns plain notes only, each
+  with `edited` from GraphQL `lastEditedAt` (keyed by `databaseId`). A failed
+  query, or a comment the query does not answer, is an error.
+- `thread-list` carries `edited` on every note from the same GraphQL review-thread
+  query that gives the resolution state; a comment missing from the answer is an error.
+- `commit-changes` reads the pull requests that contain one commit (`sha`), paginated. A merged request reports `merged`; an open one reports `opened`. A failing `gh`, a non-list answer, or an entry with no number is an error.
+- `change-view` answers `missing: true` in its error only when `gh` says no pull request exists for the reference.
+- `change-view` and `change-fetch` return the metadata in `ADAPTERS.md`.
+- `blob_base` names the source repository. It is empty when that repository is
+  unavailable.
 - "Pipeline status" is the rollup of the head commit's checks, mapped into the
   same words the GitLab adapter answers with, so one caller compares one
   vocabulary.

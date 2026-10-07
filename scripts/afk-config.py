@@ -21,18 +21,20 @@ Discovery, highest precedence first:
 
     $AFK_CONFIG                        (an explicit file)
     <git root>/.afk/config.local.yaml  (gitignored per-developer overlay)
+    <git common dir>/afk/config.yaml   (untracked, shared by every worktree)
     <git root>/.afk/config.yaml        (committed, the repository's contract)
     ~/.afk/config.yaml                 (per-machine defaults)
     built-in defaults
 
 Layers are deep-merged: a mapping merges key by key, any other value replaces.
-The local overlay may not change `schema`.
+Neither overlay may change `schema`.
 
 Secrets never live in a configuration file. A file names ENVIRONMENT VARIABLES;
 the values come from the environment or a harness credential store.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -53,21 +55,22 @@ TOP_LEVEL = {
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
-    "report-issue",
+    "report-issue", "review",
 }
 
 # Per-developer values: whose machine this is, not what the repository is.
-# Every one is OPTIONAL. Their home is `~/.afk/config.yaml`, which covers every
-# checkout on the machine; the gitignored `.afk/config.local.yaml` overlay is for
-# a value that differs in ONE checkout. Never the committed file.
+# Every one is OPTIONAL. The shared overlay holds one repository's values for all
+# its worktrees, `~/.afk/config.yaml` defaults for every repository, and the
+# gitignored `.afk/config.local.yaml` a value for ONE checkout. Never the committed file.
 #
-# `trackerAssignee` and `mrReviewer` NAME A PERSON, so they have no default at
-# any layer: a committed file may not name one, and no toolkit may pick one for
-# a team. Setup asks each developer, and a value nobody supplied fails closed
-# (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix). `worktreeBasePath`
+# `trackerAssignee`, `mrReviewer` and `mrAssignee` NAME A PERSON, so they have no
+# default at any layer: a committed file may not name one, and no toolkit may
+# pick one for a team. Setup asks each developer, and a value nobody supplied
+# resolves to nothing (`skills/afk/bug/CONFIG.md` owns the fail-closed matrix;
+# `mrAssignee` never gates — an unset or `none` one means no assignee). `worktreeBasePath`
 # has a default because it is DERIVED (`worktree_base`) and names no person;
 # `ideBinary` has none because no default could be right.
-DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "worktreeBasePath", "ideBinary"}
+DEVELOPER_KEYS = {"trackerAssignee", "mrReviewer", "mrAssignee", "worktreeBasePath", "ideBinary"}
 
 # What a new worktree carries over from the checkout it was cut from. These are
 # personal, untracked files a fresh `git worktree add` would leave behind — the
@@ -121,7 +124,9 @@ CHILD_KEYS: dict[str, set[str]] = {
     "setup": {"extra"},
     "worktree": WORKTREE_KEYS,
     "developer": DEVELOPER_KEYS,
+    # Keep auto-publish valid for old configs. Report publishing always needs approval.
     "report-issue": {"repository", "auto-publish"},
+    "review": {"ledger-only-paths"},
 }
 
 DEFAULTS: dict = {
@@ -135,6 +140,9 @@ DEFAULTS: dict = {
         "copy": list(WORKTREE_COPY_DEFAULT),
         "copy-personal": True,
         "copy-ignored-claude-md": True,
+    },
+    "review": {
+        "ledger-only-paths": ["plan/review/**", "plan/JOURNAL.md"],
     },
 }
 
@@ -305,12 +313,20 @@ def git_root(start: Path | None = None) -> Path | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(start or Path.cwd()), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None
     top = out.stdout.strip()
     return Path(top) if out.returncode == 0 and top else None
+
+
+def project_root(start: Path | None = None) -> Path | None:
+    """`CLAUDE_PROJECT_DIR` when set, else `start` (default cwd); the Git root of
+    either. Config lives under the Git root, so a subdirectory resolves to it."""
+    value = os.environ.get("CLAUDE_PROJECT_DIR")
+    base = Path(value) if value else (start or Path.cwd())
+    return git_root(base) or (Path(value) if value else None)
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:
@@ -323,6 +339,27 @@ def deep_merge(base: dict, overlay: dict) -> dict:
     return result
 
 
+def shared_overlay(root: Path) -> Path | None:
+    """`<git common dir>/afk/config.yaml`: the one file every worktree of `root` reads.
+
+    Read from `.git` itself rather than by spawning git: `load` runs on every Stop.
+    """
+    dot_git = root / ".git"
+    if dot_git.is_dir():
+        common = dot_git
+    elif dot_git.is_file():
+        text = dot_git.read_text(encoding="utf-8", errors="replace").strip()
+        if not text.startswith("gitdir:"):
+            return None
+        admin = (root / text[len("gitdir:"):].strip()).resolve()
+        pointer = admin / "commondir"
+        common = ((admin / pointer.read_text(encoding="utf-8").strip()).resolve()
+                  if pointer.is_file() else admin)
+    else:
+        return None
+    return common / "afk" / "config.yaml"
+
+
 def layers(root: Path | None) -> list[tuple[str, Path]]:
     """Configuration files, LOWEST precedence first."""
     found: list[tuple[str, Path]] = []
@@ -333,6 +370,9 @@ def layers(root: Path | None) -> list[tuple[str, Path]]:
         repo = root / ".afk" / "config.yaml"
         if repo.is_file():
             found.append(("repo", repo))
+        shared = shared_overlay(root)
+        if shared is not None and shared.is_file():
+            found.append(("shared", shared))
         local = root / ".afk" / "config.local.yaml"
         if local.is_file():
             found.append(("local", local))
@@ -351,8 +391,8 @@ def load(root: Path | None = None) -> dict:
     effective = dict(DEFAULTS)
     for kind, path in layers(root):
         document = parse(path.read_text(encoding="utf-8"), str(path))
-        if kind == "local" and "schema" in document:
-            raise ConfigError(f"{path}: the local overlay may not set `schema`")
+        if kind in ("local", "shared") and "schema" in document:
+            raise ConfigError(f"{path}: the {kind} overlay may not set `schema`")
         effective = deep_merge(effective, document)
     return effective
 
@@ -596,6 +636,23 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
                 f"{', '.join(sorted(allowed))}"
             )
 
+    ledger_paths = (config.get("review") or {}).get("ledger-only-paths") if isinstance(
+        config.get("review"), dict) else None
+    if ledger_paths is not None:
+        if not isinstance(ledger_paths, list):
+            problems.append("review.ledger-only-paths: must be a block list of path globs")
+        else:
+            for entry in ledger_paths:
+                where = "review.ledger-only-paths"
+                if not isinstance(entry, str) or not entry.strip():
+                    problems.append(f"{where}: {entry!r} must be a path glob")
+                elif entry.startswith("!"):
+                    problems.append(f"{where}: {entry!r} does not support negation")
+                elif "\\" in entry:
+                    problems.append(f"{where}: {entry!r} must use forward slashes")
+                else:
+                    _relative_path(problems, where, entry)
+
     creds = (config.get("jira") or {}).get("credentials-env") if isinstance(
         config.get("jira"), dict) else None
     if creds is not None and not isinstance(creds, list):
@@ -708,6 +765,37 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
     return problems
 
 
+# (dotted key, file or directory) for each repository-relative path a gate reads.
+PATH_KEYS = (
+    ("repo-hooks", "file"), ("setup.extra", "file"),
+    ("maven.reactor-pom", "file"), ("maven.formatter-config", "file"),
+    ("maven.default-module", "dir"),
+    ("npm.workspace-root", "dir"),
+)
+
+
+def path_warnings(config: dict, root: Path | None) -> list[str]:
+    """One warning per configured path that is absent under `root`.
+
+    Not a problem: a missing path leaves a gate inert, and a sample or a fresh
+    clone may name files it does not carry. Non-string values are `validate`'s.
+    """
+    if root is None:
+        return []
+    warnings: list[str] = []
+    for dotted, kind in PATH_KEYS:
+        value: object = config
+        for part in dotted.split("."):
+            value = value.get(part) if isinstance(value, dict) else None
+        for path in value if isinstance(value, list) else [value]:
+            if not isinstance(path, str) or not path or path in ("auto", "none"):
+                continue
+            target = root / path
+            if not (target.is_dir() if kind == "dir" else target.is_file()):
+                warnings.append(f"{dotted}: {path} does not exist under the repository root")
+    return warnings
+
+
 # --------------------------------------------------------------------------
 # Resolving a developer value
 # --------------------------------------------------------------------------
@@ -739,6 +827,8 @@ def developer_value(config: dict, key: str, root: Path | None = None) -> str | N
     say which developer value is missing, never invent one.
     """
     value = get(config, f"developer.{key}")
+    if key == "mrAssignee" and isinstance(value, str) and value.strip().lower() == "none":
+        return None      # a recorded "no assignee" lets a narrower layer override a broader one
     if isinstance(value, str) and value.strip():
         return value
     if key == "worktreeBasePath":
@@ -757,6 +847,7 @@ def _git(root: Path, *args: str) -> str:
     try:
         out = subprocess.run(
             ["git", "-C", str(root), *args], capture_output=True, text=True, timeout=20,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -791,24 +882,31 @@ def detect_forge(root: Path) -> tuple[str, str, str]:
     return "none", remote, host
 
 
-def detect_build_gates(root: Path) -> tuple[list[str], dict]:
-    """The build gates this repository can run, and their configuration blocks."""
+def detect_build_gates(root: Path) -> tuple[list[str], dict, list[str]]:
+    """The build gates this repository can run, their configuration blocks, and
+    the root POM candidates when the reactor POM is not decidable."""
     gates: list[str] = []
     blocks: dict = {}
+    candidates: list[str] = []
 
     root_pom = root / "pom.xml"
     if root_pom.is_file() or (root / "mvnw").is_file() or (root / "mvnw.cmd").is_file():
         gates.append("maven")
-        # An aggregator that is not `pom.xml` is common enough that guessing is
-        # worse than naming what was found.
+        # Only a root `pom.xml` or a single `*pom.xml` names the reactor; any
+        # other count is a guess, so it stays a TODO listing what was found.
         poms = sorted(p.name for p in root.glob("*pom.xml"))
-        reactor = "pom.xml" if root_pom.is_file() else (poms[0] if poms else "pom.xml")
-        blocks["maven"] = {"reactor-pom": reactor}
+        if root_pom.is_file():
+            blocks["maven"] = {"reactor-pom": "pom.xml"}
+        elif len(poms) == 1:
+            blocks["maven"] = {"reactor-pom": poms[0]}
+        else:
+            blocks["maven"] = {}
+            candidates = poms
 
     if (root / "package.json").is_file():
         gates.append("npm")
         blocks["npm"] = {"workspace-root": "."}
-    return gates, blocks
+    return gates, blocks, candidates
 
 
 def detect_base_branch(root: Path) -> str:
@@ -827,22 +925,69 @@ def repo_slug(root: Path, remote: str) -> str:
     if not remote:
         return ""
     url = _git(root, "remote", "get-url", remote) or ""
-    match = re.search(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?/?$", url.strip())
-    return f"{match.group(1)}/{match.group(2)}" if match else ""
+    spec = importlib.util.spec_from_file_location(
+        "afk_project_from_remote",
+        Path(__file__).resolve().parent.parent / "adapters/forge/project_from_remote.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    path = module.project(url)
+    return path if path.count("/") == 1 else ""
 
 
-def scaffold(root: Path) -> str:
+def _machine_layer() -> dict:
+    """The per-machine file, the only layer below the repository file."""
+    home = Path.home() / ".afk" / "config.yaml"
+    if not home.is_file():
+        return {}
+    return parse(home.read_text(encoding="utf-8"), str(home))
+
+
+def _jira_env_present() -> bool:
+    """Whether the Jira credential chain resolves `JIRA_BASE_URL`. The chain
+    has one home, the jira adapter; presence only, the value is never used."""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "afk_jira_api", Path(__file__).resolve().parent.parent / "adapters/tracker/jira/api.py")
+        api = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(api)
+    except ImportError:          # the adapter's Python dependencies are not installed
+        return False
+    return bool(api.resolve_creds_env().get("JIRA_BASE_URL"))
+
+
+def _inherited_line(key: str, found: str, inherited: dict, left: list[str]) -> list[str]:
+    """The `key: value` line, or a TODO naming the lower layer's value when
+    writing `found` would shadow it."""
+    if key not in inherited:
+        return [f"{key}: {found}"]
+    left.append(key)
+    return [f"# TODO: {key}: {inherited[key]} comes from the machine layer; uncomment to pin it here",
+            f"# {key}: {inherited[key]}"]
+
+
+def scaffold(root: Path, todos: list[str] | None = None) -> str:
     """A starter configuration for this repository, as text.
 
     Every value it cannot read from the repository is written as a commented
     TODO rather than a plausible guess: a wrong value that validates is harder
-    to notice than a missing one.
+    to notice than a missing one. `todos`, when given, receives the dotted key
+    of each value the human must answer; an optional template block is not one.
     """
+    left = todos if todos is not None else []
     forge, remote, host = detect_forge(root)
-    slug = repo_slug(root, remote)
-    gates, blocks = detect_build_gates(root)
+    # Only a github.com remote names a GitHub Issues repository; any other host's
+    # slug would point the adapter at a repository nobody chose.
+    on_github = forge == "github" and (host == "github.com" or host.endswith(".github.com"))
+    slug = repo_slug(root, remote) if on_github else ""
+    gates, blocks, pom_candidates = detect_build_gates(root)
     base = detect_base_branch(root)
-    tracker = "github-issues" if forge == "github" and host.endswith("github.com") else "none"
+    tracker = "github-issues" if on_github else "none"
+    lower = _machine_layer()
+    # A `none` written here would shadow the machine layer's value.
+    inherited = {
+        key: lower[key] for key, found in (("tracker", tracker), ("forge", forge))
+        if found == "none" and lower.get(key) not in (None, "none")
+    }
 
     lines = [
         "# AFK configuration for this repository. Committed: it is the contract",
@@ -853,8 +998,8 @@ def scaffold(root: Path) -> str:
         "# repository could not answer for itself.",
         f"schema: {SCHEMA}",
         "",
-        f"tracker: {tracker}",
-        f"forge: {forge}",
+        *(_inherited_line("tracker", tracker, inherited, left)),
+        *(_inherited_line("forge", forge, inherited, left)),
         "notes: repo-files",
     ]
 
@@ -868,7 +1013,14 @@ def scaffold(root: Path) -> str:
         ]
 
     lines.append("")
-    if tracker == "none":
+    effective = inherited.get("tracker", tracker)
+    if effective in ("none", "jira"):
+        if effective == "jira":
+            left.append("jira.project")
+        elif _jira_env_present():
+            lines.append("# TODO: JIRA_BASE_URL is set (environment or the tracker server's "
+                         "credentials); set tracker: jira")
+            left += ["tracker", "jira.project"]
         lines += [
             "# Jira: set `tracker: jira` above and fill this block in.",
             "# jira:",
@@ -884,6 +1036,8 @@ def scaffold(root: Path) -> str:
             "#     - JIRA_API_TOKEN",
         ]
     else:
+        if not slug:
+            left.append("github-issues.repo")
         lines += [
             "github-issues:",
             f"  repo: {slug or 'TODO                # owner/name'}",
@@ -908,6 +1062,11 @@ def scaffold(root: Path) -> str:
         "repo-files:",
         "  spec-dir: docs/afk/{workId}",
         "",
+        "review:",
+        "  ledger-only-paths:",
+        "    - plan/review/**",
+        "    - plan/JOURNAL.md",
+        "",
     ]
 
     for gate in gates:
@@ -916,6 +1075,10 @@ def scaffold(root: Path) -> str:
         for key, value in block.items():
             lines.append(f"  {key}: {value}")
         if gate == "maven":
+            if "reactor-pom" not in block:
+                found = ", ".join(pom_candidates) or "none found at the root"
+                left.append("maven.reactor-pom")
+                lines.append(f"  # reactor-pom: TODO      # the aggregator POM; candidates: {found}")
             lines.append("  # default-module: TODO      # the module the gates build when a")
             lines.append("  # change names none; omit to build the whole reactor.")
         lines.append("")
@@ -952,16 +1115,56 @@ def scaffold(root: Path) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:
-    """Write the starter file. Returns its path and any validation problems."""
+def _git_ok(root: Path, *args: str) -> bool:
+    """Whether a git command exits 0; a timeout or missing git is `False`."""
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, timeout=5,
+            stdin=subprocess.DEVNULL,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def committed_elsewhere(root: Path) -> str | None:
+    """Where a config already exists outside `root`'s own file, else `None`.
+
+    A worktree on a branch cut before the config commit sees no file, yet the
+    base branch and the main worktree still carry the repository's contract."""
+    base = detect_base_branch(root)
+    names = [base] if base != "auto" else ["main", "master"]
+    refs = [f"refs/remotes/origin/{n}" for n in names] + [f"refs/heads/{n}" for n in names]
+    for ref in refs:
+        if _git_ok(root, "cat-file", "-e", f"{ref}:.afk/config.yaml"):
+            return f"`{ref.removeprefix('refs/remotes/').removeprefix('refs/heads/')}`"
+    common = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common:
+        main = Path(common).parent
+        if main.resolve() != root.resolve() and (main / ".afk" / "config.yaml").is_file():
+            return f"the main worktree {main}"
+    return None
+
+
+def init(root: Path, force: bool = False,
+         todos: list[str] | None = None) -> tuple[Path, list[str]]:
+    """Write the starter file. Returns its path and any validation problems;
+    `todos` receives the keys the scaffold left for the human."""
     target = root / ".afk" / "config.yaml"
     if target.is_file() and not force:
         raise ConfigError(
             f"{target} already exists; nothing was written. "
             f"Pass --force to replace it (the current file is not backed up)."
         )
+    where = None if force or target.is_file() else committed_elsewhere(root)
+    if where:
+        raise ConfigError(
+            f"{where} already has .afk/config.yaml; restore it "
+            f"(`git checkout <base> -- .afk/config.yaml`), or merge or rebase "
+            f"that branch, instead of scaffolding a second contract. "
+            f"Pass --force to scaffold anyway."
+        )
     target.parent.mkdir(parents=True, exist_ok=True)
-    text = scaffold(root)
+    text = scaffold(root, todos)
     target.write_text(text, encoding="utf-8", newline="\n")
     config = deep_merge(dict(DEFAULTS), parse(text, str(target)))
     return target, validate(config, root)
@@ -1037,7 +1240,8 @@ def main(argv: list[str]) -> int:
             if root is None:
                 sys.stderr.write("afk-config: init must run inside a git repository\n")
                 return 2
-            target, problems = init(root, force="--force" in rest)
+            left: list[str] = []
+            target, problems = init(root, force="--force" in rest, todos=left)
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
             if problems:
@@ -1049,6 +1253,8 @@ def main(argv: list[str]) -> int:
                 )
                 return 2
             sys.stdout.write(f"afk-config: wrote {target}\n")
+            if left:
+                sys.stdout.write(f"afk-config: TODO left: {', '.join(left)}\n")
             return 0
 
         if command == "validate":
@@ -1076,9 +1282,13 @@ def main(argv: list[str]) -> int:
             problems = validate(config, root)
             for problem in problems:
                 sys.stderr.write(f"afk-config: {problem}\n")
+            warnings = path_warnings(config, root)
+            for warning in warnings:
+                sys.stderr.write(f"afk-config: warning: {warning}\n")
             if problems:
                 return 2
-            sys.stdout.write("afk-config: configuration is valid\n")
+            noted = f" ({len(warnings)} warning{'s' * (len(warnings) != 1)})" if warnings else ""
+            sys.stdout.write(f"afk-config: configuration is valid{noted}\n")
             return 0
 
         config = load(root)

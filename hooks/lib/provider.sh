@@ -68,6 +68,66 @@ afk_plugin_root() {
   printf '%s\n' "$root"
 }
 
+afk_user_instruction_file() {
+  local provider function file=""
+  provider=$(afk_provider)
+  function="afk_${provider}_user_instruction_file"
+  if command -v "$function" >/dev/null 2>&1; then
+    file=$("$function")
+  fi
+  printf '%s\n' "$file"
+}
+
+# Every registered provider's own (user instruction file, installed root,
+# enablement) triple, resolved independently of which provider is the current
+# session — 4 NUL-terminated fields per provider that has a target, in
+# registration order: name<NUL>target<NUL>root<NUL>enablement<NUL>, with no
+# extra separator between records (every 4 fields is one record). ROOT is
+# empty when it cannot be independently verified. ENABLEMENT is one of
+# enabled|disabled|absent, always a definite value (never empty). TARGET and
+# ROOT are filesystem paths, which POSIX allows to contain any byte except
+# NUL and `/` — a printable delimiter (tab, the ASCII unit separator, a
+# newline) can legally occur inside one, silently shifting a field boundary;
+# NUL is the one byte guaranteed never to appear in a path, so it is the
+# only safe terminator. A consumer reads exactly 4 NUL-terminated fields per
+# record with `IFS= read -r -d '' name && IFS= read -r -d '' target &&
+# IFS= read -r -d '' root && IFS= read -r -d '' enablement` — never a single
+# `read` with IFS set to a printable delimiter, and never a record-per-line
+# format, since a path can itself contain a newline.
+#
+# A target is never omitted: an install must never write a guessed root, so
+# it skips a row with an empty root — but a read like an audit can still
+# inspect that target's existing content for a leftover managed marker
+# without needing the root at all, and omitting the row outright would hide
+# exactly that (a block left behind after a provider is disabled, whose root
+# can then no longer resolve, is the case the audit most needs to catch).
+# Enablement is a second, independent reason to skip an install: a provider
+# whose root still resolves (the plugin is installed, just not currently
+# turned on) must not receive a fresh block either, and a read must reject a
+# leftover marker there too — root resolving is not the same fact as the
+# provider being on.
+afk_all_provider_targets() {
+  local name target_fn root_fn enablement_fn target root enablement
+  for name in $AFK_PROVIDER_NAMES; do
+    target_fn="afk_${name}_user_instruction_file"
+    root_fn="afk_${name}_installed_root"
+    enablement_fn="afk_${name}_enablement"
+    command -v "$target_fn" >/dev/null 2>&1 || continue
+    target=$("$target_fn")
+    [ -n "$target" ] || continue
+    root=""
+    if command -v "$root_fn" >/dev/null 2>&1; then
+      root=$("$root_fn") || root=""
+    fi
+    enablement="absent"
+    if command -v "$enablement_fn" >/dev/null 2>&1; then
+      enablement=$("$enablement_fn") || enablement="absent"
+      [ -n "$enablement" ] || enablement="absent"
+    fi
+    printf '%s\0%s\0%s\0%s\0' "$name" "$target" "$root" "$enablement"
+  done
+}
+
 afk_plugin_data() {
   local provider function dir=""
   provider=$(afk_provider)
@@ -80,6 +140,75 @@ afk_plugin_data() {
   fi
   mkdir -p "$dir" 2>/dev/null || true
   printf '%s\n' "$dir"
+}
+
+# Every supported harness's managed plugin directories, one absolute path per
+# line, existing ones only. Each adapter declares its own through
+# afk_<provider>_managed_plugin_dirs; this reads them ALL, not the detected
+# one's, because the answer is a property of the path on disk and holds
+# whichever harness (or none) is running.
+# Exit: 0 the list is complete, 2 an adapter could not answer (no such
+# function, or no home directory to resolve) — the list printed is then partial
+# and a miss proves nothing.
+afk_managed_plugin_dirs() {
+  local name function dir absolute output status=0 asked=0
+  for name in $AFK_PROVIDER_NAMES; do
+    asked=1
+    function="afk_${name}_managed_plugin_dirs"
+    if ! command -v "$function" >/dev/null 2>&1; then status=2; continue; fi
+    if ! output=$("$function"); then status=2; continue; fi
+    while IFS= read -r dir; do
+      [ -n "$dir" ] && [ -d "$dir" ] || continue
+      absolute=$(cd "$dir" && pwd -P) || continue
+      printf '%s\n' "$absolute"
+    done <<EOF
+$output
+EOF
+  done
+  # No adapter at all is as unanswerable as an adapter that cannot answer.
+  [ "$asked" = 1 ] || status=2
+  return "$status"
+}
+
+# Does this platform's filesystem treat two spellings as one path? Windows and
+# macOS do; Linux does not, and folding case there would call a DIFFERENT
+# directory a match. AFK_PATH_CASE_FOLD forces the answer (0 or 1).
+afk_path_case_fold() {
+  case "${AFK_PATH_CASE_FOLD:-}" in
+    1) return 0 ;;
+    0) return 1 ;;
+  esac
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows*|Darwin) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Does the harness own this plugin copy? An edit under a managed directory is
+# lost on the next harness update, so the tree is installed however it looks.
+# The comparison folds case and separators: Windows hands the same directory
+# back under either spelling, and a missed match would hand a harness-owned
+# tree to an editor.
+# Exit: 0 managed, 1 not managed, 2 UNDECIDABLE — the caller must not read 2 as
+# "not managed"; the safe reading is managed.
+afk_harness_managed_path() {
+  local target dir dirs status previous verdict=1
+  dirs=$(afk_managed_plugin_dirs); status=$?
+  target=$(cd "$1" 2>/dev/null && pwd -P) || return 2
+  target=${target//\\//}
+  previous=$(shopt -p nocasematch)
+  afk_path_case_fold && shopt -s nocasematch
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    dir=${dir//\\//}
+    case "$target/" in "$dir"/*) verdict=0; break ;; esac
+  done <<EOF
+$dirs
+EOF
+  $previous
+  [ "$verdict" -eq 0 ] && return 0
+  [ "$status" -eq 0 ] || return 2
+  return 1
 }
 
 afk_hook_input() {
@@ -113,20 +242,45 @@ afk_emit_deny() {
   fi
 }
 
+# Emit an additional-context injection for one hook event. The event name is the
+# caller's, not a constant — a PostToolUse handler must name PostToolUse. Both a
+# nested `hookSpecificOutput.additionalContext` and a top-level `additional_context`
+# carry the same text, so one shape satisfies either harness's reader.
 afk_emit_context() {
-  local msg="$1"
+  local event="$1" msg="$2"
   if command -v jq >/dev/null 2>&1; then
-    jq -n --arg msg "$msg" \
-      '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$msg}}'
+    jq -n --arg e "$event" --arg msg "$msg" \
+      '{hookSpecificOutput:{hookEventName:$e,additionalContext:$msg},additional_context:$msg}'
   else
-    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$(afk__json_escape "$msg")"
+    local esc; esc=$(afk__json_escape "$msg")
+    printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"},"additional_context":"%s"}\n' "$event" "$esc" "$esc"
   fi
+}
+
+# Nested-steering injection policy, owned per harness in
+# hooks/lib/providers/<name>.sh. Mode: `always` inject, `never` never (the harness
+# reads nested files itself), `agent-only` inject only for a call carrying an
+# agent id. Rules: `1` inject matching `.claude/rules` bodies (a harness with no
+# native path-scoped rules), `0` leave them to the harness. Defaults are the safe
+# no-op so an unknown provider never double-loads.
+afk_nested_inject_mode() {
+  local provider function
+  provider=$(afk_provider)
+  function="afk_${provider}_nested_inject_mode"
+  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf 'never\n'; fi
+}
+
+afk_nested_inject_rules() {
+  local provider function
+  provider=$(afk_provider)
+  function="afk_${provider}_nested_inject_rules"
+  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf '0\n'; fi
 }
 
 # A Stop verdict has to reach the session, and harnesses read it differently:
 # one takes stderr with exit 2, another only honours a decision object on
 # stdout. Emit both, and let the adapter say which exit code its harness
-# reads a block from (afk_<provider>_stop_block_code, default 2).
+# reads a block from (afk_<provider>_stop_block_code, default 0).
 afk_emit_stop_block() {
   # A gate that prints through a Windows text stream can leave CR bytes in the
   # middle of the findings; they corrupt the decision value, not just the view.
@@ -146,13 +300,25 @@ afk_stop_block_code() {
   if command -v "$function" >/dev/null 2>&1; then
     "$function"
   else
-    printf '2\n'
+    printf '0\n'
   fi
 }
 
 afk_block_stop() {
   afk_emit_stop_block "$1"
   exit "$(afk_stop_block_code)"
+}
+
+# An allowed Stop that the human must see: stderr, plus the `systemMessage` field
+# that both shipped harnesses show the user on Stop. The caller exits 0.
+afk_emit_stop_notice() {
+  local msg=${1//$'\r'/}
+  printf '%s\n' "$msg" >&2
+  if command -v jq >/dev/null 2>&1; then
+    jq -n --arg m "$msg" '{systemMessage:$m}'
+  else
+    printf '{"systemMessage":"%s"}\n' "$(afk__json_escape "$msg")"
+  fi
 }
 
 # The plugin tree's path RELATIVE to the current repository root, or the empty

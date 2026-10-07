@@ -75,7 +75,7 @@ A resolved term that **corrects a misunderstanding a human had to clarify** is a
 ## Safety
 
 Discovery-safety rules (repo-root scoping, vendor/build/.git skips, CrowdStrike guard) per
-[`claude-md/AUDIT.md`](../../afk/claude-md/AUDIT.md), Discovery section.
+[`agents-md/AUDIT.md`](../../afk/agents-md/AUDIT.md), Discovery section.
 
 ## Next
 

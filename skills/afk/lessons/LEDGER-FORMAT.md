@@ -6,7 +6,7 @@ escalation ladder. Every other file points here and restates nothing.
 
 The ledger's only emitting site is `hooks/lesson-append.sh`; its only parsing
 site is `hooks/lesson-digest.sh` — both lockstep with this grammar (change one →
-same commit on all three; declared in the plugin `CLAUDE.md` "Lockstep").
+same commit on all three; declared in the plugin `AGENTS.md` "Lockstep").
 
 ## Location (worktree-safe)
 
@@ -20,7 +20,7 @@ every feature worktree, so lessons recorded in one worktree are visible in all:
 Resolution: `git rev-parse --path-format=absolute --git-common-dir` → the
 ledger root is that path's parent directory. Override with `LESSON_LEDGER_FILE`.
 A gitignored **runtime artifact of the target repo** (same standing as
-`.claude/bugs/` and `.claude/metrics/`) — never committed, never a plugin file.
+`.claude/bugs/`) — never committed, never a plugin file.
 
 ## Event model
 
@@ -67,8 +67,8 @@ Transition event:
 
 | `class` | When | Durable-edit home |
 |---|---|---|
-| `missed-instruction` | An instruction existed (CLAUDE.md / skill / checklist) and was demonstrably not followed | harden the existing line per the ladder below |
-| `missing-instruction` | Nothing documented the rule the mistake violated | new line at the right home (CLAUDE.md tree, sidecar, skill step) |
+| `missed-instruction` | An instruction existed (AGENTS.md / skill / checklist) and was demonstrably not followed | harden the existing line per the ladder below |
+| `missing-instruction` | Nothing documented the rule the mistake violated | new line at the right home (AGENTS.md tree, sidecar, skill step) |
 | `wrong-term` | A human had to clarify terminology the agent misread | the owning domain `GLOSSARY.md` |
 | `weak-checklist` | A review-checklist criterion proved noisy, toothless, or absent | `skills/afk/review/checklists/*.md` |
 | `test-dodge` | A test was shaped to avoid a real failure instead of surfacing it | verification doctrine (AUTHORING guides, subtask contract, TESTING.md) |

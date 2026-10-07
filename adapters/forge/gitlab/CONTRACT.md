@@ -9,6 +9,7 @@ the merge request's diff refs.
 - `change-create-draft`, `change-ready`, `change-reviewers`, `change-update-body`,
   `change-comment`, `change-close`
 - `thread-list`, `thread-reply`, `thread-resolve`
+- `note-list`, `commit-changes`
 - `ci-status`, `ci-wait`
 - `auth-status`
 
@@ -29,7 +30,7 @@ CLI already established, and no configuration file holds a token.
 
 ## Notes that bite
 
-The paginated read and every `ci-wait` exit are pinned offline, against a stub command-line tool, by `scripts/tests/test_forge_adapters.py`.
+The adapter tests use a stub command-line tool. They do not contact GitLab.
 
 - A paginated read (`glab api --paginate`) prints one JSON document per page,
   not one document holding every page. `thread-list` decodes the documents in
@@ -53,8 +54,25 @@ The paginated read and every `ci-wait` exit are pinned offline, against a stub c
   review that believes it commented on a line and did not is worse than an error.
 - On a new file `old_path` must equal `new_path` (not `/dev/null`), or the
   server rejects the position.
+- `change-comment` always sends both paths. `side: new` sends `new_line`.
+  `side: old` sends `old_line`. `side: context` sends both lines.
+- A rejected position can degrade to a plain note. The normal result reports
+  `inline: false` and the reason.
+- `require_inline: true` deletes that degraded note. A cleanup failure returns
+  an error with the orphan note identifier.
+- `commit-changes` reads the merge requests that contain one commit (`sha`), paginated. A failing `glab`, a non-list answer, or an entry with no `iid` is an error.
+- `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference.
+- `note-list` reads paginated merge-request notes. It removes system and inline
+  notes and sorts the result oldest first. Each note carries `edited` from
+  GraphQL `Note.lastEditedAt`, keyed by the numeric part of the note's global
+  id; the REST note entity has no edit field. A failed query, or a note the
+  query does not answer, is an error.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
+- Each thread includes its URL, side, lines, paths, and note timestamps. Each
+  note carries `edited`, read as in `note-list`.
+- `change-view` and `change-fetch` return the metadata in `ADAPTERS.md`.
+- `blob_base` names the source project. It is empty when that project is gone.
 - `glab mr update --description` clears the Draft flag: the new title comes back
   without its `Draft:` prefix and the change becomes reviewable. Editing a
   description is not a decision to publish, so `change-update-body` reads the
@@ -73,4 +91,9 @@ The paginated read and every `ci-wait` exit are pinned offline, against a stub c
 
 ## Documented degradation
 
-None. Every forge verb is supported.
+Every forge verb is supported. A rejected line position follows the
+`change-comment` rule above.
+
+## Notes on the shared protected-branch read
+
+Reads the project's `protected_branches`. That list also carries rules inherited from the group, marked `"inherited": true` (https://docs.gitlab.com/api/protected_branches/), so a group rule protects like a project rule. A wildcard rule comes back as the pattern, not the matching branch names.

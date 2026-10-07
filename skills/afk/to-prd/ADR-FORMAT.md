@@ -1,5 +1,8 @@
 # Requirements ADR Format
 
+Before writing, read `LANGUAGE.md` at the plugin root. Its final-state rule
+binds this format.
+
 **Requirement-level** ADRs record how the feature must *behave* and what is in/out of scope (*what / why*) — not how it's built (*how* = design ADRs, `/afk:to-sdd`). They live in ticket-local `adr/requirements/`, sibling to the PRD:
 
 ```

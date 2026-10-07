@@ -29,9 +29,11 @@ This ledger records live probes for the committed plugin tree. `CAPABILITIES.md`
 | Cache refresh after source-only change | n/a | pass 2026-09-01 | Minimum sequence: re-run the plugin add, then start a new session. Removal first is not required |
 | Script-only hook change trust behavior | n/a | pass 2026-09-01 | Editing a referenced script body left the trust hash unchanged and raised no new prompt — trust covers the handler definition, not the script it runs. Security consequence: an approved handler keeps running whatever its script later says, so the shell handlers are gated content, and the pre-commit and Stop gates are the control | Round 4 recording nuance: a trust prompt (8 hooks) did appear on the second harness, and it is consistent with this row rather than against it — round 3 had run with the trust bypass, so the command-definition change that introduced the launcher had never been persisted on that machine. The prompt was the delayed approval for those handler definitions; the later script-body-only change raised none.
 | Disable or uninstall leaves repository inert | pass (static) 2026-09-01 | pass 2026-09-01 | Second harness: after removal, zero skills, agents, MCP tools or plugin hooks, and no tracked repository file was touched. Caveat: pre-native ignored mirrors survive on a machine that once had them — the setup register's stale-activation entry offers the cleanup |
+| Managed behavior install, refresh, and teardown | deterministic tests 2026-09-28; model receipt unverified | deterministic tests 2026-09-28; model receipt unverified | Native user files are the v1 transport. The `.afk/config.yaml` guard is model-evaluated. Setup tests prove hash, revision, migration, duplicate cleanup, and teardown. Live receipt after compaction remains unclaimed. |
 | Native contract negative probe blocks | pass 2026-09-01 | n/a | Scratch skill with a `harness:` frontmatter key, a harness-tool reference, a fallback-free project-dir read, and a harness name: gate exit 2 naming all six findings; exit 0 after removal |
 | Hook launcher runs handlers whatever the PATH | pass 2026-09-02 | pass 2026-09-02 (round 3) | First harness: the launcher ran the repository guard and carried its deny envelope, stayed silent on an absent handler, and still produced the denial when PATH held only the system directory (the WSL-stub case the second harness hit). Covered by `hooks/tests/hook-smoke.sh`; gate rule J rejected a hand-written bare-`bash` command with the expected diagnostic and exit 2, then passed once restored |
 | Stop block decision object is honoured | pass 2026-09-02 | pass 2026-09-02 (round 4) | First harness, live rig: with the adapter exit code set to 0 so only the decision object could carry the verdict, an unregistered scratch skill produced a real Stop block carrying the gate findings. Second harness: same emission, `Stop Blocked` with the same reason. One emission serves both |
+| Nested `AGENTS.md` reaches the model (main + subagent) | main **pass** + subagent **pass** 2026-09-23 (native) | **pending** (account usage limit) | See "Nested steering probe (2026-09-23)" below. Claude, real config: both the main session and a spawned subagent quoted a token that exists only in `sub/deep/AGENTS.md`, delivered natively as an attachment on the Read result (no hook). So Claude's injector mode stays `never`. Codex: plugin + hook config install and load with no parse error, but a model turn is blocked by the account usage limit, so injection could not be observed live |
 
 ## Unresolved items
 
@@ -92,7 +94,7 @@ Every live object is named `afk-toolkit-proof-2026-09-03`.
 | notes / notion | dispatch answered the instruction object for each declared verb and `unsupported` exit 3 for an undeclared one; live page created under the configured parent, fetched, local copy deleted | two Notion pages | **not archived — see unresolved** |
 | tracker / jira | all nine: `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | one issue in the live project | closed |
 | tracker / github-issues | `tracker_create`, `tracker_get`, `tracker_search`, `tracker_edit`, `tracker_comment`, `tracker_transitions`, `tracker_transition`, `tracker_attachments`, `tracker_changelog` | issue #6 on `midnightblur/afk-driver` | closed |
-| forge / github | `change-create-draft`, `change-view`, `change-diff`, `change-update-body`, `change-comment` (plain and inline), `thread-list`, `thread-reply`, `thread-resolve` (documented `unsupported`), `change-reviewers`, `change-ready`, `change-state`, `change-fetch`, `ci-status`, `ci-wait`, `change-close`, `auth-status` | pull requests 7 and 8 | both closed, both branches deleted |
+| forge / github | `change-create-draft`, `change-view`, `change-diff`, `change-update-body`, `change-comment` (plain and inline), `thread-list`, `thread-reply`, `thread-resolve` (documented `unsupported`), `change-reviewers`, `change-ready`, `change-state`, `change-fetch`, `ci-status`, `ci-wait`, `change-close`, `auth-status` (`commit-changes`: stub-tested only — see Unresolved) | pull requests 7 and 8 | both closed, both branches deleted |
 | forge / gitlab | the same set, with `thread-resolve` supported | one draft merge request on the monorepo | closed, branch deleted, pipeline canceled |
 | build-gate / maven | `gate-discover` → `java-format`, `maven-compile`; `java-format` blocked an unformatted file exit 2 and passed exit 0 once formatted; `maven-compile` exit 0 in 148 s with its metrics line | one tracked Java file staged in a disposable worktree | worktree restored |
 | build-gate / npm | `gate-discover` → `ui-lint`; exit 0 clean, exit 2 on a lint error, both with metrics lines | minimal workspace fixture | directory removed |
@@ -154,6 +156,7 @@ that finds nothing has usually proved nothing.
 
 ### Unresolved
 
+- The forge `commit-changes` verb and the `rationale-*` ledger commands are proven with stub `gh` / `glab` tools, a bare-repository remote, and a fake forge (`scripts/tests/test_forge_adapters.py`, `scripts/tests/test_rationale_ledger.py`). No live pull request or merge request has carried a rationale comment or a batch receipt yet. Run the live proof before the next release.
 - The connected Notion MCP server exposes no archive or trash tool, so
   `notes/notion`'s `note-delete` cannot archive its mirror. This is now
   documented in that kind's `CONTRACT.md` and `NOTES.md` as a local delete plus
@@ -291,10 +294,119 @@ so a later reader does not re-open them as accidents.
 | When a marker is written | only when the adapter returned a fingerprint | a marker with nothing to compare against would suppress a later run without being able to say whether anything changed. |
 | Per-worktree state in a copied directory | still excluded by name (`TODO.md`) | it is the toolkit's own per-worktree state, not build state, so it does not belong to any adapter. |
 
+## Nested steering probe (2026-09-23)
+
+Live probes for the `nested_steering` capability (P3 of the AGENTS.md-standard
+plan). The authoritative Claude run used the **real** `~/.claude` config (config
+read only, never written; installed `afk@afk-toolkit` 1.5.0 has no injector). The
+Codex run used a sandbox `CODEX_HOME` with `auth.json` copied in and deleted
+after. An earlier Claude sandbox run is recorded below as superseded.
+
+| Field | Claude Code | Codex CLI |
+|---|---|---|
+| Date | 2026-09-23 | 2026-09-23 |
+| Version | 2.1.280 (installed `afk@afk-toolkit` 1.5.0) | codex-cli 0.155.1 |
+| Home | real `~/.claude` (read only); superseded earlier run in a scratch `CLAUDE_CONFIG_DIR` | scratch `CODEX_HOME`, `auth.json` copied in, deleted after |
+
+Fixture: a throwaway Git repo with a root `AGENTS.md` (token `ROOT-OK`), a root
+`CLAUDE.md` bridging `@AGENTS.md`, and a nested `sub/deep/AGENTS.md` carrying a
+unique nonsense token that appears nowhere else, plus a `sub/deep/x.txt`.
+
+### Claude Code
+
+Authoritative result is the **real-config** run: the main session, real
+`~/.claude/settings.json` holding `instructionFiles=claude-md-and-agents-md`,
+the installed `afk@afk-toolkit` 1.5.0 (which has **no** nested injector), the
+same fixture `scratchpad/nsfix`.
+
+- **Control — root load / setting dependence.** `instructionFiles=claude-md-and-agents-md`
+  answers `ROOT-OK` through the `@AGENTS.md` bridge. Forcing `--settings`
+  `instructionFiles=claude-md` returns `NONE` for the nested token while
+  `ROOT-OK` still appears. The nested read depends only on the setting, so it is
+  the harness's built-in `AGENTS.md` support, not any hook of ours.
+- **Probe (a) — native nested load, main session: PASS.** The main session read
+  `sub/deep/x.txt`, then reported the nested token `ZORBLEQ-...` attributed to
+  an attachment on the Read result. The nested `AGENTS.md` is delivered
+  natively once a Read touches its directory.
+- **Probe (b) — subagent native lazy load: PASS.** The main session spawned one
+  general-purpose subagent that read `sub/deep/x.txt`; the subagent quoted the
+  same nested token from the attachment on its Read result. A Claude subagent
+  **does** lazy-load a nested `AGENTS.md` natively.
+- **Envelope shape.** A scratch capture hook confirmed a subagent's own
+  `PostToolUse` envelope carries `agent_id` (and `agent_type`); the main-session
+  `PostToolUse` for the `Agent`/`Task` tool call carries **no** `agent_id`. This
+  is the correct discriminator for `agent-only`, kept as machinery — see below.
+
+**Amendment (P3.7) — NOT taken.** Because (a) and (b) both pass natively,
+`claude.sh` `afk_claude_nested_inject_mode` stays `never`: selecting `agent-only`
+would inject a nested `AGENTS.md` a subagent already has natively, once from the
+hook and once from the native attachment. `afk_claude_nested_inject_rules` stays
+`0` (Claude reads `.claude/rules` `paths:` natively). The `agent-only` mode is
+still implemented and tested — see "agent-only machinery" — for a future harness
+whose subagents do not lazy-load; no shipped provider selects it.
+
+**agent-only machinery (not selected for any shipped provider).** The
+`nested_steering.py` `agent-only` branch (inject only when the envelope carries
+`agent_id`) is exercised directly — `--mode agent-only` with and without an
+`agent_id` — by `scripts/tests/test_nested_steering.py::test_agent_only_gate` and
+by a synthetic-mode row in `hooks/tests/hook-smoke.sh`. It is correct machinery,
+kept for a harness that needs it; it is not Claude's policy.
+
+**Superseded sandbox runs.** An earlier pass of these probes ran in a **fresh**
+sandbox `CLAUDE_CONFIG_DIR` (credential copied in, deleted after) and reported
+(a) and (b) as FAIL, which drove a wrong `agent-only` amendment. Those runs are
+**superseded** by the real-config runs above. Hypothesis for the false FAIL
+(inferred, not verified): the sandbox home was a **first session after install**,
+which the docs list as a session where Claude reads `CLAUDE.md` files only, so
+native nested `AGENTS.md` support was off while the `@AGENTS.md` bridge still
+loaded the root — which matches the sandbox control still returning `ROOT-OK`.
+
+**Probe-method rule.** Never run instruction-file probes in a fresh harness home:
+the first session after an install or upgrade disables native `AGENTS.md`
+support. Run a warm-up session first, or probe the real config with the plugin's
+installed version stated.
+
+**(c) — compaction survival: not run.** Not exercised live; moot for Claude
+while its mode is `never`. Covered deterministically for the `codex` path by
+`hooks/tests/hook-smoke.sh` and `scripts/tests/test_nested_steering.py`
+(reset-then-re-arm). Open.
+
+### Codex CLI — pending (account usage limit)
+
+The temporary `CODEX_HOME` authenticated with the copied `auth.json`, the local
+worktree was added as marketplace `afk-toolkit`, and `afk@afk-toolkit` installed
+`enabled` at 1.6.1 with its source resolved to the worktree. `codex exec`
+rendered its session banner (hooks loaded) with **no** parse or matcher warning
+against `hooks/hooks.codex.json`, including the new `SessionStart`
+`startup|clear` group and the `PostToolUse` / `PostCompact` nested-steering
+groups. Every model turn then returned `You've hit your usage limit ... try
+again at Sep 28th, 2026`, exit 1.
+
+So the wiring is accepted locally, but the behavioral probe — injection reaching
+a Codex main session and subagent, and observing which `SessionStart` matcher
+fires — could **not** run. **Blocker:** the Codex ChatGPT account is over its
+usage limit until 2026-09-28; no model turn is possible. Re-run after the reset:
+the fixture and command sequence above reproduce it. The provider-agnostic
+mechanics for `provider=codex` are meanwhile proven deterministically by
+`hooks/tests/hook-smoke.sh` (codex injection, dedup, reset, rules leg) and
+`scripts/tests/test_nested_steering.py`.
+
+Note on the `SessionStart` `startup|clear` matcher on Codex: even if that
+harness does not recognize the matcher vocabulary, correctness is preserved —
+the dedup marker tree is keyed by `session_id`, so a fresh Codex session gets
+fresh markers regardless, and `PostCompact` still resets within a session. The
+`SessionStart` reset is a belt-and-suspenders reset, not the only one. This is
+recorded as the reason the pending Codex verdict does not gate the release.
+
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
-2. Add `hooks/lib/providers/<name>.sh` with detect, root, and data functions.
+2. Add `hooks/lib/providers/<name>.json` (the guard's provider facts: tool classes, move hint, worktree folder) and
+   `hooks/lib/providers/<name>.sh` with the adapter functions
+   `hooks/lib/provider.sh` dispatches by name: detect, priority, plugin root,
+   plugin data, stop block code, and the plugin directory the harness manages.
+   A missing one makes the managed-path answer undecidable, and every caller
+   reads undecidable the safe way: `plugin-clone.sh` then says `installed`.
 3. Add one envelope fixture per shared event under `hooks/tests/envelopes/<name>/`.
 4. Add a native manifest twin only when the harness cannot consume an existing manifest.
 5. Add unchanged agent-definition stubs when the harness cannot consume `agents/*.md`.
@@ -328,3 +440,57 @@ Launch lines (`<probe>` is a probe folder in the operator's scratchpad):
 | A blocked pane agent stays live and takes a relayed answer; a resumed session keeps its context | pass 2026-09-30 | pass 2026-09-30 | Claude: the agent asked a question at 16:21Z and ended its turn; a relayed answer at 16:24:56, after about 4 min idle, gave `answer=green`. After `herdr pane close`, `claude --resume <id>` in a new pane answered `resume-word=word-9924a0`, a word it had read from a file that was then moved away. Codex: question `P9-Q: which colour?` at 17:15:56Z, turn complete at 17:20:57; answer `green` at 17:24:57 gave `answer=green` at 17:25:08. After `herdr pane close`, `codex resume <id> --no-daemon -c check_for_update_on_startup=false --approve-for-me --add-dir <scratchpad> -m gpt-5.6-terra "<prompt>"` in a new pane answered `resume-word=word-47c79b`, a word given only in the conversation. The same command through `herdr agent start <name> --kind codex -- resume <id> …` left no pane; typed with `herdr pane run`, it worked. |
 | A subagent's file write is refused, and which paths the refusal covers | pass 2026-09-30: Write tool refuses report-like names | pass 2026-09-30: no refusal | Claude: a subagent's Write calls for `REPORT.md`, `SUMMARY.md` and `findings.md` failed with `Subagents should return findings as text, not write report files. Include this content in your final response instead.` The same subagent wrote `0001-x-adversary.md`, `notes.md`, `fragment.json`, `COVERAGE.json` and `evidence.txt` with Write, and `bash-REPORT.md` with the shell; the main agent wrote `main-REPORT.md` with Write. Codex: a default sub-agent wrote `REPORT.md`, `SUMMARY.md`, `0001-x-adversary.md` and `fragment.json` with `apply_patch`, and the main agent wrote `main-REPORT.md`, with no refusal. |
 | A capture command's run-time limit; a pane close and shell traps | pass 2026-09-30 | run-time limit: the call returns after 10 s, 2026-10-06; pane close: bash killed without a trapped signal, its child left running, 2026-10-06 | Claude: `bash <probe>/trap.sh cla bash-timeout 200` without a timeout parameter returned `Command did not complete within its 120s timeout and was moved to the background (ID: …)`; the trap file shows `start`, `finished-normally` 201.6 s later, then `EXIT`, so the command was not killed. A bare foreground `sleep 75` was refused: `Blocked: sleep 75 followed by: echo slept.` Pane close, agent pane: the agent ran `bash <probe>/trap.sh cla agent-close 600` (timeout 600000 ms); after `herdr pane close` the trap file got no `EXIT`, `TERM`, `INT` or `HUP` line, and the bash process and its `sleep 600` stayed alive; 600 s after start the trap file got `finished-normally`, then `EXIT`. Pane close, plain PowerShell pane running Git `bin/bash.exe <probe>/trap.sh plain pane-close 600`: after `herdr pane close` the process was gone within 10 s and the trap file got no line, so it was killed without a signal a trap catches. Codex 2026-10-06: `bash <probe>/trap.sh cxd shell-timeout 200` without a timeout argument returned after `wall_time_seconds=10.0114479`; the trap file holds only `start`. Asked for a 900000 ms timeout, the agent set 30000 ms, and after the call the screen read `1 background terminal running`. Pane close 26 s into `trap.sh cxe pane-close 900`: within 30 s the bash process was gone with no `EXIT`, `TERM`, `INT` or `HUP` line, and its `sleep.exe` stayed alive with no live parent process. That child belongs to the sandbox user: the operator's `Stop-Process` got `Access is denied`. `mkdir -p` on the probe folder printed `mkdir: cannot create directory 'C:/Users/mvu': Permission denied` though the folder existed. |
+
+## Managed behavior receipt matrix
+
+Native user files are the v1 transport. A generated block and a hook envelope
+do not prove model receipt. Do not claim compaction survival until each harness
+passes this matrix with the earliest decision turn showing the behavior.
+
+| Session shape | Claude Code | Codex CLI |
+|---|---|---|
+| Default agent | pending | pending |
+| Custom agent | pending | pending |
+| Subagent | pending | pending |
+| Fresh session | pending | pending |
+| Resume | pending | pending |
+| Clear | pending | pending |
+| First turn after compaction | pending | pending |
+
+Probe from a disposable plugin copy and disposable harness home. Add a temporary
+behavior whose decision-turn response contains a nonce. Install its generated
+block, start each session shape, and ask the matching nonce prompt. Record the
+launch command, first decision-turn response, plugin root, revision, and body
+hash. Remove the disposable home and run teardown after the probe.
+
+## Protected-branch guard (2026-09-30)
+
+Proof lives in the probe rows below and in `scripts/tests/`. Every row was run live
+on 2026-09-29/30 (Windows 11, Git Bash, git 2.53, claude 2.1.285, codex-cli 0.159.0,
+herdr 0.9.1) unless it says *source* or *inferred*. Live-only, not automated: the H-1
+native move in every permission mode, and herdr's agent-kind detection through a wrapper.
+
+| Probe | Result |
+|---|---|
+| P0-a H-2 `/cd` in herdr | The path must not be quoted: quotes become part of the path. An unquoted path with a space works. The conversation is kept: the session forks and history carries over. A worktree of a trusted repository needs no trust answer. Sent during a turn, `/cd` is refused (`'/cd' is disabled while a task is in progress`) and stays in the composer; the next typed text appends to it. A bash caller of `herdr agent prompt` must disable MSYS path conversion or call from python. The session id changes on `/cd`. |
+| P0-c H-2 PreToolUse envelope | Fields `session_id, turn_id, cwd, hook_event_name, model, permission_mode, tool_name, tool_input, tool_use_id`; no `workdir`. Shell is `Bash` (`tool_input.command`); a patch is `apply_patch` with absolute Windows paths that may hold spaces. `HERDR_*` reaches the hook. SessionStart fires lazily at the first turn. |
+| P0-d H-1 worktree events | `WorktreeCreate` and `WorktreeRemove` (input carries `worktree_path`) replace the native pair; no approval prompt in default mode, inside or outside `.claude/worktrees/`. Removal is delegated to the hook: the folder stays if the hook removes nothing. `-p` session end and the Keep choice fire no removal. `CLAUDE_PID` is the harness process. |
+| P0-e git `reference-transaction` | A `prepared` veto aborts `commit`, `reset`, `merge`, `rebase` and the ref update of `checkout`/`switch`, but leaves the index and work tree switched on `checkout` and a rebase in progress. `git worktree add -b` emits the new branch and `ref:refs/heads/<b> HEAD` in the main checkout's context, so the backstop must let a fresh `worktrees/*/HEAD.lock` through. |
+| P0-h detached helper from a hook | A helper spawned detached from an H-2 hook survives the hook's exit, waits for `idle`/`done` through `herdr agent get`, and types `/cd <path>` into its own pane. |
+| P0-i untrusted plugin hook | Trust keys are positional: `[hooks.state."<plugin>@<marketplace>:hooks/hooks.codex.json:<event>:<group>:<handler>"] trusted_hash`; the hash covers event, matcher and handler, so inserting a group shifts every later key (inferred, not run on an upgraded install). The TUI shows "Hooks need review" at startup without the full-bypass flag. Under the full-bypass flag and under `exec` the hooks silently do not run. `/hooks` then `t` trusts them; `--dangerously-bypass-hook-trust` skips trust for one run. |
+| P-2 H-2 deny shape | The H-2 harness treats PreToolUse exit 2 as a failed hook and runs the command. Exit 0 plus the `permissionDecision: deny` JSON blocks. The H-1 harness honours both. The guard and every plugin refusal therefore use exit 0 plus the JSON. |
+| H-2 `SessionEnd` on `/cd` and exit | Fires on `/cd` with the old session id and the old `cwd`, on the next turn, and on exit with the current `cwd`; `reason` is `other` in both. A session that moves between two plugin worktrees has the one it left judged for removal. Codex 0.159.3 cuts a `SessionEnd` timeout to 3 s whatever the manifest says ("`SessionEnd` and `Interrupt` use `1` second by default and support up to `3` seconds", https://learn.chatgpt.com/docs/hooks), so it declares 3. A handler standing in the worktree returns in about 0.7 s and hands removal to a detached waiter; one judging a worktree it left removes it inline, which a large tree can push past 3 s (unverified: whether Codex then kills the handler; if it does, the leftover holds no work, since removal starts only after the clean and pushed check, and the human removes it by hand). |
+| P-3 H-2 composer placeholder | An empty composer shows a rotating placeholder after the prompt glyph (`Ask Codex to do anything`). `herdr agent read --format ansi` paints the glyph bold (SGR 1) and the placeholder dim (SGR 2); typed text follows a reset and has no dim. The helper reads the ANSI pane and treats a dim composer line as empty. Captures: `scripts/tests/fixtures/codex-composer-empty.ansi` and `codex-composer-typed.ansi`. Herdr output is UTF-8: decoding it with the Windows code page corrupts the glyph. Live 2026-09-30, codex-cli 0.159.0 in an isolated `CODEX_HOME`. |
+| Latency: login token | `gh auth token` costs about 0.15 s and avoids the second `gh api` process. Real `cli/cli` branch read on a quiet machine, 5 runs: CLI path median 0.92 s (min 0.65), token path median 0.71 s (min 0.66). `glab` has no token command, so GitLab keeps its single paginated CLI call. The CLI host flag: reading the CLI's hosts file costs 0.1 ms (no process); `ssh -G <alias>` costs about 66 ms and runs only for a non-public host the CLI does not list. |
+| P-7 H-2 helper never typed `/cd` | The detached helper waited 3 x 40 s for an idle agent, then returned without typing; a slow turn answering the refusal outlasted it (inferred: the helper had no log, so the failing run cannot be replayed). The wait is now up to 10 minutes per attempt. Every move logs to `<git dir>/afk-worktrees/<name>.log`. Live, codex in a herdr pane, main checkout: the log shows `wait: agent status 'working'`, then `'idle'` 2 s later, `composer: ''`, `done: typed, no refusal after it`, and the pane reads `Working directory changed`. |
+| P-6 H-1 `SessionEnd` and `/exit` | Claude 2.1.286 fires `SessionEnd` at `/exit` with `reason: prompt_input_exit` and `cwd` = the original checkout, even after a worktree move. A clean plugin worktree is removed at `/exit` in the TUI (3 of 3 live runs; `WorktreeRemove` fires before `SessionEnd`) and, after a headless `claude -p` run, about 20 s after exit. A dirty one gets Claude's own `Keeping worktree...` line and its `Resume this session with` hint; afk's kept report is not shown at exit, because the event names no worktree. It appears at the next `SessionStart`. Accepted AC-028 deviation on H-1. A `SessionEnd` whose `cwd` is inside a plugin worktree starts a detached waiter that removes it after the harness exits. |
+| P-9 `SessionStart` user-visible message | The kept-worktree report goes out as `systemMessage` (the human) and `additionalContext` (the model) when the provider file sets `session_start_user_message`; `shown` is set after the report is printed. H-1 live (Claude 2.1.286 TUI, a kept record in a fresh checkout): the report text, including the remove command, is painted on screen at session start. H-2: the flag is set from the harness docs, not verified live; if its TUI paints nothing, the model still gets the report |
+| P-10 move helper and an inherited pane id | Live (2026-09-30): a refusal run by a child process from the shell of a Claude TUI pane inherits `HERDR_PANE_ID` of that pane. The helper logged `pane <id> belongs to another agent (claude/<session>/<cwd>): nothing typed` and the pane received no input. `herdr agent get` reports `agent`, `agent_session.value` and `cwd` for the pane; the helper types only when kind = provider name, session matches when reported, and cwd = the refused session's cwd |
+| H-2 `/cd` typing needs herdr session reporting | 2026-09-30, AC-013 at aef0a54: herdr learns an H-2 pane's session id only from its own `SessionStart` hook in the harness hooks config (`herdr integration install codex`; `herdr integration status` shows `codex: current`). Without it `owns_pane` sees no session and types nothing: accepted, fail-closed. The helper log says `herdr reports no session for pane <id>; install herdr's integration for codex to get the line typed`; the human types the printed `/cd` line. `/afk:setup` row C16 probes it |
+
+| Choice | Taken | Why |
+|---|---|---|
+| `WorktreeCreate` and `WorktreeRemove` | shipped together | a harness that replaces its own creation must also replace its removal, or plugin-made worktrees are never cleaned |
+| Hook order in the Codex manifest | guard last in `PreToolUse` | trust is positional, so earlier trusted entries keep their keys |
+| H-2 creation | detached from the guard | the hook timeout is 30 s and a checkout plus provisioning can pass it |
+| `/cd` retry | only after a refusal shown in the pane | typing twice into a session that already moved would break it |

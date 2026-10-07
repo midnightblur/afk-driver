@@ -55,9 +55,9 @@ the date in the header; everything else in PLAN.md is yours to edit.
 `/afk:preflight` is this section's sole writer (progress tracker + smoke gate
 above stay untouched by it); re-run skips rows already `green`, resuming at
 the first non-`green` row. `Cycle` reflects the shared 2-cycle fix cap
-(counted across PF-2/PF-4/PF-7, not per row); PF-3's cell instead counts its
-review settle-loop rounds (cap 10 — owned by
-`skills/afk/review/SETTLEMENT.md`; lockstep copy here).
+(counted across PF-2/PF-4/PF-7, not per row). PF-3's cell is a display value.
+Refresh it from the feature round returned by `forge_ledger.py reconstruct`
+(cap 10 — owned by `skills/afk/review/SETTLEMENT.md`).
 
 | # | Step | Status | Cycle | Evidence |
 |---|------|--------|-------|----------|
@@ -67,7 +67,7 @@ review settle-loop rounds (cap 10 — owned by
 | 4 | PF-4 seam check (`/afk:verify-seams final`) | pending | — | — |
 | 4b | PF-4b understanding artifact (advisory, never parks) | pending | — | — |
 | 4c | PF-4c open workflow lessons (advisory, never parks) | pending | — | — |
-| 4d | PF-4d product-debt homed in its CLAUDE.md (shared cap) | pending | — | — |
+| 4d | PF-4d product-debt ledger keys homed in AGENTS.md (shared cap) | pending | — | — |
 | 5 | PF-5 ship evidence (MC snapshot commit + MR evidence block) | pending | — | — |
 | 6 | PF-6 launch ci-wait (background) | pending | — | — |
 | 7 | PF-7 CI outcome routing (Draft→Ready on green) | pending | 0/2 | — |

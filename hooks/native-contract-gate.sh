@@ -20,7 +20,17 @@
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
 #   J. every hooks.json command goes through hooks/run-hook.py, so no command
-#      string depends on a shell dialect or on a bare `bash`.
+#      string depends on a shell dialect or on a bare `bash`; the one exception
+#      is the guard, a python file run directly for speed;
+#   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
+#      that references it, and no other plugin file references it (unit
+#      tests under scripts/tests/ exempted — they load the helper directly);
+#   L. agent files carry the model and effort of their PROVIDERS.md tier;
+#   M. every hook entry in both manifests runs through the launcher with an
+#      explicit timeout and a launcher deadline below it, and no Stop-path gate
+#      source scans repository content except through hooks/lib/bounded_scan.py.
+#      An exception names its own bound in native-contract-allow.txt (rules
+#      hook-deadline, repo-scan).
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -75,7 +85,7 @@ def read(path: Path) -> str:
 # Provider mapping, capability matrix, and conformance evidence are the named
 # homes for provider-specific vocabulary. Historical CHANGELOG lines stay in
 # scope and carry narrow allowlist entries so new coupling cannot hide there.
-excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md"}
+excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
     if rel(path) not in excluded_prose
@@ -203,6 +213,57 @@ for agent in sorted(plugin.glob("agents/*.md")):
         problems.append(f"{rel(agent)}: missing {rel(stub)}")
 
 
+# L. PROVIDERS.md "Model tiers" is the one home of each tier's model; agent
+# files are literal copies the harness parses, so they must equal their cell.
+providers_text = read(plugin / "PROVIDERS.md") if (plugin / "PROVIDERS.md").is_file() else ""
+tiers_sec = re.search(r"(?ms)^##\s+Model tiers\s*$(.*?)(?=^##\s|\Z)", providers_text)
+if not tiers_sec:
+    problems.append("PROVIDERS.md: missing the `## Model tiers` section")
+else:
+    tier_cells = {}
+    agent_tier = {}
+    for line in tiers_sec.group(1).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        ticks = [re.fullmatch(r"`([^`]+)`", c) for c in cells]
+        if len(cells) == 4 and all(ticks[1:]):
+            tier_cells[cells[0]] = tuple(m.group(1) for m in ticks[1:])
+        elif len(cells) == 2 and ticks[0] and cells[1] and not set(cells[1]) <= set("-: "):
+            agent_tier[ticks[0].group(1)] = cells[1]
+    home = "PROVIDERS.md `## Model tiers`"
+    on_disk = {a.stem for a in plugin.glob("agents/*.md")}
+    for name in sorted(on_disk - set(agent_tier)):
+        problems.append(f"agents/{name}.md: no row in the {home} Agent table")
+    for name in sorted(set(agent_tier) - on_disk):
+        problems.append(f"{home}: Agent row {name!r} has no agents/{name}.md")
+    for tier in sorted(set(agent_tier.values()) - set(tier_cells)):
+        problems.append(f"{home}: Agent table names tier {tier!r} with no tier row")
+    for name in sorted(on_disk & set(agent_tier)):
+        cells = tier_cells.get(agent_tier[name])
+        if not cells:
+            continue
+        claude, codex, effort = cells
+        md = plugin / "agents" / f"{name}.md"
+        fm = re.match(r"(?s)---\r?\n(.*?)\r?\n---", read(md))
+        got = re.search(r"(?m)^model:\s*(\S+)\s*$", fm.group(1)) if fm else None
+        actual = re.sub(r"^(['\"])(.*)\1$", r"\2", got.group(1)) if got else None
+        if actual != claude:
+            problems.append(
+                f"{rel(md)}: model expected {claude!r} (tier {agent_tier[name]}), "
+                f"got {actual!r}; the home is {home}"
+            )
+        toml = plugin / "providers/codex/agents" / f"afk-{name}.toml"
+        if toml.is_file():
+            body = read(toml)
+            for key, want, label in (("model", codex, "model"),
+                                     ("model_reasoning_effort", effort, "effort")):
+                m = re.search(rf'(?m)^{key}\s*=\s*"([^"]*)"', body)
+                if not m or m.group(1) != want:
+                    problems.append(
+                        f"{rel(toml)}: {label} expected {want!r} (tier {agent_tier[name]}), "
+                        f"got {m.group(1) if m else 'none'!r}; the home is {home}"
+                    )
+
+
 # E. CAPABILITIES.md owns the shared hooks.json event and matcher subset. The
 # exact machine-readable declarations intentionally keep this parser trivial.
 capabilities = plugin / "CAPABILITIES.md"
@@ -223,47 +284,75 @@ def declaration(label: str) -> set[str] | None:
 
 shared_events = declaration("Shared hook events")
 shared_matchers = declaration("Shared hook matchers")
-hooks_path = plugin / "hooks/hooks.json"
-try:
-    hooks_payload = json.loads(read(hooks_path))
-except json.JSONDecodeError as exc:
-    problems.append(f"hooks/hooks.json: invalid JSON ({exc})")
-    hooks_payload = {}
-hook_map = hooks_payload.get("hooks", {})
-if not isinstance(hook_map, dict):
-    problems.append("hooks/hooks.json: hooks must be an object")
-    hook_map = {}
-if shared_events is not None:
-    for event in sorted(set(hook_map) - shared_events):
-        problems.append(f"hooks/hooks.json: event {event!r} is outside the shared subset")
-if shared_matchers is not None:
-    for event, groups in hook_map.items():
+
+
+def load_hook_map(rel_name: str) -> dict:
+    path = plugin / rel_name
+    try:
+        payload = json.loads(read(path))
+    except json.JSONDecodeError as exc:
+        problems.append(f"{rel_name}: invalid JSON ({exc})")
+        return {}
+    hmap = payload.get("hooks", {})
+    if not isinstance(hmap, dict):
+        problems.append(f"{rel_name}: hooks must be an object")
+        return {}
+    return hmap
+
+
+# `Provider-specific hook events: <provider>=<event>, ...` names events one harness
+# has and the other lacks; each may appear in that provider's manifest only.
+specific_events: dict[str, set[str]] = {}
+_specific = re.search(r"(?mi)^\s*Provider-specific hook events\s*:\s*(.+?)\s*$", cap_text)
+for _pair in (_specific.group(1).split(",") if _specific else []):
+    _provider, _, _event = _pair.strip().strip("`").partition("=")
+    if _event:
+        specific_events.setdefault(_provider.strip(), set()).add(_event.strip().strip("`"))
+MANIFEST_PROVIDER = {"hooks/hooks.json": "claude", "hooks/hooks.codex.json": "codex"}
+
+
+def check_subset(rel_name: str, hmap: dict) -> None:
+    # Each twin: the shared subset plus its own provider's declared events.
+    own = specific_events.get(MANIFEST_PROVIDER.get(rel_name, ""), set())
+    if shared_events is not None:
+        for event in sorted(set(hmap) - shared_events - own):
+            problems.append(f"{rel_name}: event {event!r} is outside the shared subset")
+    if shared_matchers is None:
+        return
+    for event, groups in hmap.items():
         if not isinstance(groups, list):
-            problems.append(f"hooks/hooks.json: event {event!r} handlers must be an array")
+            problems.append(f"{rel_name}: event {event!r} handlers must be an array")
             continue
         for index, group in enumerate(groups):
             if not isinstance(group, dict):
-                problems.append(f"hooks/hooks.json: {event}[{index}] must be an object")
+                problems.append(f"{rel_name}: {event}[{index}] must be an object")
                 continue
             matcher = group.get("matcher", "*")
             if not isinstance(matcher, str):
-                problems.append(f"hooks/hooks.json: {event}[{index}] matcher must be a string")
+                problems.append(f"{rel_name}: {event}[{index}] matcher must be a string")
                 continue
             for token in filter(None, (part.strip() for part in matcher.split("|"))):
                 if token not in shared_matchers:
                     problems.append(
-                        f"hooks/hooks.json: matcher {token!r} is outside the shared subset"
+                        f"{rel_name}: matcher {token!r} is outside the shared subset"
                     )
+
+
+hook_map = load_hook_map("hooks/hooks.json")
+check_subset("hooks/hooks.json", hook_map)
+check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 
 
 # J. One launch mechanism. A command string is parsed by whichever shell the
 # harness chose, and `bash` names the WSL stub on many Windows machines, so
 # every handler goes through the launcher and no command carries shell syntax.
 launcher = re.compile(
-    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.py"'
-    r'(?: --soft)?'
+    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/(?:'
+    r'run-hook\.py"(?: --soft)?'
+    r'(?: --deadline [0-9]+)?'
     r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-    r'| repo-list (?:SessionStart|PreToolUse|Stop))$'
+    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
+    r'|protected-branch-guard\.py")$'
 )
 for event, groups in hook_map.items():
     if not isinstance(groups, list):
@@ -279,7 +368,7 @@ for event, groups in hook_map.items():
                 problems.append(
                     f"hooks/hooks.json: {event}[{index}] command must be "
                     f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] plugin <handler.sh> [args] | repo-list <event> - got {command!r}"
+                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
                 )
 
 
@@ -333,7 +422,7 @@ else:
 # I. A CR byte in a shell handler is fatal wherever a POSIX shell runs it, and
 # the failure is silent: the harness reports a failed hook, never a gate verdict.
 # Judge the working tree, which is what a harness copies, not the index.
-for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/*.py"))):
+for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/**/*.py"))):
     try:
         if b"\r" in script.read_bytes():
             problems.append(
@@ -342,6 +431,92 @@ for script in sorted(list(plugin.rglob("*.sh")) + list(plugin.glob("hooks/*.py")
             )
     except OSError as exc:
         problems.append(f"{rel(script)}: cannot read ({exc})")
+
+
+# K. A hooks/lib/providers/<name>_*.py helper is provider-owned code: its own
+# <name>.sh adapter is its one permitted caller (AGENTS.md "Harness-agnostic
+# by default", PROVIDERS.md "Distribution law"). scripts/tests/ is exempt —
+# a unit test legitimately loads the helper module directly.
+for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
+    name = helper.stem.split("_", 1)[0]
+    adapter = plugin / "hooks/lib/providers" / f"{name}.sh"
+    if not adapter.is_file() or helper.name not in read(adapter):
+        problems.append(
+            f"{rel(helper)}: no hooks/lib/providers/{name}.sh references it by name"
+        )
+    for candidate in plugin.rglob("*"):
+        if not candidate.is_file() or candidate in (helper, adapter):
+            continue
+        if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
+            continue
+        if "scripts/tests" in candidate.relative_to(plugin).as_posix():
+            continue
+        try:
+            text = read(candidate)
+        except OSError:
+            continue
+        if helper.name in text:
+            problems.append(
+                f"{rel(candidate)}: references provider helper {helper.name!r}; "
+                f"only hooks/lib/providers/{name}.sh may call it"
+            )
+
+
+# M. Bounded hooks. A hook that outlives its harness timeout is killed with no
+# verdict, so every launcher entry carries a deadline below its timeout; and a
+# repository-wide content scan in a Stop-path gate must take the one bounded route.
+for manifest_rel in ("hooks/hooks.json", "hooks/hooks.codex.json"):
+    for event, groups in load_hook_map(manifest_rel).items():
+        for group in groups if isinstance(groups, list) else []:
+            for handler in (group.get("hooks", []) if isinstance(group, dict) else []) or []:
+                if not isinstance(handler, dict):
+                    continue
+                command = handler.get("command", "")
+                if not isinstance(command, str):
+                    continue
+                if "run-hook.py" not in command:
+                    if not allowed(manifest_rel, "hook-deadline", command):
+                        problems.append(
+                            f"{manifest_rel}: {event} entry bypasses run-hook.py with no hook-deadline "
+                            f"entry in hooks/native-contract-allow.txt naming its own deadline: {command}"
+                        )
+                    continue
+                timeout = handler.get("timeout")
+                if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                    problems.append(f"{manifest_rel}: {event} entry has no explicit timeout: {command}")
+                    continue
+                found = re.search(r"--deadline ([0-9]+(?:\.[0-9]+)?)", command)
+                if not found:
+                    problems.append(f"{manifest_rel}: {event} entry has no --deadline: {command}")
+                elif float(found.group(1)) > min(0.95 * timeout, timeout - 1):
+                    problems.append(
+                        f"{manifest_rel}: {event} --deadline {found.group(1)} is not below "
+                        f"min(0.95*timeout, timeout-1) for timeout {timeout}: {command}"
+                    )
+
+repo_scans = [
+    re.compile(r"\bgit\s+grep\b"),
+    re.compile(r"(?<![\w-])rg\s"),
+    re.compile(r"\bgrep\s+(?:-\w+\s+)*-\w*[rR]"),
+    re.compile(r"\bfind\s+\.(?:\s|/|$)"),
+    re.compile(r"\bos\.walk\("),
+    re.compile(r"\.rglob\("),
+]
+stop_path = {
+    path for pattern in ("hooks/*-gate.sh", "hooks/stop-gates.sh", "hooks/gate-*.sh",
+                         "hooks/lib/*.sh", "hooks/lib/*.py")
+    for path in plugin.glob(pattern)
+} - {plugin / "hooks/lib/bounded_scan.py"}
+for path in sorted(stop_path):
+    path_rel = rel(path)
+    for number, line in enumerate(read(path).splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        if any(pattern.search(line) for pattern in repo_scans) and not allowed(path_rel, "repo-scan", line):
+            problems.append(
+                f"{path_rel}:{number}: repository-wide content scan outside hooks/lib/bounded_scan.py; "
+                f"route it through the bounded scanner or add a repo-scan entry to hooks/native-contract-allow.txt"
+            )
 
 
 if problems:

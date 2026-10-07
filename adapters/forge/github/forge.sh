@@ -26,7 +26,12 @@ PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$FORGE_DIR/../../.." && pwd)}
 afk_config_load
 
 verb=${1:-}
-payload=${2:-'{}'}
+if [ "$#" -ge 2 ]; then
+  payload=$2
+else
+  payload=$(cat)
+  [ -n "$payload" ] || payload='{}'
+fi
 
 PY=python
 command -v python >/dev/null 2>&1 || PY=python3
@@ -77,6 +82,14 @@ unavailable() {
 
 command -v gh >/dev/null 2>&1 || unavailable "forge: github — the \`gh\` CLI is not on PATH"
 
+# A stalled connection must not hang the caller: every `gh` call gets a time
+# limit (AFK_FORGE_TIMEOUT seconds, default 60) where GNU timeout exists.
+_forge_limit=
+timeout --version 2>/dev/null | grep -q GNU && _forge_limit=${AFK_FORGE_TIMEOUT:-60}
+gh() {
+  if [ -n "$_forge_limit" ]; then timeout "$_forge_limit" "$(type -P gh)" "$@"; else command gh "$@"; fi
+}
+
 arg() {
   printf '%s' "$payload" | "$PY" -c '
 import json, sys
@@ -96,6 +109,18 @@ elif isinstance(value, (list, tuple)):
     value = ",".join(str(v) for v in value)
 print(value)
 ' "$1" "${2:-}"
+}
+
+bool_arg() {
+  printf '%s' "$payload" | "$PY" -c '
+import json, sys
+key, default = sys.argv[1], sys.argv[2] == "true"
+try:
+    value = json.load(sys.stdin).get(key, default)
+except Exception:
+    value = default
+print("true" if value is True else "false")
+' "$1" "${2:-false}"
 }
 
 
@@ -119,10 +144,90 @@ REPO_FLAG=()
 _repo=$(resolve_repo)
 [ -n "$_repo" ] && REPO_FLAG=(--repo "$_repo")
 
-VIEW_FIELDS=number,url,title,state,isDraft,headRefName,baseRefName,author,statusCheckRollup
+VIEW_FIELDS=number,url,title,state,isDraft,headRefName,baseRefName,headRefOid,baseRefOid,isCrossRepository,headRepository,author,statusCheckRollup
 
 view_json() {  # $1 = change ref (branch name, number or URL)
-  gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>/dev/null
+  gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>"${VIEW_ERR:-/dev/null}"
+}
+
+# Prints {threads, edited} (a null flag: no `lastEditedAt` answered) or {error}.
+review_threads_json() {  # $1 repo, $2 pull request number
+  local owner=${1%%/*} name=${1#*/} raw
+  if ! raw=$(gh api graphql --paginate -F owner="$owner" -F name="$name" -F number="$2" -f query='
+query($owner:String!,$name:String!,$number:Int!,$endCursor:String) {
+  repository(owner:$owner,name:$name) {
+    pullRequest(number:$number) {
+      reviewThreads(first:100,after:$endCursor) {
+        nodes { id isResolved comments(first:100) { nodes { databaseId lastEditedAt } } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL review-thread query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL review-thread answer is unreadable")
+threads, edited = {}, {}
+for doc in docs:
+    pull = ((((doc.get("data") or {}).get("repository") or {}).get("pullRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(pull, dict) or doc.get("errors"):
+        fail("the GraphQL review-thread answer holds no pull request")
+    for thread in (pull.get("reviewThreads") or {}).get("nodes") or []:
+        comments = (thread.get("comments") or {}).get("nodes") or []
+        if comments and comments[0].get("databaseId") is not None:
+            threads[str(comments[0]["databaseId"])] = {"node": thread.get("id") or "", "resolved": bool(thread.get("isResolved"))}
+        for comment in comments:
+            if comment.get("databaseId") is not None:
+                edited[str(comment["databaseId"])] = bool(comment["lastEditedAt"]) if "lastEditedAt" in comment else None
+print(json.dumps({"threads": threads, "edited": edited}))
+'
+}
+
+# Prints {edited} for the issue comments of a pull request, or {error}.
+issue_comment_edits_json() {  # $1 repo, $2 pull request number
+  local owner=${1%%/*} name=${1#*/} raw
+  if ! raw=$(gh api graphql --paginate -F owner="$owner" -F name="$name" -F number="$2" -f query='
+query($owner:String!,$name:String!,$number:Int!,$endCursor:String) {
+  repository(owner:$owner,name:$name) {
+    pullRequest(number:$number) {
+      comments(first:100,after:$endCursor) {
+        nodes { databaseId lastEditedAt }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}' 2>/dev/null); then
+    printf '{"error":"the GraphQL comment query failed"}\n'
+    return 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+def fail(reason):
+    print(json.dumps({"error": reason}))
+    raise SystemExit(0)
+try:
+    docs = pages(sys.stdin.read())
+except Exception:
+    fail("the GraphQL comment answer is unreadable")
+edited = {}
+for doc in docs:
+    pull = ((((doc.get("data") or {}).get("repository") or {}).get("pullRequest")) if isinstance(doc, dict) else None)
+    if not isinstance(pull, dict) or doc.get("errors"):
+        fail("the GraphQL comment answer holds no pull request")
+    for comment in (pull.get("comments") or {}).get("nodes") or []:
+        if comment.get("databaseId") is not None:
+            edited[str(comment["databaseId"])] = bool(comment["lastEditedAt"]) if "lastEditedAt" in comment else None
+print(json.dumps({"edited": edited}))
+'
 }
 
 normalize() {
@@ -159,6 +264,14 @@ print(json.dumps({
     "source": d.get("headRefName") or "",
     "target": d.get("baseRefName") or "",
     "author": (d.get("author") or {}).get("login") or "",
+    "head_sha": d.get("headRefOid") or "",
+    "base_sha": d.get("baseRefOid") or "",
+    "head_ref": "pull/{}/head".format(d.get("number") or ""),
+    "cross_fork": bool(d.get("isCrossRepository")),
+    "blob_base": ((d.get("headRepository") or {}).get("url") or
+                  ("https://github.com/" + (d.get("headRepository") or {}).get("nameWithOwner", "")
+                   if (d.get("headRepository") or {}).get("nameWithOwner") else "")) +
+                 ("/blob" if d.get("headRepository") else ""),
     "pipeline": {"status": status},
 }))
 '
@@ -167,7 +280,19 @@ print(json.dumps({
 case "$verb" in
 
 change-view)
-  view_json "$(arg id)" | normalize
+  # A failed lookup names whether the forge confirmed there is no such change.
+  VIEW_ERR=$(mktemp)
+  if out=$(view_json "$(arg id)"); then
+    rm -f "$VIEW_ERR"
+    printf '%s' "$out" | normalize
+  else
+    reason=$(head -c 300 "$VIEW_ERR"); rm -f "$VIEW_ERR"
+    missing=false
+    printf '%s' "$reason" | grep -qiE 'no pull requests? found|could not resolve to a pullrequest|not found' && missing=true
+    "$PY" -c 'import json, sys
+print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] == "true",
+                  "reason": sys.argv[2] or "change lookup failed"}))' "$missing" "$reason"
+  fi
   ;;
 
 change-diff)
@@ -294,21 +419,32 @@ change-update-body)
   ;;
 
 change-comment)
-  ref=$(arg id); text=$(arg text); file=$(arg file); line=$(arg line)
-  if [ -z "$file" ]; then
-    out=$(gh pr comment "$ref" "${REPO_FLAG[@]}" --body "$text" 2>&1) || {
+  ref=$(arg id); text=$(arg text); file=$(arg file)
+  old_path=$(arg old_path "$file"); new_path=$(arg new_path "$file")
+  side=$(arg side new); line=$(arg line); old_line=$(arg old_line)
+  repo=$_repo
+  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
+  if [ -z "$file" ] && [ -z "$old_path" ] && [ -z "$new_path" ]; then
+    number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
+    out=$(gh api -X POST "repos/$repo/issues/$number/comments" -f body="$text" 2>&1) || {
       printf '{"error":true,"verb":"change-comment","reason":%s}\n' \
         "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
       exit 0
     }
-    printf '{"ok":true,"id":"%s","inline":false}\n' "$ref"
+    printf '%s' "$out" | "$PY" -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception: d = {}
+ident = str(d.get("id") or "")
+print(json.dumps({"ok": bool(ident), "inline": False, "thread": "", "comment": ident,
+                  "url": d.get("html_url") or "",
+                  **({} if ident else {"reason": "no readable response"})}))
+'
     exit 0
   fi
   # An inline comment is a review comment on the head commit; `gh pr comment`
   # cannot place one, so it goes through the API with the commit id.
   meta=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number,headRefOid 2>/dev/null)
-  repo=$_repo
-  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   # `gh` prints its field errors on stderr and nothing on stdout, so read the
   # answer defensively: a traceback here would leave the caller with neither a
   # comment nor a JSON object it can read. Take each field through its own
@@ -330,9 +466,15 @@ sys.stdout.write(str(d.get(sys.argv[1], "")))
     printf '{"error":true,"verb":"change-comment","reason":"could not resolve the change number, head commit and project needed for an inline comment on %s"}\n' "$ref"
     exit 0
   fi
+  api_side=RIGHT; api_path=$new_path; api_line=$line
+  if [ "$side" = old ]; then api_side=LEFT; api_path=$old_path; api_line=$old_line; fi
+  [ -n "$api_path" ] && [ -n "$api_line" ] || {
+    printf '{"ok":false,"inline":false,"thread":"","comment":"","url":"","reason":"inline comment needs a path and line for its side"}\n'
+    exit 0
+  }
   out=$(gh api -X POST "repos/$repo/pulls/$number/comments" \
-        -f body="$text" -f commit_id="$commit" -f path="$file" \
-        -F line="$line" -f side=RIGHT 2>&1) || {
+        -f body="$text" -f commit_id="$commit" -f path="$api_path" \
+        -F line="$api_line" -f side="$api_side" 2>&1) || {
     printf '{"error":true,"verb":"change-comment","reason":%s}\n' \
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
     exit 0
@@ -344,8 +486,82 @@ try:
 except Exception:
     print(json.dumps({"ok": False, "reason": "no readable response"}))
     raise SystemExit(0)
-print(json.dumps({"ok": bool(d.get("id")), "inline": True, "type": "ReviewComment",
-                  "url": d.get("html_url", "")}))
+ident = str(d.get("id") or "")
+print(json.dumps({"ok": bool(ident), "inline": True, "thread": ident, "comment": ident,
+                  "url": d.get("html_url", ""),
+                  **({} if ident else {"reason": "no comment id in response"})}))
+'
+  ;;
+
+note-list)
+  ref=$(arg id)
+  repo=$_repo
+  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
+  number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
+  edits=$(issue_comment_edits_json "$repo" "$number")
+  gh api --paginate "repos/$repo/issues/$number/comments?per_page=100" 2>/dev/null \
+    | "$PY" -c "$PAGES"'
+import json, sys
+edits = json.loads(sys.argv[1])
+if "error" in edits:
+    print(json.dumps({"error": True, "reason": edits["error"]}))
+    raise SystemExit(0)
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "reason": "gh returned no readable JSON"}))
+    raise SystemExit(0)
+notes = []
+for n in data:
+    ident = str(n.get("id") or "")
+    flag = edits["edited"].get(ident)
+    if flag is None:
+        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for comment " + ident}))
+        raise SystemExit(0)
+    notes.append({"id": ident,
+                  "author": (n.get("user") or {}).get("login") or "",
+                  "body": n.get("body") or "",
+                  "created_at": n.get("created_at") or "",
+                  "updated_at": n.get("updated_at") or "",
+                  "edited": flag})
+notes.sort(key=lambda n: (n["created_at"], n["id"]))
+print(json.dumps({"notes": notes, "count": len(notes)}))
+' "$edits"
+  ;;
+
+commit-changes)
+  # The changes that carry one commit, in the shape `change-view` answers. One
+  # fetch per commit; the caller decides which change a note belongs to.
+  sha=$(arg sha)
+  [ -n "$sha" ] || { printf '{"error":true,"verb":"commit-changes","reason":"commit-changes needs `sha`"}
+'; exit 0; }
+  repo=$_repo
+  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
+  if ! raw=$(gh api --paginate "repos/$repo/commits/$sha/pulls?per_page=100" 2>/dev/null); then
+    printf '{"error":true,"verb":"commit-changes","reason":"gh api failed for the commit lookup"}
+'
+    exit 0
+  fi
+  printf '%s' "$raw" | "$PY" -c "$PAGES"'
+import json, sys
+try:
+    data = pages(sys.stdin.read())
+except Exception:
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "gh returned no readable JSON"}))
+    raise SystemExit(0)
+if not isinstance(data, list) or not all(isinstance(c, dict) and c.get("number") for c in data):
+    print(json.dumps({"error": True, "verb": "commit-changes", "reason": "gh returned an unexpected commit lookup"}))
+    raise SystemExit(0)
+changes = []
+for c in data:
+    state = "merged" if c.get("merged_at") else {"open": "opened"}.get(c.get("state") or "", c.get("state") or "")
+    changes.append({"id": str(c.get("number") or ""), "url": c.get("html_url") or "",
+                    "state": state, "draft": bool(c.get("draft")),
+                    "source": (c.get("head") or {}).get("ref") or "",
+                    "target": (c.get("base") or {}).get("ref") or "",
+                    "author": (c.get("user") or {}).get("login") or ""})
+changes.sort(key=lambda c: int(c["id"] or 0))
+print(json.dumps({"changes": changes, "count": len(changes)}))
 '
   ;;
 
@@ -357,8 +573,13 @@ thread-list)
   repo=$_repo
   [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
   number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
+  graph=$(review_threads_json "$repo" "$number")
   gh api --paginate "repos/$repo/pulls/$number/comments?per_page=100" 2>/dev/null   | "$PY" -c "$PAGES"'
 import json, sys
+graph=json.loads(sys.argv[1])
+if "error" in graph:
+    print(json.dumps({"error": True, "reason": graph["error"]}))
+    raise SystemExit(0)
 try:
     data = pages(sys.stdin.read())
 except Exception:
@@ -371,22 +592,42 @@ for c in data if isinstance(data, list) else []:
         roots[root] = []
         order.append(root)
     roots[root].append(c)
+missing = [str(root) for root in order if str(root) not in graph["threads"]]
+if missing:
+    print(json.dumps({"error": True, "reason": "GraphQL review thread missing for REST roots: " + ", ".join(missing)}))
+    raise SystemExit(0)
+unknown = [str(n.get("id")) for root in order for n in roots[root] if graph["edited"].get(str(n.get("id"))) is None]
+if unknown:
+    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for review comments: " + ", ".join(unknown)}))
+    raise SystemExit(0)
 threads = []
 for root in order:
-    notes = roots[root]
+    notes = sorted(roots[root], key=lambda n: (n.get("created_at") or "", str(n.get("id") or "")))
+    first = notes[0]
+    api_side = first.get("side") or "RIGHT"
+    side = "old" if api_side == "LEFT" else "new"
+    line = first.get("line") if side == "new" else None
+    old_line = ((first.get("line") if first.get("line") is not None else first.get("original_line"))
+                if side == "old" else None)
     threads.append({
         "id": str(root),
-        # GitHub resolution lives on a GraphQL review thread, not on these
-        # comments, so it is reported as unknown rather than guessed as false.
-        "resolved": None,
-        "file": notes[0].get("path"),
+        "resolved": bool((graph["threads"].get(str(root)) or {}).get("resolved")),
+        "file": first.get("path"),
+        "side": side, "line": line, "old_line": old_line,
+        "old_path": first.get("old_path") or first.get("path"),
+        "new_path": first.get("new_path") or first.get("path"),
+        "url": first.get("html_url") or "",
         "notes": [{"id": n.get("id"),
                    "author": (n.get("user") or {}).get("login"),
                    "type": "ReviewComment",
-                   "body": n.get("body") or ""} for n in notes],
+                   "body": n.get("body") or "",
+                   "created_at": n.get("created_at") or "",
+                   "updated_at": n.get("updated_at") or "",
+                   "edited": graph["edited"][str(n.get("id"))]} for n in notes],
     })
+threads.sort(key=lambda t: ((t["notes"][0]["created_at"] if t["notes"] else ""), t["id"]))
 print(json.dumps({"threads": threads, "count": len(threads)}))
-'
+' "$graph"
   ;;
 
 thread-reply)
@@ -404,13 +645,29 @@ thread-reply)
   ;;
 
 thread-resolve)
-  # Resolving needs the GraphQL review-thread node id, which the REST comment
-  # ids above are not. Rather than resolve the wrong thread, this answers
-  # unsupported: a referee that cannot resolve leaves the thread open, which is
-  # visible, where resolving the wrong one silently hides a finding.
-  printf '{"unsupported":true,"verb":"thread-resolve","reason":"forge: github — resolving a review thread needs its GraphQL node id, which this adapter does not carry; leave the thread open and say so"}
-'
-  exit 3
+  ref=$(arg id); thread=$(arg thread); state=$(bool_arg resolved true)
+  repo=$_repo
+  [ -n "$repo" ] || repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)
+  number=$(gh pr view "$ref" "${REPO_FLAG[@]}" --json number --jq .number 2>/dev/null)
+  graph=$(review_threads_json "$repo" "$number")
+  node=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print((json.load(sys.stdin).get("threads", {}).get(sys.argv[1]) or {}).get("node", ""))' "$thread")
+  current=$(printf '%s' "$graph" | "$PY" -c 'import json,sys;print("true" if (json.load(sys.stdin).get("threads", {}).get(sys.argv[1]) or {}).get("resolved") else "false")' "$thread")
+  if [ -z "$node" ]; then
+    printf '{"error":true,"verb":"thread-resolve","reason":"could not map REST root %s to a GraphQL review thread"}\n' "$thread"
+    exit 0
+  fi
+  if [ "$current" = "$state" ]; then
+    printf '{"ok":true,"thread":"%s","resolved":%s}\n' "$thread" "$state"
+    exit 0
+  fi
+  mutation=resolveReviewThread
+  [ "$state" = true ] || mutation=unresolveReviewThread
+  out=$(gh api graphql -F threadId="$node" -f query="mutation(\$threadId:ID!){$mutation(input:{threadId:\$threadId}){thread{id isResolved}}}" 2>&1) || {
+    printf '{"error":true,"verb":"thread-resolve","reason":%s}\n' \
+      "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
+    exit 0
+  }
+  printf '{"ok":true,"thread":"%s","resolved":%s}\n' "$thread" "$state"
   ;;
 
 change-close)

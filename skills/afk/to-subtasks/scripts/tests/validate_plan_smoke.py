@@ -159,7 +159,7 @@ def build_clean(root):
         STATIC + "\n| api | `node --test` | scenarios green |",
         blocked="0001-core, 0002-consumer"))
     write(os.path.join(plan, "0005-sync-harness.md"), subtask(
-        "Harness sync.", "- services/billing/**/CLAUDE.md", STATIC,
+        "Harness sync.", "- services/billing/**/AGENTS.md", STATIC,
         blocked="0001-core, 0002-consumer, 0003-smoke-e2e, 0004-smoke-api"))
     return plan
 

@@ -27,26 +27,25 @@ from the repo root and report per `REPORTING.md` (plugin root):
 ```
 In plain terms: <one jargon-free sentence — what the workflow has learned and not yet absorbed>
 Ledger: <resolved LEDGER.jsonl path>
-LESSONS: <n> open, <m> applied, <k> verified — top open: <L-NNNN> (<≤6-word gloss>)
+LESSONS: <n> open, <m> applied, <k> verified, <f> filed — top open: <L-NNNN> (<≤6-word gloss>)
 ```
 
 ### `apply`
 
 Walk `open` lessons newest-first; for each, route by `target`:
 
-- **CLAUDE.md tree / role sidecars / `.claude/rules` / `STAPLES.md`** →
-  delegate to `/afk:claude-md` with the draft; its propose → approve → write
+- **AGENTS.md tree / role sidecars / `.claude/rules` / `STAPLES.md`** →
+  delegate to `/afk:agents-md` with the draft; its propose → approve → write
   protocol and write boundary govern.
 - **Domain `GLOSSARY.md`** → delegate to `/afk:glossary` — same shape.
 - **Plugin file (skill, checklist, doctrine, hook)** → propose → approve →
   write **here**: load `/afk:writing-for-agents` first and hold the edit to
-  its bar; honour the plugin `CLAUDE.md` "Lockstep" partners and the
+  its bar; honour the plugin `AGENTS.md` "Lockstep" partners and the
   `FRESHNESS.md` same-commit obligations of every file touched. First apply
-  `CAPTURE.md` "A plugin-file lesson on an installed plugin" — an installed
-  plugin gets an issue, never an edit.
-- **Draft is not a doctrine gap** (classification: `CAPTURE.md` "A plugin
-  defect is an issue") → take that route with the draft and evidence, then
-  append `filed --id <id> --issue "<issue URL, or the queued draft path>"`.
+  `CAPTURE.md` "A plugin-file lesson on an installed plugin".
+- **Draft is a defect or feedback** per `CAPTURE.md` "A plugin defect is an
+  issue" → route it there; a filed issue gets
+  `filed --id <id> --issue "<issue URL, or the queued draft path>"`.
 
 Per outcome, append the transition via
 `bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh`:
@@ -67,7 +66,7 @@ human what it takes for that edit to bind:
 | Written | Binds |
 |---|---|
 | Plugin file (skill, checklist, doctrine, hook) | Refresh the enabled plugin per `PROVIDERS.md`; until then the old text runs |
-| CLAUDE.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
+| AGENTS.md tree, role sidecar, `.claude/rules`, `STAPLES.md` | immediately — already in the session's context |
 | Domain `GLOSSARY.md` | on next read; no action |
 
 ### `audit`

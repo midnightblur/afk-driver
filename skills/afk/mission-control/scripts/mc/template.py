@@ -4,8 +4,7 @@ view-model; the shell's JS only renders that data to DOM (two-layer design
 ADR — parsing server-side, presentation client-side).
 
 Deliberately a pure function of its arguments — no wall-clock, no
-environment lookups — so re-rendering an unchanged fixture is byte-identical
-(requirement ADR-0005; SDD §5 idempotency table).
+environment lookups — so re-rendering an unchanged fixture is byte-identical.
 """
 from __future__ import annotations
 

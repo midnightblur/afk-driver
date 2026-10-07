@@ -2,7 +2,7 @@
 # lavish-tips.sh — PreToolUse hook (Bash/PowerShell): inject the page runtime
 # into lavish-axi artifacts.
 #
-# Intercepts a `npx lavish-axi@<ver> <file>` RENDER command and embeds, into the
+# Intercepts a `lavish-axi <file>` RENDER command and embeds, into the
 # artifact HTML on disk, (a) the merged tooltip dictionary, (b) a self-contained
 # hover runtime that wraps every dictionary term in the page and serves a
 # floating tooltip — it also promotes author-side `title=`/`data-tip` attributes

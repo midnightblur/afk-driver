@@ -1,7 +1,7 @@
 ---
 name: afk-implementor
-description: Implementation-tier executor for AFK skills. Use for any child writing product code or a rendered artifact against a brief authored upstream — subtask contracts, bug dossiers, plan-driven changes, render-point pages. Pinned to the implementation-tier model; edits project source and runs its own verification.
-model: claude-opus-4-8
+description: Implementation-tier executor for AFK skills. Use for any child writing product code or a rendered artifact against a brief authored upstream — subtask contracts, bug dossiers, plan-driven changes, render-point pages. Carries the implementation-tier model; edits project source and runs its own verification.
+model: opus
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this agent produces.

@@ -77,44 +77,43 @@ root), leave the MR Draft, leave every not-yet-reached row untouched.
 
 **PF-2 — validations.** Re-run the repository's mandated validation suite —
 the `static` tier of `verification.tiers`, plus whatever that repository's own
-`CLAUDE.md` names as mandatory — against the merged tip. A **mechanical** red (formatter, config-validation,
+`AGENTS.md` names as mandatory — against the merged tip. A **mechanical** red (formatter, config-validation,
 merge-induced compile break) is fixable within the shared cycle cap below. A
 **semantic** red (a validation asserting something is actually wrong, not just
 malformed) → `park(PF-2: semantic_red)` — never auto-fixed.
 
 **PF-3 — fresh-context review (settle loop).** Gate the merged tip through the
 review settle loop (`skills/afk/review/SETTLEMENT.md`; this ladder's session is
-the referee). Per round, run **`/afk:review --feature --tag r{n}`** (add
+the referee). Use unit `feature` and the Draft change's normalized id. Use
+`${AFK_PLUGIN_ROOT}/skills/afk/review/scripts/forge_ledger.py` for every ledger
+verb. Post every finding and run `gate --phase progress` before any fixer.
+Per round, run **`/afk:review --feature --tag r{n}`** (add
 `--base origin/{target}` when PF-1's merge source isn't `origin/master`) — the
 integrated feature diff as a whole (every subtask's changes together, not one
 slice), reviewed by fresh contexts that haven't seen the implementation's own
 reasoning, with the cross-slice design roster that skill's `--feature` mode
 defines (widened per its "Gate policy" when the plan sliced lean). **Round 1
-also sweeps the slice gates' deferrals** (SETTLEMENT.md "Deferral rule"): every
-finding whose latest outcome across its slice's
-`plan/review/{NNNN-slug}-*.outcomes.json` rounds is `deferred`, resolved
-against its findings file, joins the actionable set unless the merged tip
-already fixed it. Every actionable finding — `medium`/`low` included — is fixed or
+also sweeps the slice gates' deferrals.** Run `reconstruct`. Select every slice
+key whose `ever_deferred_to` includes `feature`. Work it on that same key and
+location unless the merged tip already fixed it. Every actionable finding is fixed or
 disputed per the loop; fix routing by class: `correctness`/`spec` → `/afk:fix`;
 `compliance`/`smell`/`test`/`design` → inline fix; `pattern-debt` never gates;
-`product-debt` never gates but owes a `## Known debt` home (`/afk:review`
-"Product-debt homes"), which PF-4d then enforces; `scope` is unreachable — the
+`scope` is unreachable — the
 `--feature` roster carries no scope concern.
 Round-close cheap re-verification (SETTLEMENT.md step 7) is a reactor compile
 of the touched modules plus the local tests covering the fix — the full
 validation suite already ran at PF-2 and CI (PF-6/7) remains the expensive
 backstop. The
-loop keeps its own round accounting in this row's `Cycle` cell (`n/10`, cap
-owned by SETTLEMENT.md) — **outside** the shared mechanical fix cap below.
+loop keeps its own round accounting. Refresh this row's `Cycle` display from
+the feature round returned by `reconstruct` (`n/10`). It stays outside the
+shared mechanical fix cap below.
 Two consecutive rounds finding the same fix-one-leave-the-sibling shape widen
 the loop's scope past the delta — pass `--scope-escalated` from the next round
 (`SETTLEMENT.md` "Scope escalation").
-Settled → proceed. A ledger-only round → remediate in place and proceed; it
-closes the loop as settled and mints no further round (`SETTLEMENT.md`
-"Termination", third bullet — the termination test is that the latest sweep
-raised no finding against main or test code). Stalemate at the cap →
-`park(PF-3: review_stalemate)`, with the two facts `SETTLEMENT.md` "What the
-cap means" requires — unusual by construction; a human must look. Record outcomes per round as
+Write the summary for a clean or valid ledger-only final round. Run
+`gate --phase closure` before proceeding. Stalemate at the cap →
+`park(PF-3: review_stalemate)`, with the two facts `SETTLEMENT.md` "Termination"
+requires — unusual by construction; a human must look. Record outcomes per round as
 SETTLEMENT.md step 7 defines
 (`plan/review/feature-{base-short}-r{n}.outcomes.json`) — the caller-side half
 of the review telemetry.
@@ -159,15 +158,14 @@ rides the PF table into the report and MR evidence block; applying the drafts
 is `/afk:lessons apply`, never this ladder's job. Advisory like PF-4b.
 
 **PF-4d product-debt homes — a real gate, not advisory.** Reached once
-PF-4c is `green`. Read every `plan/review/*.outcomes.json` for entries
-whose outcome is `settled(product-debt: <path>)`, plus any finding this
-run classified `product-debt`. For each, confirm the named `CLAUDE.md`
-exists and carries a `## Known debt` entry for it.
+PF-4c is `green`. Run `forge_ledger.py reconstruct` across all units. For each
+`disposition result=product-debt`, confirm `home` exists and its `## Known
+debt` entry contains `ledger: <key>`.
 
 - All homed (or none found) → row `green`, `Evidence: product-debt
   homed: <n>`.
 - Any accepted `product-debt` finding with no home → land the entry via
-  `/afk:claude-md` within the shared fix cap, then re-check; cap
+  `/afk:agents-md` within the shared fix cap, then re-check; cap
   exhausted → `park(PF-4d: unhomed_product_debt)` naming each one.
 
 **PF-5 — ship evidence.**
