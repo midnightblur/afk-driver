@@ -18,7 +18,8 @@ spec = importlib.util.spec_from_file_location("python_runtime", SCRIPTS / "pytho
 pr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pr)
 PINS = pr.pins()
-SHELL = shutil.which("sh") or shutil.which("bash")
+# Without `sh` on PATH, the hooks' own bash: never the Windows WSL stub that `bash` can resolve to.
+SHELL = shutil.which("sh") or pr.find_bash()
 
 STUB_UV = """#!/bin/sh
 printf '%s\\n' "$*" >> "$LOG"
@@ -58,12 +59,14 @@ def machine(tmp_path):
         script.chmod(0o755)
     env = {k: v for k, v in os.environ.items() if not k.startswith("UV_")}
     env.update(XDG_DATA_HOME=posix(data), LOG=posix(tmp_path / "log"), STUB_UV_SOURCE=posix(stub),
-               PATH=str(bin_dir) + os.pathsep + env.get("PATH", ""))
+               STUB_BIN=posix(bin_dir))
     return tmp_path, data / "afk", env, stub
 
 
 def run(env, *args):
-    return subprocess.run([SHELL, posix(SH), *args], env=env, capture_output=True, text=True, timeout=60)
+    # Git's bin\bash.exe puts its own tool dirs first, real curl included: the stubs go first inside.
+    return subprocess.run([SHELL, "-c", 'PATH="$STUB_BIN:$PATH" exec sh "$0" "$@"', posix(SH), *args],
+                          env=env, capture_output=True, text=True, timeout=60)
 
 
 def calls(tmp_path):
