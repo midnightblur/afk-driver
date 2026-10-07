@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-07
+
 ### Added
 
 - `python hooks/tests/bench-hooks.py` times every hook command the manifest
