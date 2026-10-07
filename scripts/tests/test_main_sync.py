@@ -293,11 +293,12 @@ def test_the_committed_hook_finds_the_sync_folder_from_git_dir_without_a_subproc
     shim = tmp_path / "bin"
     shim.mkdir()
     marker = tmp_path / "ran"
-    (shim / "python").write_text(f'#!/bin/sh\necho ran > "{marker.as_posix()}"\ncat >/dev/null\n', encoding="utf-8")
+    (shim / "afk-python").write_text(f'#!/bin/sh\necho ran > "{marker.as_posix()}"\ncat >/dev/null\n', encoding="utf-8")
     (shim / "git").write_text('#!/bin/sh\nexit 9\n', encoding="utf-8")
-    for name in ("python", "git"):
+    for name in ("afk-python", "git"):
         os.chmod(shim / name, 0o755)
-    env = {**human(), "AFK_PROVIDER": "claude", "GIT_DIR": gitdir.as_posix(),
+    env = {**{k: v for k, v in human().items() if k != "AFK_PYTHON"}, "AFK_PROVIDER": "claude",
+           "GIT_DIR": gitdir.as_posix(),
            "PATH": f"{shim.as_posix()}{os.pathsep}{os.environ['PATH']}"}
     done = subprocess.run([BASH, str(PLUGIN_ROOT / "hooks" / "branch-name-gate.sh"), "committed"], input="x\n",
                           text=True, capture_output=True, cwd=tmp_path, env=env, timeout=60)

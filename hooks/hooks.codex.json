@@ -36,7 +36,7 @@
           },
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/protected-branch-occupancy.py\"",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/protected-branch-occupancy.py\"",
             "timeout": 30,
             "statusMessage": "protected-branch occupancy"
           }
@@ -114,7 +114,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${PLUGIN_ROOT}/hooks/protected-branch-meter.py\"",
+            "command": "afk-python \"${PLUGIN_ROOT}/hooks/protected-branch-meter.py\"",
             "timeout": 30,
             "statusMessage": "protected-branch change meter"
           }

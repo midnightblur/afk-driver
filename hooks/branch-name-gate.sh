@@ -50,8 +50,7 @@ if [ "${1:-}" = committed ] || [ "${1:-}" = aborted ]; then
     case "$link" in /* | [A-Za-z]:*) common=$link ;; *) common="$common/$link" ;; esac
   fi
   if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1; then
-    py=python; command -v python >/dev/null 2>&1 || py=python3
-    "$py" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true
+    "${AFK_PYTHON:-afk-python}" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true
   fi
   exit 0
 fi
