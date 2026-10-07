@@ -267,9 +267,10 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     assert refused.returncode == 3
 
 
-@pytest.mark.parametrize("args", [("commit", "-q", "--allow-empty", "-m", "c"), ("branch", "newb"),
+@pytest.mark.parametrize("args", [("commit", "-q", "--allow-empty", "-m", "c"),
+                                  ("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"), ("branch", "newb"),
                                   pytest.param(("switch", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK)])
-def test_without_afk_python_git_goes_on_and_says_to_run_setup(repo, args):
+def test_without_afk_python_git_goes_on_and_says_to_run_setup_once(repo, args):
     import shutil
     installed(repo)
     sep = os.pathsep
@@ -277,7 +278,7 @@ def test_without_afk_python_git_goes_on_and_says_to_run_setup(repo, args):
     env = {k: v for k, v in agent(PATH=path).items() if k != "AFK_PYTHON"}
     done = git(repo, *args, env=env)
     assert done.returncode == 0, done.stderr
-    assert "backstop unavailable: afk-python not found. Run /afk:setup." in done.stderr, done.stderr
+    assert done.stderr.count("backstop unavailable: afk-python not found. Run /afk:setup.") == 1, done.stderr
     assert "command not found" not in done.stderr, done.stderr
 
 
