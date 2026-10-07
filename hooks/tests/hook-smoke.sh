@@ -795,18 +795,23 @@ else
 fi
 
 # PATH without a POSIX shell is the machine the probes ran on: the system
-# directory's WSL stub is the only thing named bash.
-py_abs=$(command -v "$py")
-out=$(cd "$fixture_repo" && env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
-  "$py_abs" "$launcher" repo-list PreToolUse \
-  < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
-rc=$?
-if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
-    '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
-  pass "launcher finds a shell when PATH carries only the WSL stub"
-else
-  fail "launcher shell lookup (rc=$rc out=$out)"
-fi
+# directory's WSL stub is the only thing named bash. Windows-only premise.
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*)
+  py_abs=$(command -v "$py")
+  out=$(cd "$fixture_repo" && env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
+    "$py_abs" "$launcher" repo-list PreToolUse \
+    < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
+  rc=$?
+  if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
+      '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
+    pass "launcher finds a shell when PATH carries only the WSL stub"
+  else
+    fail "launcher shell lookup (rc=$rc out=$out)"
+  fi
+  ;;
+*) echo "  skip: launcher WSL-stub shell lookup (Windows only)" ;;
+esac
 
 rm -rf "$fixture_repo" "$bare_repo" "$clean_repo"
 

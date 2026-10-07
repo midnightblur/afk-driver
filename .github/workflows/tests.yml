@@ -49,8 +49,9 @@ jobs:
         run: python -m pip install pytest markdown-it-py "mcp<2" requests pyyaml
 
       - name: Set a git identity for test repositories
+        # Name and address tokens stay under 3 characters: the genericity gate treats longer ones as author handles.
         run: |
-          git config --global user.name "afk ci"
+          git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git --version
 
