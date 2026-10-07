@@ -276,8 +276,14 @@ def install_signal_handlers() -> None:
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
-    # The working tree's Git root, like every plugin gate; CLAUDE_PROJECT_DIR
-    # names the launch checkout, which can differ.
+    return git_toplevel(env)[0]
+
+
+def git_toplevel(env: dict[str, str]) -> tuple[Path | None, bool]:
+    """The working tree's Git root, and whether Git answered: a root, or "not a git repository".
+
+    Like every plugin gate; CLAUDE_PROJECT_DIR names the launch checkout, which can differ.
+    """
 
     # Windows resolves the executable name against this process's PATH, not the
     # PATH being handed to the child, so name git absolutely when it is only on
@@ -286,12 +292,14 @@ def repo_root(env: dict[str, str]) -> Path | None:
     try:
         out = subprocess.run(
             [git, "-C", os.getcwd(), "rev-parse", "--show-toplevel"],
-            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env=env,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env={**env, "LC_ALL": "C"},
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return None, False
     top = out.stdout.strip()
-    return Path(top) if out.returncode == 0 and top else None
+    if out.returncode == 0 and top:
+        return Path(top), True
+    return None, "not a git repository" in out.stderr
 
 
 def is_wsl_stub(candidate: Path) -> bool:
@@ -690,13 +698,10 @@ def main(argv: list[str]) -> int:
             sys.stderr.write(f"run-hook.py: unknown event: {argv[1]}\n")
             return 0 if soft else 2
         # Manifest first: no declared handler needs no shell, no job and no second git call.
-        if shutil.which("git"):
-            root = repo_root(dict(os.environ))
-            if root is None:
-                return 0
-            entries, faults = repo_entries(root, argv[1])
-            if not entries and not faults:
-                return 0
+        # Only Git's own answer proves "nothing declared"; a failed lookup retries on the shell's PATH.
+        root, answered = git_toplevel(dict(os.environ)) if shutil.which("git") else (None, False)
+        if answered and (root is None or repo_entries(root, argv[1]) == ([], [])):
+            return 0
     elif policy_noop(argv[1]):
         return 0
 

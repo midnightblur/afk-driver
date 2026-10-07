@@ -529,6 +529,34 @@ def test_repo_list_with_nothing_declared_for_the_event_exits_before_any_shell_lo
     assert code == 0 and lookups.calls == 0
 
 
+def test_repo_list_outside_any_repository_exits_before_any_shell_lookup(tmp_path, monkeypatch):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    code, lookups = _main_in(plain, monkeypatch, ["repo-list", "Stop"])
+    assert code == 0 and lookups.calls == 0
+
+
+@pytest.mark.parametrize("answer", [OSError("git: cannot execute"), (1, "", "wrapper: broken"),
+                                    (128, "", "fatal: not a git repository (or any of the parent directories)")])
+def test_only_gits_own_answer_counts_as_no_repository(monkeypatch, answer):
+    def git(*args, **kwargs):
+        if isinstance(answer, Exception):
+            raise answer
+        return subprocess.CompletedProcess(args, answer[0], answer[1], answer[2])
+
+    monkeypatch.setattr(launcher.subprocess, "run", git)
+    root, answered = launcher.git_toplevel(dict(os.environ))
+    assert root is None and answered == (not isinstance(answer, Exception) and answer[0] == 128)
+
+
+def test_a_failed_repository_lookup_still_looks_for_a_shell(tmp_path, monkeypatch):
+    root = repository(tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/g.sh"}]), {"g.sh": OK})
+    monkeypatch.setattr(launcher, "git_toplevel", lambda env: (None, False))
+    _code, lookups = _main_in(root, monkeypatch, ["repo-list", "Stop"])
+    assert lookups.calls == 1
+
+
 @pytest.mark.parametrize("manifest", [
     json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/g.sh"}]),
     "{not json",
