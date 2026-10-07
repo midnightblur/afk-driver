@@ -2,8 +2,8 @@
 """Report and record a developer's `developer:` values. None is a secret, so an agent
 asks the human in session and records the answers here.
 
-    python developer_values.py status [--repo PATH]   # JSON report, below
-    python developer_values.py set KEY=VALUE ... [--machine] [--repo PATH]
+    afk-python developer_values.py status [--repo PATH]   # JSON report, below
+    afk-python developer_values.py set KEY=VALUE ... [--machine] [--repo PATH]
 
 `--repo` names the checkout to act on; the default is the current one.
 `status` reports `main_checkout` and whether the repository is `configured` (has
