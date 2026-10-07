@@ -229,17 +229,219 @@ def test_config_forge_wins_over_the_remote_address(tmp_path):
     assert answer == {"protected": True, "source": "gitlab"}
 
 
-def test_answer_is_asked_live_each_time(tmp_path):
-    """AC-010: a branch protected after the first call is protected on the next."""
+def test_answer_is_asked_live_each_time_with_the_cache_off(tmp_path):
+    """AC-010: with a TTL of 0, a branch protected after the first call is protected on the next."""
     marker = tmp_path / "second"
     body = (f'case "$*" in *rules/*) echo "[]" ;; *) if [ -e "{marker.as_posix()}" ]; '
             'then echo \'{"protected": true}\'; else echo \'{"protected": false}\'; fi ;; esac\n')
     environ = stub(tmp_path, "gh", body)
+    environ["AFK_PROTECTION_CACHE_TTL"] = "0"
     repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
     first, _ = lookup(environ, repo, "topic")
     marker.write_text("x", encoding="utf-8")
     second, _ = lookup(environ, repo, "topic")
     assert (first["protected"], second["protected"]) == (False, True)
+
+
+# ---- the forge answer is cached for at most 5 minutes -------------------------
+
+class _Clock:
+    """Stands in for the lookup's `time` module: the test sets `time()`; `monotonic` is real."""
+
+    def __init__(self):
+        self.now = 1_000_000.0
+        self.monotonic = time.monotonic
+
+    def time(self):
+        return self.now
+
+
+class _Forge:
+    """Stands in for the forge adapter; counts the reads and answers `self.reply`."""
+
+    def __init__(self):
+        self.calls = 0
+        self.reply = {"protected": True, "via": "branch"}
+
+    def protection(self, *args):
+        self.calls += 1
+        return dict(self.reply)
+
+
+@pytest.fixture
+def cached(tmp_path, monkeypatch):
+    """An in-process lookup on a GitHub repository whose default branch is `trunk`."""
+    for name in ("GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_CONFIG", "AFK_PROTECTION_CACHE_TTL",
+                 "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AFK_PLUGIN_ROOT", str(PLUGIN_ROOT))
+    spec = importlib.util.spec_from_file_location("afk_lookup_cache", LOOKUP)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    forge, clock, real_load = _Forge(), _Clock(), module._load
+    monkeypatch.setattr(module, "_load", lambda name, path: forge if name == "afk_branch_protection"
+                        else real_load(name, path))
+    monkeypatch.setattr(module, "time", clock)
+    repo = make_repo(tmp_path, "https://github.com/acme/widget.git")
+    git(repo, "update-ref", "refs/remotes/origin/trunk", "HEAD")
+    git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
+    common = repo / ".git"
+
+    def ask(branch="topic"):
+        return module.lookup(branch, repo, common)
+
+    return ask, forge, clock, common / "afk" / "protection-cache.json"
+
+
+def test_two_lookups_within_the_ttl_ask_the_forge_once(cached):
+    ask, forge, clock, _ = cached
+    first = ask()
+    clock.now += 299
+    assert ask() == first == {"protected": True, "source": "github"}
+    assert forge.calls == 1
+
+
+def test_a_lookup_after_the_ttl_asks_the_forge_again(cached):
+    ask, forge, clock, _ = cached
+    ask()
+    clock.now += 300
+    forge.reply = {"protected": False, "via": "none"}
+    assert ask() == {"protected": False, "source": "github"}
+    assert forge.calls == 2
+
+
+@pytest.mark.parametrize("branch", ("trunk", "main", "master"))
+def test_the_default_branch_main_and_master_are_always_live(cached, branch):
+    ask, forge, _, cache = cached
+    ask(branch)
+    ask(branch)
+    assert forge.calls == 2
+    assert not cache.exists()
+
+
+def test_a_failed_read_is_not_cached(cached):
+    ask, forge, _, _ = cached
+    forge.reply = {"error": True, "verb": "branch-protection", "reason": "the branch read failed"}
+    assert ask()["source"] == "fallback"
+    forge.reply = {"protected": True, "via": "branch"}
+    assert ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+
+
+@pytest.mark.parametrize("text", ("{not json", "[]", '{"x": {"at": "soon"}}', '{"k": 1}'))
+def test_an_unreadable_cache_file_asks_live(cached, text):
+    ask, forge, _, cache = cached
+    ask()
+    cache.write_text(text, encoding="utf-8")
+    assert ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+    assert len(json.loads(cache.read_text(encoding="utf-8"))) == 1, "the live answer replaced the file"
+
+
+@pytest.mark.parametrize("ttl", ("0", "-5"))
+def test_a_ttl_of_0_asks_live_every_time(cached, monkeypatch, ttl):
+    ask, forge, _, cache = cached
+    monkeypatch.setenv("AFK_PROTECTION_CACHE_TTL", ttl)
+    ask()
+    ask()
+    assert forge.calls == 2
+    assert not cache.exists()
+
+
+def test_the_ttl_is_capped_at_5_minutes(cached, monkeypatch):
+    ask, forge, clock, _ = cached
+    monkeypatch.setenv("AFK_PROTECTION_CACHE_TTL", "3600")
+    ask()
+    clock.now += 300
+    ask()
+    assert forge.calls == 2
+
+
+def test_the_cache_is_per_branch(cached):
+    ask, forge, _, _ = cached
+    ask("topic")
+    ask("other")
+    ask("topic")
+    assert forge.calls == 2
+
+
+def test_an_unknown_default_branch_turns_the_cache_off(cached, tmp_path):
+    ask, forge, _, cache = cached
+    git(tmp_path / "repo", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+    ask("trunk")
+    ask("trunk")
+    ask("topic")
+    ask("topic")
+    assert forge.calls == 4
+    assert not cache.exists()
+
+
+def test_an_unknown_default_branch_stops_cache_reads_too(cached, tmp_path):
+    ask, forge, _, cache = cached
+    forge.reply = {"protected": False, "via": "none"}
+    assert ask("topic") == {"protected": False, "source": "github"}
+    assert cache.exists(), "a cached false is seeded while the default branch is known"
+    git(tmp_path / "repo", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+    forge.reply = {"protected": True, "via": "branch"}
+    assert ask("topic") == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+
+
+@pytest.mark.parametrize("at", ("10" * 200, "1e400", "-1e400"))
+def test_an_out_of_range_timestamp_is_a_miss(cached, at):
+    ask, forge, _, cache = cached
+    ask()
+    entries = json.loads(cache.read_text(encoding="utf-8"))
+    cache.write_text(json.dumps(entries).replace(str(next(iter(entries.values()))["at"]), at), encoding="utf-8")
+    assert ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+
+
+def test_a_timestamp_in_the_future_is_a_miss(cached):
+    ask, forge, clock, _ = cached
+    ask()
+    clock.now -= 1
+    ask()
+    assert forge.calls == 2
+
+
+@pytest.mark.parametrize("remote", ("https://github.com/other/widget.git", "https://github.example.com/acme/widget.git"))
+def test_the_cache_is_per_repository_and_host(cached, tmp_path, remote):
+    ask, forge, _, _ = cached
+    ask()
+    git(tmp_path / "repo", "remote", "set-url", "origin", remote)
+    ask()
+    assert forge.calls == 2
+
+
+def test_an_unreadable_cache_path_asks_live_and_still_answers(cached):
+    ask, forge, _, cache = cached
+    cache.mkdir(parents=True)
+    assert ask() == ask() == {"protected": True, "source": "github"}
+    assert forge.calls == 2
+    assert cache.is_dir() and list(cache.parent.iterdir()) == [cache]
+
+
+def test_a_failed_replace_still_answers_and_publishes_nothing(cached, monkeypatch):
+    ask, forge, _, cache = cached
+    refused = []
+
+    def refuse(*args):
+        refused.append(args)
+        raise PermissionError("in use")
+
+    monkeypatch.setattr(os, "replace", refuse)
+    assert ask() == {"protected": True, "source": "github"}
+    assert refused, "the cache is published through os.replace"
+    assert not cache.exists() and list(cache.parent.iterdir()) == []
+    ask()
+    assert forge.calls == 2
+
+
+def test_the_cache_write_leaves_no_temporary_file(cached):
+    ask, _, _, cache = cached
+    ask()
+    assert [path.name for path in cache.parent.iterdir()] == ["protection-cache.json"]
 
 
 # ---- fallback S-3 --------------------------------------------------------------
@@ -351,6 +553,7 @@ def test_r3_2_the_override_of_the_other_forge_is_never_used(tmp_path):
 
 def test_r3_3_an_insteadof_alias_and_an_inline_comment_are_resolved_by_git(tmp_path):
     environ = stub(tmp_path, "gh", GITHUB_STUB)
+    environ["AFK_PROTECTION_CACHE_TTL"] = "0"  # the second read must parse the edited config, not hit the cache
     repo = make_repo(tmp_path, "gh:acme/widget.git")
     git(repo, "config", "url.https://github.com/.insteadOf", "gh:")
     answer, _ = lookup(environ, repo, "release")

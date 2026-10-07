@@ -554,11 +554,22 @@ def test_ac009_fallback_notice_once_per_session(tmp_path, stubs):
     assert guard("claude", shell_call("claude", master, "other"), master, stubs).denied
 
 
-def test_ac010_protection_added_mid_session_refuses_next_action(repo, tmp_path, stubs):
+def test_ac010_protection_added_mid_session_refuses_once_the_cached_answer_expires(repo, tmp_path, stubs):
     wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
     assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied
     stubs.github(protected=["feature-x"])
+    assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied, "within 5 minutes"
+    cache = repo / ".git" / "afk" / "protection-cache.json"
+    entries = json.loads(cache.read_text(encoding="utf-8"))
+    cache.write_text(json.dumps({k: {**v, "at": v["at"] - 300} for k, v in entries.items()}), encoding="utf-8")
     assert guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied
+
+
+def test_ac010_protection_added_mid_session_refuses_next_action_with_the_cache_off(repo, tmp_path, stubs):
+    wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs, AFK_PROTECTION_CACHE_TTL="0").denied
+    stubs.github(protected=["feature-x"])
+    assert guard("claude", shell_call("claude", wt, "s1"), wt, stubs, AFK_PROTECTION_CACHE_TTL="0").denied
 
 
 # =========================================================================== Moving and creation

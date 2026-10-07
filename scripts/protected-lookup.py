@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Is a branch protected? Asked live from the forge, with a local fallback.
+"""Is a branch protected? Asked from the forge, cached briefly, with a local fallback.
 
     python protected-lookup.py --branch <name> [--checkout <dir>]
       -> {"protected": bool, "source": "github"|"gitlab"|"fallback"[, "reason": "..."]}
@@ -7,7 +7,13 @@
 The forge is the repository's `forge:` (`CONFIG.md`) when it names one, else the
 one the branch's remote host implies. `adapters/forge/branch_protection.py` reads
 the one branch (`ADAPTERS.md`); it runs in this process, and no shell starts.
-Nothing is cached: every call asks again.
+
+A definite forge answer is cached in `<git common dir>/afk/protection-cache.json`
+per forge, host, repository, API root and branch for `AFK_PROTECTION_CACHE_TTL`
+seconds (default and maximum 300; `0` asks the forge every time). The remote's
+default branch, `main` and `master` are always asked live, and so is every branch
+while the default branch is unknown (no `refs/remotes/<remote>/HEAD`). A fallback
+is never cached, and an unreadable cache file counts as empty.
 
 Fallback (`source: fallback`, with a `reason`): no forge, no login, no network, a
 timeout (`AFK_PROTECTED_TIMEOUT`, default 5 s, wall-clock; `AFK_GITHUB_API_URL` / `AFK_GITLAB_API_URL` replace the
@@ -29,6 +35,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[1])
 TIMEOUT = 5.0
+CACHE_TTL = 300.0
 end = [0.0]  # monotonic time by which one lookup, git reads included, must finish
 PUBLIC_API = {"github": ("github.com", "https://api.github.com"),
               "gitlab": ("gitlab.com", "https://gitlab.com/api/v4")}
@@ -149,6 +156,48 @@ def fallback(branch: str, common: Path, remote: str, reason: str) -> dict:
     return {"protected": branch in names, "source": "fallback", "reason": reason}
 
 
+def _cache_ttl() -> float:
+    try:
+        return min(max(float(os.environ.get("AFK_PROTECTION_CACHE_TTL") or CACHE_TTL), 0.0), CACHE_TTL)
+    except ValueError:
+        return CACHE_TTL
+
+
+def _fresh(entries, ttl: float) -> dict:
+    """The entries of a parsed cache file younger than `ttl`; anything malformed is dropped."""
+    now, kept = time.time(), {}
+    for key, entry in (entries.items() if isinstance(entries, dict) else ()):
+        try:
+            if 0 <= now - float(entry["at"]) < ttl and isinstance(entry["protected"], bool):
+                kept[key] = {"protected": entry["protected"], "at": entry["at"]}
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+    return kept
+
+
+def _read_cache(path: Path, ttl: float) -> dict:
+    try:
+        return _fresh(json.loads(path.read_text(encoding="utf-8")), ttl)
+    except (OSError, ValueError):
+        return {}
+
+
+def _remember(path: Path, key: str, protected: bool, ttl: float) -> None:
+    """Write the cache file whole through a temporary file; a failed write leaves the next call live."""
+    entries = _read_cache(path, ttl)
+    entries[key] = {"protected": protected, "at": time.time()}
+    temp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp.write_text(json.dumps(entries), encoding="utf-8")
+        os.replace(temp, path)
+    except OSError:
+        try:
+            temp.unlink()
+        except OSError:
+            pass
+
+
 def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     try:
         cap = float(os.environ.get("AFK_PROTECTED_TIMEOUT") or TIMEOUT)
@@ -167,10 +216,19 @@ def lookup(branch: str, checkout: Path, common: Path | None = None) -> dict:
     public_host, api = PUBLIC_API[forge]
     override = os.environ.get("AFK_GITHUB_API_URL" if forge == "github" else "AFK_GITLAB_API_URL")
     api = override or (api if found["host"] == public_host else "")
+    ttl = _cache_ttl()
+    default = default_branch(common, found["remote"])
+    cacheable = ttl > 0 and bool(found["repo"]) and bool(default) and branch not in {"main", "master", default}
+    cache = common / "afk" / "protection-cache.json"
+    key = json.dumps([forge, found["host"], found["repo"], api, branch])
+    if cacheable and key in (entries := _read_cache(cache, ttl)):
+        return {"protected": entries[key]["protected"], "source": forge}
     answer = _load("afk_branch_protection", ROOT / "adapters" / "forge" / "branch_protection.py").protection(
         forge, branch, found["repo"], str(checkout), limit, api, found["host"])
     if answer.get("error") or not isinstance(answer.get("protected"), bool):
         return fallback(branch, common, found["remote"], answer.get("reason") or f"the {forge} forge did not answer")
+    if cacheable:
+        _remember(cache, key, answer["protected"], ttl)
     return {"protected": answer["protected"], "source": forge}
 
 

@@ -57,7 +57,7 @@ A guarded action is an edit or a write-capable command (catalog `A`). The verdic
 
 ### S — where the protected-branch list comes from
 
-Asked on every check; no cache ([ADR-0004](adr/requirements/0004-protected-list-asked-live.md)).
+A definite forge answer is reused for at most 5 minutes. The remote's default branch, `main` and `master` are asked at every check ([ADR-0004](adr/requirements/0004-protected-list-asked-live.md)).
 
 | ID | Forge | Source | Match |
 |----|-------|--------|-------|
@@ -99,7 +99,7 @@ Protected branches:
 - [ ] AC-007 A GitHub branch the forge lists as protected yields verdict "protected"; a branch it does not list yields "not protected".
 - [ ] AC-008 A GitLab branch matching any protected pattern, exact or wildcard, on any page of the list, yields "protected"; a branch matching none yields "not protected".
 - [ ] AC-009 When the forge cannot answer (S-3 conditions), exactly the default branch, `main` and `master` yield "protected", and the session shows one notice naming the fallback.
-- [ ] AC-010 A branch protected on the forge after the session started is refused at the next guarded action.
+- [ ] AC-010 A branch protected on the forge after the session started is refused at every guarded action that starts 5 minutes or more after the change; the remote's default branch, `main` and `master` are refused at the next guarded action.
 
 Moving and worktree creation:
 
@@ -156,7 +156,7 @@ Behavioural decisions with a record:
 - Every plugin user, every repository, on by default: [ADR-0001](adr/requirements/0001-on-for-every-plugin-user.md).
 - The main checkout is refused on any branch, not only on protected branches: [ADR-0002](adr/requirements/0002-main-checkout-refused-on-any-branch.md).
 - A conservative set of single read-only shell commands succeeds in P-1..P-3: [ADR-0009](adr/requirements/0009-allow-conservative-read-only-shell-commands.md), superseding [ADR-0003](adr/requirements/0003-refuse-every-shell-command.md).
-- The protected-branch list is asked from the forge on every check: [ADR-0004](adr/requirements/0004-protected-list-asked-live.md).
+- The protected-branch list is asked from the forge, with a cache of at most 5 minutes that never holds the default branch, `main` or `master`: [ADR-0004](adr/requirements/0004-protected-list-asked-live.md).
 - Protection covers sessions that forget; deliberate writes into another folder are out of scope: [ADR-0005](adr/requirements/0005-guard-against-forgetting-not-intent.md).
 - An H-1 session moves with its native worktree tool; no launch wrapper for H-1: [ADR-0006](adr/requirements/0006-self-moving-harness-moves-natively.md).
 - A refused H-2 agent inside herdr moves itself by typing `/cd` into its own pane: [ADR-0007](adr/requirements/0007-fixed-folder-agent-self-types-cd-in-herdr.md).

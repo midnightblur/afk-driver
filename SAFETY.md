@@ -26,6 +26,7 @@ An agent changes a repository only from a linked worktree on an unprotected
 branch. The main checkout counts as protected on every branch. A branch is
 protected when the forge says so (a protection setting or a ruleset); when the
 forge does not answer, the remote's default branch, `main` and `master` count.
+A forge answer for any other branch is reused for at most 5 minutes.
 In a linked worktree a detached or unborn HEAD passes; a folder outside Git
 and `AFK_ALLOW_PROTECTED=1` set by a human at launch pass everywhere. The tool-call guard
 (`hooks/protected-branch-guard.py`) enforces the rule first; the installed git
