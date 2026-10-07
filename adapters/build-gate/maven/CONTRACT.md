@@ -57,9 +57,10 @@ context to come up. `mutation-probe.sh` is on-demand only and never blocks.
 both paths go into the COMMON `info/exclude`, so every wrapper run and every IDE
 that reads `maven.config` picks it up and nothing appears in `git status`. It
 records `maven.config` in the worktree's `afk-copied.json`
-(`scripts/worktree_owner.py copied`), so worktree removal knows it is restorable,
-only when it created the file or the file already matched its record. A
-developer's own `maven.config` stays unrecorded, and removal keeps the worktree.
+(`scripts/worktree_owner.py append`), so worktree removal knows it is restorable,
+only when it created the file or the file already matched its record, and the
+file then reads back exactly as written. A developer's own `maven.config` stays
+unrecorded, and removal keeps the worktree.
 
 | Key | Values | Effect |
 |---|---|---|

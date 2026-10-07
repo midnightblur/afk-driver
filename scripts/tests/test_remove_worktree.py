@@ -5,6 +5,7 @@ Disposable repositories only. A worktree counts as plugin-made when it has an ow
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -747,6 +748,24 @@ def test_a_copied_maven_config_still_matching_its_record_stays_removable(repo):
     _provision(repo, path)
     done = run("--path", str(path), cwd=repo)
     assert not path.exists(), done.stderr
+
+
+def test_a_write_racing_the_append_leaves_the_file_unrecorded_and_the_worktree_kept(repo, monkeypatch):
+    _exclude(repo, ".mvn/maven.config")
+    path = made(repo, "mvn-race")
+    (path / ".mvn").mkdir()
+    real_append = OWNER.append_bytes
+
+    def raced(target: str, data: bytes) -> None:  # a developer writes after the ownership check
+        Path(target).write_bytes(b"-Ddeveloper=1\n")
+        real_append(target, data)
+
+    monkeypatch.setattr(OWNER, "append_bytes", raced)
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(b"-Dmaven.repo.local=x\n")))
+    assert OWNER.append(["--worktree", str(path), ".mvn/maven.config"]) == 0
+    assert ".mvn/maven.config" not in OWNER.copied_manifest(str(path))
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".mvn/maven.config" in done.stderr, done.stderr
 
 
 def test_a_large_flat_folder_past_the_budget_keeps_the_worktree_and_says_why(repo, monkeypatch, capsys):

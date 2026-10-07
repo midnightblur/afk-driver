@@ -9,8 +9,9 @@
     python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
         adds to <P's git dir>/afk-copied.json the SHA-256 of each file a trusted plugin step
         placed: the copy step, and a build gate's provisioning outputs
-    python worktree_owner.py recorded --worktree P <path relative to P>
-        exits 0 when the file's SHA-256 matches its afk-copied.json entry, 1 otherwise
+    python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
+        appends them; records the expected result's SHA-256 only when the file was absent or
+        recorded unchanged before, and reads back exactly that result after
 
 The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
 native process of a hook chain, since a walk from inside bash loses the chain), the
@@ -258,7 +259,8 @@ def sha256_of(path: str) -> str | None:
 
 
 def copied_manifest(worktree: str) -> dict:
-    """`{relative path: SHA-256}` of the files the copy step placed in this worktree."""
+    """`{relative path: SHA-256}` of the trusted plugin outputs in this worktree: the copy step's
+    files and a build gate's provisioning outputs."""
     try:
         with open(os.path.join(git_dir_of(worktree), COPIED), encoding="utf-8") as handle:
             found = json.load(handle)
@@ -304,21 +306,52 @@ def copied(argv: list[str]) -> int:
         digest = sha256_of(os.path.join(worktree, rel)) if rel else None
         if digest:
             manifest[rel] = digest
+    write_manifest(gitdir, manifest)
+    return 0
+
+
+def write_manifest(gitdir: str, manifest: dict) -> None:
     target = os.path.join(gitdir, COPIED)
     scratch = f"{target}.{os.getpid()}.tmp"
     with open(scratch, "w", encoding="utf-8") as out:
         json.dump(manifest, out)
     os.replace(scratch, target)
-    return 0
 
 
-def recorded(argv: list[str]) -> int:
+def read_bytes(path: str) -> bytes | None:
+    try:
+        with open(path, "rb") as handle:
+            return handle.read()
+    except FileNotFoundError:
+        return None
+
+
+def append_bytes(path: str, data: bytes) -> None:
+    with open(path, "ab") as handle:
+        handle.write(data)
+
+
+def append(argv: list[str]) -> int:
+    """Append stdin to a worktree file; record the expected result only when this step owns the file."""
     if len(argv) != 3 or argv[0] != "--worktree":
-        sys.stderr.write("recorded needs --worktree <path> <relative path>\n")
+        sys.stderr.write("append needs --worktree <path> <relative path>\n")
         return 2
-    rel = argv[2].replace("\\", "/")
-    digest = sha256_of(os.path.join(argv[1], rel))
-    return 0 if digest and copied_manifest(argv[1]).get(rel) == digest else 1
+    worktree, rel = argv[1], argv[2].replace("\\", "/")
+    path, data = os.path.join(worktree, rel), sys.stdin.buffer.read()
+    try:
+        before = read_bytes(path)
+        owned = before is None or copied_manifest(worktree).get(rel) == hashlib.sha256(before).hexdigest()
+        append_bytes(path, data)
+        expected = (before or b"") + data
+        gitdir = git_dir_of(worktree)
+        if owned and gitdir and read_bytes(path) == expected:
+            manifest = copied_manifest(worktree)
+            manifest[rel] = hashlib.sha256(expected).hexdigest()
+            write_manifest(gitdir, manifest)
+    except OSError as error:
+        sys.stderr.write(f"append: {path}: {error.strerror or error}\n")
+        return 1
+    return 0
 
 
 def main(argv: list[str]) -> int:
@@ -326,8 +359,8 @@ def main(argv: list[str]) -> int:
         return record(argv[1:])
     if argv[:1] == ["copied"]:
         return copied(argv[1:])
-    if argv[:1] == ["recorded"]:
-        return recorded(argv[1:])
+    if argv[:1] == ["append"]:
+        return append(argv[1:])
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
         return 0
