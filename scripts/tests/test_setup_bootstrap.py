@@ -230,8 +230,9 @@ def windows_machine(request, tmp_path, uv_exe):
 
 
 def run_ps1(shell, env, *args):
+    # A relative LOCALAPPDATA resolves against cwd: keep any such write inside the test's own folder.
     return subprocess.run([shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PS1), *args],
-                          env=env, capture_output=True, text=True, timeout=120)
+                          env=env, capture_output=True, text=True, timeout=120, cwd=str(Path(env["STUB_LOG"]).parent))
 
 
 def ps1_calls(tmp_path) -> list[tuple[str, dict]]:
