@@ -55,7 +55,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import contract  # noqa: E402
-from contract import (ALL_CLASSES, HIT_LIMIT, OPTIONAL_FLAGS,  # noqa: E402
+from contract import (ALL_CLASSES, HIT_LIMIT,  # noqa: E402
                       build_command, build_listing, line_hash, stable_id,
                       worst)
 
@@ -355,9 +355,13 @@ def name_forms(subject: str, aliases: list[tuple[str, str]],
 
 def git(repo: Path, *args: str, allowed: tuple[int, ...] = (0,)) -> str:
     """Run git with paths verbatim. A return code outside `allowed` is an error."""
+    # Literal pathspecs would read the ledger exclusion as a path and match nothing.
+    env = {key: value for key, value in os.environ.items()
+           if key != "GIT_LITERAL_PATHSPECS"}
     done = subprocess.run(
         ["git", "-c", "core.quotePath=false", "-c", "color.grep=false", *args],
         cwd=str(repo),
+        env=env,
         capture_output=True,
         encoding="utf-8",
         errors="surrogateescape",
@@ -386,14 +390,9 @@ def grep(repo: Path, patterns: list[str], pathspecs: list[str] | None,
     """One `git grep` for a whole class. Exit 1 means no match, not failure."""
     if not patterns:
         return []
-    # The options the recorded command carries, in its order: what ran and what
-    # the ledger says ran are one argv (colour is off through the config below).
-    args = ["grep", "-n", "-I", "-E",
-            *[flag for flag in OPTIONAL_FLAGS if flag in (extra or [])]]
-    for pattern in patterns:
-        args += ["-e", pattern]
-    if pathspecs:
-        args += ["--", *pathspecs]
+    # The recorded command, split as a shell splits it: what ran and what the
+    # ledger says ran are one argv (colour is off through the config below).
+    args = contract.argv(build_command(patterns, pathspecs, extra or []))[1:]
     return parse_hits(git(repo, *args, allowed=(0, 1)))
 
 

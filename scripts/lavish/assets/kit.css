@@ -310,7 +310,15 @@ a { color: var(--accent); }
 .afk-rail {
   position: sticky; top: 0; z-index: 30;
   margin: -1.5rem -1.5rem 1rem; padding: .5rem 1.5rem;
-  background: var(--surface); border-bottom: 1px solid var(--line);
+  /* A hair under opaque, like the send bar: the layout audit reads text
+   * scrolling under an opaque sibling as covered and blocks the page. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+@supports not (backdrop-filter: blur(6px)) {
+  /* No blur: take the solid fill back; legibility beats the false warning. */
+  .afk-rail { background: var(--surface); }
 }
 .afk-rail ol, .afk-strip ol {
   list-style: none; margin: 0; padding: 0;

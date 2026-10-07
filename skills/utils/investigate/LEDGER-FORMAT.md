@@ -156,7 +156,7 @@ one key, whatever order its parts were written in.
 
 | Family | Shape | Key |
 |---|---|---|
-| search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- <path>+]` | its flag set and its expression set; the paths are left out |
+| search | `git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ [-- (<path>+ [':(exclude,glob)**/investigations/INV-*/**'] | ':(exclude,glob)**/investigations/INV-*/**')]` | its flag set and its expression set; the paths and the ledger exclusion are left out |
 | built-output walk | `in-process walk of -- <path>+` | the paths it walked, as a set |
 | tracked listing | `git ls-files -- <path>+` | the paths it listed, as a set |
 | manifest parse | `parse -- <manifest>+` | the manifests it read, as a set |
@@ -169,6 +169,18 @@ a `..` or `.` segment, an empty segment, a backslash or a trailing `/` is a
 path this format cannot resolve, which puts the command in no family — and so
 is any other spelling of a path the builder writes one way, `./x` for `x`
 among them.
+
+Every command is written for a POSIX shell, which is Git Bash on Windows.
+Its quoting is single quotes, so "runs again verbatim" means in that shell.
+`cmd.exe` does not read single quotes.
+
+The last token after `--` in a search the builder writes is the ledger
+exclusion, `':(exclude,glob)**/investigations/INV-*/**'`. It leaves every
+published ledger directory (§ "Files and location") out of the search, at any
+depth, tracked or untracked, so a search never counts an investigation's own
+output. It is no path: a reader of the paths never sees it, and it stands only
+last. A search without it is still in the grammar, so a ledger recorded before
+the exclusion reads as written.
 
 A command no shell can split — a quote left open — is in no family, and so is
 one carrying a token a shell would expand: an unquoted `*`, `$VAR`, or a
@@ -286,13 +298,13 @@ two fragments that ran one search carry one query row.
 | Table | Rule |
 |---|---|
 | `run` | `head`, `question`, `type`, `roots`, `aliases` and `config.sha256` must match across fragments; a mismatch aborts the merge naming the field — two snapshots are two investigations. `merged_from` records how many were folded in |
-| `nodes` | by node id, fragments taken in `partition.id` order. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Same id, a different `disposition`, `impact_verdict` or `coverage_verdict` → `unverified` with reason `conflict: <a> vs <b>` naming each split, `impact_verdict` becomes `unverified`, and the queue reopens for that node. Same id, agreeing on all three → one node found twice, and a named `pinned_by` test beats `unguarded`. Either way, every reading and every edge survives: a read outranks a search, so the node is a read with the reader's `evidence` when either row read it; every other query joins `also_found_by`; the first row keeps its `parent`, `null` included, and every other parent joins `also_reached_from`. A fragment answering an open node keeps the searches and edges the open node held the same way |
+| `nodes` | by node id, fragments taken in `partition.id` order. Two rows under one id that disagree on `class`, `site` or `line_hash` are two different sites under one name, and a fold refuses them. Same id, a different `disposition`, `impact_verdict` or `coverage_verdict` → `unverified` with reason `conflict: <a> vs <b>` naming each split, `impact_verdict` becomes `unverified` when the rows split on it, and the queue reopens for that node. Same id, agreeing on all three → one node found twice, and a named `pinned_by` test beats `unguarded`. Either way, every reading and every edge survives: a read outranks a search, so the node is a read with the reader's `evidence` when either row read it; every other query joins `also_found_by`; the first row keeps its `parent`, `null` included, and every other parent joins `also_reached_from`. A fragment answering an open node keeps the searches and edges the open node held the same way |
 | `boundaries` | one row per class: the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, `hit_ids`, `query_ids` and `universe` union; a row left carrying both `sites` and `query_ids` drops `sites` and keeps the searching row's `method`, the read nodes staying in the nodes table, and `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
 | `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` and `lines` are not carried across: each records one execution in the ledger holding it. The fold reads `count` off the folded nodes table, and drops `lines` from a row two ledgers carry — a row only one carries keeps its own |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
 
-A staging row still open — a node `unverified`, a boundary `unverified` or `judgment-only` — is a queue item, not an answer. The first fragment row under its key replaces it: a node takes the fragment's disposition and fields, filling only the fields the fragment leaves empty from the staging row, never its `reason`; a boundary takes the fragment's `status`, `reason` and `method`, and keeps the union of both rows' `hit_ids`, `query_ids`, `sites` and `universe`. Every later row under that key folds against the answer by the rules above.
+A staging row still open — a node whose `disposition`, `impact_verdict` or `coverage_verdict` is `unverified`, a boundary `unverified` or `judgment-only` — is a queue item, not an answer. The first fragment row under its key replaces it: a node takes the fragment's disposition and fields, filling only the fields the fragment leaves empty from the staging row, never its `reason`; a boundary takes the fragment's `status`, `reason` and `method`, and keeps the union of both rows' `hit_ids`, `query_ids`, `sites` and `universe`. Every later row under that key folds against the answer by the rules above.
 
 A fragment accounts for what it searched: every node it carries that a search produced is in the `hit_ids` of a boundary row the fragment itself carries, and its every query's `count` is the fragment's own nodes citing it.
 

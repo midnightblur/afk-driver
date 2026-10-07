@@ -245,6 +245,11 @@ OPEN_NODE = ("unverified",)
 OPEN_BOUNDARY = ("unverified", "judgment-only")
 
 
+def node_open(row: dict) -> bool:
+    """A node is a queue item while its disposition or any verdict is open."""
+    return any(row.get(key) in OPEN_NODE for key in ("disposition",) + VERDICTS)
+
+
 def answer_node(kept: dict, row: dict) -> dict:
     """A fragment dispositions a node the staging ledger left open."""
     same_site(kept, row)
@@ -391,8 +396,8 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
     own: list[str] = []
     citing: dict[str, int] = {}
     for row in rows(fragment, "nodes"):
-        if isinstance(row.get("query_id"), str):
-            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+        for query_id in cited_queries(row):
+            citing[query_id] = citing.get(query_id, 0) + 1
     for row in rows(fragment, "queries"):
         count, query_id = row.get("count"), row.get("id")
         if isinstance(count, int) and count != citing.get(query_id, 0):
@@ -497,7 +502,7 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
 
     opened = {
         "nodes": ({key for key, row in tables["nodes"][0].items()
-                   if row.get("disposition") in OPEN_NODE}, answer_node),
+                   if node_open(row)}, answer_node),
         "boundaries": ({key for key, row in tables["boundaries"][0].items()
                         if row.get("status") in OPEN_BOUNDARY}, answer_boundary),
     }

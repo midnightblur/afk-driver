@@ -27,8 +27,9 @@ _spec = importlib.util.spec_from_file_location(
 merge_fragments = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(merge_fragments)
 
-from test_validate_coverage import (CLAIM, COMMAND, QUERY,  # noqa: E402
-                                    ledger, validate_coverage)
+from test_validate_coverage import (CLAIM, COMMAND, COUNTER_COMMAND,  # noqa: E402
+                                    COUNTER_QUERY, QUERY, ledger,
+                                    validate_coverage)
 
 HEAD = "0" * 40
 
@@ -614,6 +615,20 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertIn("impact_verdict unchanged vs breaks", node["reason"])
         self.assertEqual(node["impact_verdict"], "unverified")
 
+    # A verdict left `unverified` is a question the next fragment may answer.
+    def test_a_fragment_answers_a_verdict_the_staging_ledger_left_open(self):
+        staging = ledger()
+        kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
+        kept.update({"impact_verdict": "unverified", "pinned_by": "unguarded"})
+        merged = self.merge(staging, fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash=kept["line_hash"]),
+             "disposition": kept["disposition"], "impact_verdict": "breaks",
+             "pinned_by": "unguarded"}]))
+        node = next(item for item in merged["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], kept["disposition"])
+        self.assertEqual(node["impact_verdict"], "breaks")
+        self.assertNotIn("reason", node)
+
     def test_a_named_pinning_test_wins_over_unguarded(self):
         staging = ledger()
         kept = next(item for item in staging["nodes"] if item["id"] == "B1:alpha.java:9")
@@ -720,6 +735,22 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("nodes citing it", stderr)
         self.assertIsNone(document)
+
+    # A second search that reached a node counts toward that search's count.
+    def test_a_fragment_query_count_includes_nodes_it_also_found(self):
+        node = hit("B1:beta.java:4")
+        node["also_found_by"] = [COUNTER_QUERY]
+        item = fragment(
+            nodes=[node],
+            queries=[{"id": QUERY, "command": COMMAND, "universe": "tracked files",
+                      "count": 1, "evidence": None, "origin": "seed"},
+                     {"id": COUNTER_QUERY, "command": COUNTER_COMMAND,
+                      "universe": "tracked files", "count": 1, "evidence": None,
+                      "origin": "seed"}])
+        code, stderr, document = self.run_script(ledger(), item)
+        self.assertEqual(code, 0, stderr)
+        self.assertIsNotNone(document)
+
     # A fragment accounts for what it searched, before the fold does.
     def test_a_fragment_whose_row_does_not_hold_its_node_is_refused(self):
         item = fragment(

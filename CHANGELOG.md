@@ -20,6 +20,23 @@ first released heading here.
 
 ### Fixed
 
+- **A fragment can answer a verdict the staging ledger left open.** The
+  investigation merge treated a node as settled once its disposition was, so a
+  tracer's answer to an open B-class verdict on that node was refused. A node now
+  stays open while any of its verdicts is, and a fragment's search count includes
+  the nodes its search reached after another search (`also_found_by`).
+
+- **The round page's process rail no longer trips the layout audit.** Text
+  scrolling under the rail was read as covered and held the page behind a repair
+  banner; the rail is now a hair under opaque, like the send bar.
+
+- **The investigation seed no longer counts published ledgers.** A spec
+  folder's `investigations/INV-*/` ledgers quote their subject thousands of
+  times, so a subject investigated before could exceed the hit limit and stop
+  the seed. Every recorded search now ends with the pathspec
+  `':(exclude,glob)**/investigations/INV-*/**'`, so a rerun returns what the
+  ledger counted. A ledger recorded without it still validates.
+
 - **A repository with no build step can close the generated-code and
   build-graph classes.** The investigation seed marked B6 and B7 `unverified`
   whenever `investigation.generated` or `investigation.reactor` was empty, and

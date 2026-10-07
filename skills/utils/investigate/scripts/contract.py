@@ -41,8 +41,12 @@ def stable_id(prefix: str, text: str) -> str:
 # make of every other spelling is a game with no end, so a command outside it is
 # not a search this format reads. `LEDGER-FORMAT.md` § "Command families" states
 # it for a reader; every emitter writes it through `build_command`.
+# A published ledger quotes its subject thousands of times, so a search reading
+# one counts its own output. The builder appends this pathspec as the last one.
+LEDGER_EXCLUDE = ":(exclude,glob)**/investigations/INV-*/**"
 CANONICAL = ("git grep -n -I -E [-i] [--untracked] [-w] (-e <expression>)+ "
-             "[-- <path>+]")
+             "[-- (<path>+ [" + shlex.quote(LEDGER_EXCLUDE) + "] | "
+             + shlex.quote(LEDGER_EXCLUDE) + ")]")
 FIXED = ("git", "grep", "-n", "-I", "-E")
 OPTIONAL_FLAGS = ("-i", "--untracked", "-w")
 
@@ -59,19 +63,27 @@ def argv(command: str) -> list[str] | None:
         return None
 
 
-def build_command(expressions, paths=None, flags=()) -> str:
-    """One recorded search, in the grammar, quoted so it runs again verbatim."""
+def build_command(expressions, paths=None, flags=(), exclude_ledgers=True) -> str:
+    """One recorded search, in the grammar, quoted so it runs again verbatim.
+
+    `exclude_ledgers=False` spells a search recorded before the exclusion.
+    """
     outside = [flag for flag in flags if flag not in OPTIONAL_FLAGS]
     if outside:
         raise ValueError(f"{', '.join(outside)}: outside the canonical grammar")
     if not expressions:
         raise ValueError("a search carries at least one expression")
+    if LEDGER_EXCLUDE in (paths or []):
+        raise ValueError("the ledger exclusion is no path; pass exclude_ledgers")
     parts = list(FIXED)
     parts += [flag for flag in OPTIONAL_FLAGS if flag in flags]
     for expression in expressions:
         parts += ["-e", shlex.quote(expression)]
-    if paths:
-        parts += ["--", *(shlex.quote(path) for path in paths)]
+    specs = [shlex.quote(path) for path in paths or []]
+    if exclude_ledgers:
+        specs.append(shlex.quote(LEDGER_EXCLUDE))
+    if specs:
+        parts += ["--", *specs]
     return " ".join(parts)
 
 
@@ -79,7 +91,9 @@ def parse_canonical(command: str):
     """What a canonical command runs, or `None` where it is not one.
 
     Returns the flags it carried, the expressions it searched for as a set —
-    their order says nothing — and the paths it ran over, in order.
+    their order says nothing — the paths it ran over, in order, and whether it
+    left published ledgers out. The exclusion is no path: a reader of paths
+    never sees it.
     """
     parts = argv(command)
     if parts is None or parts[:len(FIXED)] != list(FIXED):
@@ -99,10 +113,16 @@ def parse_canonical(command: str):
     if not expressions:
         return None
     paths: tuple[str, ...] = ()
+    excluded = False
     if rest:
         if rest[0] != "--" or len(rest) < 2:
             return None
-        kept = [repo_path(item) for item in rest[1:]]
+        specs = rest[1:]
+        if specs[-1] == LEDGER_EXCLUDE:
+            excluded, specs = True, specs[:-1]
+        if LEDGER_EXCLUDE in specs:
+            return None
+        kept = [repo_path(item) for item in specs]
         if any(item is None for item in kept):
             return None
         paths = tuple(kept)
@@ -110,9 +130,9 @@ def parse_canonical(command: str):
     # come back out of it carried something the grammar has no place for — a
     # token a shell would have expanded before git ever saw it, or quoting
     # nobody can reproduce.
-    if command.strip() != build_command(expressions, list(paths), flags):
+    if command.strip() != build_command(expressions, list(paths), flags, excluded):
         return None
-    return frozenset(flags), frozenset(expressions), paths
+    return frozenset(flags), frozenset(expressions), paths, excluded
 
 
 def is_search(command: str) -> bool:
@@ -265,15 +285,16 @@ def command_key(command: str):
     """The one key a command of any family compares on.
 
     A search is its flags and its expressions, the paths left out — the same
-    search over fewer files is that search narrowed. Every other family is what
-    it read, as a set: relisting the same paths is the same method.
+    search over fewer files is that search narrowed, and the ledger exclusion
+    narrows it too. Every other family is what it read, as a set: relisting the
+    same paths is the same method.
     """
     text = (command or "").strip()
     name = family(text)
     if name is None:
         return ("outside the grammar", text)
     if name == "search":
-        flags, expressions, _ = parse_canonical(text)
+        flags, expressions = parse_canonical(text)[:2]
         return (name, flags, expressions)
     prefix = dict(PROSE_FAMILIES)[name]
     return (name, listed(text, prefix))
@@ -336,12 +357,17 @@ def respell(command: str) -> str | None:
         expressions.append(token)
         index += 1
     paths = parts[index + 1:] if index < len(parts) else []
+    excluded = bool(paths) and paths[-1] == LEDGER_EXCLUDE
+    if excluded:
+        paths = paths[:-1]
+    if LEDGER_EXCLUDE in paths:
+        return None
     kept = [repo_path(path) for path in paths]
     if any(path is None for path in kept):
         return None
     if not expressions:
         return None
-    return build_command(expressions, kept, sorted(set(flags)))
+    return build_command(expressions, kept, sorted(set(flags)), excluded)
 
 
 # Who ran a query: the deterministic pre-pass, or a tracer widening past it.

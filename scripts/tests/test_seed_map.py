@@ -37,6 +37,10 @@ _vspec = importlib.util.spec_from_file_location(
 validate_coverage = importlib.util.module_from_spec(_vspec)
 _vspec.loader.exec_module(validate_coverage)
 
+_gspec = importlib.util.spec_from_file_location("ground_diff", _SCRIPTS / "ground_diff.py")
+ground_diff = importlib.util.module_from_spec(_gspec)
+_gspec.loader.exec_module(ground_diff)
+
 
 def git(repo, *args):
     subprocess.run(["git", *args], cwd=str(repo), check=True,
@@ -472,6 +476,142 @@ class SeedMapTest(unittest.TestCase):
         ids = {node["id"] for node in document["nodes"]}
         for item in document["boundaries"]:
             self.assertTrue(set(item.get("hit_ids") or []) <= ids, item["class"])
+
+    # A published ledger quotes its subject thousands of times; a seed counting
+    # it counts its own output, in every universe and every declared scope.
+    def test_published_ledgers_are_left_out_of_every_search(self):
+        ledger_lines = "\"Widget\" widget-created key: Widget\n" * 40
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "docs/feat/investigations/README.md": "Widget index\n",
+            "docs/feat/investigations/INV-001-widget/COVERAGE.json": ledger_lines,
+            "investigations/INV-002-widget/REPORT.md": ledger_lines,
+        })
+        untracked = repo / "docs/feat/investigations/INV-003-widget/COVERAGE.json"
+        untracked.parent.mkdir(parents=True)
+        untracked.write_text(ledger_lines.lower(), encoding="utf-8")
+        config = write_config(repo, (
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: literal-key\n"
+            "      class: B4\n"
+            "      pattern: 'key: '\n"
+            "      paths:\n"
+            "        - docs\n"
+        ))
+        code, document = run(repo, "--subject", "Widget", "--type", "Q1",
+                             "--alias", "wire=widget-created", config=str(config))
+        self.assertEqual(code, 0)
+        sites = [node["site"] for node in document["nodes"]]
+        self.assertEqual([site for site in sites if "investigations/INV-" in site], [])
+        self.assertIn("docs/feat/investigations/README.md:1", sites)
+        searches = [item for item in document["queries"]
+                    if item["command"].startswith("git grep")]
+        self.assertTrue(searches)
+        for item in searches:
+            parsed = seed_map.contract.parse_canonical(item["command"])
+            self.assertIsNotNone(parsed, item["command"])
+            self.assertTrue(parsed[3], item["command"])
+            # Rerun verbatim: the recorded command returns what the ledger counted.
+            done = subprocess.run(
+                ["git", "-c", "core.quotePath=false", "-c", "color.grep=false",
+                 *seed_map.contract.argv(item["command"])[1:]],
+                cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace")
+            self.assertIn(done.returncode, (0, 1), done.stderr)
+            self.assertEqual(len(done.stdout.splitlines()), item["lines"], item["command"])
+        defects, _ = validate_coverage.validate(document)
+        self.assertEqual(defects, [])
+
+    # The caller's environment cannot turn the exclusion into a literal path.
+    def test_literal_pathspecs_in_the_environment_keep_ledgers_out(self):
+        repo = self.repo({
+            "alpha/Widget.java": "class Widget {}\n",
+            "docs/feat/investigations/INV-001-widget/REPORT.md": "Widget\n" * 5,
+        })
+        before = os.environ.get("GIT_LITERAL_PATHSPECS")
+        os.environ["GIT_LITERAL_PATHSPECS"] = "1"
+        try:
+            code, document = run(repo, "--subject", "Widget", "--type", "Q1")
+        finally:
+            if before is None:
+                os.environ.pop("GIT_LITERAL_PATHSPECS", None)
+            else:
+                os.environ["GIT_LITERAL_PATHSPECS"] = before
+        self.assertEqual(code, 0)
+        sites = [node["site"] for node in document["nodes"] if node["class"] == "B1"]
+        self.assertIn("alpha/Widget.java:1", sites)
+        self.assertEqual([site for site in sites if "investigations/INV-" in site], [])
+
+    # A ledger published before the exclusion is the same ground: a re-take of
+    # its subject reports no search as gone.
+    def test_a_ledger_recorded_before_the_exclusion_is_the_same_ground(self):
+        repo = self.repo({"alpha/Widget.java": "class Widget {}\n",
+                          "conf/app.yml": "key: \"Widget\"\n"})
+        code, current = run(repo, "--subject", "Widget", "--type", "Q1")
+        self.assertEqual(code, 0)
+        quoted = " " + __import__("shlex").quote(seed_map.contract.LEDGER_EXCLUDE)
+        cited = json.loads(json.dumps(current))
+        renamed = {}
+        for item in cited["queries"]:
+            command = item["command"].replace(" --" + quoted, "").replace(quoted, "")
+            universe = item["universe"].replace(", published ledgers excluded", "")
+            new_id = seed_map.contract.stable_id("q", command + universe)
+            renamed[item["id"]] = new_id
+            item["command"], item["universe"], item["id"] = command, universe, new_id
+        for item in cited["nodes"]:
+            item["query_id"] = renamed.get(item["query_id"], item["query_id"])
+        for table in ("boundaries", "counter_checks"):
+            for item in cited[table]:
+                item["query_ids"] = [renamed.get(q, q) for q in item.get("query_ids") or []]
+        self.assertNotEqual(cited["queries"], current["queries"])
+        lines, _ = ground_diff.differences(cited, current, None, Path("cited"),
+                                           Path("current"), repo)
+        self.assertEqual(lines, [])
+
+
+class LedgerExclusionGrammarTest(unittest.TestCase):
+    """The exclusion is part of the recorded command, so every reader reads it."""
+
+    contract = seed_map.contract
+
+    def test_a_built_search_leaves_published_ledgers_out(self):
+        command = self.contract.build_command(["Widget"], ["alpha/Widget.java"], ["-i"])
+        self.assertTrue(command.endswith(" " + __import__("shlex").quote(
+            self.contract.LEDGER_EXCLUDE)), command)
+        flags, expressions, paths, excluded = self.contract.parse_canonical(command)
+        self.assertEqual((flags, expressions, paths, excluded),
+                         (frozenset(["-i"]), frozenset(["Widget"]),
+                          ("alpha/Widget.java",), True))
+        self.assertEqual(self.contract.family(command), "search")
+
+    def test_a_search_recorded_before_the_exclusion_still_parses(self):
+        command = "git grep -n -I -E -e Widget -- alpha/Widget.java"
+        parsed = self.contract.parse_canonical(command)
+        self.assertEqual(parsed[2:], (("alpha/Widget.java",), False))
+        self.assertEqual(self.contract.build_command(["Widget"], ["alpha/Widget.java"],
+                                                     exclude_ledgers=False), command)
+
+    def test_the_exclusion_has_one_place(self):
+        quoted = __import__("shlex").quote(self.contract.LEDGER_EXCLUDE)
+        for command in (f"git grep -n -I -E -e Widget -- {quoted} alpha/Widget.java",
+                        f"git grep -n -I -E -e Widget -- {quoted} {quoted}",
+                        "git grep -n -I -E -e Widget --"):
+            self.assertIsNone(self.contract.parse_canonical(command), command)
+        with self.assertRaises(ValueError):
+            self.contract.build_command(["Widget"], [self.contract.LEDGER_EXCLUDE])
+
+    def test_the_exclusion_is_no_path_and_no_new_search(self):
+        whole = self.contract.build_command(["Widget"])
+        self.assertIs(self.contract.searched_paths(whole), self.contract.ALL_FILES)
+        self.assertEqual(self.contract.command_key(whole),
+                         self.contract.command_key("git grep -n -I -E -e Widget"))
+
+    def test_a_respelling_keeps_what_the_command_excluded(self):
+        quoted = __import__("shlex").quote(self.contract.LEDGER_EXCLUDE)
+        self.assertEqual(self.contract.respell(f"git grep -inE -e Widget -- {quoted}"),
+                         self.contract.build_command(["Widget"], None, ["-i"]))
+        self.assertEqual(self.contract.respell("git grep -inE -e Widget"),
+                         "git grep -n -I -E -i -e Widget")
 
 
 if __name__ == "__main__":
