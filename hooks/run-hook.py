@@ -39,11 +39,11 @@ that exits non-zero, is missing, or resolves outside the repository is warned ab
 on stderr, by name, and never removes the worktree.
 
 A handler a repository declares but this checkout cannot run — the script is
-missing, the matcher is not a regular expression, the manifest does not parse,
-the handler returns no verdict inside its timeout — is a configuration error,
-never a silent skip. On Stop and PreToolUse the launcher blocks the turn with
-the decision object a failed gate emits, so a gate cannot disappear by being
-misdeclared. A Stop or PreToolUse handler that exits non-zero, or prints a refusal
+missing, the matcher is not a regular expression, the manifest does not parse —
+is a configuration error, never a silent skip. A handler that returns no verdict
+inside its timeout is reported as a timeout, never as a configuration error. On
+Stop and PreToolUse either blocks the turn with the decision object a failed gate
+emits, so a gate cannot disappear by being misdeclared or by being slow. A Stop or PreToolUse handler that exits non-zero, or prints a refusal
 object, is a refusal: its own stdout and exit code are never passed through. The
 launcher gathers every refusal and emits one verdict in the provider's block
 shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
@@ -312,8 +312,13 @@ def is_wsl_stub(candidate: Path) -> bool:
     return True
 
 
+# Git for Windows' <git>/bin/bash.exe only starts <git>/usr/bin/bash.exe: one extra
+# process start per handler, which a host scanning every start makes expensive.
+BASH_DIRS = (("usr", "bin"), ("bin",))
+
+
 def git_relative_bash() -> Path | None:
-    """Git for Windows ships bash.exe in <git>/bin, beside its exec-path tree."""
+    """Git for Windows ships bash.exe under <git>, beside its exec-path tree."""
     try:
         out = subprocess.run(
             ["git", "--exec-path"], capture_output=True, encoding="utf-8", errors="replace", timeout=20,
@@ -324,10 +329,11 @@ def git_relative_bash() -> Path | None:
         return None
     node = Path(out.stdout.strip())
     for parent in [node] + list(node.parents):
-        for name in ("bash.exe", "bash"):
-            candidate = parent / "bin" / name
-            if candidate.is_file():
-                return candidate
+        for sub in BASH_DIRS:
+            for name in ("bash.exe", "bash"):
+                candidate = parent.joinpath(*sub, name)
+                if candidate.is_file():
+                    return candidate
     return None
 
 
@@ -353,9 +359,10 @@ def find_bash() -> Path | None:
     for base in bases:
         if not base:
             continue
-        candidate = Path(base) / "Git" / "bin" / "bash.exe"
-        if candidate.is_file():
-            return candidate
+        for sub in BASH_DIRS:
+            candidate = Path(base).joinpath("Git", *sub, "bash.exe")
+            if candidate.is_file():
+                return candidate
 
     found = shutil.which("bash")
     if found and not is_wsl_stub(Path(found)):
@@ -373,7 +380,13 @@ def shell_env(bash: Path, base: dict[str, str] | None = None) -> dict[str, str]:
     env = dict(os.environ if base is None else base)
     if os.name != "nt":
         return env
-    root = bash.resolve().parent.parent
+    home = bash.resolve().parent
+    under_usr = home.name.lower() == "bin" and home.parent.name.lower() == "usr"
+    root = home.parent.parent if under_usr else home.parent
+    if under_usr:  # what the <git>/bin redirector would have set
+        env.setdefault("MSYSTEM", "MINGW64")
+        if os.environ.get("USERPROFILE"):
+            env.setdefault("HOME", os.environ["USERPROFILE"])
     extra = [str(root / "bin"), str(root / "usr" / "bin"), str(root / "mingw64" / "bin")]
     present = {part.lower() for part in env.get("PATH", "").split(os.pathsep)}
     missing = [part for part in extra if Path(part).is_dir() and part.lower() not in present]
@@ -600,7 +613,7 @@ def block_without_shell(event: str, why: str) -> int:
 
 
 def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
-          refused: list[str] | None = None) -> int:
+          refused: list[str] | None = None, timeouts: list[str] | None = None) -> int:
     """Answer for the handlers that could not run or refused, the way a gate answers.
 
     The decision travels the same path a failed gate travels — the provider
@@ -616,12 +629,24 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
             f"{listed}\n"
             f"Fix {REPO_HOOKS_MANIFEST}, or remove the entries that no longer apply."
         )
+    if timeouts:
+        listed = "\n".join(f"  - {item}" for item in timeouts)
+        parts.append(
+            f"afk: this repository's {event} handlers ran past their timeout, "
+            "so the gates they carry did not judge this turn:\n"
+            f"{listed}\n"
+            "The timeout counts the whole run, process start-up included. On a slow or "
+            f"heavily scanned machine, raise the entry's timeout in {REPO_HOOKS_MANIFEST} "
+            "or make the handler start fewer processes."
+        )
     if refused:
         listed = "\n".join(f"  - {item}" for item in refused)
         parts.append(f"afk: this repository's {event} handlers refused:\n{listed}")
     reason = "\n".join(parts)
     library = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
-    if bash is not None and library.is_file():
+    # The PreToolUse deny is one shape on every provider (provider.sh afk_emit_deny),
+    # so only a Stop verdict, whose exit code differs per provider, needs the shell.
+    if event == "Stop" and bash is not None and library.is_file():
         snippet = (
             '. "$1" || exit 70\n'
             'case "$2" in\n'
@@ -763,6 +788,7 @@ def main(argv: list[str]) -> int:
 
     failure = 0
     refused: list[str] = []
+    timeouts: list[str] = []
     allowed: list[bytes] = []
     blocking = event in BLOCKING_EVENTS and not soft
     for entry in entries:
@@ -787,7 +813,7 @@ def main(argv: list[str]) -> int:
                 [str(bash), str(script)], env, input=envelope, timeout=timeout, capture=blocking,
             )
         except subprocess.TimeoutExpired:
-            faults.append(f"{named}: no verdict within {timeout:g} seconds")
+            timeouts.append(f"{named}: no verdict within {timeout:g} seconds")
             continue
         except OSError as problem:
             faults.append(f"{named}: {problem}")
@@ -810,11 +836,10 @@ def main(argv: list[str]) -> int:
         if completed.returncode and not failure:
             failure = completed.returncode
 
-    if faults:
-        for fault in faults:
-            sys.stderr.write(f"run-hook.py: {fault}\n")
-    if (faults or refused) and blocking:
-        return block(event, faults, bash, env, refused)
+    for fault in faults + timeouts:
+        sys.stderr.write(f"run-hook.py: {fault}\n")
+    if (faults or refused or timeouts) and blocking:
+        return block(event, faults, bash, env, refused, timeouts)
     merged = merge_allowed(allowed)  # context printed while nothing refused: one document
     if merged:
         sys.stdout.write(merged + "\n")

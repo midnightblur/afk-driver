@@ -202,8 +202,11 @@ repository-relative path. A script that resolves outside the repository root is
 refused. What the launcher does with a handler it cannot run is pinned by
 `scripts/tests/test_run_hook.py`. `hooks/run-hook.py` runs the matching entries in declaration order and
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
-is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
-turn and names the entry, so a gate cannot go missing quietly. A `PreToolUse` verdict
+is a configuration error, and one that gives no verdict inside its `timeout` is
+a timeout: on `Stop` and `PreToolUse` either blocks the turn and names the entry,
+so a gate cannot go missing quietly. The timeout counts the whole run, shell
+start-up included, so a handler on a host that scans every process start keeps
+to bash builtins. A `PreToolUse` verdict
 is the deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) at exit 0: one
 harness treats exit 2 as a failed hook and runs the tool. A `Stop` verdict is the
 `{"decision":"block","reason":...}` object. A script that exits non-zero, or prints its

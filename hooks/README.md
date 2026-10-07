@@ -60,8 +60,9 @@ without knowing what they are. It declares them in `.afk/hooks.json`
 script under the working tree's Git root (the root every plugin gate uses),
 refuses one that resolves outside it, and exits 0 when the manifest is
 absent — so the plugin stays inert in a repository that declares none. A handler a repository DOES declare and this checkout cannot run
-— missing script, unusable matcher, unparsable manifest, no verdict inside its
-timeout — is a configuration error, not a skip: on Stop and PreToolUse the
+— missing script, unusable matcher, unparsable manifest — is a configuration
+error, and one with no verdict inside its timeout is reported as a timeout; neither
+is a skip: on Stop and PreToolUse the
 launcher blocks with the decision object a failed gate emits, naming each
 entry, so a required gate cannot disappear by being misdeclared. On the other
 events it says so on stderr. They are deliberately NOT resolved under the

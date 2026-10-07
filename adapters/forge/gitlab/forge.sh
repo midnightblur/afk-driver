@@ -233,7 +233,7 @@ query($path:ID!,$iid:String!,$endCursor:String) {
   project(fullPath:$path) {
     mergeRequest(iid:$iid) {
       notes(first:100,after:$endCursor) {
-        nodes { id lastEditedAt }
+        nodes { id createdAt lastEditedAt }
         pageInfo { hasNextPage endCursor }
       }
     }
@@ -259,7 +259,8 @@ for doc in docs:
     for node in (mr.get("notes") or {}).get("nodes") or []:
         ident = str(node.get("id") or "").rsplit("/", 1)[-1]
         if ident:
-            edited[ident] = bool(node["lastEditedAt"]) if "lastEditedAt" in node else None
+            # GitLab stamps lastEditedAt with createdAt on a note nobody edited.
+            edited[ident] = (bool(node["lastEditedAt"]) and node["lastEditedAt"] != node.get("createdAt")) if "lastEditedAt" in node else None
 print(json.dumps({"edited": edited}))
 '
 }

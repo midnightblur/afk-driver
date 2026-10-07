@@ -878,6 +878,16 @@ def test_thread_list_carries_the_forge_edit_flag_per_note(tmp_path, kind, body, 
     assert flags == [(1, True), (2, False)]
 
 
+def test_gitlab_reads_a_creation_stamped_lastEditedAt_as_unedited(tmp_path):
+    old = 'DiffNote/1","lastEditedAt":null'
+    stamped = GITLAB_PAGES.replace(
+        old, 'DiffNote/1","createdAt":"2025-01-01T00:00:00Z","lastEditedAt":"2025-01-01T00:00:00Z"')
+    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", stamped), "thread-list", '{"id":"7"}',
+                              cwd=tmp_path).stdout)
+    flags = sorted((t["notes"][0]["id"], t["notes"][0]["edited"]) for t in answer["threads"])
+    assert flags == [(1, False), (2, False)]
+
+
 @pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
 def test_thread_list_fails_when_the_graphql_call_fails(tmp_path, kind, body):
     answer = json.loads(forge(kind, stub(tmp_path, kind, failing_graphql(body)), "thread-list",

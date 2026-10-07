@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Registry and shared contracts for AFK hook provider adapters.
 
-AFK_PROVIDER_CORE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+case "${BASH_SOURCE[0]}" in
+  */*) afk_core=${BASH_SOURCE[0]%/*} ;;
+  *) afk_core=$(dirname "${BASH_SOURCE[0]}") ;;
+esac
+AFK_PROVIDER_CORE_DIR=$(cd "$afk_core" && pwd)
+unset afk_core
 AFK_PROVIDER_NAMES=""
 
 for afk_adapter in "$AFK_PROVIDER_CORE_DIR"/providers/*.sh; do
@@ -220,11 +225,14 @@ afk_hook_field() {
   if command -v jq >/dev/null 2>&1; then
     printf '%s' "${AFK_HOOK_INPUT:-}" | jq -r ".${path} // \"\"" 2>/dev/null || printf ''
   else
-    local leaf="${path##*.}"
-    { printf '%s' "${AFK_HOOK_INPUT:-}" \
-      | grep -oE "\"${leaf}\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" | head -1 \
-      | sed "s/^\"${leaf}\"[[:space:]]*:[[:space:]]*\"//;s/\"\$//" \
-      | sed 's/\\"/"/g;s/\\\\/\\/g;s/\\n/ /g;s/\\t/ /g;s/\\r/ /g'; } || true
+    # Builtins only: every hook reads fields, and a process start can cost 0.1-0.7 s.
+    local re value
+    re="\"${path##*.}\""'[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
+    [[ ${AFK_HOOK_INPUT:-} =~ $re ]] || return 0
+    value=${BASH_REMATCH[1]}
+    value=${value//'\"'/'"'}; value=${value//'\\'/'\'}
+    value=${value//'\n'/ }; value=${value//'\t'/ }; value=${value//'\r'/ }
+    printf '%s' "$value"
   fi
 }
 

@@ -24,6 +24,11 @@ dir=$(cd "$(dirname "$0")" && pwd)
 
 afk_hook_input                                   # AFK_HOOK_INPUT <- stdin
 event=$(afk_hook_field hook_event_name)
+# Every tool call lands here: decide `never` before any setup that starts a process.
+case "$event" in
+  SessionStart|PostCompact) mode=reset ;;
+  *) mode=$(afk_nested_inject_mode); [ "$mode" = never ] && exit 0 ;;
+esac
 data=$(afk_plugin_data)
 py="${AFK_PYTHON:-afk-python}"
 
@@ -32,16 +37,13 @@ module="$dir/lib/nested_steering.py"
 # Reset events fire on both harnesses regardless of injection policy: a cleared
 # or fresh session and a compaction drop the loaded context, so the markers that
 # said "already injected" must go too.
-case "$event" in
-  SessionStart|PostCompact)
-    printf '%s' "$AFK_HOOK_INPUT" | "$py" "$module" \
-      --provider "$(afk_provider)" --mode never --rules 0 --data-dir "$data" \
-      >/dev/null 2>>"$data/nested-steering.log" || true
-    exit 0 ;;
-esac
+if [ "$mode" = reset ]; then
+  printf '%s' "$AFK_HOOK_INPUT" | "$py" "$module" \
+    --provider "$(afk_provider)" --mode never --rules 0 --data-dir "$data" \
+    >/dev/null 2>>"$data/nested-steering.log" || true
+  exit 0
+fi
 
-mode=$(afk_nested_inject_mode)
-[ "$mode" = never ] && exit 0
 rules=$(afk_nested_inject_rules)
 
 out=$(printf '%s' "$AFK_HOOK_INPUT" | "$py" "$module" \
