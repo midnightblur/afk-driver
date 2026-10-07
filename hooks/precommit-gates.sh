@@ -42,8 +42,12 @@ afk_agent_session || exit 0
 # Protected-branch backstop (git-backstop.py) first: the skip below is for the code gates.
 if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]; then
   py="${AFK_PYTHON:-afk-python}"
-  "$py" "$SCRIPT_DIR/git-backstop.py" pre-commit
-  [ $? -eq 3 ] && exit 1   # 3 refuses; any other failure is a fault and lets the commit go on
+  if command -v "$py" >/dev/null 2>&1; then
+    "$py" "$SCRIPT_DIR/git-backstop.py" pre-commit
+    [ $? -eq 3 ] && exit 1   # 3 refuses; any other failure is a fault and lets the commit go on
+  else
+    echo "[afk] protected-branch backstop unavailable: afk-python not found. Run /afk:setup." >&2
+  fi
 fi
 
 # The code gates below belong to repositories that adopted the plugin.

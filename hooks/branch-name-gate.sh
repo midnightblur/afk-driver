@@ -49,8 +49,9 @@ if [ "${1:-}" = committed ] || [ "${1:-}" = aborted ]; then
     link=${link%$'\r'}
     case "$link" in /* | [A-Za-z]:*) common=$link ;; *) common="$common/$link" ;; esac
   fi
-  if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1; then
-    "${AFK_PYTHON:-afk-python}" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true
+  py="${AFK_PYTHON:-afk-python}"
+  if compgen -G "$common/afk-session/sync-*.json" >/dev/null 2>&1 && command -v "$py" >/dev/null 2>&1; then
+    "$py" "$here/git-backstop.py" reference-transaction "$1" <<<"$(cat)" || true
   fi
   exit 0
 fi
@@ -63,8 +64,12 @@ refs=$(cat)
 # Exit 3 is a refusal; any other failure is a fault and lets git continue.
 if [ "${AFK_WORKTREE_OP:-}" != 1 ] && [ "${AFK_ALLOW_PROTECTED:-}" != 1 ]    && grep -Eq ' (HEAD|refs/heads/.*)$' <<<"$refs"; then
   py="${AFK_PYTHON:-afk-python}"
-  "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs"
-  [ $? -eq 3 ] && exit 1
+  if command -v "$py" >/dev/null 2>&1; then
+    "$py" "$here/git-backstop.py" reference-transaction prepared <<<"$refs"
+    [ $? -eq 3 ] && exit 1
+  else
+    echo "[afk] protected-branch backstop unavailable: afk-python not found. Run /afk:setup." >&2
+  fi
 fi
 
 # Escape hatches.

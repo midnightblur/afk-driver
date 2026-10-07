@@ -267,6 +267,20 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     assert refused.returncode == 3
 
 
+def test_without_afk_python_git_goes_on_and_says_to_run_setup(repo):
+    import shutil
+    installed(repo)
+    sep = os.pathsep
+    path = sep.join(e for e in os.environ.get("PATH", "").split(sep) if e and not shutil.which("afk-python", path=e))
+    env = {k: v for k, v in agent(PATH=path).items() if k != "AFK_PYTHON"}
+    notice = "backstop unavailable: afk-python not found. Run /afk:setup."
+    for args in (("commit", "-q", "--allow-empty", "-m", "c"), ("branch", "newb"), ("switch", "-q", "feature")):
+        done = git(repo, *args, env=env)
+        assert done.returncode == 0, done.stderr
+        assert notice in done.stderr and "command not found" not in done.stderr, done.stderr
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "feature"
+
+
 def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
     import shutil
     plugin = tmp_path / "plugin"
