@@ -1,6 +1,6 @@
 # Allow conservative read-only shell commands before the session moves
 
-> Status: Accepted
+> Status: Superseded by ADR-0010
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
 

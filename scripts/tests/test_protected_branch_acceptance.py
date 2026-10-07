@@ -332,7 +332,7 @@ def edit_call(harness: str, cwd: Path, target: Path, session: str | None = None)
 
 
 def shell_call(harness: str, cwd: Path, session: str | None = None) -> dict:
-    return envelope(harness, "Bash", cwd, {"command": "echo hi"}, session)
+    return envelope(harness, "Bash", cwd, {"command": "touch changed.txt"}, session)
 
 
 def guard(harness: str, call: dict, cwd: Path, stubs: Stubs | None, **extra: str) -> Verdict:
@@ -438,6 +438,13 @@ def test_ac031_read_only_shell_command_allowed_in_guarded_place(harness, tool, c
     assert not verdict.denied, verdict
 
 
+@pytest.mark.parametrize("command", ["git status && git log -1 2>&1", "git fetch origin", "herdr agent list",
+                                     "unknown-reader README.md", "ls | head"])
+def test_ac031_composed_or_unknown_commands_allowed_in_guarded_place(command, repo, stubs):
+    verdict = guard("claude", envelope("claude", "Bash", repo, {"command": command}), repo, stubs)
+    assert not verdict.denied, verdict
+
+
 def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
     verdict = guard("codex", envelope("codex", "exec_command", repo, {"cmd": "git status --short"}), repo, stubs)
     assert not verdict.denied, verdict
@@ -451,11 +458,9 @@ def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
     "Get-Content @(Set-Content copy.txt changed)",
     "Get-Content (Set-Content copy.txt changed)",
     "Get-ChildItem -Filter { Set-Content copy.txt changed }",
-    "C:/tmp/git.exe status",
-    "/tmp/rg pattern",
-    "unknown-reader README.md",
+    "git add . && git status",
 ])
-def test_ac031_write_capable_or_unrecognized_shell_command_refused(command, repo, stubs):
+def test_ac031_identified_mutation_refused_in_guarded_place(command, repo, stubs):
     verdict = guard("codex", envelope("codex", "exec_command", repo, {"command": command}), repo, stubs)
     assert verdict.denied, verdict
 
@@ -1114,7 +1119,7 @@ def test_a12_mcp_tool_denied_by_mutating_verb_in_guarded_place(harness, tool, de
 @pytest.mark.parametrize("tool,denied", [
     ("TodoWrite", False), ("AskUserQuestion", False), ("WebFetch", False), ("WebSearch", False),
     ("Skill", False), ("ToolSearch", False), ("Agent", False), ("EnterPlanMode", False),
-    ("NotebookEdit", True), ("MultiEdit", True), ("Write", True), ("PowerShell", True),
+    ("NotebookEdit", True), ("MultiEdit", True), ("Write", True), ("PowerShell", False),
     ("SomeFutureBuiltinTool", True),
 ])
 def test_a12_claude_builtin_allowlist_in_guarded_place(tool, denied, repo, stubs):

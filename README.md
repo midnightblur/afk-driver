@@ -838,12 +838,12 @@ first:
 
 ## 12. Conventions & gotchas
 
-- **One linked worktree per session.** The plugin refuses an agent's edits,
-  write-capable commands and commits in the main checkout or on a protected branch, and
-  moves the session into a worktree instead (`SAFETY.md` "Worktree per
-  session"; `PROVIDERS.md` for each harness's move). Single recognized
-  read-only commands remain available. A human sets
-  `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
+- **One worktree per session or team.** The plugin refuses an agent's
+  mutation of the main checkout, a protected branch or a worktree another live
+  session holds, and moves the session into a worktree instead (`SAFETY.md`
+  "Worktree per session"; `PROVIDERS.md` for each harness's move and
+  `AFK_WORKTREE_GROUP`). Reads and unrecognized commands run anywhere. A human
+  sets `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
 - **Branch names** must match the repository's own `git.branch-pattern`, and a
   new branch is named from its `git.branch-template`. A repository that
   declares neither gets no branch gate.

@@ -33,6 +33,12 @@
             "type": "command",
             "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --soft --deadline 57 plugin worktree-prune.sh",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/protected-branch-occupancy.py\"",
+            "timeout": 30,
+            "statusMessage": "protected-branch occupancy"
           }
         ]
       },
@@ -112,6 +118,17 @@
             "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 57 repo-list PostToolUse",
             "timeout": 60,
             "statusMessage": "repository PostToolUse hooks"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/protected-branch-meter.py\"",
+            "timeout": 30,
+            "statusMessage": "protected-branch change meter"
           }
         ]
       }

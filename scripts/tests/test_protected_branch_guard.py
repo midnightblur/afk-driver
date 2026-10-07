@@ -58,7 +58,8 @@ def repo(tmp_path: Path):
 def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
                if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
-                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL")}
+                            "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL",
+                            "HERDR_ENV", "HERDR_TAB_ID", "AFK_WORKTREE_GROUP", "AFK_WORKTREE_OWNER")}
     environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
     return environ
 
@@ -195,8 +196,10 @@ def test_the_live_apply_patch_envelope_with_spaces_in_absolute_paths(repo):
     spaced = repo["tmp"] / "cx wt"
     make_repo(repo["tmp"], "dev", "cx wt")
 
-    def sub(value: str) -> str:
-        return value.replace("C:\\work\\cx wt", str(spaced))
+    def sub(value: str) -> str:  # the fixture's Windows separators become this platform's
+        if "C:\\work\\cx wt" not in value:
+            return value
+        return value.replace("C:\\work\\cx wt", str(spaced)).replace("\\", os.sep)
 
     envelope = json.loads(text, object_hook=lambda d: {k: sub(v) if isinstance(v, str) else v for k, v in d.items()})
     done = subprocess.run([sys.executable, str(GUARD)], input=json.dumps(envelope), text=True,
@@ -228,8 +231,19 @@ def test_read_and_worktree_tools_are_allowed_in_the_main_checkout(repo, tool):
     "ls",
     "git status --short --branch",
     "gh issue list --state open --limit 100",
+    "git status && git log -1 2>&1",
+    "ls | head -5",
+    "git fetch origin",
+    "herdr agent list",
+    "gh issue create --title changed --body changed",
+    "C:/tmp/git.exe status",
+    "unknown-reader README.md",
+    "rg --pre mutate pattern",
+    "echo hi > /dev/null",
+    "touch $UNSET/x",
+    'python -c "print(1)"',
 ])
-def test_read_only_shell_commands_are_allowed_in_the_main_checkout(repo, harness, tool, command):
+def test_reads_composition_and_unknown_programs_are_allowed_in_the_main_checkout(repo, harness, tool, command):
     assert run(harness, repo["main"], tool, {"command": command}).returncode == 0
 
 
@@ -245,14 +259,43 @@ def test_codex_exec_command_reads_its_native_cmd_field(repo):
     "Get-Content @(Set-Content copy.txt changed)",
     "Get-Content (Set-Content copy.txt changed)",
     "Get-ChildItem -Filter { Set-Content copy.txt changed }",
-    "C:/tmp/git.exe status",
-    "/tmp/rg pattern",
     "git diff --output=copy.diff",
-    "gh issue create --title changed --body changed",
-    "rg --pre mutate pattern",
+    "git status && git commit -m x",
+    "git -C . add .",
+    "cd . && touch f",
+    "ls | tee out.txt",
+    "sed -i s/a/b/ README.md",
+    "/usr/bin/git commit -m x",
+    "git stash",
 ])
-def test_write_capable_shell_commands_remain_refused_in_the_main_checkout(repo, command):
+def test_identified_mutations_remain_refused_in_the_main_checkout(repo, command):
     assert run("codex", repo["main"], "exec_command", {"command": command}).returncode == 2
+
+
+def test_a_mutation_names_the_resource_it_changes(repo):
+    done = run("claude", repo["topic"], "Bash", {"command": f"git -C {repo['main']} add ."})
+    assert done.returncode == 2 and "main checkout" in done.stderr and str(repo["main"]) in done.stderr
+    done = run("claude", repo["topic"], "Bash", {"command": f"echo x > {repo['main'] / 'a.txt'}"})
+    assert done.returncode == 2
+    done = run("claude", repo["topic"], "Bash", {"command": f"git -C {repo['topic']} status && touch ok.txt"})
+    assert done.returncode == 0
+
+
+def test_a_main_checkout_session_may_mutate_a_worktree_it_names(repo):
+    done = run("claude", repo["main"], "Bash", {"command": f"git -C {repo['topic']} commit --allow-empty -m x"})
+    assert done.returncode == 0
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['topic']} && touch f"})
+    assert done.returncode == 0
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['protected']} && touch f"})
+    assert done.returncode == 2 and "`main` is protected" in done.stderr
+
+
+def test_an_edit_outside_every_repository_passes_from_a_main_checkout_session(repo):
+    """PRD D2: only the resolved target is judged, not the session folder."""
+    outside = repo["tmp"] / "scratch" / "note.md"
+    assert run("claude", repo["main"], "Write", {"file_path": str(outside)}).returncode == 0
+    assert run("claude", repo["main"], "Write", {"file_path": str(repo["main"] / "a.md")}).returncode == 2
+    assert run("claude", repo["main"], "Write", {"file_path": str(repo["topic"] / "a.md")}).returncode == 0
 
 
 @pytest.mark.parametrize("tool", ["web__run", "webrun", "mcp__web__run"])
@@ -260,24 +303,48 @@ def test_read_only_web_tools_are_allowed_in_the_main_checkout(repo, tool):
     assert run("codex", repo["main"], tool, {}).returncode == 0
 
 
-@pytest.mark.parametrize("tool,code", [
-    ("mcp__docs__search", 0), ("mcp__db__query", 0), ("mcp__settings__get_page", 0),
-    ("mcp__assets__list", 0), ("mcp__git__prune_list", 0),
-    ("mcp__docs__update_page", 2), ("mcp__ide__reformat_file", 2), ("mcp__fs__remove-file", 2),
-    ("mcp__fs__writeFile", 2), ("mcp__chat__send_message", 2), ("mcp__kv__put", 2),
-    ("mcp__x__saveDraft", 2), ("mcp__db__drop_table", 2),
+@pytest.mark.parametrize("tool", [
+    "mcp__docs__search", "mcp__db__query", "mcp__docs__update_page", "mcp__chat__send_message",
+    "mcp__db__drop_table", "mcp__kv__put",
 ])
-def test_r1_8_mcp_tools_are_judged_by_whole_verb_tokens_of_the_tool_part(repo, tool, code):
-    assert run("claude", repo["main"], tool, {}).returncode == code
+def test_an_mcp_tool_without_a_path_is_not_an_identified_mutation(repo, tool):
+    assert run("claude", repo["main"], tool, {}).returncode == 0
+
+
+@pytest.mark.parametrize("tool", ["mcp__fs__writeFile", "mcp__fs__remove-file", "mcp__ide__reformat_file"])
+def test_an_mcp_tool_with_a_path_in_a_guarded_place_is_refused(repo, tool):
+    assert run("claude", repo["main"], tool, {"path": str(repo["main"] / "a.txt")}).returncode == 2
+    assert run("claude", repo["main"], tool, {"path": str(repo["topic"] / "a.txt")}).returncode == 0
 
 
 def test_r1_8_the_server_name_is_ignored(repo):
     assert run("claude", repo["main"], "mcp__write_things__read_page", {}).returncode == 0
 
 
-def test_an_unknown_builtin_is_refused_in_the_main_checkout(repo):
-    assert run("claude", repo["main"], "SomeNewTool", {}).returncode == 2
-    assert run("claude", repo["topic"], "SomeNewTool", {}).returncode == 0
+@pytest.mark.parametrize("tool,key", [
+    ("mcp__jetbrains__replace_text_in_file", "pathInProject"),
+    ("mcp__intellij__create_new_file", "file_name"),
+    ("mcp__ide__reformat_file", "filePath"),
+    ("mcp__fs__move_file", "source_file"),
+])
+def test_a_mutating_mcp_tool_with_a_path_like_key_is_judged_at_that_value(repo, tool, key):
+    assert run("claude", repo["main"], tool, {key: "src/A.java"}).returncode == 2
+    assert run("claude", repo["main"], tool, {key: str(repo["main"] / "src" / "A.java")}).returncode == 2
+    assert run("claude", repo["topic"], tool, {key: "src/A.java"}).returncode == 0
+
+
+@pytest.mark.parametrize("tool,payload", [
+    ("mcp__x__create_page", {"title": "t"}),
+    ("mcp__notion__update_page", {"page_id": "p1", "content": "c"}),
+    ("mcp__tracker__create_issue", {"summary": "s", "pathway": 3}),
+])
+def test_a_mutating_mcp_tool_without_a_path_like_key_is_an_external_service(repo, tool, payload):
+    assert run("claude", repo["main"], tool, payload).returncode == 0
+
+
+def test_an_unknown_builtin_with_no_path_passes(repo):
+    assert run("claude", repo["main"], "SomeNewTool", {}).returncode == 0
+    assert run("claude", repo["main"], "SomeNewTool", {"file_path": str(repo["main"] / "a")}).returncode == 2
 
 
 def test_allowed_tools_start_no_git(repo):
@@ -384,10 +451,20 @@ def test_the_superproject_chain_is_capped(repo, monkeypatch):
         guard.by_git(repo["tmp"], 0)
 
 
-def test_an_unreadable_envelope_fails_closed_in_a_work_tree(repo):
+def test_an_unreadable_envelope_is_not_an_identified_mutation(repo):
+    """PRD D7: fail closed only for an identified mutation."""
     done = subprocess.run([sys.executable, str(GUARD)], input='{"tool_name": "Bash", broken',
                           text=True, capture_output=True, cwd=repo["topic"], env=clean_env("claude"))
-    assert denies(done)
+    assert done.returncode == 0 and not denies(done)
+
+
+def test_a_fault_passes_a_read_and_refuses_a_mutation(repo):
+    (repo["topic"] / ".git").unlink()
+    (repo["topic"] / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n",
+                                        encoding="utf-8")
+    assert run("claude", repo["topic"], "Bash", {"command": "git status"}).returncode == 0
+    done = run("claude", repo["topic"], "Bash", {"command": "touch changed"})
+    assert done.returncode == 2 and "could not compute a verdict" in done.stderr
 
 
 def test_an_unloadable_judge_still_refuses_inside_a_work_tree(repo, tmp_path):
@@ -597,3 +674,167 @@ def test_r12_5_sessions_without_an_id_but_with_different_owners_each_get_the_not
     other = run("claude", repo["topic"], "Bash", {"command": "touch changed"}, {"session_id": ""}, AFK_WORKTREE_OWNER="222:2")
     assert "additionalContext" in first.stdout and again.stdout.strip() == ""
     assert "additionalContext" in other.stdout
+
+
+def deny_of(done) -> str:
+    return json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("command", [
+    "(cd {topic} && touch safe); touch changed.txt",
+    "cd {topic} | touch changed.txt",
+    "touch \\\nchanged.txt",
+    "Set-Content `\n -Path changed.txt -Value x",
+    "git -C \"\" commit --allow-empty -m x",
+    "ln {topic}/a",
+    "sudo --user root git commit --allow-empty -m x",
+    "env -C . git add .",
+    "git --work-tree={tmp}/elsewhere reset --hard",
+    "Get-Content x | Tee-Object -FilePath changed.txt",
+])
+def test_s1_judge_refuses_in_the_main_checkout(repo, command):
+    text = command.format(topic=repo["topic"], tmp=repo["tmp"])
+    done = run("claude", repo["main"], "Bash", {"command": text})
+    assert done.returncode == 2, text
+
+
+def test_s1_judge_refuses_a_git_dir_with_an_outside_work_tree_from_outside(repo):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    text = f"git --git-dir={repo['main'] / '.git'} --work-tree={outside} reset --hard"
+    assert run("claude", outside, "Bash", {"command": text}).returncode == 2
+    text = f"Get-Content x | Tee-Object -FilePath {repo['main'] / 'out.txt'}"
+    assert run("claude", outside, "Bash", {"command": text}).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "Remove-Item {main}/tracked.txt -WhatIf",
+    "git diff --output=$env:TEMP\\copy.diff",
+    "git diff --output=$TMP/copy.diff",
+    "git status; (cd {topic} && touch ok)",
+])
+def test_s1_judge_allows_previews_and_opaque_values(repo, command):
+    text = command.format(main=repo["main"], topic=repo["topic"])
+    assert run("claude", repo["main"], "Bash", {"command": text}).returncode == 0, text
+
+
+def test_s1_005_a_fault_owes_a_refusal_for_every_identified_target(repo):
+    broken = repo["tmp"] / "broken"
+    broken.mkdir()
+    (broken / ".git").write_text("gitdir: " + str(repo["tmp"] / "gone" / "worktrees" / "x") + "\n", encoding="utf-8")
+    outside = repo["tmp"] / "plain"
+    outside.mkdir()
+    done = run("claude", outside, "Bash", {"command": f"touch {broken / 'f'}"})
+    assert done.returncode == 2 and "could not compute a verdict" in done.stderr
+    done = run("claude", outside, "Bash", {"command": f"touch {outside / 'f'}"})
+    assert done.returncode == 0
+
+
+def test_s1_012_the_hint_follows_the_sessions_own_placement(repo):
+    done = run("claude", repo["main"], "Bash", {"command": f"cd {repo['protected']} && touch f"})
+    assert done.returncode == 2 and "write inside this session's worktree" not in deny_of(done)
+    done = run("claude", repo["topic"], "Bash", {"command": f"touch {repo['main'] / 'f'}"})
+    assert done.returncode == 2 and f"write inside this session's worktree {repo['topic']}" in deny_of(done)
+    done = run("claude", repo["protected"], "Bash", {"command": "touch f"})
+    assert done.returncode == 2 and "write inside this session's worktree" not in deny_of(done)
+
+
+def test_o2_1_a_refused_pull_names_the_allowed_form(repo):
+    done = run("claude", repo["main"], "Bash", {"command": "git pull origin main"})
+    assert done.returncode == 2 and "git pull --ff-only" in deny_of(done)
+    done = run("claude", repo["main"], "Bash", {"command": "git commit --allow-empty -m x"})
+    assert "git pull --ff-only" not in deny_of(done)
+
+
+def run_in_process(monkeypatch, capsys, cwd: Path, command: str, harness: str = "claude"):
+    import io
+    guard = load_guard()
+    sys.path.insert(0, str(LIB))
+    for key, value in clean_env(harness).items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("AFK_ALLOW_PROTECTED", raising=False)
+    body = json.dumps(envelope_of(cwd, "Bash", {"command": command})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    monkeypatch.chdir(cwd)
+    code = guard.main()
+    return guard, code, capsys.readouterr()
+
+
+def test_s1_005_a_message_failure_after_a_refusal_still_denies(repo, monkeypatch, capsys):
+    guard = load_guard()
+    calls = []
+
+    def boom(*a, **k):
+        calls.append(1)
+        raise RuntimeError("message trouble")
+
+    monkeypatch.setattr(guard.Judge, "notice_once", boom)
+    import io
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0 and calls
+    out = capsys.readouterr().out
+    assert '"permissionDecision": "deny"' in out and "main checkout" in out
+
+
+def test_s1_005_a_recovery_text_failure_for_a_held_session_still_denies(repo, monkeypatch, capsys):
+    sys.path.insert(0, str(LIB))
+    import change_meter
+    held = {"root": str(repo["main"]), "paths": {"a.txt": ["x"]}}
+    monkeypatch.setattr(change_meter, "active", lambda *a, **k: held)
+    monkeypatch.setattr(change_meter, "allows", lambda *a, **k: False)
+    monkeypatch.setattr(change_meter, "recovery", lambda *a, **k: 1 / 0)
+    guard, code, out = run_in_process(monkeypatch, capsys, repo["main"], "touch changed")
+    assert code == 0 and '"permissionDecision": "deny"' in out.out and "has not undone it" in out.out
+
+
+def test_o2_1_the_sync_hint_names_only_a_refused_pull(repo):
+    pull = run("claude", repo["main"], "Bash", {"command": "git pull --rebase"})
+    assert "git pull --ff-only" in pull.stderr
+    other = run("claude", repo["main"], "Bash", {"command": "git commit -m x && touch a"})
+    assert "git pull --ff-only" not in other.stderr
+    mixed = run("claude", repo["main"], "Bash", {"command": "echo pull && touch a"})
+    assert "git pull --ff-only" not in mixed.stderr
+
+
+def test_f4_003_a_powershell_tool_keeps_a_group_folder_change(repo):
+    main = repo["main"]
+    command = f"(cd '{main}'); touch f"
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2
+    assert run("claude", repo["topic"], "Bash", {"command": command}).returncode == 0
+
+
+def test_f6_001_a_verdict_fault_with_a_failing_hint_still_denies_with_the_cause(repo, monkeypatch, capsys):
+    guard = load_guard()
+    import io
+
+    def fault(*a, **k):
+        raise RuntimeError("verdict trouble")
+
+    monkeypatch.setattr(guard.Judge, "verdict", fault)
+    monkeypatch.setattr(guard, "hint_of", fault)
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo["main"], "Bash", {"command": "touch changed"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0
+    out = capsys.readouterr().out
+    assert '"permissionDecision": "deny"' in out and "verdict trouble" in out
+
+
+def test_f6_002_whatif_exempts_only_cmdlets_and_aliases_in_every_shell(repo):
+    main = repo["main"]
+    for tool, command in [("PowerShell", "touch f -WhatIf"), ("PowerShell", "rm.exe f -WhatIf"),
+                          ("Bash", "touch f -WhatIf")]:
+        assert run("claude", main, tool, {"command": command}).returncode == 2, command
+    for tool, command in [("PowerShell", "Remove-Item f -WhatIf"), ("PowerShell", "ri f -WhatIf"),
+                          ("Bash", "Remove-Item f -WhatIf")]:
+        assert run("claude", main, tool, {"command": command}).returncode == 0, command
+
+
+def test_b8_the_human_launch_sentence_is_on_its_own_line(repo):
+    done = run("claude", repo["main"], "Bash", {"command": "touch changed"})
+    reason = json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "\nA human who needs this session here launches" in reason

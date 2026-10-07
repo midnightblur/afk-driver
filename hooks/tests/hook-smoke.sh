@@ -361,7 +361,7 @@ postcompact:PostCompact|stop:Stop)
   else
     fail "protected-branch-guard outside git (rc=$rc)"
   fi
-  sed "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" 2>/dev/null >"$guard_repo.out"
+  sed -e "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" -e 's|"command": *"[^"]*"|"command": "touch changed"|' "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" 2>/dev/null >"$guard_repo.out"
   rc=$?
   if [ "$rc" = 0 ] && grep -q '"permissionDecision": "deny"' "$guard_repo.out"; then
     pass "protected-branch-guard refuses a command in a main checkout"

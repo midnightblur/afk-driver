@@ -4,7 +4,7 @@
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
 
-Agents of a developer who installed the afk plugin must work in their own linked worktree in every repository, including repositories with no afk configuration, with no opt-in step. The failure it prevents — two forgotten sessions sharing one checkout — happens precisely where nobody thought to opt in, so a per-repository opt-in would not reach it.
+Agents of a developer who installed the afk plugin must work in a linked worktree owned by their session or their team (ADR-0013) in every repository, including repositories with no afk configuration, with no opt-in step. The failure it prevents — two forgotten sessions sharing one checkout — happens precisely where nobody thought to opt in, so a per-repository opt-in would not reach it.
 
 ## Considered Options
 

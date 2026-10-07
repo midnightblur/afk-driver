@@ -5,8 +5,9 @@
 
 The harness trusts a plugin hook by position: a `[hooks.state."<plugin>@<marketplace>:
 hooks/hooks.codex.json:<event>:<group>:<handler>"]` table carries `trusted_hash`. This reads the
-shipped manifest for the position of the guard (PreToolUse), the session-end cleanup
-(SessionEnd) and the session-start prune (SessionStart), then checks the config for a key at
+shipped manifest for the position of the guard (PreToolUse), the change meter (PostToolUse), the
+session-end cleanup (SessionEnd), the session-start prune and the occupancy advisory (SessionStart),
+then checks the config for a key at
 each. A key can be stale (the hash no longer matches): only the harness can tell, so a present
 key is reported as present and `/hooks` stays the place to see "need review".
 
@@ -23,8 +24,10 @@ import sys
 from pathlib import Path
 
 HOOKS = (("PreToolUse", "protected-branch-guard.py"),
+         ("PostToolUse", "protected-branch-meter.py"),
          ("SessionEnd", "worktree-remove.sh"),
-         ("SessionStart", "worktree-prune.sh"))
+         ("SessionStart", "worktree-prune.sh"),
+         ("SessionStart", "protected-branch-occupancy.py"))
 STEP = ("start the harness once in its terminal UI without the full-bypass flag and choose "
         "\"Trust all and continue\", or type `/hooks` and press `t`")
 

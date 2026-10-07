@@ -17,7 +17,7 @@ The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the f
 native process of a hook chain, since a walk from inside bash loses the chain), the
 first ancestor of this process that is not a shell, an interpreter, git or a console
 host, then the pid in the env name the provider file declares (`owner_pid_env`). The creation time pins the pid: a live pid
-with another creation time is a recycled one and reads `unknown`. Never
+with another creation time is a recycled one and reads `dead`. Never
 `os.kill(pid, 0)`: on Windows that terminates the process.
 """
 from __future__ import annotations
@@ -181,7 +181,7 @@ def provider_owner(harness: str) -> dict | None:
 
 
 def state(pid: int, ctime: str) -> str:
-    """alive | dead | unknown. A live pid with another creation time is `unknown`."""
+    """alive | dead | unknown. A live pid with another creation time is a recycled one: `dead`."""
     present = exists(pid)
     if present is False:
         return "dead"
@@ -190,7 +190,7 @@ def state(pid: int, ctime: str) -> str:
     now = creation_time(pid)
     if now is None:
         return "unknown"
-    return "alive" if now == str(ctime) else "unknown"
+    return "alive" if now == str(ctime) else "dead"
 
 
 def owners_of(record: dict) -> list[dict]:

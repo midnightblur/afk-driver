@@ -53,6 +53,8 @@ release page from its section here. Nobody tags by hand.
 
 ### Changed
 
+- The protected-branch guard now refuses a mutation by the resource it changes, not by command shape. Pipes, redirects to the null device and unknown programs run in the main checkout. The main checkout may `git pull --ff-only` its base branch. A shell call that still changed a guarded checkout is reported after the call and holds the session until it runs the printed recovery. A linked worktree has one live holder, or one team (`AFK_WORKTREE_GROUP`, or one herdr tab). A harness that gates new hooks behind trust asks you to trust two new hook entries once (`PROVIDERS.md` "Protected-branch guard").
+
 - `hooks/tests/hook-smoke.sh` fails without jq instead of skipping, so a run
   with no coverage never reads as green.
 

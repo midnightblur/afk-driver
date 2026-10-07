@@ -7,7 +7,8 @@
 The caller has already decided this is an agent-driven git call with no override. A
 commit is refused in the main checkout and on a protected branch of a linked worktree.
 A ref transaction is refused for the main checkout's own HEAD and the branch it has
-checked out, and for a linked worktree's own protected branch. Creating refs (a new
+checked out (except the move a live `main_sync` authorization covers), and for a linked
+worktree's own protected branch. Creating refs (a new
 worktree's branch), remote-tracking updates and no-op updates pass.
 
 Exit 3 refuses; callers veto only on 3. Any other exit is a fault: the caller warns and
@@ -60,6 +61,7 @@ def rebasing_branch(place: dict) -> str | None:
 
 
 def ref_transaction(lines: list[str]) -> int:
+    import main_sync
     import protected_branch_guard as guard
     place = guard.placement(Path.cwd())
     if place is None:
@@ -80,10 +82,22 @@ def ref_transaction(lines: list[str]) -> int:
                 if cause:
                     return refuse(f"update `{current}`", cause)
             continue
+        if current and ref in ("HEAD", f"refs/heads/{current}") and main_sync.allows(place, current, old, new):
+            continue
         if ref == "HEAD" and not creating_worktree(place):
             return refuse("move the main checkout's HEAD", "this is the main checkout")
         if current and ref == f"refs/heads/{current}":
             return refuse(f"update `{current}`", "this is the main checkout")
+    return 0
+
+
+def finish(lines: list[str]) -> int:
+    """committed/aborted: a sync authorization is one-shot, so drop the one this transaction used."""
+    import main_sync
+    import protected_branch_guard as guard
+    place = guard.placement(Path.cwd())
+    if place is not None:
+        main_sync.finish(place, lines)
     return 0
 
 
@@ -93,6 +107,8 @@ def main(argv: list[str]) -> int:
             return pre_commit()
         if argv[:2] == ["reference-transaction", "prepared"]:
             return ref_transaction(sys.stdin.read().splitlines())
+        if argv[:2] in (["reference-transaction", "committed"], ["reference-transaction", "aborted"]):
+            return finish(sys.stdin.read().splitlines())
     except Exception as problem:
         sys.stderr.write(f"afk: git backstop skipped ({problem}).\n")
     return 0
