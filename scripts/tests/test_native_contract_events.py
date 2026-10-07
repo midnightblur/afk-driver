@@ -130,3 +130,16 @@ def test_a_raw_repository_scan_in_a_gate_is_refused(tree):
 def test_the_bounded_scanner_itself_may_scan(tree):
     done = gate(tree)
     assert done.returncode == 0, done.stderr + done.stdout
+
+
+def test_a_feature_spec_folder_may_name_a_harness(tree):
+    folder = tree / "docs" / "afk" / "some-feature"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "NOTES.md").write_text("Claude Code and Codex differ.\n", encoding="utf-8")
+    done = gate(tree)
+    assert done.returncode == 0, done.stderr + done.stdout
+
+
+def test_plugin_prose_naming_a_harness_is_refused(tree):
+    (tree / "NOTES.md").write_text("Claude Code only.\n", encoding="utf-8")
+    _refused(gate(tree), "NOTES.md:1: forbidden harness-name vocabulary")

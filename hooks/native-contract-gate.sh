@@ -86,9 +86,11 @@ def read(path: Path) -> str:
 # homes for provider-specific vocabulary. Historical CHANGELOG lines stay in
 # scope and carry narrow allowlist entries so new coupling cannot hide there.
 excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
+# Feature spec folders are design records that quote harness facts as
+# evidence; no agent loads them as skill prose.
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
-    if rel(path) not in excluded_prose
+    if rel(path) not in excluded_prose and not rel(path).startswith("docs/afk/")
 ]
 
 allow_file = plugin / "hooks/native-contract-allow.txt"

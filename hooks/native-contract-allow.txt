@@ -66,3 +66,4 @@ CHANGELOG.md	harness-name	^  short of a manifest that listed it. Codex parsed th
 # Hook entries that bypass run-hook.py, and bounded plugin-tree inventories (check M).
 hooks/hooks*.json	hook-deadline	protected-branch-guard\.py	The guard enforces its own 20 s deadline (DEADLINE_SECONDS in hooks/lib/protected_branch_guard.py), below this entry's 30 s timeout.
 hooks/native-contract-gate.sh	repo-scan	plugin\.rglob\(|fixture_dir\.rglob\(	Plugin-tree inventory of this gate's own files (hundreds of files), not a consuming-repository content scan.
+.claude/wiring-ious.md	harness-name	for the Codex flag-error fact"	A wiring IOU quotes its anchoring contract verbatim.

@@ -81,6 +81,11 @@ release page from its section here. Nobody tags by hand.
   scrolling under the rail was read as covered and held the page behind a repair
   banner; the rail is now a hair under opaque, like the send bar.
 
+- **The plugin contract gate no longer reads feature spec folders as plugin
+  prose.** Its harness-vocabulary check read every Markdown file, so a spec
+  folder under `docs/afk/` that quotes harness facts as evidence blocked the
+  gate. It now reads plugin prose and doctrine only, as its own comment says.
+
 - **The investigation seed no longer counts published ledgers.** A spec
   folder's `investigations/INV-*/` ledgers quote their subject thousands of
   times, so a subject investigated before could exceed the hit limit and stop
