@@ -150,6 +150,25 @@ def test_healthy_handler_still_runs_silently(tmp_path):
     assert done.returncode == 0
 
 
+def _code_page_env() -> dict:
+    """The environment a harness hands the launcher: no override of the console code page."""
+    return {k: v for k, v in os.environ.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
+
+
+def test_handler_text_outside_the_code_page_reaches_the_harness_as_utf8(tmp_path):
+    root = repository(
+        tmp_path,
+        json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/say.sh"}]),
+        {"say.sh": "#!/bin/sh\nprintf 'next \\342\\206\\222 step\\n' >&2\nexit 0\n"},
+    )
+    env = {**_code_page_env(), "CLAUDE_PROJECT_DIR": str(root)}
+    done = subprocess.run([sys.executable, str(LAUNCHER), "repo-list", "PreToolUse"],
+                          input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"}).encode(),
+                          capture_output=True, cwd=str(root), env=env, timeout=180)
+    assert done.returncode == 0, done.stderr
+    assert "next → step" in done.stderr.decode("utf-8")
+
+
 def test_no_manifest_is_not_a_fault(tmp_path):
     root = tmp_path / "bare"
     root.mkdir()
@@ -378,8 +397,10 @@ def plugin_copy(tmp_path):
 
 
 def _launch(root: Path, env, *args: str):
+    env = {k: v for k, v in env.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
     return subprocess.Popen([sys.executable, str(root / "hooks" / "run-hook.py"), *args],
-                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8",
+                            errors="replace")
 
 
 def test_deadline_kills_the_handler_tree(plugin_copy):
@@ -453,3 +474,17 @@ def test_a_background_child_ends_when_its_handler_exits(plugin_copy, tmp_path):
     proc.communicate(timeout=60)
     assert proc.returncode == 0
     assert _gone(_pids(mark, ("bg",)))
+
+
+def test_a_plugin_handler_learns_the_wall_clock_deadline(plugin_copy):
+    root, _, env = plugin_copy
+    (root / "hooks" / "budget.sh").write_text('#!/bin/sh\nprintf "%s" "${AFK_HOOK_DEADLINE:-}"\n',
+                                              encoding="utf-8", newline="\n")
+    start = time.time()
+    proc = _launch(root, env, "--deadline", "30", "plugin", "budget.sh")
+    out, err = proc.communicate(timeout=60)
+    assert proc.returncode == 0, err
+    assert start + 25 < float(out) <= time.time() + 30
+    proc = _launch(root, {k: v for k, v in env.items() if k != "AFK_HOOK_DEADLINE"}, "plugin", "budget.sh")
+    out, _ = proc.communicate(timeout=60)
+    assert out == ""

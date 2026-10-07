@@ -2,12 +2,13 @@
 """Validate, render, or audit the managed behavior registry.
 
 Commands:
-  behavior_registry.py validate [registry] [--plugin-root DIR] [--base-registry FILE]
+  behavior_registry.py validate [registry] [--plugin-root DIR] [--base-registry FILE] [--verbose]
   behavior_registry.py render [registry] [--plugin-root DIR] [--output FILE]
   behavior_registry.py audit [registry] [--plugin-root DIR] --target FILE [...]
       [--target-root FILE ROOT ENABLEMENT ...] [--ignore-unmanaged]
 
-``validate`` checks the registry contract and the rendered byte ceiling.
+``validate`` checks the registry contract and the rendered byte ceiling; it is
+silent on success unless ``--verbose``.
 ``render`` writes one ``afk:behaviors`` block. It never truncates the block.
 ``audit`` checks installed blocks without changing their target files.
 ``--target`` audits a file against the shared ``--plugin-root`` (its provider
@@ -821,6 +822,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validate_parser.add_argument("--parity-root", type=pathlib.Path)
     validate_parser.add_argument("--base-registry", type=pathlib.Path)
     validate_parser.add_argument("--byte-limit", type=int, default=BODY_BYTE_LIMIT)
+    validate_parser.add_argument("--verbose", action="store_true", help="print the row count and byte size on success")
 
     render_parser = subparsers.add_parser("render")
     _add_common(render_parser)
@@ -855,8 +857,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 parity_root=args.parity_root,
                 base_registry=args.base_registry,
             )
-            count = rendered_byte_count(render_registry(registry_path, root))
-            print(f"valid: {len(registry.rows)} rows; revision={registry.revision}; bytes={count}")
+            if args.verbose:
+                count = rendered_byte_count(render_registry(registry_path, root))
+                print(f"valid: {len(registry.rows)} rows; revision={registry.revision}; bytes={count}")
             return 0
         if args.command == "render":
             validate_registry(registry_path, root, byte_limit=args.byte_limit)

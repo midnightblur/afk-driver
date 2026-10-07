@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 import pytest
+from git_floor import NEEDS_HEAD_SWITCH_HOOK
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN_HOOK = ROOT / "hooks" / "run-hook.py"
@@ -938,7 +939,8 @@ MOVES = {
 }
 
 
-@pytest.mark.parametrize("move", sorted(MOVES))
+@pytest.mark.parametrize("move", [pytest.param(m, marks=NEEDS_HEAD_SWITCH_HOOK) if m in ("checkout", "switch") else m
+                                  for m in sorted(MOVES)])
 def test_ac025_agent_branch_move_refused_human_passes(move, repo, stubs):
     prepare_moves(repo, stubs)
     install_backstop(repo)
@@ -1183,6 +1185,7 @@ def test_a18_plugin_creation_passes_backstop_under_agent_env(repo, tmp_path, stu
     assert hook.returncode == 0, hook.stderr
 
 
+@NEEDS_HEAD_SWITCH_HOOK
 def test_a18_agent_env_marker_does_not_leak_to_plain_git(repo, stubs):
     """The backstop pass is for the plugin's own git calls, not an agent that sets nothing."""
     prepare_moves(repo, stubs)

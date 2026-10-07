@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -211,6 +212,20 @@ def test_the_repository_copy_list_is_carried_over(tmp_path):
     assert (wt / "notes.local").read_text(encoding="utf-8") == "mine"
 
 
+def test_the_copied_files_are_recorded_with_their_content_hash(tmp_path):
+    import hashlib
+    repo = make_repo(tmp_path, "worktree:\n  copy:\n    - notes.local\n    - tooling\n",
+                     files={".gitignore": "notes.local\ntooling/\n"})
+    (repo / "notes.local").write_text("mine", encoding="utf-8")
+    (repo / "tooling").mkdir()
+    (repo / "tooling" / "a.txt").write_text("a", encoding="utf-8")
+    wt = path_of(create(repo, "--name", "hashed"))
+    gitdir = Path(git(wt, "rev-parse", "--absolute-git-dir"))
+    manifest = json.loads((gitdir / "afk-copied.json").read_text(encoding="utf-8"))
+    for rel in ("notes.local", "tooling/a.txt"):
+        assert manifest[rel] == hashlib.sha256((wt / rel).read_bytes()).hexdigest()
+
+
 HOOKS = [
     {"event": "WorktreeCreated", "matcher": "*", "timeout": 30, "script": "setup/one.sh"},
     {"event": "WorktreeCreated", "matcher": "*", "timeout": 30, "script": "setup/fails.sh"},
@@ -257,6 +272,18 @@ def test_a_script_outside_the_repository_is_not_run_and_is_named(tmp_path):
     assert "../outside.sh" in done.stderr
     assert not (path_of(done) / "outside.ran").exists()
     assert not (tmp_path / "outside.ran").exists()
+
+
+def test_an_ignored_file_a_setup_script_creates_keeps_the_worktree_on_removal(tmp_path):
+    """Setup-script output is not a recorded plugin output, so removal cannot know it is restorable."""
+    hooks = [{"event": "WorktreeCreated", "matcher": "*", "timeout": 30, "script": "setup/db.sh"}]
+    repo = make_repo(tmp_path, files={".afk/hooks.json": json.dumps(hooks), ".gitignore": "local.db\n",
+                                      "setup/db.sh": 'echo rows > "$PWD/local.db"\n'})
+    wt = path_of(create(repo, "--name", "seeded"))
+    assert (wt / "local.db").is_file()
+    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "remove-worktree.py"), "--path", str(wt)],
+                          capture_output=True, text=True, cwd=repo, timeout=120)
+    assert wt.is_dir() and "local.db" in done.stderr, done.stderr
 
 
 def test_a_repository_without_a_manifest_runs_nothing_and_says_nothing(tmp_path):

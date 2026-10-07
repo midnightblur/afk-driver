@@ -101,7 +101,7 @@ one of them was in use.
 Run these read-only checks from the plugin root:
 
 ```sh
-python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root .
+python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root . --verbose
 . hooks/lib/provider.sh
 args=()
 while IFS= read -r -d '' name && IFS= read -r -d '' target \

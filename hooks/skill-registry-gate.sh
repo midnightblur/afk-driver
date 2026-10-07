@@ -13,7 +13,7 @@
 #    reading the harness never learns an uncatalogued skill exists — happened
 #    for seven skills/utils/ entries, caught only by an /afk:setup audit.
 # C. env-toggle register — every external all-caps env var read by hooks/*.sh
-#    (read but never assigned in hooks/, ambient vars excluded) appears in the
+#    (read but never assigned in hooks/, ambient and bash-set vars excluded) appears in the
 #    dependency register skills/afk/setup/MANIFEST.md (§E) — happened for six
 #    gate toggles, caught only by an /afk:setup audit.
 # D. language pointer — every SKILL.md + agents/*.md names LANGUAGE.md (the one
@@ -141,6 +141,14 @@ for a in m.get('agents', []): print('AGENT\t' + a)
   # Ambient OS/harness vars are not toggles and are excluded.
   local REGISTER="$PLUGIN_DIR/skills/afk/setup/MANIFEST.md"
   local ambient='PATH|HOME|USERPROFILE|TMPDIR|TEMP|TMP|PWD|OLDPWD|IFS|BASH_SOURCE|FUNCNAME|OSTYPE|JAVA_HOME|CLAUDECODE|CLAUDE_PLUGIN_ROOT'
+  # Variables bash itself sets are never external toggles: bash(1) "Shell Variables", exact names.
+  local bash_special='BASH|BASHOPTS|BASHPID|BASH_ALIASES|BASH_ARGC|BASH_ARGV|BASH_ARGV0|BASH_CMDS'
+  bash_special+='|BASH_COMMAND|BASH_EXECUTION_STRING|BASH_LINENO|BASH_LOADABLES_PATH|BASH_REMATCH'
+  bash_special+='|BASH_SOURCE|BASH_SUBSHELL|BASH_VERSINFO|BASH_VERSION|COMP_CWORD|COMP_KEY|COMP_LINE'
+  bash_special+='|COMP_POINT|COMP_TYPE|COMP_WORDBREAKS|COMP_WORDS|COPROC|DIRSTACK|EPOCHREALTIME'
+  bash_special+='|EPOCHSECONDS|EUID|FUNCNAME|GROUPS|HISTCMD|HOSTNAME|HOSTTYPE|LINENO|MACHTYPE|MAPFILE'
+  bash_special+='|OLDPWD|OPTARG|OPTIND|OSTYPE|PIPESTATUS|PPID|PWD|RANDOM|READLINE_ARGUMENT|READLINE_LINE'
+  bash_special+='|READLINE_MARK|READLINE_POINT|REPLY|SECONDS|SHELLOPTS|SHLVL|SRANDOM|UID'
   local unregistered=""
   if [ -f "$REGISTER" ]; then
     # One read of every hook source (comments stripped) and one of the register;
@@ -170,7 +178,7 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     hook_reads=$(printf '%s' "$hooks_src" | grep -oE '\$\{?[A-Z][A-Z0-9_]{2,}' | sed -E 's/^\$\{?//' | sort -u)
     while IFS= read -r v; do
       [ -n "$v" ] || continue
-      [[ "$v" =~ ^($ambient)$ ]] && continue
+      [[ "$v" =~ ^($ambient|$bash_special)$ ]] && continue
       [ -n "${assigned[$v]:-}" ] && continue      # assigned in hooks/ => internal
       [[ "$register_body" =~ (^|[^A-Za-z0-9_])"$v"([^A-Za-z0-9_]|$) ]] \
         || unregistered="$unregistered  - $v"$'\n'

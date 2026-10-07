@@ -15,7 +15,7 @@ lavish="$workflow/hooks/lavish-dark.sh"
 lavish_tips="$workflow/hooks/lavish-tips.sh"
 guard="$workflow/hooks/protected-branch-guard.py"
 
-command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not on PATH" >&2; exit 0; }
+command -v jq >/dev/null 2>&1 || { echo "FAIL: jq not on PATH; these smoke tests need it to read hook answers" >&2; exit 1; }
 
 fails=0
 pass() { echo "  ok: $1"; }
@@ -579,7 +579,7 @@ else
   fail "current managed behavior should be silent"
 fi
 
-sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd_claude/CLAUDE.md"
+sed -i 's/registry-revision: [0-9]*/registry-revision: 0/' "$bd_claude/CLAUDE.md"
 bd_stale=$(bd_run)
 if [ "$(printf '%s\n' "$bd_stale" | wc -l)" -eq 1 ] \
    && printf '%s' "$bd_stale" | grep -q '/afk:setup'; then
@@ -670,7 +670,7 @@ bd5_rendered=$(mktemp)
   --output "$bd5_rendered"
 "$behavior_py" "$workflow/skills/afk/setup/scripts/install_block.py" \
   install "$bd5_rendered" "$bd5_codex/AGENTS.md" >/dev/null
-sed -i 's/registry-revision: 1/registry-revision: 0/' "$bd5_codex/AGENTS.md"
+sed -i 's/registry-revision: [0-9]*/registry-revision: 0/' "$bd5_codex/AGENTS.md"
 bd5_out=$(env -u CLAUDECODE -u CLAUDE_PLUGIN_ROOT -u CLAUDE_CONFIG_DIR \
   PLUGIN_ROOT=1 CODEX_HOME="$bd5_codex" \
   "$behavior_py" "$workflow/hooks/run-hook.py" plugin behavior-drift.sh)
@@ -795,18 +795,23 @@ else
 fi
 
 # PATH without a POSIX shell is the machine the probes ran on: the system
-# directory's WSL stub is the only thing named bash.
-py_abs=$(command -v "$py")
-out=$(cd "$fixture_repo" && env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
-  "$py_abs" "$launcher" repo-list PreToolUse \
-  < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
-rc=$?
-if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
-    '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
-  pass "launcher finds a shell when PATH carries only the WSL stub"
-else
-  fail "launcher shell lookup (rc=$rc out=$out)"
-fi
+# directory's WSL stub is the only thing named bash. Windows-only premise.
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*)
+  py_abs=$(command -v "$py")
+  out=$(cd "$fixture_repo" && env PATH="${SYSTEMROOT:-C:\\Windows}/System32" \
+    "$py_abs" "$launcher" repo-list PreToolUse \
+    < "$envelopes/claude/pretooluse-bash-safe.json" 2>/dev/null)
+  rc=$?
+  if [ "$rc" = 0 ] && printf '%s' "$out" | jq -e \
+      '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null; then
+    pass "launcher finds a shell when PATH carries only the WSL stub"
+  else
+    fail "launcher shell lookup (rc=$rc out=$out)"
+  fi
+  ;;
+*) echo "  skip: launcher WSL-stub shell lookup (Windows only)" ;;
+esac
 
 rm -rf "$fixture_repo" "$bare_repo" "$clean_repo"
 

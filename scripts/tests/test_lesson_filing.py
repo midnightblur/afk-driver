@@ -121,6 +121,8 @@ def test_the_managed_path_comparison_folds_case(tmp_path: Path):
     market = plugin(repo(root / ".claude/plugins/marketplaces/afk-toolkit"))
     commit(market)
     shouted = Path(str(market).upper())
+    if not shouted.is_dir():
+        pytest.skip("this filesystem keeps the other spelling a different, absent directory")
     result = clone_check(shouted, tmp_path, HOME=str(root))
     assert result.returncode == 1 and result.stdout.startswith("PLUGIN: installed"), result
 
@@ -131,6 +133,8 @@ def test_case_folding_follows_the_filesystem(tmp_path: Path):
     market = plugin(repo(root / ".claude/plugins/marketplaces/afk-toolkit"))
     commit(market)
     shouted = Path(str(market).upper())
+    if not shouted.is_dir():
+        pytest.skip("the other spelling must name the same directory for the override to be observable")
     folded = clone_check(shouted, tmp_path, HOME=str(root), AFK_PATH_CASE_FOLD="1")
     assert folded.returncode == 1, folded
     exact = clone_check(shouted, tmp_path, HOME=str(root), AFK_PATH_CASE_FOLD="0")

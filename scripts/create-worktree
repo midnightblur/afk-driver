@@ -308,6 +308,7 @@ substitute_paths() {
 
 # Copy one file, rewriting main-repo path references if present. grep -I treats binaries as
 # non-matching, so they always fall through to a plain copy.
+COPIED_FILES=()
 copy_file_with_substitution() {
   local src="$1" dest="$2"
   mkdir -p "$(dirname "$dest")"
@@ -316,6 +317,7 @@ copy_file_with_substitution() {
   else
     cp "$src" "$dest"
   fi
+  COPIED_FILES+=("${dest#"$DEST"/}")
 }
 
 # Recursively copy a directory (incl. subfolders), rewriting paths file-by-file.
@@ -458,6 +460,7 @@ if [[ "$CONFIGS_FLAG" == true && "$COPY_PERSONAL" == true ]]; then
       if [[ "$entry" == ".idea" ]]; then
         # Mark this as a portable worktree project (IntelliJ uses .name if present)
         echo "$DIR_NAME" > "$DEST/.idea/.name"
+        COPIED_FILES+=(".idea/.name")
       fi
     fi
   done
@@ -474,6 +477,13 @@ if [[ "$CONFIGS_FLAG" == true && "$COPY_PERSONAL" == true ]]; then
       echo -e "${GREEN}Copied $CLAUDE_MD_COUNT instruction file(s)${NC}" >&2
     fi
   fi
+fi
+
+# Worktree removal keeps a worktree whose copied files changed; it reads these hashes.
+if (( ${#COPIED_FILES[@]} > 0 )); then
+  printf '%s\0' "${COPIED_FILES[@]}" | "$PY_BIN" "$AFK_ROOT_DIR/scripts/worktree_owner.py" copied \
+    --worktree "$DEST_DIR_FWD" >&2 \
+    || echo -e "  ${YELLOW}Could not record the copied files; removal keeps this worktree if they look like work${NC}" >&2
 fi
 
 # --- hand the worktree to the build gates. Their provisioning is theirs: this script only

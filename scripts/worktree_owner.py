@@ -6,6 +6,12 @@
     python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
     python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
+    python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
+        adds to <P's git dir>/afk-copied.json the SHA-256 of each file a trusted plugin step
+        placed: the copy step, and a build gate's provisioning outputs
+    python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
+        appends them; records the expected result's SHA-256 only when the file was absent or
+        recorded unchanged before, and reads back exactly that result after
 
 The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
 native process of a hook chain, since a walk from inside bash loses the chain), the
@@ -16,6 +22,7 @@ with another creation time is a recycled one and reads `unknown`. Never
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -25,6 +32,12 @@ import time
 # Paths gates of plugin versions before the git-dir move left inside a checkout. `create-worktree`
 # excludes them and `remove-worktree.py` does not count them as work; this is their one home.
 RUNTIME_PATHS = (".claude/hooks/.gate-cache/", ".claude/metrics/")
+
+# Ignored folders removal never reads: build-output and cache names anywhere, plus exact roots
+# (the Maven gate's per-worktree repository). Every other ignored file is read.
+DISPOSABLE_DIRS = frozenset({"node_modules", "target", "build", "dist", "out", ".venv", "venv",
+                             "__pycache__", ".pytest_cache", ".gradle", ".mypy_cache", ".ruff_cache"})
+DISPOSABLE_ROOTS = frozenset({".m2/repository"})
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",
            "py", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
@@ -221,9 +234,133 @@ def record(argv: list[str]) -> int:
     return 0
 
 
+COPIED = "afk-copied.json"
+
+
+def git_dir_of(worktree: str) -> str:
+    """The git dir a linked worktree's `.git` file names, or "" when it names none."""
+    try:
+        with open(os.path.join(worktree, ".git"), encoding="utf-8") as handle:
+            line = handle.readline().strip()
+    except OSError:
+        return ""
+    if not line.startswith("gitdir:"):
+        return ""
+    found = line[len("gitdir:"):].strip()
+    return found if os.path.isabs(found) else os.path.normpath(os.path.join(worktree, found))
+
+
+def sha256_of(path: str) -> str | None:
+    try:
+        with open(path, "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def copied_manifest(worktree: str) -> dict:
+    """`{relative path: SHA-256}` of the trusted plugin outputs in this worktree: the copy step's
+    files and a build gate's provisioning outputs."""
+    try:
+        with open(os.path.join(git_dir_of(worktree), COPIED), encoding="utf-8") as handle:
+            found = json.load(handle)
+        return found if isinstance(found, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def disposable(rel_dir: str) -> bool:
+    rel = rel_dir.replace("\\", "/").strip("/")
+    return rel in DISPOSABLE_ROOTS or rel.rsplit("/", 1)[-1] in DISPOSABLE_DIRS
+
+
+def files_under(worktree: str, rel_dir: str, tick=lambda: None):
+    """Each file below an ignored folder, relative to the worktree, skipping disposable folders.
+    `tick` runs before every entry, so a caller on a budget can stop even a flat folder."""
+    stack = [rel_dir.replace("\\", "/").strip("/")]
+    while stack:
+        folder = stack.pop()
+        with os.scandir(os.path.join(worktree, folder)) as entries:
+            for entry in entries:
+                tick()
+                rel = f"{folder}/{entry.name}"
+                if entry.is_dir(follow_symlinks=False):
+                    if not disposable(rel):
+                        stack.append(rel)
+                else:
+                    yield rel
+
+
+def copied(argv: list[str]) -> int:
+    if len(argv) != 2 or argv[0] != "--worktree":
+        sys.stderr.write("copied needs --worktree <path>\n")
+        return 2
+    worktree = argv[1]
+    gitdir = git_dir_of(worktree)
+    if not gitdir:
+        sys.stderr.write(f"copied: {worktree} is not a linked worktree\n")
+        return 2
+    manifest = copied_manifest(worktree)
+    for rel in sys.stdin.read().split("\0"):
+        rel = rel.strip("\r\n").replace("\\", "/")
+        digest = sha256_of(os.path.join(worktree, rel)) if rel else None
+        if digest:
+            manifest[rel] = digest
+    write_manifest(gitdir, manifest)
+    return 0
+
+
+def write_manifest(gitdir: str, manifest: dict) -> None:
+    target = os.path.join(gitdir, COPIED)
+    scratch = f"{target}.{os.getpid()}.tmp"
+    with open(scratch, "w", encoding="utf-8") as out:
+        json.dump(manifest, out)
+    os.replace(scratch, target)
+
+
+def read_bytes(path: str) -> bytes | None:
+    try:
+        with open(path, "rb") as handle:
+            return handle.read()
+    except FileNotFoundError:
+        return None
+
+
+def append_bytes(path: str, data: bytes) -> None:
+    with open(path, "ab") as handle:
+        handle.write(data)
+
+
+def append(argv: list[str]) -> int:
+    """Append stdin to a worktree file; record the expected result only when this step owns the file."""
+    if len(argv) != 3 or argv[0] != "--worktree":
+        sys.stderr.write("append needs --worktree <path> <relative path>\n")
+        return 2
+    worktree, rel = argv[1], argv[2].replace("\\", "/")
+    path, data = os.path.join(worktree, rel), sys.stdin.buffer.read()
+    try:
+        before = read_bytes(path)
+        owned = before is None or copied_manifest(worktree).get(rel) == hashlib.sha256(before).hexdigest()
+        append_bytes(path, data)
+        expected = (before or b"") + data
+        gitdir = git_dir_of(worktree)
+        if owned and gitdir and read_bytes(path) == expected:
+            manifest = copied_manifest(worktree)
+            manifest[rel] = hashlib.sha256(expected).hexdigest()
+            write_manifest(gitdir, manifest)
+    except OSError as error:
+        sys.stderr.write(f"append: {path}: {error.strerror or error}\n")
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["record"]:
         return record(argv[1:])
+    if argv[:1] == ["copied"]:
+        return copied(argv[1:])
+    if argv[:1] == ["append"]:
+        return append(argv[1:])
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
         return 0

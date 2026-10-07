@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from git_floor import NEEDS_HEAD_SWITCH_HOOK
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 INSTALLER = PLUGIN_ROOT / "hooks" / "install-git-hooks.sh"
@@ -128,7 +129,8 @@ def test_an_agent_commit_in_a_worktree_is_refused_only_on_a_protected_branch(rep
     assert commit(tmp_path / "free", agent()).returncode == 0
 
 
-@pytest.mark.parametrize("move", [("switch", "-q", "feature"), ("checkout", "-q", "feature"),
+@pytest.mark.parametrize("move", [pytest.param(("switch", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK),
+                                  pytest.param(("checkout", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK),
                                   ("reset", "-q", "--hard", "HEAD"), ("switch", "-q", "--detach")])
 def test_an_agent_branch_move_in_the_main_checkout_is_refused_and_a_human_one_passes(repo, move):
     installed(repo)
@@ -154,6 +156,7 @@ def test_a_new_worktree_branch_from_the_main_checkout_is_not_a_move(repo, tmp_pa
     assert git(repo, "symbolic-ref", "--short", "HEAD").stdout.strip() == "trunk"
 
 
+@NEEDS_HEAD_SWITCH_HOOK
 def test_the_marker_of_the_plugin_is_not_left_on_for_plain_git(repo):
     installed(repo)
     assert git(repo, "switch", "-q", "feature", env=agent()).returncode != 0
@@ -197,6 +200,7 @@ def test_r4_4_an_agent_stash_in_the_main_checkout_is_not_a_move(repo):
     assert not (repo / "f.txt").exists()
 
 
+@NEEDS_HEAD_SWITCH_HOOK
 def test_r4_2_a_stale_head_lock_does_not_open_the_head_veto(repo):
     installed(repo)
     lock = repo / ".git" / "worktrees" / "ghost" / "HEAD.lock"

@@ -37,12 +37,52 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- `python hooks/tests/bench-hooks.py` times every hook command the manifest
+  registers against realistic envelopes and prints p50 and p95 per event and
+  per handler. It covers every event in both manifests, runs session and
+  worktree events in a disposable clone, and sets only the selected harness's
+  environment. It is informational and asserts no budget.
+- A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
+  four plugin-source gates on Linux and on Windows Git Bash for every pull
+  request and every push to `main`.
+- `/afk:setup` checks for git 2.46 or newer (register row C2b). Older git never
+  shows a branch switch to the protected-branch backstop, and the tests that
+  need it skip there.
+
+### Changed
+
+- `hooks/tests/hook-smoke.sh` fails without jq instead of skipping, so a run
+  with no coverage never reads as green.
+
+- The commit gates stop at the first block and run the cheap gates first: the
+  comment gate, the plugin contract gate, then format and lint before compile.
+  A blocked commit no longer waits for a compile it cannot pass.
+
 ### Fixed
 
 - `/afk:setup` removes legacy native AFK marketplace pins and installs or
   refreshes that marketplace without `--ref`, so later marketplace upgrades are
   not held to an old release.
 - The UI lint gate no longer lints files that no ESLint configuration covers. With `npm.workspace-root: .`, which `afk-config.py init` writes for any repository with a root `package.json`, it linted every staged `.js/.mjs/.ts/.vue` file from the repository root, so in a repository whose configurations sit in each UI project, a script outside those projects failed with ESLint's "couldn't find a configuration file". The lint workspace is now the nearest directory, the repository root included, holding a lint configuration or a `package.json` with `eslintConfig`. `npm.workspace-root` now only sets where a new worktree installs.
+- The skill-registry Stop gate no longer blocks a clean tree on variables
+  that bash itself sets, such as `BASH_REMATCH` (#76).
+- A Stop gate block now reaches the harness. Gate output on stdout went out
+  before the block decision, so the harness read plain text and ignored the
+  block. `stop-gates.sh` now sends each gate's stdout to stderr, and
+  `behavior_registry.py validate` prints nothing on success unless `--verbose`.
+- Automatic worktree cleanup keeps more work. A worktree is kept, with the
+  reason and the remove command printed, when another live or unknown session
+  owns it, when `git status` fails, when a personal file the worktree copy step
+  placed has changed, or when it holds an ignored file that git cannot restore.
+  An ignored file counts as restorable only when the copy step or the Maven
+  gate's provisioning recorded it and it is unchanged; files repository setup
+  scripts create, and a developer's own `.mvn/maven.config`, keep the worktree. Only build-output and cache folders such as
+  `node_modules`, `target` and `.venv`, and the Maven gate's `.m2/repository`,
+  go unread; a listing that runs out of time keeps the worktree.
+- Each git call in worktree cleanup now fits inside the hook's time budget. When
+  the budget runs out, the worktree is kept and the cleanup says so (#73).
 
 ## [1.13.0] - 2026-10-06
 

@@ -394,6 +394,19 @@ a token value — not even partially.
 - **Base fix:** `auto:` `winget install --id Git.Git -e` — ships bash + POSIX
   utils + perl, so it also satisfies C1 and C6.
 
+### C2b · git 2.46 or newer *(optional)*
+- **Needed by:** the protected-branch backstop (`hooks/git-backstop.py`, through
+  the `reference-transaction` hook of H5) refusing an agent's `git switch` or
+  `git checkout` in the main checkout.
+- **Probe:** `v=$(git --version | awk '{print $3}'); test "$(printf '%s\n' 2.46.0 "$v" | sort -V | head -1)" = 2.46.0`
+- **Fix:** `human:` upgrade git (Git for Windows, or the distribution's newer
+  git package).
+- **Notes:** git 2.46.0 release notes: "Updates to symbolic refs can now be made
+  as a part of ref transaction." Older git never passes a HEAD switch to the
+  hook, so the backstop misses that one move; it still refuses commits, resets
+  and branch-ref updates. The PreToolUse guard stays the primary gate.
+  `scripts/tests/git_floor.py` skips the tests that need this floor.
+
 ### C3 · glab (GitLab CLI), logged in — **secret** *(only when `forge: gitlab`)*
 - **Needed by:** `adapters/forge/gitlab/forge.sh` — every forge verb, so
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
@@ -516,8 +529,9 @@ a token value — not even partially.
   answers.
 - **Probe:** `command -v jq`
 - **Fix:** none needed — `provider.sh` falls back to `grep` + `sed` for both
-  reading and writing, and `hook-smoke.sh` prints `SKIP: jq not on PATH` and
-  exits 0.
+  reading and writing. `hook-smoke.sh` is a test suite, not a hook: without jq
+  it prints `FAIL: jq not on PATH` and exits 1, so a run with zero coverage never
+  reads as green.
 - **Base fix:** `auto:` `winget install --id jqlang.jq -e`
 - **Notes:** fail-open, and the fallback is not a lesser path — it is the one
   most machines take. Registered because shipped code names the binary, not
@@ -969,6 +983,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
 | `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `AFK_HOOK_DEADLINE` | `hooks/run-hook.py` (sets), `scripts/remove-worktree.py` (reads) | Unix time in seconds at which the launcher kills a handler that runs under `--deadline`; worktree cleanup fits each git call inside it and keeps the worktree when time runs out; not for humans to set |
 | `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
 | `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |
 | `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |

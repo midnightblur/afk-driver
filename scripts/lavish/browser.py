@@ -5,7 +5,7 @@ import shutil
 import sys
 
 
-COMMANDS = ("chrome", "msedge", "chromium", "chromium-browser", "google-chrome")
+COMMANDS = ("chrome", "google-chrome", "msedge", "chromium", "chromium-browser")
 
 
 def executable():

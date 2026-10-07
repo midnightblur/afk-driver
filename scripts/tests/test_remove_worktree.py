@@ -5,6 +5,7 @@ Disposable repositories only. A worktree counts as plugin-made when it has an ow
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -44,8 +45,11 @@ def repo(tmp_path: Path) -> Path:
     return path
 
 
+GONE = {"pid": 2147483000, "ctime": "1"}  # an owner that is provably dead
+
+
 def made(repo: Path, name: str, owner: dict | None = None, record: bool = True) -> Path:
-    """A linked worktree on branch `worktree-<name>` with an owner record."""
+    """A linked worktree on branch `worktree-<name>` with an owner record (dead owner by default)."""
     path = repo / ".claude" / "worktrees" / name
     git(repo, "worktree", "add", "-q", "-b", f"worktree-{name}", str(path))
     if record:
@@ -53,7 +57,7 @@ def made(repo: Path, name: str, owner: dict | None = None, record: bool = True) 
         folder.mkdir(exist_ok=True)
         (folder / f"{name}.json").write_text(json.dumps({
             "name": name, "path": path.as_posix(), "branch": f"worktree-{name}", "harness": "claude",
-            "owner": owner or {"pid": None, "ctime": None}}), encoding="utf-8")
+            "owner": owner or GONE}), encoding="utf-8")
     return path
 
 
@@ -117,7 +121,7 @@ def test_prune_removes_only_a_clean_worktree_whose_owner_is_dead(repo):
     busy = made(repo, "busy", dead)
     (busy / "w.txt").write_text("x", encoding="utf-8")
     live = made(repo, "live", {"pid": os.getpid(), "ctime": OWNER.creation_time(os.getpid())})
-    unknown = made(repo, "unknown")
+    unknown = made(repo, "unknown", {"pid": None, "ctime": None})
     lost = made(repo, "lost", dead)
     import shutil
     shutil.rmtree(lost)
@@ -519,3 +523,270 @@ def test_p9_a_provider_without_a_user_message_gets_context_only(repo):
     done = run_env("--report-kept", cwd=repo, AFK_PROVIDER="no-such-provider")
     document = json.loads(done.stdout)
     assert "systemMessage" not in document and "additionalContext" in document["hookSpecificOutput"]
+
+
+# ---- removal safety: other owners, unknown git state, files git cannot restore, time budget
+
+def me() -> str:
+    return f"{os.getpid()}:{OWNER.creation_time(os.getpid())}"
+
+
+def test_path_removal_keeps_a_worktree_another_live_session_owns(repo):
+    child, alive = harness()
+    try:
+        path = made(repo, "co-owned")
+        record = repo / ".git" / "afk-worktrees" / "co-owned.json"
+        body = json.loads(record.read_text(encoding="utf-8"))
+        body["owners"] = [spec_of(me()), spec_of(alive)]
+        record.write_text(json.dumps(body), encoding="utf-8")
+        done = run_env("--path", str(path), cwd=repo, AFK_WORKTREE_OWNER=me())
+        assert path.is_dir() and "worktree-co-owned" in branches(repo), done.stderr
+        assert "another session" in done.stderr
+    finally:
+        child.kill()
+        child.wait()
+
+
+def test_path_removal_ignores_the_calling_session_among_the_owners(repo):
+    path = made(repo, "mine-only", owner=spec_of(me()))
+    done = run_env("--path", str(path), cwd=repo, AFK_WORKTREE_OWNER=me())
+    assert not path.exists(), done.stderr
+
+
+def test_path_removal_keeps_a_worktree_whose_owner_is_unknown(repo):
+    path = made(repo, "nobody", {"pid": None, "ctime": None})
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir(), done.stderr
+
+
+def test_a_failing_git_status_keeps_the_worktree(repo):
+    path = made(repo, "corrupt")
+    gitdir = Path(git(path, "rev-parse", "--absolute-git-dir"))
+    (gitdir / "index").write_bytes(b"not an index")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "worktree-corrupt" in branches(repo), done.stderr
+    assert "unknown" in done.stderr
+
+
+def _exclude(repo: Path, *patterns: str) -> None:
+    info = repo / ".git" / "info"
+    info.mkdir(exist_ok=True)
+    (info / "exclude").write_text("".join(f"{p}\n" for p in patterns), encoding="utf-8")
+
+
+def _copied(path: Path, *rels: str) -> None:
+    done = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "worktree_owner.py"), "copied",
+                           "--worktree", str(path)], input="".join(f"{r}\0" for r in rels),
+                          capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+
+
+def test_an_unchanged_copied_personal_file_does_not_keep_the_worktree(repo):
+    _exclude(repo, "personal.cfg", "target/")
+    path = made(repo, "copied-same")
+    (path / "personal.cfg").write_text("mine", encoding="utf-8")
+    _copied(path, "personal.cfg")
+    (path / "target").mkdir()
+    (path / "target" / "out.bin").write_text("build output", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+def test_a_changed_copied_personal_file_keeps_the_worktree_and_names_it(repo):
+    _exclude(repo, "personal.cfg")
+    path = made(repo, "copied-edited")
+    (path / "personal.cfg").write_text("mine", encoding="utf-8")
+    _copied(path, "personal.cfg")
+    (path / "personal.cfg").write_text("mine, edited in the worktree", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "personal.cfg" in done.stderr, done.stderr
+
+
+def test_a_changed_copied_file_inside_an_ignored_folder_keeps_the_worktree(repo):
+    _exclude(repo, ".idea/")
+    path = made(repo, "copied-dir")
+    (path / ".idea").mkdir()
+    (path / ".idea" / "workspace.xml").write_text("a", encoding="utf-8")
+    _copied(path, ".idea/workspace.xml")
+    (path / ".idea" / "workspace.xml").write_text("b", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".idea/workspace.xml" in done.stderr, done.stderr
+
+
+def test_an_ignored_file_git_cannot_restore_keeps_the_worktree(repo):
+    _exclude(repo, ".env")
+    path = made(repo, "secret")
+    (path / ".env").write_text("TOKEN=x", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".env" in done.stderr, done.stderr
+
+
+def test_an_exhausted_hook_budget_removes_nothing_and_says_so(repo):
+    path = made(repo, "late")
+    done = run_env("--path", str(path), cwd=repo, AFK_HOOK_DEADLINE=str(time.time() - 1))
+    assert done.returncode == 0 and path.is_dir() and "worktree-late" in branches(repo), done.stderr
+    assert "time" in done.stderr
+
+
+def test_each_git_call_fits_inside_the_hook_budget(monkeypatch):
+    module = load_remove()
+    seen = []
+
+    def fake_run(*args, **kwargs):
+        seen.append(kwargs["timeout"])
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module, "DEADLINE", time.time() + 5)
+    module.git(Path.cwd(), "status")
+    assert 0 < seen[0] <= 5
+    monkeypatch.setattr(module, "DEADLINE", None)
+    module.git(Path.cwd(), "status")
+    assert seen[1] == 120
+    monkeypatch.setattr(module, "DEADLINE", time.time())
+    with pytest.raises(module.Unknown):
+        module.git(Path.cwd(), "status")
+
+
+def test_a_git_timeout_reads_as_unknown_and_keeps(repo, monkeypatch):
+    path = made(repo, "slow")
+    module = load_remove()
+    real_git = module.git
+
+    def slow(cwd, *args):
+        if args[:1] == ("status",):
+            raise module.Unknown("git status timed out")
+        return real_git(cwd, *args)
+
+    monkeypatch.setattr(module, "git", slow)
+    monkeypatch.chdir(repo)
+    module.remove_one(path, False)
+    assert path.is_dir() and "worktree-slow" in branches(repo)
+
+
+def test_a_new_personal_file_in_an_ignored_folder_keeps_the_worktree(repo):
+    _exclude(repo, "scratch/")
+    path = made(repo, "scratch")
+    (path / "scratch").mkdir()
+    (path / "scratch" / "notes.txt").write_text("mine", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "scratch/notes.txt" in done.stderr, done.stderr
+
+
+def test_build_output_inside_an_ignored_folder_does_not_keep_the_worktree(repo):
+    _exclude(repo, "web/", "dist/")
+    path = made(repo, "builds")
+    (path / "web" / "node_modules" / "pkg").mkdir(parents=True)
+    (path / "web" / "node_modules" / "pkg" / "index.js").write_text("x", encoding="utf-8")
+    (path / "dist").mkdir()
+    (path / "dist" / "app.js").write_text("x", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+def test_only_the_maven_repository_root_of_m2_is_disposable(repo):
+    _exclude(repo, ".m2/")
+    path = made(repo, "m2-repo")
+    (path / ".m2" / "repository" / "com" / "x").mkdir(parents=True)
+    (path / ".m2" / "repository" / "com" / "x" / "lib.jar").write_text("jar", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+def test_a_personal_file_beside_the_maven_repository_keeps_the_worktree(repo):
+    _exclude(repo, ".m2/")
+    path = made(repo, "m2-settings")
+    (path / ".m2" / "repository").mkdir(parents=True)
+    (path / ".m2" / "settings.xml").write_text("<settings/>", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".m2/settings.xml" in done.stderr, done.stderr
+
+
+def test_a_nested_m2_folder_is_read_like_any_other(repo):
+    _exclude(repo, "tools/")
+    path = made(repo, "m2-nested")
+    (path / "tools" / ".m2" / "repository").mkdir(parents=True)
+    (path / "tools" / ".m2" / "repository" / "own.jar").write_text("jar", encoding="utf-8")
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and "tools/.m2/repository/own.jar" in done.stderr, done.stderr
+
+
+def _provision(repo: Path, path: Path) -> None:
+    payload = json.dumps({"source": repo.as_posix(), "worktree": path.as_posix(),
+                          "worktree_native": path.as_posix(), "dry_run": False})
+    done = subprocess.run([BASH, str(PLUGIN_ROOT / "adapters" / "build-gate" / "maven" / "worktree-provision.sh"),
+                           payload], capture_output=True, text=True, timeout=120,
+                          env={**os.environ, "AFK_PY": Path(sys.executable).as_posix(),
+                               "AFK_CFG_MAVEN_WORKTREE_SEED": "none"})
+    assert done.returncode == 0 and (path / ".mvn" / "maven.config").is_file(), done.stdout + done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_maven_config_provisioning_created_is_recorded_and_removable(repo):
+    path = made(repo, "mvn-new")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_developers_maven_config_stays_unrecorded_and_keeps_the_worktree(repo):
+    path = made(repo, "mvn-own")
+    (path / ".mvn").mkdir()
+    (path / ".mvn" / "maven.config").write_text("-Dsome.flag=1\n", encoding="utf-8")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".mvn/maven.config" in done.stderr, done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_copied_maven_config_still_matching_its_record_stays_removable(repo):
+    path = made(repo, "mvn-copied")
+    (path / ".mvn").mkdir()
+    (path / ".mvn" / "maven.config").write_text("-Dsome.flag=1\n", encoding="utf-8")
+    _copied(path, ".mvn/maven.config")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+def test_a_write_racing_the_append_leaves_the_file_unrecorded_and_the_worktree_kept(repo, monkeypatch):
+    _exclude(repo, ".mvn/maven.config")
+    path = made(repo, "mvn-race")
+    (path / ".mvn").mkdir()
+    real_append = OWNER.append_bytes
+
+    def raced(target: str, data: bytes) -> None:  # a developer writes after the ownership check
+        Path(target).write_bytes(b"-Ddeveloper=1\n")
+        real_append(target, data)
+
+    monkeypatch.setattr(OWNER, "append_bytes", raced)
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(b"-Dmaven.repo.local=x\n")))
+    assert OWNER.append(["--worktree", str(path), ".mvn/maven.config"]) == 0
+    assert ".mvn/maven.config" not in OWNER.copied_manifest(str(path))
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".mvn/maven.config" in done.stderr, done.stderr
+
+
+def test_a_large_flat_folder_past_the_budget_keeps_the_worktree_and_says_why(repo, monkeypatch, capsys):
+    _exclude(repo, "scratch/")
+    path = made(repo, "flat")
+    (path / "scratch").mkdir()
+    for i in range(2000):
+        (path / "scratch" / f"f{i}.txt").write_text("x", encoding="utf-8")
+    module = load_remove()
+
+    class Clock:  # each reading advances 10 ms: listing 2000 entries outlasts a 5 s budget
+        now = time.time()
+
+        def time(self) -> float:
+            self.now += 0.01
+            return self.now
+
+    clock = Clock()
+    monkeypatch.setattr(module, "time", clock)
+    monkeypatch.setattr(module, "DEADLINE", clock.now + 5)
+    monkeypatch.chdir(repo)
+    module.remove_one(path, False)
+    assert path.is_dir() and "worktree-flat" in branches(repo)
+    assert "ran out of time listing ignored files" in capsys.readouterr().err

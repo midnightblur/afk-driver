@@ -110,12 +110,13 @@ run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
   # A gate that cannot load or exits with anything but 0/2 has an UNKNOWN
   # verdict. It must not block (old per-hook semantics: only exit 2 blocks) but
   # it must not be silent either, and this Stop must not stamp all-green.
-  if ! . "$SCRIPT_DIR/$name-gate.sh"; then
+  # Stop stdout must be one JSON document, so a gate's stdout joins its stderr.
+  if ! . "$SCRIPT_DIR/$name-gate.sh" >&2; then
     printf '[afk] %s-gate.sh failed to load — gate skipped, verdict unknown.\n' "$name" >&2
     crashed=1
     return 0
   fi
-  "$fn"; rc=$?
+  "$fn" >&2; rc=$?
   case "$rc" in
     0) ;;
     2) blocked=1; blocked_gates="${blocked_gates:+$blocked_gates, }$name" ;;

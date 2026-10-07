@@ -21,6 +21,8 @@ Usage:
                timeout. Past it the handler's whole process tree is killed: a
                plugin handler exits 0 with a one-line notice (verdict unknown,
                never a block); a repository handler fails closed as before.
+               Handlers read the kill time as `AFK_HOOK_DEADLINE` (Unix epoch
+               seconds), so each can fit its own waits inside the budget.
 
 `.afk/hooks.json` is a JSON array of objects, each with `event`
 (SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated), `matcher` (a regular
@@ -615,6 +617,9 @@ def owner_env() -> dict[str, str]:
 
 def main(argv: list[str]) -> int:
     global _DEADLINE_AT, _DEADLINE_S
+    for stream in (sys.stdout, sys.stderr):  # the harness reads UTF-8; a code page cannot encode all text
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     soft = False
     budget = None
     while argv and argv[0] in ("--soft", "--deadline"):
@@ -655,6 +660,8 @@ def main(argv: list[str]) -> int:
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
     env["AFK_PLUGIN_ROOT"] = str(PLUGIN_ROOT)
+    if _DEADLINE_AT is not None:
+        env["AFK_HOOK_DEADLINE"] = f"{time.time() + (budget_left() or 0.0):.3f}"
     if argv[1] not in DETACHES_HELPERS:
         enter_launcher_job()
     install_signal_handlers()
