@@ -11,7 +11,8 @@ catch { Fail "cannot read runtime\pyproject.toml: $($_.Exception.Message)" 2 }
 $python = [regex]::Match($pins, '(?m)^requires-python\s*=\s*"==([0-9.]+)"').Groups[1].Value
 $uvVersion = [regex]::Match($pins, '(?m)^required-version\s*=\s*"==([0-9.]+)"').Groups[1].Value
 if (-not $python -or -not $uvVersion) { Fail 'exact Python and uv pins not found in runtime\pyproject.toml' 2 }
-if (-not $env:LOCALAPPDATA -or -not [IO.Path]::IsPathRooted($env:LOCALAPPDATA)) {
+# Fully qualified: a drive and a separator (C:\x) or UNC (\\host\share); C:x and \x stay relative.
+if ($env:LOCALAPPDATA -notmatch '^([A-Za-z]:[\\/]|[\\/]{2}[^\\/]+[\\/]+[^\\/]+)') {
     Fail 'LOCALAPPDATA is not an absolute path; setup installs under it' 2
 }
 $base = Join-Path $env:LOCALAPPDATA 'afk'

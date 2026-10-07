@@ -283,7 +283,7 @@ def test_ps1_scrubs_the_settings_python_runtime_drops(windows_machine, uv_exe):
     assert not {"UV_INDEX_URL", "INSTALLER_DOWNLOAD_URL", "CARGO_HOME", "VIRTUAL_ENV", "UV_UNMANAGED_INSTALL"} & set(upper)
 
 
-@pytest.mark.parametrize("local", [None, "", r"relative\dir"])
+@pytest.mark.parametrize("local", [None, "", r"relative\dir", r"C:relative", r"\relative", r"\\host"])
 def test_ps1_without_an_absolute_localappdata_changes_nothing(windows_machine, local):
     tmp_path, _base, env, shell = windows_machine
     env.pop("LOCALAPPDATA")
