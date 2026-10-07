@@ -21,12 +21,27 @@ for name in $(env | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p'); do
 done
 export UV_PYTHON_INSTALL_DIR="$base/pythons" UV_CACHE_DIR="$base/cache" UV_NO_CONFIG=1
 
-case "$("$uv" --version 2>/dev/null || true)" in
-  "uv $uv_version"|"uv $uv_version "*) ;;
-  *)
-    url="https://releases.astral.sh/github/uv/releases/download/$uv_version/uv-installer.sh"
-    curl --proto =https --tlsv1.2 -LsSf "$url" | UV_UNMANAGED_INSTALL="$base/uv" sh ;;
-esac
+pinned_uv() {
+  case "$("$uv" --version 2>/dev/null || true)" in
+    "uv $uv_version"|"uv $uv_version "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+if ! pinned_uv; then
+  url="https://releases.astral.sh/github/uv/releases/download/$uv_version/uv-installer.sh"
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  if ! curl --proto =https --tlsv1.2 -LsSf "$url" -o "$installer"; then
+    echo "bootstrap: cannot download $url" >&2
+    exit 1
+  fi
+  UV_UNMANAGED_INSTALL="$base/uv" sh "$installer"
+  rm -f "$installer"
+  if ! pinned_uv; then
+    echo "bootstrap: $uv is not uv $uv_version after the installer ran" >&2
+    exit 1
+  fi
+fi
 "$uv" python install "$cpython" --no-bin
 exec "$uv" run --no-project --managed-python --no-python-downloads --python "$cpython" \
   "$scripts/python_runtime.py" "$@"

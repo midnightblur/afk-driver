@@ -28,7 +28,9 @@ exit 0
 """
 STUB_CURL = """#!/bin/sh
 printf 'curl %s\\n' "$*" >> "$LOG"
-cat <<'EOF'
+[ -z "${CURL_RC:-}" ] || exit "$CURL_RC"
+while [ "$#" -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done
+cat > "$out" <<'EOF'
 mkdir -p "$UV_UNMANAGED_INSTALL"
 echo "installer $UV_UNMANAGED_INSTALL" >> "$LOG"
 cp "$STUB_UV_SOURCE" "$UV_UNMANAGED_INSTALL/uv"
@@ -87,9 +89,31 @@ def test_missing_uv_fetches_the_pinned_installer_into_the_private_dir(machine):
     assert done.returncode == 0, done.stderr
     log = calls(tmp_path)
     url = pr.INSTALLER.format(version=PINS["uv"], ext="sh")
-    assert log[0] == f"curl --proto =https --tlsv1.2 -LsSf {url}"
+    assert log[0].startswith(f"curl --proto =https --tlsv1.2 -LsSf {url} -o ")
     assert log[1] == f"installer {posix(base / 'uv')}"
     assert log[-1].startswith("run --no-project") and log[-1].endswith("python_runtime.py plan")
+
+
+def test_a_failed_download_stops_before_any_uv_runs(machine):
+    tmp_path, base, env, _stub = machine
+    # A stale uv a failed download would otherwise leave in charge.
+    (base / "uv").mkdir(parents=True)
+    (base / "uv" / "uv").write_text("#!/bin/sh\necho 'uv 0.0.1'\necho \"$*\" >> \"$LOG\"\n", encoding="utf-8",
+                                    newline="\n")
+    (base / "uv" / "uv").chmod(0o755)
+    done = run(dict(env, CURL_RC="22"), "install")
+    assert done.returncode == 1 and "cannot download" in done.stderr
+    assert [line for line in calls(tmp_path) if not line.startswith("curl")] == ["--version"]
+
+
+def test_an_installer_that_leaves_another_uv_version_stops_the_bootstrap(machine):
+    tmp_path, base, env, _stub = machine
+    old = tmp_path / "old-uv"
+    old.write_text(STUB_UV.format(version="0.0.1"), encoding="utf-8", newline="\n")
+    old.chmod(0o755)
+    done = run(dict(env, STUB_UV_SOURCE=posix(old)), "install")
+    assert done.returncode == 1 and f"is not uv {PINS['uv']}" in done.stderr
+    assert not any(line.startswith(("python install", "run ")) for line in calls(tmp_path))
 
 
 def test_a_wrong_uv_version_is_replaced(machine):
