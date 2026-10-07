@@ -413,6 +413,9 @@ def runtime_fault() -> str | None:
     named, here = os.environ.get("AFK_PYTHON"), sys.executable
     if not named:
         return f"AFK_PYTHON is not set, so {here} is not the afk-python entry; run /afk:setup"
+    if not os.path.isabs(named):
+        # Handlers run "$AFK_PYTHON" through their own PATH, which can name another file.
+        return f"AFK_PYTHON names {named}, not an absolute path; run /afk:setup"
     if os.path.normcase(os.path.abspath(named)) == os.path.normcase(os.path.abspath(here)):
         return None
     try:

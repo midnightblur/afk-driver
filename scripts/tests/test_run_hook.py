@@ -614,6 +614,17 @@ def test_a_handler_never_starts_unless_afk_python_names_this_interpreter(tmp_pat
     assert _bare(env, PLUGIN_ROOT, "--soft", "plugin", "update-notice.sh").returncode == 0
 
 
+def test_a_relative_afk_python_never_passes_even_when_it_names_this_interpreter(tmp_path):
+    here = Path(sys.executable)
+    # The relative name resolves to this interpreter from its own directory, and to a stub on PATH.
+    stubs = tmp_path / "stubs"
+    stubs.mkdir()
+    (stubs / here.name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    env = _without_afk_python(AFK_PYTHON=here.name, PATH=os.pathsep.join([str(stubs), os.environ.get("PATH", "")]))
+    done = _bare(env, here.parent, "plugin", "update-notice.sh")
+    assert done.returncode == 1 and "not an absolute path" in done.stderr and "run /afk:setup" in done.stderr
+
+
 @pytest.mark.parametrize("event", ["PreToolUse", "Stop"])
 def test_a_blocking_repository_gate_blocks_when_afk_python_is_missing(tmp_path, event):
     root = repository(tmp_path, json.dumps([{"event": event, "matcher": "*", "script": ".afk/g.sh"}]), {"g.sh": OK})
