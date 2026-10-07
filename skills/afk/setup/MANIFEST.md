@@ -634,7 +634,8 @@ a token value — not even partially.
   shell must report the pinned Python running in the private environment
   (`sys.prefix`), import every runtime package, and set `AFK_PYTHON` to the
   entry itself. The bash every hook runs in (`hooks/run-hook.py` `find_bash`,
-  with its `shell_env`) must find the `afk-python` file the stamp names. The
+  with its `shell_env`) must resolve `afk-python` to the installed entry, pass
+  the same interpreter checks, and find the file the stamp names. The
   environment's stamp must name the pinned Python and the current lock hash.
 - **Fix:** `auto:` per-user install — ask the human first.
   `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" install`

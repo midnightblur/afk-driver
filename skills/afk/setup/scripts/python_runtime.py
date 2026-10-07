@@ -31,7 +31,9 @@ pass through.
 only after every `check` probe passes, so a stamp always names a healthy
 runtime. Its `command=` and `file=` lines are what the bash every hook runs in
 (`hooks/run-hook.py` `find_bash` and `shell_env`) printed for `afk-python`
-during that check; the SessionStart notice compares its own lookup with them.
+during that check, once that file proved to be the installed entry and passed
+the interpreter probe there; the SessionStart notice compares its own lookup
+with them.
 
 `check` compares the installed packages with the lock (`uv sync --check
 --offline`), then resolves `afk-python` through the PATH a new terminal would
@@ -345,17 +347,18 @@ def hook_env(bash: str, env: Mapping[str, str]) -> dict:
     return hook_launcher().shell_env(Path(bash), env)
 
 
-# How the hooks' bash spells the command, and the file it runs: Git Bash drops `.exe` from the
-# spelling, and `-ef` tells the .exe from an extensionless file beside or instead of it.
+# How the hooks' bash spells the command, the file it runs, and whether that file is the installed
+# entry ($1). Git Bash drops `.exe` from the spelling; `-ef` tells the .exe from any other file.
 RESOLVE = ('p=$(command -v afk-python) && f=$p && { [ "$p" -ef "$p.exe" ] && f=$p.exe; :; } '
-           '&& printf "afk-command\\t%s\\t%s\\n" "$p" "$f"')
+           '&& { [ "$f" -ef "$1" ] && e=entry || e=other; } '
+           '&& printf "afk-command\\t%s\\t%s\\t%s\\n" "$p" "$f" "$e"')
 
 
 def resolved(said: str) -> dict:
     for line in said.splitlines():
-        if line.startswith("afk-command\t") and line.count("\t") == 2:
-            _, command, entry = line.split("\t")
-            return {"command": command, "file": entry}
+        if line.startswith("afk-command\t") and line.count("\t") == 3:
+            _, command, entry, which = line.split("\t")
+            return {"command": command, "file": entry, "entry": which == "entry"}
     return {}
 
 
@@ -388,6 +391,22 @@ def same_dir(a: str, b: Path) -> bool:
 def same_file(a: str, b: Path) -> bool:
     # Not realpath: on POSIX the entry is a symlink, and its own path is what PATH found.
     return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def interpreter_problem(p: dict, paths: dict, status: int, said: str) -> str | None:
+    """What is wrong with one shell's answer to the interpreter probe, or None."""
+    seen = said.splitlines()[-1].split("\t") if status == 0 and said else []
+    if len(seen) != 3:
+        return said.splitlines()[-1] if said else f"exit {status}"
+    if seen[0] != p["python"]:
+        return f"afk-python runs Python {seen[0]}, want {p['python']}"
+    if not same_dir(seen[2], paths["env"]):
+        return f"afk-python runs in {seen[2]}, want the environment {paths['env']}"
+    if seen[1] == "-":
+        return f"AFK_PYTHON is not set: {PTH} is missing from the environment"
+    if not same_file(seen[1], paths["launcher"]):
+        return f"afk-python resolves to {seen[1]}, want {paths['launcher']}"
+    return None
 
 
 def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = run,
@@ -428,32 +447,25 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
     quoted = '"' + probe_code(p["imports"] + (p["test_imports"] if test else [])) + '"'
     for name, build in shells(env, windows):
         status, said = runner(build(f"{COMMAND} -c {quoted}"), probe_env)
-        seen = said.splitlines()[-1].split("\t") if status == 0 and said else []
-        if len(seen) != 3:
-            verdict(name, said.splitlines()[-1] if said else f"exit {status}")
-        elif seen[0] != p["python"]:
-            verdict(name, f"afk-python runs Python {seen[0]}, want {p['python']}")
-        elif not same_dir(seen[2], paths["env"]):
-            verdict(name, f"afk-python runs in {seen[2]}, want the environment {paths['env']}")
-        elif seen[1] == "-":
-            verdict(name, f"AFK_PYTHON is not set: {PTH} is missing from the environment")
-        elif not same_file(seen[1], paths["launcher"]):
-            verdict(name, f"afk-python resolves to {seen[1]}, want {paths['launcher']}")
-        else:
-            verdict(name, None)
+        verdict(name, interpreter_problem(p, paths, status, said))
     bash = find_bash()
     if bash:
-        # The identity probe: the bash and environment run-hook.py gives every hook, never a login shell.
-        status, said = runner([bash, "-c", RESOLVE], hook_env(bash, probe_env))
-        spelled = resolved(said) if status == 0 else {}
+        # The bash and environment run-hook.py gives every hook: what it resolves must be the installed
+        # entry, and must pass the interpreter probe there, before its spelling may enter the stamp.
+        status, said = runner([bash, "-c", f"{RESOLVE}; {COMMAND} -c {quoted}", "afk-hook", str(paths["launcher"])],
+                              hook_env(bash, probe_env))
+        spelled = resolved(said)
         if not spelled:
-            verdict("hook bash", f"{bash} finds no afk-python" + (f": {said.splitlines()[-1]}" if said else ""))
-        elif "command" in stamp and spelled != {k: stamp.get(k) for k in spelled}:
-            verdict("hook bash", f"the stamp names {stamp.get('file')}, the hooks' bash finds {spelled['file']}")
+            problem = f"{bash} finds no afk-python" + (f": {said.splitlines()[-1]}" if said else "")
+        elif not spelled["entry"]:
+            problem = f"resolves {spelled['file']}, not the installed entry {paths['launcher']}"
+        elif "command" in stamp and (spelled["command"], spelled["file"]) != (stamp.get("command"), stamp.get("file")):
+            problem = f"the stamp names {stamp.get('file')}, the hooks' bash finds {spelled['file']}"
         else:
-            verdict("hook bash", None)
-            if spelling is not None:
-                spelling.update(spelled)
+            problem = interpreter_problem(p, paths, status, said)
+        verdict("hook bash", problem)
+        if problem is None and spelling is not None:
+            spelling.update(command=spelled["command"], file=spelled["file"])
     return 1 if failures else 0
 
 

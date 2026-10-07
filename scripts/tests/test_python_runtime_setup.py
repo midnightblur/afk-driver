@@ -36,8 +36,10 @@ class Machine:
         self.paths, self.calls = paths, []
         self.uv_version, self.fail, self.said, self.in_sync = uv_version, fail, said, in_sync
         self.reported = reported or "\t".join([PINS["python"], str(paths["launcher"]), str(paths["env"])])
-        # The identity probe's answer: what the hooks' bash prints, or a real run when `lookup` is given.
-        self.lookup = lookup or (lambda argv, env: (0, f"afk-command\t/spelled/afk-python\t/spelled/{paths['launcher'].name}"))
+        # The hook bash's lookup half: what it prints, or a real run when `lookup` is given; the
+        # interpreter half answers `reported`, as every other shell does here.
+        self.lookup = lookup or (lambda argv, env: (
+            0, f"afk-command\t/spelled/afk-python\t/spelled/{paths['launcher'].name}\tentry"))
 
     def __call__(self, argv, env):
         self.calls.append((argv, dict(env)))
@@ -55,7 +57,8 @@ class Machine:
             for windows in (True, False):
                 pr.site_packages(self.paths, PINS["python"], windows).mkdir(parents=True, exist_ok=True)
         if "afk-command" in line:
-            return self.lookup(argv, env)
+            code, said = self.lookup(argv, env)
+            return (0, said.strip() + "\n" + self.reported) if "afk-command" in said else (code or 127, said)
         if "afk-python -c" in line:
             return 0, self.reported
         return 0, ""
@@ -136,9 +139,12 @@ def test_install_runs_the_transaction_in_order_then_publishes_the_stamp(tmp_path
         "python": PINS["python"], "uv": PINS["uv"], "lock": PINS["lock"], "extras": "",
         "launcher": str(paths["launcher"]), "command": "/spelled/afk-python", "file": "/spelled/afk-python.exe"}
     # One identity probe, in the hooks' bash, after every interpreter probe.
-    assert [a for a, _ in machine.calls if "afk-command" in str(a)] == [["/git/bin/bash", "-c", pr.RESOLVE]]
-    assert lines.index(f"/git/bin/bash -c {pr.RESOLVE}") > max(i for i, l in enumerate(lines) if "afk-python -c" in l)
-    assert not any("afk-command" in l for l in lines if "afk-python -c" in l)
+    hook = [a for a, _ in machine.calls if "afk-command" in str(a)]
+    assert len(hook) == 1 and hook[0][:2] == ["/git/bin/bash", "-c"]
+    # Lookup, then the interpreter probe, with the installed entry as $1 for `-ef`.
+    assert hook[0][2].startswith(pr.RESOLVE + "; afk-python -c ") and hook[0][3:] == ["afk-hook", str(paths["launcher"])]
+    others = [i for i, l in enumerate(lines) if "afk-python -c" in l and "afk-command" not in l]
+    assert lines.index(" ".join(hook[0])) > max(others)
     assert not paths["stamp"].with_name(pr.STAMP + ".new").exists()
     report = out.getvalue()
     # Published only after the last shell probe passed.
@@ -407,6 +413,29 @@ def test_check_fails_when_the_hooks_bash_finds_no_afk_python(tmp_path, monkeypat
     assert "fail hook bash: /usr/bin/bash finds no afk-python" in out.getvalue()
 
 
+@pytest.mark.parametrize("said, expected", [
+    (f"afk-command\t/spelled/afk-python\t/elsewhere/afk-python\tother",
+     "fail hook bash: resolves /elsewhere/afk-python, not the installed entry"),
+    (f"afk-command\t/spelled/afk-python\t/spelled/afk-python\tentry\n3.12.1\t/x\t/usr",
+     "fail hook bash: afk-python runs Python 3.12.1"),
+])
+def test_a_hook_bash_lookup_that_is_not_the_validated_entry_never_reaches_the_stamp(tmp_path, monkeypatch,
+                                                                                    said, expected):
+    monkeypatch.setattr(pr, "find_bash", lambda: "/git/bin/bash")
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    machine, out = Machine(paths), io.StringIO()
+    hook_said = said if "\n" in said else said + "\n" + machine.reported
+
+    def hook_answers(argv, env):
+        return (0, hook_said) if "afk-command" in str(argv) else machine(argv, env)
+
+    assert pr.install(env, True, False, hook_answers, out) == 1
+    assert expected in out.getvalue()
+    assert "ok cmd" in out.getvalue() and "ok git-bash" in out.getvalue()
+    assert not paths["stamp"].exists()
+
+
 def test_a_login_shell_that_is_not_posix_still_gets_a_published_stamp(tmp_path, monkeypatch):
     monkeypatch.setattr(pr, "find_bash", lambda: "/usr/bin/bash")
 
@@ -428,7 +457,8 @@ def test_a_login_shell_that_is_not_posix_still_gets_a_published_stamp(tmp_path, 
     assert pr.install(env, False, False, fish, out) == 0, out.getvalue()
     assert "ok fish login" in out.getvalue() and "ok hook bash" in out.getvalue()
     assert pr.read_stamp(paths)["command"] == "/spelled/afk-python"
-    assert [a for a, _ in machine.calls if "afk-command" in str(a)] == [["/usr/bin/bash", "-c", pr.RESOLVE]]
+    hook = [a for a, _ in machine.calls if "afk-command" in str(a)]
+    assert len(hook) == 1 and hook[0][0] == "/usr/bin/bash" and hook[0][2].startswith(pr.RESOLVE)
 
 
 def test_check_fails_when_a_package_drifts_after_the_stamp(tmp_path):
@@ -482,6 +512,11 @@ def shell_script(path: Path, text: str) -> None:
     path.chmod(0o755)
 
 
+def real_lookup(bash: str):
+    """The hook probe's lookup half, run for real: the same env and `$1`, interpreter half left out."""
+    return lambda argv, env: pr.run([bash, "-c", pr.RESOLVE, *argv[3:]], env)
+
+
 def bash_path(bash: str, flag: str, path: str) -> str:
     """Git Bash's own mount table, independent of the probe under test: `cygpath -u` or `-w`."""
     done = subprocess.run([bash, "-c", f'cygpath {flag} "$1"', "_", path], capture_output=True, text=True, timeout=60)
@@ -511,7 +546,7 @@ def session_notice(base: Path, monkeypatch, *, setup: bool, after: str = "") -> 
                      PATH=sep.join([str(paths["bin"])] + ([] if WINDOWS else ["/usr/bin", "/bin"])))
     if setup:
         out = io.StringIO()
-        assert pr.install(env, WINDOWS, False, Machine(paths, lookup=pr.run), out) == 0, out.getvalue()
+        assert pr.install(env, WINDOWS, False, Machine(paths, lookup=real_lookup(bash)), out) == 0, out.getvalue()
     stamp = pr.read_stamp(paths)
     if after == "old python":
         paths["stamp"].write_text(paths["stamp"].read_text(encoding="utf-8").replace(
@@ -565,3 +600,34 @@ def test_the_session_notice_shows_until_the_stamped_file_resolves(tmp_path, monk
     finally:
         if base != tmp_path:
             shutil.rmtree(base, ignore_errors=True)
+
+
+@pytest.mark.skipif(not WINDOWS, reason="run-hook's shell_env prepends a toolchain only on Windows")
+def test_a_shadow_in_the_toolchain_the_hook_launcher_prepends_fails_install(tmp_path, monkeypatch):
+    bash = FIND_BASH()
+    if not bash:
+        pytest.skip("no POSIX shell")
+    # A bash whose toolchain dirs are not on PATH yet: shell_env prepends them, shadow and all.
+    toolchain = tmp_path / "git"
+    for sub_dir in ("bin", "usr/bin"):
+        (toolchain / sub_dir).mkdir(parents=True)
+    hook_bash = toolchain / "bin" / "bash.exe"
+    hook_bash.write_bytes(b"")
+    (toolchain / "usr" / "bin" / "afk-python.exe").write_bytes(b"shadow")
+    monkeypatch.setattr(pr, "find_bash", lambda: str(hook_bash))
+    env = machine_env(tmp_path)
+    paths = pr.layout(env, True)
+    monkeypatch.setattr(pr, "fresh_path", lambda env, windows: ";".join([str(paths["bin"]), env.get("PATH", "")]))
+    hook_envs = []
+
+    def lookup(argv, env):
+        hook_envs.append(env)
+        return real_lookup(bash)(argv, env)
+
+    machine, out = Machine(paths, lookup=lookup), io.StringIO()
+    assert pr.install(env, True, False, machine, out) == 1, out.getvalue()
+    assert hook_envs and hook_envs[0]["PATH"].startswith(str(toolchain / "bin"))
+    assert f"fail hook bash: resolves {bash_path(bash, '-u', str(toolchain / 'usr' / 'bin'))}/afk-python.exe, " \
+           "not the installed entry" in out.getvalue()
+    assert "ok git-bash" in out.getvalue()
+    assert not paths["stamp"].exists()
