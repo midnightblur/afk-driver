@@ -267,19 +267,39 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     assert refused.returncode == 3
 
 
+NOTICE = "backstop unavailable: afk-python not found. Run /afk:setup."
+
+
+def without_afk_python() -> dict:
+    import shutil
+    sep = os.pathsep
+    path = sep.join(e for e in os.environ.get("PATH", "").split(sep) if e and not shutil.which("afk-python", path=e))
+    return {k: v for k, v in agent(PATH=path).items() if k != "AFK_PYTHON"}
+
+
 @pytest.mark.parametrize("args", [("commit", "-q", "--allow-empty", "-m", "c"),
                                   ("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"), ("branch", "newb"),
                                   pytest.param(("switch", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK)])
 def test_without_afk_python_git_goes_on_and_says_to_run_setup_once(repo, args):
-    import shutil
     installed(repo)
-    sep = os.pathsep
-    path = sep.join(e for e in os.environ.get("PATH", "").split(sep) if e and not shutil.which("afk-python", path=e))
-    env = {k: v for k, v in agent(PATH=path).items() if k != "AFK_PYTHON"}
-    done = git(repo, *args, env=env)
+    done = git(repo, *args, env=without_afk_python())
     assert done.returncode == 0, done.stderr
-    assert done.stderr.count("backstop unavailable: afk-python not found. Run /afk:setup.") == 1, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
     assert "command not found" not in done.stderr, done.stderr
+
+
+def test_a_kept_foreign_reference_hook_leaves_the_notice_to_pre_commit(repo):
+    # The installer keeps a foreign reference-transaction hook and installs only the AFK pre-commit.
+    hooks_dir(repo).mkdir(parents=True, exist_ok=True)
+    foreign = hooks_dir(repo) / "reference-transaction"
+    foreign.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
+    foreign.chmod(0o755)
+    install(repo)
+    assert "afk-precommit-gates" in (hooks_dir(repo) / "pre-commit").read_text(encoding="utf-8")
+    assert "afk-branch-name-gate" not in foreign.read_text(encoding="utf-8")
+    done = git(repo, "commit", "-q", "--allow-empty", "-m", "c", env=without_afk_python())
+    assert done.returncode == 0, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
 
 
 def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
