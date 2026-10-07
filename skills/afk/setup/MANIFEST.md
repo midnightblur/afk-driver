@@ -236,7 +236,7 @@ a token value — not even partially.
   every H7, H8, and H10 legacy block while preserving all other bytes:
   ```sh
   py=python
-  python --version >/dev/null 2>&1 || py=python3
+  command -v python >/dev/null 2>&1 || py=python3
   rendered=$(mktemp "${TMPDIR:-/tmp}/afk-behaviors.XXXXXX") || exit 1
   trap 'rm -f "$rendered"' EXIT INT TERM
 
