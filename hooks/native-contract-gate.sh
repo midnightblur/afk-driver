@@ -20,7 +20,8 @@
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
 #   J. both manifests run `afk-python` (run-hook.py or a protected-branch hook), equal modulo the root
-#      variable; no live surface, this file included, names `python`, `python3`, `py -3` or the old override;
+#      variable; no live surface (this file, shell/PowerShell/cmd/CI/Python, suffixless by shebang) names
+#      `python`, `python3[.N]`, a path to one, `py -3`, `py.exe`, a Python string command, or the old override;
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
 #      tests under scripts/tests/ exempted — they load the helper directly);
