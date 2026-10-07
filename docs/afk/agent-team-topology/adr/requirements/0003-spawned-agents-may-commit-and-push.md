@@ -1,6 +1,6 @@
 # A spawned agent may commit and push its own branch
 
-> Status: Accepted
+> Status: Superseded by ADR-0010
 > Audited: 2026-09-17
 > Layer: Requirements
 > Context ticket: agent-team-topology

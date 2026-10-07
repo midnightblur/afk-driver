@@ -1,0 +1,4762 @@
+{
+ "run": {
+  "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver-agent-teams",
+  "head": "9d9fce6b094af1a61b7bf54cd00d95725175d4a2",
+  "question": "How does the native contract gate, hooks/native-contract-gate.sh, check the two plugin manifests (.claude-plugin/ and .codex-plugin/) against the skill tree, and what breaks when a new skill directory is added — which manifests, guidance files, pointer lines and registers must change for the gates to pass? Include the registration checks in hooks/skill-registry-gate.sh that cover the same addition.",
+  "type": [
+   "Q1",
+   "Q3"
+  ],
+  "roots": [
+   "gate_native_contract",
+   "manifest_skills"
+  ],
+  "aliases": {
+   "gate_native_contract": [
+    {
+     "form": "simple",
+     "value": "gate_native_contract",
+     "enumerated": true
+    },
+    {
+     "form": "string-literal",
+     "value": "\"gate_native_contract\"",
+     "enumerated": true
+    },
+    {
+     "form": "wire",
+     "value": "native-contract",
+     "enumerated": true,
+     "source": "declared"
+    },
+    {
+     "form": "import-alias",
+     "value": "native-contract-gate.sh",
+     "enumerated": true,
+     "source": "declared"
+    }
+   ],
+   "manifest_skills": [
+    {
+     "form": "simple",
+     "value": "manifest_skills",
+     "enumerated": true
+    },
+    {
+     "form": "string-literal",
+     "value": "\"manifest_skills\"",
+     "enumerated": true
+    },
+    {
+     "form": "wire",
+     "value": "native-contract",
+     "enumerated": true,
+     "source": "declared"
+    },
+    {
+     "form": "import-alias",
+     "value": "native-contract-gate.sh",
+     "enumerated": true,
+     "source": "declared"
+    }
+   ]
+  },
+  "inventory_hash": "495d90d22c90b0874eb6fc7d12e18b387e8b786d784f3df151f4fa8c2f958270",
+  "inventory_count": 387,
+  "config": {
+   "path": ".afk/config.yaml",
+   "sha256": "c66fcafef8ee670595b03b7c5abb515e36f6eb5bc315663a0c21856db1622992"
+  },
+  "design_phase": true,
+  "started": "2026-09-23T14:03:15.056819+00:00",
+  "finished": "2026-09-23T14:03:16.156164+00:00",
+  "merged_from": 1,
+  "verdict": "closed-with-frontier"
+ },
+ "boundaries": [
+  {
+   "class": "B1",
+   "status": "closed",
+   "method": "every name form, whole repository",
+   "hits": 54,
+   "hit_ids": [
+    "B1:hooks/native-contract-gate.sh:30",
+    "B1:hooks/native-contract-gate.sh:172",
+    "B1:hooks/native-contract-gate.sh:190",
+    "B1:hooks/native-contract-gate.sh:382",
+    "B1:CHANGELOG.md:888",
+    "B1:CHANGELOG.md:897",
+    "B1:CHANGELOG.md:1244",
+    "B1:CLAUDE.md:201",
+    "B1:FRESHNESS.md:64",
+    "B1:PROVIDERS.md:45",
+    "B1:README.md:325",
+    "B1:docs/afk/agent-team-topology/GRILL-LOG.md:222",
+    "B1:hooks/README.md:7",
+    "B1:hooks/README.md:8",
+    "B1:hooks/README.md:63",
+    "B1:hooks/README.md:90",
+    "B1:hooks/README.md:104",
+    "B1:hooks/gate-cache.sh:4",
+    "B1:hooks/gate-context.sh:135",
+    "B1:hooks/native-contract-allow.txt:63",
+    "B1:hooks/native-contract-gate.sh:8",
+    "B1:hooks/native-contract-gate.sh:39",
+    "B1:hooks/native-contract-gate.sh:41",
+    "B1:hooks/native-contract-gate.sh:84",
+    "B1:hooks/native-contract-gate.sh:93",
+    "B1:hooks/native-contract-gate.sh:101",
+    "B1:hooks/native-contract-gate.sh:354",
+    "B1:hooks/native-contract-gate.sh:359",
+    "B1:hooks/native-contract-gate.sh:364",
+    "B1:hooks/native-contract-gate.sh:365",
+    "B1:hooks/precommit-gates.sh:154",
+    "B1:hooks/skill-registry-gate.sh:45",
+    "B1:hooks/skill-registry-gate.sh:81",
+    "B1:hooks/stop-gates.sh:127",
+    "B1:hooks/stop-gates.sh:130",
+    "B1:providers/CONFORMANCE.md:23",
+    "B1:providers/CONFORMANCE.md:303",
+    "B1:providers/PARITY.md:103",
+    "B1:providers/PARITY.md:112",
+    "B1:providers/PARITY.md:155",
+    "B1:skills/afk/claude-md/SKILL.md:46",
+    "B1:skills/afk/setup/AUDIT.md:70",
+    "B1:skills/afk/setup/MANIFEST.md:219",
+    "B1:skills/afk/setup/MANIFEST.md:674",
+    "B1:skills/afk/setup/MANIFEST.md:685",
+    "B1:skills/utils/writing-for-agents/SKILL.md:15",
+    "B1:AGENTS.md:201",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1487",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1491",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1592",
+    "B1:hooks/stop-gates.sh:108",
+    "B1:hooks/stop-gates.sh:125",
+    "B1:hooks/stop-gates.sh:133",
+    "B1:hooks/wiring-gate.sh:34"
+   ],
+   "mechanism": "default",
+   "name_forms": {
+    "gate_native_contract": [
+     {
+      "form": "simple",
+      "value": "gate_native_contract",
+      "enumerated": true
+     },
+     {
+      "form": "string-literal",
+      "value": "\"gate_native_contract\"",
+      "enumerated": true
+     },
+     {
+      "form": "wire",
+      "value": "native-contract",
+      "enumerated": true,
+      "source": "declared"
+     },
+     {
+      "form": "import-alias",
+      "value": "native-contract-gate.sh",
+      "enumerated": true,
+      "source": "declared"
+     }
+    ],
+    "manifest_skills": [
+     {
+      "form": "simple",
+      "value": "manifest_skills",
+      "enumerated": true
+     },
+     {
+      "form": "string-literal",
+      "value": "\"manifest_skills\"",
+      "enumerated": true
+     },
+     {
+      "form": "wire",
+      "value": "native-contract",
+      "enumerated": true,
+      "source": "declared"
+     },
+     {
+      "form": "import-alias",
+      "value": "native-contract-gate.sh",
+      "enumerated": true,
+      "source": "declared"
+     }
+    ]
+   },
+   "sites": [],
+   "query_ids": [
+    "q-e136eae8",
+    "q-11c727ba"
+   ],
+   "universe": "tracked text files (binary excluded), and the second universe, hooks/ tracked text files"
+  },
+  {
+   "class": "B2",
+   "status": "closed",
+   "method": "declaration and parameter forms carrying the name",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "tracked files",
+   "query_ids": [
+    "q-9eea6b91"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B3",
+   "status": "closed",
+   "method": "search: glob/scan literals naming SKILL.md, each scanning site then read",
+   "hits": 9,
+   "hit_ids": [
+    "B3:hooks/README.md:62",
+    "B3:hooks/lib/skill_frontmatter_check.py:93",
+    "B3:hooks/native-contract-gate.sh:146",
+    "B3:hooks/skill-registry-gate.sh:70",
+    "B3:hooks/skill-registry-gate.sh:183",
+    "B3:hooks/skill-registry-gate.sh:184",
+    "B3:scripts/tests/test_skill_frontmatter.py:90",
+    "B3:skills/afk/setup/AUDIT.md:14",
+    "B3:skills/afk/setup/MANIFEST.md:522"
+   ],
+   "mechanism": "adapter-dispatch, module-loader",
+   "universe": "no method ran, the declared B3 sites plus the filesystem scans inside the gate, hooks/, scripts/, skills/ tracked text files",
+   "query_ids": [
+    "q-7187f60e"
+   ]
+  },
+  {
+   "class": "B4",
+   "status": "closed",
+   "method": "the name as a string literal",
+   "hits": 23,
+   "hit_ids": [
+    "B4:hooks/native-contract-gate.sh:39",
+    "B4:hooks/native-contract-gate.sh:41",
+    "B4:hooks/native-contract-gate.sh:354",
+    "B4:hooks/native-contract-gate.sh:364",
+    "B4:hooks/native-contract-gate.sh:365",
+    "B4:hooks/precommit-gates.sh:154",
+    "B4:hooks/stop-gates.sh:130",
+    "B4:hooks/native-contract-gate.sh:35",
+    "B4:hooks/native-contract-gate.sh:181",
+    "B4:hooks/native-contract-gate.sh:188",
+    "B4:hooks/release-gate.sh:11",
+    "B4:hooks/release-gate.sh:12",
+    "B4:hooks/release-gate.sh:77",
+    "B4:hooks/release-gate.sh:78",
+    "B4:hooks/release-gate.sh:79",
+    "B4:hooks/release-gate.sh:92",
+    "B4:hooks/release-gate.sh:93",
+    "B4:hooks/skill-registry-gate.sh:6",
+    "B4:hooks/skill-registry-gate.sh:56",
+    "B4:hooks/skill-registry-gate.sh:88",
+    "B4:hooks/update-notice.sh:46",
+    "B4:hooks/skill-registry-gate.sh:129",
+    "B4:hooks/skill-registry-gate.sh:183"
+   ],
+   "mechanism": "default",
+   "universe": "tracked files, hooks/native-contract-gate.sh, hooks/skill-registry-gate.sh, hooks/release-gate.sh, hooks/update-notice.sh",
+   "query_ids": [
+    "q-50c34f7d",
+    "q-cb7ec672",
+    "q-54b36e86"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B5",
+   "status": "closed",
+   "method": "read scripts/afk-config.py through to each filesystem read (:353, :804, :1061) and the manifest parse at hooks/native-contract-gate.sh:172-185",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "config-codec",
+   "universe": "no method ran, the declared codec site plus the gate's manifest JSON parse",
+   "query_ids": [],
+   "sites": [
+    "scripts/afk-config.py",
+    "hooks/native-contract-gate.sh"
+   ]
+  },
+  {
+   "class": "B6",
+   "status": "closed",
+   "method": "read CLAUDE.md",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "no-build-step",
+   "sites": [
+    "CLAUDE.md"
+   ],
+   "query_ids": [],
+   "universe": "no generated paths declared, no generated paths declared; CLAUDE.md:11,37 read"
+  },
+  {
+   "class": "B7",
+   "status": "closed",
+   "method": "read CLAUDE.md and the two native manifests' skills arrays",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "no-aggregator",
+   "sites": [
+    "CLAUDE.md",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json"
+   ],
+   "query_ids": [],
+   "universe": "no aggregator manifests declared, CLAUDE.md:15 plus .claude-plugin/plugin.json and .codex-plugin/plugin.json"
+  },
+  {
+   "class": "B8",
+   "status": "closed",
+   "method": "name forms filtered to configuration files",
+   "hits": 22,
+   "hit_ids": [
+    "B8:hooks/gate-cache.sh:26",
+    "B8:hooks/gate-cache.sh:76",
+    "B8:hooks/gate-cache.sh:87",
+    "B8:hooks/native-contract-gate.sh:25",
+    "B8:hooks/native-contract-gate.sh:26",
+    "B8:hooks/native-contract-gate.sh:31",
+    "B8:hooks/native-contract-gate.sh:32",
+    "B8:hooks/precommit-gates.sh:32",
+    "B8:hooks/precommit-gates.sh:46",
+    "B8:hooks/precommit-gates.sh:152",
+    "B8:hooks/precommit-gates.sh:153",
+    "B8:hooks/precommit-gates.sh:156",
+    "B8:hooks/precommit-gates.sh:158",
+    "B8:hooks/skill-registry-gate.sh:47",
+    "B8:hooks/skill-registry-gate.sh:52",
+    "B8:hooks/skill-registry-gate.sh:53",
+    "B8:hooks/stop-gates.sh:28",
+    "B8:hooks/stop-gates.sh:36",
+    "B8:hooks/stop-gates.sh:58",
+    "B8:skills/afk/setup/MANIFEST.md:672",
+    "B8:skills/afk/setup/MANIFEST.md:674",
+    "B8:skills/afk/setup/MANIFEST.md:678"
+   ],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths, name-form hits filtered to paths; the two gates, their dispatchers, the pass cache, and the dependency register, whole repository, tracked text files",
+   "query_ids": [
+    "q-e136eae8",
+    "q-a9462068",
+    "q-57868bfc"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B9",
+   "status": "closed",
+   "method": "name forms filtered to schema and migration sources",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths",
+   "query_ids": [
+    "q-e136eae8"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B10",
+   "status": "closed",
+   "method": "read mcp-servers/tracker/server.py through to the adapter it loads and the tool dispatch",
+   "hits": 0,
+   "hit_ids": [],
+   "mechanism": "tracker-mcp-surface",
+   "universe": "no method ran, the declared tracker MCP surface",
+   "query_ids": [],
+   "sites": [
+    "mcp-servers/tracker/server.py"
+   ]
+  },
+  {
+   "class": "B11",
+   "status": "closed",
+   "method": "registration forms in files that name the subject",
+   "hits": 6,
+   "hit_ids": [
+    "B11:hooks/hooks.codex.json:59",
+    "B11:hooks/hooks.json:59",
+    "B11:hooks/install-git-hooks.sh:4",
+    "B11:hooks/install-git-hooks.sh:103",
+    "B11:hooks/hooks.codex.json:53",
+    "B11:hooks/hooks.json:53"
+   ],
+   "mechanism": "default",
+   "universe": "files that name the subject, files that name the subject; hook registration files",
+   "query_ids": [
+    "q-bbc1de29",
+    "q-e136eae8",
+    "q-2c676734"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B12",
+   "status": "closed",
+   "method": "name forms filtered to test sources",
+   "hits": 4,
+   "hit_ids": [
+    "B12:scripts/tests/test_skill_frontmatter.py:13",
+    "B12:scripts/tests/test_lesson_filing.py:109",
+    "B12:scripts/tests/test_skill_frontmatter.py:27",
+    "B12:scripts/tests/test_skill_frontmatter.py:90"
+   ],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths, name-form hits filtered to paths; test sources: hooks/tests, scripts/tests, scripts/tests/, hooks/tests/",
+   "query_ids": [
+    "q-e136eae8",
+    "q-86487830",
+    "q-c0a9aba0"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B13",
+   "status": "closed",
+   "method": "name forms filtered to documents",
+   "hits": 51,
+   "hit_ids": [
+    "B13:CHANGELOG.md:888",
+    "B13:CHANGELOG.md:897",
+    "B13:CHANGELOG.md:1244",
+    "B13:CLAUDE.md:201",
+    "B13:FRESHNESS.md:64",
+    "B13:PROVIDERS.md:45",
+    "B13:README.md:325",
+    "B13:docs/afk/agent-team-topology/GRILL-LOG.md:222",
+    "B13:hooks/README.md:7",
+    "B13:hooks/README.md:8",
+    "B13:hooks/README.md:63",
+    "B13:hooks/README.md:90",
+    "B13:hooks/README.md:104",
+    "B13:hooks/native-contract-allow.txt:63",
+    "B13:providers/CONFORMANCE.md:23",
+    "B13:providers/CONFORMANCE.md:303",
+    "B13:providers/PARITY.md:103",
+    "B13:providers/PARITY.md:112",
+    "B13:providers/PARITY.md:155",
+    "B13:skills/afk/claude-md/SKILL.md:46",
+    "B13:skills/afk/setup/AUDIT.md:70",
+    "B13:skills/afk/setup/MANIFEST.md:219",
+    "B13:skills/afk/setup/MANIFEST.md:674",
+    "B13:skills/afk/setup/MANIFEST.md:685",
+    "B13:skills/utils/writing-for-agents/SKILL.md:15",
+    "B13:AGENTS.md:201",
+    "B13:AGENTS.md:15",
+    "B13:CLAUDE.md:15",
+    "B13:FRESHNESS.md:38",
+    "B13:FRESHNESS.md:41",
+    "B13:FRESHNESS.md:63",
+    "B13:FRESHNESS.md:77",
+    "B13:PROVIDERS.md:11",
+    "B13:PROVIDERS.md:12",
+    "B13:README.md:241",
+    "B13:README.md:250",
+    "B13:README.md:267",
+    "B13:README.md:278",
+    "B13:hooks/README.md:62",
+    "B13:hooks/README.md:75",
+    "B13:providers/CONFORMANCE.md:17",
+    "B13:skills/afk/setup/AUDIT.md:13",
+    "B13:skills/afk/setup/AUDIT.md:16",
+    "B13:skills/afk/setup/MANIFEST.md:577",
+    "B13:skills/afk/setup/MANIFEST.md:672",
+    "B13:AGENTS.md:48",
+    "B13:CLAUDE.md:48",
+    "B13:FRESHNESS.md:42",
+    "B13:FRESHNESS.md:43",
+    "B13:skills/afk/setup/MANIFEST.md:580",
+    "B13:skills/afk/setup/MANIFEST.md:576"
+   ],
+   "mechanism": "default",
+   "universe": "name-form hits filtered to paths, name-form hits filtered to paths; guidance markdown: plugin-root *.md except CHANGELOG.md, hooks/README.md, providers/*.md, skills/afk/setup/{AUDIT,MANIFEST,SKILL}.md; tracked and untracked, FRESHNESS.md, hooks/README.md, skills/afk/setup/AUDIT.md, skills/afk/setup/MANIFEST.md, CLAUDE.md, README.md",
+   "query_ids": [
+    "q-e136eae8",
+    "q-5e21cd0c",
+    "q-d3a7eb8f"
+   ],
+   "sites": []
+  },
+  {
+   "class": "B14",
+   "status": "frontier",
+   "method": "outside this repository",
+   "hits": 0,
+   "hit_ids": [],
+   "reason": "another repository, deployment manifest, or live consumer; harness loader behaviour for an unlisted skill directory is outside this repository (human decision); consumers of .agents/plugins/marketplace.json (plugin source path './') are external",
+   "mechanism": "default",
+   "sites": [],
+   "query_ids": [],
+   "universe": "nothing in this repository"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "B13:AGENTS.md:201",
+   "class": "B13",
+   "site": "AGENTS.md:201",
+   "disposition": "terminal",
+   "reason": "untracked twin of CLAUDE.md:201 (git status ??); gate list matches hooks/stop-gates.sh:125,130 and hooks/precommit-gates.sh:154; no gate reads AGENTS.md as a skill catalog (skill-registry-gate.sh:124)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-registry-gate.sh`, `native-contract-gate.sh`, and `genericity-gate.sh`, plus adopted harness gates. Co",
+   "line_hash": "3806c155b92a",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:CHANGELOG.md:1244",
+   "class": "B13",
+   "site": "CHANGELOG.md:1244",
+   "disposition": "terminal",
+   "reason": "historical entry; both manifests are still the native discovery surfaces check C reads (native-contract-gate.sh:188)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **The plugin is one native tree for every supported harness — no generator, no mirror.** Each harness discovers the same committed files through its own plugin mechanism (`.claude-plugin/` and `.codex-plugin/` manifests, shared `hooks/hooks.json`, shared `.mcp.json`, agent stubs copied unchanged),",
+   "line_hash": "f2a992d6832b",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:CHANGELOG.md:888",
+   "class": "B13",
+   "site": "CHANGELOG.md:888",
+   "disposition": "irrelevant",
+   "reason": "historical fix to check D stub name; code now derives afk-{stem}.toml at native-contract-gate.sh:201; not about skill directories",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- `native-contract-gate.sh` derived the expected Codex stub filename from a",
+   "line_hash": "3219e16f5e22",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:CHANGELOG.md:897",
+   "class": "B13",
+   "site": "CHANGELOG.md:897",
+   "disposition": "irrelevant",
+   "reason": "historical note about allow-list rows quoting the changelog; check A allow list, not skill registration",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- Four `native-contract-allow.txt` rows quote CHANGELOG text to waive a",
+   "line_hash": "c8cf937d5b74",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:CLAUDE.md:201",
+   "class": "B13",
+   "site": "CLAUDE.md:201",
+   "disposition": "terminal",
+   "reason": "gate dispatch list accurate: stop-gates.sh:125,130; precommit-gates.sh:154",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-registry-gate.sh`, `native-contract-gate.sh`, and `genericity-gate.sh`, plus adopted harness gates. Co",
+   "line_hash": "3806c155b92a",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:FRESHNESS.md:64",
+   "class": "B13",
+   "site": "FRESHNESS.md:64",
+   "disposition": "irrelevant",
+   "reason": "hook launcher rule J (native-contract-gate.sh:262-283); a skill directory does not touch hooks.json",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `hooks/run-hook.py` + `hooks/hooks.json` | plugin author | a hook is added, removed, or re-pointed, or the launcher's shell/root lookup changes — the command shape is fixed (`hooks/README.md` \"Every hook entry goes through one launcher\", enforced by `hooks/native-contract-gate.sh` rule J) and `hoo",
+   "line_hash": "90dbec0f4c2c",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:PROVIDERS.md:45",
+   "class": "B13",
+   "site": "PROVIDERS.md:45",
+   "disposition": "irrelevant",
+   "reason": "check F activation surfaces (native-contract-gate.sh:295-302); not about skill directories",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  may be tracked, and `native-contract-gate.sh` enforces exactly that.",
+   "line_hash": "a63cd6aabcd5",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:README.md:325",
+   "class": "B13",
+   "site": "README.md:325",
+   "disposition": "terminal",
+   "reason": "dev loop instructs running the gate; accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "`hooks/native-contract-gate.sh`, then refresh the enabled plugin per",
+   "line_hash": "33a2a2dbf06b",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:222",
+   "class": "B13",
+   "site": "docs/afk/agent-team-topology/GRILL-LOG.md:222",
+   "disposition": "terminal",
+   "reason": "overstates: of the six skill-registry checks only A, B, D, F key on skill directories; C reads hooks/*.sh (skill-registry-gate.sh:149) and E reads adapters/ (:191-194). Its citation of native-contract check C at :165-196 is accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  - Registering a new skill touches six gate checks at hooks/skill-registry-gate.sh: listing in the plugin manifest's skills array at :51-118, a mention in both CLAUDE.md and README.md at :120-136, any new environment variable recorded in the setup register at :138-178, the language pointer line in ",
+   "line_hash": "bf8a87a4a09a",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/README.md:104",
+   "class": "B13",
+   "site": "hooks/README.md:104",
+   "disposition": "terminal",
+   "reason": "accurate skill-add list: Claude manifest (skill-registry-gate.sh:107-118), CLAUDE.md+README.md mention (:124-134), LANGUAGE.md pointer (:183), Codex manifest + frontmatter keys (native-contract-gate.sh:139-196); its step list omits check F name==directory (pinned by scripts/tests/test_skill_frontmatter.py:63)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- `skill-registry-gate.sh`: the checks (incl. the env-toggle E-table, the `LANGUAGE.md` pointer, and check F's frontmatter parse — `hooks/lib/skill_frontmatter_check.py`, pinned by `scripts/tests/test_skill_frontmatter.py`), ambient-var whitelist, and the mechanical-vs-`/afk:setup audit` boundary: s",
+   "line_hash": "80d9c71c800f",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/README.md:63",
+   "class": "B13",
+   "site": "hooks/README.md:63",
+   "disposition": "terminal",
+   "reason": "skill part accurate (check C, native-contract-gate.sh:188-196); row lists 8 of 10 checks, omitting I (CRLF, :336-344) and J (launcher, :262-283)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `native-contract-gate.sh` | Stop when plugin/native-provider paths changed; pre-commit when those paths are staged | provider vocabulary leaked into skill/doctrine prose; unsupported `SKILL.md` frontmatter; disk skills differ from either native manifest; an agent lacks its `providers/codex/agents/",
+   "line_hash": "78b35f0329cc",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/README.md:7",
+   "class": "B13",
+   "site": "hooks/README.md:7",
+   "disposition": "terminal",
+   "reason": "accurate: stop-gates.sh:125,130",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **Stop** — one hooks.json entry, `stop-gates.sh`, which runs the cheap gates (wiring, skill-registry, native-contract, genericity) in a single process. The adopted harness Stop gates (`java-rules-gate.sh`, `i18n-parity-gate.sh`) stay separate entries because they live in another tree.",
+   "line_hash": "fdf722d7ed95",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/README.md:8",
+   "class": "B13",
+   "site": "hooks/README.md:8",
+   "disposition": "terminal",
+   "reason": "accurate: precommit-gates.sh:154",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **Commit** — `precommit-gates.sh` runs native-contract plus the expensive code gates from the `pre-commit` git hook that `install-git-hooks.sh` installs, for **agent-driven commits only**. WHICH code gates run is the repository's `build-gates:` list: each selected build-gate adapter reports the ga",
+   "line_hash": "22662c9d9050",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/README.md:90",
+   "class": "B13",
+   "site": "hooks/README.md:90",
+   "disposition": "terminal",
+   "reason": "accurate: precommit-gates.sh:151-154 runs native-contract with the cache off",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **Commit gates.** `precommit-gates.sh` (header: scope rule, escape hatches) runs the three code gates plus the scoped native-contract gate on the **staged** change set from the `pre-commit` hook. The expensive code gates moved off Stop because a reactor build per conversational turn made interacti",
+   "line_hash": "2545b2b48dd6",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:hooks/native-contract-allow.txt:63",
+   "class": "B13",
+   "site": "hooks/native-contract-allow.txt:63",
+   "disposition": "irrelevant",
+   "reason": "allow row for check A on a CHANGELOG line; not skill registration",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CHANGELOG.md\tharness-name\t^- `native-contract-gate\\.sh` derived the expected Codex stub filename\tFix entry names the harness whose stub filename the gate derives.",
+   "line_hash": "bfa54680241a",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:providers/CONFORMANCE.md:23",
+   "class": "B13",
+   "site": "providers/CONFORMANCE.md:23",
+   "disposition": "terminal",
+   "reason": "live probe record: an unregistered scratch skill blocked Stop; consistent with check C (native-contract-gate.sh:193-194)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| Stop gates block after a plugin edit | pass 2026-09-01 | pass 2026-09-02 (round 4) | Second harness, native session, no trust bypass: an unregistered scratch skill produced `Stop Blocked` carrying the full native-contract reason, and it kept blocking while the tree stayed invalid. Rounds 1-3 faile",
+   "line_hash": "2c4fca6dfbbf",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:providers/CONFORMANCE.md:303",
+   "class": "B13",
+   "site": "providers/CONFORMANCE.md:303",
+   "disposition": "terminal",
+   "reason": "add-harness step runs the gate; accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "8. Run `hooks/tests/hook-smoke.sh` and `hooks/native-contract-gate.sh`.",
+   "line_hash": "bdc09935a27c",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:providers/PARITY.md:103",
+   "class": "B13",
+   "site": "providers/PARITY.md:103",
+   "disposition": "terminal",
+   "reason": "REFUTED: native-contract-gate.sh never opens hooks/hooks.codex.json (only hooks/hooks.json at :226); the twin diff modulo the root variable is hooks/tests/hook-smoke.sh:225-244, a smoke test, not the gate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "| hooks.codex.json | covered | `gate` — the native-contract gate diffs the twin modulo the root variable |",
+   "line_hash": "355b0fa6afe1",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:providers/PARITY.md:112",
+   "class": "B13",
+   "site": "providers/PARITY.md:112",
+   "disposition": "terminal",
+   "reason": "historical probe record; its finding count is not re-checkable; the gate now has 10 checks A-J (native-contract-gate.sh:6-23)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| native-contract-gate.sh | proven | `ledger` — negative probe returned exit 2 naming all six findings; it blocked three real changes during this release |",
+   "line_hash": "fa0efcbf0174",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:providers/PARITY.md:155",
+   "class": "B13",
+   "site": "providers/PARITY.md:155",
+   "disposition": "terminal",
+   "reason": "imprecise: check E compares hooks.json events/matchers with the two declaration lines CAPABILITIES.md:26,28 (native-contract-gate.sh:224-256), not a table against disk",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| CAPABILITIES.md | covered | `gate` — the native-contract gate cross-checks the table against disk |",
+   "line_hash": "750b6fd01ca1",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/afk/claude-md/SKILL.md:46",
+   "class": "B13",
+   "site": "skills/afk/claude-md/SKILL.md:46",
+   "disposition": "terminal",
+   "reason": "checklist pointer to the gate; accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.",
+   "line_hash": "2633408e71e1",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/afk/setup/AUDIT.md:70",
+   "class": "B13",
+   "site": "skills/afk/setup/AUDIT.md:70",
+   "disposition": "terminal",
+   "reason": "audit runs the gate; accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "Run `bash \"$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh\"`",
+   "line_hash": "5c6115f32089",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:219",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:219",
+   "disposition": "terminal",
+   "reason": "accurate: stop-gates.sh:130",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every",
+   "line_hash": "30fa13d0817d",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:674",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:674",
+   "disposition": "terminal",
+   "reason": "accurate: native-contract-gate.sh:31 reads NATIVE_CONTRACT_GATE_DISABLE",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |",
+   "line_hash": "cb94f61c6d66",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:685",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:685",
+   "disposition": "terminal",
+   "reason": "REFUTED in part: native-contract-gate.sh and skill-registry-gate.sh do not read CLAUDECODE; native-contract-gate.sh:115 holds it as a forbidden-vocabulary regex and skill-registry-gate.sh:143 lists it as ambient (excluded)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `CLAUDECODE` | `hooks/lib/providers/claude.sh`, `hooks/branch-name-gate.sh`, `hooks/native-contract-gate.sh`, `hooks/skill-registry-gate.sh` | a compatibility marker one harness sets; read only after the native root variable, never as the first thing tried |",
+   "line_hash": "65ab291aca3f",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B13:skills/utils/writing-for-agents/SKILL.md:15",
+   "class": "B13",
+   "site": "skills/utils/writing-for-agents/SKILL.md:15",
+   "disposition": "terminal",
+   "reason": "checklist pointer to the gate; accurate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.",
+   "line_hash": "2633408e71e1",
+   "parent": null,
+   "query_id": "q-499aa404"
+  },
+  {
+   "id": "B1:AGENTS.md:201",
+   "class": "B1",
+   "site": "AGENTS.md:201",
+   "disposition": "irrelevant",
+   "evidence": "- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-re",
+   "line_hash": "3806c155b92a",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "untracked harness copy of CLAUDE.md:201 listing the gate suite; registry check B reads CLAUDE.md and README.md only (hooks/skill-registry-gate.sh:124), never AGENTS.md"
+  },
+  {
+   "id": "B1:CHANGELOG.md:1244",
+   "class": "B1",
+   "site": "CHANGELOG.md:1244",
+   "disposition": "irrelevant",
+   "evidence": "- **The plugin is one native tree for every supported harness — no generator, no mirror.** Each harness discovers the same committed files through its own plugin mechanism (`.claude-plugin/` and `.cod",
+   "line_hash": "f2a992d6832b",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "historical release note; no gate reads CHANGELOG for skill membership"
+  },
+  {
+   "id": "B1:CHANGELOG.md:888",
+   "class": "B1",
+   "site": "CHANGELOG.md:888",
+   "disposition": "irrelevant",
+   "evidence": "- `native-contract-gate.sh` derived the expected Codex stub filename from a",
+   "line_hash": "3219e16f5e22",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "historical note on check D stub naming; skill addition does not touch it"
+  },
+  {
+   "id": "B1:CHANGELOG.md:897",
+   "class": "B1",
+   "site": "CHANGELOG.md:897",
+   "disposition": "irrelevant",
+   "evidence": "- Four `native-contract-allow.txt` rows quote CHANGELOG text to waive a",
+   "line_hash": "c8cf937d5b74",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "historical note on allow-list rows; skill addition does not touch it"
+  },
+  {
+   "id": "B1:CLAUDE.md:201",
+   "class": "B1",
+   "site": "CLAUDE.md:201",
+   "disposition": "irrelevant",
+   "evidence": "- `hooks/` — harness gate suite (registered in `hooks/hooks.json`; per-gate docs `hooks/README.md`, script headers canonical). Stop: one entry, `stop-gates.sh`, dispatching `wiring-gate.sh`, `skill-re",
+   "line_hash": "3806c155b92a",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "Reference bullet naming the Stop dispatch; the skill catalog check B matches is the skills table, not this line (hooks/skill-registry-gate.sh:129-132)"
+  },
+  {
+   "id": "B1:FRESHNESS.md:64",
+   "class": "B1",
+   "site": "FRESHNESS.md:64",
+   "disposition": "irrelevant",
+   "evidence": "| `hooks/run-hook.py` + `hooks/hooks.json` | plugin author | a hook is added, removed, or re-pointed, or the launcher's shell/root lookup changes — the command shape is fixed (`hooks/README.md` \"Every",
+   "line_hash": "90dbec0f4c2c",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "registry row for hooks/run-hook.py + hooks.json; the skill-add rows are FRESHNESS.md:38,42,43 (B13 partition)"
+  },
+  {
+   "id": "B1:PROVIDERS.md:45",
+   "class": "B1",
+   "site": "PROVIDERS.md:45",
+   "disposition": "irrelevant",
+   "evidence": "may be tracked, and `native-contract-gate.sh` enforces exactly that.",
+   "line_hash": "a63cd6aabcd5",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "asserts check F (no tracked activation tree, hooks/native-contract-gate.sh:295-302); a skill dir is not under .agents/ or .codex/"
+  },
+  {
+   "id": "B1:README.md:325",
+   "class": "B1",
+   "site": "README.md:325",
+   "disposition": "irrelevant",
+   "evidence": "`hooks/native-contract-gate.sh`, then refresh the enabled plugin per",
+   "line_hash": "33a2a2dbf06b",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "install/refresh instruction naming the gate; no membership assertion"
+  },
+  {
+   "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:222",
+   "class": "B1",
+   "site": "docs/afk/agent-team-topology/GRILL-LOG.md:222",
+   "disposition": "irrelevant",
+   "evidence": "- Registering a new skill touches six gate checks at hooks/skill-registry-gate.sh: listing in the plugin manifest's skills array at :51-118, a mention in both CLAUDE.md and README.md at :120-136, any ",
+   "line_hash": "bf8a87a4a09a",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "design-log claim about the six registry checks and check C; agrees with hooks/skill-registry-gate.sh:51-204 and hooks/native-contract-gate.sh:165-196 as read; accuracy judged in B13 partition"
+  },
+  {
+   "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1487",
+   "class": "B1",
+   "site": "docs/afk/agent-team-topology/grill-solution.round.json:1487",
+   "disposition": "irrelevant",
+   "evidence": "\"anchor\": \"hooks/native-contract-gate.sh:165-196\"",
+   "line_hash": "bebd828b03a6",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "untracked render artifact citing the check C line range; no gate reads it"
+  },
+  {
+   "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1491",
+   "class": "B1",
+   "site": "docs/afk/agent-team-topology/grill-solution.round.json:1491",
+   "disposition": "irrelevant",
+   "evidence": "\"anchor\": \"hooks/native-contract-gate.sh:199-201\"",
+   "line_hash": "5e445d5d9c34",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "untracked render artifact citing the check D line range; no gate reads it"
+  },
+  {
+   "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1592",
+   "class": "B1",
+   "site": "docs/afk/agent-team-topology/grill-solution.round.json:1592",
+   "disposition": "irrelevant",
+   "evidence": "\"anchor\": \"hooks/native-contract-gate.sh:165-196\"",
+   "line_hash": "bebd828b03a6",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "untracked render artifact citing the check C line range; no gate reads it"
+  },
+  {
+   "id": "B1:hooks/README.md:104",
+   "class": "B1",
+   "site": "hooks/README.md:104",
+   "disposition": "irrelevant",
+   "evidence": "- `skill-registry-gate.sh`: the checks (incl. the env-toggle E-table, the `LANGUAGE.md` pointer, and check F's frontmatter parse — `hooks/lib/skill_frontmatter_check.py`, pinned by `scripts/tests/test",
+   "line_hash": "80d9c71c800f",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "gate doc pointer; asserts no membership rule itself"
+  },
+  {
+   "id": "B1:hooks/README.md:63",
+   "class": "B1",
+   "site": "hooks/README.md:63",
+   "disposition": "irrelevant",
+   "evidence": "| `native-contract-gate.sh` | Stop when plugin/native-provider paths changed; pre-commit when those paths are staged | provider vocabulary leaked into skill/doctrine prose; unsupported `SKILL.md` fron",
+   "line_hash": "78b35f0329cc",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "gate table row: scope Stop + pre-commit; matches hooks/stop-gates.sh:130 and hooks/precommit-gates.sh:139-154"
+  },
+  {
+   "id": "B1:hooks/README.md:7",
+   "class": "B1",
+   "site": "hooks/README.md:7",
+   "disposition": "irrelevant",
+   "evidence": "- **Stop** — one hooks.json entry, `stop-gates.sh`, which runs the cheap gates (wiring, skill-registry, native-contract, genericity) in a single process. The adopted harness Stop gates (`java-rules-ga",
+   "line_hash": "fdf722d7ed95",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "overview of the Stop dispatcher; matches hooks/stop-gates.sh:108-133"
+  },
+  {
+   "id": "B1:hooks/README.md:8",
+   "class": "B1",
+   "site": "hooks/README.md:8",
+   "disposition": "irrelevant",
+   "evidence": "- **Commit** — `precommit-gates.sh` runs native-contract plus the expensive code gates from the `pre-commit` git hook that `install-git-hooks.sh` installs, for **agent-driven commits only**. WHICH cod",
+   "line_hash": "22662c9d9050",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "overview: commit runs native-contract; matches hooks/precommit-gates.sh:154 (skill-registry is Stop-only)"
+  },
+  {
+   "id": "B1:hooks/README.md:90",
+   "class": "B1",
+   "site": "hooks/README.md:90",
+   "disposition": "irrelevant",
+   "evidence": "- **Commit gates.** `precommit-gates.sh` (header: scope rule, escape hatches) runs the three code gates plus the scoped native-contract gate on the **staged** change set from the `pre-commit` hook. Th",
+   "line_hash": "2545b2b48dd6",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "commit-gate overview; matches hooks/precommit-gates.sh:139-159"
+  },
+  {
+   "id": "B1:hooks/gate-cache.sh:4",
+   "class": "B1",
+   "site": "hooks/gate-cache.sh:4",
+   "disposition": "terminal",
+   "evidence": "# native-contract, genericity).",
+   "line_hash": "f612f55ebcc9",
+   "parent": "B1:hooks/native-contract-gate.sh:41",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "pass-cache helper; a new skill dir changes the tree digest, so no cached pass is reused"
+  },
+  {
+   "id": "B1:hooks/gate-context.sh:135",
+   "class": "B1",
+   "site": "hooks/gate-context.sh:135",
+   "disposition": "terminal",
+   "evidence": "# native-contract) need it, and only after their scope check passes, so a turn that",
+   "line_hash": "9cef17af9487",
+   "parent": "B1:hooks/stop-gates.sh:130",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "scope memo: merge-base feeding the branch file list ctx_scoped reads (hooks/gate-context.sh:159-162); a committed skill dir still enters scope"
+  },
+  {
+   "id": "B1:hooks/native-contract-allow.txt:63",
+   "class": "B1",
+   "site": "hooks/native-contract-allow.txt:63",
+   "disposition": "irrelevant",
+   "evidence": "CHANGELOG.md\tharness-name\t^- `native-contract-gate\\.sh` derived the expected Codex stub filename\tFix entry names the harness whose stub filename the gate derives.",
+   "line_hash": "bfa54680241a",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "allow row for a CHANGELOG line; a new SKILL.md needs its own row only if its prose carries provider vocabulary (check A, hooks/native-contract-gate.sh:132-134)"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:101",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:101",
+   "disposition": "terminal",
+   "evidence": "f\"hooks/native-contract-allow.txt:{number}: invalid regex ({exc})\"",
+   "line_hash": "abb02c52f0c7",
+   "parent": "B1:hooks/native-contract-gate.sh:84",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "allow-list regex error path; independent of the skill set"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:172",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:172",
+   "disposition": "traced",
+   "evidence": "def manifest_skills(path: Path) -> set[str] | None:",
+   "line_hash": "4fd05b6b1e94",
+   "parent": "B1:hooks/native-contract-gate.sh:190",
+   "query_id": "q-e136eae8",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "manifest_skills returns the declared skill set of one manifest, trailing '/' stripped (:185); a dir on disk absent from that set is reported at :194"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:190",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:190",
+   "disposition": "traced",
+   "evidence": "declared = manifest_skills(manifest_path)",
+   "line_hash": "214608315321",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-e136eae8",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "called once per manifest in the loop at :188 — .claude-plugin/plugin.json then .codex-plugin/plugin.json, each checked independently"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:30",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:30",
+   "disposition": "traced",
+   "evidence": "gate_native_contract() {",
+   "line_hash": "54eceb74fb4f",
+   "parent": "B4:hooks/stop-gates.sh:89",
+   "query_id": "q-e136eae8",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "gate entry; returns 2 (:361) when check C finds a skill on disk missing from either manifest"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:354",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:354",
+   "disposition": "terminal",
+   "evidence": "gate_metrics_emit native-contract blocked",
+   "line_hash": "0a5031c6d301",
+   "parent": "B4:hooks/native-contract-gate.sh:194",
+   "query_id": "q-499aa404",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "blocked metric emitted on the path a missing manifest entry takes"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:359",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:359",
+   "disposition": "terminal",
+   "evidence": "printf 'or add a narrow explained prose exception to hooks/native-contract-allow.txt.\\n'",
+   "line_hash": "7cc47d43690f",
+   "parent": "B4:hooks/native-contract-gate.sh:194",
+   "query_id": "q-499aa404",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "block message tail printed to stderr before return 2"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:364",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:364",
+   "disposition": "terminal",
+   "evidence": "gate_metrics_emit native-contract pass",
+   "line_hash": "3d2e0a289cfa",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "pass metric; reached only once both manifests list the new dir and checks A/B pass"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:365",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:365",
+   "disposition": "terminal",
+   "evidence": "gate_cache_store native-contract \"$cache_key\"",
+   "line_hash": "b914c39c4662",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "pass cache store; reached only on a clean run"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:382",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:382",
+   "disposition": "terminal",
+   "evidence": "gate_native_contract; exit $?",
+   "line_hash": "35b14a4a8773",
+   "parent": null,
+   "query_id": "q-e136eae8",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "standalone entry: sources helpers and exits with gate_native_contract's code"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:39",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:39",
+   "disposition": "traced",
+   "evidence": "cache_key=$(gate_cache_key native-contract \\",
+   "line_hash": "35c146465b46",
+   "parent": "B1:hooks/native-contract-gate.sh:30",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "cache key spans \"$PLUGIN_SCOPE*\" \".agents/*\" \".codex/*\"; a new skill dir busts it"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:41",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:41",
+   "disposition": "traced",
+   "evidence": "gate_cache_hit native-contract \"$cache_key\" && return 0",
+   "line_hash": "dda5ae3e4cb9",
+   "parent": "B1:hooks/native-contract-gate.sh:39",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "cache hit short-circuit; a new skill dir changes the key so no hit"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:8",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:8",
+   "disposition": "irrelevant",
+   "evidence": "#      a line-specific native-contract-allow.txt entry explains the exception;",
+   "line_hash": "d548d540ad12",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "header comment for check A"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:84",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:84",
+   "disposition": "traced",
+   "evidence": "allow_file = plugin / \"hooks/native-contract-allow.txt\"",
+   "line_hash": "5bff5fc88e1c",
+   "parent": "B4:hooks/native-contract-gate.sh:80",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "check A allow-list location; read by check A which scans every *.md incl. a new SKILL.md (:79-82, :124-134)"
+  },
+  {
+   "id": "B1:hooks/native-contract-gate.sh:93",
+   "class": "B1",
+   "site": "hooks/native-contract-gate.sh:93",
+   "disposition": "terminal",
+   "evidence": "f\"hooks/native-contract-allow.txt:{number}: expected path<TAB>rule<TAB>regex<TAB>reason\"",
+   "line_hash": "85560fc69b53",
+   "parent": "B1:hooks/native-contract-gate.sh:84",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "allow-list row-shape error path; independent of the skill set"
+  },
+  {
+   "id": "B1:hooks/precommit-gates.sh:154",
+   "class": "B1",
+   "site": "hooks/precommit-gates.sh:154",
+   "disposition": "traced",
+   "evidence": "run_gate native-contract",
+   "line_hash": "12fba4ff225c",
+   "parent": "B11:hooks/install-git-hooks.sh:103",
+   "query_id": "q-499aa404",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "commit-time dispatch of the wire name with the pass cache disabled (:152-153); a staged skill dir enters scope via :141-142 and a missing manifest entry blocks the commit"
+  },
+  {
+   "id": "B1:hooks/skill-registry-gate.sh:45",
+   "class": "B1",
+   "site": "hooks/skill-registry-gate.sh:45",
+   "disposition": "traced",
+   "evidence": "# native-contract-gate.sh owns twin-manifest parity and allowed frontmatter;",
+   "line_hash": "694282ce4f93",
+   "parent": "B4:hooks/stop-gates.sh:125",
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "header: native-contract owns twin-manifest parity and frontmatter keys; the registry gate checks only .claude-plugin/plugin.json (:82-90). Led into the registry checks recorded as B4 read nodes"
+  },
+  {
+   "id": "B1:hooks/skill-registry-gate.sh:81",
+   "class": "B1",
+   "site": "hooks/skill-registry-gate.sh:81",
+   "disposition": "irrelevant",
+   "evidence": "command -v python >/dev/null 2>&1 || py=python3    # python3-only machines: same fallback as native-contract-gate.sh",
+   "line_hash": "4180cb8a9092",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "python3 fallback comment"
+  },
+  {
+   "id": "B1:hooks/stop-gates.sh:127",
+   "class": "B1",
+   "site": "hooks/stop-gates.sh:127",
+   "disposition": "irrelevant",
+   "evidence": "# native-contract — plugin prose, both native manifests, provider adapters and",
+   "line_hash": "bd829a051ad4",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "comment above the Stop dispatch at :130"
+  },
+  {
+   "id": "B1:hooks/stop-gates.sh:130",
+   "class": "B1",
+   "site": "hooks/stop-gates.sh:130",
+   "disposition": "traced",
+   "evidence": "[ -n \"$PLUGIN_DIR\" ] && ctx_scoped \"$PLUGIN_SCOPE*\" \".agents/*\" \".codex/*\" && run_gate native-contract",
+   "line_hash": "bbd174b2775f",
+   "parent": "B11:hooks/hooks.json:59",
+   "query_id": "q-499aa404",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "reason": "Stop dispatch: run_gate native-contract when the plugin scope, .agents/* or .codex/* changed in worktree or branch; wire name resolved at :85,:89"
+  },
+  {
+   "id": "B1:providers/CONFORMANCE.md:23",
+   "class": "B1",
+   "site": "providers/CONFORMANCE.md:23",
+   "disposition": "irrelevant",
+   "evidence": "| Stop gates block after a plugin edit | pass 2026-09-01 | pass 2026-09-02 (round 4) | Second harness, native session, no trust bypass: an unregistered scratch skill produced `Stop Blocked` carrying t",
+   "line_hash": "2c4fca6dfbbf",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "conformance evidence row; no membership rule"
+  },
+  {
+   "id": "B1:providers/CONFORMANCE.md:303",
+   "class": "B1",
+   "site": "providers/CONFORMANCE.md:303",
+   "disposition": "irrelevant",
+   "evidence": "8. Run `hooks/tests/hook-smoke.sh` and `hooks/native-contract-gate.sh`.",
+   "line_hash": "bdc09935a27c",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "add-harness checklist step; not the add-skill path"
+  },
+  {
+   "id": "B1:providers/PARITY.md:103",
+   "class": "B1",
+   "site": "providers/PARITY.md:103",
+   "disposition": "irrelevant",
+   "evidence": "| hooks.codex.json | covered | `gate` — the native-contract gate diffs the twin modulo the root variable |",
+   "line_hash": "355b0fa6afe1",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "hooks.json twin row; not skill membership"
+  },
+  {
+   "id": "B1:providers/PARITY.md:112",
+   "class": "B1",
+   "site": "providers/PARITY.md:112",
+   "disposition": "irrelevant",
+   "evidence": "| native-contract-gate.sh | proven | `ledger` — negative probe returned exit 2 naming all six findings; it blocked three real changes during this release |",
+   "line_hash": "fa0efcbf0174",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "manual negative-probe ledger entry, not an automated test"
+  },
+  {
+   "id": "B1:providers/PARITY.md:155",
+   "class": "B1",
+   "site": "providers/PARITY.md:155",
+   "disposition": "irrelevant",
+   "evidence": "| CAPABILITIES.md | covered | `gate` — the native-contract gate cross-checks the table against disk |",
+   "line_hash": "750b6fd01ca1",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "CAPABILITIES.md check E row; not skill membership"
+  },
+  {
+   "id": "B1:skills/afk/claude-md/SKILL.md:46",
+   "class": "B1",
+   "site": "skills/afk/claude-md/SKILL.md:46",
+   "disposition": "irrelevant",
+   "evidence": "Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.",
+   "line_hash": "2633408e71e1",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "checklist pointer to the gate; no membership rule"
+  },
+  {
+   "id": "B1:skills/afk/setup/AUDIT.md:70",
+   "class": "B1",
+   "site": "skills/afk/setup/AUDIT.md:70",
+   "disposition": "irrelevant",
+   "evidence": "Run `bash \"$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh\"`",
+   "line_hash": "5c6115f32089",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "audit step runs the gate; a new skill is judged by the gate itself"
+  },
+  {
+   "id": "B1:skills/afk/setup/MANIFEST.md:219",
+   "class": "B1",
+   "site": "skills/afk/setup/MANIFEST.md:219",
+   "disposition": "irrelevant",
+   "evidence": "genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every",
+   "line_hash": "30fa13d0817d",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "register text naming Stop gates"
+  },
+  {
+   "id": "B1:skills/afk/setup/MANIFEST.md:674",
+   "class": "B1",
+   "site": "skills/afk/setup/MANIFEST.md:674",
+   "disposition": "traced",
+   "evidence": "| `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |",
+   "line_hash": "cb94f61c6d66",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "E-table row registering NATIVE_CONTRACT_GATE_DISABLE; followed into B8"
+  },
+  {
+   "id": "B1:skills/afk/setup/MANIFEST.md:685",
+   "class": "B1",
+   "site": "skills/afk/setup/MANIFEST.md:685",
+   "disposition": "irrelevant",
+   "evidence": "| `CLAUDECODE` | `hooks/lib/providers/claude.sh`, `hooks/branch-name-gate.sh`, `hooks/native-contract-gate.sh`, `hooks/skill-registry-gate.sh` | a compatibility marker one harness sets; read only afte",
+   "line_hash": "65ab291aca3f",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "CLAUDECODE register row; ambient to the registry check (hooks/skill-registry-gate.sh:143)"
+  },
+  {
+   "id": "B1:skills/utils/writing-for-agents/SKILL.md:15",
+   "class": "B1",
+   "site": "skills/utils/writing-for-agents/SKILL.md:15",
+   "disposition": "irrelevant",
+   "evidence": "Mandatory checklist: **harness-agnostic** — plugin and harness changes pass `hooks/native-contract-gate.sh`; declare capability needs in `CAPABILITIES.md`.",
+   "line_hash": "2633408e71e1",
+   "parent": null,
+   "query_id": "q-499aa404",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "reason": "checklist pointer to the gate; no membership rule"
+  },
+  {
+   "id": "B4:hooks/stop-gates.sh:85",
+   "class": "B4",
+   "site": "hooks/stop-gates.sh:85",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  local name=$1 fn=\"gate_${1//-/_}\" rc=0",
+   "parent": "B4:hooks/stop-gates.sh:130",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/stop-gates.sh:89",
+   "class": "B4",
+   "site": "hooks/stop-gates.sh:89",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  if ! . \"$SCRIPT_DIR/$name-gate.sh\"; then",
+   "parent": "B4:hooks/stop-gates.sh:85",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/stop-gates.sh:125",
+   "class": "B4",
+   "site": "hooks/stop-gates.sh:125",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "[ -n \"$PLUGIN_DIR\" ] && ctx_scoped \"$PLUGIN_SCOPE*\" && run_gate skill-registry",
+   "parent": "B11:hooks/hooks.json:59",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/precommit-gates.sh:94",
+   "class": "B4",
+   "site": "hooks/precommit-gates.sh:94",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  local name=$1 kind=${2:-} fn=\"gate_${1//-/_}\" rc=0",
+   "parent": "B4:hooks/precommit-gates.sh:154",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/precommit-gates.sh:105",
+   "class": "B4",
+   "site": "hooks/precommit-gates.sh:105",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    if ! . \"$SCRIPT_DIR/$name-gate.sh\"; then",
+   "parent": "B4:hooks/precommit-gates.sh:94",
+   "query_id": null,
+   "reason": "sources <name>-gate.sh then calls gate_<name> — the gate body continues at B1:hooks/native-contract-gate.sh:30"
+  },
+  {
+   "id": "B4:hooks/precommit-gates.sh:142",
+   "class": "B4",
+   "site": "hooks/precommit-gates.sh:142",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  \"$PLUGIN_SCOPE*\" \".agents/*\" \".codex/*\" && native_scope=1",
+   "parent": "B1:hooks/precommit-gates.sh:154",
+   "query_id": null,
+   "reason": "commit scope test: staged paths under the plugin scope, .agents/* or .codex/* enable the gate"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:80",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:80",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    path for path in sorted(plugin.rglob(\"*.md\"))",
+   "parent": "B1:hooks/native-contract-gate.sh:41",
+   "query_id": null,
+   "reason": "check A scans every *.md incl. a new skill's SKILL.md and siblings; it keys on line content, not on the directory, so the addition passes while its prose stays free of provider vocabulary"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:133",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:133",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "            if pattern.search(line) and not allowed(path_rel, rule, line):",
+   "parent": "B1:hooks/native-contract-gate.sh:84",
+   "query_id": null,
+   "reason": "provider-vocabulary finding keyed on line content; unchanged for prose inside the allowed vocabulary"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:146",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:146",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "skill_files = sorted(plugin.glob(\"skills/**/SKILL.md\"))",
+   "parent": "B4:hooks/native-contract-gate.sh:80",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:159",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:159",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "        if match and match.group(1) not in allowed_frontmatter:",
+   "parent": "B4:hooks/native-contract-gate.sh:146",
+   "query_id": null,
+   "reason": "check B keyed on the frontmatter key set; unchanged while the new SKILL.md uses only the allowed keys at :139-145"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:167",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:167",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    \"./\" + path.parent.relative_to(plugin).as_posix()",
+   "parent": "B4:hooks/native-contract-gate.sh:146",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:185",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:185",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    return {x.rstrip(\"/\") for x in values}",
+   "parent": "B1:hooks/native-contract-gate.sh:172",
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/native-contract-gate.sh:181"
+   ]
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:188",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:188",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "for manifest_rel in (\".claude-plugin/plugin.json\", \".codex-plugin/plugin.json\"):",
+   "parent": "B4:hooks/native-contract-gate.sh:167",
+   "query_id": null,
+   "also_found_by": [
+    "q-54b36e86"
+   ],
+   "line_hash": "a07b1107bf9b",
+   "also_reached_from": [
+    "B3:hooks/native-contract-gate.sh:146"
+   ],
+   "reason": "both manifests compared independently to the disk set; a new dir missing from either -> 'skill on disk is missing'"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:194",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:194",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "        problems.append(f\"{manifest_rel}: skill on disk is missing: {missing}\")",
+   "parent": "B4:hooks/native-contract-gate.sh:185",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:196",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:196",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "        problems.append(f\"{manifest_rel}: declared skill is absent from disk: {stale}\")",
+   "parent": "B4:hooks/native-contract-gate.sh:185",
+   "query_id": null,
+   "reason": "stale-entry path; fires on a declared dir with no SKILL.md, not on an addition"
+  },
+  {
+   "id": "B4:.claude-plugin/plugin.json:16",
+   "class": "B4",
+   "site": ".claude-plugin/plugin.json:16",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  \"skills\": [",
+   "parent": "B4:hooks/native-contract-gate.sh:185",
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/skill-registry-gate.sh:88"
+   ],
+   "reason": "new entry ./skills/<group>/<name> required by check A and check C"
+  },
+  {
+   "id": "B4:.codex-plugin/plugin.json:6",
+   "class": "B4",
+   "site": ".codex-plugin/plugin.json:6",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  \"skills\": [",
+   "parent": "B4:hooks/native-contract-gate.sh:185",
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/native-contract-gate.sh:188"
+   ],
+   "reason": "new entry required by check C only; the registry gate never reads this file"
+  },
+  {
+   "id": "B4:.agents/plugins/marketplace.json:11",
+   "class": "B4",
+   "site": ".agents/plugins/marketplace.json:11",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "        \"path\": \"./\"",
+   "parent": null,
+   "query_id": null,
+   "reason": "Codex marketplace entry points at the plugin root './' and lists no skills; check F exempts this file (hooks/native-contract-gate.sh:297-300)"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:70",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:70",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  for p in \"$PLUGIN_DIR\"/skills/afk/*/SKILL.md \"$PLUGIN_DIR\"/skills/utils/*/SKILL.md; do",
+   "parent": "B4:hooks/stop-gates.sh:125",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:88",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:88",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "for s in m.get('skills', []): print('SKILL\\t' + s)",
+   "parent": "B1:hooks/skill-registry-gate.sh:45",
+   "query_id": null,
+   "also_found_by": [
+    "q-54b36e86"
+   ],
+   "line_hash": "013588e42ce7",
+   "also_reached_from": [
+    "B4:hooks/skill-registry-gate.sh:56"
+   ],
+   "reason": "check A reads only the Claude manifest 'skills' array; entries compared by exact string (:107-115), no trailing-slash strip"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:108",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:108",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    [ -n \"${decl_skill[$s]:-}\" ] || orphans=\"$orphans$s\"$'\\n'",
+   "parent": "B4:hooks/skill-registry-gate.sh:88",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:114",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:114",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    [ -d \"$PLUGIN_DIR/${s#./}\" ] || stale=\"$stale$s\"$'\\n'",
+   "parent": "B4:hooks/skill-registry-gate.sh:88",
+   "query_id": null,
+   "reason": "stale-entry path; fires on a declared dir that no longer exists, not on an addition"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:124",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:124",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  for doc in CLAUDE.md README.md; do",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null,
+   "also_reached_from": [
+    "B3:hooks/skill-registry-gate.sh:70"
+   ],
+   "reason": "catalog docs read by check B: CLAUDE.md and README.md only (AGENTS.md not read)"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:129",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:129",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "      if [[ \"$doc_body\" != *\"/afk:$name\"* \\",
+   "parent": "B4:hooks/skill-registry-gate.sh:124",
+   "query_id": null,
+   "also_found_by": [
+    "q-c8f8020b"
+   ],
+   "line_hash": "a3afdde84003"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:149",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:149",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    hooks_src=$(grep -hvE '^[[:space:]]*#' \"$PLUGIN_DIR\"/hooks/*.sh \"$PLUGIN_DIR\"/hooks/lib/*.sh 2>/dev/null)",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null,
+   "reason": "check C reads hooks/*.sh and hooks/lib/*.sh only; a skill dir adds no hook source"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:183",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:183",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  no_language=$(grep -L 'LANGUAGE\\.md' \"$PLUGIN_DIR\"/skills/afk/*/SKILL.md \\",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null,
+   "also_found_by": [
+    "q-c8f8020b"
+   ],
+   "line_hash": "e7c14a366943",
+   "reason": "check D literal LANGUAGE.md pointer"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:194",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:194",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    adapter_drift=$(\"$_py\" \"$PLUGIN_DIR/hooks/lib/adapter_registry_check.py\" \"$PLUGIN_DIR\" 2>&1)",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null,
+   "reason": "check E walks adapters/ only; a skill dir is not an adapter"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:203",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:203",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:63",
+   "evidence": "    frontmatter_drift=$(\"$_pyf\" \"$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py\" \"$PLUGIN_DIR\" 2>&1)",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:206",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:206",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  if [ -n \"$orphans\" ] || [ -n \"$stale\" ] || [ -n \"$uncatalogued\" ] || [ -n \"$unregistered\" ] || [ -n \"$no_language\" ] || [ -n \"$adapter_drift\" ] || [ -n \"$frontmatter_drift\" ]; then",
+   "parent": "B4:hooks/skill-registry-gate.sh:70",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/lib/skill_frontmatter_check.py:82",
+   "class": "B4",
+   "site": "hooks/lib/skill_frontmatter_check.py:82",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:63; scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    elif str(name).strip() != path.parent.name:",
+   "parent": "B4:hooks/lib/skill_frontmatter_check.py:93",
+   "query_id": null,
+   "also_reached_from": [
+    "B3:hooks/lib/skill_frontmatter_check.py:93"
+   ],
+   "reason": "frontmatter name must equal the directory name"
+  },
+  {
+   "id": "B4:hooks/lib/skill_frontmatter_check.py:85",
+   "class": "B4",
+   "site": "hooks/lib/skill_frontmatter_check.py:85",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:69",
+   "evidence": "    if not str(fields.get(\"description\", \"\")).strip():",
+   "parent": "B4:hooks/lib/skill_frontmatter_check.py:93",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/lib/skill_frontmatter_check.py:93",
+   "class": "B4",
+   "site": "hooks/lib/skill_frontmatter_check.py:93",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:86",
+   "evidence": "    for skill in sorted((root / \"skills\").glob(\"*/*/SKILL.md\")):",
+   "parent": "B4:hooks/skill-registry-gate.sh:203",
+   "query_id": null
+  },
+  {
+   "id": "B12:hooks/tests/hook-smoke.sh:226",
+   "class": "B12",
+   "site": "hooks/tests/hook-smoke.sh:226",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "echo \"== native twins ==\"",
+   "parent": null,
+   "query_id": null,
+   "reason": "native-twins section compares hooks.json/.mcp.json twins only (:227-244); it never runs either gate or reads a plugin manifest"
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:63",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:63",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:63",
+   "evidence": "def test_name_must_match_the_directory(tmp_path):",
+   "parent": "B12:scripts/tests/test_skill_frontmatter.py:13",
+   "query_id": null
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:86",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:86",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:86",
+   "evidence": "def test_every_shipped_skill_frontmatter_loads():",
+   "parent": "B12:scripts/tests/test_skill_frontmatter.py:13",
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:39",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:39",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  cache_key=$(gate_cache_key native-contract \\",
+   "line_hash": "35c146465b46",
+   "parent": "B1:hooks/native-contract-gate.sh:39",
+   "query_id": "q-cb7ec672",
+   "reason": "cache key named by the wire string 'native-contract'"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:41",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:41",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  gate_cache_hit native-contract \"$cache_key\" && return 0",
+   "line_hash": "dda5ae3e4cb9",
+   "parent": "B1:hooks/native-contract-gate.sh:41",
+   "query_id": "q-cb7ec672",
+   "reason": "cache lookup keyed by the wire string 'native-contract'"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:354",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:354",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    gate_metrics_emit native-contract blocked",
+   "line_hash": "0a5031c6d301",
+   "parent": "B4:hooks/native-contract-gate.sh:194",
+   "query_id": "q-cb7ec672"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:364",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:364",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  gate_metrics_emit native-contract pass",
+   "line_hash": "3d2e0a289cfa",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-cb7ec672"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:365",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:365",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  gate_cache_store native-contract \"$cache_key\"",
+   "line_hash": "b914c39c4662",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-cb7ec672"
+  },
+  {
+   "id": "B4:hooks/precommit-gates.sh:154",
+   "class": "B4",
+   "site": "hooks/precommit-gates.sh:154",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  run_gate native-contract",
+   "line_hash": "12fba4ff225c",
+   "parent": "B1:hooks/precommit-gates.sh:154",
+   "query_id": "q-cb7ec672"
+  },
+  {
+   "id": "B4:hooks/stop-gates.sh:130",
+   "class": "B4",
+   "site": "hooks/stop-gates.sh:130",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "[ -n \"$PLUGIN_DIR\" ] && ctx_scoped \"$PLUGIN_SCOPE*\" \".agents/*\" \".codex/*\" && run_gate native-contract",
+   "line_hash": "bbd174b2775f",
+   "parent": "B1:hooks/stop-gates.sh:130",
+   "query_id": "q-cb7ec672"
+  },
+  {
+   "id": "B8:hooks/gate-cache.sh:26",
+   "class": "B8",
+   "site": "hooks/gate-cache.sh:26",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# GATE_CACHE_DISABLE=1 bypasses (every run does real work).",
+   "line_hash": "ef3b7b7a9709",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/gate-cache.sh:76",
+   "class": "B8",
+   "site": "hooks/gate-cache.sh:76",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ \"${GATE_CACHE_DISABLE:-0}\" = \"1\" ] && return 1",
+   "line_hash": "000ecde03587",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/gate-cache.sh:87",
+   "class": "B8",
+   "site": "hooks/gate-cache.sh:87",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ \"${GATE_CACHE_DISABLE:-0}\" = \"1\" ] && return 0",
+   "line_hash": "144c7cef0405",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/native-contract-gate.sh:25",
+   "class": "B8",
+   "site": "hooks/native-contract-gate.sh:25",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file",
+   "line_hash": "aa952de10a6f",
+   "parent": null,
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "header comment naming the toggle"
+  },
+  {
+   "id": "B8:hooks/native-contract-gate.sh:26",
+   "class": "B8",
+   "site": "hooks/native-contract-gate.sh:26",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.",
+   "line_hash": "9451fe57d4a4",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/native-contract-gate.sh:31",
+   "class": "B8",
+   "site": "hooks/native-contract-gate.sh:31",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ \"${NATIVE_CONTRACT_GATE_DISABLE:-0}\" = \"1\" ] && return 0",
+   "line_hash": "9f91f1063e6d",
+   "parent": null,
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "toggle =1 skips every check; variant, not changed by the addition"
+  },
+  {
+   "id": "B8:hooks/native-contract-gate.sh:32",
+   "class": "B8",
+   "site": "hooks/native-contract-gate.sh:32",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ -f .claude/hooks/.gate-disabled ] && return 0",
+   "line_hash": "40eb437dc6c5",
+   "parent": null,
+   "query_id": null,
+   "also_found_by": [
+    "q-a9462068"
+   ],
+   "reason": "second disable path: repo file .claude/hooks/.gate-disabled skips every native check; a skill addition adds no toggle"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:32",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:32",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# Exit 2 blocks the commit. Escape hatches: .claude/hooks/.gate-disabled in the",
+   "line_hash": "79af48ef5d54",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:46",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:46",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "[ -f .claude/hooks/.gate-disabled ] && exit 0",
+   "line_hash": "b2c84009e5a2",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:152",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:152",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  _native_cache_disable=${GATE_CACHE_DISABLE-}",
+   "line_hash": "89f5f0b3c13f",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:153",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:153",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  GATE_CACHE_DISABLE=1",
+   "line_hash": "25e18fad9161",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:156",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:156",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    GATE_CACHE_DISABLE=$_native_cache_disable",
+   "line_hash": "86f8168753d0",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/precommit-gates.sh:158",
+   "class": "B8",
+   "site": "hooks/precommit-gates.sh:158",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    unset GATE_CACHE_DISABLE",
+   "line_hash": "6ab1dc7038bd",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/skill-registry-gate.sh:47",
+   "class": "B8",
+   "site": "hooks/skill-registry-gate.sh:47",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# Disable: SKILL_REGISTRY_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.",
+   "line_hash": "5d99c2ea053b",
+   "parent": null,
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "header comment naming the toggle"
+  },
+  {
+   "id": "B8:hooks/skill-registry-gate.sh:52",
+   "class": "B8",
+   "site": "hooks/skill-registry-gate.sh:52",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ \"${SKILL_REGISTRY_GATE_DISABLE:-0}\" = \"1\" ] && return 0",
+   "line_hash": "6a4e48b98d9a",
+   "parent": null,
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "toggle =1 skips every registry check"
+  },
+  {
+   "id": "B8:hooks/skill-registry-gate.sh:53",
+   "class": "B8",
+   "site": "hooks/skill-registry-gate.sh:53",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  [ -f .claude/hooks/.gate-disabled ] && return 0",
+   "line_hash": "40eb437dc6c5",
+   "parent": null,
+   "query_id": null,
+   "also_found_by": [
+    "q-a9462068"
+   ],
+   "reason": "same repo-file disable path for the registry gate; a skill addition adds no toggle"
+  },
+  {
+   "id": "B8:hooks/stop-gates.sh:28",
+   "class": "B8",
+   "site": "hooks/stop-gates.sh:28",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "# Disable the whole set: .claude/hooks/.gate-disabled in the gated repo.",
+   "line_hash": "41d0565e30a4",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/stop-gates.sh:36",
+   "class": "B8",
+   "site": "hooks/stop-gates.sh:36",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "[ -f .claude/hooks/.gate-disabled ] && exit 0",
+   "line_hash": "b2c84009e5a2",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:hooks/stop-gates.sh:58",
+   "class": "B8",
+   "site": "hooks/stop-gates.sh:58",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "if [ \"${GATE_CACHE_DISABLE:-0}\" != \"1\" ] && [ -f \"$STOP_STAMP\" ]; then",
+   "line_hash": "afbeed90e5a3",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B8:skills/afk/setup/MANIFEST.md:672",
+   "class": "B8",
+   "site": "skills/afk/setup/MANIFEST.md:672",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |",
+   "line_hash": "06efe1050e85",
+   "parent": null,
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "register E-table row check C requires; a skill addition adds no env toggle"
+  },
+  {
+   "id": "B8:skills/afk/setup/MANIFEST.md:674",
+   "class": "B8",
+   "site": "skills/afk/setup/MANIFEST.md:674",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `NATIVE_CONTRACT_GATE_DISABLE` | `hooks/native-contract-gate.sh` | bypass the native plugin contract gate |",
+   "line_hash": "cb94f61c6d66",
+   "parent": "B1:skills/afk/setup/MANIFEST.md:674",
+   "query_id": "q-a9462068",
+   "also_found_by": [
+    "q-57868bfc"
+   ],
+   "reason": "register E-table row for the native gate toggle"
+  },
+  {
+   "id": "B8:skills/afk/setup/MANIFEST.md:678",
+   "class": "B8",
+   "site": "skills/afk/setup/MANIFEST.md:678",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |",
+   "line_hash": "f174bbbb5984",
+   "parent": null,
+   "query_id": "q-a9462068"
+  },
+  {
+   "id": "B11:hooks/hooks.codex.json:59",
+   "class": "B11",
+   "site": "hooks/hooks.codex.json:59",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "            \"command\": \"python \\\"${PLUGIN_ROOT}/hooks/run-hook.py\\\" plugin stop-gates.sh\",",
+   "line_hash": "09dff0359906",
+   "parent": "B11:hooks/hooks.codex.json:53",
+   "query_id": "q-2c676734",
+   "reason": "Codex twin of hooks.json:59 launching stop-gates.sh; path continues from hooks.json:59"
+  },
+  {
+   "id": "B11:hooks/hooks.json:59",
+   "class": "B11",
+   "site": "hooks/hooks.json:59",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "            \"command\": \"python \\\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\\\" plugin stop-gates.sh\",",
+   "line_hash": "faf113e468b4",
+   "parent": "B11:hooks/hooks.json:53",
+   "query_id": "q-2c676734"
+  },
+  {
+   "id": "B11:hooks/install-git-hooks.sh:4",
+   "class": "B11",
+   "site": "hooks/install-git-hooks.sh:4",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "#   pre-commit            -> precommit-gates.sh   (build-gate adapters)",
+   "line_hash": "9a873db16fbf",
+   "parent": null,
+   "query_id": "q-2c676734"
+  },
+  {
+   "id": "B11:hooks/install-git-hooks.sh:103",
+   "class": "B11",
+   "site": "hooks/install-git-hooks.sh:103",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "install_hook pre-commit           afk-precommit-gates  precommit-gates.sh  \"pre-commit code gates\"",
+   "line_hash": "045b0fb0b682",
+   "parent": null,
+   "query_id": "q-2c676734"
+  },
+  {
+   "id": "B11:hooks/hooks.codex.json:53",
+   "class": "B11",
+   "site": "hooks/hooks.codex.json:53",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "    \"Stop\": [",
+   "line_hash": "0e2289eadbe1",
+   "parent": null,
+   "query_id": "q-7a9e82ad"
+  },
+  {
+   "id": "B11:hooks/hooks.json:53",
+   "class": "B11",
+   "site": "hooks/hooks.json:53",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "    \"Stop\": [",
+   "line_hash": "0e2289eadbe1",
+   "parent": null,
+   "query_id": "q-7a9e82ad"
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:13",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:13",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:63",
+   "evidence": "import skill_frontmatter_check as fc  # noqa: E402",
+   "line_hash": "5b4a22b03e2f",
+   "parent": null,
+   "query_id": "q-86487830"
+  },
+  {
+   "id": "B12:hooks/tests/hook-smoke.sh:243",
+   "class": "B12",
+   "site": "hooks/tests/hook-smoke.sh:243",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:243",
+   "evidence": "twin hooks hooks/hooks.json hooks/hooks.codex.json",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B12:hooks/tests/hook-smoke.sh:244",
+   "class": "B12",
+   "site": "hooks/tests/hook-smoke.sh:244",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "hooks/tests/hook-smoke.sh:244",
+   "evidence": "twin mcp .mcp.json .mcp.codex.json",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B12:scripts/tests/test_lesson_filing.py:34",
+   "class": "B12",
+   "site": "scripts/tests/test_lesson_filing.py:34",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "scripts/tests/test_lesson_filing.py:34",
+   "evidence": "    (path / \".claude-plugin\" / \"plugin.json\").write_text('{\"name\":\"afk\"}\\n')",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B13:AGENTS.md:15",
+   "class": "B13",
+   "site": "AGENTS.md:15",
+   "disposition": "terminal",
+   "reason": "REFUTED by disk: names `.Codex-plugin/`; only .claude-plugin/ and .codex-plugin/ exist. The line also trips the check A harness-name rule (replay, see claims)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "Plugin: native manifests in `.Codex-plugin/` and `.codex-plugin/`, shared `.mcp.json`, skills, hooks, agents, and provider stubs. Both manifests declare the same skill directories. Install and refresh through the active harness; commands live in `README.md` and `PROVIDERS.md`.",
+   "line_hash": "d20527574910",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:CLAUDE.md:15",
+   "class": "B13",
+   "site": "CLAUDE.md:15",
+   "disposition": "terminal",
+   "reason": "accurate: check C requires both manifests to equal disk (native-contract-gate.sh:188-196)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "Plugin: native manifests in `.claude-plugin/` and `.codex-plugin/`, shared `.mcp.json`, skills, hooks, agents, and provider stubs. Both manifests declare the same skill directories. Install and refresh through the active harness; commands live in `README.md` and `PROVIDERS.md`.",
+   "line_hash": "6e5394a87a54",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:FRESHNESS.md:38",
+   "class": "B13",
+   "site": "FRESHNESS.md:38",
+   "disposition": "terminal",
+   "reason": "incomplete: names only .claude-plugin/plugin.json for a skill add; check C also requires .codex-plugin/plugin.json; FRESHNESS.md:63 names both",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `.claude-plugin/plugin.json` | plugin author | a skill or agent is added/renamed/removed; the chain's shape changes (description) |",
+   "line_hash": "41eb036b4d07",
+   "parent": null,
+   "query_id": "q-5e21cd0c",
+   "also_found_by": [
+    "q-d3a7eb8f"
+   ]
+  },
+  {
+   "id": "B13:FRESHNESS.md:41",
+   "class": "B13",
+   "site": "FRESHNESS.md:41",
+   "disposition": "irrelevant",
+   "reason": "release version row; release gate, not skill registration",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `.afk/config.yaml` (`toolkit-version`) | plugin author | a release — all three versions, this plugin's own `toolkit-version`, and the first released `CHANGELOG.md` heading change together, in one commit; ",
+   "line_hash": "9e89c4d5dce8",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:FRESHNESS.md:63",
+   "class": "B13",
+   "site": "FRESHNESS.md:63",
+   "disposition": "terminal",
+   "reason": "accurate: both manifests move together (native-contract-gate.sh:188)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `.claude-plugin/plugin.json` + `.codex-plugin/plugin.json` + `.mcp.json` | plugin author | a skill, hook registry, MCP server, or plugin identity changes — both native manifests and shared registration move together |",
+   "line_hash": "1d8e1e188205",
+   "parent": null,
+   "query_id": "q-5e21cd0c",
+   "also_found_by": [
+    "q-d3a7eb8f"
+   ]
+  },
+  {
+   "id": "B13:FRESHNESS.md:77",
+   "class": "B13",
+   "site": "FRESHNESS.md:77",
+   "disposition": "irrelevant",
+   "reason": "understand-skill format row; not skill registration",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `skills/afk/understand/SKILL.md` + `UNDERSTANDING-FORMAT.md` + `shell-template.html` | `/afk:understand` | the subject families / section model / predicates / quiz rules / **meta-header grammar** change — update the mission-control understanding parser (`skills/afk/mission-control/scripts/mc/secti",
+   "line_hash": "176e0005e067",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:PROVIDERS.md:11",
+   "class": "B13",
+   "site": "PROVIDERS.md:11",
+   "disposition": "frontier",
+   "reason": "harness loader behaviour for an unlisted skill directory is outside this repository (human decision)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `claude` | `.claude-plugin/plugin.json`, enabled by `enabledPlugins` | `hooks/lib/providers/claude.sh` | `agents/*.md`, read in place | pending 2026-09-01 | Reference harness for the shared hook subset |",
+   "line_hash": "d90df8a134cf",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:PROVIDERS.md:12",
+   "class": "B13",
+   "site": "PROVIDERS.md:12",
+   "disposition": "frontier",
+   "reason": "harness loader behaviour for an unlisted skill directory is outside this repository (human decision)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `codex` | `.codex-plugin/plugin.json`, enabled through the native marketplace | `hooks/lib/providers/codex.sh` | `providers/codex/agents/afk-afk-*.toml`, copied to `~/.codex/agents/` with `{{PLUGIN_ROOT}}` resolved | pending 2026-09-01 | Needs `features.hooks` and per-handler trust |",
+   "line_hash": "ddb759619a09",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:README.md:241",
+   "class": "B13",
+   "site": "README.md:241",
+   "disposition": "irrelevant",
+   "reason": "install section heading",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "### `.codex-plugin` harness",
+   "line_hash": "1d723f3b37b6",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:README.md:250",
+   "class": "B13",
+   "site": "README.md:250",
+   "disposition": "terminal",
+   "reason": "setup verifies the catalog plugin.json declares; live probe, not a gate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "steering fallback, and verifies the skill catalog `plugin.json` declares plus",
+   "line_hash": "b4a32b82df44",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:README.md:267",
+   "class": "B13",
+   "site": "README.md:267",
+   "disposition": "irrelevant",
+   "reason": "install config path",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "   the `.codex-plugin` harness reads `~/.codex/config.toml` ->",
+   "line_hash": "0c51f782c8a8",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:README.md:278",
+   "class": "B13",
+   "site": "README.md:278",
+   "disposition": "irrelevant",
+   "reason": "agent stub install step",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "4. Run `/afk:setup` to rewrite the `.codex-plugin` agent stubs, which hold the",
+   "line_hash": "1b1e2bd7c8c9",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:hooks/README.md:62",
+   "class": "B13",
+   "site": "hooks/README.md:62",
+   "disposition": "terminal",
+   "reason": "accurate: checks A-F match skill-registry-gate.sh:67-204; its loader-invisibility wording is harness behaviour (frontier, see PROVIDERS.md:11)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `skill-registry-gate.sh` | dispatched on Stop when a path under the plugin dir changed — in the worktree **or** in this branch's commits | a plugin registry drifted from disk — (A) a `skills/afk/*/SKILL.md`, `skills/utils/*/SKILL.md`, or `agents/*.md` isn't listed in `.claude-plugin/plugin.json`'s",
+   "line_hash": "f87053fc02d4",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:hooks/README.md:75",
+   "class": "B13",
+   "site": "hooks/README.md:75",
+   "disposition": "irrelevant",
+   "reason": "release gate versions; not skill registration",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `release-gate.sh` | on demand + `.github/workflows/release-gate.yml` (tag push, and any PR touching a manifest or the changelog) | the tag's version disagrees with `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, the marketplace entry, or CHANGELOG.md's first released heading | <1s |",
+   "line_hash": "9562a9bac4af",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:providers/CONFORMANCE.md:17",
+   "class": "B13",
+   "site": "providers/CONFORMANCE.md:17",
+   "disposition": "terminal",
+   "reason": "live probe record; consistent",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| Native manifest loads | pass 2026-09-01 | pass 2026-09-01 | Second harness: remove + add refreshed the cache, which then carried `.codex-plugin/plugin.json` with no unknown-field warning |",
+   "line_hash": "f8e97fc7632c",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:skills/afk/setup/AUDIT.md:13",
+   "class": "B13",
+   "site": "skills/afk/setup/AUDIT.md:13",
+   "disposition": "terminal",
+   "reason": "accurate for check C; its glob skills/*/*/SKILL.md and the gate glob skills/**/SKILL.md (native-contract-gate.sh:146) agree today: all 45 SKILL.md files sit at depth 4 under afk/ or utils/",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "`.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` (`skills` arrays) ↔ skill dirs on disk",
+   "line_hash": "ece1859147c5",
+   "parent": null,
+   "query_id": "q-5e21cd0c",
+   "also_found_by": [
+    "q-d3a7eb8f"
+   ]
+  },
+  {
+   "id": "B13:skills/afk/setup/AUDIT.md:16",
+   "class": "B13",
+   "site": "skills/afk/setup/AUDIT.md:16",
+   "disposition": "terminal",
+   "reason": "audit routing; judgment, not a gate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "surface missing it — or `plugin.json` if the dir itself is the stray). Also:",
+   "line_hash": "7bddc2df57f2",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:577",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:577",
+   "disposition": "terminal",
+   "reason": "O7 live catalog probe counts the manifest; not a gate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a",
+   "line_hash": "b972b8ebf273",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:672",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:672",
+   "disposition": "terminal",
+   "reason": "incomplete: describes the registry gate by three checks; the code runs six A-F (skill-registry-gate.sh:5-35,206)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `SKILL_REGISTRY_GATE_DISABLE` | `hooks/skill-registry-gate.sh` | disable the registry gate (plugin.json membership + skill catalog + env-toggle register) |",
+   "line_hash": "06efe1050e85",
+   "parent": null,
+   "query_id": "q-5e21cd0c"
+  },
+  {
+   "id": "B13:AGENTS.md:48",
+   "class": "B13",
+   "site": "AGENTS.md:48",
+   "disposition": "terminal",
+   "reason": "accurate: check D at skill-registry-gate.sh:183-185; untracked twin",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **`LANGUAGE.md`** — the one home for how the plugin writes (which words, whose terms, how much), binding on every producing surface, current and future. Every `SKILL.md` and agent definition opens with a one-line pointer to it (enforced by `hooks/skill-registry-gate.sh` check D) — a new skill with",
+   "line_hash": "44620074030f",
+   "parent": null,
+   "query_id": "q-01f87feb"
+  },
+  {
+   "id": "B13:CLAUDE.md:48",
+   "class": "B13",
+   "site": "CLAUDE.md:48",
+   "disposition": "terminal",
+   "reason": "accurate: check D at skill-registry-gate.sh:183-185",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **`LANGUAGE.md`** — the one home for how the plugin writes (which words, whose terms, how much), binding on every producing surface, current and future. Every `SKILL.md` and agent definition opens with a one-line pointer to it (enforced by `hooks/skill-registry-gate.sh` check D) — a new skill with",
+   "line_hash": "44620074030f",
+   "parent": null,
+   "query_id": "q-01f87feb",
+   "also_found_by": [
+    "q-d3a7eb8f"
+   ]
+  },
+  {
+   "id": "B13:FRESHNESS.md:42",
+   "class": "B13",
+   "site": "FRESHNESS.md:42",
+   "disposition": "terminal",
+   "reason": "accurate: a README.md mention is required by check B (skill-registry-gate.sh:124-134)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `README.md` | plugin author | a skill is added/renamed/removed (§10); install/bootstrap flow changes (§4); the chain map changes (§3); a contract/lockstep rule changes (§11) |",
+   "line_hash": "1c525c438877",
+   "parent": null,
+   "query_id": "q-01f87feb"
+  },
+  {
+   "id": "B13:FRESHNESS.md:43",
+   "class": "B13",
+   "site": "FRESHNESS.md:43",
+   "disposition": "terminal",
+   "reason": "accurate: a CLAUDE.md mention is required by check B (skill-registry-gate.sh:124-134)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `CLAUDE.md` | plugin author | doctrine changes (DRY, delegation, followability, freshness); a skill is added/removed; a lockstep pair changes; the Reference list's targets move; renaming the \"How to write these skill files\" section also updates the pointer any consuming repository's own `CLAUDE.md",
+   "line_hash": "f0a661fc99da",
+   "parent": null,
+   "query_id": "q-01f87feb"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:580",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:580",
+   "disposition": "terminal",
+   "reason": "prose note; not a gate",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  a number in prose goes stale the first time a skill is added.",
+   "line_hash": "59e8e3dfabd5",
+   "parent": null,
+   "query_id": "q-01f87feb"
+  },
+  {
+   "id": "B13:CLAUDE.md:83",
+   "class": "B13",
+   "site": "CLAUDE.md:83",
+   "disposition": "terminal",
+   "reason": "skill catalog table; a new skill with no /afk:<name>, `<name>` or skills/ path mention in CLAUDE.md blocks skill-registry check B (skill-registry-gate.sh:124-134)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "read: | Skill | Purpose | Path |",
+   "parent": null,
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/skill-registry-gate.sh:129"
+   ]
+  },
+  {
+   "id": "B13:README.md:637",
+   "class": "B13",
+   "site": "README.md:637",
+   "disposition": "terminal",
+   "reason": "section 10 skill reference; the same check B requirement holds for README.md (skill-registry-gate.sh:124-134)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "read: ## 10. Skill reference",
+   "parent": null,
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/skill-registry-gate.sh:129"
+   ]
+  },
+  {
+   "id": "B13:AGENTS.md:83",
+   "class": "B13",
+   "site": "AGENTS.md:83",
+   "disposition": "terminal",
+   "reason": "untracked twin catalog; no gate reads it as a catalog (skill-registry-gate.sh:124 loops CLAUDE.md and README.md only; zero AGENTS.md hits in hooks/ and scripts/)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "read: | Skill | Purpose | Path |",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B13:hooks/skill-registry-gate.sh:3",
+   "class": "B13",
+   "site": "hooks/skill-registry-gate.sh:3",
+   "disposition": "terminal",
+   "reason": "stale header: says three checks; the script runs six A-F (:5-35, :206)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "read: # machine-checkable registries must match disk. Three checks:",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B13:hooks/skill-registry-gate.sh:7",
+   "class": "B13",
+   "site": "hooks/skill-registry-gate.sh:7",
+   "disposition": "frontier",
+   "reason": "harness loader behaviour for an unlisted skill directory is outside this repository (human decision)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "read: #    or the plugin loader never registers it and it's invisible in-session",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B13:hooks/native-contract-gate.sh:11",
+   "class": "B13",
+   "site": "hooks/native-contract-gate.sh:11",
+   "disposition": "terminal",
+   "reason": "accurate header for check C (:165-196)",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "read: #   C. skills on disk equal BOTH native manifests;",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:45",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:45",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:45: dir=\"$(afk_adapter_root)/adapters/$family/$kind\" -- afk_adapter_dir builds adapters/<family>/<kind> from AFK_PLUGIN_ROOT (:23-27) and the kind from the AFK_CFG_* export (:29-35, via hooks/lib/config.sh:29 -> scripts/afk-config.py export-shell); the only other reads in the file are <dir>/adapter.json (:58-60, :70-71, :94) and the entry under <dir>; no path reaches skills/ or a plugin manifest",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:51",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:51",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:51: printf '%s\\n' \"$dir\" -- path ends: afk_adapter_dir returns the adapters/<family>/<kind> directory to its caller; nothing under skills/ is named",
+   "parent": "B3:hooks/lib/adapter.sh:45",
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:115",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:115",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:115: \"$py\" \"$dir/$entry\" \"$@\" ;; -- path ends: a cli kind's adapter.json runner.entry under adapters/<family>/<kind> runs as python; the adapter owns what it does next",
+   "parent": "B3:hooks/lib/adapter.sh:45",
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:116",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:116",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:116: *) bash \"$dir/$entry\" \"$@\" ;; -- path ends: any non-.py entry under adapters/<family>/<kind> runs with bash",
+   "parent": "B3:hooks/lib/adapter.sh:45",
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:130",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:130",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:130: local dir=\"$(afk_adapter_root)/adapters/build-gate/$1\" -- build-gate dispatch builds adapters/build-gate/<kind> from the build-gates list (:159, :184 via hooks/lib/config.sh:45-57); no skills/ path",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/lib/adapter.sh:146",
+   "class": "B3",
+   "site": "hooks/lib/adapter.sh:146",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/lib/adapter.sh:146: . \"$dir/gates.sh\" || return 2 -- path ends: sources adapters/build-gate/<kind>/gates.sh and calls afk_bg_<kind>_discover/_run (:157-158, :167-170); the last file this script loads",
+   "parent": "B3:hooks/lib/adapter.sh:130",
+   "query_id": null
+  },
+  {
+   "id": "B3:scripts/tracker_api.py:39",
+   "class": "B3",
+   "site": "scripts/tracker_api.py:39",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/tracker_api.py:39: path = PLUGIN_ROOT / \"adapters\" / \"tracker\" / kind / \"api.py\" -- path is PLUGIN_ROOT/adapters/tracker/<kind>/api.py, kind from scripts/afk-config.py load() of .afk/config.yaml (:31-33); those are the file's only two reads; no skill-tree or manifest read",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B3:scripts/tracker_api.py:43",
+   "class": "B3",
+   "site": "scripts/tracker_api.py:43",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/tracker_api.py:43: module = _load_module(path, \"afk_tracker_api\") -- path ends: execs adapters/tracker/<kind>/api.py and returns the module (:50) after checking the required names (:44-49)",
+   "parent": "B3:scripts/tracker_api.py:39",
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/native-contract-gate.sh:80",
+   "class": "B3",
+   "site": "hooks/native-contract-gate.sh:80",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/native-contract-gate.sh:80: path for path in sorted(plugin.rglob(\"*.md\")) -- check A rglob over every *.md under the plugin: a new skill's SKILL.md and siblings are scanned for harness vocabulary (rules :104-110) without being named; a hit fails the gate unless hooks/native-contract-allow.txt carries a line entry",
+   "parent": null,
+   "query_id": null,
+   "also_reached_from": [
+    "B4:hooks/native-contract-gate.sh:35"
+   ],
+   "reason": "check A scans every plugin *.md, the new SKILL.md and siblings included, for provider vocabulary; exceptions via hooks/native-contract-allow.txt"
+  },
+  {
+   "id": "B3:hooks/native-contract-gate.sh:146",
+   "class": "B3",
+   "site": "hooks/native-contract-gate.sh:146",
+   "disposition": "traced",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "skill_files = sorted(plugin.glob(\"skills/**/SKILL.md\"))",
+   "parent": null,
+   "query_id": null,
+   "also_found_by": [
+    "q-7187f60e"
+   ],
+   "line_hash": "f08cf826d637",
+   "also_reached_from": [
+    "B4:hooks/native-contract-gate.sh:35"
+   ]
+  },
+  {
+   "id": "B5:hooks/native-contract-gate.sh:181",
+   "class": "B5",
+   "site": "hooks/native-contract-gate.sh:181",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/native-contract-gate.sh:181: values = payload.get(\"skills\") -- manifest codec reads only the top-level `skills` key; a non-list or non-string entry fails 'skills must be an array of paths' (:182-184)",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B5:hooks/native-contract-gate.sh:185",
+   "class": "B5",
+   "site": "hooks/native-contract-gate.sh:185",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "hooks/native-contract-gate.sh:185: return {x.rstrip(\"/\") for x in values} -- serialized shape: set of './skills/<group>/<name>' strings, trailing '/' stripped, compared by exact string to the disk set (:166-168, :193-196); any other spelling (no './', backslash) reports both 'declared skill is absent from disk' and 'skill on disk is missing'",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B5:scripts/afk-config.py:3",
+   "class": "B5",
+   "site": "scripts/afk-config.py:3",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/afk-config.py:3: Skills and bash hooks must never interpret the configuration file themselves — -- codec of .afk/config.yaml only; the gate reaches it solely through hooks/lib/config.sh at hooks/native-contract-gate.sh:378 (standalone run); it carries no skill list; its file reads end at :353, :804 and :1061",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B5:scripts/afk-config.py:353",
+   "class": "B5",
+   "site": "scripts/afk-config.py:353",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/afk-config.py:353: document = parse(path.read_text(encoding=\"utf-8\"), str(path)) -- path ends: parses each configuration layer ~/.afk/config.yaml, <root>/.afk/config.yaml, <root>/.afk/config.local.yaml, $AFK_CONFIG (:326-345) and merges them into the effective dict",
+   "parent": "B5:scripts/afk-config.py:3",
+   "query_id": null
+  },
+  {
+   "id": "B5:scripts/afk-config.py:804",
+   "class": "B5",
+   "site": "scripts/afk-config.py:804",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/afk-config.py:804: poms = sorted(p.name for p in root.glob(\"*pom.xml\")) -- path ends: init-time detection globs <root>/*pom.xml, and probes pom.xml, mvnw, mvnw.cmd, package.json (:799-811) to name build gates; no skills/ or plugin manifest path",
+   "parent": "B5:scripts/afk-config.py:3",
+   "query_id": null
+  },
+  {
+   "id": "B5:scripts/afk-config.py:1061",
+   "class": "B5",
+   "site": "scripts/afk-config.py:1061",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "scripts/afk-config.py:1061: text = path.read_text(encoding=\"utf-8\") -- path ends: `validate FILE` reads the one configuration file its caller names and validates it (:1072-1082)",
+   "parent": "B5:scripts/afk-config.py:3",
+   "query_id": null
+  },
+  {
+   "id": "B6:CLAUDE.md:11",
+   "class": "B6",
+   "site": "CLAUDE.md:11",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CLAUDE.md:11: No package build step. Edit the shared source, run the hook tests and gates, then refresh the enabled plugin per `PROVIDERS.md`. -- no build step, so no generated output exists; both manifests are hand-edited sources and a new skill dir needs a hand edit in each",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B6:CLAUDE.md:37",
+   "class": "B6",
+   "site": "CLAUDE.md:37",
+   "disposition": "irrelevant",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CLAUDE.md:37: - Do not add generators, mirrors, or generated-and-committed files. -- no generated-and-committed files; check F (hooks/native-contract-gate.sh:286-302) refuses tracked .agents/ or .codex/ trees except .agents/plugins/marketplace.json",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B7:CLAUDE.md:15",
+   "class": "B7",
+   "site": "CLAUDE.md:15",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CLAUDE.md:15: Plugin: native manifests in `.claude-plugin/` and `.codex-plugin/`, shared `.mcp.json`, skills, hooks, agents, and provider stubs. Both manifests declare the same skill directories. Install and refresh through the active harness; commands live in `README.md` and `PROVIDERS.md`. -- the two native manifests are the skill-membership aggregator; the line names no skill, so it stays true once a new dir is added to both",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B7:.claude-plugin/plugin.json:16",
+   "class": "B7",
+   "site": ".claude-plugin/plugin.json:16",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": ".claude-plugin/plugin.json:16: \"skills\": [ -- aggregator list read by check C (hooks/native-contract-gate.sh:188); a new skill dir missing here fails 'skill on disk is missing'",
+   "parent": "B7:CLAUDE.md:15",
+   "query_id": null
+  },
+  {
+   "id": "B7:.codex-plugin/plugin.json:6",
+   "class": "B7",
+   "site": ".codex-plugin/plugin.json:6",
+   "disposition": "terminal",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": ".codex-plugin/plugin.json:6: \"skills\": [ -- second aggregator list, checked independently by the same loop (hooks/native-contract-gate.sh:188); must carry the same entry",
+   "parent": "B7:CLAUDE.md:15",
+   "query_id": null
+  },
+  {
+   "id": "B10:mcp-servers/tracker/server.py:64",
+   "class": "B10",
+   "site": "mcp-servers/tracker/server.py:64",
+   "disposition": "traced",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "mcp-servers/tracker/server.py:64: api = PLUGIN_ROOT / \"adapters\" / \"tracker\" / str(kind) / \"api.py\" -- loads adapters/tracker/<kind>/api.py, kind from scripts/afk-config.py load() (:62-63), plugin root from argv[1] or AFK_PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT/PLUGIN_ROOT (:37-42, never searched); these are its only file reads; registers the nine tracker tools (:81-152); no UI or client caller reaches the gate, manifest_skills or the skill tree",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B10:mcp-servers/tracker/server.py:69",
+   "class": "B10",
+   "site": "mcp-servers/tracker/server.py:69",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "mcp-servers/tracker/server.py:69: return str(kind), _load(api, \"afk_tracker_api\") -- path ends: execs the configured api.py once at start-up and keeps it as API (:72)",
+   "parent": "B10:mcp-servers/tracker/server.py:64",
+   "query_id": null
+  },
+  {
+   "id": "B10:mcp-servers/tracker/server.py:78",
+   "class": "B10",
+   "site": "mcp-servers/tracker/server.py:78",
+   "disposition": "terminal",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "mcp-servers/tracker/server.py:78: return API.call(operation, {k: v for k, v in payload.items() if v not in (None, \"\")}) -- path ends: every one of the nine tools forwards to API.call(operation, payload); the server itself opens no further file",
+   "parent": "B10:mcp-servers/tracker/server.py:64",
+   "query_id": null
+  },
+  {
+   "id": "B3:hooks/README.md:62",
+   "class": "B3",
+   "site": "hooks/README.md:62",
+   "disposition": "irrelevant",
+   "reason": "gate-table prose row describing checks A-F; a new skill dir changes no word of it; doc class B13",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "| `skill-registry-gate.sh` | dispatched on Stop when a path under the plugin dir changed — in the worktree **or** in this branch's commits | a plugin registry drifted from disk — (A) a `skills/afk/*/SKILL.md`, `skills/utils/*/SKILL.md`, or `agents/*.md` isn't listed in `.claude-plugin/plugin.json`'s `skills`/`agents` array (invisible to the plugin loader), or an array entry points at a dir that no longer exists; (B) a skill name has no `/afk:<name>` / `` `<name>` `` / path mention in the plugin's `CLAUDE.md` + `README.md` (uncatalogued = invisible to an agent reading the harness); (C) an env var read by `hooks/*.sh` but assigned nowhere in `hooks/` is absent from the setup register's E-table (`skills/afk/setup/MANIFEST.md`); (D) a `SKILL.md` / `agents/*.md` doesn't name `LANGUAGE.md` (the writing doctrine's one home — a file without the pointer runs blind to it); (E) an adapter kind is described in some of its four places but not all; (F) a `SKILL.md` frontmatter doesn't load as YAML or doesn't name its own directory — a harness that cannot parse it drops the skill in silence, which hid `/afk:diagnose` for nine releases | 9–40s (a Python parse plus several whole-tree reads; the spawns dominate) |",
+   "line_hash": "f87053fc02d4",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:hooks/lib/skill_frontmatter_check.py:93",
+   "class": "B3",
+   "site": "hooks/lib/skill_frontmatter_check.py:93",
+   "disposition": "traced",
+   "reason": "check F globs skills/*/*/SKILL.md; a new skill enters and fails unless frontmatter loads as YAML, has name == its dir and a description (:79-86)",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    for skill in sorted((root / \"skills\").glob(\"*/*/SKILL.md\")):",
+   "line_hash": "21a3397ad63a",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:hooks/skill-registry-gate.sh:70",
+   "class": "B3",
+   "site": "hooks/skill-registry-gate.sh:70",
+   "disposition": "traced",
+   "reason": "check A/B disk set globs only skills/afk/*/SKILL.md and skills/utils/*/SKILL.md; a skill under another group dir escapes checks A, B",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  for p in \"$PLUGIN_DIR\"/skills/afk/*/SKILL.md \"$PLUGIN_DIR\"/skills/utils/*/SKILL.md; do",
+   "line_hash": "08d2c250b1b4",
+   "parent": "B1:hooks/stop-gates.sh:125",
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:hooks/skill-registry-gate.sh:183",
+   "class": "B3",
+   "site": "hooks/skill-registry-gate.sh:183",
+   "disposition": "traced",
+   "reason": "check D: grep -L LANGUAGE.md over skills/afk/*/SKILL.md, skills/utils/*/SKILL.md, agents/*.md; a new SKILL.md without the pointer blocks",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  no_language=$(grep -L 'LANGUAGE\\.md' \"$PLUGIN_DIR\"/skills/afk/*/SKILL.md \\",
+   "line_hash": "e7c14a366943",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:hooks/skill-registry-gate.sh:184",
+   "class": "B3",
+   "site": "hooks/skill-registry-gate.sh:184",
+   "disposition": "terminal",
+   "reason": "continuation of the check D file list (:183)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    \"$PLUGIN_DIR\"/skills/utils/*/SKILL.md \"$PLUGIN_DIR\"/agents/*.md 2>/dev/null \\",
+   "line_hash": "e3381f512051",
+   "parent": "B3:hooks/skill-registry-gate.sh:183",
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:scripts/tests/test_skill_frontmatter.py:90",
+   "class": "B3",
+   "site": "scripts/tests/test_skill_frontmatter.py:90",
+   "disposition": "terminal",
+   "reason": "live pin test_every_shipped_skill_frontmatter_loads scans the shipped tree; goes red on a bad new frontmatter",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    for skill in sorted((root / \"skills\").glob(\"*/*/SKILL.md\")):",
+   "line_hash": "21a3397ad63a",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:skills/afk/setup/AUDIT.md:14",
+   "class": "B3",
+   "site": "skills/afk/setup/AUDIT.md:14",
+   "disposition": "terminal",
+   "reason": "/afk:setup audit check 1 enumerates skills/*/*/SKILL.md against both manifests, README.md section 10 and CLAUDE.md 'The skills'; agent-run, not a gate",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "(`skills/*/*/SKILL.md`) ↔ `README.md` §10 skill reference ↔ `CLAUDE.md`",
+   "line_hash": "8bbd3948fa9c",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B3:skills/afk/setup/MANIFEST.md:522",
+   "class": "B3",
+   "site": "skills/afk/setup/MANIFEST.md:522",
+   "disposition": "terminal",
+   "reason": "register O3 probe hashes every skills/*/*/SKILL.md against the installed second-harness cache; a new skill makes the cache stale until remove + add (inferred from the probe text)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  manifests, `hooks/hooks.codex.json`, and every `skills/*/*/SKILL.md` hash.",
+   "line_hash": "6713ff68ed15",
+   "parent": null,
+   "query_id": "q-7187f60e"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:35",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:35",
+   "disposition": "traced",
+   "reason": "gate runs only when .claude-plugin/plugin.json exists; addition changes nothing here",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  local MANIFEST=\"$PLUGIN_DIR/.claude-plugin/plugin.json\"",
+   "line_hash": "6460280b6665",
+   "parent": "B1:hooks/precommit-gates.sh:142",
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:181",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:181",
+   "disposition": "traced",
+   "reason": "reads the 'skills' key; must stay an array of strings",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    values = payload.get(\"skills\")",
+   "line_hash": "8781c7a4ba21",
+   "parent": "B4:hooks/native-contract-gate.sh:188",
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:11",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:11",
+   "disposition": "irrelevant",
+   "reason": "comment; release gate reads version only",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "#     == .claude-plugin/plugin.json      \"version\"",
+   "line_hash": "6a0ab6804a64",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:12",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:12",
+   "disposition": "irrelevant",
+   "reason": "comment; release gate reads version only",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "#     == .codex-plugin/plugin.json       \"version\"",
+   "line_hash": "fed2b4a51a11",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:77",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:77",
+   "disposition": "irrelevant",
+   "reason": "reads 'version' only, never 'skills'",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CLAUDE_V=$(json_version \"$ROOT/.claude-plugin/plugin.json\" version)",
+   "line_hash": "13d8d550c85c",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:78",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:78",
+   "disposition": "irrelevant",
+   "reason": "reads 'version' only, never 'skills'",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "CODEX_V=$(json_version \"$ROOT/.codex-plugin/plugin.json\" version)",
+   "line_hash": "5c3cf7fc68ae",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:79",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:79",
+   "disposition": "irrelevant",
+   "reason": "reads 'name' only",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "PLUGIN_NAME=$(\"$PY\" -c 'import json,sys;print(json.load(open(sys.argv[1],encoding=\"utf-8\")).get(\"name\",\"\"),end=\"\")' \"$ROOT/.claude-plugin/plugin.json\" 2>/dev/null)",
+   "line_hash": "5cc3e1804c21",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:92",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:92",
+   "disposition": "irrelevant",
+   "reason": "version comparison only",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "check \".claude-plugin/plugin.json\" \"$CLAUDE_V\"",
+   "line_hash": "bb7f2142ed3b",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/release-gate.sh:93",
+   "class": "B4",
+   "site": "hooks/release-gate.sh:93",
+   "disposition": "irrelevant",
+   "reason": "version comparison only",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "check \".codex-plugin/plugin.json\" \"$CODEX_V\"",
+   "line_hash": "8fbde0156123",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:6",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:6",
+   "disposition": "irrelevant",
+   "reason": "header comment of check A",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "#    (and every agent under agents/) is listed in .claude-plugin/plugin.json,",
+   "line_hash": "20bf95c2be06",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/skill-registry-gate.sh:56",
+   "class": "B4",
+   "site": "hooks/skill-registry-gate.sh:56",
+   "disposition": "traced",
+   "reason": "gate runs only when the Claude manifest exists",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  local MANIFEST=\"$PLUGIN_DIR/.claude-plugin/plugin.json\"",
+   "line_hash": "6460280b6665",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B4:hooks/update-notice.sh:46",
+   "class": "B4",
+   "site": "hooks/update-notice.sh:46",
+   "disposition": "irrelevant",
+   "reason": "reads version for the update notice",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  \"$ROOT/.claude-plugin/plugin.json\" 2>/dev/null) || exit 0",
+   "line_hash": "d5e2b59576b9",
+   "parent": null,
+   "query_id": "q-54b36e86"
+  },
+  {
+   "id": "B12:scripts/tests/test_lesson_filing.py:109",
+   "class": "B12",
+   "site": "scripts/tests/test_lesson_filing.py:109",
+   "disposition": "irrelevant",
+   "reason": "a lesson --target string, not a skill scan",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "    lid = sh(APPEND, \"opened\", \"--class\", \"missing-instruction\", \"--target\", \"skills/afk/x/SKILL.md\",",
+   "line_hash": "f5ba18b444b8",
+   "parent": null,
+   "query_id": "q-c0a9aba0"
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:27",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:27",
+   "disposition": "terminal",
+   "reason": "fixture writer in tmp_path for check F unit tests; tree-independent",
+   "impact_verdict": "unchanged",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    p = d / \"SKILL.md\"",
+   "line_hash": "1f1fe6410b79",
+   "parent": null,
+   "query_id": "q-c0a9aba0"
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:90",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:90",
+   "disposition": "terminal",
+   "reason": "the only test pinning a skill-addition rule (check F); no test in scripts/tests or hooks/tests names skill-registry or native-contract",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    for skill in sorted((root / \"skills\").glob(\"*/*/SKILL.md\")):",
+   "line_hash": "21a3397ad63a",
+   "parent": null,
+   "query_id": "q-c0a9aba0"
+  },
+  {
+   "id": "B13:skills/afk/setup/MANIFEST.md:576",
+   "class": "B13",
+   "site": "skills/afk/setup/MANIFEST.md:576",
+   "disposition": "terminal",
+   "reason": "O7 probe counts the manifest, not a number in prose",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "- **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named",
+   "line_hash": "b19d250d3195",
+   "parent": null,
+   "query_id": "q-d3a7eb8f"
+  },
+  {
+   "id": "B1:hooks/stop-gates.sh:108",
+   "class": "B1",
+   "site": "hooks/stop-gates.sh:108",
+   "disposition": "traced",
+   "reason": "wiring gate runs on every Stop, unscoped; new non-SKILL.md files of the skill dir are candidates",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "run_gate wiring",
+   "line_hash": "b9d5a0da37e4",
+   "parent": null,
+   "query_id": "q-11c727ba"
+  },
+  {
+   "id": "B1:hooks/stop-gates.sh:125",
+   "class": "B1",
+   "site": "hooks/stop-gates.sh:125",
+   "disposition": "traced",
+   "reason": "registry gate dispatched on Stop only, when a plugin-scope path changed",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "[ -n \"$PLUGIN_DIR\" ] && ctx_scoped \"$PLUGIN_SCOPE*\" && run_gate skill-registry",
+   "line_hash": "075e5f40bfb4",
+   "parent": null,
+   "query_id": "q-11c727ba"
+  },
+  {
+   "id": "B1:hooks/stop-gates.sh:133",
+   "class": "B1",
+   "site": "hooks/stop-gates.sh:133",
+   "disposition": "traced",
+   "reason": "genericity gate dispatched when plugin *.md changed; checks added lines of the new skill prose",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "[ -n \"$PLUGIN_DIR\" ] && ctx_scoped \"$PLUGIN_SCOPE*.md\" && run_gate genericity",
+   "line_hash": "39f555a68139",
+   "parent": null,
+   "query_id": "q-11c727ba"
+  },
+  {
+   "id": "B1:hooks/wiring-gate.sh:34",
+   "class": "B1",
+   "site": "hooks/wiring-gate.sh:34",
+   "disposition": "terminal",
+   "reason": "SKILL.md exempt by name; a sibling .md or script in the new skill dir with no referrer and no IOU is an orphan (exit 2)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "    README*|CLAUDE.md|GLOSSARY.md|SKILL.md|MEMORY.md|pom.xml|package.json|package-lock.json|\\",
+   "line_hash": "cc2d49b27982",
+   "parent": "B1:hooks/stop-gates.sh:108",
+   "query_id": "q-11c727ba"
+  },
+  {
+   "id": "B4:.agents/plugins/marketplace.json:6",
+   "class": "B4",
+   "site": ".agents/plugins/marketplace.json:6",
+   "disposition": "terminal",
+   "reason": "plugin entry with source path ./ only; no skills list",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  \"plugins\": [",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B4:.claude-plugin/marketplace.json:7",
+   "class": "B4",
+   "site": ".claude-plugin/marketplace.json:7",
+   "disposition": "terminal",
+   "reason": "name, source, version, description only; no skills list",
+   "impact_verdict": "unchanged",
+   "pinned_by": "unguarded",
+   "evidence": "  \"plugins\": [",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B4:hooks/native-contract-gate.sh:139",
+   "class": "B4",
+   "site": "hooks/native-contract-gate.sh:139",
+   "disposition": "terminal",
+   "reason": "new SKILL.md column-zero keys limited to this set (:139-145)",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "allowed_frontmatter = {",
+   "parent": "B3:hooks/native-contract-gate.sh:146",
+   "query_id": null
+  },
+  {
+   "id": "B1:hooks/genericity-gate.sh:54",
+   "class": "B1",
+   "site": "hooks/genericity-gate.sh:54",
+   "disposition": "terminal",
+   "reason": "added lines of the new skill's .md files checked for ticket ids and product symbols",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "gate_genericity() {",
+   "parent": "B1:hooks/stop-gates.sh:133",
+   "query_id": null
+  },
+  {
+   "id": "B1:hooks/precommit-gates.sh:142",
+   "class": "B1",
+   "site": "hooks/precommit-gates.sh:142",
+   "disposition": "traced",
+   "reason": "commit-time dispatch runs the native contract gate only; no skill-registry dispatch in precommit-gates.sh",
+   "impact_verdict": "breaks",
+   "pinned_by": "unguarded",
+   "evidence": "  \"$PLUGIN_SCOPE*\" \".agents/*\" \".codex/*\" && native_scope=1",
+   "parent": null,
+   "query_id": null
+  },
+  {
+   "id": "B12:scripts/tests/test_skill_frontmatter.py:87",
+   "class": "B12",
+   "site": "scripts/tests/test_skill_frontmatter.py:87",
+   "disposition": "terminal",
+   "reason": "live pin body :88-92 globs skills/*/*/SKILL.md through fc.check (check F) only; names neither gate",
+   "impact_verdict": "breaks",
+   "pinned_by": "scripts/tests/test_skill_frontmatter.py:87",
+   "evidence": "    \"\"\"Live pin: the tree as shipped must have nothing to report.\"\"\"",
+   "parent": null,
+   "query_id": null
+  }
+ ],
+ "queries": [
+  {
+   "id": "q-e136eae8",
+   "command": "git grep -n -I -E -e gate_native_contract -e '\"gate_native_contract\"' -e manifest_skills -e '\"manifest_skills\"'",
+   "universe": "tracked text files, binary excluded",
+   "count": 4,
+   "lines": 4,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-5b7e284d",
+   "command": "git grep -n -I -E -i --untracked -e gate_native_contract -e '\"gate_native_contract\"' -e manifest_skills -e '\"manifest_skills\"'",
+   "universe": "case-blind pass over tracked and untracked files, not ignored",
+   "count": 0,
+   "lines": 4,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-499aa404",
+   "command": "git grep -n -I -E --untracked -e '(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_])'",
+   "universe": "tracked and untracked text files, not ignored",
+   "count": 72,
+   "lines": 46,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-9eea6b91",
+   "command": "git grep -n -I -E -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])gate_native_contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])manifest_skills($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_]))' -e '\\(\\s*(gate_native_contract|manifest_skills|native\\-contract|native\\-contract\\-gate\\.sh|native\\-contract|native\\-contract\\-gate\\.sh)\\s+\\w'",
+   "universe": "tracked files",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-226180cb",
+   "command": "git grep -n -I -E -i -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])gate_native_contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])manifest_skills($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract($|[^[:alnum:]_])|(^|[^[:alnum:]_])native\\-contract\\-gate\\.sh($|[^[:alnum:]_]))' -e '\\(\\s*(gate_native_contract|manifest_skills|native\\-contract|native\\-contract\\-gate\\.sh|native\\-contract|native\\-contract\\-gate\\.sh)\\s+\\w'",
+   "universe": "tracked files, case-blind",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-50c34f7d",
+   "command": "git grep -n -I -E -e '[\\\"'\"'\"'](gate_native_contract|manifest_skills|native\\-contract|native\\-contract\\-gate\\.sh|native\\-contract|native\\-contract\\-gate\\.sh)[\\\"'\"'\"']'",
+   "universe": "tracked files",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-0701a7a2",
+   "command": "git grep -n -I -E -i -e '[\\\"'\"'\"'](gate_native_contract|manifest_skills|native\\-contract|native\\-contract\\-gate\\.sh|native\\-contract|native\\-contract\\-gate\\.sh)[\\\"'\"'\"']'",
+   "universe": "tracked files, case-blind",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-bbc1de29",
+   "command": "git grep -n -I -E -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- AGENTS.md CHANGELOG.md CLAUDE.md FRESHNESS.md PROVIDERS.md README.md docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.round.json hooks/README.md hooks/gate-cache.sh hooks/gate-context.sh hooks/native-contract-allow.txt hooks/native-contract-gate.sh hooks/precommit-gates.sh hooks/skill-registry-gate.sh hooks/stop-gates.sh providers/CONFORMANCE.md providers/PARITY.md skills/afk/claude-md/SKILL.md skills/afk/setup/AUDIT.md skills/afk/setup/MANIFEST.md skills/utils/writing-for-agents/SKILL.md",
+   "universe": "files that name the subject",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-022195bf",
+   "command": "git grep -n -I -E -i -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- AGENTS.md CHANGELOG.md CLAUDE.md FRESHNESS.md PROVIDERS.md README.md docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.round.json hooks/README.md hooks/gate-cache.sh hooks/gate-context.sh hooks/native-contract-allow.txt hooks/native-contract-gate.sh hooks/precommit-gates.sh hooks/skill-registry-gate.sh hooks/stop-gates.sh providers/CONFORMANCE.md providers/PARITY.md skills/afk/claude-md/SKILL.md skills/afk/setup/AUDIT.md skills/afk/setup/MANIFEST.md skills/utils/writing-for-agents/SKILL.md",
+   "universe": "files that name the subject, case-blind",
+   "count": 0,
+   "lines": 0,
+   "evidence": null,
+   "origin": "seed"
+  },
+  {
+   "id": "q-cb7ec672",
+   "command": "git grep -n -I -E -e 'run_gate[[:space:]]+native-contract' -e 'gate_(cache_key|cache_hit|cache_store|metrics_emit)[[:space:]]+native-contract'",
+   "universe": "tracked text files, binary excluded",
+   "count": 7,
+   "lines": 7,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-a9462068",
+   "command": "git grep -n -I -E -e NATIVE_CONTRACT_GATE_DISABLE -e SKILL_REGISTRY_GATE_DISABLE -e GATE_CACHE_DISABLE -e gate-disabled -- hooks/native-contract-gate.sh hooks/skill-registry-gate.sh hooks/gate-cache.sh hooks/precommit-gates.sh hooks/stop-gates.sh skills/afk/setup/MANIFEST.md",
+   "universe": "the two gates, their dispatchers, the pass cache, and the dependency register",
+   "count": 22,
+   "lines": 22,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-d268868e",
+   "command": "git grep -n -I -E -i --untracked -e NATIVE_CONTRACT_GATE_DISABLE -e SKILL_REGISTRY_GATE_DISABLE",
+   "universe": "case-blind pass over tracked and untracked files, not ignored",
+   "count": 0,
+   "lines": 6,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-2c676734",
+   "command": "git grep -n -I -E -e 'stop-gates\\.sh' -e 'precommit-gates\\.sh' -- hooks/hooks.json hooks/hooks.codex.json hooks/install-git-hooks.sh",
+   "universe": "hook registration files: hooks.json, hooks.codex.json, install-git-hooks.sh",
+   "count": 4,
+   "lines": 4,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-7a9e82ad",
+   "command": "git grep -n -I -E -e '\"Stop\"' -e 'install_hook[[:space:]]+pre-commit' -- hooks/hooks.json hooks/hooks.codex.json hooks/install-git-hooks.sh",
+   "universe": "hook registration files: event keys and installer calls",
+   "count": 2,
+   "lines": 3,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-86487830",
+   "command": "git grep -n -I -E -e native-contract -e skill-registry -e skill_frontmatter_check -e manifest_skills -e gate_native_contract -e gate_skill_registry -- hooks/tests scripts/tests",
+   "universe": "test sources: hooks/tests, scripts/tests",
+   "count": 1,
+   "lines": 1,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-5e21cd0c",
+   "command": "git grep -n -I -E --untracked -e 'plugin\\.json' -e codex-plugin -- ADAPTERS.md AGENTS.md CAPABILITIES.md CLAUDE.md CONFIG.md DECISIONS.md DELEGATION.md FRESHNESS.md GLOSSARY.md INVESTIGATION.md LANGUAGE.md LAVISH-KIT.md LAVISH.md PROVIDERS.md README.md REPORTING.md SPINOFF-TICKET.md hooks/README.md providers/CONFORMANCE.md providers/PARITY.md skills/afk/setup/AUDIT.md skills/afk/setup/MANIFEST.md skills/afk/setup/SKILL.md",
+   "universe": "guidance markdown: plugin-root *.md except CHANGELOG.md, hooks/README.md, providers/*.md, skills/afk/setup/{AUDIT,MANIFEST,SKILL}.md; tracked and untracked",
+   "count": 19,
+   "lines": 20,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r5/evidence-B-widen.json"
+  },
+  {
+   "id": "q-01f87feb",
+   "command": "git grep -n -I -E -i --untracked -e '(add|adding|added|new|register|registering) (a |one )?skill' -e 'skill (dir|directory|is added|added)' -- ADAPTERS.md AGENTS.md CAPABILITIES.md CLAUDE.md CONFIG.md DECISIONS.md DELEGATION.md FRESHNESS.md GLOSSARY.md INVESTIGATION.md LANGUAGE.md LAVISH-KIT.md LAVISH.md PROVIDERS.md README.md REPORTING.md SPINOFF-TICKET.md hooks/README.md providers/CONFORMANCE.md providers/PARITY.md skills/afk/setup/AUDIT.md skills/afk/setup/MANIFEST.md skills/afk/setup/SKILL.md",
+   "universe": "guidance markdown: plugin-root *.md except CHANGELOG.md, hooks/README.md, providers/*.md, skills/afk/setup/{AUDIT,MANIFEST,SKILL}.md; tracked and untracked",
+   "count": 5,
+   "lines": 10,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r5/evidence-B-widen.json"
+  },
+  {
+   "id": "q-a89bdc85",
+   "command": "git grep -n -I -E --untracked -e 'AGENTS\\.md' -- hooks scripts",
+   "universe": "hooks/ and scripts/ trees, tracked and untracked",
+   "count": 0,
+   "lines": 0,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-f76c971b",
+   "command": "git grep -n -I -E -e 'skill on disk is missing' -e 'declared skill is absent' -e native-contract-gate -e skill-registry-gate -- hooks/tests scripts/tests",
+   "universe": "test sources: hooks/tests and scripts/tests, tracked",
+   "count": 0,
+   "lines": 0,
+   "origin": "tracer",
+   "evidence": null
+  },
+  {
+   "id": "q-7187f60e",
+   "command": "git grep -n -I -E -e 'glob\\(.*SKILL\\.md' -e '/\\*/SKILL\\.md' -- hooks scripts skills",
+   "universe": "hooks/, scripts/, skills/ tracked text files",
+   "count": 9,
+   "lines": 9,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B3.txt"
+  },
+  {
+   "id": "q-54b36e86",
+   "command": "git grep -n -I -E -e 'get\\(.skills' -e '-plugin/plugin\\.json' -- hooks/native-contract-gate.sh hooks/skill-registry-gate.sh hooks/release-gate.sh hooks/update-notice.sh",
+   "universe": "hooks/native-contract-gate.sh, hooks/skill-registry-gate.sh, hooks/release-gate.sh, hooks/update-notice.sh",
+   "count": 14,
+   "lines": 14,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B4.txt"
+  },
+  {
+   "id": "q-57868bfc",
+   "command": "git grep -n -I -E -e SKILL_REGISTRY_GATE_DISABLE -e NATIVE_CONTRACT_GATE_DISABLE",
+   "universe": "whole repository, tracked text files",
+   "count": 6,
+   "lines": 6,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B8.txt"
+  },
+  {
+   "id": "q-c0a9aba0",
+   "command": "git grep -n -I -E -e 'SKILL\\.md' -e skill.registry -e native.contract -- scripts/tests hooks/tests",
+   "universe": "scripts/tests/, hooks/tests/",
+   "count": 3,
+   "lines": 3,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B12.txt"
+  },
+  {
+   "id": "q-d3a7eb8f",
+   "command": "git grep -n -I -E -e 'Add a skill dir' -e 'skill or agent is added' -e 'skill dirs on disk' -e 'a skill, hook registry' -e 'plugin skill named' -e 'opens with a one-line pointer' -- FRESHNESS.md hooks/README.md skills/afk/setup/AUDIT.md skills/afk/setup/MANIFEST.md CLAUDE.md README.md",
+   "universe": "FRESHNESS.md, hooks/README.md, skills/afk/setup/AUDIT.md, skills/afk/setup/MANIFEST.md, CLAUDE.md, README.md",
+   "count": 5,
+   "lines": 6,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B13.txt"
+  },
+  {
+   "id": "q-11c727ba",
+   "command": "git grep -n -I -E -e 'run_gate (skill-registry|wiring|genericity)' -e '\\|SKILL\\.md\\|' -- hooks",
+   "universe": "hooks/ tracked text files",
+   "count": 4,
+   "lines": 4,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-B1.txt"
+  },
+  {
+   "id": "q-c8f8020b",
+   "command": "git grep -n -I -E -e 'LANGUAGE\\\\.md' -e '\"/afk:\\$name\"' -- hooks",
+   "universe": "hooks/ tracked text files (consumer literals)",
+   "count": 2,
+   "lines": 2,
+   "origin": "tracer",
+   "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/r4/evidence-D-CC.txt"
+  }
+ ],
+ "claims": [
+  {
+   "id": "c-e259ed8f",
+   "text": "the hit set holds every reference to gate_native_contract, manifest_skills over the name forms this pass searched",
+   "kind": "unverified",
+   "load_bearing": false,
+   "supporting_nodes": [],
+   "citations": []
+  },
+  {
+   "id": "c-b365d395",
+   "text": "Check C builds the disk skill set from every skills/**/SKILL.md as './'+parent dir, parses the skills array of .claude-plugin/plugin.json and of .codex-plugin/plugin.json independently (trailing '/' stripped), and reports per manifest a skill on disk missing from it or a declared skill absent from disk; any finding exits 2 and the gate returns 2.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/native-contract-gate.sh:146",
+    "B4:hooks/native-contract-gate.sh:167",
+    "B1:hooks/native-contract-gate.sh:172",
+    "B4:hooks/native-contract-gate.sh:185",
+    "B4:hooks/native-contract-gate.sh:188",
+    "B4:hooks/native-contract-gate.sh:194",
+    "B4:hooks/native-contract-gate.sh:196",
+    "B1:hooks/native-contract-gate.sh:30"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:146",
+    "hooks/native-contract-gate.sh:165-196",
+    "hooks/native-contract-gate.sh:347-361"
+   ]
+  },
+  {
+   "id": "c-54a88c43",
+   "text": "The gate runs at Stop via run_gate native-contract when the plugin scope, .agents/* or .codex/* changed in the worktree or on the branch, and at pre-commit with the pass cache disabled; run_gate turns the wire name into the file native-contract-gate.sh and the function gate_native_contract.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:hooks/stop-gates.sh:130",
+    "B1:hooks/precommit-gates.sh:154",
+    "B4:hooks/stop-gates.sh:85",
+    "B4:hooks/stop-gates.sh:89",
+    "B4:hooks/precommit-gates.sh:94",
+    "B4:hooks/precommit-gates.sh:105"
+   ],
+   "citations": [
+    "hooks/stop-gates.sh:84-101",
+    "hooks/stop-gates.sh:130",
+    "hooks/precommit-gates.sh:93-107",
+    "hooks/precommit-gates.sh:139-159"
+   ]
+  },
+  {
+   "id": "c-f391a175",
+   "text": "A new skills/<group>/<name>/SKILL.md must be listed as ./skills/<group>/<name> in both .claude-plugin/plugin.json skills and .codex-plugin/plugin.json skills, or check C blocks.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:.claude-plugin/plugin.json:16",
+    "B4:.codex-plugin/plugin.json:6",
+    "B4:hooks/native-contract-gate.sh:194"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:188-194",
+    ".claude-plugin/plugin.json:16",
+    ".codex-plugin/plugin.json:6"
+   ]
+  },
+  {
+   "id": "c-97b6c319",
+   "text": "The same new skill must also satisfy: native check A (no provider vocabulary in its *.md unless an allow row explains it) and check B (column-zero frontmatter keys within the allowed set); registry check A (listed in .claude-plugin/plugin.json skills), check B (named in both CLAUDE.md and README.md as /afk:<name>, `<name>`, or skills/<group>/<name>), check D (SKILL.md contains LANGUAGE.md), and check F (frontmatter parses, name equals the directory name, description present). Registry checks C (hook env vars) and E (adapters) do not bite a skill-only addition.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/native-contract-gate.sh:133",
+    "B4:hooks/native-contract-gate.sh:159",
+    "B4:hooks/skill-registry-gate.sh:108",
+    "B4:hooks/skill-registry-gate.sh:124",
+    "B4:hooks/skill-registry-gate.sh:129",
+    "B4:hooks/skill-registry-gate.sh:183",
+    "B4:hooks/lib/skill_frontmatter_check.py:82",
+    "B4:hooks/lib/skill_frontmatter_check.py:85",
+    "B4:hooks/skill-registry-gate.sh:149",
+    "B4:hooks/skill-registry-gate.sh:194"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:124-134",
+    "hooks/native-contract-gate.sh:139-162",
+    "hooks/skill-registry-gate.sh:107-109",
+    "hooks/skill-registry-gate.sh:124-136",
+    "hooks/skill-registry-gate.sh:183-185",
+    "hooks/lib/skill_frontmatter_check.py:79-86",
+    "hooks/skill-registry-gate.sh:149",
+    "hooks/skill-registry-gate.sh:191-195"
+   ]
+  },
+  {
+   "id": "c-c1d5744e",
+   "text": "The skill-registry gate runs only at Stop (hooks/stop-gates.sh:125); the commit path dispatches native-contract but not skill-registry, so a --no-hooks session is gated at commit only on manifest parity, frontmatter keys and vocabulary.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/stop-gates.sh:125",
+    "B1:hooks/precommit-gates.sh:154"
+   ],
+   "citations": [
+    "hooks/stop-gates.sh:125",
+    "hooks/precommit-gates.sh:154"
+   ]
+  },
+  {
+   "id": "c-4539ba7f",
+   "text": "Registry check B reads CLAUDE.md and README.md only; AGENTS.md is not checked for the catalog mention.",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B4:hooks/skill-registry-gate.sh:124",
+    "B1:AGENTS.md:201"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:124"
+   ]
+  },
+  {
+   "id": "c-bd41cb24",
+   "text": "Scope mismatch: native check C and check B glob skills/**/SKILL.md (any depth) while the registry gate and check F glob exactly skills/afk/*/ + skills/utils/*/ and skills/*/*/; a SKILL.md nested deeper or under a third group is demanded in both manifests by native-contract but ignored by the registry catalog, LANGUAGE.md pointer, and name checks. The shipped tree has 45 skill dirs, all two levels deep, identical in both manifests.",
+   "kind": "inference",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B4:hooks/native-contract-gate.sh:146",
+    "B4:hooks/skill-registry-gate.sh:70",
+    "B4:hooks/lib/skill_frontmatter_check.py:93"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:146",
+    "hooks/skill-registry-gate.sh:70",
+    "hooks/skill-registry-gate.sh:183-184",
+    "hooks/lib/skill_frontmatter_check.py:93",
+    "python set-diff of both manifests' skills arrays: 45 45 set(), exit 0"
+   ]
+  },
+  {
+   "id": "c-80abf2fe",
+   "text": "Manifest check C and registry checks A, B, D are unguarded: no test under hooks/tests or scripts/tests names either gate; only registry check F's helper is pinned by scripts/tests/test_skill_frontmatter.py (name-matches-directory at :63, live tree pin at :86).",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B12:scripts/tests/test_skill_frontmatter.py:13",
+    "B12:scripts/tests/test_skill_frontmatter.py:63",
+    "B12:scripts/tests/test_skill_frontmatter.py:86",
+    "B12:hooks/tests/hook-smoke.sh:226"
+   ],
+   "citations": [
+    "git grep -n -I -E -e native-contract -e skill-registry -e skill_frontmatter_check -e manifest_skills -e gate_native_contract -e gate_skill_registry -- hooks/tests scripts/tests -> 1 line, exit 0"
+   ]
+  },
+  {
+   "id": "c-41c33932",
+   "text": "Bypasses: NATIVE_CONTRACT_GATE_DISABLE=1 and SKILL_REGISTRY_GATE_DISABLE=1 skip each gate; .claude/hooks/.gate-disabled skips both and the whole Stop and commit dispatchers; GATE_CACHE_DISABLE=1 bypasses the pass cache, which the commit path forces for native-contract. All three env names are registered in skills/afk/setup/MANIFEST.md E-table.",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B8:hooks/native-contract-gate.sh:31",
+    "B8:hooks/skill-registry-gate.sh:52",
+    "B8:hooks/native-contract-gate.sh:32",
+    "B8:hooks/stop-gates.sh:36",
+    "B8:hooks/precommit-gates.sh:46",
+    "B8:hooks/precommit-gates.sh:153",
+    "B8:skills/afk/setup/MANIFEST.md:672",
+    "B8:skills/afk/setup/MANIFEST.md:674",
+    "B8:skills/afk/setup/MANIFEST.md:678"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:31-32",
+    "hooks/skill-registry-gate.sh:52-53",
+    "hooks/precommit-gates.sh:46",
+    "hooks/precommit-gates.sh:152-153",
+    "skills/afk/setup/MANIFEST.md:672-678"
+   ]
+  },
+  {
+   "id": "c-fa968714",
+   "text": "Doc drift: hooks/skill-registry-gate.sh:2-3 says 'Three checks' and skills/afk/setup/MANIFEST.md:672 describes the registry gate as three checks, while the gate runs six (A-F, hooks/skill-registry-gate.sh:5-34, 206).",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B8:skills/afk/setup/MANIFEST.md:672",
+    "B4:hooks/skill-registry-gate.sh:206"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:2-3",
+    "hooks/skill-registry-gate.sh:206",
+    "skills/afk/setup/MANIFEST.md:672"
+   ]
+  },
+  {
+   "id": "c-30a79dc5",
+   "text": "no test source names native-contract, manifest_skills or gate_native_contract, so check C and manifest_skills are unguarded: over hooks/tests, scripts/tests and the five skills/**/scripts/tests directories the only plugin.json hit is a name-only fixture at scripts/tests/test_lesson_filing.py:34, and hook-smoke.sh's twin check compares hooks.json and .mcp.json only",
+   "kind": "inference",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B12:hooks/tests/hook-smoke.sh:243",
+    "B12:hooks/tests/hook-smoke.sh:244",
+    "B12:scripts/tests/test_lesson_filing.py:34"
+   ],
+   "citations": [
+    "hooks/tests/hook-smoke.sh:243",
+    "hooks/tests/hook-smoke.sh:244",
+    "scripts/tests/test_lesson_filing.py:34",
+    "git grep -n -I -E --untracked -e native.contract -e manifest_skills -e gate_native_contract -e 'plugin\\.json' -- hooks/tests scripts/tests skills/afk/execute/scripts/tests skills/afk/gc/scripts/tests skills/afk/mission-control/scripts/tests skills/afk/to-subtasks/scripts/tests skills/utils/report-issue/scripts/tests -> exit 0, 1 line (scripts/tests/test_lesson_filing.py:34); evidence-C-tests.txt"
+   ]
+  },
+  {
+   "id": "c-a605cce8",
+   "text": "Native-contract check C collects every skills/**/SKILL.md parent directory and compares it, separately, with the skills array of .claude-plugin/plugin.json and of .codex-plugin/plugin.json; a directory missing from either manifest, or a manifest entry with no directory, blocks with exit 2.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:hooks/native-contract-gate.sh:11",
+    "B13:CLAUDE.md:15",
+    "B13:FRESHNESS.md:63"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:146",
+    "hooks/native-contract-gate.sh:166-196",
+    "hooks/native-contract-gate.sh:347-349"
+   ]
+  },
+  {
+   "id": "c-a9a8bf18",
+   "text": "Of the six skill-registry checks, four key on a new skill directory: A (listed in .claude-plugin/plugin.json only), B (a /afk:<name>, `<name>` or skills/ path mention in CLAUDE.md and README.md), D (LANGUAGE.md pointer), F (frontmatter parses and names its directory); C reads hooks/*.sh and E reads adapters/, so a skill directory alone cannot trip them.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637",
+    "B13:hooks/README.md:62",
+    "B13:hooks/README.md:104"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:70-118",
+    "hooks/skill-registry-gate.sh:124-134",
+    "hooks/skill-registry-gate.sh:149",
+    "hooks/skill-registry-gate.sh:183-185",
+    "hooks/skill-registry-gate.sh:191-204"
+   ]
+  },
+  {
+   "id": "c-ea44a69b",
+   "text": "providers/PARITY.md:103 is refuted: native-contract-gate.sh never reads hooks/hooks.codex.json (checks E and J read only hooks/hooks.json); the twin comparison modulo the root variable lives in hooks/tests/hook-smoke.sh:225-244, a smoke test, not a gate.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:providers/PARITY.md:103"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:226",
+    "hooks/tests/hook-smoke.sh:243"
+   ]
+  },
+  {
+   "id": "c-68e4fb3e",
+   "text": "skills/afk/setup/MANIFEST.md:685 is refuted in part: native-contract-gate.sh and skill-registry-gate.sh do not read CLAUDECODE; the first holds it as a forbidden-vocabulary regex, the second excludes it as ambient.",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:skills/afk/setup/MANIFEST.md:685"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:115",
+    "hooks/skill-registry-gate.sh:143"
+   ]
+  },
+  {
+   "id": "c-51c17af5",
+   "text": "AGENTS.md is untracked and no file under hooks/ or scripts/ names it, so no registry check reads it; skill-registry check B reads only CLAUDE.md and README.md. AGENTS.md:15 names a `.Codex-plugin/` directory that does not exist.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:AGENTS.md:15",
+    "B13:AGENTS.md:83",
+    "B13:AGENTS.md:201"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:124",
+    "git grep -n -I -E --untracked -e 'AGENTS\\.md' -- hooks scripts -> 0 lines, exit 1",
+    "git status --short AGENTS.md -> ?? AGENTS.md"
+   ]
+  },
+  {
+   "id": "c-14a4692a",
+   "text": "While the untracked AGENTS.md sits at the plugin root, native-contract check A (which scans every *.md on disk, tracked or not) would report 10 forbidden-vocabulary lines in it (AGENTS.md:15,40,79,81,105,109,135,161,163,173), none allow-listed, and block Stop; derived by replaying check A's rules and allow list read-only, not by running the gate.",
+   "kind": "inference",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:AGENTS.md:15"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:79-82",
+    "hooks/native-contract-gate.sh:114-134",
+    "python replay of check A over AGENTS.md -> 10 findings"
+   ]
+  },
+  {
+   "id": "c-5e74e1e7",
+   "text": "hooks/skill-registry-gate.sh:3 says the gate has three checks; the script runs six (A-F). skills/afk/setup/MANIFEST.md:672 likewise describes it by three checks only.",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:hooks/skill-registry-gate.sh:3",
+    "B13:skills/afk/setup/MANIFEST.md:672"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:5-35",
+    "hooks/skill-registry-gate.sh:206"
+   ]
+  },
+  {
+   "id": "c-b7e27ce9",
+   "text": "docs/afk/agent-team-topology/GRILL-LOG.md:222 overstates the cost of a skill addition as six skill-registry checks; four key on the skill directory (A, B, D, F).",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:docs/afk/agent-team-topology/GRILL-LOG.md:222"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:149",
+    "hooks/skill-registry-gate.sh:191-194"
+   ]
+  },
+  {
+   "id": "c-6bb1e803",
+   "text": "hooks/README.md:63 lists 8 of the native-contract gate's 10 checks, omitting I (CRLF in shell handlers) and J (launcher command shape).",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:hooks/README.md:63"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:262-283",
+    "hooks/native-contract-gate.sh:336-344"
+   ]
+  },
+  {
+   "id": "c-1d8aa8ca",
+   "text": "FRESHNESS.md:38 names only .claude-plugin/plugin.json as the manifest to update on a skill add; check C also requires .codex-plugin/plugin.json, which FRESHNESS.md:63 names.",
+   "kind": "fact",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:FRESHNESS.md:38",
+    "B13:FRESHNESS.md:63"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:188"
+   ]
+  },
+  {
+   "id": "c-387e1043",
+   "text": "No test in hooks/tests or scripts/tests names either gate or check C's messages, so check C and skill-registry checks A, B, D are unguarded; check F's name-equals-directory rule is pinned by scripts/tests/test_skill_frontmatter.py:63.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B13:hooks/README.md:104"
+   ],
+   "citations": [
+    "git grep -n -I -E -e 'skill on disk is missing' -e 'declared skill is absent' -e native-contract-gate -e skill-registry-gate -- hooks/tests scripts/tests -> 0 lines, exit 1",
+    "scripts/tests/test_skill_frontmatter.py:63"
+   ]
+  },
+  {
+   "id": "c-17579370",
+   "text": "How each harness loader treats a skill directory its manifest does not list is outside this repository and was not checked.",
+   "kind": "unverified",
+   "load_bearing": false,
+   "supporting_nodes": [
+    "B13:PROVIDERS.md:11",
+    "B13:PROVIDERS.md:12",
+    "B13:hooks/skill-registry-gate.sh:7"
+   ],
+   "citations": [
+    "not load-bearing (human, S-85): the design lists the new skill in both manifests, and native-contract check C blocks a commit when a manifest misses a skill on disk, so an unlisted skill directory does not arise for this design; limits: the commit gate runs only for agent-driven commits and is bypassable (hooks/precommit-gates.sh:21-26, :32-33, :37)",
+    "docs/afk/agent-team-topology/GRILL-LOG.md:239 (design: registration covers both harness manifests; working tree only, not in commit 9d9fce6)",
+    "hooks/native-contract-gate.sh:146",
+    "hooks/native-contract-gate.sh:165-169",
+    "hooks/native-contract-gate.sh:172-185",
+    "hooks/native-contract-gate.sh:188-194",
+    "hooks/native-contract-gate.sh:347-349",
+    "hooks/native-contract-gate.sh:353-361",
+    "hooks/precommit-gates.sh:113",
+    "hooks/precommit-gates.sh:151-154",
+    "hooks/precommit-gates.sh:162-166",
+    "hooks/install-git-hooks.sh:103",
+    "hooks/stop-gates.sh:130"
+   ]
+  },
+  {
+   "id": "c-167c16b0",
+   "text": "check C builds the disk skill set from the glob skills/**/SKILL.md, so a skill directory counts only once it holds a SKILL.md, at any depth under skills/",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B3:hooks/native-contract-gate.sh:146"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:146",
+    "hooks/native-contract-gate.sh:166"
+   ]
+  },
+  {
+   "id": "c-c3fac7a0",
+   "text": "manifest_skills reads only the top-level skills array of each manifest, strips a trailing slash, and compares by exact string to './' plus the posix directory path; both manifests are checked independently",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B5:hooks/native-contract-gate.sh:181",
+    "B5:hooks/native-contract-gate.sh:185",
+    "B7:.claude-plugin/plugin.json:16",
+    "B7:.codex-plugin/plugin.json:6"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:172",
+    "hooks/native-contract-gate.sh:181",
+    "hooks/native-contract-gate.sh:185",
+    "hooks/native-contract-gate.sh:188"
+   ]
+  },
+  {
+   "id": "c-e8064daa",
+   "text": "a new skill's markdown is scanned by check A for harness vocabulary through rglob('*.md'), with no name of the skill involved",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B3:hooks/native-contract-gate.sh:80"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:80"
+   ]
+  },
+  {
+   "id": "c-c786672c",
+   "text": "adapter dispatch, the tracker loader, the config codec and the tracker MCP server read no skill directory and no plugin manifest, so a new skill directory leaves them unchanged",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B3:hooks/lib/adapter.sh:45",
+    "B3:hooks/lib/adapter.sh:51",
+    "B3:hooks/lib/adapter.sh:115",
+    "B3:hooks/lib/adapter.sh:116",
+    "B3:hooks/lib/adapter.sh:130",
+    "B3:hooks/lib/adapter.sh:146",
+    "B3:scripts/tracker_api.py:39",
+    "B3:scripts/tracker_api.py:43",
+    "B5:scripts/afk-config.py:3",
+    "B5:scripts/afk-config.py:353",
+    "B5:scripts/afk-config.py:804",
+    "B5:scripts/afk-config.py:1061",
+    "B10:mcp-servers/tracker/server.py:64",
+    "B10:mcp-servers/tracker/server.py:69",
+    "B10:mcp-servers/tracker/server.py:78"
+   ],
+   "citations": [
+    "hooks/lib/adapter.sh:45",
+    "hooks/lib/adapter.sh:51",
+    "hooks/lib/adapter.sh:115",
+    "hooks/lib/adapter.sh:116",
+    "hooks/lib/adapter.sh:146",
+    "scripts/tracker_api.py:39",
+    "scripts/tracker_api.py:43",
+    "scripts/afk-config.py:353",
+    "scripts/afk-config.py:804",
+    "scripts/afk-config.py:1061",
+    "mcp-servers/tracker/server.py:64",
+    "mcp-servers/tracker/server.py:69",
+    "mcp-servers/tracker/server.py:78"
+   ]
+  },
+  {
+   "id": "c-e286873c",
+   "text": "Adding skills/<group>/<name>/SKILL.md requires an entry ./skills/<group>/<name> in BOTH .claude-plugin/plugin.json and .codex-plugin/plugin.json skills arrays (native check C); the registry gate's check A reads only the Claude manifest.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/native-contract-gate.sh:188",
+    "B4:hooks/skill-registry-gate.sh:88",
+    "B4:.claude-plugin/plugin.json:16",
+    "B4:.codex-plugin/plugin.json:6"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:188-196",
+    "hooks/skill-registry-gate.sh:82-90",
+    "hooks/skill-registry-gate.sh:107-118"
+   ]
+  },
+  {
+   "id": "c-6f224003",
+   "text": "Registry checks A, B and D glob only skills/afk/* and skills/utils/*; native check C globs skills/**/SKILL.md at any depth and check F globs skills/*/*/SKILL.md, so a skill under a new group directory is checked by C and F but escapes A, B and D.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B3:hooks/skill-registry-gate.sh:70",
+    "B3:hooks/skill-registry-gate.sh:183",
+    "B3:hooks/native-contract-gate.sh:146",
+    "B3:hooks/lib/skill_frontmatter_check.py:93"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:70",
+    "hooks/skill-registry-gate.sh:183-184",
+    "hooks/native-contract-gate.sh:146",
+    "hooks/lib/skill_frontmatter_check.py:93"
+   ]
+  },
+  {
+   "id": "c-fc13287b",
+   "text": "A new skill also needs a CLAUDE.md and README.md mention (/afk:<name>, `<name>` or its skills path), the LANGUAGE.md pointer line, and frontmatter that loads as YAML with name equal to the directory, a description, and only allowed top-level keys.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/skill-registry-gate.sh:129",
+    "B4:hooks/skill-registry-gate.sh:183",
+    "B4:hooks/lib/skill_frontmatter_check.py:82",
+    "B4:hooks/native-contract-gate.sh:139",
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637"
+   ],
+   "citations": [
+    "hooks/skill-registry-gate.sh:124-136",
+    "hooks/skill-registry-gate.sh:183-185",
+    "hooks/lib/skill_frontmatter_check.py:79-86",
+    "hooks/native-contract-gate.sh:139-162"
+   ]
+  },
+  {
+   "id": "c-3e0c4277",
+   "text": "Check C strips a trailing slash from manifest entries while registry check A compares exact strings, so an entry written with a trailing slash passes the native gate and fails the registry gate.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:hooks/native-contract-gate.sh:185",
+    "B4:hooks/skill-registry-gate.sh:88"
+   ],
+   "citations": [
+    "hooks/native-contract-gate.sh:185",
+    "hooks/skill-registry-gate.sh:95-108"
+   ]
+  },
+  {
+   "id": "c-4c9bd780",
+   "text": "At commit only the native contract gate runs; the registry, wiring and genericity gates run on Stop, so registry drift from a new skill surfaces at Stop, not at commit.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:hooks/precommit-gates.sh:142",
+    "B1:hooks/stop-gates.sh:125",
+    "B1:hooks/stop-gates.sh:108",
+    "B1:hooks/stop-gates.sh:133"
+   ],
+   "citations": [
+    "hooks/stop-gates.sh:108,125,133",
+    "hooks/precommit-gates.sh:140-154",
+    "grep -n registry hooks/precommit-gates.sh -> exit 1 (no match)"
+   ]
+  },
+  {
+   "id": "c-4366a181",
+   "text": "Sibling files of a new skill directory are gated by the wiring gate (SKILL.md is exempt by name) and its prose by the genericity gate and native check A.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B1:hooks/wiring-gate.sh:34",
+    "B1:hooks/genericity-gate.sh:54",
+    "B3:hooks/native-contract-gate.sh:80"
+   ],
+   "citations": [
+    "hooks/wiring-gate.sh:32-35",
+    "hooks/genericity-gate.sh:1-20",
+    "hooks/native-contract-gate.sh:79-134"
+   ]
+  },
+  {
+   "id": "c-ac4ac439",
+   "text": "Only check F is pinned by a test (scripts/tests/test_skill_frontmatter.py:87-92 live pin); native check C and registry checks A, B, D have no test in scripts/tests or hooks/tests.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B12:scripts/tests/test_skill_frontmatter.py:90"
+   ],
+   "citations": [
+    "git grep -n -I -E -e 'SKILL\\.md' -e skill.registry -e native.contract -- scripts/tests hooks/tests -> exit 0, 3 lines, none naming either gate"
+   ]
+  },
+  {
+   "id": "c-7af2dc93",
+   "text": "Neither marketplace file (.agents/plugins/marketplace.json, .claude-plugin/marketplace.json) lists skills; a skill addition does not change them.",
+   "kind": "fact",
+   "load_bearing": true,
+   "supporting_nodes": [
+    "B4:.agents/plugins/marketplace.json:6",
+    "B4:.claude-plugin/marketplace.json:7"
+   ],
+   "citations": [
+    ".agents/plugins/marketplace.json:1-20",
+    ".claude-plugin/marketplace.json:1-15"
+   ]
+  }
+ ],
+ "counter_checks": [
+  {
+   "method": "name forms carrying no simple name: native-contract, native-contract-gate.sh, native-contract, native-contract-gate.sh",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-e259ed8f"
+   ],
+   "new_nodes": [
+    "B1:CHANGELOG.md:888",
+    "B1:CHANGELOG.md:897",
+    "B1:CHANGELOG.md:1244",
+    "B1:CLAUDE.md:201",
+    "B1:FRESHNESS.md:64",
+    "B1:PROVIDERS.md:45",
+    "B1:README.md:325",
+    "B1:docs/afk/agent-team-topology/GRILL-LOG.md:222",
+    "B1:hooks/README.md:7",
+    "B1:hooks/README.md:8",
+    "B1:hooks/README.md:63",
+    "B1:hooks/README.md:90",
+    "B1:hooks/README.md:104",
+    "B1:hooks/gate-cache.sh:4",
+    "B1:hooks/gate-context.sh:135",
+    "B1:hooks/native-contract-allow.txt:63",
+    "B1:hooks/native-contract-gate.sh:8",
+    "B1:hooks/native-contract-gate.sh:39",
+    "B1:hooks/native-contract-gate.sh:41",
+    "B1:hooks/native-contract-gate.sh:84",
+    "B1:hooks/native-contract-gate.sh:93",
+    "B1:hooks/native-contract-gate.sh:101",
+    "B1:hooks/native-contract-gate.sh:354",
+    "B1:hooks/native-contract-gate.sh:359",
+    "B1:hooks/native-contract-gate.sh:364",
+    "B1:hooks/native-contract-gate.sh:365",
+    "B1:hooks/precommit-gates.sh:154",
+    "B1:hooks/skill-registry-gate.sh:45",
+    "B1:hooks/skill-registry-gate.sh:81",
+    "B1:hooks/stop-gates.sh:127",
+    "B1:hooks/stop-gates.sh:130",
+    "B1:providers/CONFORMANCE.md:23",
+    "B1:providers/CONFORMANCE.md:303",
+    "B1:providers/PARITY.md:103",
+    "B1:providers/PARITY.md:112",
+    "B1:providers/PARITY.md:155",
+    "B1:skills/afk/claude-md/SKILL.md:46",
+    "B1:skills/afk/setup/AUDIT.md:70",
+    "B1:skills/afk/setup/MANIFEST.md:219",
+    "B1:skills/afk/setup/MANIFEST.md:674",
+    "B1:skills/afk/setup/MANIFEST.md:685",
+    "B1:skills/utils/writing-for-agents/SKILL.md:15"
+   ],
+   "state": "complete",
+   "classes": [
+    "B1",
+    "B8",
+    "B9",
+    "B12",
+    "B13"
+   ],
+   "query_ids": [
+    "q-499aa404"
+   ]
+  },
+  {
+   "method": "case-blind pass over tracked and untracked files, not ignored",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-e259ed8f"
+   ],
+   "new_nodes": [
+    "B1:AGENTS.md:201",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1487",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1491",
+    "B1:docs/afk/agent-team-topology/grill-solution.round.json:1592"
+   ],
+   "state": "complete",
+   "classes": [
+    "B1",
+    "B8",
+    "B9",
+    "B12",
+    "B13"
+   ],
+   "query_ids": [
+    "q-5b7e284d"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-e259ed8f"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B2"
+   ],
+   "query_ids": [
+    "q-226180cb"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-e259ed8f"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B4"
+   ],
+   "query_ids": [
+    "q-0701a7a2"
+   ]
+  },
+  {
+   "method": "case-blind pass over the class's own expressions",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-e259ed8f"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B11"
+   ],
+   "query_ids": [
+    "q-022195bf"
+   ]
+  },
+  {
+   "method": "read the run_gate construction sites that turn the wire name into a file and a function",
+   "kind": "agent",
+   "targeted_claims": [
+    "c-54a88c43"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B4"
+   ],
+   "query_ids": [],
+   "evidence_nodes": [
+    "B4:hooks/stop-gates.sh:85",
+    "B4:hooks/stop-gates.sh:89",
+    "B4:hooks/precommit-gates.sh:94",
+    "B4:hooks/precommit-gates.sh:105"
+   ]
+  },
+  {
+   "method": "case-blind pass over tracked and untracked files for the two gate toggles",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-41c33932"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B8"
+   ],
+   "query_ids": [
+    "q-d268868e"
+   ]
+  },
+  {
+   "method": "event keys and installer calls in the registration files instead of the dispatcher names",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-54a88c43"
+   ],
+   "new_nodes": [
+    "B11:hooks/hooks.codex.json:53",
+    "B11:hooks/hooks.json:53"
+   ],
+   "state": "complete",
+   "classes": [
+    "B11"
+   ],
+   "query_ids": [
+    "q-7a9e82ad"
+   ]
+  },
+  {
+   "method": "read the test files that exercise the gates' helpers and the native twins",
+   "kind": "agent",
+   "targeted_claims": [
+    "c-80abf2fe"
+   ],
+   "new_nodes": [],
+   "state": "complete",
+   "classes": [
+    "B12"
+   ],
+   "query_ids": [],
+   "evidence_nodes": [
+    "B12:hooks/tests/hook-smoke.sh:226",
+    "B12:scripts/tests/test_skill_frontmatter.py:63",
+    "B12:scripts/tests/test_skill_frontmatter.py:86",
+    "B12:hooks/tests/hook-smoke.sh:243",
+    "B12:hooks/tests/hook-smoke.sh:244",
+    "B12:scripts/tests/test_lesson_filing.py:34"
+   ]
+  },
+  {
+   "method": "guidance-phrase search for skill additions in steering markdown, plus reader-site searches for AGENTS.md in hooks/ and scripts/ and for gate names in test sources",
+   "kind": "deterministic",
+   "targeted_claims": [
+    "c-a605cce8",
+    "c-a9a8bf18",
+    "c-ea44a69b",
+    "c-68e4fb3e",
+    "c-51c17af5",
+    "c-14a4692a",
+    "c-5e74e1e7",
+    "c-b7e27ce9",
+    "c-6bb1e803",
+    "c-1d8aa8ca",
+    "c-387e1043"
+   ],
+   "new_nodes": [
+    "B13:AGENTS.md:48",
+    "B13:CLAUDE.md:48",
+    "B13:FRESHNESS.md:42",
+    "B13:FRESHNESS.md:43",
+    "B13:skills/afk/setup/MANIFEST.md:580"
+   ],
+   "state": "complete",
+   "classes": [
+    "B13"
+   ],
+   "query_ids": [
+    "q-01f87feb",
+    "q-a89bdc85",
+    "q-f76c971b"
+   ]
+  },
+  {
+   "method": "read both gates end to end and compared each document claim against the code",
+   "kind": "agent",
+   "targeted_claims": [
+    "c-a605cce8",
+    "c-a9a8bf18",
+    "c-ea44a69b",
+    "c-68e4fb3e",
+    "c-51c17af5",
+    "c-14a4692a",
+    "c-5e74e1e7",
+    "c-b7e27ce9",
+    "c-6bb1e803",
+    "c-1d8aa8ca",
+    "c-387e1043"
+   ],
+   "new_nodes": [
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637",
+    "B13:AGENTS.md:83",
+    "B13:hooks/skill-registry-gate.sh:3",
+    "B13:hooks/skill-registry-gate.sh:7",
+    "B13:hooks/native-contract-gate.sh:11"
+   ],
+   "state": "complete",
+   "classes": [
+    "B13"
+   ],
+   "evidence_nodes": [
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637",
+    "B13:AGENTS.md:83",
+    "B13:hooks/skill-registry-gate.sh:3",
+    "B13:hooks/skill-registry-gate.sh:7",
+    "B13:hooks/native-contract-gate.sh:11"
+   ]
+  },
+  {
+   "method": "change-side: read the registration sites (skill-registry-gate.sh whole, skill_frontmatter_check.py, both native manifests, both marketplace files, stop and precommit dispatch) and search the consumer literals a new skill must satisfy (LANGUAGE.md pointer, /afk:$name mention); no subject name form",
+   "kind": "agent",
+   "targeted_claims": [
+    "c-e259ed8f",
+    "c-e286873c",
+    "c-6f224003",
+    "c-fc13287b",
+    "c-3e0c4277",
+    "c-4c9bd780",
+    "c-4366a181",
+    "c-ac4ac439",
+    "c-7af2dc93"
+   ],
+   "new_nodes": [
+    "B3:hooks/README.md:62",
+    "B3:hooks/lib/skill_frontmatter_check.py:93",
+    "B3:hooks/native-contract-gate.sh:146",
+    "B3:hooks/skill-registry-gate.sh:70",
+    "B3:hooks/skill-registry-gate.sh:183",
+    "B3:hooks/skill-registry-gate.sh:184",
+    "B3:scripts/tests/test_skill_frontmatter.py:90",
+    "B3:skills/afk/setup/AUDIT.md:14",
+    "B3:skills/afk/setup/MANIFEST.md:522",
+    "B4:hooks/native-contract-gate.sh:35",
+    "B4:hooks/native-contract-gate.sh:181",
+    "B4:hooks/native-contract-gate.sh:188",
+    "B4:hooks/release-gate.sh:11",
+    "B4:hooks/release-gate.sh:12",
+    "B4:hooks/release-gate.sh:77",
+    "B4:hooks/release-gate.sh:78",
+    "B4:hooks/release-gate.sh:79",
+    "B4:hooks/release-gate.sh:92",
+    "B4:hooks/release-gate.sh:93",
+    "B4:hooks/skill-registry-gate.sh:6",
+    "B4:hooks/skill-registry-gate.sh:56",
+    "B4:hooks/skill-registry-gate.sh:88",
+    "B4:hooks/update-notice.sh:46",
+    "B4:hooks/skill-registry-gate.sh:129",
+    "B4:hooks/skill-registry-gate.sh:183",
+    "B8:hooks/native-contract-gate.sh:25",
+    "B8:hooks/native-contract-gate.sh:31",
+    "B8:hooks/skill-registry-gate.sh:47",
+    "B8:hooks/skill-registry-gate.sh:52",
+    "B8:skills/afk/setup/MANIFEST.md:672",
+    "B8:skills/afk/setup/MANIFEST.md:674",
+    "B12:scripts/tests/test_lesson_filing.py:109",
+    "B12:scripts/tests/test_skill_frontmatter.py:27",
+    "B12:scripts/tests/test_skill_frontmatter.py:90",
+    "B13:CLAUDE.md:48",
+    "B13:FRESHNESS.md:38",
+    "B13:FRESHNESS.md:63",
+    "B13:skills/afk/setup/AUDIT.md:13",
+    "B13:skills/afk/setup/MANIFEST.md:576",
+    "B1:hooks/stop-gates.sh:108",
+    "B1:hooks/stop-gates.sh:125",
+    "B1:hooks/stop-gates.sh:133",
+    "B1:hooks/wiring-gate.sh:34",
+    "B4:.claude-plugin/plugin.json:16",
+    "B4:.codex-plugin/plugin.json:6",
+    "B4:.agents/plugins/marketplace.json:6",
+    "B4:.claude-plugin/marketplace.json:7",
+    "B4:hooks/lib/skill_frontmatter_check.py:82",
+    "B4:hooks/native-contract-gate.sh:185",
+    "B4:hooks/native-contract-gate.sh:139",
+    "B4:hooks/skill-registry-gate.sh:124",
+    "B3:hooks/native-contract-gate.sh:80",
+    "B1:hooks/genericity-gate.sh:54",
+    "B1:hooks/precommit-gates.sh:142",
+    "B8:hooks/native-contract-gate.sh:32",
+    "B8:hooks/skill-registry-gate.sh:53",
+    "B12:scripts/tests/test_skill_frontmatter.py:87",
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637"
+   ],
+   "state": "complete",
+   "classes": [
+    "B1",
+    "B3",
+    "B4",
+    "B8",
+    "B12",
+    "B13"
+   ],
+   "query_ids": [
+    "q-c8f8020b"
+   ],
+   "evidence_nodes": [
+    "B4:.claude-plugin/plugin.json:16",
+    "B4:.codex-plugin/plugin.json:6",
+    "B4:.agents/plugins/marketplace.json:6",
+    "B4:.claude-plugin/marketplace.json:7",
+    "B4:hooks/lib/skill_frontmatter_check.py:82",
+    "B4:hooks/native-contract-gate.sh:185",
+    "B4:hooks/native-contract-gate.sh:139",
+    "B4:hooks/skill-registry-gate.sh:124",
+    "B3:hooks/native-contract-gate.sh:80",
+    "B1:hooks/genericity-gate.sh:54",
+    "B1:hooks/precommit-gates.sh:142",
+    "B8:hooks/native-contract-gate.sh:32",
+    "B8:hooks/skill-registry-gate.sh:53",
+    "B12:scripts/tests/test_skill_frontmatter.py:87",
+    "B13:CLAUDE.md:83",
+    "B13:README.md:637"
+   ]
+  }
+ ]
+}

@@ -61,3 +61,35 @@ Tooltip terms for this feature's lavish pages. Not a glossary: terms that outliv
 **devil's-advocate pass**: A fresh agent briefed to attack a settled requirement set — never to agree with it. It reads the record only, not the conversation, so it cannot be led by how a decision was reached.
 
 **brief**: The written instruction a spawned agent is started with. It carries quoted context instead of the human's conversation, so the agent starts with a small, deliberate context.
+
+**design layer**: One altitude of a design interview. The nine run from the system's shape down to the seams in existing code, and each one is settled before the next is opened, because a lower choice made on an unpinned higher one is brittle.
+
+**adapter family**: A group of interchangeable implementations of one external capability, such as the tracker or the forge. The plugin names the capability and its verbs; a repository picks which implementation it uses.
+
+**adapter kind**: One implementation inside an adapter family, for example the GitHub issues tracker. A kind supplies the verbs its family declares and nothing more.
+
+**job object**: An operating-system container holding a process and its descendants. Closing the container ends every process inside it, which is what makes cleanup a guarantee rather than a request.
+
+**process tree**: A started process together with everything it started. On Windows a parent's exit does not end its tree, which was proven here by trial, so the tree must be ended on purpose.
+
+**orphaned process**: A process still running after the run that started it has ended, with nothing left holding a record of it. It keeps its memory, its file locks and its provider usage.
+
+**contact session**: The one agent session the human is talking to, identified so that a later session can tell whether a run already belongs to it. It is the second half of the key the run manifest is stored under.
+
+**human-locked aspect**: A part of a design the human decides personally, because a wrong call outlives the feature — what is stored, what the contract exposes, who is let through, what the system refuses, what it does irreversibly, and what existing behaviour it changes.
+
+**contract grade**: The level of detail a human-locked aspect must reach before anyone can sign it. Below that grade there is nothing concrete to review, so agreement would be agreement to a summary.
+
+**sign-off packet**: The material put in front of the human for one locked aspect: the detailed tables themselves, the alternatives weighed, who and what it changes, and the risks. A summary is not a packet.
+
+**two-way door**: A decision that can be undone by editing the branch. Its opposite, a one-way door, leaves something behind — migrated data, a published contract, a message already sent — and is never the agent's to take.
+
+**decided card**: A decision the agent took itself, presented with all six things an auditor needs: the decision, the options beaten, the cited evidence, why the runner-up lost, how to reverse it, and what it depends on.
+
+**debate card**: A question the agent deliberately did not answer, presented with the options side by side and the named condition that stopped it deciding. "In doubt" is not such a condition.
+
+**evidence grade**: What kind of checking an agreement asks of the reader — a line in the repository, a passage in a specification, a documented convention, or the agent's own reasoning with no citation.
+
+**seam**: The point where new code meets code that already exists. A seam is where a design stops being a drawing, so each one is checked against the real signatures before the design is called finished.
+
+**deep module**: A component with a small interface and a lot behind it. Its opposite forwards calls onward and earns nothing, and is the usual sign of a boundary drawn in the wrong place.

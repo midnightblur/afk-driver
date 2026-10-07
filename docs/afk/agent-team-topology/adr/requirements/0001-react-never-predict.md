@@ -10,7 +10,7 @@ A run performs no availability or quota check before or during its work; a provi
 ## Considered Options
 
 - Predict: read each provider's remaining window and schedule around it. Rejected — an exhausted model cannot report its own exhaustion, and a confident wrong prediction is worse than none.
-- Estimate a run's cost up front. Rejected in favour of reserving a fixed slice of each provider window for the contact agent, so the agent the human talks to can always answer and nothing has to be forecast.
+- Estimate a run's cost up front. Rejected: nothing has to be forecast. The reserved slice for the contact agent that first replaced it is withdrawn by ADR-0011.
 
 ## Consequences
 
