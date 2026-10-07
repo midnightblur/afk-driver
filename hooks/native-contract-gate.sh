@@ -398,8 +398,10 @@ command_path = re.compile(r"(?:^|[;&|(`{]|\$\(|\b(?:then|do|else|exec|command|en
                           r"(?:-\S+\s+)*[\"']?[^\s\"';|&]*[/\\]" + name + r"(?![\w./\\-])")
 afk_py = re.compile(r"\bAFK_PY\b")
 shebang = re.compile(r"^#!.*(?<![\w-])python3?\b")
-prose_command = re.compile(r"`(?:\$ )?(?:python3?|py -3) [^`]*`|^\s*(?:\$ )?(?:python3?|py -3) \S")
-argv_name = re.compile(r"""\[\s*["'](?:[^"']*[/\\])?""" + name + r"""["']\s*,""")
+prose_command = re.compile(r"`(?:\$ )?" + name + r" [^`]*`|^\s*(?:\$ )?" + name + r" \S")
+# An argument list splits the py launcher's -3 into the next item.
+argv_name = re.compile(r"""\[\s*["'](?:[^"']*[/\\])?(?:(?:python(?:3(?:\.\d+)?)?(?:\.exe)?|py\.exe)["']\s*,"""
+                       r"""|py(?:\.exe)?["']\s*,\s*["']-3(?:\.\d+)?["'])""")
 shell_string = re.compile(r"""\b(?:os\.(?:system|popen)|subprocess\.\w+|Popen|check_output|check_call)\(\s*"""
                           r"""[rbfu]*["'](?:[^"']*[/\\])?""" + name + r"(?![\w.-])")
 history = ("CHANGELOG.md", "adr/*")

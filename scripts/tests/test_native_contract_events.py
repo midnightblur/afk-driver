@@ -194,8 +194,11 @@ def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle)
     ("hooks/lib/x.py", f'import subprocess\nsubprocess.run("{PY}3.14 x.py", shell=True)\n',
      "hooks/lib/x.py:2: python source"),
     ("hooks/lib/x.py", f'argv = ["/usr/bin/{PY}3", "x.py"]\n', "hooks/lib/x.py:1: python source"),
+    ("hooks/lib/x.py", f'import subprocess\nsubprocess.run(["{PY[:2]}", "-3", "tool.py"])\n',
+     "hooks/lib/x.py:2: python source"),
+    ("notes/x.md", f"Run `{PY}3.14 tool.py` first.\n", "notes/x.md:1: prose command"),
 ], ids=["versioned", "path", "exec", "command", "env", "py-exe", "shebang-no-suffix", "no-suffix-body",
-        "ps1-call", "ps1-path", "os-system", "subprocess-string", "argv-path"])
+        "ps1-call", "ps1-path", "os-system", "subprocess-string", "argv-path", "argv-py-split", "prose-versioned"])
 def test_check_j_refuses_each_spelling_of_another_interpreter(tree, rel, text, needle):
     _write(tree, rel, text)
     _refused(gate(tree), needle)
@@ -224,6 +227,7 @@ def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
     _write(tree, "notes/x.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
     _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n"
                                f"ls /usr/lib/{PY}3.14/site-packages\n")
+    _write(tree, "hooks/lib/x.py", f'version = pins["{PY}"]\nsuffixes = ["py", "pyi"]\n')
     with (tree / "hooks" / "native-contract-allow.txt").open("a", encoding="utf-8", newline="\n") as allow:
         allow.write("notes/x.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
     done = gate(tree)
