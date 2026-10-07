@@ -324,15 +324,21 @@ class Judge:
     def claim_pending(self) -> str | None:
         """Claim the worktrees `occupant` cleared, at the final allow; the cause when a claim loses."""
         pending, self.pending = list(self.pending.values()), {}
+        if not pending:
+            return None
+        try:
+            import occupancy
+        except Exception:
+            return None
         for place, who in pending:
             try:
-                import occupancy
                 held = occupancy.claim(place, who)
                 if held:
                     return occupancy.describe(place, held)
-            except Exception as problem:
-                if type(problem).__name__ == "Busy":
-                    return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
+            except occupancy.Busy:
+                return f"the occupancy record of {place['root']} is busy (occupancy record busy)"
+            except Exception:
+                continue
         return None
 
     def owner_key(self) -> str:
