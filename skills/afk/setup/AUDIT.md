@@ -5,7 +5,7 @@ findings routed to the file that must change. The sweeps are repo-wide grep/read
 work: delegate to fresh subagents per `DELEGATION.md` (plugin root), keep only
 the digests.
 
-Run all seven checks; report even when clean.
+Run all eight checks; report even when clean.
 
 ## 1 · Structural consistency
 
@@ -136,6 +136,17 @@ disabled, any installed `afk:behaviors` block is stale activation. Route the
 finding to `/afk:setup teardown`. Check 7's own per-target ENABLEMENT column
 already catches this per provider automatically; H1/O1 remain the whole-run
 cross-check for "is the managed-behavior feature itself stale everywhere."
+
+## 8 · Python runtime
+
+Run the `MANIFEST.md` P1 probe. It is read-only. Each `fail` line is a finding:
+a missing command, a Python version other than the pin, a command that runs
+outside the private environment or is not the installed entry, a stamp from
+another `runtime/uv.lock`, installed packages that differ from that lock, a
+hooks' bash that finds no `afk-python`, a file other than the installed entry or
+the stamp's, or an entry that fails there, a
+failed import, or no `AFK_PYTHON`.
+Route: `/afk:setup` (P1 fix).
 
 ## Report
 

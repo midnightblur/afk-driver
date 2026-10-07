@@ -164,7 +164,7 @@ if TRACKER_KIND == "jira":
     try:
         import httpx  # noqa: F401
     except ImportError:
-        die("Python dep 'httpx' missing (register P3). Run: pip install mcp httpx")
+        die("Python dep 'httpx' missing (register P2). Run: pip install \"mcp<2\" httpx")
     ok("tracker-client deps importable")
 
 if harness_running():

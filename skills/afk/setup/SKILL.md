@@ -107,7 +107,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    is electable the day it lands.
 4. **Fix.**
    - `auto:` fixes — run them. Confirm first only for global installs
-     (`npm i -g`, `pip install`) in an interactive session.
+     (`npm i -g`, `pip install`) and per-user runtime installs (`P1`) in an
+     interactive session.
    - `human:` fixes — walk the human through interactively. For **secret**
      entries, follow the manifest's secrets discipline: presence checks only,
      never echo a value; you set no secret — the human places it, you re-probe.
