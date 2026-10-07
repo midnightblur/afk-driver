@@ -710,6 +710,45 @@ def test_a_nested_m2_folder_is_read_like_any_other(repo):
     assert path.is_dir() and "tools/.m2/repository/own.jar" in done.stderr, done.stderr
 
 
+def _provision(repo: Path, path: Path) -> None:
+    payload = json.dumps({"source": repo.as_posix(), "worktree": path.as_posix(),
+                          "worktree_native": path.as_posix(), "dry_run": False})
+    done = subprocess.run([BASH, str(PLUGIN_ROOT / "adapters" / "build-gate" / "maven" / "worktree-provision.sh"),
+                           payload], capture_output=True, text=True, timeout=120,
+                          env={**os.environ, "AFK_PY": Path(sys.executable).as_posix(),
+                               "AFK_CFG_MAVEN_WORKTREE_SEED": "none"})
+    assert done.returncode == 0 and (path / ".mvn" / "maven.config").is_file(), done.stdout + done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_maven_config_provisioning_created_is_recorded_and_removable(repo):
+    path = made(repo, "mvn-new")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_developers_maven_config_stays_unrecorded_and_keeps_the_worktree(repo):
+    path = made(repo, "mvn-own")
+    (path / ".mvn").mkdir()
+    (path / ".mvn" / "maven.config").write_text("-Dsome.flag=1\n", encoding="utf-8")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert path.is_dir() and ".mvn/maven.config" in done.stderr, done.stderr
+
+
+@pytest.mark.skipif(not BASH, reason="needs bash")
+def test_a_copied_maven_config_still_matching_its_record_stays_removable(repo):
+    path = made(repo, "mvn-copied")
+    (path / ".mvn").mkdir()
+    (path / ".mvn" / "maven.config").write_text("-Dsome.flag=1\n", encoding="utf-8")
+    _copied(path, ".mvn/maven.config")
+    _provision(repo, path)
+    done = run("--path", str(path), cwd=repo)
+    assert not path.exists(), done.stderr
+
+
 def test_a_large_flat_folder_past_the_budget_keeps_the_worktree_and_says_why(repo, monkeypatch, capsys):
     _exclude(repo, "scratch/")
     path = made(repo, "flat")

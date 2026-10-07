@@ -78,7 +78,7 @@ release page from its section here. Nobody tags by hand.
   placed has changed, or when it holds an ignored file that git cannot restore.
   An ignored file counts as restorable only when the copy step or the Maven
   gate's provisioning recorded it and it is unchanged; files repository setup
-  scripts create keep the worktree. Only build-output and cache folders such as
+  scripts create, and a developer's own `.mvn/maven.config`, keep the worktree. Only build-output and cache folders such as
   `node_modules`, `target` and `.venv`, and the Maven gate's `.m2/repository`,
   go unread; a listing that runs out of time keeps the worktree.
 - Each git call in worktree cleanup now fits inside the hook's time budget. When

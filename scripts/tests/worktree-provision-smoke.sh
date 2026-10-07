@@ -230,6 +230,9 @@ if grep -qxF -- "-Dsome.other.flag=1" "$WT2C/.mvn/maven.config"    && grep -qxF 
 else
   bad "append lost a flag: $(cat "$WT2C/.mvn/maven.config")"
 fi
+COPIED2C="$(git -C "$WT2C" rev-parse --absolute-git-dir)/afk-copied.json"
+grep -qF '".mvn/maven.config"' "$COPIED2C" 2>/dev/null \
+  && bad "the developer's maven.config was recorded as restorable" || ok "the developer's maven.config stays unrecorded"
 git -C "$REPO" worktree remove --force "$WT2C" >/dev/null 2>&1 || true
 
 write_config "  - maven

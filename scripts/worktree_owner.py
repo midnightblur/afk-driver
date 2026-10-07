@@ -9,6 +9,8 @@
     python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
         adds to <P's git dir>/afk-copied.json the SHA-256 of each file a trusted plugin step
         placed: the copy step, and a build gate's provisioning outputs
+    python worktree_owner.py recorded --worktree P <path relative to P>
+        exits 0 when the file's SHA-256 matches its afk-copied.json entry, 1 otherwise
 
 The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the first
 native process of a hook chain, since a walk from inside bash loses the chain), the
@@ -310,11 +312,22 @@ def copied(argv: list[str]) -> int:
     return 0
 
 
+def recorded(argv: list[str]) -> int:
+    if len(argv) != 3 or argv[0] != "--worktree":
+        sys.stderr.write("recorded needs --worktree <path> <relative path>\n")
+        return 2
+    rel = argv[2].replace("\\", "/")
+    digest = sha256_of(os.path.join(argv[1], rel))
+    return 0 if digest and copied_manifest(argv[1]).get(rel) == digest else 1
+
+
 def main(argv: list[str]) -> int:
     if argv[:1] == ["record"]:
         return record(argv[1:])
     if argv[:1] == ["copied"]:
         return copied(argv[1:])
+    if argv[:1] == ["recorded"]:
+        return recorded(argv[1:])
     if argv[:1] == ["runtime-paths"]:
         print("\n".join(RUNTIME_PATHS))
         return 0
