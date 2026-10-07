@@ -617,6 +617,9 @@ def owner_env() -> dict[str, str]:
 
 def main(argv: list[str]) -> int:
     global _DEADLINE_AT, _DEADLINE_S
+    for stream in (sys.stdout, sys.stderr):  # the harness reads UTF-8; a code page cannot encode all text
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     soft = False
     budget = None
     while argv and argv[0] in ("--soft", "--deadline"):

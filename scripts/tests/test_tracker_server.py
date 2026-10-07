@@ -203,7 +203,12 @@ def test_a_call_over_piped_stdio_from_a_subdirectory_answers_fast(tmp_path, monk
     home = tmp_path / "home"
     home.mkdir()
     env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
-    git_dir = str(Path(shutil.which("git")).parent)  # git yes, gh no
+    git = shutil.which("git")
+    git_dir = str(Path(git).parent)  # git yes, gh no
+    if os.name != "nt":  # git's folder may hold gh too (/usr/bin): link git alone into a folder of its own
+        (tmp_path / "bin").mkdir()
+        os.symlink(git, tmp_path / "bin" / "git")
+        git_dir = str(tmp_path / "bin")
     env.update(HOME=str(home), USERPROFILE=str(home), PATH=git_dir + os.pathsep + str(Path(sys.executable).parent))
     proc, ask = _rpc_session(env, sub)
     try:
