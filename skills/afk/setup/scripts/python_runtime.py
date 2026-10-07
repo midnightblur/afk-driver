@@ -38,7 +38,10 @@ spells it differently.
 `check` compares the installed packages with the lock (`uv sync --check
 --offline`), then resolves `afk-python` through the PATH a new terminal would
 get, never this process's own, from every shell the platform has. Setup's PATH
-step uses the same PATH. It prints one `ok <probe>` or
+step uses the same PATH. On macOS and Linux that step appends one `export PATH`
+line to the startup files the login shell (`$SHELL`, else `/bin/sh`) reads, the
+files uv would pick for it; uv writes only a non-POSIX shell's files, told that
+shell. It prints one `ok <probe>` or
 `fail <probe>: <reason>` line per probe. Exit 0 when all pass, 1 otherwise,
 2 on a usage or plugin-tree error.
 """
@@ -50,6 +53,7 @@ import hashlib
 import importlib.util
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -71,6 +75,8 @@ UV_KEEP = ("UV_NATIVE_TLS", "UV_SYSTEM_CERTS", "UV_HTTP_TIMEOUT", "UV_HTTP_CONNE
 # Non-UV_ download and location overrides in uv-installer.{sh,ps1} 0.12.23, and an active venv.
 INSTALLER_OVERRIDES =("INSTALLER_DOWNLOAD_URL", "INSTALLER_NO_MODIFY_PATH",
                        "CARGO_DIST_FORCE_INSTALL_DIR", "CARGO_HOME", "VIRTUAL_ENV")
+# uv's update-shell guesses the shell from these before SHELL (uv 0.12.23 crates/uv-shell/src/lib.rs).
+SHELL_HINTS = ("NU_VERSION", "FISH_VERSION", "BASH_VERSION", "ZSH_VERSION", "KSH_VERSION", "PSModulePath")
 
 Runner = Callable[[object, Mapping[str, str]], "tuple[int, str]"]
 
@@ -116,8 +122,12 @@ def pins(root: Path = RUNTIME) -> dict:
 
 # ---- layout ----------------------------------------------------------------
 
+def home(env: Mapping[str, str]) -> Path:
+    return Path(env.get("HOME") or env.get("USERPROFILE") or str(Path.home()))
+
+
 def layout(env: Mapping[str, str], windows: bool) -> dict:
-    home_dir = env.get("HOME") or env.get("USERPROFILE") or str(Path.home())
+    home_dir = home(env)
     if windows:
         base = Path(env["LOCALAPPDATA"]) / "afk"
     else:
@@ -190,7 +200,52 @@ def sync_command(p: dict, paths: dict, test: bool) -> list[str]:
              "--managed-python", "--python", p["python"]] + (["--extra", "test"] if test else []))
 
 
-def steps(p: dict, paths: dict, windows: bool, test: bool) -> list[tuple[str, list]]:
+def login_shell(env: Mapping[str, str]) -> str:
+    return env.get("SHELL") or "/bin/sh"
+
+
+def startup_files(env: Mapping[str, str]) -> list[Path] | None:
+    """The files a POSIX login shell reads, as uv picks them for that shell; None for any other shell."""
+    shell, h = Path(login_shell(env)).name, home(env)
+    if shell == "bash":
+        login = next((h / f for f in (".bash_profile", ".bash_login", ".profile") if (h / f).is_file()),
+                     h / ".bash_profile")
+        return [login, h / ".bashrc"]
+    if shell == "zsh":
+        found = ([Path(env["ZDOTDIR"]) / ".zshenv"] if env.get("ZDOTDIR") else []) + [h / ".zshenv"]
+        return [next((f for f in found if f.is_file()), found[0])]
+    if shell in ("ksh", "mksh"):
+        return [h / ".profile", h / ".kshrc"]
+    if shell in ("sh", "dash", "ash"):
+        return [h / ".profile"]
+    return None
+
+
+def path_line(paths: dict) -> str:
+    return f'export PATH={shlex.quote(str(paths["bin"]))}:"$PATH"'
+
+
+def add_to_startup(files: list[Path], line: str) -> None:
+    for rc in files:
+        text = rc.read_text(encoding="utf-8") if rc.is_file() else ""
+        if line in text.splitlines():
+            continue
+        rc.parent.mkdir(parents=True, exist_ok=True)
+        with open(rc, "a", encoding="utf-8", newline="\n") as handle:
+            handle.write(("" if not text or text.endswith("\n") else "\n") + f"\n# afk-python\n{line}\n")
+
+
+def update_shell_env(env: Mapping[str, str], windows: bool) -> dict:
+    """uv's update-shell told the login shell (POSIX) or left to the registry (Windows), never a guess."""
+    hints = SHELL_HINTS[:-1] if windows else SHELL_HINTS
+    out = {k: v for k, v in env.items() if k not in hints and not (windows and k == "SHELL")}
+    if not windows:
+        out["SHELL"] = login_shell(env)
+    return out
+
+
+def steps(p: dict, paths: dict, windows: bool, test: bool,
+          env: Mapping[str, str] | None = None) -> list[tuple[str, list]]:
     uv = str(paths["uv"])
     if windows:
         url = INSTALLER.format(version=p["uv"], ext="ps1")
@@ -200,12 +255,14 @@ def steps(p: dict, paths: dict, windows: bool, test: bool) -> list[tuple[str, li
         url = INSTALLER.format(version=p["uv"], ext="sh")
         get_uv = ["sh", "-c", 'curl --proto =https --tlsv1.2 -LsSf "$1" | sh', "sh", url]
     py_install = [uv, "python", "install", p["python"], "--no-bin"] + (["--no-registry"] if windows else [])
+    files = None if windows else startup_files(os.environ if env is None else env)
+    path = ["<startup>", path_line(paths), *map(str, files)] if files else [uv, "tool", "update-shell"]
     return [
         ("uv", get_uv),
         ("python", py_install),
         ("environment", sync_command(p, paths, test) + ["--compile-bytecode"]),
         ("launcher", ["<entry>", str(paths["interpreter"]), str(paths["launcher"]), PTH]),
-        ("path", [uv, "tool", "update-shell"]),
+        ("path", path),
     ]
 
 
@@ -254,7 +311,7 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
     except OSError as exc:
         print(f"fail stamp: {exc}", file=out)
         return 1
-    for name, argv in steps(p, paths, windows, test):
+    for name, argv in steps(p, paths, windows, test, env):
         if name == "uv":
             code, said = runner([str(paths["uv"]), "--version"], child_env)
             if code == 0 and said.split()[1:2] == [p["uv"]]:
@@ -266,6 +323,14 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
             # uv refuses a second update-shell while the running PATH lags the startup files.
             print("ok path already set", file=out)
             continue
+        elif name == "path" and argv[0] == "<startup>":
+            try:
+                add_to_startup([Path(f) for f in argv[2:]], argv[1])
+                code, said = 0, ""
+            except OSError as exc:
+                code, said = 1, str(exc)
+        elif name == "path":
+            code, said = runner(argv, update_shell_env(child_env, windows))
         elif name == "launcher":
             try:
                 place_entry(paths, p["python"], windows)
@@ -478,7 +543,7 @@ def main(argv: list[str] | None = None) -> int:
     env = os.environ
     if args.action == "plan":
         paths = layout(env, windows)
-        for name, command in steps(pins(), paths, windows, args.test):
+        for name, command in steps(pins(), paths, windows, args.test, env):
             where = f"UV_UNMANAGED_INSTALL={paths['uv'].parent} " if name == "uv" else ""
             print(f"{name}: {where}{' '.join(command)}")
         print(f"stamp: {paths['stamp']}")
