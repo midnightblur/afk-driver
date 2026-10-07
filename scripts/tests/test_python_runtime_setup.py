@@ -362,6 +362,16 @@ def test_check_compares_the_test_extra_too_when_the_runtime_has_it(tmp_path):
     assert in_sync[in_sync.index("--extra") + 1] == "test"
 
 
+def test_check_after_a_failed_install_compares_the_requested_extra(tmp_path):
+    env, paths = stamped(tmp_path)
+    paths["stamp"].unlink()
+    paths["intent"].write_text("test\n", encoding="utf-8")
+    machine = Machine(paths)
+    assert pr.check(env, False, False, machine, io.StringIO()) == 1
+    in_sync = next(a for a, e in machine.calls if "--check" in str(a))
+    assert in_sync[in_sync.index("--extra") + 1] == "test"
+
+
 @pytest.mark.parametrize("override, reported, expected", [
     ({"lock": "0" * 64}, None, "fail lock"),
     ({"python": "3.13.0"}, None, "fail stamp: want Python"),

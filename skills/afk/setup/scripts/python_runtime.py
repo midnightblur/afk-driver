@@ -398,13 +398,18 @@ def check(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = ru
     """
     p, paths = pins(), layout(env, windows)
     stamp = read_stamp(paths) if stamp is None else stamp
-    test = test or "test" in stamp.get("extras", "").split(",")
     failures = 0
 
     def verdict(probe: str, problem: str | None) -> None:
         nonlocal failures
         failures += problem is not None
         print(f"ok {probe}" if problem is None else f"fail {probe}: {problem}", file=out)
+
+    # The intent outlives a failed install's stamp; compare the packages against what was asked for.
+    try:
+        test = test or "test" in stamp.get("extras", "").split(",") or "test" in requested_extras(paths)
+    except OSError as exc:
+        verdict("extras", f"cannot read {paths['intent']}: {exc}")
 
     verdict("launcher", None if paths["launcher"].exists() else f"{paths['launcher']} missing")
     verdict("stamp", None if stamp.get("python") == p["python"]
