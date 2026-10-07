@@ -401,7 +401,7 @@ def test_r2_1_the_registered_creation_hook_records_the_launching_process_as_owne
     command = manifest["hooks"]["WorktreeCreate"][0]["hooks"][0]["command"]
     argv = shlex.split(command.replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN_ROOT).replace("\\", "/")))
     argv[0] = __import__("sys").executable
-    environ = dict(os.environ, AFK_PROVIDER="claude", AFK_OWNER_PROCESS="python,python3")
+    environ = dict(os.environ, AFK_PROVIDER="claude", AFK_OWNER_PROCESS="python,python3,afk-python")
     environ.pop("AFK_WORKTREE_OWNER", None)
     done = subprocess.run(argv, input=json.dumps({"session_id": "s1", "cwd": str(repo), "name": "own"}),
                           text=True, capture_output=True, cwd=repo, env=environ, timeout=600)

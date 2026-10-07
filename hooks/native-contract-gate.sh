@@ -51,8 +51,7 @@ gate_native_contract() {
 
   gate_metrics_begin
 
-  local py=python findings rc=0
-  command -v python >/dev/null 2>&1 || py=python3
+  local py="${AFK_PYTHON:-afk-python}" findings rc=0
   findings=$("$py" - "$PLUGIN_DIR" <<'PY'
 import fnmatch
 import json

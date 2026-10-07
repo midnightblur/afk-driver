@@ -1063,7 +1063,7 @@ def run_prune(repo: Path, stubs: Stubs) -> subprocess.CompletedProcess:
 # The launcher resolves the owner itself (run-hook owner_env), so a passed AFK_WORKTREE_OWNER is
 # overridden; name a short-lived python wrapper as the owner process instead (A20 opt-in name).
 DEAD_OWNER_WRAPPER = [PY, "-c", "import subprocess, sys; sys.exit(subprocess.run(sys.argv[1:]).returncode)"]
-DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python"}
+DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python,afk-python"}
 
 
 def test_ac029_stale_prune_rules(repo, tmp_path, stubs):

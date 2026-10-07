@@ -171,8 +171,8 @@ def _twin_drift(tree: Path) -> None:
     (lambda t: _write(t, "hooks/x.sh", '#!/bin/sh\n"$AFK_' + 'PY" tool.py\n'), "hooks/x.sh:2: shell command"),
     (lambda t: _write(t, ".github/workflows/x.yml", "steps:\n  - uses: actions/setup-python@v5\n"),
      ".github/workflows/x.yml:2: CI step"),
-    (lambda t: _write(t, "skills/x/SKILL.md", "Run `python tool.py` first.\n"), "skills/x/SKILL.md:1: prose command"),
-    (lambda t: _write(t, "skills/x/SKILL.md", "```sh\npy -3 tool.py\n```\n"), "skills/x/SKILL.md:2: prose command"),
+    (lambda t: _write(t, "notes/x.md", "Run `python tool.py` first.\n"), "notes/x.md:1: prose command"),
+    (lambda t: _write(t, "notes/x.md", "```sh\npy -3 tool.py\n```\n"), "notes/x.md:2: prose command"),
 ], ids=["manifest", "mcp", "twin", "shebang", "argv", "shell", "afk-py", "ci", "prose", "fenced"])
 def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle):
     plant(tree)
@@ -180,9 +180,9 @@ def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle)
 
 
 def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
-    _write(tree, "skills/x/SKILL.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
+    _write(tree, "notes/x.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
     _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n")
     with (tree / "hooks" / "native-contract-allow.txt").open("a", encoding="utf-8", newline="\n") as allow:
-        allow.write("skills/x/SKILL.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
+        allow.write("notes/x.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
     done = gate(tree)
     assert done.returncode == 0, done.stderr + done.stdout
