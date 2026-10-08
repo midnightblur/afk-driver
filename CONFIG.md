@@ -219,7 +219,8 @@ shape at the adapter's code. With no POSIX shell a matching call is blocked too.
 `PreCommit` runs at an agent-driven commit, after the plugin's commit gates
 (`hooks/precommit-gates.sh`). Handlers run in declaration order, so declare the
 cheap ones first; the first one that exits non-zero, times out or cannot run
-blocks the commit, and no later handler runs. `matcher` must be `*`. Each
+blocks the commit, and no later handler runs. `matcher` must be `*` and `timeout` a
+finite positive number of seconds; every entry is checked before any handler runs. Each
 handler reads `AFK_STAGED_TREE` (the index as a tree id) and `AFK_STAGED_PATHS`,
 a file with one `<status>\t<path>` line per staged change in `git diff --name-status`
 form: `A`, `C`, `D`, `M` or `T`, and `R<score>\t<old>\t<new>` for a rename. Deletions

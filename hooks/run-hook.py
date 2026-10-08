@@ -75,6 +75,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
@@ -914,15 +915,20 @@ def precommit(root: Path, entries: list[dict], faults: list[str], bash: Path, en
         return 2
     if faults:
         return refuse("; ".join(faults))
-    for entry in entries:
+    planned: list[tuple[str, Path, float]] = []
+    for entry in entries:  # the whole manifest is checked before any handler runs
         named = str(entry.get("script"))
         if entry.get("matcher") not in (None, "", "*"):
             return refuse(f"{named}: PreCommit takes matcher \"*\", not {entry.get('matcher')!r}")
+        timeout = entry.get("timeout")
+        if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout) or timeout <= 0):
+            return refuse(f"{named}: timeout must be a positive number of seconds, not {timeout!r}")
         script, fault = resolved_script(root, entry)
         if script is None:
             return refuse(f"{REPO_HOOKS_MANIFEST}: {fault}")
-        timeout = entry.get("timeout")
-        timeout = float(timeout) if isinstance(timeout, (int, float)) else None
+        planned.append((named, script, float(timeout)))
+    for named, script, timeout in planned:
         started = time.monotonic()
         try:
             completed = run_tree([str(bash), str(script)], env, input=b"", timeout=timeout)

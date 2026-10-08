@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -201,3 +202,30 @@ def test_the_staged_path_list_carries_deletions_and_both_rename_names(plugin, tm
     done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body)], EXPECTED=line, **{change: True})
     assert done.returncode == 0, done.stderr
     assert ran[-1] == "cheap", done.stderr
+
+
+_MISSING = object()
+
+
+@pytest.mark.parametrize("timeout", [_MISSING, True, "60", 0, -1, float("inf"), float("nan")],
+                         ids=["missing", "boolean", "string", "zero", "negative", "infinite", "nan"])
+def test_a_timeout_that_is_not_a_finite_positive_number_blocks_before_any_handler_runs(plugin, tmp_path, timeout):
+    bad = _handler("costly")
+    if timeout is _MISSING:
+        bad.pop("timeout")
+    else:
+        bad["timeout"] = timeout
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), bad])
+    assert done.returncode == 2, done.stderr
+    assert "timeout must be a positive number of seconds" in done.stderr
+    assert "cheap" not in ran and "costly" not in ran, done.stderr
+
+
+def test_a_handler_that_hangs_past_its_timeout_blocks(plugin, tmp_path):
+    slow = _handler("cheap", body="sleep 30\n")
+    slow["timeout"] = 1
+    started = time.monotonic()
+    done, ran = _run(plugin, tmp_path, handlers=[slow, _handler("costly")])
+    assert done.returncode == 2, done.stderr
+    assert "no verdict within 1 seconds" in done.stderr
+    assert "costly" not in ran and time.monotonic() - started < 25, done.stderr
