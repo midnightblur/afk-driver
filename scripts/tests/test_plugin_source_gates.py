@@ -41,10 +41,12 @@ def _git(cwd, *args, check=True):
 
 def _env() -> dict[str, str]:
     env = {**os.environ, "AFK_PYTHON": sys.executable, "GATE_METRICS_DISABLE": "1"}
-    for name in ("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT", "GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE",
-                 "GATE_CACHE_DISABLE", *[f"{g.upper().replace('-', '_')}_GATE_DISABLE" for g in GATES]):
-        env.pop(name, None)
-    return env
+    dropped = {name.upper() for name in (
+        "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT", "GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE",
+        "NoDefaultCurrentDirectoryInExePath",
+        "GATE_CACHE_DISABLE", *[f"{g.upper().replace('-', '_')}_GATE_DISABLE" for g in GATES])}
+    # Windows hands os.environ keys back upper-cased, so match names case-insensitively.
+    return {key: value for key, value in env.items() if key.upper() not in dropped}
 
 
 def run_runner(repo: Path, *mode: str, judge: Path = ROOT,
@@ -354,3 +356,21 @@ def test_an_interpreter_inside_the_repository_is_never_the_judge(base):
     allowed_genericity(repo)
     rc, rows, err = run_runner(repo, "--staged", AFK_PYTHON=fake.as_posix(), PYTHONPATH=repo.as_posix())
     assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows searches the current folder for a bare program")
+def test_a_candidate_git_exe_never_runs_under_the_judge(base, tmp_path):
+    marker = tmp_path / "candidate-git-ran"
+    repo = _clone(base, "candidate_git")
+    home = Path(sys.base_prefix)
+    shutil.copy2(home / "Lib" / "venv" / "scripts" / "nt" / "venvlauncher.exe", repo / "git.exe")
+    (repo / "pyvenv.cfg").write_text(f"home = {home}\n", encoding="utf-8")
+    (repo / "ls-files").write_text(f"open(r'{marker}', 'w').write('ran')\nraise SystemExit(1)\n",
+                                   encoding="utf-8")
+    provider_manifest(repo)
+    staged = run_runner(repo, "--staged")
+    _git(repo, "commit", "-q", "-m", "candidate git")
+    ranged = run_runner(repo, "--range", "origin/main")
+    for rc, rows, err in (staged, ranged):
+        assert not marker.exists(), err
+        assert rc == 2 and verdicts(rows).get("native-contract") == "blocked", err

@@ -21,6 +21,8 @@ while [ "$#" -gt 0 ]; do
     *) printf '[afk] plugin-source-gates.sh: unknown argument %s\n' "$1" >&2; exit 2 ;;
   esac
 done
+# Windows would otherwise search a process's current folder, the candidate, for a bare program name.
+export NoDefaultCurrentDirectoryInExePath=1
 if [ -z "$mode" ] || { [ "$mode" = range ] && [ -z "$base_ref" ]; }; then
   echo "usage: plugin-source-gates.sh --staged | --range <base-ref> [<head-ref>] [--report <file>]" >&2
   exit 2
@@ -117,6 +119,13 @@ mkdir -p "$tmp/bin" && printf '#!/usr/bin/env bash\nexec %q -I "$@"\n' "$judge_p
   && chmod +x "$tmp/bin/afk-python" || incomplete "cannot write the judge interpreter"
 unset PYTHONPATH PYTHONHOME
 export AFK_PYTHON="$tmp/bin/afk-python" PATH="$tmp/bin:$safe_path"
+# Judge git: the same containment; Python reads AFK_JUDGE_GIT, shell calls go through git().
+AFK_JUDGE_GIT=$(command -v git 2>/dev/null) || AFK_JUDGE_GIT=""
+outside "$AFK_JUDGE_GIT" || incomplete "no git outside the repository"
+AFK_JUDGE_GIT=$(cygpath -m "$AFK_JUDGE_GIT" 2>/dev/null || printf '%s' "$AFK_JUDGE_GIT")
+export AFK_JUDGE_GIT
+git() { "$AFK_JUDGE_GIT" "$@"; }
+export -f git
 hooks="$JUDGE/hooks"
 for lib in lib/provider.sh lib/adapter.sh gate-context.sh gate-cache.sh gate-metrics.sh; do
   . "$hooks/$lib" || incomplete "the judging plugin cannot load hooks/$lib"

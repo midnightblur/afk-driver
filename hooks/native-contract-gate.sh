@@ -58,6 +58,7 @@ gate_native_contract() {
   findings=$("$py" - "$PLUGIN_DIR" <<'PY'
 import fnmatch
 import json
+import os
 import re
 import subprocess
 import sys
@@ -479,7 +480,7 @@ for path in sorted(plugin.rglob("*")):
 # F. Generated mirrors/activation surfaces may exist locally, never in git.
 try:
     tracked_raw = subprocess.check_output(
-        ["git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
+        [os.environ.get("AFK_JUDGE_GIT") or "git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
     )
     tracked = tracked_raw.decode("utf-8", errors="surrogateescape").split("\0")
 except (OSError, subprocess.CalledProcessError) as exc:

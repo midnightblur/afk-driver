@@ -984,6 +984,8 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
 | `AFK_CFG_LOAD_FAILED` | `hooks/lib/config.sh`, `hooks/precommit-gates.sh` | why the configuration export could not run; the commit gates print it |
+| `AFK_JUDGE_GIT` | `hooks/plugin-source-gates.sh`, `hooks/native-contract-gate.sh`, `scripts/behavior_registry.py` | absolute `git` outside the repository the plugin-source runner resolves; judge code starts git through it |
+| `NoDefaultCurrentDirectoryInExePath` | `hooks/plugin-source-gates.sh` | exported as `1` so Windows never resolves a bare program name from the candidate folder |
 | `AFK_IGNORE_GATE_SENTINEL` | `hooks/plugin-source-gates.sh`, `hooks/{skill-registry,native-contract,genericity,behavior-registry}-gate.sh` | set by the plugin-source runner so its gates ignore a `.claude/hooks/.gate-disabled` the candidate carries |
 | `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-run change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |
