@@ -2,9 +2,11 @@
 #   plugin-relative path glob<TAB>rule<TAB>line regex<TAB>reason
 #
 # Rules: claude-project-dir, claude-plugin-root, harness-env, harness-name,
-# harness-tool, mcp-prefix, hook-deadline, repo-scan, interpreter. Keep patterns line-specific; broad file
+# harness-tool, mcp-prefix, hook-deadline, repo-scan, interpreter, lavish-direct. Keep patterns line-specific; broad file
 # waivers hide new coupling in the same file.
-LAVISH.md	harness-name	lavish-axi setup hooks.*Claude Code, Codex, OpenCode, GitHub Copilot CLI	Third-party command capability names its supported runtimes.
+LAVISH.md	harness-name	^\| `setup hooks` \| installs SessionStart hooks into the coding agent \(Claude Code, Codex, OpenCode, GitHub Copilot CLI\)	Third-party command capability names its supported runtimes.
+# Check N: a pattern list that names the CLI runs nothing.
+skills/afk/setup/AUDIT.md	lavish-direct	^- Known CLIs: .*\|lavish-axi \|	Dependency-drift pattern list names the CLI; it runs nothing.
 AGENTS.md	claude-project-dir	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
 AGENTS.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
 CHANGELOG.md	harness-name	on Codex machines\) so every agent session	Historical shipped behavior.

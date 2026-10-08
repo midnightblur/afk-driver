@@ -1,118 +1,43 @@
-#!/usr/bin/env bash
-# lavish-tips.sh — PreToolUse hook (Bash/PowerShell): inject the page runtime
-# into lavish-axi artifacts.
-#
-# Intercepts a `lavish-axi <file>` RENDER command and embeds, into the
-# artifact HTML on disk, (a) the merged tooltip dictionary, (b) a self-contained
-# hover runtime that wraps every dictionary term in the page and serves a
-# floating tooltip — it also promotes author-side `title=`/`data-tip` attributes
-# (per-artifact item ids) into the same tooltip UI and propagates each authored
-# id-tip to every later bare occurrence of the same id (LAVISH.md "Tooltips"
-# rule 3), (c) the floating "btw" side-question control (LAVISH.md
-# "Side-questions"), (d) a backfilled <title> when the artifact has none
-# (LAVISH.md "Tab title") so concurrent tabs stay distinguishable, and (e) the
-# session-nav chrome — sticky section rail with per-state counts, settled cards
-# collapsed to their heading (expansions persisted per artifact in
-# localStorage), floating jump-to-current control, changed-this-round dots —
-# built from the authored data-afk-item/-state/-fresh anatomy (LAVISH.md "Page
-# anatomy"); a page without that markup gets no chrome.
-# Deterministic — no LLM at injection time; the authoring
-# agent's only job is keeping the dictionary itself fed (LAVISH.md "Tooltips").
-#
-# Dictionary sources, all committed (a session resumes on any machine), merged
-# in order (later wins):
-#   1. seed     — lavish-tips.json next to this script (tooltip-only vocabulary
-#                 with no glossary home; Lockstep-sanctioned copies, owning
-#                 files win on conflict)
-#   2. workflow — ../GLOSSARY.md (committed workflow vocabulary)
-#   3. domain   — the target repo's committed glossaries: root GLOSSARY.md plus
-#                 every top-level {service}/GLOSSARY.md (the set GLOSSARY-MAP.md
-#                 indexes); the artifact's own service (its first path segment)
-#                 parses last, so its bounded-context definitions win
-#                 cross-service collisions
-#   4. feature  — {spec-dir}/LAVISH-TIPS.md (committed feature/session terms —
-#                 not a glossary: session-scoped ids and ideas live here too);
-#                 spec-dir comes from the artifact's <meta name="afk-spec-dir"
-#                 content="<repo-relative path>"> or, absent, from the nearest
-#                 LAVISH-TIPS.md walking up from the artifact toward the repo
-#                 root — an artifact living in its spec folder needs no meta
-# All parse the canonical **Term**: entry grammar (GLOSSARY-FORMAT.md),
-# including "- **Term**:" bullets and a "**Term** *(annotation)*:" qualifier;
-# `Code:`/`Related:`/`Avoid:` metadata lines are dropped. A "Term — qualifier"
-# entry also serves the bare pre-dash term.
-# Keys starting with "__" are metadata, ignored. A key with any uppercase
-# letter matches case-sensitively; all-lowercase keys match case-insensitively;
-# whole-word only, but a plural tail ("MRs", "invoices") and a hyphen after the
-# term ("PRD-level") still match. Title-Case words are lowered so page-case
-# usage still matches; ALL-CAPS/mixed tokens (PRD, TICKET.md, J8) stay
-# case-sensitive.
-#
-# Re-injected (block replaced) on every render — the dictionary grows between
-# renders and a resumed artifact must pick up new entries. Idempotent via
-# start/end markers. Never blocks: always exits 0.
+"""Inject the lavish page runtime into an artifact before it is shown or polled.
 
-set -u
+    inject_file(path, cwd=None) -> bool   # True when the file changed
 
-input=$(cat)
+Owns the tooltip dictionary (seed `tips.json`, then the plugin `GLOSSARY.md`, then
+the artifact's repository glossaries with its own service last, then the feature's
+`LAVISH-TIPS.md`; later wins), the hover/side-question/session-nav runtime, the
+`<title>` and charset backfill, and the dark-mode override. Every block sits between
+start/end markers and is replaced whole, so unchanged inputs give unchanged bytes and
+the file is rewritten only when its bytes differ. Doctrine: `LAVISH.md`.
 
-# Fast bail: virtually every command is not a lavish render.
-case "$input" in
-  *lavish-axi*) ;;
-  *) exit 0 ;;
-esac
+Standard library only; no network, no subprocess.
+"""
+from __future__ import annotations
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-seed="$script_dir/lavish-tips.json"
-wf_glossary="$script_dir/../GLOSSARY.md"
-toplevel=$(git rev-parse --show-toplevel 2>/dev/null || true)
+import json
+import os
+import re
+import tempfile
+from pathlib import Path
 
-LAVISH_TIPS_INPUT="$input" LAVISH_TIPS_SEED="$seed" \
-LAVISH_TIPS_WF_GLOSSARY="$wf_glossary" LAVISH_TIPS_TOPLEVEL="$toplevel" "${AFK_PYTHON:-afk-python}" - <<'PYEOF'
-import json, os, re, sys
+HERE = Path(__file__).resolve().parent
+PLUGIN_ROOT = HERE.parents[1]
+SEED = HERE / "tips.json"
+WORKFLOW_GLOSSARY = PLUGIN_ROOT / "GLOSSARY.md"
 
 MARK_START = "<!-- afk-lavish-tips:start -->"
 MARK_END = "<!-- afk-lavish-tips:end -->"
+DARK_START = "<!-- afk-lavish-dark:start -->"
+DARK_END = "<!-- afk-lavish-dark:end -->"
+TIPS_BLOCK = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END) + r"(?:\r?\n)?", re.DOTALL)
+DARK_BLOCK = re.compile(re.escape(DARK_START) + r".*?" + re.escape(DARK_END) + r"(?:\r?\n)?", re.DOTALL)
+# The single-marker dark injection older releases wrote: marker, one style, optional script.
+LEGACY_DARK = re.compile(r"<!-- afk-lavish-dark -->\s*<style>.*?</style>\s*(?:<script>.*?</script>\s*)?",
+                         re.DOTALL)
+DAISY_DARK = "\n<style>html{color-scheme:dark}</style>\n"
 
-NON_RENDER = {"end", "stop", "playbook", "share", "setup", "update"}
 
-# `poll <file>` injects exactly as a render does — the subcommand token is
-# stepped over so the artifact argument behind it is still found. Any rewrite of
-# the artifact (Write/Edit) drops the block silently, and a rewrite is always
-# followed by a poll, so re-injecting here is what makes the runtime self-heal
-# instead of relying on the authoring agent to remember a re-render. Free: the
-# block is replaced wholesale below, never appended twice.
-PASS_THROUGH = {"poll"}
-
-try:
-    command = json.loads(os.environ["LAVISH_TIPS_INPUT"]).get("tool_input", {}).get("command", "")
-except Exception:
-    sys.exit(0)
-
-# Tokenize the tail after the lavish-axi package token; the artifact file is the
-# first non-flag token that is not a pass-through subcommand (non-render
-# subcommands bail).
-m = re.search(r"lavish-axi(?:@[\w.\-]+)?\s+(.*)", command, re.DOTALL)
-if not m:
-    sys.exit(0)
-target = None
-for tok in re.findall(r'"([^"]+)"|\'([^\']+)\'|(\S+)', m.group(1)):
-    tok = next(t for t in tok if t)
-    if tok.startswith("-") or tok in ("&&", "||", ";", "|"):
-        continue
-    if tok in PASS_THROUGH:
-        continue
-    if tok in NON_RENDER:
-        sys.exit(0)
-    target = tok
-    break
-if not target or not re.search(r"\.html?$", target, re.IGNORECASE):
-    sys.exit(0)
-
-try:
-    with open(target, encoding="utf-8") as f:
-        html = f.read()
-except OSError:
-    sys.exit(0)
+class InjectError(Exception):
+    """The artifact cannot be read or written as UTF-8 HTML."""
 
 
 def clean(text):
@@ -124,17 +49,17 @@ def clean(text):
 
 
 def keys_for(term):
-    # "Full path / Lean path" -> both; "Ticket description (`TICKET.md`)" ->
-    # base name + the parenthetical token; "L3 — data architecture" -> full
-    # form + the bare pre-dash term. Title-Case words lower so page-case
-    # usage matches; ALL-CAPS/mixed-case words stay case-sensitive.
+    """Dictionary keys of a term: each `a / b` part, its bare pre-dash head, a `(token)` inside it.
+
+    Title-Case words lower so page-case usage matches; ALL-CAPS and mixed-case words stay case-sensitive.
+    """
     raw = term.replace("`", "").strip()
-    out = set()
+    out = {}  # insertion-ordered: the dictionary bytes must not follow the process hash seed
 
     def add(part):
         part = part.strip()
         if part:
-            out.add(" ".join(
+            out.setdefault(" ".join(
                 w.lower() if len(w) > 1 and w[1:].islower() else w
                 for w in part.split()))
 
@@ -147,8 +72,8 @@ def keys_for(term):
     for m in re.finditer(r"\(([^)]*)\)", raw):
         inner = m.group(1).strip()
         if re.fullmatch(r"[\w.\-]+", inner):
-            out.add(inner)
-    return out
+            out.setdefault(inner)
+    return list(out)
 
 
 # Entry line: optional list bullet, bold term, optional italic parenthetical
@@ -159,8 +84,7 @@ META_LINE_RE = re.compile(r"[`_]*(Avoid|Code|Related)[`_]*\s*:")
 
 
 def parse_glossary(path):
-    # Canonical glossary entry grammar (GLOSSARY-FORMAT.md): "**Term**:" then
-    # definition lines until a blank line; "_Avoid_"/heading lines excluded.
+    """Entries of the canonical glossary grammar (GLOSSARY-FORMAT.md): `**Term**:` then lines to a blank one."""
     entries = {}
     try:
         with open(path, encoding="utf-8") as f:
@@ -193,97 +117,40 @@ def parse_glossary(path):
     return entries
 
 
-tips = {}
-try:
-    with open(os.environ["LAVISH_TIPS_SEED"], encoding="utf-8") as f:
-        data = json.load(f)
-    if isinstance(data, dict):
-        tips.update({k: v for k, v in data.items()
-                     if not k.startswith("__") and isinstance(v, str) and v.strip()})
-except Exception:
-    pass  # a broken seed must never break a render
+# The luminance-gated invert override for a page that is not DaisyUI.
+DARK_INVERT = """
+<style>
+  html { color-scheme: dark; }
+  html.afk-lavish-invert { filter: invert(1) hue-rotate(180deg); background: #111 !important; }
+  html.afk-lavish-invert img,
+  html.afk-lavish-invert video,
+  html.afk-lavish-invert canvas,
+  html.afk-lavish-invert iframe { filter: invert(1) hue-rotate(180deg); }
+</style>
+<script>
+(function () {
+  function lum(c) {
+    var m = c && c.match(/[\\d.]+/g);
+    if (!m || m.length < 3) return null;
+    if (m.length >= 4 && parseFloat(m[3]) === 0) return null; /* transparent */
+    return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
+  }
+  function apply() {
+    var l = lum(getComputedStyle(document.body).backgroundColor);
+    if (l === null) l = lum(getComputedStyle(document.documentElement).backgroundColor);
+    if (l === null) l = 1; /* nothing painted = browser-default white */
+    if (l > 0.5) document.documentElement.classList.add('afk-lavish-invert');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+  else apply();
+})();
+</script>
+"""
 
-# Committed term stores: workflow glossary, then the repo's domain glossaries,
-# then the feature's terms file — most specific wins.
-tips.update(parse_glossary(os.environ.get("LAVISH_TIPS_WF_GLOSSARY", "")))
-toplevel = os.environ.get("LAVISH_TIPS_TOPLEVEL", "")
-top = os.path.abspath(toplevel) if toplevel else ""
-abs_target = os.path.abspath(target)
 
-
-def under(child, parent):
-    return os.path.normcase(child).startswith(os.path.normcase(parent) + os.sep)
-
-
-# Domain glossaries — root GLOSSARY.md + every top-level {service}/GLOSSARY.md,
-# parsed unconditionally so domain terms never depend on an agent copying them
-# into a feature file. The artifact's own service parses last: its
-# bounded-context definitions win cross-service term collisions.
-if top:
-    own = ""
-    if under(abs_target, top):
-        own = os.path.relpath(abs_target, top).replace("\\", "/").split("/", 1)[0]
-    glossaries = []
-    if os.path.isfile(os.path.join(top, "GLOSSARY.md")):
-        glossaries.append(os.path.join(top, "GLOSSARY.md"))
-    try:
-        names = sorted(os.listdir(top))
-    except OSError:
-        names = []
-    for name in names:
-        g = os.path.join(top, name, "GLOSSARY.md")
-        if name != own and os.path.isfile(g):
-            glossaries.append(g)
-    if own and os.path.isfile(os.path.join(top, own, "GLOSSARY.md")):
-        glossaries.append(os.path.join(top, own, "GLOSSARY.md"))
-    for g in glossaries:
-        tips.update(parse_glossary(g))
-
-m = re.search(
-    r"<meta\s+(?:name=\"afk-spec-dir\"\s+content=\"([^\"]+)\"|content=\"([^\"]+)\"\s+name=\"afk-spec-dir\")",
-    html, re.IGNORECASE)
-spec_dir = (m.group(1) or m.group(2)).replace("\\", "/").strip("/") if m else ""
-# No meta: walk up from the artifact toward the repo root for the nearest
-# LAVISH-TIPS.md — an artifact living in its spec folder self-resolves.
-if not spec_dir and top and under(abs_target, top):
-    d = os.path.dirname(abs_target)
-    while True:
-        if os.path.isfile(os.path.join(d, "LAVISH-TIPS.md")):
-            rel = os.path.relpath(d, top).replace("\\", "/")
-            if rel != ".":
-                spec_dir = rel
-            break
-        if os.path.normcase(d) == os.path.normcase(top):
-            break
-        parent = os.path.dirname(d)
-        if parent == d:
-            break
-        d = parent
-if spec_dir and top:
-    tips.update(parse_glossary(os.path.join(top, spec_dir, "LAVISH-TIPS.md")))
-
-# Tab-title backfill (LAVISH.md "Tab title"): an untitled artifact gets
-# "{filename stem} — {spec-dir tail}". A floor for concurrent-tab
-# distinguishability — an authored <title> is never touched.
-titled = False
-if not re.search(r"<title[\s>]", html, re.IGNORECASE):
-    stem = os.path.splitext(os.path.basename(target))[0]
-    tail = spec_dir.rsplit("/", 1)[-1] if spec_dir else ""
-    tag = "<title>" + (stem + " — " + tail if tail and tail != stem else stem) + "</title>"
-    if re.search(r"<head\b", html, re.IGNORECASE):
-        html = re.sub(r"(<head\b[^>]*>)", lambda mh: mh.group(1) + tag,
-                      html, count=1, flags=re.IGNORECASE)
-    else:
-        html = tag + "\n" + html
-    titled = True
-
-if not tips and not titled:
-    sys.exit(0)
-
-# </script> inside a value would end our JSON script tag early.
-dict_json = json.dumps(tips, ensure_ascii=False).replace("</", "<\\/")
-
-block = MARK_START + """
+def tips_block(dict_json: str) -> str:
+    """The tooltip dictionary, hover runtime, btw control and session-nav chrome, between markers."""
+    return MARK_START + """
 <style>
   .afk-tip { border-bottom: 1px dotted currentColor; cursor: help; }
   #afk-tip-box {
@@ -668,28 +535,172 @@ block = MARK_START + """
 </script>
 """ + MARK_END
 
-# Dictionary text and the backfilled title are UTF-8-heavy (—, →, ≥): a
-# charset-less artifact would garble them (browser default windows-1252).
-# Declare one if absent.
-if not re.search(r"<meta[^>]+charset", html, re.IGNORECASE):
-    html = re.sub(r"(<head\b[^>]*>)", r'\1<meta charset="utf-8">',
-                  html, count=1, flags=re.IGNORECASE) \
-        if re.search(r"<head\b", html, re.IGNORECASE) \
-        else '<meta charset="utf-8">\n' + html
 
-# Replace a prior block (dictionary grows between renders), else inject fresh.
-if tips:
-    pattern = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END), re.DOTALL)
-    if pattern.search(html):
-        html = pattern.sub(lambda _: block, html, count=1)
+def repo_root(start: Path) -> Path | None:
+    """The nearest folder at or above `start` holding a `.git` entry, or None."""
+    walk = start if start.is_dir() else start.parent
+    while True:
+        if (walk / ".git").exists():
+            return walk
+        if walk.parent == walk:
+            return None
+        walk = walk.parent
+
+
+def _under(child: str, parent: str) -> bool:
+    return os.path.normcase(child).startswith(os.path.normcase(parent) + os.sep)
+
+
+def _seed(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}  # a broken seed must never break a render
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if not k.startswith("__") and isinstance(v, str) and v.strip()}
+
+
+def spec_dir_of(html: str, target: Path, top: str) -> str:
+    """The feature folder: the `afk-spec-dir` meta, else the nearest `LAVISH-TIPS.md` above the artifact."""
+    m = re.search(
+        r"<meta\s+(?:name=\"afk-spec-dir\"\s+content=\"([^\"]+)\"|content=\"([^\"]+)\"\s+name=\"afk-spec-dir\")",
+        html, re.IGNORECASE)
+    if m:
+        return (m.group(1) or m.group(2)).replace("\\", "/").strip("/")
+    if not top or not _under(str(target), top):
+        return ""
+    d = os.path.dirname(str(target))
+    while True:
+        if os.path.isfile(os.path.join(d, "LAVISH-TIPS.md")):
+            rel = os.path.relpath(d, top).replace("\\", "/")
+            return "" if rel == "." else rel
+        if os.path.normcase(d) == os.path.normcase(top):
+            return ""
+        parent = os.path.dirname(d)
+        if parent == d:
+            return ""
+        d = parent
+
+
+def load_dictionary(target: Path, html: str, toplevel: Path | None,
+                    seed: Path = SEED, workflow: Path = WORKFLOW_GLOSSARY) -> tuple[dict, str]:
+    """(merged term -> tip dictionary, spec-dir) for one artifact; later sources win."""
+    tips = _seed(seed)
+    tips.update(parse_glossary(str(workflow)))
+    top = os.path.abspath(toplevel) if toplevel else ""
+    abs_target = os.path.abspath(target)
+    if top:
+        own = ""
+        if _under(abs_target, top):
+            own = os.path.relpath(abs_target, top).replace("\\", "/").split("/", 1)[0]
+        glossaries = []
+        if os.path.isfile(os.path.join(top, "GLOSSARY.md")):
+            glossaries.append(os.path.join(top, "GLOSSARY.md"))
+        try:
+            names = sorted(os.listdir(top))
+        except OSError:
+            names = []
+        for name in names:
+            g = os.path.join(top, name, "GLOSSARY.md")
+            if name != own and os.path.isfile(g):
+                glossaries.append(g)
+        if own and os.path.isfile(os.path.join(top, own, "GLOSSARY.md")):
+            glossaries.append(os.path.join(top, own, "GLOSSARY.md"))
+        for g in glossaries:
+            tips.update(parse_glossary(g))
+    spec_dir = spec_dir_of(html, Path(abs_target), top)
+    if spec_dir and top:
+        tips.update(parse_glossary(os.path.join(top, spec_dir, "LAVISH-TIPS.md")))
+    return tips, spec_dir
+
+
+def _strip(html: str) -> str:
+    return LEGACY_DARK.sub("", DARK_BLOCK.sub("", TIPS_BLOCK.sub("", html)))
+
+
+def inject(html: str, target: Path, tips: dict, spec_dir: str) -> str:
+    """`html` with every runtime block replaced; a pure function of its arguments."""
+    nl = "\r\n" if "\r\n" in html else "\n"
+    html = _strip(html)
+    titled = False
+    if not re.search(r"<title[\s>]", html, re.IGNORECASE):
+        stem = os.path.splitext(os.path.basename(str(target)))[0]
+        tail = spec_dir.rsplit("/", 1)[-1] if spec_dir else ""
+        tag = "<title>" + (stem + " — " + tail if tail and tail != stem else stem) + "</title>"
+        if re.search(r"<head\b", html, re.IGNORECASE):
+            html = re.sub(r"(<head\b[^>]*>)", lambda mh: mh.group(1) + tag, html, count=1, flags=re.IGNORECASE)
+        else:
+            html = tag + nl + html
+        titled = True
+    # Dictionary text and the backfilled title are UTF-8-heavy; a charset-less page reads as windows-1252.
+    if (tips or titled) and not re.search(r"<meta[^>]+charset", html, re.IGNORECASE):
+        if re.search(r"<head\b", html, re.IGNORECASE):
+            html = re.sub(r"(<head\b[^>]*>)", r'\1<meta charset="utf-8">', html, count=1, flags=re.IGNORECASE)
+        else:
+            html = '<meta charset="utf-8">' + nl + html
+    if re.search(r"daisyui", html, re.IGNORECASE):
+        def darken(tag):
+            t = tag.group(0)
+            if re.search(r"data-theme\s*=", t, re.IGNORECASE):
+                return re.sub(r"data-theme\s*=\s*([\"']).*?\1", 'data-theme="dark"', t, flags=re.IGNORECASE)
+            return t[:-1] + ' data-theme="dark">'
+
+        html = re.sub(r"<html\b[^>]*>", darken, html, count=1, flags=re.IGNORECASE)
+        dark = DARK_START + DAISY_DARK + DARK_END
     else:
-        m = re.search(r"</body\s*>", html, re.IGNORECASE)
-        html = html[: m.start()] + block + "\n" + html[m.start() :] if m else html + "\n" + block
-try:
-    with open(target, "w", encoding="utf-8") as f:
-        f.write(html)
-except OSError:
-    pass
-sys.exit(0)
-PYEOF
-exit 0
+        dark = DARK_START + DARK_INVERT + DARK_END
+    blocks = ""
+    if tips:
+        # </script> inside a value would end the JSON script tag early.
+        blocks += tips_block(json.dumps(tips, ensure_ascii=False).replace("</", "<\\/")) + "\n"
+    blocks = (blocks + dark + "\n").replace("\n", nl)
+    m = re.search(r"</body\s*>", html, re.IGNORECASE)
+    if m:
+        return html[: m.start()] + blocks + html[m.start():]
+    return html + ("" if html.endswith("\n") else nl) + blocks
+
+
+def write_if_changed(path: Path, data: bytes) -> bool:
+    """Atomically replace `path` with `data` only when its bytes differ; True when written."""
+    try:
+        if path.read_bytes() == data:
+            return False
+    except OSError:
+        pass
+    fd, temp = tempfile.mkstemp(prefix=".afk-lavish-", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        try:
+            os.chmod(temp, path.stat().st_mode & 0o7777)
+        except OSError:
+            pass
+        os.replace(temp, path)
+    except BaseException:
+        try:
+            os.unlink(temp)
+        except OSError:
+            pass
+        raise
+    return True
+
+
+def inject_file(path: str | Path, cwd: str | Path | None = None,
+                seed: Path = SEED, workflow: Path = WORKFLOW_GLOSSARY) -> bool:
+    """Inject the runtime into the artifact at `path`; True when its bytes changed.
+
+    The repository is the one holding the artifact, else the one holding `cwd`.
+    """
+    target = Path(os.path.abspath(path))
+    try:
+        raw = target.read_bytes()
+        html = raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as problem:
+        raise InjectError(f"cannot read {target} as UTF-8: {problem}") from problem
+    toplevel = repo_root(target) or (repo_root(Path(os.path.abspath(cwd))) if cwd else None)
+    tips, spec_dir = load_dictionary(target, _strip(html), toplevel, seed, workflow)
+    try:
+        return write_if_changed(target, inject(html, target, tips, spec_dir).encode("utf-8"))
+    except OSError as problem:
+        raise InjectError(f"cannot write {target}: {problem}") from problem

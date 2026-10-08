@@ -1,7 +1,7 @@
 /* Kit stylesheet — inlined into every rendered page, never fetched.
  *
  * Dark-first on purpose. Every render and every poll injects a forced-dark
- * override that inverts any page it measures as light (hooks/lavish-dark.sh),
+ * override that inverts any page it measures as light (scripts/lavish/inject.py),
  * so a stylesheet that followed `prefers-color-scheme` would hand a
  * light-preference machine a page the override then inverts. Tokens still
  * switch: `data-theme="light"` on <html> paints the light set for a human who

@@ -117,8 +117,6 @@ this evidence, and the last section says what would close it.
 | stall-watchdog.sh | not proven | No timing probe was run |
 | lesson-append.sh | covered | `gate` — `hook-smoke.sh` |
 | lesson-digest.sh | covered | `gate` — `hook-smoke.sh` |
-| lavish-dark.sh | covered | `gate` |
-| lavish-tips.sh | covered | `gate` |
 | maven-lock.sh | covered | `gate` |
 | maven-compile-gate.sh | proven | `round5` — exit 0 in 148 s on a monorepo worktree, with `--also-make` in the invocation |
 | java-format-gate.sh | proven | `round5` — exit 2 on an unformatted file, exit 0 once formatted |

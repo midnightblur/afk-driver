@@ -31,6 +31,8 @@
 #      source scans repository content except through hooks/lib/bounded_scan.py.
 #      An exception names its own bound in native-contract-allow.txt (rules
 #      hook-deadline, repo-scan).
+#   N. no plugin script or agent prose runs `lavish-axi` in executable position
+#      except scripts/lavish_show.py (and tests); exceptions use rule lavish-direct.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -562,6 +564,51 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
                 f"{rel(candidate)}: references provider helper {helper.name!r}; "
                 f"only hooks/lib/providers/{name}.sh may call it"
             )
+
+
+# N. Only scripts/lavish_show.py runs lavish-axi: it injects the page runtime and refuses the
+# forbidden operations. A version probe passes; the wrapper, the guard's rule and tests are exempt.
+lavish_exempt = {"scripts/lavish_show.py", "hooks/lib/lavish_direct.py", "hooks/native-contract-gate.sh"}
+lavish_skip = ("scripts/tests/*", "hooks/tests/*", "CHANGELOG.md", "adr/*")
+lavish_head = (r"(?:^|[;&|(`{]|\$\(|\b(?:then|do|else|exec|command|env|nohup|time)\s|\bnpx(?:\s+-\S+)*\s)\s*"
+               r"(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*[\"']?(?:[^\s\"';|&]*[/\\])?"
+               r"lavish-axi(?:@[\w.-]+)?(?:\.(?:cmd|ps1|bat))?[\"']?")
+lavish_code = re.compile(lavish_head + r"(?=\s|$|[;&|)`])(?!\s+--version\b)", re.I)
+lavish_prose = re.compile(lavish_head + r"\s+(?!--version\b)\S", re.I)
+lavish_py = re.compile(r"(?<![\w`])[\"'](?:[^\"'\s]*[/\\])?lavish-axi(?:@[\w.-]+)?(?:\.(?:cmd|ps1|bat|exe))?(?=[\"'\s])")
+
+
+def lavish_problem(path_rel: str, number: int, line: str) -> None:
+    if not allowed(path_rel, "lavish-direct", line):
+        problems.append(f"{path_rel}:{number}: runs lavish-axi directly; use "
+                        f"`afk-python \"${{AFK_PLUGIN_ROOT}}/scripts/lavish_show.py\" ...` (LAVISH.md)")
+
+
+for path in sorted(plugin.rglob("*")):
+    path_rel = rel(path)
+    if (not path.is_file() or path_rel in lavish_exempt or "/__pycache__/" in f"/{path_rel}"
+            or "/node_modules/" in f"/{path_rel}" or path_rel.startswith(".git/")
+            or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):
+        continue
+    kind = source_kind(path)
+    if path.suffix == ".md":
+        fenced = False
+        for number, line in enumerate(read(path).splitlines(), 1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            spans = [line.strip()] if fenced else re.findall(r"`([^`]+)`", line)
+            if any(lavish_prose.search(span) for span in spans):
+                lavish_problem(path_rel, number, line)
+    elif kind == "python":
+        for number, line in enumerate(read(path).splitlines(), 1):
+            if lavish_py.search(line):
+                lavish_problem(path_rel, number, line)
+    elif kind == "shell" or path_rel.startswith(".github/") and path.suffix in (".yml", ".yaml"):
+        for number, line in enumerate(read(path).splitlines(), 1):
+            code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
+            if code and lavish_code.search(code):
+                lavish_problem(path_rel, number, line)
 
 
 # M. Bounded hooks. A hook that outlives its harness timeout is killed with no

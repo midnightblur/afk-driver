@@ -11,8 +11,8 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 workflow=$(cd "$here/../.." && pwd)
 envelopes="$here/envelopes"
 shim="$workflow/hooks/lib/provider.sh"
-lavish="$workflow/hooks/lavish-dark.sh"
-lavish_tips="$workflow/hooks/lavish-tips.sh"
+lavish_show="$workflow/scripts/lavish_show.py"
+lavish_inject="$workflow/scripts/lavish/inject.py"
 guard="$workflow/hooks/protected-branch-guard.py"
 
 command -v jq >/dev/null 2>&1 || { echo "FAIL: jq not on PATH; these smoke tests need it to read hook answers" >&2; exit 1; }
@@ -320,13 +320,15 @@ postcompact:PostCompact|stop:Stop)
     esac
   done
 
-  out=$(AFK_PROVIDER="$provider" bash "$lavish" \
-    < "$provider_envelopes/pretooluse-bash-safe.json" 2>/dev/null)
+  lv_out=$(sed -e 's|"command": *"[^"]*"|"command": "lavish-axi share page.html"|' \
+    "$provider_envelopes/pretooluse-bash-safe.json" \
+    | AFK_PROVIDER="$provider" AFK_ALLOW_PROTECTED=1 "${AFK_PYTHON:-afk-python}" "$guard" 2>/dev/null)
   rc=$?
-  if [ "$rc" = 0 ]; then
-    pass "lavish-dark passes non-render command"
+  if [ "$rc" = 0 ] && printf '%s' "$lv_out" | grep -q '"permissionDecision": "deny"' \
+      && printf '%s' "$lv_out" | grep -q 'lavish_show.py'; then
+    pass "the guard's lavish rule refuses a direct lavish-axi run and names the wrapper"
   else
-    fail "lavish-dark pass-through (rc=$rc)"
+    fail "lavish rule (rc=$rc out=$lv_out)"
   fi
 
   block_out=$(AFK_PROVIDER="$provider" bash -c \
@@ -341,15 +343,6 @@ postcompact:PostCompact|stop:Stop)
     pass "stop block emits a decision, the findings, and an exit code"
   else
     fail "stop block emission (json=$block_out stderr=$block_err code=$block_code)"
-  fi
-
-  out=$(AFK_PROVIDER="$provider" bash "$lavish_tips" \
-    < "$provider_envelopes/pretooluse-bash-safe.json" 2>/dev/null)
-  rc=$?
-  if [ "$rc" = 0 ]; then
-    pass "lavish-tips passes non-render command"
-  else
-    fail "lavish-tips pass-through (rc=$rc)"
   fi
 
   guard_repo=$(mktemp -d)
@@ -372,22 +365,31 @@ postcompact:PostCompact|stop:Stop)
   rm -rf "$guard_repo" "$guard_repo.out"
 done
 
-# ---- lavish render shape: the global binary's bare `lavish-axi <file>` command
-# (LAVISH.md "Pin and invocation") reaches both injection hooks.
-echo "== lavish bare render =="
+# ---- lavish wrapper (LAVISH.md "Pin and invocation"): injection lands once, a
+# second pass leaves the bytes alone, and a forbidden operation runs nothing.
+echo "== lavish wrapper =="
 lv_dir=$(mktemp -d)
 lv_page="$lv_dir/page.html"
 printf '<!doctype html><html><head></head><body><p>PRD</p></body></html>\n' > "$lv_page"
 # A native Windows Python cannot open a POSIX temp path; hand it a mixed one.
 lv_arg=$(cygpath -m "$lv_page" 2>/dev/null || printf '%s' "$lv_page")
-lv_env=$(jq -n --arg cmd "lavish-axi $lv_arg --no-open" --arg cwd "$lv_dir" \
-  '{session_id:"s", cwd:$cwd, hook_event_name:"PreToolUse", tool_name:"Bash", tool_input:{command:$cmd}}')
-printf '%s' "$lv_env" | AFK_PROVIDER=claude bash "$lavish" >/dev/null 2>&1
-printf '%s' "$lv_env" | AFK_PROVIDER=claude bash "$lavish_tips" >/dev/null 2>&1
-if grep -q 'afk-lavish-dark' "$lv_page" && grep -q 'afk-tips-dict' "$lv_page"; then
-  pass "bare lavish-axi render injects dark mode and the tips runtime"
+lv_lib=$(cygpath -m "$workflow/scripts" 2>/dev/null || printf '%s' "$workflow/scripts")
+lv_inject() {
+  "${AFK_PYTHON:-afk-python}" -c 'import sys; sys.path.insert(0, sys.argv[1]); from lavish import inject; sys.stdout.write(str(inject.inject_file(sys.argv[2])))' "$lv_lib" "$lv_arg"
+}
+first=$(lv_inject); second=$(lv_inject)
+if [ "$first" = True ] && [ "$second" = False ] && grep -q 'afk-lavish-dark:start' "$lv_page" \
+    && grep -q 'afk-tips-dict' "$lv_page"; then
+  pass "the wrapper's injection adds dark mode and the tips runtime once"
 else
-  fail "bare lavish-axi render left the page uninjected"
+  fail "lavish injection (first=$first second=$second)"
+fi
+LAVISH_AXI_HOST=0.0.0.0 "${AFK_PYTHON:-afk-python}" "$lavish_show" "$lv_arg" >/dev/null 2>&1; rc_host=$?
+"${AFK_PYTHON:-afk-python}" "$lavish_show" share "$lv_arg" >/dev/null 2>&1; rc_share=$?
+if [ "$rc_host" = 64 ] && [ "$rc_share" = 64 ]; then
+  pass "lavish_show refuses LAVISH_AXI_HOST and share before running anything"
+else
+  fail "lavish_show refusals (host=$rc_host share=$rc_share, 64 expected)"
 fi
 rm -rf "$lv_dir"
 
@@ -951,8 +953,8 @@ rm -rf "$badpat"
 
 # The current-question jump includes the kit send bar. Authored pages without
 # the form keep the current-card fallback.
-nav_calls=$(grep -c 'var cur = currentAnswerSurface();' "$lavish_tips")
-if grep -Fq "return current.closest('[data-afk-answer-form=\"1\"]') || current;" "$lavish_tips" &&
+nav_calls=$(grep -c 'var cur = currentAnswerSurface();' "$lavish_inject")
+if grep -Fq "return current.closest('[data-afk-answer-form=\"1\"]') || current;" "$lavish_inject" &&
    [ "$nav_calls" = "2" ]; then
   pass "lavish navigation targets the kit answer form"
 else

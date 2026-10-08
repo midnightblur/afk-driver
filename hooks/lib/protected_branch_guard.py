@@ -11,6 +11,9 @@ judged at every target they name; a shell command at the paths `shell_mutations`
 recognizes; reads, composition, unknown programs and paths outside git pass. A verdict
 that cannot be computed for an identified mutation is a refusal that names the fault.
 
+First, in the same process, the lavish rule (`lavish_direct`) refuses a shell call that runs
+`lavish-axi` itself or sets `LAVISH_AXI_HOST`; `AFK_ALLOW_PROTECTED=1` does not lift it.
+
 Placement is read from the file layout (`.git` directory or `gitdir:` file, then
 HEAD); one `git rev-parse` answers the unusual layouts (submodule, `core.worktree`,
 reftable, GIT_DIR in the environment).
@@ -624,9 +627,20 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     return 0
 
 
+def lavish_refusal(envelope: dict, facts: dict) -> str | None:
+    """The lavish rule's refusal of a shell call (`lavish_direct`); None when it does not apply or cannot read it."""
+    tool_input = envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {}
+    if tool_class(str(envelope.get("tool_name") or ""), facts) != "shell":
+        return None
+    try:
+        import lavish_direct
+        return lavish_direct.refusal(command_of(tool_input), str(PLUGIN_ROOT).replace("\\", "/"))
+    except Exception:
+        return None
+
+
 def main() -> int:
-    if os.environ.get("AFK_ALLOW_PROTECTED") == "1":
-        return 0
+    allow = os.environ.get("AFK_ALLOW_PROTECTED") == "1"
     cwd = Path.cwd()
     facts: dict = {}
     state: dict = {}
@@ -637,8 +651,15 @@ def main() -> int:
             raise Fault("the tool envelope is not an object")
         cwd = Path(envelope.get("cwd") or cwd)
         facts = provider_facts()
+        direct = lavish_refusal(envelope, facts)
+        if direct:
+            return deny(direct)
+        if allow:
+            return 0  # the human's launch flag lifts the branch rule, never the lavish rule
         return decide(envelope, facts, state)
     except Exception as problem:
+        if allow:
+            return 0
         if state.get("refused"):
             return deny(safe_refusal(*state["refused"], plain_hint(facts)))
         if not state.get("identified"):

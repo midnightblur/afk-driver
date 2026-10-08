@@ -17,13 +17,14 @@ afk-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> [-o <artifac
 afk-python ${AFK_PLUGIN_ROOT}/scripts/lavish_render.py <round.json> --check
 ```
 
-**A render must be followed by a `lavish-axi` render or poll before a human
-looks at the page.** This script writes the artifact file directly, and the
-tooltip dictionary and the forced-dark override are injected by hooks that fire
-only on a `lavish-axi` command — so a direct write silently strips both, and
-nothing in the page, the file, or the transcript says so. Both hooks are
-idempotent, so running one when it was not needed costs nothing; skipping one
-leaves the human on an un-tooltipped, possibly light page. Details:
+**A render must be followed by a wrapper render or poll
+(`scripts/lavish_show.py`, `LAVISH.md` "Pin and invocation") before a human
+looks at the page.** This script writes the artifact file directly and stays a
+pure function of the round JSON; the tooltip dictionary and the forced-dark
+override are injected only by the wrapper — so the write silently strips both,
+and nothing in the page, the file, or the transcript says so. Injection writes
+only when bytes change, so running it when it was not needed costs nothing;
+skipping it leaves the human on an un-tooltipped, possibly light page. Details:
 `LAVISH.md` "The page runtime lives in the file".
 
 The JSON is the durable state; the artifact is a build product. Append the new
@@ -317,13 +318,13 @@ Widgets the renderer draws: the **shape line** (rule 1), the **group sections**
 (rule 2), the **disclosure** (rule 3), the **dependency chips** — parent ids as
 links plus a `provisional` badge while a parent is unmarked, states read off the
 artifact rather than off the card — and the **next strip**, which is `unlocks[]`
-plus `parked[]` on the round header. The **state rail** is injected by the hooks
+plus `parked[]` on the round header. The **state rail** is injected by the wrapper
 from this anatomy. Chips jump to `afk-i-{item id}`; the prefix is there because
 an item id is the author's word and `afk-send` is the page's.
 
 The stylesheet is dark-first and switches on `data-theme="light"`. It does not
 follow `prefers-color-scheme`: every render and every poll injects a forced-dark
-override that inverts any page it measures as light (`hooks/lavish-dark.sh`), so
+override that inverts any page it measures as light (`scripts/lavish/inject.py`), so
 a light page on a light-preference machine would be inverted. All CSS and JS are
 inlined; the page fetches nothing.
 

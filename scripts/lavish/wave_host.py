@@ -1,7 +1,7 @@
 """Open one generated Lavish session URL in the current Wave tab.
 
-The helper never starts Lavish. The agent runs the literal ``lavish-axi``
-command first so the registered injection hooks can see it, then passes the
+The helper never starts Lavish. The agent first renders through
+``scripts/lavish_show.py`` (which injects the page runtime), then passes the
 exact generated session URL here.
 
 Exit codes:

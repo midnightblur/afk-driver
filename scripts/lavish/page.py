@@ -13,7 +13,7 @@ items below it, settled decisions at the bottom, newest first — the human neve
 scrolls past decided history to reach the current question.
 
 The state rail, the tooltip layer and the dark override are injected at render
-time by the hooks from the `data-afk-*` anatomy this module emits; nothing here
+time by `inject.py` from the `data-afk-*` anatomy this module emits; nothing here
 draws navigation chrome.
 """
 
