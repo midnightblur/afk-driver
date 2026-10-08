@@ -2,9 +2,10 @@
 # Registry and shared contracts for AFK hook provider adapters.
 
 # No dirname and, for an absolute path, no subshell: every hook sources this file.
-case "${BASH_SOURCE[0]}" in
-  /*|[A-Za-z]:*) AFK_PROVIDER_CORE_DIR=${BASH_SOURCE[0]%/*} ;;
-  */*) AFK_PROVIDER_CORE_DIR=$(cd "${BASH_SOURCE[0]%/*}" && pwd) ;;
+AFK_PROVIDER_CORE_DIR=${BASH_SOURCE[0]//\\//}
+case "$AFK_PROVIDER_CORE_DIR" in
+  /*|[A-Za-z]:*) AFK_PROVIDER_CORE_DIR=${AFK_PROVIDER_CORE_DIR%/*} ;;
+  */*) AFK_PROVIDER_CORE_DIR=$(cd "${AFK_PROVIDER_CORE_DIR%/*}" && pwd) ;;
   *) AFK_PROVIDER_CORE_DIR=$PWD ;;
 esac
 AFK_PROVIDER_NAMES=""
