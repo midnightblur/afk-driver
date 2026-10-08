@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop gate for the managed behavior registry and its transport parity.
+# Plugin-source gate for the managed behavior registry and its transport parity.
 # Disable with BEHAVIOR_REGISTRY_GATE_DISABLE=1.
 
 set -u

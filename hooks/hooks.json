@@ -141,12 +141,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afk-python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 plugin stop-gates.sh",
-            "timeout": 300,
-            "statusMessage": "AFK gates..."
-          },
-          {
-            "type": "command",
             "command": "afk-python \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 285 repo-list Stop",
             "timeout": 300,
             "statusMessage": "repository Stop gates"

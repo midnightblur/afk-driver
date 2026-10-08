@@ -375,10 +375,10 @@ a token value — not even partially.
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
-- **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
-  genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every
-  turn**; the commit gates — Maven compile, Java format, UI lint via
-  `precommit-gates.sh` (with `comment-gate.sh`) — fire on agent-driven commits; plus the on-demand
+- **Needed by:** the `hooks/*.sh` gate suite (the commit gates — Maven
+  compile, Java format, UI lint via `precommit-gates.sh` (with `comment-gate.sh`
+  and, in this plugin's repository, `plugin-source-gates.sh`) — fire on
+  agent-driven commits; plus the on-demand `wiring-gate.sh` and
   `app-start-gate.sh`), the forge adapters' `forge.sh`,
   `skills/afk/review/scripts/forge_ledger.py`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
@@ -767,7 +767,7 @@ Gating rule: if O1 misses, report the whole section as
 - **Notes:** minimum live-tested version is `0.152.0`.
 
 ### O2 · native hooks feature
-- **Needed by:** plugin Stop gates and PreToolUse guards.
+- **Needed by:** the launcher's repository Stop handlers and PreToolUse guards.
 - **Probe:** parse `~/.codex/config.toml`; require `features.hooks = true` and
   no `features.codex_hooks` key.
 - **Fix:** `human:` set `features.hooks = true`. Remove the deprecated key only
@@ -962,7 +962,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_PATH_CASE_FOLD` | `hooks/lib/provider.sh` | force path comparison to fold case (`1`) or to match exactly (`0`); unset follows the filesystem — folded on Windows and macOS, exact elsewhere |
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
-| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the gates' pass cache — every run does real work; `plugin-source-gates.sh` always sets it |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh`, `skills/afk/review/scripts/forge_ledger.py` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
 | `AFK_LEDGER_ADAPTER_CMD` | `skills/afk/review/scripts/forge_ledger.py` | test seam that replaces forge adapter dispatch with a named command |
 | `AFK_LEDGER_ADAPTER_TIMEOUT` | `skills/afk/review/scripts/forge_ledger.py` | seconds one adapter call may run before the ledger reports a timeout (default 120) |

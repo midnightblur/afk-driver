@@ -342,7 +342,7 @@ def deep_merge(base: dict, overlay: dict) -> dict:
 def shared_overlay(root: Path) -> Path | None:
     """`<git common dir>/afk/config.yaml`: the one file every worktree of `root` reads.
 
-    Read from `.git` itself rather than by spawning git: `load` runs on every Stop.
+    Read from `.git` itself rather than by spawning git: `load` runs on every gate run.
     """
     dot_git = root / ".git"
     if dot_git.is_dir():

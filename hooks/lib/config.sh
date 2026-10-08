@@ -8,7 +8,7 @@
 # Names follow the flattened key path: `git.base-branch` -> AFK_CFG_GIT_BASE_BRANCH,
 # `build-gates` -> AFK_CFG_BUILD_GATES_COUNT plus AFK_CFG_BUILD_GATES_0...
 # AFK_CFG_LOADED is 1 once the export ran, so the whole set costs one Python
-# call per Stop no matter how many gates read it.
+# call per gate run no matter how many gates read it.
 #
 # A missing or unreadable configuration is not a failure: the built-in defaults
 # come back, and every gate that needs a value it did not get stays off.

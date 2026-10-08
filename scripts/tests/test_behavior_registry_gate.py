@@ -65,6 +65,6 @@ def test_behavior_gate_passes_blocks_and_disables(tmp_path: pathlib.Path) -> Non
     assert run_gate(plugin_copy, disabled=True).returncode == 0
 
 
-def test_stop_gate_dispatches_behavior_registry() -> None:
-    stop_gate = (ROOT / "hooks" / "stop-gates.sh").read_text(encoding="utf-8")
-    assert 'ctx_scoped "$PLUGIN_SCOPE*" && run_gate behavior-registry' in stop_gate
+def test_plugin_source_runner_dispatches_behavior_registry() -> None:
+    runner = (ROOT / "hooks" / "plugin-source-gates.sh").read_text(encoding="utf-8")
+    assert 'GATES="skill-registry native-contract genericity behavior-registry"' in runner

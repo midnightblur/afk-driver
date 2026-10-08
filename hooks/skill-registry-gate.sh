@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop gate (ships with the afk plugin): registry gate — the plugin's three
+# Plugin-source gate (ships with the afk plugin): registry gate — the plugin's three
 # machine-checkable registries must match disk. Three checks:
 #
 # A. Claude plugin.json membership — every skill dir under skills/afk/ + skills/utils/

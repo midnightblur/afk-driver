@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop gate (ships with the afk plugin): wiring gate — every new artifact must
+# Wiring gate (ships with the afk plugin): every new artifact must
 # have a consumer or a declared IOU.
 #
 # Failure class this catches: producer-without-consumer (a file/class/log written
@@ -217,7 +217,7 @@ _wiring_main() {
 
   if [ -n "$detail" ]; then
     gate_metrics_emit wiring unknown "\"new_files\":$n_new,\"candidates\":${#cand_files[@]},\"detail\":\"$detail\""
-    printf '[afk] Wiring gate: verdict unknown (%s) — no orphan check this Stop.\n' "$detail" >&2
+    printf '[afk] Wiring gate: verdict unknown (%s) — no orphan check this run.\n' "$detail" >&2
     return 3
   fi
   scan_metrics=${scan_metrics:+,$scan_metrics}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sourced helper (ships with the afk plugin): the Stop gates' shared change-set
-# context — derived ONCE per Stop, consumed by every gate.
+# Sourced helper (ships with the afk plugin): the gates' shared change-set
+# context — derived ONCE per gate run, consumed by every gate.
 #
 # Why it exists. Gate latency here is dominated by PROCESS COUNT, not algorithm:
 # MSYS fork emulation (Windows git-bash) costs ~0.5-2s per subprocess against
@@ -8,7 +8,7 @@
 # re-derive the same change set and re-hash the same tree — `git status` plus two
 # forks per changed file, once per gate — so a 10-file working tree cost ~24
 # subprocesses x7 gates before any gate did real work. This derives all of it in
-# one place on a fixed, small fork budget (~8 spawns per Stop regardless of tree
+# one place on a fixed, small fork budget (~8 spawns per run regardless of tree
 # size); every list is parsed with bash string ops, never awk/sed/grep per line.
 #
 # Variables set (newline-separated lists, no trailing blank line):
@@ -135,7 +135,7 @@ gate_ctx_build() {
 
   # The wiring IOU ledger is tracked through a negation inside an ignored
   # directory, and its content flips wiring verdicts (deleting a waive/IOU line
-  # must bust both the Stop stamp and wiring's pass cache). Fold it into the
+  # must bust wiring's pass cache). Fold it into the
   # digest directly, so the verdict never rides on how the change set was
   # scoped.
   local ledger_body=""
@@ -171,8 +171,7 @@ gate_ctx_mergebase() {
 # from the worktree alone therefore stops gating a change at exactly the point it
 # becomes permanent. Dispatching on CHANGED plus BRANCH keeps the two in step.
 #
-# One diff, memoized, and only reached on a turn that already busted the Stop
-# short-circuit — a talk-only turn never pays it.
+# One diff, memoized on first use.
 gate_ctx_branch() {
   [ "${AFK_CTX_BRANCH_READY:-0}" = "1" ] && return 0
   AFK_CTX_BRANCH=""

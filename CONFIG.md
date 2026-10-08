@@ -19,7 +19,7 @@ and still exits 0. The keys are `repo-hooks`, `setup.extra`,
 `npm.workspace-root`; `maven.worktree-seed` is a per-machine path and is not
 checked.
 
-Bash gates source the flat export once per Stop through `hooks/lib/config.sh`
+Bash gates source the flat export once per gate run through `hooks/lib/config.sh`
 and read the fixed `AFK_CFG_*` names.
 
 ## Discovery
@@ -289,7 +289,7 @@ is the large-repository fixture it validates.
 
 ## The shell view
 
-`hooks/lib/config.sh` sources `afk-config.py export-shell` once per Stop and
+`hooks/lib/config.sh` sources `afk-config.py export-shell` once per gate run and
 exports:
 
 - a scalar as `AFK_CFG_<PATH>` — `git.base-branch` becomes `AFK_CFG_GIT_BASE_BRANCH`
