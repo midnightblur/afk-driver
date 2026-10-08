@@ -115,8 +115,23 @@ def test_timeout_blocks_stop(tmp_path):
         {"slow.sh": "#!/bin/sh\nsleep 30\n"},
     )
     done = run(root, "Stop", {"hook_event_name": "Stop"})
+    reason = decision(done.stdout)["reason"]
     assert decision(done.stdout)["decision"] == "block"
     assert "no verdict" in done.stderr
+    assert "timed out" in reason and "cannot run" not in reason
+
+
+def test_timeout_denies_pretooluse_as_a_timeout(tmp_path):
+    root = repository(
+        tmp_path,
+        json.dumps([{"event": "PreToolUse", "matcher": "*", "timeout": 1, "script": ".afk/slow.sh"}]),
+        {"slow.sh": "#!/bin/sh\nsleep 30\n"},
+    )
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["permissionDecision"] == "deny"
+    assert "timed out" in body["permissionDecisionReason"] and "cannot run" not in body["permissionDecisionReason"]
 
 
 def test_other_events_only_warn(tmp_path):
@@ -640,3 +655,79 @@ def test_the_afk_python_check_passes_this_interpreter_and_a_handler_sees_it(plug
     out, err = proc.communicate(timeout=60)
     assert proc.returncode == 0, err
     assert os.path.normcase(out) == os.path.normcase(sys.executable)
+
+
+ONLY_WINDOWS = pytest.mark.skipif(os.name != "nt", reason="the <git>/bin redirector exists only in Git for Windows")
+
+
+def git_tree(tmp_path: Path, *layouts: str) -> Path:
+    root = tmp_path / "Git"
+    (root / "mingw64" / "bin").mkdir(parents=True)
+    for layout in layouts:
+        (root / layout).mkdir(parents=True, exist_ok=True)
+        (root / layout / "bash.exe").write_bytes(b"")
+    return root
+
+
+@ONLY_WINDOWS
+def test_a_handler_starts_usr_bin_bash_past_the_redirector(tmp_path, monkeypatch):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    monkeypatch.setattr(launcher, "find_bash", lambda: root / "bin" / "bash.exe")
+    assert launcher.hook_bash() == root / "usr" / "bin" / "bash.exe"
+
+
+@ONLY_WINDOWS
+def test_a_git_tree_without_usr_bin_keeps_the_found_bash(tmp_path, monkeypatch):
+    root = git_tree(tmp_path, "bin")
+    monkeypatch.setattr(launcher, "find_bash", lambda: root / "bin" / "bash.exe")
+    assert launcher.hook_bash() == root / "bin" / "bash.exe"
+
+
+def test_a_bash_outside_a_git_bin_folder_is_started_as_found(tmp_path, monkeypatch):
+    named = tmp_path / "tools" / "bash.exe"
+    monkeypatch.setattr(launcher, "find_bash", lambda: named)
+    assert launcher.hook_bash() == named
+
+
+@ONLY_WINDOWS
+def test_the_windows_wsl_stub_is_never_the_hooks_bash(tmp_path, monkeypatch):
+    stub = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "bash.exe"
+    for variable in ("AFK_BASH", "GIT_BASH"):
+        monkeypatch.delenv(variable, raising=False)
+    for variable in ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        monkeypatch.setenv(variable, str(tmp_path / "none"))
+    monkeypatch.setattr(launcher, "git_relative_bash", lambda: None)
+    monkeypatch.setattr(launcher.shutil, "which", lambda name, *a, **k: str(stub))
+    assert launcher.find_bash() is None and launcher.hook_bash() is None
+
+
+@ONLY_WINDOWS
+@pytest.mark.parametrize("layout", ["bin", "usr/bin"])
+def test_both_layouts_give_a_handler_the_redirector_toolchain_first(tmp_path, layout):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    base = {"PATH": r"C:\Windows\system32", "USERPROFILE": str(tmp_path), "SystemRoot": r"C:\Windows"}
+    env = launcher.shell_env(root / layout / "bash.exe", base)
+    if layout == "usr/bin":
+        assert env["PATH"].split(os.pathsep)[:2] == [str(root / "mingw64" / "bin"), str(root / "usr" / "bin")]
+        assert env["MSYSTEM"] == "MINGW64" and env["HOME"] == str(tmp_path)
+    else:  # the redirector itself sets the rest when it starts usr/bin/bash.exe
+        assert str(root / "usr" / "bin") in env["PATH"].split(os.pathsep)
+
+
+def test_the_redirector_environment_matches_git_wrapper(tmp_path):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    profile, roaming = tmp_path / "profile", tmp_path / "roaming"
+    profile.mkdir()
+    roaming.mkdir()
+    drive, rest = str(roaming)[:2], str(roaming)[2:]
+    base = {"PATH": "orig", "MSYSTEM": "MSYS", "USERPROFILE": str(profile), "HOMEDRIVE": drive, "HOMEPATH": rest}
+    env = launcher.redirector_env(root, dict(base))
+    assert env["MSYSTEM"] == "MINGW64"  # set unconditionally, like the wrapper
+    assert env["HOME"] == drive + rest and env["PLINK_PROTOCOL"] == "ssh"
+    assert env["EXEPATH"] == str(root / "bin")
+    assert env["PATH"].split(os.pathsep) == [
+        str(root / "mingw64" / "bin"), str(root / "usr" / "bin"), str(Path(drive + rest) / "bin"), "orig"]
+    missing_home = launcher.redirector_env(root, dict(base, HOMEPATH=rest + "-gone"))
+    assert missing_home["HOME"] == str(profile)
+    kept = launcher.redirector_env(root, dict(base, HOME="/kept", PLINK_PROTOCOL="plink"))
+    assert kept["HOME"] == "/kept" and kept["PLINK_PROTOCOL"] == "plink"
