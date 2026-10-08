@@ -726,8 +726,25 @@ def test_the_redirector_environment_matches_git_wrapper(tmp_path):
     assert env["HOME"] == drive + rest and env["PLINK_PROTOCOL"] == "ssh"
     assert env["EXEPATH"] == str(root / "bin")
     assert env["PATH"].split(os.pathsep) == [
-        str(root / "mingw64" / "bin"), str(root / "usr" / "bin"), str(Path(drive + rest) / "bin"), "orig"]
+        str(root / "mingw64" / "bin"), str(root / "usr" / "bin"), drive + rest + "/bin", "orig"]
     missing_home = launcher.redirector_env(root, dict(base, HOMEPATH=rest + "-gone"))
     assert missing_home["HOME"] == str(profile)
     kept = launcher.redirector_env(root, dict(base, HOME="/kept", PLINK_PROTOCOL="plink"))
     assert kept["HOME"] == "/kept" and kept["PLINK_PROTOCOL"] == "plink"
+
+
+@ONLY_WINDOWS
+@pytest.mark.parametrize("home,expected", [
+    ("/c/Users/x/.cargo", "/c/Users/x/.cargo/bin"),
+    (r"C:\Users\x", "/c/Users/x/bin"),
+])
+def test_a_handler_finds_home_bin_whichever_way_home_is_spelled(home, expected):
+    bash = launcher.hook_bash()
+    if bash is None or bash.parent.parent.name.lower() != "usr":
+        pytest.skip("no Git for Windows usr/bin bash")
+    base = {k: v for k, v in os.environ.items() if k not in ("MSYSTEM", "EXEPATH")}
+    base.update(PATH=os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "system32"), HOME=home)
+    done = subprocess.run([str(bash), "-c", 'printf "%s" "$PATH"'], env=launcher.shell_env(bash, base),
+                          capture_output=True, text=True, timeout=60)
+    entries = done.stdout.split(":")
+    assert entries[2] == expected and not any(e.startswith("/c/c/") for e in entries)

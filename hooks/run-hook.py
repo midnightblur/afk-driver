@@ -416,8 +416,8 @@ def redirector_env(root: Path, env: dict[str, str]) -> dict[str, str]:
         elif env.get("USERPROFILE"):
             env["HOME"] = env["USERPROFILE"]
     front = [str(root / msys / "bin"), str(root / "usr" / "bin")]
-    if env.get("HOME"):
-        front.append(str(Path(env["HOME"]) / "bin"))
+    if env.get("HOME"):  # as spelled: Path() would turn /c/x into \c\x, which bash reads as /c/c/x
+        front.append(env["HOME"].rstrip("/\\") + "/bin")
     env["PATH"] = os.pathsep.join(front + [env.get("PATH", "")]).rstrip(os.pathsep)
     return env
 
