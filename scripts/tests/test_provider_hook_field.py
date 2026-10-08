@@ -1,7 +1,9 @@
-"""afk_hook_field without jq reads a string field with bash builtins only."""
+"""afk_hook_field without jq reads the member at a dotted path with bash builtins only, as jq does."""
 from __future__ import annotations
 
 import importlib.util
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -9,28 +11,69 @@ import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 LIBRARY = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
+ENVELOPES = sorted((PLUGIN_ROOT / "hooks" / "tests" / "envelopes").glob("*/*.json"))
+PATHS = ["hook_event_name", "tool_name", "tool_input.command", "tool_input.pattern", "tool_input.path",
+         "session_id", "cwd", "source", "tool_response.stdout"]
 _spec = importlib.util.spec_from_file_location("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py")
 _launcher = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_launcher)
 BASH = _launcher.hook_bash()
+JQ = shutil.which("jq")
 
 pytestmark = pytest.mark.skipif(BASH is None, reason="no POSIX shell")
 
 
-def field(envelope: str, path: str, tmp_path: Path) -> subprocess.CompletedProcess:
+def fields(envelope: str, paths: list[str], tmp_path: Path) -> list[str]:
     # An empty PATH: no jq, and any process start would fail on stderr.
     env = _launcher.shell_env(BASH, {"AFK_HOOK_INPUT": envelope, "PATH": ""})
     env["PATH"] = str(tmp_path / "empty")
-    return subprocess.run([str(BASH), "-c", '. "$1"; afk_hook_field "$2"', "_", LIBRARY.as_posix(), path],
-                          capture_output=True, text=True, env=env, timeout=60)
+    script = '. "$1"; shift; for p; do afk_hook_field "$p"; printf "\\36"; done'
+    done = subprocess.run([str(BASH), "-c", script, "_", LIBRARY.as_posix(), *paths],
+                          capture_output=True, env=env, timeout=60)
+    assert (done.returncode, done.stderr) == (0, b"")
+    return done.stdout.decode("utf-8").split("\x1e")[:-1]
+
+
+def jq(envelope: str, path: str) -> str:
+    done = subprocess.run([JQ, "-r", f".{path} // \"\""], input=envelope.encode("utf-8"), capture_output=True)
+    out = done.stdout.decode("utf-8")
+    if os.name == "nt":
+        out = out.replace("\r\n", "\n")  # jq writes text mode on Windows
+    out = out[:-1] if out.endswith("\n") else out
+    return "" if done.returncode or out[:1] in ("{", "[") else out
 
 
 @pytest.mark.parametrize("envelope,path,expected", [
     ('{"hook_event_name":"Stop"}', "hook_event_name", "Stop"),
     ('{"hook_event_name" : "PreToolUse"}', "hook_event_name", "PreToolUse"),
-    (r'{"tool_input":{"command":"a \"q\" b\\c\nd\te"}}', "tool_input.command", r'a "q" b\c d e'),
+    (r'{"tool_input":{"command":"a \"q\" b\\c\nd\te\re"}}', "tool_input.command", 'a "q" b\\c\nd\te\re'),
+    (r'{"tool_input":{"command":"C:\\temp C:\\new C:\\rx"}}', "tool_input.command", r"C:\temp C:\new C:\rx"),
+    (r'{"tool_input":{"command":"\\\\server\\n\u00e9 a\/b"}}', "tool_input.command", "\\\\server\\n\u00e9 a/b"),
+    (r'{"k":"Aé€😀\n"}', "k", "Aé€\U0001F600\n"),
     ('{"x":1}', "hook_event_name", ""),
+    ('{"a":{"b":12,"c":true,"d":false,"e":null,"f":{"g":"h"}}}', "a.b", "12"),
+    ('{"a":{"b":12,"c":true,"d":false,"e":null,"f":{"g":"h"}}}', "a.c", "true"),
+    ('{"a":{"b":12,"c":true,"d":false,"e":null,"f":{"g":"h"}}}', "a.d", ""),
+    ('{"a":{"b":12,"c":true,"d":false,"e":null,"f":{"g":"h"}}}', "a.e", ""),
+    ('{"a":["x",{"b":"in an array"}],"b":"top"}', "b", "top"),
+    ('[{"a":"x"}]', "a", ""),
 ])
-def test_the_no_jq_reading_starts_no_process(tmp_path, envelope, path, expected):
-    done = field(envelope, path, tmp_path)
-    assert (done.returncode, done.stdout, done.stderr) == (0, expected, "")
+def test_the_no_jq_reading_decodes_each_escape_once_and_starts_no_process(tmp_path, envelope, path, expected):
+    assert fields(envelope, [path], tmp_path) == [expected]
+
+
+@pytest.mark.parametrize("envelope", [
+    '{"tool_response":{"hook_event_name":"SessionStart","tool_input":{"command":"rm -rf /"}},'
+    '"hook_event_name":"PostToolUse","tool_input":{"command":"ls"}}',
+    '{"hook_event_name":"PostToolUse","tool_input":{"x":{"command":"rm -rf /"},"command":"ls"},'
+    '"tool_response":{"hook_event_name":"SessionStart","command":"rm"}}',
+], ids=["duplicate-before", "duplicate-after"])
+def test_a_same_named_leaf_elsewhere_never_answers_for_the_requested_path(tmp_path, envelope):
+    assert fields(envelope, ["hook_event_name", "tool_input.command"], tmp_path) == ["PostToolUse", "ls"]
+
+
+@pytest.mark.skipif(JQ is None, reason="jq is not installed")
+@pytest.mark.parametrize("envelope", ENVELOPES, ids=lambda p: f"{p.parent.name}/{p.stem}")
+def test_every_checked_in_envelope_reads_as_jq_reads_it(tmp_path, envelope):
+    text = envelope.read_text(encoding="utf-8")
+    assert fields(text, PATHS, tmp_path) == [jq(text, path) for path in PATHS]

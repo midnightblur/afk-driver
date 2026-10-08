@@ -226,14 +226,78 @@ afk_hook_field() {
     printf '%s' "${AFK_HOOK_INPUT:-}" | jq -r ".${path} // \"\"" 2>/dev/null || printf ''
   else
     # Builtins only: every hook reads fields, and a process start can cost 0.1-0.7 s.
-    local re value
-    re="\"${path##*.}\""'[[:space:]]*:[[:space:]]*"(([^"\\]|\\.)*)"'
-    [[ ${AFK_HOOK_INPUT:-} =~ $re ]] || return 0
-    value=${BASH_REMATCH[1]}
-    value=${value//'\"'/'"'}; value=${value//'\\'/'\'}
-    value=${value//'\n'/ }; value=${value//'\t'/ }; value=${value//'\r'/ }
-    printf '%s' "$value"
+    afk__json_field "$path"
   fi
+}
+
+# Print the string or number at dotted object path $1 of AFK_HOOK_INPUT, like
+# `jq -r ".$1 // \"\""`; an object, an array, false and null print nothing.
+afk__json_field() {
+  local want=$1 s=${AFK_HOOK_INPUT:-} cur='^' key= seg ops c i j n top=0 glob=+f IFS='"'
+  local -a parts stack
+  # \1 and \2 stand for \\ and \": every " left in s then delimits a string.
+  s=${s//'\\'/$'\1'}; s=${s//'\"'/$'\2'}
+  case $- in *f*) glob=-f ;; esac
+  set -f; parts=($s); set "$glob"
+  n=${#parts[@]}
+  for ((i = 0; i < n; i += 2)); do
+    seg=${parts[i]} key=
+    # Outside strings, only the separator after a key holds a colon.
+    if [[ $seg == *:* ]]; then
+      key=${parts[i-1]}
+      if [[ $cur$key == "$want" && $cur != '!'* ]]; then
+        seg=${seg#*:}
+        if [[ $seg =~ ^[[:space:]]*$ ]] && ((i + 1 < n)); then
+          afk__json_unescape "${parts[i+1]}"
+        elif [[ $seg =~ ^[[:space:]]*(-?[0-9][-+.eE0-9]*|true)[[:space:]]*([],}]|$) ]]; then
+          printf '%s' "${BASH_REMATCH[1]}"
+        fi
+        return 0
+      fi
+    fi
+    [[ $seg == *[\{\}\[\]]* ]] || continue
+    ops=${seg//[!\{\}\[\],]/}
+    for ((j = 0; j < ${#ops}; j++)); do
+      c=${ops:j:1}
+      case $c in
+        '{'|'[')
+          stack[top]=$cur; top=$((top + 1))
+          if [ "$c" = '[' ] || [ "$cur" = '!' ]; then cur='!'
+          elif [ -n "$key" ]; then cur=$cur$key.
+          elif [ "$cur" = '^' ] && [ "$top" -eq 1 ]; then cur=
+          else cur='!'
+          fi
+          key= ;;
+        '}'|']') ((top > 0)) && { top=$((top - 1)); cur=${stack[top]}; } ;;
+        ',') key= ;;
+      esac
+    done
+  done
+}
+
+# Decode one JSON string body whose \\ and \" are already \1 and \2.
+afk__json_unescape() {
+  local v=${1//'\/'/'/'} out= pre cp lo bytes
+  while [[ $v == *'\u'[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]* ]]; do
+    pre=${v%%'\u'[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]*}
+    cp=$((16#${v:${#pre}+2:4})); v=${v:${#pre}+6}
+    if ((cp >= 0xD800 && cp < 0xDC00)) && [[ $v == '\u'[dD][c-fC-F][0-9a-fA-F][0-9a-fA-F]* ]]; then
+      lo=$((16#${v:2:4})); v=${v:6}; cp=$(((cp - 0xD800) * 0x400 + lo - 0xDC00 + 0x10000))
+    fi
+    # UTF-8 by hand: printf's own \u follows the locale, and hooks run in C.
+    if ((cp < 0x80)); then printf -v bytes '\\x%02x' "$cp"
+    elif ((cp < 0x800)); then printf -v bytes '\\x%02x' $((0xC0 | cp >> 6)) $((0x80 | cp & 63))
+    elif ((cp < 0x10000)); then
+      printf -v bytes '\\x%02x' $((0xE0 | cp >> 12)) $((0x80 | cp >> 6 & 63)) $((0x80 | cp & 63))
+    else
+      printf -v bytes '\\x%02x' $((0xF0 | cp >> 18)) $((0x80 | cp >> 12 & 63)) \
+        $((0x80 | cp >> 6 & 63)) $((0x80 | cp & 63))
+    fi
+    out=$out$pre$bytes
+  done
+  printf -v v '%b' "$out$v"
+  v=${v//$'\1'/'\'}
+  printf '%s' "${v//$'\2'/'"'}"
 }
 
 afk__json_escape() {
