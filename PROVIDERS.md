@@ -67,7 +67,8 @@ Three more hooks serve the guard:
 Environment variables: `AFK_WORKTREE_GROUP` names a team that may share one
 worktree. Without it, `HERDR_ENV=1` plus `HERDR_TAB_ID` makes one herdr tab a
 team. `AFK_WORKTREE_OWNER` overrides the session identity. `AFK_ALLOW_PROTECTED=1`
-lifts every refusal and hold. The register is `skills/afk/setup/MANIFEST.md`.
+lifts every worktree-protection refusal and hold; the guard's lavish rule still applies
+(`LAVISH.md`). The register is `skills/afk/setup/MANIFEST.md`.
 
 | Class | Harness | How a refused session moves | Cleanup |
 |---|---|---|---|
