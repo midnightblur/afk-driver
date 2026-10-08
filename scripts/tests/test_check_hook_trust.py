@@ -45,6 +45,14 @@ def test_every_key_present_is_trusted(tmp_path):
     assert done.returncode == 0 and done.stdout == ""
 
 
+def test_snake_case_event_keys_are_trusted(tmp_path):
+    snake = {"PreToolUse": "pre_tool_use", "PostToolUse": "post_tool_use",
+             "SessionEnd": "session_end", "SessionStart": "session_start"}
+    text = "".join(table(snake[p.split(":")[0]] + p[p.index(":"):]) for p in keys())
+    done = check(tmp_path, text)
+    assert done.returncode == 0 and done.stdout == ""
+
+
 def test_a_missing_key_names_the_position_and_the_step(tmp_path):
     present = keys()
     done = check(tmp_path, "".join(table(p) for p in present[1:]))
@@ -66,3 +74,16 @@ def test_r9_5_another_plugins_key_at_the_same_position_is_not_afks(tmp_path):
 
 def test_no_config_file_is_not_applicable(tmp_path):
     assert check(tmp_path, None).returncode == 2
+
+
+def test_all_checks_every_handler_in_the_manifest(tmp_path):
+    events = json.loads(MANIFEST.read_text(encoding="utf-8"))["hooks"]
+    every = [f"{e}:{g}:{h}" for e, entries in events.items()
+             for g, entry in enumerate(entries) for h, _ in enumerate(entry["hooks"])]
+    target = tmp_path / "config.toml"
+    target.write_text("".join(table(p) for p in keys()), encoding="utf-8")
+    run = lambda: subprocess.run([sys.executable, str(SCRIPT), "--all", "--config", str(target),
+                                  "--manifest", str(MANIFEST)], capture_output=True, text=True, timeout=60)
+    assert run().stdout.count("missing:") == len(every) - len(keys())
+    target.write_text("".join(table(p) for p in every), encoding="utf-8")
+    assert run().returncode == 0

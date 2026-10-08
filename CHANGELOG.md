@@ -37,6 +37,20 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Fixed
+- `/afk:setup` no longer reports trusted hooks as missing: the hook-trust probe
+  accepts the snake_case event keys the harness config now holds. O4 runs the
+  same script over every handler (`check_hook_trust.py --all`).
+- `/afk:setup` marks C4/C5 (Maven) n/a unless `maven` is a build gate, and S1
+  (Jira credentials) n/a unless the tracker is Jira.
+- `/afk:setup` H6 no longer fails forever on answers saved machine-wide or on
+  the optional `mrAssignee`; answers go to the repository.
+- `/afk:setup` probes pick the first Python that runs (not the Windows Store
+  stub), keep the `gh`/`glab` masked token line out of the transcript, and read
+  the lavish-axi pin without shell-sensitive escapes.
+- `/afk:setup` tells the agent how to set `AFK_PLUGIN_ROOT`; the strays row is
+  renumbered H14 (H12 was used twice).
+
 ## [1.14.0] - 2026-10-07
 
 ### Added
