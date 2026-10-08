@@ -167,7 +167,7 @@ Claude reads `agents/*.md` from the enabled plugin. Codex reads the files copied
 
 Codex has no documented custom-agent tool allowlist or nesting-depth setting. Use sandbox plus role prohibitions. Root agents spawn; children run helper work inline when nesting is unavailable.
 
-Each adapter also names the exit code its harness reads a Stop block from (`afk_<provider>_stop_block_code`, default 2). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
+Each provider declaration also names the exit code its harness reads a Stop block from (`stop_block_code` in `hooks/lib/providers/<name>.json`, default 0). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
 
 ## Credentials
 

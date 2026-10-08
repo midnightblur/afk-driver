@@ -50,7 +50,8 @@ gathers every refusal and emits one verdict in the provider's block shape
 (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same events
 block too. On the remaining events it writes the reason to stderr.
 
-A handler that fails without refusing (any exit but 0 or 2, no refusal object) or runs
+A plugin handler's refusal on a blocking event (a refusal object, or exit 2) takes the same
+block form whatever its exit code. A handler that fails without refusing (any other exit but 0) or runs
 out of time gets one stderr line from the launcher, `[afk] <handler> (<event>) failed: ...`,
 after its own stderr; so does a fault in the launcher itself. Where the provider declaration
 says the harness drops stderr on a failed exit, a non-soft failure exits 0 with that line in
@@ -591,7 +592,8 @@ def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None = 
 
 
 def plugin_verdict(handler: str, code: int | None, out: bytes, err: bytes, soft: bool) -> int:
-    """Pass a plugin handler's streams and code through; a failure or a timeout also names itself."""
+    """Pass a plugin handler's streams and code through; a refusal takes the provider's block form,
+    and a failure or a timeout also names itself."""
     write_raw(sys.stderr, err)
     event = envelope_field("hook_event_name") or None
     if code is None:  # partial stdout is dropped: a verdict cut off midway is no verdict
@@ -599,9 +601,19 @@ def plugin_verdict(handler: str, code: int | None, out: bytes, err: bytes, soft:
         if not soft:
             answer([text], [])
         return 0
-    if code in (0, 2) or denial(event or "", out) is not None:
+    blocking = event in BLOCKING_EVENTS and not soft
+    reason = denial(event, out) if blocking else None
+    if reason is None and blocking and code == 2:
+        reason = err.decode("utf-8", "replace").strip() or f"{handler} refused"
+        out = block_document(event, reason).encode("utf-8") + b"\n"
+    if reason is not None:  # whatever the exit code: a harness reads a decision only in this form
+        if not err.strip():
+            sys.stderr.write(reason + "\n")
         write_raw(sys.stdout, out)
-        return 0 if soft else code
+        return block_code(event)
+    if code == 0:
+        write_raw(sys.stdout, out)
+        return 0
     text = failed(handler, event, f"exit {code}", err)
     if not soft and answer([text], []):
         return 0  # the handler's own stdout is dropped, as the harness drops it on a failed exit
@@ -839,17 +851,31 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
         except (OSError, subprocess.SubprocessError):
             pass
     # No shell, or a provider library this checkout cannot read: say the same
-    # thing in the shapes both harnesses read, and use the documented default.
+    # thing in the shapes both harnesses read, at the declared code.
     sys.stderr.write(reason + "\n")
+    sys.stdout.write(block_document(event, reason) + "\n")
+    return block_code(event)
+
+
+def block_document(event: str, reason: str) -> str:
+    """The one decision document a blocking event answers with (CAPABILITIES.md "Shared hook subset")."""
     if event == "Stop":
-        sys.stdout.write(json.dumps({"decision": "block", "reason": reason}) + "\n")
-        return 0  # both adapters name 0 as the Stop block code: the decision object is the verdict
-    sys.stdout.write(json.dumps({"hookSpecificOutput": {
+        return json.dumps({"decision": "block", "reason": reason})
+    return json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": reason,
-    }}) + "\n")
-    return 0
+    }})
+
+
+def block_code(event: str) -> int:
+    """PreToolUse denies at exit 0 on every harness; Stop at the provider's `stop_block_code`."""
+    if event != "Stop":
+        return 0
+    try:
+        return int((provider_facts() or {}).get("stop_block_code", 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 # Handlers that record who launched them. A walk up the process tree from inside bash
@@ -1012,7 +1038,7 @@ def main(argv: list[str]) -> int:
         if code is None:
             notices.append(failed(named, event, f"timed out after {timeout:g}s, verdict unknown", err))
             continue
-        if code not in (0, 2):
+        if code != 0:  # exit 2 refuses only on a blocking event
             notices.append(failed(named, event, f"exit {code}", err))
         else:
             allowed.append(out)

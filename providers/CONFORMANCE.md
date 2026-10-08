@@ -401,10 +401,10 @@ recorded as the reason the pending Codex verdict does not gate the release.
 ## Add harness #N
 
 1. Add the harness row to the supported-harness registry in `PROVIDERS.md`.
-2. Add `hooks/lib/providers/<name>.json` (the guard's provider facts: tool classes, move hint, worktree folder) and
+2. Add `hooks/lib/providers/<name>.json` (the provider facts: tool classes, move hint, worktree folder, stop block code) and
    `hooks/lib/providers/<name>.sh` with the adapter functions
    `hooks/lib/provider.sh` dispatches by name: detect, priority, plugin root,
-   plugin data, stop block code, and the plugin directory the harness manages.
+   plugin data, and the plugin directory the harness manages.
    A missing one makes the managed-path answer undecidable, and every caller
    reads undecidable the safe way: `plugin-clone.sh` then says `installed`.
 3. Add one envelope fixture per shared event under `hooks/tests/envelopes/<name>/`.

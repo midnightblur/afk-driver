@@ -95,22 +95,61 @@ def test_a_timeout_names_itself_and_never_blocks(plugin):
     assert done.stdout == b""
 
 
-@pytest.mark.parametrize("code", [0, 2])
-def test_success_and_a_deliberate_block_add_no_line_and_keep_stdout(plugin, code):
-    handler(plugin, "ok.sh", f"printf '{{\"k\": 1}}\\n'\necho 'own message' >&2\nexit {code}\n")
-    done = launch(plugin, "plugin", "ok.sh")
-    assert done.returncode == code
+@pytest.mark.parametrize("event", ["PreToolUse", "Stop", "SessionStart", "PostToolUse"])
+def test_success_adds_no_line_and_keeps_stdout(plugin, event):
+    handler(plugin, "ok.sh", "printf '{\"k\": 1}\\n'\necho 'own message' >&2\nexit 0\n")
+    done = launch(plugin, "plugin", "ok.sh", event=event)
+    assert done.returncode == 0
     assert done.stdout == b'{"k": 1}\n'
     assert text(done.stderr).strip() == "own message"
 
 
-def test_a_deny_object_with_a_nonzero_exit_is_a_block_not_a_failure(plugin):
-    deny = json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
-                                              "permissionDecisionReason": "no"}})
-    handler(plugin, "deny.sh", f"printf '%s\\n' '{deny}'\nexit 1\n")
-    done = launch(plugin, "plugin", "deny.sh")
+DENY = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                               "permissionDecisionReason": "no"}}
+BLOCK = {"decision": "block", "reason": "no"}
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+@pytest.mark.parametrize("event,document", [("PreToolUse", DENY), ("Stop", BLOCK)])
+@pytest.mark.parametrize("code", [0, 1, 2])
+def test_a_refusal_document_blocks_in_the_provider_form_whatever_the_exit_code(plugin, provider, event, document, code):
+    handler(plugin, "deny.sh", f"printf '%s\\n' '{json.dumps(document)}'\nexit {code}\n")
+    done = launch(plugin, "plugin", "deny.sh", provider=provider, event=event)
+    assert done.returncode == 0  # both declarations: `stop_block_code` 0, PreToolUse denies at 0
+    assert one_document(done.stdout) == document
     assert "failed" not in text(done.stderr)
-    assert one_document(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert text(done.stderr).strip() == "no"  # an empty stderr gets the reason: one harness reads it at exit 2
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+@pytest.mark.parametrize("event,field", [("PreToolUse", "permissionDecisionReason"), ("Stop", "reason")])
+def test_exit_two_on_a_blocking_event_becomes_one_decision_document(plugin, provider, event, field):
+    handler(plugin, "gate.sh", "echo 'two findings' >&2\nexit 2\n")
+    done = launch(plugin, "plugin", "gate.sh", provider=provider, event=event)
+    said = one_document(done.stdout)
+    assert done.returncode == 0
+    assert (said.get("hookSpecificOutput") or said)[field] == "two findings"
+    assert text(done.stderr).strip() == "two findings"
+
+
+@pytest.mark.parametrize("event", ["SessionStart", "PostToolUse"])
+def test_exit_two_on_a_non_blocking_event_is_a_failure(plugin, event):
+    handler(plugin, "two.sh", "echo 'not a gate' >&2\nexit 2\n")
+    line = f"[afk] two.sh ({event}) failed: exit 2: not a gate"
+    claude = launch(plugin, "plugin", "two.sh", provider="claude", event=event)
+    assert claude.returncode == 2 and line in text(claude.stderr)
+    codex = launch(plugin, "plugin", "two.sh", provider="codex", event=event)
+    assert codex.returncode == 0 and one_document(codex.stdout) == {"systemMessage": line}
+
+
+@pytest.mark.parametrize("provider,code", [("claude", 1), ("codex", 0)])
+def test_a_deny_document_cut_off_mid_write_is_a_failure_not_a_verdict(plugin, provider, code):
+    handler(plugin, "torn.sh", "printf '{\"hookSpecificOutput\": {\"permissionDecision\": \"de'\nexit 1\n")
+    done = launch(plugin, "plugin", "torn.sh", provider=provider)
+    assert done.returncode == code
+    assert "[afk] torn.sh (PreToolUse) failed: exit 1: no message" in text(done.stderr)
+    if provider == "codex":  # the harness gets one valid document, never the torn one
+        assert one_document(done.stdout) == {"systemMessage": "[afk] torn.sh (PreToolUse) failed: exit 1: no message"}
 
 
 def test_stdout_of_a_failing_handler_is_untouched_where_stderr_is_shown(plugin):
