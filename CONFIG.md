@@ -226,7 +226,9 @@ a file with one `<status>\t<path>` line per staged change in `git diff --name-st
 form: `A`, `C`, `D`, `M` or `T`, and `R<score>\t<old>\t<new>` for a rename. Deletions
 are listed, and handlers judge the staged bytes. Each run appends a
 `gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
-"Latency metrics & budget"). `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
+"Latency metrics & budget"). Without `afk-python` the handlers cannot run, and the
+commit blocks when the manifest declares `PreCommit` or when the configuration
+names a custom `repo-hooks` path that cannot be read without it. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
 `git commit --no-verify` skip them with the plugin's gates.
 
 `WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
@@ -308,6 +310,8 @@ exports:
 - a scalar as `AFK_CFG_<PATH>` — `git.base-branch` becomes `AFK_CFG_GIT_BASE_BRANCH`
 - a list as `AFK_CFG_<PATH>_COUNT` plus `AFK_CFG_<PATH>_0`, `_1`, …
 - `AFK_CFG_LOADED=1` once the export ran
+- `AFK_CFG_LOAD_FAILED`, set by `config.sh` to the reason when the export could not
+  run; the defaults come back and the commit gates print the reason
 
 Every value is shell-quoted at export time, so a pattern containing spaces or
 `;` cannot become a command.

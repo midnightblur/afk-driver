@@ -11,7 +11,8 @@
 # call per gate run no matter how many gates read it.
 #
 # A missing or unreadable configuration is not a failure: the built-in defaults
-# come back, and every gate that needs a value it did not get stays off.
+# come back, and every gate that needs a value it did not get stays off. When the
+# export itself cannot run, AFK_CFG_LOAD_FAILED names why, so a caller can refuse.
 
 afk_config_load() {
   [ "${AFK_CFG_LOADED:-0}" = "1" ] && return 0
@@ -23,9 +24,10 @@ afk_config_load() {
     root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
   fi
   script="$root/scripts/afk-config.py"
-  [ -f "$script" ] || { AFK_CFG_LOADED=1; return 0; }
+  [ -f "$script" ] || { AFK_CFG_LOADED=1; AFK_CFG_LOAD_FAILED="$script is missing"; return 0; }
 
-  exported=$("$py" "$script" export-shell 2>/dev/null) || { AFK_CFG_LOADED=1; return 0; }
+  exported=$("$py" "$script" export-shell 2>/dev/null) \
+    || { AFK_CFG_LOADED=1; AFK_CFG_LOAD_FAILED="$py could not run $script"; return 0; }
   eval "$exported"
   AFK_CFG_LOADED=1
 }

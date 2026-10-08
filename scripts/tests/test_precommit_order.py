@@ -55,12 +55,14 @@ def plugin(tmp_path_factory):
 
 
 def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False,
-         handlers: list[dict] | None = None, rename_only: bool = False, **env: str):
+         handlers: list[dict] | None = None, rename_only: bool = False, manifest: str = ".afk/hooks.json",
+         **env: str):
     repo = tmp_path / "repo"
     repo.mkdir(exist_ok=True)
     _git(repo, "init", "-q")
     (repo / ".afk").mkdir()
-    (repo / ".afk" / "config.yaml").write_text("schema: 1\nbuild-gates:\n  - maven\n", encoding="utf-8")
+    custom = "" if manifest == ".afk/hooks.json" else f"repo-hooks: {manifest}\n"
+    (repo / ".afk" / "config.yaml").write_text(f"schema: 1\n{custom}build-gates:\n  - maven\n", encoding="utf-8")
     if plugin_repo:
         (repo / ".claude-plugin").mkdir()
         (repo / ".claude-plugin" / "plugin.json").write_text('{"name": "afk"}\n', encoding="utf-8")
@@ -71,7 +73,8 @@ def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: b
         for entry in handlers:
             if "body" in entry:
                 (repo / entry["script"]).write_text(entry.pop("body"), encoding="utf-8", newline="\n")
-        (repo / ".afk" / "hooks.json").write_text(json.dumps(handlers), encoding="utf-8")
+        (repo / manifest).parent.mkdir(parents=True, exist_ok=True)
+        (repo / manifest).write_text(json.dumps(handlers), encoding="utf-8")
     (repo / "A.java").write_text("class A {}\n", encoding="utf-8")
     _git(repo, "add", "A.java")
     if delete_only or rename_only:
@@ -229,3 +232,18 @@ def test_a_handler_that_hangs_past_its_timeout_blocks(plugin, tmp_path):
     assert done.returncode == 2, done.stderr
     assert "no verdict within 1 seconds" in done.stderr
     assert "costly" not in ran and time.monotonic() - started < 25, done.stderr
+
+
+@pytest.mark.parametrize("manifest", [".afk/hooks.json", "ci/commit-hooks.json"], ids=["default", "custom"])
+def test_without_the_launcher_a_declared_precommit_manifest_blocks(plugin, tmp_path, manifest):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], manifest=manifest,
+                     AFK_PYTHON="afk-python-is-not-installed")
+    assert done.returncode == 2, done.stderr
+    assert "configuration not loaded" in done.stderr
+    assert "PreCommit handlers cannot run" in done.stderr and "cheap" not in ran, done.stderr
+
+
+def test_without_the_launcher_a_repository_with_no_handlers_still_commits(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, AFK_PYTHON="afk-python-is-not-installed")
+    assert done.returncode == 0, done.stderr
+    assert "configuration not loaded" in done.stderr, done.stderr

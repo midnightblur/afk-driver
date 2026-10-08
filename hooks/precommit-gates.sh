@@ -80,6 +80,8 @@ git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
 
 # One configuration read per commit; the build-gate adapters read it below.
 afk_config_load
+[ -n "${AFK_CFG_LOAD_FAILED:-}" ] \
+  && echo "[afk] configuration not loaded ($AFK_CFG_LOAD_FAILED): the gates it selects are off. Run /afk:setup." >&2
 gate_ctx_build_staged
 [ -z "$AFK_CTX_CHANGED" ] && git diff --cached --quiet 2>/dev/null && exit 0
 
@@ -181,8 +183,13 @@ gate_metrics_file && export GATE_METRICS_FILE="$_GATE_METRICS_PATH"
 py="${AFK_PYTHON:-afk-python}"
 if command -v "$py" >/dev/null 2>&1; then
   "$py" "$SCRIPT_DIR/run-hook.py" repo-list PreCommit </dev/null >&2 || commit_blocked
-elif grep -qs '"PreCommit"' "${AFK_CFG_REPO_HOOKS:-.afk/hooks.json}"; then
-  echo "[afk] repository PreCommit handlers cannot run: afk-python not found. Run /afk:setup." >&2
-  commit_blocked
+else
+  # Without the configuration a custom manifest path is unknown, so declaring one blocks.
+  manifest=${AFK_CFG_REPO_HOOKS:-.afk/hooks.json}
+  [ -n "${AFK_CFG_LOAD_FAILED:-}" ] && grep -qs '^repo-hooks:' .afk/config.yaml && manifest=""
+  if [ -z "$manifest" ] || grep -qs '"PreCommit"' "$manifest"; then
+    echo "[afk] repository PreCommit handlers cannot run: afk-python not found. Run /afk:setup." >&2
+    commit_blocked
+  fi
 fi
 exit 0
