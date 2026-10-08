@@ -102,7 +102,7 @@ def test_payload_can_arrive_on_stdin(tmp_path, kind):
 GITLAB_PAGES = """
 case "$1 $2" in
   "mr view") echo '{"iid":7,"draft":true}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/1","lastEditedAt":null},{"id":"gid://gitlab/DiffNote/2","lastEditedAt":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/1","lastEditedBy":null},{"id":"gid://gitlab/DiffNote/2","lastEditedBy":null}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":"a","notes":[{"id":1,"body":"one","author":{"username":"x"}}]}]'
@@ -137,7 +137,7 @@ NOTE_PAGES = {
     "gitlab": """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/Note/1","lastEditedAt":"2025-02-03T00:00:00Z"},{"id":"gid://gitlab/Note/2","lastEditedAt":null},{"id":"gid://gitlab/Note/3","lastEditedAt":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/Note/1","lastEditedBy":{"id":"gid://gitlab/User/9"}},{"id":"gid://gitlab/Note/2","lastEditedBy":null},{"id":"gid://gitlab/Note/3","lastEditedBy":null}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":2,"body":"later","author":{"username":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02","system":false}]'
@@ -434,7 +434,7 @@ def test_gitlab_thread_list_exposes_locator_url_and_note_times(tmp_path):
     body = """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/61","lastEditedAt":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/61","lastEditedBy":null}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*) echo '[{"id":"d1","notes":[{"id":61,"type":"DiffNote","resolved":false,"body":"x","created_at":"2025-03-01","updated_at":"2025-03-02","web_url":"https://gitlab.example/n/61","author":{"username":"a"},"position":{"old_path":"old.txt","new_path":"new.txt","old_line":4,"new_line":5}}]}]' ;;
   *) echo '{}' ;;
@@ -849,7 +849,7 @@ def test_note_list_fails_when_the_graphql_call_fails(tmp_path, kind):
 
 @pytest.mark.parametrize("kind,node", [
     ("github", '{"databaseId":2,"lastEditedAt":null},'),
-    ("gitlab", '{"id":"gid://gitlab/Note/2","lastEditedAt":null},'),
+    ("gitlab", '{"id":"gid://gitlab/Note/2","lastEditedBy":null},'),
 ])
 def test_note_list_fails_when_a_note_has_no_graphql_edit_state(tmp_path, kind, node):
     assert node in NOTE_PAGES[kind]
@@ -858,34 +858,55 @@ def test_note_list_fails_when_a_note_has_no_graphql_edit_state(tmp_path, kind, n
     assert answer["error"] is True and "notes" not in answer
 
 
+EDIT_FIELD = {"gitlab": ("lastEditedBy", '{"id":"gid://gitlab/User/9"}'),
+              "github": ("lastEditedAt", '"2025-02-03T00:00:00Z"')}
+
+
 @pytest.mark.parametrize("kind", KINDS)
-def test_note_list_fails_when_graphql_omits_lastEditedAt(tmp_path, kind):
-    body = NOTE_PAGES[kind].replace(',"lastEditedAt":null', "").replace(
-        ',"lastEditedAt":"2025-02-03T00:00:00Z"', "")
+def test_note_list_fails_when_graphql_omits_the_edit_field(tmp_path, kind):
+    field, value = EDIT_FIELD[kind]
+    body = NOTE_PAGES[kind].replace(f',"{field}":null', "").replace(f',"{field}":{value}', "")
     answer = json.loads(forge(kind, stub(tmp_path, kind, body), "note-list", '{"id":"7"}', cwd=tmp_path).stdout)
     assert answer["error"] is True and "notes" not in answer
 
 
 @pytest.mark.parametrize("kind,body,old", [
-    ("gitlab", GITLAB_PAGES, 'DiffNote/1","lastEditedAt":null'),
+    ("gitlab", GITLAB_PAGES, 'DiffNote/1","lastEditedBy":null'),
     ("github", GITHUB_PAGES, '{"databaseId":1,"lastEditedAt":null'),
 ])
 def test_thread_list_carries_the_forge_edit_flag_per_note(tmp_path, kind, body, old):
     assert old in body
-    edited = body.replace(old, old.replace("null", '"2025-01-01T00:00:00Z"'))
+    edited = body.replace(old, old.replace("null", EDIT_FIELD[kind][1]))
     answer = json.loads(forge(kind, stub(tmp_path, kind, edited), "thread-list", '{"id":"7"}', cwd=tmp_path).stdout)
     flags = sorted((t["notes"][0]["id"], t["notes"][0]["edited"]) for t in answer["threads"])
     assert flags == [(1, True), (2, False)]
 
 
-def test_gitlab_reads_a_creation_stamped_lastEditedAt_as_unedited(tmp_path):
-    old = 'DiffNote/1","lastEditedAt":null'
-    stamped = GITLAB_PAGES.replace(
-        old, 'DiffNote/1","createdAt":"2025-01-01T00:00:00Z","lastEditedAt":"2025-01-01T00:00:00Z"')
-    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", stamped), "thread-list", '{"id":"7"}',
+SAME_SECOND = '"createdAt":"2025-01-01T00:00:00Z","lastEditedAt":"2025-01-01T00:00:00Z",'
+GITLAB_EDIT_CASES = [  # (extra node fields, lastEditedBy, edited)
+    (SAME_SECOND, '{"id":"gid://gitlab/User/9"}', True),  # created and edited inside one second
+    (SAME_SECOND, "null", False),
+    ('"createdAt":"2025-01-01T00:00:00Z","lastEditedAt":"2025-01-02T00:00:00Z",', "null", False),  # resolved
+]
+
+
+@pytest.mark.parametrize("fields,by,edited", GITLAB_EDIT_CASES)
+def test_gitlab_thread_list_reads_edited_from_lastEditedBy_alone(tmp_path, fields, by, edited):
+    old = '"gid://gitlab/DiffNote/1","lastEditedBy":null'
+    body = GITLAB_PAGES.replace(old, f'"gid://gitlab/DiffNote/1",{fields}"lastEditedBy":{by}')
+    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", body), "thread-list", '{"id":"7"}',
                               cwd=tmp_path).stdout)
     flags = sorted((t["notes"][0]["id"], t["notes"][0]["edited"]) for t in answer["threads"])
-    assert flags == [(1, False), (2, False)]
+    assert flags == [(1, edited), (2, False)]
+
+
+@pytest.mark.parametrize("fields,by,edited", GITLAB_EDIT_CASES)
+def test_gitlab_note_list_reads_edited_from_lastEditedBy_alone(tmp_path, fields, by, edited):
+    old = '"gid://gitlab/Note/2","lastEditedBy":null'
+    body = NOTE_PAGES["gitlab"].replace(old, f'"gid://gitlab/Note/2",{fields}"lastEditedBy":{by}')
+    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", body), "note-list", '{"id":"7"}',
+                              cwd=tmp_path).stdout)
+    assert {n["id"]: n["edited"] for n in answer["notes"]} == {"1": True, "2": edited}
 
 
 @pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
@@ -896,8 +917,8 @@ def test_thread_list_fails_when_the_graphql_call_fails(tmp_path, kind, body):
 
 
 @pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
-def test_thread_list_fails_when_graphql_omits_lastEditedAt(tmp_path, kind, body):
-    answer = json.loads(forge(kind, stub(tmp_path, kind, body.replace(',"lastEditedAt":null', "")),
+def test_thread_list_fails_when_graphql_omits_the_edit_field(tmp_path, kind, body):
+    answer = json.loads(forge(kind, stub(tmp_path, kind, body.replace(f',"{EDIT_FIELD[kind][0]}":null', "")),
                               "thread-list", '{"id":"7"}', cwd=tmp_path).stdout)
     assert answer["error"] is True and "threads" not in answer
 

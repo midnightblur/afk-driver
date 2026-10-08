@@ -64,9 +64,12 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
 - `change-view` answers `missing: true` in its error only when `glab` says no merge request exists for the reference.
 - `note-list` reads paginated merge-request notes. It removes system and inline
   notes and sorts the result oldest first. Each note carries `edited` from
-  GraphQL `Note.lastEditedAt`, keyed by the numeric part of the note's global
-  id; the REST note entity has no edit field. A failed query, or a note the
-  query does not answer, is an error.
+  GraphQL `Note.lastEditedBy`, which is non-null exactly when GitLab calls the
+  note edited, keyed by the numeric part of the note's global id.
+  `lastEditedAt` is no evidence: on a note edited within one second of its
+  creation it equals `createdAt`, and resolving a thread moves it. The REST
+  note entity has no edit field. A failed query, or a note the query does not
+  answer, is an error.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
 - Each thread includes its URL, side, lines, paths, and note timestamps. Each
