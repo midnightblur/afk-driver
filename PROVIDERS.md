@@ -114,6 +114,8 @@ changes hook command strings, such as the move to `afk-python`, asks again.
   reads the Codex marketplace manifest from that path. Nothing else under `.agents/`
   may be tracked, and `native-contract-gate.sh` enforces exactly that.
 - The comment gate runs only from the `pre-commit` hook that `install-git-hooks.sh` installs for an enabled plugin, on agent-driven commits. Rationale support writes only to the forge change and to two local places: pending entries under the repository's git directory and a cache outside the repository. A developer without the plugin sees neither.
+- The plugin-source gates (`hooks/plugin-source-gates.sh`) run only in a repository whose root `.claude-plugin/plugin.json` names the `afk` plugin. A consuming repository never runs them.
+- Repository `PreCommit` handlers run only when the repository declares them in its hook manifest; the plugin adds none of its own. Grammar and skips: `CONFIG.md` "Repository hooks".
 - `install-git-hooks.sh` installs the git backstop in every repository a session opens once the plugin is enabled, with or without `.afk/`. Both hooks act only under an agent-runtime marker, so a human's git is never gated. A repository that sets `core.hooksPath` is skipped with one notice.
 - Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
 - Run `/afk:setup teardown` before disabling the plugin. It removes the managed
