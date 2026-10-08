@@ -53,7 +53,7 @@ genericity_cache_scope() {
 
 gate_genericity() {
   [ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout

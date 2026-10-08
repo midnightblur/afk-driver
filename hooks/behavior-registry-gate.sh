@@ -6,7 +6,7 @@ set -u
 
 gate_behavior_registry() {
   [ "${BEHAVIOR_REGISTRY_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE JUDGE_DIR cache_key py rc=0
   PLUGIN_DIR=$(afk_plugin_dir)

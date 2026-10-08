@@ -33,7 +33,8 @@ incomplete() {
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || incomplete "not inside a git repository"
 cd "$repo_root" || incomplete "cannot enter $repo_root"
-[ -f .claude/hooks/.gate-disabled ] && exit 0
+# The sentinel is candidate data here; the local escape lives in precommit-gates.sh.
+export AFK_IGNORE_GATE_SENTINEL=1
 
 empty_tree=$(git hash-object -t tree /dev/null 2>/dev/null) || incomplete "git cannot hash the empty tree"
 if [ "$mode" = staged ]; then

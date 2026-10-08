@@ -145,8 +145,18 @@ def noop_gate(repo):
     _git(repo, "add", "-A")
 
 
+def forced_sentinel(repo):
+    sentinel = repo / ".claude" / "hooks" / ".gate-disabled"
+    sentinel.parent.mkdir(parents=True, exist_ok=True)
+    sentinel.write_text("", encoding="utf-8")
+    _append(repo / "skills" / "utils" / "todo" / "SKILL.md", "\nSee ZZQ-4242 here.\n")
+    _git(repo, "add", "-A")
+    _git(repo, "add", "-f", ".claude/hooks/.gate-disabled")
+
+
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
-                                    provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate)}
+                                    provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate,
+                                    forced_sentinel)}
 
 
 def _judge_for(base: Path, name: str) -> Path:
@@ -305,3 +315,8 @@ def test_a_consuming_repository_never_runs_the_gates(tmp_path):
 def test_incomplete_input_blocks(base):
     rc, _rows, err = run_runner(base, "--range", "no-such-ref")
     assert rc == 2 and "NOT verified" in err, err
+
+
+def test_a_committed_gate_disabled_sentinel_never_disables_the_judge(results):
+    for rc, rows, err in results["forced_sentinel"]:
+        assert rc == 2 and verdicts(rows).get("genericity") == "blocked", err
