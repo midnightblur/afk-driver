@@ -568,6 +568,7 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
 
 # N. Only scripts/lavish_show.py runs lavish-axi, judged by the guard's reader (lavish_direct).
 # Not read: runtime-built program names, heredoc bodies, other-language markdown fences.
+# Known: a literal `$(…)` in escaped or concatenated quotes is refused; `<<EOF` in a comment or quote opens a false heredoc.
 sys.path.insert(0, str(plugin / "hooks" / "lib"))
 import ast  # noqa: E402
 import lavish_direct  # noqa: E402
@@ -637,10 +638,13 @@ def python_runs(text: str) -> list[int]:
     except (SyntaxError, ValueError):
         return []
     found: list[int] = []
+    aliases = {a.asname: a.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+               for a in node.names if a.asname}  # `from subprocess import run as launch`
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        name = aliases.get(name, name) if isinstance(node.func, ast.Name) else name
         args = list(node.args)
         if lavish_exec.match(name):
             args = args[1:] if name.startswith("spawn") else args

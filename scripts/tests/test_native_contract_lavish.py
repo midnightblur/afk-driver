@@ -32,6 +32,8 @@ BLOCK = {
         'reply="$(lavish-axi poll x.html)"',
         "lavish-axi poll x.html \\",
         "  --agent-reply done",
+        'if [ -f x.html ]; then lavish-axi x.html; fi',
+        "for f in a b; do lavish-axi poll x.html; done",
     ],
     "scripts/zz_block.py": [
         "import os, subprocess",
@@ -41,6 +43,12 @@ BLOCK = {
         'subprocess.Popen(["env", "-i", "PATH=/bin", "lavish-axi", "x.html"])',
         'os.execvp("lavish-axi", ["lavish-axi", "end", "x.html"])',
         'os.system("npx -y lavish-axi@0.1.63 share x.html")',
+        "from subprocess import run as launch, Popen",
+        'launch(["lavish-axi", "share", "x.html"])',
+        "import subprocess as sp",
+        'sp.check_call(["lavish-axi", "x.html"])',
+        "from os import system as sh",
+        'sh("lavish-axi stop")',
     ],
     "hooks/lib/zz_guardish.py": ['subprocess.run(["lavish-axi", "share", "x.html"])'],
     ".github/workflows/zz-block.yml": [
@@ -90,6 +98,8 @@ PASS = {
         'subprocess.run(["rg", "-n", "lavish-axi", "."])',
         'subprocess.run("grep -n lavish-axi LAVISH.md", shell=True)',
         'print("run lavish-axi share x.html yourself")',
+        "from shutil import which as locate",
+        'locate("lavish-axi")',
     ],
     ".github/workflows/zz-pass.yml": [
         "on: push",
