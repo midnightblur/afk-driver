@@ -202,10 +202,15 @@ if os.environ.get("FAKE_BLOCK"):
 """
 
 
-def install_server_upstream(folder: Path) -> None:
-    """An upstream that, like lavish-axi, starts a detached server on render and blocks on `FAKE_BLOCK`."""
+def install_server_upstream(folder: Path, layout: str = "package") -> None:
+    """An upstream that, like lavish-axi, starts a detached server on render and blocks on `FAKE_BLOCK`.
+
+    Layout `batch` is the Windows fallback: a `.cmd` shim with no readable npm package."""
     folder.mkdir()
-    if os.name == "nt":
+    if layout == "batch":
+        (folder / "fake.py").write_text(SERVER_PY, encoding="utf-8")
+        (folder / "lavish-axi.cmd").write_text(f"@\"{sys.executable}\" \"{folder / 'fake.py'}\" %*\r\n", encoding="utf-8")
+    elif os.name == "nt":
         (folder / "lavish-axi.cmd").write_text("@echo off\r\nexit /b 99\r\n", encoding="utf-8")
         package = folder / "node_modules" / "lavish-axi"
         package.mkdir(parents=True)
@@ -248,19 +253,20 @@ def kill(pid: int | None) -> None:
         os.kill(pid, 9)
 
 
-@pytest.fixture
-def server_env(tmp_path):
-    install_server_upstream(tmp_path / "bin")
+LAYOUTS = [pytest.param("package", marks=pytest.mark.skipif(os.name == "nt" and not shutil.which("node"),
+                                                           reason="the Windows npm layout needs node")),
+           pytest.param("batch", marks=pytest.mark.skipif(os.name != "nt", reason="batch shims exist only on Windows"))]
+
+
+@pytest.fixture(params=LAYOUTS)
+def server_env(tmp_path, request):
+    install_server_upstream(tmp_path / "bin", request.param)
     (tmp_path / "page.html").write_text(PAGE, encoding="utf-8")
     env = {k: v for k, v in os.environ.items() if k not in ("LAVISH_AXI_HOST", "FAKE_SPAWN", "FAKE_BLOCK")}
     env["PATH"] = str(tmp_path / "bin") + os.pathsep + env.get("PATH", "")
     return env
 
 
-lifetime = pytest.mark.skipif(os.name == "nt" and not shutil.which("node"), reason="the Windows npm layout needs node")
-
-
-@lifetime
 @pytest.mark.parametrize("argv,extra", [(["page.html", "--no-open"], {}), (["poll", "page.html"], {"FAKE_SPAWN": "1"})],
                          ids=["cold-render", "completed-poll"])
 def test_a_completed_run_leaves_the_server_it_started_running(tmp_path, server_env, argv, extra):
@@ -275,7 +281,6 @@ def test_a_completed_run_leaves_the_server_it_started_running(tmp_path, server_e
         kill(server)
 
 
-@lifetime
 def test_a_killed_poll_takes_its_upstream_down(tmp_path, server_env):
     wrapper = subprocess.Popen([sys.executable, str(SHOW), "poll", "page.html"], cwd=tmp_path,
                                env={**server_env, "FAKE_BLOCK": "1"}, stdout=subprocess.PIPE, text=True)

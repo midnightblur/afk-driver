@@ -9,8 +9,9 @@
 Open, reopen and poll first inject the runtime (`lavish/inject.py`; the file is rewritten
 only when its bytes change), then run `lavish-axi` with the same arguments, the inherited
 standard streams and its exit status. On POSIX the upstream replaces this process; on
-Windows it runs as a child without `cmd.exe`. A killed or interrupted wrapper takes that
-child down; a server the upstream starts outlives the wrapper either way.
+Windows it runs as a child, without `cmd.exe` unless the npm package is unreadable. A killed
+or interrupted wrapper takes the upstream program down (through `cmd.exe` too); a server the
+upstream starts outlives the wrapper either way.
 
 Exit codes of the wrapper itself (nothing upstream ran):
     64   refused: `share`, `setup`, `update`, any other operation or argument shape, a
@@ -28,6 +29,8 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -43,7 +46,7 @@ HTML = re.compile(r"\.html?$", re.IGNORECASE)
 CMD_SAFE = re.compile(r"^[\w./\\:@ ,+=-]*$")
 KILL_ON_CLOSE = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 SILENT_BREAKAWAY = 0x1000  # JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
-PROCESS_SET_QUOTA, PROCESS_TERMINATE = 0x0100, 0x0001
+PROCESS_SET_QUOTA, PROCESS_TERMINATE, PROCESS_QUERY_LIMITED = 0x0100, 0x0001, 0x1000
 
 
 class Refused(Exception):
@@ -121,6 +124,35 @@ def upstream(args: list[str]) -> list[str] | None:
     return [found, *args]
 
 
+def kernel32():
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(ctypes.c_uint64)] * 4
+    kernel.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel.Process32FirstW.argtypes = kernel.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+    return kernel
+
+
+def assign(kernel, job, pid: int, born_after: int = 0) -> bool:
+    """Put `pid` in `job`, only when it was created no earlier than `born_after` (a FILETIME)."""
+    import ctypes
+
+    process = kernel.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE | PROCESS_QUERY_LIMITED, False, pid)
+    if not process:
+        return False
+    try:
+        times = [ctypes.c_uint64() for _ in range(4)]
+        born = kernel.GetProcessTimes(process, *(ctypes.byref(t) for t in times)) and times[0].value
+        return bool(born and born >= born_after and kernel.AssignProcessToJobObject(job, process))
+    finally:
+        kernel.CloseHandle(process)
 
 
 def bind_child_lifetime(pid: int):
@@ -139,22 +171,60 @@ def bind_child_lifetime(pid: int):
                         ("io", ctypes.c_uint64 * 6), ("i", ctypes.c_size_t), ("j", ctypes.c_size_t),
                         ("k", ctypes.c_size_t), ("l", ctypes.c_size_t)]
 
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.CreateJobObjectW.restype = wintypes.HANDLE
-        kernel.OpenProcess.restype = wintypes.HANDLE
-        kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
-        kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
-        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel = kernel32()
         job = kernel.CreateJobObjectW(None, None)
-        child = kernel.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, pid)
         limits = Limits(flags=KILL_ON_CLOSE | SILENT_BREAKAWAY)
-        bound = bool(job and child and kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
-                     and kernel.AssignProcessToJobObject(job, child))
-        if child:
-            kernel.CloseHandle(child)
+        bound = bool(job and kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
+                     and assign(kernel, job, pid))
         return job if bound else None
     except Exception:
         return None  # best effort: the upstream still runs, only its lifetime is unbound
+
+
+def children_of(kernel, parent: int) -> list[int]:
+    """Live processes whose recorded parent is `parent`, from one process snapshot."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Entry(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD), ("pid", wintypes.DWORD),
+                    ("heap", ctypes.c_size_t), ("module", wintypes.DWORD), ("threads", wintypes.DWORD),
+                    ("parent", wintypes.DWORD), ("priority", ctypes.c_long), ("flags", wintypes.DWORD),
+                    ("exe", ctypes.c_wchar * 260)]
+
+    snapshot = kernel.CreateToolhelp32Snapshot(2, 0)  # TH32CS_SNAPPROCESS
+    if not snapshot or snapshot == wintypes.HANDLE(-1).value:
+        return []
+    try:
+        entry, found = Entry(size=ctypes.sizeof(Entry)), []
+        more = kernel.Process32FirstW(snapshot, ctypes.byref(entry))
+        while more:
+            if entry.parent == parent:
+                found.append(entry.pid)
+            more = kernel.Process32NextW(snapshot, ctypes.byref(entry))
+        return found
+    finally:
+        kernel.CloseHandle(snapshot)
+
+
+def bind_batch_child(job, shell: subprocess.Popen, seconds: float = 10.0) -> None:
+    """`.cmd` fallback: cmd.exe's own children break away, so bind the program it starts to `job`."""
+    try:
+        import ctypes
+
+        kernel = kernel32()
+        process = kernel.OpenProcess(PROCESS_QUERY_LIMITED, False, shell.pid)
+        times = [ctypes.c_uint64() for _ in range(4)]
+        born = process and kernel.GetProcessTimes(process, *(ctypes.byref(t) for t in times)) and times[0].value
+        if process:
+            kernel.CloseHandle(process)
+        deadline = time.monotonic() + seconds
+        while born and shell.poll() is None and time.monotonic() < deadline:
+            if any([assign(kernel, job, pid, born) for pid in children_of(kernel, shell.pid)]):
+                return
+            time.sleep(0.02)
+    except Exception:
+        return  # best effort, as in bind_child_lifetime
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -179,7 +249,9 @@ def main(argv: list[str] | None = None) -> int:
     if argv is None and os.name != "nt":
         os.execv(command[0], command)
     child = subprocess.Popen(command)
-    job = bind_child_lifetime(child.pid) if argv is None else None  # noqa: F841  (held until exit)
+    job = bind_child_lifetime(child.pid) if argv is None else None  # held until exit
+    if job and command[0].lower().endswith((".cmd", ".bat")):
+        threading.Thread(target=bind_batch_child, args=(job, child), daemon=True).start()
     try:
         return child.wait()
     except KeyboardInterrupt:
