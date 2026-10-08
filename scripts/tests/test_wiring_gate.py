@@ -107,7 +107,7 @@ def test_unknown_scan_is_rc3_and_not_cached(repo):
     finally:
         holder.release()
     assert result.returncode == 3, result.stderr
-    assert "verdict unknown (lock_busy) — no orphan check this Stop." in result.stderr
+    assert "verdict unknown (lock_busy) — no orphan check this run." in result.stderr
     assert '"result":"unknown"' in _metrics(repo) and '"detail":"lock_busy"' in _metrics(repo)
     assert not (repo / ".git" / "afk" / "gate-cache" / "wiring").exists()
     assert "orphan" not in result.stderr.lower().replace("no orphan check", "")
