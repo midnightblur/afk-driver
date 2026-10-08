@@ -134,6 +134,25 @@ def test_timeout_denies_pretooluse_as_a_timeout(tmp_path):
     assert "timed out" in body["permissionDecisionReason"] and "cannot run" not in body["permissionDecisionReason"]
 
 
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+@pytest.mark.parametrize("with_jq", [True, False])
+def test_the_shell_free_deny_parses_to_the_object_afk_emit_deny_writes(provider, with_jq, capsys):
+    # Semantic parity: the parsed objects match; key order and spacing are not a contract.
+    if with_jq and shutil.which("jq") is None:
+        pytest.skip("no jq on this machine")
+    assert launcher.block("PreToolUse", ['a "quoted" \\ fault\twith a tab'], None, dict(os.environ)) == 0
+    ours = json.loads(capsys.readouterr().out)
+    reason = ours["hookSpecificOutput"]["permissionDecisionReason"]
+    env = dict(os.environ, AFK_PROVIDER=provider)
+    if not with_jq:
+        env["PATH"] = ""
+    library = (PLUGIN_ROOT / "hooks" / "lib" / "provider.sh").as_posix()
+    done = subprocess.run([str(launcher.find_bash()), "-c", '. "$1" && afk_emit_deny "$2"', "t", library, reason],
+                          env=env, capture_output=True, text=True, encoding="utf-8")
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == ours
+
+
 def test_other_events_only_warn(tmp_path):
     root = repository(
         tmp_path, json.dumps([{"event": "SessionStart", "matcher": "*", "script": ".afk/gone.sh"}])

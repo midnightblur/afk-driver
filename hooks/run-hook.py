@@ -669,8 +669,8 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
         parts.append(f"afk: this repository's {event} handlers refused:\n{listed}")
     reason = "\n".join(parts)
     library = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
-    # The PreToolUse deny is one shape on every provider (provider.sh afk_emit_deny),
-    # so only a Stop verdict, whose exit code differs per provider, needs the shell.
+    # The PreToolUse deny parses to afk_emit_deny's object on every provider (semantic JSON
+    # parity; bytes may differ), so only a Stop verdict, whose exit code varies, needs the shell.
     if event == "Stop" and bash is not None and library.is_file():
         snippet = '. "$1" || exit 70\nafk_emit_stop_block "$2"; exit "$(afk_stop_block_code)"\n'
         try:
