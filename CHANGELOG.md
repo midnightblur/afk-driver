@@ -53,7 +53,10 @@ release page from its section here. Nobody tags by hand.
   directly or sets `LAVISH_AXI_HOST`, and names the wrapper command. Searches,
   mentions and `lavish-axi --version` pass. `AFK_ALLOW_PROTECTED=1` does not
   lift this rule. The native contract gate refuses a direct `lavish-axi` run
-  in plugin scripts and prose (check N).
+  in plugin scripts, workflow `run:` steps and prose (check N), read with the
+  guard's own shell reader.
+- The guard's shell reader skips comments and reads a `.cmd`, `.bat` or `.ps1`
+  launcher as the program it names.
 - Domain glossaries for tooltips come from the repository that holds the page,
   else from the session folder's repository.
 

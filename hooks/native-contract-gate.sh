@@ -31,8 +31,8 @@
 #      source scans repository content except through hooks/lib/bounded_scan.py.
 #      An exception names its own bound in native-contract-allow.txt (rules
 #      hook-deadline, repo-scan).
-#   N. no plugin script or agent prose runs `lavish-axi` in executable position
-#      except scripts/lavish_show.py (and tests); exceptions use rule lavish-direct.
+#   N. no plugin script, workflow or agent prose runs `lavish-axi` (guard's reader) except
+#      scripts/lavish_show.py and tests; exceptions use rule lavish-direct.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -566,16 +566,19 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
             )
 
 
-# N. Only scripts/lavish_show.py runs lavish-axi: it injects the page runtime and refuses the
-# forbidden operations. A version probe passes; the wrapper, the guard's rule and tests are exempt.
-lavish_exempt = {"scripts/lavish_show.py", "hooks/lib/lavish_direct.py", "hooks/native-contract-gate.sh"}
-lavish_skip = ("scripts/tests/*", "hooks/tests/*", "CHANGELOG.md", "adr/*")
-lavish_head = (r"(?:^|[;&|(`{]|\$\(|\b(?:then|do|else|exec|command|env|nohup|time)\s|\bnpx(?:\s+-\S+)*\s)\s*"
-               r"(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*[\"']?(?:[^\s\"';|&]*[/\\])?"
-               r"lavish-axi(?:@[\w.-]+)?(?:\.(?:cmd|ps1|bat))?[\"']?")
-lavish_code = re.compile(lavish_head + r"(?=\s|$|[;&|)`])(?!\s+--version\b)", re.I)
-lavish_prose = re.compile(lavish_head + r"\s+(?!--version\b)\S", re.I)
-lavish_py = re.compile(r"(?<![\w`])[\"'](?:[^\"'\s]*[/\\])?lavish-axi(?:@[\w.-]+)?(?:\.(?:cmd|ps1|bat|exe))?(?=[\"'\s])")
+# N. Only scripts/lavish_show.py runs lavish-axi, judged by the guard's reader (lavish_direct).
+# Not read: runtime-built program names, heredoc bodies, other-language markdown fences.
+sys.path.insert(0, str(plugin / "hooks" / "lib"))
+import ast  # noqa: E402
+import lavish_direct  # noqa: E402
+from shell_mutations import Word  # noqa: E402
+
+lavish_skip = ("scripts/lavish_show.py", "scripts/tests/*", "hooks/tests/*")
+lavish_calls = {"run", "call", "check_call", "check_output", "Popen", "system", "popen", "getoutput",
+                "getstatusoutput", "create_subprocess_exec", "create_subprocess_shell", "startfile"}
+lavish_shell_calls = {"system", "popen", "getoutput", "getstatusoutput", "create_subprocess_shell", "startfile"}
+lavish_exec = re.compile(r"^(?:exec|spawn)[lv]p?e?$")
+heredoc_tag = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 
 
 def lavish_problem(path_rel: str, number: int, line: str) -> None:
@@ -584,31 +587,114 @@ def lavish_problem(path_rel: str, number: int, line: str) -> None:
                         f"`afk-python \"${{AFK_PLUGIN_ROOT}}/scripts/lavish_show.py\" ...` (LAVISH.md)")
 
 
+def shell_commands(lines: list[tuple[int, str]], powershell: bool = False):
+    """(first line number, logical command) pairs: continuations joined, heredoc bodies skipped."""
+    pending, start, closing = "", 0, None
+    for number, line in lines:
+        if closing is not None:
+            closing = None if line.strip() == closing else closing
+            continue
+        pending, start = (pending + "\n" + line, start) if pending else (line, number)
+        if line.rstrip().endswith(("\\", "`") if powershell else "\\"):
+            continue
+        tag = heredoc_tag.search(pending)
+        closing = tag.group(2) if tag else None
+        yield start, pending
+        pending = ""
+    if pending:
+        yield start, pending
+
+
+def run_values(lines: list[str]):
+    """(line number, text) of each workflow `run:` value, block scalars line by line."""
+    i = 0
+    while i < len(lines):
+        key = re.match(r"^(\s*)(?:-\s+)?run:\s*(.*?)\s*$", lines[i])
+        i += 1
+        if not key:
+            continue
+        indent, value = len(key.group(1)), key.group(2)
+        if value[:1] not in ("|", ">"):
+            if value[:1] in ("'", '"') and value[-1:] == value[:1]:
+                value = value[1:-1]
+            yield i, value
+            continue
+        while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent):
+            yield i + 1, lines[i]
+            i += 1
+
+
+def literal(node) -> Word:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return Word(node.value, False)
+    return Word("", True)
+
+
+def python_runs(text: str) -> list[int]:
+    """Line numbers of calls that start `lavish-axi` from literal arguments."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    found: list[int] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        args = list(node.args)
+        if lavish_exec.match(name):
+            args = args[1:] if name.startswith("spawn") else args
+            if not args:
+                continue
+            rest = args[1].elts[1:] if len(args) > 1 and isinstance(args[1], (ast.List, ast.Tuple)) else args[2:]
+            hit = lavish_direct.argv_runs([literal(args[0])] + [literal(a) for a in rest])
+        elif name in lavish_calls:
+            first = args[0] if args else next((k.value for k in node.keywords if k.arg in ("args", "cmd")), None)
+            if name == "create_subprocess_exec":
+                hit = lavish_direct.argv_runs([literal(a) for a in args])
+            elif isinstance(first, (ast.List, ast.Tuple)):
+                hit = lavish_direct.argv_runs([literal(e) for e in first.elts])
+            elif isinstance(first, ast.Constant) and isinstance(first.value, str):
+                hit = lavish_direct.runs(first.value)
+            else:
+                hit = False
+        else:
+            continue
+        if hit:
+            found.append(node.lineno)
+    return found
+
+
 for path in sorted(plugin.rglob("*")):
     path_rel = rel(path)
-    if (not path.is_file() or path_rel in lavish_exempt or "/__pycache__/" in f"/{path_rel}"
-            or "/node_modules/" in f"/{path_rel}" or path_rel.startswith(".git/")
-            or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):
+    if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
+            or path_rel.startswith(".git/") or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):
         continue
     kind = source_kind(path)
+    is_workflow = path_rel.startswith(".github/") and path.suffix in (".yml", ".yaml")
+    if path.suffix != ".md" and kind is None and not is_workflow:
+        continue
+    text = read(path)
+    if "lavish-axi" not in text.lower():
+        continue
+    lines = text.splitlines()
     if path.suffix == ".md":
         fenced = False
-        for number, line in enumerate(read(path).splitlines(), 1):
+        for number, line in enumerate(lines, 1):
             if line.lstrip().startswith("```"):
                 fenced = not fenced
                 continue
             spans = [line.strip()] if fenced else re.findall(r"`([^`]+)`", line)
-            if any(lavish_prose.search(span) for span in spans):
+            if any(lavish_direct.runs(span, bare=False) for span in spans):  # bare name in prose: a mention
                 lavish_problem(path_rel, number, line)
     elif kind == "python":
-        for number, line in enumerate(read(path).splitlines(), 1):
-            if lavish_py.search(line):
-                lavish_problem(path_rel, number, line)
-    elif kind == "shell" or path_rel.startswith(".github/") and path.suffix in (".yml", ".yaml"):
-        for number, line in enumerate(read(path).splitlines(), 1):
-            code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
-            if code and lavish_code.search(code):
-                lavish_problem(path_rel, number, line)
+        for number in sorted(set(python_runs(text))):
+            lavish_problem(path_rel, number, lines[number - 1])
+    else:
+        numbered = list(run_values(lines)) if is_workflow else list(enumerate(lines, 1))
+        for number, command in shell_commands(numbered, path.suffix in (".ps1", ".psm1")):
+            if lavish_direct.runs(command):
+                lavish_problem(path_rel, number, lines[number - 1])
 
 
 # M. Bounded hooks. A hook that outlives its harness timeout is killed with no

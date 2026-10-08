@@ -7,6 +7,8 @@
 LAVISH.md	harness-name	^\| `setup hooks` \| installs SessionStart hooks into the coding agent \(Claude Code, Codex, OpenCode, GitHub Copilot CLI\)	Third-party command capability names its supported runtimes.
 # Check N: a pattern list that names the CLI runs nothing.
 skills/afk/setup/AUDIT.md	lavish-direct	^- Known CLIs: .*\|lavish-axi \|	Dependency-drift pattern list names the CLI; it runs nothing.
+CHANGELOG.md	lavish-direct	^  runs `npm i -g lavish-axi@<pin>` — then `lavish-axi stop` with no session$	Historical shipped behavior.
+CHANGELOG.md	lavish-direct	^  with no hover text\. `lavish-axi poll <file>` now re-injects exactly as a$	Historical shipped behavior.
 AGENTS.md	claude-project-dir	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
 AGENTS.md	claude-plugin-root	Give `CLAUDE_PROJECT_DIR` and `PLUGIN_ROOT` a fallback	Binding steering names the dependency it forbids.
 CHANGELOG.md	harness-name	on Codex machines\) so every agent session	Historical shipped behavior.
