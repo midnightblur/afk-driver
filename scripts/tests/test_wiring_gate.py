@@ -150,3 +150,25 @@ def test_metrics_report_counts_unknown_apart_from_red(tmp_path):
     done = subprocess.run([str(BASH), str(ROOT / "hooks" / "gate-metrics-report.sh"), str(log)],
                           capture_output=True, encoding="utf-8", errors="replace", timeout=60)
     assert "runs=3" in done.stdout and "red=1" in done.stdout and "unknown=1" in done.stdout
+
+
+def _list(repo, mode):
+    done = subprocess.run([str(BASH), str(ROOT / "hooks" / "wiring-gate.sh"), mode], cwd=repo,
+                          capture_output=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    return done.stdout.split()
+
+
+def test_the_lists_use_the_integration_base_even_when_the_upstream_is_head(repo):
+    _git(repo, "remote", "add", "origin", repo.as_posix())
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "docs" / "notes.md").write_text("changed\n", encoding="utf-8")
+    _git(repo, "commit", "-qam", "add the artifact")
+    _git(repo, "update-ref", "refs/remotes/origin/feature", "HEAD")
+    _git(repo, "branch", "-q", "--set-upstream-to=origin/feature")
+    assert _git(repo, "rev-parse", "@{u}").strip() == _git(repo, "rev-parse", "HEAD").strip()
+    (repo / "lib" / "leftoverscratch.py").write_text("y = 2\n", encoding="utf-8")
+    assert _list(repo, "--list-candidates") == [ARTIFACT]
+    assert _list(repo, "--list-changed") == ["docs/notes.md", ARTIFACT]
+    result = _gate(repo)
+    assert result.returncode == 2 and ARTIFACT in result.stderr, result.stderr

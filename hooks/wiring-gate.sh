@@ -24,6 +24,7 @@
 # Mechanical only: zero-referrer detection. Weak-consumer judgment (test-only
 # consumers, unreachable flows) belongs to /afk:verify-seams, not this gate.
 # Final mode: WIRING_FINAL=1 bash wiring-gate.sh  -> open IOUs block.
+# Lists: bash wiring-gate.sh --list-candidates (paths it judges) | --list-changed (every path vs the same base).
 # Disable: WIRING_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
@@ -124,22 +125,26 @@ gate_wiring() {
   return $rc
 }
 
+# Paths changed against the integration base, committed (3-dot) and staged; $1 is a git --diff-filter.
+# 3-dot keeps a post-merge branch from claiming every file the base added since the divergence.
+_wiring_paths() {
+  {
+    if [ -n "${AFK_CTX_BASE:-}" ] && [ "${AFK_CTX_BASE}" != "HEAD" ]; then
+      git diff --name-only -z --diff-filter="$1" "$AFK_CTX_BASE"...HEAD 2>/dev/null
+    fi
+    git diff --cached --name-only -z --diff-filter="$1" 2>/dev/null
+  } | tr '\0' '\n' | sort -u | sed '/^$/d'
+}
+
 _wiring_main() {
   [ "${WIRING_GATE_DISABLE:-0}" = "1" ] && return 0
   [ -f .claude/hooks/.gate-disabled ] && return 0
 
   local FINAL=${WIRING_FINAL:-0}
 
-  # ---- candidates: staged adds plus commits ahead of the integration base. 3-dot keeps
-  # a post-merge branch from claiming every file the base added since the divergence.
-  local committed_new="" staged_new
-  if [ -n "${AFK_CTX_BASE:-}" ] && [ "${AFK_CTX_BASE}" != "HEAD" ]; then
-    committed_new=$(git diff --name-only --diff-filter=A "$AFK_CTX_BASE"...HEAD 2>/dev/null || true)
-  fi
-  staged_new=$(git diff --cached --name-only -z --diff-filter=ACR 2>/dev/null | tr '\0' '\n')
-
+  # ---- candidates: adds, copies and rename targets, staged or committed ahead of the base.
   local new_files
-  new_files=$(printf '%s\n%s\n' "$staged_new" "$committed_new" | sort -u | sed '/^$/d')
+  new_files=$(_wiring_paths ACR)
   [ -z "$new_files" ] && return 0
 
   local cache_key=""
@@ -195,7 +200,7 @@ _wiring_main() {
       for i in "${!cand_files[@]}"; do printf '%s\0%s\0' "${cand_files[$i]}" "${cand_toks[$i]}"; done >"$cfile"
       while IFS= read -r p; do
         [ -n "$p" ] && printf '%s\0' "$p"
-      done >"$lfile" <<<"${AFK_CTX_CHANGED:-}"$'\n'"${AFK_CTX_NEW:-}"$'\n'"${AFK_CTX_BRANCH:-}"$'\n'"$committed_new"
+      done >"$lfile" <<<"${AFK_CTX_CHANGED:-}"$'\n'"${AFK_CTX_NEW:-}"$'\n'"${AFK_CTX_BRANCH:-}"$'\n'"$new_files"
       "$py" "$_WIRING_HELPER" --repo "$PWD" --candidates "$cfile" --local "$lfile" --result "$rfile" 2>/dev/null
       scan_rc=$?
       local first=1 item
@@ -275,6 +280,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   _root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
   cd "$_root" || exit 0
   . "$_d/gate-context.sh"; gate_ctx_build
+  case "${1:-}" in
+    --list-candidates) _wiring_paths ACR; exit 0 ;;
+    --list-changed) _wiring_paths ACMRT; exit 0 ;;
+  esac
   . "$_d/gate-cache.sh"
   . "$_d/gate-metrics.sh"
   trap '_wiring_cleanup' EXIT TERM INT HUP
