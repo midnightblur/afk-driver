@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Validate, render, or audit the managed behavior registry.
 
 Commands:

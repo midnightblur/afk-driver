@@ -75,7 +75,7 @@ mkdir -p "$(dirname "$LESSON_LEDGER_FILE")" 2>/dev/null || bail "cannot create l
 line=$(EV_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" EV_ID="$ID" EV_EVENT="$EVENT" \
   EV_WRITER="$WRITER" EV_CLASS="$CLASS" EV_MISS="$MISS" EV_TARGET="$TARGET" \
   EV_SUMMARY="$SUMMARY" EV_DRAFT="$DRAFT" EV_SOURCE="$SOURCE" \
-  EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" EV_ISSUE="$ISSUE" python -c '
+  EV_EVIDENCE="$EVIDENCE" EV_NOTE="$NOTE" EV_ISSUE="$ISSUE" "${AFK_PYTHON:-afk-python}" -c '
 import json, os
 g = os.environ.get
 e = {"ts": g("EV_TS"), "id": g("EV_ID"), "event": g("EV_EVENT"),
@@ -90,10 +90,10 @@ else:
         e["issue"] = g("EV_ISSUE")
     if g("EV_NOTE"):
         e["note"] = g("EV_NOTE")
-# ensure_ascii stays ON: python -c stdout uses the console codepage on Windows,
+# ensure_ascii stays ON: afk-python -c stdout uses the console codepage on Windows,
 # so raw non-ASCII here would land as non-UTF-8 bytes in the ledger
 print(json.dumps(e, separators=(",", ":")))
-' 2>/dev/null) || bail "json build failed (python unavailable?)"
+' 2>/dev/null) || bail "json build failed (afk-python not found; run /afk:setup)"
 
 printf '%s\n' "$line" >> "$LESSON_LEDGER_FILE" 2>/dev/null || bail "append failed"
 echo "$ID"

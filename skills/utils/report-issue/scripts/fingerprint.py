@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """The dedup key of one plugin defect.
 
     fingerprint.py --kind bug|feedback --file <plugin-relative path> --signature <text>

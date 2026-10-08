@@ -37,7 +37,43 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- `/afk:setup` installs the runtime on a machine with no Python at all: a
+  small `bootstrap.sh` (macOS, Linux) or `bootstrap.ps1` (Windows) fetches the
+  pinned uv, which fetches the pinned CPython and runs the installer.
+- `afk-python hooks/tests/bench-hooks.py --budgets` checks the launcher's early
+  exits against a p50 ceiling each; the `tests` workflow reports it without
+  failing on it.
+
+### Changed
+
+- Every hook, MCP server, skill script, adapter, git hook and CI job runs
+  under `afk-python`. Until `/afk:setup` has installed it, the harness reports
+  each hook as failed and carries on: no gate runs, the protected-branch guard
+  is off, and the harness's own worktree tool cannot create a worktree.
+- A hook with nothing to do starts no shell. The launcher exits at once when
+  the repository declares no hook for the event, and when the harness's
+  provider declaration makes the plugin handler a no-op (nested steering where
+  the harness reads nested files itself, the `instructionFiles` notice where
+  that setting does not exist).
+- The launcher runs a hook only when `AFK_PYTHON` names its own interpreter;
+  any other interpreter fails like a missing shell and names `/afk:setup`.
+- **Migration:** run `/afk:setup` **before** upgrading, then restart the
+  harness. Where the harness asks you to trust plugin hooks (`PROVIDERS.md`),
+  trust them again: every hook command changed.
+
+### Removed
+
+- The `python`, `python3` and `py -3` fallbacks and the `AFK_PY` override.
+  The plugin runs no Python but `afk-python`; the native contract gate
+  refuses any other interpreter on a live surface.
+- Register row P2 (system Python and its packages, `mcp<2` included) and the
+  setup-reminder SessionStart notice, which ran under the interpreter it
+  reported missing.
+
 ### Fixed
+
 - `/afk:setup` no longer reports trusted hooks as missing: the hook-trust probe
   accepts the snake_case event keys the harness config now holds. O4 runs the
   same script over every handler (`check_hook_trust.py --all`).
@@ -45,9 +81,8 @@ release page from its section here. Nobody tags by hand.
   (Jira credentials) n/a unless the tracker is Jira.
 - `/afk:setup` H6 no longer fails forever on answers saved machine-wide or on
   the optional `mrAssignee`; answers go to the repository.
-- `/afk:setup` probes pick the first Python that runs (not the Windows Store
-  stub), keep the `gh`/`glab` masked token line out of the transcript, and read
-  the lavish-axi pin without shell-sensitive escapes.
+- `/afk:setup` probes keep the `gh`/`glab` masked token line out of the
+  transcript and read the lavish-axi pin without shell-sensitive escapes.
 - `/afk:setup` tells the agent how to set `AFK_PLUGIN_ROOT`; the strays row is
   renumbered H14 (H12 was used twice).
 

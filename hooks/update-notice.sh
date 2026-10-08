@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart notices: the afk-python runtime needs setup (runtime_notice), and
-# a newer release exists, and here is what is in it.
+# SessionStart notice: a newer release exists, and here is what is in it.
 #
 # Run with `--soft`: it must never block, never slow a session start, and never
 # need a dependency the toolkit does not already require. Every failure path —
@@ -23,42 +22,7 @@ set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 
-# Python release 1: warn until `afk-python` resolves to the file a current stamp names.
-# Bash builtins only: a fork costs ~100 ms under Git Bash, and this runs every session.
-runtime_notice() {
-  local line want="" have="" command="" file="" found="" spelled home stamp
-  [ -f "$ROOT/runtime/pyproject.toml" ] || return 0
-  while IFS= read -r line; do
-    line=${line%$'\r'}
-    case "$line" in 'requires-python = "=='*) want=${line#*==}; want=${want%%\"*}; break ;; esac
-  done <"$ROOT/runtime/pyproject.toml"
-  [ -n "$want" ] || return 0
-  case "${OSTYPE:-}" in
-    msys*|cygwin*) home="${LOCALAPPDATA:-}/afk" ;;
-    *) home="${XDG_DATA_HOME:-$HOME/.local/share}/afk" ;;
-  esac
-  stamp="$home/python/AFK-RUNTIME"
-  if [ -f "$stamp" ]; then
-    while IFS= read -r line; do
-      line=${line%$'\r'}
-      case "$line" in
-        python=*) have=${line#python=} ;; command=*) command=${line#command=} ;; file=*) file=${line#file=} ;;
-      esac
-    done <"$stamp"
-  fi
-  # `hash` searches PATH without a subshell. Setup stamped this shell's own spelling; Git Bash drops
-  # `.exe` from it, so `-ef` against the stamped file tells the installed .exe from a stand-in.
-  hash afk-python 2>/dev/null && found=${BASH_CMDS[afk-python]:-}
-  spelled=$found
-  case "${OSTYPE:-}" in msys*|cygwin*) spelled=${found,,} command=${command,,} ;; esac
-  if [ -z "$found" ] || [ "$spelled" != "$command" ] || ! [ "$found" -ef "$file" ] || [ "$have" != "$want" ]; then
-    printf 'AFK will switch to afk-python in the next release; run /afk:setup\n'
-  fi
-}
-runtime_notice
-
-PY=python
-command -v python >/dev/null 2>&1 || PY=python3
+PY="${AFK_PYTHON:-afk-python}"
 command -v git >/dev/null 2>&1 || exit 0
 
 # shellcheck source=/dev/null

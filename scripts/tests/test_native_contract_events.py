@@ -51,7 +51,7 @@ def gate(tree: Path):
 
 def hook_entry(root_var: str) -> list:
     return [{"hooks": [{"type": "command", "command":
-             f'python "${{{root_var}}}/hooks/run-hook.py" --deadline 4 plugin worktree-create.sh', "timeout": 5}]}]
+             f'afk-python "${{{root_var}}}/hooks/run-hook.py" --deadline 4 plugin worktree-create.sh', "timeout": 5}]}]
 
 
 def test_the_declared_event_passes_in_its_own_manifest(tree):
@@ -115,7 +115,7 @@ def test_an_entry_without_a_timeout_is_refused(tree):
 
 def test_an_entry_outside_the_launcher_needs_an_allow_entry(tree):
     path, manifest, entry = _stop_entry(tree)
-    entry["command"] = 'python "${CLAUDE_PLUGIN_ROOT}/hooks/other-guard.py"'
+    entry["command"] = 'afk-python "${CLAUDE_PLUGIN_ROOT}/hooks/other-guard.py"'
     path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     _refused(gate(tree), "bypasses run-hook.py")
 
@@ -128,5 +128,107 @@ def test_a_raw_repository_scan_in_a_gate_is_refused(tree):
 
 
 def test_the_bounded_scanner_itself_may_scan(tree):
+    done = gate(tree)
+    assert done.returncode == 0, done.stderr + done.stdout
+
+
+# ---- check J: one runtime, one launch mechanism -------------------------------------
+
+PY = "py" + "thon"  # spelled apart, so check J does not flag this file's own plants
+
+def _write(tree: Path, rel: str, text: str) -> None:
+    (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+    (tree / rel).write_text(text, encoding="utf-8", newline="\n")
+
+
+def _command_named(tree: Path, interpreter: str) -> None:
+    path, manifest, entry = _stop_entry(tree)
+    entry["command"] = entry["command"].replace("afk-python ", interpreter + " ", 1)
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def _mcp_named(tree: Path, interpreter: str) -> None:
+    path = tree / ".mcp.codex.json"
+    servers = json.loads(path.read_text(encoding="utf-8"))
+    for server in servers["mcpServers"].values():
+        server["command"] = interpreter
+    path.write_text(json.dumps(servers, indent=2), encoding="utf-8")
+
+
+def _twin_drift(tree: Path) -> None:
+    path, manifest, entry = _stop_entry(tree, "hooks.codex.json")
+    entry["timeout"] += 1
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+@pytest.mark.parametrize("plant, needle", [
+    (lambda t: _command_named(t, "python"), "command must be afk-python"),
+    (lambda t: _mcp_named(t, "python"), "command must be afk-python, got 'python'"),
+    (_twin_drift, "differ beyond the root variable"),
+    (lambda t: _write(t, "hooks/lib/x.py", f"#!/usr/bin/env {PY}3\n"), "hooks/lib/x.py:1: python source"),
+    (lambda t: _write(t, "hooks/lib/x.py", f'argv = ["{PY}", "-c", "pass"]\n'), "hooks/lib/x.py:1: python source"),
+    (lambda t: _write(t, "hooks/x.sh", "#!/bin/sh\npython tool.py\n"), "hooks/x.sh:2: shell command"),
+    (lambda t: _write(t, "hooks/x.sh", '#!/bin/sh\n"$AFK_' + 'PY" tool.py\n'), "hooks/x.sh:2: shell command"),
+    (lambda t: _write(t, ".github/workflows/x.yml", "steps:\n  - uses: actions/setup-python@v5\n"),
+     ".github/workflows/x.yml:2: CI step"),
+    (lambda t: _write(t, "notes/x.md", "Run `python tool.py` first.\n"), "notes/x.md:1: prose command"),
+    (lambda t: _write(t, "notes/x.md", "```sh\npy -3 tool.py\n```\n"), "notes/x.md:2: prose command"),
+], ids=["manifest", "mcp", "twin", "shebang", "argv", "shell", "afk-py", "ci", "prose", "fenced"])
+def test_check_j_refuses_a_second_runtime_on_a_live_surface(tree, plant, needle):
+    plant(tree)
+    _refused(gate(tree), needle)
+
+
+@pytest.mark.parametrize("rel, text, needle", [
+    ("hooks/x.sh", f"#!/bin/sh\n{PY}3.14 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\n/usr/bin/{PY}3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\nexec /usr/bin/{PY}3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\ncommand /opt/bin/{PY}3.14 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", f"#!/bin/sh\nenv -i /usr/bin/{PY} tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/x.sh", "#!/bin/sh\npy.exe -3 tool.py\n", "hooks/x.sh:2: shell command"),
+    ("hooks/tool", f"#!/usr/bin/{PY}3\nprint(1)\n", "hooks/tool:1: python source"),
+    ("hooks/tool", f"#!/usr/bin/env afk-{PY}\nimport os\nos.system('{PY} x.py')\n", "hooks/tool:3: python source"),
+    ("hooks/x.ps1", f"& {PY} tool.py\n", "hooks/x.ps1:1: shell command"),
+    ("hooks/x.ps1", f'& "C:\\Py314\\{PY}.exe" tool.py\n', "hooks/x.ps1:1: shell command"),
+    ("hooks/lib/x.py", f'import os\nos.system("{PY} tool.py")\n', "hooks/lib/x.py:2: python source"),
+    ("hooks/lib/x.py", f'import subprocess\nsubprocess.run("{PY}3.14 x.py", shell=True)\n',
+     "hooks/lib/x.py:2: python source"),
+    ("hooks/lib/x.py", f'argv = ["/usr/bin/{PY}3", "x.py"]\n', "hooks/lib/x.py:1: python source"),
+    ("hooks/lib/x.py", f'import subprocess\nsubprocess.run(["{PY[:2]}", "-3", "tool.py"])\n',
+     "hooks/lib/x.py:2: python source"),
+    ("notes/x.md", f"Run `{PY}3.14 tool.py` first.\n", "notes/x.md:1: prose command"),
+], ids=["versioned", "path", "exec", "command", "env", "py-exe", "shebang-no-suffix", "no-suffix-body",
+        "ps1-call", "ps1-path", "os-system", "subprocess-string", "argv-path", "argv-py-split", "prose-versioned"])
+def test_check_j_refuses_each_spelling_of_another_interpreter(tree, rel, text, needle):
+    _write(tree, rel, text)
+    _refused(gate(tree), needle)
+
+
+def _plant_in_gate(tree: Path, after: str, planted: str) -> int:
+    """Insert `planted` after the gate's first line ending in `after`; return its line number."""
+    path = tree / "hooks" / "native-contract-gate.sh"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    index = next(i for i, line in enumerate(lines) if line.endswith(after)) + 1
+    lines.insert(index, planted)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return index + 1
+
+
+@pytest.mark.parametrize("after, planted, kind", [
+    ("set -u", f": {PY}3 tool.py", "shell command"),
+    ("import fnmatch", f'_argv = ["{PY}", "-c", "pass"]', "python source"),
+], ids=["bash-part", "python-body"])
+def test_check_j_scans_its_own_gate_file(tree, after, planted, kind):
+    number = _plant_in_gate(tree, after, planted)
+    _refused(gate(tree), f"hooks/native-contract-gate.sh:{number}: {kind}")
+
+
+def test_check_j_passes_explanatory_text_and_an_allowed_interpreter_line(tree):
+    _write(tree, "notes/x.md", "afk-python is the only python this plugin runs.\nRun `python tool.py` once.\n")
+    _write(tree, "hooks/x.sh", "#!/bin/sh\nprintf '%s' '{\"python\": \"3\", \"ok\": 1}'\n"
+                               f"ls /usr/lib/{PY}3.14/site-packages\n")
+    _write(tree, "hooks/lib/x.py", f'version = pins["{PY}"]\nsuffixes = ["py", "pyi"]\n')
+    with (tree / "hooks" / "native-contract-allow.txt").open("a", encoding="utf-8", newline="\n") as allow:
+        allow.write("notes/x.md\tinterpreter\tRun `python tool\\.py` once\tA test names the interpreter.\n")
     done = gate(tree)
     assert done.returncode == 0, done.stderr + done.stdout

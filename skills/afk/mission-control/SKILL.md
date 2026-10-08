@@ -43,7 +43,7 @@ before a ticket key is minted). Required.
 ## Process (watch / retro)
 
 1. **Freshness first.** Run
-   `python3 $AFK_PLUGIN_ROOT/skills/afk/mission-control/scripts/mission_control.py {spec_dir} --check-digests`
+   `afk-python $AFK_PLUGIN_ROOT/skills/afk/mission-control/scripts/mission_control.py {spec_dir} --check-digests`
    (read-only, exit 0; `<main-checkout>` = first entry of `git worktree list`
    — plugin scripts always run from the main checkout; `GLOSSARY.md` "Main
    checkout") and tell the user which digest sections are fresh,
@@ -51,8 +51,8 @@ before a ticket key is minted). Required.
    refresh" when any aren't fresh. Never build uninvited.
 
 2. **Invoke the renderer.**
-   - Watch mode: `python3 …/scripts/mission_control.py {spec_dir} [--port PORT]`
-   - Retro mode: `python3 …/scripts/mission_control.py {spec_dir} --once`
+   - Watch mode: `afk-python …/scripts/mission_control.py {spec_dir} [--port PORT]`
+   - Retro mode: `afk-python …/scripts/mission_control.py {spec_dir} --once`
 
    `--port` defaults to `8420`; pass it only if the user names a different
    port or the default is in use.

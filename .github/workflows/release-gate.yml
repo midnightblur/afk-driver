@@ -22,6 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install afk-python
+        # The setup bootstrap: the pinned uv and CPython, the locked packages, no system Python.
+        run: |
+          sh skills/afk/setup/scripts/bootstrap.sh install
+          echo "${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin" >> "$GITHUB_PATH"
+
       - name: Resolve the version under test
         id: version
         run: |
@@ -30,7 +36,7 @@ jobs:
           else
             # No tag yet: gate the version the branch's own manifest claims, so
             # the four files still have to agree with each other.
-            echo "tag=v$(python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')" >> "$GITHUB_OUTPUT"
+            echo "tag=v$(afk-python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Version agreement

@@ -76,7 +76,7 @@ In that profile the plan adds an `## Agenda` section, a `## Feedback disposition
 7. **Budget the arc.** Assign every beat its minutes, order them by the arc. Over budget → demote **show** to **tell**, weakest signal first. Never silently drop a shortlisted story or a `changes` touch point: demote it to a tell line and keep its row.
 
    - **Default profile:** ≤60 minutes total with **≥10 reserved for questions** — beats sum to ≤45.
-   - **Company-meeting profile:** write the `## Agenda` section, then check it mechanically with `python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py {plan}` and fix what it names. Run that check in this profile only — a default-profile plan never had an hour imposed on it and does not gain one here.
+   - **Company-meeting profile:** write the `## Agenda` section, then check it mechanically with `afk-python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py {plan}` and fix what it names. Run that check in this profile only — a default-profile plan never had an hour imposed on it and does not gain one here.
 
 8. **Write `DEMO-PLAN.md`** using the template.
 

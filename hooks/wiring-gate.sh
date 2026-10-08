@@ -180,8 +180,7 @@ _wiring_main() {
   fi
 
   # ---- pass 2: the bounded scan. Local universe = everything this change touched.
-  local py=python scan_rc=0 detail="" scan_metrics="" status="" i
-  command -v python >/dev/null 2>&1 || py=python3
+  local py="${AFK_PYTHON:-afk-python}" scan_rc=0 detail="" scan_metrics="" status="" i
   local -A wired_set=()
   if ! command -v "$py" >/dev/null 2>&1; then
     detail=no_python

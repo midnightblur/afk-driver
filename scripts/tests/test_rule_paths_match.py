@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """`rule_paths_match.py` matches `.claude/rules` `paths:` globs.
 
 The module's own FIXTURES table is the specification; this drives it and adds the

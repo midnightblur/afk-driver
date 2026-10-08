@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Deterministic plan validator — the mechanical subset of
 skills/afk/to-subtasks/VALIDATION.md. This docstring is the canonical doc and
 the owning home of every rule below; VALIDATION.md points here.
 
-Usage: python3 validate_plan.py <plan-dir>        (Windows: py -3 validate_plan.py <plan-dir>)
+Usage: afk-python validate_plan.py <plan-dir>
 
 Input: a plan/ directory — PLAN.md + rank-ordered NNNN-slug.md subtask
 contracts (grammar: SUBTASK-CONTRACT.md). A sibling ../VERIFICATION-PLAN.md,

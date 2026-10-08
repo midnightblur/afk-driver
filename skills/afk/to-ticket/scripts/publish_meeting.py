@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """
 publish_meeting.py — publish a meeting summary into a Jira Cloud issue as a
 collapsible ADF `expand`, idempotently.
@@ -31,7 +31,7 @@ notes) into a Markdown file in the shape documented in REFERENCE.md
 contains, wrapped and merged — nothing more.
 
 Usage:
-    python publish_meeting.py --parent PROJ-1220 \
+    afk-python publish_meeting.py --parent PROJ-1220 \
         --title "Demo & QA" --date 2026-07-08 \
         --meeting path/to/MEETING.md [--dry-run] [--yes]
 
@@ -47,7 +47,7 @@ import sys
 from pathlib import Path
 
 # Reuse the shared engine pieces — one home for creds, REST, and md->ADF.
-# When run as `python scripts/publish_meeting.py`, this file's directory is on
+# When run as `afk-python scripts/publish_meeting.py`, this file's directory is on
 # sys.path[0], so the sibling module resolves.
 from publish_prd import Jira, load_creds, md_to_adf_content, node_text
 

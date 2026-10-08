@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Fold tracer fragments into one staging coverage ledger.
 
 Every rule this applies is stated in `LEDGER-FORMAT.md` (beside this script)

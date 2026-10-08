@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """
 publish_prd.py — deterministically publish a PRD.md into a Jira Cloud issue.
 
@@ -35,7 +35,7 @@ distillation — no SDD / ADR / technical detail, no repo-artifact references) i
 the caller's responsibility.
 
 Usage:
-    python publish_prd.py --parent PROJ-1220 --prd path/to/TICKET.md \
+    afk-python publish_prd.py --parent PROJ-1220 --prd path/to/TICKET.md \
         [--changes path/to/TICKET-CHANGES.md] [--dry-run] [--yes]
 
 Credentials resolve as the adapter's load_creds documents (OS env vars win, then

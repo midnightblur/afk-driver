@@ -76,9 +76,8 @@ gate_skill_registry() {
     actual_agents+=("./agents/${p##*/}")
   done
 
-  # ---- entries declared in plugin.json (python: no assumption about JSON layout)
-  local py=python declared
-  command -v python >/dev/null 2>&1 || py=python3    # python3-only machines: same fallback as native-contract-gate.sh
+  # ---- entries declared in plugin.json (Python: no assumption about JSON layout)
+  local py="${AFK_PYTHON:-afk-python}" declared
   declared=$("$py" -c "
 import json, sys
 try:
@@ -93,7 +92,7 @@ for a in m.get('agents', []): print('AGENT\t' + a)
   local -A decl_skill=() decl_agent=()
   local kind val
   while IFS=$'\t' read -r kind val; do
-    val=${val%$'\r'}          # Windows python writes CRLF; the CR would break every match
+    val=${val%$'\r'}          # Windows Python writes CRLF; the CR would break every match
     [ -n "${val:-}" ] || continue
     case "$kind" in
       SKILL) decl_skill["$val"]=1 ;;
@@ -193,21 +192,19 @@ for a in m.get('agents', []): print('AGENT\t' + a)
     | sed "s|^$PLUGIN_DIR/||")
 
   # ---- check E: adapter.json <-> its entry <-> CONTRACT.md <-> CONFIG.md <->
-  # the register. One python pass over every adapter, so the cost is one spawn
+  # the register. One Python pass over every adapter, so the cost is one spawn
   # whatever the number of families.
   local adapter_drift=""
   if [ -d "$PLUGIN_DIR/adapters" ]; then
-    local _py=python
-    command -v python >/dev/null 2>&1 || _py=python3
+    local _py="${AFK_PYTHON:-afk-python}"
     adapter_drift=$("$_py" "$PLUGIN_DIR/hooks/lib/adapter_registry_check.py" "$PLUGIN_DIR" 2>&1)
   fi
 
   # ---- check F: every SKILL.md frontmatter parses and names its directory.
-  # One python pass over every skill, next to check E's, for the same reason.
+  # One Python pass over every skill, next to check E's, for the same reason.
   local frontmatter_drift=""
   if [ -f "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" ]; then
-    local _pyf=python
-    command -v python >/dev/null 2>&1 || _pyf=python3
+    local _pyf="${AFK_PYTHON:-afk-python}"
     frontmatter_drift=$("$_pyf" "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" "$PLUGIN_DIR" 2>&1)
   fi
 

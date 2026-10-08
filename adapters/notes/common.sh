@@ -22,8 +22,7 @@ AFK_NOTES_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$AFK_NOTES_DIR/../.." && pwd)}
 # shellcheck source=/dev/null
 . "$AFK_NOTES_ROOT/hooks/lib/config.sh"
 
-AFK_NOTES_PY=python
-command -v python >/dev/null 2>&1 || AFK_NOTES_PY=python3
+AFK_NOTES_PY="${AFK_PYTHON:-afk-python}"
 
 notes_die() {                                   # notes_die <exit> <reason>
   local code=$1; shift

@@ -9,8 +9,8 @@ path, locates a real Git Bash, forwards stdin, stdout, stderr and the exit
 code, and stays silent when an optional handler is absent.
 
 Usage:
-    python run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]
-    python run-hook.py [--soft] [--deadline <seconds>] repo-list <event>
+    afk-python run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]
+    afk-python run-hook.py [--soft] [--deadline <seconds>] repo-list <event>
 
     plugin     handler under this plugin's own hooks/ directory
     repo-list  every repository-owned handler the consuming repository declares
@@ -48,6 +48,12 @@ object, is a refusal: its own stdout and exit code are never passed through. The
 launcher gathers every refusal and emits one verdict in the provider's block
 shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
 events block too. On the remaining events it writes the reason to stderr.
+
+Two bails exit 0 before any shell lookup: `repo-list` when the repository declares no
+handler for the event, and `plugin` for a handler its provider's declaration
+(`hooks/lib/providers/<name>.json`) makes a no-op (POLICY_NOOP). Before a handler
+starts, `AFK_PYTHON` must name this interpreter, the `afk-python` entry: handlers
+run `"$AFK_PYTHON"`. Without it no handler runs, the same as without a shell.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
 install locations, then PATH excluding the Windows system directory.
@@ -270,8 +276,14 @@ def install_signal_handlers() -> None:
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
-    # The working tree's Git root, like every plugin gate; CLAUDE_PROJECT_DIR
-    # names the launch checkout, which can differ.
+    return git_toplevel(env)[0]
+
+
+def git_toplevel(env: dict[str, str]) -> tuple[Path | None, bool]:
+    """The working tree's Git root, and whether Git answered: a root, or "not a git repository".
+
+    Like every plugin gate; CLAUDE_PROJECT_DIR names the launch checkout, which can differ.
+    """
 
     # Windows resolves the executable name against this process's PATH, not the
     # PATH being handed to the child, so name git absolutely when it is only on
@@ -280,12 +292,14 @@ def repo_root(env: dict[str, str]) -> Path | None:
     try:
         out = subprocess.run(
             [git, "-C", os.getcwd(), "rev-parse", "--show-toplevel"],
-            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env=env,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env={**env, "LC_ALL": "C"},
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return None, False
     top = out.stdout.strip()
-    return Path(top) if out.returncode == 0 and top else None
+    if out.returncode == 0 and top:
+        return Path(top), True
+    return None, "not a git repository" in out.stderr
 
 
 def is_wsl_stub(candidate: Path) -> bool:
@@ -368,6 +382,50 @@ def shell_env(bash: Path, base: dict[str, str] | None = None) -> dict[str, str]:
     return env
 
 
+def load_lib(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# Plugin handlers a provider declaration makes a no-op. `never` injects nothing, so no
+# session marker exists for the SessionStart/PostCompact reset to remove either.
+POLICY_NOOP = {
+    "nested-steering.sh": lambda facts: facts.get("nested_inject_mode", "never") == "never",
+    "agents-md-config-check.sh": lambda facts: facts.get("instruction_files_setting") is not True,
+}
+
+
+def policy_noop(handler: str) -> bool:
+    test = POLICY_NOOP.get(handler)
+    if test is None:
+        return False
+    try:
+        facts = load_lib("afk_provider_facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts()
+    except Exception:
+        return False
+    return test(facts)
+
+
+def runtime_fault() -> str | None:
+    """Why `AFK_PYTHON` does not name this interpreter, or None when it does."""
+    named, here = os.environ.get("AFK_PYTHON"), sys.executable
+    if not named:
+        return f"AFK_PYTHON is not set, so {here} is not the afk-python entry; run /afk:setup"
+    if not os.path.isabs(named):
+        # Handlers run "$AFK_PYTHON" through their own PATH, which can name another file.
+        return f"AFK_PYTHON names {named}, not an absolute path; run /afk:setup"
+    if os.path.normcase(os.path.abspath(named)) == os.path.normcase(os.path.abspath(here)):
+        return None
+    try:
+        if os.name == "nt" and os.path.samefile(named, here):
+            return None
+    except OSError:
+        pass
+    return f"AFK_PYTHON names {named}, not this interpreter {here}; run /afk:setup"
+
+
 def manifest_path(root: Path) -> Path:
     """`.afk/hooks.json` unless the repository's config names another path.
 
@@ -375,12 +433,7 @@ def manifest_path(root: Path) -> Path:
     import rather than a subprocess on the hook path.
     """
     try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = load_lib("afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py")
         named = module.get(module.load(root), "repo-hooks")
     except Exception:
         named = None
@@ -529,8 +582,8 @@ def merge_allowed(outputs: list[bytes]) -> str:
     return json.dumps(merged) if merged else ""
 
 
-def block_without_shell(event: str) -> int:
-    """No POSIX shell: a repository gate that matches this call still blocks it."""
+def block_without_shell(event: str, why: str) -> int:
+    """No handler can run (`why`): a repository gate that matches this call still blocks it."""
     env = dict(os.environ)
     root = repo_root(env)
     entries, faults = repo_entries(root, event) if root is not None else ([], [])
@@ -542,7 +595,7 @@ def block_without_shell(event: str) -> int:
         tool = ""
     for entry in entries:
         if matcher_fault(entry.get("matcher")) or matches(entry.get("matcher"), tool):
-            faults.append(f"no POSIX shell to run {entry.get('script')}")
+            faults.append(f"{why}: cannot run {entry.get('script')}")
     return block(event, faults, None, env) if faults else 0
 
 
@@ -607,10 +660,7 @@ OWNER_HANDLERS = {"worktree-create.sh"}
 def owner_env() -> dict[str, str]:
     """`AFK_WORKTREE_OWNER=<pid>:<creation time>` of the harness above this launcher, or {}."""
     try:
-        spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        found = module.find_owner()
+        found = load_lib("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py").find_owner()
     except Exception:
         return {}
     return {"AFK_WORKTREE_OWNER": f"{found['pid']}:{found['ctime']}"} if found else {}
@@ -646,16 +696,27 @@ def main(argv: list[str]) -> int:
         )
         return 0 if soft else 2
 
-    bash = find_bash()
+    if argv[0] == "repo-list":
+        if argv[1] not in EVENTS:
+            sys.stderr.write(f"run-hook.py: unknown event: {argv[1]}\n")
+            return 0 if soft else 2
+        # Manifest first: no declared handler needs no shell, no job and no second git call.
+        # Only Git's own answer proves "nothing declared"; a failed lookup retries on the shell's PATH.
+        root, answered = git_toplevel(dict(os.environ)) if shutil.which("git") else (None, False)
+        if answered and (root is None or repo_entries(root, argv[1]) == ([], [])):
+            return 0
+    elif policy_noop(argv[1]):
+        return 0
+
+    why = runtime_fault()
+    bash = find_bash() if why is None else None
     if bash is None:
-        sys.stderr.write(
-            f"run-hook.py: no POSIX shell found for {argv[1]}. Install Git Bash, "
-            "or point AFK_BASH at a bash executable.\n"
-        )
+        why = why or "no POSIX shell found. Install Git Bash, or point AFK_BASH at a bash executable"
+        sys.stderr.write(f"run-hook.py: {argv[1]}: {why}.\n")
         if soft:
             return 0
         if argv[0] == "repo-list" and argv[1] in BLOCKING_EVENTS:
-            return block_without_shell(argv[1])
+            return block_without_shell(argv[1], why)
         return 1
     # The shell's own toolchain sits on this PATH, so git resolves here even
     # when the harness handed down a PATH carrying neither.
@@ -684,9 +745,6 @@ def main(argv: list[str]) -> int:
         return 0 if soft else completed.returncode
 
     event = argv[1]
-    if event not in EVENTS:
-        sys.stderr.write(f"run-hook.py: unknown event: {event}\n")
-        return 0 if soft else 2
     root = repo_root(env)
     if root is None:
         return 0

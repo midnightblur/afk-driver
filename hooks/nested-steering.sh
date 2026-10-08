@@ -9,7 +9,7 @@
 # hooks/run-hook.py as `plugin nested-steering.sh`.
 #
 # Provider policy (inject / never / agent-only, and whether to inject path-scoped
-# rules) lives in hooks/lib/providers/<name>.sh; the mechanical collection lives
+# rules) lives in hooks/lib/providers/<name>.json; the mechanical collection lives
 # in hooks/lib/nested_steering.py. This handler only wires the two together and
 # emits the injection through the provider library.
 #
@@ -25,8 +25,7 @@ dir=$(cd "$(dirname "$0")" && pwd)
 afk_hook_input                                   # AFK_HOOK_INPUT <- stdin
 event=$(afk_hook_field hook_event_name)
 data=$(afk_plugin_data)
-py=python
-command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 module="$dir/lib/nested_steering.py"
 

@@ -61,7 +61,7 @@ Wave Terminal is an optional host for the same Lavish session page. Check it
 only before a visible render:
 
 ```
-python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" eligible
+afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" eligible
 ```
 
 Exit `1` keeps the command table above unchanged. This includes non-Windows,
@@ -75,7 +75,7 @@ render:
 1. Run the literal `lavish-axi <file> --no-open` command. Do not
    wrap it. Both injection hooks must see `lavish-axi` in the tool command.
 2. Take the exact generated session URL from that command. Pass it unchanged:
-   `python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" open "<url>"`.
+   `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish/wave_host.py" open "<url>"`.
 3. Helper exit `0` means Wave opened or reused one Web block. Open no browser.
 4. Helper exit `1` means failure happened before any Wave open attempt. Run the
    plain first render command from the table so the normal browser opens.

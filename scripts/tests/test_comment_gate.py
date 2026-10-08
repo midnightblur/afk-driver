@@ -10,6 +10,7 @@ import importlib.util
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -189,7 +190,7 @@ def init_repo(tmp_path):
 
 def run_cli(tmp_path, tracker="jira"):
     return subprocess.run(
-        ["python", str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", tracker],
+        [sys.executable, str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", tracker],
         cwd=tmp_path, text=True, capture_output=True)
 
 
@@ -240,7 +241,7 @@ def test_cli_json_output_lists_findings(tmp_path):
     (tmp_path / "a.py").write_text("x = 1  # PAY-142\n", encoding="utf-8")
     git(tmp_path, "add", "a.py")
     done = subprocess.run(
-        ["python", str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", "jira", "--json"],
+        [sys.executable, str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", "jira", "--json"],
         cwd=tmp_path, text=True, capture_output=True)
     payload = json.loads(done.stdout)
     assert payload["findings"][0]["path"] == "a.py"
@@ -328,7 +329,7 @@ def test_cli_reads_the_project_keys_option(tmp_path):
         "class A {\n  int a; // key size RSA-2048\n  int b; // ABC-12\n}\n", encoding="utf-8")
     git(tmp_path, "add", "A.java")
     done = subprocess.run(
-        ["python", str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", "jira",
+        [sys.executable, str(ENGINE), "--plugin-root", str(PLUGIN_ROOT), "--tracker", "jira",
          "--project-keys", "ABC"], cwd=tmp_path, text=True, capture_output=True)
     assert done.returncode == 2
     assert "A.java:3" in done.stderr and "A.java:2" not in done.stderr

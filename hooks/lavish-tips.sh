@@ -67,7 +67,7 @@ wf_glossary="$script_dir/../GLOSSARY.md"
 toplevel=$(git rev-parse --show-toplevel 2>/dev/null || true)
 
 LAVISH_TIPS_INPUT="$input" LAVISH_TIPS_SEED="$seed" \
-LAVISH_TIPS_WF_GLOSSARY="$wf_glossary" LAVISH_TIPS_TOPLEVEL="$toplevel" python - <<'PYEOF'
+LAVISH_TIPS_WF_GLOSSARY="$wf_glossary" LAVISH_TIPS_TOPLEVEL="$toplevel" "${AFK_PYTHON:-afk-python}" - <<'PYEOF'
 import json, os, re, sys
 
 MARK_START = "<!-- afk-lavish-tips:start -->"

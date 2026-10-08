@@ -338,9 +338,9 @@ same fixture `scratchpad/nsfix`.
   is the correct discriminator for `agent-only`, kept as machinery — see below.
 
 **Amendment (P3.7) — NOT taken.** Because (a) and (b) both pass natively,
-`claude.sh` `afk_claude_nested_inject_mode` stays `never`: selecting `agent-only`
+`claude.json` `nested_inject_mode` stays `never`: selecting `agent-only`
 would inject a nested `AGENTS.md` a subagent already has natively, once from the
-hook and once from the native attachment. `afk_claude_nested_inject_rules` stays
+hook and once from the native attachment. `nested_inject_rules` stays
 `0` (Claude reads `.claude/rules` `paths:` natively). The `agent-only` mode is
 still implemented and tested — see "agent-only machinery" — for a future harness
 whose subagents do not lazy-load; no shipped provider selects it.

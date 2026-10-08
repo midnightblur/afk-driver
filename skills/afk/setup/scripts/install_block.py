@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Install or remove sentinel-delimited instruction blocks.
 
 Commands:

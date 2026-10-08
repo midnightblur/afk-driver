@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -258,12 +259,64 @@ def test_r4_3_a_fault_is_not_a_refusal(repo, tmp_path):
     lonely = tmp_path / "hooks"
     lonely.mkdir()
     shutil.copy(PLUGIN_ROOT / "hooks" / "git-backstop.py", lonely / "git-backstop.py")
-    done = subprocess.run(["python", str(lonely / "git-backstop.py"), "pre-commit"], capture_output=True, text=True,
+    done = subprocess.run([sys.executable, str(lonely / "git-backstop.py"), "pre-commit"], capture_output=True, text=True,
                           cwd=repo, env=agent(), timeout=120)
     assert done.returncode == 0 and "skipped" in done.stderr
-    refused = subprocess.run(["python", str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
+    refused = subprocess.run([sys.executable, str(PLUGIN_ROOT / "hooks" / "git-backstop.py"), "pre-commit"],
                              capture_output=True, text=True, cwd=repo, env=agent(), timeout=120)
     assert refused.returncode == 3
+
+
+NOTICE = "backstop unavailable: afk-python not found. Run /afk:setup."
+
+
+def without_afk_python() -> dict:
+    import shutil
+    sep = os.pathsep
+    path = sep.join(e for e in os.environ.get("PATH", "").split(sep) if e and not shutil.which("afk-python", path=e))
+    return {k: v for k, v in agent(PATH=path).items() if k != "AFK_PYTHON"}
+
+
+@pytest.mark.parametrize("args", [("commit", "-q", "--allow-empty", "-m", "c"),
+                                  ("commit", "-q", "--allow-empty", "-m", "c", "--no-verify"), ("branch", "newb"),
+                                  pytest.param(("switch", "-q", "feature"), marks=NEEDS_HEAD_SWITCH_HOOK)])
+def test_without_afk_python_git_goes_on_and_says_to_run_setup_once(repo, args):
+    installed(repo)
+    done = git(repo, *args, env=without_afk_python())
+    assert done.returncode == 0, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
+    assert "command not found" not in done.stderr, done.stderr
+
+
+def test_a_kept_foreign_reference_hook_leaves_the_notice_to_pre_commit(repo):
+    # The installer keeps a foreign reference-transaction hook and installs only the AFK pre-commit.
+    hooks_dir(repo).mkdir(parents=True, exist_ok=True)
+    foreign = hooks_dir(repo) / "reference-transaction"
+    foreign.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8", newline="\n")
+    foreign.chmod(0o755)
+    install(repo)
+    assert "afk-precommit-gates" in (hooks_dir(repo) / "pre-commit").read_text(encoding="utf-8")
+    assert "afk-branch-name-gate" not in foreign.read_text(encoding="utf-8")
+    done = git(repo, "commit", "-q", "--allow-empty", "-m", "c", env=without_afk_python())
+    assert done.returncode == 0, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
+
+
+@pytest.mark.parametrize("break_it", [
+    pytest.param("not-executable", marks=pytest.mark.skipif(
+        os.name == "nt", reason="Git for Windows runs a hook by its shebang; there is no execute bit to drop")),
+    "missing-target"])
+def test_an_unusable_afk_reference_hook_leaves_the_notice_to_pre_commit(repo, break_it):
+    installed(repo)
+    ref = hooks_dir(repo) / "reference-transaction"
+    if break_it == "not-executable":
+        ref.chmod(0o644)
+    else:
+        text = ref.read_text(encoding="utf-8")
+        ref.write_text(text.replace('gate="', 'gate="/nonexistent', 1), encoding="utf-8", newline="\n")
+    done = git(repo, "commit", "-q", "--allow-empty", "-m", "c", env=without_afk_python())
+    assert done.returncode == 0, done.stderr
+    assert done.stderr.count(NOTICE) == 1, done.stderr
 
 
 def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
@@ -280,6 +333,6 @@ def test_r4_9_python_starts_only_for_a_head_or_branch_line(repo, tmp_path):
     git(repo, "push", "-q", "origin", "trunk", env=human())
     assert git(repo, "fetch", "-q", "origin", env=agent(MARK=str(mark))).returncode == 0
     assert git(repo, "tag", "t1", env=agent(MARK=str(mark))).returncode == 0
-    assert not mark.exists(), "a fetch and a tag never start python"
+    assert not mark.exists(), "a fetch and a tag never start Python"
     assert git(repo, "branch", "newb", env=agent(MARK=str(mark))).returncode == 0
     assert mark.exists(), "a branch line does start it"

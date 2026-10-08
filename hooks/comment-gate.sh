@@ -6,10 +6,9 @@ set -u
 
 gate_comment() {
   [ "${COMMENT_GATE_DISABLE:-0}" = "1" ] && return 0
-  local dir root py=python rc=0 keys=""
+  local dir root py="${AFK_PYTHON:-afk-python}" rc=0 keys=""
   dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   root=$(cd "$dir/.." && pwd)
-  command -v python >/dev/null 2>&1 || py=python3
   git diff --cached --quiet 2>/dev/null && return 0
   [ "${AFK_CFG_TRACKER:-}" = "jira" ] && keys=${AFK_CFG_JIRA_PROJECT:-}
   gate_metrics_begin

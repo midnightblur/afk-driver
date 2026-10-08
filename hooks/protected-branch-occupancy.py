@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """SessionStart: register this session in its linked worktree and say when another live session holds it.
 
 Advisory only: the line is injected as context; this handler never blocks and exits 0 on every path.

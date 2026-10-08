@@ -234,33 +234,34 @@ emit_fixture_rows() {
   printf 'codex\0%s\0%s\0enabled\0' "$target_with_us" "$root_with_us"
 }
 
-# H7's install loop, run for real against the fixture: a stub `python` on
+# H7's install loop, run for real against the fixture: a stub `afk-python` on
 # PATH records every invocation and always exits 0 (so the loop's `|| exit 1`
 # guards never cut the run short before the 4th row is reached).
 stub_bin=$(mktemp -d)
 py_log="$stub_bin/py.log"
-cat > "$stub_bin/python" <<'STUB'
+cat > "$stub_bin/afk-python" <<'STUB'
 #!/usr/bin/env bash
-echo "python $*" >> "$PY_LOG"
+echo "afk-python $*" >> "$PY_LOG"
 exit 0
 STUB
-chmod +x "$stub_bin/python"
+chmod +x "$stub_bin/afk-python"
 h7_script=$(printf '%s\n' "$h7_block" | grep -vF '. "$AFK_PLUGIN_ROOT/hooks/lib/provider.sh"')
 (
   PATH="$stub_bin:$PATH"
   PY_LOG="$py_log"
   export PATH PY_LOG
+  unset AFK_PYTHON
   AFK_PLUGIN_ROOT="$workflow"
   . "$AFK_PLUGIN_ROOT/hooks/lib/provider.sh"
   afk_all_provider_targets() { emit_fixture_rows; }
   afk_provider() { printf 'unknown\n'; }
   eval "$h7_script"
 ) 2>/dev/null
-py_log_line_count=$(grep -c '^python ' "$py_log" 2>/dev/null || printf '0')
+py_log_line_count=$(grep -c '^afk-python ' "$py_log" 2>/dev/null || printf '0')
 if [ "$py_log_line_count" = "2" ]; then
-  pass "H7's real install loop calls python exactly twice: only the enabled, resolved-root row triggers render+install"
+  pass "H7's real install loop calls afk-python exactly twice: only the enabled, resolved-root row triggers render+install"
 else
-  fail "H7's real install loop should call python exactly twice, once each for render and install (line_count=$py_log_line_count log=$(cat "$py_log" 2>/dev/null))"
+  fail "H7's real install loop should call afk-python exactly twice, once each for render and install (line_count=$py_log_line_count log=$(cat "$py_log" 2>/dev/null))"
 fi
 rendered_path=$(grep -oE -- '--output [^ ]+' "$py_log" 2>/dev/null | awk '{print $2}')
 if grep -qF -- "--plugin-root $root_with_us --output" "$py_log" 2>/dev/null; then
@@ -354,14 +355,14 @@ postcompact:PostCompact|stop:Stop)
   guard_repo=$(mktemp -d)
   git -C "$guard_repo" init -q -b dev
   guard_cwd=$(cd "$guard_repo" && pwd -W 2>/dev/null || pwd)
-  AFK_PROVIDER="$provider" python "$guard" < "$provider_envelopes/pretooluse-bash-safe.json" >/dev/null 2>&1
+  AFK_PROVIDER="$provider" "${AFK_PYTHON:-afk-python}" "$guard" < "$provider_envelopes/pretooluse-bash-safe.json" >/dev/null 2>&1
   rc=$?
   if [ "$rc" = 0 ]; then
     pass "protected-branch-guard passes a command outside any repository"
   else
     fail "protected-branch-guard outside git (rc=$rc)"
   fi
-  sed -e "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" -e 's|"command": *"[^"]*"|"command": "touch changed"|' "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" python "$guard" 2>/dev/null >"$guard_repo.out"
+  sed -e "s|\"cwd\": *\"[^\"]*\"|\"cwd\": \"$guard_cwd\"|" -e 's|"command": *"[^"]*"|"command": "touch changed"|' "$provider_envelopes/pretooluse-bash-safe.json"     | AFK_PROVIDER="$provider" "${AFK_PYTHON:-afk-python}" "$guard" 2>/dev/null >"$guard_repo.out"
   rc=$?
   if [ "$rc" = 0 ] && grep -q '"permissionDecision": "deny"' "$guard_repo.out"; then
     pass "protected-branch-guard refuses a command in a main checkout"
@@ -468,8 +469,7 @@ fi
 # though no shipped provider selects it. Exercise it directly against the module
 # (synthetic mode): it injects when the envelope carries agent_id and is silent
 # without one.
-ns_py=python
-command -v python >/dev/null 2>&1 || ns_py=python3
+ns_py="${AFK_PYTHON:-afk-python}"
 out7=$(printf '{"session_id":"ns-sess-b","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Read","agent_id":"child-9","tool_input":{"file_path":"%s"}}' \
     "$top" "$top/sub/deep/x.txt" \
   | "$ns_py" "$workflow/hooks/lib/nested_steering.py" \
@@ -552,8 +552,7 @@ echo "== managed behavior drift notice =="
 bd_claude=$(mktemp -d)
 bd_codex=$(mktemp -d)
 bd_rendered=$(mktemp)
-behavior_py=python
-command -v python >/dev/null 2>&1 || behavior_py=python3
+behavior_py="${AFK_PYTHON:-afk-python}"
 
 bd_run() {
   env CLAUDECODE=1 CLAUDE_CONFIG_DIR="$bd_claude" CODEX_HOME="$bd_codex" \
@@ -683,8 +682,7 @@ rm -rf "$bd5_codex" "$bd5_rendered"
 
 # ---- the launcher every hook command goes through.
 launcher="$workflow/hooks/run-hook.py"
-py=python
-command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 echo "== hook launcher =="
 
@@ -710,7 +708,7 @@ cat > "$fixture_repo/.afk/hooks.json" <<'FIXTURE'
   {"event": "Stop", "matcher": "*", "timeout": 60, "script": "hooks/block.sh"}
 ]
 FIXTURE
-python - "$fixture_repo" <<'PY'
+"$py" - "$fixture_repo" <<'PY'
 import json, sys
 root = sys.argv[1]
 path = root + "/.afk/hooks.json"

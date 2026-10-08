@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """PostToolUse: compare a guarded checkout with the snapshot the guard took before a shell call.
 
 A difference is injected as context and starts the quarantine the guard enforces; this handler

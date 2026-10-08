@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """tracker/github-issues — the GitHub Issues adapter.
 
 Answers the nine `tracker_*` operations through the `gh` CLI, so authentication

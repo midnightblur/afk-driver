@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Adversarial cases for the seed map: a row bound to nothing it can prove.
 
 Every case here starts from the same question — what does a row assert that

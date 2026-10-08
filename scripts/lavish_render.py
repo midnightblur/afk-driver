@@ -1,7 +1,7 @@
 """Render a lavish decision surface from its round JSON.
 
-    python scripts/lavish_render.py <round.json> [-o <artifact.html>]
-    python scripts/lavish_render.py <round.json> --check
+    afk-python scripts/lavish_render.py <round.json> [-o <artifact.html>]
+    afk-python scripts/lavish_render.py <round.json> --check
 
 The agent authors data; this script authors markup. No model writes HTML on
 this path, and the same JSON renders byte-identical HTML every time — the

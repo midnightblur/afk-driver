@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Deterministic instruction-file mechanical checks for the AGENTS.md standard.
 
-    python mechanical_check.py <repo_root>
+    afk-python mechanical_check.py <repo_root>
 
 Discovers only the instruction files the standard governs, scoped to
 <repo_root> (never scans system roots): AGENTS.md, .claude/AGENTS.md,

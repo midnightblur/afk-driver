@@ -79,6 +79,13 @@ pane's session id from its own integration hook (`herdr integration install code
 helper types only into a pane whose reported session is the refused one. Without it the helper
 types nothing and logs why; the human types the printed `/cd` line.
 
+The same file declares the launcher's policy, read by `hooks/run-hook.py` before any
+shell and by `afk_provider_fact` in bash: `nested_inject_mode` (`never`,
+`agent-only` or `always`) and `nested_inject_rules` (`0` or `1`) for the
+nested-steering hook, and `instruction_files_setting` (`true` where the
+harness has the `instructionFiles` setting). A handler the policy makes a no-op
+starts no shell.
+
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
 creates a worktree through the plugin must also remove it through the plugin.
 Every session start prunes worktrees whose owner is gone.
@@ -91,7 +98,8 @@ the session-start occupancy registration. Start `codex` once in
 the terminal UI without the full-bypass flag and choose `2. Trust all and
 continue` on the "Hooks need review" screen, or type `/hooks` in a session and
 press `t`. With the full-bypass flag, or with `codex exec`, the hooks do not
-run and Codex prints nothing until you have done this once.
+run and Codex prints nothing until you have done this once. A release that
+changes hook command strings, such as the move to `afk-python`, asks again.
 
 ## Distribution law
 

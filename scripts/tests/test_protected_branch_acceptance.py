@@ -259,7 +259,7 @@ def hook_argv(command: str) -> list[str]:
     expanded = command.replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT)).replace("${PLUGIN_ROOT}", str(ROOT))
     parts = re.findall(r'"([^"]*)"|(\S+)', expanded)
     argv = [a or b for a, b in parts]
-    if argv and argv[0] in ("python", "python3"):
+    if argv and argv[0] == "afk-python":
         argv[0] = PY
     return argv
 
@@ -1063,7 +1063,7 @@ def run_prune(repo: Path, stubs: Stubs) -> subprocess.CompletedProcess:
 # The launcher resolves the owner itself (run-hook owner_env), so a passed AFK_WORKTREE_OWNER is
 # overridden; name a short-lived python wrapper as the owner process instead (A20 opt-in name).
 DEAD_OWNER_WRAPPER = [PY, "-c", "import subprocess, sys; sys.exit(subprocess.run(sys.argv[1:]).returncode)"]
-DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python"}
+DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python" + ("" if os.name == "nt" else ",afk-python")}
 
 
 def test_ac029_stale_prune_rules(repo, tmp_path, stubs):

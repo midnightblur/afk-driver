@@ -56,9 +56,9 @@ ledger ran under — one `--alias <form>=<value>` per `declared` form in its
 `run.aliases`, omitted when it declares none:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] --out <scratch>/ground-<symbol>.json
+afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] --out <scratch>/ground-<symbol>.json
 
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
+afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
 ```
 
 `ground_diff.py` counts every searched line, keyed (`class`, file, `line_hash`),

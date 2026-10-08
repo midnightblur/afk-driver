@@ -7,9 +7,9 @@ the toolkit names a repository path.
 Read the effective configuration with the one reader; never parse the file:
 
 ```
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" effective --json
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.command
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" effective --json
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.command
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
 ```
 
 `validate` fails only on schema problems. For each repository-relative path
@@ -41,7 +41,7 @@ files absent is a supported state — the built-in defaults apply.
 ## Starting a repository off
 
 ```sh
-python scripts/afk-config.py init          # --force to replace an existing file
+afk-python scripts/afk-config.py init      # --force to replace an existing file
 ```
 
 Writes a starter `.afk/config.yaml` from what the repository can answer about

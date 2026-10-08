@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Payload-shape unit tests for the tracker/jira adapter — no network.
 
 Covers the machinery the adapter carries for the publishing skills: ADF

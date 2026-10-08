@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Git-side backstop for the protected-branch guard, called by the installed git hooks.
 
     git-backstop.py pre-commit

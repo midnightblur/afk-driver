@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Adversarial cases for the validator: a ledger whose parts do not bind.
 
 Every case here starts from the same question — what could two tables say that

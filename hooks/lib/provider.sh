@@ -257,24 +257,32 @@ afk_emit_context() {
   fi
 }
 
-# Nested-steering injection policy, owned per harness in
-# hooks/lib/providers/<name>.sh. Mode: `always` inject, `never` never (the harness
-# reads nested files itself), `agent-only` inject only for a call carrying an
-# agent id. Rules: `1` inject matching `.claude/rules` bodies (a harness with no
-# native path-scoped rules), `0` leave them to the harness. Defaults are the safe
-# no-op so an unknown provider never double-loads.
+# One top-level scalar of hooks/lib/providers/<provider>.json, quotes dropped; empty when
+# absent. Reads the file's `  "key": value` lines with builtins only (no fork, no jq).
+afk_provider_fact() {
+  local file line value
+  file="$AFK_PROVIDER_CORE_DIR/providers/$(afk_provider).json"
+  [ -f "$file" ] || return 0
+  while IFS= read -r line; do
+    line=${line%$'\r'}
+    case "$line" in
+      "  \"$1\": "*)
+        value=${line#*\": }; value=${value%,}; value=${value#\"}; value=${value%\"}
+        printf '%s\n' "$value"; return 0 ;;
+    esac
+  done <"$file"
+}
+
+# Nested-steering policy from providers/<name>.json (values: PROVIDERS.md). An unknown
+# provider gets the no-op defaults, so nothing loads twice.
 afk_nested_inject_mode() {
-  local provider function
-  provider=$(afk_provider)
-  function="afk_${provider}_nested_inject_mode"
-  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf 'never\n'; fi
+  local mode; mode=$(afk_provider_fact nested_inject_mode)
+  printf '%s\n' "${mode:-never}"
 }
 
 afk_nested_inject_rules() {
-  local provider function
-  provider=$(afk_provider)
-  function="afk_${provider}_nested_inject_rules"
-  if command -v "$function" >/dev/null 2>&1; then "$function"; else printf '0\n'; fi
+  local rules; rules=$(afk_provider_fact nested_inject_rules)
+  printf '%s\n' "${rules:-0}"
 }
 
 # A Stop verdict has to reach the session, and harnesses read it differently:

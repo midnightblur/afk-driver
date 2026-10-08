@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Load the configured tracker adapter's `api.py`.
 
 A publishing script needs more than the nine `tracker_*` operations — it builds

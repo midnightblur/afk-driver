@@ -24,7 +24,7 @@ case "$input" in
   *) exit 0 ;;
 esac
 
-LAVISH_HOOK_INPUT="$input" python - <<'PYEOF'
+LAVISH_HOOK_INPUT="$input" "${AFK_PYTHON:-afk-python}" - <<'PYEOF'
 import json, os, re, sys
 
 MARKER = "<!-- afk-lavish-dark -->"

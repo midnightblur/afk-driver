@@ -21,6 +21,7 @@ pr = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pr)
 PINS = pr.pins()
 FIND_BASH = pr.find_bash
+FRESH_PATH = pr.fresh_path
 
 DRIFT = ("Would uninstall 1 package\nWould install 1 package\n - idna==3.6\n + idna==3.20\n"
          "error: The environment is outdated; run `uv sync` to update the environment")
@@ -186,10 +187,110 @@ def test_an_entry_only_this_process_has_on_path_is_still_persisted(tmp_path, win
     machine, out = Machine(paths), io.StringIO()
     assert pr.install(env, windows, False, machine, out) == 0, out.getvalue()
     assert "ok path\n" in out.getvalue()
-    shell_env = next(e for a, e in machine.calls if "update-shell" in str(a))
     probe_envs = [e for a, e in machine.calls if "afk-python -c" in str(a)]
-    assert probe_envs and not pr.on_path(paths["bin"], shell_env["PATH"], windows)
-    assert all(not pr.on_path(paths["bin"], e["PATH"], windows) for e in probe_envs)
+    if windows:
+        shell_env = next(e for a, e in machine.calls if "update-shell" in str(a))
+        assert not pr.on_path(paths["bin"], shell_env["PATH"], windows)
+    else:
+        assert pr.path_line(paths) in (tmp_path / "home" / ".bashrc").read_text(encoding="utf-8")
+    assert probe_envs and all(not pr.on_path(paths["bin"], e["PATH"], windows) for e in probe_envs)
+
+
+def posix_entry(monkeypatch):
+    def entry_only(paths, python, windows):
+        paths["launcher"].parent.mkdir(parents=True, exist_ok=True)
+        paths["launcher"].write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(pr, "place_entry", entry_only)
+
+
+@pytest.mark.parametrize("shell, existing, written", [
+    ("/bin/bash", [], [".bash_profile", ".bashrc"]),
+    ("/bin/bash", [".profile"], [".profile", ".bashrc"]),
+    ("/usr/bin/zsh", [], [".zshenv"]),
+    ("/bin/ksh", [], [".profile", ".kshrc"]),
+    ("/bin/mksh", [], [".profile", ".mkshrc"]),
+    ("/bin/dash", [], [".profile"]),
+    (None, [], [".profile"]),
+])
+def test_posix_setup_writes_the_login_shells_startup_files_itself(tmp_path, monkeypatch, shell, existing, written):
+    posix_entry(monkeypatch)
+    env = dict(machine_env(tmp_path), XDG_DATA_HOME=str(tmp_path / "data"))
+    env.pop("SHELL")
+    if shell:
+        env["SHELL"] = shell
+    # The parent shell's markers, as a runner with pwsh installed exports them: uv would guess PowerShell.
+    env.update(PSModulePath="/opt/microsoft/powershell/7/Modules", BASH_VERSION="5.2")
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    for name in existing:
+        (home_dir / name).write_text("umask 022", encoding="utf-8")
+    paths = pr.layout(env, False)
+    for _ in range(2):
+        machine, out = Machine(paths), io.StringIO()
+        assert pr.install(env, False, False, machine, out) == 0, out.getvalue()
+        assert not any("update-shell" in l for l in machine.lines())
+    line = pr.path_line(paths)
+    assert sorted(p.name for p in home_dir.iterdir()) == sorted(set(existing) | set(written))
+    for name in written:
+        text = (home_dir / name).read_text(encoding="utf-8")
+        assert text.splitlines().count(line) == 1, text
+        if name in existing:
+            assert text.startswith("umask 022\n")
+
+
+def test_zsh_setup_writes_an_existing_zdotdir_zshenv(tmp_path, monkeypatch):
+    posix_entry(monkeypatch)
+    zdot = tmp_path / "zdot"
+    zdot.mkdir()
+    (zdot / ".zshenv").write_text("", encoding="utf-8")
+    env = dict(machine_env(tmp_path), SHELL="/bin/zsh", ZDOTDIR=str(zdot))
+    paths = pr.layout(env, False)
+    assert pr.install(env, False, False, Machine(paths), io.StringIO()) == 0
+    assert pr.path_line(paths) in (zdot / ".zshenv").read_text(encoding="utf-8")
+    assert not (tmp_path / "home" / ".zshenv").exists()
+
+
+@pytest.mark.parametrize("windows", [True, False])
+def test_uv_writes_only_for_the_shell_setup_names(tmp_path, monkeypatch, windows):
+    if not windows:
+        posix_entry(monkeypatch)
+    hints = {"PSModulePath": "/m", "BASH_VERSION": "5", "ZSH_VERSION": "5", "NU_VERSION": "1"}
+    env = dict(machine_env(tmp_path), SHELL="/usr/bin/fish", **hints)
+    paths = pr.layout(env, windows)
+    machine = Machine(paths)
+    assert pr.install(env, windows, False, machine, io.StringIO()) == 0
+    seen = next(e for a, e in machine.calls if "update-shell" in str(a))
+    if windows:
+        # PowerShell or cmd: both write the user PATH in the registry, which a new terminal reads.
+        assert seen["PSModulePath"] == "/m" and not {"SHELL", "BASH_VERSION", "ZSH_VERSION", "NU_VERSION"} & set(seen)
+    else:
+        assert seen["SHELL"] == "/usr/bin/fish" and not set(hints) & set(seen)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a POSIX login shell reading POSIX startup files")
+@pytest.mark.parametrize("shell", ["/bin/sh", "/bin/bash"])
+def test_a_new_login_shell_finds_the_written_line(tmp_path, shell):
+    if not Path(shell).exists():
+        pytest.skip(f"{shell} absent")
+    env = {"HOME": str(tmp_path), "SHELL": shell, "PATH": "/usr/bin:/bin"}
+    paths = pr.layout(env, False)
+    pr.add_to_startup(pr.startup_files(env), pr.path_line(paths))
+    assert pr.on_path(paths["bin"], FRESH_PATH(env, False), False)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="a POSIX shell reading POSIX startup files")
+@pytest.mark.parametrize("name", ["mksh", "ksh", "bash"])
+def test_a_new_interactive_shell_that_is_not_a_login_shell_finds_the_written_line(tmp_path, name):
+    shell = shutil.which(name)
+    if not shell:
+        pytest.skip(f"{name} absent")
+    env = {"HOME": str(tmp_path), "SHELL": shell, "PATH": "/usr/bin:/bin", "TERM": "dumb"}
+    paths = pr.layout(env, False)
+    pr.add_to_startup(pr.startup_files(env), pr.path_line(paths))
+    done = subprocess.run([shell, "-i", "-c", 'printf "\\n%s\\n" "$PATH"'], env=env, capture_output=True,
+                          text=True, timeout=60, stdin=subprocess.DEVNULL)
+    assert pr.on_path(paths["bin"], done.stdout.strip().splitlines()[-1], False), done.stdout + done.stderr
 
 
 def test_the_installer_and_uv_never_see_the_users_source_overrides(tmp_path):
@@ -502,14 +603,7 @@ def test_the_probe_imports_the_modules_the_tracker_server_imports():
     assert f"import {'mcp.server.fastmcp'};" in pr.probe_code(probed)
 
 
-NOTICE = "AFK will switch to afk-python in the next release; run /afk:setup"
 WINDOWS = os.name == "nt"
-
-
-def shell_script(path: Path, text: str) -> None:
-    # A native write: Git Bash's own redirection into `afk-python` would land in `afk-python.exe`.
-    path.write_bytes(text.encode())
-    path.chmod(0o755)
 
 
 def real_lookup(bash: str):
@@ -524,78 +618,40 @@ def bash_path(bash: str, flag: str, path: str) -> str:
     return done.stdout.strip()
 
 
-def session_notice(base: Path, monkeypatch, *, setup: bool, after: str = "") -> tuple[str, dict, dict]:
-    """Install with the hooks' real bash answering the identity probe, alter PATH per `after`, then
-    run the SessionStart hook in that bash."""
+def installed_stamp(base: Path, monkeypatch) -> tuple[dict, dict]:
+    """Install with the hooks' real bash answering the identity probe; the stamp and layout."""
     bash = FIND_BASH()
     if not bash:
         pytest.skip("no POSIX shell")
     monkeypatch.setattr(pr, "find_bash", lambda: bash)
-    root = base / "plugin"
-    (root / "runtime").mkdir(parents=True)
-    (root / "runtime" / "pyproject.toml").write_bytes((PLUGIN_ROOT / "runtime" / "pyproject.toml").read_bytes())
     env = machine_env(base)
     paths = pr.layout(env, WINDOWS)
-    decoys = base / "decoys"
-    decoys.mkdir()
     sep = ";" if WINDOWS else ":"
     # A new terminal's PATH carries the entry, as the startup files or the registry give it.
     monkeypatch.setattr(pr, "fresh_path", lambda env, windows: sep.join([str(paths["bin"]), env.get("PATH", "")]))
-    shell_env = {k: v for k, v in os.environ.items() if not k.startswith(("XDG_", "AFK_"))}
-    shell_env.update(HOME=env["HOME"], LOCALAPPDATA=env["LOCALAPPDATA"], AFK_PLUGIN_ROOT=str(root),
-                     PATH=sep.join([str(paths["bin"])] + ([] if WINDOWS else ["/usr/bin", "/bin"])))
-    if setup:
-        out = io.StringIO()
-        assert pr.install(env, WINDOWS, False, Machine(paths, lookup=real_lookup(bash)), out) == 0, out.getvalue()
-    stamp = pr.read_stamp(paths)
-    if after == "old python":
-        paths["stamp"].write_text(paths["stamp"].read_text(encoding="utf-8").replace(
-            f"python={PINS['python']}", "python=3.13.1"), encoding="utf-8")
-    elif after == "unstamped":
-        paths["stamp"].unlink()
-    elif after == "elsewhere":
-        shell_script(decoys / "afk-python", "#!/bin/sh\nexit 0\n")
-        shell_env["PATH"] = sep.join([str(decoys), shell_env["PATH"]])
-    elif after == "replaced":
-        paths["launcher"].unlink()
-        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
-    elif after == "beside":
-        shell_script(paths["bin"] / "afk-python", "#!/bin/sh\nexit 0\n")
-    script = PLUGIN_ROOT / "hooks" / "update-notice.sh"
-    done = subprocess.run([bash, str(script)], env=shell_env, capture_output=True, text=True, timeout=60)
-    assert done.returncode == 0, done.stderr
-    return done.stdout, stamp, paths
+    out = io.StringIO()
+    assert pr.install(env, WINDOWS, False, Machine(paths, lookup=real_lookup(bash)), out) == 0, out.getvalue()
+    return pr.read_stamp(paths), paths
 
 
 ONLY_GIT_BASH = pytest.mark.skipif(not WINDOWS, reason="only Git Bash drops .exe and has mount aliases")
 
 
-@pytest.mark.parametrize("place, setup, after, shown", [
-    ("tmp_path", False, "", True),
-    ("tmp_path", True, "unstamped", True),
-    ("tmp_path", True, "old python", True),
-    ("tmp_path", True, "elsewhere", True),
-    pytest.param("tmp_path", True, "replaced", True, marks=ONLY_GIT_BASH),
-    pytest.param("tmp_path", True, "beside", True, marks=ONLY_GIT_BASH),
-    ("tmp_path", True, "", False),
-    pytest.param("/tmp mount", True, "", False, marks=ONLY_GIT_BASH),
-])
-def test_the_session_notice_shows_until_the_stamped_file_resolves(tmp_path, monkeypatch, place, setup, after,
-                                                                   shown):
+@pytest.mark.parametrize("place", ["tmp_path", pytest.param("/tmp mount", marks=ONLY_GIT_BASH)])
+def test_the_stamp_holds_the_hooks_bash_spelling_of_the_entry(tmp_path, monkeypatch, place):
     base = tmp_path
     if place == "/tmp mount":
         # Deliberately under Git Bash's /tmp mount, wherever --basetemp put tmp_path.
         base = Path(tempfile.mkdtemp(prefix="afk-alias-", dir=bash_path(FIND_BASH(), "-w", "/tmp")))
     try:
-        out, stamp, paths = session_notice(base, monkeypatch, setup=setup, after=after)
-        assert (NOTICE in out) is shown
-        if setup and WINDOWS:
+        stamp, paths = installed_stamp(base, monkeypatch)
+        if WINDOWS:
             # The stamp holds what bash's mount table makes of the entry's directory, never a made-up /c/...
             assert stamp["command"] == bash_path(FIND_BASH(), "-u", str(paths["bin"])) + "/afk-python"
             assert stamp["file"] == stamp["command"] + ".exe"
             if place == "/tmp mount":
                 assert stamp["command"].startswith("/tmp/afk-alias-")
-        elif setup:
+        else:
             assert stamp["command"] == stamp["file"] == str(paths["launcher"])
     finally:
         if base != tmp_path:

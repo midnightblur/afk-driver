@@ -2,8 +2,8 @@
 """Annotate an .xlsx with THREADED comments (not legacy notes) + highlighted new rows.
 
 Usage:
-    python annotate_sheet.py config.json          # write
-    python annotate_sheet.py --verify out.xlsx    # validate a written file
+    afk-python annotate_sheet.py config.json          # write
+    afk-python annotate_sheet.py --verify out.xlsx    # validate a written file
 
 config.json:
     source        .xlsx to read (alias: "backup")
