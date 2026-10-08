@@ -8,7 +8,7 @@ user-invocable: false
 
 Catch the producer-without-consumer failure: work that is locally correct but dead at the seam — a file nothing reads, an endpoint nothing calls, an event nothing subscribes to, a config key nothing loads, a DTO field never mapped. Compilers and unit tests are blind to it; this skill isn't.
 
-The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this plugin's root — three levels up from this skill's directory — fires on every Stop). This skill is the judgment tier: referrers that exist but aren't real consumption.
+The mechanical zero-referrer tier is `hooks/wiring-gate.sh` at this plugin's root — three levels up from this skill's directory; final mode below runs it. This skill is the judgment tier: referrers that exist but aren't real consumption.
 
 ## Steps
 

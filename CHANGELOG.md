@@ -37,6 +37,12 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- `/afk:execute` Step 11 runs the wiring scan as advice before the slice's
+  commit: each flagged row goes to `/afk:verify-seams` judgment, and a repair
+  goes back to Step 8. The steps after it are renumbered 12–14.
+
 ### Changed
 
 - Lavish pages render through one command,
