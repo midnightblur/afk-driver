@@ -6,6 +6,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -106,6 +108,18 @@ def test_a_page_that_cannot_be_injected_is_not_shown(fake):
     assert calls(fake) == []
 
 
+def test_a_failed_publication_keeps_the_page_and_runs_nothing(fake, monkeypatch, capfd):
+    before = Path("page.html").read_bytes()
+
+    def refuse(*_args):
+        raise PermissionError(13, "locked")
+
+    monkeypatch.setattr(inject.os, "replace", refuse)
+    assert lavish_show.main(["poll", "page.html"]) == 65
+    assert Path("page.html").read_bytes() == before and calls(fake) == []
+    assert not [p for p in Path(".").iterdir() if p.name.startswith(".afk-lavish-")]
+
+
 def test_a_missing_upstream_says_how_to_install(fake, monkeypatch, capfd):
     monkeypatch.setattr(lavish_show, "upstream", lambda args: None)
     assert lavish_show.main(["stop"]) == 127
@@ -162,3 +176,121 @@ def test_a_batch_shim_without_its_package_takes_only_plain_arguments(tmp_path, m
     assert lavish_show.upstream(["stop"])[0].lower().endswith("lavish-axi.cmd")
     with pytest.raises(lavish_show.Refused):
         lavish_show.upstream(["poll", "p.html", "--agent-reply", "a & b"])
+
+
+SERVER_JS = """\
+import { spawn } from "node:child_process";
+const op = process.argv[2];
+let server = null;
+if (op !== "poll" || process.env.FAKE_SPAWN) {
+  const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 120000)"], { detached: true, stdio: "ignore" });
+  child.unref();
+  server = child.pid;
+}
+console.log(JSON.stringify({ pid: process.pid, server }));
+if (process.env.FAKE_BLOCK) setTimeout(() => {}, 120000);
+"""
+SERVER_PY = """\
+import json, os, subprocess, sys, time
+server = None
+if sys.argv[1] != "poll" or os.environ.get("FAKE_SPAWN"):
+    server = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], stdin=subprocess.DEVNULL,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True).pid
+print(json.dumps({"pid": os.getpid(), "server": server}), flush=True)
+if os.environ.get("FAKE_BLOCK"):
+    time.sleep(120)
+"""
+
+
+def install_server_upstream(folder: Path) -> None:
+    """An upstream that, like lavish-axi, starts a detached server on render and blocks on `FAKE_BLOCK`."""
+    folder.mkdir()
+    if os.name == "nt":
+        (folder / "lavish-axi.cmd").write_text("@echo off\r\nexit /b 99\r\n", encoding="utf-8")
+        package = folder / "node_modules" / "lavish-axi"
+        package.mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps({"bin": "cli.mjs"}), encoding="utf-8")
+        (package / "cli.mjs").write_text(SERVER_JS, encoding="utf-8")
+    else:
+        (folder / "fake.py").write_text(SERVER_PY, encoding="utf-8")
+        shim = folder / "lavish-axi"
+        shim.write_text(f"#!/bin/sh\nexec \"{sys.executable}\" \"{folder / 'fake.py'}\" \"$@\"\n", encoding="utf-8")
+        shim.chmod(0o755)
+
+
+def alive(pid: int) -> bool:
+    if os.name == "nt":
+        import ctypes
+        kernel = ctypes.WinDLL("kernel32")
+        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        code = ctypes.c_ulong()
+        kernel.GetExitCodeProcess(handle, ctypes.byref(code))
+        kernel.CloseHandle(handle)
+        return code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def gone(pid: int, seconds: float = 10.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    return not alive(pid)
+
+
+def kill(pid: int | None) -> None:
+    if pid and alive(pid):
+        os.kill(pid, 9)
+
+
+@pytest.fixture
+def server_env(tmp_path):
+    install_server_upstream(tmp_path / "bin")
+    (tmp_path / "page.html").write_text(PAGE, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("LAVISH_AXI_HOST", "FAKE_SPAWN", "FAKE_BLOCK")}
+    env["PATH"] = str(tmp_path / "bin") + os.pathsep + env.get("PATH", "")
+    return env
+
+
+lifetime = pytest.mark.skipif(os.name == "nt" and not shutil.which("node"), reason="the Windows npm layout needs node")
+
+
+@lifetime
+@pytest.mark.parametrize("argv,extra", [(["page.html", "--no-open"], {}), (["poll", "page.html"], {"FAKE_SPAWN": "1"})],
+                         ids=["cold-render", "completed-poll"])
+def test_a_completed_run_leaves_the_server_it_started_running(tmp_path, server_env, argv, extra):
+    done = subprocess.run([sys.executable, str(SHOW), *argv], cwd=tmp_path, env={**server_env, **extra},
+                          capture_output=True, text=True, timeout=60)
+    server = json.loads(done.stdout.splitlines()[0])["server"]
+    try:
+        assert done.returncode == 0, done.stderr
+        time.sleep(1.0)
+        assert alive(server), "the server died with the wrapper"
+    finally:
+        kill(server)
+
+
+@lifetime
+def test_a_killed_poll_takes_its_upstream_down(tmp_path, server_env):
+    wrapper = subprocess.Popen([sys.executable, str(SHOW), "poll", "page.html"], cwd=tmp_path,
+                               env={**server_env, "FAKE_BLOCK": "1"}, stdout=subprocess.PIPE, text=True)
+    first: list = []
+    reader = threading.Thread(target=lambda: first.append(wrapper.stdout.readline()), daemon=True)
+    reader.start()
+    reader.join(30)
+    upstream = json.loads(first[0])["pid"] if first and first[0] else None
+    try:
+        assert upstream and alive(upstream), "the upstream poll never started"
+        wrapper.kill()
+        wrapper.wait(30)
+        assert gone(upstream), "the upstream poll outlived its killed wrapper"
+    finally:
+        kill(upstream)
+        if wrapper.poll() is None:
+            wrapper.kill()
+        wrapper.stdout.close()

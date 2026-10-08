@@ -9,7 +9,8 @@
 Open, reopen and poll first inject the runtime (`lavish/inject.py`; the file is rewritten
 only when its bytes change), then run `lavish-axi` with the same arguments, the inherited
 standard streams and its exit status. On POSIX the upstream replaces this process; on
-Windows it runs as a child bound to this process's lifetime, without `cmd.exe`.
+Windows it runs as a child without `cmd.exe`. A killed or interrupted wrapper takes that
+child down; a server the upstream starts outlives the wrapper either way.
 
 Exit codes of the wrapper itself (nothing upstream ran):
     64   refused: `share`, `setup`, `update`, any other operation or argument shape, a
@@ -40,6 +41,9 @@ FORBIDDEN = {
 }
 HTML = re.compile(r"\.html?$", re.IGNORECASE)
 CMD_SAFE = re.compile(r"^[\w./\\:@ ,+=-]*$")
+KILL_ON_CLOSE = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+SILENT_BREAKAWAY = 0x1000  # JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
+PROCESS_SET_QUOTA, PROCESS_TERMINATE = 0x0100, 0x0001
 
 
 class Refused(Exception):
@@ -117,20 +121,16 @@ def upstream(args: list[str]) -> list[str] | None:
     return [found, *args]
 
 
-def bind_child_lifetime() -> None:
-    """Windows: put this process in a kill-on-close job, so a stopped wrapper takes its child down."""
+
+
+def bind_child_lifetime(pid: int):
+    """Windows: hold upstream `pid` alone in a kill-on-close job; whatever it starts breaks away.
+
+    A killed wrapper then takes the upstream down, and a server the upstream started survives
+    any wrapper exit. Returns the job, or None when it could not be bound."""
     try:
         import ctypes
         from ctypes import wintypes
-
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel.CreateJobObjectW.restype = wintypes.HANDLE
-        kernel.GetCurrentProcess.restype = wintypes.HANDLE
-        kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
-        kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
-        job = kernel.CreateJobObjectW(None, None)
-        if not job:
-            return
 
         class Limits(ctypes.Structure):
             _fields_ = [("a", ctypes.c_int64), ("b", ctypes.c_int64), ("flags", wintypes.DWORD),
@@ -139,11 +139,22 @@ def bind_child_lifetime() -> None:
                         ("io", ctypes.c_uint64 * 6), ("i", ctypes.c_size_t), ("j", ctypes.c_size_t),
                         ("k", ctypes.c_size_t), ("l", ctypes.c_size_t)]
 
-        limits = Limits(flags=0x2000)  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        if kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
-            kernel.AssignProcessToJobObject(job, kernel.GetCurrentProcess())
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        job = kernel.CreateJobObjectW(None, None)
+        child = kernel.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, pid)
+        limits = Limits(flags=KILL_ON_CLOSE | SILENT_BREAKAWAY)
+        bound = bool(job and child and kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
+                     and kernel.AssignProcessToJobObject(job, child))
+        if child:
+            kernel.CloseHandle(child)
+        return job if bound else None
     except Exception:
-        pass  # best effort: the upstream still runs, only its lifetime is unbound
+        return None  # best effort: the upstream still runs, only its lifetime is unbound
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -167,11 +178,13 @@ def main(argv: list[str] | None = None) -> int:
     sys.stderr.flush()
     if argv is None and os.name != "nt":
         os.execv(command[0], command)
-    if argv is None:
-        bind_child_lifetime()
+    child = subprocess.Popen(command)
+    job = bind_child_lifetime(child.pid) if argv is None else None  # noqa: F841  (held until exit)
     try:
-        return subprocess.call(command)
+        return child.wait()
     except KeyboardInterrupt:
+        child.kill()
+        child.wait()
         return 130
 
 
