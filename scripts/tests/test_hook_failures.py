@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -198,6 +199,94 @@ def test_a_handler_reads_the_envelope_it_was_sent(plugin):
     handler(plugin, "echo.sh", "cat\n")
     done = launch(plugin, "plugin", "echo.sh", event="PostToolUse")
     assert done.returncode == 0 and json.loads(done.stdout)["hook_event_name"] == "PostToolUse"
+
+
+# ---- what the capture files must never break
+
+def big_envelope(marker: str, size: int) -> bytes:
+    return json.dumps({"hook_event_name": "PostToolUse", "marker": marker, "pad": "x" * size}).encode()
+
+
+def test_an_eight_mebibyte_envelope_reaches_the_handler_whole(plugin, tmp_path):
+    handler(plugin, "count.sh", "wc -c | tr -d ' '\n")
+    sent = big_envelope("big", 8 * 1024 * 1024)
+    done = subprocess.run([sys.executable, str(plugin / "hooks" / "run-hook.py"), "plugin", "count.sh"],
+                          input=sent, capture_output=True, cwd=str(plugin), env=environ("claude"), timeout=180)
+    assert done.returncode == 0 and int(done.stdout) == len(sent)
+    root = repository(tmp_path, [{"event": "PostToolUse", "matcher": "*", "script": ".afk/count.sh"}],
+                      {"count.sh": "wc -c | tr -d ' '\n"})
+    done = subprocess.run([sys.executable, str(LAUNCHER), "repo-list", "PostToolUse"], input=sent,
+                          capture_output=True, cwd=str(root), env=environ("claude"), timeout=180)
+    assert done.returncode == 0 and int(done.stdout) == len(sent)
+
+
+def captures(folder: Path) -> list[str]:
+    return sorted(p.name for p in folder.iterdir())
+
+
+def settle(folder: Path, seconds: float = 15.0) -> list[str]:
+    stop = time.monotonic() + seconds
+    while captures(folder) and time.monotonic() < stop:
+        time.sleep(0.1)
+    return captures(folder)
+
+
+def test_capture_files_are_gone_after_a_run_and_after_a_kill(plugin, tmp_path):
+    folder = tmp_path / "captures"
+    folder.mkdir()
+    temp = {"TMP": str(folder), "TEMP": str(folder), "TMPDIR": str(folder)}
+    handler(plugin, "fail.sh", "echo 'x' >&2\nexit 1\n")
+    done = launch(plugin, "plugin", "fail.sh", **temp)
+    assert done.returncode == 1 and settle(folder) == []
+    handler(plugin, "slow.sh", "sleep 60\n")
+    held = subprocess.Popen([sys.executable, str(plugin / "hooks" / "run-hook.py"), "plugin", "slow.sh"],
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            cwd=str(plugin), env=environ("claude", **temp))
+    stop = time.monotonic() + 60
+    while len(captures(folder)) < 2 and time.monotonic() < stop and held.poll() is None:
+        time.sleep(0.1)
+    assert len(captures(folder)) >= 2, "the launcher never opened its capture files"
+    held.kill()
+    held.wait(timeout=30)
+    assert settle(folder) == []
+
+
+def test_a_background_child_holding_the_capture_files_does_not_hold_the_launcher(plugin):
+    handler(plugin, "bg.sh", "( sleep 30; echo late ) &\necho done\n")
+    started = time.monotonic()
+    done = launch(plugin, "plugin", "bg.sh")
+    assert time.monotonic() - started < 20
+    assert done.returncode == 0 and b"done" in done.stdout and b"late" not in done.stdout
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_invalid_stderr_bytes_never_break_the_answer(plugin, provider):
+    handler(plugin, "bytes.sh", "printf '\\377bad\\n' >&2\nexit 1\n")
+    done = launch(plugin, "plugin", "bytes.sh", provider=provider)
+    line = "[afk] bytes.sh (PreToolUse) failed: exit 1: �bad"
+    assert b"\xffbad" in done.stderr  # the handler's own bytes pass through raw
+    assert line in text(done.stderr)
+    if provider == "codex":
+        assert done.returncode == 0 and one_document(done.stdout) == {"systemMessage": line}
+    else:
+        assert done.returncode == 1
+
+
+def test_parallel_launchers_never_share_a_capture(plugin):
+    from concurrent.futures import ThreadPoolExecutor
+
+    handler(plugin, "echo.sh", "cat\n")
+    sent = [big_envelope(f"run-{n}", 512 * 1024 + n) for n in range(6)]
+
+    def one(envelope: bytes) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, str(plugin / "hooks" / "run-hook.py"), "plugin", "echo.sh"],
+                              input=envelope, capture_output=True, cwd=str(plugin), env=environ("claude"),
+                              timeout=180)
+
+    with ThreadPoolExecutor(max_workers=len(sent)) as pool:
+        results = list(pool.map(one, sent))
+    for envelope, done in zip(sent, results):
+        assert done.returncode == 0 and done.stdout == envelope
 
 
 # ---- the launcher's own faults (L3, L4)
