@@ -47,11 +47,12 @@ def _env() -> dict[str, str]:
     return env
 
 
-def run_runner(repo: Path, *mode: str, judge: Path = ROOT) -> tuple[int, list[tuple[str, str, str]], str]:
+def run_runner(repo: Path, *mode: str, judge: Path = ROOT,
+               **env: str) -> tuple[int, list[tuple[str, str, str]], str]:
     report = repo.parent / f"{repo.name}-{judge.name}-{mode[0].strip('-')}.tsv"
     done = subprocess.run([str(BASH), (judge / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
                            "--report", report.as_posix()],
-                          cwd=repo, env=_env(), capture_output=True, text=True, timeout=600)
+                          cwd=repo, env={**_env(), **env}, capture_output=True, text=True, timeout=600)
     rows = []
     if report.exists():
         for line in report.read_text(encoding="utf-8").splitlines():
@@ -154,9 +155,24 @@ def forced_sentinel(repo):
     _git(repo, "add", "-f", ".claude/hooks/.gate-disabled")
 
 
+def _shadow(repo):
+    for module in ("json", "fnmatch"):
+        (repo / f"{module}.py").write_text("raise SystemExit(0)\n", encoding="utf-8", newline="\n")
+
+
+def shadowed_native_contract(repo):
+    _shadow(repo)
+    provider_manifest(repo)
+
+
+def shadowed_skill_registry(repo):
+    _shadow(repo)
+    registry_lockstep(repo)
+
+
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
                                     provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate,
-                                    forced_sentinel)}
+                                    forced_sentinel, shadowed_native_contract, shadowed_skill_registry)}
 
 
 def _judge_for(base: Path, name: str) -> Path:
@@ -320,3 +336,21 @@ def test_incomplete_input_blocks(base):
 def test_a_committed_gate_disabled_sentinel_never_disables_the_judge(results):
     for rc, rows, err in results["forced_sentinel"]:
         assert rc == 2 and verdicts(rows).get("genericity") == "blocked", err
+
+
+@pytest.mark.parametrize("name, gate", [("shadowed_native_contract", "native-contract"),
+                                        ("shadowed_skill_registry", "skill-registry")])
+def test_a_candidate_module_cannot_shadow_the_judges_python(results, name, gate):
+    for rc, rows, err in results[name]:
+        assert rc == 2 and verdicts(rows).get(gate) == "blocked", err
+
+
+def test_an_interpreter_inside_the_repository_is_never_the_judge(base):
+    repo = _clone(base, "inside_python")
+    fake = repo / "bin" / "afk-python"
+    fake.parent.mkdir()
+    fake.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8", newline="\n")
+    fake.chmod(0o755)
+    allowed_genericity(repo)
+    rc, rows, err = run_runner(repo, "--staged", AFK_PYTHON=fake.as_posix(), PYTHONPATH=repo.as_posix())
+    assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err

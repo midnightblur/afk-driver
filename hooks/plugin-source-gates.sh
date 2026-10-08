@@ -99,6 +99,24 @@ for control in .claude-plugin/plugin.json hooks/plugin-source-gates.sh BEHAVIORS
   $(printf 'hooks/%s-gate.sh ' $GATES); do
   [ -e "$control" ] || incomplete "the candidate deletes $control"
 done
+
+# Judge Python: an absolute interpreter outside the repository, run with isolated imports.
+outside() {
+  case "$1" in /*) ;; *) return 1 ;; esac
+  case "$1/" in "$repo_abs/"*|"$tmp/"*) return 1 ;; esac
+}
+repo_abs=$(cd "$repo_root" && pwd) safe_path=""
+IFS=: read -r -a path_dirs <<<"$PATH"
+for dir in "${path_dirs[@]}"; do
+  outside "$dir" && safe_path+="${safe_path:+:}$dir"
+done
+judge_py=$(PATH=$safe_path command -v "${AFK_PYTHON:-afk-python}" 2>/dev/null) || judge_py=""
+case "$judge_py" in [A-Za-z]:*) judge_py=$(cygpath -u "$judge_py" 2>/dev/null) || judge_py="" ;; esac
+outside "$judge_py" || incomplete "no afk-python outside the repository"
+mkdir -p "$tmp/bin" && printf '#!/usr/bin/env bash\nexec %q -I "$@"\n' "$judge_py" >"$tmp/bin/afk-python" \
+  && chmod +x "$tmp/bin/afk-python" || incomplete "cannot write the judge interpreter"
+unset PYTHONPATH PYTHONHOME
+export AFK_PYTHON="$tmp/bin/afk-python" PATH="$tmp/bin:$safe_path"
 hooks="$JUDGE/hooks"
 for lib in lib/provider.sh lib/adapter.sh gate-context.sh gate-cache.sh gate-metrics.sh; do
   . "$hooks/$lib" || incomplete "the judging plugin cannot load hooks/$lib"
