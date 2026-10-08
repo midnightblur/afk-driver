@@ -67,8 +67,8 @@ jobs:
         run: bash hooks/tests/hook-smoke.sh
 
       - name: Plugin-source gates
-        # A pull request is judged by the base revision's gates and by its own; a push to main by its own.
-        # The afk-gate-override label turns the base pass into a warning (hooks/README.md "Plugin-source gates").
+        # A pull request is judged by the target branch's gates and by its own; a push to main by its own.
+        # The afk-gate-override label turns the target pass into a warning (hooks/README.md "Plugin-source gates").
         env:
           GATE_METRICS_DISABLE: '1'
           BASE_REF: ${{ github.base_ref }}
@@ -76,18 +76,20 @@ jobs:
           OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'afk-gate-override') }}
         run: |
           if [ -n "$BASE_REF" ]; then
-            base=$(git merge-base "origin/$BASE_REF" HEAD)
+            # The judge code is the fetched target tip; the merge base only scopes the candidate diff.
+            target="origin/$BASE_REF"
+            base=$(git merge-base "$target" HEAD)
             judge=$(mktemp -d)
-            git archive "$base" | tar -x -C "$judge"
+            git archive "$target" | tar -x -C "$judge"
             if [ -f "$judge/hooks/plugin-source-gates.sh" ]; then
               if ! bash "$judge/hooks/plugin-source-gates.sh" --range "$base" HEAD; then
-                [ "$OVERRIDE" = true ] || { echo "::error::the base revision's plugin-source gates blocked"; exit 1; }
-                echo "::warning::afk-gate-override: the base revision's plugin-source gates blocked"
+                [ "$OVERRIDE" = true ] || { echo "::error::the target branch's plugin-source gates blocked"; exit 1; }
+                echo "::warning::afk-gate-override: the target branch's plugin-source gates blocked"
               fi
-            elif [ -n "$(git log -1 --format=%H "$base" -- hooks/plugin-source-gates.sh)" ]; then
-              echo "::error::the base revision lost hooks/plugin-source-gates.sh"; exit 1
+            elif [ -n "$(git log -1 --format=%H "$target" -- hooks/plugin-source-gates.sh)" ]; then
+              echo "::error::the target branch lost hooks/plugin-source-gates.sh"; exit 1
             else
-              echo "::notice::the base revision predates hooks/plugin-source-gates.sh; its own gates judge alone"
+              echo "::notice::the target branch predates hooks/plugin-source-gates.sh; its own gates judge alone"
             fi
           elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             base="$BEFORE"
