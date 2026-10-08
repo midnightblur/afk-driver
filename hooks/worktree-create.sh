@@ -26,6 +26,7 @@ out=$(AFK_PLUGIN_ROOT="$AFK_ROOT_DIR" bash "$AFK_ROOT_DIR/scripts/create-worktre
 rc=$?
 path=$(printf '%s\n' "$out" | sed -n 's/^WORKTREE_PATH=//p' | tail -1)
 if [ "$rc" -ne 0 ] || [ -z "$path" ]; then
+  [ "$rc" -eq 0 ] && printf 'worktree-create.sh: create-worktree exited 0 but printed no WORKTREE_PATH= line\n' >&2
   exit "${rc/#0/1}"
 fi
 printf '%s\n' "$path"

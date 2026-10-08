@@ -90,6 +90,8 @@ release page from its section here. Nobody tags by hand.
   names its editor (`lastEditedBy`). A token that cannot read users hides the
   editor and the author alike, and the adapter then reports an error instead
   of calling the note unedited.
+- A Stop gate that kills its shell no longer swallows the error, and the
+  worktree-create hook says why when it gets no path.
 
 ## [1.15.0] - 2026-10-07
 

@@ -86,12 +86,20 @@ crashed=0
 # Gate findings are the block reason, and a reason has to be a value, not a
 # stream: collect stderr here and replay it once the verdict is known.
 GATE_ERR=$(mktemp "${TMPDIR:-/tmp}/afk-stop.XXXXXX") || GATE_ERR=
+stderr_held=0
 if [ -n "$GATE_ERR" ]; then
   exec 3>&2 2>"$GATE_ERR"
+  stderr_held=1
 fi
 
 # Any exit — normal, signal — removes this Stop's temp files and any gate scratch.
+# A shell that dies while stderr is still held first replays it, so the error is seen.
 stop_cleanup() {
+  if [ -n "$GATE_ERR" ] && [ "${stderr_held:-0}" = 1 ]; then
+    stderr_held=0
+    exec 2>&3 3>&-
+    cat "$GATE_ERR" >&2 2>/dev/null
+  fi
   [ -n "$GATE_ERR" ] && rm -f "$GATE_ERR" 2>/dev/null
   [ -n "${STOP_STAMP:-}" ] && rm -f "$STOP_STAMP.$$" 2>/dev/null
   declare -F _wiring_cleanup >/dev/null && _wiring_cleanup
@@ -102,6 +110,7 @@ trap 'stop_cleanup; exit 143' TERM INT HUP
 
 release_stderr() {
   [ -n "$GATE_ERR" ] || return 0
+  stderr_held=0
   exec 2>&3 3>&-
 }
 
