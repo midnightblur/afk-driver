@@ -32,6 +32,7 @@ afk_bg_maven_run() {
 }
 """
 PLUGIN_SOURCE = 'printf "plugin-source %s\\n" "$*" >> "$GATE_LOG"; exit "${PSG_RC:-0}"\n'
+REPO_RUNNER = 'printf "repo-runner\\n" >> "$GATE_LOG"; exit 0\n'
 
 
 def _git(cwd, *args):
@@ -63,7 +64,8 @@ def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: b
         (repo / ".claude-plugin").mkdir()
         (repo / ".claude-plugin" / "plugin.json").write_text('{"name": "afk"}\n', encoding="utf-8")
         (repo / "hooks").mkdir()
-        (repo / "hooks" / "plugin-source-gates.sh").write_text(PLUGIN_SOURCE, encoding="utf-8", newline="\n")
+        (repo / "hooks" / "plugin-source-gates.sh").write_text(REPO_RUNNER, encoding="utf-8", newline="\n")
+        _git(repo, "add", ".claude-plugin", "hooks")
     if handlers is not None:
         for entry in handlers:
             if "body" in entry:
@@ -109,10 +111,19 @@ def test_a_consuming_repository_never_runs_the_plugin_source_gates(plugin, tmp_p
     assert "plugin-source" not in ran, done.stderr
 
 
-def test_the_plugin_repository_runs_its_own_runner_after_comment_and_before_build_gates(plugin, tmp_path):
+def test_the_plugin_repository_is_judged_by_the_installed_runner_never_its_own(plugin, tmp_path):
     done, ran = _run(plugin, tmp_path, plugin_repo=True)
     assert done.returncode == 0, done.stderr
     assert ran == ["comment", "plugin-source", "--staged", "java-format", "maven-compile"], done.stderr
+
+
+def test_the_plugin_repository_blocks_when_the_installed_runner_is_missing(plugin, tmp_path):
+    bare = tmp_path / "plugin-without-runner"
+    shutil.copytree(plugin, bare)
+    (bare / "hooks" / "plugin-source-gates.sh").unlink()
+    done, ran = _run(bare, tmp_path, plugin_repo=True)
+    assert done.returncode == 2, done.stderr
+    assert "repo-runner" not in ran and "java-format" not in ran, done.stderr
 
 
 @pytest.mark.parametrize("rc", ["2", "1"])

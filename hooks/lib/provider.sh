@@ -457,3 +457,6 @@ afk_plugin_scope() {
     *) printf '%s/\n' "$dir" ;;
   esac
 }
+
+# The plugin tree whose checker code and rule files judge; the plugin-source runner points it at itself.
+afk_judge_dir() { afk_plugin_dir; }

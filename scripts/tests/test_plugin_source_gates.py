@@ -1,8 +1,9 @@
-"""`hooks/plugin-source-gates.sh`: staged and pull-request modes return the same findings.
+"""`hooks/plugin-source-gates.sh`: a trusted runner judges the candidate, the same way staged and in a range.
 
 One base repository holds this checkout's tracked tree. Each fixture applies one change,
-runs the runner on the staged change, commits it, and runs the runner on the base...HEAD
-range. Both reports must hold the same (gate, verdict, finding) tuples.
+runs this checkout's runner (the judge) on the staged change, commits it, and runs it on the
+base...HEAD range. Both reports must hold the same (gate, verdict, finding) tuples. The
+candidate's own runner, gates and checkers are data: changing them never changes the verdict.
 """
 from __future__ import annotations
 
@@ -46,9 +47,9 @@ def _env() -> dict[str, str]:
     return env
 
 
-def run_runner(repo: Path, *mode: str) -> tuple[int, list[tuple[str, str, str]], str]:
-    report = repo.parent / f"{repo.name}-{mode[0].strip('-')}.tsv"
-    done = subprocess.run([str(BASH), (repo / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
+def run_runner(repo: Path, *mode: str, judge: Path = ROOT) -> tuple[int, list[tuple[str, str, str]], str]:
+    report = repo.parent / f"{repo.name}-{judge.name}-{mode[0].strip('-')}.tsv"
+    done = subprocess.run([str(BASH), (judge / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
                            "--report", report.as_posix()],
                           cwd=repo, env=_env(), capture_output=True, text=True, timeout=600)
     rows = []
@@ -133,29 +134,71 @@ def registry_lockstep(repo):
 
 
 def crash(repo):
-    (repo / "hooks" / "behavior-registry-gate.sh").write_text(
-        "gate_behavior_registry() { echo 'exploded' >&2; return 7; }\n", encoding="utf-8", newline="\n")
+    _append(repo / "README.md", "\nA fixture line.\n")
+    _git(repo, "add", "-A")
+
+
+def noop_gate(repo):
+    (repo / "hooks" / "genericity-gate.sh").write_text("gate_genericity() { return 0; }\n", encoding="utf-8",
+                                                       newline="\n")
+    _append(repo / "skills" / "utils" / "todo" / "SKILL.md", "\nSee ZZQ-4242 here.\n")
     _git(repo, "add", "-A")
 
 
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
-                                    provider_manifest, managed_behavior, registry_lockstep, crash)}
+                                    provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate)}
 
 
-def _both_modes(base: Path, name: str):
+def _judge_for(base: Path, name: str) -> Path:
+    """This checkout, except for the crash fixture: a copy whose behavior-registry gate explodes."""
+    if name != "crash":
+        return ROOT
+    judge = base.parent / "crash-judge"
+    if not judge.exists():
+        shutil.copytree(base, judge, ignore=shutil.ignore_patterns(".git"))
+        (judge / "hooks" / "behavior-registry-gate.sh").write_text(
+            "gate_behavior_registry() { echo 'exploded' >&2; return 7; }\n", encoding="utf-8", newline="\n")
+    return judge
+
+
+def _clone(base: Path, name: str) -> Path:
     repo = base.parent / name
     _git(base.parent, "clone", "-q", "--no-hardlinks", base.as_posix(), repo.as_posix())
-    FIXTURES[name](repo)
-    staged = run_runner(repo, "--staged")
+    return repo
+
+
+def _both_modes(base: Path, name: str, change=None, judge: Path | None = None):
+    repo = _clone(base, name)
+    (change or FIXTURES[name])(repo)
+    judge = judge or _judge_for(base, name)
+    staged = run_runner(repo, "--staged", judge=judge)
     _git(repo, "commit", "-q", "-m", name)
-    ranged = run_runner(repo, "--range", "origin/main")
+    ranged = run_runner(repo, "--range", "origin/main", judge=judge)
     return staged, ranged
+
+
+def drop_runner(repo):
+    _git(repo, "rm", "-q", "hooks/plugin-source-gates.sh")
+
+
+def drop_manifest(repo):
+    _git(repo, "rm", "-q", ".claude-plugin/plugin.json")
+
+
+def drop_gate(repo):
+    _git(repo, "rm", "-q", "hooks/genericity-gate.sh")
+
+
+CONTROL_DELETIONS = {f.__name__: f for f in (drop_runner, drop_manifest, drop_gate)}
 
 
 @pytest.fixture(scope="module")
 def results(base):
+    _judge_for(base, "crash")
     with ThreadPoolExecutor(max_workers=4) as pool:
         futures = {name: pool.submit(_both_modes, base, name) for name in FIXTURES}
+        futures.update({name: pool.submit(_both_modes, base, name, change)
+                        for name, change in CONTROL_DELETIONS.items()})
         return {name: future.result() for name, future in futures.items()}
 
 
@@ -214,6 +257,35 @@ def test_a_gate_crash_blocks_in_both_modes(results):
     for rc, rows, err in results["crash"]:
         assert rc == 2, err
         assert verdicts(rows)["behavior-registry"] == "crashed", rows
+
+
+def test_the_branch_cannot_replace_its_own_judge_with_a_no_op(results):
+    rc, blocked, rows, err = _blocked(results, "noop_gate")
+    assert rc == 2 and blocked == {"genericity"}, err
+    assert "ZZQ-4242" in " ".join(f for g, _v, f in rows if g == "genericity"), rows
+
+
+@pytest.mark.parametrize("name", list(CONTROL_DELETIONS))
+def test_deleting_a_control_file_is_incomplete_input_in_both_modes(results, name):
+    for rc, rows, err in results[name]:
+        assert rc == 2 and "NOT verified" in err and "the candidate deletes" in err, err
+        assert rows == [], rows
+
+
+def test_a_gate_the_branch_adds_runs_under_the_branch_runner(base):
+    repo = _clone(base, "new_gate")
+    (repo / "hooks" / "zz-new-gate.sh").write_text("gate_zz_new() { echo 'zz-new ran' >&2; return 2; }\n",
+                                                   encoding="utf-8", newline="\n")
+    runner = repo / "hooks" / "plugin-source-gates.sh"
+    runner.write_text(runner.read_text(encoding="utf-8").replace(
+        'GATES="skill-registry native-contract genericity behavior-registry"',
+        'GATES="skill-registry native-contract genericity behavior-registry zz-new"'), encoding="utf-8", newline="\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "new gate")
+    rc, rows, err = run_runner(repo, "--range", "origin/main", judge=repo)
+    assert rc == 2 and verdicts(rows).get("zz-new") == "blocked", err
+    rc, rows, err = run_runner(repo, "--range", "origin/main")
+    assert "zz-new" not in verdicts(rows), rows
 
 
 def test_a_consuming_repository_never_runs_the_gates(tmp_path):

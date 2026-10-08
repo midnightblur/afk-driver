@@ -53,6 +53,9 @@ release page from its section here. Nobody tags by hand.
   and in `/afk:verify-seams final`; the skill-registry, native-contract,
   genericity and behavior-registry gates run at commit and in pull-request CI
   through `hooks/plugin-source-gates.sh`, in this plugin's own repository only.
+  The installed plugin judges a commit and the base revision judges a pull
+  request, so a branch cannot weaken the gates that judge it; the
+  `afk-gate-override` label lets a maintainer accept a deliberate relaxation.
 - Lavish pages render through one command,
   `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"`, with the same
   shapes as before (`<file> [--no-open|--reopen]`, `poll`, `end`, `stop`,

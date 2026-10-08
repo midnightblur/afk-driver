@@ -61,7 +61,8 @@ gate_genericity() {
 
   # The shapes this gate blocks are shared with the outgoing-issue redactor, so
   # they live in one file. A missing file blocks: an empty pattern set passes all.
-  local PATTERNS_FILE="$PLUGIN_DIR/hooks/lib/sensitive-patterns.tsv" pk pv
+  local JUDGE_DIR PATTERNS_FILE pk pv; JUDGE_DIR=$(afk_judge_dir 2>/dev/null) || JUDGE_DIR=$PLUGIN_DIR
+  PATTERNS_FILE="$JUDGE_DIR/hooks/lib/sensitive-patterns.tsv"
   local -A PAT=()
   if [ -f "$PATTERNS_FILE" ]; then
     while IFS=$'\t' read -r pk pv || [ -n "$pk" ]; do

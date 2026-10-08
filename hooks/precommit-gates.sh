@@ -145,13 +145,12 @@ commit_blocked() {
 # Cheapest first: the comment policy (RATIONALE.md) reads only staged bytes.
 run_gate comment
 
-# Plugin-source gates run only in the afk plugin's own repository, through that repository's runner.
-plugin_dir=$(afk_plugin_dir)
-[ -z "$plugin_dir" ] && grep -qsE '"name": *"afk"' .claude-plugin/plugin.json && plugin_dir=.
-if [ -n "$plugin_dir" ] && [ -f "$plugin_dir/hooks/plugin-source-gates.sh" ]; then
-  bash "$plugin_dir/hooks/plugin-source-gates.sh" --staged
-  [ $? -eq 0 ] || commit_blocked
-fi
+# Plugin-source gates run only in the afk plugin's own repository, judged by this installed copy, never the branch's.
+for rev in HEAD ""; do
+  git cat-file blob "$rev:.claude-plugin/plugin.json" 2>/dev/null | grep -qE '"name": *"afk"' || continue
+  bash "$SCRIPT_DIR/plugin-source-gates.sh" --staged || commit_blocked
+  break
+done
 
 # Selected build-gate adapters name the gates this change set needs (none without
 # `build-gates:`), in configured order except format and lint before the rest.

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Plugin-source gates over one candidate tree: the index (--staged) or a pull request head (--range).
-# Usage, parity contract and exit codes: hooks/README.md "Plugin-source gates".
+# Plugin-source gates: this runner's own gates judge one candidate tree, the index (--staged) or a head (--range).
+# Usage, trust rule, parity contract and exit codes: hooks/README.md "Plugin-source gates".
 
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+JUDGE=$(cd "$SCRIPT_DIR/.." && pwd)
 GATES="skill-registry native-contract genericity behavior-registry"
 
 mode="" base_ref="" head_ref=HEAD report=""
@@ -34,13 +35,6 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || incomplete "not inside
 cd "$repo_root" || incomplete "cannot enter $repo_root"
 [ -f .claude/hooks/.gate-disabled ] && exit 0
 
-# The plugin this runner belongs to must live in the repository being judged.
-plugin_top=$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null) || exit 0
-[ "$plugin_top" = "$repo_root" ] || exit 0
-plugin_rel=$(git -C "$SCRIPT_DIR/.." rev-parse --show-prefix 2>/dev/null)
-plugin_rel=${plugin_rel%/}
-[ -f "${plugin_rel:-.}/.claude-plugin/plugin.json" ] || exit 0
-
 empty_tree=$(git hash-object -t tree /dev/null 2>/dev/null) || incomplete "git cannot hash the empty tree"
 if [ "$mode" = staged ]; then
   head=$(git rev-parse -q --verify HEAD 2>/dev/null) || head=""
@@ -49,6 +43,11 @@ else
   head=$(git rev-parse -q --verify "$head_ref^{commit}" 2>/dev/null) || incomplete "no commit $head_ref"
   base=$(git merge-base "$base_ref" "$head" 2>/dev/null) || incomplete "no merge base of $base_ref and $head_ref"
 fi
+
+# The repository is the plugin when its manifest names afk at the base revision or in the candidate.
+is_plugin() { git cat-file blob "$1:.claude-plugin/plugin.json" 2>/dev/null | grep -qE '"name": *"afk"'; }
+if [ "$mode" = staged ]; then candidate=""; else candidate=$head; fi
+is_plugin "$base" || is_plugin "$candidate" || exit 0
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/afk-psg.XXXXXX") || incomplete "no temporary folder"
 trap 'rm -rf "$tmp"' EXIT
@@ -73,14 +72,7 @@ while IFS= read -r -d '' st; do
   case "${st:0:1}" in A|R|C) new+="$path"$'\n' ;; esac
 done <"$tmp/status"
 
-scope=${plugin_rel:+$plugin_rel/}
-in_scope=0
-while IFS= read -r path; do
-  case "$path" in
-    "$scope"*|.agents/*|.codex/*) [ -n "$path" ] && in_scope=1 && break ;;
-  esac
-done <<<"$changed"
-[ "$in_scope" = 1 ] || exit 0
+[ -n "$changed" ] || exit 0
 
 # ---- the candidate tree, from a private index.
 git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null) || incomplete "no git directory"
@@ -102,14 +94,19 @@ GIT_INDEX_FILE="$tmp/index" git checkout-index -a -f -u --prefix="$tmp/tree/" \
 export GIT_DIR="$git_dir" GIT_WORK_TREE="$tmp/tree" GIT_INDEX_FILE="$tmp/index"
 unset GIT_PREFIX
 cd "$tmp/tree" || incomplete "cannot enter the candidate tree"
-hooks="$tmp/tree/${plugin_rel:+$plugin_rel/}hooks"
+for control in .claude-plugin/plugin.json hooks/plugin-source-gates.sh BEHAVIORS.md skills \
+  $(printf 'hooks/%s-gate.sh ' $GATES); do
+  [ -e "$control" ] || incomplete "the candidate deletes $control"
+done
+hooks="$JUDGE/hooks"
 for lib in lib/provider.sh lib/adapter.sh gate-context.sh gate-cache.sh gate-metrics.sh; do
-  . "$hooks/$lib" || incomplete "the candidate tree cannot load hooks/$lib"
+  . "$hooks/$lib" || incomplete "the judging plugin cannot load hooks/$lib"
 done
 
-# Every gate resolves the plugin through these two; the candidate tree is the plugin.
-afk_plugin_dir() { printf '%s\n' "${plugin_rel:-.}"; }
-afk_plugin_scope() { printf '%s\n' "$scope"; }
+# The candidate tree is the data every gate reads; this runner's tree is the code and rules that judge it.
+afk_plugin_dir() { printf '.\n'; }
+afk_plugin_scope() { printf '\n'; }
+afk_judge_dir() { printf '%s\n' "$JUDGE"; }
 
 export GATE_CACHE_DISABLE=1
 AFK_CTX_HEAD=$head AFK_CTX_BASE=$base AFK_CTX_MERGEBASE=$base

@@ -4,6 +4,7 @@ name: tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches:
       - main
@@ -66,14 +67,28 @@ jobs:
         run: bash hooks/tests/hook-smoke.sh
 
       - name: Plugin-source gates
-        # The pre-commit runner, given the change's merge-base path set instead of the staged one.
+        # A pull request is judged by the base revision's gates and by its own; a push to main by its own.
+        # The afk-gate-override label turns the base pass into a warning (hooks/README.md "Plugin-source gates").
         env:
           GATE_METRICS_DISABLE: '1'
           BASE_REF: ${{ github.base_ref }}
           BEFORE: ${{ github.event.before }}
+          OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'afk-gate-override') }}
         run: |
           if [ -n "$BASE_REF" ]; then
-            base="origin/$BASE_REF"
+            base=$(git merge-base "origin/$BASE_REF" HEAD)
+            judge=$(mktemp -d)
+            git archive "$base" | tar -x -C "$judge"
+            if [ -f "$judge/hooks/plugin-source-gates.sh" ]; then
+              if ! bash "$judge/hooks/plugin-source-gates.sh" --range "$base" HEAD; then
+                [ "$OVERRIDE" = true ] || { echo "::error::the base revision's plugin-source gates blocked"; exit 1; }
+                echo "::warning::afk-gate-override: the base revision's plugin-source gates blocked"
+              fi
+            elif [ -n "$(git log -1 --format=%H "$base" -- hooks/plugin-source-gates.sh)" ]; then
+              echo "::error::the base revision lost hooks/plugin-source-gates.sh"; exit 1
+            else
+              echo "::notice::the base revision predates hooks/plugin-source-gates.sh; its own gates judge alone"
+            fi
           elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             base="$BEFORE"
           else
