@@ -75,6 +75,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -239,19 +240,25 @@ def _drain(proc: subprocess.Popen) -> tuple[bytes | None, bytes | None]:
 
 def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None,
              capture: bool = False, timeout: float | None = None,
-             jobbed: bool = True, outputs: tuple | None = None) -> subprocess.CompletedProcess:
+             jobbed: bool = True, outputs: tuple | None = None, feed: bool = False) -> subprocess.CompletedProcess:
     """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal.
 
     `outputs` is a (stdout, stderr) pair of files: unlike a pipe, a file never waits on a background child.
+    `feed` (with `outputs`) streams this launcher's stdin to the handler as it arrives (`read_stdin`).
     """
     pipes = subprocess.PIPE if capture else None
     out_to, err_to = outputs if outputs is not None else (pipes, pipes)
-    proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None else None,
+    proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None or feed else None,
                        stdout=out_to, stderr=err_to)
     _ACTIVE.append(proc)
     try:
         try:
-            out, err = proc.communicate(input=input, timeout=timeout)
+            if feed:
+                read_stdin(proc.stdin)
+                out, err = None, None
+                proc.wait(timeout=timeout)
+            else:
+                out, err = proc.communicate(input=input, timeout=timeout)
         except subprocess.TimeoutExpired:
             _kill_group(proc, job)
             out, err = _drain(proc)
@@ -468,21 +475,62 @@ def policy_noop(handler: str) -> bool:
 
 # ---- a failed handler names itself: CAPABILITIES.md "Hook failures" owns the contract,
 # hooks/lib/hook_failure.py the line. Loaded only on a failure.
-_ENVELOPE: list[bytes | None] = []
+_ENVELOPE: dict = {}
 _WHO = {"handler": "run-hook.py", "event": None, "soft": False}
 
 
-def envelope() -> bytes | None:
-    """The harness's stdin envelope, read once; None when stdin is a terminal or absent."""
+def stdin_piped() -> bool:
+    return sys.stdin is not None and not sys.stdin.isatty()
+
+
+def read_stdin(sink=None) -> None:
+    """Start the one reader of stdin, keeping every chunk; with `sink`, each chunk also goes there.
+
+    Raw `os.read`, never the buffered stream: a daemon thread holding its lock aborts interpreter exit.
+    """
+    chunks: list[bytes] = []
+    done = threading.Event()
+    _ENVELOPE.update(chunks=chunks, done=done)
+
+    def pump(sink=sink):
+        try:
+            while chunk := os.read(sys.stdin.fileno(), 65536):
+                chunks.append(chunk)
+                try:
+                    if sink is not None:
+                        sink.write(chunk)
+                        sink.flush()
+                except (OSError, ValueError):  # the handler stopped reading
+                    sink = None
+        except (OSError, ValueError, AttributeError):
+            pass
+        finally:
+            done.set()
+            try:
+                if sink is not None:
+                    sink.close()
+            except (OSError, ValueError):
+                pass
+
+    if stdin_piped():
+        threading.Thread(target=pump, daemon=True).start()
+    else:
+        done.set()
+        if sink is not None:
+            sink.close()
+
+
+def envelope(wait: float | None = None) -> bytes | None:
+    """The harness's stdin envelope; `wait` caps the wait for EOF (None: until EOF). None when not piped."""
     if not _ENVELOPE:
-        stream = sys.stdin
-        _ENVELOPE.append(None if stream is None or stream.isatty() else stream.buffer.read())
-    return _ENVELOPE[0]
+        read_stdin()
+    _ENVELOPE["done"].wait(wait)
+    return b"".join(_ENVELOPE["chunks"]) if stdin_piped() else None
 
 
-def envelope_field(name: str) -> str:
+def envelope_field(name: str, wait: float | None = 1.0) -> str:
     try:
-        said = json.loads((envelope() or b"").decode("utf-8", "replace"))
+        said = json.loads((envelope(wait) or b"").decode("utf-8", "replace"))
     except (ValueError, OSError):
         return ""
     return str(said.get(name) or "") if isinstance(said, dict) else ""
@@ -526,14 +574,15 @@ def write_raw(stream, data: bytes | None) -> None:
         stream.buffer.flush()
 
 
-def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None, timeout: float | None,
-                 jobbed: bool = True) -> tuple[int | None, bytes, bytes]:
+def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None = None, timeout: float | None,
+                 jobbed: bool = True, feed: bool = False) -> tuple[int | None, bytes, bytes]:
     """A handler's exit code (None past `timeout`), stdout and stderr, both held in files."""
     import tempfile  # here, not at the top: a bail never pays for it
 
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         try:
-            code = run_tree(args, env, input=input, timeout=timeout, jobbed=jobbed, outputs=(out, err)).returncode
+            code = run_tree(args, env, input=input, timeout=timeout, jobbed=jobbed, outputs=(out, err),
+                            feed=feed).returncode
         except subprocess.TimeoutExpired:
             code = None
         out.seek(0)
@@ -739,7 +788,7 @@ def block_without_shell(event: str, why: str) -> int:
     env = dict(os.environ)
     root = repo_root(env)
     entries, faults = repo_entries(root, event) if root is not None else ([], [])
-    tool = envelope_field("tool_name")
+    tool = envelope_field("tool_name", None)
     for entry in entries:
         if matcher_fault(entry.get("matcher")) or matches(entry.get("matcher"), tool):
             faults.append(f"{why}: cannot run {entry.get('script')}")
@@ -891,7 +940,7 @@ def main(argv: list[str]) -> int:
             return 0
         if argv[1] in OWNER_HANDLERS:
             env.update(owner_env())
-        code, out, err = run_captured([str(bash), str(script), *argv[2:]], env, input=envelope(),
+        code, out, err = run_captured([str(bash), str(script), *argv[2:]], env, feed=stdin_piped(),
                                       timeout=budget_left(), jobbed=argv[1] not in DETACHES_HELPERS)
         return plugin_verdict(argv[1], code, out, err, soft)
 
@@ -904,7 +953,7 @@ def main(argv: list[str]) -> int:
         return 0
 
     given = envelope() or b""
-    tool = envelope_field("tool_name")
+    tool = envelope_field("tool_name", None)
 
     failure = 0
     refused: list[str] = []

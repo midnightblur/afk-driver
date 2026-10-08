@@ -136,6 +136,31 @@ def test_soft_failures_are_named_on_stderr_and_exit_zero_with_untouched_stdout(p
         assert "[afk] fail.sh (SessionStart) failed: exit 1: no message" in text(done.stderr)
 
 
+def test_a_caller_that_never_closes_stdin_does_not_hang_the_launcher(plugin, tmp_path):
+    handler(plugin, "quiet.sh", "echo 'no envelope needed' >&2\nexit 1\n")
+    with open(tmp_path / "out", "wb") as out, open(tmp_path / "err", "wb") as err:
+        held = subprocess.Popen([sys.executable, str(plugin / "hooks" / "run-hook.py"), "plugin", "quiet.sh"],
+                                stdin=subprocess.PIPE, stdout=out, stderr=err, cwd=str(plugin), env=environ("claude"))
+        held.stdin.write(json.dumps({"hook_event_name": "SessionStart"}).encode())
+        held.stdin.flush()  # and never closed: the launcher must not wait for EOF
+        try:
+            code = held.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            held.kill()
+            pytest.fail("the launcher waited for an EOF the caller never sent")
+        finally:
+            held.stdin.close()
+    assert code == 1
+    said = (tmp_path / "err").read_text(encoding="utf-8")
+    assert "[afk] quiet.sh (SessionStart) failed: exit 1: no envelope needed" in said
+
+
+def test_a_handler_reads_the_envelope_it_was_sent(plugin):
+    handler(plugin, "echo.sh", "cat\n")
+    done = launch(plugin, "plugin", "echo.sh", event="PostToolUse")
+    assert done.returncode == 0 and json.loads(done.stdout)["hook_event_name"] == "PostToolUse"
+
+
 # ---- the launcher's own faults (L3, L4)
 
 def test_a_runtime_fault_names_the_handler_and_reaches_a_harness_that_drops_stderr(plugin):
