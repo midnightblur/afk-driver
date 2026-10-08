@@ -94,6 +94,10 @@ release page from its section here. Nobody tags by hand.
   on stderr, for every plugin and repository handler, a timeout, and a crash in
   the launcher, the guard, the meter or occupancy. Where the harness drops a
   failed hook's stderr, the same line arrives as a warning and the hook exits 0.
+- A plugin handler's refusal on PreToolUse or Stop (a deny or block document,
+  or exit 2) now blocks on every harness whatever its exit code; before, a
+  document at a non-zero exit let the tool run where the harness reads
+  decisions only at exit 0. Exit 2 on any other event is a failure.
 - A Stop gate that kills its shell no longer swallows the error, and the
   worktree-create hook says why when it gets no path.
 - `/afk:setup` now says which processes to restart after it changes `PATH`,
