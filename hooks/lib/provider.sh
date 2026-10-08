@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Registry and shared contracts for AFK hook provider adapters.
 
+# No dirname and, for an absolute path, no subshell: every hook sources this file.
 case "${BASH_SOURCE[0]}" in
-  */*) afk_core=${BASH_SOURCE[0]%/*} ;;
-  *) afk_core=$(dirname "${BASH_SOURCE[0]}") ;;
+  /*|[A-Za-z]:*) AFK_PROVIDER_CORE_DIR=${BASH_SOURCE[0]%/*} ;;
+  */*) AFK_PROVIDER_CORE_DIR=$(cd "${BASH_SOURCE[0]%/*}" && pwd) ;;
+  *) AFK_PROVIDER_CORE_DIR=$PWD ;;
 esac
-AFK_PROVIDER_CORE_DIR=$(cd "$afk_core" && pwd)
-unset afk_core
 AFK_PROVIDER_NAMES=""
 
 for afk_adapter in "$AFK_PROVIDER_CORE_DIR"/providers/*.sh; do
