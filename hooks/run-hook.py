@@ -75,7 +75,6 @@ import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -530,6 +529,8 @@ def write_raw(stream, data: bytes | None) -> None:
 def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None, timeout: float | None,
                  jobbed: bool = True) -> tuple[int | None, bytes, bytes]:
     """A handler's exit code (None past `timeout`), stdout and stderr, both held in files."""
+    import tempfile  # here, not at the top: a bail never pays for it
+
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         try:
             code = run_tree(args, env, input=input, timeout=timeout, jobbed=jobbed, outputs=(out, err)).returncode
