@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-07
+
 ### Added
 
 - `/afk:setup` installs the runtime on a machine with no Python at all: a
