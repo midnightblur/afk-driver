@@ -32,6 +32,36 @@ afk_config_load() {
   AFK_CFG_LOADED=1
 }
 
+# afk_repo_hooks_manifest — the effective `repo-hooks` path without Python, layers per CONFIG.md "Discovery".
+# Accepts one plain top-level `repo-hooks: <path>` line per layer; any other mention is ambiguous (rc 1).
+afk_repo_hooks_manifest() {
+  local common layer line value found=""
+  common=$(git rev-parse --git-common-dir 2>/dev/null) || return 1
+  for layer in "${AFK_CONFIG:-}" .afk/config.local.yaml "$common/afk/config.yaml" .afk/config.yaml \
+    "${HOME:-/nonexistent}/.afk/config.yaml"; do
+    [ -n "$layer" ] || continue
+    [ -e "$layer" ] || { [ "$layer" != "${AFK_CONFIG:-}" ] && continue; return 1; }
+    [ -r "$layer" ] || return 1
+    while IFS= read -r line || [ -n "$line" ]; do
+      line=${line%$'\r'}
+      case "$line" in *repo-hooks*) ;; *) continue ;; esac
+      [[ $line =~ ^[[:space:]]*# ]] && continue
+      [ -z "$found" ] || return 1
+      if [[ $line =~ ^repo-hooks:[[:space:]]*\"([^\"\\]+)\"[[:space:]]*(#.*)?$ ]] \
+        || [[ $line =~ ^repo-hooks:[[:space:]]*\'([^\']+)\'[[:space:]]*(#.*)?$ ]] \
+        || [[ $line =~ ^repo-hooks:[[:space:]]*([^[:space:]\"\'\|\>\&\*\!\[\{%@\`#][^[:space:]]*)[[:space:]]*(#.*)?$ ]]; then
+        value=${BASH_REMATCH[1]}; found=1
+      else
+        return 1
+      fi
+    done <"$layer"
+    [ -n "$found" ] && break
+  done
+  [ -n "$found" ] || value=.afk/hooks.json
+  case "$value" in /*|*\\*|[A-Za-z]:*|..|../*|*/..|*/../*) return 1 ;; esac
+  printf '%s\n' "$value"
+}
+
 # afk_config_get <dotted.key> — one value, for the rare caller that wants a
 # structure the flat export cannot carry. Prefer the AFK_CFG_* names.
 afk_config_get() {

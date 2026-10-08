@@ -184,10 +184,11 @@ py="${AFK_PYTHON:-afk-python}"
 if command -v "$py" >/dev/null 2>&1; then
   "$py" "$SCRIPT_DIR/run-hook.py" repo-list PreCommit </dev/null >&2 || commit_blocked
 else
-  # Without the configuration a custom manifest path is unknown, so declaring one blocks.
-  manifest=${AFK_CFG_REPO_HOOKS:-.afk/hooks.json}
-  [ -n "${AFK_CFG_LOAD_FAILED:-}" ] && grep -qs '^repo-hooks:' .afk/config.yaml && manifest=""
-  if [ -z "$manifest" ] || grep -qs '"PreCommit"' "$manifest"; then
+  # Without the launcher, block when the effective manifest declares PreCommit or cannot be resolved.
+  manifest=$(afk_repo_hooks_manifest) || manifest=""
+  body=""
+  [ -z "$manifest" ] || [ ! -e "$manifest" ] || { [ -r "$manifest" ] && body=$(<"$manifest"); } || manifest=""
+  if [ -z "$manifest" ] || [[ $body == *'"PreCommit"'* ]]; then
     echo "[afk] repository PreCommit handlers cannot run: afk-python not found. Run /afk:setup." >&2
     commit_blocked
   fi

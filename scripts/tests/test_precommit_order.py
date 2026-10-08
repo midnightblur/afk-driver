@@ -56,12 +56,15 @@ def plugin(tmp_path_factory):
 
 def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False,
          handlers: list[dict] | None = None, rename_only: bool = False, manifest: str = ".afk/hooks.json",
-         **env: str):
+         local: str | None = None, **env: str):
     repo = tmp_path / "repo"
     repo.mkdir(exist_ok=True)
     _git(repo, "init", "-q")
     (repo / ".afk").mkdir()
     custom = "" if manifest == ".afk/hooks.json" else f"repo-hooks: {manifest}\n"
+    if local is not None:
+        (repo / ".afk" / "config.local.yaml").write_text(local, encoding="utf-8")
+        custom = ""
     (repo / ".afk" / "config.yaml").write_text(f"schema: 1\n{custom}build-gates:\n  - maven\n", encoding="utf-8")
     if plugin_repo:
         (repo / ".claude-plugin").mkdir()
@@ -247,3 +250,28 @@ def test_without_the_launcher_a_repository_with_no_handlers_still_commits(plugin
     done, ran = _run(plugin, tmp_path, AFK_PYTHON="afk-python-is-not-installed")
     assert done.returncode == 0, done.stderr
     assert "configuration not loaded" in done.stderr, done.stderr
+
+
+NO_LAUNCHER = {"AFK_PYTHON": "afk-python-is-not-installed"}
+
+
+def test_without_the_launcher_a_local_overlay_manifest_with_precommit_blocks(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], manifest="ci/local-hooks.json",
+                     local="repo-hooks: ci/local-hooks.json  # this checkout only\n", **NO_LAUNCHER)
+    assert done.returncode == 2, done.stderr
+    assert "PreCommit handlers cannot run" in done.stderr and "cheap" not in ran, done.stderr
+
+
+def test_without_the_launcher_a_custom_manifest_with_only_stop_commits(plugin, tmp_path):
+    stop = {**_handler("cheap"), "event": "Stop"}
+    done, ran = _run(plugin, tmp_path, handlers=[stop], manifest="ci/stop-hooks.json", **NO_LAUNCHER)
+    assert done.returncode == 0, done.stderr
+    assert "PreCommit handlers cannot run" not in done.stderr, done.stderr
+
+
+@pytest.mark.parametrize("local", ['"repo-hooks": ci/hooks.json\n', "repo-hooks: >\n  ci/hooks.json\n",
+                                   "repo-hooks: ../outside.json\n"], ids=["quoted-key", "block", "outside"])
+def test_without_the_launcher_a_layer_the_shell_cannot_read_blocks(plugin, tmp_path, local):
+    done, _ran = _run(plugin, tmp_path, local=local, **NO_LAUNCHER)
+    assert done.returncode == 2, done.stderr
+    assert "PreCommit handlers cannot run" in done.stderr, done.stderr
