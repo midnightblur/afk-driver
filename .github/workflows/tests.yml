@@ -66,17 +66,20 @@ jobs:
         run: bash hooks/tests/hook-smoke.sh
 
       - name: Plugin-source gates
+        # The pre-commit runner, given the change's merge-base path set instead of the staged one.
         env:
-          GATE_CACHE_DISABLE: '1'
           GATE_METRICS_DISABLE: '1'
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          rc=0
-          for gate in skill-registry native-contract genericity behavior-registry; do
-            echo "::group::$gate"
-            bash "hooks/$gate-gate.sh" || { echo "::error::$gate gate blocked"; rc=1; }
-            echo "::endgroup::"
-          done
-          exit "$rc"
+          if [ -n "$BASE_REF" ]; then
+            base="origin/$BASE_REF"
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"
+          else
+            base="HEAD^"
+          fi
+          bash hooks/plugin-source-gates.sh --range "$base" HEAD || { echo "::error::plugin-source gates blocked"; exit 1; }
 
       - name: Hook latency budgets (informational)
         # Shared runners are noisy: the budget table reports, it does not gate.

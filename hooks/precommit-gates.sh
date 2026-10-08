@@ -29,7 +29,7 @@
 # explicit paths rather than everything, so judging the working tree would gate
 # files the commit does not contain.
 #
-# Order: backstop, comment, native-contract, build gates (format/lint first); first block (exit 2) wins, a gate that cannot run warns.
+# Order: backstop, comment, plugin-source gates (plugin repository only; a crash blocks), build gates (format/lint first).
 # Skip: .claude/hooks/.gate-disabled, AFK_SKIP_PRECOMMIT_GATES=1 for one commit, or `git commit --no-verify`.
 
 set -u
@@ -80,7 +80,7 @@ git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1 && exit 0
 # One configuration read per commit; the build-gate adapters read it below.
 afk_config_load
 gate_ctx_build_staged
-[ -z "$AFK_CTX_CHANGED" ] && exit 0
+[ -z "$AFK_CTX_CHANGED" ] && git diff --cached --quiet 2>/dev/null && exit 0
 
 # The gates validate WORKTREE content (a build tool cannot read a staged-only
 # blob), so a gated file whose staged copy differs from its worktree copy would
@@ -144,33 +144,12 @@ commit_blocked() {
 # Cheapest first: the comment policy (RATIONALE.md) reads only staged bytes.
 run_gate comment
 
-# The native plugin contract is cheap enough for Stop and commit. Commit-time
-# enforcement is independently required: a --no-hooks session must not be able
-# to land a harness-coupled plugin edit. It reads the live plugin tree; bypass
-# the pass cache here because the staged context intentionally omits unrelated
-# untracked plugin files that the whole-tree invariants must still see.
-PLUGIN_DIR=$(afk_plugin_dir)
-PLUGIN_SCOPE=$(afk_plugin_scope)
-native_scope=0
-gate_ctx_any AFK_CTX_CHANGED \
-  "$PLUGIN_SCOPE*" ".agents/*" ".codex/*" && native_scope=1
-# gate_ctx_build_staged deliberately omits deletions for the code gates. A
-# deleted skill/provider is contract-relevant, so collect all native deletions
-# in one batched diff rather than forking per path.
-if [ "$native_scope" = "0" ]; then
-  native_deleted=$(git diff --cached --name-only --diff-filter=D -- \
-    "${PLUGIN_DIR:-.}" ".agents" ".codex" 2>/dev/null)
-  [ -n "$native_deleted" ] && native_scope=1
-fi
-if [ -n "$PLUGIN_DIR" ] && [ "$native_scope" = "1" ]; then
-  _native_cache_disable=${GATE_CACHE_DISABLE-}
-  GATE_CACHE_DISABLE=1
-  run_gate native-contract
-  if [ -n "$_native_cache_disable" ]; then
-    GATE_CACHE_DISABLE=$_native_cache_disable
-  else
-    unset GATE_CACHE_DISABLE
-  fi
+# Plugin-source gates run only in the afk plugin's own repository, through that repository's runner.
+plugin_dir=$(afk_plugin_dir)
+[ -z "$plugin_dir" ] && grep -qsE '"name": *"afk"' .claude-plugin/plugin.json && plugin_dir=.
+if [ -n "$plugin_dir" ] && [ -f "$plugin_dir/hooks/plugin-source-gates.sh" ]; then
+  bash "$plugin_dir/hooks/plugin-source-gates.sh" --staged
+  [ $? -eq 0 ] || commit_blocked
 fi
 
 # Selected build-gate adapters name the gates this change set needs (none without

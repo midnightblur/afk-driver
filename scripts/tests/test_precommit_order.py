@@ -30,6 +30,7 @@ afk_bg_maven_run() {
   return 0
 }
 """
+PLUGIN_SOURCE = 'printf "plugin-source %s\\n" "$*" >> "$GATE_LOG"; exit "${PSG_RC:-0}"\n'
 
 
 def _git(cwd, *args):
@@ -46,17 +47,26 @@ def plugin(tmp_path_factory):
     (root / "hooks" / "comment-gate.sh").write_text(COMMENT_GATE, encoding="utf-8", newline="\n")
     (root / "adapters" / "build-gate" / "maven" / "gates.sh").write_text(MAVEN_GATES, encoding="utf-8",
                                                                          newline="\n")
+    (root / "hooks" / "plugin-source-gates.sh").write_text(PLUGIN_SOURCE, encoding="utf-8", newline="\n")
     return root
 
 
-def _run(plugin: Path, tmp_path: Path, **env: str):
+def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False, **env: str):
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q")
     (repo / ".afk").mkdir()
     (repo / ".afk" / "config.yaml").write_text("schema: 1\nbuild-gates:\n  - maven\n", encoding="utf-8")
+    if plugin_repo:
+        (repo / ".claude-plugin").mkdir()
+        (repo / ".claude-plugin" / "plugin.json").write_text('{"name": "afk"}\n', encoding="utf-8")
+        (repo / "hooks").mkdir()
+        (repo / "hooks" / "plugin-source-gates.sh").write_text(PLUGIN_SOURCE, encoding="utf-8", newline="\n")
     (repo / "A.java").write_text("class A {}\n", encoding="utf-8")
     _git(repo, "add", "A.java")
+    if delete_only:
+        _git(repo, "commit", "-q", "-m", "base")
+        _git(repo, "rm", "-q", "A.java")
     log = tmp_path / "gates.log"
     environ = {**os.environ, "AFK_PROVIDER": "claude", "AFK_PLUGIN_ROOT": plugin.as_posix(),
                "AFK_WORKTREE_OP": "1", "GATE_LOG": log.as_posix(), "GATE_CACHE_DISABLE": "1",
@@ -85,3 +95,27 @@ def test_every_gate_runs_when_none_blocks(plugin, tmp_path):
     done, ran = _run(plugin, tmp_path)
     assert done.returncode == 0, done.stderr
     assert ran == ["comment", "java-format", "maven-compile"], done.stderr
+
+
+def test_a_consuming_repository_never_runs_the_plugin_source_gates(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path)
+    assert "plugin-source" not in ran, done.stderr
+
+
+def test_the_plugin_repository_runs_its_own_runner_after_comment_and_before_build_gates(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True)
+    assert done.returncode == 0, done.stderr
+    assert ran == ["comment", "plugin-source", "--staged", "java-format", "maven-compile"], done.stderr
+
+
+@pytest.mark.parametrize("rc", ["2", "1"])
+def test_a_plugin_source_block_or_crash_blocks_the_commit(plugin, tmp_path, rc):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True, PSG_RC=rc)
+    assert done.returncode == 2, done.stderr
+    assert ran == ["comment", "plugin-source", "--staged"], done.stderr
+
+
+def test_a_deletion_only_commit_still_reaches_the_plugin_source_gates(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True, delete_only=True)
+    assert done.returncode == 0, done.stderr
+    assert "plugin-source" in ran, done.stderr
