@@ -103,11 +103,35 @@ for control in .claude-plugin/plugin.json hooks/plugin-source-gates.sh BEHAVIORS
 done
 
 # Judge Python: an absolute interpreter outside the repository, run with isolated imports.
-outside() {
-  case "$1" in /*) ;; *) return 1 ;; esac
-  case "$1/" in "$repo_abs/"*|"$tmp/"*) return 1 ;; esac
+hooks="$JUDGE/hooks"
+. "$hooks/lib/provider.sh" || incomplete "the judging plugin cannot load hooks/lib/provider.sh"
+# Physical form: links and junctions resolved, one spelling per Windows mount, no trailing separator.
+physical() {
+  local p=$1 dir
+  if [ -L "$p" ]; then p=$(command -p readlink -f "$p") || return 1; fi
+  if [ -d "$p" ]; then
+    p=$(cd "$p" 2>/dev/null && pwd -P) || return 1
+  else
+    dir=${p%/*}
+    p=$(cd "${dir:-/}" 2>/dev/null && pwd -P)/${p##*/} || return 1
+  fi
+  p=$(cygpath -m "$p" 2>/dev/null || printf '%s' "$p")
+  p=${p//\\//}
+  printf '%s\n' "${p%/}"
 }
-repo_abs=$(cd "$repo_root" && pwd) safe_path=""
+fold=false
+PATH=/usr/bin:/bin afk_path_case_fold && fold=true
+outside() {
+  local p verdict=0
+  case "$1" in /*) ;; *) return 1 ;; esac
+  p=$(physical "$1") || return 1
+  "$fold" && shopt -s nocasematch
+  case "$p/" in "$repo_abs/"*|"$tmp_abs/"*) verdict=1 ;; esac
+  shopt -u nocasematch
+  return "$verdict"
+}
+repo_abs=$(physical "$repo_root") && tmp_abs=$(physical "$tmp") || incomplete "cannot resolve the repository path"
+safe_path=""
 IFS=: read -r -a path_dirs <<<"$PATH"
 for dir in "${path_dirs[@]}"; do
   outside "$dir" && safe_path+="${safe_path:+:}$dir"
@@ -126,8 +150,7 @@ AFK_JUDGE_GIT=$(cygpath -m "$AFK_JUDGE_GIT" 2>/dev/null || printf '%s' "$AFK_JUD
 export AFK_JUDGE_GIT
 git() { "$AFK_JUDGE_GIT" "$@"; }
 export -f git
-hooks="$JUDGE/hooks"
-for lib in lib/provider.sh lib/adapter.sh gate-context.sh gate-cache.sh gate-metrics.sh; do
+for lib in lib/adapter.sh gate-context.sh gate-cache.sh gate-metrics.sh; do
   . "$hooks/$lib" || incomplete "the judging plugin cannot load hooks/$lib"
 done
 

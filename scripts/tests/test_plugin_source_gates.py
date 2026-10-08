@@ -358,6 +358,42 @@ def test_an_interpreter_inside_the_repository_is_never_the_judge(base):
     assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err
 
 
+def _alias(repo: Path, kind: str, tmp_path: Path) -> Path:
+    """Another spelling of the repository's bin folder: letter case swapped, or a link from outside."""
+    if kind == "mixed-case":
+        return Path((repo / "bin").as_posix().swapcase())
+    link = tmp_path / "linked-bin"
+    if sys.platform == "win32":
+        import _winapi
+        _winapi.CreateJunction(str(repo / "bin"), str(link))
+    else:
+        link.symlink_to(repo / "bin", target_is_directory=True)
+    return link
+
+
+@pytest.mark.parametrize("via", ["PATH", "AFK_PYTHON"])
+@pytest.mark.parametrize("kind", ["mixed-case", "symlink"])
+def test_an_aliased_interpreter_inside_the_repository_is_never_the_judge(base, tmp_path, kind, via):
+    if kind == "mixed-case" and sys.platform not in ("win32", "darwin"):
+        pytest.skip("this filesystem keeps letter case apart")
+    marker = tmp_path / "aliased-python-ran"
+    repo = _clone(base, f"alias_{kind}_{via}".replace("-", "_"))
+    fake = repo / "bin" / "afk-judge-probe"
+    fake.parent.mkdir()
+    fake.write_text(f"#!/usr/bin/env bash\necho ran >'{marker.as_posix()}'\nexit 1\n",
+                    encoding="utf-8", newline="\n")
+    fake.chmod(0o755)
+    allowed_genericity(repo)
+    alias = _alias(repo, kind, tmp_path)
+    if via == "PATH":
+        env = {"AFK_PYTHON": "afk-judge-probe", "PATH": f"{alias}{os.pathsep}{os.environ['PATH']}"}
+    else:
+        env = {"AFK_PYTHON": f"{alias.as_posix()}/afk-judge-probe"}
+    rc, rows, err = run_runner(repo, "--staged", **env)
+    assert not marker.exists(), err
+    assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows searches the current folder for a bare program")
 def test_a_candidate_git_exe_never_runs_under_the_judge(base, tmp_path):
     marker = tmp_path / "candidate-git-ran"
