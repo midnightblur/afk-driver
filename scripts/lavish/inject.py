@@ -30,10 +30,8 @@ DARK_START = "<!-- afk-lavish-dark:start -->"
 DARK_END = "<!-- afk-lavish-dark:end -->"
 TIPS_BLOCK = re.compile(re.escape(MARK_START) + r".*?" + re.escape(MARK_END) + r"(?:\r?\n)?", re.DOTALL)
 DARK_BLOCK = re.compile(re.escape(DARK_START) + r".*?" + re.escape(DARK_END) + r"(?:\r?\n)?", re.DOTALL)
-# The single-marker dark injection older releases wrote: marker, one style, optional script.
-LEGACY_DARK = re.compile(r"<!-- afk-lavish-dark -->\s*<style>.*?</style>\s*(?:<script>.*?</script>\s*)?",
-                         re.DOTALL)
 DAISY_DARK = "\n<style>html{color-scheme:dark}</style>\n"
+LEGACY_MARK = "<!-- afk-lavish-dark -->"
 
 
 class InjectError(Exception):
@@ -146,6 +144,10 @@ DARK_INVERT = """
 })();
 </script>
 """
+# Older releases wrote exactly one of these two snippets after a single marker; only they migrate.
+LEGACY_DARK = re.compile("|".join(
+    re.escape(LEGACY_MARK + snippet).replace("\\\n", "\n").replace("\n", r"\r?\n")
+    for snippet in (DARK_INVERT, DAISY_DARK)))
 
 
 def tips_block(dict_json: str) -> str:
@@ -690,17 +692,19 @@ def inject_file(path: str | Path, cwd: str | Path | None = None,
                 seed: Path = SEED, workflow: Path = WORKFLOW_GLOSSARY) -> bool:
     """Inject the runtime into the artifact at `path`; True when its bytes changed.
 
-    The repository is the one holding the artifact, else the one holding `cwd`.
+    The repository is the one holding the artifact, else the one holding `cwd`. A symlinked
+    page is injected at its target, so the link keeps following later regenerations.
     """
-    target = Path(os.path.abspath(path))
+    shown = os.path.abspath(path)
+    target = Path(os.path.realpath(shown))
     try:
         raw = target.read_bytes()
         html = raw.decode("utf-8")
     except (OSError, UnicodeDecodeError) as problem:
-        raise InjectError(f"cannot read {target} as UTF-8: {problem}") from problem
+        raise InjectError(f"cannot read {shown} as UTF-8: {problem}") from problem
     toplevel = repo_root(target) or (repo_root(Path(os.path.abspath(cwd))) if cwd else None)
     tips, spec_dir = load_dictionary(target, _strip(html), toplevel, seed, workflow)
     try:
         return write_if_changed(target, inject(html, target, tips, spec_dir).encode("utf-8"))
     except OSError as problem:
-        raise InjectError(f"cannot write {target}: {problem}") from problem
+        raise InjectError(f"cannot write {shown}: {problem}") from problem

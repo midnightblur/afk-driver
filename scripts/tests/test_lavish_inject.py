@@ -178,6 +178,89 @@ def test_legacy_daisyui_marker_migrates(repo, seed, workflow):
     assert "<!-- afk-lavish-dark -->" not in html and html.count("html{color-scheme:dark}") == 1
 
 
+@pytest.mark.parametrize("legacy", ["daisy", "invert"])
+def test_legacy_migration_keeps_an_adjacent_authored_script(repo, seed, workflow, legacy):
+    authored = "<script>document.addEventListener('click', onPick);</script>\n"
+    base, snippet = (DAISY, inject.DAISY_DARK) if legacy == "daisy" else (AUTHORED, inject.DARK_INVERT)
+    path = page(repo, base.replace("</body>", inject.LEGACY_MARK + snippet + authored + "</body>"))
+    run(path, seed, workflow)
+    html = path.read_text(encoding="utf-8")
+    assert inject.LEGACY_MARK not in html and html.count(authored) == 1
+    assert html.count("function lum(c)") == (1 if legacy == "invert" else 0)
+
+
+def test_an_unknown_script_after_the_legacy_marker_is_never_consumed(repo, seed, workflow):
+    edited = inject.LEGACY_MARK + "\n<style>p{color:red}</style>\n<script>keep()</script>\n"
+    path = page(repo, AUTHORED.replace("</body>", edited + "</body>"))
+    run(path, seed, workflow)
+    assert edited in path.read_text(encoding="utf-8")
+
+
+def test_a_crlf_legacy_block_migrates(repo, seed, workflow):
+    text = AUTHORED.replace("</body>", inject.LEGACY_MARK + inject.DARK_INVERT + "</body>").replace("\n", "\r\n")
+    path = page(repo, text)
+    run(path, seed, workflow)
+    html = path.read_bytes().decode("utf-8")
+    assert inject.LEGACY_MARK not in html and html.count("function lum(c)") == 1
+
+
+def test_a_symlinked_page_is_injected_at_its_target_and_keeps_following_it(repo, seed, workflow):
+    source = page(repo / "out", name="source.html")
+    link = repo / "link.html"
+    try:
+        os.symlink(source, link)
+    except (OSError, NotImplementedError) as problem:
+        pytest.skip(f"symlinks unavailable here: {problem}")
+    assert run(link, seed, workflow)
+    assert link.is_symlink() and inject.MARK_START in source.read_text(encoding="utf-8")
+    source.write_bytes(AUTHORED.replace("names a seam", "was regenerated").encode("utf-8"))
+    assert run(link, seed, workflow)
+    assert link.is_symlink() and "was regenerated" in link.read_text(encoding="utf-8")
+    assert inject.MARK_START in source.read_text(encoding="utf-8")
+
+
+def leftovers(folder: Path) -> list:
+    return [p.name for p in folder.iterdir() if p.name.startswith(".afk-lavish-")]
+
+
+def test_a_failed_replace_leaves_the_page_and_no_temporary_file(repo, seed, workflow, monkeypatch):
+    path = page(repo)
+    original = path.read_bytes()
+
+    def refuse(*_args):
+        raise PermissionError(13, "locked by the browser")
+
+    monkeypatch.setattr(inject.os, "replace", refuse)
+    with pytest.raises(inject.InjectError):
+        run(path, seed, workflow)
+    assert path.read_bytes() == original and leftovers(repo) == []
+
+
+def test_a_failed_write_leaves_the_page_and_no_temporary_file(repo, seed, workflow, monkeypatch):
+    path = page(repo)
+    original = path.read_bytes()
+    real = os.fdopen
+
+    class Full:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.handle.close()
+
+        def write(self, data):
+            self.handle.write(data[:10])
+            raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(inject.os, "fdopen", lambda fd, *a, **k: Full(real(fd, *a, **k)))
+    with pytest.raises(inject.InjectError):
+        run(path, seed, workflow)
+    assert path.read_bytes() == original and leftovers(repo) == []
+
+
 def test_a_changed_dictionary_replaces_the_block(repo, seed, workflow):
     path = page(repo)
     run(path, seed, workflow)
