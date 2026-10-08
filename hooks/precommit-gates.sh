@@ -175,7 +175,7 @@ done
 # Repository PreCommit handlers last, in declaration order, with the staged tree and path list.
 AFK_STAGED_TREE=$(git write-tree 2>/dev/null) && AFK_STAGED_PATHS=$(mktemp 2>/dev/null) || commit_blocked
 trap 'rm -f "$AFK_STAGED_PATHS"' EXIT
-git diff --cached --name-only --diff-filter=ACMRT > "$AFK_STAGED_PATHS" || commit_blocked
+git -c core.quotePath=false diff --cached --name-status -M > "$AFK_STAGED_PATHS" || commit_blocked
 export AFK_STAGED_TREE AFK_STAGED_PATHS
 gate_metrics_file && export GATE_METRICS_FILE="$_GATE_METRICS_PATH"
 py="${AFK_PYTHON:-afk-python}"

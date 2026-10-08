@@ -54,7 +54,7 @@ def plugin(tmp_path_factory):
 
 
 def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False,
-         handlers: list[dict] | None = None, **env: str):
+         handlers: list[dict] | None = None, rename_only: bool = False, **env: str):
     repo = tmp_path / "repo"
     repo.mkdir(exist_ok=True)
     _git(repo, "init", "-q")
@@ -73,9 +73,9 @@ def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: b
         (repo / ".afk" / "hooks.json").write_text(json.dumps(handlers), encoding="utf-8")
     (repo / "A.java").write_text("class A {}\n", encoding="utf-8")
     _git(repo, "add", "A.java")
-    if delete_only:
+    if delete_only or rename_only:
         _git(repo, "commit", "-q", "-m", "base")
-        _git(repo, "rm", "-q", "A.java")
+        _git(repo, *(["rm", "-q", "A.java"] if delete_only else ["mv", "A.java", "B.java"]))
     log = tmp_path / "gates.log"
     environ = {**os.environ, "AFK_PROVIDER": "claude", "AFK_PLUGIN_ROOT": plugin.as_posix(),
                "AFK_WORKTREE_OP": "1", "GATE_LOG": log.as_posix(), "GATE_CACHE_DISABLE": "1",
@@ -185,7 +185,7 @@ def test_the_gate_disabled_sentinel_skips_every_handler(plugin, tmp_path):
 
 def test_a_handler_reads_the_staged_tree_and_paths_and_each_run_is_metered(plugin, tmp_path):
     body = ('[ "$AFK_STAGED_TREE" = "$(git write-tree)" ] || exit 3\n'
-            'grep -qx A.java "$AFK_STAGED_PATHS" || exit 4\n')
+            'grep -qx "A$(printf "\\t")A.java" "$AFK_STAGED_PATHS" || exit 4\n')
     metrics = tmp_path / "metrics.jsonl"
     done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body), _handler("costly")],
                      GATE_METRICS_DISABLE="0", GATE_METRICS_FILE=metrics.as_posix())
@@ -193,3 +193,11 @@ def test_a_handler_reads_the_staged_tree_and_paths_and_each_run_is_metered(plugi
     lines = [json.loads(line) for line in metrics.read_text(encoding="utf-8").splitlines()]
     handled = [(line["gate"], line["result"]) for line in lines if line.get("event") == "PreCommit"]
     assert handled == [("cheap.sh", "pass"), ("costly.sh", "pass")]
+
+
+@pytest.mark.parametrize("change, line", [("delete_only", "D\tA.java"), ("rename_only", "R100\tA.java\tB.java")])
+def test_the_staged_path_list_carries_deletions_and_both_rename_names(plugin, tmp_path, change, line):
+    body = 'grep -qxF "$EXPECTED" "$AFK_STAGED_PATHS" || { cat "$AFK_STAGED_PATHS" >&2; exit 4; }\n'
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body)], EXPECTED=line, **{change: True})
+    assert done.returncode == 0, done.stderr
+    assert ran[-1] == "cheap", done.stderr

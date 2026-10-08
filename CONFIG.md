@@ -220,9 +220,10 @@ shape at the adapter's code. With no POSIX shell a matching call is blocked too.
 (`hooks/precommit-gates.sh`). Handlers run in declaration order, so declare the
 cheap ones first; the first one that exits non-zero, times out or cannot run
 blocks the commit, and no later handler runs. `matcher` must be `*`. Each
-handler reads `AFK_STAGED_TREE` (the index as a tree id) and `AFK_STAGED_PATHS`
-(a file listing the staged added, copied, modified, renamed and type-changed
-paths, one per line) and judges those staged bytes. Each run appends a
+handler reads `AFK_STAGED_TREE` (the index as a tree id) and `AFK_STAGED_PATHS`,
+a file with one `<status>\t<path>` line per staged change in `git diff --name-status`
+form: `A`, `C`, `D`, `M` or `T`, and `R<score>\t<old>\t<new>` for a rename. Deletions
+are listed, and handlers judge the staged bytes. Each run appends a
 `gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
 "Latency metrics & budget"). `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
 `git commit --no-verify` skip them with the plugin's gates.
