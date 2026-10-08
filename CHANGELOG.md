@@ -124,6 +124,12 @@ release page from its section here. Nobody tags by hand.
   before the change runs every hook without `afk-python`, and every hook then
   fails with exit 1.
 
+### Fixed
+
+- The wiring gate and `/afk:verify-seams` no longer treat untracked files as
+  new artifacts. A file untracked before the work started cannot be wired by
+  it; candidates are now staged adds and commits ahead of the merge-base (#98).
+
 ## [1.15.0] - 2026-10-07
 
 ### Added

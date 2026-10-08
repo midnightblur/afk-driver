@@ -40,6 +40,7 @@ def repo(tmp_path):
     _git(tmp_path, "commit", "-qm", "base")
     (tmp_path / "lib").mkdir()
     (tmp_path / ARTIFACT).write_text("x = 1\n", encoding="utf-8")
+    _git(tmp_path, "add", ARTIFACT)
     return tmp_path
 
 
@@ -68,6 +69,22 @@ def test_orphan_blocks(repo):
     assert result.returncode == 2, result.stderr
     assert ARTIFACT in result.stderr
     assert '"result":"blocked"' in _metrics(repo) and '"scan_ms"' in _metrics(repo)
+
+
+def test_an_untracked_file_is_never_a_candidate_but_a_committed_add_is(repo):
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "commit", "-qm", "add the artifact")
+    (repo / "lib" / "leftoverscratch.py").write_text("y = 2\n", encoding="utf-8")
+    result = _gate(repo)
+    assert result.returncode == 2, result.stderr
+    assert ARTIFACT in result.stderr and "leftoverscratch" not in result.stderr
+
+
+def test_a_checkout_with_only_untracked_files_passes(repo):
+    _git(repo, "rm", "-q", "--cached", ARTIFACT)
+    result = _gate(repo)
+    assert result.returncode == 0, result.stderr
+    assert ARTIFACT not in result.stderr
 
 
 def test_wired_passes_and_caches(repo):

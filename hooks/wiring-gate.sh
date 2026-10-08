@@ -5,7 +5,8 @@
 # Failure class this catches: producer-without-consumer (a file/class/log written
 # by one change with no reader anywhere — locally correct, dead at the seam).
 #
-# Verdict per NEW file (working tree + commits not yet on upstream):
+# Verdict per NEW file (staged adds + commits ahead of the merge-base; an untracked
+# file may predate the work, so it is never a candidate):
 #   wired   — some other file references its name token           -> pass
 #   pending — no referrer, but an open IOU with an anchor exists  -> pass (blocks in final mode)
 #   orphan  — no referrer, no IOU                                 -> exit 2 (wire it or add an IOU)
@@ -129,16 +130,16 @@ _wiring_main() {
 
   local FINAL=${WIRING_FINAL:-0}
 
-  # ---- candidates: working-tree adds/untracked (from the shared context) plus
-  # commits ahead of the integration base. 3-dot keeps a post-merge branch from
-  # claiming every file the base added since the divergence.
-  local committed_new=""
+  # ---- candidates: staged adds plus commits ahead of the integration base. 3-dot keeps
+  # a post-merge branch from claiming every file the base added since the divergence.
+  local committed_new="" staged_new
   if [ -n "${AFK_CTX_BASE:-}" ] && [ "${AFK_CTX_BASE}" != "HEAD" ]; then
     committed_new=$(git diff --name-only --diff-filter=A "$AFK_CTX_BASE"...HEAD 2>/dev/null || true)
   fi
+  staged_new=$(git diff --cached --name-only -z --diff-filter=ACR 2>/dev/null | tr '\0' '\n')
 
   local new_files
-  new_files=$(printf '%s\n%s\n' "${AFK_CTX_NEW:-}" "$committed_new" | sort -u | sed '/^$/d')
+  new_files=$(printf '%s\n%s\n' "$staged_new" "$committed_new" | sort -u | sed '/^$/d')
   [ -z "$new_files" ] && return 0
 
   local cache_key=""
