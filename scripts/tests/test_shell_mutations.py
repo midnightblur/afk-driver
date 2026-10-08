@@ -243,6 +243,21 @@ def test_lv106_control_words_open_a_new_executable_position(command, expected):
     assert res(command) == at(expected)
 
 
+@pytest.mark.parametrize("command,expected", [
+    ("if false; then cd sub; fi; git add x", (".", "sub")),
+    ("if true; then cd sub; else cd other; fi; touch f", ("f", "sub/f", "other/f", "sub/other/f")),
+    ("while true; do cd sub; git add y; done", (".", "sub")),
+    ("for d in a; do cd sub; done; rm g", ("g", "sub/g")),
+    ("if a; then if b; then cd sub; fi; fi; touch h", ("h", "sub/h")),
+    ("false && cd sub; git add z", (".", "sub")),
+    ("true || cd sub; touch i", ("i", "sub/i")),
+    ("cd sub; git add j", ("sub",)),
+    ("if true; then :; fi; cd sub; touch k", ("sub/k",)),
+])
+def test_lv201_a_cd_that_may_not_run_keeps_the_folder_before_it(command, expected):
+    assert res(command) == at(*expected)
+
+
 def test_s1_001_a_group_and_a_pipeline_do_not_leak_their_folder():
     assert res("(cd sub && touch safe); touch guarded") == at("sub/safe", "guarded")
     assert res("cd sub | touch guarded") == at("guarded")

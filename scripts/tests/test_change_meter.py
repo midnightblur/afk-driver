@@ -557,6 +557,33 @@ def test_lv102_a_backtick_ended_comment_hides_no_mutation_from_guard_or_meter(re
     assert not cm.read_only(LV102, repo["main"])
 
 
+@pytest.mark.parametrize("shape", [
+    "if false; then cd {away}; fi; git add tracked.txt",
+    "if true; then cd {away}; fi; git add tracked.txt",
+    "for d in a b; do cd {away}; done; git add tracked.txt",
+    "if true; then if false; then cd {away}; fi; fi; git add tracked.txt",
+], ids=["skipped-branch", "taken-branch", "loop", "nested-if"])
+def test_lv201_a_branch_local_cd_out_of_the_main_checkout_does_not_unlock_it(repo, shape):
+    main, away = repo["main"], repo["tmp"].as_posix()
+    command = shape.format(away=away)
+    assert denied(pre(main, command))
+    assert not cm.read_only(command, main)
+
+
+@pytest.mark.parametrize("shape", [
+    "if false; then cd \"{main}\"; fi; make",
+    "if true; then cd \"{main}\"; fi; make",
+    "while false; do cd \"{main}\"; done; make",
+    "if false; then if true; then cd \"{main}\"; fi; fi; make",
+], ids=["skipped-branch", "taken-branch", "loop", "nested-if"])
+def test_lv201_a_branch_local_cd_into_the_main_checkout_is_judged_and_metered(repo, shape):
+    main, topic = repo["main"], repo["topic"]
+    assert denied(pre(topic, shape.format(main=main.as_posix()).replace("make", "git add tracked.txt")))
+    assert not denied(pre(topic, shape.format(main=main.as_posix())))
+    [path] = files(topic, ".pre")
+    assert str(main) in [p["root"] for p in json.loads(path.read_text(encoding="utf-8"))["places"]]
+
+
 @pytest.mark.parametrize("command", ["git branch -uorigin/main", "git branch -vu origin/main", "git branch -fd x"])
 def test_g7_2_a_short_cluster_with_an_edit_letter_is_not_a_read(repo, command):
     assert not cm.read_only(command, repo["main"])

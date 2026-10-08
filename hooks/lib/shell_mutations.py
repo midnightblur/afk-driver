@@ -12,6 +12,7 @@ from pathlib import Path
 NO_TARGET = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "nul", "$null"}
 WRAPPERS = {"command", "exec", "nohup", "time", "env", "sudo", "builtin"}
 KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!"}  # the next word is a program
+OPENERS, CLOSERS = {"if", "while", "until", "for", "select", "case"}, {"fi", "done", "esac"}
 SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "--group", "--host", "--prompt",
               "--chdir", "--role", "--type", "--close-from"}
 ENV_VALUE = {"-u", "--unset", "-S", "--split-string"}
@@ -57,6 +58,7 @@ class Segment:
         self.redirects: list[Word] = []
         self.piped = False  # part of a pipeline: runs in a subshell
         self.mark = ""  # "open" / "close" for a `(` / `)` boundary
+        self.conditional = False  # follows `&&` or `||`: may not run
 
 
 def read_word(text: str, i: int) -> tuple[Word | None, int]:
@@ -148,7 +150,7 @@ def segments(text: str) -> list[Segment]:
             piped = c == "|" and not double
             current.piped = current.piped or piped
             close()
-            current.piped = piped
+            current.piped, current.conditional = piped, double
             i += 2 if double else 1
         elif c == "&" and text[i + 1:i + 2] == ">":
             i += 2 + (text[i + 2:i + 3] == ">")
@@ -158,7 +160,8 @@ def segments(text: str) -> list[Segment]:
                 current.redirects.append(word)
         elif c == "&":
             close()
-            i += 2 if text[i + 1:i + 2] == "&" else 1
+            current.conditional = text[i + 1:i + 2] == "&"
+            i += 2 if current.conditional else 1
         elif c == ">":
             i += 1 + (text[i + 1:i + 2] == ">")
             dup = text[i:i + 1] == "&"
@@ -467,50 +470,59 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
     With `visited` a list, every folder the command runs in or enters (cd, `-C`, `env -C`) is appended.
     With `pulls` a list, the folders of a mutating `git pull` are appended. `powershell` keeps a
     folder change made inside `( )` and lets `-WhatIf` exempt every writer.
+    A `cd` that may not run (in an if/loop/case body, or after `&&`/`||`) adds a candidate folder
+    instead of replacing them; every later command is judged in every candidate.
     """
     found: list[Path] = []
-    here: Path | None = cwd
-    saved: list[Path | None] = []
+    heres: list[Path | None] = [cwd]
+    saved: list[list[Path | None]] = []
+    depth = 0
     if visited is not None:
         visited.append(cwd)
     for segment in segments(command):
         if segment.mark:
             if segment.mark == "open":
-                saved.append(here)
+                saved.append(list(heres))
             elif saved:
                 kept = saved.pop()
-                here = here if powershell else kept
+                heres = heres if powershell else kept
             continue
-        for target in segment.redirects:
-            path = resolve(target, here)
-            if path is not None:
-                found.append(path)
+        lead = segment.words[0].text if segment.words and not segment.words[0].opaque else ""
+        depth = depth + (lead in OPENERS) - (lead in CLOSERS and depth > 0)
+        for here in heres:
+            for target in segment.redirects:
+                path = resolve(target, here)
+                if path is not None:
+                    found.append(path)
         effects: dict = {}
         words = strip_prefixes(segment.words, effects)
         if not words:
             continue
         prog = program_of(words[0])
-        spot = resolve(effects["chdir"], here) if effects.get("chdir") else here
+        spots = [resolve(effects["chdir"], here) if effects.get("chdir") else here for here in heres]
         if prog in CD:
             _, targets, _ = parse(words[1:])
             positional = parse(words[1:])[0]
             chosen = (targets or positional[:1])
-            moved = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
-            if visited is not None and moved is not None:
-                visited.append(moved)
+            moved = [resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None for here in heres]
+            if visited is not None:
+                visited.extend(path for path in moved if path is not None)
             if not segment.piped:
-                here = moved
+                branch = depth > 0 or segment.conditional
+                heres = list(dict.fromkeys(heres + moved if branch else moved))
         elif prog == "git":
-            if visited is not None and spot is not None:
-                visited.append(spot)
-            found.extend(git_resources(words, spot, syncs, visited, pulls))
+            for spot in spots:
+                if visited is not None and spot is not None:
+                    visited.append(spot)
+                found.extend(git_resources(words, spot, syncs, visited, pulls))
         else:
-            if visited is not None and spot is not None:
-                visited.append(spot)
-            for word in writer_targets(prog, words, powershell):
-                path = resolve(word, spot)
-                if path is not None:
-                    found.append(path)
+            for spot in spots:
+                if visited is not None and spot is not None:
+                    visited.append(spot)
+                for word in writer_targets(prog, words, powershell):
+                    path = resolve(word, spot)
+                    if path is not None:
+                        found.append(path)
     unique: list[Path] = []
     for path in found:
         if path not in unique:

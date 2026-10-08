@@ -58,7 +58,9 @@ release page from its section here. Nobody tags by hand.
 - The guard's shell reader skips comments and reads a `.cmd`, `.bat` or `.ps1`
   launcher as the program it names. A comment ends at its line even when it
   ends in `\` or a backtick, and the word after `if`, `then`, `elif`, `else`,
-  `while`, `until`, `do` or `!` is read as a program.
+  `while`, `until`, `do` or `!` is read as a program. A `cd` that may not run
+  (inside an `if`, loop or `case` body, or after `&&` or `||`) adds a folder
+  instead of replacing the current one, and later commands are judged in each.
 - Domain glossaries for tooltips come from the repository that holds the page,
   else from the session folder's repository.
 
