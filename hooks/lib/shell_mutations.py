@@ -170,6 +170,9 @@ def segments(text: str) -> list[Segment]:
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
             close()
             i += 1
+        elif c == "#":  # a word that starts with `#` opens a comment, Bash and PowerShell alike
+            end = text.find("\n", i)
+            i = n if end < 0 else end
         else:
             word, i = read_word(text, i)
             if word is None:
@@ -200,8 +203,9 @@ def resolve(word: Word, cwd: Path | None) -> Path | None:
 
 
 def program_of(word: Word) -> str:
+    """The program a word names: its last path part, lowercased, without a Windows launcher suffix."""
     name = re.split(r"[\\/]", word.text)[-1].lower()
-    return name[:-4] if name.endswith(".exe") else name
+    return re.sub(r"\.(?:exe|cmd|bat|ps1)$", "", name)
 
 
 def strip_prefixes(words: list[Word], effects: dict | None = None) -> list[Word]:

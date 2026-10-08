@@ -51,6 +51,12 @@ def refused(command: str) -> str | None:
     "powershell -c 'lavish-axi x.html'",
     "(lavish-axi x.html)",
     "echo $(lavish-axi share x.html)",
+    "echo \"$(lavish-axi share x.html)\"",
+    "npx.cmd lavish-axi share x.html",
+    "C:\\nvm4w\\nodejs\\npx.cmd -y lavish-axi share x.html",
+    "& 'C:\\nvm4w\\nodejs\\npx.ps1' lavish-axi x.html",
+    "npx.ps1 lavish-axi x.html",
+    "echo ok # docs\nlavish-axi share x.html",
 ])
 def test_a_direct_run_is_refused_and_points_at_the_wrapper(command):
     reason = refused(command)
@@ -71,9 +77,10 @@ def test_a_direct_run_is_refused_and_points_at_the_wrapper(command):
     "setx LAVISH_AXI_HOST 0.0.0.0",
     "bash -c 'export LAVISH_AXI_HOST=1'",
 ])
-def test_setting_the_host_is_refused(command):
+def test_setting_the_host_is_refused_and_points_at_the_wrapper(command):
     reason = refused(command)
     assert reason and "LAVISH_AXI_HOST" in reason
+    assert "lavish_show.py" in reason and "/plugin/scripts/" in reason
 
 
 @pytest.mark.parametrize("command", [
@@ -100,6 +107,16 @@ def test_setting_the_host_is_refused(command):
     "\"$tool\" share x.html",
     "eval \"$cmd\"",
     "",
+    "echo ok # docs; lavish-axi share x.html",
+    "# lavish-axi share x.html",
+    "ls # $(lavish-axi share x.html)",
+    "echo '$(lavish-axi share x.html)'",
+    "declare -p LAVISH_AXI_HOST",
+    "typeset -p LAVISH_AXI_HOST",
+    "export -p",
+    "export -n LAVISH_AXI_HOST",
+    "declare +x LAVISH_AXI_HOST",
+    "npx.cmd lavish-axi --version",
 ])
 def test_searches_mentions_and_unreadable_forms_pass(command):
     assert refused(command) is None
@@ -118,6 +135,11 @@ def denied(done: subprocess.CompletedProcess) -> bool:
     return done.returncode == 0 and '"permissionDecision": "deny"' in done.stdout
 
 
+def silently_allowed(done: subprocess.CompletedProcess) -> bool:
+    """A clean allow: the guard ran, exited 0, and said nothing; a crash or a notice is not one."""
+    return done.returncode == 0 and done.stdout == "" and done.stderr == ""
+
+
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
 def test_the_guard_process_refuses_outside_git_and_under_the_launch_flag(tmp_path, tool):
     assert denied(guard(tmp_path, tool, "lavish-axi share x.html"))
@@ -125,10 +147,19 @@ def test_the_guard_process_refuses_outside_git_and_under_the_launch_flag(tmp_pat
     assert denied(done) and "lavish_show.py" in done.stdout
 
 
-def test_the_guard_process_allows_the_wrapper_and_reads(tmp_path):
-    assert not denied(guard(tmp_path, "Bash", f"{WRAPPER} x.html --no-open"))
-    assert not denied(guard(tmp_path, "Bash", "grep -n lavish-axi LAVISH.md"))
+@pytest.mark.parametrize("tool,command", [
+    ("Bash", f"{WRAPPER} x.html --no-open"),
+    ("Bash", "grep -n lavish-axi LAVISH.md"),
+    ("Bash", "echo ok # docs; lavish-axi share x.html"),
+    ("Bash", "declare -p LAVISH_AXI_HOST"),
+    ("PowerShell", "Get-Command lavish-axi"),
+    ("Grep", "lavish-axi share x.html"),
+])
+def test_the_guard_process_silently_allows_the_wrapper_reads_and_other_tools(tmp_path, tool, command):
+    done = guard(tmp_path, tool, command)
+    assert silently_allowed(done), (done.returncode, done.stdout, done.stderr)
 
 
-def test_non_shell_tools_are_not_judged_by_the_lavish_rule(tmp_path):
-    assert not denied(guard(tmp_path, "Grep", "lavish-axi share x.html"))
+def test_a_missing_guard_is_not_mistaken_for_an_allow(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys.modules[__name__], "GUARD", tmp_path / "missing-guard.py")
+    assert not silently_allowed(guard(tmp_path, "Bash", "grep -n lavish-axi LAVISH.md"))
