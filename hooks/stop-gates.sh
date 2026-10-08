@@ -86,18 +86,21 @@ crashed=0
 # Gate findings are the block reason, and a reason has to be a value, not a
 # stream: collect stderr here and replay it once the verdict is known.
 GATE_ERR=$(mktemp "${TMPDIR:-/tmp}/afk-stop.XXXXXX") || GATE_ERR=
-stderr_held=0
+stderr_held=0 replay_pending=0
 if [ -n "$GATE_ERR" ]; then
   exec 3>&2 2>"$GATE_ERR"
-  stderr_held=1
+  stderr_held=1 replay_pending=1
 fi
 
 # Any exit — normal, signal — removes this Stop's temp files and any gate scratch.
-# A shell that dies while stderr is still held first replays it, so the error is seen.
+# A shell that dies before the held stderr was printed first replays it, so the error is seen.
 stop_cleanup() {
-  if [ -n "$GATE_ERR" ] && [ "${stderr_held:-0}" = 1 ]; then
+  if [ "${stderr_held:-0}" = 1 ]; then
     stderr_held=0
     exec 2>&3 3>&-
+  fi
+  if [ -n "$GATE_ERR" ] && [ "${replay_pending:-0}" = 1 ]; then
+    replay_pending=0
     cat "$GATE_ERR" >&2 2>/dev/null
   fi
   [ -n "$GATE_ERR" ] && rm -f "$GATE_ERR" 2>/dev/null
@@ -110,8 +113,8 @@ trap 'stop_cleanup; exit 143' TERM INT HUP
 
 release_stderr() {
   [ -n "$GATE_ERR" ] || return 0
-  stderr_held=0
   exec 2>&3 3>&-
+  stderr_held=0  # after the restore: a signal between them must not replay into the held file
 }
 
 run_gate() {  # $1 = gate name (file <name>-gate.sh, function gate_<name>)
@@ -189,17 +192,21 @@ release_stderr
 if [ "$blocked" = "1" ]; then
   write_stamp "blocked:$((prior_blocks + 1)):$stop_session:$AFK_CTX_TREE"
   reason=$(cat "$GATE_ERR" 2>/dev/null)
-  rm -f "$GATE_ERR" 2>/dev/null
-  [ "$prior_blocks" -lt "$STOP_BLOCK_LIMIT" ] && afk_block_stop "$reason"
+  if [ "$prior_blocks" -lt "$STOP_BLOCK_LIMIT" ]; then
+    afk_emit_stop_block "$reason"
+    replay_pending=0
+    exit "$(afk_stop_block_code)"
+  fi
   printf '%s\n' "$reason" >&2
+  replay_pending=0
   afk_emit_stop_notice "[afk] The Stop gates blocked this unchanged tree $STOP_BLOCK_LIMIT times in a row in this session, so this Stop is allowed. The findings still stand: $blocked_gates. A change to the tree resets the count, and the gates block again."
   exit 0
 fi
 
 # Not blocking: a crashed gate or an advisory line still has to be seen.
-if [ -n "$GATE_ERR" ]; then
+if [ "$replay_pending" = 1 ]; then
   cat "$GATE_ERR" >&2 2>/dev/null
-  rm -f "$GATE_ERR" 2>/dev/null
+  replay_pending=0
 fi
 
 # A crashed gate means this Stop verified less than the full suite — leave the

@@ -353,6 +353,24 @@ def test_a_stop_gate_that_kills_the_shell_leaves_its_error_on_stderr(plugin, tmp
     assert done.stdout == b""
 
 
+def test_a_signal_after_stderr_is_released_still_replays_the_findings(plugin, tmp_path):
+    for name in ("skill-registry", "native-contract", "genericity", "behavior-registry"):
+        (plugin / "hooks" / f"{name}-gate.sh").write_text(
+            f"gate_{name.replace('-', '_')}() {{ return 0; }}\n", encoding="utf-8", newline="\n")
+    # The gate refuses, and its emitter override lands a TERM between the release and the replay.
+    (plugin / "hooks" / "wiring-gate.sh").write_text(
+        "gate_wiring() { echo 'wiring finding' >&2; return 2; }\n"
+        "afk_emit_stop_block() { kill -TERM $$; }\n", encoding="utf-8", newline="\n")
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "new.md").write_text("x\n", encoding="utf-8")
+    done = subprocess.run([str(BASH), str(plugin / "hooks" / "stop-gates.sh")], stdin=subprocess.DEVNULL,
+                          capture_output=True, cwd=str(repo), timeout=180,
+                          env=environ("claude", GATE_CACHE_DISABLE="1", GATE_METRICS_DISABLE="1"))
+    assert done.returncode == 143
+    assert "wiring finding" in text(done.stderr)
+
+
 def test_worktree_create_says_why_when_create_worktree_prints_no_path(tmp_path):
     root = tmp_path / "plugin"
     (root / "scripts").mkdir(parents=True)
