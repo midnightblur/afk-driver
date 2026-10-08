@@ -96,6 +96,10 @@ release page from its section here. Nobody tags by hand.
   failed hook's stderr, the same line arrives as a warning and the hook exits 0.
 - A Stop gate that kills its shell no longer swallows the error, and the
   worktree-create hook says why when it gets no path.
+- `/afk:setup` now says which processes to restart after it changes `PATH`,
+  including a harness's background daemon and its updater. A daemon started
+  before the change runs every hook without `afk-python`, and every hook then
+  fails with exit 1.
 
 ## [1.15.0] - 2026-10-07
 

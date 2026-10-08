@@ -659,9 +659,10 @@ a token value — not even partially.
   the `afk-python` spelling and file the hooks' bash resolved. An intent
   file that exists but cannot be read stops it before any change.
   It prints one `ok`/`fail` line per step.
-  `plan` prints the same steps and changes nothing. The running harness keeps
-  its old PATH: report `needs-human: restart the harness` (step 2's
-  stale-environment rule). A `fail environment` line saying the platform has no
+  `plan` prints the same steps and changes nothing. Every running harness
+  process keeps its old PATH: report `needs-human: restart every running
+  harness process` (step 2's stale-environment rule), naming Codex's background
+  app-server daemon and its updater, which host its sessions' hooks. A `fail environment` line saying the platform has no
   prebuilt wheel is final: the lock has none for that platform (Windows on ARM
   and Intel macOS lack `cryptography` wheels for CPython 3.14), and setup never
   builds from source — report `needs-human: afk-python unsupported on this

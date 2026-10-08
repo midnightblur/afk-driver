@@ -26,6 +26,7 @@ skills/afk/setup/MANIFEST.md	harness-name	^## O — OpenAI Codex CLI	Register se
 skills/afk/setup/MANIFEST.md	harness-name	deferred \(Codex not installed\)	Section gating rule names the harness whose absence defers it.
 skills/afk/setup/MANIFEST.md	harness-name	running the native plugin under Codex CLI	Entry states which harness the dependency serves.
 skills/afk/setup/MANIFEST.md	harness-name	install or update Codex CLI	Human fix instruction names the CLI to install.
+skills/afk/setup/MANIFEST.md	harness-name	naming Codex's background	Restart instruction names the harness whose daemon keeps the old PATH.
 skills/afk/setup/MANIFEST.md	harness-name	^### O5 · Codex agent TOML stubs	Entry title names the harness whose stub format it provisions.
 skills/afk/setup/MANIFEST.md	claude-plugin-root	`PLUGIN_ROOT` / `PLUGIN_DATA` \| `hooks/lib/providers/codex.sh`	Env-toggle index lists the variable names one adapter reads.
 skills/afk/setup/SKILL.md	harness-name	Section \*\*O\*\* \(OpenAI Codex CLI\)	Driver names the register section it gates.
