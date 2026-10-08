@@ -2,20 +2,22 @@
 """PreToolUse gate: an agent changes a repository only from a linked worktree on an
 unprotected branch. The manifest runs this file directly (no shell, no launcher);
 the judge is lib/protected_branch_guard.py. If the judge cannot even load, or an
-exception escapes it, this entry still refuses inside a git work tree and allows outside
-one; an escaped exception also names itself on stderr (CAPABILITIES.md "Hook failures").
+exception escapes it, this entry still refuses inside the envelope's git work tree and allows
+outside one; an escaped exception also names itself on stderr (CAPABILITIES.md "Hook failures").
 """
+import io
 import json
 import os
 import sys
 from pathlib import Path
 
 LIB = Path(__file__).resolve().parent / "lib"
+ENVELOPE = [b""]  # read once, before the judge: a fallback must judge the same cwd the judge did
 
 
 def unloadable(problem: BaseException, what: str = "could not load") -> int:
     try:
-        cwd = Path(json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}").get("cwd") or os.getcwd())
+        cwd = Path(json.loads(ENVELOPE[0].decode("utf-8", "replace") or "{}").get("cwd") or os.getcwd())
     except Exception:
         cwd = Path.cwd()
     walk = cwd
@@ -35,6 +37,11 @@ def unloadable(problem: BaseException, what: str = "could not load") -> int:
         walk = walk.parent
 
 
+try:
+    ENVELOPE[0] = sys.stdin.buffer.read() if sys.stdin is not None else b""
+except Exception:
+    pass
+sys.stdin = io.TextIOWrapper(io.BytesIO(ENVELOPE[0]), encoding="utf-8")
 try:
     sys.path.insert(0, str(LIB))
     import protected_branch_guard

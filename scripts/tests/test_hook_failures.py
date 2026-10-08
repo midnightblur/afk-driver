@@ -318,6 +318,22 @@ def test_the_guard_names_an_escaped_exception_and_still_refuses_inside_a_work_tr
     assert one_document(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_a_late_guard_crash_judges_the_envelope_cwd_not_the_process_directory(plugin, tmp_path):
+    (plugin / "hooks" / "lib" / "protected_branch_guard.py").write_text(
+        "import sys\n\ndef main():\n    sys.stdin.buffer.read()\n    raise KeyboardInterrupt('late')\n",
+        encoding="utf-8")
+    outside, inside = tmp_path / "outside", tmp_path / "work"
+    outside.mkdir()
+    subprocess.run(["git", "init", "-q", str(inside)], check=True)
+    envelope = json.dumps({"hook_event_name": "PreToolUse", "session_id": "s", "tool_name": "Bash",
+                           "tool_input": {"command": "touch x"}, "cwd": str(inside)})
+    done = subprocess.run([sys.executable, str(plugin / "hooks" / "protected-branch-guard.py")],
+                          input=envelope.encode(), capture_output=True, cwd=str(outside),
+                          env=environ("claude"), timeout=120)
+    assert done.returncode == 0
+    assert one_document(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
 # ---- bash handlers: regressions for each silent exit fixed at its source (S1, S2, S3)
 
 def test_a_stop_gate_that_kills_the_shell_leaves_its_error_on_stderr(plugin, tmp_path):
