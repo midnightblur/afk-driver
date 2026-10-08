@@ -205,11 +205,14 @@ if os.environ.get("FAKE_BLOCK"):
 def install_server_upstream(folder: Path, layout: str = "package") -> None:
     """An upstream that, like lavish-axi, starts a detached server on render and blocks on `FAKE_BLOCK`.
 
-    Layout `batch` is the Windows fallback: a `.cmd` shim with no readable npm package."""
+    Layout `batch` is the Windows fallback: a `.cmd` shim with no readable npm package;
+    `batch-helper` runs a short helper process before the real one."""
     folder.mkdir()
-    if layout == "batch":
+    if layout.startswith("batch"):
         (folder / "fake.py").write_text(SERVER_PY, encoding="utf-8")
-        (folder / "lavish-axi.cmd").write_text(f"@\"{sys.executable}\" \"{folder / 'fake.py'}\" %*\r\n", encoding="utf-8")
+        helper = f"@\"{sys.executable}\" -c \"import time; time.sleep(0.5)\"\r\n" if layout == "batch-helper" else ""
+        (folder / "lavish-axi.cmd").write_text(
+            helper + f"@\"{sys.executable}\" \"{folder / 'fake.py'}\" %*\r\n", encoding="utf-8")
     elif os.name == "nt":
         (folder / "lavish-axi.cmd").write_text("@echo off\r\nexit /b 99\r\n", encoding="utf-8")
         package = folder / "node_modules" / "lavish-axi"
@@ -255,7 +258,8 @@ def kill(pid: int | None) -> None:
 
 LAYOUTS = [pytest.param("package", marks=pytest.mark.skipif(os.name == "nt" and not shutil.which("node"),
                                                            reason="the Windows npm layout needs node")),
-           pytest.param("batch", marks=pytest.mark.skipif(os.name != "nt", reason="batch shims exist only on Windows"))]
+           *(pytest.param(name, marks=pytest.mark.skipif(os.name != "nt", reason="batch shims exist only on Windows"))
+             for name in ("batch", "batch-helper"))]
 
 
 @pytest.fixture(params=LAYOUTS)

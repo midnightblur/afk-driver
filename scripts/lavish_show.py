@@ -207,8 +207,8 @@ def children_of(kernel, parent: int) -> list[int]:
         kernel.CloseHandle(snapshot)
 
 
-def bind_batch_child(job, shell: subprocess.Popen, seconds: float = 10.0) -> None:
-    """`.cmd` fallback: cmd.exe's own children break away, so bind the program it starts to `job`."""
+def bind_batch_children(job, shell: subprocess.Popen) -> None:
+    """`.cmd` fallback: cmd.exe's own children break away, so bind each one it starts to `job`."""
     try:
         import ctypes
 
@@ -218,11 +218,12 @@ def bind_batch_child(job, shell: subprocess.Popen, seconds: float = 10.0) -> Non
         born = process and kernel.GetProcessTimes(process, *(ctypes.byref(t) for t in times)) and times[0].value
         if process:
             kernel.CloseHandle(process)
-        deadline = time.monotonic() + seconds
-        while born and shell.poll() is None and time.monotonic() < deadline:
-            if any([assign(kernel, job, pid, born) for pid in children_of(kernel, shell.pid)]):
-                return
-            time.sleep(0.02)
+        bound: set[int] = set()
+        start = time.monotonic()
+        while born and shell.poll() is None:
+            bound.update(pid for pid in children_of(kernel, shell.pid)
+                         if pid not in bound and assign(kernel, job, pid, born))
+            time.sleep(0.02 if time.monotonic() - start < 2 else 0.25)
     except Exception:
         return  # best effort, as in bind_child_lifetime
 
@@ -251,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     child = subprocess.Popen(command)
     job = bind_child_lifetime(child.pid) if argv is None else None  # held until exit
     if job and command[0].lower().endswith((".cmd", ".bat")):
-        threading.Thread(target=bind_batch_child, args=(job, child), daemon=True).start()
+        threading.Thread(target=bind_batch_children, args=(job, child), daemon=True).start()
     try:
         return child.wait()
     except KeyboardInterrupt:
