@@ -6,6 +6,7 @@ position (bare, by path, behind `env`/`command`/`exec`/`npx`, inside `bash -c` /
 Searches, mentions, comments and `lavish-axi --version` pass, and so does anything
 `shell_mutations` cannot read literally. `runs` / `argv_runs` answer the run half alone,
 for the native-contract source gate.
+Known frontier: a literal `$(…)` inside escaped or concatenated quotes is refused as a run.
 """
 from __future__ import annotations
 

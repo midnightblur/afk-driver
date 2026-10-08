@@ -548,6 +548,15 @@ def test_w1_a_quarantine_unseen_for_a_day_is_swept_with_the_blobs(repo):
     assert not hold.exists() and fresh.exists()
 
 
+LV102 = "# Stage changes with `git add`\ngit status --short; git add README.md"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+def test_lv102_a_backtick_ended_comment_hides_no_mutation_from_guard_or_meter(repo, tool):
+    assert denied(pre(repo["main"], LV102, tool=tool))
+    assert not cm.read_only(LV102, repo["main"])
+
+
 @pytest.mark.parametrize("command", ["git branch -uorigin/main", "git branch -vu origin/main", "git branch -fd x"])
 def test_g7_2_a_short_cluster_with_an_edit_letter_is_not_a_read(repo, command):
     assert not cm.read_only(command, repo["main"])

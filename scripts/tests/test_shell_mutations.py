@@ -223,6 +223,26 @@ def test_s1_002_line_continuations_join_before_splitting():
     assert res("git \\\n  commit -m x") == at(".")
 
 
+LV102 = "# Stage changes with `git add`\ngit status --short; git add README.md"
+
+
+def test_lv102_a_comment_ending_in_a_continuation_character_ends_at_its_line():
+    assert res(LV102) == at(".")
+    assert res("# see C:\\temp\\\ntouch f") == at("f")
+    assert res("echo 'a`\ntouch g'") == []  # inside single quotes a backtick-newline is text
+    assert res("Write-Host x `\n  ; touch h") == at("h")
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("if true; then git add x; fi", "."), ("if false; then :; elif true; then touch a; fi", "a"),
+    ("if false; then :; else touch b; fi", "b"), ("for f in x; do touch c; done", "c"),
+    ("while true; do rm d; done", "d"), ("until false; do touch e; done", "e"), ("if git add y; then :; fi", "."),
+    ("! touch g", "g"),
+])
+def test_lv106_control_words_open_a_new_executable_position(command, expected):
+    assert res(command) == at(expected)
+
+
 def test_s1_001_a_group_and_a_pipeline_do_not_leak_their_folder():
     assert res("(cd sub && touch safe); touch guarded") == at("sub/safe", "guarded")
     assert res("cd sub | touch guarded") == at("guarded")

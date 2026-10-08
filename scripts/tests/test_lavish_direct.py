@@ -57,6 +57,11 @@ def refused(command: str) -> str | None:
     "& 'C:\\nvm4w\\nodejs\\npx.ps1' lavish-axi x.html",
     "npx.ps1 lavish-axi x.html",
     "echo ok # docs\nlavish-axi share x.html",
+    "if true; then lavish-axi share x.html; fi",
+    "if false; then :; else lavish-axi x.html; fi",
+    "for f in a; do lavish-axi poll x.html; done",
+    "while true; do npx lavish-axi stop; done",
+    "# Run it with `lavish-axi`\nlavish-axi share x.html",
 ])
 def test_a_direct_run_is_refused_and_points_at_the_wrapper(command):
     reason = refused(command)

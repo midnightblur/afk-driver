@@ -56,7 +56,9 @@ release page from its section here. Nobody tags by hand.
   in plugin scripts, workflow `run:` steps and prose (check N), read with the
   guard's own shell reader.
 - The guard's shell reader skips comments and reads a `.cmd`, `.bat` or `.ps1`
-  launcher as the program it names.
+  launcher as the program it names. A comment ends at its line even when it
+  ends in `\` or a backtick, and the word after `if`, `then`, `elif`, `else`,
+  `while`, `until`, `do` or `!` is read as a program.
 - Domain glossaries for tooltips come from the repository that holds the page,
   else from the session folder's repository.
 
