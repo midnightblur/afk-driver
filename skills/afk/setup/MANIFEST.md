@@ -983,7 +983,8 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
-| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
+| `AFK_CFG_REPO_HOOKS` | `hooks/precommit-gates.sh` | the repository hook manifest exported from `repo-hooks`; with no `afk-python`, a `PreCommit` entry in it blocks the commit instead of being skipped |
+| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-run change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission (default `<git common dir>/afk/metrics/gate-latency.jsonl`) |
 | `MAVEN_LOCK_DIR` | `adapters/build-gate/maven/maven-lock.sh` | relocate the cross-gate maven lock dir |

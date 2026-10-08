@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -51,9 +52,10 @@ def plugin(tmp_path_factory):
     return root
 
 
-def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False, **env: str):
+def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False,
+         handlers: list[dict] | None = None, **env: str):
     repo = tmp_path / "repo"
-    repo.mkdir()
+    repo.mkdir(exist_ok=True)
     _git(repo, "init", "-q")
     (repo / ".afk").mkdir()
     (repo / ".afk" / "config.yaml").write_text("schema: 1\nbuild-gates:\n  - maven\n", encoding="utf-8")
@@ -62,6 +64,11 @@ def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: b
         (repo / ".claude-plugin" / "plugin.json").write_text('{"name": "afk"}\n', encoding="utf-8")
         (repo / "hooks").mkdir()
         (repo / "hooks" / "plugin-source-gates.sh").write_text(PLUGIN_SOURCE, encoding="utf-8", newline="\n")
+    if handlers is not None:
+        for entry in handlers:
+            if "body" in entry:
+                (repo / entry["script"]).write_text(entry.pop("body"), encoding="utf-8", newline="\n")
+        (repo / ".afk" / "hooks.json").write_text(json.dumps(handlers), encoding="utf-8")
     (repo / "A.java").write_text("class A {}\n", encoding="utf-8")
     _git(repo, "add", "A.java")
     if delete_only:
@@ -119,3 +126,59 @@ def test_a_deletion_only_commit_still_reaches_the_plugin_source_gates(plugin, tm
     done, ran = _run(plugin, tmp_path, plugin_repo=True, delete_only=True)
     assert done.returncode == 0, done.stderr
     assert "plugin-source" in ran, done.stderr
+
+
+def _handler(name: str, body: str = "", matcher: str = "*") -> dict:
+    return {"event": "PreCommit", "matcher": matcher, "timeout": 60, "script": f"{name}.sh",
+            "body": f'printf "{name}\\n" >> "$GATE_LOG"\n{body}exit "${{{name.upper()}_RC:-0}}"\n'}
+
+
+def test_repository_precommit_handlers_run_last_in_declaration_order(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), _handler("costly")])
+    assert done.returncode == 0, done.stderr
+    assert ran == ["comment", "java-format", "maven-compile", "cheap", "costly"], done.stderr
+
+
+@pytest.mark.parametrize("rc", ["2", "1"])
+def test_the_first_refusing_handler_ends_the_run(plugin, tmp_path, rc):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), _handler("costly")], CHEAP_RC=rc)
+    assert done.returncode == 2, done.stderr
+    assert ran[-1] == "cheap", done.stderr
+    assert "cheap.sh exited" in done.stderr
+
+
+def test_a_build_gate_block_stops_before_any_handler(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], BLOCK_GATE="maven-compile")
+    assert done.returncode == 2, done.stderr
+    assert "cheap" not in ran, done.stderr
+
+
+@pytest.mark.parametrize("broken", ["missing", "matcher"])
+def test_a_handler_the_checkout_cannot_run_blocks(plugin, tmp_path, broken):
+    if broken == "missing":
+        handlers = [_handler("cheap"), {"event": "PreCommit", "matcher": "*", "timeout": 60, "script": "gone.sh"}]
+    else:
+        handlers = [_handler("cheap", matcher="Bash")]
+    done, ran = _run(plugin, tmp_path, handlers=handlers)
+    assert done.returncode == 2, done.stderr
+    assert "PreCommit handler refused" in done.stderr
+
+
+def test_the_gate_disabled_sentinel_skips_every_handler(plugin, tmp_path):
+    (tmp_path / "repo" / ".claude" / "hooks").mkdir(parents=True)
+    (tmp_path / "repo" / ".claude" / "hooks" / ".gate-disabled").write_text("reason\n", encoding="utf-8")
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body="exit 2\n")])
+    assert done.returncode == 0, done.stderr
+    assert ran == [], done.stderr
+
+
+def test_a_handler_reads_the_staged_tree_and_paths_and_each_run_is_metered(plugin, tmp_path):
+    body = ('[ "$AFK_STAGED_TREE" = "$(git write-tree)" ] || exit 3\n'
+            'grep -qx A.java "$AFK_STAGED_PATHS" || exit 4\n')
+    metrics = tmp_path / "metrics.jsonl"
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body), _handler("costly")],
+                     GATE_METRICS_DISABLE="0", GATE_METRICS_FILE=metrics.as_posix())
+    assert done.returncode == 0, done.stderr
+    lines = [json.loads(line) for line in metrics.read_text(encoding="utf-8").splitlines()]
+    handled = [(line["gate"], line["result"]) for line in lines if line.get("event") == "PreCommit"]
+    assert handled == [("cheap.sh", "pass"), ("costly.sh", "pass")]

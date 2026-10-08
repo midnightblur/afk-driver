@@ -42,6 +42,10 @@ release page from its section here. Nobody tags by hand.
 - `/afk:execute` Step 11 runs the wiring scan as advice before the slice's
   commit: each flagged row goes to `/afk:verify-seams` judgment, and a repair
   goes back to Step 8. The steps after it are renumbered 12–14.
+- A `PreCommit` event in `.afk/hooks.json`: the repository's own commit
+  gates run after the plugin's, in declaration order, and the first refusal
+  blocks the commit. Each handler reads the staged tree and path list and
+  writes one latency line.
 
 ### Changed
 

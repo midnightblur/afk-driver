@@ -29,7 +29,8 @@
 # explicit paths rather than everything, so judging the working tree would gate
 # files the commit does not contain.
 #
-# Order: backstop, comment, plugin-source gates (plugin repository only; a crash blocks), build gates (format/lint first).
+# Order: backstop, comment, plugin-source gates (plugin repository only; a crash blocks), build gates (format/lint first),
+# then the repository's PreCommit handlers (.afk/hooks.json); the first block ends the run.
 # Skip: .claude/hooks/.gate-disabled, AFK_SKIP_PRECOMMIT_GATES=1 for one commit, or `git commit --no-verify`.
 
 set -u
@@ -171,4 +172,18 @@ done < <(afk_config_list build-gates)
 for _bg in ${cheap_gates[@]+"${cheap_gates[@]}"} ${costly_gates[@]+"${costly_gates[@]}"}; do
   run_gate "${_bg#*:}" "${_bg%%:*}"
 done
+
+# Repository PreCommit handlers last, in declaration order, with the staged tree and path list.
+AFK_STAGED_TREE=$(git write-tree 2>/dev/null) && AFK_STAGED_PATHS=$(mktemp 2>/dev/null) || commit_blocked
+trap 'rm -f "$AFK_STAGED_PATHS"' EXIT
+git diff --cached --name-only --diff-filter=ACMRT > "$AFK_STAGED_PATHS" || commit_blocked
+export AFK_STAGED_TREE AFK_STAGED_PATHS
+gate_metrics_file && export GATE_METRICS_FILE="$_GATE_METRICS_PATH"
+py="${AFK_PYTHON:-afk-python}"
+if command -v "$py" >/dev/null 2>&1; then
+  "$py" "$SCRIPT_DIR/run-hook.py" repo-list PreCommit </dev/null >&2 || commit_blocked
+elif grep -qs '"PreCommit"' "${AFK_CFG_REPO_HOOKS:-.afk/hooks.json}"; then
+  echo "[afk] repository PreCommit handlers cannot run: afk-python not found. Run /afk:setup." >&2
+  commit_blocked
+fi
 exit 0
