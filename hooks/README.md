@@ -25,7 +25,9 @@ run these handlers. The launcher takes both problems: it locates a real Git Bash
 (`AFK_BASH`, `GIT_BASH`, a lookup relative to `git --exec-path`, the known
 install locations, then `PATH` minus the system directory), resolves the handler
 under the plugin or the checkout, forwards stdin and the exit code, and exits 0
-on an absent handler. Add a hook: add the entry in that shape — never a second
+on an absent handler. A handler that fails gets one `[afk] … failed:` line,
+and under some providers a `systemMessage`: `CAPABILITIES.md` "Hook failures"
+owns that contract. Add a hook: add the entry in that shape — never a second
 launch mechanism.
 
 **Two bails come before any shell.** `repo-list <event>` exits 0 when the

@@ -50,6 +50,12 @@ gathers every refusal and emits one verdict in the provider's block shape
 (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same events
 block too. On the remaining events it writes the reason to stderr.
 
+A handler that fails without refusing (any exit but 0 or 2, no refusal object) or runs
+out of time gets one stderr line from the launcher, `[afk] <handler> (<event>) failed: ...`,
+after its own stderr; so does a fault in the launcher itself. Where the provider declaration
+says the harness drops stderr on a failed exit, a non-soft failure exits 0 with that line in
+`systemMessage` instead (contract: CAPABILITIES.md "Hook failures").
+
 Two bails exit 0 before any shell lookup: `repo-list` when the repository declares no
 handler for the event, and `plugin` for a handler its provider's declaration
 (`hooks/lib/providers/<name>.json`) makes a no-op (POLICY_NOOP). Before a handler
@@ -69,6 +75,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -233,11 +240,15 @@ def _drain(proc: subprocess.Popen) -> tuple[bytes | None, bytes | None]:
 
 def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None,
              capture: bool = False, timeout: float | None = None,
-             jobbed: bool = True) -> subprocess.CompletedProcess:
-    """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal."""
+             jobbed: bool = True, outputs: tuple | None = None) -> subprocess.CompletedProcess:
+    """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal.
+
+    `outputs` is a (stdout, stderr) pair of files: unlike a pipe, a file never waits on a background child.
+    """
     pipes = subprocess.PIPE if capture else None
+    out_to, err_to = outputs if outputs is not None else (pipes, pipes)
     proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None else None,
-                       stdout=pipes, stderr=pipes)
+                       stdout=out_to, stderr=err_to)
     _ACTIVE.append(proc)
     try:
         try:
@@ -437,15 +448,115 @@ POLICY_NOOP = {
 }
 
 
+_FACTS: list[dict | None] = []
+
+
+def provider_facts() -> dict | None:
+    """This harness's provider declaration, loaded once; None when it cannot be read."""
+    if not _FACTS:
+        try:
+            _FACTS.append(load_lib("afk_provider_facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts())
+        except Exception:
+            _FACTS.append(None)
+    return _FACTS[0]
+
+
 def policy_noop(handler: str) -> bool:
     test = POLICY_NOOP.get(handler)
-    if test is None:
-        return False
+    facts = provider_facts() if test is not None else None
+    return facts is not None and test(facts)
+
+
+# ---- a failed handler names itself: CAPABILITIES.md "Hook failures" owns the contract,
+# hooks/lib/hook_failure.py the line. Loaded only on a failure.
+_ENVELOPE: list[bytes | None] = []
+_WHO = {"handler": "run-hook.py", "event": None, "soft": False}
+
+
+def envelope() -> bytes | None:
+    """The harness's stdin envelope, read once; None when stdin is a terminal or absent."""
+    if not _ENVELOPE:
+        stream = sys.stdin
+        _ENVELOPE.append(None if stream is None or stream.isatty() else stream.buffer.read())
+    return _ENVELOPE[0]
+
+
+def envelope_field(name: str) -> str:
     try:
-        facts = load_lib("afk_provider_facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts()
+        said = json.loads((envelope() or b"").decode("utf-8", "replace"))
+    except (ValueError, OSError):
+        return ""
+    return str(said.get(name) or "") if isinstance(said, dict) else ""
+
+
+def failure_text(handler: str, event: str | None, outcome: str, said: bytes | str | None) -> str:
+    try:
+        return load_lib("afk_hook_failure", PLUGIN_ROOT / "hooks" / "lib" / "hook_failure.py").line(
+            handler, event, outcome, said)
+    except Exception:  # a broken install still names the handler
+        return f"[afk] {handler} ({event or 'unknown event'}) failed: {outcome}"
+
+
+def failed(handler: str, event: str | None, outcome: str, said: bytes | str | None) -> str:
+    text = failure_text(handler, event, outcome, said)
+    sys.stderr.write(text + "\n")
+    sys.stderr.flush()
+    return text
+
+
+def answer(lines: list[str], outputs: list[bytes]) -> bool:
+    """Where the provider drops stderr on a failed exit, carry `lines` in one stdout document at exit 0.
+
+    True when it did: the caller then exits 0. `outputs` are the documents that document joins.
+    """
+    try:
+        lib = load_lib("afk_hook_failure", PLUGIN_ROOT / "hooks" / "lib" / "hook_failure.py")
+        wanted = bool(lines) and lib.system_message(provider_facts() or {})
     except Exception:
         return False
-    return test(facts)
+    if wanted:
+        sys.stdout.write(merge_allowed([*outputs, lib.notice(lines).encode("utf-8")]) + "\n")
+        sys.stdout.flush()
+    return wanted
+
+
+def write_raw(stream, data: bytes | None) -> None:
+    if data:
+        stream.flush()
+        stream.buffer.write(data)
+        stream.buffer.flush()
+
+
+def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None, timeout: float | None,
+                 jobbed: bool = True) -> tuple[int | None, bytes, bytes]:
+    """A handler's exit code (None past `timeout`), stdout and stderr, both held in files."""
+    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        try:
+            code = run_tree(args, env, input=input, timeout=timeout, jobbed=jobbed, outputs=(out, err)).returncode
+        except subprocess.TimeoutExpired:
+            code = None
+        out.seek(0)
+        err.seek(0)
+        return code, out.read(), err.read()
+
+
+def plugin_verdict(handler: str, code: int | None, out: bytes, err: bytes, soft: bool) -> int:
+    """Pass a plugin handler's streams and code through; a failure or a timeout also names itself."""
+    write_raw(sys.stderr, err)
+    event = envelope_field("hook_event_name") or None
+    if code is None:  # partial stdout is dropped: a verdict cut off midway is no verdict
+        text = failed(handler, event, f"timed out after {_DEADLINE_S:g}s, stopped, verdict unknown", err)
+        if not soft:
+            answer([text], [])
+        return 0
+    if code in (0, 2) or denial(event or "", out) is not None:
+        write_raw(sys.stdout, out)
+        return 0 if soft else code
+    text = failed(handler, event, f"exit {code}", err)
+    if not soft and answer([text], []):
+        return 0  # the handler's own stdout is dropped, as the harness drops it on a failed exit
+    write_raw(sys.stdout, out)
+    return 0 if soft else code
 
 
 def runtime_fault() -> str | None:
@@ -627,12 +738,7 @@ def block_without_shell(event: str, why: str) -> int:
     env = dict(os.environ)
     root = repo_root(env)
     entries, faults = repo_entries(root, event) if root is not None else ([], [])
-    tool = ""
-    try:
-        raw = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
-        tool = str(json.loads(raw.decode("utf-8", "replace")).get("tool_name") or "") if raw else ""
-    except (ValueError, AttributeError):
-        tool = ""
+    tool = envelope_field("tool_name")
     for entry in entries:
         if matcher_fault(entry.get("matcher")) or matches(entry.get("matcher"), tool):
             faults.append(f"{why}: cannot run {entry.get('script')}")
@@ -712,6 +818,8 @@ def owner_env() -> dict[str, str]:
 
 def main(argv: list[str]) -> int:
     global _DEADLINE_AT, _DEADLINE_S
+    _ENVELOPE.clear()
+    _FACTS.clear()
     for stream in (sys.stdout, sys.stderr):  # the harness reads UTF-8; a code page cannot encode all text
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
@@ -739,6 +847,8 @@ def main(argv: list[str]) -> int:
             "run-hook.py: usage: run-hook.py [--soft] [--deadline <seconds>] repo-list <event>\n"
         )
         return 0 if soft else 2
+    _WHO.update(handler=argv[1] if argv[0] == "plugin" else "repo-list",
+                event=argv[1] if argv[0] == "repo-list" else None, soft=soft)
 
     if argv[0] == "repo-list":
         if argv[1] not in EVENTS:
@@ -761,7 +871,8 @@ def main(argv: list[str]) -> int:
             return 0
         if argv[0] == "repo-list" and argv[1] in BLOCKING_EVENTS:
             return block_without_shell(argv[1], why)
-        return 1
+        text = failed(_WHO["handler"], _WHO["event"] or envelope_field("hook_event_name") or None, "exit 1", why)
+        return 0 if answer([text], []) else 1
     # The shell's own toolchain sits on this PATH, so git resolves here even
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
@@ -779,14 +890,9 @@ def main(argv: list[str]) -> int:
             return 0
         if argv[1] in OWNER_HANDLERS:
             env.update(owner_env())
-        try:
-            completed = run_tree([str(bash), str(script), *argv[2:]], env, timeout=budget_left(),
-                                 jobbed=argv[1] not in DETACHES_HELPERS)
-        except subprocess.TimeoutExpired:
-            sys.stderr.write(
-                f"[afk] {argv[1]} exceeded its {_DEADLINE_S:g}s budget — stopped, verdict unknown.\n")
-            return 0
-        return 0 if soft else completed.returncode
+        code, out, err = run_captured([str(bash), str(script), *argv[2:]], env, input=envelope(),
+                                      timeout=budget_left(), jobbed=argv[1] not in DETACHES_HELPERS)
+        return plugin_verdict(argv[1], code, out, err, soft)
 
     event = argv[1]
     root = repo_root(env)
@@ -796,19 +902,15 @@ def main(argv: list[str]) -> int:
     if not entries and not faults:
         return 0
 
-    envelope = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
-    tool = ""
-    if envelope:
-        try:
-            parsed = json.loads(envelope.decode("utf-8", "replace"))
-            tool = str(parsed.get("tool_name") or "")
-        except ValueError:
-            tool = ""
+    given = envelope() or b""
+    tool = envelope_field("tool_name")
 
     failure = 0
     refused: list[str] = []
     timeouts: list[str] = []
     allowed: list[bytes] = []
+    passed: list[bytes] = []  # non-blocking stdout, verbatim and in order
+    notices: list[str] = []
     blocking = event in BLOCKING_EVENTS and not soft
     for entry in entries:
         named = entry.get("script")
@@ -828,9 +930,12 @@ def main(argv: list[str]) -> int:
         if left is not None:
             timeout = left if timeout is None else min(timeout, left)
         try:
-            completed = run_tree(
-                [str(bash), str(script)], env, input=envelope, timeout=timeout, capture=blocking,
-            )
+            if not blocking:
+                code, out, err = run_captured([str(bash), str(script)], env, input=given, timeout=timeout)
+            else:
+                completed = run_tree(
+                    [str(bash), str(script)], env, input=given, timeout=timeout, capture=True,
+                )
         except subprocess.TimeoutExpired:
             timeouts.append(f"{named}: no verdict within {timeout:g} seconds")
             continue
@@ -840,6 +945,10 @@ def main(argv: list[str]) -> int:
         if blocking:
             said = (completed.stderr or b"").decode("utf-8", "replace").strip()
             reason = denial(event, completed.stdout or b"")
+            if reason is None and completed.returncode not in (0, 2):
+                # A crash, not a refusal: the item names the handler, as a failed handler does.
+                refused.append(failure_text(named, event, f"exit {completed.returncode}", said))
+                continue
             if reason is not None or completed.returncode:
                 # One verdict leaves this launcher, in the provider's shape: never a handler's own.
                 refused.append(reason or said or f"{named} exited {completed.returncode}")
@@ -849,16 +958,31 @@ def main(argv: list[str]) -> int:
             if said:
                 sys.stderr.write(said + "\n")
             continue
-        if completed.returncode and event == "WorktreeCreated":
-            faults.append(f"{named}: exited {completed.returncode}; the worktree is kept")
+        write_raw(sys.stderr, err)
+        if code is None:
+            notices.append(failed(named, event, f"timed out after {timeout:g}s, verdict unknown", err))
             continue
-        if completed.returncode and not failure:
-            failure = completed.returncode
+        if code not in (0, 2):
+            notices.append(failed(named, event, f"exit {code}", err))
+        else:
+            allowed.append(out)
+        passed.append(out)
+        if code and event == "WorktreeCreated":
+            faults.append(f"{named}: exited {code}; the worktree is kept")
+            continue
+        if code and not failure:
+            failure = code
 
     for fault in faults + timeouts:
         sys.stderr.write(f"run-hook.py: {fault}\n")
     if (faults or refused or timeouts) and blocking:
         return block(event, faults, bash, env, refused, timeouts)
+    if not blocking:
+        if not soft and answer(notices, allowed):
+            return 0
+        for out in passed:
+            write_raw(sys.stdout, out)
+        return 0 if soft else failure
     merged = merge_allowed(allowed)  # context printed while nothing refused: one document
     if merged:
         sys.stdout.write(merged + "\n")
@@ -866,5 +990,20 @@ def main(argv: list[str]) -> int:
     return 0 if soft else failure
 
 
+def guarded_main(argv: list[str]) -> int:
+    """`main`, except that a fault in the launcher itself names itself as a failed handler does."""
+    try:
+        return main(argv)
+    except Exception as problem:
+        try:
+            event = _WHO["event"] or envelope_field("hook_event_name") or None
+        except Exception:
+            event = None
+        text = failed(_WHO["handler"], event, "exit 1", f"{type(problem).__name__}: {problem}")
+        if _WHO["soft"]:
+            return 0
+        return 0 if answer([text], []) else 1
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(guarded_main(sys.argv[1:]))

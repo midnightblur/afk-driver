@@ -1,8 +1,9 @@
 #!/usr/bin/env afk-python
 """PreToolUse gate: an agent changes a repository only from a linked worktree on an
 unprotected branch. The manifest runs this file directly (no shell, no launcher);
-the judge is lib/protected_branch_guard.py. If the judge cannot even load, this
-entry still refuses inside a git work tree and allows outside one.
+the judge is lib/protected_branch_guard.py. If the judge cannot even load, or an
+exception escapes it, this entry still refuses inside a git work tree and allows outside
+one; an escaped exception also names itself on stderr (CAPABILITIES.md "Hook failures").
 """
 import json
 import os
@@ -12,7 +13,7 @@ from pathlib import Path
 LIB = Path(__file__).resolve().parent / "lib"
 
 
-def unloadable(problem: BaseException) -> int:
+def unloadable(problem: BaseException, what: str = "could not load") -> int:
     try:
         cwd = Path(json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}").get("cwd") or os.getcwd())
     except Exception:
@@ -22,7 +23,7 @@ def unloadable(problem: BaseException) -> int:
         walk = walk.parent
     while True:
         if (walk / ".git").exists():
-            reason = ("protected-branch guard: refused to act. Cause: the guard could not load "
+            reason = (f"protected-branch guard: refused to act. Cause: the guard {what} "
                       f"({problem}). Move: repair the plugin install, then retry.")
             sys.stderr.write(reason + "\n")
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
@@ -39,4 +40,15 @@ try:
     import protected_branch_guard
 except BaseException as error:
     sys.exit(0 if os.environ.get("AFK_ALLOW_PROTECTED") == "1" else unloadable(error))
-sys.exit(protected_branch_guard.main())
+try:
+    code = protected_branch_guard.main()
+except SystemExit:
+    raise
+except BaseException as error:
+    try:
+        import hook_failure
+        hook_failure.crashed("protected-branch-guard.py", "PreToolUse", error, notify=False)
+    except BaseException:
+        pass
+    code = 0 if os.environ.get("AFK_ALLOW_PROTECTED") == "1" else unloadable(error, "crashed")
+sys.exit(code)

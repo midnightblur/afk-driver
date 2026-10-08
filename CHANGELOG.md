@@ -90,6 +90,10 @@ release page from its section here. Nobody tags by hand.
   names its editor (`lastEditedBy`). A token that cannot read users hides the
   editor and the author alike, and the adapter then reports an error instead
   of calling the note unedited.
+- A failing hook now names itself: `[afk] <handler> (<event>) failed: exit <n>: <reason>`
+  on stderr, for every plugin and repository handler, a timeout, and a crash in
+  the launcher, the guard, the meter or occupancy. Where the harness drops a
+  failed hook's stderr, the same line arrives as a warning and the hook exits 0.
 - A Stop gate that kills its shell no longer swallows the error, and the
   worktree-create hook says why when it gets no path.
 

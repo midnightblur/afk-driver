@@ -2,7 +2,7 @@
 """PostToolUse: compare a guarded checkout with the snapshot the guard took before a shell call.
 
 A difference is injected as context and starts the quarantine the guard enforces; this handler
-never blocks and exits 0 on every path.
+never blocks and exits 0 on every path; a crash names itself (CAPABILITIES.md "Hook failures").
 """
 import json
 import os
@@ -35,6 +35,11 @@ def run() -> None:
 if os.environ.get("AFK_ALLOW_PROTECTED") != "1":
     try:
         run()
-    except BaseException:
-        pass
+    except BaseException as problem:  # fail open, but never silently
+        try:
+            sys.path.insert(0, str(LIB))
+            import hook_failure
+            hook_failure.crashed("protected-branch-meter.py", "PostToolUse", problem, notify=True)
+        except BaseException:
+            pass
 sys.exit(0)

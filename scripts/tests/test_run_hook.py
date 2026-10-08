@@ -455,7 +455,7 @@ def test_deadline_kills_the_handler_tree(plugin_copy):
     out, err = proc.communicate(timeout=60)
     assert time.monotonic() - start < 10
     assert proc.returncode == 0
-    assert "slow.sh exceeded its 2s budget — stopped, verdict unknown." in err
+    assert "[afk] slow.sh (unknown event) failed: timed out after 2s, stopped, verdict unknown" in err
     assert _gone(_pids(mark, ("child", "grand")))
 
 
