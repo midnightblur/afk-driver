@@ -50,7 +50,7 @@ def _env() -> dict[str, str]:
 
 
 def run_runner(repo: Path, *mode: str, judge: Path = ROOT, path_first: Path | None = None,
-               **env: str) -> tuple[int, list[tuple[str, str, str]], str]:
+               cwd: Path | None = None, **env: str) -> tuple[int, list[tuple[str, str, str]], str]:
     report = repo.parent / f"{repo.name}-{judge.name}-{mode[0].strip('-')}.tsv"
     # path_first is prepended inside bash, as a project-aware shell does, ahead of the shell's own folders.
     prefix = [] if path_first is None else [
@@ -58,7 +58,7 @@ def run_runner(repo: Path, *mode: str, judge: Path = ROOT, path_first: Path | No
         "_", path_first.as_posix()]
     done = subprocess.run([str(BASH), *prefix, (judge / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
                            "--report", report.as_posix()],
-                          cwd=repo, env={**_env(), **env}, capture_output=True, text=True, timeout=600)
+                          cwd=cwd or repo, env={**_env(), **env}, capture_output=True, text=True, timeout=600)
     rows = []
     if report.exists():
         for line in report.read_text(encoding="utf-8").splitlines():
@@ -423,20 +423,44 @@ def test_a_linked_interpreter_resolves_with_a_readlink_that_lacks_dash_f(base, t
     assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err
 
 
-def test_candidate_programs_first_on_the_inherited_path_never_run(base, tmp_path):
+@pytest.mark.parametrize("case", ["relative-git-dir", "outside-without-work-tree"])
+def test_an_unknowable_repository_is_refused(base, tmp_path, case):
+    repo = _clone(base, f"unknowable_{case.replace('-', '_')}")
+    start, env = repo, {"GIT_DIR": ".git"}
+    if case == "outside-without-work-tree":
+        start = tmp_path / "outside"
+        start.mkdir()
+        env = {"GIT_DIR": (repo / ".git").as_posix()}
+    rc, rows, err = run_runner(repo, "--staged", cwd=start, **env)
+    assert rc == 2 and "cannot tell which repository git will use" in err and rows == [], err
+
+
+@pytest.mark.parametrize("where", ["checkout", "outside", "linked-worktree"])
+def test_candidate_programs_first_on_the_inherited_path_never_run(base, tmp_path, where):
+    """outside: started elsewhere with GIT_DIR and GIT_WORK_TREE; linked-worktree: the variables git gives a hook."""
     marker = tmp_path / "candidate-program-ran"
-    repo = _clone(base, "candidate_path")
-    _append(repo / "README.md", "\nA fixture line.\n")
-    _git(repo, "add", "README.md")
-    (repo / "bin").mkdir()
+    repo = _clone(base, f"candidate_path_{where.replace('-', '_')}")
+    work, start, env = repo, repo, {}
+    if where == "outside":
+        start = tmp_path / "outside"
+        start.mkdir()
+        env = {"GIT_DIR": (repo / ".git").as_posix(), "GIT_WORK_TREE": repo.as_posix()}
+    elif where == "linked-worktree":
+        work = start = repo.parent / f"{repo.name}_wt"
+        _git(repo, "worktree", "add", "-q", "-b", "side", work.as_posix())
+        git_dir = _git(work, "rev-parse", "--absolute-git-dir").strip()
+        env = {"GIT_DIR": git_dir, "GIT_INDEX_FILE": f"{git_dir}/index"}
+    _append(work / "README.md", "\nA fixture line.\n")
+    _git(work, "add", "README.md")
+    (work / "bin").mkdir()
     for name in ("grep", "git"):
-        stub = repo / "bin" / name
+        stub = work / "bin" / name
         stub.write_text(f"#!/usr/bin/env bash\necho {name} >>'{marker.as_posix()}'\nexit 1\n",
                         encoding="utf-8", newline="\n")
         stub.chmod(0o755)
-    staged = run_runner(repo, "--staged", path_first=repo / "bin")
-    _git(repo, "commit", "-q", "-m", "fixture line")
-    ranged = run_runner(repo, "--range", "origin/main", path_first=repo / "bin")
+    staged = run_runner(work, "--staged", path_first=work / "bin", cwd=start, **env)
+    _git(work, "commit", "-q", "-m", "fixture line")
+    ranged = run_runner(work, "--range", "origin/main", path_first=work / "bin", cwd=start, **env)
     for rc, rows, err in (staged, ranged):
         assert not marker.exists(), err
         assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err

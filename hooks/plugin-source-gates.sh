@@ -4,27 +4,39 @@
 
 set -u
 
-# Builtins only until PATH keeps just absolute, readable folders outside the repository (the hook's cwd).
+# Builtins only until PATH keeps just absolute, readable folders outside every root git could pick:
+# the nearest .git folder, GIT_WORK_TREE, GIT_DIR and the folder holding a GIT_DIR named .git.
 trusted_path() {
-  local top dir phys kept="" fold=false IFS=:
-  local -a dirs
+  local dir phys kept="" fold=false var value root IFS=:
+  local -a dirs roots=()
   case "${OSTYPE:-}" in msys*|cygwin*|win*|darwin*) fold=true ;; esac
-  top=$(pwd -P) || return 1
-  dir=$top
+  dir=$(pwd -P) || { refusal="cannot read the current folder"; return 1; }
   while [ -n "$dir" ] && [ ! -e "$dir/.git" ]; do dir=${dir%/*}; done
-  [ -z "$dir" ] || top=$dir
+  [ -n "$dir" ] && roots+=("$dir")
+  for var in GIT_WORK_TREE GIT_DIR; do
+    value=${!var-}
+    [ -n "$value" ] || continue
+    case "$value" in /*|[A-Za-z]:[/\\]*) ;; *) refusal="$var is relative"; return 1 ;; esac
+    phys=$(cd "$value" 2>/dev/null && pwd -P) || { refusal="$var names no folder"; return 1; }
+    roots+=("$phys")
+    [ "$var" = GIT_DIR ] && [ "${phys##*/}" = .git ] && roots+=("${phys%/*}")
+  done
+  [ -n "$dir" ] || [ -n "${GIT_WORK_TREE-}" ] || { refusal="no repository encloses the current folder"; return 1; }
   read -r -a dirs <<<"$PATH"
   "$fold" && shopt -s nocasematch
   for dir in "${dirs[@]}"; do
     case "$dir" in /*) ;; *) continue ;; esac
     [ -r "$dir" ] && phys=$(cd "$dir" 2>/dev/null && pwd -P) || continue
-    case "${phys%/}/" in "${top%/}/"*) continue ;; esac
+    for root in "${roots[@]}"; do
+      case "${phys%/}/" in "${root%/}/"*) continue 2 ;; esac
+    done
     kept+="${kept:+:}$dir"
   done
   shopt -u nocasematch
   PATH=$kept
 }
-trusted_path || { echo "[afk] plugin-source gates: cannot read the current folder — NOT verified." >&2; exit 2; }
+refusal=""
+trusted_path || { echo "[afk] plugin-source gates: cannot tell which repository git will use ($refusal) — NOT verified." >&2; exit 2; }
 # Windows would otherwise search a process's current folder, the candidate, for a bare program name.
 export NoDefaultCurrentDirectoryInExePath=1
 
