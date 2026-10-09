@@ -35,7 +35,7 @@ this evidence, and the last section says what would close it.
 | `ledger` | The probe ledger in `CONFORMANCE.md` — rounds 1-4, both harnesses |
 | `round5` | The adapter proof round in `CONFORMANCE.md` — every adapter kind against its real service |
 | `cutover` | The install and uninstall record in `CONFORMANCE.md`, on the owner's own two harnesses |
-| `gate` | An automated gate asserts exactly this, and the gate is green: the four Stop gates, `precommit-gates.sh`, `release-gate.sh`, `hooks/tests/hook-smoke.sh`, the 80-test suite, `claude plugin validate .` |
+| `gate` | An automated gate asserts exactly this, and the gate is green: `plugin-source-gates.sh`, `precommit-gates.sh`, `release-gate.sh`, `hooks/tests/hook-smoke.sh`, the 80-test suite, `claude plugin validate .` |
 | `release` | Observed during the v1.0.1 / v1.0.2 release and reinstall on both harnesses |
 
 ## Skills
@@ -102,7 +102,7 @@ this evidence, and the last section says what would close it.
 | run-hook.py | proven | `gate` — the `hook-smoke.sh` launcher cases: the root is the working tree's Git root; `ledger` — repo kind resolves from `.afk/hooks.json` |
 | hooks.json | covered | `gate` — `claude plugin validate .` and the registry gate |
 | hooks.codex.json | covered | `gate` — the native-contract gate diffs the twin modulo the root variable |
-| stop-gates.sh | proven | `ledger` — real Stop blocks observed on both harnesses |
+| plugin-source-gates.sh | covered | `gate` — `scripts/tests/test_plugin_source_gates.py` staged-versus-range parity fixtures |
 | precommit-gates.sh | proven | `round5` — dispatched maven on a monorepo worktree and npm on a fixture |
 | gate-context.sh | covered | `gate` |
 | gate-cache.sh | covered | `gate` |

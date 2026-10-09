@@ -25,7 +25,7 @@ Usage:
                seconds), so each can fit its own waits inside the budget.
 
 `.afk/hooks.json` is a JSON array of objects, each with `event`
-(SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated), `matcher` (a regular
+(SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated|PreCommit), `matcher` (a regular
 expression matched against
 the envelope tool name, or `*`), `timeout` (seconds), and `script` (a path
 relative to the repository root). A script path that resolves outside the
@@ -37,6 +37,11 @@ build is set up, from the worktree folder. The envelope is `{"worktree", "branch
 `AFK_WORKTREE_PATH` and `AFK_WORKTREE_BRANCH` carry the same two values. A script
 that exits non-zero, is missing, or resolves outside the repository is warned about
 on stderr, by name, and never removes the worktree.
+
+`PreCommit` runs from the commit gate runner with the staged context in its environment.
+Handlers run in declaration order and the first refusal ends the run: exit 2 for a
+non-zero exit, a timeout, an unrunnable entry, or a matcher other than `*`. Each handler
+run appends one metrics line unless `GATE_METRICS_DISABLE=1`; `GATE_METRICS_FILE` names the file.
 
 A handler a repository declares but this checkout cannot run — the script is
 missing, the matcher is not a regular expression, the manifest does not parse —
@@ -70,6 +75,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
@@ -82,7 +88,7 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 REPO_HOOKS_MANIFEST = ".afk/hooks.json"
-EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "WorktreeCreated"}
+EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "WorktreeCreated", "PreCommit"}
 # The events whose whole point is to stop a turn. A handler that cannot run is
 # a missing verdict on these, so the launcher answers for it. PostToolUse and
 # PostCompact carry context injections, never a block, so they only warn.
@@ -887,6 +893,57 @@ def block_code(event: str) -> int:
         return 0
 
 
+def precommit_metric(script: str, result: str, started: float) -> None:
+    """One gate-latency line per handler run; never fails the commit."""
+    target = os.environ.get("GATE_METRICS_FILE")
+    if os.environ.get("GATE_METRICS_DISABLE") == "1" or not target:
+        return
+    line = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "gate": script, "event": "PreCommit",
+            "result": result, "duration_ms": int((time.monotonic() - started) * 1000)}
+    try:
+        Path(target).parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "a", encoding="utf-8") as sink:
+            sink.write(json.dumps(line) + "\n")
+    except OSError:
+        pass
+
+
+def precommit(root: Path, entries: list[dict], faults: list[str], bash: Path, env: dict[str, str]) -> int:
+    """Run the repository's PreCommit handlers in order; the first refusal or fault blocks."""
+    def refuse(why: str) -> int:
+        sys.stderr.write(f"[afk] repository PreCommit handler refused: {why}\n")
+        return 2
+    if faults:
+        return refuse("; ".join(faults))
+    planned: list[tuple[str, Path, float]] = []
+    for entry in entries:  # the whole manifest is checked before any handler runs
+        named = str(entry.get("script"))
+        if entry.get("matcher") not in (None, "", "*"):
+            return refuse(f"{named}: PreCommit takes matcher \"*\", not {entry.get('matcher')!r}")
+        timeout = entry.get("timeout")
+        if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout) or timeout <= 0):
+            return refuse(f"{named}: timeout must be a positive number of seconds, not {timeout!r}")
+        script, fault = resolved_script(root, entry)
+        if script is None:
+            return refuse(f"{REPO_HOOKS_MANIFEST}: {fault}")
+        planned.append((named, script, float(timeout)))
+    for named, script, timeout in planned:
+        started = time.monotonic()
+        try:
+            completed = run_tree([str(bash), str(script)], env, input=b"", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            precommit_metric(named, "unknown", started)
+            return refuse(f"{named}: no verdict within {timeout:g} seconds")
+        except OSError as problem:
+            precommit_metric(named, "unknown", started)
+            return refuse(f"{named}: {problem}")
+        precommit_metric(named, "blocked" if completed.returncode else "pass", started)
+        if completed.returncode:
+            return refuse(f"{named} exited {completed.returncode}")
+    return 0
+
+
 # Handlers that record who launched them. A walk up the process tree from inside bash
 # loses the chain at the first bash-to-bash hop, so the first native process resolves it.
 OWNER_HANDLERS = {"worktree-create.sh"}
@@ -986,6 +1043,8 @@ def main(argv: list[str]) -> int:
     entries, faults = repo_entries(root, event)
     if not entries and not faults:
         return 0
+    if event == "PreCommit":
+        return precommit(root, entries, faults, bash, env)
 
     given = envelope() or b""
     tool = envelope_field("tool_name", None)

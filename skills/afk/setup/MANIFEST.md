@@ -375,10 +375,10 @@ a token value — not even partially.
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
-- **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
-  genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every
-  turn**; the commit gates — Maven compile, Java format, UI lint via
-  `precommit-gates.sh` (with `comment-gate.sh`) — fire on agent-driven commits; plus the on-demand
+- **Needed by:** the `hooks/*.sh` gate suite (the commit gates — Maven
+  compile, Java format, UI lint via `precommit-gates.sh` (with `comment-gate.sh`
+  and, in this plugin's repository, `plugin-source-gates.sh`) — fire on
+  agent-driven commits; plus the on-demand `wiring-gate.sh` and
   `app-start-gate.sh`), the forge adapters' `forge.sh`,
   `skills/afk/review/scripts/forge_ledger.py`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
@@ -629,6 +629,8 @@ a token value — not even partially.
   registrations (`.mcp.json`, `.mcp.codex.json`, the H2 `tracker` entry),
   every skill, adapter and git-hook script, and CI. Without it no gate or
   guard fires and no MCP server starts; the harness carries on without them.
+  The commit gate blocks instead when the repository has `.afk/hooks.json`
+  or any configuration layer mentions `repo-hooks` (`CONFIG.md`).
 - **Pins:** `runtime/pyproject.toml` — CPython in `requires-python`, uv in
   `[tool.uv] required-version`, the dependency set and its import names.
   `runtime/uv.lock` holds every transitive version with its hashes.
@@ -767,7 +769,7 @@ Gating rule: if O1 misses, report the whole section as
 - **Notes:** minimum live-tested version is `0.152.0`.
 
 ### O2 · native hooks feature
-- **Needed by:** plugin Stop gates and PreToolUse guards.
+- **Needed by:** the launcher's repository Stop handlers and PreToolUse guards.
 - **Probe:** parse `~/.codex/config.toml`; require `features.hooks = true` and
   no `features.codex_hooks` key.
 - **Fix:** `human:` set `features.hooks = true`. Remove the deprecated key only
@@ -962,7 +964,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_PATH_CASE_FOLD` | `hooks/lib/provider.sh` | force path comparison to fold case (`1`) or to match exactly (`0`); unset follows the filesystem — folded on Windows and macOS, exact elsewhere |
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
-| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the gates' pass cache — every run does real work; `plugin-source-gates.sh` always sets it |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh`, `skills/afk/review/scripts/forge_ledger.py` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
 | `AFK_LEDGER_ADAPTER_CMD` | `skills/afk/review/scripts/forge_ledger.py` | test seam that replaces forge adapter dispatch with a named command |
 | `AFK_LEDGER_ADAPTER_TIMEOUT` | `skills/afk/review/scripts/forge_ledger.py` | seconds one adapter call may run before the ledger reports a timeout (default 120) |
@@ -983,7 +985,11 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
-| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
+| `AFK_CFG_LOAD_FAILED` | `hooks/lib/config.sh`, `hooks/precommit-gates.sh` | why the configuration export could not run; the commit gates print it |
+| `AFK_JUDGE_GIT` | `hooks/plugin-source-gates.sh`, `hooks/native-contract-gate.sh`, `scripts/behavior_registry.py` | absolute `git` outside the repository the plugin-source runner resolves; judge code starts git through it |
+| `NoDefaultCurrentDirectoryInExePath` | `hooks/plugin-source-gates.sh` | exported as `1` so Windows never resolves a bare program name from the candidate folder |
+| `AFK_IGNORE_GATE_SENTINEL` | `hooks/plugin-source-gates.sh`, `hooks/{skill-registry,native-contract,genericity,behavior-registry}-gate.sh` | set by the plugin-source runner so its gates ignore a `.claude/hooks/.gate-disabled` the candidate carries |
+| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-run change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission (default `<git common dir>/afk/metrics/gate-latency.jsonl`) |
 | `MAVEN_LOCK_DIR` | `adapters/build-gate/maven/maven-lock.sh` | relocate the cross-gate maven lock dir |
@@ -1008,6 +1014,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
 | `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |
 | `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |
+| `GIT_COMMON_DIR` | `hooks/plugin-source-gates.sh` | a git location the plugin-source runner protects before it trusts `PATH`; a relative value is refused |
 | `GIT_DIR` | `hooks/branch-name-gate.sh` | exported by git to its hooks; the gate reads the shared git folder from it to find a sync authorization with no subprocess |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |

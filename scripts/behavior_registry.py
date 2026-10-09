@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import pathlib
 import re
 import subprocess
@@ -37,6 +38,8 @@ FIELD_RE = re.compile(
     r"^state: (active|retired) \| scope: (all-repos|configured-repos) "
     r"\| revision: ([0-9]+) \| doctrine: (.+)$"
 )
+# The plugin-source runner names a git outside the judged tree.
+GIT = os.environ.get("AFK_JUDGE_GIT") or "git"
 ID_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SECTION_RE = re.compile(r"(?m)^## ([^\r\n]+)\r?\n")
 DOCTRINE_PATH_RE = re.compile(r"(?:^|[ `])([A-Za-z0-9_.\-/]+\.md)(?=$|[ `§])")
@@ -322,7 +325,7 @@ def _discover_base_registry(root: pathlib.Path) -> Registry | None:
     candidates: list[str] = []
     try:
         remote_head = subprocess.run(
-            ["git", "-C", str(root), "symbolic-ref", "refs/remotes/origin/HEAD", "--short"],
+            [GIT, "-C", str(root), "symbolic-ref", "refs/remotes/origin/HEAD", "--short"],
             check=False,
             capture_output=True,
             text=True,
@@ -334,7 +337,7 @@ def _discover_base_registry(root: pathlib.Path) -> Registry | None:
     candidates.extend(("origin/main", "origin/master", "main", "master"))
     for candidate in dict.fromkeys(candidates):
         merge_base = subprocess.run(
-            ["git", "-C", str(root), "merge-base", "HEAD", candidate],
+            [GIT, "-C", str(root), "merge-base", "HEAD", candidate],
             check=False,
             capture_output=True,
             text=True,
@@ -342,7 +345,7 @@ def _discover_base_registry(root: pathlib.Path) -> Registry | None:
         if merge_base.returncode != 0 or not merge_base.stdout.strip():
             continue
         content = subprocess.run(
-            ["git", "-C", str(root), "show", f"{merge_base.stdout.strip()}:BEHAVIORS.md"],
+            [GIT, "-C", str(root), "show", f"{merge_base.stdout.strip()}:BEHAVIORS.md"],
             check=False,
             capture_output=True,
             text=True,

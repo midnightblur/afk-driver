@@ -422,23 +422,6 @@ afk_stop_block_code() {
   printf '%s\n' "${code:-0}"
 }
 
-afk_block_stop() {
-  afk_emit_stop_block "$1"
-  exit "$(afk_stop_block_code)"
-}
-
-# An allowed Stop that the human must see: stderr, plus the `systemMessage` field
-# that both shipped harnesses show the user on Stop. The caller exits 0.
-afk_emit_stop_notice() {
-  local msg=${1//$'\r'/}
-  printf '%s\n' "$msg" >&2
-  if command -v jq >/dev/null 2>&1; then
-    jq -n --arg m "$msg" '{systemMessage:$m}'
-  else
-    printf '{"systemMessage":"%s"}\n' "$(afk__json_escape "$msg")"
-  fi
-}
-
 # The plugin tree's path RELATIVE to the current repository root, or the empty
 # string when the plugin is installed outside this repository. Standalone the
 # plugin repo IS the plugin root, so this prints ".". Gates that only judge the
@@ -474,3 +457,6 @@ afk_plugin_scope() {
     *) printf '%s/\n' "$dir" ;;
   esac
 }
+
+# The plugin tree whose checker code and rule files judge; the plugin-source runner points it at itself.
+afk_judge_dir() { afk_plugin_dir; }

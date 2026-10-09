@@ -37,8 +37,26 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Added
+
+- `/afk:execute` Step 11 runs the wiring scan as advice after review
+  remediation and before the slice completes or reports its final status;
+  the slice's commits have already landed by then. Each flagged row goes to `/afk:verify-seams` judgment, and a repair
+  goes back to Step 8. The steps after it are renumbered 12–14.
+- A `PreCommit` event in `.afk/hooks.json`: the repository's own commit
+  gates run after the plugin's, in declaration order, and the first refusal
+  blocks the commit. Each handler reads the staged tree and path list and
+  writes one latency line.
+
 ### Changed
 
+- No plugin gate runs on Stop. The wiring gate runs at `/afk:execute` Step 11
+  and in `/afk:verify-seams final`; the skill-registry, native-contract,
+  genericity and behavior-registry gates run at commit and in pull-request CI
+  through `hooks/plugin-source-gates.sh`, in this plugin's own repository only.
+  The installed plugin judges a commit and the target branch's tip judges a
+  pull request, so a branch's edits to its own gates cannot weaken the gates
+  that judge it; the `afk-gate-override` label accepts a deliberate relaxation.
 - Lavish pages render through one command,
   `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"`, with the same
   shapes as before (`<file> [--no-open|--reopen]`, `poll`, `end`, `stop`,
@@ -67,6 +85,8 @@ release page from its section here. Nobody tags by hand.
 
 ### Removed
 
+- `hooks/stop-gates.sh`. Stop runs only the repository's own handlers from
+  `.afk/hooks.json`.
 - The `lavish-dark.sh` and `lavish-tips.sh` PreToolUse hooks, which started two
   shells on every Bash and PowerShell call. The seed dictionary moved from
   `hooks/lavish-tips.json` to `scripts/lavish/tips.json`.
@@ -98,12 +118,17 @@ release page from its section here. Nobody tags by hand.
   or exit 2) now blocks on every harness whatever its exit code; before, a
   document at a non-zero exit let the tool run where the harness reads
   decisions only at exit 0. Exit 2 on any other event is a failure.
-- A Stop gate that kills its shell no longer swallows the error, and the
-  worktree-create hook says why when it gets no path.
+- The worktree-create hook says why when it gets no path.
 - `/afk:setup` now says which processes to restart after it changes `PATH`,
   including a harness's background daemon and its updater. A daemon started
   before the change runs every hook without `afk-python`, and every hook then
   fails with exit 1.
+
+### Fixed
+
+- The wiring gate and `/afk:verify-seams` no longer treat untracked files as
+  new artifacts. A file untracked before the work started cannot be wired by
+  it; candidates are now staged adds and commits ahead of the merge-base (#98).
 
 ## [1.15.0] - 2026-10-07
 

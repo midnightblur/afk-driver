@@ -27,7 +27,7 @@
 #      tests under scripts/tests/ exempted — they load the helper directly);
 #   L. agent files carry the model and effort of their PROVIDERS.md tier;
 #   M. every hook entry in both manifests runs through the launcher with an
-#      explicit timeout and a launcher deadline below it, and no Stop-path gate
+#      explicit timeout and a launcher deadline below it, and no gate
 #      source scans repository content except through hooks/lib/bounded_scan.py.
 #      An exception names its own bound in native-contract-allow.txt (rules
 #      hook-deadline, repo-scan).
@@ -41,7 +41,7 @@ set -u
 
 gate_native_contract() {
   [ "${NATIVE_CONTRACT_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   local MANIFEST="$PLUGIN_DIR/.claude-plugin/plugin.json"
@@ -58,6 +58,7 @@ gate_native_contract() {
   findings=$("$py" - "$PLUGIN_DIR" <<'PY'
 import fnmatch
 import json
+import os
 import re
 import subprocess
 import sys
@@ -479,7 +480,7 @@ for path in sorted(plugin.rglob("*")):
 # F. Generated mirrors/activation surfaces may exist locally, never in git.
 try:
     tracked_raw = subprocess.check_output(
-        ["git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
+        [os.environ.get("AFK_JUDGE_GIT") or "git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
     )
     tracked = tracked_raw.decode("utf-8", errors="surrogateescape").split("\0")
 except (OSError, subprocess.CalledProcessError) as exc:
@@ -703,7 +704,7 @@ for path in sorted(plugin.rglob("*")):
 
 # M. Bounded hooks. A hook that outlives its harness timeout is killed with no
 # verdict, so every launcher entry carries a deadline below its timeout; and a
-# repository-wide content scan in a Stop-path gate must take the one bounded route.
+# repository-wide content scan in a gate source must take the one bounded route.
 for manifest_rel in ("hooks/hooks.json", "hooks/hooks.codex.json"):
     for event, groups in load_hook_map(manifest_rel).items():
         for group in groups if isinstance(groups, list) else []:
@@ -741,12 +742,12 @@ repo_scans = [
     re.compile(r"\bos\.walk\("),
     re.compile(r"\.rglob\("),
 ]
-stop_path = {
-    path for pattern in ("hooks/*-gate.sh", "hooks/stop-gates.sh", "hooks/gate-*.sh",
+gate_sources = {
+    path for pattern in ("hooks/*-gate.sh", "hooks/*-gates.sh", "hooks/gate-*.sh",
                          "hooks/lib/*.sh", "hooks/lib/*.py")
     for path in plugin.glob(pattern)
 } - {plugin / "hooks/lib/bounded_scan.py"}
-for path in sorted(stop_path):
+for path in sorted(gate_sources):
     path_rel = rel(path)
     for number, line in enumerate(read(path).splitlines(), 1):
         if line.lstrip().startswith("#"):

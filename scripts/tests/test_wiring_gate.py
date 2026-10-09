@@ -40,6 +40,7 @@ def repo(tmp_path):
     _git(tmp_path, "commit", "-qm", "base")
     (tmp_path / "lib").mkdir()
     (tmp_path / ARTIFACT).write_text("x = 1\n", encoding="utf-8")
+    _git(tmp_path, "add", ARTIFACT)
     return tmp_path
 
 
@@ -68,6 +69,22 @@ def test_orphan_blocks(repo):
     assert result.returncode == 2, result.stderr
     assert ARTIFACT in result.stderr
     assert '"result":"blocked"' in _metrics(repo) and '"scan_ms"' in _metrics(repo)
+
+
+def test_an_untracked_file_is_never_a_candidate_but_a_committed_add_is(repo):
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "commit", "-qm", "add the artifact")
+    (repo / "lib" / "leftoverscratch.py").write_text("y = 2\n", encoding="utf-8")
+    result = _gate(repo)
+    assert result.returncode == 2, result.stderr
+    assert ARTIFACT in result.stderr and "leftoverscratch" not in result.stderr
+
+
+def test_a_checkout_with_only_untracked_files_passes(repo):
+    _git(repo, "rm", "-q", "--cached", ARTIFACT)
+    result = _gate(repo)
+    assert result.returncode == 0, result.stderr
+    assert ARTIFACT not in result.stderr
 
 
 def test_wired_passes_and_caches(repo):
@@ -107,7 +124,7 @@ def test_unknown_scan_is_rc3_and_not_cached(repo):
     finally:
         holder.release()
     assert result.returncode == 3, result.stderr
-    assert "verdict unknown (lock_busy) — no orphan check this Stop." in result.stderr
+    assert "verdict unknown (lock_busy) — no orphan check this run." in result.stderr
     assert '"result":"unknown"' in _metrics(repo) and '"detail":"lock_busy"' in _metrics(repo)
     assert not (repo / ".git" / "afk" / "gate-cache" / "wiring").exists()
     assert "orphan" not in result.stderr.lower().replace("no orphan check", "")
@@ -133,3 +150,40 @@ def test_metrics_report_counts_unknown_apart_from_red(tmp_path):
     done = subprocess.run([str(BASH), str(ROOT / "hooks" / "gate-metrics-report.sh"), str(log)],
                           capture_output=True, encoding="utf-8", errors="replace", timeout=60)
     assert "runs=3" in done.stdout and "red=1" in done.stdout and "unknown=1" in done.stdout
+
+
+def _list(repo, mode):
+    done = subprocess.run([str(BASH), str(ROOT / "hooks" / "wiring-gate.sh"), mode], cwd=repo,
+                          capture_output=True, encoding="utf-8", timeout=120)
+    assert done.returncode == 0, done.stderr
+    return done.stdout.split()
+
+
+@pytest.mark.parametrize("committed", [False, True], ids=["staged", "committed"])
+def test_the_changed_list_names_deletions_and_both_names_of_a_rename(repo, committed):
+    (repo / "docs" / "old.md").write_text("a provider the loader resolves\n", encoding="utf-8")
+    _git(repo, "add", "docs/old.md")
+    _git(repo, "commit", "-qm", "provider", "--", "docs/old.md")
+    _git(repo, "remote", "add", "origin", repo.as_posix())
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "rm", "-q", "docs/notes.md")
+    _git(repo, "mv", "docs/old.md", "docs/new.md")
+    if committed:
+        _git(repo, "commit", "-qm", "delete and rename")
+    assert sorted(_list(repo, "--list-changed")) == ["docs/new.md", "docs/notes.md", "docs/old.md", ARTIFACT]
+    assert sorted(_list(repo, "--list-candidates")) == ["docs/new.md", ARTIFACT]
+
+
+def test_the_lists_use_the_integration_base_even_when_the_upstream_is_head(repo):
+    _git(repo, "remote", "add", "origin", repo.as_posix())
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "docs" / "notes.md").write_text("changed\n", encoding="utf-8")
+    _git(repo, "commit", "-qam", "add the artifact")
+    _git(repo, "update-ref", "refs/remotes/origin/feature", "HEAD")
+    _git(repo, "branch", "-q", "--set-upstream-to=origin/feature")
+    assert _git(repo, "rev-parse", "@{u}").strip() == _git(repo, "rev-parse", "HEAD").strip()
+    (repo / "lib" / "leftoverscratch.py").write_text("y = 2\n", encoding="utf-8")
+    assert _list(repo, "--list-candidates") == [ARTIFACT]
+    assert _list(repo, "--list-changed") == ["docs/notes.md", ARTIFACT]
+    result = _gate(repo)
+    assert result.returncode == 2 and ARTIFACT in result.stderr, result.stderr

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop gate (ships with the afk plugin): registry gate — the plugin's three
+# Plugin-source gate (ships with the afk plugin): registry gate — the plugin's three
 # machine-checkable registries must match disk. Three checks:
 #
 # A. Claude plugin.json membership — every skill dir under skills/afk/ + skills/utils/
@@ -50,9 +50,10 @@ set -u
 
 gate_skill_registry() {
   [ "${SKILL_REGISTRY_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
-  local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
+  local PLUGIN_DIR PLUGIN_SCOPE JUDGE_DIR; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
+  JUDGE_DIR=$(afk_judge_dir 2>/dev/null) || JUDGE_DIR=$PLUGIN_DIR
   local MANIFEST="$PLUGIN_DIR/.claude-plugin/plugin.json"
   [ -f "$MANIFEST" ] || return 0          # not this plugin's checkout
 
@@ -197,15 +198,15 @@ for a in m.get('agents', []): print('AGENT\t' + a)
   local adapter_drift=""
   if [ -d "$PLUGIN_DIR/adapters" ]; then
     local _py="${AFK_PYTHON:-afk-python}"
-    adapter_drift=$("$_py" "$PLUGIN_DIR/hooks/lib/adapter_registry_check.py" "$PLUGIN_DIR" 2>&1)
+    adapter_drift=$("$_py" "$JUDGE_DIR/hooks/lib/adapter_registry_check.py" "$PLUGIN_DIR" 2>&1)
   fi
 
   # ---- check F: every SKILL.md frontmatter parses and names its directory.
   # One Python pass over every skill, next to check E's, for the same reason.
   local frontmatter_drift=""
-  if [ -f "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" ]; then
+  if [ -f "$JUDGE_DIR/hooks/lib/skill_frontmatter_check.py" ]; then
     local _pyf="${AFK_PYTHON:-afk-python}"
-    frontmatter_drift=$("$_pyf" "$PLUGIN_DIR/hooks/lib/skill_frontmatter_check.py" "$PLUGIN_DIR" 2>&1)
+    frontmatter_drift=$("$_pyf" "$JUDGE_DIR/hooks/lib/skill_frontmatter_check.py" "$PLUGIN_DIR" 2>&1)
   fi
 
   if [ -n "$orphans" ] || [ -n "$stale" ] || [ -n "$uncatalogued" ] || [ -n "$unregistered" ] || [ -n "$no_language" ] || [ -n "$adapter_drift" ] || [ -n "$frontmatter_drift" ]; then
