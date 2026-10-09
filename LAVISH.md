@@ -45,8 +45,10 @@ Render, reopen and poll first inject the page runtime (Managed-session runtime
 below); then every shape runs `lavish-axi` with the same arguments, standard
 streams and exit status. The wrapper's own exits: `64` refused (a forbidden
 operation below, or a shape outside this table — fix the command), `65` the
-page is not readable UTF-8 HTML, `127` `lavish-axi` is missing from `PATH`. A
-`lavish-axi` reporting another version than the pin, or exit `127` → run
+page is not readable UTF-8 HTML, `69` a Windows `.cmd` install could not tie
+the upstream's lifetime to the wrapper, `127` `lavish-axi` is missing from
+`PATH`. A `lavish-axi` reporting another version than the pin, exit `69` or
+exit `127` → run
 `/afk:setup`. `hooks/native-contract-gate.sh` (check N) rejects a direct
 `lavish-axi` run in plugin scripts and prose; the PreToolUse guard refuses one
 in a shell call.
@@ -444,7 +446,7 @@ definition — the render points in the table above. **A driven-mode run never
 renders and never polls**: a no-timeout poll inside a
 hands-off run would wedge it on a human who is, by design, away.
 
-**Markdown fallback.** Any failure — wrapper exit `65` or `127`, no browser
+**Markdown fallback.** Any failure — wrapper exit `65`, `69` or `127`, no browser
 available, a `poll` that errors out — falls back to the skill's existing
 markdown flow. **Never a phase failure**: the phase completes via
 markdown, work is not lost, the skill continues exactly as before lavish

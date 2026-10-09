@@ -13,13 +13,15 @@ Windows it runs as a child, without `cmd.exe` unless the npm package is unreadab
 or interrupted wrapper takes the upstream program down (through `cmd.exe` too); a server the
 upstream starts outlives the wrapper either way.
 
-Known frontier: through `cmd.exe`, a process it starts is bound within about 20 ms (one poll);
-a wrapper killed inside that window leaves that process running.
+Known frontier: through `cmd.exe`, a process it starts is bound when the job's new-process
+notice arrives (start to bound: median 0.35 ms, worst under 5 ms over 120 measured starts); a
+wrapper killed inside that window leaves that process running.
 
 Exit codes of the wrapper itself (nothing upstream ran):
     64   refused: `share`, `setup`, `update`, any other operation or argument shape, a
          missing or non-HTML target, or `LAVISH_AXI_HOST` in the environment
     65   the page runtime could not be injected
+    69   the `.cmd` fallback could not set up the jobs that bind its processes' lifetime
     127  `lavish-axi` is not on PATH (run `/afk:setup`)
 
 Doctrine: `LAVISH.md`. Standard library only.
@@ -33,7 +35,6 @@ import shutil
 import subprocess
 import sys
 import threading
-import time
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -127,35 +128,56 @@ def upstream(args: list[str]) -> list[str] | None:
     return [found, *args]
 
 
+class Unbound(Exception):
+    """The `.cmd` fallback could not tie its children's lifetime to the wrapper."""
+
+
 def kernel32():
     import ctypes
     from ctypes import wintypes
 
+    handle = wintypes.HANDLE
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel.CreateJobObjectW.restype = wintypes.HANDLE
-    kernel.OpenProcess.restype = wintypes.HANDLE
-    kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
-    kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
-    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(ctypes.c_uint64)] * 4
-    kernel.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    kernel.Process32FirstW.argtypes = kernel.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+    kernel.CreateJobObjectW.restype = handle
+    kernel.OpenProcess.restype = handle
+    kernel.SetInformationJobObject.argtypes = [handle, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    kernel.AssignProcessToJobObject.argtypes = [handle, handle]
+    kernel.CloseHandle.argtypes = [handle]
+    kernel.CreateIoCompletionPort.restype = handle
+    kernel.CreateIoCompletionPort.argtypes = [handle, handle, ctypes.c_size_t, wintypes.DWORD]
+    kernel.GetQueuedCompletionStatus.argtypes = [handle, ctypes.POINTER(wintypes.DWORD),
+                                                 ctypes.POINTER(ctypes.c_size_t),
+                                                 ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD]
     return kernel
 
 
-def assign(kernel, job, pid: int, born_after: int = 0) -> bool:
-    """Put `pid` in `job`, only when it was created no earlier than `born_after` (a FILETIME)."""
-    import ctypes
-
-    process = kernel.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE | PROCESS_QUERY_LIMITED, False, pid)
+def assign(kernel, job, pid: int) -> bool:
+    process = kernel.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, pid)
     if not process:
         return False
     try:
-        times = [ctypes.c_uint64() for _ in range(4)]
-        born = kernel.GetProcessTimes(process, *(ctypes.byref(t) for t in times)) and times[0].value
-        return bool(born and born >= born_after and kernel.AssignProcessToJobObject(job, process))
+        return bool(kernel.AssignProcessToJobObject(job, process))
     finally:
         kernel.CloseHandle(process)
+
+
+def lifetime_job(kernel):
+    """A job that kills its processes when the wrapper's handle closes; what they start breaks away."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Limits(ctypes.Structure):
+        _fields_ = [("a", ctypes.c_int64), ("b", ctypes.c_int64), ("flags", wintypes.DWORD),
+                    ("c", ctypes.c_size_t), ("d", ctypes.c_size_t), ("e", wintypes.DWORD),
+                    ("f", ctypes.c_size_t), ("g", wintypes.DWORD), ("h", wintypes.DWORD),
+                    ("io", ctypes.c_uint64 * 6), ("i", ctypes.c_size_t), ("j", ctypes.c_size_t),
+                    ("k", ctypes.c_size_t), ("l", ctypes.c_size_t)]
+
+    job = kernel.CreateJobObjectW(None, None)
+    limits = Limits(flags=KILL_ON_CLOSE | SILENT_BREAKAWAY)
+    if job and kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+        return job
+    return None
 
 
 def bind_child_lifetime(pid: int):
@@ -164,70 +186,69 @@ def bind_child_lifetime(pid: int):
     A killed wrapper then takes the upstream down, and a server the upstream started survives
     any wrapper exit. Returns the job, or None when it could not be bound."""
     try:
-        import ctypes
-        from ctypes import wintypes
-
-        class Limits(ctypes.Structure):
-            _fields_ = [("a", ctypes.c_int64), ("b", ctypes.c_int64), ("flags", wintypes.DWORD),
-                        ("c", ctypes.c_size_t), ("d", ctypes.c_size_t), ("e", wintypes.DWORD),
-                        ("f", ctypes.c_size_t), ("g", wintypes.DWORD), ("h", wintypes.DWORD),
-                        ("io", ctypes.c_uint64 * 6), ("i", ctypes.c_size_t), ("j", ctypes.c_size_t),
-                        ("k", ctypes.c_size_t), ("l", ctypes.c_size_t)]
-
         kernel = kernel32()
-        job = kernel.CreateJobObjectW(None, None)
-        limits = Limits(flags=KILL_ON_CLOSE | SILENT_BREAKAWAY)
-        bound = bool(job and kernel.SetInformationJobObject(job, 9, ctypes.byref(limits), ctypes.sizeof(limits))
-                     and assign(kernel, job, pid))
-        return job if bound else None
+        job = lifetime_job(kernel)
+        return job if job and assign(kernel, job, pid) else None
     except Exception:
         return None  # best effort: the upstream still runs, only its lifetime is unbound
 
 
-def children_of(kernel, parent: int) -> list[int]:
-    """Live processes whose recorded parent is `parent`, from one process snapshot."""
+def parent_of(pid: int) -> int | None:
+    import ctypes
+
+    class Basic(ctypes.Structure):
+        _fields_ = [("exit", ctypes.c_long), ("peb", ctypes.c_void_p), ("affinity", ctypes.c_size_t),
+                    ("priority", ctypes.c_long), ("pid", ctypes.c_size_t), ("parent", ctypes.c_size_t)]
+
+    kernel, ntdll = kernel32(), ctypes.WinDLL("ntdll")
+    process = kernel.OpenProcess(PROCESS_QUERY_LIMITED, False, pid)
+    if not process:
+        return None
+    try:
+        info = Basic()
+        failed = ntdll.NtQueryInformationProcess(ctypes.c_void_p(process), 0, ctypes.byref(info),
+                                                 ctypes.sizeof(info), None)
+        return None if failed else info.parent
+    finally:
+        kernel.CloseHandle(process)
+
+
+def start_batch(command: list[str]):
+    """`.cmd` fallback: run cmd.exe suspended in a watch job that reports each new process, bind
+    every process cmd.exe starts to the lifetime job as its notice arrives, then resume cmd.exe.
+
+    Returns (child, jobs); raises Unbound, with nothing left running, when a job cannot be set up."""
     import ctypes
     from ctypes import wintypes
 
-    class Entry(ctypes.Structure):
-        _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD), ("pid", wintypes.DWORD),
-                    ("heap", ctypes.c_size_t), ("module", wintypes.DWORD), ("threads", wintypes.DWORD),
-                    ("parent", wintypes.DWORD), ("priority", ctypes.c_long), ("flags", wintypes.DWORD),
-                    ("exe", ctypes.c_wchar * 260)]
+    class Port(ctypes.Structure):
+        _fields_ = [("key", ctypes.c_void_p), ("port", wintypes.HANDLE)]
 
-    snapshot = kernel.CreateToolhelp32Snapshot(2, 0)  # TH32CS_SNAPPROCESS
-    if not snapshot or snapshot == wintypes.HANDLE(-1).value:
-        return []
-    try:
-        entry, found = Entry(size=ctypes.sizeof(Entry)), []
-        more = kernel.Process32FirstW(snapshot, ctypes.byref(entry))
-        while more:
-            if entry.parent == parent:
-                found.append(entry.pid)
-            more = kernel.Process32NextW(snapshot, ctypes.byref(entry))
-        return found
-    finally:
-        kernel.CloseHandle(snapshot)
+    kernel = kernel32()
+    lifetime, watch = lifetime_job(kernel), kernel.CreateJobObjectW(None, None)
+    port = kernel.CreateIoCompletionPort(wintypes.HANDLE(-1), None, 0, 1)
+    link = Port(key=None, port=port)
+    if not (lifetime and watch and port and kernel.SetInformationJobObject(watch, 7, ctypes.byref(link),
+                                                                           ctypes.sizeof(link))):
+        raise Unbound(f"job setup failed (Windows error {ctypes.get_last_error()})")
+    child = subprocess.Popen(command, creationflags=0x4)  # CREATE_SUSPENDED
+    handle = int(child._handle)
+    if not (kernel.AssignProcessToJobObject(watch, handle) and kernel.AssignProcessToJobObject(lifetime, handle)):
+        error = ctypes.get_last_error()
+        child.kill()
+        child.wait()
+        raise Unbound(f"cmd.exe could not join its jobs (Windows error {error})")
 
+    def bind_new_children() -> None:
+        code, key, pid = wintypes.DWORD(), ctypes.c_size_t(), ctypes.c_void_p()
+        while kernel.GetQueuedCompletionStatus(port, ctypes.byref(code), ctypes.byref(key), ctypes.byref(pid),
+                                               0xFFFFFFFF):
+            if code.value == 6 and pid.value and parent_of(pid.value) == child.pid:  # JOB_OBJECT_MSG_NEW_PROCESS
+                assign(kernel, lifetime, pid.value)
 
-def bind_batch_children(job, shell: subprocess.Popen) -> None:
-    """`.cmd` fallback: cmd.exe's own children break away, so bind each one it starts to `job`."""
-    try:
-        import ctypes
-
-        kernel = kernel32()
-        process = kernel.OpenProcess(PROCESS_QUERY_LIMITED, False, shell.pid)
-        times = [ctypes.c_uint64() for _ in range(4)]
-        born = process and kernel.GetProcessTimes(process, *(ctypes.byref(t) for t in times)) and times[0].value
-        if process:
-            kernel.CloseHandle(process)
-        bound: set[int] = set()
-        while born and shell.poll() is None:
-            bound.update(pid for pid in children_of(kernel, shell.pid)
-                         if pid not in bound and assign(kernel, job, pid, born))
-            time.sleep(0.02)
-    except Exception:
-        return  # best effort, as in bind_child_lifetime
+    threading.Thread(target=bind_new_children, daemon=True).start()
+    ctypes.WinDLL("ntdll").NtResumeProcess(ctypes.c_void_p(handle))
+    return child, (lifetime, watch, port)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -251,10 +272,16 @@ def main(argv: list[str] | None = None) -> int:
     sys.stderr.flush()
     if argv is None and os.name != "nt":
         os.execv(command[0], command)
-    child = subprocess.Popen(command)
-    job = bind_child_lifetime(child.pid) if argv is None else None  # held until exit
-    if job and command[0].lower().endswith((".cmd", ".bat")):
-        threading.Thread(target=bind_batch_children, args=(job, child), daemon=True).start()
+    if argv is None and command[0].lower().endswith((".cmd", ".bat")):
+        try:
+            # Fail closed: an unbound batch child could outlive a killed wrapper, so nothing starts.
+            child, jobs = start_batch(command)  # noqa: F841  (jobs held until exit)
+        except Unbound as problem:
+            sys.stderr.write(f"lavish_show: refused to run the batch shim: {problem}\n")
+            return 69
+    else:
+        child = subprocess.Popen(command)
+        job = bind_child_lifetime(child.pid) if argv is None else None  # noqa: F841  (held until exit)
     try:
         return child.wait()
     except KeyboardInterrupt:

@@ -303,3 +303,42 @@ def test_a_killed_poll_takes_its_upstream_down(tmp_path, server_env):
         if wrapper.poll() is None:
             wrapper.kill()
         wrapper.stdout.close()
+
+
+REAL_KERNEL32 = lavish_show.kernel32
+
+
+class FailingKernel:
+    """The real kernel32 with one call made to fail."""
+
+    def __init__(self, failing: str):
+        self.real, self.failing = REAL_KERNEL32(), failing
+
+    def __getattr__(self, name):
+        return (lambda *args: 0) if name == self.failing else getattr(self.real, name)
+
+
+windows_only = pytest.mark.skipif(os.name != "nt", reason="job objects exist only on Windows")
+
+
+@windows_only
+def test_a_batch_shim_whose_jobs_cannot_be_set_up_starts_nothing_and_exits_69(monkeypatch, capsys):
+    started = []
+    monkeypatch.setattr(lavish_show, "kernel32", lambda: FailingKernel("CreateJobObjectW"))
+    monkeypatch.setattr(lavish_show.subprocess, "Popen", lambda *a, **k: started.append(a))
+    monkeypatch.setattr(lavish_show, "upstream", lambda args: ["C:/x/lavish-axi.cmd", *args])
+    monkeypatch.setattr(sys, "argv", ["lavish_show.py", "stop"])
+    assert lavish_show.main() == 69
+    assert started == [] and "refused to run the batch shim: job setup failed" in capsys.readouterr().err
+
+
+@windows_only
+def test_a_shell_that_cannot_join_its_jobs_is_killed_before_it_runs(tmp_path, monkeypatch):
+    marker = tmp_path / "ran.txt"
+    shim = tmp_path / "shim.cmd"
+    shim.write_text(f'@echo ran> "{marker}"\r\n', encoding="utf-8")
+    monkeypatch.setattr(lavish_show, "kernel32", lambda: FailingKernel("AssignProcessToJobObject"))
+    with pytest.raises(lavish_show.Unbound, match="could not join its jobs"):
+        lavish_show.start_batch([str(shim)])
+    time.sleep(0.5)
+    assert not marker.exists()

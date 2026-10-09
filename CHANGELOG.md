@@ -45,7 +45,9 @@ release page from its section here. Nobody tags by hand.
   `playbook`). It injects the tooltips, side-question control, page navigation
   and dark mode before a render or poll, then runs the pinned `lavish-axi` with
   the same arguments, output and exit status. It refuses `share`,
-  `setup hooks`, `update` and `LAVISH_AXI_HOST` with exit 64.
+  `setup hooks`, `update` and `LAVISH_AXI_HOST` with exit 64. On Windows, a
+  killed wrapper takes the upstream down. A `.cmd` install that cannot tie the
+  upstream's lifetime to the wrapper starts nothing and exits 69.
 - A poll on an intact page no longer rewrites it: injection writes the file
   only when its bytes change, so the page the human is answering does not
   reload under them.
