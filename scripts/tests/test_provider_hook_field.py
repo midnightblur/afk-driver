@@ -26,11 +26,15 @@ pytestmark = pytest.mark.skipif(BASH is None, reason="no POSIX shell")
 
 
 def fields(envelope: str, paths: list[str], tmp_path: Path) -> list[str]:
-    # An empty PATH: no jq, and any process start would fail on stderr.
-    env = _launcher.shell_env(BASH, {"AFK_HOOK_INPUT": envelope, "PATH": ""})
+    # An empty PATH: no jq, and any process start would fail on stderr. The envelope comes
+    # from a file, not the environment, which Linux caps at 128 KiB per string.
+    source = tmp_path / "envelope.json"
+    source.write_bytes(envelope.encode("utf-8"))
+    env = _launcher.shell_env(BASH, {"PATH": ""})
     env["PATH"] = str(tmp_path / "empty")
-    script = '. "$1"; shift; for p; do afk_hook_field "$p"; printf "\\36"; done'
-    done = subprocess.run([str(BASH), "-c", script, "_", LIBRARY.as_posix(), *paths],
+    script = ('. "$1"; AFK_HOOK_INPUT=$(< "$2"); shift 2\n'
+              'for p; do afk_hook_field "$p"; printf "\\36"; done')
+    done = subprocess.run([str(BASH), "-c", script, "_", LIBRARY.as_posix(), source.as_posix(), *paths],
                           capture_output=True, env=env, timeout=60)
     assert (done.returncode, done.stderr) == (0, b"")
     return done.stdout.decode("utf-8").split("\x1e")[:-1]
