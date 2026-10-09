@@ -11,12 +11,14 @@ from pathlib import Path
 
 NO_TARGET = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "nul", "$null"}
 WRAPPERS = {"command", "exec", "nohup", "time", "env", "sudo", "builtin"}
+KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!"}  # the next word is a program
 SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "--group", "--host", "--prompt",
               "--chdir", "--role", "--type", "--close-from"}
 ENV_VALUE = {"-u", "--unset", "-S", "--split-string"}
 ENV_CHDIR = {"-C", "--chdir"}
 CD = {"cd", "chdir", "set-location", "sl", "pushd"}
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+CONTINUATION = re.compile(r"[\\`]\r?\n")  # Bash `\` and PowerShell backtick, outside comments and single quotes
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 GIT_ALWAYS = {"add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull", "rebase", "reset",
               "restore", "revert", "rm", "switch", "update-ref", "update-index"}
@@ -64,6 +66,10 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
     n = len(text)
     while i < n:
         c = text[i]
+        joined = CONTINUATION.match(text, i)
+        if joined:
+            i = joined.end()
+            continue
         if c in " \t\r\n;&|()<>":
             break
         if c == "'":
@@ -76,6 +82,10 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
             quoted = True
             i += 1
             while i < n and text[i] != '"':
+                joined = CONTINUATION.match(text, i)
+                if joined:
+                    i = joined.end()
+                    continue
                 if text[i] == "\\" and i + 1 < n and text[i + 1] in '"\\$`':
                     i += 1
                 elif text[i] in "$`":
@@ -97,7 +107,6 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
 
 
 def segments(text: str) -> list[Segment]:
-    text = re.sub(r"(?:\\|`)\r?\n", "", text)  # line continuations, Bash and PowerShell
     found: list[Segment] = []
     current = Segment()
     heredocs: list[str] = []
@@ -116,7 +125,10 @@ def segments(text: str) -> list[Segment]:
 
     while i < n:
         c = text[i]
-        if c in " \t\r":
+        joined = CONTINUATION.match(text, i)
+        if joined:
+            i = joined.end()
+        elif c in " \t\r":
             i += 1
         elif c == "\n":
             close()
@@ -170,6 +182,9 @@ def segments(text: str) -> list[Segment]:
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
             close()
             i += 1
+        elif c == "#":  # a comment runs to the line end; a trailing `\` or backtick does not continue it
+            end = text.find("\n", i)
+            i = n if end < 0 else end
         else:
             word, i = read_word(text, i)
             if word is None:
@@ -200,21 +215,23 @@ def resolve(word: Word, cwd: Path | None) -> Path | None:
 
 
 def program_of(word: Word) -> str:
+    """The program a word names: its last path part, lowercased, without a Windows launcher suffix."""
     name = re.split(r"[\\/]", word.text)[-1].lower()
-    return name[:-4] if name.endswith(".exe") else name
+    return re.sub(r"\.(?:exe|cmd|bat|ps1)$", "", name)
 
 
-def strip_prefixes(words: list[Word], effects: dict | None = None) -> list[Word]:
+def strip_prefixes(words: list[Word], effects: dict | None = None, keywords: bool = False) -> list[Word]:
     """Drop `VAR=1`, `env`, `sudo`, `time` and similar wrappers; [] when the program is opaque.
 
-    `effects["chdir"]` receives the folder word of `env -C`.
+    `effects["chdir"]` receives the folder word of `env -C`. With `keywords`, `then`/`do`-style
+    control words are dropped too; mutation analysis leaves them, so a branch `cd` is no `cd`.
     """
     words = list(words)
     while words:
         head = words[0]
         if head.opaque:
             return []
-        if ASSIGN.match(head.text):
+        if ASSIGN.match(head.text) or (keywords and head.text in KEYWORDS):
             words.pop(0)
         elif head.text.lower() in WRAPPERS:
             wrapper = head.text.lower()

@@ -92,7 +92,7 @@ The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and 
 _Avoid_: freshness registry (the file is `FRESHNESS.md`, but the table is the artifact registry)
 
 **Tooltip dictionary**:
-The persistent term → explanation map every lavish artifact inherits — seed `hooks/lavish-tips.json` merged with this workflow glossary and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
+The persistent term → explanation map every lavish artifact inherits — seed `scripts/lavish/tips.json` merged with this workflow glossary, the repository's domain glossaries and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render and poll time by `scripts/lavish_show.py` (engine `scripts/lavish/inject.py`); an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
 _Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
 
 **Grill-question triage (debate / confirm)**:

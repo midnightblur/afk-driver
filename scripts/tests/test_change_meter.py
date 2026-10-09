@@ -548,6 +548,38 @@ def test_w1_a_quarantine_unseen_for_a_day_is_swept_with_the_blobs(repo):
     assert not hold.exists() and fresh.exists()
 
 
+LV102 = "# Stage changes with `git add`\ngit status --short; git add README.md"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+def test_lv102_a_backtick_ended_comment_hides_no_mutation_from_guard_or_meter(repo, tool):
+    assert denied(pre(repo["main"], LV102, tool=tool))
+    assert not cm.read_only(LV102, repo["main"])
+
+
+@pytest.mark.parametrize("shape", [
+    "if false; then cd {away}; fi; git add tracked.txt",
+    "if true; then cd {away}; fi; git add tracked.txt",
+    "for d in a b; do cd {away}; done; git add tracked.txt",
+    "if true; then if false; then cd {away}; fi; fi; git add tracked.txt",
+], ids=["skipped-branch", "taken-branch", "loop", "nested-if"])
+def test_lv201_a_branch_local_cd_out_of_the_main_checkout_does_not_unlock_it(repo, shape):
+    command = shape.format(away=repo["tmp"].as_posix())
+    assert denied(pre(repo["main"], command))
+    assert not cm.read_only(command, repo["main"])
+
+
+# Verdicts below match an origin/main guard run on the same shapes (LV-301, LV-302).
+@pytest.mark.parametrize("tool,shape,refused", [
+    ("Bash", 'git status && cd "{topic}" && git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; Set-Location "{topic}"; git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; sl "{topic}"; git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; Push-Location "{topic}"; git add tracked.txt', True),
+], ids=["lv301-checked-cd", "lv302-set-location", "lv302-sl", "lv302-push-location"])
+def test_lv301_lv302_an_unconditional_move_is_judged_as_on_origin_main(repo, tool, shape, refused):
+    assert denied(pre(repo["main"], shape.format(topic=repo["topic"].as_posix()), tool=tool)) is refused
+
+
 @pytest.mark.parametrize("command", ["git branch -uorigin/main", "git branch -vu origin/main", "git branch -fd x"])
 def test_g7_2_a_short_cluster_with_an_edit_letter_is_not_a_read(repo, command):
     assert not cm.read_only(command, repo["main"])

@@ -34,11 +34,9 @@ def unloadable(problem: BaseException) -> int:
         walk = walk.parent
 
 
-if os.environ.get("AFK_ALLOW_PROTECTED") == "1":
-    sys.exit(0)
 try:
     sys.path.insert(0, str(LIB))
     import protected_branch_guard
 except BaseException as error:
-    sys.exit(unloadable(error))
+    sys.exit(0 if os.environ.get("AFK_ALLOW_PROTECTED") == "1" else unloadable(error))
 sys.exit(protected_branch_guard.main())

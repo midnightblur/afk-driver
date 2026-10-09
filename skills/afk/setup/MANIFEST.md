@@ -721,8 +721,9 @@ a token value — not even partially.
 - **Fix:** `auto:` install Node/npm per N1 first, then
   `npm i -g "lavish-axi@$want"` (`want` from the probe) — the same command
   replaces a global install at another version. After a version change, run
-  `lavish-axi stop` with no session open so the background server restarts on
-  the pin.
+  `afk-python "$AFK_PLUGIN_ROOT/scripts/lavish_show.py" stop` with no session
+  open so the background server restarts on the pin. The probe's `--version`
+  call is the one direct `lavish-axi` run outside that wrapper.
 - **Notes:** a pin bump in `LAVISH.md` flips this probe red until setup re-runs.
   A failing render at run time is still **never** a phase failure — every render
   point falls back to markdown (`LAVISH.md`).

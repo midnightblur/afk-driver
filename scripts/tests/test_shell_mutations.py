@@ -223,6 +223,35 @@ def test_s1_002_line_continuations_join_before_splitting():
     assert res("git \\\n  commit -m x") == at(".")
 
 
+LV102 = "# Stage changes with `git add`\ngit status --short; git add README.md"
+
+
+def test_lv102_a_comment_ending_in_a_continuation_character_ends_at_its_line():
+    assert res(LV102) == at(".")
+    assert res("# see C:\\temp\\\ntouch f") == at("f")
+    assert res("echo 'a`\ntouch g'") == []  # inside single quotes a backtick-newline is text
+    assert res("Write-Host x `\n  ; touch h") == at("h")
+
+
+CONTROL = [("if true; then git add x; fi", "git"), ("if false; then :; elif true; then touch a; fi", "touch"),
+           ("if false; then :; else touch b; fi", "touch"), ("for f in x; do touch c; done", "touch"),
+           ("while true; do rm d; done", "rm"), ("until false; do touch e; done", "touch"),
+           ("if git add y; then :; fi", "git"), ("! touch g", "touch")]
+
+
+@pytest.mark.parametrize("command,program", CONTROL)
+def test_lv106_with_keywords_a_control_word_opens_a_program_position(command, program):
+    found = [sm.program_of(words[0]) for seg in sm.segments(command)
+             for words in [sm.strip_prefixes(seg.words, keywords=True)] if words]
+    assert program in found
+
+
+@pytest.mark.parametrize("command,program", CONTROL)
+def test_lv201_mutation_analysis_reads_control_words_as_origin_main_does(command, program):
+    # Pinned parity: a branch `cd` must not move the judged folder (LV-201), so no word after `then` is read.
+    assert res(command) == []
+
+
 def test_s1_001_a_group_and_a_pipeline_do_not_leak_their_folder():
     assert res("(cd sub && touch safe); touch guarded") == at("sub/safe", "guarded")
     assert res("cd sub | touch guarded") == at("guarded")

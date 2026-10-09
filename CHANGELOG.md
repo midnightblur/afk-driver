@@ -37,6 +37,40 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- Lavish pages render through one command,
+  `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"`, with the same
+  shapes as before (`<file> [--no-open|--reopen]`, `poll`, `end`, `stop`,
+  `playbook`). It injects the tooltips, side-question control, page navigation
+  and dark mode before a render or poll, then runs the pinned `lavish-axi` with
+  the same arguments, output and exit status. It refuses `share`,
+  `setup hooks`, `update` and `LAVISH_AXI_HOST` with exit 64. On Windows, a
+  killed wrapper takes the upstream down. A `.cmd` install that cannot tie the
+  upstream's lifetime to the wrapper starts nothing and exits 69.
+- A poll on an intact page no longer rewrites it: injection writes the file
+  only when its bytes change, so the page the human is answering does not
+  reload under them.
+- The protected-branch guard also refuses a shell call that runs `lavish-axi`
+  directly or sets `LAVISH_AXI_HOST`, and names the wrapper command. Searches,
+  mentions and `lavish-axi --version` pass. `AFK_ALLOW_PROTECTED=1` does not
+  lift this rule. The native contract gate refuses a direct `lavish-axi` run
+  in plugin scripts, workflow `run:` steps and prose (check N), read with the
+  guard's own shell reader.
+- The guard's shell reader skips comments and reads a `.cmd`, `.bat` or `.ps1`
+  launcher as the program it names. A comment ends at its line even when it
+  ends in `\` or a backtick. The lavish rule and check N read the word after
+  `if`, `then`, `elif`, `else`, `while`, `until`, `do` or `!` as a program;
+  mutation checks read control words as before.
+- Domain glossaries for tooltips come from the repository that holds the page,
+  else from the session folder's repository.
+
+### Removed
+
+- The `lavish-dark.sh` and `lavish-tips.sh` PreToolUse hooks, which started two
+  shells on every Bash and PowerShell call. The seed dictionary moved from
+  `hooks/lavish-tips.json` to `scripts/lavish/tips.json`.
+
 ## [1.15.0] - 2026-10-07
 
 ### Added

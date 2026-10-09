@@ -55,21 +55,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-dark.sh",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "afk-python \"${PLUGIN_ROOT}/hooks/run-hook.py\" --deadline 14 plugin lavish-tips.sh",
-            "timeout": 15
-          }
-        ]
-      },
-      {
         "matcher": "*",
         "hooks": [
           {
