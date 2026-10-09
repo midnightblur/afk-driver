@@ -70,6 +70,9 @@ The adapter tests use a stub command-line tool. They do not contact GitLab.
   creation it equals `createdAt`, and resolving a thread moves it. The REST
   note entity has no edit field. A failed query, or a note the query does not
   answer, is an error.
+- GitLab returns null for a user the token may not read (`read_user`), so a
+  null `lastEditedBy` proves "unedited" only when the same node's `author` is
+  non-null. A note with both null is an error naming the missing permission.
 - `thread-list` paginates to the end. A round that read only the first page
   would re-open findings it had already settled.
 - Each thread includes its URL, side, lines, paths, and note timestamps. Each

@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shlex
 import stat
 import subprocess
 from pathlib import Path
@@ -102,7 +103,7 @@ def test_payload_can_arrive_on_stdin(tmp_path, kind):
 GITLAB_PAGES = """
 case "$1 $2" in
   "mr view") echo '{"iid":7,"draft":true}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/1","lastEditedBy":null},{"id":"gid://gitlab/DiffNote/2","lastEditedBy":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/1","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}},{"id":"gid://gitlab/DiffNote/2","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":"a","notes":[{"id":1,"body":"one","author":{"username":"x"}}]}]'
@@ -137,7 +138,7 @@ NOTE_PAGES = {
     "gitlab": """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/Note/1","lastEditedBy":{"id":"gid://gitlab/User/9"}},{"id":"gid://gitlab/Note/2","lastEditedBy":null},{"id":"gid://gitlab/Note/3","lastEditedBy":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/Note/1","lastEditedBy":{"id":"gid://gitlab/User/9"},"author":{"id":"gid://gitlab/User/1"}},{"id":"gid://gitlab/Note/2","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}},{"id":"gid://gitlab/Note/3","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*)
     echo '[{"id":2,"body":"later","author":{"username":"b"},"created_at":"2025-02-02","updated_at":"2025-02-02","system":false}]'
@@ -434,7 +435,7 @@ def test_gitlab_thread_list_exposes_locator_url_and_note_times(tmp_path):
     body = """
 case "$1 $2" in
   "mr view") echo '{"iid":7}' ;;
-  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/61","lastEditedBy":null}]}}}}}' ;;
+  "api graphql") echo '{"data":{"project":{"mergeRequest":{"notes":{"nodes":[{"id":"gid://gitlab/DiffNote/61","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}}]}}}}}' ;;
   "api projects/:id") echo '{"path_with_namespace":"acme/widget"}' ;;
   "api --paginate"*) echo '[{"id":"d1","notes":[{"id":61,"type":"DiffNote","resolved":false,"body":"x","created_at":"2025-03-01","updated_at":"2025-03-02","web_url":"https://gitlab.example/n/61","author":{"username":"a"},"position":{"old_path":"old.txt","new_path":"new.txt","old_line":4,"new_line":5}}]}]' ;;
   *) echo '{}' ;;
@@ -849,7 +850,7 @@ def test_note_list_fails_when_the_graphql_call_fails(tmp_path, kind):
 
 @pytest.mark.parametrize("kind,node", [
     ("github", '{"databaseId":2,"lastEditedAt":null},'),
-    ("gitlab", '{"id":"gid://gitlab/Note/2","lastEditedBy":null},'),
+    ("gitlab", '{"id":"gid://gitlab/Note/2","lastEditedBy":null,"author":{"id":"gid://gitlab/User/1"}},'),
 ])
 def test_note_list_fails_when_a_note_has_no_graphql_edit_state(tmp_path, kind, node):
     assert node in NOTE_PAGES[kind]
@@ -907,6 +908,48 @@ def test_gitlab_note_list_reads_edited_from_lastEditedBy_alone(tmp_path, fields,
     answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", body), "note-list", '{"id":"7"}',
                               cwd=tmp_path).stdout)
     assert {n["id"]: n["edited"] for n in answer["notes"]} == {"1": True, "2": edited}
+
+
+VISIBLE = ',"author":{"id":"gid://gitlab/User/1"}'
+HIDDEN = {  # GitLab nulls a user the token may not read, editor and author alike
+    "thread-list": (GITLAB_PAGES, '"gid://gitlab/DiffNote/1","lastEditedBy":null' + VISIBLE),
+    "note-list": (NOTE_PAGES["gitlab"], '"gid://gitlab/Note/2","lastEditedBy":null' + VISIBLE),
+}
+
+
+@pytest.mark.parametrize("verb", HIDDEN)
+@pytest.mark.parametrize("author", ['"author":null', ""], ids=["author-hidden", "author-not-queried"])
+def test_gitlab_null_editor_without_a_visible_author_is_an_error_never_unedited(tmp_path, verb, author):
+    body, old = HIDDEN[verb]
+    assert old in body
+    hidden = old.replace(VISIBLE, "," + author if author else "")
+    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", body.replace(old, hidden)), verb, '{"id":"7"}',
+                              cwd=tmp_path).stdout)
+    assert answer["error"] is True and "threads" not in answer and "notes" not in answer
+    assert ("token cannot read users" in answer["reason"]) == bool(author)
+
+
+def test_gitlab_editor_shown_without_an_author_still_reads_edited(tmp_path):
+    body, old = HIDDEN["note-list"]
+    shown = old.replace('null' + VISIBLE, '{"id":"gid://gitlab/User/9"},"author":null')
+    answer = json.loads(forge("gitlab", stub(tmp_path, "gitlab", body.replace(old, shown)), "note-list",
+                              '{"id":"7"}', cwd=tmp_path).stdout)
+    assert {n["id"]: n["edited"] for n in answer["notes"]} == {"1": True, "2": True}
+
+
+@pytest.mark.parametrize("verb", HIDDEN)
+def test_the_ledger_refuses_a_change_whose_gitlab_editors_are_hidden(tmp_path, monkeypatch, verb):
+    spec = importlib.util.spec_from_file_location(
+        "forge_ledger", PLUGIN_ROOT / "skills" / "afk" / "review" / "scripts" / "forge_ledger.py")
+    ledger = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ledger)
+    body, old = HIDDEN[verb]
+    environ = stub(tmp_path, "gitlab", body.replace(old, old.replace(VISIBLE, ',"author":null')))
+    monkeypatch.setenv("PATH", environ["PATH"])
+    script = (PLUGIN_ROOT / "adapters" / "forge" / "gitlab" / "forge.sh").as_posix()
+    monkeypatch.setenv("AFK_LEDGER_ADAPTER_CMD", f"{shlex.quote(Path(BASH).as_posix())} {shlex.quote(script)}")
+    with pytest.raises(ledger.LedgerError, match="token cannot read users"):
+        ledger.Adapter(cwd=tmp_path).call(verb, {"id": "7"})
 
 
 @pytest.mark.parametrize("kind,body", [("gitlab", GITLAB_PAGES), ("github", GITHUB_PAGES)])
