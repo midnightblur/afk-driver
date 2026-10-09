@@ -86,8 +86,10 @@ release page from its section here. Nobody tags by hand.
   the message now says it timed out and that start-up counts.
 - **Rationale comments on GitLab verify again.** GitLab stamps `lastEditedAt`
   on every new comment, so the adapter read every new note as edited and
-  `rationale-verify` could never pass. A note is now edited only when that
-  stamp differs from its creation time.
+  `rationale-verify` could never pass. A note is now edited only when GitLab
+  names its editor (`lastEditedBy`). A token that cannot read users hides the
+  editor and the author alike, and the adapter then reports an error instead
+  of calling the note unedited.
 
 ## [1.15.0] - 2026-10-07
 
