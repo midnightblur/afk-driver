@@ -4,25 +4,76 @@
 
 set -u
 
-# Builtins only until PATH keeps just absolute, readable folders outside every root git could pick:
-# the nearest .git folder, GIT_WORK_TREE, GIT_DIR and the folder holding a GIT_DIR named .git.
+# Builtins only until PATH keeps just absolute, readable folders outside every root git could pick
+# (hooks/README.md "Plugin-source gates" names them).
+tp_abs() { case "$1" in /*|[A-Za-z]:[/\\]*) return 0 ;; esac; return 1; }
+tp_root() {
+  local p
+  p=$(cd "$1" 2>/dev/null && pwd -P) || { refusal="$2 names no folder"; return 1; }
+  roots+=("$p")
+  [ "${p##*/}" != .git ] || roots+=("${p%/*}")
+}
+tp_line() { line=""; IFS= read -r line <"$1" || [ -n "$line" ]; line=${line%$'\r'}; }
+# A git directory, or a gitfile naming one, with its commondir and core.worktree.
+tp_git_dir() {
+  local dir=$1 line common
+  if [ -f "$dir" ]; then
+    tp_root "${dir%/*}" "$2" || return 1
+    tp_line "$dir" && [ "${line#gitdir: }" != "$line" ] || { refusal="$2 is neither a folder nor a gitfile"; return 1; }
+    dir=${line#gitdir: }
+    tp_abs "$dir" || dir=${1%/*}/$dir
+  fi
+  tp_root "$dir" "$2" || return 1
+  if [ -z "${GIT_COMMON_DIR-}" ] && [ -f "$dir/commondir" ]; then
+    tp_line "$dir/commondir" || { refusal="cannot read the commondir of $2"; return 1; }
+    common=$line
+    tp_abs "$common" || common=$dir/$common
+    tp_root "$common" "the commondir of $2" || return 1
+  fi
+  tp_worktree "$dir/config" "$dir" "$2" && tp_worktree "$dir/config.worktree" "$dir" "$2"
+}
+# core.worktree from one repository config file, the only source git reads it from.
+tp_worktree() {
+  local line value section="" status=0
+  [ -f "$1" ] || return 0
+  shopt -s nocasematch
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=${line%$'\r'}; line=${line#"${line%%[![:space:]]*}"}
+    case "$line" in
+      \[core\]*) section=core; case "${line#*]}" in *worktree*) status=1; break ;; esac ;;
+      \[*) section=other; case "${line#*]}" in *worktree*) status=1; break ;; esac ;;
+      worktree|worktree[[:space:]=]*)
+        [ "$section" = core ] || continue
+        value=${line#*=}
+        [ "$value" != "$line" ] || { status=1; break; }
+        value=${value#"${value%%[![:space:]]*}"}; value=${value%"${value##*[![:space:]]}"}
+        case "$value" in ''|*[\"\\\;#]*) status=1; break ;; esac
+        tp_abs "$value" || value=$2/$value
+        tp_root "$value" "core.worktree of $3" || { status=2; break; } ;;
+    esac
+  done <"$1"
+  shopt -u nocasematch
+  [ "$status" = 1 ] && refusal="$3 sets core.worktree in a form this runner cannot read"
+  [ "$status" = 0 ]
+}
 trusted_path() {
-  local dir phys kept="" fold=false var value root IFS=:
+  local dir phys kept="" fold=false var value root ancestor=""
   local -a dirs roots=()
   case "${OSTYPE:-}" in msys*|cygwin*|win*|darwin*) fold=true ;; esac
   dir=$(pwd -P) || { refusal="cannot read the current folder"; return 1; }
   while [ -n "$dir" ] && [ ! -e "$dir/.git" ]; do dir=${dir%/*}; done
-  [ -n "$dir" ] && roots+=("$dir")
-  for var in GIT_WORK_TREE GIT_DIR; do
+  if [ -n "$dir" ]; then
+    ancestor=$dir
+    tp_root "$dir" "the enclosing repository" && tp_git_dir "$dir/.git" "$dir/.git" || return 1
+  fi
+  for var in GIT_WORK_TREE GIT_COMMON_DIR GIT_DIR; do
     value=${!var-}
     [ -n "$value" ] || continue
-    case "$value" in /*|[A-Za-z]:[/\\]*) ;; *) refusal="$var is relative"; return 1 ;; esac
-    phys=$(cd "$value" 2>/dev/null && pwd -P) || { refusal="$var names no folder"; return 1; }
-    roots+=("$phys")
-    [ "$var" = GIT_DIR ] && [ "${phys##*/}" = .git ] && roots+=("${phys%/*}")
+    tp_abs "$value" || { refusal="$var is relative"; return 1; }
+    if [ "$var" = GIT_DIR ]; then tp_git_dir "$value" "$var"; else tp_root "$value" "$var"; fi || return 1
   done
-  [ -n "$dir" ] || [ -n "${GIT_WORK_TREE-}" ] || { refusal="no repository encloses the current folder"; return 1; }
-  read -r -a dirs <<<"$PATH"
+  [ -n "$ancestor" ] || [ -n "${GIT_WORK_TREE-}" ] || { refusal="no repository encloses the current folder"; return 1; }
+  IFS=: read -r -a dirs <<<"$PATH"
   "$fold" && shopt -s nocasematch
   for dir in "${dirs[@]}"; do
     case "$dir" in /*) ;; *) continue ;; esac

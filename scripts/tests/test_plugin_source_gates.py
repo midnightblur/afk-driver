@@ -423,10 +423,10 @@ def test_a_linked_interpreter_resolves_with_a_readlink_that_lacks_dash_f(base, t
     assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err
 
 
-@pytest.mark.parametrize("case", ["relative-git-dir", "outside-without-work-tree"])
+@pytest.mark.parametrize("case", ["relative-git-dir", "relative-common-dir", "outside-without-work-tree"])
 def test_an_unknowable_repository_is_refused(base, tmp_path, case):
     repo = _clone(base, f"unknowable_{case.replace('-', '_')}")
-    start, env = repo, {"GIT_DIR": ".git"}
+    start, env = repo, {"GIT_COMMON_DIR" if case == "relative-common-dir" else "GIT_DIR": ".git"}
     if case == "outside-without-work-tree":
         start = tmp_path / "outside"
         start.mkdir()
@@ -435,32 +435,43 @@ def test_an_unknowable_repository_is_refused(base, tmp_path, case):
     assert rc == 2 and "cannot tell which repository git will use" in err and rows == [], err
 
 
-@pytest.mark.parametrize("where", ["checkout", "outside", "linked-worktree"])
+@pytest.mark.parametrize("where", ["checkout", "outside", "linked-worktree", "main-checkout-bin", "gitfile",
+                                   "core-worktree"])
 def test_candidate_programs_first_on_the_inherited_path_never_run(base, tmp_path, where):
-    """outside: started elsewhere with GIT_DIR and GIT_WORK_TREE; linked-worktree: the variables git gives a hook."""
+    """outside: started elsewhere with GIT_DIR and GIT_WORK_TREE; linked-worktree: the variables git gives a hook;
+    main-checkout-bin: the programs sit in the main checkout of that linked worktree; gitfile: GIT_DIR names the
+    worktree's .git file; core-worktree: the repository config moves the work tree elsewhere (GIT_DIR as a hook gets)."""
     marker = tmp_path / "candidate-program-ran"
     repo = _clone(base, f"candidate_path_{where.replace('-', '_')}")
-    work, start, env = repo, repo, {}
+    work, start, env, programs = repo, repo, {}, repo / "bin"
+    if where in ("linked-worktree", "main-checkout-bin", "gitfile"):
+        work = start = repo.parent / f"{repo.name}_wt"
+        _git(repo, "worktree", "add", "-q", "-b", "side", work.as_posix())
+        programs = work / "bin" if where == "linked-worktree" else programs
+    _append(work / "README.md", "\nA fixture line.\n")
+    _git(work, "add", "README.md")
     if where == "outside":
         start = tmp_path / "outside"
         start.mkdir()
         env = {"GIT_DIR": (repo / ".git").as_posix(), "GIT_WORK_TREE": repo.as_posix()}
-    elif where == "linked-worktree":
-        work = start = repo.parent / f"{repo.name}_wt"
-        _git(repo, "worktree", "add", "-q", "-b", "side", work.as_posix())
+    elif where in ("linked-worktree", "main-checkout-bin"):
         git_dir = _git(work, "rev-parse", "--absolute-git-dir").strip()
         env = {"GIT_DIR": git_dir, "GIT_INDEX_FILE": f"{git_dir}/index"}
-    _append(work / "README.md", "\nA fixture line.\n")
-    _git(work, "add", "README.md")
-    (work / "bin").mkdir()
+    elif where == "gitfile":
+        env = {"GIT_DIR": (work / ".git").as_posix()}
+    elif where == "core-worktree":
+        programs = tmp_path / "elsewhere" / "bin"
+        _git(repo, "config", "core.worktree", programs.parent.as_posix())
+        env = {"GIT_DIR": (repo / ".git").as_posix()}
+    programs.mkdir(parents=True)
     for name in ("grep", "git"):
-        stub = work / "bin" / name
+        stub = programs / name
         stub.write_text(f"#!/usr/bin/env bash\necho {name} >>'{marker.as_posix()}'\nexit 1\n",
                         encoding="utf-8", newline="\n")
         stub.chmod(0o755)
-    staged = run_runner(work, "--staged", path_first=work / "bin", cwd=start, **env)
+    staged = run_runner(work, "--staged", path_first=programs, cwd=start, **env)
     _git(work, "commit", "-q", "-m", "fixture line")
-    ranged = run_runner(work, "--range", "origin/main", path_first=work / "bin", cwd=start, **env)
+    ranged = run_runner(work, "--range", "origin/main", path_first=programs, cwd=start, **env)
     for rc, rows, err in (staged, ranged):
         assert not marker.exists(), err
         assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err
