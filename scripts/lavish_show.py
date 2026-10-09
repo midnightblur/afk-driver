@@ -224,13 +224,17 @@ def start_batch(command: list[str]):
     class Port(ctypes.Structure):
         _fields_ = [("key", ctypes.c_void_p), ("port", wintypes.HANDLE)]
 
+    def checked(result, what: str):
+        if not result:  # read the error before any other Windows call can overwrite it
+            raise Unbound(f"{what} setup failed (Windows error {ctypes.get_last_error()})")
+        return result
+
     kernel = kernel32()
-    lifetime, watch = lifetime_job(kernel), kernel.CreateJobObjectW(None, None)
-    port = kernel.CreateIoCompletionPort(wintypes.HANDLE(-1), None, 0, 1)
+    lifetime = checked(lifetime_job(kernel), "lifetime job")
+    watch = checked(kernel.CreateJobObjectW(None, None), "watch job")
+    port = checked(kernel.CreateIoCompletionPort(wintypes.HANDLE(-1), None, 0, 1), "completion port")
     link = Port(key=None, port=port)
-    if not (lifetime and watch and port and kernel.SetInformationJobObject(watch, 7, ctypes.byref(link),
-                                                                           ctypes.sizeof(link))):
-        raise Unbound(f"job setup failed (Windows error {ctypes.get_last_error()})")
+    checked(kernel.SetInformationJobObject(watch, 7, ctypes.byref(link), ctypes.sizeof(link)), "watch job notice")
     child = subprocess.Popen(command, creationflags=0x4)  # CREATE_SUSPENDED
     handle = int(child._handle)
     if not (kernel.AssignProcessToJobObject(watch, handle) and kernel.AssignProcessToJobObject(lifetime, handle)):

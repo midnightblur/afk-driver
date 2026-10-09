@@ -309,13 +309,16 @@ REAL_KERNEL32 = lavish_show.kernel32
 
 
 class FailingKernel:
-    """The real kernel32 with one call made to fail."""
+    """The real kernel32 with one call made to fail with ERROR_ACCESS_DENIED (5)."""
 
     def __init__(self, failing: str):
         self.real, self.failing = REAL_KERNEL32(), failing
 
     def __getattr__(self, name):
-        return (lambda *args: 0) if name == self.failing else getattr(self.real, name)
+        if name != self.failing:
+            return getattr(self.real, name)
+        import ctypes
+        return lambda *args: ctypes.set_last_error(5) and 0
 
 
 windows_only = pytest.mark.skipif(os.name != "nt", reason="job objects exist only on Windows")
@@ -329,7 +332,19 @@ def test_a_batch_shim_whose_jobs_cannot_be_set_up_starts_nothing_and_exits_69(mo
     monkeypatch.setattr(lavish_show, "upstream", lambda args: ["C:/x/lavish-axi.cmd", *args])
     monkeypatch.setattr(sys, "argv", ["lavish_show.py", "stop"])
     assert lavish_show.main() == 69
-    assert started == [] and "refused to run the batch shim: job setup failed" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert started == [] and "refused to run the batch shim: lifetime job setup failed (Windows error 5)" in err
+
+
+@windows_only
+@pytest.mark.parametrize("failing", ["CreateJobObjectW", "CreateIoCompletionPort", "SetInformationJobObject"])
+def test_a_job_setup_refusal_names_the_windows_error_of_the_failing_call(failing, monkeypatch):
+    started = []
+    monkeypatch.setattr(lavish_show, "kernel32", lambda: FailingKernel(failing))
+    monkeypatch.setattr(lavish_show.subprocess, "Popen", lambda *a, **k: started.append(a))
+    with pytest.raises(lavish_show.Unbound, match=r"failed \(Windows error 5\)"):
+        lavish_show.start_batch(["C:/x/lavish-axi.cmd"])
+    assert started == []
 
 
 @windows_only
@@ -338,7 +353,7 @@ def test_a_shell_that_cannot_join_its_jobs_is_killed_before_it_runs(tmp_path, mo
     shim = tmp_path / "shim.cmd"
     shim.write_text(f'@echo ran> "{marker}"\r\n', encoding="utf-8")
     monkeypatch.setattr(lavish_show, "kernel32", lambda: FailingKernel("AssignProcessToJobObject"))
-    with pytest.raises(lavish_show.Unbound, match="could not join its jobs"):
+    with pytest.raises(lavish_show.Unbound, match=r"could not join its jobs \(Windows error 5\)"):
         lavish_show.start_batch([str(shim)])
     time.sleep(0.5)
     assert not marker.exists()
