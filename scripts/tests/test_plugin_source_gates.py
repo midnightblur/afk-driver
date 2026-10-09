@@ -398,6 +398,31 @@ def test_an_aliased_interpreter_inside_the_repository_is_never_the_judge(base, t
     assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err
 
 
+def test_a_linked_interpreter_resolves_with_a_readlink_that_lacks_dash_f(base, tmp_path):
+    calls = tmp_path / "readlink-calls"
+    shadow = tmp_path / "shadow"
+    shadow.mkdir()
+    (shadow / "readlink").write_text(
+        f"#!/usr/bin/env bash\necho \"$*\" >>'{calls.as_posix()}'\n"
+        "for a; do [ \"$a\" = -f ] && { echo 'readlink: illegal option -- f' >&2; exit 1; }; done\n"
+        "exec /usr/bin/readlink \"$@\"\n", encoding="utf-8", newline="\n")
+    (shadow / "readlink").chmod(0o755)
+    links = tmp_path / "links"
+    links.mkdir()
+    (links / "real-python").write_text(f"#!/usr/bin/env bash\nexec '{Path(sys.executable).as_posix()}' \"$@\"\n",
+                                       encoding="utf-8", newline="\n")
+    (links / "real-python").chmod(0o755)
+    (links / "hop").symlink_to(links / "real-python")
+    (links / "afk-python").symlink_to("hop")
+    repo = _clone(base, "linked_python")
+    _append(repo / "README.md", "\nA fixture line.\n")
+    _git(repo, "add", "README.md")
+    rc, rows, err = run_runner(repo, "--staged", path_first=shadow,
+                               AFK_PYTHON=(links / "afk-python").as_posix())
+    assert calls.exists() and "-f" not in calls.read_text(encoding="utf-8").split(), err
+    assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err
+
+
 def test_candidate_programs_first_on_the_inherited_path_never_run(base, tmp_path):
     marker = tmp_path / "candidate-program-ran"
     repo = _clone(base, "candidate_path")

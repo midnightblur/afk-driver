@@ -130,8 +130,12 @@ hooks="$JUDGE/hooks"
 . "$hooks/lib/provider.sh" || incomplete "the judging plugin cannot load hooks/lib/provider.sh"
 # Physical form: links and junctions resolved, one spelling per Windows mount, no trailing separator.
 physical() {
-  local p=$1 dir
-  if [ -L "$p" ]; then p=$(command -p readlink -f "$p") || return 1; fi
+  local p=$1 dir hops=0 target
+  while [ -L "$p" ]; do
+    hops=$((hops + 1)); [ "$hops" -le 40 ] || return 1
+    target=$(readlink "$p") || return 1
+    case "$target" in /*) p=$target ;; *) p=${p%/*}/$target ;; esac
+  done
   if [ -d "$p" ]; then
     p=$(cd "$p" 2>/dev/null && pwd -P) || return 1
   else
