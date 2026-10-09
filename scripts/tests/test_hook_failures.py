@@ -224,13 +224,27 @@ def captures(folder: Path) -> list[str]:
     return sorted(p.name for p in folder.iterdir())
 
 
+def held_captures(folder: Path) -> int:
+    """Open capture files in `folder`. Linux `TemporaryFile` is nameless (O_TMPFILE), so count fd links."""
+    if os.name == "nt":
+        return len(captures(folder))
+    held = 0
+    for link in Path("/proc").glob("[0-9]*/fd/*"):
+        try:
+            held += os.readlink(link).startswith(f"{folder}{os.sep}")
+        except OSError:
+            pass
+    return held
+
+
 def settle(folder: Path, seconds: float = 15.0) -> list[str]:
     stop = time.monotonic() + seconds
-    while captures(folder) and time.monotonic() < stop:
+    while (captures(folder) or held_captures(folder)) and time.monotonic() < stop:
         time.sleep(0.1)
-    return captures(folder)
+    return captures(folder) + ([f"{held_captures(folder)} open"] if held_captures(folder) else [])
 
 
+@pytest.mark.skipif(os.name != "nt" and not Path("/proc").is_dir(), reason="needs /proc to see nameless files")
 def test_capture_files_are_gone_after_a_run_and_after_a_kill(plugin, tmp_path):
     folder = tmp_path / "captures"
     folder.mkdir()
@@ -243,10 +257,11 @@ def test_capture_files_are_gone_after_a_run_and_after_a_kill(plugin, tmp_path):
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                             cwd=str(plugin), env=environ("claude", **temp))
     stop = time.monotonic() + 60
-    while len(captures(folder)) < 2 and time.monotonic() < stop and held.poll() is None:
+    while held_captures(folder) < 2 and time.monotonic() < stop and held.poll() is None:
         time.sleep(0.1)
-    assert len(captures(folder)) >= 2, "the launcher never opened its capture files"
-    held.kill()
+    assert held_captures(folder) >= 2, "the launcher never opened its capture files"
+    # Windows: a hard kill, the job ends the tree. POSIX: SIGKILL cannot reach the handler's group, SIGTERM does.
+    held.kill() if os.name == "nt" else held.terminate()
     held.wait(timeout=30)
     assert settle(folder) == []
 
