@@ -49,10 +49,14 @@ def _env() -> dict[str, str]:
     return {key: value for key, value in env.items() if key.upper() not in dropped}
 
 
-def run_runner(repo: Path, *mode: str, judge: Path = ROOT,
+def run_runner(repo: Path, *mode: str, judge: Path = ROOT, path_first: Path | None = None,
                **env: str) -> tuple[int, list[tuple[str, str, str]], str]:
     report = repo.parent / f"{repo.name}-{judge.name}-{mode[0].strip('-')}.tsv"
-    done = subprocess.run([str(BASH), (judge / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
+    # path_first is prepended inside bash, as a project-aware shell does, ahead of the shell's own folders.
+    prefix = [] if path_first is None else [
+        "-c", 'PATH="$(cygpath -u "$1" 2>/dev/null || printf %s "$1"):$PATH"; shift; exec "$BASH" "$@"',
+        "_", path_first.as_posix()]
+    done = subprocess.run([str(BASH), *prefix, (judge / "hooks" / "plugin-source-gates.sh").as_posix(), *mode,
                            "--report", report.as_posix()],
                           cwd=repo, env={**_env(), **env}, capture_output=True, text=True, timeout=600)
     rows = []
@@ -392,6 +396,25 @@ def test_an_aliased_interpreter_inside_the_repository_is_never_the_judge(base, t
     rc, rows, err = run_runner(repo, "--staged", **env)
     assert not marker.exists(), err
     assert rc == 2 and "no afk-python outside the repository" in err and rows == [], err
+
+
+def test_candidate_programs_first_on_the_inherited_path_never_run(base, tmp_path):
+    marker = tmp_path / "candidate-program-ran"
+    repo = _clone(base, "candidate_path")
+    _append(repo / "README.md", "\nA fixture line.\n")
+    _git(repo, "add", "README.md")
+    (repo / "bin").mkdir()
+    for name in ("grep", "git"):
+        stub = repo / "bin" / name
+        stub.write_text(f"#!/usr/bin/env bash\necho {name} >>'{marker.as_posix()}'\nexit 1\n",
+                        encoding="utf-8", newline="\n")
+        stub.chmod(0o755)
+    staged = run_runner(repo, "--staged", path_first=repo / "bin")
+    _git(repo, "commit", "-q", "-m", "fixture line")
+    ranged = run_runner(repo, "--range", "origin/main", path_first=repo / "bin")
+    for rc, rows, err in (staged, ranged):
+        assert not marker.exists(), err
+        assert rc == 0 and verdicts(rows) == {gate: "pass" for gate in GATES}, err
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows searches the current folder for a bare program")

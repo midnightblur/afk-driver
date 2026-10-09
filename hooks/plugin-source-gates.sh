@@ -4,7 +4,32 @@
 
 set -u
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Builtins only until PATH keeps just absolute, readable folders outside the repository (the hook's cwd).
+trusted_path() {
+  local top dir phys kept="" fold=false IFS=:
+  local -a dirs
+  case "${OSTYPE:-}" in msys*|cygwin*|win*|darwin*) fold=true ;; esac
+  top=$(pwd -P) || return 1
+  dir=$top
+  while [ -n "$dir" ] && [ ! -e "$dir/.git" ]; do dir=${dir%/*}; done
+  [ -z "$dir" ] || top=$dir
+  read -r -a dirs <<<"$PATH"
+  "$fold" && shopt -s nocasematch
+  for dir in "${dirs[@]}"; do
+    case "$dir" in /*) ;; *) continue ;; esac
+    [ -r "$dir" ] && phys=$(cd "$dir" 2>/dev/null && pwd -P) || continue
+    case "${phys%/}/" in "${top%/}/"*) continue ;; esac
+    kept+="${kept:+:}$dir"
+  done
+  shopt -u nocasematch
+  PATH=$kept
+}
+trusted_path || { echo "[afk] plugin-source gates: cannot read the current folder — NOT verified." >&2; exit 2; }
+# Windows would otherwise search a process's current folder, the candidate, for a bare program name.
+export NoDefaultCurrentDirectoryInExePath=1
+
+case "${BASH_SOURCE[0]}" in */*) SCRIPT_DIR=${BASH_SOURCE[0]%/*} ;; *) SCRIPT_DIR=. ;; esac
+SCRIPT_DIR=$(cd "$SCRIPT_DIR" && pwd)
 JUDGE=$(cd "$SCRIPT_DIR/.." && pwd)
 GATES="skill-registry native-contract genericity behavior-registry"
 
@@ -21,8 +46,6 @@ while [ "$#" -gt 0 ]; do
     *) printf '[afk] plugin-source-gates.sh: unknown argument %s\n' "$1" >&2; exit 2 ;;
   esac
 done
-# Windows would otherwise search a process's current folder, the candidate, for a bare program name.
-export NoDefaultCurrentDirectoryInExePath=1
 if [ -z "$mode" ] || { [ "$mode" = range ] && [ -z "$base_ref" ]; }; then
   echo "usage: plugin-source-gates.sh --staged | --range <base-ref> [<head-ref>] [--report <file>]" >&2
   exit 2
