@@ -71,6 +71,26 @@ release page from its section here. Nobody tags by hand.
   shells on every Bash and PowerShell call. The seed dictionary moved from
   `hooks/lavish-tips.json` to `scripts/lavish/tips.json`.
 
+### Fixed
+
+- **Hooks start fewer processes on Windows.** Where security software scans
+  every process start, each start can cost up to 0.7 s. Hooks read input
+  fields with bash builtins instead of a `grep`/`sed` pipe, and the provider
+  library finds its own folder without `dirname`. The launcher starts
+  `<git>/usr/bin/bash.exe` directly, with the environment the `<git>/bin`
+  launcher would have set, and writes a PreToolUse deny itself instead of
+  starting another shell.
+- **A slow repository hook is reported as a timeout.** A handler in
+  `.afk/hooks.json` that ran past its `timeout` used to be denied as one "this
+  checkout cannot run", with advice to fix the manifest. It still blocks, but
+  the message now says it timed out and that start-up counts.
+- **Rationale comments on GitLab verify again.** GitLab stamps `lastEditedAt`
+  on every new comment, so the adapter read every new note as edited and
+  `rationale-verify` could never pass. A note is now edited only when GitLab
+  names its editor (`lastEditedBy`). A token that cannot read users hides the
+  editor and the author alike, and the adapter then reports an error instead
+  of calling the note unedited.
+
 ## [1.15.0] - 2026-10-07
 
 ### Added

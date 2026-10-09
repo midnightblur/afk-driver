@@ -104,7 +104,8 @@ failure answers `missing: false`; callers must not read it as absence. Each `gh`
 `body`, `created_at`, `updated_at`, and `edited`. Each thread carries the same
 fields for its notes, plus `side`, `line`, `old_line`, `old_path`, `new_path`,
 and `url`. `edited` is a boolean from the forge's own edit signal (GraphQL
-`lastEditedAt`). `updated_at` is ordering data only: it moves on activity that is
+`lastEditedAt` on GitHub, `lastEditedBy` on GitLab). A null GitLab editor means unedited only
+beside a visible `author`: GitLab nulls both when the token cannot read users. `updated_at` is ordering data only: it moves on activity that is
 not an edit. A verb that cannot read the signal answers `error`; it never guesses
 `false`, and a caller refuses a note without the field.
 

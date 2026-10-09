@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Registry and shared contracts for AFK hook provider adapters.
 
-AFK_PROVIDER_CORE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# No dirname and, for an absolute path, no subshell: every hook sources this file.
+AFK_PROVIDER_CORE_DIR=${BASH_SOURCE[0]//\\//}
+case "$AFK_PROVIDER_CORE_DIR" in
+  /*|[A-Za-z]:*) AFK_PROVIDER_CORE_DIR=${AFK_PROVIDER_CORE_DIR%/*} ;;
+  */*) AFK_PROVIDER_CORE_DIR=$(cd "${AFK_PROVIDER_CORE_DIR%/*}" && pwd) ;;
+  *) AFK_PROVIDER_CORE_DIR=$PWD ;;
+esac
 AFK_PROVIDER_NAMES=""
 
 for afk_adapter in "$AFK_PROVIDER_CORE_DIR"/providers/*.sh; do
@@ -220,12 +226,122 @@ afk_hook_field() {
   if command -v jq >/dev/null 2>&1; then
     printf '%s' "${AFK_HOOK_INPUT:-}" | jq -r ".${path} // \"\"" 2>/dev/null || printf ''
   else
-    local leaf="${path##*.}"
-    { printf '%s' "${AFK_HOOK_INPUT:-}" \
-      | grep -oE "\"${leaf}\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" | head -1 \
-      | sed "s/^\"${leaf}\"[[:space:]]*:[[:space:]]*\"//;s/\"\$//" \
-      | sed 's/\\"/"/g;s/\\\\/\\/g;s/\\n/ /g;s/\\t/ /g;s/\\r/ /g'; } || true
+    # Builtins only: every hook reads fields, and a process start can cost 0.1-0.7 s.
+    afk__json_field "$path"
   fi
+}
+
+# Print the string or number at dotted object path $1 of AFK_HOOK_INPUT, like
+# `jq -r ".$1 // \"\""`; an object, an array, false and null print nothing.
+afk__json_field() {
+  local glob=+f
+  case $- in *f*) glob=-f ;; esac
+  set -f; afk__json_find "$1"; set "$glob"
+}
+
+# Split once at every ": bash's own pattern replace is quadratic on a large envelope.
+# A part ending in an odd run of \ continues the string; any other " toggles it.
+afk__json_find() {
+  local IFS='"' p t v i n k=-1 d=0 L=0 in=0 open=-2
+  local -a parts segs o c
+  parts=(${AFK_HOOK_INPUT:-}); n=${#parts[@]}
+  IFS=.; segs=($1); IFS='"'
+  # Forward, tracking how much of the path the open objects match. A one-key search
+  # finishes from the end after 64 parts, so a key behind a large value stays cheap.
+  for ((i = 0; i < n; i++)); do
+    ((${#segs[@]} == 1 && i == 64)) && break
+    p=${parts[i]}
+    if ((in)); then
+      if [[ $p == *\\ ]]; then t=${p##*[!\\]}; ((${#t} % 2)) && continue; fi
+      in=0; continue
+    fi
+    if [[ $p == *:* ]] && ((d == L + 1 && open == i - 1)) && [ "${parts[i-1]}" = "${segs[L]}" ]; then
+      ((L + 1 == ${#segs[@]})) && { k=$i; break; }
+      v=${p#*:}; v=${v#"${v%%[![:space:]]*}"}
+      [[ $v == \{* ]] || return 0
+      L=$((L + 1))
+    fi
+    if [[ $p == *[\{\}\[\]]* ]]; then
+      IFS='{['; o=(.$p.); IFS='}]'; c=(.$p.); IFS='"'
+      d=$((d + ${#o[@]} - ${#c[@]}))
+      ((d <= L)) && L=$((d > 0 ? d - 1 : 0))
+    fi
+    in=1; open=$((i + 1))
+  done
+  # Backward, where the depth of a key is the closers after it less the openers.
+  if ((k < 0 && i < n)); then
+    local stop=$i
+    d=0 in=0
+    for ((i = n - 1; i >= stop; i--)); do
+      p=${parts[i]}
+      if ((in)); then
+        t=${parts[i-1]} in=0
+        if [[ $t == *\\ ]]; then t=${t##*[!\\]}; ((${#t} % 2)) && in=1; fi
+        continue
+      fi
+      if [[ $p == *[\{\}\[\]]* ]]; then
+        IFS='{['; o=(.$p.); IFS='}]'; c=(.$p.); IFS='"'
+        d=$((d + ${#c[@]} - ${#o[@]}))
+      fi
+      if [[ $p == *:* ]] && ((d == 1 && i >= 2)) && [ "${parts[i-1]}" = "$1" ]; then
+        t=${parts[i-2]}
+        [[ $t == *\\ ]] && t=${t##*[!\\]}
+        [[ $t == *\\ ]] && ((${#t} % 2)) || { k=$i; break; }
+      fi
+      in=1
+    done
+  fi
+  ((k < 0)) && return 0
+  v=${parts[k]#*:}; v=${v#"${v%%[![:space:]]*}"}
+  if [ -z "$v" ] && ((k + 1 < n)); then
+    for ((i = k + 1; i < n; i++)); do
+      p=${parts[i]}
+      [[ $p == *\\ ]] || break
+      t=${p##*[!\\]}; ((${#t} % 2)) || break
+    done
+    afk__json_unescape "${parts[*]:k+1:i-k}"
+  elif [[ ${v:0:64} =~ ^(-?[0-9][-+.eE0-9]*|true)[[:space:]]*([],}]|$) ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
+
+# Decode one JSON string body, each escape once. Runs with globbing off.
+afk__json_unescape() {
+  local IFS='\' p c cp lo bytes i n
+  local -a f
+  f=($1.); n=${#f[@]}  # the "." keeps a trailing empty part
+  for ((i = 1; i < n; i++)); do
+    p=${f[i]}
+    if [ -z "$p" ]; then f[i]='\'; i=$((i + 1)); continue; fi  # \\: the next part is plain
+    c=${p:0:1} p=${p:1}
+    case $c in
+      b) c=$'\b' ;; f) c=$'\f' ;; n) c=$'\n' ;; r) c=$'\r' ;; t) c=$'\t' ;;
+      '"'|/) ;;
+      u)
+        if [[ $p != [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]* ]]; then c='\u'
+        else
+          cp=$((16#${p:0:4})) p=${p:4}
+          if ((cp >= 0xD800 && cp < 0xDC00)) && [ -z "$p" ] \
+            && [[ ${f[i+1]} == u[dD][c-fC-F][0-9a-fA-F][0-9a-fA-F]* ]]; then
+            lo=$((16#${f[i+1]:1:4})) f[i]= i=$((i + 1))
+            cp=$(((cp - 0xD800) * 0x400 + lo - 0xDC00 + 0x10000)) p=${f[i]:5}
+          fi
+          # UTF-8 by hand: printf's own \u follows the locale, and hooks run in C.
+          if ((cp < 0x80)); then printf -v bytes '\\x%02x' "$cp"
+          elif ((cp < 0x800)); then printf -v bytes '\\x%02x' $((0xC0 | cp >> 6)) $((0x80 | cp & 63))
+          elif ((cp < 0x10000)); then
+            printf -v bytes '\\x%02x' $((0xE0 | cp >> 12)) $((0x80 | cp >> 6 & 63)) $((0x80 | cp & 63))
+          else
+            printf -v bytes '\\x%02x' $((0xF0 | cp >> 18)) $((0x80 | cp >> 12 & 63)) \
+              $((0x80 | cp >> 6 & 63)) $((0x80 | cp & 63))
+          fi
+          printf -v c '%b' "$bytes"
+        fi ;;
+      *) c='\'$c ;;
+    esac
+    f[i]=$c$p
+  done
+  IFS=; p="${f[*]}"; printf '%s' "${p%.}"
 }
 
 afk__json_escape() {

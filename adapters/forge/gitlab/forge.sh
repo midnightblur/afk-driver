@@ -233,7 +233,7 @@ query($path:ID!,$iid:String!,$endCursor:String) {
   project(fullPath:$path) {
     mergeRequest(iid:$iid) {
       notes(first:100,after:$endCursor) {
-        nodes { id lastEditedAt }
+        nodes { id author { id } lastEditedBy { id } }
         pageInfo { hasNextPage endCursor }
       }
     }
@@ -251,7 +251,7 @@ try:
     docs = pages(sys.stdin.read())
 except Exception:
     fail("the GraphQL note answer is unreadable")
-edited = {}
+edited, hidden = {}, []
 for doc in docs:
     mr = ((((doc.get("data") or {}).get("project") or {}).get("mergeRequest")) if isinstance(doc, dict) else None)
     if not isinstance(mr, dict) or doc.get("errors"):
@@ -259,8 +259,17 @@ for doc in docs:
     for node in (mr.get("notes") or {}).get("nodes") or []:
         ident = str(node.get("id") or "").rsplit("/", 1)[-1]
         if ident:
-            edited[ident] = bool(node["lastEditedAt"]) if "lastEditedAt" in node else None
-print(json.dumps({"edited": edited}))
+            # lastEditedBy is set only when GitLab calls the note edited, and is null too when the token
+            # cannot read users: a visible author proves the null means unedited.
+            by, author = node.get("lastEditedBy", ...), node.get("author", ...)
+            if by is ... or author is ...:
+                edited[ident] = None
+            elif by is not None or author is not None:
+                edited[ident] = by is not None
+            else:
+                edited[ident] = None
+                hidden.append(ident)
+print(json.dumps({"edited": edited, "hidden": hidden}))
 '
 }
 
@@ -564,7 +573,8 @@ for n in data:
     ident = str(n.get("id") or "")
     flag = edits["edited"].get(ident)
     if flag is None:
-        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for note " + ident}))
+        why = " (author and editor hidden: the token cannot read users)" if ident in edits["hidden"] else ""
+        print(json.dumps({"error": True, "reason": "GraphQL edit state missing for note " + ident + why}))
         raise SystemExit(0)
     notes.append({"id": ident,
                   "author": (n.get("author") or {}).get("username") or "",
@@ -633,7 +643,8 @@ except Exception:
 unknown = [str(n.get("id")) for d in (data if isinstance(data, list) else []) for n in d.get("notes") or []
            if edits["edited"].get(str(n.get("id"))) is None]
 if unknown:
-    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for notes: " + ", ".join(unknown)}))
+    why = " (author and editor hidden: the token cannot read users)" if set(unknown) & set(edits["hidden"]) else ""
+    print(json.dumps({"error": True, "reason": "GraphQL edit state missing for notes: " + ", ".join(unknown) + why}))
     raise SystemExit(0)
 threads = []
 for d in data if isinstance(data, list) else []:
