@@ -57,6 +57,14 @@ release page from its section here. Nobody tags by hand.
   The installed plugin judges a commit and the target branch's tip judges a
   pull request, so a branch's edits to its own gates cannot weaken the gates
   that judge it; the `afk-gate-override` label accepts a deliberate relaxation.
+- **Behavior change for every plugin user: an agent runs the continuous
+  integration (CI) checks locally before each push.** The managed behavior
+  block gains a `ci-parity-before-push` line; run `/afk:setup` to refresh it.
+  The agent runs the checks on every CI platform the machine can reach, for
+  example Windows Subsystem for Linux (WSL) or a Linux virtual machine for a
+  Linux runner, and names each platform it could not reach. A failure that
+  only CI shows means the local recipe has a gap, and the agent fixes both.
+  Rule: `VERIFICATION.md` "Before a push".
 - Lavish pages render through one command,
   `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"`, with the same
   shapes as before (`<file> [--no-open|--reopen]`, `poll`, `end`, `stop`,
