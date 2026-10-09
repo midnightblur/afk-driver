@@ -167,6 +167,16 @@ def test_production_reply_behavior_loads_language_sections_one_and_two():
     assert "§1–2" in "\n".join(reply.body)
 
 
+def test_production_ci_parity_behavior_reaches_every_repository():
+    behavior_registry = load_module()
+    registry = behavior_registry.parse_registry(ROOT / "BEHAVIORS.md")
+    row = next(row for row in registry.rows if row.id == "ci-parity-before-push")
+
+    assert (row.state, row.scope, row.self_contained) == ("active", "all-repos", True)
+    assert row.doctrine == "VERIFICATION.md §Before a push"
+    assert "## Before a push" in (ROOT / "VERIFICATION.md").read_text(encoding="utf-8")
+
+
 @pytest.mark.parametrize(
     ("field", "body", "message"),
     [
