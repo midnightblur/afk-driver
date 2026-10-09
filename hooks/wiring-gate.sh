@@ -24,7 +24,7 @@
 # Mechanical only: zero-referrer detection. Weak-consumer judgment (test-only
 # consumers, unreachable flows) belongs to /afk:verify-seams, not this gate.
 # Final mode: WIRING_FINAL=1 bash wiring-gate.sh  -> open IOUs block.
-# Lists: bash wiring-gate.sh --list-candidates (paths it judges) | --list-changed (every path vs the same base).
+# Lists: bash wiring-gate.sh --list-candidates (paths it judges) | --list-changed (every path vs the same base, deletions and both rename names included).
 # Disable: WIRING_GATE_DISABLE=1, or repo file .claude/hooks/.gate-disabled.
 
 set -u
@@ -125,14 +125,14 @@ gate_wiring() {
   return $rc
 }
 
-# Paths changed against the integration base, committed (3-dot) and staged; $1 is a git --diff-filter.
+# Paths changed against the integration base, committed (3-dot) and staged; arguments are git diff options.
 # 3-dot keeps a post-merge branch from claiming every file the base added since the divergence.
 _wiring_paths() {
   {
     if [ -n "${AFK_CTX_BASE:-}" ] && [ "${AFK_CTX_BASE}" != "HEAD" ]; then
-      git diff --name-only -z --diff-filter="$1" "$AFK_CTX_BASE"...HEAD 2>/dev/null
+      git diff --name-only -z "$@" "$AFK_CTX_BASE"...HEAD 2>/dev/null
     fi
-    git diff --cached --name-only -z --diff-filter="$1" 2>/dev/null
+    git diff --cached --name-only -z "$@" 2>/dev/null
   } | tr '\0' '\n' | sort -u | sed '/^$/d'
 }
 
@@ -144,7 +144,7 @@ _wiring_main() {
 
   # ---- candidates: adds, copies and rename targets, staged or committed ahead of the base.
   local new_files
-  new_files=$(_wiring_paths ACR)
+  new_files=$(_wiring_paths --diff-filter=ACR)
   [ -z "$new_files" ] && return 0
 
   local cache_key=""
@@ -281,8 +281,8 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   cd "$_root" || exit 0
   . "$_d/gate-context.sh"; gate_ctx_build
   case "${1:-}" in
-    --list-candidates) _wiring_paths ACR; exit 0 ;;
-    --list-changed) _wiring_paths ACMRT; exit 0 ;;
+    --list-candidates) _wiring_paths --diff-filter=ACR; exit 0 ;;
+    --list-changed) _wiring_paths --no-renames --diff-filter=ACDMRT; exit 0 ;;
   esac
   . "$_d/gate-cache.sh"
   . "$_d/gate-metrics.sh"

@@ -159,6 +159,21 @@ def _list(repo, mode):
     return done.stdout.split()
 
 
+@pytest.mark.parametrize("committed", [False, True], ids=["staged", "committed"])
+def test_the_changed_list_names_deletions_and_both_names_of_a_rename(repo, committed):
+    (repo / "docs" / "old.md").write_text("a provider the loader resolves\n", encoding="utf-8")
+    _git(repo, "add", "docs/old.md")
+    _git(repo, "commit", "-qm", "provider", "--", "docs/old.md")
+    _git(repo, "remote", "add", "origin", repo.as_posix())
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "rm", "-q", "docs/notes.md")
+    _git(repo, "mv", "docs/old.md", "docs/new.md")
+    if committed:
+        _git(repo, "commit", "-qm", "delete and rename")
+    assert sorted(_list(repo, "--list-changed")) == ["docs/new.md", "docs/notes.md", "docs/old.md", ARTIFACT]
+    assert sorted(_list(repo, "--list-candidates")) == ["docs/new.md", ARTIFACT]
+
+
 def test_the_lists_use_the_integration_base_even_when_the_upstream_is_head(repo):
     _git(repo, "remote", "add", "origin", repo.as_posix())
     _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
