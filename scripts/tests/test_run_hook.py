@@ -136,7 +136,7 @@ def test_timeout_denies_pretooluse_as_a_timeout(tmp_path):
 
 @pytest.mark.parametrize("provider", ["claude", "codex"])
 @pytest.mark.parametrize("with_jq", [True, False])
-def test_the_shell_free_deny_parses_to_the_object_afk_emit_deny_writes(provider, with_jq, capsys):
+def test_the_shell_free_deny_parses_to_the_object_afk_emit_deny_writes(provider, with_jq, capsys, tmp_path):
     # Semantic parity: the parsed objects match; key order and spacing are not a contract.
     if with_jq and shutil.which("jq") is None:
         pytest.skip("no jq on this machine")
@@ -145,11 +145,22 @@ def test_the_shell_free_deny_parses_to_the_object_afk_emit_deny_writes(provider,
     reason = ours["hookSpecificOutput"]["permissionDecisionReason"]
     env = dict(os.environ, AFK_PROVIDER=provider)
     if not with_jq:
-        env["PATH"] = ""
+        # Hide jq alone: the fallback escapes with sed and awk, present on every POSIX host.
+        tools, dirs = tmp_path / "no-jq", []
+        tools.mkdir()
+        for name in ("sed", "awk"):
+            found = shutil.which(name)
+            try:
+                (tools / name).symlink_to(found)
+            except (OSError, TypeError):  # no symlink right on Windows: lend the tool's own directory
+                if found:
+                    dirs.append(str(Path(found).parent))
+        env["PATH"] = os.pathsep.join([str(tools), *dirs])
     library = (PLUGIN_ROOT / "hooks" / "lib" / "provider.sh").as_posix()
-    done = subprocess.run([str(launcher.find_bash()), "-c", '. "$1" && afk_emit_deny "$2"', "t", library, reason],
+    script = '. "$1" || exit 70; { [ "$3" = 1 ] || ! command -v jq >/dev/null; } || exit 71; afk_emit_deny "$2"'
+    done = subprocess.run([str(launcher.find_bash()), "-c", script, "t", library, reason, "1" if with_jq else "0"],
                           env=env, capture_output=True, text=True, encoding="utf-8")
-    assert done.returncode == 0, done.stderr
+    assert (done.returncode, done.stderr) == (0, "")
     assert json.loads(done.stdout) == ours
 
 
