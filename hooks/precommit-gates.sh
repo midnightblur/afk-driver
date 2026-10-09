@@ -184,12 +184,17 @@ py="${AFK_PYTHON:-afk-python}"
 if command -v "$py" >/dev/null 2>&1; then
   "$py" "$SCRIPT_DIR/run-hook.py" repo-list PreCommit </dev/null >&2 || commit_blocked
 else
-  # Without the launcher, block when the effective manifest declares PreCommit or cannot be resolved.
-  manifest=$(afk_repo_hooks_manifest) || manifest=""
-  body=""
-  [ -z "$manifest" ] || [ ! -e "$manifest" ] || { [ -r "$manifest" ] && body=$(<"$manifest"); } || manifest=""
-  if [ -z "$manifest" ] || [[ $body == *'"PreCommit"'* ]]; then
-    echo "[afk] repository PreCommit handlers cannot run: afk-python not found. Run /afk:setup." >&2
+  # Without the launcher, block when the repository could declare handlers (layers: CONFIG.md "Discovery").
+  declared=""
+  [ -e .afk/hooks.json ] && declared=1
+  common=$(git rev-parse --git-common-dir 2>/dev/null) || declared=1
+  for layer in "${AFK_CONFIG:-}" .afk/config.local.yaml "$common/afk/config.yaml" .afk/config.yaml \
+    "${HOME:-/nonexistent}/.afk/config.yaml"; do
+    [ -n "$layer" ] && { [ -e "$layer" ] || [ "$layer" = "${AFK_CONFIG:-}" ]; } || continue
+    grep -qs repo-hooks "$layer"; [ "$?" -eq 1 ] || declared=1
+  done
+  if [ -n "$declared" ]; then
+    echo "[afk] afk-python not found; run /afk:setup (or git commit --no-verify to skip once)." >&2
     commit_blocked
   fi
 fi

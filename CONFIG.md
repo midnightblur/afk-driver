@@ -227,10 +227,9 @@ form: `A`, `C`, `D`, `M` or `T`, and `R<score>\t<old>\t<new>` for a rename. Dele
 are listed, and handlers judge the staged bytes. Each run appends a
 `gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
 "Latency metrics & budget"). Without `afk-python` the handlers cannot run, and the
-commit blocks when the effective manifest declares `PreCommit`. The shell then
-resolves `repo-hooks` across the Discovery layers from one plain top-level
-`repo-hooks: <path>` line per layer (`hooks/lib/config.sh`); any other spelling,
-an unreadable layer or a path outside the repository blocks too. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
+commit blocks whenever the repository could declare them: `.afk/hooks.json` exists,
+or any Discovery layer mentions `repo-hooks` or cannot be read. The shell parses
+neither file; `/afk:setup` installs the launcher. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
 `git commit --no-verify` skip them with the plugin's gates.
 
 `WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each

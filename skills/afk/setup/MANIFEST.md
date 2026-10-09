@@ -629,6 +629,8 @@ a token value — not even partially.
   registrations (`.mcp.json`, `.mcp.codex.json`, the H2 `tracker` entry),
   every skill, adapter and git-hook script, and CI. Without it no gate or
   guard fires and no MCP server starts; the harness carries on without them.
+  The commit gate blocks instead when the repository has `.afk/hooks.json`
+  or any configuration layer mentions `repo-hooks` (`CONFIG.md`).
 - **Pins:** `runtime/pyproject.toml` — CPython in `requires-python`, uv in
   `[tool.uv] required-version`, the dependency set and its import names.
   `runtime/uv.lock` holds every transitive version with its hashes.

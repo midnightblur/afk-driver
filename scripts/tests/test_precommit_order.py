@@ -237,41 +237,25 @@ def test_a_handler_that_hangs_past_its_timeout_blocks(plugin, tmp_path):
     assert "costly" not in ran and time.monotonic() - started < 25, done.stderr
 
 
-@pytest.mark.parametrize("manifest", [".afk/hooks.json", "ci/commit-hooks.json"], ids=["default", "custom"])
-def test_without_the_launcher_a_declared_precommit_manifest_blocks(plugin, tmp_path, manifest):
-    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], manifest=manifest,
-                     AFK_PYTHON="afk-python-is-not-installed")
-    assert done.returncode == 2, done.stderr
-    assert "configuration not loaded" in done.stderr
-    assert "PreCommit handlers cannot run" in done.stderr and "cheap" not in ran, done.stderr
-
-
-def test_without_the_launcher_a_repository_with_no_handlers_still_commits(plugin, tmp_path):
-    done, ran = _run(plugin, tmp_path, AFK_PYTHON="afk-python-is-not-installed")
-    assert done.returncode == 0, done.stderr
-    assert "configuration not loaded" in done.stderr, done.stderr
-
-
 NO_LAUNCHER = {"AFK_PYTHON": "afk-python-is-not-installed"}
+NO_LAUNCHER_BLOCK = "afk-python not found; run /afk:setup"
 
 
-def test_without_the_launcher_a_local_overlay_manifest_with_precommit_blocks(plugin, tmp_path):
-    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], manifest="ci/local-hooks.json",
-                     local="repo-hooks: ci/local-hooks.json  # this checkout only\n", **NO_LAUNCHER)
-    assert done.returncode == 2, done.stderr
-    assert "PreCommit handlers cannot run" in done.stderr and "cheap" not in ran, done.stderr
-
-
-def test_without_the_launcher_a_custom_manifest_with_only_stop_commits(plugin, tmp_path):
-    stop = {**_handler("cheap"), "event": "Stop"}
-    done, ran = _run(plugin, tmp_path, handlers=[stop], manifest="ci/stop-hooks.json", **NO_LAUNCHER)
+def test_without_the_launcher_a_repository_with_no_manifest_and_no_key_commits(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, HOME=tmp_path.as_posix(), **NO_LAUNCHER)
     assert done.returncode == 0, done.stderr
-    assert "PreCommit handlers cannot run" not in done.stderr, done.stderr
+    assert "configuration not loaded" in done.stderr and NO_LAUNCHER_BLOCK not in done.stderr, done.stderr
 
 
-@pytest.mark.parametrize("local", ['"repo-hooks": ci/hooks.json\n', "repo-hooks: >\n  ci/hooks.json\n",
-                                   "repo-hooks: ../outside.json\n"], ids=["quoted-key", "block", "outside"])
-def test_without_the_launcher_a_layer_the_shell_cannot_read_blocks(plugin, tmp_path, local):
-    done, _ran = _run(plugin, tmp_path, local=local, **NO_LAUNCHER)
+def test_without_the_launcher_a_present_manifest_blocks(plugin, tmp_path):
+    stop = {**_handler("cheap"), "event": "Stop"}
+    done, ran = _run(plugin, tmp_path, handlers=[stop], HOME=tmp_path.as_posix(), **NO_LAUNCHER)
     assert done.returncode == 2, done.stderr
-    assert "PreCommit handlers cannot run" in done.stderr, done.stderr
+    assert NO_LAUNCHER_BLOCK in done.stderr and "--no-verify" in done.stderr and "cheap" not in ran, done.stderr
+
+
+def test_without_the_launcher_a_repo_hooks_key_in_the_local_layer_blocks(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, local="repo-hooks: ci/local-hooks.json\n", HOME=tmp_path.as_posix(),
+                     **NO_LAUNCHER)
+    assert done.returncode == 2, done.stderr
+    assert NO_LAUNCHER_BLOCK in done.stderr, done.stderr
