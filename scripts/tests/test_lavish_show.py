@@ -206,11 +206,11 @@ def install_server_upstream(folder: Path, layout: str = "package") -> None:
     """An upstream that, like lavish-axi, starts a detached server on render and blocks on `FAKE_BLOCK`.
 
     Layout `batch` is the Windows fallback: a `.cmd` shim with no readable npm package;
-    `batch-helper` runs a short helper process before the real one."""
+    `batch-helper` runs a 2.2 s helper process before the real one."""
     folder.mkdir()
     if layout.startswith("batch"):
         (folder / "fake.py").write_text(SERVER_PY, encoding="utf-8")
-        helper = f"@\"{sys.executable}\" -c \"import time; time.sleep(0.5)\"\r\n" if layout == "batch-helper" else ""
+        helper = f"@\"{sys.executable}\" -c \"import time; time.sleep(2.2)\"\r\n" if layout == "batch-helper" else ""
         (folder / "lavish-axi.cmd").write_text(
             helper + f"@\"{sys.executable}\" \"{folder / 'fake.py'}\" %*\r\n", encoding="utf-8")
     elif os.name == "nt":

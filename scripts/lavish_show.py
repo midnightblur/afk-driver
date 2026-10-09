@@ -13,6 +13,9 @@ Windows it runs as a child, without `cmd.exe` unless the npm package is unreadab
 or interrupted wrapper takes the upstream program down (through `cmd.exe` too); a server the
 upstream starts outlives the wrapper either way.
 
+Known frontier: through `cmd.exe`, a process it starts is bound within about 20 ms (one poll);
+a wrapper killed inside that window leaves that process running.
+
 Exit codes of the wrapper itself (nothing upstream ran):
     64   refused: `share`, `setup`, `update`, any other operation or argument shape, a
          missing or non-HTML target, or `LAVISH_AXI_HOST` in the environment
@@ -219,11 +222,10 @@ def bind_batch_children(job, shell: subprocess.Popen) -> None:
         if process:
             kernel.CloseHandle(process)
         bound: set[int] = set()
-        start = time.monotonic()
         while born and shell.poll() is None:
             bound.update(pid for pid in children_of(kernel, shell.pid)
                          if pid not in bound and assign(kernel, job, pid, born))
-            time.sleep(0.02 if time.monotonic() - start < 2 else 0.25)
+            time.sleep(0.02)
     except Exception:
         return  # best effort, as in bind_child_lifetime
 
