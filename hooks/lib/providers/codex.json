@@ -10,6 +10,8 @@
   "nested_inject_mode": "always",
   "nested_inject_rules": 1,
   "instruction_files_setting": false,
+  "stop_block_code": 0,
+  "hook_failure_notice": "system_message",
   "move_ui": {
     "command": "/cd {path}",
     "done": "Working directory changed",

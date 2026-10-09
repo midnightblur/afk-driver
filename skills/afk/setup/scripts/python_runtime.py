@@ -360,8 +360,8 @@ def install(env: Mapping[str, str], windows: bool, test: bool, runner: Runner = 
         print(f"fail stamp: {exc}", file=out)
         return 1
     print("ok stamp published", file=out)
-    print("Restart the harness and any open terminal: a running process keeps its old PATH.",
-          file=out)
+    print("Restart the harness and any open terminal: a running process keeps its old PATH. "
+          "For Codex that includes its background app-server daemon and its updater.", file=out)
     return 0
 
 

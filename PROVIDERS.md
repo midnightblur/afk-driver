@@ -83,8 +83,10 @@ types nothing and logs why; the human types the printed `/cd` line.
 The same file declares the launcher's policy, read by `hooks/run-hook.py` before any
 shell and by `afk_provider_fact` in bash: `nested_inject_mode` (`never`,
 `agent-only` or `always`) and `nested_inject_rules` (`0` or `1`) for the
-nested-steering hook, and `instruction_files_setting` (`true` where the
-harness has the `instructionFiles` setting). A handler the policy makes a no-op
+nested-steering hook, `instruction_files_setting` (`true` where the
+harness has the `instructionFiles` setting), and `hook_failure_notice`
+(`stderr`, or `system_message` where the harness drops a failed hook's stderr;
+`CAPABILITIES.md` "Hook failures"). A handler the policy makes a no-op
 starts no shell.
 
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
@@ -165,7 +167,7 @@ Claude reads `agents/*.md` from the enabled plugin. Codex reads the files copied
 
 Codex has no documented custom-agent tool allowlist or nesting-depth setting. Use sandbox plus role prohibitions. Root agents spawn; children run helper work inline when nesting is unavailable.
 
-Each adapter also names the exit code its harness reads a Stop block from (`afk_<provider>_stop_block_code`, default 2). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
+Each provider declaration also names the exit code its harness reads a Stop block from (`stop_block_code` in `hooks/lib/providers/<name>.json`, default 0). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
 
 ## Credentials
 

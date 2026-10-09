@@ -31,10 +31,6 @@ afk_claude_managed_plugin_dirs() {
   fi
 }
 
-afk_claude_stop_block_code() {
-  printf '0\n'
-}
-
 afk_claude_plugin_data() {
   if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
     printf '%s\n' "$CLAUDE_PLUGIN_DATA"

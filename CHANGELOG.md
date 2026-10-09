@@ -90,6 +90,20 @@ release page from its section here. Nobody tags by hand.
   names its editor (`lastEditedBy`). A token that cannot read users hides the
   editor and the author alike, and the adapter then reports an error instead
   of calling the note unedited.
+- A failing hook now names itself: `[afk] <handler> (<event>) failed: exit <n>: <reason>`
+  on stderr, for every plugin and repository handler, a timeout, and a crash in
+  the launcher, the guard, the meter or occupancy. Where the harness drops a
+  failed hook's stderr, the same line arrives as a warning and the hook exits 0.
+- A plugin handler's refusal on PreToolUse or Stop (a deny or block document,
+  or exit 2) now blocks on every harness whatever its exit code; before, a
+  document at a non-zero exit let the tool run where the harness reads
+  decisions only at exit 0. Exit 2 on any other event is a failure.
+- A Stop gate that kills its shell no longer swallows the error, and the
+  worktree-create hook says why when it gets no path.
+- `/afk:setup` now says which processes to restart after it changes `PATH`,
+  including a harness's background daemon and its updater. A daemon started
+  before the change runs every hook without `afk-python`, and every hook then
+  fails with exit 1.
 
 ## [1.15.0] - 2026-10-07
 

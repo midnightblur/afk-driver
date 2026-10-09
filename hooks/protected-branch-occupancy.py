@@ -2,6 +2,7 @@
 """SessionStart: register this session in its linked worktree and say when another live session holds it.
 
 Advisory only: the line is injected as context; this handler never blocks and exits 0 on every path.
+A crash names itself (CAPABILITIES.md "Hook failures").
 """
 import json
 import os
@@ -34,6 +35,11 @@ def run() -> None:
 if os.environ.get("AFK_ALLOW_PROTECTED") != "1":
     try:
         run()
-    except BaseException:
-        pass
+    except BaseException as problem:  # fail open, but never silently
+        try:
+            sys.path.insert(0, str(LIB))
+            import hook_failure
+            hook_failure.crashed("protected-branch-occupancy.py", "SessionStart", problem, notify=True)
+        except BaseException:
+            pass
 sys.exit(0)
