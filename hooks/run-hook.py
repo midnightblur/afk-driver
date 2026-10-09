@@ -239,6 +239,15 @@ def _drain(proc: subprocess.Popen) -> tuple[bytes | None, bytes | None]:
         return None, None
 
 
+def _reap(proc: subprocess.Popen) -> tuple[None, None]:
+    """A killed fed handler: its outputs are files and its stdin belongs to the reader thread, so only wait."""
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    return None, None
+
+
 def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None,
              capture: bool = False, timeout: float | None = None,
              jobbed: bool = True, outputs: tuple | None = None, feed: bool = False) -> subprocess.CompletedProcess:
@@ -262,7 +271,7 @@ def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None
                 out, err = proc.communicate(input=input, timeout=timeout)
         except subprocess.TimeoutExpired:
             _kill_group(proc, job)
-            out, err = _drain(proc)
+            out, err = _drain(proc) if not feed else _reap(proc)
             raise subprocess.TimeoutExpired(args, timeout, output=out, stderr=err)
         except BaseException:
             _kill_group(proc, job)
