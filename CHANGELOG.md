@@ -50,6 +50,17 @@ release page from its section here. Nobody tags by hand.
 
 ### Changed
 
+- **Commands in the main checkout now need a worktree.** In the main checkout
+  or a protected branch's worktree, the protected-branch guard runs a shell
+  command only when it can prove every part read-only against its allow-list
+  (`hooks/lib/read_only.py`): listings, searches, file reads, read-only `git`,
+  `gh` and `glab` reads, `curl` without output or upload flags, `docker` reads
+  and PowerShell `Get-*` reads. Every other command, including builds, tests
+  and scripts, is refused before it runs, with the command that makes a
+  worktree. A command aimed at a folder outside these places still runs, as
+  do the base-branch fast-forward and the plugin's `create-worktree`.
+  Edit tools are judged by their target as before, and
+  `AFK_ALLOW_PROTECTED=1` still lifts the rule (#99, ADR-0014).
 - No plugin gate runs on Stop. The wiring gate runs at `/afk:execute` Step 11
   and in `/afk:verify-seams final`; the skill-registry, native-contract,
   genericity and behavior-registry gates run at commit and in pull-request CI
@@ -85,6 +96,11 @@ release page from its section here. Nobody tags by hand.
 
 ### Removed
 
+- The protected-branch change meter (`hooks/protected-branch-meter.py`, the
+  `PostToolUse` hook) and its snapshot, quarantine and recovery text: a
+  command that could change the main checkout no longer runs there. A harness
+  that records hook trust has one fewer entry, and no other entry's trust key
+  moves.
 - `hooks/stop-gates.sh`. Stop runs only the repository's own handlers from
   `.afk/hooks.json`.
 - The `lavish-dark.sh` and `lavish-tips.sh` PreToolUse hooks, which started two
@@ -112,7 +128,7 @@ release page from its section here. Nobody tags by hand.
   of calling the note unedited.
 - A failing hook now names itself: `[afk] <handler> (<event>) failed: exit <n>: <reason>`
   on stderr, for every plugin and repository handler, a timeout, and a crash in
-  the launcher, the guard, the meter or occupancy. Where the harness drops a
+  the launcher, the guard or occupancy. Where the harness drops a
   failed hook's stderr, the same line arrives as a warning and the hook exits 0.
 - A plugin handler's refusal on PreToolUse or Stop (a deny or block document,
   or exit 2) now blocks on every harness whatever its exit code; before, a

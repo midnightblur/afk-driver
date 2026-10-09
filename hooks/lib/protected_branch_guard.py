@@ -4,12 +4,13 @@ Called by hooks/protected-branch-guard.py with the tool envelope on stdin. Allow
 exit 0 (a one-line context note on stdout when the forge could not answer). Refuse:
 exit 0, the reason on stderr and a deny decision on stdout (`providers/CONFORMANCE.md` row P-2: exit 2 fails open).
 
-A call is refused only when it is an identified mutation whose resource is guarded: the
-main checkout (any branch), a linked worktree on a protected branch, or one another live session
-holds (`occupancy.py`). Edit tools are
-judged at every target they name; a shell command at the paths `shell_mutations`
-recognizes; reads, composition, unknown programs and paths outside git pass. A verdict
-that cannot be computed for an identified mutation is a refusal that names the fault.
+A guarded placement is the main checkout (any branch) or a linked worktree on a protected branch.
+A shell segment that runs in one is refused before it runs unless `read_only` proves it read-only;
+a file writer whose targets are all literal is judged at those targets instead. Beyond that, a call
+is refused when it is an identified mutation of a guarded placement or of a worktree another live
+session holds (`occupancy.py`): edit tools at every target they name, a shell command at the paths
+`shell_mutations` recognizes. A verdict that cannot be computed for an unproven segment or an
+identified mutation is a refusal that names the fault.
 
 First, in the same process, the lavish rule (`lavish_direct`) refuses a shell call that runs
 `lavish-axi` itself or sets `LAVISH_AXI_HOST`; `AFK_ALLOW_PROTECTED=1` does not lift it.
@@ -30,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import read_only  # noqa: E402
 import shell_mutations  # noqa: E402
 
 PLUGIN_ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[2])
@@ -40,6 +42,7 @@ PATH_KEY = re.compile(r"path|file", re.I)
 MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", "rename", "move",
             "exec", "execute", "run", "terminal", "apply", "patch", "commit", "push", "insert", "set",
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
+PLUGIN_SCRIPT = re.compile(r"^\$\{?(?:AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT)\}?[\\/]scripts[\\/]create-worktree$")
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_DEPTH = 3
 SYNC_HINT = ("a human makes the main checkout clean and puts it on its base branch with an upstream, "
@@ -438,17 +441,6 @@ def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: l
     return found or ([cwd] if kind == "edit" else [])
 
 
-def meter_guarded(place: dict, judge: "Judge") -> bool:
-    """A placement the change meter watches: the main checkout, or a linked worktree on a protected branch."""
-    if place["kind"] == "main":
-        return True
-    branch = branch_of(place)
-    if branch is None:
-        return False
-    names = {"main", "master", lookup_module().default_branch(place["common"], "origin")}
-    return branch in names and judge.verdict(place) is not None
-
-
 def plain_hint(facts: dict) -> str:
     try:
         return hint_of(facts)
@@ -477,46 +469,76 @@ def refuse(state: dict, facts: dict, action: str, cause: str, hint_fn, extra_fn=
     return deny(safe_refusal(action, cause, hint, extra))
 
 
-def meter_pre(kind: str, envelope: dict, cwd: Path, here: dict | None, judge: "Judge") -> None:
-    """Snapshot every guarded checkout an allowed shell call can enter; never changes the verdict."""
-    if kind != "shell":
-        return
-    try:
-        import change_meter
-        command = command_of(envelope.get("tool_input") if isinstance(envelope.get("tool_input"), dict) else {})
-        if change_meter.read_only(command, cwd):
-            return
-        folders: list = []
-        shell_mutations.resources(command, cwd, [], folders, powershell=str(envelope.get("tool_name") or "").lower() == "powershell")
-        chosen: dict[str, dict] = {}
-        for place in [here] + [placement(f) for f in folders]:
-            try:
-                if place is not None and norm(place["root"]) not in chosen and meter_guarded(place, judge):
-                    chosen[norm(place["root"])] = place
-            except Exception:
-                continue
-        if chosen:
-            call, sha = change_meter.call_id(envelope, command)
-            change_meter.record_pre(list(chosen.values()), change_meter.session_key(judge), call, sha, cwd)
-    except Exception:
-        pass
+def move_hint(facts: dict, envelope: dict, judge: "Judge", here: dict | None, refused: dict | None,
+              cause: str, pulled: set | None = None) -> str:
+    """The move a refused session can run from where it sits."""
+    if "occupancy record busy" in cause:
+        return "retry in a moment; if it stays busy, move to a new worktree."
+    hint = OUTSIDE_HINT
+    if here is not None:
+        hint = hint_of(facts)
+        occupied = "is in use by another live session" in cause
+        if judge.verdict(here) is None and not (occupied and refused and norm(here["root"]) == norm(refused["root"])):
+            hint = f"write inside this session's worktree {here['root']}, not outside it."
+        elif facts.get("harness_class") == "H-2":
+            hint = h2_hint(here, envelope, facts, hint)
+    if refused and refused["kind"] == "main" and norm(refused["root"]) in (pulled or set()):
+        hint = "`git pull --ff-only` on a clean base branch is allowed here; otherwise " + hint
+    return hint
 
 
-def occupied_destination(judge: "Judge", command: str, cwd: Path, powershell: bool = False) -> str | None:
-    """The refusal cause when a recovery command writes into a worktree another live session holds."""
-    for target in shell_mutations.resources(command, cwd, powershell=powershell):
-        cause = judge.occupant(placement(target))
+def create_worktree(words: list, folder: Path | None) -> bool:
+    """The plugin's own `scripts/create-worktree`, named by its path or under `$AFK_PLUGIN_ROOT`."""
+    if not words:
+        return False
+    if words[0].opaque:
+        return bool(PLUGIN_SCRIPT.match(words[0].text))
+    full = shell_mutations.resolve(words[0], folder) if re.search(r"[\\/]", words[0].text) else None
+    return full is not None and norm(full) == norm(PLUGIN_ROOT / "scripts" / "create-worktree")
+
+
+def confined(segment, words: list, spot: Path | None, here: Path | None, powershell: bool) -> bool:
+    """Every effect of the segment is a literal path: a read with file redirects, or a known file writer."""
+    if not words or re.search(r"[\\/]", words[0].text) or any(w.opaque for w in segment.words):
+        return False
+    if any(w.text.lower() not in shell_mutations.NO_TARGET and shell_mutations.resolve(w, here) is None
+           for w in segment.redirects):
+        return False
+    if read_only.proven(segment.words, []):
+        return True
+    prog = shell_mutations.program_of(words[0])
+    if prog in ("sed", "perl"):
+        return False  # a script can run a program
+    targets = shell_mutations.writer_targets(prog, words, powershell)
+    return bool(targets) and all(shell_mutations.resolve(t, spot) is not None for t in targets)
+
+
+def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: dict):
+    """(segment text, placement, cause, is a pull) of the first segment that runs in a guarded placement
+    and is not proven read-only; None when there is none. A confined segment is judged later, at its targets."""
+    seen: dict[str, tuple] = {}
+    for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell):
+        if read_only.proven(segment.words, segment.redirects) or create_worktree(words or segment.words, spot) \
+                or confined(segment, words, spot, here, powershell):
+            continue
+        folder, pull = spot, False
+        if words and shell_mutations.program_of(words[0]) == "git":
+            verb, _, _, _ = shell_mutations.git_options(words, spot)
+            pull = verb < len(words) and words[verb].text.lower() == "pull"
+            if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None:
+                continue  # the sync is judged at its folder (ADR-0011)
+            folder = shell_mutations.git_folder(words, spot)
+        folder = folder or cwd  # a folder the text does not name counts as the session's own
+        state["identified"] = True
+        state["targets"] = list(state.get("targets") or []) + [folder]
+        key = norm(folder)
+        if key not in seen:
+            place = placement(folder)
+            seen[key] = (place, judge.verdict(place))
+        place, cause = seen[key]
         if cause:
-            return cause
-    return judge.claim_pending()
-
-
-def outside_guard(judge: "Judge"):
-    """A path no guarded checkout holds: outside git, or a linked worktree on an unprotected branch."""
-    def check(path: Path) -> bool:
-        place = placement(path)
-        return place is None or (place["kind"] == "linked" and judge.verdict(place) is None)
-    return check
+            return " ".join(w.text for w in segment.words)[:80], place, cause, pull
+    return None
 
 
 def decide(envelope: dict, facts: dict, state: dict) -> int:
@@ -529,22 +551,18 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     judge = Judge(str(envelope.get("session_id") or ""))
     try:
         here = placement(cwd)
-        held = None
-        if here is not None:
-            import change_meter
-            held = change_meter.active(here, change_meter.session_key(judge))
-    except Exception:  # no verdict on a hold that cannot be read
-        here, held = None, None
-    if held and kind == "shell" and change_meter.allows(command_of(tool_input), cwd, held, outside_guard(judge)):
-        busy = occupied_destination(judge, command_of(tool_input), cwd, tool.lower() == "powershell")
-        if busy is None:
-            return 0  # the named recovery and inspection commands, even where they mutate
-        return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy, lambda: plain_hint(facts))
-    if held:
-        names = ", ".join(sorted(held["paths"]))
-        cause = (f"this session changed {held['root']} through a form the guard could not refuse in advance "
-                 f"({names}) and has not undone it")
-        return refuse(state, facts, f"use {tool or 'a tool'}", cause, lambda: change_meter.recovery(held))
+    except Exception:  # only the hint reads it
+        here = None
+    command = command_of(tool_input)
+    if kind == "shell":
+        gated = unproven(judge, command, cwd, tool.lower() == "powershell", state)
+        if gated:
+            text, refused, cause, pull = gated
+            pulled = {norm(refused["root"])} if pull else set()
+            cause = (f"{cause} ({refused['root']}), where the guard runs a shell command only when it can prove "
+                     "it read-only, and it cannot prove this part")
+            return refuse(state, facts, f"run `{text}`", cause,
+                          lambda: move_hint(facts, envelope, judge, here, refused, cause, pulled), judge.notice_once)
     syncs: list = []
     pulls: list = []
     try:
@@ -552,7 +570,6 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     except Exception:  # an unreadable call is not an identified mutation
         return 0
     if not resources and not syncs:
-        meter_pre(kind, envelope, cwd, here, judge)
         return 0
     state["identified"] = True
     state["targets"] = list(resources) + [folder for folder, _, _ in syncs]
@@ -568,30 +585,18 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         import main_sync
         why, fields = main_sync.check(place, remote, branch)
         if why:
-            return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", why, lambda: SYNC_HINT)
+            return refuse(state, facts, f"run `{command.strip()[:80]}`", why, lambda: SYNC_HINT)
         grants.append((place, fields))
     for target in resources:
         refused = placement(target)
         cause = judge.verdict(refused) or judge.occupant(refused)
-        if cause and kind == "shell" and refused is not None:
-            try:
-                import change_meter
-                other = change_meter.active(refused, change_meter.session_key(judge))
-                if other and change_meter.allows(command_of(tool_input), cwd, other, outside_guard(judge)):
-                    busy = occupied_destination(judge, command_of(tool_input), cwd, tool.lower() == "powershell")
-                    if busy is None:
-                        return 0  # this session's named recovery of a checkout it holds, from any folder
-                    return refuse(state, facts, f"run `{command_of(tool_input).strip()[:80]}`", busy,
-                                  lambda: plain_hint(facts))
-            except Exception:
-                pass
         if cause:
             where = str(target)
             break
     if not cause:
         cause = judge.claim_pending()  # claims only now, so a refused call registers nowhere
     if kind == "shell":
-        action = f"run `{command_of(tool_input).strip()[:80]}`"
+        action = f"run `{command.strip()[:80]}`"
         if cause and where:
             action += f" (it changes {where})"
     elif kind == "edit":
@@ -601,25 +606,12 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     if cause:
         def build_hint() -> str:
             pulled = {norm(found["root"]) for found in map(placement, pulls) if found is not None}
-            hint = OUTSIDE_HINT
-            if "occupancy record busy" in cause:
-                return "retry in a moment; if it stays busy, move to a new worktree."
-            if here is not None:
-                hint = hint_of(facts)
-                occupied = "is in use by another live session" in cause
-                if judge.verdict(here) is None and not (occupied and norm(here["root"]) == norm(refused["root"])):
-                    hint = f"write inside this session's worktree {here['root']}, not outside it."
-                elif facts.get("harness_class") == "H-2":
-                    hint = h2_hint(here, envelope, facts, hint)
-            if kind == "shell" and refused and refused["kind"] == "main" and norm(refused["root"]) in pulled:
-                hint = "`git pull --ff-only` on a clean base branch is allowed here; otherwise " + hint
-            return hint
+            return move_hint(facts, envelope, judge, here, refused, cause, pulled if kind == "shell" else None)
         return refuse(state, facts, action, cause, build_hint, judge.notice_once)
     if grants:
         import main_sync
         for place, fields in grants:
             main_sync.authorize(place, fields, judge.session or judge.owner_key())
-    meter_pre(kind, envelope, cwd, here, judge)
     notice = judge.notice_once()
     if notice:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",

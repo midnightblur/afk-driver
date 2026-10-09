@@ -105,17 +105,6 @@
             "statusMessage": "repository PostToolUse hooks"
           }
         ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afk-python \"${CLAUDE_PLUGIN_ROOT}/hooks/protected-branch-meter.py\"",
-            "timeout": 30,
-            "statusMessage": "protected-branch change meter"
-          }
-        ]
       }
     ],
     "PostCompact": [

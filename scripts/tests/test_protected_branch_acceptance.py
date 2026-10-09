@@ -439,8 +439,8 @@ def test_ac031_read_only_shell_command_allowed_in_guarded_place(harness, tool, c
 
 
 @pytest.mark.parametrize("command", ["git status && git log -1 2>&1", "git fetch origin", "herdr agent list",
-                                     "unknown-reader README.md", "ls | head"])
-def test_ac031_composed_or_unknown_commands_allowed_in_guarded_place(command, repo, stubs):
+                                     "ls | head"])
+def test_ac031_composed_reads_allowed_in_guarded_place(command, repo, stubs):
     verdict = guard("claude", envelope("claude", "Bash", repo, {"command": command}), repo, stubs)
     assert not verdict.denied, verdict
 
@@ -459,8 +459,9 @@ def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
     "Get-Content (Set-Content copy.txt changed)",
     "Get-ChildItem -Filter { Set-Content copy.txt changed }",
     "git add . && git status",
+    "unknown-reader README.md",
 ])
-def test_ac031_identified_mutation_refused_in_guarded_place(command, repo, stubs):
+def test_ac031_unproven_or_mutating_command_refused_in_guarded_place(command, repo, stubs):
     verdict = guard("codex", envelope("codex", "exec_command", repo, {"command": command}), repo, stubs)
     assert verdict.denied, verdict
 

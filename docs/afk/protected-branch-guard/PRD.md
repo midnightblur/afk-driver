@@ -1,6 +1,6 @@
 # PRD — protected-branch guard: one linked worktree per agent session
 
-Provisional slug `protected-branch-guard` (no tracker item yet). Decisions settled 2026-09-29 over 4 decision rounds. Revised 2026-10-06: the guard refuses identified mutations, not shell syntax ([ADR-0010](adr/requirements/0010-refuse-mutations-not-syntax.md) to [ADR-0013](adr/requirements/0013-linked-worktree-occupancy.md)).
+Provisional slug `protected-branch-guard` (no tracker item yet). Decisions settled 2026-09-29 over 4 decision rounds. Revised 2026-10-06: the guard refuses identified mutations, not shell syntax ([ADR-0010](adr/requirements/0010-refuse-mutations-not-syntax.md) to [ADR-0013](adr/requirements/0013-linked-worktree-occupancy.md)). Revised 2026-10-09: in a guarded placement, a shell command runs only when the guard proves it read-only, and the guard refuses before the change, never after it ([ADR-0014](adr/requirements/0014-refuse-unproven-shell-commands-before-they-run.md)).
 
 ## Problem Statement
 
@@ -16,8 +16,8 @@ A developer runs several agent sessions on one repository at the same time.
 For every agent of a developer who installed the afk plugin, in every repository:
 
 - Before its first change, the agent moves into its own linked worktree on its own branch. The session continues there with no human step where the harness allows it (catalog `M`).
-- The plugin enforces the rule. It refuses a mutation whose resource is guarded: the main checkout, the worktree of a protected branch, or a worktree another live session holds (catalog `P`). Reads, composed commands and tools that touch no repository run anywhere.
-- A change the plugin could not see in advance is detected after the call and the session is held until it undoes the change.
+- The plugin enforces the rule. It refuses a mutation whose resource is guarded: the main checkout, the worktree of a protected branch, or a worktree another live session holds (catalog `P`). Reads, composed reads and tools that touch no repository run anywhere.
+- In the main checkout or the worktree of a protected branch, a shell command runs only when the plugin proves it read-only. Every other command is refused before it runs.
 - The plugin learns which branches are protected from GitHub or GitLab (catalog `S`).
 - Every new worktree is made one way: branch name checked, personal files copied, build set up, and the repository's own registered setup scripts run.
 - The plugin removes the worktrees it made once they hold nothing unsaved.
@@ -36,7 +36,7 @@ Requirements name a harness by what its agent can do. `PROVIDERS.md` maps each s
 
 ### P — session placement and verdict
 
-A guarded action is an identified mutation (catalog `A`). The verdict applies to the resource the mutation changes: for an edit, each target file's location; for a shell command, each literal path or repository the recognizer finds ([ADR-0010](adr/requirements/0010-refuse-mutations-not-syntax.md)). A call with no identified mutation is allowed.
+A guarded action is an identified mutation (catalog `A`). The verdict applies to the resource the mutation changes: for an edit, each target file's location; for a shell command, each literal path or repository the recognizer finds ([ADR-0010](adr/requirements/0010-refuse-mutations-not-syntax.md)). A shell segment that runs in a P-1..P-3 resource is also a guarded action unless the allow-list proves it read-only (A-6, [ADR-0014](adr/requirements/0014-refuse-unproven-shell-commands-before-they-run.md)). Any other call is allowed.
 
 | ID | Resource the mutation changes | Branch | Verdict |
 |----|-------------------------------|--------|---------|
@@ -55,10 +55,10 @@ A guarded action is an identified mutation (catalog `A`). The verdict applies to
 |----|--------|---------|
 | A-1 | file edit, file write, notebook edit, patch apply | judged at every target |
 | A-2 | shell command with an identified mutation: a recognized git verb or file writer with a literal target | judged at the resource |
-| A-3 | shell command with no identified mutation: a read, a composition of reads, a redirect to the null device, an unrecognized program, a forge or herdr command | allowed in every placement |
+| A-3 | shell command the allow-list proves read-only: a read, a composition of reads, a redirect to the null device, a forge read, a herdr command | allowed in every placement |
 | A-4 | built-in file read and search tools; a tool with no path-like key | allowed |
 | A-5 | the harness's native worktree tool (H-1) and the plugin's `scripts/create-worktree` | allowed |
-| A-6 | shell command that changes a guarded checkout through a form the recognizer cannot see | allowed at the call; detected after it and held (AC-033) |
+| A-6 | shell command with a segment the allow-list cannot prove read-only (an unlisted program, a write flag, an opaque target) that runs in a P-1..P-3 resource | refused before it runs (AC-033); outside those resources an unrecognized program is allowed |
 
 ### S — where the protected-branch list comes from
 
@@ -139,18 +139,18 @@ Cleanup:
 - [ ] AC-027 A plugin-made worktree whose session ends with no uncommitted change and no unpushed commit is removed; its branch is deleted when it has no commit of its own.
 - [ ] AC-028 A plugin-made worktree whose session ends with an uncommitted change or an unpushed commit is kept, and the session's last output names the resume command and the remove command. Where the harness shows no session-end output, the report appears at the next session start.
 - [ ] AC-029 A stale plugin-made worktree is pruned only when its owner process is gone (a pid reused by another process counts as gone) and it holds no uncommitted change and no unpushed commit; a worktree the plugin did not make is never removed.
-- [ ] AC-031 In every placement, a command with no identified mutation (a read, a composition of reads, a redirect to the null device, an unrecognized program) runs; a command with an identified mutation of a guarded resource is refused before execution.
+- [ ] AC-031 In every placement, a command the allow-list proves read-only (a read, a composition of reads, a redirect to the null device) runs; a command with an identified mutation of a guarded resource is refused before execution.
 
 Shell recognition and faults:
 
-- [ ] AC-032 A command line joined by `&&`, `||`, `;`, `|`, `&` or a newline, or continued across lines, is judged per segment. A folder change inside a group or a pipeline does not carry to later segments. A literal target that resolves into a guarded resource is refused; an opaque target (variable, substitution, glob) passes.
-- [ ] AC-041 A call with no identified mutation is allowed when the verdict cannot be computed. An identified mutation with a target inside a git work tree is refused with the fault named.
+- [ ] AC-032 A command line joined by `&&`, `||`, `;`, `|`, `&` or a newline, or continued across lines, is judged per segment. A folder change inside a group or a pipeline does not carry to later segments. A literal target that resolves into a guarded resource is refused; outside a P-1..P-3 resource, an opaque target (variable, substitution, glob) passes.
+- [ ] AC-041 A call with no identified mutation and no unproven segment is allowed when the verdict cannot be computed. An identified mutation, or an unproven segment, inside a git work tree is refused with the fault named.
 
-Change meter and quarantine:
+Refusal before the call:
 
-- [ ] AC-033 After an allowed shell call changes a path of a guarded checkout the call could enter (the session folder, or a literal `cd` or `-C` target), the session receives the changed paths and the recovery, and its next tool call there is refused except inspection, moving and the recovery.
-- [ ] AC-034 The printed recovery commands, run from a worktree, restore a path that was clean, remove a new path (staged or not), and clear the hold. A path already dirty before the call is never restored to HEAD; the message gives a copy-back from the saved bytes.
-- [ ] AC-035 A call made only of known non-writers skips the snapshot. Parallel calls each compare with their own snapshot.
+- [ ] AC-033 In a P-1..P-3 resource, a shell command with a segment the allow-list cannot prove read-only is refused before it runs, and the refusal names that segment and the move. A loop that moves files through its loop variable is refused, and no file moves.
+- [ ] AC-034 Each allow-list form runs in a P-1..P-3 resource, and its mutating twin is refused: `find -delete`, `sed -i`, `curl -o`, a redirect into a file.
+- [ ] AC-035 A segment whose literal folder or literal targets lie outside every P-1..P-3 resource runs from a session that sits in one. A P-4 worktree is unaffected.
 
 Main checkout sync:
 
@@ -171,7 +171,7 @@ Behavior line:
 
 | Capability / User Story | Permitted role(s) | Denied role(s) | Data scope | Key validation rules |
 |---|---|---|---|---|
-| Change files or run shell commands (story 1, 2) | agent session whose mutations land in a P-4 resource; any session with the launch override | agent session whose identified mutation lands in P-1..P-3 or P-8, without the override | one repository checkout | catalog `P`, catalog `A` |
+| Change files or run shell commands (story 1, 2) | agent session whose mutations land in a P-4 resource; any session with the launch override | agent session whose identified mutation lands in P-1..P-3 or P-8, or whose unproven shell segment runs in P-1..P-3, without the override | one repository checkout | catalog `P`, catalog `A` |
 | Commit or move a branch (story 1, 2) | human at a terminal; agent in a P-4 worktree; agent's base-branch fast-forward in the main checkout | agent in P-1..P-3 without the override | one repository | AC-024, AC-025, AC-036 |
 | Register worktree setup scripts (story 3) | repository maintainer, by committing the registration | developer without the plugin (never runs them) | one repository | script path inside the repository (AC-022) |
 | Set the launch override (story 4) | human who starts the harness | agent session (cannot set it for itself mid-session) | one launched process tree | variable set before launch |
@@ -184,7 +184,7 @@ Behavioural decisions with a record:
 - The main checkout is refused on any branch, not only on protected branches: [ADR-0002](adr/requirements/0002-main-checkout-refused-on-any-branch.md).
 - Mutations are refused by the resource they change, not by command shape: [ADR-0010](adr/requirements/0010-refuse-mutations-not-syntax.md), superseding [ADR-0009](adr/requirements/0009-allow-conservative-read-only-shell-commands.md).
 - The main checkout may fast-forward its base branch: [ADR-0011](adr/requirements/0011-main-checkout-fast-forward-sync.md).
-- A change the recognizer cannot see is detected after the call and held: [ADR-0012](adr/requirements/0012-change-meter-and-quarantine.md).
+- In a P-1..P-3 resource, a shell command runs only when the allow-list proves it read-only, and every other command is refused before it runs: [ADR-0014](adr/requirements/0014-refuse-unproven-shell-commands-before-they-run.md), superseding [ADR-0012](adr/requirements/0012-change-meter-and-quarantine.md).
 - A linked worktree has one live holder, or one team: [ADR-0013](adr/requirements/0013-linked-worktree-occupancy.md).
 - The protected-branch list is asked from the forge, with a cache of at most 5 minutes that never holds the default branch, `main` or `master`: [ADR-0004](adr/requirements/0004-protected-list-asked-live.md).
 - Protection covers sessions that forget; deliberate writes into another folder are out of scope: [ADR-0005](adr/requirements/0005-guard-against-forgetting-not-intent.md).
@@ -213,7 +213,7 @@ Modules:
 | setup-scripts | `WorktreeCreated` event in the repository hooks manifest; runs registered scripts | worktree folder + branch → per-script result |
 | shell-mutations | A-2: the literal paths a shell command line changes | command + folder → resources |
 | main-sync | P-7: sync conditions, the authorization record | pull command → allow or refuse |
-| change-meter | A-6: snapshot, compare, hold, recovery | shell call → snapshot, context, hold |
+| read-only | A-3, A-6: the allow-list of read-only shell forms | shell segment → proven or not |
 | occupancy | P-8: the live holders of a linked worktree | session + worktree → holder or none |
 | git-backstop | agent-only refusal of commits and branch moves in P-1..P-3; consumes the sync authorization | git hook verdict |
 | worktree-cleanup | remove on clean end, keep and explain on dirty end, prune stale | worktree → removed / kept + commands |
@@ -230,7 +230,7 @@ Test external behaviour: the verdict for an envelope, the answer for a branch, t
 | session-guard | test-first; one case per catalog `P` row × each harness's envelope shape, throwaway repositories with nested linked worktrees | `scripts/tests/test_protected_branch_guard.py`, `test_protected_branch_acceptance.py` |
 | shell-mutations | test-first; one case per recognized form and per opaque form | `scripts/tests/test_shell_mutations.py` |
 | main-sync | test-first; a real `git pull --ff-only` through the installed hooks, one refusal per condition | `scripts/tests/test_main_sync.py` |
-| change-meter | test-first; full hook envelopes, the printed recovery run to a cleared hold | `scripts/tests/test_change_meter.py` |
+| read-only | test-first; one case per listed form beside its mutating twin | `scripts/tests/test_read_only.py` |
 | occupancy | test-first; live helper processes as identities, herdr variables, a racing pair | `scripts/tests/test_occupancy.py` |
 | worktree-create | test-first; disposable repositories, concurrent start, branch-pattern rejection | `scripts/tests/create-worktree-smoke.sh` |
 | setup-scripts | test-first; failing, missing and outside-repository scripts | `scripts/tests/test_run_hook.py` |
@@ -246,7 +246,7 @@ Test external behaviour: the verdict for an envelope, the answer for a branch, t
 - A harness's own worktree option that makes a worktree with no branch.
 - A per-repository switch that turns the guard off; the only override is per launch.
 - Harnesses the plugin does not support.
-- Preventing a write the recognizer cannot see; the meter detects it after the call ([ADR-0012](adr/requirements/0012-change-meter-and-quarantine.md) lists the gaps).
+- A write that a listed program makes through its environment or configuration, or that a program started outside every P-1..P-3 resource makes into one ([ADR-0014](adr/requirements/0014-refuse-unproven-shell-commands-before-they-run.md) lists the gaps).
 
 ## Further Notes
 
@@ -258,6 +258,5 @@ Assumptions this PRD rests on:
 - (unverified premise: a developer without admin rights can read the protected list) — GitHub was read as repository owner; GitLab was read on one project with the reader's own role. AC-007, AC-008.
 
 - (unverified premise: the hook processes of both harnesses inherit `HERDR_ENV` and `HERDR_TAB_ID`) — AC-038. The H-2 PreToolUse hook receives `HERDR_*` (`providers/CONFORMANCE.md` P0-c); the H-1 hook is unverified.
-- (unverified premise: a PostToolUse event carries the same `tool_use_id` as its PreToolUse event) — AC-035. The command hash is the fallback.
 
 Evidence behind the design: two agent proposals, critiques and final positions, the live H-1 hook trial, harness source reads with versions, and the decision record of all 4 rounds. They live in the session scratchpad (`worktree-debate/`), not in this repository; the SDD carries the harness versions.

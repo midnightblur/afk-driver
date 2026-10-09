@@ -1,6 +1,6 @@
 # The guard refuses identified mutations of guarded resources, not shell syntax
 
-> Status: Accepted
+> Status: Accepted; superseded in part by ADR-0014 (a shell command that runs in a guarded placement must be proven read-only)
 > Supersedes: ADR-0009 (ADR-0003 stays as history, already superseded by ADR-0009)
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
@@ -12,7 +12,7 @@ A **guarded resource** is the main checkout on any branch, a linked worktree on 
 ## Decision
 
 - **Edit tools** are judged at every resolved target, not at the session folder. A target outside every repository passes, even from a main-checkout session (scratchpad and memory files).
-- **Shell commands** are judged at the literal paths a recognizer finds in high-confidence forms. The recognizer is not a shell parser; `hooks/lib/shell_mutations.py` and its tests own the exact forms. The classes are: git verbs that write the repository, file writers with a literal target (redirects, `tee`, `cp`, `mv`, `rm`, `touch`, `ln`, `sed -i`, PowerShell writers and their aliases), and wrappers that move the folder (`cd`, `git -C`, `env -C`, `--git-dir`, `--work-tree`). A target built from a variable, a substitution, or a glob is opaque and passes. The change meter ([ADR-0012](0012-change-meter-and-quarantine.md)) backs this boundary.
+- **Shell commands** are judged at the literal paths a recognizer finds in high-confidence forms. The recognizer is not a shell parser; `hooks/lib/shell_mutations.py` and its tests own the exact forms. The classes are: git verbs that write the repository, file writers with a literal target (redirects, `tee`, `cp`, `mv`, `rm`, `touch`, `ln`, `sed -i`, PowerShell writers and their aliases), and wrappers that move the folder (`cd`, `git -C`, `env -C`, `--git-dir`, `--work-tree`). A target built from a variable, a substitution, or a glob is opaque and passes outside a guarded placement. Inside one, [ADR-0014](0014-refuse-unproven-shell-commands-before-they-run.md) refuses every segment it cannot prove read-only.
 - **Other tools** (MCP, unknown built-ins) are judged at any top-level string value whose key contains `path` or `file`. A tool with no such key is an external service and passes.
 - **A fault** fails closed only for an identified mutation, and only when any identified target lies inside a git work tree by file layout. Any other call passes when the guard cannot compute a verdict. A hint that cannot be built never changes a verdict.
 - **The refusal names a runnable move.** A session in a guarded placement gets the move for its harness class. A session in an unprotected linked worktree that targets a path elsewhere is told to write inside its own worktree. The plugin's own `scripts/create-worktree` passes (it is an unrecognized program). A refused `git pull` that is not the allowed sync names the sync form ([ADR-0011](0011-main-checkout-fast-forward-sync.md)).
@@ -22,7 +22,7 @@ A **guarded resource** is the main checkout on any branch, a linked worktree on 
 
 - Keep the read allowlist and add forms to it: rejected. Every omission refuses a harmless command, and the list never ends.
 - Parse the full shell grammar: rejected. The cost is large and a parser still cannot see inside a script or a tool.
-- Refuse what looks like a write by pattern: rejected in ADR-0003 and again here as the sole defense. A pattern misses scripts; the meter catches those after the call.
+- Refuse what looks like a write by pattern: rejected in ADR-0003 and again here as the sole defense. A pattern misses scripts; ADR-0014 refuses an unproven command in a guarded placement before it runs.
 - Judge the resource and detect the rest after the call (chosen).
 
 ## Accepted gaps
@@ -43,4 +43,4 @@ The guard guards against forgetting, not intent ([ADR-0005](0005-guard-against-f
 
 ## Consequences
 
-Agents read, compose, and run build tools in the main checkout without refusals. A write the recognizer misses reaches the meter, not the guard.
+Agents read and compose in every placement. Build tools and other unlisted programs run in the main checkout only until [ADR-0014](0014-refuse-unproven-shell-commands-before-they-run.md): since then they need a linked worktree.

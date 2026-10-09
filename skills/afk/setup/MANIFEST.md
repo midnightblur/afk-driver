@@ -315,14 +315,14 @@ a token value — not even partially.
   the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
 
 ### H12 · hook trust for the protected-branch guard *(harnesses that gate new hooks behind trust)*
-- **Needed by:** the guard, the change meter, the session-end cleanup, the session-start prune and the session-start occupancy registration.
+- **Needed by:** the guard, the session-end cleanup, the session-start prune and the session-start occupancy registration.
   Such a harness runs a plugin hook only after the user trusts it
   (`PROVIDERS.md` "Protected-branch guard", which names the harness and the
   exact screens).
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py"`
   reads the harness config (`$CODEX_HOME/config.toml`, else `~/.codex/config.toml`)
   for a `hooks.state` key at the guard's position (the last `PreToolUse`
-  group), at the `PostToolUse` meter, at the `SessionEnd` cleanup and at the two `SessionStart` entries (prune, occupancy). Exit 1
+  group), at the `SessionEnd` cleanup and at the two `SessionStart` entries (prune, occupancy). Exit 1
   prints `missing: <event>:<group>:<handler>` per absent key and the step; exit 2
   means no harness config (not applicable). A key that is present but stale
   (the hash no longer matches) is invisible to the probe: `human:` type `/hooks`
@@ -996,7 +996,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_MAVEN_LOCK_WAIT` | `adapters/build-gate/maven/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `adapters/build-gate/maven/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
-| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py`, `hooks/protected-branch-meter.py`, `hooks/protected-branch-occupancy.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
+| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py`, `hooks/protected-branch-occupancy.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
 | `AFK_PROTECTED_TIMEOUT` | `scripts/protected-lookup.py` | seconds the forge protected-branch read may take before the guard falls back to the default-branch, `main`, `master` rule (default 5) |
 | `AFK_PROTECTION_CACHE_TTL` | `scripts/protected-lookup.py` | seconds a definite forge protected-branch answer is reused, in `<git common dir>/afk/protection-cache.json` (default and maximum 300; `0` asks the forge every time); the default branch, `main` and `master` are always asked |
 | `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API, used only with a `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` you set yourself; without one the CLI is used, and the CLI login token is never sent to an override (tests, proxies) |

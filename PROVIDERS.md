@@ -46,18 +46,18 @@ mechanics. Each provider file
 variables, `harness_class`, the tool classes, `move_hint`, `worktree_folder`
 and `owner_pid_env`.
 
-The guard judges the resource a call mutates, not the command's shape
-(ADR-0010). A shell command is split into segments; each literal path or
-repository a mutation names is judged. An opaque target (variable,
-substitution, glob) and an unknown program pass. A tool with no path-like key
-passes. An exact provider declaration overrides the fallback tool-name
-classifier.
+A shell command is split into segments, each with the folder it runs in.
+In the main checkout or a protected branch's worktree, a segment runs only
+when `hooks/lib/read_only.py` proves it read-only; a file writer whose targets
+are all literal is judged at those targets (ADR-0014). Elsewhere the guard
+judges the resource a call mutates, not the command's shape (ADR-0010): each
+literal path or repository a mutation names is judged, and an opaque target
+(variable, substitution, glob) and an unknown program pass. A tool with no
+path-like key passes. An exact provider declaration overrides the fallback
+tool-name classifier.
 
-Three more hooks serve the guard:
+Two more hooks serve the guard:
 
-- `protected-branch-meter.py` (`PostToolUse`) compares the checkout with the
-  snapshot the guard took before an allowed shell call and holds the session
-  when a path changed (ADR-0012). It never blocks.
 - `protected-branch-occupancy.py` (`SessionStart`) registers the session in
   its linked worktree and prints one advisory line when another live session
   holds it (ADR-0013).
@@ -95,9 +95,9 @@ Every session start prunes worktrees whose owner is gone.
 
 **One-time hook trust for Codex.** Codex runs a new or changed plugin hook only
 after you trust it. Trust is positional, so the guard is the last `PreToolUse`
-group and the older hooks keep their trust. Five entries are new: the guard,
-the `PostToolUse` meter, the `SessionEnd` handler, the session-start prune, and
-the session-start occupancy registration. Start `codex` once in
+group and the older hooks keep their trust. Four entries are new: the guard,
+the `SessionEnd` handler, the session-start prune, and the session-start
+occupancy registration. Start `codex` once in
 the terminal UI without the full-bypass flag and choose `2. Trust all and
 continue` on the "Hooks need review" screen, or type `/hooks` in a session and
 press `t`. With the full-bypass flag, or with `codex exec`, the hooks do not
