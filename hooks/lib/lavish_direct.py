@@ -81,7 +81,7 @@ def _sets_host(words: list[Word], program: list[Word]) -> bool:
 
 def argv_runs(words: list[Word], bare: bool = True, depth: int = 0) -> bool:
     """Whether one simple command (an argument vector) runs `lavish-axi`, here or in a nested script."""
-    program = strip_prefixes(words)
+    program = strip_prefixes(words, keywords=True)
     if program and _runs_lavish(program, bare):
         return True
     return depth < MAX_DEPTH and any(runs(inner, bare, depth + 1) for inner in _nested(words, program))
@@ -99,7 +99,7 @@ def refusal(command: str, plugin_root: str, depth: int = 0) -> str | None:
         words = segment.words
         if not words:
             continue
-        program = strip_prefixes(words)
+        program = strip_prefixes(words, keywords=True)
         if _sets_host(words, program):
             return (f"lavish rule: refused to set {HOST}. It widens the lavish server bind beyond "
                     "loopback (LAVISH.md \"Fallback and forbidden operations\"). Leave it unset and "

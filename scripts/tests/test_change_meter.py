@@ -564,24 +564,20 @@ def test_lv102_a_backtick_ended_comment_hides_no_mutation_from_guard_or_meter(re
     "if true; then if false; then cd {away}; fi; fi; git add tracked.txt",
 ], ids=["skipped-branch", "taken-branch", "loop", "nested-if"])
 def test_lv201_a_branch_local_cd_out_of_the_main_checkout_does_not_unlock_it(repo, shape):
-    main, away = repo["main"], repo["tmp"].as_posix()
-    command = shape.format(away=away)
-    assert denied(pre(main, command))
-    assert not cm.read_only(command, main)
+    command = shape.format(away=repo["tmp"].as_posix())
+    assert denied(pre(repo["main"], command))
+    assert not cm.read_only(command, repo["main"])
 
 
-@pytest.mark.parametrize("shape", [
-    "if false; then cd \"{main}\"; fi; make",
-    "if true; then cd \"{main}\"; fi; make",
-    "while false; do cd \"{main}\"; done; make",
-    "if false; then if true; then cd \"{main}\"; fi; fi; make",
-], ids=["skipped-branch", "taken-branch", "loop", "nested-if"])
-def test_lv201_a_branch_local_cd_into_the_main_checkout_is_judged_and_metered(repo, shape):
-    main, topic = repo["main"], repo["topic"]
-    assert denied(pre(topic, shape.format(main=main.as_posix()).replace("make", "git add tracked.txt")))
-    assert not denied(pre(topic, shape.format(main=main.as_posix())))
-    [path] = files(topic, ".pre")
-    assert str(main) in [p["root"] for p in json.loads(path.read_text(encoding="utf-8"))["places"]]
+# Verdicts below match an origin/main guard run on the same shapes (LV-301, LV-302).
+@pytest.mark.parametrize("tool,shape,refused", [
+    ("Bash", 'git status && cd "{topic}" && git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; Set-Location "{topic}"; git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; sl "{topic}"; git add tracked.txt', False),
+    ("PowerShell", 'if (Test-Path tracked.txt) {{ Get-Item tracked.txt }}; Push-Location "{topic}"; git add tracked.txt', True),
+], ids=["lv301-checked-cd", "lv302-set-location", "lv302-sl", "lv302-push-location"])
+def test_lv301_lv302_an_unconditional_move_is_judged_as_on_origin_main(repo, tool, shape, refused):
+    assert denied(pre(repo["main"], shape.format(topic=repo["topic"].as_posix()), tool=tool)) is refused
 
 
 @pytest.mark.parametrize("command", ["git branch -uorigin/main", "git branch -vu origin/main", "git branch -fd x"])

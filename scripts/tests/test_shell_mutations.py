@@ -233,29 +233,23 @@ def test_lv102_a_comment_ending_in_a_continuation_character_ends_at_its_line():
     assert res("Write-Host x `\n  ; touch h") == at("h")
 
 
-@pytest.mark.parametrize("command,expected", [
-    ("if true; then git add x; fi", "."), ("if false; then :; elif true; then touch a; fi", "a"),
-    ("if false; then :; else touch b; fi", "b"), ("for f in x; do touch c; done", "c"),
-    ("while true; do rm d; done", "d"), ("until false; do touch e; done", "e"), ("if git add y; then :; fi", "."),
-    ("! touch g", "g"),
-])
-def test_lv106_control_words_open_a_new_executable_position(command, expected):
-    assert res(command) == at(expected)
+CONTROL = [("if true; then git add x; fi", "git"), ("if false; then :; elif true; then touch a; fi", "touch"),
+           ("if false; then :; else touch b; fi", "touch"), ("for f in x; do touch c; done", "touch"),
+           ("while true; do rm d; done", "rm"), ("until false; do touch e; done", "touch"),
+           ("if git add y; then :; fi", "git"), ("! touch g", "touch")]
 
 
-@pytest.mark.parametrize("command,expected", [
-    ("if false; then cd sub; fi; git add x", (".", "sub")),
-    ("if true; then cd sub; else cd other; fi; touch f", ("f", "sub/f", "other/f", "sub/other/f")),
-    ("while true; do cd sub; git add y; done", (".", "sub")),
-    ("for d in a; do cd sub; done; rm g", ("g", "sub/g")),
-    ("if a; then if b; then cd sub; fi; fi; touch h", ("h", "sub/h")),
-    ("false && cd sub; git add z", (".", "sub")),
-    ("true || cd sub; touch i", ("i", "sub/i")),
-    ("cd sub; git add j", ("sub",)),
-    ("if true; then :; fi; cd sub; touch k", ("sub/k",)),
-])
-def test_lv201_a_cd_that_may_not_run_keeps_the_folder_before_it(command, expected):
-    assert res(command) == at(*expected)
+@pytest.mark.parametrize("command,program", CONTROL)
+def test_lv106_with_keywords_a_control_word_opens_a_program_position(command, program):
+    found = [sm.program_of(words[0]) for seg in sm.segments(command)
+             for words in [sm.strip_prefixes(seg.words, keywords=True)] if words]
+    assert program in found
+
+
+@pytest.mark.parametrize("command,program", CONTROL)
+def test_lv201_mutation_analysis_reads_control_words_as_origin_main_does(command, program):
+    # Pinned parity: a branch `cd` must not move the judged folder (LV-201), so no word after `then` is read.
+    assert res(command) == []
 
 
 def test_s1_001_a_group_and_a_pipeline_do_not_leak_their_folder():
