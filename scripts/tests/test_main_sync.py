@@ -259,25 +259,12 @@ def test_a_human_pull_is_never_gated(sync):
     assert git(sync["main"], "pull", "--ff-only", "-q", env=human()).returncode == 0
 
 
-def test_a_pure_sync_leaves_no_hold_and_a_sync_with_a_write_does(sync):
-    """O3-2: the meter runs for a sync; a fast-forward alone changes no listed path."""
+def test_a_sync_composes_with_reads_and_is_refused_beside_an_unproven_command(sync):
+    """Issue #99: in the main checkout, every segment beside the sync must be proven read-only."""
     main = sync["main"]
-    meter = PLUGIN_ROOT / "hooks" / "protected-branch-meter.py"
-
-    def post(command: str):
-        body = json.dumps({"session_id": "s1", "cwd": str(main), "tool_name": "Bash", "tool_input": {"command": command}})
-        return subprocess.run([os.sys.executable, str(meter)], input=body, text=True, capture_output=True, cwd=main,
-                              env=agent(), timeout=60)
-
-    assert not denied(verdict(main, "git pull --ff-only"))
-    assert git(main, "pull", "--ff-only", "-q", env=agent()).returncode == 0
-    assert post("git pull --ff-only").stdout.strip() == ""
-    advance(sync["up"], "m")
-    assert not denied(verdict(main, "git pull --ff-only && make"))
-    assert git(main, "pull", "--ff-only", "-q", env=agent()).returncode == 0
-    tracked = "made.txt"
-    (main / tracked).write_text("changed by make" + chr(10), encoding="utf-8")
-    assert tracked in post("git pull --ff-only && make").stdout
+    assert not denied(verdict(main, "git pull --ff-only && git log -1 --oneline"))
+    refused = verdict(main, "git pull --ff-only && make")
+    assert denied(refused) and "`make`" in refused.stderr
 
 
 @pytest.mark.parametrize("linked", [False, True])

@@ -397,7 +397,6 @@ def direct(root: Path, entry: str, provider: str, cwd: Path):
 
 
 @pytest.mark.parametrize("entry,lib,event", [
-    ("protected-branch-meter.py", "change_meter.py", "PostToolUse"),
     ("protected-branch-occupancy.py", "occupancy.py", "SessionStart"),
 ])
 def test_a_fail_open_entry_names_its_crash_and_still_exits_zero(plugin, tmp_path, entry, lib, event):

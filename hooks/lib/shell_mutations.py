@@ -16,7 +16,9 @@ SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "-
               "--chdir", "--role", "--type", "--close-from"}
 ENV_VALUE = {"-u", "--unset", "-S", "--split-string"}
 ENV_CHDIR = {"-C", "--chdir"}
-CD = {"cd", "chdir", "set-location", "sl", "pushd"}
+CD = {"cd", "chdir", "set-location", "sl", "pushd", "push-location"}
+PUSH = {"pushd", "push-location"}
+POP = {"popd", "pop-location"}
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 CONTINUATION = re.compile(r"[\\`]\r?\n")  # Bash `\` and PowerShell backtick, outside comments and single quotes
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
@@ -328,8 +330,9 @@ def inplace_files(prog: str, words: list[Word]) -> list[Word]:
     return positional if script else positional[1:]
 
 
-def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,
-                  visited: list | None = None, pulls: list | None = None) -> list[Path]:
+def git_options(words: list[Word], cwd: Path | None,
+                visited: list | None = None) -> tuple[int, Path | None, Word | None, Word | None]:
+    """(index of the verb, folder after every `-C`, `--git-dir` word, `--work-tree` word) of a git command."""
     i, workdir, gitdir = 1, None, None
     while i < len(words):
         text = words[i].text
@@ -352,6 +355,19 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
             i += 1
         else:
             break
+    return i, cwd, gitdir, workdir
+
+
+def git_folder(words: list[Word], cwd: Path | None) -> Path | None:
+    """The work tree a git command acts on (`-C`, `--git-dir`, `--work-tree` applied), or None when unknown."""
+    _, cwd, gitdir, workdir = git_options(words, cwd)
+    chosen = workdir or gitdir
+    return resolve(chosen, cwd) if chosen is not None else cwd
+
+
+def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,
+                  visited: list | None = None, pulls: list | None = None) -> list[Path]:
+    i, cwd, gitdir, workdir = git_options(words, cwd, visited)
     if i >= len(words):
         return []
     verb = words[i].text.lower()
@@ -460,6 +476,45 @@ def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> li
     return []
 
 
+def cd_target(words: list[Word], here: Path | None) -> Path | None:
+    """The folder a `cd`-class command moves to, or None when it is not literal."""
+    _, targets, _ = parse(words[1:])
+    chosen = targets or parse(words[1:])[0][:1]
+    return resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+
+
+def steps(command: str, cwd: Path | None, powershell: bool = False):
+    """(segment, words without wrappers, folder it runs in, folder before it) per command segment.
+
+    A `cd`, `pushd` or `popd` outside a pipeline moves later segments; a folder change inside `( )`
+    ends at the `)` unless `powershell`. A folder is None when it is not literal.
+    """
+    here: Path | None = cwd
+    saved: list[Path | None] = []
+    pushed: list[Path | None] = []
+    for segment in segments(command):
+        if segment.mark:
+            if segment.mark == "open":
+                saved.append(here)
+            elif saved:
+                kept = saved.pop()
+                here = here if powershell else kept
+            continue
+        effects: dict = {}
+        words = strip_prefixes(segment.words, effects)
+        spot = resolve(effects["chdir"], here) if effects.get("chdir") else here
+        yield segment, words, spot, here
+        prog = program_of(words[0]) if words else ""
+        if segment.piped:
+            continue
+        if prog in CD:
+            if prog in PUSH:
+                pushed.append(here)
+            here = cd_target(words, here)
+        elif prog in POP:
+            here = pushed.pop() if pushed else None
+
+
 def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None,
               pulls: list | None = None, powershell: bool = False) -> list[Path]:
     """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
@@ -470,37 +525,20 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
     folder change made inside `( )` and lets `-WhatIf` exempt every writer.
     """
     found: list[Path] = []
-    here: Path | None = cwd
-    saved: list[Path | None] = []
     if visited is not None:
         visited.append(cwd)
-    for segment in segments(command):
-        if segment.mark:
-            if segment.mark == "open":
-                saved.append(here)
-            elif saved:
-                kept = saved.pop()
-                here = here if powershell else kept
-            continue
+    for segment, words, spot, here in steps(command, cwd, powershell):
         for target in segment.redirects:
             path = resolve(target, here)
             if path is not None:
                 found.append(path)
-        effects: dict = {}
-        words = strip_prefixes(segment.words, effects)
         if not words:
             continue
         prog = program_of(words[0])
-        spot = resolve(effects["chdir"], here) if effects.get("chdir") else here
         if prog in CD:
-            _, targets, _ = parse(words[1:])
-            positional = parse(words[1:])[0]
-            chosen = (targets or positional[:1])
-            moved = resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+            moved = cd_target(words, here)
             if visited is not None and moved is not None:
                 visited.append(moved)
-            if not segment.piped:
-                here = moved
         elif prog == "git":
             if visited is not None and spot is not None:
                 visited.append(spot)

@@ -23,11 +23,13 @@ delivery or review. Do not merge the target branch locally.
 ## Worktree per session
 
 An agent changes repository files only from a linked worktree that its session
-or its team owns, on an unprotected branch. Reads, composed commands, unknown
-programs and tools that touch no repository run anywhere; the guard refuses a
-mutation by the resource it changes (ADR-0010). Guarded resources: the main
-checkout on every branch, a worktree of a protected branch, and a worktree that
-another live session outside your group holds (ADR-0013). The main checkout may
+or its team owns, on an unprotected branch. In the main checkout or a worktree
+of a protected branch, a shell command runs only when the guard proves it
+read-only; any other command is refused before it runs (ADR-0014). Run builds,
+tests and scripts from your worktree. Elsewhere, the guard refuses a mutation
+by the resource it changes (ADR-0010). Guarded resources: the main checkout on
+every branch, a worktree of a protected branch, and a worktree that another
+live session outside your group holds (ADR-0013). The main checkout may
 fast-forward its base branch with `git pull --ff-only` (ADR-0011).
 
 A branch is protected when the forge says so (a protection setting or a
@@ -37,9 +39,7 @@ and `master` count. A forge answer for any other branch is reused for at most
 folder outside Git and `AFK_ALLOW_PROTECTED=1` set by a human at launch pass
 everywhere.
 
-A shell call can change a guarded checkout in a form the guard cannot read. The
-meter reports the changed paths after the call and holds the session until it
-runs the printed recovery (ADR-0012). Move a refused session with the harness's
-worktree tool, else `${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <name>`.
+Move a refused session with the harness's worktree tool, else
+`${AFK_PLUGIN_ROOT}/scripts/create-worktree --name <name>`.
 Team sessions share a worktree through `AFK_WORKTREE_GROUP` (`PROVIDERS.md`).
 Mechanics: `PROVIDERS.md` "Protected-branch guard".
