@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Resolve the Codex provider's installed plugin root, and its enablement,
 without guessing.
 

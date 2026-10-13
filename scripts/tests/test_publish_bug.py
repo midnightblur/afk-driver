@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Payload-shape unit tests for publish_bug — no network.
 
 The seam-test for the "Jira REST v3" boundary (SDD §9b): every test asserts on

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """`nested_steering.py` collects nested AGENTS.md + matching rules for injection.
 
 Each case builds a throwaway git repo with a nested AGENTS.md carrying a unique

@@ -53,8 +53,7 @@ afk_adapter_dir() {
 
 # The entry each family dispatches through, relative to its adapter dir.
 afk_adapter_entry() {
-  local family=$1 dir=$2 entry py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  local family=$1 dir=$2 entry py="${AFK_PYTHON:-afk-python}"
   if [ -f "$dir/adapter.json" ]; then
     entry=$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("runner",{}).get("entry",""))' \
       "$dir/adapter.json" 2>/dev/null)
@@ -65,8 +64,7 @@ afk_adapter_entry() {
 # How that entry is reached. `cli` (the default) means dispatch runs it; every
 # other type means dispatch cannot, and says so in its answer.
 afk_adapter_runner_type() {
-  local dir=$1 py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  local dir=$1 py="${AFK_PYTHON:-afk-python}"
   [ -f "$dir/adapter.json" ] || { printf 'cli\n'; return 0; }
   "$py" -c 'import json,sys; print(json.load(open(sys.argv[1],encoding="utf-8")).get("runner",{}).get("type","cli"))' \
     "$dir/adapter.json" 2>/dev/null
@@ -82,8 +80,7 @@ afk_adapter() {
   # against tools only a session holds. Dispatch hands back the file that says
   # how, so a caller never reads "no script" as "unsupported".
   if [ "$rtype" = "instruction" ]; then
-    local py=python
-    command -v python >/dev/null 2>&1 || py=python3
+    local py="${AFK_PYTHON:-afk-python}"
     # A verb the kind does not declare is unsupported here exactly as it is for
     # a `cli` kind. Handing back the instruction file for any word at all would
     # tell a caller its typo is a supported operation.
@@ -110,8 +107,7 @@ print(json.dumps({"instruction": entry, "verb": verb,
   fi
   case "$entry" in
     *.py)
-      local py=python
-      command -v python >/dev/null 2>&1 || py=python3
+      local py="${AFK_PYTHON:-afk-python}"
       "$py" "$dir/$entry" "$@" ;;
     *) bash "$dir/$entry" "$@" ;;
   esac

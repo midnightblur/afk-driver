@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Match a `.claude/rules/*.md` file's `paths:` frontmatter against one path.
 
 One home for the glob semantics the nested-steering injector applies on a harness

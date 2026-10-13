@@ -43,7 +43,7 @@ the commit does, never the rationale.
 
 1. Before commit, classify each added comment. Delete the ones that fail the test.
 2. Record each moved reason as a pending entry:
-   `python "${AFK_PLUGIN_ROOT}/skills/afk/review/scripts/forge_ledger.py" rationale-add --path <path> --line <n> --text <reason>`.
+   `afk-python "${AFK_PLUGIN_ROOT}/skills/afk/review/scripts/forge_ledger.py" rationale-add --path <path> --line <n> --text <reason>`.
    The entry names the line the reason explains, not the deleted comment. It records the
    branch and head it was made on. Pending entries sit under the git directory as
    recovery data. They never count as the record. Post and verify handle only the

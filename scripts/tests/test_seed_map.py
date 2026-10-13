@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Behaviour tests for the investigation seed map — real git, no network.
 
 Every case pins a way the pre-pass could lie: an alternation that leaks, a

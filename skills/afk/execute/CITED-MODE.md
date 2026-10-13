@@ -57,9 +57,9 @@ ledger ran under — one `--alias <form>=<value>` per `declared` form in its
 each omitted when it declares none:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] [--absent <form>=<reason> ...] --out <scratch>/ground-<symbol>.json
+afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py"   --repo . --subject <seam symbol> --type Q3 --config auto   [--alias <form>=<value> ...] [--absent <form>=<reason> ...] --out <scratch>/ground-<symbol>.json
 
-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
+afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/ground_diff.py"   --repo . --cited <the cited ledger> --current <scratch>/ground-<symbol>.json
 ```
 
 `ground_diff.py` counts every searched line, keyed (`class`, file, `line_hash`),
@@ -82,7 +82,7 @@ here. That run writes a new investigation; the
 design's cited ledger is never rewritten here, because `/afk:investigate` is its
 single writer. Name the new investigation id in this slice's journal line and in
 the pointer of the `OUTCOME:` line. A `partial` verdict on a load-bearing claim
-is a decision this run cannot take: park it as `needs_decision` (Step 13)
+is a decision this run cannot take: park it as `needs_decision` (Step 14)
 carrying the new ledger's path.
 
 Ledger grammar and node keys: `skills/utils/investigate/LEDGER-FORMAT.md`.
@@ -144,7 +144,7 @@ same call.
 
 ## Cited-mode OUTCOME statuses
 
-These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 13:
+These extend the OUTCOME status list in [SKILL.md](SKILL.md) Step 14:
 
 - `design_conflict` — cited mode. A binding SDD/ADR decision is wrong,
   infeasible, or contradicts reality, and the correction is a one-way door or

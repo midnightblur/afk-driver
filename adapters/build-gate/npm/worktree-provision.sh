@@ -15,7 +15,7 @@
 set -u
 
 json_field() {
-  printf '%s' "$1" | "${AFK_PY:-python}" -c '
+  printf '%s' "$1" | "${AFK_PYTHON:-afk-python}" -c '
 import json, sys
 doc = json.loads(sys.stdin.read())
 value = doc.get(sys.argv[1])
@@ -32,7 +32,7 @@ fail() {
   # only output is a line on stderr.
   local reason="$1" object
   printf '%s\n' "afk: build-gate/npm worktree-provision: $reason" >&2
-  object=$(printf '%s' "$reason" | "${AFK_PY:-python}" -c 'import json,sys
+  object=$(printf '%s' "$reason" | "${AFK_PYTHON:-afk-python}" -c 'import json,sys
 print(json.dumps({"error": True, "kind": "npm",
                   "operation": "worktree-provision", "reason": sys.stdin.read()}))' 2>/dev/null) \
     && [ -n "$object" ] || object='{"error":true,"kind":"npm","operation":"worktree-provision","reason":"see the message on stderr"}'
@@ -46,7 +46,7 @@ PAYLOAD=${1:-}
 # Which way the payload is wrong is the caller's next move, so read it once
 # before any field: text that is not JSON is a different fault from JSON that
 # is not an object, and both differ from an object missing a field.
-printf '%s' "$PAYLOAD" | "${AFK_PY:-python}" -c 'import json, sys
+printf '%s' "$PAYLOAD" | "${AFK_PYTHON:-afk-python}" -c 'import json, sys
 raise SystemExit(0 if isinstance(json.loads(sys.stdin.read()), dict) else 3)' 2>/dev/null
 case $? in
   0) ;;
@@ -82,11 +82,11 @@ SENTINEL="$ROOT/node_modules/.package-lock.json"
 # The fingerprint covers the command, where it runs, and the lockfile it
 # installs from — a change to any of them makes the existing node_modules stale.
 LOCK_HASH=none
-[ -f "$LOCK" ] && LOCK_HASH=$("${AFK_PY:-python}" -c '
+[ -f "$LOCK" ] && LOCK_HASH=$("${AFK_PYTHON:-afk-python}" -c '
 import hashlib, sys
 print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest(), end="")' "$LOCK" 2>/dev/null)
 FINGERPRINT=$(printf '%s\n%s\n%s\n%s\n' "$INSTALL" "$COMMAND" "$WORKSPACE_ROOT" "$LOCK_HASH" \
-  | "${AFK_PY:-python}" -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest(), end="")')
+  | "${AFK_PYTHON:-afk-python}" -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest(), end="")')
 
 DONE=""; SKIPPED=""; WARNINGS=""; STATUS=provisioned
 add() { local var=$1 item=$2; eval "$var=\"\${$var}\${$var:+,}\$item\""; }

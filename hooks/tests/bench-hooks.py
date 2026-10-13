@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
-"""Time every registered hook command against realistic envelopes. Informational only.
+#!/usr/bin/env afk-python
+"""Time every registered hook command against realistic envelopes.
 
-    python hooks/tests/bench-hooks.py [--runs N] [--manifest hooks.json|hooks.codex.json]
-                                      [--project DIR] [--only SCENARIO ...]
+    afk-python hooks/tests/bench-hooks.py [--runs N] [--manifest hooks.json|hooks.codex.json]
+                                          [--project DIR] [--only SCENARIO ...] [--budgets]
 
 Each scenario sends one envelope to every handler the manifest registers for its event
 and matcher subject (tool name, or session source). Commands come from the manifest itself,
@@ -20,6 +20,9 @@ Handlers run one at a time; the event wall time is the slowest handler of a run,
 the harness runs same-event handlers in parallel. One warm-up run per scenario is not
 counted. Prints p50 and p95 per event and per handler, in milliseconds. A scenario whose
 event the manifest does not register prints nothing.
+
+`--budgets` also checks each BUDGET_MS handler's p50 and exits 1 when one is over. The
+budgeted handlers are the launcher bails, which start no shell.
 """
 from __future__ import annotations
 
@@ -39,6 +42,23 @@ PROVIDERS = {"hooks.json": "claude", "hooks.codex.json": "codex"}
 ROOT_VARS = {"hooks.json": "CLAUDE_PLUGIN_ROOT", "hooks.codex.json": "PLUGIN_ROOT"}
 PROJECT_VARS = {"hooks.json": "CLAUDE_PROJECT_DIR", "hooks.codex.json": "PROJECT_DIR"}
 DATA_VARS = {"hooks.json": "CLAUDE_PLUGIN_DATA", "hooks.codex.json": "PLUGIN_DATA"}
+# (manifest, scenario, handler label) -> p50 ceiling in ms: measured p50 on Windows plus margin.
+BUDGET_MS = {
+    ("hooks.json", "read", "repo-list PreToolUse"): 350,
+    ("hooks.json", "post", "plugin nested-steering.sh"): 250,
+    ("hooks.json", "post", "repo-list PostToolUse"): 350,
+    ("hooks.json", "compact", "plugin nested-steering.sh"): 250,
+    ("hooks.json", "compact", "repo-list PostCompact"): 350,
+    ("hooks.json", "stop", "repo-list Stop"): 350,
+    ("hooks.json", "session-start", "repo-list SessionStart"): 350,
+    ("hooks.json", "session-start", "plugin nested-steering.sh"): 250,
+    ("hooks.codex.json", "read", "repo-list PreToolUse"): 350,
+    ("hooks.codex.json", "post", "repo-list PostToolUse"): 350,
+    ("hooks.codex.json", "compact", "repo-list PostCompact"): 350,
+    ("hooks.codex.json", "stop", "repo-list Stop"): 350,
+    ("hooks.codex.json", "session-start", "repo-list SessionStart"): 350,
+    ("hooks.codex.json", "session-start", "plugin agents-md-config-check.sh"): 250,
+}
 
 
 class Scenario:
@@ -148,6 +168,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--manifest", choices=sorted(ROOT_VARS), default="hooks.json")
     parser.add_argument("--project", type=Path)
     parser.add_argument("--only", nargs="*", default=[])
+    parser.add_argument("--budgets", action="store_true", help="exit 1 when a BUDGET_MS p50 is over")
     args = parser.parse_args(argv)
 
     project = args.project
@@ -157,6 +178,7 @@ def main(argv: list[str]) -> int:
     project = project.resolve()
     manifest = json.loads((PLUGIN_ROOT / "hooks" / args.manifest).read_text(encoding="utf-8"))
     creators = handlers(manifest, "WorktreeCreate", "")
+    over: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix="afk-bench-", ignore_cleanup_errors=True) as scratch_dir:
         scratch = Path(scratch_dir)
@@ -197,8 +219,15 @@ def main(argv: list[str]) -> int:
             print(f"{name + ' (' + scenario.event + ')':<52} {percentile(walls, .5):>7.0f} "
                   f"{percentile(walls, .95):>7.0f}")
             for i, entry in enumerate(entries):
-                print(f"  {label_of(entry['command']):<50} {percentile(times[i], .5):>7.0f} "
-                      f"{percentile(times[i], .95):>7.0f}  {codes.get(i)}")
+                label, p50 = label_of(entry["command"]), percentile(times[i], .5)
+                ceiling = BUDGET_MS.get((args.manifest, name, label))
+                verdict = "" if ceiling is None else f"  budget {ceiling}: {'ok' if p50 <= ceiling else 'OVER'}"
+                if ceiling is not None and p50 > ceiling:
+                    over.append(f"{name} / {label}: p50 {p50:.0f} > {ceiling}")
+                print(f"  {label:<50} {p50:>7.0f} {percentile(times[i], .95):>7.0f}  {codes.get(i)}{verdict}")
+    if args.budgets and over:
+        print("\nover budget:\n  " + "\n  ".join(over))
+        return 1
     return 0
 
 

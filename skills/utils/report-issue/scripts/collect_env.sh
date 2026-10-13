@@ -13,7 +13,7 @@ set -u
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(cd "$here/../../../.." && pwd)
-py=python; command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 plan_dir="" lines=20
 while [ $# -gt 0 ]; do

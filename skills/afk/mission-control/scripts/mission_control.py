@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Mission-control renderer CLI (M5) — spec folder -> interactive dashboard.
 
 Usage: mission_control.py <spec_dir> [--once] [--port PORT] [--check-digests]

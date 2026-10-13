@@ -259,7 +259,7 @@ def hook_argv(command: str) -> list[str]:
     expanded = command.replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT)).replace("${PLUGIN_ROOT}", str(ROOT))
     parts = re.findall(r'"([^"]*)"|(\S+)', expanded)
     argv = [a or b for a, b in parts]
-    if argv and argv[0] in ("python", "python3"):
+    if argv and argv[0] == "afk-python":
         argv[0] = PY
     return argv
 
@@ -332,7 +332,7 @@ def edit_call(harness: str, cwd: Path, target: Path, session: str | None = None)
 
 
 def shell_call(harness: str, cwd: Path, session: str | None = None) -> dict:
-    return envelope(harness, "Bash", cwd, {"command": "echo hi"}, session)
+    return envelope(harness, "Bash", cwd, {"command": "touch changed.txt"}, session)
 
 
 def guard(harness: str, call: dict, cwd: Path, stubs: Stubs | None, **extra: str) -> Verdict:
@@ -438,6 +438,13 @@ def test_ac031_read_only_shell_command_allowed_in_guarded_place(harness, tool, c
     assert not verdict.denied, verdict
 
 
+@pytest.mark.parametrize("command", ["git status && git log -1 2>&1", "git fetch origin", "herdr agent list",
+                                     "unknown-reader README.md", "ls | head"])
+def test_ac031_composed_or_unknown_commands_allowed_in_guarded_place(command, repo, stubs):
+    verdict = guard("claude", envelope("claude", "Bash", repo, {"command": command}), repo, stubs)
+    assert not verdict.denied, verdict
+
+
 def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
     verdict = guard("codex", envelope("codex", "exec_command", repo, {"cmd": "git status --short"}), repo, stubs)
     assert not verdict.denied, verdict
@@ -451,11 +458,9 @@ def test_ac031_codex_exec_command_reads_its_native_cmd_field(repo, stubs):
     "Get-Content @(Set-Content copy.txt changed)",
     "Get-Content (Set-Content copy.txt changed)",
     "Get-ChildItem -Filter { Set-Content copy.txt changed }",
-    "C:/tmp/git.exe status",
-    "/tmp/rg pattern",
-    "unknown-reader README.md",
+    "git add . && git status",
 ])
-def test_ac031_write_capable_or_unrecognized_shell_command_refused(command, repo, stubs):
+def test_ac031_identified_mutation_refused_in_guarded_place(command, repo, stubs):
     verdict = guard("codex", envelope("codex", "exec_command", repo, {"command": command}), repo, stubs)
     assert verdict.denied, verdict
 
@@ -554,11 +559,22 @@ def test_ac009_fallback_notice_once_per_session(tmp_path, stubs):
     assert guard("claude", shell_call("claude", master, "other"), master, stubs).denied
 
 
-def test_ac010_protection_added_mid_session_refuses_next_action(repo, tmp_path, stubs):
+def test_ac010_protection_added_mid_session_refuses_once_the_cached_answer_expires(repo, tmp_path, stubs):
     wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
     assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied
     stubs.github(protected=["feature-x"])
+    assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied, "within 5 minutes"
+    cache = repo / ".git" / "afk" / "protection-cache.json"
+    entries = json.loads(cache.read_text(encoding="utf-8"))
+    cache.write_text(json.dumps({k: {**v, "at": v["at"] - 300} for k, v in entries.items()}), encoding="utf-8")
     assert guard("claude", shell_call("claude", wt, "s1"), wt, stubs).denied
+
+
+def test_ac010_protection_added_mid_session_refuses_next_action_with_the_cache_off(repo, tmp_path, stubs):
+    wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    assert not guard("claude", shell_call("claude", wt, "s1"), wt, stubs, AFK_PROTECTION_CACHE_TTL="0").denied
+    stubs.github(protected=["feature-x"])
+    assert guard("claude", shell_call("claude", wt, "s1"), wt, stubs, AFK_PROTECTION_CACHE_TTL="0").denied
 
 
 # =========================================================================== Moving and creation
@@ -1047,7 +1063,7 @@ def run_prune(repo: Path, stubs: Stubs) -> subprocess.CompletedProcess:
 # The launcher resolves the owner itself (run-hook owner_env), so a passed AFK_WORKTREE_OWNER is
 # overridden; name a short-lived python wrapper as the owner process instead (A20 opt-in name).
 DEAD_OWNER_WRAPPER = [PY, "-c", "import subprocess, sys; sys.exit(subprocess.run(sys.argv[1:]).returncode)"]
-DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python"}
+DEAD_OWNER_ENV = {"AFK_OWNER_PROCESS": "python" + ("" if os.name == "nt" else ",afk-python")}
 
 
 def test_ac029_stale_prune_rules(repo, tmp_path, stubs):
@@ -1103,7 +1119,7 @@ def test_a12_mcp_tool_denied_by_mutating_verb_in_guarded_place(harness, tool, de
 @pytest.mark.parametrize("tool,denied", [
     ("TodoWrite", False), ("AskUserQuestion", False), ("WebFetch", False), ("WebSearch", False),
     ("Skill", False), ("ToolSearch", False), ("Agent", False), ("EnterPlanMode", False),
-    ("NotebookEdit", True), ("MultiEdit", True), ("Write", True), ("PowerShell", True),
+    ("NotebookEdit", True), ("MultiEdit", True), ("Write", True), ("PowerShell", False),
     ("SomeFutureBuiltinTool", True),
 ])
 def test_a12_claude_builtin_allowlist_in_guarded_place(tool, denied, repo, stubs):

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Contract tests for scripts/validate_agenda.py.
 
 The rules under test are the script's docstring. Each test names the finding it
 pins, so a failure says which rule moved.
 
-    python3 scripts/tests/test_validate_agenda.py
+    afk-python scripts/tests/test_validate_agenda.py
 """
 
 import os

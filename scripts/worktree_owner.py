@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Who owns a worktree: the harness process that made it, and whether it still runs.
 
-    python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
-    python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
-    python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
-    python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
+    afk-python worktree_owner.py state <pid> <ctime>   -> alive | dead | unknown
+    afk-python worktree_owner.py runtime-paths    -> the plugin's runtime-state paths, one per line
+    afk-python worktree_owner.py ctime <pid>      -> the process creation time, or nothing
+    afk-python worktree_owner.py record --dir D --name N --path P --branch B --harness H [--session S]
         writes D/N.json: the owner record `create-worktree --name` leaves behind
-    python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
+    afk-python worktree_owner.py copied --worktree P   < NUL-separated paths relative to P
         adds to <P's git dir>/afk-copied.json the SHA-256 of each file a trusted plugin step
         placed: the copy step, and a build gate's provisioning outputs
-    python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
+    afk-python worktree_owner.py append --worktree P <path relative to P>   < bytes to append
         appends them; records the expected result's SHA-256 only when the file was absent or
         recorded unchanged before, and reads back exactly that result after
 
@@ -17,7 +17,7 @@ The owner is, in order: `AFK_WORKTREE_OWNER` (`<pid>:<ctime>`, resolved by the f
 native process of a hook chain, since a walk from inside bash loses the chain), the
 first ancestor of this process that is not a shell, an interpreter, git or a console
 host, then the pid in the env name the provider file declares (`owner_pid_env`). The creation time pins the pid: a live pid
-with another creation time is a recycled one and reads `unknown`. Never
+with another creation time is a recycled one and reads `dead`. Never
 `os.kill(pid, 0)`: on Windows that terminates the process.
 """
 from __future__ import annotations
@@ -40,7 +40,7 @@ DISPOSABLE_DIRS = frozenset({"node_modules", "target", "build", "dist", "out", "
 DISPOSABLE_ROOTS = frozenset({".m2/repository"})
 
 SKIPPED = {"bash", "sh", "dash", "zsh", "fish", "env", "timeout", "python", "python3", "pythonw",
-           "py", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
+           "py", "afk-python", "git", "cmd", "pwsh", "powershell", "conhost", "winpty", "mintty"}
 
 
 def basename(name: str) -> str:
@@ -181,7 +181,7 @@ def provider_owner(harness: str) -> dict | None:
 
 
 def state(pid: int, ctime: str) -> str:
-    """alive | dead | unknown. A live pid with another creation time is `unknown`."""
+    """alive | dead | unknown. A live pid with another creation time is a recycled one: `dead`."""
     present = exists(pid)
     if present is False:
         return "dead"
@@ -190,7 +190,7 @@ def state(pid: int, ctime: str) -> str:
     now = creation_time(pid)
     if now is None:
         return "unknown"
-    return "alive" if now == str(ctime) else "unknown"
+    return "alive" if now == str(ctime) else "dead"
 
 
 def owners_of(record: dict) -> list[dict]:

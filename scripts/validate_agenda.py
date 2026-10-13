@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Deterministic agenda-arithmetic check for a meeting plan.
 
 This docstring is the canonical home of every rule below;
 `MEETING-PLAN-FORMAT.md` "Agenda grammar" points here and restates none of it.
 
-Usage: python3 validate_agenda.py <plan.md>   (Windows: py -3 validate_agenda.py <plan.md>)
+Usage: afk-python validate_agenda.py <plan.md>
 
 Input: a meeting plan carrying one `## Agenda` section. That section holds a
 `Profile:` line and one pipe table. Both meeting plans use the same shape, so

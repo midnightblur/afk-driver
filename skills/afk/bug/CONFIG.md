@@ -8,7 +8,7 @@ never with `get`: `resolve` applies the whole chain in one place, so no caller
 has to know the order.
 
 ```sh
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" resolve trackerAssignee
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" resolve trackerAssignee
 ```
 
 Exit 0 prints the value; exit 1 means nothing supplied it and the caller must

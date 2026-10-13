@@ -4,7 +4,7 @@ Checks (a) graph, (b) anchors, (e) tiers, (g) gate shape, (h) review policy are
 **mechanical** — run the validator, fix every finding, re-run until clean:
 
 ```
-python3 skills/afk/to-subtasks/scripts/validate_plan.py {plan-dir}   # Windows: py -3
+afk-python skills/afk/to-subtasks/scripts/validate_plan.py {plan-dir}
 ```
 
 Exit 0 = clean · 1 = findings (one line each: file + rule id + detail) · 2 =

@@ -115,8 +115,53 @@ def test_timeout_blocks_stop(tmp_path):
         {"slow.sh": "#!/bin/sh\nsleep 30\n"},
     )
     done = run(root, "Stop", {"hook_event_name": "Stop"})
+    reason = decision(done.stdout)["reason"]
     assert decision(done.stdout)["decision"] == "block"
     assert "no verdict" in done.stderr
+    assert "timed out" in reason and "cannot run" not in reason
+
+
+def test_timeout_denies_pretooluse_as_a_timeout(tmp_path):
+    root = repository(
+        tmp_path,
+        json.dumps([{"event": "PreToolUse", "matcher": "*", "timeout": 1, "script": ".afk/slow.sh"}]),
+        {"slow.sh": "#!/bin/sh\nsleep 30\n"},
+    )
+    done = run(root, "PreToolUse", {"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+    assert done.returncode == 0
+    body = decision(done.stdout)["hookSpecificOutput"]
+    assert body["permissionDecision"] == "deny"
+    assert "timed out" in body["permissionDecisionReason"] and "cannot run" not in body["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+@pytest.mark.parametrize("with_jq", [True, False])
+def test_the_shell_free_deny_parses_to_the_object_afk_emit_deny_writes(provider, with_jq, capsys, tmp_path):
+    # Semantic parity: the parsed objects match; key order and spacing are not a contract.
+    if with_jq and shutil.which("jq") is None:
+        pytest.skip("no jq on this machine")
+    assert launcher.block("PreToolUse", ['a "quoted" \\ fault\twith a tab'], None, dict(os.environ)) == 0
+    ours = json.loads(capsys.readouterr().out)
+    reason = ours["hookSpecificOutput"]["permissionDecisionReason"]
+    env = dict(os.environ, AFK_PROVIDER=provider)
+    if not with_jq:
+        # Hide jq alone: the fallback escapes with sed and awk, present on every POSIX host.
+        tools, dirs = tmp_path / "no-jq", []
+        tools.mkdir()
+        for name in ("sed", "awk"):
+            found = shutil.which(name)
+            try:
+                (tools / name).symlink_to(found)
+            except (OSError, TypeError):  # no symlink right on Windows: lend the tool's own directory
+                if found:
+                    dirs.append(str(Path(found).parent))
+        env["PATH"] = os.pathsep.join([str(tools), *dirs])
+    library = (PLUGIN_ROOT / "hooks" / "lib" / "provider.sh").as_posix()
+    script = '. "$1" || exit 70; { [ "$3" = 1 ] || ! command -v jq >/dev/null; } || exit 71; afk_emit_deny "$2"'
+    done = subprocess.run([str(launcher.find_bash()), "-c", script, "t", library, reason, "1" if with_jq else "0"],
+                          env=env, capture_output=True, text=True, encoding="utf-8")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert json.loads(done.stdout) == ours
 
 
 def test_other_events_only_warn(tmp_path):
@@ -258,7 +303,7 @@ def test_r7_2_with_no_shell_a_matching_blocking_entry_blocks(tmp_path, monkeypat
         buffer=io.BytesIO(json.dumps({"tool_name": "Bash"}).encode()), isatty=lambda: False))
     assert launcher.main(["repo-list", event]) == 0
     out = capsys.readouterr()
-    assert "no POSIX shell to run .afk/g.sh" in out.out + out.err
+    assert "no POSIX shell found" in out.err and "cannot run .afk/g.sh" in out.out + out.err
     assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in out.out
 
 
@@ -410,7 +455,7 @@ def test_deadline_kills_the_handler_tree(plugin_copy):
     out, err = proc.communicate(timeout=60)
     assert time.monotonic() - start < 10
     assert proc.returncode == 0
-    assert "slow.sh exceeded its 2s budget — stopped, verdict unknown." in err
+    assert "[afk] slow.sh (unknown event) failed: timed out after 2s, stopped, verdict unknown" in err
     assert _gone(_pids(mark, ("child", "grand")))
 
 
@@ -488,3 +533,248 @@ def test_a_plugin_handler_learns_the_wall_clock_deadline(plugin_copy):
     proc = _launch(root, {k: v for k, v in env.items() if k != "AFK_HOOK_DEADLINE"}, "plugin", "budget.sh")
     out, _ = proc.communicate(timeout=60)
     assert out == ""
+
+
+# ---- bails before any shell, and the AFK_PYTHON check before any handler
+
+class ShellLookups:
+    """Stands in for find_bash and counts the calls: a bail never looks for a shell."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        return None
+
+
+def _main_in(root: Path, monkeypatch, argv: list[str], envelope: dict | None = None) -> tuple[int, ShellLookups]:
+    import io
+    import types
+    lookups = ShellLookups()
+    monkeypatch.setattr(launcher, "find_bash", lookups)
+    monkeypatch.setenv("AFK_PYTHON", sys.executable)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.delenv("PROJECT_DIR", raising=False)
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(sys, "stdin", types.SimpleNamespace(
+        buffer=io.BytesIO(json.dumps(envelope or {}).encode()), isatty=lambda: False))
+    return launcher.main(argv), lookups
+
+
+@pytest.mark.parametrize("declared", [None, "[]", json.dumps([{"event": "Stop", "matcher": "*", "script": "g.sh"}])])
+def test_repo_list_with_nothing_declared_for_the_event_exits_before_any_shell_lookup(tmp_path, monkeypatch, declared):
+    root = tmp_path / "repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    if declared is not None:
+        (root / ".afk").mkdir()
+        (root / ".afk" / "hooks.json").write_text(declared, encoding="utf-8")
+    code, lookups = _main_in(root, monkeypatch, ["repo-list", "PreToolUse"], {"tool_name": "Read"})
+    assert code == 0 and lookups.calls == 0
+
+
+def test_repo_list_outside_any_repository_exits_before_any_shell_lookup(tmp_path, monkeypatch):
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    code, lookups = _main_in(plain, monkeypatch, ["repo-list", "Stop"])
+    assert code == 0 and lookups.calls == 0
+
+
+@pytest.mark.parametrize("answer", [OSError("git: cannot execute"), (1, "", "wrapper: broken"),
+                                    (128, "", "fatal: not a git repository (or any of the parent directories)")])
+def test_only_gits_own_answer_counts_as_no_repository(monkeypatch, answer):
+    def git(*args, **kwargs):
+        if isinstance(answer, Exception):
+            raise answer
+        return subprocess.CompletedProcess(args, answer[0], answer[1], answer[2])
+
+    monkeypatch.setattr(launcher.subprocess, "run", git)
+    root, answered = launcher.git_toplevel(dict(os.environ))
+    assert root is None and answered == (not isinstance(answer, Exception) and answer[0] == 128)
+
+
+def test_a_failed_repository_lookup_still_looks_for_a_shell(tmp_path, monkeypatch):
+    root = repository(tmp_path, json.dumps([{"event": "Stop", "matcher": "*", "script": ".afk/g.sh"}]), {"g.sh": OK})
+    monkeypatch.setattr(launcher, "git_toplevel", lambda env: (None, False))
+    _code, lookups = _main_in(root, monkeypatch, ["repo-list", "Stop"])
+    assert lookups.calls == 1
+
+
+@pytest.mark.parametrize("manifest", [
+    json.dumps([{"event": "PreToolUse", "matcher": "*", "script": ".afk/g.sh"}]),
+    "{not json",
+])
+def test_repo_list_with_a_declared_entry_or_a_fault_still_looks_for_a_shell(tmp_path, monkeypatch, manifest):
+    root = repository(tmp_path, manifest, {"g.sh": OK})
+    _code, lookups = _main_in(root, monkeypatch, ["repo-list", "PreToolUse"], {"tool_name": "Read"})
+    assert lookups.calls == 1
+
+
+@pytest.mark.parametrize("handler, provider, bails", [
+    ("nested-steering.sh", "claude", True),
+    ("nested-steering.sh", "codex", False),
+    ("agents-md-config-check.sh", "codex", True),
+    ("agents-md-config-check.sh", "claude", False),
+    ("nested-steering.sh", "nonesuch", True),
+    ("update-notice.sh", "claude", False),
+])
+def test_a_handler_its_provider_declares_a_no_op_exits_before_any_shell_lookup(
+        tmp_path, monkeypatch, handler, provider, bails):
+    monkeypatch.setenv("AFK_PROVIDER", provider)
+    code, lookups = _main_in(tmp_path, monkeypatch, ["--soft", "plugin", handler], {"hook_event_name": "PostToolUse"})
+    assert code == 0 and lookups.calls == (0 if bails else 1)
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_the_launcher_and_the_shell_read_one_policy_declaration(provider):
+    lib = (PLUGIN_ROOT / "hooks" / "lib" / "provider.sh").as_posix()
+    done = subprocess.run(
+        [str(launcher.find_bash()), "-c", f'. "{lib}"; afk_nested_inject_mode; afk_provider_fact instruction_files_setting'],
+        env={**os.environ, "AFK_PROVIDER": provider}, capture_output=True, text=True, timeout=60)
+    mode, setting = done.stdout.split()
+    facts = launcher.load_lib("facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts({"AFK_PROVIDER": provider})
+    assert launcher.POLICY_NOOP["nested-steering.sh"](facts) == (mode == "never")
+    assert launcher.POLICY_NOOP["agents-md-config-check.sh"](facts) == (setting != "true")
+
+
+def _without_afk_python(**extra: str) -> dict:
+    env = {k: v for k, v in os.environ.items() if k not in ("AFK_PYTHON", "CLAUDE_PROJECT_DIR", "PROJECT_DIR")}
+    return {**env, **extra}
+
+
+def _bare(env: dict, cwd: Path, *args: str) -> subprocess.CompletedProcess:
+    # -S skips site, so the entry's .pth cannot fill AFK_PYTHON in: the launcher sees `env` as given.
+    return subprocess.run([sys.executable, "-S", str(LAUNCHER), *args], input="{}", capture_output=True,
+                          text=True, env=env, timeout=120, cwd=str(cwd))
+
+
+@pytest.mark.parametrize("named", [None, "elsewhere"])
+def test_a_handler_never_starts_unless_afk_python_names_this_interpreter(tmp_path, named):
+    env = _without_afk_python(**({"AFK_PYTHON": str(tmp_path / "afk-python")} if named else {}))
+    done = _bare(env, PLUGIN_ROOT, "plugin", "update-notice.sh")
+    assert done.returncode == 1 and "run /afk:setup" in done.stderr
+    assert ("AFK_PYTHON is not set" if named is None else "not this interpreter") in done.stderr
+    assert _bare(env, PLUGIN_ROOT, "--soft", "plugin", "update-notice.sh").returncode == 0
+
+
+def test_a_relative_afk_python_never_passes_even_when_it_names_this_interpreter(tmp_path):
+    here = Path(sys.executable)
+    # The relative name resolves to this interpreter from its own directory, and to a stub on PATH.
+    stubs = tmp_path / "stubs"
+    stubs.mkdir()
+    (stubs / here.name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    env = _without_afk_python(AFK_PYTHON=here.name, PATH=os.pathsep.join([str(stubs), os.environ.get("PATH", "")]))
+    done = _bare(env, here.parent, "plugin", "update-notice.sh")
+    assert done.returncode == 1 and "not an absolute path" in done.stderr and "run /afk:setup" in done.stderr
+
+
+@pytest.mark.parametrize("event", ["PreToolUse", "Stop"])
+def test_a_blocking_repository_gate_blocks_when_afk_python_is_missing(tmp_path, event):
+    root = repository(tmp_path, json.dumps([{"event": event, "matcher": "*", "script": ".afk/g.sh"}]), {"g.sh": OK})
+    done = _bare(_without_afk_python(), root, "repo-list", event)
+    assert done.returncode == 0 and "AFK_PYTHON" in done.stdout
+    assert ("permissionDecision" if event == "PreToolUse" else '"decision"') in done.stdout
+
+
+def test_the_afk_python_check_passes_this_interpreter_and_a_handler_sees_it(plugin_copy):
+    root, _, env = plugin_copy
+    (root / "hooks" / "who.sh").write_text('#!/bin/sh\nprintf "%s" "$AFK_PYTHON"\n', encoding="utf-8", newline="\n")
+    proc = _launch(root, {**env, "AFK_PYTHON": sys.executable}, "plugin", "who.sh")
+    out, err = proc.communicate(timeout=60)
+    assert proc.returncode == 0, err
+    assert os.path.normcase(out) == os.path.normcase(sys.executable)
+
+
+ONLY_WINDOWS = pytest.mark.skipif(os.name != "nt", reason="the <git>/bin redirector exists only in Git for Windows")
+
+
+def git_tree(tmp_path: Path, *layouts: str) -> Path:
+    root = tmp_path / "Git"
+    (root / "mingw64" / "bin").mkdir(parents=True)
+    for layout in layouts:
+        (root / layout).mkdir(parents=True, exist_ok=True)
+        (root / layout / "bash.exe").write_bytes(b"")
+    return root
+
+
+@ONLY_WINDOWS
+def test_a_handler_starts_usr_bin_bash_past_the_redirector(tmp_path, monkeypatch):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    monkeypatch.setattr(launcher, "find_bash", lambda: root / "bin" / "bash.exe")
+    assert launcher.hook_bash() == root / "usr" / "bin" / "bash.exe"
+
+
+@ONLY_WINDOWS
+def test_a_git_tree_without_usr_bin_keeps_the_found_bash(tmp_path, monkeypatch):
+    root = git_tree(tmp_path, "bin")
+    monkeypatch.setattr(launcher, "find_bash", lambda: root / "bin" / "bash.exe")
+    assert launcher.hook_bash() == root / "bin" / "bash.exe"
+
+
+def test_a_bash_outside_a_git_bin_folder_is_started_as_found(tmp_path, monkeypatch):
+    named = tmp_path / "tools" / "bash.exe"
+    monkeypatch.setattr(launcher, "find_bash", lambda: named)
+    assert launcher.hook_bash() == named
+
+
+@ONLY_WINDOWS
+def test_the_windows_wsl_stub_is_never_the_hooks_bash(tmp_path, monkeypatch):
+    stub = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "bash.exe"
+    for variable in ("AFK_BASH", "GIT_BASH"):
+        monkeypatch.delenv(variable, raising=False)
+    for variable in ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        monkeypatch.setenv(variable, str(tmp_path / "none"))
+    monkeypatch.setattr(launcher, "git_relative_bash", lambda: None)
+    monkeypatch.setattr(launcher.shutil, "which", lambda name, *a, **k: str(stub))
+    assert launcher.find_bash() is None and launcher.hook_bash() is None
+
+
+@ONLY_WINDOWS
+@pytest.mark.parametrize("layout", ["bin", "usr/bin"])
+def test_both_layouts_give_a_handler_the_redirector_toolchain_first(tmp_path, layout):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    base = {"PATH": r"C:\Windows\system32", "USERPROFILE": str(tmp_path), "SystemRoot": r"C:\Windows"}
+    env = launcher.shell_env(root / layout / "bash.exe", base)
+    if layout == "usr/bin":
+        assert env["PATH"].split(os.pathsep)[:2] == [str(root / "mingw64" / "bin"), str(root / "usr" / "bin")]
+        assert env["MSYSTEM"] == "MINGW64" and env["HOME"] == str(tmp_path)
+    else:  # the redirector itself sets the rest when it starts usr/bin/bash.exe
+        assert str(root / "usr" / "bin") in env["PATH"].split(os.pathsep)
+
+
+def test_the_redirector_environment_matches_git_wrapper(tmp_path):
+    root = git_tree(tmp_path, "bin", "usr/bin")
+    profile, roaming = tmp_path / "profile", tmp_path / "roaming"
+    profile.mkdir()
+    roaming.mkdir()
+    drive, rest = str(roaming)[:2], str(roaming)[2:]
+    base = {"PATH": "orig", "MSYSTEM": "MSYS", "USERPROFILE": str(profile), "HOMEDRIVE": drive, "HOMEPATH": rest}
+    env = launcher.redirector_env(root, dict(base))
+    assert env["MSYSTEM"] == "MINGW64"  # set unconditionally, like the wrapper
+    assert env["HOME"] == drive + rest and env["PLINK_PROTOCOL"] == "ssh"
+    assert env["EXEPATH"] == str(root / "bin")
+    assert env["PATH"].split(os.pathsep) == [
+        str(root / "mingw64" / "bin"), str(root / "usr" / "bin"), drive + rest + "/bin", "orig"]
+    missing_home = launcher.redirector_env(root, dict(base, HOMEPATH=rest + "-gone"))
+    assert missing_home["HOME"] == str(profile)
+    kept = launcher.redirector_env(root, dict(base, HOME="/kept", PLINK_PROTOCOL="plink"))
+    assert kept["HOME"] == "/kept" and kept["PLINK_PROTOCOL"] == "plink"
+
+
+@ONLY_WINDOWS
+@pytest.mark.parametrize("home,expected", [
+    ("/c/Users/x/.cargo", "/c/Users/x/.cargo/bin"),
+    (r"C:\Users\x", "/c/Users/x/bin"),
+])
+def test_a_handler_finds_home_bin_whichever_way_home_is_spelled(home, expected):
+    bash = launcher.hook_bash()
+    if bash is None or bash.parent.parent.name.lower() != "usr":
+        pytest.skip("no Git for Windows usr/bin bash")
+    base = {k: v for k, v in os.environ.items() if k not in ("MSYSTEM", "EXEPATH")}
+    base.update(PATH=os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "system32"), HOME=home)
+    done = subprocess.run([str(bash), "-c", 'printf "%s" "$PATH"'], env=launcher.shell_env(bash, base),
+                          capture_output=True, text=True, timeout=60)
+    entries = done.stdout.split(":")
+    assert entries[2] == expected and not any(e.startswith("/c/c/") for e in entries)

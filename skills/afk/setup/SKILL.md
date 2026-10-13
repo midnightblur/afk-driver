@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Sets up, repairs, or audits the AFK environment against its dependency manifest. Use on first install (base), after plugin updates, when a skill dies on a missing tool/credential, or as audit.
+description: Sets up, repairs, or audits the AFK environment against its dependency manifest. Use right after install (hooks and MCP servers stay off until it runs), for base, after plugin updates, when a skill dies on a missing tool/credential, or as audit.
 ---
 
 > **Language:** read `LANGUAGE.md` (plugin root) first — it binds every word this skill produces.
@@ -18,9 +18,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
 - **`base`** (`/afk:setup base`) — the default run **plus** every entry's
   `Base probe:` / `Base fix:` (version-pinned monorepo toolchain — git, JDK +
   Maven per `.sdkmanrc`, Node/npm per the workspace standard, Python, Docker)
-  plus the base-only workstation apps & OS config (section W — IDEs, MySQL
-  Server + Workbench, Windows long paths, hosts entries). The base tier is
-  **elective** — step 3 offers it as a pick list; deselected items report
+  plus the base-only workstation apps & OS config (manifest section W). The
+  base tier is **elective** — step 3 offers it as a pick list; deselected items report
   `skipped (user choice)`. For fresh machines or after a toolchain pin bump.
 - **`audit`** (`/afk:setup audit`) — don't touch the machine; hunt drift between
   the plugin's artifacts and reality: [`AUDIT.md`](AUDIT.md).
@@ -33,18 +32,26 @@ exactly what the pull broke. Run via the agent (this skill) or follow
   ```sh
   for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/CLAUDE.md" \
            "${CODEX_HOME:-$HOME/.codex}/AGENTS.md"; do
-    python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" teardown "$f"
+    afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/install_block.py" teardown "$f"
   done
   ```
 
 ## Doctor loop
+
+Probes and fixes expand `$AFK_PLUGIN_ROOT`. An agent shell does not set it:
+unless it is set, export it as this skill's directory minus `skills/afk/setup`
+in every shell that runs a probe or fix.
+
+Every script this loop runs needs `afk-python` (MANIFEST P1). Probe P1 first; on a miss,
+run its bootstrap Fix before step 0. Until the harness restarts, call the entry by its
+absolute path under the P1 Notes' install directory.
 
 0. **Configure the repository, if it isn't.** Every probe below reads
    `.afk/config.yaml`, so a repository without one has nothing to check against.
    `<git root>/.afk/config.yaml` present → skip this step, silently. Not inside
    a git checkout → skip this step; `H0` and each leg `H0`'s Notes gates report
    `skipped (no repository)`, never a failure. Absent:
-   - run `python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
+   - run `afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init` — it writes a
      starter file from what the repository can answer about itself
      (`${AFK_PLUGIN_ROOT}/CONFIG.md` "Starting a repository off"), and leaves a
      commented `TODO` wherever it cannot;
@@ -107,7 +114,8 @@ exactly what the pull broke. Run via the agent (this skill) or follow
    is electable the day it lands.
 4. **Fix.**
    - `auto:` fixes — run them. Confirm first only for global installs
-     (`npm i -g`, `pip install`) in an interactive session.
+     (`npm i -g`, `pip install`) and per-user runtime installs (`P1`) in an
+     interactive session.
    - `human:` fixes — walk the human through interactively. For **secret**
      entries, follow the manifest's secrets discipline: presence checks only,
      never echo a value; you set no secret — the human places it, you re-probe.

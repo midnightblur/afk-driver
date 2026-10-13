@@ -85,7 +85,7 @@ is [NOTATIONS.md](NOTATIONS.md). The artifact shape is
    item — the room finds it either way, and finding it in the plan is cheaper.
 
 7. **Check the budget mechanically.** Run
-   `python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py {plan}` and fix what it
+   `afk-python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py {plan}` and fix what it
    names. Presenter minutes and objection minutes are separate columns because
    they are separate commitments — an overrun that eats an objection window is
    the failure this budget exists to prevent.

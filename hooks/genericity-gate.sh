@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop gate (ships with the afk plugin): genericity gate — prose added to this
+# Plugin-source gate (ships with the afk plugin): genericity gate — prose added to this
 # plugin's *.md files must stay generic, never feature- or incident-specific.
 # The doctrine (plugin AGENTS.md "generic, never feature-specific") existed and
 # was still violated by an agent hardening the harness after an incident —
@@ -53,7 +53,7 @@ genericity_cache_scope() {
 
 gate_genericity() {
   [ "${GENERICITY_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -d "$PLUGIN_DIR/skills" ] || return 0   # not this plugin's checkout
@@ -61,7 +61,8 @@ gate_genericity() {
 
   # The shapes this gate blocks are shared with the outgoing-issue redactor, so
   # they live in one file. A missing file blocks: an empty pattern set passes all.
-  local PATTERNS_FILE="$PLUGIN_DIR/hooks/lib/sensitive-patterns.tsv" pk pv
+  local JUDGE_DIR PATTERNS_FILE pk pv; JUDGE_DIR=$(afk_judge_dir 2>/dev/null) || JUDGE_DIR=$PLUGIN_DIR
+  PATTERNS_FILE="$JUDGE_DIR/hooks/lib/sensitive-patterns.tsv"
   local -A PAT=()
   if [ -f "$PATTERNS_FILE" ]; then
     while IFS=$'\t' read -r pk pv || [ -n "$pk" ]; do

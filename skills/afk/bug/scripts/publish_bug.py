@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """
 publish_bug.py — deterministic Jira engine for the bug-lifecycle publisher.
 
@@ -22,12 +22,12 @@ write; unknown → non-zero exit, nothing created. Transient (5xx / network)
 calls retry twice with exponential backoff before failing (SDD §5).
 
 Usage:
-    python publish_bug.py create   --project PROJ --summary "…" --bundle bundle.md
+    afk-python publish_bug.py create   --project PROJ --summary "…" --bundle bundle.md
                                     [--assignee ACCID] [--label L]... [--fix-version V]
                                     [--screenshot PNG]... [--dry-run]
-    python publish_bug.py transition --key PROJ-123 [--dry-run]
-    python publish_bug.py comment    --key PROJ-123 --body "…" | --body-file f.md [--dry-run]
-    python publish_bug.py backfill   --key PROJ-123 --project PROJ --fix-version V [--dry-run]
+    afk-python publish_bug.py transition --key PROJ-123 [--dry-run]
+    afk-python publish_bug.py comment    --key PROJ-123 --body "…" | --body-file f.md [--dry-run]
+    afk-python publish_bug.py backfill   --key PROJ-123 --project PROJ --fix-version V [--dry-run]
 
 Credentials resolve exactly as the adapter's load_creds documents (env vars, then
 the Jira MCP env blocks in ~/.claude.json and ~/.codex/config.toml). Nothing

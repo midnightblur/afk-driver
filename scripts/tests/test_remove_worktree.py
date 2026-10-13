@@ -253,6 +253,15 @@ def test_r5_10_the_owner_walk_stops_at_a_parent_created_after_its_child(monkeypa
     assert OWNER.find_owner() is None
 
 
+def test_the_owner_walk_passes_the_afk_python_launcher(monkeypatch):
+    table = {os.getpid(): (100, "python.exe"), 100: (200, "afk-python.exe"), 200: (0, "claude.exe")}
+    born = {os.getpid(): "50", 100: "40", 200: "10"}
+    monkeypatch.setattr(OWNER, "snapshot", lambda: table)
+    monkeypatch.setattr(OWNER, "creation_time", lambda pid: born.get(pid))
+    monkeypatch.delenv("AFK_OWNER_PROCESS", raising=False)
+    assert OWNER.find_owner()["pid"] == 200
+
+
 def test_r8_1_a_removal_run_from_inside_the_folder_leaves_it_for_the_next_prune(repo):
     path = made(repo, "held", {"pid": 2147483000, "ctime": "1"})
     done = run_env("--path", str(path), cwd=path, AFK_WORKTREE_OWNER=f"{os.getpid()}:{OWNER.creation_time(os.getpid())}")
@@ -716,7 +725,7 @@ def _provision(repo: Path, path: Path) -> None:
                           "worktree_native": path.as_posix(), "dry_run": False})
     done = subprocess.run([BASH, str(PLUGIN_ROOT / "adapters" / "build-gate" / "maven" / "worktree-provision.sh"),
                            payload], capture_output=True, text=True, timeout=120,
-                          env={**os.environ, "AFK_PY": Path(sys.executable).as_posix(),
+                          env={**os.environ, "AFK_PYTHON": Path(sys.executable).as_posix(),
                                "AFK_CFG_MAVEN_WORKTREE_SEED": "none"})
     assert done.returncode == 0 and (path / ".mvn" / "maven.config").is_file(), done.stdout + done.stderr
 

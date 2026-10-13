@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Detached helper of the H-2 move: cut the worktree, then type `/cd <path>` into the pane.
 
     afk-move.py --repo <main root> --name <name> --session <id> --provider <name> [--pane <id>] [--cwd <dir>]

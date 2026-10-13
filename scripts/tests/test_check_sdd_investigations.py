@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Rules for the SDD seam gate: a row is only as settled as its ledger.
 
 Each case pins a way a design could publish a seam nobody closed — a row

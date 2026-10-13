@@ -7,9 +7,9 @@ the toolkit names a repository path.
 Read the effective configuration with the one reader; never parse the file:
 
 ```
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" effective --json
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.command
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" effective --json
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" get verification.tiers.e2e.command
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" validate
 ```
 
 `validate` fails only on schema problems. For each repository-relative path
@@ -19,7 +19,7 @@ and still exits 0. The keys are `repo-hooks`, `setup.extra`,
 `npm.workspace-root`; `maven.worktree-seed` is a per-machine path and is not
 checked.
 
-Bash gates source the flat export once per Stop through `hooks/lib/config.sh`
+Bash gates source the flat export once per gate run through `hooks/lib/config.sh`
 and read the fixed `AFK_CFG_*` names.
 
 ## Discovery
@@ -41,7 +41,7 @@ files absent is a supported state — the built-in defaults apply.
 ## Starting a repository off
 
 ```sh
-python scripts/afk-config.py init          # --force to replace an existing file
+afk-python scripts/afk-config.py init      # --force to replace an existing file
 ```
 
 Writes a starter `.afk/config.yaml` from what the repository can answer about
@@ -196,20 +196,41 @@ holds can become shell syntax.
 ### Repository hooks
 
 `repo-hooks` names a JSON array. Each entry has `event`
-(`SessionStart` | `PreToolUse` | `Stop` | `WorktreeCreated`), `matcher` (a regular expression
+(`SessionStart` | `PreToolUse` | `Stop` | `WorktreeCreated` | `PreCommit`), `matcher` (a regular expression
 matched against the tool name, or `*`), `timeout` in seconds, and `script`, a
 repository-relative path. A script that resolves outside the repository root is
 refused. What the launcher does with a handler it cannot run is pinned by
 `scripts/tests/test_run_hook.py`. `hooks/run-hook.py` runs the matching entries in declaration order and
 exports `AFK_PLUGIN_ROOT` to each. A declared handler this checkout cannot run
-is a configuration error: on `Stop` and `PreToolUse` the launcher blocks the
-turn and names the entry, so a gate cannot go missing quietly. A `PreToolUse` verdict
+is a configuration error, and one that gives no verdict inside its `timeout` is
+a timeout: on `Stop` and `PreToolUse` either blocks the turn and names the entry,
+so a gate cannot go missing quietly. The timeout counts the whole run, shell
+start-up included, so a handler on a host that scans every process start keeps
+to bash builtins. A `PreToolUse` verdict
 is the deny JSON (`hookSpecificOutput.permissionDecision: "deny"`) at exit 0: one
-harness treats exit 2 as a failed hook and runs the tool. A `Stop` verdict is the
+harness treats exit 2 as a failed hook and runs the tool. The launcher writes it
+without a shell; it parses to the object `afk_emit_deny` writes on every provider
+(semantic JSON parity — key order and spacing are no contract). A `Stop` verdict is the
 `{"decision":"block","reason":...}` object. A script that exits non-zero, or prints its
 own refusal, is a refusal: the launcher never passes a handler's own verdict or exit
 code through on these events. It gathers every refusal and prints one verdict in that
 shape at the adapter's code. With no POSIX shell a matching call is blocked too.
+
+`PreCommit` runs at an agent-driven commit, after the plugin's commit gates
+(`hooks/precommit-gates.sh`). Handlers run in declaration order, so declare the
+cheap ones first; the first one that exits non-zero, times out or cannot run
+blocks the commit, and no later handler runs. `matcher` must be `*` and `timeout` a
+finite positive number of seconds; every entry is checked before any handler runs. Each
+handler reads `AFK_STAGED_TREE` (the index as a tree id) and `AFK_STAGED_PATHS`,
+a file with one `<status>\t<path>` line per staged change in `git diff --name-status`
+form: `A`, `C`, `D`, `M` or `T`, and `R<score>\t<old>\t<new>` for a rename. Deletions
+are listed, and handlers judge the staged bytes. Each run appends a
+`gate-latency.jsonl` line with `"event":"PreCommit"` (`hooks/README.md`
+"Latency metrics & budget"). Without `afk-python` the handlers cannot run, and the
+commit blocks whenever the repository could declare them: `.afk/hooks.json` exists,
+or any Discovery layer mentions `repo-hooks` or cannot be read. The shell parses
+neither file; `/afk:setup` installs the launcher. `.claude/hooks/.gate-disabled`, `AFK_SKIP_PRECOMMIT_GATES=1` and
+`git commit --no-verify` skip them with the plugin's gates.
 
 `WorktreeCreated` runs after `scripts/create-worktree --name` makes a worktree: each
 matching script runs inside the new worktree with `AFK_WORKTREE_PATH` and
@@ -284,12 +305,14 @@ is the large-repository fixture it validates.
 
 ## The shell view
 
-`hooks/lib/config.sh` sources `afk-config.py export-shell` once per Stop and
+`hooks/lib/config.sh` sources `afk-config.py export-shell` once per gate run and
 exports:
 
 - a scalar as `AFK_CFG_<PATH>` — `git.base-branch` becomes `AFK_CFG_GIT_BASE_BRANCH`
 - a list as `AFK_CFG_<PATH>_COUNT` plus `AFK_CFG_<PATH>_0`, `_1`, …
 - `AFK_CFG_LOADED=1` once the export ran
+- `AFK_CFG_LOAD_FAILED`, set by `config.sh` to the reason when the export could not
+  run; the defaults come back and the commit gates print the reason
 
 Every value is shell-quoted at export time, so a pattern containing spaces or
 `;` cannot become a command.

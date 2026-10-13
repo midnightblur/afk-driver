@@ -7,7 +7,7 @@ same-commit rule keeping it true lives in `FRESHNESS.md` (plugin root).
 
 **Entry fields.** `Needed by` — skills/scripts hitting the dep · `Probe` — exit
 0 = healthy · `Fix` — `auto:` the agent runs it; `human:` the agent guides,
-never runs · `Notes`. Probes are POSIX-shell commands run from the
+never runs · `Notes`. Probes are POSIX-shell commands run from
 **the repository root** (any worktree) unless prefixed `agent:` (in-session
 check). Entries tagged **[deferred]** aren't needed until the named first use —
 report as `deferred`, never as failures.
@@ -59,13 +59,13 @@ a token value — not even partially.
 - **Fix:** `human:` use the active-harness bootstrap in `README.md` §4, then
   refresh the plugin per `PROVIDERS.md`.
 
-### H2 · Jira MCP server *(only when the resolved `tracker` is not `none`)*
+### H2 · tracker MCP server *(only when the resolved `tracker` is not `none`)*
 - **Needed by:** `skills/afk/to-ticket` (creds fallback reads its `env` block),
   `skills/afk/to-sdd` (pointer section), `skills/afk/fix`,
   `skills/afk/understand` (MR-subject spec discovery), the shared Jira lib
   `adapters/tracker/jira/api.py` and `skills/afk/bug/scripts/publish_bug.py` (same
   creds-fallback env block; ADR-0001).
-- **Probe:** `agent:` the plugin Jira server lists `tracker_get`; a cheap call on a
+- **Probe:** `agent:` the plugin tracker server lists `tracker_get`; a cheap call on a
   known key succeeds. Decide from the server's answer, not from
   `scripts/afk-config.py get tracker`: `unsupported` naming `tracker: none`
   makes this row **n/a**, not a failure, as `H0` defines; with no
@@ -73,9 +73,10 @@ a token value — not even partially.
   That answer is the adapter contract working, and `O7`'s `tracker_get` leg
   follows the same rule. An `unsupported` or `error` answer carries
   `config_root`, the checkout whose config the server read.
-- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` (also
-  does S1/C3 or C3b, whichever the forge selects), enable the plugin, then
-  restart the session. Python deps: P3. Registering the server needs that
+- **Fix:** `human:` run `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/setup_secrets.py"`
+  (also does S1/C3 or C3b, whichever the forge selects), enable the plugin, then
+  restart the session. Needs P1, and registers its `afk-python` entry by absolute
+  path. Registering the server needs that
   restart. The plugin's own server applies added or corrected credentials on the
   next call, no restart; without them a call answers `error: true` and the
   server stays up. The user-scoped `tracker` entry holds them in its `env`, so
@@ -124,8 +125,7 @@ a token value — not even partially.
 ### H6 · per-developer values (`developer:`)
 - **Needed by:** `skills/afk/bug` (dispatch/publish/Ready-flip gates — key set
   and fail-closed rules owned by `skills/afk/bug/CONFIG.md`).
-- **Probe:** (interpreter resolution mirrors P1 — on Windows `python3` is often
-  a Store stub that exits 49 while real `python` works). Ask `afk-config.py
+- **Probe:** ask `afk-config.py
   resolve`, never `get` and never a file: `resolve` applies the whole chain —
   the developer's own value from any layer, then the derived worktree base — so
   the probe cannot disagree with the pipeline it gates. `trackerAssignee` and
@@ -135,7 +135,7 @@ a token value — not even partially.
   ```
   git rev-parse --git-dir >/dev/null 2>&1 \
     || { echo "skipped (no repository)"; exit 0; }
-  PY="$(command -v python || command -v python3)"
+  PY="${AFK_PYTHON:-afk-python}"
   AC="$AFK_PLUGIN_ROOT/scripts/afk-config.py"
   R="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
   C="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
@@ -163,7 +163,7 @@ a token value — not even partially.
   done
   DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"
   i="$("$PY" "$DV" status 2>/dev/null | "$PY" -c \
-      'import json,sys; print(" ".join(json.load(sys.stdin)["inherited"]))' \
+      'import json,sys; d=json.load(sys.stdin); print(" ".join(k for k in d["inherited"] if d["keys"][k]["need"] == "required"))' \
       2>/dev/null)"
   [ -z "$h$m$i" ] && { echo ok; exit 0; }
   echo "resolved: tracker=$("$PY" "$AC" get tracker)" \
@@ -173,9 +173,10 @@ a token value — not even partially.
   [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
   exit 1
   ```
-- **Fix:** `auto:` in session, from anywhere: a main checkout, a worktree, or
-  no repository. None of these values is a secret, so ask the human in the
-  conversation. `DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"`.
+- **Fix:** `human:` agent-guided in session, from anywhere: a main checkout, a
+  worktree, or no repository. None of these values is a secret, so ask the human
+  in the conversation. A run with no human to answer reports
+  `needs-human: confirm developer values`. `DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"`.
   0. Ask the human for the main checkout paths to set up, offering this
      repository's `main_checkout` (from `status`) when there is one. Zero
      paths is a valid answer: H6 reports `skipped (user choice)` and the
@@ -183,7 +184,7 @@ a token value — not even partially.
      adding `--repo <path>` to `status` and `set`, and ask step 3 once for
      the whole run. A path `status` refuses, or reports `configured: false`,
      is skipped and named in the summary: run `/afk:setup` in it first.
-  1. Run `python "$DV" status --repo <path>`.
+  1. Run `afk-python "$DV" status --repo <path>`.
      It reports each key's `need`, resolved `value`, `source` layer and
      `suggestion`, and lists `missing` and `inherited`.
   2. Ask the human for every `missing` key, offering its `suggestion` as the
@@ -194,11 +195,13 @@ a token value — not even partially.
      repository — a confirmed value too, so the probe stops asking. A machine
      `worktreeBasePath` also shows its `derived` value; offer to drop it from
      the machine file with `worktreeBasePath= --machine`.
-  3. Ask once where the answers go: this repository (the default — the file
-     the main checkout and all its worktrees read) or `--machine` (the default
-     for every repository).
-  4. Run `python "$DV" set KEY=VALUE ... [--machine] --repo <path>`, then
-     re-run `status --repo <path>` to confirm each answer resolves.
+  3. Record every answer for this repository (the file the main checkout and
+     all its worktrees read); a machine-file value always reads as `inherited`
+     and keeps the probe failing. Ask once whether to also copy the person keys
+     to `--machine`, the default every other repository offers for confirming.
+  4. Run `afk-python "$DV" set KEY=VALUE ... --repo <path>` (and the same keys with
+     `--machine` when the human chose the copy), then re-run
+     `status --repo <path>` to confirm each answer resolves.
   `set` changes only the keys it names, so another repository's values
   survive. `KEY=` removes a key. `--machine` refuses a `worktreeBasePath`
   value and accepts only its removal.
@@ -232,8 +235,7 @@ a token value — not even partially.
   The installer removes every duplicate unified block and
   every H7, H8, and H10 legacy block while preserving all other bytes:
   ```sh
-  py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  py="${AFK_PYTHON:-afk-python}"
   rendered=$(mktemp "${TMPDIR:-/tmp}/afk-behaviors.XXXXXX") || exit 1
   trap 'rm -f "$rendered"' EXIT INT TERM
 
@@ -291,15 +293,36 @@ a token value — not even partially.
 - **Notes:** the page every work item is created under is
   `notion.parent-page-id` in `.afk/config.yaml`, not a secret.
 
+### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
+- **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
+  this settings key — this plugin's own `skills/afk/AGENTS.md` and the
+  `nested_steering` capability (`CAPABILITIES.md`) reach that session only when
+  the key is set with the root `CLAUDE.md` bridge present. Which harness, and
+  the key's values: `providers/HARNESS-MATRIX.md`; standard:
+  `skills/afk/agents-md/SKILL.md`.
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py" --check`
+  — reads `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`;
+  exit 0 when `pluginConfigs."agents-md@builtin".options.instructionFiles` is
+  `claude-md-and-agents-md`.
+- **Fix:** `auto:` `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py"`
+  — merges exactly that one key, preserves every other key and the file's
+  indentation, writes a timestamped backup first, and creates the file and its
+  parents when absent.
+- **Notes:** the key may also arrive from managed settings or `--settings`,
+  which the probe cannot see — a miss it reports is advisory, and the
+  idempotent fix writes the same value into the user-global settings file
+  either way. It lives only in the user-global file, per machine, never on git;
+  the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
+
 ### H12 · hook trust for the protected-branch guard *(harnesses that gate new hooks behind trust)*
-- **Needed by:** the guard, the session-end cleanup and the session-start prune.
+- **Needed by:** the guard, the change meter, the session-end cleanup, the session-start prune and the session-start occupancy registration.
   Such a harness runs a plugin hook only after the user trusts it
   (`PROVIDERS.md` "Protected-branch guard", which names the harness and the
   exact screens).
-- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py"`
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py"`
   reads the harness config (`$CODEX_HOME/config.toml`, else `~/.codex/config.toml`)
   for a `hooks.state` key at the guard's position (the last `PreToolUse`
-  group), at the `SessionEnd` cleanup and at the `SessionStart` prune. Exit 1
+  group), at the `PostToolUse` meter, at the `SessionEnd` cleanup and at the two `SessionStart` entries (prune, occupancy). Exit 1
   prints `missing: <event>:<group>:<handler>` per absent key and the step; exit 2
   means no harness config (not applicable). A key that is present but stale
   (the hash no longer matches) is invisible to the probe: `human:` type `/hooks`
@@ -310,34 +333,29 @@ a token value — not even partially.
 - **Notes:** with the full-bypass flag or a non-interactive run, untrusted
   hooks stay silent.
 
-### H11 · native nested `AGENTS.md` reading (`instructionFiles`)
-- **Needed by:** every afk developer whose harness gates nested `AGENTS.md` on
-  this settings key — this plugin's own `skills/afk/AGENTS.md` and the
-  `nested_steering` capability (`CAPABILITIES.md`) reach that session only when
-  the key is set with the root `CLAUDE.md` bridge present. Which harness, and
-  the key's values: `providers/HARNESS-MATRIX.md`; standard:
-  `skills/afk/agents-md/SKILL.md`.
-- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py" --check`
-  — reads `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`;
-  exit 0 when `pluginConfigs."agents-md@builtin".options.instructionFiles` is
-  `claude-md-and-agents-md`.
-- **Fix:** `auto:` `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/set_instruction_files.py"`
-  — merges exactly that one key, preserves every other key and the file's
-  indentation, writes a timestamped backup first, and creates the file and its
-  parents when absent.
-- **Notes:** the key may also arrive from managed settings or `--settings`,
-  which the probe cannot see — a miss it reports is advisory, and the
-  idempotent fix writes the same value into the user-global settings file
-  either way. It lives only in the user-global file, per machine, never on git;
-  the reasons and the harness this serves are in `providers/HARNESS-MATRIX.md`.
+### H13 · no git hook that starts background work
+- **Needed by:** every afk developer — git runs one hooks directory for every
+  worktree of a checkout and does not wait for a process a hook detaches. A
+  hook that detaches work on each commit stacks runs behind agent commits; the
+  load stalls the machine and the tool-call gates time out.
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/background_git_hooks.py" --check`
+  — reads `git rev-parse --git-path hooks` (follows `core.hooksPath`), skips
+  `*.sample` files and the H5 stubs, and flags a non-comment line with a
+  trailing `&`, `nohup`, `setsid`, `disown`, `start /b`, or `Start-Process`;
+  exit 0 when none is found, 1 when one is.
+- **Fix:** `human:` run the probe without `--check` to list each hook with the
+  line that detaches, then per hook offer the developer **remove the hook** or
+  **remove that line**. Never delete without the developer's answer — a hook
+  may be theirs on purpose.
+- **Notes:** report-only; the toolkit edits no hook it did not install.
 
-### H12 · no instruction-file strays above the repository
+### H14 · no instruction-file strays above the repository
 - **Needed by:** every afk developer — an instruction file left in the git
   root's parent, or any directory above it up to the filesystem root, is read by
   a harness that walks the working directory upward past the git root
   (`providers/HARNESS-MATRIX.md`), so it is prepended to **every** repository
   below it, silently. Standard: `skills/afk/agents-md/SKILL.md`.
-- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/ancestor_instruction_files.py" --check`
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/ancestor_instruction_files.py" --check`
   — tests the fixed names `AGENTS.md`, `AGENTS.override.md`, `CLAUDE.md`,
   `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` at each ancestor by
   direct path test (never a recursive scan, which would trip the endpoint
@@ -354,29 +372,13 @@ a token value — not even partially.
   its own. The two remediations and the harness that walks above the repository
   are in `providers/HARNESS-MATRIX.md` and the standard.
 
-### H13 · no git hook that starts background work
-- **Needed by:** every afk developer — git runs one hooks directory for every
-  worktree of a checkout and does not wait for a process a hook detaches. A
-  hook that detaches work on each commit stacks runs behind agent commits; the
-  load stalls the machine and the tool-call gates time out.
-- **Probe:** `python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/background_git_hooks.py" --check`
-  — reads `git rev-parse --git-path hooks` (follows `core.hooksPath`), skips
-  `*.sample` files and the H5 stubs, and flags a non-comment line with a
-  trailing `&`, `nohup`, `setsid`, `disown`, `start /b`, or `Start-Process`;
-  exit 0 when none is found, 1 when one is.
-- **Fix:** `human:` run the probe without `--check` to list each hook with the
-  line that detaches, then per hook offer the developer **remove the hook** or
-  **remove that line**. Never delete without the developer's answer — a hook
-  may be theirs on purpose.
-- **Notes:** report-only; the toolkit edits no hook it did not install.
-
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils
-- **Needed by:** the `hooks/*.sh` gate suite (the Stop gates — wiring,
-  genericity, skill-registry, native-contract via `stop-gates.sh` — **fire every
-  turn**; the commit gates — Maven compile, Java format, UI lint via
-  `precommit-gates.sh` (with `comment-gate.sh`) — fire on agent-driven commits; plus the on-demand
+- **Needed by:** the `hooks/*.sh` gate suite (the commit gates — Maven
+  compile, Java format, UI lint via `precommit-gates.sh` (with `comment-gate.sh`
+  and, in this plugin's repository, `plugin-source-gates.sh`) — fire on
+  agent-driven commits; plus the on-demand `wiring-gate.sh` and
   `app-start-gate.sh`), the forge adapters' `forge.sh`,
   `skills/afk/review/scripts/forge_ledger.py`,
   `skills/utils/diagnose/scripts/hitl-loop.template.sh`, app-start invocations
@@ -412,7 +414,8 @@ a token value — not even partially.
   `skills/afk/execute` (push + Draft change), `skills/afk/preflight` (the CI
   wait and the Draft→Ready flip), `skills/afk/understand` (change intake) and
   `skills/afk/gc` (the merged proof).
-- **Probe:** `glab auth status` (exit 0 = logged in; prints no token). Another
+- **Probe:** `glab auth status >/dev/null 2>&1` (exit 0 = logged in; the
+  redirect keeps its masked token line out of the transcript). Another
   forge selected: n/a. `forge` resolving to `none`: as `H0` defines.
 - **Fix:** `human:` install glab, then `glab auth login --hostname <the GitLab
   host this repository pushes to>` — the token lives in glab's own store, never in
@@ -429,7 +432,8 @@ a token value — not even partially.
   whatever the repository selects, `skills/utils/report-issue/scripts/publish.sh`
   (issue search, label create, issue create or comment; absent or logged out →
   the draft queues on disk, so it is optional there).
-- **Probe:** `gh auth status` (exit 0 = logged in; prints no token). Neither
+- **Probe:** `gh auth status >/dev/null 2>&1` (exit 0 = logged in; the
+  redirect keeps its masked token line out of the transcript). Neither
   `forge: github` nor `tracker: github-issues` selected: the forge and tracker
   leg is n/a, or as `H0` defines when they resolve to `none`; the report-issue
   leg keeps this probe.
@@ -438,7 +442,7 @@ a token value — not even partially.
   drives that login when `forge: github` is configured (it shells out to `gh`;
   the token still never touches this plugin).
 
-### C4 · Maven wrapper + JDK
+### C4 · Maven wrapper + JDK *(only when `maven` is in `build-gates:`)*
 - **Needed by:** `skills/afk/execute` verification tiers, the smoke gate's
   compile row (`skills/afk/to-subtasks/SMOKE-GATE.md`), the liquibase pickup
   check (`skills/afk/to-subtasks`), and the commit gates
@@ -446,7 +450,8 @@ a token value — not even partially.
   `precommit-gates.sh` on agent-driven commits) plus
   `adapters/build-gate/maven/app-start-gate.sh` (all three no-op unless `maven`
   is in `build-gates:` and `maven.reactor-pom` names a POM in this checkout).
-- **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK).
+- **Probe:** `./mvnw -v` (proves wrapper **and** a resolvable JDK). `maven`
+  absent from `build-gates:` (`afk-config.py get build-gates`): n/a.
 - **Fix:** `human:` the wrapper ships with the repository; JDK selection
   follows that repository's own conventions (its root `AGENTS.md`).
 - **Base probe:** `want=$(sed -n 's/^java=\([0-9][0-9]*\).*/\1/p' .sdkmanrc); ./mvnw -v 2>/dev/null | grep "Java version: $want\." | grep -qi amazon`
@@ -459,7 +464,7 @@ a token value — not even partially.
   right package id) and point `JAVA_HOME` at it (README §Local build).
   Standalone Maven is optional — the wrapper self-provisions its own.
 
-### C5 · pitest (mutation probe) *(optional)* **[deferred: first review-gate mutation probe]**
+### C5 · pitest (mutation probe) *(optional; only when `maven` is in `build-gates:`)* **[deferred: first review-gate mutation probe]**
 - **Needed by:** `adapters/build-gate/maven/mutation-probe.sh` (invoked by `skills/afk/review`'s
   test-veracity concern, sampled).
 - **Probe:** `test -f $AFK_PLUGIN_ROOT/adapters/build-gate/maven/mutation-probe.sh && ./mvnw -v >/dev/null`
@@ -486,7 +491,7 @@ a token value — not even partially.
 ### C7 · Docker (engine + compose v2) **[deferred: first self-provisioned app env]**
 - **Needed by:** the repository's environment tooling (`verification.env`),
   `skills/afk/smoke-test` / `skills/afk/autopilot` / `skills/afk/adversary`
-  (live-app verification, X5), `build-scripts/build-docker-compose.py`.
+  (live-app verification, X5).
 - **Probe:** `docker info >/dev/null && docker compose version >/dev/null`
   (proves the daemon is *running* and compose v2 is present — a stopped Docker
   Desktop fails this even when installed; start it and re-probe).
@@ -503,8 +508,6 @@ a token value — not even partially.
   ceiling in `~/.wslconfig` — the default cap wedges the engine under a full app
   env (all API calls 500); restart WSL after editing. If Docker still won't
   start after all that: `wsl --update` (elevated) to refresh the WSL kernel.
-
-## P — Python
 
 ### C8 · robocopy (Windows built-in) *(optional)*
 - **Needed by:** `adapters/build-gate/maven/worktree-provision.sh` (per-worktree
@@ -554,7 +557,7 @@ a token value — not even partially.
 - **Needed by:** `scripts/tests/test_lavish_render.py` — serves a rendered input
   page, stubs the lavish bridge, and checks the form submit and clipboard paths
   in a browser.
-- **Probe:** `python "$AFK_PLUGIN_ROOT/scripts/lavish/browser.py"` (the same
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/lavish/browser.py"` (the same
   resolver the test imports)
 - **Fix:** `human:` install one Chromium browser. Standard Windows Chrome and
   Edge installation paths also pass the test when the commands are not on
@@ -618,52 +621,65 @@ a token value — not even partially.
   so the new hook runs.
 - **Notes:** needs C15. Opt-in: a miss never blocks the guard.
 
-### P1 · Python 3
-- **Needed by:** `hooks/run-hook.py` — the launcher every registered hook command
-  runs through, so without it no gate or guard fires at all — the shared
-  `.mcp.json` bootstrap,
-  `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`,
-  `skills/afk/agents-md/scripts/*.py`, the repository's `verification.env` command,
-  the shared Jira lib `adapters/tracker/jira/api.py`,
-  `skills/afk/bug/scripts/publish_bug.py` (ADR-0001), and
-  `skills/afk/review/scripts/forge_ledger.py`, and
-  `skills/utils/investigate/scripts/{seed_map,validate_coverage}.py`.
-- **Probe:** `python --version || python3 --version`
-- **Fix:** `human:` install Python 3 and put it on PATH.
-- **Base fix:** `auto:` `winget install --id Python.Python.3.12 -e` (any Python 3
-  on PATH passes the probe — the pin here is just a working default).
+## P — Python
 
-### P2 · markdown-it-py
-- **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
-  (PRD / meeting body → ADF), the shared Jira lib `adapters/tracker/jira/api.py`
-  (imported by both `publish_prd.py` and `skills/afk/bug/scripts/publish_bug.py`
-  for the same Markdown→ADF conversion; ADR-0001).
-- **Probe:** `python -c "import markdown_it"`
-- **Fix:** `auto:` `pip install markdown-it-py`
-
-### P3 · mcp + httpx (Jira MCP server runtime)
-- **Needed by:** `mcp-servers/tracker/server.py` (H2) — FastMCP host + HTTP client.
-- **Probe:** `python -c "import mcp, httpx"`
-- **Fix:** `auto:` `pip install mcp httpx`
-- **Notes:** missing deps surface as the `jira` server failing to connect at
-  session start, not as a skill error.
-
-### P4 · openpyxl
-- **Needed by:** `skills/utils/review-qa-tests/scripts/annotate_sheet.py` —
-  reads QA's `.xlsx` test sheet and writes the review annotations back into it
-  (`skills/utils/review-qa-tests/EXCEL.md`).
-- **Probe:** `python -c "import openpyxl"`
-- **Fix:** `auto:` `pip install openpyxl`
-
-### P5 · pytest
-- **Needed by:** the `pytest`-based tests under `scripts/tests/` — their cases
-  are `pytest` functions using its fixtures and helpers, so without it they are
-  unrunnable, not merely degraded. The rest of the directory is `unittest` and
-  runs on stock Python, so a green run proves nothing about this row.
-- **Probe:** `python -c "import pytest"`
-- **Fix:** `auto:` `pip install pytest`
-- **Notes:** a miss surfaces only when someone runs the suite, never at session
-  start — nothing at runtime imports it.
+### P1 · afk-python runtime
+- **Needed by:** every Python entry point, through the `afk-python` command:
+  both hook manifests (`hooks/run-hook.py` and the guard), the MCP
+  registrations (`.mcp.json`, `.mcp.codex.json`, the H2 `tracker` entry),
+  every skill, adapter and git-hook script, and CI. Without it no gate or
+  guard fires and no MCP server starts; the harness carries on without them.
+  The commit gate blocks instead when the repository has `.afk/hooks.json`
+  or any configuration layer mentions `repo-hooks` (`CONFIG.md`).
+- **Pins:** `runtime/pyproject.toml` — CPython in `requires-python`, uv in
+  `[tool.uv] required-version`, the dependency set and its import names.
+  `runtime/uv.lock` holds every transitive version with its hashes.
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check`
+  — compares the installed packages with `runtime/uv.lock` (`uv sync --check
+  --offline`, read-only), then resolves `afk-python` through the PATH a new
+  terminal gets, never the probing process's own, from PowerShell, cmd and Git
+  Bash on Windows, and from `sh` and the login shell elsewhere. Each
+  shell must report the pinned Python running in the private environment
+  (`sys.prefix`), import every runtime package, and set `AFK_PYTHON` to the
+  entry itself. The bash every hook runs in (`hooks/run-hook.py` `find_bash`,
+  with its `shell_env`) must resolve `afk-python` to the installed entry, pass
+  the same interpreter checks, and find the file the stamp names. The
+  environment's stamp must name the pinned Python and the current lock hash.
+- **Fix:** `auto:` per-user install — ask the human first. The bootstrap needs no
+  Python: `sh "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/bootstrap.sh" install`
+  (macOS, Linux) or `powershell -NoProfile -ExecutionPolicy Bypass -File
+  "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/bootstrap.ps1" install` (Windows)
+  fetches the pinned uv and CPython, then runs `python_runtime.py install`, which
+  installs the pinned uv with Astral's versioned installer, then the pinned
+  CPython, then syncs the private environment frozen from the lock, wheels only,
+  with bytecode compiled. It then places the `afk-python` entry and the
+  `AFK_PYTHON` line in the environment, and adds the entry's directory to the
+  user PATH unless the startup files already add it. The installer and uv run
+  without the user's `UV_*` settings and installer download overrides; proxy,
+  TLS and uv's HTTP timeout, retry and concurrency variables pass through. It
+  deletes the stamp first and publishes it only after the probe passes, with
+  the `afk-python` spelling and file the hooks' bash resolved. An intent
+  file that exists but cannot be read stops it before any change.
+  It prints one `ok`/`fail` line per step.
+  `plan` prints the same steps and changes nothing. Every running harness
+  process keeps its old PATH: report `needs-human: restart every running
+  harness process` (step 2's stale-environment rule), naming Codex's background
+  app-server daemon and its updater, which host its sessions' hooks. A `fail environment` line saying the platform has no
+  prebuilt wheel is final: the lock has none for that platform (Windows on ARM
+  and Intel macOS lack `cryptography` wheels for CPython 3.14), and setup never
+  builds from source — report `needs-human: afk-python unsupported on this
+  platform`.
+- **Base probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py" check --test`
+- **Base fix:** `auto:` the bootstrap Fix command with `--test`: adds the `test` extra
+  (pytest). The suites under `scripts/tests/` then run as `afk-python -m pytest`.
+  A later run without `--test` keeps the extra, even after a failed run:
+  `AFK-RUNTIME.extras` records it before anything changes.
+- **Notes:** the user's own `python` and `python3` stay untouched. `afk-python`
+  is the interpreter itself, so every CPython option works. `-S` skips the
+  `AFK_PYTHON` line. Layout: the `python_runtime.py` docstring. Network: the uv
+  release host and PyPI. To remove: delete `%LOCALAPPDATA%\afk` (Windows) or
+  `${XDG_DATA_HOME:-~/.local/share}/afk`, then drop its `python/afk-bin`
+  directory from the user PATH.
 
 ## N — Node toolchain
 
@@ -702,21 +718,22 @@ a token value — not even partially.
   live in `LAVISH.md` (plugin root), never restated here.
 - **Probe:** the `lavish-axi` on `PATH` reports exactly the pin `LAVISH.md` states:
   ```
-  want=$(sed -n 's/^\*\*Pin: `lavish-axi@\([0-9][0-9.]*\)`\*\*.*/\1/p' "$AFK_PLUGIN_ROOT/LAVISH.md")
+  want=$(grep -m1 -o 'Pin: .lavish-axi@[0-9][0-9.]*' "$AFK_PLUGIN_ROOT/LAVISH.md" | cut -d@ -f2)
   test -n "$want" && [ "$(lavish-axi --version 2>/dev/null)" = "$want" ]
   ```
 - **Fix:** `auto:` install Node/npm per N1 first, then
   `npm i -g "lavish-axi@$want"` (`want` from the probe) — the same command
   replaces a global install at another version. After a version change, run
-  `lavish-axi stop` with no session open so the background server restarts on
-  the pin.
+  `afk-python "$AFK_PLUGIN_ROOT/scripts/lavish_show.py" stop` with no session
+  open so the background server restarts on the pin. The probe's `--version`
+  call is the one direct `lavish-axi` run outside that wrapper.
 - **Notes:** a pin bump in `LAVISH.md` flips this probe red until setup re-runs.
   A failing render at run time is still **never** a phase failure — every render
   point falls back to markdown (`LAVISH.md`).
 
 ## S — Secrets
 
-### S1 · Jira REST credentials — **secret**
+### S1 · Jira REST credentials — **secret** *(only when `tracker: jira`)*
 - **Needed by:** `skills/afk/to-ticket/scripts/{publish_prd,publish_meeting}.py`
   (attachment upload has no MCP tool, and both engines PUT the description via
   REST directly rather than inline a large ADF through an MCP tool call),
@@ -724,8 +741,9 @@ a token value — not even partially.
   `skills/afk/bug/scripts/publish_bug.py` (same creds resolution; ADR-0001),
   and `scripts/afk-config.py init` (presence-only: the `JIRA_BASE_URL` hint).
 - **Probe:** presence-only through the shared resolver; prints no values:
-  `python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`
-- **Fix:** `human:` run `python skills/afk/setup/scripts/setup_secrets.py` — it
+  `afk-python "$AFK_PLUGIN_ROOT/adapters/tracker/jira/api.py" --check-creds`.
+  Another tracker selected: n/a.
+- **Fix:** `human:` run `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/setup_secrets.py"` — it
   prompts for the token without echoing it, validates it against the host before
   writing, and places it in the H2 `env` block (also does H2/C3 or C3b, whichever the forge selects). By hand:
   create an API token (Atlassian account → Security → API tokens), then set
@@ -751,7 +769,7 @@ Gating rule: if O1 misses, report the whole section as
 - **Notes:** minimum live-tested version is `0.152.0`.
 
 ### O2 · native hooks feature
-- **Needed by:** plugin Stop gates and PreToolUse guards.
+- **Needed by:** the launcher's repository Stop handlers and PreToolUse guards.
 - **Probe:** parse `~/.codex/config.toml`; require `features.hooks = true` and
   no `features.codex_hooks` key.
 - **Fix:** `human:` set `features.hooks = true`. Remove the deprecated key only
@@ -759,13 +777,13 @@ Gating rule: if O1 misses, report the whole section as
 
 ### O3 · native marketplace, plugin, and fresh cache
 - **Needed by:** native skills, hooks, and MCP registration.
-- **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `python
+- **Probe:** `codex plugin marketplace list` names `afk-toolkit`; `afk-python
   "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/codex_marketplace_ref.py" --check`
   passes; `codex plugin list` reports `afk@afk-toolkit` installed and enabled;
   the newest installed plugin root that Codex plugin metadata reports matches
   the source manifests, `hooks/hooks.codex.json`, and every
   `skills/*/*/SKILL.md` hash.
-- **Fix:** `auto:` run `python
+- **Fix:** `auto:` run `afk-python
   "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/codex_marketplace_ref.py"` to remove
   a legacy pin. When the marketplace is absent, run `codex plugin marketplace
   add midnightblur/afk-driver` with no `--ref`. Then run `codex plugin
@@ -776,9 +794,10 @@ Gating rule: if O1 misses, report the whole section as
 ### O4 · current hook definitions trusted
 - **Needed by:** every handler in `hooks/hooks.json` and its native twin
   `hooks/hooks.codex.json`.
-- **Probe:** parse `~/.codex/config.toml`; every enabled AFK handler has a
-  native trust entry matching the currently installed `hooks.codex.json`
-  definition. Never print other config or secret values.
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/check_hook_trust.py" --all`
+  — every handler in the installed `hooks.codex.json` has a native trust entry
+  in `~/.codex/config.toml`; exit 2 (no config) is n/a. Presence only: a stale
+  hash shows only in the harness's `/hooks` view. Never prints config values.
 - **A plugin upgrade changes `hooks/hooks.codex.json`, so the harness re-prompts
   for hook trust and a dismissed prompt leaves those hooks silently off.** Re-run
   `/afk:setup` after every version change on that harness — not only when a
@@ -837,7 +856,8 @@ Gating rule: if O1 misses, report the whole section as
 
 ### O7 · native catalog and shared Jira MCP
 - **Needed by:** all workflow skills and the two Jira-writing skills.
-- **Probe:** `agent:` a new session lists every `afk:<name>` plugin skill named
+- **Probe:** `agent:` a session started after the last O2–O6 change (the
+  running one counts when nothing changed) lists every `afk:<name>` plugin skill named
   in `plugin.json` and no `afk-<name>` mirror, every agent role `O5` lists, and a
   callable `tracker_get` (n/a under `tracker: none`, per `H0` — the catalog and
   role legs still stand on their own). Count the manifest rather than a number
@@ -944,7 +964,7 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_PATH_CASE_FOLD` | `hooks/lib/provider.sh` | force path comparison to fold case (`1`) or to match exactly (`0`); unset follows the filesystem — folded on Windows and macOS, exact elsewhere |
 | `PLUGIN_ROOT` / `PLUGIN_DATA` | `hooks/lib/providers/codex.sh` | native plugin root and data paths; root detection precedes inherited compatibility markers |
 | `CLAUDE_PLUGIN_DATA` | `hooks/lib/providers/claude.sh` | compatibility plugin data path |
-| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the Stop gates' pass cache — every run does real work |
+| `GATE_CACHE_DISABLE` | `hooks/gate-cache.sh` | bypass the gates' pass cache — every run does real work; `plugin-source-gates.sh` always sets it |
 | `AFK_PLUGIN_ROOT` | `hooks/run-hook.py`, `hooks/lib/config.sh`, `hooks/lib/adapter.sh`, `hooks/install-git-hooks.sh`, `skills/afk/review/scripts/forge_ledger.py` | absolute plugin root, exported by the hook launcher so repository-owned handlers and adapters resolve the toolkit without searching |
 | `AFK_LEDGER_ADAPTER_CMD` | `skills/afk/review/scripts/forge_ledger.py` | test seam that replaces forge adapter dispatch with a named command |
 | `AFK_LEDGER_ADAPTER_TIMEOUT` | `skills/afk/review/scripts/forge_ledger.py` | seconds one adapter call may run before the ledger reports a timeout (default 120) |
@@ -965,15 +985,20 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
-| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-Stop change-set context on every call instead of reusing it (debug) |
+| `AFK_CFG_LOAD_FAILED` | `hooks/lib/config.sh`, `hooks/precommit-gates.sh` | why the configuration export could not run; the commit gates print it |
+| `AFK_JUDGE_GIT` | `hooks/plugin-source-gates.sh`, `hooks/native-contract-gate.sh`, `scripts/behavior_registry.py` | absolute `git` outside the repository the plugin-source runner resolves; judge code starts git through it |
+| `NoDefaultCurrentDirectoryInExePath` | `hooks/plugin-source-gates.sh` | exported as `1` so Windows never resolves a bare program name from the candidate folder |
+| `AFK_IGNORE_GATE_SENTINEL` | `hooks/plugin-source-gates.sh`, `hooks/{skill-registry,native-contract,genericity,behavior-registry}-gate.sh` | set by the plugin-source runner so its gates ignore a `.claude/hooks/.gate-disabled` the candidate carries |
+| `AFK_GATE_CTX_DISABLE` | `hooks/gate-context.sh` | rebuild the shared per-run change-set context on every call instead of reusing it (debug) |
 | `AFK_SKIP_PRECOMMIT_GATES` | `hooks/precommit-gates.sh` | skip the commit-time code gates the `build-gates:` adapters select, for one commit |
 | `GATE_METRICS_DISABLE` / `GATE_METRICS_FILE` | `hooks/gate-metrics.sh` | silence / relocate gate-latency emission (default `<git common dir>/afk/metrics/gate-latency.jsonl`) |
 | `MAVEN_LOCK_DIR` | `adapters/build-gate/maven/maven-lock.sh` | relocate the cross-gate maven lock dir |
 | `AFK_MAVEN_LOCK_WAIT` | `adapters/build-gate/maven/maven-compile-gate.sh` | seconds the compile gate waits for the maven lock before allowing (240 on the commit path, 900 standalone) |
 | `PITEST_VERSION` / `MUTATION_TIMEOUT` | `adapters/build-gate/maven/mutation-probe.sh` | pitest version pin / probe timebox |
 | `AFK_SKIP_BRANCH_CHECK` | `hooks/branch-name-gate.sh` | bypass the branch-name gate for one agent command |
-| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
+| `AFK_ALLOW_PROTECTED` | `hooks/protected-branch-guard.py`, `hooks/protected-branch-meter.py`, `hooks/protected-branch-occupancy.py` | allow an agent session on the main checkout or a protected branch; set by the human at launch |
 | `AFK_PROTECTED_TIMEOUT` | `scripts/protected-lookup.py` | seconds the forge protected-branch read may take before the guard falls back to the default-branch, `main`, `master` rule (default 5) |
+| `AFK_PROTECTION_CACHE_TTL` | `scripts/protected-lookup.py` | seconds a definite forge protected-branch answer is reused, in `<git common dir>/afk/protection-cache.json` (default and maximum 300; `0` asks the forge every time); the default branch, `main` and `master` are always asked |
 | `AFK_GITHUB_API_URL`, `AFK_GITLAB_API_URL` | `scripts/protected-lookup.py` | per-forge API root the protected-branch read uses instead of the public forge API, used only with a `GH_TOKEN`/`GITHUB_TOKEN`/`GITLAB_TOKEN` you set yourself; without one the CLI is used, and the CLI login token is never sent to an override (tests, proxies) |
 | `AFK_WORKTREE_FOLDER` | `scripts/create-worktree` | folder inside the main checkout that `--name` worktrees go in, overriding the harness's own (default `.claude/worktrees` or `.codex/worktrees`) |
 | `AFK_OWNER_PROCESS` | `scripts/worktree_owner.py` | comma-separated process names that count as a worktree's owner, instead of the nearest non-shell ancestor |
@@ -982,11 +1007,15 @@ Each var is documented at its consumer — this table is just the map.
 | `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py`, `skills/afk/setup/scripts/codex_marketplace_ref.py` | the H-2 harness's config folder; setup's trust and marketplace-pin probes read `config.toml` there, else `~/.codex` |
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
-| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `hooks/lib/occupancy.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
 | `AFK_HOOK_DEADLINE` | `hooks/run-hook.py` (sets), `scripts/remove-worktree.py` (reads) | Unix time in seconds at which the launcher kills a handler that runs under `--deadline`; worktree cleanup fits each git call inside it and keeps the worktree when time runs out; not for humans to set |
+| `HERDR_TAB_ID` | `hooks/lib/occupancy.py` | with `HERDR_ENV=1`, sessions in one herdr tab share a worktree group |
+| `AFK_WORKTREE_GROUP` | `hooks/lib/occupancy.py` | names a team whose sessions may share one linked worktree; set by the human or launcher |
 | `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
 | `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |
 | `HERDR_BIN_PATH` | `scripts/afk-move.py` | the herdr binary to call instead of the one on `PATH` |
+| `GIT_COMMON_DIR` | `hooks/plugin-source-gates.sh` | a git location the plugin-source runner protects before it trusts `PATH`; a relative value is refused |
+| `GIT_DIR` | `hooks/branch-name-gate.sh` | exported by git to its hooks; the gate reads the shared git folder from it to find a sync authorization with no subprocess |
 | `AFK_WORKTREE_OP` | `hooks/git-backstop.py` callers (`hooks/branch-name-gate.sh`, `hooks/precommit-gates.sh`) | set to `1` by the plugin's own worktree scripts so their git calls pass the backstop; not for humans to set |
 | `LESSON_LEDGER_DISABLE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | disable lesson-ledger writes/reads (kill switch) |
 | `LESSON_LEDGER_FILE` | `hooks/lesson-append.sh`, `hooks/lesson-digest.sh` | relocate the lesson ledger (default: main-checkout `.claude/lessons/LEDGER.jsonl`) |

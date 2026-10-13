@@ -39,7 +39,7 @@ Read the ticket folder's `GRILL-LOG.md` first — the solution grill checkpoints
 7c. **Seam-investigation gate.** Every §14 seam row stands on an investigation, and the gate reads the document before it becomes the SDD. Write the synthesis to `<spec dir>/SDD.draft.md`, then gate that draft:
 
    ```sh
-   python "$AFK_PLUGIN_ROOT/skills/afk/to-sdd/scripts/check_sdd_investigations.py" \
+   afk-python "$AFK_PLUGIN_ROOT/skills/afk/to-sdd/scripts/check_sdd_investigations.py" \
      --sdd <spec dir>/SDD.draft.md
    ```
 

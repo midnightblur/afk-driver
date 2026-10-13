@@ -19,18 +19,20 @@
 #      one list;
 #   I. every shell handler and hook launcher is LF-only, since a harness copies
 #      this tree verbatim into its plugin cache and runs it through a POSIX shell;
-#   J. every hooks.json command goes through hooks/run-hook.py, so no command
-#      string depends on a shell dialect or on a bare `bash`; the one exception
-#      is the guard, a python file run directly for speed;
+#   J. both manifests run `afk-python` (run-hook.py or a protected-branch hook), equal modulo the root
+#      variable; no live surface (this file, shell/PowerShell/cmd/CI/Python, suffixless by shebang) names
+#      `python`, `python3[.N]`, a path to one, `py -3`, `py.exe`, a Python string command, or the old override;
 #   K. every hooks/lib/providers/<name>_*.py helper has a matching <name>.sh
 #      that references it, and no other plugin file references it (unit
 #      tests under scripts/tests/ exempted — they load the helper directly);
 #   L. agent files carry the model and effort of their PROVIDERS.md tier;
 #   M. every hook entry in both manifests runs through the launcher with an
-#      explicit timeout and a launcher deadline below it, and no Stop-path gate
+#      explicit timeout and a launcher deadline below it, and no gate
 #      source scans repository content except through hooks/lib/bounded_scan.py.
 #      An exception names its own bound in native-contract-allow.txt (rules
 #      hook-deadline, repo-scan).
+#   N. no plugin script, workflow or agent prose runs `lavish-axi` (guard's reader) except
+#      scripts/lavish_show.py and tests; exceptions use rule lavish-direct.
 #
 # Disable: NATIVE_CONTRACT_GATE_DISABLE=1, or repo file
 # .claude/hooks/.gate-disabled. Assumes cwd = gated repo root when sourced.
@@ -39,7 +41,7 @@ set -u
 
 gate_native_contract() {
   [ "${NATIVE_CONTRACT_GATE_DISABLE:-0}" = "1" ] && return 0
-  [ -f .claude/hooks/.gate-disabled ] && return 0
+  [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE; PLUGIN_DIR=$(afk_plugin_dir); PLUGIN_SCOPE=$(afk_plugin_scope)
   local MANIFEST="$PLUGIN_DIR/.claude-plugin/plugin.json"
@@ -52,11 +54,11 @@ gate_native_contract() {
 
   gate_metrics_begin
 
-  local py=python findings rc=0
-  command -v python >/dev/null 2>&1 || py=python3
+  local py="${AFK_PYTHON:-afk-python}" findings rc=0
   findings=$("$py" - "$PLUGIN_DIR" <<'PY'
 import fnmatch
 import json
+import os
 import re
 import subprocess
 import sys
@@ -345,39 +347,142 @@ check_subset("hooks/hooks.json", hook_map)
 check_subset("hooks/hooks.codex.json", load_hook_map("hooks/hooks.codex.json"))
 
 
-# J. One launch mechanism. A command string is parsed by whichever shell the
-# harness chose, and `bash` names the WSL stub on many Windows machines, so
-# every handler goes through the launcher and no command carries shell syntax.
-launcher = re.compile(
-    r'^python "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/(?:'
-    r'run-hook\.py"(?: --soft)?'
-    r'(?: --deadline [0-9]+)?'
-    r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-    r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
-    r'|protected-branch-guard\.py")$'
-)
-for event, groups in hook_map.items():
-    if not isinstance(groups, list):
+# J. One runtime, one launch mechanism: any shell may parse a command string, and `bash` can be
+# the WSL stub, so every handler goes through the launcher under `afk-python`.
+def launcher_form(root_var: str) -> re.Pattern[str]:
+    return re.compile(
+        r'^afk-python "\$\{' + root_var + r'\}/hooks/(?:'
+        r'run-hook\.py"(?: --soft)?'
+        r'(?: --deadline [0-9]+)?'
+        r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
+        r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
+        r'|protected-branch-(?:guard|meter|occupancy)\.py")$'
+    )
+
+
+twins: dict[str, str] = {}
+for manifest_rel, root_var in (("hooks/hooks.json", "CLAUDE_PLUGIN_ROOT"),
+                               ("hooks/hooks.codex.json", "PLUGIN_ROOT")):
+    form = launcher_form(root_var)
+    hmap = load_hook_map(manifest_rel)
+    for event, groups in hmap.items():
+        for index, group in enumerate(groups if isinstance(groups, list) else []):
+            for handler in (group.get("hooks", []) if isinstance(group, dict) else []) or []:
+                command = handler.get("command", "") if isinstance(handler, dict) else ""
+                if not isinstance(command, str) or not form.match(command):
+                    problems.append(
+                        f"{manifest_rel}: {event}[{index}] command must be "
+                        f'afk-python "${{{root_var}}}/hooks/run-hook.py" '
+                        f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, "
+                        f"or hooks/protected-branch-guard.py / -meter.py / -occupancy.py - got {command!r}"
+                    )
+    shared = {event: groups for event, groups in hmap.items()
+              if event not in specific_events.get(MANIFEST_PROVIDER[manifest_rel], set())}
+    twins[manifest_rel] = json.dumps(shared, sort_keys=True).replace("${" + root_var + "}", "<ROOT>")
+if len(set(twins.values())) != 1:
+    problems.append("hooks/hooks.json and hooks/hooks.codex.json differ beyond the root variable "
+                    "and the CAPABILITIES.md provider-specific events")
+
+for mcp_rel in (".mcp.json", ".mcp.codex.json"):
+    try:
+        servers = json.loads(read(plugin / mcp_rel)).get("mcpServers", {})
+    except (json.JSONDecodeError, AttributeError):
+        servers = {}
+    for name, server in servers.items():
+        if isinstance(server, dict) and server.get("command") != "afk-python":
+            problems.append(f"{mcp_rel}: server {name!r} command must be afk-python, "
+                            f"got {server.get('command')!r}")
+
+# Live surfaces: a named interpreter other than afk-python is a runtime the setup never proved.
+# History (CHANGELOG.md, adr/) is out of scope; explanatory text uses `interpreter` allow entries.
+# One interpreter name: python, python3, python3.14, any of them .exe, py.exe, or the py launcher's -3.
+name = r"(?:python(?:3(?:\.\d+)?)?(?:\.exe)?|py(?:\.exe)? -3(?:\.\d+)?|py\.exe)"
+interpreter_word = re.compile(r"(?<![\w./\\$-])" + name + r"(?![\w.-])(?![\"']\s*[:,\]}])")
+# A path-qualified name where a command starts: line start, after ; & | ( ` { $(, a keyword or a prefix.
+command_path = re.compile(r"(?:^|[;&|(`{]|\$\(|\b(?:then|do|else|exec|command|env|nohup|time)\b)\s*"
+                          r"(?:-\S+\s+)*[\"']?[^\s\"';|&]*[/\\]" + name + r"(?![\w./\\-])")
+afk_py = re.compile(r"\bAFK_PY\b")
+shebang = re.compile(r"^#!.*(?<![\w-])python3?\b")
+prose_command = re.compile(r"`(?:\$ )?" + name + r" [^`]*`|^\s*(?:\$ )?" + name + r" \S")
+# An argument list splits the py launcher's -3 into the next item.
+argv_name = re.compile(r"""\[\s*["'](?:[^"']*[/\\])?(?:(?:python(?:3(?:\.\d+)?)?(?:\.exe)?|py\.exe)["']\s*,"""
+                       r"""|py(?:\.exe)?["']\s*,\s*["']-3(?:\.\d+)?["'])""")
+shell_string = re.compile(r"""\b(?:os\.(?:system|popen)|subprocess\.\w+|Popen|check_output|check_call)\(\s*"""
+                          r"""[rbfu]*["'](?:[^"']*[/\\])?""" + name + r"(?![\w.-])")
+history = ("CHANGELOG.md", "adr/*")
+
+
+def interpreter_problem(path_rel: str, number: int, line: str, kind: str) -> None:
+    if not allowed(path_rel, "interpreter", line):
+        problems.append(f"{path_rel}:{number}: {kind} names an interpreter other than afk-python "
+                        f"(or the retired override); use afk-python, or add an interpreter entry to "
+                        f"hooks/native-contract-allow.txt for explanatory text")
+
+
+def source_kind(path: Path) -> str | None:
+    """`python` or `shell` for a file check J reads as code, by suffix or, with none, by its shebang."""
+    if path.suffix == ".py":
+        return "python"
+    if path.suffix in (".sh", ".ps1", ".psm1", ".cmd", ".bat"):
+        return "shell"
+    if path.suffix or not path.is_file():
+        return None
+    try:
+        with path.open("rb") as handle:
+            first = handle.readline(200)
+    except OSError:
+        return None
+    if not first.startswith(b"#!"):
+        return None
+    return "python" if b"python" in first else "shell" if b"sh" in first else None
+
+
+def python_problem(line: str) -> bool:
+    return bool(argv_name.search(line) or shell_string.search(line) or afk_py.search(line))
+
+
+for path in sorted(plugin.rglob("*")):
+    path_rel = rel(path)
+    if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
+            or any(fnmatch.fnmatchcase(path_rel, glob) for glob in history)
+            or path_rel.startswith(".git/")):
         continue
-    for index, group in enumerate(groups):
-        if not isinstance(group, dict):
-            continue
-        for handler in group.get("hooks", []) or []:
-            if not isinstance(handler, dict):
+    is_ci = path_rel.startswith(".github/")
+    kind = source_kind(path)
+    if kind == "python":
+        lines = read(path).splitlines()
+        for number, line in enumerate(lines, 1):
+            if (number == 1 and shebang.search(line)) or python_problem(line):
+                interpreter_problem(path_rel, number, line, "python source")
+    elif path.suffix == ".md":
+        fenced = False
+        for number, line in enumerate(read(path).splitlines(), 1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
                 continue
-            command = handler.get("command", "")
-            if not isinstance(command, str) or not launcher.match(command):
-                problems.append(
-                    f"hooks/hooks.json: {event}[{index}] command must be "
-                    f'python "${{CLAUDE_PLUGIN_ROOT}}/hooks/run-hook.py" '
-                    f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, or hooks/protected-branch-guard.py - got {command!r}"
-                )
+            hit = prose_command.search(line) if fenced else re.search(prose_command.pattern.split("|^")[0], line)
+            if hit or afk_py.search(line):
+                interpreter_problem(path_rel, number, line, "prose command")
+    elif kind == "shell" or is_ci and path.suffix in (".yml", ".yaml"):
+        python_body = False
+        for number, line in enumerate(read(path).splitlines(), 1):
+            # This gate's own Python body holds the forbidden patterns as data, so it gets the .py rules.
+            if python_body:
+                python_body = line != "PY"
+                if python_body and python_problem(line):
+                    interpreter_problem(path_rel, number, line, "python source")
+                continue
+            python_body = path_rel == "hooks/native-contract-gate.sh" and line.endswith("<<'PY'")
+            code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
+            if (code and (interpreter_word.search(code) or command_path.search(code))) or afk_py.search(line) \
+                    or (is_ci and "setup-python" in line):
+                interpreter_problem(path_rel, number, line, "CI step" if is_ci else "shell command")
 
 
 # F. Generated mirrors/activation surfaces may exist locally, never in git.
 try:
     tracked_raw = subprocess.check_output(
-        ["git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
+        [os.environ.get("AFK_JUDGE_GIT") or "git", "ls-files", "-z"], cwd=repo, stderr=subprocess.DEVNULL
     )
     tracked = tracked_raw.decode("utf-8", errors="surrogateescape").split("\0")
 except (OSError, subprocess.CalledProcessError) as exc:
@@ -464,9 +569,144 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
             )
 
 
+# N. Only scripts/lavish_show.py runs lavish-axi, judged by the guard's reader (lavish_direct).
+# Not read: runtime-built program names, heredoc bodies, other-language markdown fences.
+# Known: a literal `$(…)` in escaped or concatenated quotes is refused; `<<EOF` in a comment or quote opens a false heredoc.
+sys.path.insert(0, str(plugin / "hooks" / "lib"))
+import ast  # noqa: E402
+import lavish_direct  # noqa: E402
+from shell_mutations import Word  # noqa: E402
+
+lavish_skip = ("scripts/lavish_show.py", "scripts/tests/*", "hooks/tests/*")
+lavish_calls = {"run", "call", "check_call", "check_output", "Popen", "system", "popen", "getoutput",
+                "getstatusoutput", "create_subprocess_exec", "create_subprocess_shell", "startfile"}
+lavish_shell_calls = {"system", "popen", "getoutput", "getstatusoutput", "create_subprocess_shell", "startfile"}
+lavish_exec = re.compile(r"^(?:exec|spawn)[lv]p?e?$")
+heredoc_tag = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def lavish_problem(path_rel: str, number: int, line: str) -> None:
+    if not allowed(path_rel, "lavish-direct", line):
+        problems.append(f"{path_rel}:{number}: runs lavish-axi directly; use "
+                        f"`afk-python \"${{AFK_PLUGIN_ROOT}}/scripts/lavish_show.py\" ...` (LAVISH.md)")
+
+
+def shell_commands(lines: list[tuple[int, str]], powershell: bool = False):
+    """(first line number, logical command) pairs: continuations joined, heredoc bodies skipped."""
+    pending, start, closing = "", 0, None
+    for number, line in lines:
+        if closing is not None:
+            closing = None if line.strip() == closing else closing
+            continue
+        pending, start = (pending + "\n" + line, start) if pending else (line, number)
+        if line.rstrip().endswith(("\\", "`") if powershell else "\\"):
+            continue
+        tag = heredoc_tag.search(pending)
+        closing = tag.group(2) if tag else None
+        yield start, pending
+        pending = ""
+    if pending:
+        yield start, pending
+
+
+def run_values(lines: list[str]):
+    """(line number, text) of each workflow `run:` value, block scalars line by line."""
+    i = 0
+    while i < len(lines):
+        key = re.match(r"^(\s*)(?:-\s+)?run:\s*(.*?)\s*$", lines[i])
+        i += 1
+        if not key:
+            continue
+        indent, value = len(key.group(1)), key.group(2)
+        if value[:1] not in ("|", ">"):
+            if value[:1] in ("'", '"') and value[-1:] == value[:1]:
+                value = value[1:-1]
+            yield i, value
+            continue
+        while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent):
+            yield i + 1, lines[i]
+            i += 1
+
+
+def literal(node) -> Word:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return Word(node.value, False)
+    return Word("", True)
+
+
+def python_runs(text: str) -> list[int]:
+    """Line numbers of calls that start `lavish-axi` from literal arguments."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return []
+    found: list[int] = []
+    aliases = {a.asname: a.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+               for a in node.names if a.asname}  # `from subprocess import run as launch`
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        name = aliases.get(name, name) if isinstance(node.func, ast.Name) else name
+        args = list(node.args)
+        if lavish_exec.match(name):
+            args = args[1:] if name.startswith("spawn") else args
+            if not args:
+                continue
+            rest = args[1].elts[1:] if len(args) > 1 and isinstance(args[1], (ast.List, ast.Tuple)) else args[2:]
+            hit = lavish_direct.argv_runs([literal(args[0])] + [literal(a) for a in rest])
+        elif name in lavish_calls:
+            first = args[0] if args else next((k.value for k in node.keywords if k.arg in ("args", "cmd")), None)
+            if name == "create_subprocess_exec":
+                hit = lavish_direct.argv_runs([literal(a) for a in args])
+            elif isinstance(first, (ast.List, ast.Tuple)):
+                hit = lavish_direct.argv_runs([literal(e) for e in first.elts])
+            elif isinstance(first, ast.Constant) and isinstance(first.value, str):
+                hit = lavish_direct.runs(first.value)
+            else:
+                hit = False
+        else:
+            continue
+        if hit:
+            found.append(node.lineno)
+    return found
+
+
+for path in sorted(plugin.rglob("*")):
+    path_rel = rel(path)
+    if (not path.is_file() or "/__pycache__/" in f"/{path_rel}" or "/node_modules/" in f"/{path_rel}"
+            or path_rel.startswith(".git/") or any(fnmatch.fnmatchcase(path_rel, glob) for glob in lavish_skip)):
+        continue
+    kind = source_kind(path)
+    is_workflow = path_rel.startswith(".github/") and path.suffix in (".yml", ".yaml")
+    if path.suffix != ".md" and kind is None and not is_workflow:
+        continue
+    text = read(path)
+    if "lavish-axi" not in text.lower():
+        continue
+    lines = text.splitlines()
+    if path.suffix == ".md":
+        fenced = False
+        for number, line in enumerate(lines, 1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            spans = [line.strip()] if fenced else re.findall(r"`([^`]+)`", line)
+            if any(lavish_direct.runs(span, bare=False) for span in spans):  # bare name in prose: a mention
+                lavish_problem(path_rel, number, line)
+    elif kind == "python":
+        for number in sorted(set(python_runs(text))):
+            lavish_problem(path_rel, number, lines[number - 1])
+    else:
+        numbered = list(run_values(lines)) if is_workflow else list(enumerate(lines, 1))
+        for number, command in shell_commands(numbered, path.suffix in (".ps1", ".psm1")):
+            if lavish_direct.runs(command):
+                lavish_problem(path_rel, number, lines[number - 1])
+
+
 # M. Bounded hooks. A hook that outlives its harness timeout is killed with no
 # verdict, so every launcher entry carries a deadline below its timeout; and a
-# repository-wide content scan in a Stop-path gate must take the one bounded route.
+# repository-wide content scan in a gate source must take the one bounded route.
 for manifest_rel in ("hooks/hooks.json", "hooks/hooks.codex.json"):
     for event, groups in load_hook_map(manifest_rel).items():
         for group in groups if isinstance(groups, list) else []:
@@ -504,12 +744,12 @@ repo_scans = [
     re.compile(r"\bos\.walk\("),
     re.compile(r"\.rglob\("),
 ]
-stop_path = {
-    path for pattern in ("hooks/*-gate.sh", "hooks/stop-gates.sh", "hooks/gate-*.sh",
+gate_sources = {
+    path for pattern in ("hooks/*-gate.sh", "hooks/*-gates.sh", "hooks/gate-*.sh",
                          "hooks/lib/*.sh", "hooks/lib/*.py")
     for path in plugin.glob(pattern)
 } - {plugin / "hooks/lib/bounded_scan.py"}
-for path in sorted(stop_path):
+for path in sorted(gate_sources):
     path_rel = rel(path)
     for number, line in enumerate(read(path).splitlines(), 1):
         if line.lstrip().startswith("#"):

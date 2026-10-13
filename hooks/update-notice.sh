@@ -21,8 +21,8 @@
 set -uo pipefail
 
 ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
-PY=python
-command -v python >/dev/null 2>&1 || PY=python3
+
+PY="${AFK_PYTHON:-afk-python}"
 command -v git >/dev/null 2>&1 || exit 0
 
 # shellcheck source=/dev/null

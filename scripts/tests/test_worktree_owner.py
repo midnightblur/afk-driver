@@ -24,13 +24,15 @@ def load():
 
 
 owner = load()
+# afk-python is a venv launcher that cannot run renamed; copy the interpreter it starts.
+BASE = Path(getattr(sys, "_base_executable", None) or sys.executable)
 
 
 def fake_harness(tmp_path: Path) -> Path:
     """A copy of the interpreter under a harness-like name."""
     suffix = ".exe" if os.name == "nt" else ""
     target = tmp_path / f"fakeharness{suffix}"
-    shutil.copy(sys.executable, target)
+    shutil.copy(BASE, target)
     return target
 
 
@@ -43,7 +45,7 @@ def find_in_child() -> str:
 
 def harness_env() -> dict:
     environ = dict(os.environ, PYTHONHOME=sys.base_prefix)
-    environ["PATH"] = str(Path(sys.executable).parent) + os.pathsep + environ["PATH"]
+    environ["PATH"] = str(BASE.parent) + os.pathsep + environ["PATH"]
     return environ
 
 
@@ -52,9 +54,15 @@ def test_state_of_this_process_is_alive():
     assert owner.state(me, owner.creation_time(me)) == "alive"
 
 
-def test_a_pid_with_another_creation_time_is_unknown_never_alive():
+def test_a_pid_with_another_creation_time_is_a_recycled_one_and_dead():
     me = os.getpid()
-    assert owner.state(me, "1") == "unknown"
+    assert owner.state(me, "1") == "dead"
+
+
+def test_an_unreadable_creation_time_is_unknown(monkeypatch):
+    monkeypatch.setattr(owner, "exists", lambda pid: True)
+    monkeypatch.setattr(owner, "creation_time", lambda pid: None)
+    assert owner.state(os.getpid(), "1") == "unknown"
 
 
 def test_a_pid_that_does_not_exist_is_dead():

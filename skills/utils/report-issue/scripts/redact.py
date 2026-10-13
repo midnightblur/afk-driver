@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Strip everything but plugin-side context from outgoing issue text.
 
     redact.py --plugin-root P [--repo-root R] [--keep-repo OWNER/NAME]

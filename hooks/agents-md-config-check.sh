@@ -4,15 +4,15 @@
 # instructionFiles=claude-md-and-agents-md setting (setup register row H11).
 #
 # Warn — never block — when ALL of these hold:
-#   - the provider is Claude (the setting is Claude-only; the shim decides this),
+#   - the provider declares `instruction_files_setting` (providers/<name>.json),
 #   - the repository at $PWD tracks at least one AGENTS.md, and
 #   - the effective setting is not "claude-md-and-agents-md".
 # The warning is <=3 lines: it names the setting and says to run /afk:setup.
 #
 # Run with `--soft`. Every uncertain path exits 0 in silence:
-#   - not a Claude session (the setting does not apply),
+#   - a provider without the setting (it does not apply),
 #   - no git, or the repository tracks no AGENTS.md,
-#   - no python, no settings file, or an unreadable value.
+#   - no settings file, or an unreadable value.
 #
 # The value and the settings-path resolution (which honours CLAUDE_CONFIG_DIR)
 # come from set_instruction_files.py --get, the same reader row H11 writes with,
@@ -23,7 +23,7 @@ ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 
 # shellcheck source=/dev/null
 . "$ROOT/hooks/lib/provider.sh" 2>/dev/null || exit 0
-[ "$(afk_provider 2>/dev/null)" = "claude" ] || exit 0
+[ "$(afk_provider_fact instruction_files_setting 2>/dev/null)" = true ] || exit 0
 
 command -v git >/dev/null 2>&1 || exit 0
 git rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
@@ -33,9 +33,7 @@ git rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
 TRACKED=$(git ls-files -- '*AGENTS.md' ':!:**/node_modules/**' 2>/dev/null | head -n1)
 [ -n "$TRACKED" ] || exit 0
 
-PY=python
-command -v python >/dev/null 2>&1 || PY=python3
-command -v "$PY" >/dev/null 2>&1 || exit 0
+PY="${AFK_PYTHON:-afk-python}"
 
 READER="$ROOT/skills/afk/setup/scripts/set_instruction_files.py"
 [ -f "$READER" ] || exit 0

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Check that every seam row of an SDD cites an investigation that closed.
 
 Reads the §14 table of `SDD.md`, resolves each `INV-NNN` it cites against

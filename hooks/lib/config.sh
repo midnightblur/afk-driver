@@ -7,26 +7,27 @@
 #
 # Names follow the flattened key path: `git.base-branch` -> AFK_CFG_GIT_BASE_BRANCH,
 # `build-gates` -> AFK_CFG_BUILD_GATES_COUNT plus AFK_CFG_BUILD_GATES_0...
-# AFK_CFG_LOADED is 1 once the export ran, so the whole set costs one python
-# call per Stop no matter how many gates read it.
+# AFK_CFG_LOADED is 1 once the export ran, so the whole set costs one Python
+# call per gate run no matter how many gates read it.
 #
 # A missing or unreadable configuration is not a failure: the built-in defaults
-# come back, and every gate that needs a value it did not get stays off.
+# come back, and every gate that needs a value it did not get stays off. When the
+# export itself cannot run, AFK_CFG_LOAD_FAILED names why, so a caller can refuse.
 
 afk_config_load() {
   [ "${AFK_CFG_LOADED:-0}" = "1" ] && return 0
 
-  local root script exported py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  local root script exported py="${AFK_PYTHON:-afk-python}"
 
   root=${AFK_PLUGIN_ROOT:-}
   if [ -z "$root" ]; then
     root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
   fi
   script="$root/scripts/afk-config.py"
-  [ -f "$script" ] || { AFK_CFG_LOADED=1; return 0; }
+  [ -f "$script" ] || { AFK_CFG_LOADED=1; AFK_CFG_LOAD_FAILED="$script is missing"; return 0; }
 
-  exported=$("$py" "$script" export-shell 2>/dev/null) || { AFK_CFG_LOADED=1; return 0; }
+  exported=$("$py" "$script" export-shell 2>/dev/null) \
+    || { AFK_CFG_LOADED=1; AFK_CFG_LOAD_FAILED="$py could not run $script"; return 0; }
   eval "$exported"
   AFK_CFG_LOADED=1
 }
@@ -34,8 +35,7 @@ afk_config_load() {
 # afk_config_get <dotted.key> — one value, for the rare caller that wants a
 # structure the flat export cannot carry. Prefer the AFK_CFG_* names.
 afk_config_get() {
-  local root py=python
-  command -v python >/dev/null 2>&1 || py=python3
+  local root py="${AFK_PYTHON:-afk-python}"
   root=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
   "$py" "$root/scripts/afk-config.py" get "$1" 2>/dev/null
 }

@@ -45,7 +45,7 @@ inline images need), `md_to_adf_content`, `FIG_TOKEN` and `png_size`. A tracker
 kind that does not offer these makes those publishers stop with the missing
 names and the configuration key, never half-write a page.
 
-`python api.py --check-creds` reports whether credentials resolve, printing no
+`afk-python api.py --check-creds` reports whether credentials resolve, printing no
 value; `--list-tools` prints the nine operation names.
 
 `scripts/tests/test_tracker_jira.py` pins the payload shapes this machinery

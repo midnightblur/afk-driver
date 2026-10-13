@@ -22,11 +22,16 @@ def _bench():
 
 def test_handlers_follow_the_manifest_matchers():
     bench = _bench()
-    manifest = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
-    bash = [bench.label_of(h["command"]) for h in bench.handlers(manifest, "PreToolUse", "Bash")]
-    read = [bench.label_of(h["command"]) for h in bench.handlers(manifest, "PreToolUse", "Read")]
-    assert "plugin lavish-dark.sh" in bash and "plugin lavish-dark.sh" not in read
-    assert "protected-branch-guard.py" in bash and "protected-branch-guard.py" in read
+    manifest = {"hooks": {"PreToolUse": [
+        {"matcher": "Bash|PowerShell", "hooks": [{"type": "command", "command": "x run-hook.py plugin shell-only.sh"}]},
+        {"matcher": "*", "hooks": [{"type": "command", "command": "x protected-branch-guard.py"}]}]}}
+    bash = [h["command"] for h in bench.handlers(manifest, "PreToolUse", "Bash")]
+    read = [h["command"] for h in bench.handlers(manifest, "PreToolUse", "Read")]
+    assert bash == ["x run-hook.py plugin shell-only.sh", "x protected-branch-guard.py"]
+    assert read == ["x protected-branch-guard.py"]
+    shipped = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    assert "protected-branch-guard.py" in [bench.label_of(h["command"])
+                                           for h in bench.handlers(shipped, "PreToolUse", "Bash")]
 
 
 @pytest.mark.parametrize("name", ["hooks.json", "hooks.codex.json"])
@@ -84,3 +89,14 @@ def test_worktree_lifecycle_runs_in_a_disposable_clone():
     rows = [line.split() for line in done.stdout.splitlines() if line.startswith("  plugin worktree-")]
     assert rows and all(row[-1] == "0" for row in rows), done.stdout
     assert not [w for w in _worktrees() - before if "bench-new-" in w or "bench-old-" in w]
+
+
+def test_every_budget_names_a_handler_its_scenario_reaches():
+    bench = _bench()
+    table = bench.scenarios(Path("."), Path("."))
+    for (name, scenario, label), ceiling in bench.BUDGET_MS.items():
+        manifest = json.loads((ROOT / "hooks" / name).read_text(encoding="utf-8"))
+        reached = [bench.label_of(h["command"])
+                   for h in bench.handlers(manifest, table[scenario].event, table[scenario].subject)]
+        assert label in reached, (name, scenario, label)
+        assert ceiling > 0

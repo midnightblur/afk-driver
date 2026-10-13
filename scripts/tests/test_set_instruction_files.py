@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """`set_instruction_files.py` merges the Claude project-instructions key.
 
 Asserts the merge is exact and idempotent, preserves other keys and the file's

@@ -6,8 +6,7 @@ set -u
 
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 AFK_ROOT_DIR=${AFK_PLUGIN_ROOT:-$(cd "$DIR/.." && pwd)}
-py=python
-command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 
 envelope=$(cat)
 field() {
@@ -27,6 +26,7 @@ out=$(AFK_PLUGIN_ROOT="$AFK_ROOT_DIR" bash "$AFK_ROOT_DIR/scripts/create-worktre
 rc=$?
 path=$(printf '%s\n' "$out" | sed -n 's/^WORKTREE_PATH=//p' | tail -1)
 if [ "$rc" -ne 0 ] || [ -z "$path" ]; then
+  [ "$rc" -eq 0 ] && printf 'worktree-create.sh: create-worktree exited 0 but printed no WORKTREE_PATH= line\n' >&2
   exit "${rc/#0/1}"
 fi
 printf '%s\n' "$path"

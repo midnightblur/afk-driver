@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Rules for the ground diff: has the code moved under a cited investigation?
 
 Each case pins a way a comparison could report calm ground that moved — two

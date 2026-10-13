@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Report instruction files that sit ABOVE a repository and leak into it.
 
     ancestor_instruction_files.py [repo_dir] [--check]

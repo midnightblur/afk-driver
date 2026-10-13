@@ -219,6 +219,13 @@ Start where your inputs land: raw idea → `/afk:grill-requirements`; existing P
 
 The committed tree stays inert until a harness enables `afk@afk-toolkit`.
 
+Install the plugin for your harness below, then **run `/afk:setup` before anything
+else**, and restart the harness when it finishes. Every hook and MCP server runs
+under `afk-python`, which setup installs. Until then the harness reports each hook
+as failed and carries on without it: no gate runs, the protected-branch guard is
+off, so the checkout is **not** protected, and the harness's own worktree tool
+cannot create a worktree.
+
 ### `.claude-plugin` harness
 
 ```text
@@ -282,7 +289,9 @@ manually, run `codex plugin marketplace upgrade afk-toolkit`, then `codex plugin
 add afk@afk-toolkit`.
 
 After either upgrade, run `/afk:setup` to rewrite the `.codex-plugin` agent
-stubs, which hold the versioned root, then restart the harness.
+stubs, which hold the versioned root, then restart the harness. Upgrading from a
+release whose hooks still ran `python`: run `/afk:setup` **before** the upgrade,
+so `afk-python` exists when the new hooks first run.
 
 **Checking which version is live.** Ask the harness, never the directories:
 
@@ -308,7 +317,7 @@ what the repository can answer about itself, and walks you through the few
 values it cannot infer. To scaffold it yourself:
 
 ```sh
-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
+afk-python "$AFK_PLUGIN_ROOT/scripts/afk-config.py" init
 ```
 
 Commit that file — it is the repository's contract, and every other developer's
@@ -336,6 +345,14 @@ from git when you set none. `skills/afk/bug/CONFIG.md` is the full contract.
 `skills/afk/setup/MANIFEST.md`. Use `/afk:setup base` for the pinned workstation
 toolchain. Use `/afk:setup audit` before shipping plugin changes. The audit
 also checks the managed behavior revision, hash, targets, and legacy blocks.
+
+`/afk:setup` also installs the AFK Python runtime: a pinned CPython in a
+private environment, exposed only as the `afk-python` command (register entry
+P1). It asks first, adds one directory to your user PATH, and needs a harness
+restart afterwards. Your own `python` stays untouched. Every hook, MCP server,
+skill script and CI job runs under `afk-python`. A machine with no Python at all
+still installs it: setup's bootstrap (`skills/afk/setup/scripts/bootstrap.sh`,
+or `bootstrap.ps1` on Windows) fetches the pinned uv, and uv the pinned CPython.
 
 Dev loop: edit shared source, run `hooks/tests/hook-smoke.sh`, run
 `hooks/native-contract-gate.sh`, then refresh the enabled plugin per
@@ -603,7 +620,7 @@ structured failure parks the row at `blocked(<reason>)` and reports a matching
 | `review_fail` | the Step 10 review settle loop hit its 10-round cap with findings still open (stalemate — unusual by construction) | read the open findings in `plan/review/` and judge them yourself |
 | `adversary_fail` | the Step 10.5 adversarial gate's blocking findings survived its remediation cap | read the adversary report in `plan/review/`, fix what it proved broken |
 | `adversary_unrun` | the run ended before the Step 10.5 gate could spawn — tiers green, findings settled, but nothing independent judged the slice | re-run the subtask; it resumes at the gate rather than from the top |
-| `rationale_unposted` | the Step 11 receipt check failed — a recorded reason is unposted or unreceipted, or the push or Draft creation is blocked | fix the blocker named in the outcome; re-run the subtask, which resumes at Step 7 |
+| `rationale_unposted` | the Step 12 receipt check failed — a recorded reason is unposted or unreceipted, or the push or Draft creation is blocked | fix the blocker named in the outcome; re-run the subtask, which resumes at Step 7 |
 | `contract_mismatch` | a consumed upstream `Produces` is missing/drifted | fix the **producer** subtask |
 | `produces_drift` | this subtask didn't deliver its own declared `Produces` | fix impl or re-slice |
 | `design_conflict` | a binding SDD/ADR decision is wrong/infeasible, and the correction is a one-way door or a tie | `/afk:grill-solution` → superseding ADR |
@@ -831,12 +848,12 @@ first:
 
 ## 12. Conventions & gotchas
 
-- **One linked worktree per session.** The plugin refuses an agent's edits,
-  write-capable commands and commits in the main checkout or on a protected branch, and
-  moves the session into a worktree instead (`SAFETY.md` "Worktree per
-  session"; `PROVIDERS.md` for each harness's move). Single recognized
-  read-only commands remain available. A human sets
-  `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
+- **One worktree per session or team.** The plugin refuses an agent's
+  mutation of the main checkout, a protected branch or a worktree another live
+  session holds, and moves the session into a worktree instead (`SAFETY.md`
+  "Worktree per session"; `PROVIDERS.md` for each harness's move and
+  `AFK_WORKTREE_GROUP`). Reads and unrecognized commands run anywhere. A human
+  sets `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
 - **Branch names** must match the repository's own `git.branch-pattern`, and a
   new branch is named from its `git.branch-template`. A repository that
   declares neither gets no branch gate.

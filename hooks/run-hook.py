@@ -9,8 +9,8 @@ path, locates a real Git Bash, forwards stdin, stdout, stderr and the exit
 code, and stays silent when an optional handler is absent.
 
 Usage:
-    python run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]
-    python run-hook.py [--soft] [--deadline <seconds>] repo-list <event>
+    afk-python run-hook.py [--soft] [--deadline <seconds>] plugin <handler.sh> [args...]
+    afk-python run-hook.py [--soft] [--deadline <seconds>] repo-list <event>
 
     plugin     handler under this plugin's own hooks/ directory
     repo-list  every repository-owned handler the consuming repository declares
@@ -25,7 +25,7 @@ Usage:
                seconds), so each can fit its own waits inside the budget.
 
 `.afk/hooks.json` is a JSON array of objects, each with `event`
-(SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated), `matcher` (a regular
+(SessionStart|PreToolUse|PostToolUse|PostCompact|Stop|WorktreeCreated|PreCommit), `matcher` (a regular
 expression matched against
 the envelope tool name, or `*`), `timeout` (seconds), and `script` (a path
 relative to the repository root). A script path that resolves outside the
@@ -38,16 +38,35 @@ build is set up, from the worktree folder. The envelope is `{"worktree", "branch
 that exits non-zero, is missing, or resolves outside the repository is warned about
 on stderr, by name, and never removes the worktree.
 
+`PreCommit` runs from the commit gate runner with the staged context in its environment.
+Handlers run in declaration order and the first refusal ends the run: exit 2 for a
+non-zero exit, a timeout, an unrunnable entry, or a matcher other than `*`. Each handler
+run appends one metrics line unless `GATE_METRICS_DISABLE=1`; `GATE_METRICS_FILE` names the file.
+
 A handler a repository declares but this checkout cannot run — the script is
-missing, the matcher is not a regular expression, the manifest does not parse,
-the handler returns no verdict inside its timeout — is a configuration error,
-never a silent skip. On Stop and PreToolUse the launcher blocks the turn with
-the decision object a failed gate emits, so a gate cannot disappear by being
-misdeclared. A Stop or PreToolUse handler that exits non-zero, or prints a refusal
-object, is a refusal: its own stdout and exit code are never passed through. The
-launcher gathers every refusal and emits one verdict in the provider's block
-shape (PreToolUse: the deny JSON at exit 0). With no POSIX shell the same
-events block too. On the remaining events it writes the reason to stderr.
+missing, the matcher is not a regular expression, the manifest does not parse —
+is a configuration error, never a silent skip. A handler that returns no verdict
+inside its timeout is reported as a timeout, never as a configuration error. On
+Stop and PreToolUse either blocks the turn with the decision object a failed gate
+emits, so a gate cannot disappear by being misdeclared or by being slow. A Stop
+or PreToolUse handler that exits non-zero, or prints a refusal object, is a
+refusal: its own stdout and exit code are never passed through. The launcher
+gathers every refusal and emits one verdict in the provider's block shape
+(PreToolUse: the deny JSON at exit 0). With no POSIX shell the same events
+block too. On the remaining events it writes the reason to stderr.
+
+A plugin handler's refusal on a blocking event (a refusal object, or exit 2) takes the same
+block form whatever its exit code. A handler that fails without refusing (any other exit but 0) or runs
+out of time gets one stderr line from the launcher, `[afk] <handler> (<event>) failed: ...`,
+after its own stderr; so does a fault in the launcher itself. Where the provider declaration
+says the harness drops stderr on a failed exit, a non-soft failure exits 0 with that line in
+`systemMessage` instead (contract: CAPABILITIES.md "Hook failures").
+
+Two bails exit 0 before any shell lookup: `repo-list` when the repository declares no
+handler for the event, and `plugin` for a handler its provider's declaration
+(`hooks/lib/providers/<name>.json`) makes a no-op (POLICY_NOOP). Before a handler
+starts, `AFK_PYTHON` must name this interpreter, the `afk-python` entry: handlers
+run `"$AFK_PYTHON"`. Without it no handler runs, the same as without a shell.
 
 Overrides: AFK_BASH, then GIT_BASH, then a Git-relative lookup, then the known
 install locations, then PATH excluding the Windows system directory.
@@ -56,18 +75,20 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 REPO_HOOKS_MANIFEST = ".afk/hooks.json"
-EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "WorktreeCreated"}
+EVENTS = {"SessionStart", "PreToolUse", "PostToolUse", "PostCompact", "Stop", "WorktreeCreated", "PreCommit"}
 # The events whose whole point is to stop a turn. A handler that cannot run is
 # a missing verdict on these, so the launcher answers for it. PostToolUse and
 # PostCompact carry context injections, never a block, so they only warn.
@@ -224,20 +245,39 @@ def _drain(proc: subprocess.Popen) -> tuple[bytes | None, bytes | None]:
         return None, None
 
 
+def _reap(proc: subprocess.Popen) -> tuple[None, None]:
+    """A killed fed handler: its outputs are files and its stdin belongs to the reader thread, so only wait."""
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    return None, None
+
+
 def run_tree(args: list[str], env: dict[str, str], *, input: bytes | None = None,
              capture: bool = False, timeout: float | None = None,
-             jobbed: bool = True) -> subprocess.CompletedProcess:
-    """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal."""
+             jobbed: bool = True, outputs: tuple | None = None, feed: bool = False) -> subprocess.CompletedProcess:
+    """`subprocess.run` for a handler: the whole tree dies on timeout, error or signal.
+
+    `outputs` is a (stdout, stderr) pair of files: unlike a pipe, a file never waits on a background child.
+    `feed` (with `outputs`) streams this launcher's stdin to the handler as it arrives (`read_stdin`).
+    """
     pipes = subprocess.PIPE if capture else None
-    proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None else None,
-                       stdout=pipes, stderr=pipes)
+    out_to, err_to = outputs if outputs is not None else (pipes, pipes)
+    proc, job = _spawn(args, jobbed, env=env, stdin=subprocess.PIPE if input is not None or feed else None,
+                       stdout=out_to, stderr=err_to)
     _ACTIVE.append(proc)
     try:
         try:
-            out, err = proc.communicate(input=input, timeout=timeout)
+            if feed:
+                read_stdin(proc.stdin)
+                out, err = None, None
+                proc.wait(timeout=timeout)
+            else:
+                out, err = proc.communicate(input=input, timeout=timeout)
         except subprocess.TimeoutExpired:
             _kill_group(proc, job)
-            out, err = _drain(proc)
+            out, err = _drain(proc) if not feed else _reap(proc)
             raise subprocess.TimeoutExpired(args, timeout, output=out, stderr=err)
         except BaseException:
             _kill_group(proc, job)
@@ -270,8 +310,14 @@ def install_signal_handlers() -> None:
 
 
 def repo_root(env: dict[str, str]) -> Path | None:
-    # The working tree's Git root, like every plugin gate; CLAUDE_PROJECT_DIR
-    # names the launch checkout, which can differ.
+    return git_toplevel(env)[0]
+
+
+def git_toplevel(env: dict[str, str]) -> tuple[Path | None, bool]:
+    """The working tree's Git root, and whether Git answered: a root, or "not a git repository".
+
+    Like every plugin gate; CLAUDE_PROJECT_DIR names the launch checkout, which can differ.
+    """
 
     # Windows resolves the executable name against this process's PATH, not the
     # PATH being handed to the child, so name git absolutely when it is only on
@@ -280,22 +326,27 @@ def repo_root(env: dict[str, str]) -> Path | None:
     try:
         out = subprocess.run(
             [git, "-C", os.getcwd(), "rev-parse", "--show-toplevel"],
-            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env=env,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=20, env={**env, "LC_ALL": "C"},
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return None, False
     top = out.stdout.strip()
-    return Path(top) if out.returncode == 0 and top else None
+    if out.returncode == 0 and top:
+        return Path(top), True
+    return None, "not a git repository" in out.stderr
+
+
+def is_under(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+    except (ValueError, OSError):
+        return False
+    return True
 
 
 def is_wsl_stub(candidate: Path) -> bool:
     """The Windows system directory ships a WSL launcher named bash.exe."""
-    system_root = os.environ.get("SystemRoot", r"C:\Windows")
-    try:
-        candidate.resolve().relative_to(Path(system_root).resolve())
-    except (ValueError, OSError):
-        return False
-    return True
+    return is_under(candidate, Path(os.environ.get("SystemRoot", r"C:\Windows")))
 
 
 def git_relative_bash() -> Path | None:
@@ -349,22 +400,258 @@ def find_bash() -> Path | None:
     return None
 
 
-def shell_env(bash: Path) -> dict[str, str]:
+def hook_bash() -> Path | None:
+    """find_bash(), past Git for Windows' <git>/bin/bash.exe redirector: one process start fewer
+    per handler. Start it only with shell_env(), which sets what the redirector would have."""
+    bash = find_bash()
+    if bash is not None and os.name == "nt" and bash.parent.name.lower() == "bin":
+        direct = bash.parent.parent / "usr" / "bin" / bash.name
+        if direct.is_file():
+            return direct
+    return bash
+
+
+def shell_env(bash: Path, base: dict[str, str] | None = None) -> dict[str, str]:
     """Handlers call grep, sed, git and friends.
 
     A parent PATH that never had a POSIX shell on it has none of them either, so
-    put the shell's own toolchain in front of whatever the harness passed down.
+    put the shell's own toolchain in front of whatever the harness passed down
+    (`base`, default this process's environment).
     """
-    env = dict(os.environ)
+    env = dict(os.environ if base is None else base)
     if os.name != "nt":
         return env
-    root = bash.resolve().parent.parent
+    home = bash.resolve().parent
+    if home.name.lower() == "bin" and home.parent.name.lower() == "usr":
+        return redirector_env(home.parent.parent, env)
+    root = home.parent
     extra = [str(root / "bin"), str(root / "usr" / "bin"), str(root / "mingw64" / "bin")]
     present = {part.lower() for part in env.get("PATH", "").split(os.pathsep)}
     missing = [part for part in extra if Path(part).is_dir() and part.lower() not in present]
     if missing:
         env["PATH"] = os.pathsep.join(missing + [env.get("PATH", "")]).rstrip(os.pathsep)
     return env
+
+
+def redirector_env(root: Path, env: dict[str, str]) -> dict[str, str]:
+    """Set what <git>/bin/bash.exe sets before it starts <git>/usr/bin/bash.exe:
+    setup_environment() in git-for-windows/MINGW-packages mingw-w64-git/git-wrapper.c."""
+    msys = next((name for name in ("mingw64", "ucrt64", "clangarm64", "mingw32")
+                 if (root / name).is_dir()), "mingw64")
+    env["MSYSTEM"] = msys.upper()
+    env["EXEPATH"] = str(root / "bin")
+    env.setdefault("PLINK_PROTOCOL", "ssh")
+    if not env.get("HOME"):
+        drive_path = env.get("HOMEDRIVE", "") + env.get("HOMEPATH", "")
+        system32 = Path(env.get("SystemRoot", r"C:\Windows"), "system32")
+        if env.get("HOMEPATH") and Path(drive_path).is_dir() and not is_under(Path(drive_path), system32):
+            env["HOME"] = drive_path
+        elif env.get("USERPROFILE"):
+            env["HOME"] = env["USERPROFILE"]
+    front = [str(root / msys / "bin"), str(root / "usr" / "bin")]
+    if env.get("HOME"):  # as spelled: Path() would turn /c/x into \c\x, which bash reads as /c/c/x
+        front.append(env["HOME"].rstrip("/\\") + "/bin")
+    env["PATH"] = os.pathsep.join(front + [env.get("PATH", "")]).rstrip(os.pathsep)
+    return env
+
+
+def load_lib(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# Plugin handlers a provider declaration makes a no-op. `never` injects nothing, so no
+# session marker exists for the SessionStart/PostCompact reset to remove either.
+POLICY_NOOP = {
+    "nested-steering.sh": lambda facts: facts.get("nested_inject_mode", "never") == "never",
+    "agents-md-config-check.sh": lambda facts: facts.get("instruction_files_setting") is not True,
+}
+
+
+_FACTS: list[dict | None] = []
+
+
+def provider_facts() -> dict | None:
+    """This harness's provider declaration, loaded once; None when it cannot be read."""
+    if not _FACTS:
+        try:
+            _FACTS.append(load_lib("afk_provider_facts", PLUGIN_ROOT / "hooks" / "lib" / "provider_facts.py").facts())
+        except Exception:
+            _FACTS.append(None)
+    return _FACTS[0]
+
+
+def policy_noop(handler: str) -> bool:
+    test = POLICY_NOOP.get(handler)
+    facts = provider_facts() if test is not None else None
+    return facts is not None and test(facts)
+
+
+# ---- a failed handler names itself: CAPABILITIES.md "Hook failures" owns the contract,
+# hooks/lib/hook_failure.py the line. Loaded only on a failure.
+_ENVELOPE: dict = {}
+_WHO = {"handler": "run-hook.py", "event": None, "soft": False}
+
+
+def stdin_piped() -> bool:
+    return sys.stdin is not None and not sys.stdin.isatty()
+
+
+def read_stdin(sink=None) -> None:
+    """Start the one reader of stdin, keeping every chunk; with `sink`, each chunk also goes there.
+
+    Raw `os.read`, never the buffered stream: a daemon thread holding its lock aborts interpreter exit.
+    """
+    chunks: list[bytes] = []
+    done = threading.Event()
+    _ENVELOPE.update(chunks=chunks, done=done)
+
+    def pump(sink=sink):
+        try:
+            while chunk := os.read(sys.stdin.fileno(), 65536):
+                chunks.append(chunk)
+                try:
+                    if sink is not None:
+                        sink.write(chunk)
+                        sink.flush()
+                except (OSError, ValueError):  # the handler stopped reading
+                    sink = None
+        except (OSError, ValueError, AttributeError):
+            pass
+        finally:
+            done.set()
+            try:
+                if sink is not None:
+                    sink.close()
+            except (OSError, ValueError):
+                pass
+
+    if stdin_piped():
+        threading.Thread(target=pump, daemon=True).start()
+    else:
+        done.set()
+        if sink is not None:
+            sink.close()
+
+
+def envelope(wait: float | None = None) -> bytes | None:
+    """The harness's stdin envelope; `wait` caps the wait for EOF (None: until EOF). None when not piped."""
+    if not _ENVELOPE:
+        read_stdin()
+    _ENVELOPE["done"].wait(wait)
+    return b"".join(_ENVELOPE["chunks"]) if stdin_piped() else None
+
+
+def envelope_field(name: str, wait: float | None = 1.0) -> str:
+    try:
+        said = json.loads((envelope(wait) or b"").decode("utf-8", "replace"))
+    except (ValueError, OSError):
+        return ""
+    return str(said.get(name) or "") if isinstance(said, dict) else ""
+
+
+def failure_text(handler: str, event: str | None, outcome: str, said: bytes | str | None) -> str:
+    try:
+        return load_lib("afk_hook_failure", PLUGIN_ROOT / "hooks" / "lib" / "hook_failure.py").line(
+            handler, event, outcome, said)
+    except Exception:  # a broken install still names the handler
+        return f"[afk] {handler} ({event or 'unknown event'}) failed: {outcome}"
+
+
+def failed(handler: str, event: str | None, outcome: str, said: bytes | str | None) -> str:
+    text = failure_text(handler, event, outcome, said)
+    sys.stderr.write(text + "\n")
+    sys.stderr.flush()
+    return text
+
+
+def answer(lines: list[str], outputs: list[bytes]) -> bool:
+    """Where the provider drops stderr on a failed exit, carry `lines` in one stdout document at exit 0.
+
+    True when it did: the caller then exits 0. `outputs` are the documents that document joins.
+    """
+    try:
+        lib = load_lib("afk_hook_failure", PLUGIN_ROOT / "hooks" / "lib" / "hook_failure.py")
+        wanted = bool(lines) and lib.system_message(provider_facts() or {})
+    except Exception:
+        return False
+    if wanted:
+        sys.stdout.write(merge_allowed([*outputs, lib.notice(lines).encode("utf-8")]) + "\n")
+        sys.stdout.flush()
+    return wanted
+
+
+def write_raw(stream, data: bytes | None) -> None:
+    if data:
+        stream.flush()
+        stream.buffer.write(data)
+        stream.buffer.flush()
+
+
+def run_captured(args: list[str], env: dict[str, str], *, input: bytes | None = None, timeout: float | None,
+                 jobbed: bool = True, feed: bool = False) -> tuple[int | None, bytes, bytes]:
+    """A handler's exit code (None past `timeout`), stdout and stderr, both held in files."""
+    import tempfile  # here, not at the top: a bail never pays for it
+
+    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        try:
+            code = run_tree(args, env, input=input, timeout=timeout, jobbed=jobbed, outputs=(out, err),
+                            feed=feed).returncode
+        except subprocess.TimeoutExpired:
+            code = None
+        out.seek(0)
+        err.seek(0)
+        return code, out.read(), err.read()
+
+
+def plugin_verdict(handler: str, code: int | None, out: bytes, err: bytes, soft: bool) -> int:
+    """Pass a plugin handler's streams and code through; a refusal takes the provider's block form,
+    and a failure or a timeout also names itself."""
+    write_raw(sys.stderr, err)
+    event = envelope_field("hook_event_name") or None
+    if code is None:  # partial stdout is dropped: a verdict cut off midway is no verdict
+        text = failed(handler, event, f"timed out after {_DEADLINE_S:g}s, stopped, verdict unknown", err)
+        if not soft:
+            answer([text], [])
+        return 0
+    blocking = event in BLOCKING_EVENTS and not soft
+    reason = denial(event, out) if blocking else None
+    if reason is None and blocking and code == 2:
+        reason = err.decode("utf-8", "replace").strip() or f"{handler} refused"
+        out = block_document(event, reason).encode("utf-8") + b"\n"
+    if reason is not None:  # whatever the exit code: a harness reads a decision only in this form
+        if not err.strip():
+            sys.stderr.write(reason + "\n")
+        write_raw(sys.stdout, out)
+        return block_code(event)
+    if code == 0:
+        write_raw(sys.stdout, out)
+        return 0
+    text = failed(handler, event, f"exit {code}", err)
+    if not soft and answer([text], []):
+        return 0  # the handler's own stdout is dropped, as the harness drops it on a failed exit
+    write_raw(sys.stdout, out)
+    return 0 if soft else code
+
+
+def runtime_fault() -> str | None:
+    """Why `AFK_PYTHON` does not name this interpreter, or None when it does."""
+    named, here = os.environ.get("AFK_PYTHON"), sys.executable
+    if not named:
+        return f"AFK_PYTHON is not set, so {here} is not the afk-python entry; run /afk:setup"
+    if not os.path.isabs(named):
+        # Handlers run "$AFK_PYTHON" through their own PATH, which can name another file.
+        return f"AFK_PYTHON names {named}, not an absolute path; run /afk:setup"
+    if os.path.normcase(os.path.abspath(named)) == os.path.normcase(os.path.abspath(here)):
+        return None
+    try:
+        if os.name == "nt" and os.path.samefile(named, here):
+            return None
+    except OSError:
+        pass
+    return f"AFK_PYTHON names {named}, not this interpreter {here}; run /afk:setup"
 
 
 def manifest_path(root: Path) -> Path:
@@ -374,12 +661,7 @@ def manifest_path(root: Path) -> Path:
     import rather than a subprocess on the hook path.
     """
     try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py"
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = load_lib("afk_config", PLUGIN_ROOT / "scripts" / "afk-config.py")
         named = module.get(module.load(root), "repo-hooks")
     except Exception:
         named = None
@@ -528,25 +810,20 @@ def merge_allowed(outputs: list[bytes]) -> str:
     return json.dumps(merged) if merged else ""
 
 
-def block_without_shell(event: str) -> int:
-    """No POSIX shell: a repository gate that matches this call still blocks it."""
+def block_without_shell(event: str, why: str) -> int:
+    """No handler can run (`why`): a repository gate that matches this call still blocks it."""
     env = dict(os.environ)
     root = repo_root(env)
     entries, faults = repo_entries(root, event) if root is not None else ([], [])
-    tool = ""
-    try:
-        raw = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
-        tool = str(json.loads(raw.decode("utf-8", "replace")).get("tool_name") or "") if raw else ""
-    except (ValueError, AttributeError):
-        tool = ""
+    tool = envelope_field("tool_name", None)
     for entry in entries:
         if matcher_fault(entry.get("matcher")) or matches(entry.get("matcher"), tool):
-            faults.append(f"no POSIX shell to run {entry.get('script')}")
+            faults.append(f"{why}: cannot run {entry.get('script')}")
     return block(event, faults, None, env) if faults else 0
 
 
 def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
-          refused: list[str] | None = None) -> int:
+          refused: list[str] | None = None, timeouts: list[str] | None = None) -> int:
     """Answer for the handlers that could not run or refused, the way a gate answers.
 
     The decision travels the same path a failed gate travels — the provider
@@ -562,22 +839,26 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
             f"{listed}\n"
             f"Fix {REPO_HOOKS_MANIFEST}, or remove the entries that no longer apply."
         )
+    if timeouts:
+        listed = "\n".join(f"  - {item}" for item in timeouts)
+        parts.append(
+            f"afk: this repository's {event} handlers timed out, "
+            "so the gates they carry did not judge this turn:\n"
+            f"{listed}\n"
+            f"The timeout counts process start-up: raise it in {REPO_HOOKS_MANIFEST}, or start fewer processes."
+        )
     if refused:
         listed = "\n".join(f"  - {item}" for item in refused)
         parts.append(f"afk: this repository's {event} handlers refused:\n{listed}")
     reason = "\n".join(parts)
     library = PLUGIN_ROOT / "hooks" / "lib" / "provider.sh"
-    if bash is not None and library.is_file():
-        snippet = (
-            '. "$1" || exit 70\n'
-            'case "$2" in\n'
-            '  Stop) afk_emit_stop_block "$3"; exit "$(afk_stop_block_code)" ;;\n'
-            '  *) printf \'%s\\n\' "$3" >&2; afk_emit_deny "$3"; exit 0 ;;\n'
-            'esac\n'
-        )
+    # The PreToolUse deny parses to afk_emit_deny's object on every provider (semantic JSON
+    # parity; bytes may differ), so only a Stop verdict, whose exit code varies, needs the shell.
+    if event == "Stop" and bash is not None and library.is_file():
+        snippet = '. "$1" || exit 70\nafk_emit_stop_block "$2"; exit "$(afk_stop_block_code)"\n'
         try:
             completed = run_tree(
-                [str(bash), "-c", snippet, "run-hook", str(library), event, reason],
+                [str(bash), "-c", snippet, "run-hook", str(library), reason],
                 env, timeout=10 if _DEADLINE_AT is not None else 60,
             )
             if completed.returncode != 70:
@@ -585,16 +866,81 @@ def block(event: str, faults: list[str], bash: Path | None, env: dict[str, str],
         except (OSError, subprocess.SubprocessError):
             pass
     # No shell, or a provider library this checkout cannot read: say the same
-    # thing in the shapes both harnesses read, and use the documented default.
+    # thing in the shapes both harnesses read, at the declared code.
     sys.stderr.write(reason + "\n")
+    sys.stdout.write(block_document(event, reason) + "\n")
+    return block_code(event)
+
+
+def block_document(event: str, reason: str) -> str:
+    """The one decision document a blocking event answers with (CAPABILITIES.md "Shared hook subset")."""
     if event == "Stop":
-        sys.stdout.write(json.dumps({"decision": "block", "reason": reason}) + "\n")
-        return 0  # both adapters name 0 as the Stop block code: the decision object is the verdict
-    sys.stdout.write(json.dumps({"hookSpecificOutput": {
+        return json.dumps({"decision": "block", "reason": reason})
+    return json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
         "permissionDecisionReason": reason,
-    }}) + "\n")
+    }})
+
+
+def block_code(event: str) -> int:
+    """PreToolUse denies at exit 0 on every harness; Stop at the provider's `stop_block_code`."""
+    if event != "Stop":
+        return 0
+    try:
+        return int((provider_facts() or {}).get("stop_block_code", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def precommit_metric(script: str, result: str, started: float) -> None:
+    """One gate-latency line per handler run; never fails the commit."""
+    target = os.environ.get("GATE_METRICS_FILE")
+    if os.environ.get("GATE_METRICS_DISABLE") == "1" or not target:
+        return
+    line = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "gate": script, "event": "PreCommit",
+            "result": result, "duration_ms": int((time.monotonic() - started) * 1000)}
+    try:
+        Path(target).parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "a", encoding="utf-8") as sink:
+            sink.write(json.dumps(line) + "\n")
+    except OSError:
+        pass
+
+
+def precommit(root: Path, entries: list[dict], faults: list[str], bash: Path, env: dict[str, str]) -> int:
+    """Run the repository's PreCommit handlers in order; the first refusal or fault blocks."""
+    def refuse(why: str) -> int:
+        sys.stderr.write(f"[afk] repository PreCommit handler refused: {why}\n")
+        return 2
+    if faults:
+        return refuse("; ".join(faults))
+    planned: list[tuple[str, Path, float]] = []
+    for entry in entries:  # the whole manifest is checked before any handler runs
+        named = str(entry.get("script"))
+        if entry.get("matcher") not in (None, "", "*"):
+            return refuse(f"{named}: PreCommit takes matcher \"*\", not {entry.get('matcher')!r}")
+        timeout = entry.get("timeout")
+        if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout) or timeout <= 0):
+            return refuse(f"{named}: timeout must be a positive number of seconds, not {timeout!r}")
+        script, fault = resolved_script(root, entry)
+        if script is None:
+            return refuse(f"{REPO_HOOKS_MANIFEST}: {fault}")
+        planned.append((named, script, float(timeout)))
+    for named, script, timeout in planned:
+        started = time.monotonic()
+        try:
+            completed = run_tree([str(bash), str(script)], env, input=b"", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            precommit_metric(named, "unknown", started)
+            return refuse(f"{named}: no verdict within {timeout:g} seconds")
+        except OSError as problem:
+            precommit_metric(named, "unknown", started)
+            return refuse(f"{named}: {problem}")
+        precommit_metric(named, "blocked" if completed.returncode else "pass", started)
+        if completed.returncode:
+            return refuse(f"{named} exited {completed.returncode}")
     return 0
 
 
@@ -606,10 +952,7 @@ OWNER_HANDLERS = {"worktree-create.sh"}
 def owner_env() -> dict[str, str]:
     """`AFK_WORKTREE_OWNER=<pid>:<creation time>` of the harness above this launcher, or {}."""
     try:
-        spec = importlib.util.spec_from_file_location("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        found = module.find_owner()
+        found = load_lib("afk_worktree_owner", PLUGIN_ROOT / "scripts" / "worktree_owner.py").find_owner()
     except Exception:
         return {}
     return {"AFK_WORKTREE_OWNER": f"{found['pid']}:{found['ctime']}"} if found else {}
@@ -617,6 +960,8 @@ def owner_env() -> dict[str, str]:
 
 def main(argv: list[str]) -> int:
     global _DEADLINE_AT, _DEADLINE_S
+    _ENVELOPE.clear()
+    _FACTS.clear()
     for stream in (sys.stdout, sys.stderr):  # the harness reads UTF-8; a code page cannot encode all text
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
@@ -644,18 +989,32 @@ def main(argv: list[str]) -> int:
             "run-hook.py: usage: run-hook.py [--soft] [--deadline <seconds>] repo-list <event>\n"
         )
         return 0 if soft else 2
+    _WHO.update(handler=argv[1] if argv[0] == "plugin" else "repo-list",
+                event=argv[1] if argv[0] == "repo-list" else None, soft=soft)
 
-    bash = find_bash()
+    if argv[0] == "repo-list":
+        if argv[1] not in EVENTS:
+            sys.stderr.write(f"run-hook.py: unknown event: {argv[1]}\n")
+            return 0 if soft else 2
+        # Manifest first: no declared handler needs no shell, no job and no second git call.
+        # Only Git's own answer proves "nothing declared"; a failed lookup retries on the shell's PATH.
+        root, answered = git_toplevel(dict(os.environ)) if shutil.which("git") else (None, False)
+        if answered and (root is None or repo_entries(root, argv[1]) == ([], [])):
+            return 0
+    elif policy_noop(argv[1]):
+        return 0
+
+    why = runtime_fault()
+    bash = hook_bash() if why is None else None
     if bash is None:
-        sys.stderr.write(
-            f"run-hook.py: no POSIX shell found for {argv[1]}. Install Git Bash, "
-            "or point AFK_BASH at a bash executable.\n"
-        )
+        why = why or "no POSIX shell found. Install Git Bash, or point AFK_BASH at a bash executable"
+        sys.stderr.write(f"run-hook.py: {argv[1]}: {why}.\n")
         if soft:
             return 0
         if argv[0] == "repo-list" and argv[1] in BLOCKING_EVENTS:
-            return block_without_shell(argv[1])
-        return 1
+            return block_without_shell(argv[1], why)
+        text = failed(_WHO["handler"], _WHO["event"] or envelope_field("hook_event_name") or None, "exit 1", why)
+        return 0 if answer([text], []) else 1
     # The shell's own toolchain sits on this PATH, so git resolves here even
     # when the harness handed down a PATH carrying neither.
     env = shell_env(bash)
@@ -673,38 +1032,29 @@ def main(argv: list[str]) -> int:
             return 0
         if argv[1] in OWNER_HANDLERS:
             env.update(owner_env())
-        try:
-            completed = run_tree([str(bash), str(script), *argv[2:]], env, timeout=budget_left(),
-                                 jobbed=argv[1] not in DETACHES_HELPERS)
-        except subprocess.TimeoutExpired:
-            sys.stderr.write(
-                f"[afk] {argv[1]} exceeded its {_DEADLINE_S:g}s budget — stopped, verdict unknown.\n")
-            return 0
-        return 0 if soft else completed.returncode
+        code, out, err = run_captured([str(bash), str(script), *argv[2:]], env, feed=stdin_piped(),
+                                      timeout=budget_left(), jobbed=argv[1] not in DETACHES_HELPERS)
+        return plugin_verdict(argv[1], code, out, err, soft)
 
     event = argv[1]
-    if event not in EVENTS:
-        sys.stderr.write(f"run-hook.py: unknown event: {event}\n")
-        return 0 if soft else 2
     root = repo_root(env)
     if root is None:
         return 0
     entries, faults = repo_entries(root, event)
     if not entries and not faults:
         return 0
+    if event == "PreCommit":
+        return precommit(root, entries, faults, bash, env)
 
-    envelope = sys.stdin.buffer.read() if not sys.stdin.isatty() else b""
-    tool = ""
-    if envelope:
-        try:
-            parsed = json.loads(envelope.decode("utf-8", "replace"))
-            tool = str(parsed.get("tool_name") or "")
-        except ValueError:
-            tool = ""
+    given = envelope() or b""
+    tool = envelope_field("tool_name", None)
 
     failure = 0
     refused: list[str] = []
+    timeouts: list[str] = []
     allowed: list[bytes] = []
+    passed: list[bytes] = []  # non-blocking stdout, verbatim and in order
+    notices: list[str] = []
     blocking = event in BLOCKING_EVENTS and not soft
     for entry in entries:
         named = entry.get("script")
@@ -724,11 +1074,14 @@ def main(argv: list[str]) -> int:
         if left is not None:
             timeout = left if timeout is None else min(timeout, left)
         try:
-            completed = run_tree(
-                [str(bash), str(script)], env, input=envelope, timeout=timeout, capture=blocking,
-            )
+            if not blocking:
+                code, out, err = run_captured([str(bash), str(script)], env, input=given, timeout=timeout)
+            else:
+                completed = run_tree(
+                    [str(bash), str(script)], env, input=given, timeout=timeout, capture=True,
+                )
         except subprocess.TimeoutExpired:
-            faults.append(f"{named}: no verdict within {timeout:g} seconds")
+            timeouts.append(f"{named}: no verdict within {timeout:g} seconds")
             continue
         except OSError as problem:
             faults.append(f"{named}: {problem}")
@@ -736,6 +1089,10 @@ def main(argv: list[str]) -> int:
         if blocking:
             said = (completed.stderr or b"").decode("utf-8", "replace").strip()
             reason = denial(event, completed.stdout or b"")
+            if reason is None and completed.returncode not in (0, 2):
+                # A crash, not a refusal: the item names the handler, as a failed handler does.
+                refused.append(failure_text(named, event, f"exit {completed.returncode}", said))
+                continue
             if reason is not None or completed.returncode:
                 # One verdict leaves this launcher, in the provider's shape: never a handler's own.
                 refused.append(reason or said or f"{named} exited {completed.returncode}")
@@ -745,17 +1102,31 @@ def main(argv: list[str]) -> int:
             if said:
                 sys.stderr.write(said + "\n")
             continue
-        if completed.returncode and event == "WorktreeCreated":
-            faults.append(f"{named}: exited {completed.returncode}; the worktree is kept")
+        write_raw(sys.stderr, err)
+        if code is None:
+            notices.append(failed(named, event, f"timed out after {timeout:g}s, verdict unknown", err))
             continue
-        if completed.returncode and not failure:
-            failure = completed.returncode
+        if code != 0:  # exit 2 refuses only on a blocking event
+            notices.append(failed(named, event, f"exit {code}", err))
+        else:
+            allowed.append(out)
+        passed.append(out)
+        if code and event == "WorktreeCreated":
+            faults.append(f"{named}: exited {code}; the worktree is kept")
+            continue
+        if code and not failure:
+            failure = code
 
-    if faults:
-        for fault in faults:
-            sys.stderr.write(f"run-hook.py: {fault}\n")
-    if (faults or refused) and blocking:
-        return block(event, faults, bash, env, refused)
+    for fault in faults + timeouts:
+        sys.stderr.write(f"run-hook.py: {fault}\n")
+    if (faults or refused or timeouts) and blocking:
+        return block(event, faults, bash, env, refused, timeouts)
+    if not blocking:
+        if not soft and answer(notices, allowed):
+            return 0
+        for out in passed:
+            write_raw(sys.stdout, out)
+        return 0 if soft else failure
     merged = merge_allowed(allowed)  # context printed while nothing refused: one document
     if merged:
         sys.stdout.write(merged + "\n")
@@ -763,5 +1134,20 @@ def main(argv: list[str]) -> int:
     return 0 if soft else failure
 
 
+def guarded_main(argv: list[str]) -> int:
+    """`main`, except that a fault in the launcher itself names itself as a failed handler does."""
+    try:
+        return main(argv)
+    except Exception as problem:
+        try:
+            event = _WHO["event"] or envelope_field("hook_event_name") or None
+        except Exception:
+            event = None
+        text = failed(_WHO["handler"], event, "exit 1", f"{type(problem).__name__}: {problem}")
+        if _WHO["soft"]:
+            return 0
+        return 0 if answer([text], []) else 1
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(guarded_main(sys.argv[1:]))

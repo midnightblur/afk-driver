@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Report glossary terms that no file in the plugin uses.
 
 A heading is written for a reader, not for a grep. Readers write `sign-off` in a

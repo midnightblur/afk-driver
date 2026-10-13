@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Compare two coverage ledgers over the ground they searched.
 
 A cited investigation is a snapshot of one commit. This answers one question

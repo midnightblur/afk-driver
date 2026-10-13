@@ -47,9 +47,7 @@ git -C "$WORKTREE" rev-parse --git-dir >/dev/null 2>&1 || die "not a git worktre
 
 PLUGIN_ROOT=${AFK_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 export AFK_PLUGIN_ROOT="$PLUGIN_ROOT"
-AFK_PY=python
-command -v python >/dev/null 2>&1 || AFK_PY=python3
-export AFK_PY
+py="${AFK_PYTHON:-afk-python}"
 
 # One config read for the whole run: the adapters see the same AFK_CFG_* the
 # gates do, so a value cannot mean one thing here and another there.
@@ -73,13 +71,13 @@ WORKTREE_ABS=$(cd "$WORKTREE" && pwd)
 SOURCE_ABS=$(cd "$SOURCE" && pwd)
 WORKTREE_NATIVE=$(cygpath -m "$WORKTREE_ABS" 2>/dev/null || printf '%s' "$WORKTREE_ABS")
 
-TOOLKIT_VERSION=$("$AFK_PY" -c '
+TOOLKIT_VERSION=$("$py" -c '
 import json, sys
 print(json.load(open(sys.argv[1], encoding="utf-8")).get("version", "unknown"), end="")' \
   "$PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null || printf 'unknown')
 
 payload() {   # payload <dry_run>
-  "$AFK_PY" -c '
+  "$py" -c '
 import json, sys
 print(json.dumps({
     "source": sys.argv[1],
@@ -90,7 +88,7 @@ print(json.dumps({
 }
 
 field() {   # field <json> <name>
-  printf '%s' "$1" | "$AFK_PY" -c '
+  printf '%s' "$1" | "$py" -c '
 import json, sys
 try:
     doc = json.loads(sys.stdin.read())

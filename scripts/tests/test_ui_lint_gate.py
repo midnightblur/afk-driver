@@ -6,8 +6,8 @@ call. No npm, ESLint or git is needed.
 """
 from __future__ import annotations
 
+import importlib.util
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -15,7 +15,11 @@ import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 GATE = PLUGIN_ROOT / "adapters" / "build-gate" / "npm" / "ui-lint-gate.sh"
-BASH = shutil.which("bash")
+_spec = importlib.util.spec_from_file_location("afk_run_hook", PLUGIN_ROOT / "hooks" / "run-hook.py")
+_launcher = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_launcher)
+# The hooks' own bash: never the Windows WSL stub that `bash` can resolve to.
+BASH = _launcher.find_bash()
 
 pytestmark = pytest.mark.skipif(BASH is None, reason="bash is not on PATH")
 

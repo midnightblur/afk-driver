@@ -5,7 +5,7 @@ findings routed to the file that must change. The sweeps are repo-wide grep/read
 work: delegate to fresh subagents per `DELEGATION.md` (plugin root), keep only
 the digests.
 
-Run all seven checks; report even when clean.
+Run all eight checks; report even when clean.
 
 ## 1 · Structural consistency
 
@@ -75,7 +75,7 @@ cleanup. Record live conformance gaps in `providers/CONFORMANCE.md`.
 
 ## 6 · Glossary term usage
 
-`python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py" "$AFK_PLUGIN_ROOT"` — every
+`afk-python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py" "$AFK_PLUGIN_ROOT"` — every
 `**Term**:` heading in the plugin-root `GLOSSARY.md` must have ≥1 consumer file
 using the term.
 
@@ -101,14 +101,14 @@ one of them was in use.
 Run these read-only checks from the plugin root:
 
 ```sh
-python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root . --verbose
+afk-python scripts/behavior_registry.py validate --registry BEHAVIORS.md --plugin-root . --dispositions hooks/behavior-dispositions.tsv --parity-root . --verbose
 . hooks/lib/provider.sh
 args=()
 while IFS= read -r -d '' name && IFS= read -r -d '' target \
   && IFS= read -r -d '' root && IFS= read -r -d '' enablement; do
   args+=(--target-root "$target" "$root" "$enablement")
 done < <(afk_all_provider_targets)
-python scripts/behavior_registry.py audit --registry BEHAVIORS.md --plugin-root . "${args[@]}"
+afk-python scripts/behavior_registry.py audit --registry BEHAVIORS.md --plugin-root . "${args[@]}"
 ```
 
 Each target is checked against *its own* resolved root and *its own*
@@ -136,6 +136,17 @@ disabled, any installed `afk:behaviors` block is stale activation. Route the
 finding to `/afk:setup teardown`. Check 7's own per-target ENABLEMENT column
 already catches this per provider automatically; H1/O1 remain the whole-run
 cross-check for "is the managed-behavior feature itself stale everywhere."
+
+## 8 · Python runtime
+
+Run the `MANIFEST.md` P1 probe. It is read-only. Each `fail` line is a finding:
+a missing command, a Python version other than the pin, a command that runs
+outside the private environment or is not the installed entry, a stamp from
+another `runtime/uv.lock`, installed packages that differ from that lock, a
+hooks' bash that finds no `afk-python`, a file other than the installed entry or
+the stamp's, or an entry that fails there, a
+failed import, or no `AFK_PYTHON`.
+Route: `/afk:setup` (P1 fix).
 
 ## Report
 

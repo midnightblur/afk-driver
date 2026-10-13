@@ -36,7 +36,7 @@ In the company-meeting profile, check the arithmetic mechanically, never by
 reading:
 
 ```
-python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py <plan.md>
+afk-python ${AFK_PLUGIN_ROOT}/scripts/validate_agenda.py <plan.md>
 ```
 
 The script's docstring owns the rules and the exit codes.

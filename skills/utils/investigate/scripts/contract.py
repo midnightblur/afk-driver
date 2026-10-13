@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """The parts of the ledger contract the emitter and the validator must share.
 
 `LEDGER-FORMAT.md` beside this file is the grammar; this module is the half a

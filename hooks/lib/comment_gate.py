@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Commit-time comment gate: tracker references and the 2-line cap.
 
-    python comment_gate.py --plugin-root DIR [--tracker KIND] [--project-keys A,B] [--json]
+    afk-python comment_gate.py --plugin-root DIR [--tracker KIND] [--project-keys A,B] [--json]
 
 Reads `git diff --cached -U0` in the current repository and the staged blob of
 each changed file. It blocks (exit 2) an added comment that holds a tracker

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,8 @@ afk_bg_maven_run() {
   return 0
 }
 """
+PLUGIN_SOURCE = 'printf "plugin-source %s\\n" "$*" >> "$GATE_LOG"; exit "${PSG_RC:-0}"\n'
+REPO_RUNNER = 'printf "repo-runner\\n" >> "$GATE_LOG"; exit 0\n'
 
 
 def _git(cwd, *args):
@@ -46,17 +50,39 @@ def plugin(tmp_path_factory):
     (root / "hooks" / "comment-gate.sh").write_text(COMMENT_GATE, encoding="utf-8", newline="\n")
     (root / "adapters" / "build-gate" / "maven" / "gates.sh").write_text(MAVEN_GATES, encoding="utf-8",
                                                                          newline="\n")
+    (root / "hooks" / "plugin-source-gates.sh").write_text(PLUGIN_SOURCE, encoding="utf-8", newline="\n")
     return root
 
 
-def _run(plugin: Path, tmp_path: Path, **env: str):
+def _run(plugin: Path, tmp_path: Path, plugin_repo: bool = False, delete_only: bool = False,
+         handlers: list[dict] | None = None, rename_only: bool = False, manifest: str = ".afk/hooks.json",
+         local: str | None = None, **env: str):
     repo = tmp_path / "repo"
-    repo.mkdir()
+    repo.mkdir(exist_ok=True)
     _git(repo, "init", "-q")
     (repo / ".afk").mkdir()
-    (repo / ".afk" / "config.yaml").write_text("schema: 1\nbuild-gates:\n  - maven\n", encoding="utf-8")
+    custom = "" if manifest == ".afk/hooks.json" else f"repo-hooks: {manifest}\n"
+    if local is not None:
+        (repo / ".afk" / "config.local.yaml").write_text(local, encoding="utf-8")
+        custom = ""
+    (repo / ".afk" / "config.yaml").write_text(f"schema: 1\n{custom}build-gates:\n  - maven\n", encoding="utf-8")
+    if plugin_repo:
+        (repo / ".claude-plugin").mkdir()
+        (repo / ".claude-plugin" / "plugin.json").write_text('{"name": "afk"}\n', encoding="utf-8")
+        (repo / "hooks").mkdir()
+        (repo / "hooks" / "plugin-source-gates.sh").write_text(REPO_RUNNER, encoding="utf-8", newline="\n")
+        _git(repo, "add", ".claude-plugin", "hooks")
+    if handlers is not None:
+        for entry in handlers:
+            if "body" in entry:
+                (repo / entry["script"]).write_text(entry.pop("body"), encoding="utf-8", newline="\n")
+        (repo / manifest).parent.mkdir(parents=True, exist_ok=True)
+        (repo / manifest).write_text(json.dumps(handlers), encoding="utf-8")
     (repo / "A.java").write_text("class A {}\n", encoding="utf-8")
     _git(repo, "add", "A.java")
+    if delete_only or rename_only:
+        _git(repo, "commit", "-q", "-m", "base")
+        _git(repo, *(["rm", "-q", "A.java"] if delete_only else ["mv", "A.java", "B.java"]))
     log = tmp_path / "gates.log"
     environ = {**os.environ, "AFK_PROVIDER": "claude", "AFK_PLUGIN_ROOT": plugin.as_posix(),
                "AFK_WORKTREE_OP": "1", "GATE_LOG": log.as_posix(), "GATE_CACHE_DISABLE": "1",
@@ -85,3 +111,151 @@ def test_every_gate_runs_when_none_blocks(plugin, tmp_path):
     done, ran = _run(plugin, tmp_path)
     assert done.returncode == 0, done.stderr
     assert ran == ["comment", "java-format", "maven-compile"], done.stderr
+
+
+def test_a_consuming_repository_never_runs_the_plugin_source_gates(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path)
+    assert "plugin-source" not in ran, done.stderr
+
+
+def test_the_plugin_repository_is_judged_by_the_installed_runner_never_its_own(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True)
+    assert done.returncode == 0, done.stderr
+    assert ran == ["comment", "plugin-source", "--staged", "java-format", "maven-compile"], done.stderr
+
+
+def test_the_plugin_repository_blocks_when_the_installed_runner_is_missing(plugin, tmp_path):
+    bare = tmp_path / "plugin-without-runner"
+    shutil.copytree(plugin, bare)
+    (bare / "hooks" / "plugin-source-gates.sh").unlink()
+    done, ran = _run(bare, tmp_path, plugin_repo=True)
+    assert done.returncode == 2, done.stderr
+    assert "repo-runner" not in ran and "java-format" not in ran, done.stderr
+
+
+@pytest.mark.parametrize("rc", ["2", "1"])
+def test_a_plugin_source_block_or_crash_blocks_the_commit(plugin, tmp_path, rc):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True, PSG_RC=rc)
+    assert done.returncode == 2, done.stderr
+    assert ran == ["comment", "plugin-source", "--staged"], done.stderr
+
+
+def test_a_deletion_only_commit_still_reaches_the_plugin_source_gates(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, plugin_repo=True, delete_only=True)
+    assert done.returncode == 0, done.stderr
+    assert "plugin-source" in ran, done.stderr
+
+
+def _handler(name: str, body: str = "", matcher: str = "*") -> dict:
+    return {"event": "PreCommit", "matcher": matcher, "timeout": 60, "script": f"{name}.sh",
+            "body": f'printf "{name}\\n" >> "$GATE_LOG"\n{body}exit "${{{name.upper()}_RC:-0}}"\n'}
+
+
+def test_repository_precommit_handlers_run_last_in_declaration_order(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), _handler("costly")])
+    assert done.returncode == 0, done.stderr
+    assert ran == ["comment", "java-format", "maven-compile", "cheap", "costly"], done.stderr
+
+
+@pytest.mark.parametrize("rc", ["2", "1"])
+def test_the_first_refusing_handler_ends_the_run(plugin, tmp_path, rc):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), _handler("costly")], CHEAP_RC=rc)
+    assert done.returncode == 2, done.stderr
+    assert ran[-1] == "cheap", done.stderr
+    assert "cheap.sh exited" in done.stderr
+
+
+def test_a_build_gate_block_stops_before_any_handler(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap")], BLOCK_GATE="maven-compile")
+    assert done.returncode == 2, done.stderr
+    assert "cheap" not in ran, done.stderr
+
+
+@pytest.mark.parametrize("broken", ["missing", "matcher"])
+def test_a_handler_the_checkout_cannot_run_blocks(plugin, tmp_path, broken):
+    if broken == "missing":
+        handlers = [_handler("cheap"), {"event": "PreCommit", "matcher": "*", "timeout": 60, "script": "gone.sh"}]
+    else:
+        handlers = [_handler("cheap", matcher="Bash")]
+    done, ran = _run(plugin, tmp_path, handlers=handlers)
+    assert done.returncode == 2, done.stderr
+    assert "PreCommit handler refused" in done.stderr
+
+
+def test_the_gate_disabled_sentinel_skips_every_handler(plugin, tmp_path):
+    (tmp_path / "repo" / ".claude" / "hooks").mkdir(parents=True)
+    (tmp_path / "repo" / ".claude" / "hooks" / ".gate-disabled").write_text("reason\n", encoding="utf-8")
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body="exit 2\n")])
+    assert done.returncode == 0, done.stderr
+    assert ran == [], done.stderr
+
+
+def test_a_handler_reads_the_staged_tree_and_paths_and_each_run_is_metered(plugin, tmp_path):
+    body = ('[ "$AFK_STAGED_TREE" = "$(git write-tree)" ] || exit 3\n'
+            'grep -qx "A$(printf "\\t")A.java" "$AFK_STAGED_PATHS" || exit 4\n')
+    metrics = tmp_path / "metrics.jsonl"
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body), _handler("costly")],
+                     GATE_METRICS_DISABLE="0", GATE_METRICS_FILE=metrics.as_posix())
+    assert done.returncode == 0, done.stderr
+    lines = [json.loads(line) for line in metrics.read_text(encoding="utf-8").splitlines()]
+    handled = [(line["gate"], line["result"]) for line in lines if line.get("event") == "PreCommit"]
+    assert handled == [("cheap.sh", "pass"), ("costly.sh", "pass")]
+
+
+@pytest.mark.parametrize("change, line", [("delete_only", "D\tA.java"), ("rename_only", "R100\tA.java\tB.java")])
+def test_the_staged_path_list_carries_deletions_and_both_rename_names(plugin, tmp_path, change, line):
+    body = 'grep -qxF "$EXPECTED" "$AFK_STAGED_PATHS" || { cat "$AFK_STAGED_PATHS" >&2; exit 4; }\n'
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap", body=body)], EXPECTED=line, **{change: True})
+    assert done.returncode == 0, done.stderr
+    assert ran[-1] == "cheap", done.stderr
+
+
+_MISSING = object()
+
+
+@pytest.mark.parametrize("timeout", [_MISSING, True, "60", 0, -1, float("inf"), float("nan")],
+                         ids=["missing", "boolean", "string", "zero", "negative", "infinite", "nan"])
+def test_a_timeout_that_is_not_a_finite_positive_number_blocks_before_any_handler_runs(plugin, tmp_path, timeout):
+    bad = _handler("costly")
+    if timeout is _MISSING:
+        bad.pop("timeout")
+    else:
+        bad["timeout"] = timeout
+    done, ran = _run(plugin, tmp_path, handlers=[_handler("cheap"), bad])
+    assert done.returncode == 2, done.stderr
+    assert "timeout must be a positive number of seconds" in done.stderr
+    assert "cheap" not in ran and "costly" not in ran, done.stderr
+
+
+def test_a_handler_that_hangs_past_its_timeout_blocks(plugin, tmp_path):
+    slow = _handler("cheap", body="sleep 30\n")
+    slow["timeout"] = 1
+    started = time.monotonic()
+    done, ran = _run(plugin, tmp_path, handlers=[slow, _handler("costly")])
+    assert done.returncode == 2, done.stderr
+    assert "no verdict within 1 seconds" in done.stderr
+    assert "costly" not in ran and time.monotonic() - started < 25, done.stderr
+
+
+NO_LAUNCHER = {"AFK_PYTHON": "afk-python-is-not-installed"}
+NO_LAUNCHER_BLOCK = "afk-python not found; run /afk:setup"
+
+
+def test_without_the_launcher_a_repository_with_no_manifest_and_no_key_commits(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, HOME=tmp_path.as_posix(), **NO_LAUNCHER)
+    assert done.returncode == 0, done.stderr
+    assert "configuration not loaded" in done.stderr and NO_LAUNCHER_BLOCK not in done.stderr, done.stderr
+
+
+def test_without_the_launcher_a_present_manifest_blocks(plugin, tmp_path):
+    stop = {**_handler("cheap"), "event": "Stop"}
+    done, ran = _run(plugin, tmp_path, handlers=[stop], HOME=tmp_path.as_posix(), **NO_LAUNCHER)
+    assert done.returncode == 2, done.stderr
+    assert NO_LAUNCHER_BLOCK in done.stderr and "--no-verify" in done.stderr and "cheap" not in ran, done.stderr
+
+
+def test_without_the_launcher_a_repo_hooks_key_in_the_local_layer_blocks(plugin, tmp_path):
+    done, ran = _run(plugin, tmp_path, local="repo-hooks: ci/local-hooks.json\n", HOME=tmp_path.as_posix(),
+                     **NO_LAUNCHER)
+    assert done.returncode == 2, done.stderr
+    assert NO_LAUNCHER_BLOCK in done.stderr, done.stderr

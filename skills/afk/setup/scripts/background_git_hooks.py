@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Report git hooks that start a detached background process.
 
     background_git_hooks.py [repo_dir] [--check]

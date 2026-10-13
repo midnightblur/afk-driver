@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """tracker/jira — the Jira Cloud adapter.
 
 Two audiences, one module:

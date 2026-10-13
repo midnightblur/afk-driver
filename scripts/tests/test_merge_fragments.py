@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Rules for folding tracer fragments into one ledger.
 
 Each case pins a way a merge could publish more than its parts held: a

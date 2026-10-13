@@ -8,11 +8,11 @@ user-invocable: false
 
 Catch the producer-without-consumer failure: work that is locally correct but dead at the seam — a file nothing reads, an endpoint nothing calls, an event nothing subscribes to, a config key nothing loads, a DTO field never mapped. Compilers and unit tests are blind to it; this skill isn't.
 
-The mechanical zero-referrer tier already ran (`hooks/wiring-gate.sh` at this plugin's root — three levels up from this skill's directory — fires on every Stop). This skill is the judgment tier: referrers that exist but aren't real consumption.
+The mechanical zero-referrer tier is `hooks/wiring-gate.sh` at this plugin's root — three levels up from this skill's directory; final mode below runs it. This skill is the judgment tier: referrers that exist but aren't real consumption.
 
 ## Steps
 
-1. **Scope the change, then close the consumer question.** `git status --porcelain -uall` plus `git diff --name-only @{u}...HEAD` (fall back to `origin/master...HEAD`). This file list — not the conversation — defines what gets audited. Then run one `/afk:investigate` Q2 per symbol the change adds or reshapes, here in the caller, `--out` set to this run's scratch directory: the verifier is read-only, and a consumer set nobody enumerated is an orphan hunt that only looked where it remembered to.
+1. **Scope the change, then close the consumer question.** `bash <plugin-root>/hooks/wiring-gate.sh --list-changed`: every path this change touches against the integration base the gate judges, staged or committed, deletions and both names of a rename included; `--list-candidates` is the new-artifact subset the gate scans. An untracked file may predate the work: stage it to audit it. This file list — not the conversation — defines what gets audited. Then run one `/afk:investigate` Q2 per symbol the change adds or reshapes, here in the caller, `--out` set to this run's scratch directory: the verifier is read-only, and a consumer set nobody enumerated is an orphan hunt that only looked where it remembered to.
 
 2. **Spawn the verifier blind.** One fresh-context subagent (`afk-reader`). Give it: the change goal (one sentence), the file list, the repo path, and the step-1 ledger path per symbol. Do **not** give it your own account of what you wired — the author's narrative is what it exists to distrust. Its brief, verbatim:
 

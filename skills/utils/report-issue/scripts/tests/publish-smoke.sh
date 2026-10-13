@@ -230,7 +230,7 @@ pub --body "$sandbox/clean.md" --title t --kind bug --fp $fp --mode human >/dev/
 echo "== collect_env =="
 mkdir -p "$sandbox/plan"; printf 'one\ntwo\n' > "$sandbox/plan/JOURNAL.md"
 env_json=$(bash "$SCRIPT_DIR/../collect_env.sh" --plan-dir "$sandbox/plan" --journal-lines 1); rc=$?
-py=python; command -v python >/dev/null 2>&1 || py=python3
+py="${AFK_PYTHON:-afk-python}"
 printf '%s' "$env_json" | "$py" -c '
 import json, sys
 d = json.load(sys.stdin)

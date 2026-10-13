@@ -8,6 +8,11 @@
   "priority": 20,
   "harness_class": "H-1",
   "session_start_user_message": true,
+  "nested_inject_mode": "never",
+  "nested_inject_rules": 0,
+  "instruction_files_setting": true,
+  "stop_block_code": 0,
+  "hook_failure_notice": "stderr",
   "move_hint": "call the native worktree tool (EnterWorktree) with a new name, then continue there.",
   "tool_class": {
     "edit": [

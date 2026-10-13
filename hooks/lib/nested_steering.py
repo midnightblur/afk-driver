@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Collect the AGENTS.md (+ matching `.claude/rules`) below the launch directory.
 
     nested_steering.py --provider P --mode M --rules 0|1 --data-dir DIR < envelope

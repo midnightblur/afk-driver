@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """`ancestor_instruction_files.py` finds instruction files above a repository.
 
 Every case builds an isolated ancestor tree under tmp_path and passes it in, so

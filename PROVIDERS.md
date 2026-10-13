@@ -40,15 +40,35 @@ Hook provider detection order is `AFK_PROVIDER` override, `PLUGIN_ROOT` as Codex
 
 ## Protected-branch guard
 
-An agent changes a repository only from a linked worktree on an unprotected
-branch (`SAFETY.md` "Worktree per session"). Each provider file
+The rule is `SAFETY.md` "Worktree per session". This section owns the
+mechanics. Each provider file
 `hooks/lib/providers/<name>.json` declares what the guard needs: the detect
 variables, `harness_class`, the tool classes, `move_hint`, `worktree_folder`
 and `owner_pid_env`.
 
-Declared read tools pass before placement checks. Shell tools pass only when
-the guard recognizes one read-only command with no composition or redirection.
-An exact provider declaration overrides the fallback tool-name classifier.
+The guard judges the resource a call mutates, not the command's shape
+(ADR-0010). A shell command is split into segments; each literal path or
+repository a mutation names is judged. An opaque target (variable,
+substitution, glob) and an unknown program pass. A tool with no path-like key
+passes. An exact provider declaration overrides the fallback tool-name
+classifier.
+
+Three more hooks serve the guard:
+
+- `protected-branch-meter.py` (`PostToolUse`) compares the checkout with the
+  snapshot the guard took before an allowed shell call and holds the session
+  when a path changed (ADR-0012). It never blocks.
+- `protected-branch-occupancy.py` (`SessionStart`) registers the session in
+  its linked worktree and prints one advisory line when another live session
+  holds it (ADR-0013).
+- `git-backstop.py` consumes the one-shot sync authorization the guard writes
+  for `git pull --ff-only` in the main checkout (ADR-0011).
+
+Environment variables: `AFK_WORKTREE_GROUP` names a team that may share one
+worktree. Without it, `HERDR_ENV=1` plus `HERDR_TAB_ID` makes one herdr tab a
+team. `AFK_WORKTREE_OWNER` overrides the session identity. `AFK_ALLOW_PROTECTED=1`
+lifts every worktree-protection refusal and hold; the guard's lavish rule still applies
+(`LAVISH.md`). The register is `skills/afk/setup/MANIFEST.md`.
 
 | Class | Harness | How a refused session moves | Cleanup |
 |---|---|---|---|
@@ -60,18 +80,29 @@ pane's session id from its own integration hook (`herdr integration install code
 helper types only into a pane whose reported session is the refused one. Without it the helper
 types nothing and logs why; the human types the printed `/cd` line.
 
+The same file declares the launcher's policy, read by `hooks/run-hook.py` before any
+shell and by `afk_provider_fact` in bash: `nested_inject_mode` (`never`,
+`agent-only` or `always`) and `nested_inject_rules` (`0` or `1`) for the
+nested-steering hook, `instruction_files_setting` (`true` where the
+harness has the `instructionFiles` setting), and `hook_failure_notice`
+(`stderr`, or `system_message` where the harness drops a failed hook's stderr;
+`CAPABILITIES.md` "Hook failures"). A handler the policy makes a no-op
+starts no shell.
+
 `WorktreeCreate` and `WorktreeRemove` ship in the same release. A harness that
 creates a worktree through the plugin must also remove it through the plugin.
 Every session start prunes worktrees whose owner is gone.
 
 **One-time hook trust for Codex.** Codex runs a new or changed plugin hook only
 after you trust it. Trust is positional, so the guard is the last `PreToolUse`
-group and the older hooks keep their trust. Three entries are new: the guard,
-the `SessionEnd` handler, and the session-start prune. Start `codex` once in
+group and the older hooks keep their trust. Five entries are new: the guard,
+the `PostToolUse` meter, the `SessionEnd` handler, the session-start prune, and
+the session-start occupancy registration. Start `codex` once in
 the terminal UI without the full-bypass flag and choose `2. Trust all and
 continue` on the "Hooks need review" screen, or type `/hooks` in a session and
 press `t`. With the full-bypass flag, or with `codex exec`, the hooks do not
-run and Codex prints nothing until you have done this once.
+run and Codex prints nothing until you have done this once. A release that
+changes hook command strings, such as the move to `afk-python`, asks again.
 
 ## Distribution law
 
@@ -83,6 +114,8 @@ run and Codex prints nothing until you have done this once.
   reads the Codex marketplace manifest from that path. Nothing else under `.agents/`
   may be tracked, and `native-contract-gate.sh` enforces exactly that.
 - The comment gate runs only from the `pre-commit` hook that `install-git-hooks.sh` installs for an enabled plugin, on agent-driven commits. Rationale support writes only to the forge change and to two local places: pending entries under the repository's git directory and a cache outside the repository. A developer without the plugin sees neither.
+- The plugin-source gates (`hooks/plugin-source-gates.sh`) run only in a repository whose root `.claude-plugin/plugin.json` names the `afk` plugin. A consuming repository never runs them.
+- Repository `PreCommit` handlers run only when the repository declares them in its hook manifest; the plugin adds none of its own. Grammar and skips: `CONFIG.md` "Repository hooks".
 - `install-git-hooks.sh` installs the git backstop in every repository a session opens once the plugin is enabled, with or without `.afk/`. Both hooks act only under an agent-runtime marker, so a human's git is never gated. A repository that sets `core.hooksPath` is skipped with one notice.
 - Uninstalling a harness does not remove those per-machine paths; the setup register's stale-activation entry offers their cleanup.
 - Run `/afk:setup teardown` before disabling the plugin. It removes the managed
@@ -136,7 +169,7 @@ Claude reads `agents/*.md` from the enabled plugin. Codex reads the files copied
 
 Codex has no documented custom-agent tool allowlist or nesting-depth setting. Use sandbox plus role prohibitions. Root agents spawn; children run helper work inline when nesting is unavailable.
 
-Each adapter also names the exit code its harness reads a Stop block from (`afk_<provider>_stop_block_code`, default 2). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
+Each provider declaration also names the exit code its harness reads a Stop block from (`stop_block_code` in `hooks/lib/providers/<name>.json`, default 0). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
 
 ## Credentials
 

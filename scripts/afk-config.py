@@ -4,12 +4,12 @@ Skills and bash hooks must never interpret the configuration file themselves —
 two readers drift, and a gate that disagrees with the skill it gates is worse
 than no gate. Everything goes through this module:
 
-    python scripts/afk-config.py init [--force]
-    python scripts/afk-config.py validate [FILE]
-    python scripts/afk-config.py effective --json
-    python scripts/afk-config.py export-shell
-    python scripts/afk-config.py get <dotted.key>
-    python scripts/afk-config.py resolve <developerKey>
+    afk-python scripts/afk-config.py init [--force]
+    afk-python scripts/afk-config.py validate [FILE]
+    afk-python scripts/afk-config.py effective --json
+    afk-python scripts/afk-config.py export-shell
+    afk-python scripts/afk-config.py get <dotted.key>
+    afk-python scripts/afk-config.py resolve <developerKey>
 
 Standard library only. The file format is a documented SUBSET of YAML — block
 maps indented by two spaces, block lists written `- item`, plain and quoted
@@ -342,7 +342,7 @@ def deep_merge(base: dict, overlay: dict) -> dict:
 def shared_overlay(root: Path) -> Path | None:
     """`<git common dir>/afk/config.yaml`: the one file every worktree of `root` reads.
 
-    Read from `.git` itself rather than by spawning git: `load` runs on every Stop.
+    Read from `.git` itself rather than by spawning git: `load` runs on every gate run.
     """
     dot_git = root / ".git"
     if dot_git.is_dir():

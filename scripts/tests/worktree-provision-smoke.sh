@@ -206,7 +206,7 @@ OUT6B="$(bash "$PROVISION" --source "$REPO" --worktree "$WT2B" 2>"$TMP_ROOT/err6
 printf '%s' "$OUT6B" | grep -q '"status":"degraded"' && ok "a foreign local repository reports degraded" || bad "foreign repository not reported (got: $OUT6B)"
 # The answer must stay parseable JSON even when a path it quotes carries
 # backslashes — a Windows local repository is the normal case, not the exotic one.
-if printf '%s' "$OUT6B" | "${AFK_PY:-python}" -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null; then
+if printf '%s' "$OUT6B" | "${AFK_PYTHON:-afk-python}" -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null; then
   ok "the answer is valid JSON with a backslash path in it"
 else
   bad "answer is not valid JSON: $OUT6B"

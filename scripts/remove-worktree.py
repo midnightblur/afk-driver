@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Remove a worktree the plugin made, or prune the ones whose session is gone.
 
     remove-worktree.py --path <dir> [--force]   remove one plugin-made worktree
@@ -245,7 +245,7 @@ def keep(path: Path, reason: str, common: Path) -> None:
     script = (HERE / "remove-worktree.py").as_posix()
     sys.stderr.write(f"afk: kept worktree {path.as_posix()}: {reason}.\n"
                      f"afk:   resume: cd {path.as_posix()}\n"
-                     f"afk:   remove (discards that work): python {script} --path {path.as_posix()} --force\n")
+                     f"afk:   remove (discards that work): afk-python {script} --path {path.as_posix()} --force\n")
 
 
 def marker_paths(common: Path):
@@ -473,7 +473,7 @@ def report_kept(repo: Path) -> None:
         lines = ["afk kept these worktrees because they hold work:"]
         for path, item in fresh:
             lines.append(f"- {path}: {item.get('reason')}. Resume: cd {path}. "
-                         f"Remove and discard its work: python {script} --path {path} --force")
+                         f"Remove and discard its work: afk-python {script} --path {path} --force")
         text = "\n".join(lines)
         document = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}
         if user_message_supported():
@@ -508,7 +508,7 @@ def main(argv: list[str]) -> int:
     except StandingInside as inner:
         sys.stderr.write(f"afk: not removed: this shell is inside {Path(inner.args[0]).as_posix()}. "
                          "Run this from outside the worktree:\n"
-                         f"afk:   python {(HERE / 'remove-worktree.py').as_posix()} --path "
+                         f"afk:   afk-python {(HERE / 'remove-worktree.py').as_posix()} --path "
                          f"{Path(inner.args[0]).as_posix()} --force\n")
         return 1
     except Unknown as why:

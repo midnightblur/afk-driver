@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Sourced helper (ships with the afk plugin): content-hash pass cache for the
-# Stop gates (maven-compile, ui-lint, java-format, wiring, skill-registry,
+# gates (maven-compile, ui-lint, java-format, wiring, skill-registry,
 # native-contract, genericity).
 #
-# A Stop hook fires on every turn end; the gated tree often hasn't changed since
+# A gate runs many times on one tree; the gated tree often hasn't changed since
 # the last green run. The cache remembers the last PASS per gate as a hash over
 # HEAD + every working-tree change (path + blob hash, deletions included) — an
 # identical tree skips the gate's real work entirely.
 #
-# The hash itself is NOT computed here: it is the shared per-Stop tree digest
+# The hash itself is NOT computed here: it is the shared per-run tree digest
 # built once by gate-context.sh (AFK_CTX_TREE) and reused by every gate, so a
 # key costs a string concat rather than `git status` + two forks per changed
 # file. Every operation below is fork-free ($(<file), printf, [[ ]]).

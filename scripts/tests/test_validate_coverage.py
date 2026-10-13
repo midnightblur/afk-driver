@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """Rule tests for the coverage-ledger validator.
 
 Each case pins one way a ledger could publish more certainty than it holds:

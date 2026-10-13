@@ -39,6 +39,97 @@ release page from its section here. Nobody tags by hand.
 
 ### Added
 
+- `/afk:execute` Step 11 runs the wiring scan as advice after review
+  remediation and before the slice completes or reports its final status;
+  the slice's commits have already landed by then. Each flagged row goes to `/afk:verify-seams` judgment, and a repair
+  goes back to Step 8. The steps after it are renumbered 12–14.
+- A `PreCommit` event in `.afk/hooks.json`: the repository's own commit
+  gates run after the plugin's, in declaration order, and the first refusal
+  blocks the commit. Each handler reads the staged tree and path list and
+  writes one latency line.
+
+### Changed
+
+- No plugin gate runs on Stop. The wiring gate runs at `/afk:execute` Step 11
+  and in `/afk:verify-seams final`; the skill-registry, native-contract,
+  genericity and behavior-registry gates run at commit and in pull-request CI
+  through `hooks/plugin-source-gates.sh`, in this plugin's own repository only.
+  The installed plugin judges a commit and the target branch's tip judges a
+  pull request, so a branch's edits to its own gates cannot weaken the gates
+  that judge it; the `afk-gate-override` label accepts a deliberate relaxation.
+- Lavish pages render through one command,
+  `afk-python "${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"`, with the same
+  shapes as before (`<file> [--no-open|--reopen]`, `poll`, `end`, `stop`,
+  `playbook`). It injects the tooltips, side-question control, page navigation
+  and dark mode before a render or poll, then runs the pinned `lavish-axi` with
+  the same arguments, output and exit status. It refuses `share`,
+  `setup hooks`, `update` and `LAVISH_AXI_HOST` with exit 64. On Windows, a
+  killed wrapper takes the upstream down. A `.cmd` install that cannot tie the
+  upstream's lifetime to the wrapper starts nothing and exits 69.
+- A poll on an intact page no longer rewrites it: injection writes the file
+  only when its bytes change, so the page the human is answering does not
+  reload under them.
+- The protected-branch guard also refuses a shell call that runs `lavish-axi`
+  directly or sets `LAVISH_AXI_HOST`, and names the wrapper command. Searches,
+  mentions and `lavish-axi --version` pass. `AFK_ALLOW_PROTECTED=1` does not
+  lift this rule. The native contract gate refuses a direct `lavish-axi` run
+  in plugin scripts, workflow `run:` steps and prose (check N), read with the
+  guard's own shell reader.
+- The guard's shell reader skips comments and reads a `.cmd`, `.bat` or `.ps1`
+  launcher as the program it names. A comment ends at its line even when it
+  ends in `\` or a backtick. The lavish rule and check N read the word after
+  `if`, `then`, `elif`, `else`, `while`, `until`, `do` or `!` as a program;
+  mutation checks read control words as before.
+- Domain glossaries for tooltips come from the repository that holds the page,
+  else from the session folder's repository.
+
+### Removed
+
+- `hooks/stop-gates.sh`. Stop runs only the repository's own handlers from
+  `.afk/hooks.json`.
+- The `lavish-dark.sh` and `lavish-tips.sh` PreToolUse hooks, which started two
+  shells on every Bash and PowerShell call. The seed dictionary moved from
+  `hooks/lavish-tips.json` to `scripts/lavish/tips.json`.
+
+### Fixed
+
+- **Hooks start fewer processes on Windows.** Where security software scans
+  every process start, each start can cost up to 0.7 s. Hooks read input
+  fields with bash builtins instead of a `grep`/`sed` pipe, and the provider
+  library finds its own folder without `dirname`. The launcher starts
+  `<git>/usr/bin/bash.exe` directly, with the environment the `<git>/bin`
+  launcher would have set, and writes a PreToolUse deny itself instead of
+  starting another shell.
+- **A slow repository hook is reported as a timeout.** A handler in
+  `.afk/hooks.json` that ran past its `timeout` used to be denied as one "this
+  checkout cannot run", with advice to fix the manifest. It still blocks, but
+  the message now says it timed out and that start-up counts.
+- **Rationale comments on GitLab verify again.** GitLab stamps `lastEditedAt`
+  on every new comment, so the adapter read every new note as edited and
+  `rationale-verify` could never pass. A note is now edited only when GitLab
+  names its editor (`lastEditedBy`). A token that cannot read users hides the
+  editor and the author alike, and the adapter then reports an error instead
+  of calling the note unedited.
+- A failing hook now names itself: `[afk] <handler> (<event>) failed: exit <n>: <reason>`
+  on stderr, for every plugin and repository handler, a timeout, and a crash in
+  the launcher, the guard, the meter or occupancy. Where the harness drops a
+  failed hook's stderr, the same line arrives as a warning and the hook exits 0.
+- A plugin handler's refusal on PreToolUse or Stop (a deny or block document,
+  or exit 2) now blocks on every harness whatever its exit code; before, a
+  document at a non-zero exit let the tool run where the harness reads
+  decisions only at exit 0. Exit 2 on any other event is a failure.
+- The worktree-create hook says why when it gets no path.
+- `/afk:setup` now says which processes to restart after it changes `PATH`,
+  including a harness's background daemon and its updater. A daemon started
+  before the change runs every hook without `afk-python`, and every hook then
+  fails with exit 1.
+
+### Fixed
+
+- The wiring gate and `/afk:verify-seams` no longer treat untracked files as
+  new artifacts. A file untracked before the work started cannot be wired by
+  it; candidates are now staged adds and commits ahead of the merge-base (#98).
+
 - **An investigation can declare a name form absent.** A subject that no site
   writes as an import alias or a wire name — a module constant, a private
   helper — left B1 and every class resting on it `partial`, because the seed
@@ -47,29 +138,6 @@ release page from its section here. Nobody tags by hand.
   ledger records the form with `absent: true` and the reason, and B1 closes. A
   form given both as `--alias` and `--absent` is refused. The ground re-take in
   `/afk:execute` cited mode passes the cited ledger's absent forms back.
-
-- `python hooks/tests/bench-hooks.py` times every hook command the manifest
-  registers against realistic envelopes and prints p50 and p95 per event and
-  per handler. It covers every event in both manifests, runs session and
-  worktree events in a disposable clone, and sets only the selected harness's
-  environment. It is informational and asserts no budget.
-- A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
-  four plugin-source gates on Linux and on Windows Git Bash for every pull
-  request and every push to `main`.
-- `/afk:setup` checks for git 2.46 or newer (register row C2b). Older git never
-  shows a branch switch to the protected-branch backstop, and the tests that
-  need it skip there.
-
-### Changed
-
-- `hooks/tests/hook-smoke.sh` fails without jq instead of skipping, so a run
-  with no coverage never reads as green.
-
-- The commit gates stop at the first block and run the cheap gates first: the
-  comment gate, the plugin contract gate, then format and lint before compile.
-  A blocked commit no longer waits for a compile it cannot pass.
-
-### Fixed
 
 - **A fragment can answer a verdict the staging ledger left open.** The
   investigation merge treated a node as settled once its disposition was, so a
@@ -132,6 +200,112 @@ release page from its section here. Nobody tags by hand.
   reading stays ground. The investigate skill now says a delta tracer
   answers every node a fold reopened as a conflict before the run validates.
 
+## [1.15.0] - 2026-10-07
+
+### Added
+
+- `/afk:setup` installs the runtime on a machine with no Python at all: a
+  small `bootstrap.sh` (macOS, Linux) or `bootstrap.ps1` (Windows) fetches the
+  pinned uv, which fetches the pinned CPython and runs the installer.
+- `afk-python hooks/tests/bench-hooks.py --budgets` checks the launcher's early
+  exits against a p50 ceiling each; the `tests` workflow reports it without
+  failing on it.
+
+### Changed
+
+- Every hook, MCP server, skill script, adapter, git hook and CI job runs
+  under `afk-python`. Until `/afk:setup` has installed it, the harness reports
+  each hook as failed and carries on: no gate runs, the protected-branch guard
+  is off, and the harness's own worktree tool cannot create a worktree.
+- A hook with nothing to do starts no shell. The launcher exits at once when
+  the repository declares no hook for the event, and when the harness's
+  provider declaration makes the plugin handler a no-op (nested steering where
+  the harness reads nested files itself, the `instructionFiles` notice where
+  that setting does not exist).
+- The launcher runs a hook only when `AFK_PYTHON` names its own interpreter;
+  any other interpreter fails like a missing shell and names `/afk:setup`.
+- **Migration:** run `/afk:setup` **before** upgrading, then restart the
+  harness. Where the harness asks you to trust plugin hooks (`PROVIDERS.md`),
+  trust them again: every hook command changed.
+
+### Removed
+
+- The `python`, `python3` and `py -3` fallbacks and the `AFK_PY` override.
+  The plugin runs no Python but `afk-python`; the native contract gate
+  refuses any other interpreter on a live surface.
+- Register row P2 (system Python and its packages, `mcp<2` included) and the
+  setup-reminder SessionStart notice, which ran under the interpreter it
+  reported missing.
+
+### Fixed
+
+- `/afk:setup` no longer reports trusted hooks as missing: the hook-trust probe
+  accepts the snake_case event keys the harness config now holds. O4 runs the
+  same script over every handler (`check_hook_trust.py --all`).
+- `/afk:setup` marks C4/C5 (Maven) n/a unless `maven` is a build gate, and S1
+  (Jira credentials) n/a unless the tracker is Jira.
+- `/afk:setup` H6 no longer fails forever on answers saved machine-wide or on
+  the optional `mrAssignee`; answers go to the repository.
+- `/afk:setup` probes keep the `gh`/`glab` masked token line out of the
+  transcript and read the lavish-axi pin without shell-sensitive escapes.
+- `/afk:setup` tells the agent how to set `AFK_PLUGIN_ROOT`; the strays row is
+  renumbered H14 (H12 was used twice).
+
+## [1.14.0] - 2026-10-07
+
+### Added
+
+- `python hooks/tests/bench-hooks.py` times every hook command the manifest
+  registers against realistic envelopes and prints p50 and p95 per event and
+  per handler. It covers every event in both manifests, runs session and
+  worktree events in a disposable clone, and sets only the selected harness's
+  environment. It is informational and asserts no budget.
+- A `tests` GitHub workflow runs the unit tests, the hook smoke tests and the
+  four plugin-source gates on Linux and on Windows Git Bash for every pull
+  request and every push to `main`.
+- `/afk:setup` checks for git 2.46 or newer (register row C2b). Older git never
+  shows a branch switch to the protected-branch backstop, and the tests that
+  need it skip there.
+
+### Changed
+
+- The protected-branch guard now refuses a mutation by the resource it changes, not by command shape. Pipes, redirects to the null device and unknown programs run in the main checkout. The main checkout may `git pull --ff-only` its base branch. A shell call that still changed a guarded checkout is reported after the call and holds the session until it runs the printed recovery. A linked worktree has one live holder, or one team (`AFK_WORKTREE_GROUP`, or one herdr tab). A harness that gates new hooks behind trust asks you to trust two new hook entries once (`PROVIDERS.md` "Protected-branch guard").
+
+- `hooks/tests/hook-smoke.sh` fails without jq instead of skipping, so a run
+  with no coverage never reads as green.
+
+- The commit gates stop at the first block and run the cheap gates first: the
+  comment gate, the plugin contract gate, then format and lint before compile.
+  A blocked commit no longer waits for a compile it cannot pass.
+- `/afk:setup` installs the AFK Python runtime, after it asks: a pinned uv, a
+  pinned CPython 3.14.8, and a private environment synced from the checked-in
+  hash lock `runtime/uv.lock`, from wheels only. The runtime is exposed only as
+  the `afk-python` command, which is the pinned interpreter itself running in
+  that environment, and its directory is added to your user PATH. Your own
+  `python` stays untouched. `/afk:setup base` adds pytest, and
+  `/afk:setup audit` checks the command, the version, the environment, the
+  installed packages against the lock, and the imports. Setup ignores your
+  `UV_*` settings and installer download overrides, and keeps proxy, TLS and
+  uv's HTTP timeout, retry and download-concurrency settings. Windows on ARM and Intel macOS are not supported yet: the
+  lock has no prebuilt `cryptography` wheel there, and setup stops with that
+  reason.
+- A one-line SessionStart notice asks you to run `/afk:setup` until
+  `afk-python` resolves to the same file setup installed and verified.
+- **Migration:** run `/afk:setup` and restart the harness. The next release
+  runs every hook and MCP command through `afk-python`.
+
+- The protected-branch guard reuses a forge answer for at most 5 minutes, in
+  `<git common dir>/afk/protection-cache.json`, so a guarded action in a linked
+  worktree no longer asks the forge every time. The remote's default branch,
+  `main` and `master` are still asked at every check, and a failed read is never
+  reused. `AFK_PROTECTION_CACHE_TTL=0` asks the forge every time. A clone with
+  no `refs/remotes/origin/HEAD` asks the forge every time for every branch; run
+  `git remote set-head origin --auto` to set it.
+
+### Fixed
+
+- `/afk:setup` installs `mcp<2` into the system Python. `mcp` 2 removed the
+  module the Jira tracker server imports, so a fresh install failed to connect.
 - `/afk:setup` removes legacy native AFK marketplace pins and installs or
   refreshes that marketplace without `--ref`, so later marketplace upgrades are
   not held to an old release.

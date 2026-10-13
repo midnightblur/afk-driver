@@ -95,7 +95,7 @@ _Avoid_: feature glossary (real domain vocabulary graduates to the service gloss
 The `plan/` directory — `PLAN.md` (index: solution map, seam register, progress tracker, smoke gate) plus one subtask contract per slice. A local contract, never Jira issues.
 
 **Main checkout (`<main-checkout>`)**:
-The repo's primary checkout — the first entry of `git worktree list`, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from the INSTALLED plugin root — `${AFK_PLUGIN_ROOT}` inside a hook, and the path `claude plugin details afk@afk-toolkit` reports elsewhere — never from a path inside the checkout. The main checkout matters for the repository's own artifacts, above all `.claude/lessons/LEDGER.jsonl`, which every worktree appends to. Cwd stays wherever the work is.
+The repo's primary checkout — the first entry of `git worktree list`, resolvable from inside any worktree. Plugin definition (skills, hooks, scripts) is always read and executed from the INSTALLED plugin root — `${AFK_PLUGIN_ROOT}` inside a hook; elsewhere, the directory three levels above a loaded skill's own directory (`skills/<group>/<name>`) — never from a path inside the checkout. The main checkout matters for the repository's own artifacts, above all `.claude/lessons/LEDGER.jsonl`, which every worktree appends to. Cwd stays wherever the work is.
 _Avoid_: a repository-relative plugin path (there is no plugin inside the repository)
 
 **Subtask contract**:
@@ -130,7 +130,7 @@ The `FRESHNESS.md` table mapping each plugin-source artifact to its steward and 
 _Avoid_: freshness registry (the file is `FRESHNESS.md`, but the table is the artifact registry)
 
 **Tooltip dictionary**:
-The persistent term → explanation map every lavish artifact inherits — seed `hooks/lavish-tips.json` merged with this workflow glossary and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render time by `hooks/lavish-tips.sh`; an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
+The persistent term → explanation map every lavish artifact inherits — seed `scripts/lavish/tips.json` merged with this workflow glossary, the repository's domain glossaries and the feature terms file (most specific wins; all committed, so a session resumes on any machine). Injected deterministically at render and poll time by `scripts/lavish_show.py` (engine `scripts/lavish/inject.py`); an agent's only job is giving missing terms a committed home once. Doctrine: `LAVISH.md` "Tooltips".
 _Avoid_: legend (the on-page section this layer retires), glossary (that is the domain/methodology vocabulary system)
 
 **Grill-question triage (debate / confirm)**:

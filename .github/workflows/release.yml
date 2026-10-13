@@ -35,13 +35,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install afk-python
+        # The setup bootstrap: the pinned uv and CPython, the locked packages, no system Python.
+        run: |
+          sh skills/afk/setup/scripts/bootstrap.sh install
+          echo "${XDG_DATA_HOME:-$HOME/.local/share}/afk/python/afk-bin" >> "$GITHUB_PATH"
+
       - name: Resolve the version
         id: version
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             tag="${GITHUB_REF_NAME}"
           else
-            tag="v$(python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+            tag="v$(afk-python -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
@@ -71,5 +77,5 @@ jobs:
             echo "Release ${TAG} already exists; nothing to publish."
             exit 0
           fi
-          python .github/scripts/changelog_section.py "${TAG}" > notes.md
+          afk-python .github/scripts/changelog_section.py "${TAG}" > notes.md
           gh release create "${TAG}" --verify-tag --title "${TAG}" --notes-file notes.md

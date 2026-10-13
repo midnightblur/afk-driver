@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env afk-python
 """validate_plan_smoke.py — end-to-end smoke test for validate_plan.py.
 
 Builds disposable fixture plans in a temp dir (never touches a real checkout):

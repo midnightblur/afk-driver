@@ -4,7 +4,7 @@
 # Two forms, one implementation:
 #   sourced  — defines afk_bg_maven_discover / afk_bg_maven_run / afk_bg_maven_app_start,
 #              which the commit runner calls in ITS process so the shared gate
-#              context, pass cache and metrics stay live (see hooks/stop-gates.sh
+#              context, pass cache and metrics stay live (see hooks/gate-context.sh
 #              on why gate cost is measured in subprocesses).
 #   executed — the CLI form the contract documents:
 #                bash gates.sh gate-discover
