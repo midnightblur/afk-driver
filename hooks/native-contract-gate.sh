@@ -89,10 +89,14 @@ def read(path: Path) -> str:
 # scope and carry narrow allowlist entries so new coupling cannot hide there.
 excluded_prose = {"PROVIDERS.md", "CAPABILITIES.md", "providers/CONFORMANCE.md", "providers/HARNESS-MATRIX.md"}
 # Feature spec folders are design records that quote harness facts as
-# evidence; no agent loads them as skill prose.
+# evidence; no agent loads them as skill prose. Checks A, J and K skip them.
+def spec_record(path_rel: str) -> bool:
+    return path_rel.startswith("docs/afk/")
+
+
 scan_files = [
     path for path in sorted(plugin.rglob("*.md"))
-    if rel(path) not in excluded_prose and not rel(path).startswith("docs/afk/")
+    if rel(path) not in excluded_prose and not spec_record(rel(path))
 ]
 
 allow_file = plugin / "hooks/native-contract-allow.txt"
@@ -454,7 +458,7 @@ for path in sorted(plugin.rglob("*")):
         for number, line in enumerate(lines, 1):
             if (number == 1 and shebang.search(line)) or python_problem(line):
                 interpreter_problem(path_rel, number, line, "python source")
-    elif path.suffix == ".md":
+    elif path.suffix == ".md" and not spec_record(path_rel):
         fenced = False
         for number, line in enumerate(read(path).splitlines(), 1):
             if line.lstrip().startswith("```"):
@@ -556,7 +560,7 @@ for helper in sorted(plugin.glob("hooks/lib/providers/*_*.py")):
             continue
         if candidate.suffix not in {".sh", ".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"}:
             continue
-        if "scripts/tests" in candidate.relative_to(plugin).as_posix():
+        if "scripts/tests" in candidate.relative_to(plugin).as_posix() or spec_record(rel(candidate)):
             continue
         try:
             text = read(candidate)
