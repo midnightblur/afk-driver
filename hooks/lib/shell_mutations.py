@@ -22,6 +22,7 @@ EXPANDS = ("$(", "`", "<(")
 CD = {"cd", "chdir", "set-location", "sl", "pushd", "push-location"}
 PUSH = {"pushd", "push-location"}
 POP = {"popd", "pop-location"}
+TOPLEVEL = re.compile(r"^(?:\$\(git rev-parse --show-toplevel\)|`git rev-parse --show-toplevel`)([\\/][\w.\\/-]*)?$")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 CONTINUATION = re.compile(r"[\\`]\r?\n")  # Bash `\` and PowerShell backtick, outside comments and single quotes
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
@@ -50,10 +51,11 @@ VALUE_OPTS = {"touch": {"t", "d", "r", "date", "reference"}, "mkdir": {"m", "mod
 
 
 class Word:
-    __slots__ = ("text", "opaque")
+    __slots__ = ("text", "opaque", "split")
 
-    def __init__(self, text: str, opaque: bool):
+    def __init__(self, text: str, opaque: bool, split: bool | None = None):
         self.text, self.opaque = text, opaque
+        self.split = opaque if split is None else split  # an unquoted expansion can become several words
 
 
 class Segment:
@@ -69,7 +71,7 @@ class Segment:
 def read_word(text: str, i: int) -> tuple[Word | None, int]:
     """One shell word from `i`: quotes and escapes resolved, `$`, backtick and globs mark it opaque."""
     chars: list[str] = []
-    opaque = quoted = False
+    opaque = quoted = split = False
     n = len(text)
     while i < n:
         c = text[i]
@@ -105,12 +107,12 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
             i += 2
         else:
             if c in "$`*?[%":
-                opaque = True
+                opaque = split = True
             chars.append(c)
             i += 1
     if not chars and not quoted:
         return None, i
-    return Word("".join(chars), opaque), i
+    return Word("".join(chars), opaque, split), i
 
 
 def segments(text: str) -> list[Segment]:
@@ -505,8 +507,15 @@ def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> li
     return []
 
 
-def cd_target(words: list[Word], here: Path | None) -> Path | None:
-    """The folder a `cd`-class command moves to, or None when it is not literal."""
+def cd_target(words: list[Word], here: Path | None, toplevel=None) -> Path | None:
+    """The folder a `cd`-class command moves to, or None when it is not literal.
+
+    `toplevel(folder)` answers the one substitution read: the repository root, `git rev-parse --show-toplevel`.
+    """
+    root = TOPLEVEL.match(" ".join(w.text for w in words[1:]))
+    if root:
+        found = toplevel(here) if toplevel is not None and here is not None else None
+        return resolve(Word(str(found) + (root.group(1) or ""), False), None) if found is not None else None
     positional, targets, _ = parse(words[1:])
     chosen = targets or positional[:1]
     if not chosen:
@@ -521,8 +530,11 @@ def stack_only(words: list[Word]) -> bool:
         program_of(words[0]) == "pushd" and not args)
 
 
-def exported(words: list[Word], powershell: bool) -> list[tuple[str, Word | None]]:
-    """The git variables an `export` or a PowerShell `$env:` assignment sets for later segments."""
+def exported(words: list[Word], powershell: bool, assigned: dict | None = None) -> list[tuple[str, Word | None]]:
+    """The git variables an `export` or a PowerShell `$env:` assignment sets for later segments.
+
+    A bare `export NAME` carries the value `assigned` holds for it; an unknown value is None.
+    """
     match = PS_GIT_ENV.match(words[0].text) if powershell and words else None
     if match:
         if match.group(2) is not None:
@@ -534,31 +546,34 @@ def exported(words: list[Word], powershell: bool) -> list[tuple[str, Word | None
         return []
     found: list[tuple[str, Word | None]] = []
     for word in words[1:]:
-        name, _, value = word.text.partition("=")
+        name, equals, value = word.text.partition("=")
         if name in GIT_ENV:
-            found.append((name, Word(value, word.opaque)))
+            found.append((name, Word(value, word.opaque) if equals else (assigned or {}).get(name)))
         elif word.opaque and not ASSIGN.match(word.text):
             found.append(("GIT_DIR", None))  # an opaque name could be any git variable
     return found
 
 
-def steps(command: str, cwd: Path | None, powershell: bool = False):
+def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=None):
     """(segment, words without wrappers, folder it runs in, folder before it) per command segment.
 
     A `cd`, `pushd` or `popd` outside a pipeline moves later segments; a folder change inside `( )`
-    ends at the `)` unless `powershell`. A folder is None when it is not literal.
+    ends at the `)` unless `powershell`. A folder is None when it is not literal. `toplevel` is
+    passed to `cd_target`.
     """
     here: Path | None = cwd
-    saved: list[tuple[Path | None, dict]] = []
+    saved: list[tuple[Path | None, dict, dict]] = []
     pushed: list[Path | None] = []
     git_env: dict[str, Word | None] = {}
+    assigned: dict[str, Word | None] = {}  # shell variables a later bare `export` exports
     for segment in segments(command):
         if segment.mark:
             if segment.mark == "open":
-                saved.append((here, dict(git_env)))
+                saved.append((here, dict(git_env), dict(assigned)))
             elif saved:
-                kept, kept_env = saved.pop()
-                here, git_env = (here, git_env) if powershell else (kept, kept_env)
+                kept, kept_env, kept_vars = saved.pop()
+                if not powershell:
+                    here, git_env, assigned = kept, kept_env, kept_vars
             continue
         effects: dict = {}
         words = strip_prefixes(segment.words, effects)
@@ -568,14 +583,19 @@ def steps(command: str, cwd: Path | None, powershell: bool = False):
         prog = program_of(words[0]) if words else ""
         if segment.piped:
             continue
-        for name, value in exported(segment.words if powershell else words, powershell):
-            git_env[name] = value
+        if not words and not effects.get("opaque"):
+            for name, value in effects.get("git_env", []):  # a bare assignment; an exported name stays exported
+                assigned[name] = value
+                if name in git_env:
+                    git_env[name] = value
+        for name, value in exported(segment.words if powershell else words, powershell, assigned):
+            git_env[name] = assigned[name] = value
         if prog in PUSH | POP and stack_only(words):
             here = None
         elif prog in CD:
             if prog in PUSH:
                 pushed.append(here)
-            here = cd_target(words, here)
+            here = cd_target(words, here, None if git_env or effects.get("git_env") else toplevel)
         elif prog in POP:
             here = pushed.pop() if pushed else None
 

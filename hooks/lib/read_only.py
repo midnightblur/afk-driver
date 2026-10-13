@@ -2,8 +2,8 @@
 
 `proven(words, redirects)` is True only for a listed program in a listed read-only form whose
 redirects reach no file. An unlisted program, a path-qualified program, a write flag, a command
-substitution, an opaque argument to a form whose flags decide what it does, or a PowerShell script
-block is unproven. protected_branch_guard runs only proven
+substitution, an opaque argument to a form whose flags decide what it does (outside a value-only
+position, `value_only`), or a PowerShell script block is unproven. protected_branch_guard runs only proven
 segments in a guarded placement; grow the list here, one tested form at a time.
 """
 from __future__ import annotations
@@ -30,6 +30,8 @@ HERDR_READ = {("status",), ("pane", "list"), ("pane", "current"), ("pane", "get"
               ("agent", "explain"), ("workspace", "list"), ("workspace", "get"), ("tab", "list"), ("tab", "get"),
               ("worktree", "list"), ("session", "list"), ("api", "snapshot"), ("integration", "status"),
               ("machine", "list")}
+FIND_VALUE = {"-name", "-iname", "-path", "-ipath", "-type"}  # each takes exactly one operand
+VIEW_GROUPS = {"gh": {"pr", "issue", "run", "release", "repo"}, "glab": {"mr", "issue", "release", "repo"}}
 FIND_WRITES = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
 GIT_READERS = {"status", "log", "diff", "show", "grep", "rev-parse", "ls-files", "describe", "blame", "shortlog",
                "cat-file", "ls-tree", "merge-base", "for-each-ref", "rev-list", "name-rev", "check-ignore",
@@ -78,11 +80,22 @@ def proven(words: list[sm.Word], redirects: list[sm.Word]) -> bool:
     if check is None:
         return prog in PLAIN
     ended = False
-    for word in stripped[1:]:
+    for at, word in enumerate(stripped[1:]):
         ended = ended or (word.text == "--" and not word.opaque and prog in ("git", "rg"))
-        if word.opaque and not ended:
+        if word.opaque and not ended and not value_only(prog, stripped[1:], at):
             return False  # an expansion could become the flag that writes or runs a program
     return check(args)
+
+
+def value_only(prog: str, words: list[sm.Word], at: int) -> bool:
+    """An opaque word that can only be a value: a quoted `find` predicate operand, or any word after a
+    literal `gh`/`glab` `<group> view`, whose every flag reads (checked against each `--help`)."""
+    if prog == "find":
+        before = words[at - 1] if at else None
+        return before is not None and not before.opaque and before.text in FIND_VALUE and not words[at].split
+    head = words[:2]
+    return (at >= 2 and all(not w.opaque for w in head) and head[0].text in VIEW_GROUPS.get(prog, ())
+            and head[1].text == "view")
 
 
 def _shorts(args: list[str]) -> str:

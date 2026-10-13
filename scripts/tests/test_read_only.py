@@ -95,6 +95,14 @@ def proven(command: str) -> bool:
     ("env ls", "env --split-string='touch changed'"),
     ("Get-ChildItem -Force", "Get-Report"),
     ("Get-Content a.txt", "Get-Command make"),
+    ('find . -name "$x"', "find . -name $x"),
+    ('find . -iname "$x" -type f', 'find "$dir" -name x'),
+    ('find . -path "$p" -type "$t"', 'find . -newer "$x"'),
+    ("gh pr view $n", "gh $GROUP view 12"),
+    ('gh run view "$id" --log', "gh -R $REPO pr view 12"),
+    ("gh issue view $n --comments", "gh pr $VERB $n"),
+    ('glab mr view "$id"', "glab mr $VERB 1"),
+    ("glab issue view $n", "glab $GROUP view 1"),
 ])
 def test_a_listed_form_is_proven_and_its_mutating_twin_is_not(command, twin):
     assert proven(command), command

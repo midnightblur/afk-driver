@@ -36,6 +36,7 @@ import read_only  # noqa: E402
 import shell_mutations  # noqa: E402
 
 PLUGIN_ROOT = Path(os.environ.get("AFK_PLUGIN_ROOT") or Path(__file__).resolve().parents[2])
+OWN_ROOT = Path(__file__).resolve().parents[2]  # the plugin this guard runs from
 PROVIDERS = Path(__file__).resolve().parent / "providers"
 PATCH_TARGET = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$", re.M)
 TARGET_KEYS = ("file_path", "notebook_path", "path")
@@ -43,8 +44,8 @@ PATH_KEY = re.compile(r"path|file", re.I)
 MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", "rename", "move",
             "exec", "execute", "run", "terminal", "apply", "patch", "commit", "push", "insert", "set",
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
-PLUGIN_SCRIPT = re.compile(r"^\$\{?(?:AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT)\}?[\\/]scripts[\\/]create-worktree$")
-PLUGIN_PATH = re.compile(r"^\$\{?(?:AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT)\}?[\\/]([\w.\\/-]+)$")
+ROOT_NAMES = "AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT"
+ROOT_REF = re.compile(r"^\$(?:\{(?P<braced>%s)\}|(?P<bare>%s)(?!\w))(?P<rest>[\\/][\w.\\/-]*)?$" % (ROOT_NAMES, ROOT_NAMES))
 UNKNOWN_CAUSE = ("it runs in a folder the guard cannot know (after an opaque, `cd -` or stack-only folder change, "
                  "or an opaque git variable), so it cannot prove where this part writes")
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
@@ -509,14 +510,43 @@ def move_hint(facts: dict, envelope: dict, judge: "Judge", here: dict | None, re
     return hint
 
 
-def create_worktree(words: list, folder: Path | None) -> bool:
-    """The plugin's own `scripts/create-worktree`, named by its path or under `$AFK_PLUGIN_ROOT`."""
-    if not words:
+def bound_root(name: str, command: str, powershell: bool) -> Path | None:
+    """The guard's own value of a plugin-root variable; None when the command could rebind it (any mention
+    but `$NAME` or `${NAME}`), PowerShell reads it as its own variable, or the value leaves the guard's root."""
+    rest = re.sub(r"\$\{%s\}|\$%s(?!\w)" % (name, name), "", command)
+    value = os.environ.get(name)
+    if powershell or not value or re.search(r"(?<!\w)%s(?!\w)" % name, rest):
+        return None
+    root = canonical(Path(value))
+    return root if within(root, canonical(OWN_ROOT)) else None
+
+
+def within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
         return False
-    if words[0].opaque:
-        return bool(PLUGIN_SCRIPT.match(words[0].text))
-    full = shell_mutations.resolve(words[0], folder) if re.search(r"[\\/]", words[0].text) else None
-    return full is not None and norm(full) == norm(PLUGIN_ROOT / "scripts" / "create-worktree")
+    return True
+
+
+def plugin_file(word, folder: Path | None, command: str, powershell: bool) -> str | None:
+    """The plugin-relative path a script word names, proven to sit under the guard's own root."""
+    match = ROOT_REF.match(word.text) if word.opaque else None
+    if match:
+        root = bound_root(match.group("braced") or match.group("bare"), command, powershell)
+        full = canonical(root / (match.group("rest") or "").strip("\\/")) if root is not None else None
+    elif not word.opaque and re.search(r"[\\/]", word.text):
+        full = shell_mutations.resolve(word, folder)
+        full = canonical(full) if full is not None else None
+    else:
+        return None
+    own = canonical(OWN_ROOT)
+    return full.relative_to(own).as_posix() if full is not None and within(full, own) else None
+
+
+def create_worktree(words: list, folder: Path | None, command: str, powershell: bool) -> bool:
+    """The plugin's own `scripts/create-worktree`, named by its path or under a proven `$AFK_PLUGIN_ROOT`."""
+    return bool(words) and plugin_file(words[0], folder, command, powershell) == "scripts/create-worktree"
 
 
 def _mission_control(args: list[str]) -> list[str] | None:
@@ -544,7 +574,7 @@ PLUGIN_FORMS = {
     ("afk-python", "skills/afk/mission-control/scripts/mission_control.py"): _mission_control,
     ("afk-python", "scripts/lavish_show.py"): _lavish_show,
     ("afk-python", "scripts/glossary_usage.py"): lambda a: [] if len(a) <= 1 else None,
-    ("afk-python", "skills/afk/setup/scripts/python_runtime.py"): lambda a: [] if a == ["check"] else None,
+    ("afk-python", "skills/afk/setup/scripts/python_runtime.py"): lambda a: [] if a in (["check"], ["check", "--test"]) else None,
     ("afk-python", "scripts/behavior_registry.py"):
         lambda a: [] if a[:1] in (["validate"], ["audit"]) and not any(x.startswith("--output") for x in a) else None,
     ("bash", "hooks/lesson-digest.sh"): lambda a: [] if a in ([], ["--count"], ["--all"]) else None,
@@ -552,27 +582,27 @@ PLUGIN_FORMS = {
 }
 
 
-def plugin_targets(segment, words: list) -> list | None:
+ROOT_ARGUMENT = {"scripts/glossary_usage.py"}  # forms that take the plugin root itself as their argument
+
+
+def plugin_targets(segment, words: list, spot: Path | None, command: str, powershell: bool) -> list | None:
     """The words an allowed plugin-script form writes ([] for none), or None when it is not one."""
     if len(words) < 2 or any(w.text.lower() not in shell_mutations.NO_TARGET for w in segment.redirects):
         return None
-    script = words[1]
-    match = PLUGIN_PATH.match(script.text) if script.opaque else None
-    if match:
-        rel = match.group(1).replace("\\", "/")
-    elif not script.opaque and re.search(r"[\\/]", script.text):
-        full = shell_mutations.resolve(script, None)
-        try:
-            rel = full.relative_to(PLUGIN_ROOT).as_posix() if full is not None else ""
-        except ValueError:
+    rel = plugin_file(words[1], spot, command, powershell)
+    check = PLUGIN_FORMS.get((words[0].text.lower(), rel)) if rel is not None else None
+    if check is None:
+        return None
+    args = []
+    for word in words[2:]:
+        match = ROOT_REF.match(word.text) if word.opaque and rel in ROOT_ARGUMENT else None
+        root = bound_root(match.group("braced") or match.group("bare"), command, powershell) \
+            if match and not match.group("rest") else None
+        if word.opaque and root is None:
             return None
-    else:
-        return None
-    check = PLUGIN_FORMS.get((words[0].text.lower(), rel))
-    if check is None or ".." in rel.split("/") or any(w.opaque for w in words[2:]):
-        return None
-    found = check([w.text for w in words[2:]])
-    return None if found is None else [w for w in words[2:] if w.text in found]
+        args.append(shell_mutations.Word(str(root), False) if root is not None else word)
+    found = check([w.text for w in args])
+    return None if found is None else [w for w in args if w.text in found]
 
 
 def confined(segment, words: list, spot: Path | None, here: Path | None, powershell: bool) -> bool:
@@ -595,14 +625,14 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
     """(segment text, placement, cause, is a pull) of the first segment that runs in a guarded placement
     and is not proven read-only; None when there is none. A confined segment is judged later, at its targets."""
     seen: dict[str, tuple] = {}
-    for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell):
-        if read_only.proven_segment(segment) or create_worktree(words or segment.words, spot):
+    for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell, toplevel):
+        if read_only.proven_segment(segment) or create_worktree(words or segment.words, spot, command, powershell):
             continue
         text = " ".join(w.text for w in segment.words)[:80]
-        folders, pull = git_env_folders(segment, spot), False
-        written = plugin_targets(segment, words)
+        folders, pull = [], False
+        written = plugin_targets(segment, words, spot, command, powershell)
         if written is not None:
-            folders += [shell_mutations.resolve(w, spot) for w in written]
+            folders += git_env_folders(segment, spot) + [shell_mutations.resolve(w, spot) for w in written]
         elif confined(segment, words, spot, here, powershell) and not segment.git_env:
             continue
         elif words and shell_mutations.program_of(words[0]) == "git":
@@ -611,9 +641,11 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
             if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None \
                     and not segment.git_env:
                 continue  # the sync is judged at its folder (ADR-0011)
+            # git applies -C before it reads a relative GIT_DIR, GIT_WORK_TREE or GIT_COMMON_DIR
+            folders += git_env_folders(segment, after_c)
             folders += [after_c if w is None else shell_mutations.resolve(w, after_c) for w in (gitdir, workdir)]
         else:
-            folders.append(spot)
+            folders += git_env_folders(segment, spot) + [spot]
         if any(folder is None for folder in folders):
             state["identified"] = True
             return text, None, UNKNOWN_CAUSE, pull
@@ -628,6 +660,13 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
             if cause:
                 return text, place, cause, pull
     return None
+
+
+def toplevel(folder: Path) -> Path | None:
+    """`git rev-parse --show-toplevel` in `folder`, as the shell's substitution answers it; None on failure."""
+    done = git(folder, "rev-parse", "--show-toplevel")
+    line = done.stdout.strip() if done.returncode == 0 else ""
+    return Path(line) if line and os.path.isabs(line) else None
 
 
 def git_env_folders(segment, spot: Path | None) -> list:

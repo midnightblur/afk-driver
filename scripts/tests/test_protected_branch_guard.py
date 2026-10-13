@@ -1038,3 +1038,97 @@ def test_review1_a_plugin_script_form_that_writes_the_main_checkout_is_refused(r
                     'bash "$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh"',
                     f"afk-python {MC} {spec} --check-digests > digests.json"):
         assert bash(repo["main"], command).returncode == 2, command
+
+
+# ---------------------------------------------------------------- review round 2
+
+STOP = 'afk-python "$AFK_PLUGIN_ROOT/scripts/lavish_show.py" stop'
+
+
+@pytest.mark.parametrize("command", [
+    "AFK_PLUGIN_ROOT={fake} " + STOP,
+    "export AFK_PLUGIN_ROOT={fake}; " + STOP,
+    "AFK_PLUGIN_ROOT={fake}; " + STOP,
+    "env AFK_PLUGIN_ROOT={fake} " + STOP,
+    'afk-python "${{AFK_PLUGIN_ROOT:={fake}}}/scripts/lavish_show.py" stop',
+    'export AFK_PLUGIN_ROOT={fake}; "$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other',
+])
+def test_review2_a_rebound_plugin_root_is_not_trusted(repo, command):
+    fake = repo["tmp"] / "not-afk"
+    assert bash(repo["main"], command.format(fake=fake.as_posix())).returncode == 2, command
+
+
+def test_review2_a_plugin_root_outside_the_guard_is_not_trusted(repo):
+    fake = repo["tmp"] / "not-afk"
+    (fake / "scripts").mkdir(parents=True)
+    done = run("claude", repo["main"], "Bash", {"command": STOP}, AFK_PLUGIN_ROOT=str(fake))
+    assert done.returncode == 2
+    assert bash(repo["main"], STOP).returncode == 0
+
+
+def test_review2_the_audit_glossary_check_runs_in_the_main_checkout(repo):
+    script = 'afk-python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py"'
+    assert bash(repo["main"], f'{script} "$AFK_PLUGIN_ROOT"').returncode == 0
+    assert bash(repo["main"], f'{script} "$OTHER"').returncode == 2
+    assert bash(repo["main"], f'{script} "$AFK_PLUGIN_ROOT/x"').returncode == 2
+
+
+def test_review2_the_runtime_base_probe_runs_in_the_main_checkout(repo):
+    script = 'afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py"'
+    assert bash(repo["main"], f"{script} check --test").returncode == 0
+    assert bash(repo["main"], f"{script} install --test").returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR=repo/.git git -C {tmp} commit -q --allow-empty -m x",
+    "GIT_WORK_TREE=repo git -C {tmp} reset --hard",
+    "GIT_COMMON_DIR=repo/.git git -C {tmp} commit -q --allow-empty -m x",
+    "export GIT_DIR=repo/.git; git -C {tmp} commit -q --allow-empty -m x",
+])
+def test_review2_a_relative_git_variable_resolves_after_git_c(repo, command):
+    assert bash(repo["topic"], command.format(tmp=repo["tmp"].as_posix())).returncode == 2, command
+
+
+def test_review2_a_relative_git_variable_under_git_c_names_its_own_folder(repo):
+    command = f"GIT_WORK_TREE=. git -C {repo['topic'].as_posix()} reset --hard"
+    assert bash(repo["main"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR={main}/.git; export GIT_DIR; git commit -q --allow-empty -m x",
+    "GIT_DIR={main}/.git ; export GIT_DIR; git commit -q --allow-empty -m x",
+    "GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+    "export GIT_DIR; GIT_DIR={main}/.git; git commit -q --allow-empty -m x",
+])
+def test_review2_an_assigned_then_exported_git_variable_aims_git(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix()))
+    assert done.returncode == 2 and "cannot know" not in deny_of(done), command
+
+
+@pytest.mark.parametrize("command", ["export GIT_DIR; git commit -q --allow-empty -m x",
+                                     "GIT_DIR=$X; export GIT_DIR; git commit -q --allow-empty -m x"])
+def test_review2_an_exported_git_variable_without_a_known_value_is_unknown(repo, command):
+    done = bash(repo["topic"], command)
+    assert done.returncode == 2 and "cannot know" in deny_of(done), command
+
+
+def test_review2_an_assigned_then_exported_session_worktree_is_allowed(repo):
+    command = f"GIT_WORK_TREE={repo['topic'].as_posix()}; export GIT_WORK_TREE; git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", ['cd "$(git rev-parse --show-toplevel)" && make',
+                                     "cd `git rev-parse --show-toplevel`; make",
+                                     'cd "`git rev-parse --show-toplevel`" && make'])
+def test_review2_the_repository_root_substitution_is_the_current_root(repo, command):
+    assert bash(repo["topic"], command).returncode == 0, command
+    done = bash(repo["main"], command)
+    assert done.returncode == 2 and "cannot know" not in deny_of(done), command
+
+
+@pytest.mark.parametrize("command", ['cd "$(git rev-parse --git-dir)" && make',
+                                     'cd "$(git rev-parse --show-toplevel; rm -rf x)" && make',
+                                     'export GIT_DIR=x; cd "$(git rev-parse --show-toplevel)" && make'])
+def test_review2_any_other_root_substitution_stays_unknown(repo, command):
+    done = bash(repo["topic"], command)
+    assert done.returncode == 2 and "cannot know" in deny_of(done), command
