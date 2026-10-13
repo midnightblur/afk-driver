@@ -13,7 +13,7 @@ A run today is one agent on one model, so work that needs independent thinking g
 | Design ADRs | adr/design/ | 16 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION-PLAN.md | — |
-| Plan | plan/PLAN.md | — |
+| Plan | plan/PLAN.md | 26 subtasks, cited — live status in the plan's progress tracker |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
