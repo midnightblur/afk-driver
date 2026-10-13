@@ -1,11 +1,11 @@
 # The guard refuses identified mutations of guarded resources, not shell syntax
 
-> Status: Accepted; superseded in part by ADR-0014 (a shell command that runs in a guarded placement must be proven read-only)
+> Status: Accepted; superseded in part by ADR-0014 (a shell command that runs in a guarded placement must be proven read-only, and the detection after the call is retired)
 > Supersedes: ADR-0009 (ADR-0003 stays as history, already superseded by ADR-0009)
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
 
-The guard refuses a tool call only when it identifies a mutation whose resource is guarded. It judges the resource, never the shape of the command. Composition (`&&`, `||`, `;`, `|`, `&`, newline), `2>&1`, `>/dev/null`, executable paths, unknown programs, forge and herdr commands, and paths outside every repository all pass. This removes the read allowlist of ADR-0009, which refused common read commands (a pipe, a redirect to the null device) and trained agents to work around the guard.
+The guard refuses a tool call only when it identifies a mutation whose resource is guarded. It judges the resource, never the shape of the command. Outside a guarded placement ([ADR-0014](0014-refuse-unproven-shell-commands-before-they-run.md) rules inside one), composition (`&&`, `||`, `;`, `|`, `&`, newline), `2>&1`, `>/dev/null`, executable paths, unknown programs, forge and herdr commands, and paths outside every repository all pass. This removes the read allowlist of ADR-0009, which refused common read commands (a pipe, a redirect to the null device) and trained agents to work around the guard.
 
 A **guarded resource** is the main checkout on any branch, a linked worktree on a protected branch, or a linked worktree another live session uses ([ADR-0013](0013-linked-worktree-occupancy.md)).
 
@@ -23,7 +23,7 @@ A **guarded resource** is the main checkout on any branch, a linked worktree on 
 - Keep the read allowlist and add forms to it: rejected. Every omission refuses a harmless command, and the list never ends.
 - Parse the full shell grammar: rejected. The cost is large and a parser still cannot see inside a script or a tool.
 - Refuse what looks like a write by pattern: rejected in ADR-0003 and again here as the sole defense. A pattern misses scripts; ADR-0014 refuses an unproven command in a guarded placement before it runs.
-- Judge the resource and detect the rest after the call (chosen).
+- Judge the resource and detect the rest after the call (chosen; the detection after the call is superseded by ADR-0014, which refuses an unproven command before it runs in a guarded placement).
 
 ## Accepted gaps
 

@@ -54,12 +54,20 @@ release page from its section here. Nobody tags by hand.
   or a protected branch's worktree, the protected-branch guard runs a shell
   command only when it can prove every part read-only against its allow-list
   (`hooks/lib/read_only.py`): listings, searches, file reads, read-only `git`,
-  `gh` and `glab` reads, `curl` without output or upload flags, `docker` reads
-  and PowerShell `Get-*` reads. Every other command, including builds, tests
-  and scripts, is refused before it runs, with the command that makes a
-  worktree. A command aimed at a folder outside these places still runs, as
-  do the base-branch fast-forward and the plugin's `create-worktree`.
-  Edit tools are judged by their target as before, and
+  `gh` and `glab` reads, `curl` without output or upload flags, `docker` reads,
+  listed PowerShell read cmdlets and `herdr` read forms. Every other command,
+  including builds, tests and scripts, is refused before it runs, with the
+  command that makes a worktree. A command aimed at a folder outside these
+  places still runs, as do the base-branch fast-forward, the plugin's
+  `create-worktree` and the plugin script modes that write nothing in the
+  repository (the mission-control digest check, lavish pages outside it, the
+  lesson digest, the setup audit's reads). Git variables (`GIT_DIR`,
+  `GIT_WORK_TREE`, `GIT_COMMON_DIR`) and symbolic links are followed to their
+  target, and a folder change the guard cannot read refuses every later
+  unproven part, in any checkout. The skills that ran a writing plugin script
+  from the main checkout (`/afk:gc`, `/afk:settle-change`, lesson appends,
+  developer values, the native contract audit) now run it from a linked
+  worktree. Edit tools are judged by their target as before, and
   `AFK_ALLOW_PROTECTED=1` still lifts the rule (#99, ADR-0014).
 - No plugin gate runs on Stop. The wiring gate runs at `/afk:execute` Step 11
   and in `/afk:verify-seams final`; the skill-registry, native-contract,

@@ -25,6 +25,7 @@ import importlib.util
 import json
 import os
 import re
+import stat
 import subprocess
 import time
 import sys
@@ -43,6 +44,9 @@ MUTATING = {"write", "edit", "create", "update", "delete", "remove", "replace", 
             "exec", "execute", "run", "terminal", "apply", "patch", "commit", "push", "insert", "set",
             "save", "add", "append", "upload", "format", "reformat", "drop", "put", "post", "send"}
 PLUGIN_SCRIPT = re.compile(r"^\$\{?(?:AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT)\}?[\\/]scripts[\\/]create-worktree$")
+PLUGIN_PATH = re.compile(r"^\$\{?(?:AFK_PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|PLUGIN_ROOT)\}?[\\/]([\w.\\/-]+)$")
+UNKNOWN_CAUSE = ("it runs in a folder the guard cannot know (after an opaque, `cd -` or stack-only folder change, "
+                 "or an opaque git variable), so it cannot prove where this part writes")
 HEX_HEAD = re.compile(r"^[0-9a-f]{40,64}$")
 MAX_DEPTH = 3
 SYNC_HINT = ("a human makes the main checkout clean and puts it on its base branch with an upstream, "
@@ -209,9 +213,27 @@ def by_git(directory: Path, depth: int) -> dict | None:
             "common": Path(common), "root": top}
 
 
+def linked(path: Path) -> bool:
+    """A symlink or a Windows junction (any reparse point)."""
+    try:
+        info = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0)
+                                                & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+
+
+def canonical(path: Path) -> Path:
+    """`path` with every existing link or junction in it followed; unchanged when it holds none."""
+    probe = Path(os.path.abspath(path))
+    if any(linked(part) for part in (probe, *probe.parents)):
+        return Path(os.path.realpath(probe))
+    return probe
+
+
 def placement(path: Path, depth: int = 0) -> dict | None:
     """`{"kind": "main"|"linked", "common", "gitdir", "root"}`, or None outside git."""
-    directory = existing_dir(path)
+    directory = existing_dir(canonical(path))
     if directory is None:
         return None
     walk = directory
@@ -497,9 +519,65 @@ def create_worktree(words: list, folder: Path | None) -> bool:
     return full is not None and norm(full) == norm(PLUGIN_ROOT / "scripts" / "create-worktree")
 
 
+def _mission_control(args: list[str]) -> list[str] | None:
+    if len(args) == 2 and args[1] == "--check-digests":
+        return []
+    if args[:1] and not args[0].startswith("-") and (args[1:] in ([], ["--once"])
+                                                     or (args[1:2] == ["--port"] and len(args) == 3)):
+        return [args[0]]  # it renders into the spec folder it names
+    return None
+
+
+def _lavish_show(args: list[str]) -> list[str] | None:
+    if args in (["stop"], ["playbook"]) or (len(args) == 2 and args[0] in ("playbook", "end")):
+        return []
+    if args[:1] == ["poll"]:
+        rest = args[1:]
+        return rest[:1] if len(rest) == 1 or (len(rest) == 3 and rest[1] == "--agent-reply") else None
+    if len(args) in (1, 2) and not args[0].startswith("-") and args[1:] in ([], ["--no-open"], ["--reopen"]):
+        return [args[0]]  # injection rewrites the page it names
+    return None
+
+
+# Plugin script modes whose only repository writes are the paths returned; ADR-0014 cites the proof per form.
+PLUGIN_FORMS = {
+    ("afk-python", "skills/afk/mission-control/scripts/mission_control.py"): _mission_control,
+    ("afk-python", "scripts/lavish_show.py"): _lavish_show,
+    ("afk-python", "scripts/glossary_usage.py"): lambda a: [] if len(a) <= 1 else None,
+    ("afk-python", "skills/afk/setup/scripts/python_runtime.py"): lambda a: [] if a == ["check"] else None,
+    ("afk-python", "scripts/behavior_registry.py"):
+        lambda a: [] if a[:1] in (["validate"], ["audit"]) and not any(x.startswith("--output") for x in a) else None,
+    ("bash", "hooks/lesson-digest.sh"): lambda a: [] if a in ([], ["--count"], ["--all"]) else None,
+    ("bash", "hooks/gate-metrics-report.sh"): lambda a: [] if len(a) <= 1 else None,
+}
+
+
+def plugin_targets(segment, words: list) -> list | None:
+    """The words an allowed plugin-script form writes ([] for none), or None when it is not one."""
+    if len(words) < 2 or any(w.text.lower() not in shell_mutations.NO_TARGET for w in segment.redirects):
+        return None
+    script = words[1]
+    match = PLUGIN_PATH.match(script.text) if script.opaque else None
+    if match:
+        rel = match.group(1).replace("\\", "/")
+    elif not script.opaque and re.search(r"[\\/]", script.text):
+        full = shell_mutations.resolve(script, None)
+        try:
+            rel = full.relative_to(PLUGIN_ROOT).as_posix() if full is not None else ""
+        except ValueError:
+            return None
+    else:
+        return None
+    check = PLUGIN_FORMS.get((words[0].text.lower(), rel))
+    if check is None or ".." in rel.split("/") or any(w.opaque for w in words[2:]):
+        return None
+    found = check([w.text for w in words[2:]])
+    return None if found is None else [w for w in words[2:] if w.text in found]
+
+
 def confined(segment, words: list, spot: Path | None, here: Path | None, powershell: bool) -> bool:
     """Every effect of the segment is a literal path: a read with file redirects, or a known file writer."""
-    if not words or re.search(r"[\\/]", words[0].text) or any(w.opaque for w in segment.words):
+    if not words or segment.expands or re.search(r"[\\/]", words[0].text) or any(w.opaque for w in segment.words):
         return False
     if any(w.text.lower() not in shell_mutations.NO_TARGET and shell_mutations.resolve(w, here) is None
            for w in segment.redirects):
@@ -518,27 +596,46 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
     and is not proven read-only; None when there is none. A confined segment is judged later, at its targets."""
     seen: dict[str, tuple] = {}
     for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell):
-        if read_only.proven(segment.words, segment.redirects) or create_worktree(words or segment.words, spot) \
-                or confined(segment, words, spot, here, powershell):
+        if read_only.proven_segment(segment) or create_worktree(words or segment.words, spot):
             continue
-        folder, pull = spot, False
-        if words and shell_mutations.program_of(words[0]) == "git":
-            verb, _, _, _ = shell_mutations.git_options(words, spot)
+        text = " ".join(w.text for w in segment.words)[:80]
+        folders, pull = git_env_folders(segment, spot), False
+        written = plugin_targets(segment, words)
+        if written is not None:
+            folders += [shell_mutations.resolve(w, spot) for w in written]
+        elif confined(segment, words, spot, here, powershell) and not segment.git_env:
+            continue
+        elif words and shell_mutations.program_of(words[0]) == "git":
+            verb, after_c, gitdir, workdir = shell_mutations.git_options(words, spot)
             pull = verb < len(words) and words[verb].text.lower() == "pull"
-            if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None:
+            if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None \
+                    and not segment.git_env:
                 continue  # the sync is judged at its folder (ADR-0011)
-            folder = shell_mutations.git_folder(words, spot)
-        folder = folder or cwd  # a folder the text does not name counts as the session's own
+            folders += [after_c if w is None else shell_mutations.resolve(w, after_c) for w in (gitdir, workdir)]
+        else:
+            folders.append(spot)
+        if any(folder is None for folder in folders):
+            state["identified"] = True
+            return text, None, UNKNOWN_CAUSE, pull
         state["identified"] = True
-        state["targets"] = list(state.get("targets") or []) + [folder]
-        key = norm(folder)
-        if key not in seen:
-            place = placement(folder)
-            seen[key] = (place, judge.verdict(place))
-        place, cause = seen[key]
-        if cause:
-            return " ".join(w.text for w in segment.words)[:80], place, cause, pull
+        state["targets"] = list(state.get("targets") or []) + folders
+        for folder in folders:
+            key = norm(folder)
+            if key not in seen:
+                place = placement(folder)
+                seen[key] = (place, judge.verdict(place))
+            place, cause = seen[key]
+            if cause:
+                return text, place, cause, pull
     return None
+
+
+def git_env_folders(segment, spot: Path | None) -> list:
+    """The paths the segment's `GIT_DIR`-style variables name; None for an opaque or conflicting value."""
+    values: dict[str, set] = {}
+    for name, word in segment.git_env:
+        values.setdefault(name, set()).add(None if word is None else shell_mutations.resolve(word, spot))
+    return [None if len(found) > 1 else next(iter(found)) for found in values.values()]
 
 
 def decide(envelope: dict, facts: dict, state: dict) -> int:
@@ -558,9 +655,10 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         gated = unproven(judge, command, cwd, tool.lower() == "powershell", state)
         if gated:
             text, refused, cause, pull = gated
-            pulled = {norm(refused["root"])} if pull else set()
-            cause = (f"{cause} ({refused['root']}), where the guard runs a shell command only when it can prove "
-                     "it read-only, and it cannot prove this part")
+            pulled = {norm(refused["root"])} if pull and refused else set()
+            if refused:
+                cause = (f"{cause} ({refused['root']}), where the guard runs a shell command only when it can "
+                         "prove it read-only, and it cannot prove this part")
             return refuse(state, facts, f"run `{text}`", cause,
                           lambda: move_hint(facts, envelope, judge, here, refused, cause, pulled), judge.notice_once)
     syncs: list = []

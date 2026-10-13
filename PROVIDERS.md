@@ -49,7 +49,9 @@ and `owner_pid_env`.
 A shell command is split into segments, each with the folder it runs in.
 In the main checkout or a protected branch's worktree, a segment runs only
 when `hooks/lib/read_only.py` proves it read-only; a file writer whose targets
-are all literal is judged at those targets (ADR-0014). Elsewhere the guard
+are all literal, and a listed plugin script mode, are judged at the paths they
+write (ADR-0014). Git variables and symbolic links are followed to their
+target; an unreadable folder change refuses every later unproven segment. Elsewhere the guard
 judges the resource a call mutates, not the command's shape (ADR-0010): each
 literal path or repository a mutation names is judged, and an opaque target
 (variable, substitution, glob) and an unknown program pass. A tool with no
@@ -67,7 +69,7 @@ Two more hooks serve the guard:
 Environment variables: `AFK_WORKTREE_GROUP` names a team that may share one
 worktree. Without it, `HERDR_ENV=1` plus `HERDR_TAB_ID` makes one herdr tab a
 team. `AFK_WORKTREE_OWNER` overrides the session identity. `AFK_ALLOW_PROTECTED=1`
-lifts every worktree-protection refusal and hold; the guard's lavish rule still applies
+lifts every worktree-protection refusal; the guard's lavish rule still applies
 (`LAVISH.md`). The register is `skills/afk/setup/MANIFEST.md`.
 
 | Class | Harness | How a refused session moves | Cleanup |

@@ -918,3 +918,123 @@ def test_99_a_fault_on_an_unproven_segment_refuses_inside_a_work_tree(repo, monk
     monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
     assert guard.main() == 0
     assert '"permissionDecision": "deny"' in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- review round 1
+
+def bash(where: Path, command: str):
+    return run("claude", where, "Bash", {"command": command})
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_WORK_TREE={main} git reset --hard",
+    "GIT_DIR={main}/.git git update-ref refs/heads/other HEAD",
+    "env GIT_DIR={main}/.git git commit -q --allow-empty -m x",
+    "GIT_COMMON_DIR={main}/.git git commit -q --allow-empty -m x",
+    "GIT_DIR=$REPO git commit -q --allow-empty -m x",
+    "GIT_DIR={topic}/.git GIT_DIR={main}/.git git commit -q --allow-empty -m x",
+    "export GIT_DIR={main}/.git; git commit -q --allow-empty -m x",
+    "export $SETTING; git commit -q --allow-empty -m x",
+])
+def test_review1_a_git_variable_aims_the_segment_at_the_main_checkout_from_a_worktree(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review1_a_powershell_git_variable_aims_later_segments(repo):
+    command = f'$env:GIT_WORK_TREE = "{repo["main"].as_posix()}"; git reset --hard'
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2
+
+
+def test_review1_a_git_variable_naming_the_session_worktree_is_allowed(repo):
+    command = f"GIT_WORK_TREE={repo['topic'].as_posix()} git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", ['cd "$MAIN"; touch changed', "cd $X && make", "env -C $X make",
+                                     "cd -; make", "pushd -n {outside}; touch changed", "pushd +1; make",
+                                     "popd -n; make"])
+def test_review1_an_unknown_folder_stays_unknown_and_refuses_an_unproven_segment(repo, command):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    for where in ("topic", "main"):
+        done = bash(repo[where], command.format(outside=outside.as_posix()))
+        assert done.returncode == 2 and "cannot know" in deny_of(done), (where, command)
+
+
+def test_review1_a_literal_cd_restores_a_known_folder(repo):
+    topic = repo["topic"].as_posix()
+    assert bash(repo["topic"], f"cd $X; cd {topic} && make").returncode == 0
+    assert bash(repo["topic"], "cd $X && ls").returncode == 0
+
+
+def link(source: Path, target: Path, directory: bool) -> None:
+    try:
+        os.symlink(target, source, target_is_directory=directory)
+    except (OSError, NotImplementedError) as problem:
+        if directory and os.name == "nt":
+            import _winapi
+            _winapi.CreateJunction(str(target), str(source))
+            return
+        pytest.skip(f"this platform cannot create a symlink here: {problem}")
+
+
+def test_review1_a_write_through_a_file_symlink_is_judged_at_its_target(repo):
+    (repo["main"] / "a.txt").write_text("x\n", encoding="utf-8")
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    link(outside / "link.txt", repo["main"] / "a.txt", directory=False)
+    target = (outside / "link.txt").as_posix()
+    assert bash(repo["topic"], f"touch {target}").returncode == 2
+    assert run("claude", repo["topic"], "Edit", {"file_path": target}).returncode == 2
+
+
+def test_review1_a_write_through_a_directory_link_or_junction_is_judged_at_its_target(repo):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    link(outside / "into-main", repo["main"], directory=True)
+    target = (outside / "into-main" / "new.txt").as_posix()
+    assert bash(repo["topic"], f"touch {target}").returncode == 2
+    assert run("claude", repo["topic"], "Edit", {"file_path": target}).returncode == 2
+    assert bash(repo["topic"], f"touch {(outside / 'plain.txt').as_posix()}").returncode == 0
+
+
+@pytest.mark.parametrize("command", ["cat <<EOF\n$(touch changed)\nEOF", "env -S 'touch changed'",
+                                     "ACTION=-delete; find . $ACTION", "herdr worktree create other",
+                                     "X=$Y touch changed"])
+def test_review1_a_hidden_effect_is_refused_in_the_main_checkout(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review1_herdr_reads_and_powershell_built_in_reads_run_in_the_main_checkout(repo):
+    assert bash(repo["main"], "herdr pane list").returncode == 0
+    assert run("claude", repo["main"], "PowerShell", {"command": "Get-Content README.md"}).returncode == 0
+    assert run("claude", repo["main"], "PowerShell", {"command": "Get-Report"}).returncode == 2
+
+
+MC = '"${AFK_PLUGIN_ROOT}/skills/afk/mission-control/scripts/mission_control.py"'
+LAVISH = '"${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"'
+
+
+def test_review1_a_verified_plugin_script_form_runs_in_the_main_checkout(repo):
+    spec = (repo["main"] / "docs" / "f").as_posix()
+    page = (repo["tmp"] / "page.html").as_posix()
+    for command in (f"afk-python {MC} {spec} --check-digests", f"afk-python {LAVISH} stop",
+                    f"afk-python {LAVISH} playbook", f"afk-python {LAVISH} {page} --no-open",
+                    f"afk-python {LAVISH} poll {page}", f"afk-python {MC} {(repo['topic'] / 'docs').as_posix()} --once",
+                    'bash "$AFK_PLUGIN_ROOT/hooks/lesson-digest.sh" --all',
+                    'afk-python "${AFK_PLUGIN_ROOT}/skills/afk/setup/scripts/python_runtime.py" check',
+                    f"afk-python {(PLUGIN_ROOT / 'scripts' / 'glossary_usage.py').as_posix()} x"):
+        assert bash(repo["main"], command).returncode == 0, command
+
+
+def test_review1_a_plugin_script_form_that_writes_the_main_checkout_is_refused(repo):
+    spec = (repo["main"] / "docs" / "f").as_posix()
+    page = (repo["main"] / "page.html").as_posix()
+    for command in (f"afk-python {MC} {spec} --once", f"afk-python {MC} {spec}", f"afk-python {LAVISH} {page}",
+                    f"afk-python {LAVISH} poll {page}", f"afk-python {MC} $SPEC --check-digests",
+                    'afk-python "${AFK_PLUGIN_ROOT}/skills/afk/setup/scripts/python_runtime.py" install',
+                    'afk-python "${AFK_PLUGIN_ROOT}/scripts/behavior_registry.py" render --output x',
+                    'bash "$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh"',
+                    f"afk-python {MC} {spec} --check-digests > digests.json"):
+        assert bash(repo["main"], command).returncode == 2, command

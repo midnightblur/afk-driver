@@ -148,9 +148,7 @@ an `advisory-failed` (non-`green`) row re-runs like any other non-green row
 
 **PF-4c lessons — advisory open-drafts surface (never parks).** Run
 `bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --count`
-from the repo root (`<main-checkout>` = first entry of `git worktree list` —
-plugin files always run from the main checkout; `GLOSSARY.md` "Main
-checkout"); set the row `green` with
+from the repo root (it reads the main checkout's ledger, `GLOSSARY.md` "Main checkout"); set the row `green` with
 `Evidence: open lessons: <n> (grammar: skills/afk/lessons/LEDGER-FORMAT.md)`.
 This is how workflow-lesson drafts captured during hands-off runs reach the
 human at the ship gate: `<n> > 0` changes nothing mechanically — the count

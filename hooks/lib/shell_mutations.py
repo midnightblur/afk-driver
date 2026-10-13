@@ -14,8 +14,11 @@ WRAPPERS = {"command", "exec", "nohup", "time", "env", "sudo", "builtin"}
 KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!"}  # the next word is a program
 SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "--group", "--host", "--prompt",
               "--chdir", "--role", "--type", "--close-from"}
-ENV_VALUE = {"-u", "--unset", "-S", "--split-string"}
+ENV_VALUE = {"-u", "--unset"}
 ENV_CHDIR = {"-C", "--chdir"}
+GIT_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
+PS_GIT_ENV = re.compile(r"^\$env:(GIT_DIR|GIT_WORK_TREE|GIT_COMMON_DIR)(?:=(.*))?$", re.I | re.S)
+EXPANDS = ("$(", "`", "<(")
 CD = {"cd", "chdir", "set-location", "sl", "pushd", "push-location"}
 PUSH = {"pushd", "push-location"}
 POP = {"popd", "pop-location"}
@@ -59,6 +62,8 @@ class Segment:
         self.redirects: list[Word] = []
         self.piped = False  # part of a pipeline: runs in a subshell
         self.mark = ""  # "open" / "close" for a `(` / `)` boundary
+        self.expands = False  # an unquoted heredoc body runs a substitution
+        self.git_env: list[tuple[str, Word | None]] = []  # set by steps(); None is an opaque value
 
 
 def read_word(text: str, i: int) -> tuple[Word | None, int]:
@@ -111,7 +116,7 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
 def segments(text: str) -> list[Segment]:
     found: list[Segment] = []
     current = Segment()
-    heredocs: list[str] = []
+    heredocs: list[tuple[str, bool, Segment]] = []  # delimiter, body expands, the segment it feeds
     i, n = 0, len(text)
 
     def close() -> None:
@@ -138,8 +143,11 @@ def segments(text: str) -> list[Segment]:
             while heredocs and i <= n:
                 end = text.find("\n", i)
                 line, i = (text[i:], n + 1) if end < 0 else (text[i:end], end + 1)
-                if line.strip() == heredocs[0]:
+                delimiter, expanding, fed = heredocs[0]
+                if line.strip() == delimiter:
                     heredocs.pop(0)
+                elif expanding and any(mark in line for mark in EXPANDS):
+                    fed.expands = True
         elif c in "()":
             close()
             found.append(Segment())
@@ -174,9 +182,11 @@ def segments(text: str) -> list[Segment]:
         elif c == "<" and text[i + 1:i + 2] == "<":
             i += 2 + (text[i + 2:i + 3] == "-")
             skip_blank()
+            start = i
             word, i = read_word(text, i)
             if word:
-                heredocs.append(word.text)
+                quoted = any(c in text[start:i] for c in "'\"\\")
+                heredocs.append((word.text, not quoted, current))
         elif c == "<":
             i += 1
             skip_blank()
@@ -225,37 +235,56 @@ def program_of(word: Word) -> str:
 def strip_prefixes(words: list[Word], effects: dict | None = None, keywords: bool = False) -> list[Word]:
     """Drop `VAR=1`, `env`, `sudo`, `time` and similar wrappers; [] when the program is opaque.
 
-    `effects["chdir"]` receives the folder word of `env -C`. With `keywords`, `then`/`do`-style
-    control words are dropped too; mutation analysis leaves them, so a branch `cd` is no `cd`.
+    `effects["chdir"]` receives the folder word of `env -C`, `effects["git_env"]` each
+    `GIT_DIR`-style assignment, and `effects["opaque"]` is set when the program cannot be read
+    (an opaque word or `env -S`). With `keywords`, `then`/`do`-style control words are dropped
+    too; mutation analysis leaves them, so a branch `cd` is no `cd`.
     """
     words = list(words)
+    effects = effects if effects is not None else {}
+
+    def assign(word: Word) -> None:
+        name, _, value = word.text.partition("=")
+        if name in GIT_ENV:
+            effects.setdefault("git_env", []).append((name, Word(value, word.opaque)))
+
     while words:
         head = words[0]
-        if head.opaque:
+        if ASSIGN.match(head.text) or (keywords and head.text in KEYWORDS and not head.opaque):
+            assign(words.pop(0))
+        elif head.opaque:
+            effects["opaque"] = True
             return []
-        if ASSIGN.match(head.text) or (keywords and head.text in KEYWORDS):
-            words.pop(0)
         elif head.text.lower() in WRAPPERS:
             wrapper = head.text.lower()
             words.pop(0)
-            while words and not words[0].opaque and (words[0].text.startswith("-") or ASSIGN.match(words[0].text)):
-                option = words.pop(0).text
+            while words and (words[0].text.startswith("-") or ASSIGN.match(words[0].text)):
+                if words[0].opaque and not ASSIGN.match(words[0].text):
+                    effects["opaque"] = True
+                    return []
+                popped = words.pop(0)
+                option = popped.text
+                if ASSIGN.match(option):
+                    assign(popped)
+                    continue
+                if wrapper == "env" and (option.startswith("--split-string") or (
+                        not option.startswith("--") and "S" in option)):
+                    effects["opaque"] = True  # the program is inside the split string
+                    return []
                 if wrapper == "sudo" and (option in ("-D", "--chdir") or option.startswith("--chdir=")):
                     folder = words.pop(0) if option in ("-D", "--chdir") and words else (
                         Word(option[8:], False) if option.startswith("--chdir=") else None)
-                    if folder is not None and effects is not None:
+                    if folder is not None:
                         effects["chdir"] = folder
                 elif wrapper == "sudo" and option in SUDO_VALUE and words:
                     words.pop(0)
                 if wrapper == "env" and option in ENV_VALUE and words:
                     words.pop(0)
-                if wrapper == "env" and effects is not None:
+                if wrapper == "env":
                     if option in ENV_CHDIR and words:
                         effects["chdir"] = words.pop(0)
                     elif option.startswith("--chdir="):
-                        effects["chdir"] = Word(option[8:], False)
-                elif wrapper == "env" and option in ENV_CHDIR and words:
-                    words.pop(0)
+                        effects["chdir"] = Word(option[8:], popped.opaque)
                 if wrapper == "command" and option in ("-v", "-V"):
                     return []
         else:
@@ -478,9 +507,39 @@ def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> li
 
 def cd_target(words: list[Word], here: Path | None) -> Path | None:
     """The folder a `cd`-class command moves to, or None when it is not literal."""
-    _, targets, _ = parse(words[1:])
-    chosen = targets or parse(words[1:])[0][:1]
-    return resolve(chosen[0], here) if chosen and chosen[0].text != "-" else None
+    positional, targets, _ = parse(words[1:])
+    chosen = targets or positional[:1]
+    if not chosen:
+        return Path.home() if len(words) == 1 else None
+    return resolve(chosen[0], here) if chosen[0].text != "-" else None
+
+
+def stack_only(words: list[Word]) -> bool:
+    """`pushd`/`popd` with `-n`, `+N` or `-N`, or a bare `pushd`: a stack edit the folder model does not follow."""
+    args = [w.text for w in words[1:]]
+    return (program_of(words[0]) in PUSH | POP and any(re.fullmatch(r"-n|[+-]\d+", a) for a in args)) or (
+        program_of(words[0]) == "pushd" and not args)
+
+
+def exported(words: list[Word], powershell: bool) -> list[tuple[str, Word | None]]:
+    """The git variables an `export` or a PowerShell `$env:` assignment sets for later segments."""
+    match = PS_GIT_ENV.match(words[0].text) if powershell and words else None
+    if match:
+        if match.group(2) is not None:
+            value = Word(match.group(2), any(c in match.group(2) for c in "$`*?"))
+        else:
+            value = words[2] if len(words) > 2 and words[1].text == "=" else None
+        return [(match.group(1).upper(), value)]
+    if not words or words[0].text != "export":
+        return []
+    found: list[tuple[str, Word | None]] = []
+    for word in words[1:]:
+        name, _, value = word.text.partition("=")
+        if name in GIT_ENV:
+            found.append((name, Word(value, word.opaque)))
+        elif word.opaque and not ASSIGN.match(word.text):
+            found.append(("GIT_DIR", None))  # an opaque name could be any git variable
+    return found
 
 
 def steps(command: str, cwd: Path | None, powershell: bool = False):
@@ -490,24 +549,30 @@ def steps(command: str, cwd: Path | None, powershell: bool = False):
     ends at the `)` unless `powershell`. A folder is None when it is not literal.
     """
     here: Path | None = cwd
-    saved: list[Path | None] = []
+    saved: list[tuple[Path | None, dict]] = []
     pushed: list[Path | None] = []
+    git_env: dict[str, Word | None] = {}
     for segment in segments(command):
         if segment.mark:
             if segment.mark == "open":
-                saved.append(here)
+                saved.append((here, dict(git_env)))
             elif saved:
-                kept = saved.pop()
-                here = here if powershell else kept
+                kept, kept_env = saved.pop()
+                here, git_env = (here, git_env) if powershell else (kept, kept_env)
             continue
         effects: dict = {}
         words = strip_prefixes(segment.words, effects)
         spot = resolve(effects["chdir"], here) if effects.get("chdir") else here
+        segment.git_env = list(git_env.items()) + list(effects.get("git_env", []))
         yield segment, words, spot, here
         prog = program_of(words[0]) if words else ""
         if segment.piped:
             continue
-        if prog in CD:
+        for name, value in exported(segment.words if powershell else words, powershell):
+            git_env[name] = value
+        if prog in PUSH | POP and stack_only(words):
+            here = None
+        elif prog in CD:
             if prog in PUSH:
                 pushed.append(here)
             here = cd_target(words, here)

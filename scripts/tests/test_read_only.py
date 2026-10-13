@@ -17,7 +17,7 @@ import shell_mutations as sm  # noqa: E402
 
 
 def proven(command: str) -> bool:
-    return all(read_only.proven(s.words, s.redirects) for s in sm.segments(command) if not s.mark)
+    return all(read_only.proven_segment(s) for s in sm.segments(command) if not s.mark)
 
 
 @pytest.mark.parametrize("command,twin", [
@@ -47,7 +47,6 @@ def proven(command: str) -> bool:
     ("docker inspect web", "docker exec web sh"),
     ("docker images", "docker image prune -f"),
     ("docker container ls", "docker container rm web"),
-    ("git status --short", "git add ."),
     ("git log --oneline -5", "git commit -m x"),
     ("git diff HEAD~1", "git diff --output=out.diff"),
     ("git show HEAD:a.txt", "git checkout a.txt"),
@@ -57,7 +56,6 @@ def proven(command: str) -> bool:
     ("git tag -l", "git tag v1"),
     ("git worktree list", "git worktree add ../x"),
     ("git config --get user.name", "git config user.name x"),
-    ("git fetch origin", "git fetch origin main:main"),
     ("git grep -n pattern", "git grep -Ovim pattern"),
     ("git -C ../other status", "git -c core.pager=less log"),
     ("git --version", "git gc"),
@@ -74,8 +72,42 @@ def proven(command: str) -> bool:
     ("for f in a b; do wc -l $f; done", 'for f in a b; do mv "$f" moved/; done'),
     ("if test -f a.txt; then cat a.txt; fi", "if test -f a.txt; then rm a.txt; fi"),
     ("cd src && ls", "cd src && make"),
+    ("herdr pane list", "herdr worktree create topic"),
+    ("herdr pane read p1 --lines 20", "herdr pane run p1 make"),
+    ("herdr agent list", "herdr worktree remove topic"),
+    ("herdr worktree list", "herdr worktree list --trust-repository"),
+    ("herdr api snapshot", "herdr api schema --output schema.json"),
+    ("herdr --version", "herdr update"),
+    ("find . -name x", "find . $ACTION"),
+    ("find . -name '*.py'", "find . -name x *"),
+    ("sort a.txt", "sort $OPTS a.txt"),
+    ("uniq a.txt", "uniq $FILES"),
+    ("rg pattern -- $DIR", "rg $FLAGS pattern"),
+    ("sed -n 1p a.txt", "sed $SCRIPT a.txt"),
+    ('git log -1 -- "$f"', "git log $OPTS"),
+    ("curl -s https://example.test/x", "curl $FLAGS https://example.test/x"),
+    ("gh pr view 12", "gh pr $VERB 12"),
+    ("ls $DIR", "date $WHEN"),
+    ("grep -n x $FILES", "docker $VERB"),
+    ("cat <<EOF\nhello $USER\nEOF", "cat <<EOF\n$(touch changed)\nEOF"),
+    ("cat <<'EOF'\n$(touch changed)\nEOF", "cat <<EOF | grep x\n`touch changed`\nEOF"),
+    ("env FOO=1 ls", "env -S 'touch changed'"),
+    ("env ls", "env --split-string='touch changed'"),
+    ("Get-ChildItem -Force", "Get-Report"),
+    ("Get-Content a.txt", "Get-Command make"),
 ])
 def test_a_listed_form_is_proven_and_its_mutating_twin_is_not(command, twin):
+    assert proven(command), command
+    assert not proven(twin), twin
+
+
+@pytest.mark.parametrize("command,twin", [
+    ("git status --short", "git add ."),
+    ("git fetch origin", "git fetch origin main:main"),
+])
+def test_an_index_refresh_or_a_fetch_without_a_local_destination_is_an_accepted_gap(command, twin):
+    """ADR-0014 accepted gaps: `git status` may refresh the index stat cache, and a fetch writes FETCH_HEAD,
+    objects and remote-tracking refs; neither changes a local branch, the index content or the work tree."""
     assert proven(command), command
     assert not proven(twin), twin
 
@@ -91,6 +123,10 @@ def test_a_listed_form_is_proven_and_its_mutating_twin_is_not(command, twin):
     "$TOOL a.txt",
     "ls > $OUT",
     "npm test",
+    "X=$Y touch changed",
+    "X=$(rm -rf x)",
+    "herdr",
+    "herdr pane close p1",
 ])
 def test_an_unlisted_or_unreadable_command_is_unproven(command):
     assert not proven(command), command

@@ -25,8 +25,10 @@ delivery or review. Do not merge the target branch locally.
 An agent changes repository files only from a linked worktree that its session
 or its team owns, on an unprotected branch. In the main checkout or a worktree
 of a protected branch, a shell command runs only when the guard proves it
-read-only; any other command is refused before it runs (ADR-0014). Run builds,
-tests and scripts from your worktree. Elsewhere, the guard refuses a mutation
+read-only, or is a plugin script mode that writes nothing there; any other
+command is refused before it runs (ADR-0014). A folder change the guard cannot
+read refuses every later unproven command, in any checkout. Run builds, tests
+and scripts from your worktree. Elsewhere, the guard refuses a mutation
 by the resource it changes (ADR-0010). Guarded resources: the main checkout on
 every branch, a worktree of a protected branch, and a worktree that another
 live session outside your group holds (ADR-0013). The main checkout may

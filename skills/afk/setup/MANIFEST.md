@@ -173,8 +173,8 @@ a token value — not even partially.
   [ -z "$i" ] || echo "inherited from the machine file, confirm: $i"
   exit 1
   ```
-- **Fix:** `human:` agent-guided in session, from anywhere: a main checkout, a
-  worktree, or no repository. None of these values is a secret, so ask the human
+- **Fix:** `human:` agent-guided in session, from a linked worktree or no repository;
+  in a main checkout, move first (`SAFETY.md` "Worktree per session"). None of these values is a secret, so ask the human
   in the conversation. A run with no human to answer reports
   `needs-human: confirm developer values`. `DV="$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/developer_values.py"`.
   0. Ask the human for the main checkout paths to set up, offering this

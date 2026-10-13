@@ -26,7 +26,8 @@ read as current. Same trigger, same approval — retired here.
 
 ## Guards & verify-safe — `scripts/gc-check.sh`
 
-Run first, from the main checkout, `origin/master` freshly fetched:
+Run first, from a linked worktree other than the feature's, on a branch cut
+from a freshly fetched `origin/master` (`SAFETY.md` "Worktree per session"):
 
 ```
 bash $AFK_PLUGIN_ROOT/skills/afk/gc/scripts/gc-check.sh {spec-folder} [feature-branch]
@@ -41,7 +42,7 @@ comment (canonical). Route on exit code:
 | 1 | `refused(not_shipped)` | report, write nothing — feature not `complete (…)` or MR not proven merged |
 | 2 | `refused(dirty_tree)` | report, write nothing — uncommitted changes under `{spec-folder}` |
 | 3 | `refused(hands_off)` | report, write nothing — deletion always gets a human eye |
-| 4 | `refused(inside_target_worktree)` | report, write nothing — a worktree can't remove itself, and the compaction commit would land on the dead feature branch; re-run from the main checkout on an up-to-date `master` |
+| 4 | `refused(inside_target_worktree)` | report, write nothing — a worktree can't remove itself, and the compaction commit would land on the dead feature branch; re-run from another linked worktree cut from an up-to-date `master` |
 | 5 / 6 | `error(usage \| branch_unresolved)` | not a refusal — fix the invocation (pass the feature branch explicitly) and re-run |
 
 ## What is deleted vs kept

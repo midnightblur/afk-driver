@@ -1,7 +1,7 @@
 # In a guarded placement, a shell command runs only when the guard proves it read-only
 
 > Status: Accepted
-> Supersedes: ADR-0012; ADR-0010 in part (an unknown program, an opaque target or a composition that runs in a guarded placement no longer passes)
+> Supersedes: ADR-0012; ADR-0010 in part (an unknown program, an opaque target or a composition that runs in a guarded placement no longer passes, and its detection after the call)
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket); GitHub issue #99
 
@@ -11,10 +11,27 @@ A **guarded placement** is the main checkout on any branch, or a linked worktree
 
 ## Decision
 
-- **The rule.** Each segment of a shell command runs in a folder: the session folder, moved by a literal `cd`, `pushd`, `popd`, `Set-Location`, `env -C` or `sudo -D`, and for `git` by `-C`, `--git-dir` or `--work-tree`. A segment whose folder lies in a guarded placement runs only when the allow-list proves it read-only. Otherwise the guard refuses the whole command before it runs. The refusal names the first unproven segment and the move for the session's harness class. A folder the text does not name literally counts as the session folder.
-- **The allow-list** is `hooks/lib/read_only.py`; its tests own the exact forms. It lists file readers (`ls`, `cat`, `head`, `tail`, `wc`, `stat`, `grep`, `rg` without `--pre`, `jq`, `diff`, and similar), `find` without a write action, `sed` without `-i`, a script file, or a script that holds `w`, `W` or `e`, `curl` without an output, upload or method flag, read-only `git` verbs (no `-c`, no `--output`, `fetch` with no `:` refspec), forge reads (`gh` and `glab` `view`, `list`, `status`, `checks`, `diff`, `show`, `watch`, and `api` without a write flag), `docker` `ps`, `logs`, `inspect` and `images` with their `container`, `image` and `compose` forms, PowerShell `Get-*` and the listed cmdlets without a script block, shell control words, and `herdr`. A redirect into a file, a command substitution, a path-qualified program and an unlisted program are unproven.
+- **The rule.** Each segment of a shell command runs in a folder: the session folder, moved by a literal `cd`, `pushd`, `popd`, `Set-Location`, `env -C` or `sudo -D`, and for `git` by `-C`, `--git-dir` or `--work-tree`. A segment whose folder lies in a guarded placement runs only when the allow-list proves it read-only. Otherwise the guard refuses the whole command before it runs. The refusal names the first unproven segment and the move for the session's harness class. - **An unknown folder stays unknown.** An opaque `cd`, `pushd`, `Set-Location` or `env -C` target, `cd -`, and a `pushd` or `popd` that moves only the stack (`-n`, `+N`, `-N`) leave the folder unknown. In every placement, each later unproven segment is refused until a literal folder change restores a known one.
+- **Git variables aim git.** `GIT_DIR`, `GIT_WORK_TREE` and `GIT_COMMON_DIR`, set as a prefix, through `env`, by `export` or by PowerShell `$env:`, add their value to the segment's folders. A literal value is judged there; an opaque value, or two values for one name, leaves the folder unknown.
+- **Links resolve.** A target or folder with a symbolic link or junction on its path is judged at its resolved path.
+- **The allow-list** is `hooks/lib/read_only.py`; its tests own the exact forms. It lists file readers (`ls`, `cat`, `head`, `tail`, `wc`, `stat`, `grep`, `rg` without `--pre`, `jq`, `diff`, and similar), `find` without a write action, `sed` without `-i`, a script file, or a script that holds `w`, `W` or `e`, `curl` without an output, upload or method flag, read-only `git` verbs (no `-c`, no `--output`, `fetch` with no `:` refspec), forge reads (`gh` and `glab` `view`, `list`, `status`, `checks`, `diff`, `show`, `watch`, and `api` without a write flag), `docker` `ps`, `logs`, `inspect` and `images` with their `container`, `image` and `compose` forms, listed built-in PowerShell read cmdlets (`Get-ChildItem`, `Get-Content`, `Get-Item` and the others the tests own) without a script block, shell control words, and the `herdr` read forms checked against `herdr --help` (`status`, the `list` and `get` forms, `pane read`, `agent read`, `worktree list` without `--trust-repository`, and the others the tests own). A redirect into a file, a command substitution, a path-qualified program and an unlisted program are unproven. So are an opaque argument to a form whose flags decide whether it writes or runs a program (only the plain readers keep opaque paths), an unquoted heredoc whose body holds `$(`, a backtick or `<(`, and `env -S`.
 - **A literal target decides.** A segment whose every word is literal, and which is a known file writer (redirect, `tee`, `cp`, `mv`, `rm`, `touch`, `mkdir`, `ln`, the PowerShell writers) or a proven read with file redirects, is judged at its targets by the resource rule of ADR-0010, not at its folder. A command aimed at a folder outside every guarded placement is not refused because the session sits in one. `sed -i` and `perl -i` are judged at their folder, because a script can run a program.
-- **Also allowed in a guarded placement:** the plugin's `scripts/create-worktree`, by its literal path or under `$AFK_PLUGIN_ROOT`, and the sync of [ADR-0011](0011-main-checkout-fast-forward-sync.md).
+- **Also allowed in a guarded placement:** the plugin's `scripts/create-worktree`, by its literal path or under `$AFK_PLUGIN_ROOT`, the sync of [ADR-0011](0011-main-checkout-fast-forward-sync.md), and the plugin script forms below.
+- **Plugin script forms.** A plugin script named under `$AFK_PLUGIN_ROOT` (or `CLAUDE_PLUGIN_ROOT`, `PLUGIN_ROOT`) or by its literal path under the guard's own plugin root, in an exact mode with literal arguments and no file redirect, is judged at the paths that mode writes. Each mode was read for its writes:
+
+  | Form | Writes | Proof |
+  |---|---|---|
+  | `afk-python …/mission_control.py <spec> --check-digests` | nothing | `mission_control.py` returns after the digest check; `mc/digests.py` reads only |
+  | `afk-python …/mission_control.py <spec>` (`--once`, `--port N`) | `<spec>/plan/mission-control/index.html`: judged at `<spec>` | `mission_control.py` render path; `mc/server.py` writes only that page |
+  | `afk-python …/scripts/lavish_show.py <page>` (`--no-open`, `--reopen`), `poll <page>` (`--agent-reply`) | the page and a temporary file beside it: judged at the page | `scripts/lavish/inject.py` atomic replace; `lavish-axi` writes only under its state directory (`~/.lavish-axi`) |
+  | `afk-python …/scripts/lavish_show.py stop`, `playbook [id]`, `end <page>` | nothing in a repository | the wrapper passes through; `lavish-axi` writes only its state directory |
+  | `afk-python …/scripts/glossary_usage.py [root]` | nothing | reads and prints |
+  | `afk-python …/skills/afk/setup/scripts/python_runtime.py check` | nothing | `check` reads; only `install` writes |
+  | `afk-python …/scripts/behavior_registry.py validate` or `audit` | nothing | both read; only `render --output` writes |
+  | `bash …/hooks/lesson-digest.sh` (`--count`, `--all`) | nothing | reads the ledger and runs `git rev-parse` |
+  | `bash …/hooks/gate-metrics-report.sh [file]` | nothing | reads the metrics file |
+
+  Every other plugin script needs a linked worktree in a guarded placement: `native-contract-gate.sh` writes git's gate cache, `lesson-append.sh` the main checkout's ledger, the setup fixes and `developer_values.py set` git's configuration directory, and `gc` commits. The skills that run them say to move first, pointing at `SAFETY.md` "Worktree per session".
 - **Edit tools and other tools** are judged at their targets, as ADR-0010 decides.
 - **Outside a guarded placement** ADR-0010 applies: an identified mutation of a guarded resource or of an occupied worktree ([ADR-0013](0013-linked-worktree-occupancy.md)) is refused, and an unknown program passes.
 - **A fault** while the guard computes the placement of an unproven segment fails closed inside a git work tree.
@@ -26,13 +43,16 @@ A **guarded placement** is the main checkout on any branch, or a linked worktree
 - Keep the meter and repair the hold (allow reads, judge by target, list move commands): rejected by the owner. Detection comes after the first write.
 - Refuse every shell command in a guarded placement ([ADR-0003](0003-refuse-every-shell-command.md)): rejected. It blocks inspection.
 - Prove read-only against a maintained allow-list and refuse the rest before the call (chosen).
+- Plugin scripts: require a worktree for every one (rejected: status, digest and render checks would stop in the main checkout), or allow each mode whose writes a reading of the script bounds, judged at those writes (chosen).
 
 ## Accepted gaps
 
 The guard guards against forgetting, not intent ([ADR-0005](0005-guard-against-forgetting-not-intent.md)):
 
 - A listed program can act through its environment or configuration: the repository's git configuration (pager, file-system monitor, external diff), `PATH`, `LD_PRELOAD`.
-- `herdr` stays listed. It changes no file itself; the text it types into another pane is judged by that pane's own guard, and not at all in a plain shell.
+- Git's optional index refresh and stat-cache writes during a listed read (`git status`, `git diff`), and `git fetch` without a destination refspec, which writes only `FETCH_HEAD`, objects and remote-tracking refs. No local branch, index entry or work-tree file changes.
+- A git variable set by `declare -x`, `typeset -x` or `set -a`, or inherited from the session, is not seen.
+- A plugin script form acts through its environment: `LAVISH_AXI_STATE_DIR` pointed into a repository moves the lavish state there.
 - A program that runs from a folder outside every guarded placement can write into one through a path inside its own code (a script, a build tool).
 - A segment after a control word (`then rm x`) is judged at its folder, not at its targets.
 - A `sed` script that holds `w`, `W` or `e` is refused even when the letter is part of a pattern.

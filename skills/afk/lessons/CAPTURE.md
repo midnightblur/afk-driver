@@ -78,9 +78,8 @@ writes directly is a ledger event.
 
 ## The append
 
-From the target repo root (`<main-checkout>` = first entry of `git worktree
-list` — plugin scripts always run from the main checkout, never a worktree's
-stale copy; `GLOSSARY.md` "Main checkout"):
+From a linked worktree of the target repository; the script appends to the
+main checkout's ledger (`GLOSSARY.md` "Main checkout"). In a main checkout, move first (`SAFETY.md` "Worktree per session"):
 
 ```
 bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh opened \

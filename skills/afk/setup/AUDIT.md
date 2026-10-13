@@ -5,7 +5,9 @@ findings routed to the file that must change. The sweeps are repo-wide grep/read
 work: delegate to fresh subagents per `DELEGATION.md` (plugin root), keep only
 the digests.
 
-Run all eight checks; report even when clean.
+Run all eight checks; report even when clean. In a main checkout or on a
+protected branch, the guard refuses checks 5 and 7 (check 5 writes git's gate
+cache): run them from a linked worktree (`SAFETY.md` "Worktree per session").
 
 ## 1 · Structural consistency
 

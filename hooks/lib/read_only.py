@@ -2,7 +2,8 @@
 
 `proven(words, redirects)` is True only for a listed program in a listed read-only form whose
 redirects reach no file. An unlisted program, a path-qualified program, a write flag, a command
-substitution or a PowerShell script block is unproven. protected_branch_guard runs only proven
+substitution, an opaque argument to a form whose flags decide what it does, or a PowerShell script
+block is unproven. protected_branch_guard runs only proven
 segments in a guarded placement; grow the list here, one tested form at a time.
 """
 from __future__ import annotations
@@ -14,11 +15,21 @@ import shell_mutations as sm
 PLAIN = {"cat", "ls", "dir", "pwd", "head", "tail", "wc", "grep", "egrep", "fgrep", "stat", "which", "type",
          "echo", "printf", "jq", "diff", "test", "[", "[[", "true", "false", ":", "cd", "chdir", "pushd", "popd",
          "whoami", "uname", "basename", "dirname", "realpath", "readlink", "tr", "cut", "column", "sleep",
-         "herdr", "for", "fi", "done", "read", "set", "export", "unset", "exit"}
+         "for", "fi", "done", "read", "set", "export", "unset", "exit"}
 CMDLETS = {"set-location", "sl", "push-location", "pop-location", "select-string", "sls", "test-path",
-           "resolve-path", "join-path", "split-path", "write-output", "write-host", "gci", "gc", "select-object",
+           "resolve-path", "join-path", "split-path", "write-output", "write-host", "select-object",
            "sort-object", "measure-object", "where-object", "format-table", "format-list", "out-string",
-           "out-null", "out-host"}
+           "out-null", "out-host", "get-childitem", "gci", "get-content", "gc", "get-item", "gi",
+           "get-itemproperty", "gp", "get-itempropertyvalue", "gpv", "get-location", "gl", "get-date",
+           "get-filehash", "get-process", "gps", "get-service", "gsv", "get-variable", "gv", "get-member", "gm",
+           "get-alias", "gal", "get-psdrive", "gdr", "get-acl", "get-unique", "gu", "get-host", "get-culture",
+           "get-timezone"}
+HERDR_READ = {("status",), ("pane", "list"), ("pane", "current"), ("pane", "get"), ("pane", "layout"),
+              ("pane", "process-info"), ("pane", "neighbor"), ("pane", "edges"), ("pane", "read"),
+              ("pane", "wait-output"), ("agent", "list"), ("agent", "get"), ("agent", "read"), ("agent", "wait"),
+              ("agent", "explain"), ("workspace", "list"), ("workspace", "get"), ("tab", "list"), ("tab", "get"),
+              ("worktree", "list"), ("session", "list"), ("api", "snapshot"), ("integration", "status"),
+              ("machine", "list")}
 FIND_WRITES = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
 GIT_READERS = {"status", "log", "diff", "show", "grep", "rev-parse", "ls-files", "describe", "blame", "shortlog",
                "cat-file", "ls-tree", "merge-base", "for-each-ref", "rev-list", "name-rev", "check-ignore",
@@ -42,23 +53,36 @@ DOCKER_READ = {("ps",), ("logs",), ("inspect",), ("images",), ("version",), ("in
                ("compose", "ps"), ("compose", "logs")}
 
 
+def proven_segment(segment: sm.Segment) -> bool:
+    """`proven` for a parsed segment; a heredoc body that runs a substitution is unproven."""
+    return not segment.expands and proven(segment.words, segment.redirects)
+
+
 def proven(words: list[sm.Word], redirects: list[sm.Word]) -> bool:
     """True when the segment is a listed read-only form and every redirect reaches no file."""
     if any(w.text.lower() not in sm.NO_TARGET for w in redirects):
         return False
-    stripped = sm.strip_prefixes(words, keywords=True)
-    if not stripped:
-        return not any(w.opaque and not sm.ASSIGN.match(w.text) for w in words)
-    if any(w.opaque and ("`" in w.text or "$(" in w.text) for w in stripped):
+    if any(w.opaque and ("`" in w.text or "$(" in w.text) for w in words):
         return False
+    effects: dict = {}
+    stripped = sm.strip_prefixes(words, effects, keywords=True)
+    if not stripped:
+        return not effects.get("opaque")
     if re.search(r"[\\/]", stripped[0].text):
         return False
     prog = sm.program_of(stripped[0])
     args = [w.text for w in stripped[1:]]
-    if prog in CMDLETS or prog.startswith("get-"):
+    if prog in CMDLETS:
         return not any("{" in a for a in args)
     check = FORMS.get(prog)
-    return check(args) if check else prog in PLAIN
+    if check is None:
+        return prog in PLAIN
+    ended = False
+    for word in stripped[1:]:
+        ended = ended or (word.text == "--" and not word.opaque and prog in ("git", "rg"))
+        if word.opaque and not ended:
+            return False  # an expansion could become the flag that writes or runs a program
+    return check(args)
 
 
 def _shorts(args: list[str]) -> str:
@@ -132,6 +156,15 @@ def _curl(args: list[str]) -> bool:
     return not any(a.startswith(CURL_LONG_WRITES) for a in args if a.startswith("--"))
 
 
+def _herdr(args: list[str]) -> bool:
+    if args in (["--version"], ["-V"], ["--help"], ["-h"]):
+        return True
+    if args[:1] == ["--session"]:
+        args = args[2:]
+    plain = [a for a in args if not a.startswith("-")]
+    return (tuple(plain[:1]) in HERDR_READ or tuple(plain[:2]) in HERDR_READ) and "--trust-repository" not in args
+
+
 def _docker(args: list[str]) -> bool:
     i = 0
     while i < len(args) and args[i].startswith("-"):
@@ -189,4 +222,5 @@ def _git_listing(verb: str, rest: list[str], plain: list[str]) -> bool:
 
 
 FORMS = {"find": _find, "sort": _sort, "uniq": _uniq, "rg": _rg, "date": _date, "hostname": _hostname,
-         "sed": _sed, "curl": _curl, "docker": _docker, "gh": _forge, "glab": _forge, "git": _git}
+         "sed": _sed, "curl": _curl, "docker": _docker, "gh": _forge, "glab": _forge, "git": _git,
+         "herdr": _herdr}
