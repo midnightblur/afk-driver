@@ -459,7 +459,7 @@ def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: l
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
         return shell_mutations.resources(command_of(tool_input), cwd, syncs, pulls=pulls,
-                                         powershell=tool.lower() == "powershell")
+                                         powershell=tool.lower() == "powershell", toplevel=toplevel)
     found = targets_of(tool_input, cwd, loose=kind != "edit")
     return found or ([cwd] if kind == "edit" else [])
 
@@ -511,14 +511,33 @@ def move_hint(facts: dict, envelope: dict, judge: "Judge", here: dict | None, re
 
 
 def bound_root(name: str, command: str, powershell: bool) -> Path | None:
-    """The guard's own value of a plugin-root variable; None when the command could rebind it (any mention
-    but `$NAME` or `${NAME}`), PowerShell reads it as its own variable, or the value leaves the guard's root."""
+    """The guard's own root for a plugin-root variable; None when the command could rebind it (any mention
+    but `$NAME` or `${NAME}`) or PowerShell reads it as its own variable."""
     rest = re.sub(r"\$\{%s\}|\$%s(?!\w)" % (name, name), "", command)
-    value = os.environ.get(name)
-    if powershell or not value or re.search(r"(?<!\w)%s(?!\w)" % name, rest):
+    if powershell or re.search(r"(?<!\w)%s(?!\w)" % name, rest):
         return None
-    root = canonical(Path(value))
-    return root if within(root, canonical(OWN_ROOT)) else None
+    return canonical(OWN_ROOT)
+
+
+def touches_own(paths: list | None) -> bool:
+    """A write the guard cannot place, or one inside the guard's root or above it, can replace a plugin file."""
+    own = canonical(OWN_ROOT)
+    return paths is None or any(p is None or within(canonical(p), own) or within(own, canonical(p)) for p in paths)
+
+
+def known_writes(segment, words: list, spot: Path | None, here: Path | None, powershell: bool,
+                 written: list | None) -> list | None:
+    """Every path the segment writes, or None when they are not all literal."""
+    if written is not None:
+        return [shell_mutations.resolve(w, spot) for w in written]
+    if not confined(segment, words, spot, here, powershell):
+        return None
+    paths = [shell_mutations.resolve(w, here) for w in segment.redirects
+             if w.text.lower() not in shell_mutations.NO_TARGET]
+    if not read_only.proven(segment.words, []):
+        prog = shell_mutations.program_of(words[0])
+        paths += [shell_mutations.resolve(t, spot) for t in shell_mutations.writer_targets(prog, words, powershell)]
+    return paths
 
 
 def within(path: Path, root: Path) -> bool:
@@ -625,12 +644,17 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
     """(segment text, placement, cause, is a pull) of the first segment that runs in a guarded placement
     and is not proven read-only; None when there is none. A confined segment is judged later, at its targets."""
     seen: dict[str, tuple] = {}
+    replaced = False  # an earlier segment may have replaced a plugin file
     for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell, toplevel):
-        if read_only.proven_segment(segment) or create_worktree(words or segment.words, spot, command, powershell):
+        if read_only.proven_segment(segment):
+            continue
+        if not replaced and create_worktree(words or segment.words, spot, command, powershell):
+            replaced = True
             continue
         text = " ".join(w.text for w in segment.words)[:80]
         folders, pull = [], False
-        written = plugin_targets(segment, words, spot, command, powershell)
+        written = None if replaced else plugin_targets(segment, words, spot, command, powershell)
+        replaced = replaced or touches_own(known_writes(segment, words, spot, here, powershell, written))
         if written is not None:
             folders += git_env_folders(segment, spot) + [shell_mutations.resolve(w, spot) for w in written]
         elif confined(segment, words, spot, here, powershell) and not segment.git_env:

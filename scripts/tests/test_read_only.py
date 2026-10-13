@@ -98,11 +98,16 @@ def proven(command: str) -> bool:
     ('find . -name "$x"', "find . -name $x"),
     ('find . -iname "$x" -type f', 'find "$dir" -name x'),
     ('find . -path "$p" -type "$t"', 'find . -newer "$x"'),
-    ("gh pr view $n", "gh $GROUP view 12"),
-    ('gh run view "$id" --log', "gh -R $REPO pr view 12"),
-    ("gh issue view $n --comments", "gh pr $VERB $n"),
-    ('glab mr view "$id"', "glab mr $VERB 1"),
-    ("glab issue view $n", "glab $GROUP view 1"),
+    ('gh pr view -- "$n"', 'gh pr view "$flag"'),
+    ("gh pr view -- $n", "gh pr view $n"),
+    ("gh pr view 12", "gh $GROUP view -- 12"),
+    ('gh run view --log -- "$id"', 'gh run view "$id" --log'),
+    ("gh issue view --comments -- $n", "gh -R $REPO pr view -- 12"),
+    ("gh pr view 12", "gh pr $VERB -- $n"),
+    ('glab mr view -- "$id"', 'glab mr view "$id"'),
+    ("glab issue view -- $n", "glab $GROUP view -- 1"),
+    ("glab mr view 1", 'glab mr view "$x" -- 1'),
+    ("glab mr view 1", 'glab mr view $DASHES 1'),
 ])
 def test_a_listed_form_is_proven_and_its_mutating_twin_is_not(command, twin):
     assert proven(command), command

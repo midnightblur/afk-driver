@@ -542,7 +542,7 @@ def exported(words: list[Word], powershell: bool, assigned: dict | None = None) 
         else:
             value = words[2] if len(words) > 2 and words[1].text == "=" else None
         return [(match.group(1).upper(), value)]
-    if not words or words[0].text != "export":
+    if not words or words[0].text != "export" or any(w.text == "-n" for w in words[1:]):
         return []
     found: list[tuple[str, Word | None]] = []
     for word in words[1:]:
@@ -552,6 +552,17 @@ def exported(words: list[Word], powershell: bool, assigned: dict | None = None) 
         elif word.opaque and not ASSIGN.match(word.text):
             found.append(("GIT_DIR", None))  # an opaque name could be any git variable
     return found
+
+
+def unexported(words: list[Word]) -> list[tuple[str, bool]]:
+    """(name, keeps its shell value) per git variable an `unset` or `export -n` removes from the environment."""
+    if not words or words[0].text not in ("unset", "export"):
+        return []
+    flags = [w.text for w in words[1:] if w.text.startswith("-")]
+    if words[0].text == "export" and "-n" not in flags or words[0].text == "unset" and "-f" in flags:
+        return []
+    names = [w.text.partition("=")[0] for w in words[1:] if not w.text.startswith("-")]
+    return [(name, words[0].text == "export") for name in names if name in GIT_ENV]
 
 
 def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=None):
@@ -588,6 +599,10 @@ def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=Non
                 assigned[name] = value
                 if name in git_env:
                     git_env[name] = value
+        for name, keep in unexported(words) if not powershell else []:
+            git_env.pop(name, None)
+            if not keep:
+                assigned.pop(name, None)
         for name, value in exported(segment.words if powershell else words, powershell, assigned):
             git_env[name] = assigned[name] = value
         if prog in PUSH | POP and stack_only(words):
@@ -601,18 +616,18 @@ def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=Non
 
 
 def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None,
-              pulls: list | None = None, powershell: bool = False) -> list[Path]:
+              pulls: list | None = None, powershell: bool = False, toplevel=None) -> list[Path]:
     """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
 
     With `syncs` a list, a `git pull --ff-only` is appended as (folder, remote, branch), not returned.
     With `visited` a list, every folder the command runs in or enters (cd, `-C`, `env -C`) is appended.
     With `pulls` a list, the folders of a mutating `git pull` are appended. `powershell` keeps a
-    folder change made inside `( )` and lets `-WhatIf` exempt every writer.
+    folder change made inside `( )` and lets `-WhatIf` exempt every writer. `toplevel` is passed to `steps`.
     """
     found: list[Path] = []
     if visited is not None:
         visited.append(cwd)
-    for segment, words, spot, here in steps(command, cwd, powershell):
+    for segment, words, spot, here in steps(command, cwd, powershell, toplevel):
         for target in segment.redirects:
             path = resolve(target, here)
             if path is not None:
@@ -621,7 +636,7 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
             continue
         prog = program_of(words[0])
         if prog in CD:
-            moved = cd_target(words, here)
+            moved = cd_target(words, here, None if segment.git_env else toplevel)
             if visited is not None and moved is not None:
                 visited.append(moved)
         elif prog == "git":

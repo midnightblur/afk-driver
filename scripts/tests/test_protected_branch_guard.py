@@ -57,10 +57,10 @@ def repo(tmp_path: Path):
 
 def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
-               if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
+               if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "AFK_PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
                             "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL",
                             "HERDR_ENV", "HERDR_TAB_ID", "AFK_WORKTREE_GROUP", "AFK_WORKTREE_OWNER")}
-    environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
+    environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, **env})
     return environ
 
 
@@ -1058,12 +1058,11 @@ def test_review2_a_rebound_plugin_root_is_not_trusted(repo, command):
     assert bash(repo["main"], command.format(fake=fake.as_posix())).returncode == 2, command
 
 
-def test_review2_a_plugin_root_outside_the_guard_is_not_trusted(repo):
+def test_review2_a_plugin_root_variable_names_the_guard_s_own_root(repo):
     fake = repo["tmp"] / "not-afk"
     (fake / "scripts").mkdir(parents=True)
-    done = run("claude", repo["main"], "Bash", {"command": STOP}, AFK_PLUGIN_ROOT=str(fake))
-    assert done.returncode == 2
-    assert bash(repo["main"], STOP).returncode == 0
+    assert run("claude", repo["main"], "Bash", {"command": STOP}, AFK_PLUGIN_ROOT=str(fake)).returncode == 0
+    assert bash(repo["main"], 'afk-python "$AFK_PLUGIN_ROOT/../x/scripts/lavish_show.py" stop').returncode == 2
 
 
 def test_review2_the_audit_glossary_check_runs_in_the_main_checkout(repo):
@@ -1132,3 +1131,59 @@ def test_review2_the_repository_root_substitution_is_the_current_root(repo, comm
 def test_review2_any_other_root_substitution_stays_unknown(repo, command):
     done = bash(repo["topic"], command)
     assert done.returncode == 2 and "cannot know" in deny_of(done), command
+
+
+# ---------------------------------------------------------------- review round 3
+
+def manifest_root_variable(manifest: str) -> str:
+    """The plugin-root variable a manifest's guard entry is launched with."""
+    entries = json.loads((PLUGIN_ROOT / "hooks" / manifest).read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    command = next(h["command"] for e in entries for h in e["hooks"] if "protected-branch-guard.py" in h["command"])
+    return re.search(r"\$\{(\w+)\}", command).group(1)
+
+
+def documented(path: str, pattern: str) -> str:
+    return re.search(pattern, (PLUGIN_ROOT / path).read_text(encoding="utf-8")).group(1)
+
+
+@pytest.mark.parametrize("harness,manifest", [("claude", "hooks.json"), ("codex", "hooks.codex.json")])
+def test_review3_the_documented_setup_reads_run_under_each_manifest_environment(repo, harness, manifest):
+    env = {manifest_root_variable(manifest): str(PLUGIN_ROOT)}
+    for command in (documented("skills/afk/setup/AUDIT.md", r"`(afk-python [^`]*glossary_usage\.py[^`]*)`"),
+                    documented("skills/afk/setup/MANIFEST.md", r"\*\*Base probe:\*\* `([^`]*python_runtime\.py[^`]*)`")):
+        assert "AFK_PLUGIN_ROOT" not in clean_env(harness, **env)
+        assert run(harness, repo["main"], "Bash", {"command": command}, **env).returncode == 0, command
+
+
+@pytest.mark.parametrize("earlier", [
+    "cp {spare} {own}/scripts/lavish_show.py",
+    "mv {spare} {own}/scripts/lavish_show.py",
+    "ln -sf {spare} {own}/scripts/lavish_show.py",
+    "echo x > {own}/scripts/lavish_show.py",
+    'cp {spare} "$DEST"',
+])
+@pytest.mark.parametrize("later", [STOP, '"$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other',
+                                   'afk-python "{own}/scripts/lavish_show.py" stop'])
+def test_review3_a_plugin_form_after_a_write_into_the_plugin_is_unproven(repo, earlier, later):
+    own = PLUGIN_ROOT.as_posix()
+    command = f"{earlier}; {later}".format(spare=(repo["tmp"] / "spare").as_posix(), own=own)
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review3_a_plugin_form_after_a_write_outside_the_plugin_still_runs(repo):
+    spare = (repo["tmp"] / "spare").as_posix()
+    assert bash(repo["main"], f"cp {spare} {repo['tmp'].as_posix()}/copy; {STOP}").returncode == 0
+
+
+def test_review3_a_known_writer_after_the_root_substitution_is_judged_at_its_target(repo):
+    up = 'cd "$(git rev-parse --show-toplevel)"; touch ../../../guarded.txt'
+    assert bash(repo["topic"], up).returncode == 2
+    assert bash(repo["topic"], 'cd "$(git rev-parse --show-toplevel)"; touch inside.txt').returncode == 0
+
+
+@pytest.mark.parametrize("removal,allowed", [("unset GIT_WORK_TREE", True), ("export -n GIT_WORK_TREE", True),
+                                             ("unset -v GIT_WORK_TREE", True), ("unset -f GIT_WORK_TREE", False),
+                                             ("unset GIT_DIR", False)])
+def test_review3_an_unset_git_variable_no_longer_aims_git(repo, removal, allowed):
+    command = f"GIT_WORK_TREE={repo['main'].as_posix()}; export GIT_WORK_TREE; {removal}; git reset --hard"
+    assert bash(repo["topic"], command).returncode == (0 if allowed else 2), command
