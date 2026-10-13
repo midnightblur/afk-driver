@@ -126,8 +126,8 @@ this evidence, and the last section says what would close it.
 | release-gate.sh | proven | `release` — exit 0 at v1.0.1 and v1.0.2; it is what forced the four-way version agreement |
 | update-notice.sh | covered | `gate` |
 | hooks/lib/provider.sh | proven | `ledger` — auto-detection returned the right adapter on both harnesses |
-| providers/claude.sh | proven | `ledger` |
-| providers/codex.sh | proven | `ledger` round 4 |
+| hooks/lib/providers/claude.sh | proven | `ledger` |
+| hooks/lib/providers/codex.sh | proven | `ledger` round 4 |
 | hooks/lib/config.sh | covered | `gate` — the config tests compare the shell view against `effective --json` key by key |
 | scripts/afk-config.py | covered | `gate` — its own test directory is inside the 80 |
 | hooks/lib/adapter.sh | proven | `round5` — dispatched every family and kind; the round found and fixed two dispatch defects here |
