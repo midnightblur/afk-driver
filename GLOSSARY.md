@@ -212,6 +212,37 @@ The one immutable note that lists every rationale operation ID posted in a batch
 **Pending entry**:
 A recorded reason not yet posted. It sits under the git directory as recovery data and never counts as the record.
 
+## Small lane
+
+**Small lane**:
+The lightweight path for a small bug: diagnosis, approval, fix and proof, ending at a merge request, with no PRD, SDD or plan. A bug that needs design options or a product owner's call leaves it for a grill.
+_Avoid_: fast track, quick fix
+
+**Diagnosis**:
+The record `/afk:diagnose` writes for one bug: the checked symptom, the comparison with the specs, the reproduction, the root cause, the diagnosis verdict and the fix proposal.
+_Avoid_: bug report (the reporter's input, not the agent's finding), evidence bundle (the retired capture format)
+
+**Light diagnosis**:
+A diagnosis that reuses a reproduction the caller already holds, such as a failing check or a finding, instead of building its own, and skips the clean copy of the base branch. It still compares with the specs, finds the root cause and writes the diagnosis.
+_Avoid_: quick diagnosis, partial diagnosis
+
+**Diagnosis verdict**:
+The one-line outcome of a diagnosis: real bug with an obvious fix, real bug with several possible fixes, spec gap, works as specified, or cannot reproduce.
+_Avoid_: verdict alone (names gate outcomes)
+
+**Fix proposal**:
+The change a diagnosis recommends, with its options when there is more than one, waiting for approval.
+
+**Proof**:
+Evidence that a bug existed and is gone: the test that failed before and passes after, every verification tier the fix ran, and a before-and-after capture from the running app or the API.
+_Avoid_: evidence (the wider word, see Evidence grade)
+
+**Prior approval**:
+An explicit human instruction or approval given before a step, such as starting a hands-off run, that stands in for asking at that step.
+
+**In-place fix** / **standalone fix**:
+The two modes of `/afk:fix`. In place: inside a caller's branch, and the caller ships the change. Standalone: the fix ships the change itself.
+
 ## Bug pipeline
 
 **`/afk:bug`**:
