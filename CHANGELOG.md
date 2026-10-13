@@ -155,6 +155,10 @@ release page from its section here. Nobody tags by hand.
   quotes harness facts, plan commands or investigation evidence blocked the
   gate. All three now skip spec folders; plugin prose and code stay in scope.
 
+- **The genericity gate no longer reads a harness plugin id as an address.**
+  An unquoted `<plugin>@builtin.<key>` matched the address shape and blocked
+  the gate as a named person; ids from the harness's built-in source now pass.
+
 - **The investigation seed no longer counts published ledgers.** A spec
   folder's `investigations/INV-*/` ledgers quote their subject thousands of
   times, so a subject investigated before could exceed the hit limit and stop
