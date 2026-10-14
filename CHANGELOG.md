@@ -63,8 +63,8 @@ release page from its section here. Nobody tags by hand.
   repository (the mission-control digest check, lavish pages outside it, the
   lesson digest, the setup audit's reads). A plugin script named through
   `$AFK_PLUGIN_ROOT` is read as the guard's own installed copy, and counts
-  only when the command neither reassigns the variable nor, before it, writes
-  into the plugin or to a target the guard cannot place. Git variables (`GIT_DIR`,
+  only when the command neither reassigns the variable nor, before it, creates
+  a link or writes into the plugin or to a target the guard cannot place. Git variables (`GIT_DIR`,
   `GIT_WORK_TREE`, `GIT_COMMON_DIR`) and symbolic links are followed to their
   target, and a folder change the guard cannot read refuses every later
   unproven part, in any checkout. The skills that ran a writing plugin script

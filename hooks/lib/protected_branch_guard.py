@@ -601,6 +601,7 @@ PLUGIN_FORMS = {
 }
 
 
+LINKERS = {"ln", "mklink", "new-item", "ni"}  # `New-Item` takes abbreviated link types, so any one counts
 ROOT_ARGUMENT = {"scripts/glossary_usage.py"}  # forms that take the plugin root itself as their argument
 
 
@@ -648,6 +649,8 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
     for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell, toplevel):
         if read_only.proven_segment(segment):
             continue
+        if words and shell_mutations.program_of(words[0]) in LINKERS:
+            replaced = True  # a new link can alias a plugin file for a later write
         if not replaced and create_worktree(words or segment.words, spot, command, powershell):
             replaced = True
             continue

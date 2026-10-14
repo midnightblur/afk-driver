@@ -1187,3 +1187,44 @@ def test_review3_a_known_writer_after_the_root_substitution_is_judged_at_its_tar
 def test_review3_an_unset_git_variable_no_longer_aims_git(repo, removal, allowed):
     command = f"GIT_WORK_TREE={repo['main'].as_posix()}; export GIT_WORK_TREE; {removal}; git reset --hard"
     assert bash(repo["topic"], command).returncode == (0 if allowed else 2), command
+
+
+# ---------------------------------------------------------------- review round 4
+
+LATER = [STOP, '"$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other', 'afk-python "{own}/scripts/lavish_show.py" stop']
+
+
+@pytest.mark.parametrize("earlier", [
+    "ln -s {own} {tmp}/alias; cp {spare} {tmp}/alias/scripts/lavish_show.py",
+    "ln {own}/scripts/lavish_show.py {tmp}/hard; cp {spare} {tmp}/hard",
+    "ln -s {tmp}/a {tmp}/b",
+])
+@pytest.mark.parametrize("later", LATER)
+def test_review4_a_plugin_form_after_any_link_is_unproven(repo, earlier, later):
+    command = f"{earlier}; {later}".format(own=PLUGIN_ROOT.as_posix(), tmp=repo["tmp"].as_posix(),
+                                          spare=(repo["tmp"] / "spare").as_posix())
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+@pytest.mark.parametrize("kind", ["SymbolicLink", "HardLink", "Junction"])
+def test_review4_a_plugin_form_after_a_powershell_link_is_unproven(repo, kind):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    assert run("claude", repo["main"], "PowerShell", {"command": later}).returncode == 0
+    link = f"New-Item -ItemType {kind} -Path {repo['tmp'].as_posix()}/alias -Target {PLUGIN_ROOT.as_posix()}"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{link}; {later}"}).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "export GIT_WORK_TREE={topic}; export -n GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset GIT_WORK_TREE=x; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -fn GIT_WORK_TREE; git reset --hard",
+    "export -n GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+])
+def test_review4_an_unreadable_removal_leaves_the_git_state_unknown(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review4_a_plain_removal_after_an_unknown_one_restores_a_known_state(repo):
+    command = "unset -fn X; unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0

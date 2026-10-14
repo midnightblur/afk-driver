@@ -17,6 +17,7 @@ SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "-
 ENV_VALUE = {"-u", "--unset"}
 ENV_CHDIR = {"-C", "--chdir"}
 GIT_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
+IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 PS_GIT_ENV = re.compile(r"^\$env:(GIT_DIR|GIT_WORK_TREE|GIT_COMMON_DIR)(?:=(.*))?$", re.I | re.S)
 EXPANDS = ("$(", "`", "<(")
 CD = {"cd", "chdir", "set-location", "sl", "pushd", "push-location"}
@@ -542,7 +543,7 @@ def exported(words: list[Word], powershell: bool, assigned: dict | None = None) 
         else:
             value = words[2] if len(words) > 2 and words[1].text == "=" else None
         return [(match.group(1).upper(), value)]
-    if not words or words[0].text != "export" or any(w.text == "-n" for w in words[1:]):
+    if not words or words[0].text != "export" or unexports(words):
         return []
     found: list[tuple[str, Word | None]] = []
     for word in words[1:]:
@@ -554,15 +555,26 @@ def exported(words: list[Word], powershell: bool, assigned: dict | None = None) 
     return found
 
 
-def unexported(words: list[Word]) -> list[tuple[str, bool]]:
-    """(name, keeps its shell value) per git variable an `unset` or `export -n` removes from the environment."""
-    if not words or words[0].text not in ("unset", "export"):
+def unexports(words: list[Word]) -> bool:
+    """An `export` with an `n` flag: it removes names from the environment."""
+    return bool(words) and words[0].text == "export" and any(
+        w.text.startswith("-") and "n" in w.text for w in words[1:])
+
+
+def unexported(words: list[Word]) -> list[tuple[str, bool]] | None:
+    """(name, keeps its shell value) per git variable `unset [-v] NAME…` or `export -n NAME…` removes;
+    None for any other `unset` or `export -n` shape, which leaves every git variable unknown."""
+    if not words or not (words[0].text == "unset" or unexports(words)):
         return []
-    flags = [w.text for w in words[1:] if w.text.startswith("-")]
-    if words[0].text == "export" and "-n" not in flags or words[0].text == "unset" and "-f" in flags:
-        return []
-    names = [w.text.partition("=")[0] for w in words[1:] if not w.text.startswith("-")]
-    return [(name, words[0].text == "export") for name in names if name in GIT_ENV]
+    flag = "-n" if words[0].text == "export" else "-v"
+    names = words[1:]
+    if names[:1] and names[0].text == flag and not names[0].opaque:
+        names = names[1:]
+    elif flag == "-n":
+        return None
+    if any(w.opaque or not IDENTIFIER.match(w.text) for w in names):
+        return None
+    return [(w.text, flag == "-n") for w in names if w.text in GIT_ENV]
 
 
 def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=None):
@@ -599,7 +611,11 @@ def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=Non
                 assigned[name] = value
                 if name in git_env:
                     git_env[name] = value
-        for name, keep in unexported(words) if not powershell else []:
+        removed = [] if powershell else unexported(words)
+        if removed is None:
+            for name in GIT_ENV:
+                git_env[name] = assigned[name] = None
+        for name, keep in removed or []:
             git_env.pop(name, None)
             if not keep:
                 assigned.pop(name, None)
