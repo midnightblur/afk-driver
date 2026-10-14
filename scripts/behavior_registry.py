@@ -2,13 +2,20 @@
 """Validate, render, or audit the managed behavior registry.
 
 Commands:
-  behavior_registry.py validate [registry] [--plugin-root DIR] [--base-registry FILE] [--verbose]
+  behavior_registry.py validate [registry] [--plugin-root DIR] [--dispositions FILE]
+      [--parity-root DIR] [--base-registry FILE] [--base-dispositions FILE] [--verbose]
   behavior_registry.py render [registry] [--plugin-root DIR] [--output FILE]
   behavior_registry.py audit [registry] [--plugin-root DIR] --target FILE [...]
       [--target-root FILE ROOT ENABLEMENT ...] [--ignore-unmanaged]
 
 ``validate`` checks the registry contract and the rendered byte ceiling; it is
 silent on success unless ``--verbose``.
+``--dispositions`` names the inventory file: the header ``inventory_id class
+disposition behavior_id``, then one tab-separated row per lowercase kebab-case
+id. An id never leaves the file; retire it in place with disposition
+``retired``. ``--base-dispositions``, else the merge-base copy found from
+``--parity-root``, supplies the ids that must remain; with neither, validate
+says so on stderr and checks the file alone.
 ``render`` writes one ``afk:behaviors`` block. It never truncates the block.
 ``audit`` checks installed blocks without changing their target files.
 ``--target`` audits a file against the shared ``--plugin-root`` (its provider
@@ -60,6 +67,7 @@ DISPOSITIONS = {
     "stack-fact",
     "existing-doctrine",
 }
+DISPOSITIONS_FILE = "hooks/behavior-dispositions.tsv"
 LEGACY_SENTINELS = ("plain-language", "lavish-sessions", "investigation")
 REQUIRED_INSTALL_TESTS = (
     "test_install_migration_covers_h7_h8_h10_and_removes_duplicate_unified_blocks",
@@ -71,57 +79,6 @@ LEGACY_HEADINGS = (
     "## Grilling sessions: render through lavish",
     "## Code questions: investigate to closure",
 )
-# Lockstep copy of the inventory IDs owned by hooks/behavior-dispositions.tsv.
-# The fixed parser set makes a deleted disposition fail closed.
-EXPECTED_INVENTORY_IDS = frozenset(
-    {
-        "adr-final-design-only",
-        "always-open-a-pr",
-        "automation-fully-autonomous-self-provision",
-        "bug-fix-with-future-co-scaffold",
-        "build-scope-matches-change",
-        "check-prd-before-contract-fix",
-        "clear-stale-git-index-lock",
-        "delegate-exploration",
-        "diff-the-merge-first",
-        "dogfood-verify-after-fix",
-        "inference-marking",
-        "instructions-only-what-reader-needs",
-        "investigation-closure",
-        "jira-get-fields",
-        "l9-implementation-seam-grill",
-        "lavish-grilling-render",
-        "local-branch-no-pr-split",
-        "mcp-tools-self-contained",
-        "name-the-reader",
-        "never-alter-db-directly",
-        "no-autonomous-commits-on-protected-branches",
-        "phase-review-gates",
-        "prefer-instruction-over-hook",
-        "prove-reachability-before-fixing",
-        "reply-ste100",
-        "run-readonly-commands-yourself",
-        "spring-bean-constructor-context-test",
-        "verify-commit-content-landed",
-        "verify-external-state",
-        "verify-gaps-before-planning",
-        "verify-hardest-where-you-wrote-it",
-        "verify-hibernate-behavior",
-        "verify-jdk-spec-claims",
-        "verify-version-spec-claims",
-        "verify-without-asking",
-        "vue3-bidirectional-watch-guard",
-        "wiring-done-is-consumed",
-        "rebuild-round-page",
-        "never-reload-answering-page",
-        "poll-lavish-tracked-job",
-        "rationale-on-change",
-        "render-lavish-repo-renderer",
-        "worktree-per-session",
-    }
-)
-
-
 class RegistryError(ValueError):
     """The registry does not satisfy its file contract."""
 
@@ -321,7 +278,7 @@ def _validate_revisions(registry: Registry, base: Registry) -> None:
         )
 
 
-def _discover_base_registry(root: pathlib.Path) -> Registry | None:
+def _discover_base_text(root: pathlib.Path, relative: str) -> tuple[str, str] | None:
     candidates: list[str] = []
     try:
         remote_head = subprocess.run(
@@ -345,15 +302,24 @@ def _discover_base_registry(root: pathlib.Path) -> Registry | None:
         if merge_base.returncode != 0 or not merge_base.stdout.strip():
             continue
         content = subprocess.run(
-            [GIT, "-C", str(root), "show", f"{merge_base.stdout.strip()}:BEHAVIORS.md"],
+            [GIT, "-C", str(root), "show", f"{merge_base.stdout.strip()}:{relative}"],
             check=False,
             capture_output=True,
             text=True,
             encoding="utf-8",
         )
         if content.returncode == 0:
-            return _parse_registry_text(content.stdout, f"{candidate}:BEHAVIORS.md")
+            return content.stdout, f"{candidate}:{relative}"
     return None
+
+
+def _discover_base_registry(root: pathlib.Path) -> Registry | None:
+    found = _discover_base_text(root, "BEHAVIORS.md")
+    return None if found is None else _parse_registry_text(*found)
+
+
+def _inventory_ids(text: str) -> frozenset[str]:
+    return frozenset(line.split("\t", 1)[0] for line in text.splitlines()[1:] if line)
 
 
 def validate_registry(
@@ -364,6 +330,7 @@ def validate_registry(
     dispositions: pathlib.Path | str | None = None,
     parity_root: pathlib.Path | str | None = None,
     base_registry: pathlib.Path | str | None = None,
+    base_dispositions: pathlib.Path | str | None = None,
 ) -> Registry:
     root = pathlib.Path(plugin_root).resolve()
     registry = parse_registry(registry_path)
@@ -402,7 +369,18 @@ def validate_registry(
     if count > byte_limit:
         raise RegistryError(f"rendered block is {count} bytes; limit is {byte_limit} bytes")
     if dispositions is not None:
-        validate_dispositions(dispositions, registry)
+        base_ids = None
+        if base_dispositions is not None:
+            base_ids = _inventory_ids(_read_dispositions(base_dispositions))
+        elif parity_root is not None:
+            found = _discover_base_text(pathlib.Path(parity_root).resolve(), DISPOSITIONS_FILE)
+            base_ids = None if found is None else _inventory_ids(found[0])
+        if base_ids is None:
+            print(
+                "behavior_registry: no base dispositions; deleted inventory ids are not checked",
+                file=sys.stderr,
+            )
+        validate_dispositions(dispositions, registry, base_ids)
     if parity_root is not None:
         validate_parity(parity_root)
     if base_registry is not None:
@@ -414,12 +392,17 @@ def validate_registry(
     return registry
 
 
-def validate_dispositions(path: pathlib.Path | str, registry: Registry) -> None:
-    disposition_path = pathlib.Path(path)
+def _read_dispositions(path: pathlib.Path | str) -> str:
     try:
-        lines = disposition_path.read_text(encoding="utf-8").splitlines()
+        return pathlib.Path(path).read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
-        raise RegistryError(f"cannot read {disposition_path}: {exc}") from exc
+        raise RegistryError(f"cannot read {path}: {exc}") from exc
+
+
+def validate_dispositions(
+    path: pathlib.Path | str, registry: Registry, base_ids: frozenset[str] | None = None
+) -> None:
+    lines = _read_dispositions(path).splitlines()
     header = ["inventory_id", "class", "disposition", "behavior_id"]
     if not lines or lines[0].split("\t") != header:
         raise RegistryError("dispositions must start with inventory_id, class, disposition, behavior_id")
@@ -435,6 +418,8 @@ def validate_dispositions(path: pathlib.Path | str, registry: Registry) -> None:
         inventory_id, behavior_class, disposition, behavior_id = columns
         if not inventory_id:
             raise RegistryError(f"dispositions line {number}: empty inventory_id")
+        if not ID_RE.fullmatch(inventory_id):
+            raise RegistryError(f"dispositions line {number}: inventory id must be lowercase kebab-case")
         if inventory_id in inventory_ids:
             raise RegistryError(f"duplicate inventory id: {inventory_id}")
         inventory_ids.add(inventory_id)
@@ -450,12 +435,11 @@ def validate_dispositions(path: pathlib.Path | str, registry: Registry) -> None:
             referenced.add(behavior_id)
         elif behavior_id != "-":
             raise RegistryError(f"{inventory_id}: non-registry disposition must use behavior_id '-'")
-    if inventory_ids != EXPECTED_INVENTORY_IDS:
-        missing_ids = sorted(EXPECTED_INVENTORY_IDS - inventory_ids)
-        extra_ids = sorted(inventory_ids - EXPECTED_INVENTORY_IDS)
+    deleted = sorted((base_ids or frozenset()) - inventory_ids)
+    if deleted:
         raise RegistryError(
-            "inventory set mismatch; "
-            f"missing={','.join(missing_ids) or '-'}; extra={','.join(extra_ids) or '-'}"
+            f"inventory ids deleted since the base: {', '.join(deleted)}; "
+            "keep each row and set its disposition to retired"
         )
     missing = sorted(active - referenced)
     if missing:
@@ -824,6 +808,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validate_parser.add_argument("--dispositions", type=pathlib.Path)
     validate_parser.add_argument("--parity-root", type=pathlib.Path)
     validate_parser.add_argument("--base-registry", type=pathlib.Path)
+    validate_parser.add_argument("--base-dispositions", type=pathlib.Path)
     validate_parser.add_argument("--byte-limit", type=int, default=BODY_BYTE_LIMIT)
     validate_parser.add_argument("--verbose", action="store_true", help="print the row count and byte size on success")
 
@@ -859,6 +844,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 dispositions=args.dispositions,
                 parity_root=args.parity_root,
                 base_registry=args.base_registry,
+                base_dispositions=args.base_dispositions,
             )
             if args.verbose:
                 count = rendered_byte_count(render_registry(registry_path, root))

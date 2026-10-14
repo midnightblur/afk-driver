@@ -127,6 +127,35 @@ def managed_behavior(repo):
     _git(repo, "add", "-A")
 
 
+DISPOSITIONS = Path("hooks") / "behavior-dispositions.tsv"
+
+
+def _edit_dispositions(repo, edit) -> None:
+    path = repo / DISPOSITIONS
+    path.write_text(edit(path.read_text(encoding="utf-8")), encoding="utf-8", newline="\n")
+    _git(repo, "add", "-A")
+
+
+def behavior_added(repo):
+    _append(repo / "BEHAVIORS.md", "\n## zz-fixture-rule\n"
+            "state: active | scope: all-repos | revision: 1 | doctrine: LANGUAGE.md §1–2\n"
+            "self-contained: yes\nKeep fixture replies short.\n")
+    _edit_dispositions(repo, lambda text: text + "zz-fixture-rule\tteam\tregistry\tzz-fixture-rule\n")
+
+
+def behavior_inconsistent(repo):
+    _edit_dispositions(repo, lambda text: text + "zz-fixture-rule\tteam\tregistry\tzz-fixture-rule\n")
+
+
+def disposition_deleted(repo):
+    _edit_dispositions(repo, lambda text: text.replace("adr-final-design-only\tteam\tfold\t-\n", ""))
+
+
+def disposition_retired(repo):
+    _edit_dispositions(repo, lambda text: text.replace("adr-final-design-only\tteam\tfold\t-\n",
+                                                       "adr-final-design-only\tteam\tretired\t-\n"))
+
+
 def registry_lockstep(repo):
     skill = repo / "skills" / "utils" / "zz-fixture" / "SKILL.md"
     skill.parent.mkdir(parents=True)
@@ -177,7 +206,8 @@ def shadowed_skill_registry(repo):
 
 
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
-                                    provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate,
+                                    provider_manifest, managed_behavior, behavior_added, behavior_inconsistent,
+                                    disposition_deleted, disposition_retired, registry_lockstep, crash, noop_gate,
                                     forced_sentinel, shadowed_native_contract, shadowed_skill_registry)}
 
 
@@ -278,6 +308,20 @@ def test_provider_manifest_drift_blocks_native_contract(results):
 def test_managed_behavior_drift_blocks_the_behavior_registry(results):
     rc, blocked, _rows, err = _blocked(results, "managed_behavior")
     assert rc == 2 and "behavior-registry" in blocked, err
+
+
+@pytest.mark.parametrize("name", ["behavior_added", "disposition_retired"])
+def test_a_consistent_inventory_change_passes_both_modes(results, name):
+    for rc, rows, err in results[name]:
+        assert rc == 0 and verdicts(rows)["behavior-registry"] == "pass", err
+
+
+@pytest.mark.parametrize("name, finding", [("behavior_inconsistent", "does not resolve to an active row"),
+                                           ("disposition_deleted", "deleted since the base: adr-final-design-only")])
+def test_an_inconsistent_or_deleted_inventory_row_blocks_both_modes(results, name, finding):
+    for rc, rows, err in results[name]:
+        assert rc == 2 and verdicts(rows)["behavior-registry"] == "blocked", err
+        assert any(finding in f for g, _v, f in rows if g == "behavior-registry"), rows
 
 
 def test_registry_lockstep_blocks_both_registry_gates(results):

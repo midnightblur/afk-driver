@@ -129,6 +129,15 @@ release page from its section here. Nobody tags by hand.
 - The wiring gate and `/afk:verify-seams` no longer treat untracked files as
   new artifacts. A file untracked before the work started cannot be wired by
   it; candidates are now staged adds and commits ahead of the merge-base (#98).
+- **The target branch's gates accept a new managed behavior.** The behavior
+  registry gate compared `hooks/behavior-dispositions.tsv` with an id list in
+  its own code, so the target branch's copy refused every added behavior. It
+  now compares the file with its merge-base copy: a valid new row passes, and
+  a deleted id still blocks. Retire an id in place with disposition
+  `retired`. With no merge-base copy, the gate says so and checks the file
+  alone. The native-contract gate likewise accepts a `repo-list` hook entry
+  for any event `CAPABILITIES.md` declares, when the entry names its own
+  event.
 
 ## [1.15.0] - 2026-10-07
 
