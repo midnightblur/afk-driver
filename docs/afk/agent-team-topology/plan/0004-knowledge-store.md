@@ -40,8 +40,8 @@ standard
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `python -m py_compile scripts/team/knowledge.py && grep -n 'def write_entry(' scripts/team/knowledge.py && grep -n 'def mark_finished(' scripts/team/knowledge.py && grep -n 'def read_finished(' scripts/team/knowledge.py` | code builds; the Produces anchors exist |
-| unit | `python -m pytest scripts/tests/test_team_knowledge.py -q`, cases: an unfinished entry is hidden from a peer; the debate release happens only when every debater role has a finished draft; an entry from an agent that ended early stays unfinished; a replacement's finished draft fills the role; a verdict entry without a reason is refused | the entry lifecycle and the read filter |
+| static | `afk-python -m py_compile scripts/team/knowledge.py && grep -n 'def write_entry(' scripts/team/knowledge.py && grep -n 'def mark_finished(' scripts/team/knowledge.py && grep -n 'def read_finished(' scripts/team/knowledge.py` | code builds; the Produces anchors exist |
+| unit | `afk-python -m pytest scripts/tests/test_team_knowledge.py -q`, cases: an unfinished entry is hidden from a peer; the debate release happens only when every debater role has a finished draft; an entry from an agent that ended early stays unfinished; a replacement's finished draft fills the role; a verdict entry without a reason is refused | the entry lifecycle and the read filter |
 
 ## Context excerpts
 > (SDD §8 row "Knowledge store module") | Knowledge store module | Entry lifecycle, finished stamp, per-stage read filter, the debate release rule per work-item id, counting roles (S-138, S-193) | write entry, mark finished, read finished; a peer's draft only when a finished draft exists for every debater role (S-193) | none | Knowledge store |

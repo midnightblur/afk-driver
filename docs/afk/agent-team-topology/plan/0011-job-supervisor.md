@@ -44,8 +44,8 @@ standard
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `python -m py_compile scripts/team/supervisor.py && grep -n 'def supervise_agent(' scripts/team/supervisor.py` | code builds; the Produces anchor exists |
-| unit | `python -m pytest scripts/tests/test_team_supervisor.py -q`, cases: the message id is the watched agent-id, sup, counter; the parked body carries a UTC ISO 8601 reset time; the body path is empty only for exited or an unknown reset time; a second supervisor for one agent is refused | the supervisor's messages and the one-supervisor rule |
+| static | `afk-python -m py_compile scripts/team/supervisor.py && grep -n 'def supervise_agent(' scripts/team/supervisor.py` | code builds; the Produces anchor exists |
+| unit | `afk-python -m pytest scripts/tests/test_team_supervisor.py -q`, cases: the message id is the watched agent-id, sup, counter; the parked body carries a UTC ISO 8601 reset time; the body path is empty only for exited or an unknown reset time; a second supervisor for one agent is refused | the supervisor's messages and the one-supervisor rule |
 
 ## Context excerpts
 > (SDD §8 row "Job supervisor") | Job supervisor | Watch one agent; send exited, and parked with the reset time where it owns the output stream (TR-2) (S-141). Started by agent-start, which names the watched agent-id in its own field, watched-agent-id (correction of audit round 4, agent-decided); the contact agent writes its process entry from the answer, with the answer's process id (audit round 5, agent-decided) and started-at read from the operating system when it writes the entry (S-240, S-232; audit round 3, agent-decided) | agent-send exited or parked, only to the contact agent, as the watched agent: its agent-id, role and owner generation; message id = the watched agent-id, then 'sup', then the supervisor's counter; parked carries the reset time in a body file, UTC ISO 8601; body-path empty only for exited or an unknown reset time (S-236) | team entry script | Run (process entry owned by the agent-id it watches; at most one per agent, S-181, S-222, S-240) |

@@ -181,3 +181,31 @@
 - Chosen: B — the run-directory rule (GL:745 (7)) sits on 0003, which writes the manifest, and on 0015, whose briefs tell agents how to write; the Draft-reuse rule for a subtask agent's rationale-post (GL:745 (6)) sits on 0015; afk-lite's pending operation ids (GL:745 (6)) sit on 0021 with a test
 - Supersedes: none
 - To reverse: move the bullets to a new subtask
+
+## D-27 — D-18 is void: the runner arm of DELEGATION.md:34 stays
+- 2026-10-13 · decided by /afk:to-subtasks
+- Options: A — keep D-18 and remove the runner arm vs B — keep the arm, as the human's answer to SDD §13 Q32 says
+- Chosen: B — GRILL-LOG.md:746 (human, 2026-10-07): a long suite or build runner keeps the stall watchdog, the one exception to S-162; 0014 keeps the arm, its absence check becomes a presence check, and its excerpts quote the SDD rows that now say so
+- Supersedes: D-18
+- To reverse: a new human row that removes the arm; then restore D-18's edits in 0014
+
+## D-28 — The short-form entry has scope all-repos
+- 2026-10-13 · decided by /afk:to-subtasks
+- Options: A — scope configured-repos, as 0014 said vs B — scope all-repos, as the human's row says
+- Chosen: B — GRILL-LOG.md:747 (human, 2026-10-13) sets the BEHAVIORS.md short-form entry to all-repos, so AC-047 stands; 0014's Seams, Acceptance, Produces and CHANGELOG bullet say all-repos, and a repository with no .afk/config.yaml gets the short form; the block is 2795 bytes before the entry at 13bec6d
+- Supersedes: none
+- To reverse: a new human row; then set the scope back in 0014
+
+## D-29 — Re-anchor the plan to main 4b17f1e
+- 2026-10-13 · decided by /afk:to-subtasks
+- Options: A — re-slice the plan vs B — keep the slices and correct the facts and cites main moved
+- Chosen: B — main's #97 moved every plugin gate off Stop to agent commits and CI (hooks/plugin-source-gates.sh:97) and inserted /afk:execute Step 11, so: 0019 drops hooks/stop-gates.sh from its Scope and changes no Stop runner, and leaves V40 to 0002, 0016 and 0023, which still change gate sources; 0016 appends the charter pointer at index 7 after protected-branch-occupancy.py, so the group ends with 8 handlers and H12 gains a sixth hook, SessionStart:0:7; 0021 names the rationale receipt Step 12 (execute/SKILL.md:106); 0024 names the status table Step 14 (execute/SKILL.md:122-131) and the tooltip seed scripts/lavish/tips.json; 0006's V38 checks parallel Step 11 wiring scans, not Stops; 0023 names the gate walks native-contract-gate.sh:98, :536; every Python launch runs as afk-python; every SDD excerpt is re-quoted from the current SDD
+- Supersedes: none
+- To reverse: revert the delta-2 change to plan/
+
+## D-30 — The park sentences join the status-set change
+- 2026-10-13 · decided by /afk:to-subtasks
+- Options: A — leave GLOSSARY.md:207 and README.md:57, :456-457 as they are vs B — change them with autopilot step 4
+- Chosen: B — INV-072 found that the team-park rule makes these 3 sentences false, since each says a park lets independent work continue; 0024 changes them in the same commit as step 4, and the Park entry also changes the page tooltip
+- Supersedes: none
+- To reverse: drop the 0024 bullet and the SDD clause; the 3 sentences then contradict step 4

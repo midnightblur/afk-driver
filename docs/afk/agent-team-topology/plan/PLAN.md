@@ -164,7 +164,7 @@ No VERIFICATION-PLAN.md exists, and this repository declares no `verification.ti
 
 | # | Check | Command | Status |
 |---|-------|---------|--------|
-| 1 | compile | `python -m compileall -q scripts hooks skills adapters` and `bash -n` on every changed `.sh` file | |
-| 3 | regression | `python -m pytest scripts/tests skills -q` and `bash hooks/tests/hook-smoke.sh` | |
+| 1 | compile | `afk-python -m compileall -q scripts hooks skills adapters` and `bash -n` on every changed `.sh` file | |
+| 3 | regression | `afk-python -m pytest scripts/tests skills -q` and `bash hooks/tests/hook-smoke.sh` | |
 
 Last run: —

@@ -46,7 +46,7 @@ standard
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
 | static | `bash -n adapters/transport/desktop/transport.sh && grep -n 'Delivery ways' adapters/transport/desktop/1devtool.md && grep -n 'verb_agent_stop' adapters/transport/desktop/transport.sh` | code parses; the Produces anchors exist |
-| unit | `python -m pytest scripts/tests/test_team_transport_desktop.py -q`, cases: agent-list answers exit 3; a tool with no tabs reports panes at run start; the handle is the process id and the terminal identifier its own field | the kind's answers |
+| unit | `afk-python -m pytest scripts/tests/test_team_transport_desktop.py -q`, cases: agent-list answers exit 3; a tool with no tabs reports panes at run start; the handle is the process id and the terminal identifier its own field | the kind's answers |
 | integration | Environment-gated on the desktop tool open with terminal attach on: the trial S-214 names, recorded as a probe row in providers/CONFORMANCE.md before any kind code is written | V32; seam-test for the row "1DevTool delivery and tabs" |
 | integration | Environment-gated on the desktop tool open with terminal attach on: the TR-4 verb test closes a terminal by its recorded identifier inside agent-stop | V29; Q2; seam-test for the row "Desktop-tool terminal close verb (TR-4)" |
 
