@@ -228,7 +228,7 @@ The ledger's ten states (`captured`, `published`, `queued`, `fixing`, `blocked`,
 `bundle.md` — the human-readable dossier of a captured bug (confidence-labeled facts, reproduction steps, capture context). Format: `skills/afk/bug/BUNDLE-FORMAT.md`.
 
 **Publisher**:
-The subagent that runs `scripts/publish_bug.py` — the pipeline's Jira-writing actor (create/transition/comment/backfill on that one Bug ticket, ADR-0001).
+The subagent that runs `skills/afk/bug/scripts/publish_bug.py` — the pipeline's Jira-writing actor (create/transition/comment/backfill on that one Bug ticket, ADR-0001).
 
 **Fixer**:
 The subagent spawned by `dispatch` into its own git worktree to reproduce, fix, test, push, and open a Draft MR — never merges. Returns exactly one trailing `BUGFIX:` line (grammar: `skills/afk/bug/SKILL.md`).

@@ -1228,3 +1228,19 @@ def test_review4_an_unreadable_removal_leaves_the_git_state_unknown(repo, comman
 def test_review4_a_plain_removal_after_an_unknown_one_restores_a_known_state(repo):
     command = "unset -fn X; unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; git reset --hard"
     assert bash(repo["topic"], command).returncode == 0
+
+
+# ---------------------------------------------------------------- retirement from the main checkout
+
+def test_a_branch_delete_runs_in_the_main_checkout(repo):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], "git branch -d spare").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR={main}/.git git branch -d spare",
+    "git branch -d spare; touch x",
+])
+def test_a_retirement_does_not_prove_its_neighbours(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], command.format(main=repo["main"].as_posix())).returncode == 2, command

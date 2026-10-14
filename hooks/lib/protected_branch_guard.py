@@ -312,7 +312,7 @@ class Judge:
         if place is None:
             return None
         self.common = str(place["common"])
-        if place["kind"] == "main":
+        if place["kind"] == "main" and branch is None:
             return "this is the main checkout"
         branch = branch or branch_of(place)
         if branch is None:
@@ -330,7 +330,7 @@ class Judge:
             self.fallback_reason = answer.get("reason") or "the forge did not answer"
         return f"branch `{branch}` is protected" if answer["protected"] else None
 
-    def occupant(self, place: dict | None) -> str | None:
+    def occupant(self, place: dict | None, claim: bool = True) -> str | None:
         """The refusal cause when another live session holds this linked worktree; claims nothing yet."""
         if place is None or place["kind"] != "linked":
             return None
@@ -345,7 +345,8 @@ class Judge:
             held = occupancy.inspect(place, who)
             if held:
                 return occupancy.describe(place, held)
-            self.pending[norm(place["root"])] = (place, who)
+            if claim:
+                self.pending[norm(place["root"])] = (place, who)
             return None
         except Exception:
             return None  # an unreadable record names no occupant
@@ -455,13 +456,57 @@ def command_of(tool_input: dict) -> str:
 
 
 def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: list,
-                     pulls: list | None = None) -> list[Path]:
+                     pulls: list | None = None, operations: list | None = None) -> list[Path]:
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
         return shell_mutations.resources(command_of(tool_input), cwd, syncs, pulls=pulls,
-                                         powershell=tool.lower() == "powershell", toplevel=toplevel)
+                                         powershell=tool.lower() == "powershell", toplevel=toplevel,
+                                         operations=operations)
     found = targets_of(tool_input, cwd, loose=kind != "edit")
     return found or ([cwd] if kind == "edit" else [])
+
+
+def worktree_target(operation: dict) -> Path | None:
+    """Resolve a worktree path operand, including Git's registered basename form."""
+    resolved = operation.get("resolved")
+    if resolved is not None and placement(resolved) is not None:
+        return resolved
+    repo = operation.get("repo") or operation.get("folder")
+    if repo is None:
+        return resolved
+    listed = git(Path(repo), "worktree", "list", "--porcelain")
+    if listed.returncode != 0:
+        raise Fault(f"git worktree list failed: {listed.stderr.strip()[:200]}")
+    roots = [Path(line[len("worktree "):]) for line in listed.stdout.splitlines()
+             if line.startswith("worktree ")]
+    target = operation["target"]
+    exact = [root for root in roots if norm(root) == norm(target)]
+    named = [root for root in roots if root.name == target]
+    matches = exact or named
+    return matches[0] if len(matches) == 1 else resolved
+
+
+def remove_safety_cause(place: dict, force: bool) -> str | None:
+    """The unsafe state that prevents retirement; Git still proves merged branch state."""
+    status = git(Path(place["root"]), "status", "--porcelain=v1", "--untracked-files=all")
+    if status.returncode != 0:
+        raise Fault(f"git status failed: {status.stderr.strip()[:200]}")
+    if status.stdout.strip():
+        return "the linked worktree has tracked or untracked changes"
+    if not force:
+        return None
+    ignored = git(Path(place["root"]), "status", "--porcelain=v1", "--ignored", "--untracked-files=all")
+    if ignored.returncode != 0:
+        raise Fault(f"git ignored-file check failed: {ignored.stderr.strip()[:200]}")
+    if not any(line.startswith("!! ") for line in ignored.stdout.splitlines()):
+        return "`--force` is allowed only when ignored files remain"
+    return None
+
+
+def retirement_hint(operation: dict) -> str:
+    if operation["kind"] == "branch-delete":
+        return "use `git branch -d <branch>` only after the branch is merged and unprotected."
+    return "clean and release the linked worktree, then use `git worktree remove <path>` without `--force`."
 
 
 def plain_hint(facts: dict) -> str:
@@ -668,6 +713,10 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
             if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None \
                     and not segment.git_env:
                 continue  # the sync is judged at its folder (ADR-0011)
+            retirements: list = []
+            shell_mutations.git_resources(words, spot, operations=retirements)
+            if retirements and not segment.git_env:
+                continue  # a worktree move/remove or branch delete is judged at its target
             # git applies -C before it reads a relative GIT_DIR, GIT_WORK_TREE or GIT_COMMON_DIR
             folders += git_env_folders(segment, after_c)
             folders += [after_c if w is None else shell_mutations.resolve(w, after_c) for w in (gitdir, workdir)]
@@ -729,16 +778,51 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
                           lambda: move_hint(facts, envelope, judge, here, refused, cause, pulled), judge.notice_once)
     syncs: list = []
     pulls: list = []
+    operations: list = []
     try:
-        resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls)
+        resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls, operations)
     except Exception:  # an unreadable call is not an identified mutation
         return 0
-    if not resources and not syncs:
+    if not resources and not syncs and not operations:
         return 0
     state["identified"] = True
     state["targets"] = list(resources) + [folder for folder, _, _ in syncs]
     cause, refused, where = None, None, ""
     grants = []
+    for operation in operations:
+        action = f"run `{command_of(tool_input).strip()[:80]}`"
+        if operation["kind"] == "branch-delete":
+            place = placement(operation.get("repo") or operation.get("folder"))
+            if operation["force"]:
+                return refuse(state, facts, action, "forced branch deletion can discard unmerged work",
+                              lambda op=operation: retirement_hint(op))
+            if not operation.get("local_delete"):
+                return refuse(state, facts, action, "branch deletion options are not limited to local merged deletion",
+                              lambda op=operation: retirement_hint(op))
+            for branch in operation["branches"]:
+                cause = judge.verdict(place, branch)
+                if cause:
+                    return refuse(state, facts, action, cause,
+                                  lambda op=operation: retirement_hint(op), judge.notice_once)
+            continue
+        target = worktree_target(operation)
+        refused = placement(target) if target is not None else None
+        if refused is None:
+            cause = f"worktree target `{operation['target']}` could not be resolved"
+        else:
+            state["targets"].append(Path(refused["root"]))
+            cause = judge.verdict(refused) or judge.occupant(refused, claim=False)
+            if cause is None and operation["kind"] == "worktree-move" and operation["force"]:
+                cause = "forced worktree moves can override a worktree lock"
+            if cause is None and operation["kind"] == "worktree-remove":
+                cause = remove_safety_cause(refused, operation["force"])
+            destination = operation.get("destination")
+            destination_place = placement(destination) if destination is not None else None
+            if cause is None and destination_place is not None:
+                cause = judge.verdict(destination_place) or judge.occupant(destination_place)
+        if cause:
+            return refuse(state, facts, action, cause,
+                          lambda op=operation: retirement_hint(op), judge.notice_once)
     for folder, remote, branch in syncs:
         place = placement(folder)
         if place is None:
