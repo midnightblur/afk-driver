@@ -328,8 +328,23 @@ def inplace_files(prog: str, words: list[Word]) -> list[Word]:
     return positional if script else positional[1:]
 
 
+def _git_positionals(words: list[Word]) -> list[Word]:
+    """Literal operands after Git options; `--` ends option parsing."""
+    positional: list[Word] = []
+    options = True
+    for word in words:
+        if options and word.text == "--":
+            options = False
+        elif options and word.text.startswith("-"):
+            continue
+        else:
+            positional.append(word)
+    return positional
+
+
 def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,
-                  visited: list | None = None, pulls: list | None = None) -> list[Path]:
+                  visited: list | None = None, pulls: list | None = None,
+                  operations: list | None = None) -> list[Path]:
     i, workdir, gitdir = 1, None, None
     while i < len(words):
         text = words[i].text
@@ -355,7 +370,8 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
     if i >= len(words):
         return []
     verb = words[i].text.lower()
-    args = [w.text for w in words[i + 1:]]
+    arg_words = words[i + 1:]
+    args = [w.text for w in arg_words]
     found: list[Path] = []
     repo = resolve(gitdir, cwd) if gitdir else cwd
     folder = resolve(workdir, cwd) if workdir else repo
@@ -364,9 +380,45 @@ def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None
             found.extend(filter(None, [resolve(Word(arg[9:], words[i + 1 + pos].opaque), cwd)]))
         elif arg == "--output" and pos + 1 < len(args):
             found.extend(filter(None, [resolve(words[i + 2 + pos], cwd)]))
+    targeted = False
+    if operations is not None and verb == "worktree" and args and args[0] in ("move", "remove"):
+        operands = _git_positionals(arg_words[1:])
+        if operands and not operands[0].opaque:
+            worktree_options = []
+            for arg in args[1:]:
+                if arg == "--":
+                    break
+                if arg.startswith("-"):
+                    worktree_options.append(arg)
+            operations.append({"kind": f"worktree-{args[0]}", "repo": repo, "folder": folder,
+                               "target": operands[0].text,
+                               "resolved": resolve(operands[0], folder),
+                               "destination": (resolve(operands[1], folder)
+                                               if args[0] == "move" and len(operands) > 1 and not operands[1].opaque
+                                               else None),
+                               "force": bool(worktree_options)})
+            targeted = True
+    elif operations is not None and verb == "branch":
+        shorts = [a[1:] for a in args if a.startswith("-") and not a.startswith("--")]
+        deleting = "--delete" in args or any("d" in flag or "D" in flag for flag in shorts)
+        if deleting:
+            names = [word.text for word in _git_positionals(arg_words) if not word.opaque]
+            if names:
+                option_args = iter(args)
+                local_delete = True
+                for arg in option_args:
+                    if arg == "--":
+                        break
+                    if arg.startswith("-") and arg not in ("-d", "--delete"):
+                        local_delete = False
+                operations.append({"kind": "branch-delete", "repo": repo, "folder": folder,
+                                   "branches": names,
+                                   "local_delete": local_delete,
+                                   "force": "--force" in args or any("D" in flag or "f" in flag for flag in shorts)})
+                targeted = True
     if verb == "pull" and syncs is not None and folder is not None and ff_pull(args) is not None:
         syncs.append((folder, *ff_pull(args)))
-    elif git_mutates(verb, args) and (folder is not None or repo is not None):
+    elif not targeted and git_mutates(verb, args) and (folder is not None or repo is not None):
         found = [path for path in (repo, folder) if path is not None] + found
         if verb == "pull" and pulls is not None:
             pulls.extend(path for path in (repo, folder) if path is not None)
@@ -461,7 +513,8 @@ def writer_targets(prog: str, words: list[Word], powershell: bool = False) -> li
 
 
 def resources(command: str, cwd: Path, syncs: list | None = None, visited: list | None = None,
-              pulls: list | None = None, powershell: bool = False) -> list[Path]:
+              pulls: list | None = None, powershell: bool = False,
+              operations: list | None = None) -> list[Path]:
     """Absolute paths the command changes (a folder for a git verb, a target for a writer), in order.
 
     With `syncs` a list, a `git pull --ff-only` is appended as (folder, remote, branch), not returned.
@@ -504,7 +557,7 @@ def resources(command: str, cwd: Path, syncs: list | None = None, visited: list 
         elif prog == "git":
             if visited is not None and spot is not None:
                 visited.append(spot)
-            found.extend(git_resources(words, spot, syncs, visited, pulls))
+            found.extend(git_resources(words, spot, syncs, visited, pulls, operations))
         else:
             if visited is not None and spot is not None:
                 visited.append(spot)

@@ -1,0 +1,868 @@
+{
+  "run": {
+    "repository": "https://github.com/midnightblur/afk-driver.git",
+    "head": "4b17f1e0991529dcedf984c2182e1c0daca1b02f",
+    "question": "How does git_resources drive protected-branch decisions for git worktree remove or move and git branch -d or -D, and which edge cases explain issue 107?",
+    "type": [
+      "Q1",
+      "Q4"
+    ],
+    "roots": [
+      "git_resources"
+    ],
+    "aliases": {
+      "git_resources": [
+        {
+          "form": "simple",
+          "value": "git_resources",
+          "enumerated": true
+        },
+        {
+          "form": "string-literal",
+          "value": "\"git_resources\"",
+          "enumerated": true
+        },
+        {
+          "form": "command",
+          "value": "git worktree remove",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "command",
+          "value": "git worktree move",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "command",
+          "value": "git branch -d",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "command",
+          "value": "git branch -D",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "import-alias",
+          "value": null,
+          "enumerated": false,
+          "reason": "a import-alias name is chosen at the site; pass --alias import-alias=VALUE"
+        },
+        {
+          "form": "wire",
+          "value": null,
+          "enumerated": false,
+          "reason": "a wire name is chosen at the site; pass --alias wire=VALUE"
+        }
+      ]
+    },
+    "inventory_hash": "a0dbb7fed653b8089d465032d45e97eb09dcdd68511b0b8b271779f9f6f3e66e",
+    "inventory_count": 503,
+    "config": {
+      "path": ".afk/config.yaml",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    "design_phase": false,
+    "started": "2026-10-13T13:45:59.048933-04:00",
+    "finished": "2026-10-13T13:46:00.083055-04:00",
+    "merged_from": 1,
+    "verdict": "partial"
+  },
+  "boundaries": [
+    {
+      "class": "B1",
+      "status": "partial",
+      "method": "every name form, whole repository",
+      "hits": 13,
+      "hit_ids": [
+        "B1:hooks/lib/shell_mutations.py:331",
+        "B1:hooks/lib/shell_mutations.py:507",
+        "B1:CHANGELOG.md:1342",
+        "B1:scripts/tests/create-worktree-smoke.sh:155",
+        "B1:scripts/tests/worktree-provision-smoke.sh:16",
+        "B1:scripts/tests/worktree-provision-smoke.sh:167",
+        "B1:scripts/tests/worktree-provision-smoke.sh:173",
+        "B1:scripts/tests/worktree-provision-smoke.sh:175",
+        "B1:scripts/worktree-provision:16",
+        "B1:skills/afk/gc/SKILL.md:76",
+        "B1:skills/afk/gc/SKILL.md:79",
+        "B1:hooks/lib/shell_mutations.py:369",
+        "B1:hooks/lib/shell_mutations.py:386"
+      ],
+      "reason": "name forms not enumerated: import-alias, wire; import alias and wire name forms remain unverified",
+      "mechanism": "default",
+      "name_forms": {
+        "git_resources": [
+          {
+            "form": "simple",
+            "value": "git_resources",
+            "enumerated": true
+          },
+          {
+            "form": "string-literal",
+            "value": "\"git_resources\"",
+            "enumerated": true
+          },
+          {
+            "form": "command",
+            "value": "git worktree remove",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "command",
+            "value": "git worktree move",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "command",
+            "value": "git branch -d",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "command",
+            "value": "git branch -D",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "import-alias",
+            "value": null,
+            "enumerated": false,
+            "reason": "a import-alias name is chosen at the site; pass --alias import-alias=VALUE"
+          },
+          {
+            "form": "wire",
+            "value": null,
+            "enumerated": false,
+            "reason": "a wire name is chosen at the site; pass --alias wire=VALUE"
+          }
+        ]
+      },
+      "sites": [],
+      "query_ids": [
+        "q-d1a2a05e",
+        "q-1fa9c2de"
+      ],
+      "universe": "tracked text files (binary excluded), and the second universe, hooks/lib/shell_mutations.py and hooks/lib/protected_branch_guard.py"
+    },
+    {
+      "class": "B2",
+      "status": "partial",
+      "method": "declaration and parameter forms carrying the name",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "tracked files",
+      "query_ids": [
+        "q-7fd1baa1"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B3",
+      "status": "unverified",
+      "method": "no default and no declared instance",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "no enumeration method",
+      "mechanism": "default",
+      "universe": "no method ran",
+      "query_ids": [],
+      "sites": null
+    },
+    {
+      "class": "B4",
+      "status": "partial",
+      "method": "the name as a string literal",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "tracked files",
+      "query_ids": [
+        "q-1fd8ce5a"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B5",
+      "status": "unverified",
+      "method": "no default and no declared instance",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "no enumeration method",
+      "mechanism": "default",
+      "universe": "no method ran",
+      "query_ids": [],
+      "sites": null
+    },
+    {
+      "class": "B6",
+      "status": "unverified",
+      "method": "no generated paths declared",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "no enumeration method",
+      "mechanism": "default",
+      "universe": "no generated paths declared",
+      "query_ids": []
+    },
+    {
+      "class": "B7",
+      "status": "unverified",
+      "method": "no reactor manifests declared",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "no enumeration method",
+      "mechanism": "default",
+      "universe": "no aggregator manifests declared",
+      "query_ids": []
+    },
+    {
+      "class": "B8",
+      "status": "partial",
+      "method": "name forms filtered to configuration files",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-d1a2a05e"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B9",
+      "status": "partial",
+      "method": "name forms filtered to schema and migration sources",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-d1a2a05e"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B10",
+      "status": "unverified",
+      "method": "no default and no declared instance",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "no enumeration method",
+      "mechanism": "default",
+      "universe": "no method ran",
+      "query_ids": [],
+      "sites": null
+    },
+    {
+      "class": "B11",
+      "status": "partial",
+      "method": "registration forms in files that name the subject",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "files that name the subject",
+      "query_ids": [
+        "q-6fdbf755",
+        "q-d1a2a05e"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B12",
+      "status": "partial",
+      "method": "name forms filtered to test sources",
+      "hits": 5,
+      "hit_ids": [
+        "B12:scripts/tests/create-worktree-smoke.sh:155",
+        "B12:scripts/tests/worktree-provision-smoke.sh:16",
+        "B12:scripts/tests/worktree-provision-smoke.sh:167",
+        "B12:scripts/tests/worktree-provision-smoke.sh:173",
+        "B12:scripts/tests/worktree-provision-smoke.sh:175"
+      ],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-d1a2a05e"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B13",
+      "status": "partial",
+      "method": "name forms filtered to documents",
+      "hits": 3,
+      "hit_ids": [
+        "B13:CHANGELOG.md:1342",
+        "B13:skills/afk/gc/SKILL.md:76",
+        "B13:skills/afk/gc/SKILL.md:79"
+      ],
+      "reason": "universe inherits B1: name forms not enumerated: import-alias, wire",
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-d1a2a05e"
+      ],
+      "sites": null
+    },
+    {
+      "class": "B14",
+      "status": "frontier",
+      "method": "outside this repository",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "another repository, deployment manifest, or live consumer",
+      "mechanism": "default",
+      "sites": null,
+      "query_ids": [],
+      "universe": "nothing in this repository"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "B12:scripts/tests/create-worktree-smoke.sh:155",
+      "class": "B12",
+      "site": "scripts/tests/create-worktree-smoke.sh:155",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "# which plain `git worktree remove` refuses — that cloning is the whole point of the script.",
+      "line_hash": "a58879261964",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B12:scripts/tests/worktree-provision-smoke.sh:16",
+      "class": "B12",
+      "site": "scripts/tests/worktree-provision-smoke.sh:16",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "#                  `git worktree remove` needs no --force because of them",
+      "line_hash": "017a144cb380",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B12:scripts/tests/worktree-provision-smoke.sh:167",
+      "class": "B12",
+      "site": "scripts/tests/worktree-provision-smoke.sh:167",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "# `git worktree remove` must not need --force because of anything we wrote.",
+      "line_hash": "51f0bf182bf6",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B12:scripts/tests/worktree-provision-smoke.sh:173",
+      "class": "B12",
+      "site": "scripts/tests/worktree-provision-smoke.sh:173",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "ok \"git worktree remove needs no --force for the markers\"",
+      "line_hash": "f0df3867509e",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B12:scripts/tests/worktree-provision-smoke.sh:175",
+      "class": "B12",
+      "site": "scripts/tests/worktree-provision-smoke.sh:175",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "bad \"markers blocked git worktree remove: $(git -C \"$REPO\" worktree remove \"$WT1\" 2>&1 | head -1)\"",
+      "line_hash": "11a96fbfc132",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B13:CHANGELOG.md:1342",
+      "class": "B13",
+      "site": "CHANGELOG.md:1342",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "in `git status` and never blocks `git worktree remove`. A worktree that",
+      "line_hash": "ca1ccd04c3f6",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B13:skills/afk/gc/SKILL.md:76",
+      "class": "B13",
+      "site": "skills/afk/gc/SKILL.md:76",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "1. `git worktree remove {wt}` — **never `--force`**; force is exactly the",
+      "line_hash": "029818069a2a",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B13:skills/afk/gc/SKILL.md:79",
+      "class": "B13",
+      "site": "skills/afk/gc/SKILL.md:79",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "2. `git branch -d {feature-branch}` — `-d`, never `-D`: merged-ness is proven,",
+      "line_hash": "34a064d27525",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:CHANGELOG.md:1342",
+      "class": "B1",
+      "site": "CHANGELOG.md:1342",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "in `git status` and never blocks `git worktree remove`. A worktree that",
+      "line_hash": "ca1ccd04c3f6",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:331",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:331",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "def git_resources(words: list[Word], cwd: Path | None, syncs: list | None = None,",
+      "line_hash": "4f67565223b2",
+      "parent": null,
+      "query_id": "q-d1a2a05e"
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:507",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:507",
+      "disposition": "unverified",
+      "reason": "conflict: unverified vs terminal",
+      "evidence": "found.extend(git_resources(words, spot, syncs, visited, pulls))",
+      "line_hash": "cfe5eea93acd",
+      "parent": null,
+      "query_id": "q-d1a2a05e"
+    },
+    {
+      "id": "B1:scripts/tests/create-worktree-smoke.sh:155",
+      "class": "B1",
+      "site": "scripts/tests/create-worktree-smoke.sh:155",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "# which plain `git worktree remove` refuses — that cloning is the whole point of the script.",
+      "line_hash": "a58879261964",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:scripts/tests/worktree-provision-smoke.sh:16",
+      "class": "B1",
+      "site": "scripts/tests/worktree-provision-smoke.sh:16",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "#                  `git worktree remove` needs no --force because of them",
+      "line_hash": "017a144cb380",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:scripts/tests/worktree-provision-smoke.sh:167",
+      "class": "B1",
+      "site": "scripts/tests/worktree-provision-smoke.sh:167",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "# `git worktree remove` must not need --force because of anything we wrote.",
+      "line_hash": "51f0bf182bf6",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:scripts/tests/worktree-provision-smoke.sh:173",
+      "class": "B1",
+      "site": "scripts/tests/worktree-provision-smoke.sh:173",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "ok \"git worktree remove needs no --force for the markers\"",
+      "line_hash": "f0df3867509e",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:scripts/tests/worktree-provision-smoke.sh:175",
+      "class": "B1",
+      "site": "scripts/tests/worktree-provision-smoke.sh:175",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "bad \"markers blocked git worktree remove: $(git -C \"$REPO\" worktree remove \"$WT1\" 2>&1 | head -1)\"",
+      "line_hash": "11a96fbfc132",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:scripts/worktree-provision:16",
+      "class": "B1",
+      "site": "scripts/worktree-provision:16",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "# never show up in `git status` and never block `git worktree remove`.",
+      "line_hash": "7a113973e4dd",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:skills/afk/gc/SKILL.md:76",
+      "class": "B1",
+      "site": "skills/afk/gc/SKILL.md:76",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "1. `git worktree remove {wt}` — **never `--force`**; force is exactly the",
+      "line_hash": "029818069a2a",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:skills/afk/gc/SKILL.md:79",
+      "class": "B1",
+      "site": "skills/afk/gc/SKILL.md:79",
+      "disposition": "unverified",
+      "reason": "seed map hit, not yet triaged",
+      "evidence": "2. `git branch -d {feature-branch}` — `-d`, never `-D`: merged-ness is proven,",
+      "line_hash": "34a064d27525",
+      "parent": null,
+      "query_id": "q-05e8bd74"
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:357",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:357",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    verb = words[i].text.lower()",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:368",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:368",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "        syncs.append((folder, *ff_pull(args)))",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:369",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:369",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    elif git_mutates(verb, args) and (folder is not None or repo is not None):",
+      "parent": null,
+      "query_id": "q-1fa9c2de",
+      "line_hash": "9260e8f5d8fb"
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:371",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:371",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "        if verb == \"pull\" and pulls is not None:",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:401",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:401",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    if verb == \"branch\":",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:404",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:404",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    if verb == \"worktree\":",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/protected_branch_guard.py:434",
+      "class": "B1",
+      "site": "hooks/lib/protected_branch_guard.py:434",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    if kind == \"shell\":",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/protected_branch_guard.py:575",
+      "class": "B1",
+      "site": "hooks/lib/protected_branch_guard.py:575",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "        cause = judge.verdict(refused) or judge.occupant(refused)",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/protected_branch_guard.py:587",
+      "class": "B1",
+      "site": "hooks/lib/protected_branch_guard.py:587",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "                pass",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/protected_branch_guard.py:591",
+      "class": "B1",
+      "site": "hooks/lib/protected_branch_guard.py:591",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "    if not cause:",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:hooks/lib/shell_mutations.py:386",
+      "class": "B1",
+      "site": "hooks/lib/shell_mutations.py:386",
+      "disposition": "terminal",
+      "coverage_verdict": "code",
+      "evidence": "def git_mutates(verb: str, args: list[str]) -> bool:",
+      "line_hash": "334229a89943",
+      "parent": null,
+      "query_id": "q-1fa9c2de"
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-d1a2a05e",
+      "command": "git grep -n -I -E -e git_resources -e '\"git_resources\"'",
+      "universe": "tracked text files, binary excluded",
+      "count": 2,
+      "lines": 2,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-46f4cdf8",
+      "command": "git grep -n -I -E -i --untracked -e git_resources -e '\"git_resources\"'",
+      "universe": "case-blind pass over tracked and untracked files, not ignored",
+      "count": 0,
+      "lines": 2,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-05e8bd74",
+      "command": "git grep -n -I -E --untracked -e '(^|[^[:alnum:]_])git\\ worktree\\ remove($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])git\\ worktree\\ move($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])git\\ branch\\ \\-d($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])git\\ branch\\ \\-D($|[^[:alnum:]_])'",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 17,
+      "lines": 9,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-7fd1baa1",
+      "command": "git grep -n -I -E -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])git_resources($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ worktree\\ remove($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ worktree\\ move($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ branch\\ \\-d($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ branch\\ \\-D($|[^[:alnum:]_]))' -e '\\(\\s*(git_resources|git\\ worktree\\ remove|git\\ worktree\\ move|git\\ branch\\ \\-d|git\\ branch\\ \\-D)\\s+\\w'",
+      "universe": "tracked files",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-f1a47017",
+      "command": "git grep -n -I -E -i -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])git_resources($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ worktree\\ remove($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ worktree\\ move($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ branch\\ \\-d($|[^[:alnum:]_])|(^|[^[:alnum:]_])git\\ branch\\ \\-D($|[^[:alnum:]_]))' -e '\\(\\s*(git_resources|git\\ worktree\\ remove|git\\ worktree\\ move|git\\ branch\\ \\-d|git\\ branch\\ \\-D)\\s+\\w'",
+      "universe": "tracked files, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-1fd8ce5a",
+      "command": "git grep -n -I -E -e '[\\\"'\"'\"'](git_resources|git\\ worktree\\ remove|git\\ worktree\\ move|git\\ branch\\ \\-d|git\\ branch\\ \\-D)[\\\"'\"'\"']'",
+      "universe": "tracked files",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-da283a84",
+      "command": "git grep -n -I -E -i -e '[\\\"'\"'\"'](git_resources|git\\ worktree\\ remove|git\\ worktree\\ move|git\\ branch\\ \\-d|git\\ branch\\ \\-D)[\\\"'\"'\"']'",
+      "universe": "tracked files, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-6fdbf755",
+      "command": "git grep -n -I -E -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- CHANGELOG.md hooks/lib/shell_mutations.py scripts/tests/create-worktree-smoke.sh scripts/tests/worktree-provision-smoke.sh scripts/worktree-provision skills/afk/gc/SKILL.md",
+      "universe": "files that name the subject",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-54109c11",
+      "command": "git grep -n -I -E -i -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- CHANGELOG.md hooks/lib/shell_mutations.py scripts/tests/create-worktree-smoke.sh scripts/tests/worktree-provision-smoke.sh scripts/worktree-provision skills/afk/gc/SKILL.md",
+      "universe": "files that name the subject, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-1fa9c2de",
+      "command": "git grep -n -I -E -e git_mutates -- hooks/lib/shell_mutations.py",
+      "universe": "hooks/lib/shell_mutations.py",
+      "count": 2,
+      "lines": 2,
+      "origin": "tracer"
+    }
+  ],
+  "claims": [
+    {
+      "id": "c-0f1d5130",
+      "text": "the hit set holds every reference to git_resources over the name forms this pass searched",
+      "kind": "unverified",
+      "load_bearing": false,
+      "supporting_nodes": [],
+      "citations": []
+    },
+    {
+      "id": "c-3ea7447c",
+      "text": "git_resources maps mutating Git verbs to the invocation folder and ignores target operands.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:hooks/lib/shell_mutations.py:369",
+        "B1:hooks/lib/shell_mutations.py:371"
+      ],
+      "citations": [
+        "hooks/lib/shell_mutations.py:369",
+        "hooks/lib/shell_mutations.py:371"
+      ]
+    }
+  ],
+  "counter_checks": [
+    {
+      "method": "name forms carrying no simple name: git worktree remove, git worktree move, git branch -d, git branch -D",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-0f1d5130"
+      ],
+      "new_nodes": [
+        "B1:CHANGELOG.md:1342",
+        "B1:scripts/tests/create-worktree-smoke.sh:155",
+        "B1:scripts/tests/worktree-provision-smoke.sh:16",
+        "B1:scripts/tests/worktree-provision-smoke.sh:167",
+        "B1:scripts/tests/worktree-provision-smoke.sh:173",
+        "B1:scripts/tests/worktree-provision-smoke.sh:175",
+        "B1:scripts/worktree-provision:16",
+        "B1:skills/afk/gc/SKILL.md:76",
+        "B1:skills/afk/gc/SKILL.md:79"
+      ],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-05e8bd74"
+      ]
+    },
+    {
+      "method": "case-blind pass over tracked and untracked files, not ignored",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-0f1d5130"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-46f4cdf8"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-0f1d5130"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B2"
+      ],
+      "query_ids": [
+        "q-f1a47017"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-0f1d5130"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B4"
+      ],
+      "query_ids": [
+        "q-da283a84"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-0f1d5130"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B11"
+      ],
+      "query_ids": [
+        "q-54109c11"
+      ]
+    }
+  ]
+}
