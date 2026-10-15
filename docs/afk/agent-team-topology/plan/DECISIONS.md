@@ -209,3 +209,66 @@
 - Chosen: B — INV-072 found that the team-park rule makes these 3 sentences false, since each says a park lets independent work continue; 0024 changes them in the same commit as step 4, and the Park entry also changes the page tooltip
 - Supersedes: none
 - To reverse: drop the 0024 bullet and the SDD clause; the 3 sentences then contradict step 4
+
+## D-31 — 0001 writes the root glossary directly
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-03)
+- Options: A — route the write through /afk:glossary, as SDD §13 Q1's owner cell says vs B — the 0001 executor writes GLOSSARY.md directly as plugin author
+- Chosen: B — /afk:glossary stewards domain glossaries only, routes through a GLOSSARY-MAP.md this repository lacks and writes only after approval (skills/utils/glossary/SKILL.md:3-8, :38); FRESHNESS.md:44 names the plugin author as the root GLOSSARY.md steward; the SDD's Q1 owner cell waits for the human
+- Supersedes: SDD §13 Q1 owner cell "`/afk:glossary`" — for 0001 only
+- To reverse: restore 0001's /afk:glossary bullet once that skill can write the root glossary
+
+## D-32 — agent-stop's entry logic is in the team entry script
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-01)
+- Options: A — leave agent-stop's entry checks with no owner, or to cleanup vs B — 0010 builds them in scripts/team/entry.py, and 0012 consumes them
+- Chosen: B — SDD §3's agent-stop row (SDD.md:228) gives the verb the entry check, the identity check and the answers 'already gone', 'identity unknown' and 'nothing recorded', and the transport never reads the manifest (ADR-0001); 0012 consumes `def agent_stop(` and is blocked by 0010
+- Supersedes: none
+- To reverse: move the agent-stop bullets out of 0010 and drop 0012's Consumes line and Blocked-by entry
+
+## D-33 — agent-start appends the pane agent to the owner record
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-02)
+- Options: A — call `worktree_owner.py record`, as 0010 said vs B — append the pane agent's process id and creation time to the record's owners list
+- Chosen: B — `record` writes a new record with one owner from the caller's own ancestry and drops earlier owners (scripts/worktree_owner.py:211-233); adopt() keeps earlier owners but also reads the caller's ancestry (scripts/remove-worktree.py:410-420); so scripts/worktree_owner.py becomes writable in 0010 for an append that takes the process id and creation time as arguments
+- Supersedes: 0010 Scope "read only: agent-start calls its record command"
+- To reverse: rely on the SessionStart adopt instead, once a probe shows that a pane agent's harness adopts itself
+
+## D-34 — Owners of the reporting duties and the progress line form
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-04)
+- Options: A — leave PRD AC-069 and AC-070 in Context excerpts only vs B — Acceptance bullets on 0005 (built-in role parts and the moderator part) and 0015 (one-off charters the contact agent writes)
+- Chosen: B — no Acceptance bullet made a charter's role part name milestones, the report-up and report-down duties or the line `progress: MILESTONE — SENTENCE`; 0005 adds a resolver-test case on each built-in role part, and 0015 a grep of the team skill
+- Supersedes: none
+- To reverse: drop the 0005 and 0015 bullets and their checks
+
+## D-35 — Order two subtask pairs that change one line
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-06)
+- Options: A — give each line one owner vs B — keep both changes and order the subtasks
+- Chosen: B — 0017 and 0024 both change autopilot/SKILL.md:39, and 0018 and 0019 both change execute/SKILL.md:143, each for its own §14 row; 0024 is now blocked by 0017 and 0019 by 0018, and the later subtask finds the line by its text
+- Supersedes: D-23 "One owner per changed line" — for autopilot/SKILL.md:39 and execute/SKILL.md:143 only
+- To reverse: move one subtask's bullet on the line to the other and drop the added Blocked-by entry
+
+## D-36 — Seam-tests for the Step 10.5 row and the doctrine row
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-08)
+- Options: A — greps and the V4 and V5 probes only vs B — a live Step 10.5 run on 0019, and 0014's text checks named as the doctrine row's seam-test
+- Chosen: B — VALIDATION.md (d) asks for a seam-test that asserts on real output; the Step 10.5 row's output is the verdict read from the report file after finished arrives, and the doctrine row's output is DELEGATION.md's text
+- Supersedes: none
+- To reverse: drop the 0019 row and the 0014 label
+
+## D-37 — 0008 alone implements "Background job at session end"
+- 2026-10-15 · decided by /afk:to-subtasks (plan audit fix A-09)
+- Options: A — 0008 and 0012 both implement the row vs B — 0008 implements it and 0012 uses it
+- Chosen: B — the seam register names 0008 (PLAN.md:101); 0012's test of the row becomes a cleanup case
+- Supersedes: none
+- To reverse: mark the row as implemented in 0012's Seams note again and restore its Verification label
+
+## D-38 — The transport kinds' agent-stop takes what the script gives it
+- 2026-10-15 · decided by /afk:to-subtasks (plan re-check fix A-13)
+- Options: A — each kind's agent-stop takes §3's agent-id vs B — each kind takes the process id, the pane handle and the TR-4 terminal identifier from the script
+- Chosen: B — a kind never reads the manifest (0006), so it cannot resolve an agent-id; D-32 puts the entry logic and §3's agent-id contract in the script
+- Supersedes: none
+- To reverse: drop the 0006 bullet and the 0007 clause, and give the kinds a manifest read
+
+## D-39 — agent-stop also stops a process entry
+- 2026-10-15 · decided by /afk:to-subtasks (plan re-check fix A-14)
+- Options: A — agent-stop accepts a process entry by its process id vs B — cleanup kills a process entry itself through a shared helper
+- Chosen: A — SDD:228 runs the identity check "for an agent entry as for a process entry" inside agent-stop, so one path holds the check; cleanup calls agent-stop for process entries too
+- Supersedes: none
+- To reverse: limit agent-stop to agent entries and give 0012 the identity check for process entries

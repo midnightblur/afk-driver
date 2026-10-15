@@ -25,14 +25,14 @@ mechanical
 
 ## Acceptance
 - [ ] Seam (plan D-14): §14 row "Outcome status set of /afk:execute omits unrecorded_agent", grounded by INV-072 (closed with frontier) — the status added in one change to the sites that change together (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
-- [ ] unrecorded_agent is added to /afk:execute Step 14's table (11 rows today, execute/SKILL.md:122-131), the README status table (README.md:615-628), the GLOSSARY.md token list (GLOSSARY.md:239-240) and the insights.py exit regex (insights.py:24), all in one change; the set grows from 14 tokens to 15 (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
-- [ ] /afk:autopilot step 4 gains the rule that a team park ends the walk, whether it arrives as a subtask's unrecorded_agent outcome or as the contact agent's own park of a subtask agent's start; no further subtask starts, and the Finish report (autopilot/SKILL.md:51-58) names the agent and lists each subtask not started, with a journal line recording it (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
+- [ ] unrecorded_agent is added to /afk:execute Step 14's table (11 rows today, execute/SKILL.md:122-131), the README status table (README.md:615-628), the GLOSSARY.md token list (the OUTCOME statuses entry, GLOSSARY.md:239-240; GLOSSARY.md line numbers are at a61579c, before 0001-glossary-terms adds entries, so find each line by its entry) and the insights.py exit regex (insights.py:24), all in one change; the set grows from 14 tokens to 15 (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
+- [ ] /afk:autopilot step 4 gains the rule that a team park ends the walk (0017-spawn-steps changes step 4's park line, autopilot/SKILL.md:39, first, so this slice finds it by its text; plan D-35), whether it arrives as a subtask's unrecorded_agent outcome or as the contact agent's own park of a subtask agent's start; no further subtask starts, and the Finish report (autopilot/SKILL.md:51-58) names the agent and lists each subtask not started, with a journal line recording it (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] The 3 sentences that say a park lets independent work continue, the Park entry GLOSSARY.md:207 and README.md:57 and :456-457, name the team-park exception in the same change; the wording writes out team park or registers it in GLOSSARY.md (plan D-30; LANGUAGE.md:36; SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] The journal records the park with the existing parked({status}) line and the walk's end with the existing run end line; JOURNAL-FORMAT.md:34 gains no token for it (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] The status-agnostic sentence of AGENTS.md:153 is rewritten to name the team-park rule; CLAUDE.md, the one-line pointer @AGENTS.md, is not edited (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] test_insights.py gains a case that feeds a journal line with exit unrecorded_agent and asserts an action-level exit insight, as it does for rationale_unposted (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] CITED-MODE.md:149-162, the README state diagram (README.md:596-599), the tooltip seed (scripts/lavish/tips.json) and retro's park patterns stay as they are: they hold partial lists (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
-- [ ] GLOSSARY.md:240, which names the README table as canonical, keeps that pointer (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
+- [ ] GLOSSARY.md:240, in the OUTCOME statuses entry, which names the README table as canonical, keeps that pointer (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] One plan subtask adds the status in one change to every surface that names statuses, so producer and consumers land together (agent-decided, SDD §13 Q52)
 - [ ] Every existing outcome line, Status cell and journal line stays valid (SDD §14 row "Outcome status set of /afk:execute omits unrecorded_agent")
 - [ ] unhomed_product_debt is added to the park reasons of /afk:preflight in JOURNAL-FORMAT.md; the step id 4d stays outside the grammar's 1 to 7, and the PF-2 and PF-7 cap park keeps no reason token (SDD §14 row "skills/afk/to-subtasks/JOURNAL-FORMAT.md omits unhomed_product_debt")
@@ -78,7 +78,7 @@ docs/afk/agent-team-topology/PRD.md
 docs/afk/agent-team-topology/SDD.md
 
 ## Blocked by
-(none)
+0017-spawn-steps
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality

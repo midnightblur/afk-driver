@@ -27,7 +27,7 @@ standard
 - [ ] The tool takes the same message commands as every other tool and delivers in the best way it offers; where it can deliver without touching an input box, it delivers that way, to the contact agent too (PRD AC-057)
 - [ ] The TR-4 kind answers agent-list with exit 3, unsupported, since its handle is not a pane id (SDD §3)
 - [ ] The TR-4 kind's handle is the process id, and the terminal identifier is its own field, returned in agent-start's answer (SDD §4)
-- [ ] agent-stop closes a TR-4 terminal by its recorded terminal identifier; a failed close answers pane closed false and names the terminal identifier in place of the pane id (SDD §9b row "Desktop-tool terminal close verb (TR-4)")
+- [ ] agent-stop closes a TR-4 terminal by the recorded terminal identifier the script gives it, and never reads the manifest (plan D-38); a failed close answers pane closed false and names the terminal identifier in place of the pane id (SDD §9b row "Desktop-tool terminal close verb (TR-4)")
 - [ ] On TR-4, every terminal the manifest records can be closed by its recorded identifier, and a terminal that could not be closed is reported by name (PRD AC-031)
 - [ ] The close verb rests on the tool's documentation until the live trial runs, and a verb that differs from the documented one is recorded against row E3 (SDD §13 Q2)
 - [ ] Before the desktop tool's transport code merges, the environment-gated TR-4 verb test runs with the tool open and terminal attach on (SDD §13 V29)

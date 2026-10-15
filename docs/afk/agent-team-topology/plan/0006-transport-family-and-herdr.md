@@ -32,6 +32,7 @@ complex
 
 ## Acceptance
 - [ ] Implements the public interface in SDD §8 row "Transport adapter family" unmodified: the six verbs of §3 (agent-start, agent-send, agent-status, agent-read, agent-stop, agent-list), with one recipe file per multiplexer tool (SDD §8 row "Transport adapter family")
+- [ ] A kind's agent-stop takes the process id, the pane handle and, for TR-4, the terminal identifier as the script gives them, and never reads the manifest; the script's agent-stop owns §3's agent-id contract, its entry logic and its identity check (plan D-32, D-38)
 - [ ] Every kind implements all six verbs or answers unsupported; the input is the verb then one JSON object as the next positional argument, with no standard input; the runner is cli for every kind; the family contract is version 1 (SDD §3)
 - [ ] Every verb answers in the inherited shapes: exit 0 with the family's normalized object; exit 3 with unsupported true and a reason; exit 4 with unavailable true and a reason; exit 2 with error true, operation and reason for a bad payload or field; exit 2 with a message on stderr naming the config file when the family or kind cannot be resolved (SDD §3)
 - [ ] There are six verbs only: closing a pane is part of agent-stop; agent-list returns every match in one answer (SDD §3)

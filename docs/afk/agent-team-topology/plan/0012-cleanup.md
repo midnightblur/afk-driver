@@ -1,5 +1,5 @@
 ## Goal
-Build cleanup scripts/team/cleanup.py (file name: plan decision D-3): one call per run that runs five fixed steps (kill every process the manifest names through agent-stop, then delete the message area, the knowledge store, the resolved pattern and, last, the manifest), keeps every file while any entry stays unkillable, and reports by name every survivor, every pane still open and every stray it finds but never stops. The slice ends at cleanup: the transport kinds' agent-stop and agent-list, the manifest module and the knowledge store are other subtasks, and calling cleanup at a run's end is the team skill's work.
+Build cleanup scripts/team/cleanup.py (file name: plan decision D-3): one call per run that runs five fixed steps (kill every process the manifest names through agent-stop, then delete the message area, the knowledge store, the resolved pattern and, last, the manifest), keeps every file while any entry stays unkillable, and reports by name every survivor, every pane still open and every stray it finds but never stops. The slice ends at cleanup: the team entry script's agent-stop, which owns the identity check, the transport kinds' agent-list, the manifest module and the knowledge store are other subtasks, and calling cleanup at a run's end is the team skill's work.
 
 ## Complexity
 complex
@@ -19,20 +19,20 @@ complex
 - scripts/tests/test_team_cleanup.py
 
 ## Seams
-- (none — the §9b rows this slice implements, "Operating-system job owning a process tree" and "Background job at session end", have no grounded §14 row; their seam-tests are in ## Verification)
+- (none — the §9b row this slice implements, "Operating-system job owning a process tree", has no grounded §14 row, and its seam-test is in ## Verification; the row "Background job at session end" is a use, implemented by 0008-inbox-wait-script (plan D-37))
 
 ## Acceptance
 - [ ] Implements the public interface in SDD §8 row "Cleanup" unmodified: five fixed steps, one call per run, reporting survivors (SDD §8 row "Cleanup")
-- [ ] Step 1 kills every process the manifest names, the inbox wait job and each job supervisor included, by calling agent-stop on every remaining agent entry, a lost entry included; agent-stop kills by the process id when the entry holds one, closes the pane when it holds a handle, and kills only after the identity check, agent-decided (SDD §8 row "Cleanup")
+- [ ] Step 1 kills every process the manifest names, the inbox wait job and each job supervisor included, by calling agent-stop on every remaining agent entry, a lost entry included, and on every process entry by its process id (plan D-39); agent-stop kills by the process id when the entry holds one, closes the pane when it holds a handle, and kills only after the identity check, agent-decided (SDD §8 row "Cleanup")
 - [ ] Steps 2 to 5 delete the message area of the run directory (message bodies, inboxes with their processed folders, completion signals and result files in the run directory), then the knowledge store, then the resolved pattern, then the manifest, last (SDD §7)
 - [ ] A phase does not report finished while the manifest holds an unkilled process; a failed kill leaves the entry unkillable and holds the phase (SDD §6)
 - [ ] While any entry stays unkillable, or a process entry is left after a failed kill, cleanup skips steps 2 to 5, and its report says the message area, the knowledge store, the resolved pattern and the manifest are kept for the next cleanup, agent-decided (SDD §7)
 - [ ] The charter files in the run directory are deleted with the run directory in step 2, the design's inferred reading (SDD §4)
 - [ ] A result file that a stage placed outside the run directory keeps the lifetime of its stage and is not deleted (SDD §7)
 - [ ] Cleanup kills every process the manifest names and closes every pane the run opened, and reports by name every process it could not kill and every pane still open (PRD AC-013)
-- [ ] Before a kill, cleanup checks that the recorded identifier still names the recorded process; on a mismatch, or when no process has that identifier, it kills nothing, removes the entry and reports it already gone, moving an agent entry to cleaned instead of removing it (PRD AC-013)
-- [ ] An entry that holds a process id and no started-at gets no kill: stopped true with the method 'already gone' and a move to cleaned when no live process has that id, else stopped false with the reason 'identity unknown' and a move to unkillable, named in the report by agent name and process id, agent-decided (SDD §8 row "Cleanup")
-- [ ] An entry that holds neither a process id nor a handle gets stopped true with the method 'nothing recorded', moves to cleaned and is named in the report by agent-id and agent name, agent-decided (SDD §5)
+- [ ] Cleanup kills through agent-stop, which runs the identity check (0010-team-entry-script). On a mismatch, or when no process has that identifier, nothing is killed: cleanup removes a process entry on agent-stop's 'already gone' answer and reports it already gone, and moves an agent entry to cleaned on agent-stop's 'already gone' answer (plan D-32) (PRD AC-013). Cleanup removes a process entry on agent-stop's stopped true, whether the process was killed or already gone, and leaves it on stopped false (SDD §4) (plan D-39)
+- [ ] For an entry that holds a process id and no started-at, cleanup acts on agent-stop's answer: 'already gone' moves the entry to cleaned, 'identity unknown' moves it to unkillable, and the report names an unkillable entry by agent name and process id, agent-decided (SDD §8 row "Cleanup")
+- [ ] On agent-stop's answer 'nothing recorded', cleanup moves the entry to cleaned and names it in the report by agent-id and agent name, agent-decided (SDD §5)
 - [ ] A recycled process id leaves its entry unkillable until that process ends, the report names the agent name and the process id, and the run stays parked; this residual is accepted, agent-decided (SDD §13 Q51)
 - [ ] A stop or a pane close that fails marks the entry unkillable, a failed close names the pane, and run cleanup tries again (PRD AC-050)
 - [ ] On TR-4, cleanup closes each recorded terminal by its terminal identifier through agent-stop, and reports by name any terminal it could not close (PRD AC-031)
@@ -60,15 +60,16 @@ complex
 ## Consumes
 - 0003-manifest-module scripts/team/manifest.py#def move_entry( — entries move to cleaned or unkillable
 - 0004-knowledge-store scripts/team/knowledge.py#def write_entry( — the store cleanup deletes
-- 0006-transport-family-and-herdr adapters/transport/multiplexer/transport.sh#verb_agent_start — agent-list and agent-stop through the dispatcher
+- 0006-transport-family-and-herdr adapters/transport/multiplexer/transport.sh#verb_agent_start — agent-list through the dispatcher
+- 0010-team-entry-script scripts/team/entry.py#def agent_stop( — agent-stop's answers after its identity check
 
 ## Verification
 | Tier | Check (command or method) | Proves |
 |------|---------------------------|--------|
-| static | `afk-python -m py_compile scripts/team/cleanup.py && grep -n 'def run_cleanup(' scripts/team/cleanup.py` | code builds; the Produces anchor exists |
+| static | `afk-python -m py_compile scripts/team/cleanup.py && grep -n 'def run_cleanup(' scripts/team/cleanup.py && grep -n 'def agent_stop(' scripts/team/entry.py` | code builds; the Produces anchor and the consumed agent-stop anchor exist |
 | unit | `afk-python -m pytest scripts/tests/test_team_cleanup.py -q`, cases: an unkillable process is reported by name; a recorded id that now names another process is not killed and is reported already gone; a failed pane close is named; files are kept while an entry is unkillable; strays are listed and never stopped; agent-list exit 3 is reported | the five steps and the report (PRD Testing Decisions "Cleanup + run manifest") |
 | integration | Windows: start a process tree under the agent's job, with a child a job member starts, close the owner, assert nothing survives; add a process started through Windows Management Instrumentation and assert it is killed only when registered | V30; Q10; seam-test for the row "Operating-system job owning a process tree" |
-| integration | End a session while a wait job runs; cleanup finds its process gone, removes the entry and reports it already gone | seam-test for the row "Background job at session end" |
+| integration | End a session while a wait job runs; cleanup finds its process gone, removes the entry and reports it already gone | cleanup case for the row "Background job at session end", which 0008-inbox-wait-script implements and tests (plan D-37) |
 
 ## Context excerpts
 > (SDD §8 row "Cleanup") | Cleanup | Five fixed steps: kill every process the manifest names, including the inbox wait job and each job supervisor, calling agent-stop, which closes its pane (S-234), on every remaining agent entry, a lost entry included (audit round 5; audit round 7, agent-decided): it kills by the process id when the entry holds one and closes the pane when it holds a handle (audit round 7, agent-decided), kills only after the identity check and closes a TR-4 terminal by its terminal identifier, and an entry that holds neither gets stopped true with the method 'nothing recorded', moves to cleaned and is named in the report by agent-id and agent name (audit round 8, agent-decided); an entry with an empty kind has no handle (audit round 9, agent-decided) and no started-at, and an entry that holds a process id and no started-at gets no kill: stopped true with the method 'already gone' and a move to cleaned when no live process has that id, else stopped false with the reason 'identity unknown' and a move to unkillable, and a later cleanup moves it to cleaned once agent-stop answers stopped true without pane closed false (audit round 10; audit round 11, agent-decided); the report names it while it is unkillable (audit round 9, agent-decided); delete the message area, the knowledge store, the resolved pattern, then the manifest, none of which it deletes while any entry stays unkillable or a process entry is left after a failed kill (I5; audit round 13, agent-decided), saying in its report that they are kept for the next cleanup (audit round 12, agent-decided); report survivors, with each unkillable entry's agent name and process id (audit round 12, agent-decided), and every pane still open (S-181, S-198, S-225), and every TR-4 terminal still open (AC-031; audit round 9, agent-decided). It stops no agent the manifest does not name: it lists each stray agent-list finds (S-237), by agent name and pane id, in its report, and the human stops it (correction of audit round 3, agent-decided; correction of audit round 4, agent-decided); when agent-list answers exit 3, the report says the kind cannot list agents (audit round 3, agent-decided) | one call per run | manifest module, dispatcher, knowledge store | Run |
@@ -114,7 +115,7 @@ docs/afk/agent-team-topology/PRD.md
 docs/afk/agent-team-topology/SDD.md
 
 ## Blocked by
-0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr
+0003-manifest-module, 0004-knowledge-store, 0006-transport-family-and-herdr, 0010-team-entry-script
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality

@@ -21,7 +21,7 @@ standard
 - [ ] Each adversary attempt starts a new pane agent that keeps the blind diet: an attempt that saw any diff, test, finding or commit is tainted (SDD §14 row "/afk:execute Step 10.5: the adversary")
 - [ ] The adversary writes its own named report; its finished message carries the format version and the result path only and goes to its report target, with a short copy to the contact agent (SDD §14 row "/afk:execute Step 10.5: the adversary")
 - [ ] The `ADVERSARY:` line keeps its grammar and names the brief's report path (agent-decided, SDD §14 row "/afk:execute Step 10.5: the adversary")
-- [ ] /afk:execute Step 10.5 waits for the adversary's finished message and reads the verdict from the report file; the hard rule that reads every verdict from the spawning call's own result (execute/SKILL.md:143 at 13bec6d) no longer covers the adversary (SDD §14 row "/afk:execute Step 10.5: the adversary")
+- [ ] /afk:execute Step 10.5 waits for the adversary's finished message and reads the verdict from the report file; the hard rule that reads every verdict from the spawning call's own result (execute/SKILL.md:143 at 13bec6d) no longer covers the adversary; 0018-review-gate-pane-workers changes :143 first, so this slice finds that rule by its text (plan D-35) (SDD §14 row "/afk:execute Step 10.5: the adversary")
 - [ ] With no stage map entry the adversary is an implicit single-role step with lifespan Turn, named `solo:` followed by the role in its start request, and runs the model its tier names (agent-decided, SDD §13 Q33)
 - [ ] Only the contact agent messages the adversary, with no branch content, and Stop-gate output reaches it only after its verdict is recorded (agent-decided, SDD §14 row "/afk:execute Step 10.5: the adversary")
 - [ ] The adversary writes a checkpoint in the run; a replacement after a death reads it, and a fresh attempt after a tainted one does not (agent-decided, SDD §14 row "/afk:execute Step 10.5: the adversary")
@@ -45,6 +45,7 @@ standard
 | static | `afk-python -m pytest scripts/tests/test_skill_frontmatter.py -q` | skill frontmatter still valid |
 | integration | V4, environment-gated on both harnesses with herdr: the probe "SessionStart in a pane agent" (providers/CONFORMANCE.md:432) re-run in a pane adversary with a repository-declared hook that prints a marker line; the probe row records whether the marker reaches the adversary | V4 |
 | integration | V5, environment-gated on the human's Codex trust entry for a printing hook: the Codex cell of probe providers/CONFORMANCE.md:432 for a pane adversary, which reads its contract, specs and doctrine and records whether its SessionStart output arrives; recorded as a probe row | V5 |
+| integration | Environment-gated on herdr: one /afk:execute Step 10.5 run with a pane adversary on a fixture slice; after the adversary's finished message arrives, Step 10.5 records the verdict that the report file at the finished body's result path holds | seam-test of §14 row "/afk:execute Step 10.5: the adversary": the verdict travels in the report file (plan D-36) |
 
 ## Context excerpts
 > (SDD §14 row "/afk:execute Step 10.5: the adversary", Existing contract) execute/SKILL.md:90 runs /afk:adversary with the slice and the app URL in a fresh session; adversary/SKILL.md:14-15 take only those 2 arguments, and :19-21 set its diet: an attempt that saw any diff, test, finding or commit is tainted (INV-035 c-98977523). execute/SKILL.md:143 reads the verdict from the spawn result, else no verdict; adversary/SKILL.md:40-44 writes the slice's adversary report and the ADVERSARY: line (c-edf345a7). Routing: execute/SKILL.md:92-96, :125-126 (c-8f5617c9). The report is read by name or folder at gates.py:110-120, insights.py:204-233 (its first 4000 characters, for a verdict label), progress.py:75, overview.py:143, retro/SKILL.md:29, understand/SKILL.md:49, review/SKILL.md:167, README.md:605 and gc/SKILL.md:53 (c-4d06b173)
@@ -71,6 +72,7 @@ docs/afk/agent-team-topology/SDD.md
 
 ## Blocked by
 0015-team-skill-and-manifests
+0018-review-gate-pane-workers
 
 ## Conflict procedure
 If a binding decision in SDD/ADR is wrong / infeasible / contradicts reality

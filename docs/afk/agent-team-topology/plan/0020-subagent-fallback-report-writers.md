@@ -22,7 +22,7 @@ standard
 - skills/afk/execute/CITED-MODE.md (:82-83)
 - skills/utils/investigate/scripts/ground_diff.py (:7)
 - AGENTS.md (:70-71, :180)
-- DELEGATION.md (:26)
+- DELEGATION.md (:26, the afk-tracer clause)
 - providers/CONFORMANCE.md (:26, :441 and the new probe rows)
 - providers/codex/agents/afk-afk-tracer.toml   # the Codex tracer stub
 
@@ -33,7 +33,7 @@ standard
 - [ ] Excepted seam §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7" (partial INV-036, human exception of 2026-10-02, GRILL-LOG.md:711): before this subtask merges, §13 V11, V12, V13 are proven at build as listed in ## Verification, and the change follows the row's Planned change cell (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
 - [ ] With no pane transport or the switch set back, the adversary, each /afk:investigate run and each tracer return their report text as subagents, and their starter writes the file (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
 - [ ] The starters gain the write: execute/SKILL.md:90 (a file outside the writes its ownership rule at :145 lists); investigate/SKILL.md:44 and :53, each returned fragment; grill-requirements/SKILL.md:46, grill-requirements/ROUND.md:52-56, grill-solution/SKILL.md:76 and GROUNDING-RULE.md:25 and :40, each run's COVERAGE.json and REPORT.md (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
-- [ ] The text that names the old writer changes: investigate/SKILL.md:8, :10; AGENTS.md:70-71 and :180; agents/afk-tracer.md:16, :40; investigate/LEDGER-FORMAT.md:267; the Codex tracer stub; DELEGATION.md:26; providers/CONFORMANCE.md:26; adversary/SKILL.md:40; execute/CITED-MODE.md:82-83 and ground_diff.py:7 (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
+- [ ] The text that names the old writer changes: investigate/SKILL.md:8, :10; AGENTS.md:70-71 and :180; agents/afk-tracer.md:16, :40; investigate/LEDGER-FORMAT.md:267; the Codex tracer stub; DELEGATION.md:26's afk-tracer clause "writes its coverage fragment", after 0014-delegation-doctrine narrows :26 to helpers and the subagent fallback; providers/CONFORMANCE.md:26; adversary/SKILL.md:40; execute/CITED-MODE.md:82-83 and ground_diff.py:7 (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
 - [ ] The delta tracer and the counter-search tracer of /afk:investigate step 5 and the grill-requirements grounding runs follow the same move (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
 - [ ] Readers stay unchanged: mission control, /afk:retro, the review rollup, verify-seams, the drift re-check and /afk:understand read by path or glob and check no writer, so the starter writes the text as it came (SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")
 - [ ] The starter writes the returned text as it came, before it cites any finding; the `ADVERSARY:` line keeps its shape and names the brief's path, and the starter writes the returned report there (agent-decided, SDD §14 row "Report-file writers under the subagent fallback, including /afk:investigate step 7")

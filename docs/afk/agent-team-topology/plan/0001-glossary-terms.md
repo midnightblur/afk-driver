@@ -1,5 +1,5 @@
 ## Goal
-Add to the plugin-root GLOSSARY.md the terms the design defines and the root glossary does not hold, with the write routed through /afk:glossary as the design's open-question row on terms says. The entries for pane agent and pane transport land here first, since the review-gate docs slice uses both terms. The slice adds the charter to the Team pattern entry, replaces the Talk edges entry's claim that unlisted messages relay through the contact agent, and fixes the copy of that entry in docs/afk/agent-team-topology/LAVISH-TIPS.md. The slice ends at glossary text: no code, no skill prose.
+Add to the plugin-root GLOSSARY.md the terms the design defines and the root glossary does not hold, written directly by the plugin author, the root glossary's steward (FRESHNESS.md:44; plan D-31). The entries for pane agent and pane transport land here first, since the review-gate docs slice uses both terms. The slice adds the charter to the Team pattern entry, replaces the Talk edges entry's claim that unlisted messages relay through the contact agent, and fixes the copy of that entry in docs/afk/agent-team-topology/LAVISH-TIPS.md. The slice ends at glossary text: no code, no skill prose.
 
 ## Complexity
 mechanical
@@ -19,11 +19,11 @@ mechanical
 ## Acceptance
 - [ ] GLOSSARY.md holds one entry for each term the open-question row on terms lists: run, role, spawned agent, hub, stage, topology map, team entry script, pane agent, role agent, helper, builder, moderator, pattern step, resolved pattern, afk-lite, requester, report target, multiplexer, recipe, run directory, inbox, envelope, message body, result file, completion signal, job supervisor, wait job, stall watchdog, owner generation, harness session id, stage map, pane switch, pattern standard, charter, charter file and one-off pattern; a term the glossary already holds is not added twice (SDD §13 Q1)
 - [ ] GLOSSARY.md holds a **Pane agent** entry and a **Pane transport** entry, in the change this subtask ships, before the review-gate docs slice rewrites GLOSSARY.md:319 and README.md:603 with those terms (SDD §14 row "GLOSSARY.md:319 and README.md:603")
-- [ ] The entries are written through /afk:glossary, the owner the open-question row on terms names (SDD §13 Q1)
+- [ ] The executor writes the entries directly into GLOSSARY.md as plugin author, the steward FRESHNESS.md:44 names. /afk:glossary is not used: it stewards domain glossaries only and routes through a GLOSSARY-MAP.md this repository lacks (skills/utils/glossary/SKILL.md:3-6, :38) (plan D-31) (SDD §13 Q1)
 - [ ] The **Charter file** entry says: one file per role per run, in the run directory, holding the charter's pattern part and then that role's part, and for a one-off pattern the run's only copy of its charter (SDD §4)
 - [ ] The **Charter** entry says every pattern that starts agents carries a charter, never empty: a pattern part with the pattern's purpose and how it meets the pattern standard, and one part per role (PRD AC-066)
 - [ ] The **One-off pattern** entry says: a pattern written for one task and not saved, which has no record, reaches the run in the fields of a pattern record with its charter, and is checked as a record with roles (PRD AC-066)
-- [ ] The Team pattern entry (GLOSSARY.md:38) names the charter among what a pattern that starts agents carries; the entry is changed whichever reading of the recorded dispute holds (SDD §13 Q1)
+- [ ] The Team pattern entry (GLOSSARY.md:38) no longer holds for a pattern that starts agents, so it gains the charter among what such a pattern carries (SDD §13 Q1)
 - [ ] The Talk edges entry (GLOSSARY.md:58) no longer says anything not listed relays through the contact agent; it says every message off a declared edge is refused, naming the edge, and names the four paths that need no edge (PRD AC-035)
 - [ ] The Talk edges entry says a role and its report target, whoever it is, may message each other both ways with no declaration, and siblings message each other only along declared edges (PRD AC-069)
 - [ ] The copy of the Talk edges entry at docs/afk/agent-team-topology/LAVISH-TIPS.md:49 carries the same corrected text (SDD §13 Q1)
