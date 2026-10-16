@@ -65,7 +65,7 @@ class Segment:
         self.redirects: list[Word] = []
         self.piped = False  # part of a pipeline: runs in a subshell
         self.mark = ""  # "open" / "close" for a `(` / `)` boundary
-        self.expands = False  # an unquoted heredoc body runs a substitution
+        self.expands = False  # an unquoted heredoc body or an input redirect runs a substitution
         self.git_env: list[tuple[str, Word | None]] = []  # set by steps(); None is an opaque value
 
 
@@ -193,7 +193,9 @@ def segments(text: str) -> list[Segment]:
         elif c == "<":
             i += 1
             skip_blank()
-            _, i = read_word(text, i)
+            word, i = read_word(text, i)
+            if word and any(mark in word.text for mark in EXPANDS):
+                current.expands = True
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
             close()
             i += 1
@@ -614,19 +616,20 @@ def unexports(words: list[Word]) -> bool:
 
 
 def unexported(words: list[Word]) -> list[tuple[str, bool]] | None:
-    """(name, keeps its shell value) per git variable `unset [-v] NAME…` or `export -n NAME…` removes;
-    None for any other `unset` or `export -n` shape, which leaves every git variable unknown."""
+    """(name, keeps its shell value) per git variable `unset [-v|--] NAME…` or `export -n NAME…` removes,
+    [] for `unset -f NAME…`; None for any other `unset` or `export -n` shape, which leaves every git variable unknown."""
     if not words or not (words[0].text == "unset" or unexports(words)):
         return []
     flag = "-n" if words[0].text == "export" else "-v"
     names = words[1:]
-    if names[:1] and names[0].text == flag and not names[0].opaque:
+    lead = names[0].text if names[:1] and not names[0].opaque else None
+    if lead == flag or (flag == "-v" and lead in ("--", "-f")):
         names = names[1:]
     elif flag == "-n":
         return None
     if any(w.opaque or not IDENTIFIER.match(w.text) for w in names):
         return None
-    return [(w.text, flag == "-n") for w in names if w.text in GIT_ENV]
+    return [] if lead == "-f" else [(w.text, flag == "-n") for w in names if w.text in GIT_ENV]
 
 
 def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=None):

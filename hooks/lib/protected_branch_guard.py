@@ -646,7 +646,8 @@ PLUGIN_FORMS = {
 }
 
 
-LINKERS = {"ln", "mklink", "new-item", "ni"}  # `New-Item` takes abbreviated link types, so any one counts
+LINKERS = {"ln", "mklink", "new-item", "ni"}
+PLAIN_ITEMS = {"directory", "file"}  # `New-Item` takes abbreviated types, so only these full words are not links
 ROOT_ARGUMENT = {"scripts/glossary_usage.py"}  # forms that take the plugin root itself as their argument
 
 
@@ -686,6 +687,38 @@ def confined(segment, words: list, spot: Path | None, here: Path | None, powersh
     return bool(targets) and all(shell_mutations.resolve(t, spot) is not None for t in targets)
 
 
+def links(words: list) -> bool:
+    """A link maker: `ln`, `mklink`, or a `New-Item` whose one type option is not a literal plain item."""
+    prog = shell_mutations.program_of(words[0]) if words else ""
+    if prog not in ("new-item", "ni"):
+        return prog in LINKERS
+    typed = [i for i, w in enumerate(words) if w.text.lower().startswith(("-i", "-t"))]
+    if len(typed) != 1 or words[typed[0]].text.lower() not in ("-itemtype", "-type") or typed[0] + 1 >= len(words):
+        return True
+    value = words[typed[0] + 1]
+    return value.opaque or value.text.lower() not in PLAIN_ITEMS
+
+
+ARITY = {"worktree-remove": 1, "worktree-move": 2}
+
+
+def retirement(segment, words: list, spot: Path | None) -> bool:
+    """A literal `git [-C dir] worktree move|remove` or `git branch -d` whose parsed operation holds every word."""
+    if segment.expands or segment.git_env or len(words) != len(segment.words) or words[0].text != "git" \
+            or any(w.opaque for w in words) \
+            or any(w.text.lower() not in shell_mutations.NO_TARGET for w in segment.redirects):
+        return False
+    verb = shell_mutations.git_options(words, spot)[0]
+    if (verb - 1) % 2 or any(w.text != "-C" for w in words[1:verb:2]):
+        return False
+    found: list = []
+    shell_mutations.git_resources(words, spot, operations=found)
+    if len(found) != 1:
+        return False
+    want = ARITY.get(found[0]["kind"])
+    return want is None or len(shell_mutations._git_positionals(words[verb + 2:])) == want
+
+
 def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: dict):
     """(segment text, placement, cause, is a pull) of the first segment that runs in a guarded placement
     and is not proven read-only; None when there is none. A confined segment is judged later, at its targets."""
@@ -694,7 +727,7 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
     for segment, words, spot, here in shell_mutations.steps(command, cwd, powershell, toplevel):
         if read_only.proven_segment(segment):
             continue
-        if words and shell_mutations.program_of(words[0]) in LINKERS:
+        if links(words):
             replaced = True  # a new link can alias a plugin file for a later write
         if not replaced and create_worktree(words or segment.words, spot, command, powershell):
             replaced = True
@@ -713,10 +746,8 @@ def unproven(judge: "Judge", command: str, cwd: Path, powershell: bool, state: d
             if pull and shell_mutations.ff_pull([w.text for w in words[verb + 1:]]) is not None \
                     and not segment.git_env:
                 continue  # the sync is judged at its folder (ADR-0011)
-            retirements: list = []
-            shell_mutations.git_resources(words, spot, operations=retirements)
-            if retirements and not segment.git_env:
-                continue  # a worktree move/remove or branch delete is judged at its target
+            if retirement(segment, words, spot):
+                continue  # judged at every target its operation holds
             # git applies -C before it reads a relative GIT_DIR, GIT_WORK_TREE or GIT_COMMON_DIR
             folders += git_env_folders(segment, after_c)
             folders += [after_c if w is None else shell_mutations.resolve(w, after_c) for w in (gitdir, workdir)]

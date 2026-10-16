@@ -1244,3 +1244,67 @@ def test_a_branch_delete_runs_in_the_main_checkout(repo):
 def test_a_retirement_does_not_prove_its_neighbours(repo, command):
     subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
     assert bash(repo["main"], command.format(main=repo["main"].as_posix())).returncode == 2, command
+
+
+# ---------------------------------------------------------------- review round 5
+
+@pytest.mark.parametrize("command", [
+    'git branch -d spare > "$LOG"',
+    'git branch -d spare "$BRANCH"',
+    'git worktree move {topic} "$DEST"',
+    'git branch -d spare "$(touch changed; echo main)"',
+    'git branch -d spare < "$(touch changed)"',
+    'git branch -d spare > {main}/README.md',
+    'git worktree move {topic}',
+    'git worktree remove {topic} {topic}',
+    'FOO=1 git branch -d spare',
+    'git -c core.fsmonitor=x branch -d spare',
+])
+def test_review5_a_retirement_with_an_unparsed_effect_is_unproven(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix())
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review5_a_substitution_in_an_input_redirect_is_unproven(repo):
+    assert bash(repo["main"], 'cat < "$(touch changed)"').returncode == 2
+
+
+def test_review5_a_literal_retirement_with_a_null_redirect_runs(repo):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], f'git -C {repo["main"].as_posix()} branch -d spare 2>/dev/null').returncode == 0
+
+
+@pytest.mark.parametrize("kind", ["Directory", "file", "DIRECTORY"])
+def test_review5_a_plugin_form_after_a_plain_new_item_still_runs(repo, kind):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    item = f"New-Item -ItemType {kind} -Path {repo['tmp'].as_posix()}/plain"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{item}; {later}"}).returncode == 0
+
+
+@pytest.mark.parametrize("item", ["New-Item -ItemType Dir", "New-Item -ItemType $kind", "New-Item",
+                                  "New-Item -ItemType Directory -It SymbolicLink -Target {own}"])
+def test_review5_a_plugin_form_after_another_new_item_is_unproven(repo, item):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    item = item.format(own=PLUGIN_ROOT.as_posix()) + f" -Path {repo['tmp'].as_posix()}/alias"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{item}; {later}"}).returncode == 2, item
+
+
+@pytest.mark.parametrize("removal", ["unset -f helper", "unset -- PYTHONPATH"])
+def test_review5_a_removal_unrelated_to_git_keeps_the_git_state_known(repo, removal):
+    assert bash(repo["main"], f"{removal}; {STOP}").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "export GIT_WORK_TREE={main}; unset -f GIT_WORK_TREE; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -f $X; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -- -v GIT_WORK_TREE; git reset --hard",
+])
+def test_review5_a_function_or_mixed_removal_keeps_git_aimed(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review5_a_literal_move_into_the_main_checkout_is_refused(repo):
+    command = f'git worktree move {repo["topic"].as_posix()} {repo["main"].as_posix()}/moved'
+    assert bash(repo["main"], command).returncode == 2
