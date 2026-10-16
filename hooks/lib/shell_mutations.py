@@ -9,7 +9,7 @@ import os
 import re
 from pathlib import Path
 
-NO_TARGET = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "nul", "$null"}
+NO_TARGET = {"/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "nul"}  # PowerShell adds a bare `$null`
 WRAPPERS = {"command", "exec", "nohup", "time", "env", "sudo", "builtin"}
 KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!"}  # the next word is a program
 SUDO_VALUE = {"-u", "-g", "-h", "-p", "-c", "-d", "-r", "-t", "-D", "--user", "--group", "--host", "--prompt",
@@ -52,11 +52,13 @@ VALUE_OPTS = {"touch": {"t", "d", "r", "date", "reference"}, "mkdir": {"m", "mod
 
 
 class Word:
-    __slots__ = ("text", "opaque", "split")
+    __slots__ = ("text", "opaque", "split", "runs", "sink")
 
-    def __init__(self, text: str, opaque: bool, split: bool | None = None):
+    def __init__(self, text: str, opaque: bool, split: bool | None = None, runs: bool = False):
         self.text, self.opaque = text, opaque
         self.split = opaque if split is None else split  # an unquoted expansion can become several words
+        self.runs = runs  # an unquoted or double-quoted `$(` or backtick: a command substitution
+        self.sink = False  # a redirect target that reaches no file
 
 
 class Segment:
@@ -72,7 +74,7 @@ class Segment:
 def read_word(text: str, i: int) -> tuple[Word | None, int]:
     """One shell word from `i`: quotes and escapes resolved, `$`, backtick and globs mark it opaque."""
     chars: list[str] = []
-    opaque = quoted = split = False
+    opaque = quoted = split = runs = False
     n = len(text)
     while i < n:
         c = text[i]
@@ -100,6 +102,7 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
                     i += 1
                 elif text[i] in "$`":
                     opaque = True
+                    runs = runs or text[i] == "`" or text[i + 1:i + 2] == "("
                 chars.append(text[i])
                 i += 1
             i += 1
@@ -109,14 +112,15 @@ def read_word(text: str, i: int) -> tuple[Word | None, int]:
         else:
             if c in "$`*?[%":
                 opaque = split = True
+                runs = runs or c == "`" or (c == "$" and text[i + 1:i + 2] == "(")
             chars.append(c)
             i += 1
     if not chars and not quoted:
         return None, i
-    return Word("".join(chars), opaque, split), i
+    return Word("".join(chars), opaque, split, runs), i
 
 
-def segments(text: str) -> list[Segment]:
+def segments(text: str, powershell: bool = False) -> list[Segment]:
     found: list[Segment] = []
     current = Segment()
     heredocs: list[tuple[str, bool, Segment]] = []  # delimiter, body expands, the segment it feeds
@@ -132,6 +136,16 @@ def segments(text: str) -> list[Segment]:
         nonlocal i
         while i < n and text[i] in " \t\r":
             i += 1
+
+    def target() -> Word | None:
+        """The redirect target at `i`; only PowerShell reads a bare `$null` as no file."""
+        nonlocal i
+        start = i
+        word, i = read_word(text, i)
+        if word:
+            word.sink = (not word.opaque and word.text.lower() in NO_TARGET) or (
+                powershell and text[start:i].lower() == "$null")
+        return word
 
     while i < n:
         c = text[i]
@@ -166,7 +180,7 @@ def segments(text: str) -> list[Segment]:
         elif c == "&" and text[i + 1:i + 2] == ">":
             i += 2 + (text[i + 2:i + 3] == ">")
             skip_blank()
-            word, i = read_word(text, i)
+            word = target()
             if word:
                 current.redirects.append(word)
         elif c == "&":
@@ -177,7 +191,7 @@ def segments(text: str) -> list[Segment]:
             dup = text[i:i + 1] == "&"
             i += text[i:i + 1] in ("&", "|")
             skip_blank()
-            word, i = read_word(text, i)
+            word = target()
             if word and not (dup and re.fullmatch(r"\d+|-", word.text)):
                 current.redirects.append(word)
         elif c == "<" and text[i + 1:i + 3] == "<<":
@@ -194,7 +208,7 @@ def segments(text: str) -> list[Segment]:
             i += 1
             skip_blank()
             word, i = read_word(text, i)
-            if word and any(mark in word.text for mark in EXPANDS):
+            if word and word.runs:
                 current.expands = True
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
             close()
@@ -644,7 +658,7 @@ def steps(command: str, cwd: Path | None, powershell: bool = False, toplevel=Non
     pushed: list[Path | None] = []
     git_env: dict[str, Word | None] = {}
     assigned: dict[str, Word | None] = {}  # shell variables a later bare `export` exports
-    for segment in segments(command):
+    for segment in segments(command, powershell):
         if segment.mark:
             if segment.mark == "open":
                 saved.append((here, dict(git_env), dict(assigned)))

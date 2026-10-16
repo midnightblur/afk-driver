@@ -64,9 +64,9 @@ def proven_segment(segment: sm.Segment) -> bool:
 
 def proven(words: list[sm.Word], redirects: list[sm.Word]) -> bool:
     """True when the segment is a listed read-only form and every redirect reaches no file."""
-    if any(w.text.lower() not in sm.NO_TARGET for w in redirects):
+    if any(not w.sink for w in redirects):
         return False
-    if any(w.opaque and ("`" in w.text or "$(" in w.text) for w in words):
+    if any(w.runs for w in words):
         return False
     effects: dict = {}
     stripped = sm.strip_prefixes(words, effects, keywords=True)

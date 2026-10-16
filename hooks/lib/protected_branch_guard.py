@@ -577,8 +577,7 @@ def known_writes(segment, words: list, spot: Path | None, here: Path | None, pow
         return [shell_mutations.resolve(w, spot) for w in written]
     if not confined(segment, words, spot, here, powershell):
         return None
-    paths = [shell_mutations.resolve(w, here) for w in segment.redirects
-             if w.text.lower() not in shell_mutations.NO_TARGET]
+    paths = [shell_mutations.resolve(w, here) for w in segment.redirects if not w.sink]
     if not read_only.proven(segment.words, []):
         prog = shell_mutations.program_of(words[0])
         paths += [shell_mutations.resolve(t, spot) for t in shell_mutations.writer_targets(prog, words, powershell)]
@@ -653,7 +652,7 @@ ROOT_ARGUMENT = {"scripts/glossary_usage.py"}  # forms that take the plugin root
 
 def plugin_targets(segment, words: list, spot: Path | None, command: str, powershell: bool) -> list | None:
     """The words an allowed plugin-script form writes ([] for none), or None when it is not one."""
-    if len(words) < 2 or any(w.text.lower() not in shell_mutations.NO_TARGET for w in segment.redirects):
+    if len(words) < 2 or any(not w.sink for w in segment.redirects):
         return None
     rel = plugin_file(words[1], spot, command, powershell)
     check = PLUGIN_FORMS.get((words[0].text.lower(), rel)) if rel is not None else None
@@ -675,8 +674,7 @@ def confined(segment, words: list, spot: Path | None, here: Path | None, powersh
     """Every effect of the segment is a literal path: a read with file redirects, or a known file writer."""
     if not words or segment.expands or re.search(r"[\\/]", words[0].text) or any(w.opaque for w in segment.words):
         return False
-    if any(w.text.lower() not in shell_mutations.NO_TARGET and shell_mutations.resolve(w, here) is None
-           for w in segment.redirects):
+    if any(not w.sink and shell_mutations.resolve(w, here) is None for w in segment.redirects):
         return False
     if read_only.proven(segment.words, []):
         return True
@@ -706,7 +704,7 @@ def retirement(segment, words: list, spot: Path | None) -> bool:
     """A literal `git [-C dir] worktree move|remove` or `git branch -d` whose parsed operation holds every word."""
     if segment.expands or segment.git_env or len(words) != len(segment.words) or words[0].text != "git" \
             or any(w.opaque for w in words) \
-            or any(w.text.lower() not in shell_mutations.NO_TARGET for w in segment.redirects):
+            or any(not w.sink for w in segment.redirects):
         return False
     verb = shell_mutations.git_options(words, spot)[0]
     if (verb - 1) % 2 or any(w.text != "-C" for w in words[1:verb:2]):

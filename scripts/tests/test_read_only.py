@@ -143,3 +143,19 @@ def test_an_index_refresh_or_a_fetch_without_a_local_destination_is_an_accepted_
 ])
 def test_an_unlisted_or_unreadable_command_is_unproven(command):
     assert not proven(command), command
+
+
+@pytest.mark.parametrize("command,powershell,expected", [
+    ("echo hi > /dev/null", False, True),
+    ("echo hi > nul", False, True),
+    ('echo hi > "$null"', False, False),
+    ("echo hi > $null", False, False),
+    ("echo hi > '$null'", False, False),
+    ("Get-Content a.txt > $null", True, True),
+    ("Get-Content a.txt > $NULL", True, True),
+    ('Get-Content a.txt > "$null"', True, False),
+    ("Get-Content a.txt > '$null'", True, False),
+])
+def test_null_redirect_is_shell_and_quote_aware(command, powershell, expected):
+    segments = [s for s in sm.segments(command, powershell) if not s.mark]
+    assert all(read_only.proven_segment(s) for s in segments) is expected

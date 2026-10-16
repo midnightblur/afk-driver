@@ -1308,3 +1308,55 @@ def test_review5_a_function_or_mixed_removal_keeps_git_aimed(repo, command):
 def test_review5_a_literal_move_into_the_main_checkout_is_refused(repo):
     command = f'git worktree move {repo["topic"].as_posix()} {repo["main"].as_posix()}/moved'
     assert bash(repo["main"], command).returncode == 2
+
+
+# ---------------------------------------------------------------- review round 6
+
+@pytest.mark.parametrize("command", [
+    'echo hi > "$null"',
+    "echo hi > $null",
+    "null=README.md; echo hi > \"$null\"",
+    "echo hi > '$null'",
+    'git branch -d spare > "$null"',
+    "null=README.md; git -C {main} branch -d spare > \"$null\"",
+    "git branch -d spare 2> '$null'",
+])
+def test_review6_a_bash_null_variable_redirect_is_a_target(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], command.format(main=repo["main"].as_posix())).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    'Get-Content README.md > "$null"',
+    "Get-Content README.md > '$null'",
+    '$null = "README.md"; Get-Content README.md > "$null"',
+    'git branch -d spare > "$null"',
+    "git -C {main} branch -d spare 2> '$null'",
+])
+def test_review6_a_quoted_powershell_null_redirect_is_a_target(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    "Get-Content README.md > $null",
+    "Get-Content README.md 2>$NULL",
+    "git -C {main} branch -d spare 2> $null",
+])
+def test_review6_a_bare_powershell_null_redirect_reaches_no_file(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 0, command
+
+
+@pytest.mark.parametrize("command", [
+    "cat < 'a$(b).txt'",
+    "cat < 'a`b`.txt'",
+    "cat < '<(b).txt'",
+    "cat < a\$\(b\).txt",
+    'cat < "a\$(b).txt"',
+    "cat 'a$(b)'\"$f\"",
+])
+def test_review6_a_literal_substitution_marker_runs_nothing(repo, command):
+    assert bash(repo["main"], command).returncode == 0, command
