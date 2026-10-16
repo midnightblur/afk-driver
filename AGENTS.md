@@ -84,6 +84,8 @@ No plugin-source artifact may go stale — an agent trusts what it reads. **`FRE
 The behavior registry gate checks its grammar, doctrine homes, inventory map,
 transport parity, and size. Change a behavior with its doctrine, setup path,
 tests, provider declarations, and changelog in the same commit.
+An inventory id stays in `hooks/behavior-dispositions.tsv` for good; retire it
+in place (rule: `scripts/behavior_registry.py` docstring).
 Read `adr/0005-managed-behavior-transport.md` before changing the transport,
 consent reuse, repository guard, or target files.
 
