@@ -283,6 +283,14 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "closed")
 
+    # LEDGER-FORMAT.md lets a read site end `irrelevant`: the read found the site off the path.
+    def test_a_read_site_dispositioned_irrelevant_closes_the_class(self):
+        document = read_evidence(read_closed(ledger(), "B3"), "B3")
+        document["nodes"][-1]["disposition"] = "irrelevant"
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
     def test_a_read_nodes_query_id_must_be_null(self):
         document = read_evidence(read_closed(ledger(), "B3"), "B3")
         document["nodes"][-1]["query_id"] = QUERY

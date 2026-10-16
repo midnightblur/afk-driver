@@ -93,6 +93,22 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- **`/afk:investigate` folds tracer answers onto the seed.** A tracer's
+  disposition replaces a seed node that nobody had triaged, instead of folding
+  to `conflict: unverified vs <x>`. A fragment row resolves a seed class row,
+  so a class the seed left `partial`, `judgment-only` or without a method can
+  close. A fold of a read and a search for one class keeps the search, so the
+  ledger no longer carries both `sites` and `query_ids`. Two tracers that agree
+  on a node keep both evidence lines instead of refusing the fold; a different
+  pinning test or verdict reopens the node. A delta tracer's fragment folded
+  into the merged ledger settles the nodes left in conflict.
+- **A site read into an `irrelevant` node closes its class**, as
+  `LEDGER-FORMAT.md` allows; the validator accepted only `traced` or
+  `terminal`.
+- **`/afk:investigate` publishes `REPORT.md` from any agent.**
+  `scripts/write_report.py` writes it beside a validated, stamped ledger,
+  computes the header line, and takes the body on stdin. A subagent could not
+  write the report file itself.
 - **Hooks start fewer processes on Windows.** Where security software scans
   every process start, each start can cost up to 0.7 s. Hooks read input
   fields with bash builtins instead of a `grep`/`sed` pipe, and the provider

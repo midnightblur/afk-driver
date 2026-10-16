@@ -46,7 +46,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
      [--fragment ...] --out <scratch>/COVERAGE.json
    ```
 
-   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, and every `judgment-only` class left, reopens the queue: spawn a delta tracer and fold its fragment the same way. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
+   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, every node left `conflict:`, and every `judgment-only` class left reopen the queue: spawn a delta tracer and fold its fragment into the merged ledger (`--staging <scratch>/COVERAGE.json`), so its answers replace those open rows. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
 6. **Validate the staging copy.** Before publishing anything:
 
    ```sh
@@ -55,7 +55,16 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
    ```
 
    Exit 1 → the ledger is structurally broken. Fix what it names and validate again; a broken ledger is never published, and structural breakage is never reported as `partial`. Exit 0 → stamp the `VERDICT:` line into `run.verdict` and **run the validator once more**: the stamp is itself checked, so an overstated verdict fails there rather than in the reply.
-7. **Publish and reply.** Copy the validated `COVERAGE.json` into the ledger directory ([`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) owns the names and the location rule), then write `REPORT.md` beside it from that file, then reply in the fixed shape the format defines, ending `OUTCOME: <ok|fail|blocked> — <one line>`. Report the verdict the validator computed: `closed-with-frontier` only when the sole remaining gaps are `frontier`.
+7. **Publish and reply.** Copy the validated `COVERAGE.json` into the ledger directory ([`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) owns the names and the location rule), then publish `REPORT.md` beside it through the script, passing the body ([`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "REPORT.md") on stdin:
+
+   ```sh
+   afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/write_report.py" \
+     --ledger <ledger dir>/COVERAGE.json <<'EOF'
+   <body>
+   EOF
+   ```
+
+   Exit 1 → fix what it names and run it again. Then reply in the fixed shape the format defines, ending `OUTCOME: <ok|fail|blocked> — <one line>`. Report the verdict the validator computed: `closed-with-frontier` only when the sole remaining gaps are `frontier`.
 
 ## Refusals
 

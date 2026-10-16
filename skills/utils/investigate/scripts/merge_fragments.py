@@ -105,35 +105,99 @@ def differing(kept: dict, row: dict, skip: tuple[str, ...] = ()) -> list[str]:
                   and kept.get(key) != row.get(key))
 
 
-def merge_node(kept: dict, row: dict) -> dict:
-    """Two fragments reached the same site; only a disagreement is news."""
+def same_site(kept: dict, row: dict) -> None:
+    """One id is one site: a different class, site or line under it is refused."""
     for key in ("line_hash", "site", "class"):
         if kept.get(key) and row.get(key) and kept[key] != row[key]:
             raise MergeError(
                 f"node {kept.get('id')}: two fragments give it a different {key} "
                 f"({kept[key]!r} and {row[key]!r}); one id is one site"
             )
-    left, right = kept.get("disposition"), row.get("disposition")
-    if left == right:
-        # The disposition is the one field a fold reconciles. Every other
-        # disagreement under one id is two answers, and picking the first is
-        # picking by arrival order.
-        clash = differing(kept, row)
-        if clash:
-            raise MergeError(
-                f"node {kept.get('id')}: two fragments disagree on "
-                f"{', '.join(clash)}; one id is one node"
-            )
-        merged = dict(kept)
-        for key, value in row.items():
-            if merged.get(key) in (None, "", []):
-                merged[key] = value
-        return merged
-    merged = dict(kept)
-    merged["disposition"] = "unverified"
-    merged["reason"] = f"conflict: {left} vs {right}"
-    merged["evidence"] = kept.get("evidence") or row.get("evidence")
+
+
+def resolve_node(open_row: dict, row: dict) -> dict:
+    """A fragment answers a staging node nobody had answered yet."""
+    same_site(open_row, row)
+    merged = dict(row)
+    for key, value in open_row.items():
+        if key not in ("disposition", "reason") and merged.get(key) in (None, "", []):
+            merged[key] = value
     return merged
+
+
+# The fields that answer the question about a node; the rest record how it was reached.
+ANSWERS = ("impact_verdict", "coverage_verdict", "pinned_by")
+
+
+def merge_node(kept: dict, row: dict) -> dict:
+    """Two fragments reached the same site; only a disagreement is news."""
+    same_site(kept, row)
+    if kept.get("parent") and row.get("parent") and kept["parent"] != row["parent"]:
+        raise MergeError(
+            f"node {kept.get('id')}: two fragments give it a different parent "
+            f"({kept['parent']!r} and {row['parent']!r}); a node holds one parent"
+        )
+    left, right = kept.get("disposition"), row.get("disposition")
+    merged = dict(kept)
+    if left != right:
+        merged["disposition"] = "unverified"
+        merged["reason"] = f"conflict: {left} vs {right}"
+        merged["evidence"] = kept.get("evidence") or row.get("evidence")
+        return merged
+    clash = [key for key in differing(kept, row) if key in ANSWERS]
+    for key in ("evidence", "reason"):
+        joined = join_reasons(kept.get(key), row.get(key))
+        if joined:
+            merged[key] = joined
+    if kept.get("query_id") and row.get("query_id"):
+        merged["query_id"] = min(kept["query_id"], row["query_id"])
+    for key, value in row.items():
+        if merged.get(key) in (None, "", []):
+            merged[key] = value
+    if clash:
+        merged["disposition"] = "unverified"
+        merged["reason"] = "; ".join(f"conflict: {key} {kept[key]} vs {row[key]}"
+                                     for key in clash)
+    return merged
+
+
+def settle_boundary(merged: dict) -> dict:
+    """The count is the union's length, and a search record outranks a read."""
+    if merged.get("sites") and merged.get("query_ids"):
+        del merged["sites"]
+    merged["hit_ids"] = hit_ids = merged.get("hit_ids") or []
+    merged["hits"] = len(hit_ids)
+    if len(hit_ids) > HIT_LIMIT:
+        raise MergeError(
+            f"boundaries.{merged.get('class')}: {len(hit_ids)} hits, past the "
+            f"{HIT_LIMIT} a class may carry; the question is re-asked of a "
+            "narrower subject, never published as noise"
+        )
+    return merged
+
+
+def join_universe(kept: dict, row: dict) -> str | None:
+    universe = [part for part in (kept.get("universe"), row.get("universe"))
+                if isinstance(part, str) and part.strip()]
+    return ", ".join(dict.fromkeys(universe)) or kept.get("universe")
+
+
+def resolve_boundary(open_row: dict, row: dict) -> dict:
+    """A fragment resolves a class row the staging ledger left as a placeholder."""
+    merged = {**open_row, **row}
+    for key in ("reason", "sites"):
+        if not row.get(key):
+            merged.pop(key, None)
+    merged["hit_ids"] = union(open_row.get("hit_ids") or [], row.get("hit_ids") or [])
+    # The staging nodes still cite the staging searches, so a row holding them names those.
+    carried = (open_row.get("query_ids") or []) if open_row.get("hit_ids") else []
+    queries = union(carried, row.get("query_ids") or [])
+    if queries or "query_ids" in row:
+        merged["query_ids"] = queries
+    else:
+        merged.pop("query_ids", None)
+    merged["universe"] = join_universe(open_row, row)
+    return settle_boundary(merged)
 
 
 def merge_boundary(kept: dict, row: dict) -> dict:
@@ -149,20 +213,8 @@ def merge_boundary(kept: dict, row: dict) -> dict:
         values = union(kept.get(key) or [], row.get(key) or [])
         if values or key in kept or key in row:
             merged[key] = values
-    universe = [part for part in (kept.get("universe"), row.get("universe"))
-                if isinstance(part, str) and part.strip()]
-    merged["universe"] = ", ".join(dict.fromkeys(universe)) or kept.get("universe")
-    # The union is the class: a fragment's hits are its own node ids, so the
-    # count is the length of what the fold holds, never a sum over overlaps.
-    merged["hit_ids"] = hit_ids = merged.get("hit_ids") or []
-    merged["hits"] = len(hit_ids)
-    if len(hit_ids) > HIT_LIMIT:
-        raise MergeError(
-            f"boundaries.{merged.get('class')}: {len(hit_ids)} hits, past the "
-            f"{HIT_LIMIT} a class may carry; the question is re-asked of a "
-            "narrower subject, never published as noise"
-        )
-    return merged
+    merged["universe"] = join_universe(kept, row)
+    return settle_boundary(merged)
 
 
 CLAIM_ORDER = ("unverified", "inference", "fact")
@@ -386,6 +438,16 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                            check_key, merge_check),
     }
 
+    # Rows the staging ledger holds as questions: LEDGER-FORMAT.md § "Merging".
+    from_seed = "merged_from" not in merged["run"]
+    still_open = {
+        "nodes": {row.get("id") for row in rows(staging, "nodes")
+                  if row.get("disposition") == "unverified"},
+        "boundaries": {row.get("class") for row in rows(staging, "boundaries")
+                       if from_seed or row.get("status") == "judgment-only"},
+    }
+    resolvers = {"nodes": resolve_node, "boundaries": resolve_boundary}
+
     said: list[str] = []
     seen_bodies: set[str] = set()
     folded = 0
@@ -453,9 +515,13 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
             if warning not in warnings:
                 warnings.append(warning)
         for table, (index, key_of, fold) in tables.items():
+            opened = still_open.get(table, set())
             for row in rows(fragment, table):
                 key = key_of(row)
-                if key in index:
+                if key in opened:
+                    index[key] = resolvers[table](index[key], row)
+                    opened.discard(key)
+                elif key in index:
                     index[key] = fold(index[key], row)
                 else:
                     index[key] = dict(row)

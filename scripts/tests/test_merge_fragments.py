@@ -474,14 +474,14 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("B1:beta.java:4", stderr)
 
-    # Two answers under one id are two answers; arrival order settles nothing.
-    def test_one_node_id_with_two_evidence_lines_is_refused(self):
+    # One answer in two wordings is one answer; both records survive the fold.
+    def test_one_node_id_with_two_evidence_lines_keeps_both(self):
         code, stderr, document = self.run_script(ledger(), fragment(nodes=[
             {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
              "evidence": "something else the reader saw"}]))
-        self.assertEqual(code, 2)
-        self.assertIn("one id is one node", stderr)
-        self.assertIsNone(document)
+        self.assertEqual(code, 0, stderr)
+        node = next(item for item in document["nodes"] if item["id"] == "B1:alpha.java:9")
+        self.assertEqual(node["evidence"], "the write; something else the reader saw")
 
     def test_one_counter_check_with_two_kinds_is_refused(self):
         clash = dict(ledger()["counter_checks"][0])
@@ -588,6 +588,295 @@ class MergeFragmentsTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("carries no row for", stderr)
         self.assertIsNone(document)
+
+
+SEED_REASON = "seed map hit, not yet triaged"
+
+
+def seeded() -> dict:
+    """The staging ledger a seed pre-pass writes: every node still untriaged."""
+    document = ledger()
+    for row in document["nodes"]:
+        row.update({"disposition": "unverified", "reason": SEED_REASON, "parent": None})
+    return document
+
+
+def merged_staging() -> dict:
+    """A staging ledger an earlier fold wrote, so its rows are answers."""
+    document = ledger()
+    document["run"]["merged_from"] = 2
+    return document
+
+
+def node_of(document, node_id) -> dict:
+    return next(item for item in document["nodes"] if item["id"] == node_id)
+
+
+def class_row(document, klass) -> dict:
+    return next(item for item in document["boundaries"] if item["class"] == klass)
+
+
+class OpenStagingRowsTest(unittest.TestCase):
+    """A staging row nobody has answered is a question, never one side of a conflict."""
+
+    def merge(self, staging, *fragments):
+        return merge_fragments.merge(
+            staging, [(Path(f"fragment-{index}.json"), item)
+                      for index, item in enumerate(fragments)])
+
+    def test_a_tracer_disposition_replaces_an_untriaged_seed_node(self):
+        merged = self.merge(seeded(), fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"), "evidence": "the write"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "terminal")
+        self.assertNotIn("conflict", str(node.get("reason")))
+        self.assertNotEqual(node.get("reason"), SEED_REASON)
+
+    def test_an_agent_read_of_a_seed_hit_keeps_the_search_behind_it(self):
+        read = {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
+                "disposition": "irrelevant", "evidence": "read: a comment",
+                "parent": None, "query_id": None}
+        merged = self.merge(seeded(), fragment(classes=["B1"], boundaries=[], nodes=[read]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "irrelevant")
+        self.assertEqual(node["query_id"], QUERY)
+        self.assertEqual(node["line_hash"], "bbbbbbbbbbbb")
+
+    def test_two_tracers_disagreeing_on_a_seed_node_still_conflict(self):
+        merged = self.merge(
+            seeded(),
+            fragment(partition="p1", nodes=[hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb")]),
+            fragment(partition="p2", nodes=[
+                {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+                 "disposition": "irrelevant"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertIn("conflict: terminal vs irrelevant", node["reason"])
+
+    # The reopened queue: a delta tracer settles a node an earlier fold left in conflict.
+    def test_a_delta_fragment_settles_a_conflict_an_earlier_fold_left(self):
+        staging = merged_staging()
+        node_of(staging, "B1:alpha.java:9").update(
+            {"disposition": "unverified", "reason": "conflict: terminal vs irrelevant"})
+        merged = self.merge(staging, fragment(partition="delta", nodes=[
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"), "evidence": "the write"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "terminal")
+
+    def test_a_triaged_staging_node_is_an_answer_a_fragment_can_contradict(self):
+        merged = self.merge(merged_staging(), fragment(nodes=[
+            {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+             "disposition": "irrelevant", "evidence": "the write"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertIn("conflict: terminal vs irrelevant", node["reason"])
+
+    # A primary tracer and its counter-search read one site in their own words.
+    def test_two_readings_with_one_disposition_keep_both_records(self):
+        merged = self.merge(
+            seeded(),
+            fragment(partition="p1", nodes=[
+                {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+                 "evidence": "the write"}]),
+            fragment(partition="counter", nodes=[
+                {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+                 "evidence": "read: the write ends the path"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "terminal")
+        self.assertIn("the write", node["evidence"])
+        self.assertIn("read: the write ends the path", node["evidence"])
+
+    def test_two_searches_reaching_one_site_fold_in_either_order(self):
+        other_command = "git grep -n -I -E -e widget"
+        other = validate_coverage.stable_id("q", other_command + "tracked files")
+        query_row = {"id": other, "command": other_command, "universe": "tracked files",
+                     "count": 1, "evidence": None, "origin": "tracer"}
+
+        def by(query):
+            row = {**hit("B1:alpha.java:9", query=query, line_hash="bbbbbbbbbbbb"),
+                   "evidence": "the write"}
+            piece = fragment(partition=query, nodes=[row],
+                             queries=[query_row] if query == other else [])
+            piece["boundaries"][0]["query_ids"] = [query]
+            return piece
+
+        forward = node_of(self.merge(seeded(), by(QUERY), by(other)), "B1:alpha.java:9")
+        backward = node_of(self.merge(seeded(), by(other), by(QUERY)), "B1:alpha.java:9")
+        self.assertEqual(forward["disposition"], "terminal")
+        self.assertEqual(forward["query_id"], backward["query_id"])
+
+    def test_two_readings_disagreeing_on_the_pinning_test_reopen_the_node(self):
+        def pinned(partition, by):
+            return fragment(partition=partition, nodes=[
+                {**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+                 "evidence": "the write", "impact_verdict": "breaks", "pinned_by": by}])
+
+        staging = seeded()
+        staging["run"]["type"] = ["Q3"]
+        first, second = pinned("p1", "unguarded"), pinned("p2", "alpha_test.java:4")
+        for piece in (first, second):
+            piece["run"]["type"] = ["Q3"]
+        merged = self.merge(staging, first, second)
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertIn("conflict: pinned_by", node["reason"])
+
+    def test_two_parents_for_one_node_are_refused(self):
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            merge_fragments.merge_node(
+                {**hit("B1:alpha.java:9"), "parent": "B1:alpha.java:2"},
+                {**hit("B1:alpha.java:9"), "parent": "B1:alpha.java:7"})
+        self.assertIn("parent", str(refused.exception))
+
+    # A seed status is a placeholder the tracers resolve, so it cannot outrank them.
+    def test_a_fragment_closes_a_class_the_seed_left_partial(self):
+        staging = seeded()
+        class_row(staging, "B4").update({"status": "partial",
+                                         "reason": "name forms not enumerated: wire"})
+        merged = self.merge(staging, fragment(boundaries=[
+            {"class": "B4", "status": "closed", "method": "every name form, wire included",
+             "hits": 0, "hit_ids": [], "query_ids": [QUERY], "universe": "tracked files"}]))
+        row = class_row(merged, "B4")
+        self.assertEqual(row["status"], "closed")
+        self.assertNotIn("reason", row)
+
+    def test_a_fragment_closes_by_reading_a_class_the_seed_had_no_method_for(self):
+        staging = seeded()
+        class_row(staging, "B3").update({"status": "unverified", "query_ids": [],
+                                         "method": "no default and no declared instance",
+                                         "reason": "no enumeration method"})
+        read = {"id": "B3:alpha/B3.java:4", "class": "B3", "site": "alpha/B3.java:4",
+                "disposition": "terminal", "evidence": "the line an agent read",
+                "parent": None, "query_id": None}
+        merged = self.merge(staging, fragment(nodes=[read], boundaries=[
+            {"class": "B3", "status": "closed", "method": "read the declared site",
+             "hits": 0, "hit_ids": [], "sites": ["alpha/B3.java"],
+             "universe": "the declared site"}]))
+        row = class_row(merged, "B3")
+        self.assertEqual(row["status"], "closed")
+        self.assertNotIn("query_ids", [key for key, value in row.items() if value])
+
+    # The seed asks for a site read; the tracer closes the class by searching instead.
+    def test_a_search_resolving_a_judgment_only_seed_class_drops_the_site(self):
+        staging = seeded()
+        class_row(staging, "B4").update({"status": "judgment-only",
+                                         "sites": ["alpha/B4.java"],
+                                         "reason": "a site an agent reads: alpha/B4.java"})
+        merged = self.merge(staging, fragment(boundaries=[
+            {"class": "B4", "status": "closed", "method": "the name as a string literal",
+             "hits": 0, "hit_ids": [], "query_ids": [QUERY], "universe": "tracked files"}]))
+        row = class_row(merged, "B4")
+        self.assertEqual(row["status"], "closed")
+        self.assertFalse(row.get("sites"))
+        defects, _ = validate_coverage.validate(merged)
+        self.assertEqual([item for item in defects if "B4" in item], [])
+
+    def test_a_merged_staging_judgment_only_class_is_resolved_by_a_delta(self):
+        staging = merged_staging()
+        class_row(staging, "B4").update({"status": "judgment-only",
+                                         "sites": ["alpha/B4.java"],
+                                         "reason": "a site an agent reads: alpha/B4.java"})
+        merged = self.merge(staging, fragment(partition="delta", boundaries=[
+            {"class": "B4", "status": "closed", "method": "the name as a string literal",
+             "hits": 0, "hit_ids": [], "query_ids": [QUERY], "universe": "tracked files"}]))
+        self.assertEqual(class_row(merged, "B4")["status"], "closed")
+
+    def test_a_merged_staging_gap_survives_a_delta_that_closes_its_own_part(self):
+        staging = merged_staging()
+        class_row(staging, "B4").update({"status": "partial", "reason": "first gap"})
+        merged = self.merge(staging, fragment(partition="delta", boundaries=[
+            {"class": "B4", "status": "closed", "method": "searched",
+             "hits": 0, "hit_ids": [], "query_ids": [QUERY], "universe": "tracked files"}]))
+        row = class_row(merged, "B4")
+        self.assertEqual(row["status"], "partial")
+        self.assertIn("first gap", row["reason"])
+
+    # Between two answers the worst still wins, and a read and a search are one record.
+    def test_a_read_and_a_search_of_one_class_fold_to_the_search(self):
+        read = {"id": "B3:alpha/B3.java:4", "class": "B3", "site": "alpha/B3.java:4",
+                "disposition": "terminal", "evidence": "the line an agent read",
+                "parent": None, "query_id": None}
+        merged = self.merge(
+            seeded(),
+            fragment(partition="p1", nodes=[read], boundaries=[
+                {"class": "B3", "status": "closed", "method": "read the declared site",
+                 "hits": 0, "hit_ids": [], "sites": ["alpha/B3.java"],
+                 "universe": "the declared site"}]),
+            fragment(partition="p2", boundaries=[
+                {"class": "B3", "status": "partial", "reason": "one form unsearched",
+                 "method": "searched", "hits": 0, "hit_ids": [], "query_ids": [QUERY],
+                 "universe": "tracked files"}]))
+        row = class_row(merged, "B3")
+        self.assertEqual(row["status"], "partial")
+        self.assertEqual(row["query_ids"], [QUERY])
+        self.assertFalse(row.get("sites"))
+
+
+class SeedToLedgerTest(unittest.TestCase):
+    """The reproduction the issues name: a real seed, one tracer, one fold."""
+
+    def setUp(self):
+        from test_seed_map import make_repo, run, write_config
+        self.make_repo, self.run_seed, self.write_config = make_repo, run, write_config
+
+    def seed(self, files, config_body=None):
+        repo = self.make_repo(files)
+        args = ["--subject", "Widget", "--type", "Q2", "--question", "what uses Widget"]
+        config = (str(self.write_config(repo, config_body)) if config_body else None)
+        code, document = self.run_seed(repo, *args, config=config)
+        self.assertEqual(code, 0)
+        return document
+
+    @staticmethod
+    def tracer_fragment(seed, classes, nodes, boundaries, queries):
+        return {"run": json.loads(json.dumps(seed["run"])),
+                "partition": {"id": "p1", "classes": classes, "seed": "seed.json"},
+                "boundaries": boundaries, "nodes": nodes, "queries": queries,
+                "claims": [], "counter_checks": []}
+
+    def test_a_triaged_seed_node_folds_without_a_conflict(self):
+        seed = self.seed({"alpha.py": "x = Widget()\n"})
+        b1 = class_row(seed, "B1")
+        nodes = [{**node_of(seed, node_id), "disposition": "terminal", "reason": None}
+                 for node_id in b1["hit_ids"]]
+        for node in nodes:
+            del node["reason"]
+        cited = {node["query_id"] for node in nodes}
+        queries = [{**query, "count": sum(1 for node in nodes
+                                          if node["query_id"] == query["id"])}
+                   for query in seed["queries"] if query["id"] in cited]
+        piece = self.tracer_fragment(seed, ["B1"], nodes, [json.loads(json.dumps(b1))],
+                                     queries)
+        merged = merge_fragments.merge(seed, [(Path("fragment.json"), piece)])
+        self.assertTrue(nodes)
+        for node_id in b1["hit_ids"]:
+            node = node_of(merged, node_id)
+            self.assertEqual(node["disposition"], "terminal", node)
+            self.assertNotIn("reason", node)
+
+    def test_a_judgment_only_site_read_by_a_tracer_validates(self):
+        seed = self.seed(
+            {"alpha.py": "x = Widget()\n", "registry.py": "REGISTRY = {}\n"},
+            "investigation:\n"
+            "  boundaries:\n"
+            "    - name: registry\n"
+            "      class: B3\n"
+            "      judgment-only: true\n"
+            "      site: registry.py\n")
+        b3 = class_row(seed, "B3")
+        self.assertEqual(b3["status"], "judgment-only")
+        read = {"id": "B3:registry.py:1", "class": "B3", "site": "registry.py:1",
+                "disposition": "irrelevant", "evidence": "REGISTRY = {}",
+                "parent": None, "query_id": None}
+        row = {"class": "B3", "status": "closed", "method": "read the declared site",
+               "mechanism": b3.get("mechanism", "default"), "hits": 0, "hit_ids": [],
+               "sites": ["registry.py"], "universe": "the declared site"}
+        piece = self.tracer_fragment(seed, ["B3"], [read], [row], [])
+        merged = merge_fragments.merge(seed, [(Path("fragment.json"), piece)])
+        merged_b3 = class_row(merged, "B3")
+        self.assertEqual(merged_b3["status"], "closed")
+        defects, _ = validate_coverage.validate(merged)
+        self.assertEqual([item for item in defects if "B3" in item], [])
 
 
 if __name__ == "__main__":
