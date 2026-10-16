@@ -21,6 +21,7 @@ gate_behavior_registry() {
   py="${AFK_PYTHON:-afk-python}"
   JUDGE_DIR=$(afk_judge_dir 2>/dev/null) || JUDGE_DIR=$PLUGIN_DIR
   [ -z "${AFK_CTX_MERGEBASE:-}" ] || base_rev=(--base-rev "$AFK_CTX_MERGEBASE")
+  [ "${AFK_CTX_MODE:-}" != range ] || base_rev+=(--base-registry-rev "$AFK_CTX_MERGEBASE")
   "$py" "$JUDGE_DIR/scripts/behavior_registry.py" validate \
     --registry "$PLUGIN_DIR/BEHAVIORS.md" \
     --plugin-root "$PLUGIN_DIR" \

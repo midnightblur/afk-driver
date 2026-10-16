@@ -382,6 +382,39 @@ def test_a_named_base_revision_wins_over_the_guessed_branch(tmp_path, capsys):
         check("no-such-rev")
 
 
+def test_revisions_compare_with_the_named_base_registry_revision(tmp_path):
+    behavior_registry = load_module()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    def rule(revision, body):
+        return ONE_RULE.replace("revision: 1", f"revision: {revision}").replace("Apply it.", body)
+
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "root")
+    root = git("rev-parse", "HEAD")
+    registry_path = write_registry(tmp_path, rule(1, "Main wording."))
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "release")
+    write_registry(tmp_path, rule(2, "Release wording."))
+    git("commit", "-q", "-am", "release bumps")
+    release = git("rev-parse", "HEAD")
+    git("checkout", "-q", "-b", "topic")
+    write_registry(tmp_path, rule(2, "Topic wording."))
+
+    def check(rev):
+        behavior_registry.validate_registry(registry_path, tmp_path, parity_root=None, base_registry_rev=rev)
+
+    with pytest.raises(behavior_registry.RegistryError, match="rule: changed without a revision increase"):
+        check(release)
+    check(root)
+    with pytest.raises(behavior_registry.RegistryError, match="base revision no-such-rev does not resolve"):
+        check("no-such-rev")
+
+
 def test_revision_check_compares_ids_to_an_explicit_base(tmp_path):
     behavior_registry = load_module()
     base = write_registry(

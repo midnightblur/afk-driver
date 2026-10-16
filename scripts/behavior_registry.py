@@ -4,7 +4,7 @@
 Commands:
   behavior_registry.py validate [registry] [--plugin-root DIR] [--dispositions FILE]
       [--parity-root DIR] [--base-registry FILE] [--base-dispositions FILE]
-      [--base-rev REV] [--verbose]
+      [--base-rev REV] [--base-registry-rev REV] [--verbose]
   behavior_registry.py render [registry] [--plugin-root DIR] [--output FILE]
   behavior_registry.py audit [registry] [--plugin-root DIR] --target FILE [...]
       [--target-root FILE ROOT ENABLEMENT ...] [--ignore-unmanaged]
@@ -18,6 +18,9 @@ id. An id never leaves the file; retire it in place with disposition
 the copy at ``--base-rev`` (none there means none to keep), else the merge-base
 copy guessed from ``--parity-root``; with none, validate says so on stderr and
 checks the file alone.
+Revision order compares ``BEHAVIORS.md`` with ``--base-registry``, else its copy
+at ``--base-registry-rev`` (none there means nothing to compare), else the
+merge-base copy guessed from ``--parity-root``.
 ``render`` writes one ``afk:behaviors`` block. It never truncates the block.
 ``audit`` checks installed blocks without changing their target files.
 ``--target`` audits a file against the shared ``--plugin-root`` (its provider
@@ -346,6 +349,7 @@ def validate_registry(
     base_registry: pathlib.Path | str | None = None,
     base_dispositions: pathlib.Path | str | None = None,
     base_rev: str | None = None,
+    base_registry_rev: str | None = None,
 ) -> Registry:
     root = pathlib.Path(plugin_root).resolve()
     registry = parse_registry(registry_path)
@@ -402,6 +406,10 @@ def validate_registry(
         validate_parity(parity_root)
     if base_registry is not None:
         _validate_revisions(registry, parse_registry(base_registry))
+    elif base_registry_rev:
+        text = _text_at_revision(root, base_registry_rev, "BEHAVIORS.md")
+        if text:
+            _validate_revisions(registry, _parse_registry_text(text, f"{base_registry_rev}:BEHAVIORS.md"))
     elif parity_root is not None:
         base = _discover_base_registry(pathlib.Path(parity_root).resolve())
         if base is not None:
@@ -827,6 +835,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validate_parser.add_argument("--base-registry", type=pathlib.Path)
     validate_parser.add_argument("--base-dispositions", type=pathlib.Path)
     validate_parser.add_argument("--base-rev")
+    validate_parser.add_argument("--base-registry-rev")
     validate_parser.add_argument("--byte-limit", type=int, default=BODY_BYTE_LIMIT)
     validate_parser.add_argument("--verbose", action="store_true", help="print the row count and byte size on success")
 
@@ -864,6 +873,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 base_registry=args.base_registry,
                 base_dispositions=args.base_dispositions,
                 base_rev=args.base_rev,
+                base_registry_rev=args.base_registry_rev,
             )
             if args.verbose:
                 count = rendered_byte_count(render_registry(registry_path, root))

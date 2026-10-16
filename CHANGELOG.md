@@ -135,10 +135,13 @@ release page from its section here. Nobody tags by hand.
   now compares the file with its copy at the runner's base revision (the
   merge base with the target branch in a pull request, `HEAD` at commit): a
   valid new row passes, and a deleted id still blocks. Retire an id in place
-  with disposition `retired`. Run alone, the gate guesses the merge base with
-  `main`; with no base copy, it says so and checks the file alone. The native-contract gate likewise accepts a `repo-list` hook entry
-  for any event `CAPABILITIES.md` declares, when the entry names its own
-  event.
+  with disposition `retired`. In a pull request, the `BEHAVIORS.md` revision
+  check also compares with the merge base with the target branch; at commit,
+  it keeps the merge base with `main`, so a branch bumps a revision once. Run
+  alone, the gate guesses the merge base with `main`; with no base copy, it
+  says so and checks the file alone. The native-contract gate likewise
+  accepts a `repo-list` hook entry for any event `CAPABILITIES.md` declares,
+  when the entry names its own event.
 
 ## [1.15.0] - 2026-10-07
 

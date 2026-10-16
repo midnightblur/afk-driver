@@ -363,6 +363,29 @@ def test_a_row_the_target_branch_added_cannot_be_deleted(base):
         assert "deleted since the base: zz-release-id" in " ".join(f for _g, _v, f in rows), rows
 
 
+def test_a_range_judges_behavior_revisions_against_the_target_branch(base):
+    repo = _clone(base, "release_revision")
+    registry = repo / "BEHAVIORS.md"
+    rule = "## reply-ste100\nstate: active | scope: all-repos | revision: {} | doctrine: LANGUAGE.md §1–2\n"
+
+    def rewrite(old, new):
+        registry.write_text(registry.read_text(encoding="utf-8").replace(old, new), encoding="utf-8", newline="\n")
+        _git(repo, "add", "-A")
+
+    _git(repo, "checkout", "-q", "-b", "release")
+    rewrite(rule.format(1), rule.format(2) + "Release wording.\n")
+    _git(repo, "commit", "-q", "-m", "release changes the body")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    rewrite("Release wording.\n", "Topic wording.\n")
+    staged = run_runner(repo, "--staged")
+    _git(repo, "commit", "-q", "-m", "topic changes it again")
+    rc, rows, err = run_runner(repo, "--range", "release")
+    assert rc == 2 and verdicts(rows).get("behavior-registry") == "blocked", err
+    assert "reply-ste100: changed without a revision increase" in " ".join(f for _g, _v, f in rows), rows
+    rc, rows, err = staged
+    assert verdicts(rows).get("behavior-registry") == "pass", err
+
+
 def test_a_gate_the_branch_adds_runs_under_the_branch_runner(base):
     repo = _clone(base, "new_gate")
     (repo / "hooks" / "zz-new-gate.sh").write_text("gate_zz_new() { echo 'zz-new ran' >&2; return 2; }\n",
