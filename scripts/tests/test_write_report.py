@@ -79,6 +79,45 @@ class WriteReportTest(unittest.TestCase):
         self.assertIn("40", stderr)
         self.assertIsNone(text)
 
+    def test_the_body_may_come_from_a_file(self):
+        folder = Path(tempfile.mkdtemp(prefix="report-"))
+        document = ledger()
+        document["run"]["verdict"] = "closed"
+        ledger_path = folder / "COVERAGE.json"
+        ledger_path.write_text(json.dumps(document), encoding="utf-8")
+        body = folder / "report-body.txt"
+        body.write_text(BODY, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPTS / "write_report.py"), "--ledger",
+             str(ledger_path), "--body", str(body)],
+            input="", capture_output=True, encoding="utf-8", errors="replace")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("It works", (folder / "REPORT.md").read_text(encoding="utf-8"))
+
+    # A reader opens the change on the forge, so the header names the forge
+    # repository and a path inside it, never one machine's checkout.
+    def test_the_header_names_the_remote_and_a_repository_path(self):
+        repo = Path(tempfile.mkdtemp(prefix="report-repo-"))
+        for args in (["init", "-q"],
+                     ["remote", "add", "origin", "git@example.invalid:owner/name.git"]):
+            subprocess.run(["git", *args], cwd=str(repo), check=True,
+                           capture_output=True)
+        folder = repo / "docs" / "feature" / "investigations" / "INV-001-how-it-works"
+        folder.mkdir(parents=True)
+        document = ledger()
+        document["run"].update({"repository": str(repo), "verdict": "closed"})
+        path = folder / "COVERAGE.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(_SCRIPTS / "write_report.py"), "--ledger", str(path)],
+            input=BODY, capture_output=True, encoding="utf-8", errors="replace")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        header = (folder / "REPORT.md").read_text(encoding="utf-8").splitlines()[0]
+        self.assertTrue(header.startswith(f"owner/name@{'0' * 40} · "), header)
+        self.assertTrue(header.endswith(
+            "ledger: docs/feature/investigations/INV-001-how-it-works/COVERAGE.json"),
+            header)
+
     def test_an_empty_body_is_refused(self):
         code, stderr, text, _ = self.publish(ledger(), body="\n")
         self.assertEqual(code, 1)

@@ -361,8 +361,6 @@ def validate(ledger: dict, scope: str = "run",
     node_evidence = {row["id"]: bool(str(row.get("evidence") or "").strip())
                      for row in nodes if isinstance(row.get("id"), str)}
     node_index = {row["id"]: row for row in nodes if isinstance(row.get("id"), str)}
-    read_node_ids = {row["id"] for row in nodes
-                     if isinstance(row.get("id"), str) and row.get("query_id") is None}
 
     searched: dict[str, str] = {}
     for row in rows_of(defects, ledger, "boundaries"):
@@ -627,7 +625,7 @@ def validate(ledger: dict, scope: str = "run",
         # is a run that has not finished, so it lowers the verdict.
         followed = [node for node in supporting
                     if (node_index.get(node) or {}).get("disposition")
-                    in ("traced", "terminal")]
+                    in ("traced", "terminal", "irrelevant")]
         if kind == "unverified" or not supporting or not followed:
             load_bearing_gaps += 1
             why = ("its kind is unverified" if kind == "unverified"
@@ -698,9 +696,9 @@ def validate(ledger: dict, scope: str = "run",
             covered_classes = {item for item in (row.get("classes") or [])
                                if isinstance(item, str)}
             read = [item for item in (row.get("evidence_nodes") or [])
-                    if node_evidence.get(item) and item in read_node_ids
+                    if node_evidence.get(item)
                     and (node_index.get(item) or {}).get("disposition")
-                    in ("traced", "terminal")]
+                    in ("traced", "terminal", "irrelevant")]
             if row.get("kind") == "agent":
                 if not covered_classes:
                     defects.append(

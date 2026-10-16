@@ -11,11 +11,12 @@ Usage:
                      [--fragment FRAG.json ...] --out MERGED.json
 
 A fragment names its partition, and the same bytes folded twice fold once. A
-second, different fragment of one partition is a delta and folds normally. A
-Identity is what a fragment found — its partition and its tables — never when
-or where it ran, so one partition traced twice folds once. A fragment taken against another `run.head`, one with no
-`partition.id`, and one carrying a class its `partition.classes` does not
-declare each abort the merge rather than answering for something they cannot.
+second, different fragment of one partition is a delta and folds normally,
+replacing or withdrawing only the earlier rows its partition names. Identity is
+what a fragment found — its partition and its tables — never when or where it
+ran. A fragment taken against another `run.head`, one with no `partition.id`,
+and one carrying a class its `partition.classes` does not declare each abort
+the merge rather than answering for something they cannot.
 
 Exit codes: 0 wrote the merged ledger, 2 usage, unreadable input, or a
 snapshot mismatch.
@@ -139,18 +140,23 @@ def merge_node(kept: dict, row: dict) -> dict:
         )
     left, right = kept.get("disposition"), row.get("disposition")
     merged = dict(kept)
+    searched = [item for item in (kept.get("query_id"), row.get("query_id"))
+                if isinstance(item, str) and item]
+    if searched:
+        merged["query_id"] = min(searched)
     if left != right:
         merged["disposition"] = "unverified"
         merged["reason"] = f"conflict: {left} vs {right}"
         merged["evidence"] = kept.get("evidence") or row.get("evidence")
+        merged["line_hash"] = kept.get("line_hash") or row.get("line_hash")
+        if merged["line_hash"] is None:
+            del merged["line_hash"]
         return merged
     clash = [key for key in differing(kept, row) if key in ANSWERS]
     for key in ("evidence", "reason"):
         joined = join_reasons(kept.get(key), row.get(key))
         if joined:
             merged[key] = joined
-    if kept.get("query_id") and row.get("query_id"):
-        merged["query_id"] = min(kept["query_id"], row["query_id"])
     for key, value in row.items():
         if merged.get(key) in (None, "", []):
             merged[key] = value
@@ -176,6 +182,36 @@ def settle_boundary(merged: dict) -> dict:
     return merged
 
 
+def fold_forms(first, second) -> list:
+    """Both lists of name forms; a form with a value replaces the placeholder awaiting it."""
+    out: list = []
+    for entry in list(first or []) + list(second or []):
+        if not isinstance(entry, dict):
+            if entry not in out:
+                out.append(entry)
+            continue
+        twin = next((index for index, item in enumerate(out) if isinstance(item, dict)
+                     and (item.get("form"), item.get("value"))
+                     == (entry.get("form"), entry.get("value"))), None)
+        if twin is None:
+            out.append(dict(entry))
+        elif entry.get("enumerated") and not out[twin].get("enumerated"):
+            out[twin] = dict(entry)
+    valued = {item.get("form") for item in out
+              if isinstance(item, dict) and item.get("value") is not None}
+    return [item for item in out
+            if not (isinstance(item, dict) and item.get("value") is None
+                    and not item.get("enumerated") and item.get("form") in valued)]
+
+
+def fold_aliases(first, second):
+    """Every subject's name forms from both sides, each form once."""
+    if not isinstance(first, dict) or not isinstance(second, dict):
+        return first if first is not None else second
+    return {subject: fold_forms(first.get(subject), second.get(subject))
+            for subject in dict.fromkeys([*first, *second])}
+
+
 def join_universe(kept: dict, row: dict) -> str | None:
     universe = [part for part in (kept.get("universe"), row.get("universe"))
                 if isinstance(part, str) and part.strip()]
@@ -197,6 +233,8 @@ def resolve_boundary(open_row: dict, row: dict) -> dict:
     else:
         merged.pop("query_ids", None)
     merged["universe"] = join_universe(open_row, row)
+    if "name_forms" in open_row or "name_forms" in row:
+        merged["name_forms"] = fold_aliases(open_row.get("name_forms"), row.get("name_forms"))
     return settle_boundary(merged)
 
 
@@ -214,6 +252,8 @@ def merge_boundary(kept: dict, row: dict) -> dict:
         if values or key in kept or key in row:
             merged[key] = values
     merged["universe"] = join_universe(kept, row)
+    if "name_forms" in kept or "name_forms" in row:
+        merged["name_forms"] = fold_aliases(kept.get("name_forms"), row.get("name_forms"))
     return settle_boundary(merged)
 
 
@@ -362,16 +402,100 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
     with_context = {"run": dict(fragment.get("run") or {})}
     if "partition" in fragment:
         with_context["partition"] = fragment["partition"]
+    # The fragment's rows lead, so a defect naming a row by position names the same row twice.
     for table in TABLES:
         key = KEY_OF.get(table)
+        carried = rows(fragment, table)
         if key is None:
-            with_context[table] = union(rows(staging, table), rows(fragment, table))
+            earlier = {check_key(row): row for row in rows(staging, table)}
+            with_context[table] = [merge_check(earlier[check_key(row)], row)
+                                   if check_key(row) in earlier else row for row in carried]
+            keys = {check_key(row) for row in carried}
+            with_context[table] += [row for row in rows(staging, table)
+                                    if check_key(row) not in keys]
             continue
-        index = {row.get(key): row for row in rows(staging, table)}
-        index.update({row.get(key): row for row in rows(fragment, table)})
-        with_context[table] = list(index.values())
+        keys = {row.get(key) for row in carried}
+        with_context[table] = carried + [row for row in rows(staging, table)
+                                         if row.get(key) not in keys]
     against, _ = validate_coverage.validate(with_context, scope="rows")
     return own + [defect for defect in alone if defect in set(against)]
+
+
+# What a delta may name as replacing an earlier row, and the table each lives in.
+SUPERSEDABLE = {"classes": "boundaries", "claims": "claims", "nodes": "nodes"}
+WITHDRAWABLE = ("claims", "queries")
+
+
+def declared(path: Path, partition: dict, field: str, allowed) -> dict[str, list[str]]:
+    value = partition.get(field)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise MergeError(f"{path}: partition.{field} maps a table to the keys it names")
+    named: dict[str, list[str]] = {}
+    for table, keys in value.items():
+        if table not in allowed:
+            raise MergeError(f"{path}: partition.{field}.{table}: a delta {field} only "
+                             f"{', '.join(allowed)}")
+        if not isinstance(keys, list) or not all(isinstance(key, str) and key for key in keys):
+            raise MergeError(f"{path}: partition.{field}.{table} is a list of keys")
+        named[table] = keys
+    return named
+
+
+def superseded(path: Path, fragment: dict, partition: dict, tables: dict) -> dict[str, set]:
+    """The earlier rows this delta replaces: each one exists and the delta carries it."""
+    named = declared(path, partition, "supersedes", SUPERSEDABLE)
+    opened: dict[str, set] = {}
+    for kind, keys in named.items():
+        table = SUPERSEDABLE[kind]
+        index, key_of, _ = tables[table]
+        carried = {key_of(row) for row in rows(fragment, table)}
+        for key in keys:
+            if key not in index:
+                raise MergeError(f"{path}: supersedes {table} {key}, which no earlier row "
+                                 "carries; a supersede replaces an answer that exists")
+            if key not in carried:
+                raise MergeError(f"{path}: supersedes {table} {key} but carries no row for "
+                                 "it; a supersede states the answer that replaces it")
+        opened[table] = set(keys)
+    return opened
+
+
+def withdraw(path: Path, fragment: dict, partition: dict, tables: dict) -> None:
+    """Remove the claims and the class-row queries this delta retracts."""
+    named = declared(path, partition, "withdraws", WITHDRAWABLE)
+    claims, checks = tables["claims"][0], tables["counter_checks"][0]
+    for claim in named.get("claims", []):
+        if claim not in claims:
+            raise MergeError(f"{path}: withdraws claim {claim}, which no earlier row carries")
+        if any(row.get("id") == claim for row in rows(fragment, "claims")):
+            raise MergeError(f"{path}: withdraws claim {claim} and carries it")
+        del claims[claim]
+        for check in checks.values():
+            targets = check.get("targeted_claims") or []
+            if claim not in targets:
+                continue
+            check["targeted_claims"] = [item for item in targets if item != claim]
+            if check.get("state") == "complete" and not check["targeted_claims"]:
+                raise MergeError(
+                    f"{path}: withdrawing {claim} empties the targeted_claims of counter_check "
+                    f"{check.get('method')!r}; retarget the check in the same delta")
+    boundaries, nodes = tables["boundaries"][0], tables["nodes"][0]
+    classes = partition.get("classes") or []
+    for query in named.get("queries", []):
+        owners = [boundaries[klass] for klass in classes if klass in boundaries
+                  and query in (boundaries[klass].get("query_ids") or [])]
+        if not owners:
+            raise MergeError(f"{path}: withdraws query {query}, which no row of its "
+                             "partition.classes names")
+        citing = sorted(node_id for node_id, node in nodes.items()
+                        if node.get("query_id") == query and node.get("class") in classes)
+        if citing:
+            raise MergeError(f"{path}: withdraws query {query}, which {citing[0]} still "
+                             "cites; a class row accounts for every node its searches produced")
+        for row in owners:
+            row["query_ids"] = [item for item in row["query_ids"] if item != query]
 
 
 # What makes two runs one investigation. A fragment that answers a different
@@ -382,9 +506,14 @@ IDENTITY = ("question", "type", "roots", "aliases")
 
 
 def same(field: str, wanted, given) -> bool:
-    """Whether two runs state the same thing. `type` is a set of questions."""
+    """Whether two runs state the same thing. `type` is a set of questions.
+
+    `aliases` names the subjects; the forms found for them grow as a run proceeds.
+    """
     if field == "type" and isinstance(wanted, list) and isinstance(given, list):
         return sorted(str(item) for item in wanted) == sorted(str(item) for item in given)
+    if field == "aliases" and isinstance(wanted, dict) and isinstance(given, dict):
+        return sorted(wanted) == sorted(given)
     return wanted == given
 
 
@@ -446,7 +575,13 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
         "boundaries": {row.get("class") for row in rows(staging, "boundaries")
                        if from_seed or row.get("status") == "judgment-only"},
     }
-    resolvers = {"nodes": resolve_node, "boundaries": resolve_boundary}
+    resolvers = {"nodes": resolve_node, "boundaries": resolve_boundary,
+                 "claims": lambda kept, row: dict(row)}
+
+    def running() -> dict:
+        view = {"run": merged["run"]}
+        view.update({table: list(index.values()) for table, (index, _, _) in tables.items()})
+        return view
 
     said: list[str] = []
     seen_bodies: set[str] = set()
@@ -464,7 +599,7 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
         # A fragment is folded as it stands or not at all: a defect the fold
         # papers over is a defect nobody sees again, and the merged ledger is
         # what a reader trusts.
-        row_defects = fragment_defects(staging, fragment)
+        row_defects = fragment_defects(running(), fragment)
         if row_defects:
             raise MergeError(
                 f"{path}: {len(row_defects)} defect(s), first: {row_defects[0]}; "
@@ -510,21 +645,27 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                 "which the staging ledger does not carry; a partition is a slice of the "
                 "run it folds into"
             )
+        replaced = superseded(path, fragment, partition, tables)
         folded += 1
         for warning in fragment.get("run", {}).get("config_warnings") or []:
             if warning not in warnings:
                 warnings.append(warning)
+        merged["run"]["aliases"] = fold_aliases(merged["run"].get("aliases"),
+                                                fragment.get("run", {}).get("aliases"))
         for table, (index, key_of, fold) in tables.items():
             opened = still_open.get(table, set())
+            replacing = replaced.get(table, set())
             for row in rows(fragment, table):
                 key = key_of(row)
-                if key in opened:
+                if key in opened or key in replacing:
                     index[key] = resolvers[table](index[key], row)
                     opened.discard(key)
+                    replacing.discard(key)
                 elif key in index:
                     index[key] = fold(index[key], row)
                 else:
                     index[key] = dict(row)
+        withdraw(path, fragment, partition, tables)
 
     for table, (index, _, _) in tables.items():
         merged[table] = list(index.values())
@@ -537,7 +678,8 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
     for row in merged["queries"]:
         if "count" in row or row.get("id") in citing:
             row["count"] = citing.get(row.get("id"), 0)
-    merged["run"]["merged_from"] = folded
+    earlier = staging.get("run", {}).get("merged_from")
+    merged["run"]["merged_from"] = (earlier if isinstance(earlier, int) else 0) + folded
     if warnings:
         merged["run"]["config_warnings"] = warnings
     for line in skipped:
@@ -567,7 +709,7 @@ def main(argv: list[str]) -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
-    print(f"merge_fragments: {merged['run']['merged_from']} fragments folded, "
+    print(f"merge_fragments: {merged['run']['merged_from']} fragments folded in all, "
           f"{len(merged['nodes'])} nodes -> {out}")
     return 0
 

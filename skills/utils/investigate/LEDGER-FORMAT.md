@@ -206,8 +206,10 @@ ran) · `evidence_nodes` (the nodes an agent-driven method read).
 
 Execution rule: `complete` says the method ran, so the row names what ran — a
 `deterministic` row names at least one query in the queries table, an `agent`
-row a non-empty `classes` and at least one node in the nodes table carrying
-evidence, each of a class the row covers. A `complete` row naming neither is a
+row a non-empty `classes` and, for each class it covers, at least one node of
+that class carrying evidence and dispositioned `traced`, `terminal` or
+`irrelevant` — read or searched, since one id is one node — and every node it
+reads is of a class it covers. A `complete` row naming neither is a
 defect; with the rule in place, an empty `new_nodes` reads as a result rather
 than as work nobody did.
 
@@ -243,7 +245,9 @@ The validator computes it; nothing else does.
 - `closed-with-frontier` — the only remaining gaps are `frontier`.
 - `partial` — any `unverified` or `partial` class, any `judgment-only` left,
   any node still `unverified`, any node verdict of `unverified`, any pending
-  counter-search, or any structural defect.
+  counter-search, any load-bearing claim of kind `unverified` or resting on no
+  node dispositioned `traced`, `terminal` or `irrelevant`, or any structural
+  defect.
 
 No table carries a field this file does not define: an undefined key is a field
 nobody validates, and the validator refuses it.
@@ -258,6 +262,8 @@ this same document scoped to its partition, plus:
 | `partition.id` | the cluster id the caller assigned |
 | `partition.classes` | the boundary classes this fragment is answerable for |
 | `partition.seed` | path to the slice of the seed map it worked from |
+| `partition.supersedes` | delta only: `{classes, claims, nodes}`, each a list of keys — the earlier rows this fragment's own rows replace (§ "Merging") |
+| `partition.withdraws` | delta only: `{claims, queries}` — claim ids to remove, and query ids to remove from the `query_ids` of its `partition.classes` rows |
 
 A fragment carries the `run` block of the ledger it folds into, copied verbatim
 from what the caller handed it — the fold reads it to prove the fragment answers
@@ -283,16 +289,17 @@ two fragments that ran one search carry one query row.
 
 | Table | Rule |
 |---|---|
-| `run` | `head`, `question`, `type`, `roots`, `aliases` and `config.sha256` must match across fragments; a mismatch aborts the merge naming the field — two snapshots are two investigations. `merged_from` records how many were folded in |
-| `nodes` | by node id. A staging node whose disposition is `unverified` is an open question, never an answer: the first fragment row under its id replaces its `disposition` and `reason`, and the staging row fills only the fields that row leaves empty. Between two answers — two fragment rows, or a fragment row and a dispositioned staging node — a different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node; one disposition with a different `impact_verdict`, `coverage_verdict` or `pinned_by` → `unverified` with reason `conflict: <field> <a> vs <b>`, the same reopening. `evidence` and `reason` join with `; `, and of two `query_id`s the lower id stays. Two rows under one id that disagree on `class`, `site`, `line_hash` or `parent` are two sites or two paths under one name, and a fold refuses them |
-| `boundaries` | one row per class. A staging row is a placeholder the fragments resolve when the staging ledger is a seed (no `run.merged_from`) or the row is `judgment-only`: the first fragment row under its class replaces its status, `reason`, `sites` and `method`, and keeps the staging `hit_ids` — and the staging `query_ids` when those hit ids are non-empty, since those nodes cite them. Between two answers the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, and `hit_ids`, `query_ids`, `sites` and `universe` union. A row left carrying both `sites` and `query_ids` keeps the search and drops `sites` (§ "boundaries" query rule). `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
+| `run` | `head`, `question`, `type`, `roots`, the subjects `aliases` names, and `config.sha256` must match across fragments; a mismatch aborts the merge naming the field — two snapshots are two investigations. Each subject's name forms fold: one entry per (`form`, `value`), `enumerated` if either side enumerated it, and a placeholder (`value` null, not enumerated) drops once its form carries a value. `merged_from` is the staging ledger's own count plus the fragments this fold took in |
+| `nodes` | by node id. A staging node whose disposition is `unverified` is an open question, never an answer: the first fragment row under its id replaces its `disposition` and `reason`, and the staging row fills only the fields that row leaves empty. Between two answers — two fragment rows, or a fragment row and a dispositioned staging node — a different disposition → `unverified` with reason `conflict: <a> vs <b>`, and the queue reopens for that node; one disposition with a different `impact_verdict`, `coverage_verdict` or `pinned_by` → `unverified` with reason `conflict: <field> <a> vs <b>`, the same reopening. `evidence` and `reason` join with `; `. A read and a search of one site are one searched node: of two `query_id`s the lower id stays, a null one never displaces a search, and the search's `line_hash` stays, conflict or not. Two rows under one id that disagree on `class`, `site`, `line_hash` or `parent` are two sites or two paths under one name, and a fold refuses them |
+| `boundaries` | one row per class. A staging row is a placeholder the fragments resolve when the staging ledger is a seed (no `run.merged_from`) or the row is `judgment-only`: the first fragment row under its class replaces its status, `reason`, `sites` and `method`, and keeps the staging `hit_ids` — and the staging `query_ids` when those hit ids are non-empty, since those nodes cite them. Between two answers the worst status wins (`unverified` > `judgment-only` > `partial` > `frontier` > `n/a` > `closed`), reasons join with `; `, and `hit_ids`, `query_ids`, `sites` and `universe` union. `name_forms` fold as `run.aliases` do. A row left carrying both `sites` and `query_ids` keeps the search and drops `sites` (§ "boundaries" query rule). `hits` is `len(hit_ids)` after the union — never a sum, which would count a hit both fragments found twice. A union past the ceiling (20000) refuses the fold |
 | `claims` | by claim id; the id is the digest of the text, so two rows under one id must carry the same text and a fold refuses them when they do not. `supporting_nodes` and `citations` union, and the worst `kind` wins (`unverified` > `inference` > `fact`); a fold that lowers a kind says so on stderr |
+| delta | a row named in `partition.supersedes` replaces the earlier row under its key as a placeholder is replaced — a class row as a staging placeholder, a node as an open node, a claim whole — so a delta raises a class from `partial`, settles a claim, or corrects a dispositioned node. Each named key exists in the ledger the delta folds into and is a row the delta carries, or the fold refuses. After its rows fold, `partition.withdraws` removes each named claim and its entries in `targeted_claims`, and each named query from the `query_ids` of the delta's `partition.classes` rows. A withdrawal refuses the fold when the key is in none of those rows, when a node of those classes still cites the query, or when a `complete` check is left targeting nothing — the delta retargets that check in its own rows |
 | `queries` | by query id; two rows under one id must agree on `command`, `universe` and `origin`, and a fold refuses them when they do not. `count` and `lines` are not carried across: each records one execution in the ledger holding it. The fold reads `count` off the folded nodes table, and drops `lines` from a row two ledgers carry — a row only one carries keeps its own |
 | `counter_checks` | by (`method`, `classes`): `new_nodes`, `targeted_claims`, `query_ids` and `evidence_nodes` union, and `pending` beats `complete`; any other field the two rows both fill and fill differently refuses the fold |
 
 A fragment accounts for what it searched: every node it carries that a search produced is in the `hit_ids` of a boundary row the fragment itself carries, and its every query's `count` is the fragment's own nodes citing it.
 
-Every fragment is checked against the rules above — every rule but the ones that read on the whole run: its own fields, the fourteen-class sweep, the counter-search coverage and the verdict. A fragment carrying a defect refuses the fold, naming the fragment and the row; nothing is repaired or filled in on its behalf. A fragment names rows the seed left in the staging ledger, so a reference it cannot resolve alone is not its defect.
+Every fragment is checked against the rules above — every rule but the ones that read on the whole run: its own fields, the fourteen-class sweep, the counter-search coverage and the verdict. A fragment carrying a defect refuses the fold, naming the fragment and the row; nothing is repaired or filled in on its behalf. A fragment names rows already in the ledger it folds into — the staging rows and those of every fragment folded before it in the same fold — so a reference it cannot resolve alone is not its defect, and its counter-check rows are read folded onto the earlier check under the same key.
 
 A fragment's identity is what it found — the bytes of its `partition` and of
 the five tables — never its `run` block: one partition traced twice, in two
@@ -307,8 +314,8 @@ fragment carrying a class outside its `partition.classes` is refused.
 
 Read `LANGUAGE.md` (plugin root) §3 before writing it. Body 40 lines or fewer;
 the bulk stays in `COVERAGE.json`. `scripts/write_report.py` is the one writer:
-it reads the body on stdin, refuses an unvalidated or unstamped ledger and an
-over-long body, and writes the header itself.
+it reads the body from `--body <file>` or stdin, refuses an unvalidated or
+unstamped ledger and an over-long body, and writes the header itself.
 
 Header line, one line:
 
@@ -318,6 +325,9 @@ Header line, one line:
 
 `n` counts the classes `closed` or `n/a`, `m` the boundary rows, `k` the
 claims of kind `unverified`, `j` those of them that are load-bearing.
+`repository` is the `owner/name` of the ledger checkout's `origin` remote, and
+`path` the ledger's path inside that checkout; without git, `run.repository` and
+the path as given.
 
 Then: the answer · the site list (never a count) · the frontier list with
 reasons · the unverified list with reasons.

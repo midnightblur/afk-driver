@@ -29,6 +29,7 @@ _spec.loader.exec_module(merge_fragments)
 
 from test_validate_coverage import (CLAIM, COMMAND, QUERY,  # noqa: E402
                                     ledger, validate_coverage)
+from test_validate_coverage import COUNTER_QUERY as COUNTER  # noqa: E402
 
 HEAD = "0" * 40
 
@@ -877,6 +878,190 @@ class SeedToLedgerTest(unittest.TestCase):
         self.assertEqual(merged_b3["status"], "closed")
         defects, _ = validate_coverage.validate(merged)
         self.assertEqual([item for item in defects if "B3" in item], [])
+
+
+def delta(supersedes=None, withdraws=None, **tables) -> dict:
+    """A delta fragment, declaring the earlier rows it replaces or removes."""
+    piece = fragment(partition="delta", **tables)
+    if supersedes is not None:
+        piece["partition"]["supersedes"] = supersedes
+    if withdraws is not None:
+        piece["partition"]["withdraws"] = withdraws
+    return piece
+
+
+SECOND_CLAIM_TEXT = "the path ends at the write"
+SECOND_CLAIM = validate_coverage.stable_id("c", SECOND_CLAIM_TEXT)
+
+
+class DeltaFoldTest(unittest.TestCase):
+    """A delta replaces an earlier answer only where it says so."""
+
+    def merge(self, staging, *fragments):
+        return merge_fragments.merge(
+            staging, [(Path(f"fragment-{index}.json"), item)
+                      for index, item in enumerate(fragments)])
+
+    def test_a_declared_supersede_raises_a_class_from_partial(self):
+        staging = merged_staging()
+        class_row(staging, "B4").update({"status": "partial",
+                                         "reason": "name forms not searched: wire"})
+        merged = self.merge(staging, delta(supersedes={"classes": ["B4"]}, boundaries=[
+            {"class": "B4", "status": "closed", "method": "every name form, wire included",
+             "hits": 0, "hit_ids": [], "query_ids": [QUERY], "universe": "tracked files"}]))
+        row = class_row(merged, "B4")
+        self.assertEqual(row["status"], "closed")
+        self.assertNotIn("reason", row)
+
+    def test_a_supersede_without_the_row_it_names_is_refused(self):
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(merged_staging(), delta(supersedes={"classes": ["B4"]}, boundaries=[]))
+        self.assertIn("B4", str(refused.exception))
+
+    def test_a_declared_supersede_settles_an_unverified_claim(self):
+        staging = merged_staging()
+        staging["claims"][0]["kind"] = "unverified"
+        settled = dict(ledger()["claims"][0])
+        merged = self.merge(staging, delta(supersedes={"claims": [CLAIM]}, claims=[settled]))
+        self.assertEqual(merged["claims"][0]["kind"], "fact")
+
+    def test_a_delta_withdraws_a_refuted_claim(self):
+        staging = merged_staging()
+        staging["claims"].append({"id": SECOND_CLAIM, "text": SECOND_CLAIM_TEXT,
+                                  "kind": "inference", "load_bearing": False,
+                                  "supporting_nodes": [], "citations": []})
+        merged = self.merge(staging, delta(withdraws={"claims": [SECOND_CLAIM]}))
+        self.assertEqual([row["id"] for row in merged["claims"]], [CLAIM])
+        self.assertEqual(validate_coverage.validate(merged)[0], [])
+
+    def test_withdrawing_the_only_target_of_a_complete_check_is_refused(self):
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(merged_staging(), delta(withdraws={"claims": [CLAIM]}))
+        self.assertIn("targeted_claims", str(refused.exception))
+
+    def test_a_delta_withdraws_a_query_from_its_class_rows(self):
+        staging = merged_staging()
+        class_row(staging, "B3")["query_ids"] = [QUERY, COUNTER]
+        merged = self.merge(staging, delta(withdraws={"queries": [COUNTER]},
+                                           classes=["B3"], boundaries=[]))
+        self.assertEqual(class_row(merged, "B3")["query_ids"], [QUERY])
+        self.assertEqual(class_row(merged, "B5")["query_ids"], [QUERY])
+
+    def test_withdrawing_a_query_its_class_nodes_still_cite_is_refused(self):
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(merged_staging(), delta(withdraws={"queries": [QUERY]},
+                                               classes=["B1"], boundaries=[]))
+        self.assertIn(QUERY, str(refused.exception))
+
+    def test_a_declared_supersede_corrects_a_dispositioned_node(self):
+        merged = self.merge(merged_staging(), delta(
+            supersedes={"nodes": ["B1:alpha.java:9"]},
+            nodes=[{**hit("B1:alpha.java:9", line_hash="bbbbbbbbbbbb"),
+                    "disposition": "irrelevant", "evidence": "read: a log line",
+                    "parent": "B1:alpha.java:2"}]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["disposition"], "irrelevant")
+        self.assertNotIn("conflict", str(node.get("reason")))
+
+    def test_a_declared_supersede_may_move_a_node_to_another_parent(self):
+        staging = merged_staging()
+        staging["nodes"].append({**hit("B1:beta.java:4"), "parent": "B1:alpha.java:2"})
+        class_row(staging, "B1")["hit_ids"].append("B1:beta.java:4")
+        merged = self.merge(staging, delta(
+            supersedes={"nodes": ["B1:beta.java:4"]},
+            nodes=[{**hit("B1:beta.java:4"), "parent": "B1:alpha.java:9"}]))
+        self.assertEqual(node_of(merged, "B1:beta.java:4")["parent"], "B1:alpha.java:9")
+
+    def test_a_delta_may_rest_on_a_node_an_earlier_delta_of_the_same_fold_added(self):
+        added = hit("B1:beta.java:4")
+        first = fragment(partition="d1", nodes=[added])
+        text = "beta writes it too"
+        second = fragment(partition="d2", classes=["B1"], boundaries=[], claims=[
+            {"id": validate_coverage.stable_id("c", text), "text": text, "kind": "fact",
+             "load_bearing": False, "supporting_nodes": ["B1:beta.java:4"],
+             "citations": ["beta.java:4"]}])
+        merged = self.merge(merged_staging(), first, second)
+        self.assertEqual(len(merged["claims"]), 2)
+
+    # A fragment's counter-check defect is its own wherever its row lands in the fold.
+    def test_a_fragment_counter_check_defect_refuses_the_fold(self):
+        broken = {"method": "a third name form", "kind": "deterministic",
+                  "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+                  "classes": ["B1"], "query_ids": []}
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(merged_staging(), fragment(nodes=[], counter_checks=[broken]))
+        self.assertIn("counter_checks", str(refused.exception))
+
+    def test_a_check_row_adding_to_an_earlier_check_is_read_with_it(self):
+        check = {"method": "read every writer", "kind": "agent", "classes": ["B1"],
+                 "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+                 "evidence_nodes": ["B1:alpha.java:9"]}
+        staging = merged_staging()
+        staging["counter_checks"].append(check)
+        addition = {**check, "evidence_nodes": [], "new_nodes": ["B1:alpha.java:2"]}
+        merged = self.merge(staging, fragment(nodes=[], counter_checks=[addition]))
+        row = next(item for item in merged["counter_checks"]
+                   if item["method"] == "read every writer")
+        self.assertEqual(row["evidence_nodes"], ["B1:alpha.java:9"])
+        self.assertEqual(row["new_nodes"], ["B1:alpha.java:2"])
+
+    def test_merged_from_counts_every_fold(self):
+        merged = self.merge(merged_staging(), fragment(nodes=[]))
+        self.assertEqual(merged["run"]["merged_from"], 3)
+
+    # Name forms a delta enumerated are recorded, not refused as another run.
+    def test_a_delta_enumerating_a_new_name_form_folds_and_records_it(self):
+        placeholder = {"form": "wire", "value": None, "enumerated": False,
+                       "reason": "a wire name is chosen at the site"}
+        found = {"form": "wire", "value": "widget-created", "enumerated": True}
+        staging = merged_staging()
+        staging["run"]["aliases"] = {"Widget": [placeholder]}
+        class_row(staging, "B1")["name_forms"] = {"Widget": [placeholder]}
+        piece = delta(supersedes={"classes": ["B1"]}, nodes=[], boundaries=[
+            {**class_row(ledger(), "B1"), "name_forms": {"Widget": [found]}}])
+        piece["run"]["aliases"] = {"Widget": [placeholder, found]}
+        merged = self.merge(staging, piece)
+        self.assertEqual(merged["run"]["aliases"], {"Widget": [found]})
+        self.assertEqual(class_row(merged, "B1")["name_forms"], {"Widget": [found]})
+
+    def test_aliases_of_another_subject_are_refused(self):
+        staging = merged_staging()
+        piece = fragment(nodes=[])
+        piece["run"]["aliases"] = {"Gadget": []}
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(staging, piece)
+        self.assertIn("aliases", str(refused.exception))
+
+    # One id is one node: a site both searched and read is the searched node.
+    def test_a_read_of_a_search_hit_stays_evidence_an_agent_check_may_cite(self):
+        read = {"id": "B1:alpha.java:9", "class": "B1", "site": "alpha.java:9",
+                "disposition": "terminal", "evidence": "read: the write ends the path",
+                "parent": "B1:alpha.java:2", "query_id": None}
+        check = {"method": "read every writer", "kind": "agent", "classes": ["B1"],
+                 "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+                 "evidence_nodes": ["B1:alpha.java:9"]}
+        merged = self.merge(merged_staging(), fragment(
+            partition="counter", classes=["B1"], boundaries=[], nodes=[read],
+            counter_checks=[check]))
+        node = node_of(merged, "B1:alpha.java:9")
+        self.assertEqual(node["query_id"], QUERY)
+        self.assertEqual(node["line_hash"], "bbbbbbbbbbbb")
+        self.assertEqual(validate_coverage.validate(merged)[0], [])
+
+    def test_a_conflict_between_a_read_and_a_search_keeps_the_search(self):
+        staging = merged_staging()
+        staging["nodes"].append({"id": "B1:beta.java:4", "class": "B1",
+                                 "site": "beta.java:4", "disposition": "terminal",
+                                 "evidence": "read: the call", "parent": None,
+                                 "query_id": None})
+        merged = self.merge(staging, fragment(nodes=[
+            {**hit("B1:beta.java:4", line_hash="cccccccccccc"), "disposition": "irrelevant"}]))
+        node = node_of(merged, "B1:beta.java:4")
+        self.assertEqual(node["disposition"], "unverified")
+        self.assertEqual(node["query_id"], QUERY)
+        self.assertEqual(node["line_hash"], "cccccccccccc")
+        defects, _ = validate_coverage.validate(merged)
+        self.assertEqual([item for item in defects if "boundaries.B1" in item], [])
 
 
 if __name__ == "__main__":

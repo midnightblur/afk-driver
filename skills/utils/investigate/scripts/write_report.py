@@ -2,10 +2,10 @@
 """Publish REPORT.md beside a validated, stamped coverage ledger.
 
 The header line is computed from the ledger (`LEDGER-FORMAT.md` § "REPORT.md").
-The body arrives on stdin, written to `LANGUAGE.md` (plugin root) §3.
+The body, written to `LANGUAGE.md` (plugin root) §3, comes from `--body` or stdin.
 
 Usage:
-  write_report.py --ledger <ledger dir>/COVERAGE.json < body.md
+  write_report.py --ledger <ledger dir>/COVERAGE.json --body <scratch>/report-body.txt
 
 Exit codes: 0 wrote REPORT.md, 1 the ledger or the body is refused, 2 usage
 or an unreadable ledger.
@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,14 +28,47 @@ BODY_LIMIT = 40
 DONE = ("closed", "n/a")
 
 
-def header(document: dict, ledger_path: str) -> str:
+def git(folder: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(["git", "-C", str(folder), *args], capture_output=True,
+                                encoding="utf-8", errors="replace", timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = result.stdout.strip()
+    return out if result.returncode == 0 and out else None
+
+
+def slug(url: str) -> str:
+    """`owner/name` from a remote URL in scp or URL form."""
+    path = re.sub(r"^[a-z][a-z0-9+.-]*://[^/]+/", "", url.strip())
+    path = re.sub(r"^[^/:]+@[^:/]+:", "", path)
+    return re.sub(r"\.git$", "", path.strip("/"))
+
+
+def located(document: dict, path: Path) -> tuple[str | None, str]:
+    """The forge repository and the repository-relative ledger path, where git knows them."""
+    folder = path.resolve().parent
+    remote = git(folder, "remote", "get-url", "origin")
+    repository = slug(remote) if remote else (document.get("run") or {}).get("repository")
+    top = git(folder, "rev-parse", "--show-toplevel")
+    ledger = path.as_posix()
+    if top:
+        try:
+            ledger = Path(os.path.relpath(path.resolve(), Path(top).resolve())).as_posix()
+        except ValueError:
+            pass
+    return repository, ledger
+
+
+def header(document: dict, ledger_path: str, repository: str | None = None) -> str:
     run = document.get("run") or {}
+    repository = repository or run.get("repository")
     classes = [row for row in document.get("boundaries") or [] if isinstance(row, dict)]
     done = sum(1 for row in classes if row.get("status") in DONE)
     unverified = [row for row in document.get("claims") or []
                   if isinstance(row, dict) and row.get("kind") == "unverified"]
     load_bearing = sum(1 for row in unverified if row.get("load_bearing"))
-    return (f"{run.get('repository')}@{run.get('head')} · {run.get('verdict')} · "
+    return (f"{repository}@{run.get('head')} · {run.get('verdict')} · "
             f"boundaries {done}/{len(classes)} · unverified {len(unverified)} "
             f"(load-bearing {load_bearing}) · ledger: {ledger_path}")
 
@@ -57,6 +93,7 @@ def refusal(document: dict, body: str) -> str | None:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ledger", required=True, help="the published COVERAGE.json")
+    parser.add_argument("--body", help="a file holding the body; stdin when omitted")
     args = parser.parse_args(argv)
     path = Path(args.ledger)
     try:
@@ -67,13 +104,19 @@ def main(argv: list[str]) -> int:
     if not isinstance(document, dict):
         print(f"write_report: {path}: a ledger is one object", file=sys.stderr)
         return 2
-    body = sys.stdin.buffer.read().decode("utf-8").replace("\r\n", "\n")
+    try:
+        raw = Path(args.body).read_bytes() if args.body else sys.stdin.buffer.read()
+    except OSError as error:
+        print(f"write_report: {args.body}: cannot read the body: {error}", file=sys.stderr)
+        return 2
+    body = raw.decode("utf-8").replace("\r\n", "\n")
     reason = refusal(document, body)
     if reason:
         print(f"write_report: {path}: {reason}", file=sys.stderr)
         return 1
     report = path.parent / "REPORT.md"
-    report.write_text(f"{header(document, path.as_posix())}\n\n{body.strip(chr(10))}\n",
+    repository, ledger = located(document, path)
+    report.write_text(f"{header(document, ledger, repository)}\n\n{body.strip(chr(10))}\n",
                       encoding="utf-8")
     print(f"write_report: {report}")
     return 0
