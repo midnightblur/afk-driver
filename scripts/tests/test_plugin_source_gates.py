@@ -348,6 +348,21 @@ def test_deleting_a_control_file_is_incomplete_input_in_both_modes(results, name
         assert rows == [], rows
 
 
+def test_a_row_the_target_branch_added_cannot_be_deleted(base):
+    repo = _clone(base, "release_target")
+    _git(repo, "checkout", "-q", "-b", "release")
+    _edit_dispositions(repo, lambda text: text + "zz-release-id\tteam\tretired\t-\n")
+    _git(repo, "commit", "-q", "-m", "release adds an id")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    _edit_dispositions(repo, lambda text: text.replace("zz-release-id\tteam\tretired\t-\n", ""))
+    staged = run_runner(repo, "--staged")
+    _git(repo, "commit", "-q", "-m", "topic deletes it")
+    ranged = run_runner(repo, "--range", "release")
+    for rc, rows, err in (staged, ranged):
+        assert rc == 2 and verdicts(rows).get("behavior-registry") == "blocked", err
+        assert "deleted since the base: zz-release-id" in " ".join(f for _g, _v, f in rows), rows
+
+
 def test_a_gate_the_branch_adds_runs_under_the_branch_runner(base):
     repo = _clone(base, "new_gate")
     (repo / "hooks" / "zz-new-gate.sh").write_text("gate_zz_new() { echo 'zz-new ran' >&2; return 2; }\n",

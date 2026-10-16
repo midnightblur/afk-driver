@@ -132,10 +132,11 @@ release page from its section here. Nobody tags by hand.
 - **The target branch's gates accept a new managed behavior.** The behavior
   registry gate compared `hooks/behavior-dispositions.tsv` with an id list in
   its own code, so the target branch's copy refused every added behavior. It
-  now compares the file with its merge-base copy: a valid new row passes, and
-  a deleted id still blocks. Retire an id in place with disposition
-  `retired`. With no merge-base copy, the gate says so and checks the file
-  alone. The native-contract gate likewise accepts a `repo-list` hook entry
+  now compares the file with its copy at the runner's base revision (the
+  merge base with the target branch in a pull request, `HEAD` at commit): a
+  valid new row passes, and a deleted id still blocks. Retire an id in place
+  with disposition `retired`. Run alone, the gate guesses the merge base with
+  `main`; with no base copy, it says so and checks the file alone. The native-contract gate likewise accepts a `repo-list` hook entry
   for any event `CAPABILITIES.md` declares, when the entry names its own
   event.
 

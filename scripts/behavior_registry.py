@@ -3,7 +3,8 @@
 
 Commands:
   behavior_registry.py validate [registry] [--plugin-root DIR] [--dispositions FILE]
-      [--parity-root DIR] [--base-registry FILE] [--base-dispositions FILE] [--verbose]
+      [--parity-root DIR] [--base-registry FILE] [--base-dispositions FILE]
+      [--base-rev REV] [--verbose]
   behavior_registry.py render [registry] [--plugin-root DIR] [--output FILE]
   behavior_registry.py audit [registry] [--plugin-root DIR] --target FILE [...]
       [--target-root FILE ROOT ENABLEMENT ...] [--ignore-unmanaged]
@@ -13,9 +14,10 @@ silent on success unless ``--verbose``.
 ``--dispositions`` names the inventory file: the header ``inventory_id class
 disposition behavior_id``, then one tab-separated row per lowercase kebab-case
 id. An id never leaves the file; retire it in place with disposition
-``retired``. ``--base-dispositions``, else the merge-base copy found from
-``--parity-root``, supplies the ids that must remain; with neither, validate
-says so on stderr and checks the file alone.
+``retired``. The ids that must remain come from ``--base-dispositions``, else
+the copy at ``--base-rev`` (none there means none to keep), else the merge-base
+copy guessed from ``--parity-root``; with none, validate says so on stderr and
+checks the file alone.
 ``render`` writes one ``afk:behaviors`` block. It never truncates the block.
 ``audit`` checks installed blocks without changing their target files.
 ``--target`` audits a file against the shared ``--plugin-root`` (its provider
@@ -313,6 +315,18 @@ def _discover_base_text(root: pathlib.Path, relative: str) -> tuple[str, str] | 
     return None
 
 
+def _text_at_revision(root: pathlib.Path, rev: str, relative: str) -> str:
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [GIT, "-C", str(root), *args], check=False, capture_output=True, text=True, encoding="utf-8"
+        )
+
+    if git("rev-parse", "--verify", "-q", f"{rev}^{{tree}}").returncode != 0:
+        raise RegistryError(f"base revision {rev} does not resolve")
+    shown = git("show", f"{rev}:{relative}")
+    return shown.stdout if shown.returncode == 0 else ""
+
+
 def _discover_base_registry(root: pathlib.Path) -> Registry | None:
     found = _discover_base_text(root, "BEHAVIORS.md")
     return None if found is None else _parse_registry_text(*found)
@@ -331,6 +345,7 @@ def validate_registry(
     parity_root: pathlib.Path | str | None = None,
     base_registry: pathlib.Path | str | None = None,
     base_dispositions: pathlib.Path | str | None = None,
+    base_rev: str | None = None,
 ) -> Registry:
     root = pathlib.Path(plugin_root).resolve()
     registry = parse_registry(registry_path)
@@ -372,6 +387,8 @@ def validate_registry(
         base_ids = None
         if base_dispositions is not None:
             base_ids = _inventory_ids(_read_dispositions(base_dispositions))
+        elif base_rev:
+            base_ids = _inventory_ids(_text_at_revision(root, base_rev, DISPOSITIONS_FILE))
         elif parity_root is not None:
             found = _discover_base_text(pathlib.Path(parity_root).resolve(), DISPOSITIONS_FILE)
             base_ids = None if found is None else _inventory_ids(found[0])
@@ -809,6 +826,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     validate_parser.add_argument("--parity-root", type=pathlib.Path)
     validate_parser.add_argument("--base-registry", type=pathlib.Path)
     validate_parser.add_argument("--base-dispositions", type=pathlib.Path)
+    validate_parser.add_argument("--base-rev")
     validate_parser.add_argument("--byte-limit", type=int, default=BODY_BYTE_LIMIT)
     validate_parser.add_argument("--verbose", action="store_true", help="print the row count and byte size on success")
 
@@ -845,6 +863,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 parity_root=args.parity_root,
                 base_registry=args.base_registry,
                 base_dispositions=args.base_dispositions,
+                base_rev=args.base_rev,
             )
             if args.verbose:
                 count = rendered_byte_count(render_registry(registry_path, root))

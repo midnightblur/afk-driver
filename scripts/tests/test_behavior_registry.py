@@ -346,6 +346,42 @@ def test_the_base_dispositions_come_from_the_merge_base(tmp_path):
     assert label == f"main:{behavior_registry.DISPOSITIONS_FILE}"
 
 
+def test_a_named_base_revision_wins_over_the_guessed_branch(tmp_path, capsys):
+    behavior_registry = load_module()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    registry_path = write_registry(tmp_path, ONE_RULE)
+    tsv = tmp_path / behavior_registry.DISPOSITIONS_FILE
+    tsv.parent.mkdir(parents=True)
+    kept = "reply-ste100\tteam\tregistry\trule"
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "root")
+    root = git("rev-parse", "HEAD")
+    write_dispositions(tsv, [kept])
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "release")
+    write_dispositions(tsv, [kept, "release-only\tteam\tretired\t-"])
+    git("commit", "-q", "-am", "release adds an id")
+    release = git("rev-parse", "HEAD")
+    git("checkout", "-q", "-b", "topic")
+    write_dispositions(tsv, [kept])
+    git("commit", "-q", "-am", "topic deletes it")
+
+    def check(base_rev):
+        behavior_registry.validate_registry(registry_path, tmp_path, dispositions=tsv, base_rev=base_rev)
+
+    with pytest.raises(behavior_registry.RegistryError, match="deleted since the base: release-only"):
+        check(release)
+    check(root)
+    assert "no base dispositions" not in capsys.readouterr().err
+    with pytest.raises(behavior_registry.RegistryError, match="base revision no-such-rev does not resolve"):
+        check("no-such-rev")
+
+
 def test_revision_check_compares_ids_to_an_explicit_base(tmp_path):
     behavior_registry = load_module()
     base = write_registry(
