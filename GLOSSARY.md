@@ -19,6 +19,155 @@ A skill that writes an artifact from already-settled conversation (`to-prd`, `to
 **Full path / Lean path**:
 Full = grills + SDD + verification design for complex features; lean = PRD → plan → execute for bugs/refactors/tooling. Mode of the plan follows from what exists upstream, never from a flag.
 
+## Agent teams
+
+**Contact agent**:
+The one agent session the human talks to. It relays instructions, collects results, and asks for approvals. The human starts it; the plugin never starts or closes it.
+_Avoid_: orchestrator (a role a pattern may name, which the contact agent is not), lead
+
+**Team topology**:
+The shape of the work on one task — which roles exist, how many agents fill each, who may message whom, and how long each lives. Optional; with no configuration the plugin behaves as it always has.
+
+**Multi-model**:
+Giving roles to models from more than one provider. A switch separate from team topology; all four combinations of the two work.
+
+**Transport**:
+The mechanism that starts an agent, messages it, waits for it, reads it, and closes it — harness subagents, headless runs, multiplexer panes, desktop-tool terminals. With none available, a pattern runs on the harness's own subagents and says so in its report.
+
+**Team pattern**:
+A reusable topology, built in or user-written, durable or one-shot. It is data — roles, model per role, lifespan per role, the talk edges between them, and, for a pattern that starts agents, its charter — so a user-written pattern has the same power as a built-in one.
+_Avoid_: template, preset
+
+**Lifespan**:
+How long a role's agent lives before it is closed: a turn, a phase, or a feature.
+
+**Knowledge store**:
+The record an agent writes as it works and before it is closed, so a later stage can use what an earlier stage learned. Not durable and never committed: it serves the workflow's own agents and is deleted with the run's other artifacts. PRD, SDD, and ADRs remain the durable record.
+
+**Debate pattern**:
+Two agents or more, on different models, doing one piece of thinking independently, then critiquing each other and recording a verdict each. The shape for research, grounding, design, planning, review, and audit work. Agreement is reported per agent, never as one voice.
+_Avoid_: consensus (the thing the pattern exists to make impossible to fake)
+
+**Run manifest**:
+The record of everything a run started — each agent with its process, pane, and directory, and each background process an agent started — keyed by feature and by the contact session that owns it. Cleanup kills what it names and reports what it could not.
+
+**Running checkpoint**:
+A file a role writes as it works, not at the end. It is what a replacement reads when the original agent dies, because a dying agent cannot be asked for a handoff — that request is the one an exhausted provider refuses. Born unfinished at every write; only the agent's own clean exit stamps it finished.
+
+**Talk edges**:
+The pairs of roles a pattern allows to message each other directly, each edge listing the message types it allows. Every message off a declared edge is refused, naming the edge. Four paths need no edge: any agent may send the contact agent a start request and its own finished, parked and exited messages; the contact agent may message any agent it started; a role's finished message goes to its report target; and a role and its report target, whoever it is, may message each other both ways. Siblings message each other only along declared edges.
+
+**Run**:
+All work on one feature under a team topology.
+
+**Role**:
+A named position one agent fills.
+
+**Spawned agent**:
+An agent the contact agent started.
+
+**Pane agent**:
+An agent in its own terminal pane.
+
+**Pane transport**:
+A transport that starts pane agents. Finding one turns the pane-agent default on; nothing needs configuring.
+
+**Role agent**:
+An agent that does a role's work: it writes a plugin file, code or a ledger, or returns a gate verdict. Always a pane agent unless the pane switch says subagent.
+
+**Helper**:
+A subagent a pane agent starts for its own reading. Never a role, never in the run manifest.
+
+**Builder**:
+The one role that commits and pushes, one active at a time.
+
+**Hub**:
+A role others message directly.
+
+**Moderator**:
+The agent that runs a debate: the pattern's hub, else one the resolver adds.
+
+**Stage**:
+One step of the workflow chain.
+
+**Pattern step**:
+One step of a pattern. A debate's steps are draft, critique, revision and verdict.
+
+**Topology map**:
+Optional human configuration that maps a stage to a pattern; the plugin ships none. Its configuration key is the stage map.
+
+**Stage map**:
+The configuration entry that maps a stage name to one pattern name, or to a list the resolver combines.
+
+**Pane switch**:
+The one configuration key, pane or subagent, that turns role agents back into subagents.
+
+**Pattern standard**:
+The four properties every pattern that starts agents meets.
+
+**Resolved pattern**:
+The flattened team one run uses, one file per run.
+
+**Afk-lite**:
+The built-in pattern the bug-fix skill runs.
+
+**Requester**:
+The agent that asked for a new agent.
+
+**Report target**:
+The agent that gets a role's result: the one the pattern names, else the requester.
+
+**Team entry script**:
+The one script agents call to start, message and stop agents.
+
+**Multiplexer**:
+The terminal tool that holds the panes.
+
+**Recipe**:
+The one file per multiplexer that maps each transport verb to that tool's commands.
+
+**Run directory**:
+The git-ignored folder that holds one run's files.
+
+**Inbox**:
+The folder in the run directory where messages for the contact agent land.
+
+**Envelope**:
+The small file that says who sent a message and where its text is.
+
+**Message body**:
+The text of one message, in its own file. A start-request or finished body is one JSON object with a format version; every other body is free text.
+
+**Result file**:
+The file a started agent writes its result to. The requester names it; the report target reads it.
+
+**Completion signal**:
+The file that says an agent finished.
+
+**Job supervisor**:
+A process that watches one agent and sends exited, or parked with the reset time.
+
+**Wait job**:
+The one background process per run that checks the contact inbox every 10 seconds; its exit wakes the contact agent.
+
+**Stall watchdog**:
+A timer that flags an agent silent for 20 minutes.
+
+**Owner generation**:
+The takeover counter: a new contact session that takes over a run adds 1 to it.
+
+**Harness session id**:
+The id the coding tool gives a conversation, so the conversation can be resumed.
+
+**Charter**:
+What every pattern that starts agents carries, never empty: a pattern part with the pattern's purpose and how it meets the pattern standard, and one part per role.
+
+**Charter file**:
+One file per role per run, in the run directory, holding the charter's pattern part and then that role's part. For a one-off pattern these files are the run's only copy of its charter.
+
+**One-off pattern**:
+A pattern written for one task and not saved. It has no record: it reaches the run in the fields of a pattern record, with its charter, and is checked as a record with roles.
+
 ## Artifacts
 
 **PRD**:

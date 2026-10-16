@@ -3,7 +3,8 @@ or docstrings — a citation like ``A3-004`` or ``CA2-3`` describes who reviewed
 a line, not what the line does, and goes stale the moment the round ends.
 
 ``scripts/tests`` is exempt: a test fixture legitimately pins the scenario one
-specific finding covers, and that citation is useful there."""
+specific finding covers, and that citation is useful there. Investigation
+ledgers are exempt too: they quote searched lines verbatim as evidence."""
 
 import re
 import subprocess
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TESTS_DIR = Path(__file__).resolve().parent
 
 PATTERN = re.compile(r"\b(?:C?A[0-9]-[0-9]{3}|CA[0-9]-[0-9])\b")
+LEDGER = re.compile(r"(^|/)investigations/INV-[^/]+/")
 
 
 def _iter_scanned_files():
@@ -32,7 +34,7 @@ def _iter_scanned_files():
         path = ROOT / name.decode("utf-8", errors="surrogateescape")
         if not path.is_file():
             continue
-        if TESTS_DIR in path.parents:
+        if TESTS_DIR in path.parents or LEDGER.search(path.relative_to(ROOT).as_posix()):
             continue
         yield path
 

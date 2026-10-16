@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-15T16:48:28.1848692Z",
+  "command": "1devtool-agent run --to=codex --prompt-stdin --timeout=5 --no-link --model=gpt-5.6-sol --flag=--ephemeral --json",
+  "rootPid": 42012,
+  "elapsedSeconds": 3.04,
+  "exitCode": 2,
+  "processes": [
+    {
+      "pid": 42012,
+      "name": null,
+      "requiredCleanup": false,
+      "exited": true
+    }
+  ],
+  "stdout": "{\n  \"agent\": \"codex\",\n  \"output\": \"error: the argument '--ephemeral' cannot be used multiple times\\n\\nUsage: codex exec [OPTIONS] [PROMPT]\\n       codex exec [OPTIONS] <COMMAND> [ARGS]\\n\\nFor more information, try '--help'.\\n\",\n  \"exitCode\": 2,\n  \"durationSeconds\": 0,\n  \"stderr\": \"error: the argument '--ephemeral' cannot be used multiple times\\n\\nUsage: codex exec [OPTIONS] [PROMPT]\\n       codex exec [OPTIONS] <COMMAND> [ARGS]\\n\\nFor more information, try '--help'.\\n\",\n  \"rawStderr\": \"error: the argument '--ephemeral' cannot be used multiple times\\n\\nUsage: codex exec [OPTIONS] [PROMPT]\\n       codex exec [OPTIONS] <COMMAND> [ARGS]\\n\\nFor more information, try '--help'.\\n\"\n}\n",
+  "stderr": ""
+}

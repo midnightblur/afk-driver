@@ -73,6 +73,7 @@ hooks/hooks*.json	hook-deadline	protected-branch-guard\.py	The guard enforces it
 hooks/hooks*.json	hook-deadline	protected-branch-meter\.py	The meter enforces the guard's 20 s deadline (guard.deadline in hooks/protected-branch-meter.py), below this entry's 30 s timeout.
 hooks/hooks*.json	hook-deadline	protected-branch-occupancy\.py	The session hook enforces the guard's 20 s deadline (guard.deadline in hooks/protected-branch-occupancy.py), below this entry's 30 s timeout.
 hooks/native-contract-gate.sh	repo-scan	plugin\.rglob\(|fixture_dir\.rglob\(	Plugin-tree inventory of this gate's own files (hundreds of files), not a consuming-repository content scan.
+.claude/wiring-ious.md	harness-name	for the Codex flag-error fact"	A wiring IOU quotes its anchoring contract verbatim.
 # Live surfaces naming an interpreter that is not one (check J).
 skills/afk/setup/scripts/bootstrap.sh	interpreter	^"\$uv" python install "\$cpython"	uv's own `python install` subcommand, not an interpreter.
 skills/afk/setup/scripts/bootstrap.ps1	interpreter	^Invoke-Step 'uv python install' \{ & \$uv python install \$python 	uv's own `python install` subcommand, not an interpreter.

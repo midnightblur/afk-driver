@@ -10,7 +10,7 @@ Runs one code investigation to closure and writes its coverage ledger. The compl
 This skill is the single writer of the ledger. Tracers return fragments; only this skill merges them.
 
 Invoked with the question, then optional flags — `--type Q1..Q5` (else step 1
-classifies), `--alias FORM=VALUE` (repeatable), `--design-phase` when the answer
+classifies), `--alias FORM=VALUE` and `--absent FORM=REASON` (both repeatable), `--design-phase` when the answer
 feeds a design decision, and `--out DIR` to place the ledger directory where the
 caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
 "Files and location" would put it.
@@ -25,13 +25,17 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
    afk-python "$AFK_PLUGIN_ROOT/skills/utils/investigate/scripts/seed_map.py" \
      --repo <repo root> --subject <name> --type <Q1..Q5> \
      --question "<the question>" [--alias wire=<name> ...] \
+     [--absent wire=<why none exists> ...] \
      --config auto [--design-phase] --out <scratch>/seed.json
    ```
 
    It enumerates every boundary class it has a method for and marks the rest
    `unverified(no enumeration method)`. Pass every name form you already know
    as `--alias FORM=VALUE` — a wire or serialized name is chosen at the site,
-   and an unsearched form keeps B1 short of closed. Pass `--design-phase` when
+   and an unsearched form keeps B1 short of closed. A site-chosen form you
+   checked and found the subject is never written in — a module constant has
+   no wire name — goes as `--absent FORM=REASON`, the reason a reviewer can
+   check. Pass `--design-phase` when
    the answer feeds a design decision: that run owes an agent-driven
    counter-search, and the validator asks for it. No `investigation:` block in
    the repository's `.afk/config.yaml` → the generic defaults run alone; say so
@@ -46,7 +50,7 @@ caller wants it rather than where [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) §
      [--fragment ...] --out <scratch>/COVERAGE.json
    ```
 
-   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, and every `judgment-only` class left, reopens the queue: spawn a delta tracer and fold its fragment the same way. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
+   It applies the rules in [`LEDGER-FORMAT.md`](LEDGER-FORMAT.md) § "Merging". Exit 2 → the fragments are not all of one snapshot, and it names which. A node a fragment discovered that no boundary covered, every node the fold reopened as a conflict, and every `judgment-only` class left reopen the queue: spawn a delta tracer and fold its fragment over the merged ledger, passed as `--staging`, before validating. Where `INVESTIGATION.md` § "Counter-search" requires an agent-driven pass, spawn a fresh tracer told to use a different method and blind to the first tracer's conclusions.
 6. **Validate the staging copy.** Before publishing anything:
 
    ```sh

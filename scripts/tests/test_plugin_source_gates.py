@@ -113,6 +113,19 @@ def allowed_genericity(repo):
     _git(repo, "add", "-A")
 
 
+AT = "@"  # spelled apart, so the person check does not read this file's own plants
+
+
+def harness_plugin_id(repo):
+    _append(repo / "skills" / "utils" / "todo" / "SKILL.md", f"\nStored under pluginConfigs.agents-md{AT}builtin.options.\n")
+    _git(repo, "add", "-A")
+
+
+def an_address(repo):
+    _append(repo / "skills" / "utils" / "todo" / "SKILL.md", f"\nAsk dev{AT}corp-mail.io first.\n")
+    _git(repo, "add", "-A")
+
+
 def provider_manifest(repo):
     path = repo / "hooks" / "hooks.codex.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
@@ -178,7 +191,8 @@ def shadowed_skill_registry(repo):
 
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
                                     provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate,
-                                    forced_sentinel, shadowed_native_contract, shadowed_skill_registry)}
+                                    forced_sentinel, shadowed_native_contract, shadowed_skill_registry,
+                                    harness_plugin_id, an_address)}
 
 
 def _judge_for(base: Path, name: str) -> Path:
@@ -268,6 +282,17 @@ def test_genericity_blocks_the_unlisted_token_only(results):
     findings = " ".join(f for g, _v, f in rows if g == "genericity")
     assert rc == 2 and blocked == {"genericity"}, err
     assert "ZZQ-4242" in findings and "HL-1" not in findings, findings
+
+
+def test_a_harness_plugin_id_is_no_address(results):
+    rc, blocked, _rows, err = _blocked(results, "harness_plugin_id")
+    assert rc == 0 and not blocked, err
+
+
+def test_an_address_blocks_genericity(results):
+    rc, blocked, rows, err = _blocked(results, "an_address")
+    assert rc == 2 and blocked == {"genericity"}, err
+    assert "corp-mail.io" in " ".join(f for g, _v, f in rows if g == "genericity"), rows
 
 
 def test_provider_manifest_drift_blocks_native_contract(results):

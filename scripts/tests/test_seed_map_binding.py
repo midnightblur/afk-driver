@@ -549,7 +549,8 @@ class SeedMapBindingTest(unittest.TestCase):
         primary = next(item for item in document["queries"]
                        if item["command"].startswith("git grep")
                        and "--untracked" not in item["command"])
-        result = subprocess.run(primary["command"], cwd=repo, shell=True,
+        # A POSIX shell's split, not cmd.exe's: the ledger exclusion is quoted.
+        result = subprocess.run(shlex.split(primary["command"]), cwd=repo,
                                 capture_output=True, encoding="utf-8", errors="replace")
         self.assertEqual(result.returncode, 0, result.stderr)
         returned = {line.split(":", 2)[0] + ":" + line.split(":", 2)[1]

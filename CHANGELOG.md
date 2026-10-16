@@ -130,6 +130,81 @@ release page from its section here. Nobody tags by hand.
   new artifacts. A file untracked before the work started cannot be wired by
   it; candidates are now staged adds and commits ahead of the merge-base (#98).
 
+- **An investigation can declare a name form absent.** A subject that no site
+  writes as an import alias or a wire name — a module constant, a private
+  helper — left B1 and every class resting on it `partial`, because the seed
+  had no way to hear that the form was checked and does not exist. `seed_map.py`
+  takes `--absent FORM=REASON` for the forms `import-alias` and `wire`; the
+  ledger records the form with `absent: true` and the reason, and B1 closes. A
+  form given both as `--alias` and `--absent` is refused. The ground re-take in
+  `/afk:execute` cited mode passes the cited ledger's absent forms back.
+
+- **A fragment can answer a verdict the staging ledger left open.** The
+  investigation merge treated a node as settled once its disposition was, so a
+  tracer's answer to an open B-class verdict on that node was refused. A node now
+  stays open while any of its verdicts is, and a fragment's search count includes
+  the nodes its search reached after another search (`also_found_by`).
+
+- **The round page's process rail no longer trips the layout audit.** Text
+  scrolling under the rail was read as covered and held the page behind a repair
+  banner; the rail is now a hair under opaque, like the send bar.
+
+- **The plugin contract gate no longer reads feature spec folders as plugin
+  prose.** Its harness-vocabulary, interpreter (check J) and provider-helper
+  (check K) checks read every file, so a spec folder under `docs/afk/` that
+  quotes harness facts, plan commands or investigation evidence blocked the
+  gate. All three now skip spec folders; plugin prose and code stay in scope.
+
+- **The genericity gate no longer reads a harness plugin id as an address.**
+  An unquoted `<plugin>@builtin.<key>` matched the address shape and blocked
+  the gate as a named person; ids from the harness's built-in source now pass.
+
+- **The investigation seed no longer counts published ledgers.** A spec
+  folder's `investigations/INV-*/` ledgers quote their subject thousands of
+  times, so a subject investigated before could exceed the hit limit and stop
+  the seed. Every recorded search now ends with the pathspec
+  `':(exclude,glob)**/investigations/INV-*/**'`, so a rerun returns what the
+  ledger counted. A ledger recorded without it still validates.
+
+- **A repository with no build step can close the generated-code and
+  build-graph classes.** The investigation seed marked B6 and B7 `unverified`
+  whenever `investigation.generated` or `investigation.reactor` was empty, and
+  it ignored a `judgment-only` site declared for either class, although
+  `CONFIG.md` accepts one for every class. A declared site now carries B6 and
+  B7 to `judgment-only`, for a tracer to resolve. A repository that declares
+  generated output or a reactor manifest sees no change.
+
+- **A tracer's answer now closes what the seed left open.** The seed writes
+  every search hit as an `unverified` node and every declared site as a
+  `judgment-only` class. The merge treated those rows as answers, so a
+  tracer's disposition became a conflict and the worst status kept the class
+  open: no fold over a seed could reach `closed`. The first fragment row under
+  an open key now replaces it, and later rows fold against that answer. The
+  validator also accepts an `irrelevant` node as the read that closes a
+  declared site, as the ledger format already stated, and the tracer
+  definition says how to hash a line that ends in `\r\n`.
+
+- **A counter-search that reaches a line another tracer reached now folds.**
+  Two tracers reaching one line by different searches were refused as two
+  answers under one id, so a blind counter-search could never fold. Rows that
+  agree on the disposition and both verdicts now fold as one node, with the
+  second search in a new optional `also_found_by` field that counts toward
+  its query. Rows that split on any of the three reopen the node as a
+  conflict. A class closed by a search in one row and by reading in another
+  keeps the search, as the ledger format already stated, instead of producing
+  a row the validator refuses.
+
+- **A fold keeps every reading, search and edge of a node found twice.** The
+  first fold of two rows under one id kept only the first row's parent and
+  could turn a read into a search, so a node lost the edge that made its
+  parent traced and a counter-search lost its reading. A read now outranks a
+  search, every other search joins `also_found_by`, every other parent joins a
+  new optional `also_reached_from` field, and the validator counts a node as a
+  hit of every query it cites. The ground comparison in cited-mode execution
+  reads every query a node cites too, so a seed hit a tracer answered by
+  reading stays ground. The investigate skill now says a delta tracer
+  answers every node a fold reopened as a conflict before the run validates.
+
 ## [1.15.0] - 2026-10-07
 
 ### Added

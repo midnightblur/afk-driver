@@ -1,0 +1,4106 @@
+{
+  "run": {
+    "repository": "C:\\Users\\mvu\\PersonalProjects\\afk-driver-agent-teams",
+    "head": "9d9fce6b094af1a61b7bf54cd00d95725175d4a2",
+    "question": "What breaks if the configuration reader's accepted top-level key set and its child-key map gain one new family key?",
+    "type": [
+      "Q3",
+      "Q2"
+    ],
+    "roots": [
+      "TOP_LEVEL",
+      "CHILD_KEYS"
+    ],
+    "aliases": {
+      "TOP_LEVEL": [
+        {
+          "form": "simple",
+          "value": "TOP_LEVEL",
+          "enumerated": true
+        },
+        {
+          "form": "string-literal",
+          "value": "\"TOP_LEVEL\"",
+          "enumerated": true
+        },
+        {
+          "form": "import-alias",
+          "value": "afk_config",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "wire",
+          "value": null,
+          "enumerated": true,
+          "absent": true,
+          "source": "declared",
+          "reason": "a module constant; the YAML keys it lists are data, not a serialized name for the constant"
+        }
+      ],
+      "CHILD_KEYS": [
+        {
+          "form": "simple",
+          "value": "CHILD_KEYS",
+          "enumerated": true
+        },
+        {
+          "form": "string-literal",
+          "value": "\"CHILD_KEYS\"",
+          "enumerated": true
+        },
+        {
+          "form": "import-alias",
+          "value": "afk_config",
+          "enumerated": true,
+          "source": "declared"
+        },
+        {
+          "form": "wire",
+          "value": null,
+          "enumerated": true,
+          "absent": true,
+          "source": "declared",
+          "reason": "a module constant; the YAML keys it lists are data, not a serialized name for the constant"
+        }
+      ]
+    },
+    "inventory_hash": "495d90d22c90b0874eb6fc7d12e18b387e8b786d784f3df151f4fa8c2f958270",
+    "inventory_count": 387,
+    "config": {
+      "path": ".afk/config.yaml",
+      "sha256": "c66fcafef8ee670595b03b7c5abb515e36f6eb5bc315663a0c21856db1622992"
+    },
+    "design_phase": true,
+    "started": "2026-09-23T14:08:30.678760+00:00",
+    "finished": "2026-09-23T14:08:33.635373+00:00",
+    "merged_from": 1,
+    "verdict": "closed-with-frontier"
+  },
+  "boundaries": [
+    {
+      "class": "B1",
+      "status": "closed",
+      "method": "every name form, whole repository",
+      "hits": 98,
+      "hit_ids": [
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:161",
+        "B1:scripts/afk-config.py:51",
+        "B1:scripts/afk-config.py:105",
+        "B1:scripts/afk-config.py:541",
+        "B1:scripts/afk-config.py:586",
+        "B1:scripts/tests/test_afk_config.py:268",
+        "B1:scripts/tests/test_afk_config.py:286",
+        "B1:adapters/tracker/github-issues/api.py:71",
+        "B1:hooks/run-hook.py:163",
+        "B1:mcp-servers/tracker/server.py:62",
+        "B1:scripts/tests/test_afk_config.py:27",
+        "B1:scripts/tests/test_afk_config_init.py:19",
+        "B1:scripts/tracker_api.py:32",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B1:skills/utils/investigate/scripts/seed_map.py:282",
+        "B1:docs/afk/agent-team-topology/grill-solution.html:388",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:1733",
+        "B1:scripts/tests/test_afk_config.py:134",
+        "B1:.afk/config.yaml:42",
+        "B1:ADAPTERS.md:143",
+        "B1:AGENTS.md:196",
+        "B1:CHANGELOG.md:1150",
+        "B1:CHANGELOG.md:560",
+        "B1:CHANGELOG.md:572",
+        "B1:CHANGELOG.md:684",
+        "B1:CHANGELOG.md:780",
+        "B1:CHANGELOG.md:795",
+        "B1:CHANGELOG.md:871",
+        "B1:CHANGELOG.md:879",
+        "B1:CLAUDE.md:196",
+        "B1:CONFIG.md:10",
+        "B1:CONFIG.md:107",
+        "B1:CONFIG.md:11",
+        "B1:CONFIG.md:12",
+        "B1:CONFIG.md:236",
+        "B1:CONFIG.md:36",
+        "B1:FRESHNESS.md:47",
+        "B1:FRESHNESS.md:85",
+        "B1:README.md:305",
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+        "B1:docs/afk/agent-team-topology/GRILL-LOG.md:218",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:1467",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:1580",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:1894",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:36",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:96",
+        "B1:docs/afk/agent-team-topology/research/CRITIQUE-claude.md:18",
+        "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:18",
+        "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:20",
+        "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:24",
+        "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:27",
+        "B1:docs/afk/agent-team-topology/research/PROPOSAL-claude.md:180",
+        "B1:docs/afk/agent-team-topology/research/PROPOSAL-claude.md:187",
+        "B1:docs/afk/agent-team-topology/research/PROPOSAL-codex.md:225",
+        "B1:hooks/lib/config.sh:26",
+        "B1:hooks/lib/config.sh:4",
+        "B1:hooks/lib/config.sh:40",
+        "B1:providers/CONFORMANCE.md:288",
+        "B1:providers/PARITY.md:133",
+        "B1:scripts/afk-config.py:10",
+        "B1:scripts/afk-config.py:11",
+        "B1:scripts/afk-config.py:12",
+        "B1:scripts/afk-config.py:7",
+        "B1:scripts/afk-config.py:8",
+        "B1:scripts/afk-config.py:852",
+        "B1:scripts/afk-config.py:9",
+        "B1:scripts/create-worktree:125",
+        "B1:scripts/create-worktree:126",
+        "B1:scripts/create-worktree:142",
+        "B1:scripts/create-worktree:146",
+        "B1:scripts/create-worktree:150",
+        "B1:scripts/create-worktree:195",
+        "B1:scripts/tests/test_afk_config.py:41",
+        "B1:scripts/tests/test_afk_config_init.py:1",
+        "B1:scripts/tests/test_afk_config_init.py:51",
+        "B1:scripts/tests/test_seed_map_binding.py:28",
+        "B1:scripts/tests/test_seed_map_binding.py:472",
+        "B1:skills/afk/bug/CONFIG.md:12",
+        "B1:skills/afk/bug/CONFIG.md:7",
+        "B1:skills/afk/bug/SKILL.md:54",
+        "B1:skills/afk/setup/MANIFEST.md:101",
+        "B1:skills/afk/setup/MANIFEST.md:52",
+        "B1:skills/afk/setup/MANIFEST.md:92",
+        "B1:skills/afk/setup/SKILL.md:33",
+        "B1:skills/afk/setup/SKILL.md:41",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:106",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:44",
+        "B1:skills/utils/investigate/scripts/contract.py:170",
+        "B1:skills/utils/investigate/scripts/contract.py:193",
+        "B1:skills/utils/investigate/scripts/contract.py:199",
+        "B1:skills/utils/investigate/scripts/seed_map.py:188",
+        "B1:skills/utils/investigate/scripts/seed_map.py:23",
+        "B1:skills/utils/investigate/scripts/seed_map.py:285",
+        "B1:skills/utils/investigate/scripts/seed_map.py:299",
+        "B1:skills/utils/report-issue/scripts/collect_env.sh:29",
+        "B1:skills/utils/report-issue/scripts/publish.sh:104",
+        "B1:skills/utils/report-issue/scripts/publish.sh:108",
+        "B1:skills/utils/report-issue/scripts/publish.sh:14"
+      ],
+      "mechanism": "default",
+      "name_forms": {
+        "TOP_LEVEL": [
+          {
+            "form": "simple",
+            "value": "TOP_LEVEL",
+            "enumerated": true
+          },
+          {
+            "form": "string-literal",
+            "value": "\"TOP_LEVEL\"",
+            "enumerated": true
+          },
+          {
+            "form": "import-alias",
+            "value": "afk_config",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "wire",
+            "value": null,
+            "enumerated": true,
+            "absent": true,
+            "source": "declared",
+            "reason": "a module constant; the YAML keys it lists are data, not a serialized name for the constant"
+          }
+        ],
+        "CHILD_KEYS": [
+          {
+            "form": "simple",
+            "value": "CHILD_KEYS",
+            "enumerated": true
+          },
+          {
+            "form": "string-literal",
+            "value": "\"CHILD_KEYS\"",
+            "enumerated": true
+          },
+          {
+            "form": "import-alias",
+            "value": "afk_config",
+            "enumerated": true,
+            "source": "declared"
+          },
+          {
+            "form": "wire",
+            "value": null,
+            "enumerated": true,
+            "absent": true,
+            "source": "declared",
+            "reason": "a module constant; the YAML keys it lists are data, not a serialized name for the constant"
+          }
+        ]
+      },
+      "query_ids": [
+        "q-c0e74b26",
+        "q-faa55820",
+        "q-3a313c41"
+      ],
+      "universe": "tracked text files (binary excluded), and the second universe, scripts/afk-config.py, read, tracked text files (binary excluded), and the second universe; tracked and untracked text files for the module-attribute and file-path forms"
+    },
+    {
+      "class": "B2",
+      "status": "closed",
+      "method": "declaration and parameter forms carrying the name",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "default",
+      "universe": "tracked files",
+      "query_ids": [
+        "q-1f35dbf4"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B3",
+      "status": "closed",
+      "method": "read hooks/lib/adapter.sh, scripts/tracker_api.py, hooks/lib/adapter_registry_check.py",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "adapter-dispatch, module-loader",
+      "universe": "no method ran, hooks/lib/adapter.sh, scripts/tracker_api.py, hooks/lib/adapter_registry_check.py",
+      "query_ids": [],
+      "sites": [
+        "hooks/lib/adapter.sh",
+        "scripts/tracker_api.py",
+        "hooks/lib/adapter_registry_check.py"
+      ]
+    },
+    {
+      "class": "B4",
+      "status": "closed",
+      "method": "the name as a string literal",
+      "hits": 36,
+      "hit_ids": [
+        "B4:adapters/tracker/github-issues/api.py:71",
+        "B4:hooks/run-hook.py:163",
+        "B4:mcp-servers/tracker/server.py:62",
+        "B4:scripts/tests/test_afk_config.py:27",
+        "B4:scripts/tests/test_afk_config_init.py:19",
+        "B4:scripts/tracker_api.py:32",
+        "B4:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B4:skills/utils/investigate/scripts/seed_map.py:282",
+        "B4:scripts/afk-config.py:339",
+        "B4:scripts/tests/test_afk_config.py:38",
+        "B4:scripts/tests/test_afk_config.py:168",
+        "B4:scripts/tests/test_publish_bug.py:40",
+        "B4:scripts/tests/test_publish_bug.py:41",
+        "B4:scripts/tests/test_publish_bug.py:46",
+        "B4:scripts/tests/test_publish_bug.py:48",
+        "B4:scripts/afk-config.py:46",
+        "B4:scripts/afk-config.py:47",
+        "B4:scripts/afk-config.py:48",
+        "B4:scripts/afk-config.py:49",
+        "B4:scripts/afk-config.py:544",
+        "B4:scripts/afk-config.py:545",
+        "B4:scripts/afk-config.py:546",
+        "B4:scripts/afk-config.py:556",
+        "B4:scripts/afk-config.py:558",
+        "B4:scripts/afk-config.py:479",
+        "B4:scripts/afk-config.py:542",
+        "B4:scripts/afk-config.py:595",
+        "B4:scripts/afk-config.py:644",
+        "B4:adapters/forge/gitlab/forge.sh:395",
+        "B4:adapters/forge/gitlab/forge.sh:419",
+        "B4:scripts/afk-config.py:548",
+        "B4:scripts/tests/test_afk_config_init.py:88",
+        "B4:skills/utils/report-issue/scripts/collect_env.sh:43",
+        "B4:skills/utils/report-issue/scripts/collect_env.sh:44",
+        "B4:skills/utils/report-issue/scripts/collect_env.sh:45",
+        "B4:skills/utils/report-issue/scripts/collect_env.sh:46"
+      ],
+      "mechanism": "default",
+      "universe": "tracked files, family kind tuples and refusal messages under scripts, hooks, skills, mcp-servers, adapters, tracked files",
+      "query_ids": [
+        "q-6482f445",
+        "q-b820aed0",
+        "q-aef2ba5e",
+        "q-db5793c5"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B5",
+      "status": "closed",
+      "method": "read scripts/afk-config.py: key grammar, shell view, JSON view, get",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "config-codec",
+      "universe": "no method ran, scripts/afk-config.py read whole, plus hooks/lib/config.sh",
+      "query_ids": [],
+      "sites": [
+        "scripts/afk-config.py"
+      ]
+    },
+    {
+      "class": "B6",
+      "status": "closed",
+      "method": "read CLAUDE.md:11 (no package build step) and CLAUDE.md:37 (no generators or generated-and-committed files): no generated output exists to walk",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "no-build-step",
+      "sites": [
+        "CLAUDE.md"
+      ],
+      "query_ids": [],
+      "universe": "no generated paths declared, CLAUDE.md, the declared judgment-only site"
+    },
+    {
+      "class": "B7",
+      "status": "closed",
+      "method": "read CLAUDE.md:11 (no package build step): no aggregator manifest, so no build graph carries the reader",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "no-aggregator",
+      "sites": [
+        "CLAUDE.md"
+      ],
+      "query_ids": [],
+      "universe": "no aggregator manifests declared, CLAUDE.md, the declared judgment-only site"
+    },
+    {
+      "class": "B8",
+      "status": "closed",
+      "method": "name forms filtered to configuration files",
+      "hits": 10,
+      "hit_ids": [
+        "B8:hooks/lib/adapter.sh:32",
+        "B8:hooks/lib/config.sh:48",
+        "B8:scripts/afk-config.py:975",
+        "B8:.afk/config.yaml:6",
+        "B8:.afk/config.yaml:7",
+        "B8:.afk/config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7",
+        "B8:scripts/tests/samples/monorepo-config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:9",
+        "B8:scripts/tests/samples/monorepo-config.yaml:10"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths, shell-view name builders in tracked files; family keys in tracked configuration files, configuration files, case-blind, and the whole tree for the AFK_CFG_TRANSPORT variable",
+      "query_ids": [
+        "q-c0e74b26",
+        "q-3f2ae8cc",
+        "q-71dd50e1",
+        "q-09929c09",
+        "q-fcf30224"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B9",
+      "status": "closed",
+      "method": "name forms filtered to schema and migration sources",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths",
+      "query_ids": [
+        "q-c0e74b26"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B10",
+      "status": "closed",
+      "method": "read mcp-servers/tracker/server.py",
+      "hits": 0,
+      "hit_ids": [],
+      "mechanism": "tracker-mcp-surface",
+      "universe": "no method ran, mcp-servers/tracker/server.py",
+      "query_ids": [],
+      "sites": [
+        "mcp-servers/tracker/server.py"
+      ]
+    },
+    {
+      "class": "B11",
+      "status": "closed",
+      "method": "registration forms in files that name the subject",
+      "hits": 3,
+      "hit_ids": [
+        "B11:scripts/tests/test_afk_config_init.py:208",
+        "B11:scripts/tests/test_afk_config_init.py:218",
+        "B11:skills/utils/investigate/scripts/seed_map.py:112"
+      ],
+      "mechanism": "default",
+      "universe": "files that name the subject",
+      "query_ids": [
+        "q-b5463a97",
+        "q-c0e74b26"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B12",
+      "status": "closed",
+      "method": "name forms filtered to test sources",
+      "hits": 6,
+      "hit_ids": [
+        "B12:scripts/tests/test_afk_config.py:268",
+        "B12:scripts/tests/test_afk_config.py:286",
+        "B12:scripts/tests/test_afk_config.py:27",
+        "B12:scripts/tests/test_afk_config_init.py:19",
+        "B12:scripts/tests/test_afk_config.py:134",
+        "B12:scripts/tests/test_afk_config.py:264"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths, refusal-message assertions under scripts, hooks, skills, mcp-servers, adapters, name-form hits filtered to paths",
+      "query_ids": [
+        "q-c0e74b26",
+        "q-aef2ba5e"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B13",
+      "status": "closed",
+      "method": "name forms filtered to documents",
+      "hits": 12,
+      "hit_ids": [
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:161",
+        "B13:skills/afk/bug/CONFIG.md:58",
+        "B13:skills/afk/bug/LEDGER-FORMAT.md:68",
+        "B13:CONFIG.md:87",
+        "B13:CONFIG.md:88",
+        "B13:CONFIG.md:89",
+        "B13:CONFIG.md:90",
+        "B13:ADAPTERS.md:1",
+        "B13:CLAUDE.md:197",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:218",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:219"
+      ],
+      "mechanism": "default",
+      "universe": "name-form hits filtered to paths, refusal statements in skills documents; CONFIG.md family rows; family-count statements in tracked files, name-form hits filtered to paths",
+      "query_ids": [
+        "q-c0e74b26",
+        "q-aef2ba5e",
+        "q-fb10461d",
+        "q-e8920c2b"
+      ],
+      "sites": []
+    },
+    {
+      "class": "B14",
+      "status": "frontier",
+      "method": "outside this repository",
+      "hits": 0,
+      "hit_ids": [],
+      "reason": "another repository, deployment manifest, or live consumer; consuming repositories' .afk/config.yaml, per-machine ~/.afk/config.yaml and installed plugin copies are outside this repository; a file carrying transport validates only against a plugin copy at or past the reader change",
+      "mechanism": "default",
+      "sites": [],
+      "query_ids": [],
+      "universe": "nothing in this repository"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "B11:scripts/tests/test_afk_config_init.py:208",
+      "class": "B11",
+      "site": "scripts/tests/test_afk_config_init.py:208",
+      "disposition": "irrelevant",
+      "evidence": "{\"name\": \"listener\", \"class\": \"B11\", \"pattern\": \"@Listener\"}, || test data: an investigation boundary entry whose pattern string is @Listener; no listener registration",
+      "line_hash": "a773a1a70e29",
+      "parent": null,
+      "query_id": "q-b5463a97",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B11:scripts/tests/test_afk_config_init.py:218",
+      "class": "B11",
+      "site": "scripts/tests/test_afk_config_init.py:218",
+      "disposition": "irrelevant",
+      "evidence": "{\"name\": \"listener\", \"class\": \"B99\", \"pattern\": \"@Listener\"}, || test data: an invalid-class boundary entry; no listener registration",
+      "line_hash": "21439f482030",
+      "parent": null,
+      "query_id": "q-b5463a97",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B11:skills/utils/investigate/scripts/seed_map.py:112",
+      "class": "B11",
+      "site": "skills/utils/investigate/scripts/seed_map.py:112",
+      "disposition": "irrelevant",
+      "evidence": "\"patterns\": [r\"@\\w*Listener\\b\", r\"@Scheduled\\b\", r\"@\\w*Handler\\b\"], || the default B11 pattern definition itself; no listener registration",
+      "line_hash": "74f63789f657",
+      "parent": null,
+      "query_id": "q-b5463a97",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:134",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:134",
+      "disposition": "terminal",
+      "evidence": "def test_unknown_top_level_key_is_refused():",
+      "line_hash": "d63820583bd8",
+      "parent": null,
+      "query_id": "q-946531b5",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:268",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:268",
+      "disposition": "traced",
+      "evidence": "\"\"\"CONFIG.md and CHILD_KEYS say the same thing, or this test says which.\"\"\"",
+      "line_hash": "1ffd76ea599a",
+      "parent": null,
+      "query_id": "q-c0e74b26",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:286"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:27",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:27",
+      "disposition": "terminal",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"afk_config\", SCRIPTS / \"afk-config.py\")",
+      "line_hash": "fe074560502c",
+      "parent": null,
+      "query_id": "q-19271810",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:27"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:286",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:286",
+      "disposition": "terminal",
+      "evidence": "for name, allowed in cfg.CHILD_KEYS.items():",
+      "line_hash": "da25909751b7",
+      "parent": "B12:scripts/tests/test_afk_config.py:268",
+      "query_id": "q-c0e74b26",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:286"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config_init.py:19",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config_init.py:19",
+      "disposition": "terminal",
+      "evidence": "\"afk_config\", Path(__file__).resolve().parents[1] / \"afk-config.py\"",
+      "line_hash": "1cddaa191b6e",
+      "parent": null,
+      "query_id": "q-19271810",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config_init.py:52"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:161",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:161",
+      "disposition": "terminal",
+      "evidence": "- A fifth adapter family is cheap. hooks/lib/adapter_registry_check.py:41-46 derives families from the adapters directory listing; hooks/lib/adapter.sh:37-52 builds its path from the family string wit",
+      "line_hash": "aec1fb86fe9a",
+      "parent": null,
+      "query_id": "q-c0e74b26",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:adapters/tracker/github-issues/api.py:71",
+      "class": "B1",
+      "site": "adapters/tracker/github-issues/api.py:71",
+      "evidence": "\"afk_config\", PLUGIN_ROOT / \"scripts\" / \"afk-config.py\")",
+      "line_hash": "69bd798632ee",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "reads only the `github-issues` block via get(load(...)) (api.py:74); load does not validate, a new key never reaches it",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_tracker_surface.py"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:161",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:161",
+      "evidence": "- A fifth adapter family is cheap. hooks/lib/adapter_registry_check.py:41-46 derives families from the adapters directory listing; hooks/lib/adapter.sh:37-52 builds its path from the family string wit",
+      "line_hash": "aec1fb86fe9a",
+      "query_id": "q-c0e74b26",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "design record; its edit list (TOP_LEVEL, CHILD_KEYS, a families tuple, the _choice call, CONFIG.md) matches scripts/afk-config.py:46-57,105-125,544-546 as read",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.html:388",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.html:388",
+      "evidence": "<div class=\"afk-page\"><nav class=\"afk-rail\" aria-label=\"Where this session sits in the chain\"><ol><li class=\"afk-step afk-step--done\">requirements</li><li class=\"afk-step afk-step--current\" aria-curre",
+      "line_hash": "1752bc62739f",
+      "query_id": "q-946531b5",
+      "disposition": "irrelevant",
+      "parent": null,
+      "reason": "rendered design page; a case-blind hit inside page markup, runs no code",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1733",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:1733",
+      "evidence": "\"evidence\": \"Round 20 answer to SDD-1: absent-form, with no note attached. Taken against the finding that TOP_LEVEL and CHILD_KEYS are Python constants with no wire name, that eight classes stayed par",
+      "line_hash": "1a8cb7adc1c0",
+      "query_id": "q-946531b5",
+      "disposition": "irrelevant",
+      "parent": null,
+      "reason": "design round record; states the absent wire form, runs no code",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/run-hook.py:163",
+      "class": "B1",
+      "site": "hooks/run-hook.py:163",
+      "evidence": "\"afk_config\", PLUGIN_ROOT / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "a2e18fdaead6",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "reads only `repo-hooks` via get(load(root)) (run-hook.py:167)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_run_hook.py"
+    },
+    {
+      "id": "B1:mcp-servers/tracker/server.py:62",
+      "class": "B1",
+      "site": "mcp-servers/tracker/server.py:62",
+      "evidence": "config = _load(PLUGIN_ROOT / \"scripts\" / \"afk-config.py\", \"afk_config\")",
+      "line_hash": "874ec380b346",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "reads only `tracker` (server.py:63)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/tests/hook-smoke.sh"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:105",
+      "class": "B1",
+      "site": "scripts/afk-config.py:105",
+      "evidence": "CHILD_KEYS: dict[str, set[str]] = {",
+      "line_hash": "ce22d7058eb2",
+      "query_id": "q-c0e74b26",
+      "disposition": "traced",
+      "parent": null,
+      "reason": "root: the edited map; a new kind entry changes no other entry",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:268"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:51",
+      "class": "B1",
+      "site": "scripts/afk-config.py:51",
+      "evidence": "TOP_LEVEL = {",
+      "line_hash": "1019bf5e2a7e",
+      "query_id": "q-c0e74b26",
+      "disposition": "traced",
+      "parent": null,
+      "reason": "root: the edited set; adding `transport` and one kind-named block changes no other member",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:541",
+      "class": "B1",
+      "site": "scripts/afk-config.py:541",
+      "evidence": "for key in sorted(set(config) - TOP_LEVEL):",
+      "line_hash": "6ca9bb2ab281",
+      "query_id": "q-c0e74b26",
+      "disposition": "traced",
+      "parent": "B1:scripts/afk-config.py:51",
+      "reason": "facet: set membership. After the change `transport` and the kind block validate; before it a config carrying them is refused `unknown top-level key` (deployment order)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:586",
+      "class": "B1",
+      "site": "scripts/afk-config.py:586",
+      "evidence": "for name, allowed in CHILD_KEYS.items():",
+      "line_hash": "e3e358c24fb1",
+      "query_id": "q-c0e74b26",
+      "disposition": "traced",
+      "parent": "B1:scripts/afk-config.py:105",
+      "reason": "facet: generic loop over CHILD_KEYS; a new kind entry is validated one level down with no other edit",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:257"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:134",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:134",
+      "evidence": "def test_unknown_top_level_key_is_refused():",
+      "line_hash": "d63820583bd8",
+      "query_id": "q-946531b5",
+      "disposition": "terminal",
+      "parent": "B1:scripts/afk-config.py:51",
+      "reason": "tests the misspelling `traker`, which stays outside TOP_LEVEL",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:268",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:268",
+      "evidence": "\"\"\"CONFIG.md and CHILD_KEYS say the same thing, or this test says which.\"\"\"",
+      "line_hash": "1ffd76ea599a",
+      "query_id": "q-c0e74b26",
+      "disposition": "terminal",
+      "parent": "B1:scripts/afk-config.py:105",
+      "reason": "drift test: every CHILD_KEYS name needs a CONFIG.md `map` row listing exactly its child keys; a kind entry without that row turns it red",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:268"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:27",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:27",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"afk_config\", SCRIPTS / \"afk-config.py\")",
+      "line_hash": "fe074560502c",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "loads the module for tests; reads no key-set member by name",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:27"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:286",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:286",
+      "evidence": "for name, allowed in cfg.CHILD_KEYS.items():",
+      "line_hash": "da25909751b7",
+      "query_id": "q-c0e74b26",
+      "disposition": "traced",
+      "parent": "B1:scripts/afk-config.py:105",
+      "reason": "iterates cfg.CHILD_KEYS; asserts `name in documented` and `allowed == listed` against CONFIG.md",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:268"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config_init.py:19",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config_init.py:19",
+      "evidence": "\"afk_config\", Path(__file__).resolve().parents[1] / \"afk-config.py\"",
+      "line_hash": "1cddaa191b6e",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "loads the module; asserts the scaffold validates. scaffold (afk-config.py:834-952) writes no transport, so it still validates",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config_init.py:52"
+    },
+    {
+      "id": "B1:scripts/tracker_api.py:32",
+      "class": "B1",
+      "site": "scripts/tracker_api.py:32",
+      "evidence": "config = _load_module(PLUGIN_ROOT / \"scripts\" / \"afk-config.py\", \"afk_config\")",
+      "line_hash": "0f3c3ad57964",
+      "query_id": "q-19271810",
+      "disposition": "terminal",
+      "parent": null,
+      "reason": "reads only `tracker` (tracker_api.py:33)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_tracker_jira.py"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:45",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"afk_config\", path)",
+      "line_hash": "5be32ff26038",
+      "query_id": "q-19271810",
+      "disposition": "traced",
+      "parent": null,
+      "reason": "config_kind(family) is family-generic (:42-48) and is called for tracker and forge only (:228-229); a transport row would need a new call",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_secrets_repo_root.py"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:282",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:282",
+      "evidence": "\"afk_config\", root / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "27f6fcb6403c",
+      "query_id": "q-19271810",
+      "disposition": "traced",
+      "parent": null,
+      "reason": "load_config runs module.validate (:301) and raises on any problem (:302-303); refuses a config carrying `transport` until the reader ships the key",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:adapters/tracker/github-issues/api.py:71",
+      "class": "B4",
+      "site": "adapters/tracker/github-issues/api.py:71",
+      "disposition": "terminal",
+      "evidence": "\"afk_config\", PLUGIN_ROOT / \"scripts\" / \"afk-config.py\") || loader of afk-config.py; uses only get(load(), \"github-issues\") at api.py:74; key-set growth does not reach it",
+      "line_hash": "69bd798632ee",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:hooks/run-hook.py:163",
+      "class": "B4",
+      "site": "hooks/run-hook.py:163",
+      "disposition": "terminal",
+      "evidence": "\"afk_config\", PLUGIN_ROOT / \"scripts\" / \"afk-config.py\" || loader; uses only get(load(root), \"repo-hooks\") at run-hook.py:167; load() never validates (afk-config.py:348-357)",
+      "line_hash": "a2e18fdaead6",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:mcp-servers/tracker/server.py:62",
+      "class": "B4",
+      "site": "mcp-servers/tracker/server.py:62",
+      "disposition": "traced",
+      "evidence": "config = _load(PLUGIN_ROOT / \"scripts\" / \"afk-config.py\", \"afk_config\") || loader; reads only the `tracker` key (server.py:63); followed into B10:mcp-servers/tracker/server.py:63",
+      "line_hash": "874ec380b346",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:339",
+      "class": "B4",
+      "site": "scripts/afk-config.py:339",
+      "disposition": "terminal",
+      "evidence": "named = os.environ.get(\"AFK_CONFIG\") || AFK_CONFIG names a file path (discovery), not a key; key-set growth does not reach it",
+      "line_hash": "e02ac1938f07",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:168"
+    },
+    {
+      "id": "B4:scripts/tests/test_afk_config.py:168",
+      "class": "B4",
+      "site": "scripts/tests/test_afk_config.py:168",
+      "disposition": "irrelevant",
+      "evidence": "monkeypatch.setenv(\"AFK_CONFIG\", str(named)) || test sets AFK_CONFIG to test layer precedence; discovery only",
+      "line_hash": "4c1f76814a3d",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_afk_config.py:27",
+      "class": "B4",
+      "site": "scripts/tests/test_afk_config.py:27",
+      "disposition": "terminal",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"afk_config\", SCRIPTS / \"afk-config.py\") || test loader; its drift test at test_afk_config.py:286-291 asserts every CHILD_KEYS name has a CONFIG.md `map` row with the same child keys: a kind entry added to CHILD_KEYS without that CONFIG.md row turns it red",
+      "line_hash": "fe074560502c",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:286"
+    },
+    {
+      "id": "B4:scripts/tests/test_afk_config.py:38",
+      "class": "B4",
+      "site": "scripts/tests/test_afk_config.py:38",
+      "disposition": "irrelevant",
+      "evidence": "environ.pop(\"AFK_CONFIG\", None) || test harness pops AFK_CONFIG; discovery only",
+      "line_hash": "37ef4f82b07c",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_afk_config_init.py:19",
+      "class": "B4",
+      "site": "scripts/tests/test_afk_config_init.py:19",
+      "disposition": "terminal",
+      "evidence": "\"afk_config\", Path(__file__).resolve().parents[1] / \"afk-config.py\" || test loader for init/scaffold tests; scaffold does not emit `transport` unless init is edited too",
+      "line_hash": "1cddaa191b6e",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_publish_bug.py:40",
+      "class": "B4",
+      "site": "scripts/tests/test_publish_bug.py:40",
+      "disposition": "irrelevant",
+      "evidence": "_PRIOR_AFK_CONFIG = os.environ.get(\"AFK_CONFIG\") || saves AFK_CONFIG around import; discovery only",
+      "line_hash": "679af33ec0d9",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_publish_bug.py:41",
+      "class": "B4",
+      "site": "scripts/tests/test_publish_bug.py:41",
+      "disposition": "irrelevant",
+      "evidence": "os.environ[\"AFK_CONFIG\"] = os.path.join(_TESTS, \"samples\", \"monorepo-config.yaml\") || points AFK_CONFIG at samples/monorepo-config.yaml to select jira; discovery only",
+      "line_hash": "b3f99e3ab3d2",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_publish_bug.py:46",
+      "class": "B4",
+      "site": "scripts/tests/test_publish_bug.py:46",
+      "disposition": "irrelevant",
+      "evidence": "os.environ.pop(\"AFK_CONFIG\", None) || restores AFK_CONFIG; discovery only",
+      "line_hash": "9b72f3c3a9a9",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tests/test_publish_bug.py:48",
+      "class": "B4",
+      "site": "scripts/tests/test_publish_bug.py:48",
+      "disposition": "irrelevant",
+      "evidence": "os.environ[\"AFK_CONFIG\"] = _PRIOR_AFK_CONFIG || restores AFK_CONFIG; discovery only",
+      "line_hash": "8814900ee8e4",
+      "parent": null,
+      "query_id": "q-288f3dd8",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/tracker_api.py:32",
+      "class": "B4",
+      "site": "scripts/tracker_api.py:32",
+      "disposition": "traced",
+      "evidence": "config = _load_module(PLUGIN_ROOT / \"scripts\" / \"afk-config.py\", \"afk_config\") || loader; reads only the `tracker` key (tracker_api.py:33); followed into B3:scripts/tracker_api.py:33",
+      "line_hash": "0f3c3ad57964",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_publish_bug.py:41"
+    },
+    {
+      "id": "B4:skills/afk/setup/scripts/setup_secrets.py:45",
+      "class": "B4",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:45",
+      "disposition": "terminal",
+      "evidence": "spec = importlib.util.spec_from_file_location(\"afk_config\", path) || loader in config_kind(family): generic get(load(root), family) at setup_secrets.py:48; a `transport` family is readable with no edit",
+      "line_hash": "5be32ff26038",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:skills/utils/investigate/scripts/seed_map.py:282",
+      "class": "B4",
+      "site": "skills/utils/investigate/scripts/seed_map.py:282",
+      "disposition": "terminal",
+      "evidence": "\"afk_config\", root / \"scripts\" / \"afk-config.py\" || loader; reads the investigation block only (seed_map.py:289 load); key-set growth does not reach it",
+      "line_hash": "27f6fcb6403c",
+      "parent": null,
+      "query_id": "q-6482f445",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:46",
+      "class": "B4",
+      "site": "scripts/afk-config.py:46",
+      "disposition": "terminal",
+      "reason": "kinds tuple of the tracker family; the change adds no tuple, so it is untouched. Parallel edit: a transport kinds tuple beside it",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:129",
+      "evidence": "TRACKERS = (\"jira\", \"github-issues\", \"none\")",
+      "line_hash": "49ec4ee8f49f",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:47",
+      "class": "B4",
+      "site": "scripts/afk-config.py:47",
+      "disposition": "terminal",
+      "reason": "kinds tuple of the forge family; untouched by the change. No test feeds a bad forge value (search `is not one of` under scripts/tests: 0 lines)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "FORGES = (\"gitlab\", \"github\", \"none\")",
+      "line_hash": "5f2a9f10427e",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:48",
+      "class": "B4",
+      "site": "scripts/afk-config.py:48",
+      "disposition": "terminal",
+      "reason": "kinds tuple of the notes family; untouched by the change",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "NOTES = (\"repo-files\", \"notion\", \"obsidian\")",
+      "line_hash": "9e16bd183f64",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:49",
+      "class": "B4",
+      "site": "scripts/afk-config.py:49",
+      "disposition": "terminal",
+      "reason": "kinds tuple of the build-gates family; untouched by the change",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "BUILD_GATES = (\"maven\", \"npm\")",
+      "line_hash": "b4fb34f233ee",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:544",
+      "class": "B4",
+      "site": "scripts/afk-config.py:544",
+      "disposition": "terminal",
+      "reason": "family value check for tracker; with no matching call for transport, validate accepts ANY transport value (finding: parallel edit, a _choice call plus a kinds tuple; docs/afk/agent-team-topology/GRILL-LOG.md:218 names it)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:129; scripts/tests/test_afk_config.py:128",
+      "evidence": "    _choice(problems, config, \"tracker\", TRACKERS)",
+      "line_hash": "1c8e04a38bf5",
+      "parent": "B4:scripts/afk-config.py:541",
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:545",
+      "class": "B4",
+      "site": "scripts/afk-config.py:545",
+      "disposition": "terminal",
+      "reason": "family value check for forge; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "    _choice(problems, config, \"forge\", FORGES)",
+      "line_hash": "1792f72c33a9",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:546",
+      "class": "B4",
+      "site": "scripts/afk-config.py:546",
+      "disposition": "terminal",
+      "reason": "family value check for notes; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "    _choice(problems, config, \"notes\", NOTES)",
+      "line_hash": "bc1f06961eff",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:556",
+      "class": "B4",
+      "site": "scripts/afk-config.py:556",
+      "disposition": "terminal",
+      "reason": "build-gates list check; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "                if gate not in BUILD_GATES:",
+      "line_hash": "62521af97f0b",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:558",
+      "class": "B4",
+      "site": "scripts/afk-config.py:558",
+      "disposition": "terminal",
+      "reason": "build-gates refusal message; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "                        f\"build-gates: {gate!r} is not one of {', '.join(BUILD_GATES)}\"",
+      "line_hash": "f57f58f17028",
+      "parent": null,
+      "query_id": "q-b820aed0"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:479",
+      "class": "B4",
+      "site": "scripts/afk-config.py:479",
+      "disposition": "irrelevant",
+      "reason": "refusal under investigation.boundaries entries; a different key set (INVESTIGATION_BOUNDARY_KEYS)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "                f\"{where}.{key}: unknown key; expected one of \"",
+      "line_hash": "4f2e21d735ca",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:542",
+      "class": "B4",
+      "site": "scripts/afk-config.py:542",
+      "disposition": "terminal",
+      "reason": "refusal computed at run time as set(config) - TOP_LEVEL (line 541): adding keys only stops refusing them; existing configs keep their result. A config carrying `transport:` read by a reader WITHOUT the key fails `validate` here (deployment order: reader first)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134",
+      "evidence": "        problems.append(f\"{key}: unknown top-level key\")",
+      "line_hash": "610feb84032b",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:595",
+      "class": "B4",
+      "site": "scripts/afk-config.py:595",
+      "disposition": "terminal",
+      "reason": "refusal computed per CHILD_KEYS entry (lines 586-597): a new kind entry refuses any child key its set omits; existing maps unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:257",
+      "evidence": "                f\"{name}.{key}: unknown key; expected one of \"",
+      "line_hash": "394b6136e53c",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:644",
+      "class": "B4",
+      "site": "scripts/afk-config.py:644",
+      "disposition": "irrelevant",
+      "reason": "refusal under investigation: map; a different key set (INVESTIGATION_KEYS)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "                    f\"investigation.{key}: unknown key; expected one of \"",
+      "line_hash": "496e26f64374",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:264",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:264",
+      "disposition": "terminal",
+      "reason": "asserts the dotted refusal for each TYPOS entry; TYPOS (line 237) is hand-listed and already omits report-issue, so a new kind block stays green and is not typo-tested until an entry is added",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:264; scripts/tests/test_afk_config.py:257",
+      "evidence": "    assert f\"{name}.{typo}: unknown key\" in done.stderr",
+      "line_hash": "f63f0ca6943b",
+      "parent": null,
+      "query_id": "q-aef2ba5e",
+      "also_found_by": [
+        "q-d7b245be"
+      ]
+    },
+    {
+      "id": "B13:skills/afk/bug/CONFIG.md:58",
+      "class": "B13",
+      "site": "skills/afk/bug/CONFIG.md:58",
+      "disposition": "irrelevant",
+      "reason": "states refusal of unknown keys under developer:, a map the change does not touch",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "  removed or repurposed. An unknown key under `developer:` is a validation",
+      "line_hash": "911478f771dc",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B13:skills/afk/bug/LEDGER-FORMAT.md:68",
+      "class": "B13",
+      "site": "skills/afk/bug/LEDGER-FORMAT.md:68",
+      "disposition": "irrelevant",
+      "reason": "about bug ledger JSON readers, not the configuration reader",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "are never removed, renamed, or repurposed. Readers ignore unknown keys; a reader",
+      "line_hash": "67a58d743370",
+      "parent": null,
+      "query_id": "q-aef2ba5e"
+    },
+    {
+      "id": "B8:hooks/lib/adapter.sh:32",
+      "class": "B8",
+      "site": "hooks/lib/adapter.sh:32",
+      "disposition": "traced",
+      "reason": "dispatch derives the variable name from the family string, so family `transport` reads AFK_CFG_TRANSPORT with no edit; no test drives adapter.sh (search adapter.sh|afk_adapter under hooks/tests and scripts/tests: 0 lines)",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "  name=\"AFK_CFG_$(printf '%s' \"$family\" | tr '[:lower:]-' '[:upper:]_')\"",
+      "line_hash": "0caf97ba7d0e",
+      "parent": null,
+      "query_id": "q-3f2ae8cc"
+    },
+    {
+      "id": "B8:hooks/lib/config.sh:48",
+      "class": "B8",
+      "site": "hooks/lib/config.sh:48",
+      "disposition": "terminal",
+      "reason": "generic list reader built from the dotted key; reads no family by name",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "  base=\"AFK_CFG_$(printf '%s' \"$1\" | tr '[:lower:].-' '[:upper:]__')\"",
+      "line_hash": "4f45f24f4ec5",
+      "parent": null,
+      "query_id": "q-3f2ae8cc"
+    },
+    {
+      "id": "B8:scripts/afk-config.py:975",
+      "class": "B8",
+      "site": "scripts/afk-config.py:975",
+      "disposition": "terminal",
+      "reason": "generic name builder: every flattened path maps to AFK_CFG_<PATH>, so `transport` and the kind block export without an edit. Inference: a kind block path that folds onto an existing path once non-alphanumerics become `_` would collide; no current key does",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196",
+      "evidence": "    return \"AFK_CFG_\" + re.sub(r\"[^A-Za-z0-9]\", \"_\", path).upper()",
+      "line_hash": "91f64b62209c",
+      "parent": null,
+      "query_id": "q-3f2ae8cc"
+    },
+    {
+      "id": "B13:CONFIG.md:87",
+      "class": "B13",
+      "site": "CONFIG.md:87",
+      "disposition": "terminal",
+      "reason": "read: the tracker row is keyed by the family name; family_enum(config_md, family) at adapter_registry_check.py:47 looks up only the row of the family being checked, so a new transport family reads its own new row and leaves this row true. The change requires a NEW transport row (plus a kind-named map row) beside it (pinned by adapter_registry_check.py:101-102, which reports a family with no enum row once adapters/transport/ exists); it does not edit line 87",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/lib/adapter_registry_check.py:103",
+      "evidence": "| `tracker` | `jira` \\| `github-issues` \\| `none` | which tracker adapter answers `tracker_*` |",
+      "parent": null,
+      "query_id": "q-fb10461d",
+      "line_hash": "fabf6228675c"
+    },
+    {
+      "id": "B13:CONFIG.md:88",
+      "class": "B13",
+      "site": "CONFIG.md:88",
+      "disposition": "terminal",
+      "reason": "family enum row; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/lib/adapter_registry_check.py:102",
+      "evidence": "| `forge` | `gitlab` \\| `github` \\| `none` | which forge adapter answers `change-*` and `ci-*` |",
+      "line_hash": "31a0450cef16",
+      "parent": null,
+      "query_id": "q-fb10461d"
+    },
+    {
+      "id": "B13:CONFIG.md:89",
+      "class": "B13",
+      "site": "CONFIG.md:89",
+      "disposition": "terminal",
+      "reason": "family enum row; untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/lib/adapter_registry_check.py:102",
+      "evidence": "| `notes` | `repo-files` \\| `notion` \\| `obsidian` | where narrative documents live |",
+      "line_hash": "453dfd061551",
+      "parent": null,
+      "query_id": "q-fb10461d"
+    },
+    {
+      "id": "B13:CONFIG.md:90",
+      "class": "B13",
+      "site": "CONFIG.md:90",
+      "disposition": "terminal",
+      "reason": "family enum row (list form); untouched",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/lib/adapter_registry_check.py:102",
+      "evidence": "| `build-gates` | list of `maven` \\| `npm` | which build-gate adapters load; omit for none |",
+      "line_hash": "f6e26bd6b995",
+      "parent": null,
+      "query_id": "q-fb10461d"
+    },
+    {
+      "id": "B8:.afk/config.yaml:6",
+      "class": "B8",
+      "site": ".afk/config.yaml:6",
+      "disposition": "terminal",
+      "reason": "the plugin's own config sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:124",
+      "evidence": "tracker: github-issues",
+      "line_hash": "5529a59e506c",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:.afk/config.yaml:7",
+      "class": "B8",
+      "site": ".afk/config.yaml:7",
+      "disposition": "terminal",
+      "reason": "the plugin's own config sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:124",
+      "evidence": "forge: github",
+      "line_hash": "9ba854029ec0",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:.afk/config.yaml:8",
+      "class": "B8",
+      "site": ".afk/config.yaml:8",
+      "disposition": "terminal",
+      "reason": "the plugin's own config sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:124",
+      "evidence": "notes: repo-files",
+      "line_hash": "435075074164",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:scripts/tests/samples/monorepo-config.yaml:7",
+      "class": "B8",
+      "site": "scripts/tests/samples/monorepo-config.yaml:7",
+      "disposition": "terminal",
+      "reason": "shipped sample sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:118",
+      "evidence": "tracker: jira",
+      "line_hash": "8a7c0e327ed7",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:scripts/tests/samples/monorepo-config.yaml:8",
+      "class": "B8",
+      "site": "scripts/tests/samples/monorepo-config.yaml:8",
+      "disposition": "terminal",
+      "reason": "shipped sample sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:118",
+      "evidence": "forge: gitlab",
+      "line_hash": "bde31dfa57b9",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:scripts/tests/samples/monorepo-config.yaml:9",
+      "class": "B8",
+      "site": "scripts/tests/samples/monorepo-config.yaml:9",
+      "disposition": "terminal",
+      "reason": "shipped sample sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:118",
+      "evidence": "notes: repo-files",
+      "line_hash": "435075074164",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B8:scripts/tests/samples/monorepo-config.yaml:10",
+      "class": "B8",
+      "site": "scripts/tests/samples/monorepo-config.yaml:10",
+      "disposition": "terminal",
+      "reason": "shipped sample sets no transport key; validates unchanged",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:118",
+      "evidence": "build-gates:",
+      "line_hash": "e02024dba6ae",
+      "parent": null,
+      "query_id": "q-71dd50e1"
+    },
+    {
+      "id": "B13:ADAPTERS.md:1",
+      "class": "B13",
+      "site": "ADAPTERS.md:1",
+      "disposition": "terminal",
+      "reason": "read: breaks when the transport kind maps to an adapter the way tracker: jira does, i.e. adapters/transport/<kind>/ is added: the title's count 'four' becomes false, and the file's family sections (## tracker/forge/notes/build-gate at ADAPTERS.md:40,61,88,108) lack a transport section. Unguarded: adapter_registry_check.py reads only CONFIG.md and MANIFEST.md (:35-36) and iterates adapters/ directories (:45-47), never ADAPTERS.md. Stays true only if transport gets no adapter family",
+      "impact_verdict": "breaks",
+      "pinned_by": "unguarded",
+      "evidence": "# ADAPTERS.md — the four adapter families",
+      "parent": null,
+      "query_id": "q-e8920c2b",
+      "line_hash": "1364e034f72f"
+    },
+    {
+      "id": "B13:CLAUDE.md:197",
+      "class": "B13",
+      "site": "CLAUDE.md:197",
+      "disposition": "terminal",
+      "reason": "lists the four families by name; same stale-once-shipped finding",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "- `ADAPTERS.md` — the four adapter families (tracker, forge, notes, build-gate), their verbs, their answer shapes, and how to add a kind. Dispatch is `hooks/lib/adapter.sh`.",
+      "line_hash": "b268828e1d85",
+      "parent": null,
+      "query_id": "q-e8920c2b"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:1084",
+      "class": "B1",
+      "site": "scripts/afk-config.py:1084",
+      "disposition": "terminal",
+      "reason": "effective, export-shell and get call load() and never validate(); TOP_LEVEL (read only at line 541 inside validate) gates only `validate` and `init`. An older reader facing a config with `transport:` still exports it; only `validate` exits 2",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196",
+      "evidence": "config = load(root)",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B4:hooks/lib/adapter.sh:45",
+      "class": "B4",
+      "site": "hooks/lib/adapter.sh:45",
+      "disposition": "terminal",
+      "reason": "dispatch resolves adapters/<family>/<kind> from the configured kind; a transport kind needs its directory, not a dispatcher edit. An unknown kind exits 2 at lines 46-49 at run time, the only kind check while validate has no transport tuple",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "dir=\"$(afk_adapter_root)/adapters/$family/$kind\"",
+      "parent": "B8:hooks/lib/adapter.sh:32",
+      "query_id": null
+    },
+    {
+      "id": "B8:scripts/afk-config.py:1001",
+      "class": "B8",
+      "site": "scripts/afk-config.py:1001",
+      "disposition": "terminal",
+      "reason": "export_shell flattens the whole merged config (flatten, line 978); no key list, so new keys export with no edit",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196",
+      "evidence": "def export_shell(config: dict) -> str:",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B12:hooks/lib/adapter_registry_check.py:45",
+      "class": "B12",
+      "site": "hooks/lib/adapter_registry_check.py:45",
+      "disposition": "terminal",
+      "reason": "derives families from the adapters/ directory listing and requires a CONFIG.md enum row per family (line 102) named `transport` or `transports` (line 137); it reads CONFIG.md, never TOP_LEVEL, so the key-set change alone leaves it green",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/skill-registry-gate.sh:194",
+      "evidence": "for family_dir in kinds(adapters):",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:237",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:237",
+      "disposition": "terminal",
+      "reason": "hand-listed typo table; no enumeration of CHILD_KEYS, so a new kind entry is not typo-tested until added, and nothing goes red",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:257",
+      "evidence": "TYPOS = {",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B13:ADAPTERS.md:137",
+      "class": "B13",
+      "site": "ADAPTERS.md:137",
+      "disposition": "terminal",
+      "reason": "`Adding a kind` step 2 names the CONFIG.md enum and scripts/afk-config.py; no procedure covers adding a family (the TOP_LEVEL key, kinds tuple, validate call). Finding: a document gap, not a break",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "## Adding a kind",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B1:.afk/config.yaml:42",
+      "class": "B1",
+      "site": ".afk/config.yaml:42",
+      "disposition": "irrelevant",
+      "reason": "declares the B5 judgment-only site; names no key",
+      "evidence": "site: scripts/afk-config.py",
+      "line_hash": "bdb16716c0ed",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:ADAPTERS.md:143",
+      "class": "B1",
+      "site": "ADAPTERS.md:143",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "2. Add the kind to its enum in `CONFIG.md` and in `scripts/afk-config.py`.",
+      "line_hash": "23589f3b8398",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:AGENTS.md:196",
+      "class": "B1",
+      "site": "AGENTS.md:196",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- `CONFIG.md` — the consuming repository's contract: `.afk/config.yaml`, the supported YAML subset, the discovery order, and the `AFK_CFG_*` shell view. One reader owns it (`scripts/afk-config.py`); n",
+      "line_hash": "dcc2a67e29e5",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:1150",
+      "class": "B1",
+      "site": "CHANGELOG.md:1150",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "manifest in one file, read by one module (`scripts/afk-config.py`) for skills",
+      "line_hash": "d0988e0147fa",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:560",
+      "class": "B1",
+      "site": "CHANGELOG.md:560",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- **`afk-config.py validate FILE` names the file it cannot read.** A missing",
+      "line_hash": "e7e17c341766",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:572",
+      "class": "B1",
+      "site": "CHANGELOG.md:572",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- **`afk-config.py init` scaffolds the keys the GitHub Issues adapter reads.**",
+      "line_hash": "e85efa455dfe",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:684",
+      "class": "B1",
+      "site": "CHANGELOG.md:684",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "`afk-config.py validate` reports them. Delete the block from the repository's",
+      "line_hash": "b60f010a5511",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:780",
+      "class": "B1",
+      "site": "CHANGELOG.md:780",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- `afk-config.py init` writes a starter `.afk/config.yaml` from what the",
+      "line_hash": "1ca7d76e844f",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:795",
+      "class": "B1",
+      "site": "CHANGELOG.md:795",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- `afk-config.py resolve <developerKey>` — one place that knows the order, so no",
+      "line_hash": "0c3cbcac20e9",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:871",
+      "class": "B1",
+      "site": "CHANGELOG.md:871",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "block in `.afk/config.local.yaml`, read through `scripts/afk-config.py` like",
+      "line_hash": "9a8a022d3df1",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CHANGELOG.md:879",
+      "class": "B1",
+      "site": "CHANGELOG.md:879",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- `H6` probes the key through `afk-config.py` instead of stat-ing a file.",
+      "line_hash": "1dc190fb2784",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CLAUDE.md:196",
+      "class": "B1",
+      "site": "CLAUDE.md:196",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- `CONFIG.md` — the consuming repository's contract: `.afk/config.yaml`, the supported YAML subset, the discovery order, and the `AFK_CFG_*` shell view. One reader owns it (`scripts/afk-config.py`); n",
+      "line_hash": "dcc2a67e29e5",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:10",
+      "class": "B1",
+      "site": "CONFIG.md:10",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" effective --json",
+      "line_hash": "af2901ac9d5a",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:107",
+      "class": "B1",
+      "site": "CONFIG.md:107",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `worktreeBasePath`, `ideBinary`. Belongs in `~/.afk/config.yaml` (one file per machine) or, for a value that differs in on",
+      "line_hash": "5d9499965144",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:11",
+      "class": "B1",
+      "site": "CONFIG.md:11",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" get verification.tiers.e2e.command",
+      "line_hash": "1cd99c5030ec",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:12",
+      "class": "B1",
+      "site": "CONFIG.md:12",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" validate",
+      "line_hash": "179467df727c",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:236",
+      "class": "B1",
+      "site": "CONFIG.md:236",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "`hooks/lib/config.sh` sources `afk-config.py export-shell` once per Stop and",
+      "line_hash": "d99a428de160",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:36",
+      "class": "B1",
+      "site": "CONFIG.md:36",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python scripts/afk-config.py init          # --force to replace an existing file",
+      "line_hash": "2600f73a7955",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:CONFIG.md:91",
+      "class": "B1",
+      "site": "CONFIG.md:91",
+      "disposition": "terminal",
+      "reason": "schema table map rows (:91-107) the drift test parses; the kind block needs a `map` row with its child keys in backticks, and `transport` its own enum row (not test-checked)",
+      "evidence": "| `jira` | map | `project`, `issue-types`, `transitions`, `credentials-env` |",
+      "parent": "B1:scripts/tests/test_afk_config.py:286",
+      "query_id": null,
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:268"
+    },
+    {
+      "id": "B1:FRESHNESS.md:47",
+      "class": "B1",
+      "site": "FRESHNESS.md:47",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| `INVESTIGATION.md` | plugin author | the question types, the boundary catalog (B1–B14), a completion checklist, the disposition or verdict sets, or the closure/counter-search/proportionality rules c",
+      "line_hash": "a6368bd1ff87",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:FRESHNESS.md:85",
+      "class": "B1",
+      "site": "FRESHNESS.md:85",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| `skills/utils/report-issue/` (`SKILL.md`, `ISSUE-TEMPLATE.md`, `scripts/`) + `hooks/lib/sensitive-patterns.tsv` | `/afk:report-issue` | the body shape, a script's arguments or exit codes, the queue ",
+      "line_hash": "bb2a223e0240",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:README.md:305",
+      "class": "B1",
+      "site": "README.md:305",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" init",
+      "line_hash": "ebfb38f185fc",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:125",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- Locked: L2 Transport is a fifth adapter family, one kind per transport. decided-by agent R-1 · accepted 2026-09-17 · repo: hooks/lib/adapter_registry_check.py:41-46 derives families from the directo",
+      "line_hash": "5d6b8eb178f9",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/GRILL-LOG.md:218",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:218",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- The configuration reader is not generic. An unrecognised top-level key is REJECTED rather than passed through: scripts/afk-config.py:541-542 records it as an unknown top-level key and validation exi",
+      "line_hash": "873d30a3cf82",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1467",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:1467",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "\"anchor\": \"scripts/afk-config.py:541-542, with the edit sites at :46-49, :51-57, :105-125 and :544-559\"",
+      "line_hash": "23394fabc22e",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1580",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:1580",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "\"anchor\": \"scripts/afk-config.py:541-542, with edit sites at :46-49, :51-57, :105-125, :544-559\"",
+      "line_hash": "bce8011f33ee",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:1894",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:1894",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "\"evidence\": \"Round 23 answer to CFG-1: accept. Resolves the ambiguity INV-001 and INV-002 found in the L9-2 edit list: a child-key block on the transport key itself would refuse a plain kind name at a",
+      "line_hash": "58f8bc26cf25",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:36",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:36",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "\"anchor\": \"scripts/afk-config.py#TRACKERS\"",
+      "line_hash": "6730213cb6d0",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/grill-solution.round.json:96",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/grill-solution.round.json:96",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "\"evidence\": \"The registry check derives families from the adapters directory listing at adapter_registry_check.py:41-46, and the dispatcher builds its path from the family string with no set check at ",
+      "line_hash": "3c173e6047d6",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/CRITIQUE-claude.md:18",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/CRITIQUE-claude.md:18",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| 10 | ADVISORY | F | \"No provider probe runs when the extension is disabled\" | Agree, and add the test that proves it: a gate test under `hooks/tests/` asserting byte-identical `afk-config.py effecti",
+      "line_hash": "4f864c21b7c5",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:18",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/FACTS-claude.md:18",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| PL-08 | Adding a kind = 4 steps: adapter files; enum row in CONFIG.md + `scripts/afk-config.py`; register rows in `skills/afk/setup/MANIFEST.md`; README parity row + probe under `hooks/tests/`. `hoo",
+      "line_hash": "18e06fb9314c",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:20",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/FACTS-claude.md:20",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| PL-10 | Sole config reader is `scripts/afk-config.py` (`effective --json`, `get`, `validate`, `export-shell`, `resolve`) | CONFIG.md:9-13,236-244 | verified | CONFIG.md edit |",
+      "line_hash": "7344b6c13f67",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:24",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/FACTS-claude.md:24",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| PL-14 | Supported YAML subset: block maps/lists, plain/quoted scalars, comments, int/float/bool/null. Refused: flow maps/lists, anchors, block scalars, tabs, multi-doc, duplicate keys | CONFIG.md:71",
+      "line_hash": "970d58b76913",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/FACTS-claude.md:27",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/FACTS-claude.md:27",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| PL-17 | `developer:` map is per-machine, resolved by `afk-config.py resolve <key>`, never committed | CONFIG.md:107 | verified | CONFIG.md edit |",
+      "line_hash": "8df7c6807cf6",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/PROPOSAL-claude.md:180",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/PROPOSAL-claude.md:180",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- CAPABILITIES row `agent_transport`: optional; degradation = \"run `topology: native`\". A gate test under `hooks/tests/` runs the existing probes with no `team`/`agent`/`providers` keys and asserts by",
+      "line_hash": "367cd2a919d8",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/PROPOSAL-claude.md:187",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/PROPOSAL-claude.md:187",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| CONFIG.md / afk-config.py | blocks `agent:` (kind), `team:` (`topology`, `pattern`, `protected-branches`, `max-agents`), `providers:` (`prefer[]`, `cross_model`, `probe-ttl-hours`); enum rows per PL",
+      "line_hash": "ac32539bac80",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:docs/afk/agent-team-topology/research/PROPOSAL-codex.md:225",
+      "class": "B1",
+      "site": "docs/afk/agent-team-topology/research/PROPOSAL-codex.md:225",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| `CONFIG.md` / `afk-config.py` | Register independent topology, role pattern, transport, and provider policy fields |",
+      "line_hash": "797c89becb41",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/lib/config.sh:26",
+      "class": "B1",
+      "site": "hooks/lib/config.sh:26",
+      "disposition": "terminal",
+      "reason": "shell loader runs `export-shell` and evals every name (:28-30); no key list, a new key passes through",
+      "evidence": "script=\"$root/scripts/afk-config.py\"",
+      "line_hash": "8a3168576567",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/lib/config.sh:4",
+      "class": "B1",
+      "site": "hooks/lib/config.sh:4",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "# One reader owns the configuration file (scripts/afk-config.py). Gates never",
+      "line_hash": "2c5e1868df3a",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:hooks/lib/config.sh:40",
+      "class": "B1",
+      "site": "hooks/lib/config.sh:40",
+      "disposition": "terminal",
+      "reason": "afk_config_get: `get <dotted.key>`, no validation; a new key is readable by name",
+      "evidence": "\"$py\" \"$root/scripts/afk-config.py\" get \"$1\" 2>/dev/null",
+      "line_hash": "adb8c8947778",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:providers/CONFORMANCE.md:288",
+      "class": "B1",
+      "site": "providers/CONFORMANCE.md:288",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| Where the copy defaults live | `afk-config.py` `DEFAULTS` | the list is then in the configuration view every reader shares, so `afk-config.py get` and the shell view agree with the script. Per-kind ",
+      "line_hash": "8c93a78a0e79",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:providers/PARITY.md:133",
+      "class": "B1",
+      "site": "providers/PARITY.md:133",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "| scripts/afk-config.py | covered | `gate` — its own test directory is inside the 80 |",
+      "line_hash": "7c607389e213",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:10",
+      "class": "B1",
+      "site": "scripts/afk-config.py:10",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py export-shell",
+      "line_hash": "cc6498a38aba",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:1054",
+      "class": "B1",
+      "site": "scripts/afk-config.py:1054",
+      "disposition": "terminal",
+      "reason": "`validate` CLI exits 2 on any problem (:1076-1080); the gate a config with `transport` fails before the reader ships the key",
+      "evidence": "if command == \"validate\":",
+      "parent": "B1:scripts/afk-config.py:541",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:134"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:11",
+      "class": "B1",
+      "site": "scripts/afk-config.py:11",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py get <dotted.key>",
+      "line_hash": "dc347d691d1d",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:12",
+      "class": "B1",
+      "site": "scripts/afk-config.py:12",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py resolve <developerKey>",
+      "line_hash": "ad7ebb797d55",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:127",
+      "class": "B1",
+      "site": "scripts/afk-config.py:127",
+      "disposition": "terminal",
+      "reason": "DEFAULTS names no transport; an unset transport stays absent from load(), effective and export-shell",
+      "evidence": "DEFAULTS: dict = {",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:348",
+      "class": "B1",
+      "site": "scripts/afk-config.py:348",
+      "disposition": "terminal",
+      "reason": "load merges layers and never validates (:348-357); get/effective/export-shell/resolve pass any key through, so load-only consumers never refuse `transport`",
+      "evidence": "def load(root: Path | None = None) -> dict:",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:407",
+      "class": "B1",
+      "site": "scripts/afk-config.py:407",
+      "disposition": "irrelevant",
+      "reason": "normalize folds only the investigation block (:409-423)",
+      "evidence": "def normalize(config: dict) -> dict:",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:46",
+      "class": "B1",
+      "site": "scripts/afk-config.py:46",
+      "disposition": "traced",
+      "reason": "families are closed tuples (:46-49); no transport tuple exists, so `transport: <anything>` validates unless a tuple and a _choice call are added — unguarded for transport",
+      "evidence": "TRACKERS = (\"jira\", \"github-issues\", \"none\")",
+      "parent": "B1:scripts/afk-config.py:51",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:128"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:544",
+      "class": "B1",
+      "site": "scripts/afk-config.py:544",
+      "disposition": "terminal",
+      "reason": "_choice runs for tracker, forge, notes only (:544-546); the kind value of `transport` is not checked without a new call",
+      "evidence": "_choice(problems, config, \"tracker\", TRACKERS)",
+      "parent": "B1:scripts/afk-config.py:46",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:7",
+      "class": "B1",
+      "site": "scripts/afk-config.py:7",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py init [--force]",
+      "line_hash": "f5616f242a24",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:8",
+      "class": "B1",
+      "site": "scripts/afk-config.py:8",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py validate [FILE]",
+      "line_hash": "359a2bf43de6",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:834",
+      "class": "B1",
+      "site": "scripts/afk-config.py:834",
+      "disposition": "terminal",
+      "reason": "scaffold writes no transport key or kind block (:847-950)",
+      "evidence": "def scaffold(root: Path) -> str:",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config_init.py:52"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:852",
+      "class": "B1",
+      "site": "scripts/afk-config.py:852",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "\"# Scaffolded by `afk-config.py init`. Every `TODO` below is a value the\",",
+      "line_hash": "72d3f47d8dc1",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:9",
+      "class": "B1",
+      "site": "scripts/afk-config.py:9",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "python scripts/afk-config.py effective --json",
+      "line_hash": "a23f8fd6d301",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/afk-config.py:955",
+      "class": "B1",
+      "site": "scripts/afk-config.py:955",
+      "disposition": "terminal",
+      "reason": "init validates its own scaffold (:966-967); scaffold unchanged",
+      "evidence": "def init(root: Path, force: bool = False) -> tuple[Path, list[str]]:",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config_init.py:52"
+    },
+    {
+      "id": "B1:scripts/create-worktree:125",
+      "class": "B1",
+      "site": "scripts/create-worktree:125",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "[[ -f \"$PLUGIN_ROOT/scripts/afk-config.py\" ]] || return 0",
+      "line_hash": "594e16d7b43f",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/create-worktree:126",
+      "class": "B1",
+      "site": "scripts/create-worktree:126",
+      "disposition": "terminal",
+      "reason": "reads `git.branch-pattern` only",
+      "evidence": "BRANCH_PATTERN=\"$(cd \"$repo\" && \"$PY_BIN\" \"$PLUGIN_ROOT/scripts/afk-config.py\" get git.branch-pattern 2>/dev/null)\"",
+      "line_hash": "0cad8684aac6",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/create-worktree-smoke.sh"
+    },
+    {
+      "id": "B1:scripts/create-worktree:142",
+      "class": "B1",
+      "site": "scripts/create-worktree:142",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "# Read through afk-config.py, which owns discovery and the overlay rules, so this script",
+      "line_hash": "708387f20ca1",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/create-worktree:146",
+      "class": "B1",
+      "site": "scripts/create-worktree:146",
+      "disposition": "terminal",
+      "reason": "`resolve <developerKey>` (:157); developer keys only",
+      "evidence": "local script=\"$PLUGIN_ROOT/scripts/afk-config.py\"",
+      "line_hash": "ba6c7d60f61a",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/create-worktree-smoke.sh"
+    },
+    {
+      "id": "B1:scripts/create-worktree:150",
+      "class": "B1",
+      "site": "scripts/create-worktree:150",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "echo -e \"  ${YELLOW}No afk-config.py under $PLUGIN_ROOT — ignoring developer defaults; pass --parent/--idea-bin explicitly${NC}\" >&2",
+      "line_hash": "eba1f3be2bcc",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/create-worktree:195",
+      "class": "B1",
+      "site": "scripts/create-worktree:195",
+      "disposition": "terminal",
+      "reason": "reads worktree.copy through the shell view (:198-200); no validation",
+      "evidence": "if [[ -f \"$PLUGIN_ROOT/scripts/afk-config.py\" ]]; then",
+      "line_hash": "2f4aa7a25033",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/create-worktree-smoke.sh"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:237",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:237",
+      "disposition": "terminal",
+      "reason": "TYPOS is a hand list, not derived from CHILD_KEYS (it already omits report-issue); a new kind's typo refusal is unguarded",
+      "evidence": "TYPOS = {",
+      "parent": "B1:scripts/afk-config.py:586",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config.py:41",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config.py:41",
+      "disposition": "terminal",
+      "reason": "runs the CLI in tests; names no key-set member",
+      "evidence": "[sys.executable, str(SCRIPTS / \"afk-config.py\"), *args],",
+      "line_hash": "bcf9049e7dd5",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config_init.py:1",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config_init.py:1",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "\"\"\"`afk-config.py init` on three fixture repositories, plus the resolution order.",
+      "line_hash": "6f73337aaaec",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:scripts/tests/test_afk_config_init.py:51",
+      "class": "B1",
+      "site": "scripts/tests/test_afk_config_init.py:51",
+      "disposition": "terminal",
+      "reason": "reads DEFAULTS only as the merge base; DEFAULTS (afk-config.py:127-139) gains nothing unless a transport default is chosen",
+      "evidence": "config = ac.deep_merge(dict(ac.DEFAULTS), ac.parse(text, \"<scaffold>\"))",
+      "line_hash": "8df1b1c67754",
+      "parent": null,
+      "query_id": "q-faa55820",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config_init.py:52"
+    },
+    {
+      "id": "B1:scripts/tests/test_seed_map_binding.py:28",
+      "class": "B1",
+      "site": "scripts/tests/test_seed_map_binding.py:28",
+      "disposition": "terminal",
+      "reason": "loads the module for normalize_path only (:478)",
+      "evidence": "target = seed_map.plugin_root() / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "db5a03ea8738",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_seed_map_binding.py:28"
+    },
+    {
+      "id": "B1:scripts/tests/test_seed_map_binding.py:472",
+      "class": "B1",
+      "site": "scripts/tests/test_seed_map_binding.py:472",
+      "disposition": "terminal",
+      "reason": "counts `def normalize_path(`; key set not read",
+      "evidence": "config = seed_map.plugin_root() / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "2bc6d983ab32",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_seed_map_binding.py:472"
+    },
+    {
+      "id": "B1:skills/afk/bug/CONFIG.md:12",
+      "class": "B1",
+      "site": "skills/afk/bug/CONFIG.md:12",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" resolve trackerAssignee",
+      "line_hash": "4d35cdbe5eae",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/bug/CONFIG.md:7",
+      "class": "B1",
+      "site": "skills/afk/bug/CONFIG.md:7",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "Read them through `scripts/afk-config.py resolve`, never by opening a file and",
+      "line_hash": "25e28dff5973",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/bug/SKILL.md:54",
+      "class": "B1",
+      "site": "skills/afk/bug/SKILL.md:54",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "3. **Publish if config allows (S1 → S2).** Resolve `trackerAssignee` (K1) — `afk-config.py resolve trackerAssignee`, which covers the developer's own value and the repository's committed default; noth",
+      "line_hash": "70b376db84b0",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/MANIFEST.md:101",
+      "class": "B1",
+      "site": "skills/afk/setup/MANIFEST.md:101",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "AC=\"$AFK_PLUGIN_ROOT/scripts/afk-config.py\"",
+      "line_hash": "b0a2e454e289",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/MANIFEST.md:52",
+      "class": "B1",
+      "site": "skills/afk/setup/MANIFEST.md:52",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "known key succeeds. Resolve the tracker first (`scripts/afk-config.py get",
+      "line_hash": "b4f3d9f3a09d",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/MANIFEST.md:92",
+      "class": "B1",
+      "site": "skills/afk/setup/MANIFEST.md:92",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "a Store stub that exits 49 while real `python` works). Ask `afk-config.py",
+      "line_hash": "ff7944900180",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/SKILL.md:33",
+      "class": "B1",
+      "site": "skills/afk/setup/SKILL.md:33",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- run `python \"$AFK_PLUGIN_ROOT/scripts/afk-config.py\" init` — it writes a",
+      "line_hash": "b43793669912",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/SKILL.md:41",
+      "class": "B1",
+      "site": "skills/afk/setup/SKILL.md:41",
+      "disposition": "irrelevant",
+      "reason": "a document or design record naming the reader's file path; runs no code and lists no key set",
+      "evidence": "- re-run `afk-config.py validate` after their edits and fix what it names;",
+      "line_hash": "beae8a1f1542",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:106",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:106",
+      "disposition": "terminal",
+      "reason": "runs `resolve <developerKey>` only",
+      "evidence": "script = Path(__file__).resolve().parents[4] / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "45edb3340fc2",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_secrets_repo_root.py"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:228",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:228",
+      "disposition": "terminal",
+      "reason": "config_kind called for tracker (:228) and forge (:229) only",
+      "evidence": "TRACKER_KIND = config_kind(\"tracker\", REPO)",
+      "parent": "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_secrets_repo_root.py"
+    },
+    {
+      "id": "B1:skills/afk/setup/scripts/setup_secrets.py:44",
+      "class": "B1",
+      "site": "skills/afk/setup/scripts/setup_secrets.py:44",
+      "disposition": "terminal",
+      "reason": "config_kind path; same site as the seed node at :45",
+      "evidence": "path = PLUGIN_ROOT / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "de2b3cbf2eee",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_setup_secrets_repo_root.py"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/contract.py:170",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/contract.py:170",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "The rule itself lives with the config reader (`scripts/afk-config.py`,",
+      "line_hash": "9714cba9ab18",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/contract.py:193",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/contract.py:193",
+      "disposition": "terminal",
+      "reason": "imports the reader for normalize_path only (contract.py:177)",
+      "evidence": "target = root / \"scripts\" / \"afk-config.py\"",
+      "line_hash": "440e4f2d336f",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_seed_map_binding.py:472"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/contract.py:199",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/contract.py:199",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "raise ImportError(\"cannot locate scripts/afk-config.py; set AFK_PLUGIN_ROOT\")",
+      "line_hash": "ce44e344e1fd",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:188",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:188",
+      "disposition": "terminal",
+      "reason": "locates the plugin root by the file's presence",
+      "evidence": "if (candidate / \"scripts\" / \"afk-config.py\").is_file():",
+      "line_hash": "6cce842ab1ba",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:23",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:23",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "`scripts/afk-config.py` (the one reader). Absent block: the generic defaults",
+      "line_hash": "585c23c8af5b",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:285",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:285",
+      "disposition": "terminal",
+      "reason": "import failure message",
+      "evidence": "raise ConfigError(f\"cannot import {root / 'scripts' / 'afk-config.py'}\")",
+      "line_hash": "1d6289bf6ccf",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:299",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:299",
+      "disposition": "terminal",
+      "reason": "reads DEFAULTS only as the merge base; DEFAULTS (afk-config.py:127-139) gains nothing unless a transport default is chosen",
+      "evidence": "config = module.deep_merge(dict(module.DEFAULTS), module.parse(text, str(path)))",
+      "line_hash": "118a36db4e96",
+      "parent": null,
+      "query_id": "q-faa55820",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/investigate/scripts/seed_map.py:301",
+      "class": "B1",
+      "site": "skills/utils/investigate/scripts/seed_map.py:301",
+      "disposition": "terminal",
+      "reason": "validate(config, repo); problems raise ConfigError (:302-303), so the seed refuses a config the reader does not yet accept",
+      "evidence": "problems = module.validate(config, repo)",
+      "parent": "B1:skills/utils/investigate/scripts/seed_map.py:282",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/report-issue/scripts/collect_env.sh:29",
+      "class": "B1",
+      "site": "skills/utils/report-issue/scripts/collect_env.sh:29",
+      "disposition": "terminal",
+      "reason": "`get <key>` without validation; named keys only",
+      "evidence": "cfg() { \"$py\" \"$root/scripts/afk-config.py\" get \"$1\" 2>/dev/null || true; }",
+      "line_hash": "0b13e9fcb00e",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B1:skills/utils/report-issue/scripts/publish.sh:104",
+      "class": "B1",
+      "site": "skills/utils/report-issue/scripts/publish.sh:104",
+      "disposition": "terminal",
+      "reason": "runs `validate` and sets cfg_ok=0 on failure (:104-107); a config carrying `transport` against an un-updated reader stops every cfg() value, so publish degrades — deployment order, reader first",
+      "evidence": "\"$py\" \"$root/scripts/afk-config.py\" validate >/dev/null 2>\"$tmp/config.err\" || cfg_ok=0",
+      "line_hash": "530125870b05",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_report_issue.py"
+    },
+    {
+      "id": "B1:skills/utils/report-issue/scripts/publish.sh:108",
+      "class": "B1",
+      "site": "skills/utils/report-issue/scripts/publish.sh:108",
+      "disposition": "terminal",
+      "reason": "`get <key>`, gated on cfg_ok",
+      "evidence": "value=$(\"$py\" \"$root/scripts/afk-config.py\" get \"$1\" 2>>\"$tmp/config.err\"); rc=$?",
+      "line_hash": "4c4f9b57193e",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_report_issue.py"
+    },
+    {
+      "id": "B1:skills/utils/report-issue/scripts/publish.sh:14",
+      "class": "B1",
+      "site": "skills/utils/report-issue/scripts/publish.sh:14",
+      "disposition": "irrelevant",
+      "reason": "a comment, docstring or usage line naming the reader's file path; reads no key",
+      "evidence": "#   Config:   `afk-config.py validate`. Unreadable or invalid -> an agent run",
+      "line_hash": "39627a0ea6a8",
+      "parent": null,
+      "query_id": "q-3a313c41",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B5:hooks/lib/config.sh:30",
+      "class": "B5",
+      "site": "hooks/lib/config.sh:30",
+      "disposition": "terminal",
+      "reason": "evals the export into the gate shell; :17 skips the export when AFK_CFG_LOADED=1, so a probe that set the marker would suppress it (GRILL-LOG.md:252 settles that it must not)",
+      "evidence": "eval \"$exported\"",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B5:scripts/afk-config.py:1001",
+      "class": "B5",
+      "site": "scripts/afk-config.py:1001",
+      "disposition": "terminal",
+      "reason": "export_shell flattens the whole merged config (:1003-1004); no key list, so AFK_CFG_TRANSPORT is exported whenever any layer sets it",
+      "evidence": "def export_shell(config: dict) -> str:",
+      "parent": "B5:scripts/afk-config.py:974",
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196"
+    },
+    {
+      "id": "B5:scripts/afk-config.py:1086",
+      "class": "B5",
+      "site": "scripts/afk-config.py:1086",
+      "disposition": "terminal",
+      "reason": "`effective` dumps the whole dict as sorted JSON; new keys appear with no edit",
+      "evidence": "sys.stdout.write(json.dumps(config, indent=2, sort_keys=True) + \"\\n\")",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196"
+    },
+    {
+      "id": "B5:scripts/afk-config.py:1115",
+      "class": "B5",
+      "site": "scripts/afk-config.py:1115",
+      "disposition": "terminal",
+      "reason": "`get <dotted.key>` walks any key; `get transport` answers the kind",
+      "evidence": "value = get(config, rest[0])",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196"
+    },
+    {
+      "id": "B5:scripts/afk-config.py:150",
+      "class": "B5",
+      "site": "scripts/afk-config.py:150",
+      "disposition": "terminal",
+      "reason": "key grammar [A-Za-z0-9_.-]+ accepts `transport` and a kind name such as `herdr` or `1devtool`",
+      "evidence": "_KEY = re.compile(r\"^(?P<key>[A-Za-z0-9_.-]+)\\s*:(?:\\s+(?P<value>.*))?$\")",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B5:scripts/afk-config.py:974",
+      "class": "B5",
+      "site": "scripts/afk-config.py:974",
+      "disposition": "traced",
+      "reason": "shell_name upper-cases and folds every non-alphanumeric to `_`; `transport` -> AFK_CFG_TRANSPORT, `<kind>.<key>` -> AFK_CFG_<KIND>_<KEY>",
+      "evidence": "def shell_name(path: str) -> str:",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:196"
+    },
+    {
+      "id": "B8:hooks/lib/config.sh:16",
+      "class": "B8",
+      "site": "hooks/lib/config.sh:16",
+      "disposition": "terminal",
+      "reason": "afk_config_load reads only AFK_CFG_LOADED, AFK_PLUGIN_ROOT by name; no AFK_CFG_TRANSPORT reader",
+      "evidence": "afk_config_load() {",
+      "parent": null,
+      "query_id": null,
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B4:adapters/forge/gitlab/forge.sh:395",
+      "class": "B4",
+      "site": "adapters/forge/gitlab/forge.sh:395",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "notes = d.get(\"notes\") or [] || `notes` is a GitLab merge-request JSON field, not the config family",
+      "line_hash": "b6000e86516f",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:adapters/forge/gitlab/forge.sh:419",
+      "class": "B4",
+      "site": "adapters/forge/gitlab/forge.sh:419",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "notes = d.get(\"notes\") or [] || `notes` is a GitLab merge-request JSON field, not the config family",
+      "line_hash": "a2fe52353d15",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:scripts/afk-config.py:548",
+      "class": "B4",
+      "site": "scripts/afk-config.py:548",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:286",
+      "evidence": "gates = config.get(\"build-gates\") || build-gates list check in validate(); a scalar `transport` family needs its own enum check (see B4:scripts/afk-config.py:544)",
+      "line_hash": "df77e7d7e036",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:scripts/tests/test_afk_config_init.py:88",
+      "class": "B4",
+      "site": "scripts/tests/test_afk_config_init.py:88",
+      "disposition": "irrelevant",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "assert \"build-gates\" not in config or config.get(\"build-gates\") == [] || scaffold test on build-gates only",
+      "line_hash": "38fa50466561",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:skills/utils/report-issue/scripts/collect_env.sh:43",
+      "class": "B4",
+      "site": "skills/utils/report-issue/scripts/collect_env.sh:43",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "skills/utils/report-issue/scripts/tests/publish-smoke.sh:169",
+      "evidence": "ENV_TRACKER=\"$(cfg tracker)\" \\ || hand-kept family list for the issue environment block (collect_env.sh:43-46, 69-72); a new `transport` family is silently absent from filed issues until this list and ISSUE-TEMPLATE.md:38 gain it; nothing breaks",
+      "line_hash": "81852dbfe770",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:skills/utils/report-issue/scripts/collect_env.sh:44",
+      "class": "B4",
+      "site": "skills/utils/report-issue/scripts/collect_env.sh:44",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "skills/utils/report-issue/scripts/tests/publish-smoke.sh:169",
+      "evidence": "ENV_FORGE=\"$(cfg forge)\" \\ || hand-kept family list for the issue environment block (collect_env.sh:43-46, 69-72); a new `transport` family is silently absent from filed issues until this list and ISSUE-TEMPLATE.md:38 gain it; nothing breaks",
+      "line_hash": "c026f341cff0",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:skills/utils/report-issue/scripts/collect_env.sh:45",
+      "class": "B4",
+      "site": "skills/utils/report-issue/scripts/collect_env.sh:45",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "skills/utils/report-issue/scripts/tests/publish-smoke.sh:169",
+      "evidence": "ENV_NOTES=\"$(cfg notes)\" \\ || hand-kept family list for the issue environment block (collect_env.sh:43-46, 69-72); a new `transport` family is silently absent from filed issues until this list and ISSUE-TEMPLATE.md:38 gain it; nothing breaks",
+      "line_hash": "1a17f634d517",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B4:skills/utils/report-issue/scripts/collect_env.sh:46",
+      "class": "B4",
+      "site": "skills/utils/report-issue/scripts/collect_env.sh:46",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "skills/utils/report-issue/scripts/tests/publish-smoke.sh:169",
+      "evidence": "ENV_BUILD_GATES=\"$(cfg build-gates)\" \\ || hand-kept family list for the issue environment block (collect_env.sh:43-46, 69-72); a new `transport` family is silently absent from filed issues until this list and ISSUE-TEMPLATE.md:38 gain it; nothing breaks",
+      "line_hash": "043989d6c936",
+      "parent": null,
+      "query_id": "q-db5793c5"
+    },
+    {
+      "id": "B2:scripts/afk-config.py:105",
+      "class": "B2",
+      "site": "scripts/afk-config.py:105",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:286",
+      "evidence": "scripts/afk-config.py:105 `CHILD_KEYS: dict[str, set[str]] = {` || read: CHILD_KEYS is a module-level dict literal; TOP_LEVEL (afk-config.py:51) a set literal; no class, subtype, parameter or override carries either; the only in-module readers are validate() at :541 and :586, direct iteration, no dispatch. B2 zero confirmed by reading",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B3:hooks/lib/adapter.sh:32",
+      "class": "B3",
+      "site": "hooks/lib/adapter.sh:32",
+      "disposition": "traced",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "hooks/lib/adapter.sh:32 `name=\"AFK_CFG_$(printf '%s' \"$family\" | tr '[:lower:]-' '[:upper:]_')\"` || read: afk_adapter_kind builds AFK_CFG_<FAMILY> from any family name (tr lower/- to upper/_) and reads it indirectly (:33); family-agnostic, so `transport` resolves to AFK_CFG_TRANSPORT with no edit. The value comes from export-shell (config.sh:29), which calls load() without validate() (afk-config.py:1084-1090), so the variable exists even under an old reader",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B3:hooks/lib/adapter.sh:45",
+      "class": "B3",
+      "site": "hooks/lib/adapter.sh:45",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "hooks/lib/adapter.sh:45 `dir=\"$(afk_adapter_root)/adapters/$family/$kind\"` || read: afk_adapter_dir resolves adapters/<family>/<kind>; for `transport` it exits 2 (\"no kind configured\", :40-43) when the key is unset, and exits 2 (\"unknown transport adapter\", :46-49) until adapters/transport/<kind>/ ships. No parallel edit to adapter.sh; the build-gate branch (:120-186) is list-specific and untouched",
+      "parent": "B3:hooks/lib/adapter.sh:32",
+      "query_id": null
+    },
+    {
+      "id": "B3:scripts/tracker_api.py:33",
+      "class": "B3",
+      "site": "scripts/tracker_api.py:33",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_publish_bug.py:41",
+      "evidence": "scripts/tracker_api.py:33 `return str(config.get(config.load(root or Path.cwd()), \"tracker\") or \"none\")` || read: configured_kind reads only `tracker`; the path adapters/tracker/<kind>/api.py (:39) is tracker-hard-coded; a `transport` key never reaches it",
+      "parent": "B4:scripts/tracker_api.py:32",
+      "query_id": null
+    },
+    {
+      "id": "B3:hooks/lib/adapter_registry_check.py:45",
+      "class": "B3",
+      "site": "hooks/lib/adapter_registry_check.py:45",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "hooks/lib/adapter_registry_check.py:45 `for family_dir in kinds(adapters):` || read: check E derives families from adapters/ subdirectories (:41-48), never from TOP_LEVEL/CHILD_KEYS, so the reader change alone is silently ignored. Once adapters/transport/<kind>/ exists it reports \"`transport` has no enum row in CONFIG.md\" (:101-102) unless CONFIG.md gains a `| `transport` | `<kind>` ... |` row (family_enum :137-145), and reports each adapter.json configKeys entry absent from CONFIG.md (:107-110). Run by hooks/skill-registry-gate.sh:194 (a Stop gate, not a test)",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B10:mcp-servers/tracker/server.py:63",
+      "class": "B10",
+      "site": "mcp-servers/tracker/server.py:63",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded",
+      "evidence": "mcp-servers/tracker/server.py:63 `kind = config.get(config.load(Path.cwd()), \"tracker\") or \"none\"` || read: the MCP surface registers nine fixed tracker_* tools (:81-152) and selects the kind from `tracker` only (:63-64); a new family key adds no tool and changes no route",
+      "parent": "B4:mcp-servers/tracker/server.py:62",
+      "query_id": null
+    },
+    {
+      "id": "B4:scripts/afk-config.py:541",
+      "class": "B4",
+      "site": "scripts/afk-config.py:541",
+      "disposition": "traced",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:133",
+      "evidence": "scripts/afk-config.py:541 `for key in sorted(set(config) - TOP_LEVEL):` || read: validate() reports every key not in TOP_LEVEL as \"unknown top-level key\"; a config carrying `transport:` or the kind block fails `afk-config.py validate` (exit 2, :1076-1080) until both names join TOP_LEVEL. Breaks config files, not code: the deployment-order edge",
+      "parent": null,
+      "query_id": null
+    },
+    {
+      "id": "B4:scripts/afk-config.py:586",
+      "class": "B4",
+      "site": "scripts/afk-config.py:586",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:286",
+      "evidence": "scripts/afk-config.py:586 `for name, allowed in CHILD_KEYS.items():` || read: the CHILD_KEYS loop requires the kind block to be a mapping (:590-592) and refuses unknown child keys (:593-597); `transport` itself stays out of CHILD_KEYS because it is a scalar; the kind entry is validated with no further code edit",
+      "parent": "B4:scripts/afk-config.py:541",
+      "query_id": null
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:218",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:218",
+      "evidence": "  - The configuration reader is not generic. An unrecognised top-level key is REJECTED rather than passed through: scripts/afk-config.py:541-542 records it as an unknown top-level key and validation exits non-zero. So a transport key with no code change fails configuration validation outright. Making it legal needs four edits in that one file: the key added to the top-level set at :51-57, a kinds tuple beside the existing four at :46-49, a validation call following the pattern at :544-559, and a child-keys entry at :105-125.",
+      "line_hash": "873d30a3cf82",
+      "parent": null,
+      "query_id": "q-d7b245be",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:125",
+      "evidence": "- Locked: L2 Transport is a fifth adapter family, one kind per transport. decided-by agent R-1 · accepted 2026-09-17 · repo: hooks/lib/adapter_registry_check.py:41-46 derives families from the directory listing and hooks/lib/adapter.sh:37-52 takes any family string, so only scripts/afk-config.py and CONFIG.md change · reverse: collapse adapters/transport into one module and delete the config key.",
+      "line_hash": "5d6b8eb178f9",
+      "parent": null,
+      "query_id": "q-a8e1a025",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B13:docs/afk/agent-team-topology/GRILL-LOG.md:219",
+      "class": "B13",
+      "site": "docs/afk/agent-team-topology/GRILL-LOG.md:219",
+      "evidence": "  - The schema table in CONFIG.md:87-90 needs a row, and this one has teeth: hooks/lib/adapter_registry_check.py:131-146 parses that table by literal family name, and without a row every kind under the new family fails the registry check at :101-102 with an explicit no-enum-row message.",
+      "line_hash": "ef45337c591a",
+      "parent": null,
+      "query_id": "q-a8e1a025",
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "hooks/skill-registry-gate.sh:194"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:124",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:124",
+      "evidence": "def test_self_config_validates():",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:124"
+    },
+    {
+      "id": "B12:scripts/tests/test_afk_config.py:118",
+      "class": "B12",
+      "site": "scripts/tests/test_afk_config.py:118",
+      "evidence": "def test_shipped_samples_validate(tmp_path):",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "scripts/tests/test_afk_config.py:118"
+    },
+    {
+      "id": "B12:hooks/lib/adapter_registry_check.py:101",
+      "class": "B12",
+      "site": "hooks/lib/adapter_registry_check.py:101",
+      "evidence": "            if enum is None:",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "hooks/skill-registry-gate.sh:194"
+    },
+    {
+      "id": "B13:CONFIG.md:91",
+      "class": "B13",
+      "site": "CONFIG.md:91",
+      "evidence": "| `jira` | map | `project`, `issue-types`, `transitions`, `credentials-env` |",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "breaks",
+      "pinned_by": "scripts/tests/test_afk_config.py:286"
+    },
+    {
+      "id": "B13:ADAPTERS.md:143",
+      "class": "B13",
+      "site": "ADAPTERS.md:143",
+      "evidence": "2. Add the kind to its enum in `CONFIG.md` and in `scripts/afk-config.py`.",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B6:CLAUDE.md:11",
+      "class": "B6",
+      "site": "CLAUDE.md:11",
+      "evidence": "No package build step. Edit the shared source, run the hook tests and gates, then refresh the enabled plugin per `PROVIDERS.md`.",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B6:CLAUDE.md:37",
+      "class": "B6",
+      "site": "CLAUDE.md:37",
+      "evidence": "- Do not add generators, mirrors, or generated-and-committed files.",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    },
+    {
+      "id": "B7:CLAUDE.md:11",
+      "class": "B7",
+      "site": "CLAUDE.md:11",
+      "evidence": "No package build step. Edit the shared source, run the hook tests and gates, then refresh the enabled plugin per `PROVIDERS.md`.",
+      "parent": null,
+      "query_id": null,
+      "disposition": "terminal",
+      "impact_verdict": "unchanged",
+      "pinned_by": "unguarded"
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-c0e74b26",
+      "command": "git grep -n -I -E -e TOP_LEVEL -e '\"TOP_LEVEL\"' -e CHILD_KEYS -e '\"CHILD_KEYS\"'",
+      "universe": "tracked text files, binary excluded",
+      "count": 10,
+      "lines": 7,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-946531b5",
+      "command": "git grep -n -I -E -i --untracked -e TOP_LEVEL -e '\"TOP_LEVEL\"' -e CHILD_KEYS -e '\"CHILD_KEYS\"'",
+      "universe": "case-blind pass over tracked and untracked files, not ignored",
+      "count": 4,
+      "lines": 10,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-19271810",
+      "command": "git grep -n -I -E --untracked -e '(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_])' -e '(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_])'",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 10,
+      "lines": 8,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-1f35dbf4",
+      "command": "git grep -n -I -E -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])TOP_LEVEL($|[^[:alnum:]_])|(^|[^[:alnum:]_])CHILD_KEYS($|[^[:alnum:]_])|(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_])|(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_]))' -e '\\(\\s*(TOP_LEVEL|CHILD_KEYS|afk_config|afk_config)\\s+\\w'",
+      "universe": "tracked files",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-16d5bf85",
+      "command": "git grep -n -I -E -i -e '(extends|implements)[^;{]*((^|[^[:alnum:]_])TOP_LEVEL($|[^[:alnum:]_])|(^|[^[:alnum:]_])CHILD_KEYS($|[^[:alnum:]_])|(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_])|(^|[^[:alnum:]_])afk_config($|[^[:alnum:]_]))' -e '\\(\\s*(TOP_LEVEL|CHILD_KEYS|afk_config|afk_config)\\s+\\w'",
+      "universe": "tracked files, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-6482f445",
+      "command": "git grep -n -I -E -e '[\\\"'\"'\"'](TOP_LEVEL|CHILD_KEYS|afk_config|afk_config)[\\\"'\"'\"']'",
+      "universe": "tracked files",
+      "count": 8,
+      "lines": 8,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-288f3dd8",
+      "command": "git grep -n -I -E -i -e '[\\\"'\"'\"'](TOP_LEVEL|CHILD_KEYS|afk_config|afk_config)[\\\"'\"'\"']'",
+      "universe": "tracked files, case-blind",
+      "count": 7,
+      "lines": 15,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-b5463a97",
+      "command": "git grep -n -I -E -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- adapters/tracker/github-issues/api.py docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.html docs/afk/agent-team-topology/grill-solution.round.json hooks/run-hook.py mcp-servers/tracker/server.py scripts/afk-config.py scripts/tests/test_afk_config.py scripts/tests/test_afk_config_init.py scripts/tracker_api.py skills/afk/setup/scripts/setup_secrets.py skills/utils/investigate/scripts/seed_map.py",
+      "universe": "files that name the subject",
+      "count": 3,
+      "lines": 3,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-627ecc7a",
+      "command": "git grep -n -I -E -i -e '@\\w*Listener\\b' -e '@Scheduled\\b' -e '@\\w*Handler\\b' -- adapters/tracker/github-issues/api.py docs/afk/agent-team-topology/GRILL-LOG.md docs/afk/agent-team-topology/grill-solution.html docs/afk/agent-team-topology/grill-solution.round.json hooks/run-hook.py mcp-servers/tracker/server.py scripts/afk-config.py scripts/tests/test_afk_config.py scripts/tests/test_afk_config_init.py scripts/tracker_api.py skills/afk/setup/scripts/setup_secrets.py skills/utils/investigate/scripts/seed_map.py",
+      "universe": "files that name the subject, case-blind",
+      "count": 0,
+      "lines": 3,
+      "evidence": null,
+      "origin": "seed"
+    },
+    {
+      "id": "q-b820aed0",
+      "command": "git grep -n -I -E -e '(^|[^[:alnum:]_])(TRACKERS|FORGES|NOTES|BUILD_GATES)($|[^[:alnum:]_])' -- scripts hooks mcp-servers skills",
+      "universe": "tracked text files under scripts, hooks, mcp-servers, skills",
+      "count": 9,
+      "lines": 9,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-aef2ba5e",
+      "command": "git grep -n -I -E -e 'unknown (top-level )?key' -- scripts hooks skills mcp-servers adapters",
+      "universe": "tracked text files under scripts, hooks, skills, mcp-servers, adapters",
+      "count": 7,
+      "lines": 7,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-3f2ae8cc",
+      "command": "git grep -n -I -E -e 'AFK_CFG_(TRACKER|FORGE|NOTES|BUILD_GATES)($|[^[:alnum:]_])' -e 'AFK_CFG_\\$' -e '\"AFK_CFG_\"'",
+      "universe": "tracked text files, binary excluded",
+      "count": 3,
+      "lines": 3,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-fb10461d",
+      "command": "git grep -n -I -E -e '^\\| `(tracker|forge|notes|build-gates)` \\|' -- CONFIG.md",
+      "universe": "CONFIG.md",
+      "count": 4,
+      "lines": 4,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-71dd50e1",
+      "command": "git grep -n -I -E -e '^(tracker|forge|notes|build-gates):' -- .afk/config.yaml scripts/tests/samples/monorepo-config.yaml",
+      "universe": "tracked configuration files: .afk/config.yaml, scripts/tests/samples/monorepo-config.yaml",
+      "count": 7,
+      "lines": 7,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-e8920c2b",
+      "command": "git grep -n -I -E -e 'four adapter families'",
+      "universe": "tracked text files, binary excluded",
+      "count": 2,
+      "lines": 2,
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/counter-searches.json",
+      "origin": "tracer"
+    },
+    {
+      "id": "q-09929c09",
+      "command": "git grep -n -I -E -i --untracked -e transport -e herdr -e 1devtool -e onedevtool -- .afk/config.yaml hooks/lib/config.sh scripts/tests/samples/monorepo-config.yaml .github/workflows/release-gate.yml",
+      "universe": "configuration files (.afk/config.yaml, hooks/lib/config.sh, the sample config, the release workflow), tracked and untracked, case-blind",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "tracer"
+    },
+    {
+      "id": "q-fcf30224",
+      "command": "git grep -n -I -E --untracked -e AFK_CFG_TRANSPORT",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 0,
+      "lines": 0,
+      "evidence": null,
+      "origin": "tracer"
+    },
+    {
+      "id": "q-faa55820",
+      "command": "git grep -n -I -E --untracked -e '[.](TRACKERS|FORGES|NOTES|BUILD_GATES|DEFAULTS)([^[:alnum:]_]|$)'",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 2,
+      "lines": 2,
+      "evidence": null,
+      "origin": "tracer"
+    },
+    {
+      "id": "q-3a313c41",
+      "command": "git grep -n -I -E --untracked -e 'afk-config[.]py'",
+      "universe": "tracked and untracked text files, not ignored",
+      "count": 78,
+      "lines": 87,
+      "evidence": null,
+      "origin": "tracer"
+    },
+    {
+      "id": "q-db5793c5",
+      "command": "git grep -n -I -E -e 'cfg (tracker|forge|notes|build-gates)\\)' -e 'get\\([^)]*[\"\\'\"'\"'](tracker|forge|notes|build-gates)[\"\\'\"'\"']'",
+      "universe": "tracked text files, binary excluded",
+      "count": 8,
+      "lines": 8,
+      "origin": "tracer",
+      "evidence": null
+    },
+    {
+      "id": "q-d7b245be",
+      "command": "git grep -n -I -E -e 'unknown top-level key' -e 'unknown key'",
+      "universe": "tracked text files, binary excluded",
+      "count": 2,
+      "lines": 12,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/p3-S1.out"
+    },
+    {
+      "id": "q-a8e1a025",
+      "command": "git grep -n -I -E -e adapter_registry_check",
+      "universe": "tracked text files, binary excluded",
+      "count": 2,
+      "lines": 5,
+      "origin": "tracer",
+      "evidence": "C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/p3-S2.out"
+    }
+  ],
+  "claims": [
+    {
+      "id": "c-f76757ad",
+      "text": "the hit set holds every reference to TOP_LEVEL, CHILD_KEYS over the name forms this pass searched",
+      "kind": "unverified",
+      "load_bearing": false,
+      "supporting_nodes": [],
+      "citations": []
+    },
+    {
+      "id": "c-52a8085b",
+      "text": "Adding transport and a kind-named block to TOP_LEVEL, and a kind entry to CHILD_KEYS, breaks no existing configuration: refusal is computed as set(config) - TOP_LEVEL and per CHILD_KEYS entry at run time, and both shipped configs set no transport key",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/afk-config.py:542",
+        "B4:scripts/afk-config.py:595",
+        "B8:.afk/config.yaml:6",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7"
+      ],
+      "citations": [
+        "scripts/afk-config.py:541",
+        "scripts/afk-config.py:586"
+      ]
+    },
+    {
+      "id": "c-f2c19d5c",
+      "text": "Without a transport kinds tuple and a _choice call, validate accepts any transport value; the only kind check is the dispatcher's missing-directory exit at run time",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/afk-config.py:544",
+        "B4:hooks/lib/adapter.sh:45"
+      ],
+      "citations": [
+        "scripts/afk-config.py:364",
+        "hooks/lib/adapter.sh:46"
+      ]
+    },
+    {
+      "id": "c-b07a64ff",
+      "text": "Dispatch and the shell view need no edit: AFK_CFG_TRANSPORT and AFK_CFG_<KIND>_* come from generic flattening, and the dispatcher builds the variable name from the family string",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B8:hooks/lib/adapter.sh:32",
+        "B8:scripts/afk-config.py:975",
+        "B8:scripts/afk-config.py:1001"
+      ],
+      "citations": [
+        "hooks/lib/adapter.sh:32",
+        "scripts/afk-config.py:975"
+      ]
+    },
+    {
+      "id": "c-95d8629b",
+      "text": "Deployment order: the reader change (TOP_LEVEL, CHILD_KEYS, CONFIG.md row) ships before or with any configuration carrying transport; an older reader refuses it only on validate, while effective, export-shell and get still pass it through",
+      "kind": "inference",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:scripts/afk-config.py:1084",
+        "B4:scripts/afk-config.py:542"
+      ],
+      "citations": [
+        "scripts/afk-config.py:1084",
+        "scripts/afk-config.py:542"
+      ]
+    },
+    {
+      "id": "c-ffe917e8",
+      "text": "TOP_LEVEL has no test tying it to CONFIG.md rows; only CHILD_KEYS is drift-tested, and the registry check reads CONFIG.md family rows only once an adapters/transport directory exists",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:hooks/lib/adapter_registry_check.py:45",
+        "B13:CONFIG.md:87"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:267",
+        "hooks/lib/adapter_registry_check.py:102"
+      ]
+    },
+    {
+      "id": "c-09abb3f8",
+      "text": "The drift test at scripts/tests/test_afk_config.py:267-290 goes red when CHILD_KEYS gains a kind entry and CONFIG.md's schema table gains no `map` row listing exactly that kind's child keys.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:scripts/tests/test_afk_config.py:286",
+        "B1:scripts/tests/test_afk_config.py:268",
+        "B1:CONFIG.md:91"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:286-290",
+        "CONFIG.md:91-107"
+      ]
+    },
+    {
+      "id": "c-40a00261",
+      "text": "Deployment order: the reader ships first. A config carrying `transport` against the current reader fails validate (scripts/afk-config.py:541-542), which stops the seed map (seed_map.py:301-303) and makes report-issue publish.sh drop every config value (publish.sh:104-107); load, get, effective and export-shell never validate and pass the key through.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:scripts/afk-config.py:541",
+        "B1:skills/utils/investigate/scripts/seed_map.py:301",
+        "B1:skills/utils/report-issue/scripts/publish.sh:104",
+        "B1:scripts/afk-config.py:348"
+      ],
+      "citations": [
+        "scripts/afk-config.py:541-542",
+        "scripts/afk-config.py:348-357",
+        "skills/utils/investigate/scripts/seed_map.py:301-303",
+        "skills/utils/report-issue/scripts/publish.sh:104-107"
+      ]
+    },
+    {
+      "id": "c-ee2f67bc",
+      "text": "Adding `transport` to TOP_LEVEL alone leaves its kind value unchecked: the families are closed tuples (scripts/afk-config.py:46-49) checked by _choice for tracker, forge and notes only (:544-546), and no test pins a transport kind.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:scripts/afk-config.py:46",
+        "B1:scripts/afk-config.py:544"
+      ],
+      "citations": [
+        "scripts/afk-config.py:46-49",
+        "scripts/afk-config.py:544-546"
+      ]
+    },
+    {
+      "id": "c-17acd1cb",
+      "text": "The shell view is generic: export_shell flattens every merged key, so AFK_CFG_TRANSPORT and AFK_CFG_<KIND>_<KEY> are exported whenever a layer sets them, and no file in the repository reads AFK_CFG_TRANSPORT today.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B5:scripts/afk-config.py:1001",
+        "B5:scripts/afk-config.py:974"
+      ],
+      "citations": [
+        "scripts/afk-config.py:974-1006",
+        "git grep -n -I -E --untracked -e AFK_CFG_TRANSPORT -> exit 1, 0 lines"
+      ]
+    },
+    {
+      "id": "c-1a75a82e",
+      "text": "No importer of the reader reads TOP_LEVEL or CHILD_KEYS: each reads one named key (github-issues, repo-hooks, tracker, git.branch-pattern, developer keys, worktree.copy, report-issue.*) or normalize_path, so none changes when the sets grow.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B1:adapters/tracker/github-issues/api.py:71",
+        "B1:hooks/run-hook.py:163",
+        "B1:mcp-servers/tracker/server.py:62",
+        "B1:scripts/tracker_api.py:32",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B1:skills/utils/investigate/scripts/contract.py:193",
+        "B1:scripts/create-worktree:126"
+      ],
+      "citations": [
+        "adapters/tracker/github-issues/api.py:74",
+        "hooks/run-hook.py:167",
+        "mcp-servers/tracker/server.py:63",
+        "scripts/tracker_api.py:33",
+        "skills/utils/investigate/scripts/contract.py:177"
+      ]
+    },
+    {
+      "id": "c-3e8ab19d",
+      "text": "No configuration file in the repository names `transport` or a candidate kind block (herdr, 1devtool, onedevtool), so the new keys collide with nothing configured here.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B8:.afk/config.yaml:6",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7",
+        "B8:hooks/lib/config.sh:16"
+      ],
+      "citations": [
+        "git grep -n -I -E -i --untracked -e transport -e herdr -e 1devtool -e onedevtool -- .afk/config.yaml hooks/lib/config.sh scripts/tests/samples/monorepo-config.yaml .github/workflows/release-gate.yml -> exit 1, 0 lines"
+      ]
+    },
+    {
+      "id": "c-6b503444",
+      "text": "The typo table at scripts/tests/test_afk_config.py:237 is a hand list, so a new kind block's unknown-child-key refusal is unguarded unless the table gains a row.",
+      "kind": "inference",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B1:scripts/tests/test_afk_config.py:237"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:237-253"
+      ]
+    },
+    {
+      "id": "c-21624aff",
+      "text": "A developer's ~/.afk/config.yaml or .afk/config.local.yaml could already carry a `transport` key; those files are outside the repository and were not read.",
+      "kind": "unverified",
+      "load_bearing": false,
+      "supporting_nodes": [],
+      "citations": []
+    },
+    {
+      "id": "c-252f13b7",
+      "text": "Adapter dispatch in hooks/lib/adapter.sh is family-agnostic: a `transport` family key resolves through AFK_CFG_TRANSPORT and adapters/transport/<kind>/ with no edit to adapter.sh",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B3:hooks/lib/adapter.sh:32",
+        "B3:hooks/lib/adapter.sh:45"
+      ],
+      "citations": [
+        "hooks/lib/adapter.sh:32",
+        "hooks/lib/adapter.sh:45"
+      ]
+    },
+    {
+      "id": "c-aaf42ff0",
+      "text": "The adapter registry check ignores TOP_LEVEL and CHILD_KEYS; it needs a CONFIG.md `transport` enum row only once adapters/transport/<kind>/ exists",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B3:hooks/lib/adapter_registry_check.py:45"
+      ],
+      "citations": [
+        "hooks/lib/adapter_registry_check.py:45",
+        "hooks/lib/adapter_registry_check.py:101"
+      ]
+    },
+    {
+      "id": "c-21ecd6e5",
+      "text": "Adding `transport` to TOP_LEVEL without a TRANSPORTS enum and a _choice call lets any kind value validate",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/afk-config.py:544"
+      ],
+      "citations": [
+        "scripts/afk-config.py:544"
+      ]
+    },
+    {
+      "id": "c-21814f3f",
+      "text": "The CHILD_KEYS drift test goes red unless CONFIG.md gains a map row for the new kind block with the same child keys",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/tests/test_afk_config.py:27"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:286"
+      ]
+    },
+    {
+      "id": "c-6ce35412",
+      "text": "Deployment order: the reader change (TOP_LEVEL, CHILD_KEYS, CONFIG.md rows) ships before or with any config file carrying `transport:`; export-shell and load never validate, so only `afk-config.py validate` refuses an early config",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B4:scripts/afk-config.py:541",
+        "B3:hooks/lib/adapter.sh:32"
+      ],
+      "citations": [
+        "scripts/afk-config.py:541",
+        "scripts/afk-config.py:1084"
+      ]
+    },
+    {
+      "id": "c-8cae4ae4",
+      "text": "The tracker MCP server, tracker_api.py and the eight afk_config loaders read fixed keys and are unchanged by one new family key",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B10:mcp-servers/tracker/server.py:63",
+        "B3:scripts/tracker_api.py:33",
+        "B4:mcp-servers/tracker/server.py:62"
+      ],
+      "citations": [
+        "mcp-servers/tracker/server.py:63",
+        "scripts/tracker_api.py:33"
+      ]
+    },
+    {
+      "id": "c-823868ed",
+      "text": "collect_env.sh keeps its own family list, so a `transport` family is silently omitted from filed issue environments",
+      "kind": "fact",
+      "load_bearing": false,
+      "supporting_nodes": [
+        "B4:skills/utils/report-issue/scripts/collect_env.sh:43"
+      ],
+      "citations": [
+        "skills/utils/report-issue/scripts/collect_env.sh:43"
+      ]
+    },
+    {
+      "id": "c-075857f0",
+      "text": "test_every_map_in_the_schema_is_documented_the_same_way goes red when CHILD_KEYS gains a kind block with no CONFIG.md map row, failing '<kind> is in the schema and not in CONFIG.md', and when the row lists other child keys.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_config.py:268",
+        "B12:scripts/tests/test_afk_config.py:286",
+        "B13:CONFIG.md:91"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:286-291",
+        "python C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.py and build-p3.py exit 0, output C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.out"
+      ]
+    },
+    {
+      "id": "c-41e82a73",
+      "text": "The drift test is one-directional: a CONFIG.md row with no CHILD_KEYS entry stays green, and no test reads TOP_LEVEL, so adding transport to TOP_LEVEL alone, or documenting it alone, turns no test red.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_config.py:286"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:286",
+        "scripts/afk-config.py:541",
+        "python C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.py and build-p3.py exit 0, output C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.out"
+      ]
+    },
+    {
+      "id": "c-018079cc",
+      "text": "test_unknown_top_level_key_is_refused pins the generic refusal at afk-config.py:541-542 with the typo traker; it stays green after the addition, and no test names transport.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_config.py:134",
+        "B12:scripts/tests/test_afk_config.py:264"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:134-136",
+        "scripts/afk-config.py:541-542",
+        "python C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.py and build-p3.py exit 0, output C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.out"
+      ]
+    },
+    {
+      "id": "c-2df8fcd4",
+      "text": "Deployment order: the reader ships first, in the same commit as the CONFIG.md map row; any config file carrying transport or the kind block comes after, because the current reader refuses both as unknown top-level keys and exits 2; old config files stay valid under the new reader.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_config.py:134",
+        "B12:scripts/tests/test_afk_config.py:124"
+      ],
+      "citations": [
+        "scripts/afk-config.py:541-542",
+        "scripts/tests/test_afk_config.py:124-126",
+        "python C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.py and build-p3.py exit 0, output C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.out"
+      ]
+    },
+    {
+      "id": "c-567d35fb",
+      "text": "Once adapters/transport/<kind>/ exists, registry-gate check E reports '`transport` has no enum row in CONFIG.md' until CONFIG.md carries a transport enum row, and every adapter.json configKey must appear in CONFIG.md; this gate reads CONFIG.md and the adapters directory, never TOP_LEVEL or CHILD_KEYS.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:hooks/lib/adapter_registry_check.py:101",
+        "B13:CONFIG.md:87",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:219"
+      ],
+      "citations": [
+        "hooks/lib/adapter_registry_check.py:45-47,101-110,131-146",
+        "hooks/skill-registry-gate.sh:194"
+      ]
+    },
+    {
+      "id": "c-f5d3e474",
+      "text": "GRILL-LOG.md:161 and :125 understate the change: CONFIG.md needs the kind block's map row too (drift test :286-287), and ADAPTERS.md:139-146 adds a register row, a README parity row and a hooks/tests probe per kind.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:161",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+        "B13:CONFIG.md:91",
+        "B13:ADAPTERS.md:143"
+      ],
+      "citations": [
+        "docs/afk/agent-team-topology/GRILL-LOG.md:161",
+        "docs/afk/agent-team-topology/GRILL-LOG.md:125",
+        "scripts/tests/test_afk_config.py:286-287",
+        "ADAPTERS.md:139-146"
+      ]
+    },
+    {
+      "id": "c-41fc6d78",
+      "text": "Without a transport kinds tuple and a _choice call, the reader accepts any transport value: validate returned no problem for transport: bogus after TOP_LEVEL gained the key.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:218"
+      ],
+      "citations": [
+        "scripts/afk-config.py:544-546",
+        "python C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.py and build-p3.py exit 0, output C:/Users/mvu/AppData/Local/Temp/claude/C--Users-mvu-PersonalProjects-afk-driver-agent-teams/96c58aef-58cc-4e51-8bc9-2259fed7dd71/scratchpad/inv001-cfgreader-r3-a8e4/probe-p3.out"
+      ]
+    },
+    {
+      "id": "c-b2d21366",
+      "text": "No test would refuse a typo under the new kind block: TYPOS at test_afk_config.py:237-253 is a hand list, not derived from CHILD_KEYS, and already omits report-issue.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B12:scripts/tests/test_afk_config.py:237",
+        "B12:scripts/tests/test_afk_config.py:264"
+      ],
+      "citations": [
+        "scripts/tests/test_afk_config.py:237-253",
+        "scripts/afk-config.py:124"
+      ]
+    },
+    {
+      "id": "c-64e5e078",
+      "text": "ADAPTERS.md:1 titles the document 'the four adapter families'; a fifth family makes it false, and nothing checks it.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:ADAPTERS.md:1"
+      ],
+      "citations": [
+        "ADAPTERS.md:1"
+      ]
+    },
+    {
+      "id": "c-1c973a4d",
+      "text": "B6 and B7 have no instance: CLAUDE.md:11 says there is no package build step, CLAUDE.md:37 forbids generated files, and a listing of tracked files finds no build or aggregator manifest.",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B6:CLAUDE.md:11",
+        "B6:CLAUDE.md:37",
+        "B7:CLAUDE.md:11"
+      ],
+      "citations": [
+        "CLAUDE.md:11",
+        "CLAUDE.md:37",
+        "git ls-files piped to grep for pom.xml, package.json, build.gradle, pyproject.toml, go.mod, Cargo.toml, nx.json: exit 1, no match"
+      ]
+    },
+    {
+      "id": "c-7c73a358",
+      "text": "CONFIG.md:87 (the tracker enum row) stays true when transport is added: the registry check looks up each family's own enum row, so the change adds a transport row and edits none",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:CONFIG.md:87"
+      ],
+      "citations": [
+        "CONFIG.md:87",
+        "hooks/lib/adapter_registry_check.py:47",
+        "hooks/lib/adapter_registry_check.py:101"
+      ]
+    },
+    {
+      "id": "c-0709b28a",
+      "text": "ADAPTERS.md:1 ('the four adapter families') is refuted when transport becomes an adapter family, and no check guards it",
+      "kind": "fact",
+      "load_bearing": true,
+      "supporting_nodes": [
+        "B13:ADAPTERS.md:1"
+      ],
+      "citations": [
+        "ADAPTERS.md:1",
+        "ADAPTERS.md:108",
+        "hooks/lib/adapter_registry_check.py:35",
+        "hooks/lib/adapter_registry_check.py:45"
+      ]
+    }
+  ],
+  "counter_checks": [
+    {
+      "method": "name forms carrying no simple name: afk_config, afk_config",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [
+        "B1:adapters/tracker/github-issues/api.py:71",
+        "B1:hooks/run-hook.py:163",
+        "B1:mcp-servers/tracker/server.py:62",
+        "B1:scripts/tests/test_afk_config.py:27",
+        "B1:scripts/tests/test_afk_config_init.py:19",
+        "B1:scripts/tracker_api.py:32",
+        "B1:skills/afk/setup/scripts/setup_secrets.py:45",
+        "B1:skills/utils/investigate/scripts/seed_map.py:282"
+      ],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-19271810"
+      ]
+    },
+    {
+      "method": "case-blind pass over tracked and untracked files, not ignored",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [
+        "B1:docs/afk/agent-team-topology/grill-solution.html:388",
+        "B1:docs/afk/agent-team-topology/grill-solution.round.json:1733",
+        "B1:scripts/tests/test_afk_config.py:134"
+      ],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8",
+        "B9",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-946531b5"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B2"
+      ],
+      "query_ids": [
+        "q-16d5bf85"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [
+        "B4:scripts/afk-config.py:339",
+        "B4:scripts/tests/test_afk_config.py:38",
+        "B4:scripts/tests/test_afk_config.py:168",
+        "B4:scripts/tests/test_publish_bug.py:40",
+        "B4:scripts/tests/test_publish_bug.py:41",
+        "B4:scripts/tests/test_publish_bug.py:46",
+        "B4:scripts/tests/test_publish_bug.py:48"
+      ],
+      "state": "complete",
+      "classes": [
+        "B4"
+      ],
+      "query_ids": [
+        "q-288f3dd8"
+      ]
+    },
+    {
+      "method": "case-blind pass over the class's own expressions",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B11"
+      ],
+      "query_ids": [
+        "q-627ecc7a"
+      ]
+    },
+    {
+      "method": "agent read of the data the key sets hold and their consumers: family kind tuples, refusal messages, shell-view builders, CONFIG.md family rows, the adapter registry check and dispatch",
+      "kind": "agent",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [
+        "B4:scripts/afk-config.py:46",
+        "B4:scripts/afk-config.py:47",
+        "B4:scripts/afk-config.py:48",
+        "B4:scripts/afk-config.py:49",
+        "B4:scripts/afk-config.py:544",
+        "B4:scripts/afk-config.py:545",
+        "B4:scripts/afk-config.py:546",
+        "B4:scripts/afk-config.py:556",
+        "B4:scripts/afk-config.py:558",
+        "B4:scripts/afk-config.py:479",
+        "B4:scripts/afk-config.py:542",
+        "B4:scripts/afk-config.py:595",
+        "B4:scripts/afk-config.py:644",
+        "B12:scripts/tests/test_afk_config.py:264",
+        "B13:skills/afk/bug/CONFIG.md:58",
+        "B13:skills/afk/bug/LEDGER-FORMAT.md:68",
+        "B8:hooks/lib/adapter.sh:32",
+        "B8:hooks/lib/config.sh:48",
+        "B8:scripts/afk-config.py:975",
+        "B13:CONFIG.md:87",
+        "B13:CONFIG.md:88",
+        "B13:CONFIG.md:89",
+        "B13:CONFIG.md:90",
+        "B8:.afk/config.yaml:6",
+        "B8:.afk/config.yaml:7",
+        "B8:.afk/config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7",
+        "B8:scripts/tests/samples/monorepo-config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:9",
+        "B8:scripts/tests/samples/monorepo-config.yaml:10",
+        "B13:ADAPTERS.md:1",
+        "B13:CLAUDE.md:197",
+        "B1:scripts/afk-config.py:1084",
+        "B4:hooks/lib/adapter.sh:45",
+        "B8:scripts/afk-config.py:1001",
+        "B12:hooks/lib/adapter_registry_check.py:45",
+        "B12:scripts/tests/test_afk_config.py:237",
+        "B13:ADAPTERS.md:137"
+      ],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B4",
+        "B8",
+        "B12",
+        "B13"
+      ],
+      "evidence_nodes": [
+        "B1:scripts/afk-config.py:1084",
+        "B4:hooks/lib/adapter.sh:45",
+        "B8:scripts/afk-config.py:1001",
+        "B12:hooks/lib/adapter_registry_check.py:45",
+        "B12:scripts/tests/test_afk_config.py:237",
+        "B13:ADAPTERS.md:137"
+      ]
+    },
+    {
+      "method": "search the data literals and consumers the key sets feed, never the set names",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-f76757ad"
+      ],
+      "new_nodes": [
+        "B4:scripts/afk-config.py:46",
+        "B4:scripts/afk-config.py:47",
+        "B4:scripts/afk-config.py:48",
+        "B4:scripts/afk-config.py:49",
+        "B4:scripts/afk-config.py:544",
+        "B4:scripts/afk-config.py:545",
+        "B4:scripts/afk-config.py:546",
+        "B4:scripts/afk-config.py:556",
+        "B4:scripts/afk-config.py:558",
+        "B4:scripts/afk-config.py:479",
+        "B4:scripts/afk-config.py:542",
+        "B4:scripts/afk-config.py:595",
+        "B4:scripts/afk-config.py:644",
+        "B12:scripts/tests/test_afk_config.py:264",
+        "B13:skills/afk/bug/CONFIG.md:58",
+        "B13:skills/afk/bug/LEDGER-FORMAT.md:68",
+        "B8:hooks/lib/adapter.sh:32",
+        "B8:hooks/lib/config.sh:48",
+        "B8:scripts/afk-config.py:975",
+        "B13:CONFIG.md:87",
+        "B13:CONFIG.md:88",
+        "B13:CONFIG.md:89",
+        "B13:CONFIG.md:90",
+        "B8:.afk/config.yaml:6",
+        "B8:.afk/config.yaml:7",
+        "B8:.afk/config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7",
+        "B8:scripts/tests/samples/monorepo-config.yaml:8",
+        "B8:scripts/tests/samples/monorepo-config.yaml:9",
+        "B8:scripts/tests/samples/monorepo-config.yaml:10",
+        "B13:ADAPTERS.md:1",
+        "B13:CLAUDE.md:197"
+      ],
+      "state": "complete",
+      "classes": [
+        "B4",
+        "B8",
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-b820aed0",
+        "q-aef2ba5e",
+        "q-3f2ae8cc",
+        "q-fb10461d",
+        "q-71dd50e1",
+        "q-e8920c2b"
+      ]
+    },
+    {
+      "method": "read the reader and each importer's call site, and each configuration file whole",
+      "kind": "agent",
+      "targeted_claims": [
+        "c-1a75a82e",
+        "c-3e8ab19d",
+        "c-40a00261"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B1",
+        "B8"
+      ],
+      "evidence_nodes": [
+        "B1:scripts/afk-config.py:348",
+        "B1:scripts/afk-config.py:46",
+        "B1:skills/utils/investigate/scripts/seed_map.py:301",
+        "B8:.afk/config.yaml:6",
+        "B8:scripts/tests/samples/monorepo-config.yaml:7",
+        "B8:hooks/lib/config.sh:16"
+      ]
+    },
+    {
+      "method": "agent read of the declaration and validation sites instead of a pattern search",
+      "kind": "agent",
+      "targeted_claims": [
+        "c-21ecd6e5",
+        "c-21814f3f",
+        "c-6ce35412"
+      ],
+      "new_nodes": [],
+      "state": "complete",
+      "classes": [
+        "B2",
+        "B4"
+      ],
+      "evidence_nodes": [
+        "B2:scripts/afk-config.py:105",
+        "B4:scripts/afk-config.py:541",
+        "B4:scripts/afk-config.py:544",
+        "B4:scripts/afk-config.py:586"
+      ]
+    },
+    {
+      "method": "refusal-message literals, a form carrying none of the subject's names",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-018079cc",
+        "c-b2d21366"
+      ],
+      "new_nodes": [
+        "B12:scripts/tests/test_afk_config.py:264",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:218"
+      ],
+      "state": "complete",
+      "classes": [
+        "B12",
+        "B13"
+      ],
+      "query_ids": [
+        "q-d7b245be"
+      ],
+      "evidence_nodes": []
+    },
+    {
+      "method": "gate-script name adapter_registry_check, a form carrying none of the subject's names",
+      "kind": "deterministic",
+      "targeted_claims": [
+        "c-567d35fb",
+        "c-f5d3e474"
+      ],
+      "new_nodes": [
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:125",
+        "B13:docs/afk/agent-team-topology/GRILL-LOG.md:219"
+      ],
+      "state": "complete",
+      "classes": [
+        "B13"
+      ],
+      "query_ids": [
+        "q-a8e1a025"
+      ],
+      "evidence_nodes": []
+    },
+    {
+      "method": "agent read of the schema tests, the CONFIG.md schema table, adapter_registry_check.py and ADAPTERS.md, with an in-memory mutation probe",
+      "kind": "agent",
+      "targeted_claims": [
+        "c-075857f0",
+        "c-41e82a73",
+        "c-2df8fcd4",
+        "c-567d35fb"
+      ],
+      "new_nodes": [
+        "B12:scripts/tests/test_afk_config.py:237",
+        "B12:scripts/tests/test_afk_config.py:124",
+        "B12:scripts/tests/test_afk_config.py:118",
+        "B12:hooks/lib/adapter_registry_check.py:101",
+        "B13:CONFIG.md:87",
+        "B13:CONFIG.md:91",
+        "B13:ADAPTERS.md:1",
+        "B13:ADAPTERS.md:143"
+      ],
+      "state": "complete",
+      "classes": [
+        "B12",
+        "B13"
+      ],
+      "query_ids": [],
+      "evidence_nodes": [
+        "B12:scripts/tests/test_afk_config.py:237",
+        "B12:scripts/tests/test_afk_config.py:124",
+        "B12:hooks/lib/adapter_registry_check.py:101",
+        "B13:CONFIG.md:87",
+        "B13:CONFIG.md:91",
+        "B13:ADAPTERS.md:1"
+      ]
+    }
+  ]
+}

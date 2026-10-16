@@ -128,6 +128,7 @@ gate_genericity() {
       handles="$handles${handles:+|}$tok"
     done
 
+    # `<plugin>@builtin` is a harness plugin id (its built-in source), never an address.
     # Excluded BY PATH, because in these four a name is the point: the licence
     # and the two plugin manifests state authorship, and the changelog records
     # what was already published and may not be rewritten.
@@ -140,6 +141,7 @@ gate_genericity() {
              ':(exclude).claude-plugin/*' ':(exclude).codex-plugin/*' 2>/dev/null \
         | grep -vEi '(^|[^A-Za-z0-9._%+-])(git|noreply)@' \
         | grep -vEi '@([A-Za-z0-9-]+\.)*(example\.(com|org|net)|[A-Za-z0-9-]+\.(test|local|invalid))\b' \
+        | grep -vEi '[A-Za-z0-9-]@builtin\.' \
         | head -20
     )
     if [ -n "$ident_hits" ]; then

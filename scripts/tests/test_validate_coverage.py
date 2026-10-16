@@ -246,6 +246,28 @@ class ValidateCoverageTest(unittest.TestCase):
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "partial")
 
+    def test_a_second_parent_counts_as_an_edge(self):
+        document = ledger()
+        document["nodes"].append(
+            {"id": "B1:alpha.java:5", "class": "B1", "site": "alpha.java:5",
+             "disposition": "traced", "evidence": "a second way in", "parent": None,
+             "query_id": QUERY, "line_hash": "cccccccccccc"})
+        document["nodes"][1]["also_reached_from"] = ["B1:alpha.java:5"]
+        row = document["boundaries"][0]
+        row["hit_ids"].append("B1:alpha.java:5")
+        row["hits"] = 3
+        document["queries"][0]["count"] = 3
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
+    def test_a_read_a_search_also_found_is_one_of_its_hits(self):
+        document = ledger()
+        node = document["nodes"][1]
+        node.update({"query_id": None, "also_found_by": [QUERY]})
+        node.pop("line_hash")
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
     def test_an_overstated_verdict_is_a_defect(self):
         document = only(ledger(), "B3", status="unverified", reason="no enumeration method")
         document["run"]["verdict"] = "closed"

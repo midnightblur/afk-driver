@@ -31,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import validate_coverage  # noqa: E402
-from contract import HIT_LIMIT, worst  # noqa: E402
+from contract import HIT_LIMIT, cited_queries, worst  # noqa: E402
 
 TABLES = ("boundaries", "nodes", "queries", "claims", "counter_checks")
 
@@ -105,35 +105,107 @@ def differing(kept: dict, row: dict, skip: tuple[str, ...] = ()) -> list[str]:
                   and kept.get(key) != row.get(key))
 
 
-def merge_node(kept: dict, row: dict) -> dict:
-    """Two fragments reached the same site; only a disagreement is news."""
+def same_site(kept: dict, row: dict) -> None:
     for key in ("line_hash", "site", "class"):
         if kept.get(key) and row.get(key) and kept[key] != row[key]:
             raise MergeError(
                 f"node {kept.get('id')}: two fragments give it a different {key} "
                 f"({kept[key]!r} and {row[key]!r}); one id is one site"
             )
-    left, right = kept.get("disposition"), row.get("disposition")
-    if left == right:
-        # The disposition is the one field a fold reconciles. Every other
-        # disagreement under one id is two answers, and picking the first is
-        # picking by arrival order.
-        clash = differing(kept, row)
-        if clash:
-            raise MergeError(
-                f"node {kept.get('id')}: two fragments disagree on "
-                f"{', '.join(clash)}; one id is one node"
-            )
-        merged = dict(kept)
-        for key, value in row.items():
-            if merged.get(key) in (None, "", []):
-                merged[key] = value
-        return merged
+
+
+# The verdicts a node carries besides its disposition: two readings that differ
+# on one are two answers, and the node goes back on the queue.
+VERDICTS = ("impact_verdict", "coverage_verdict")
+
+
+def is_read(node: dict) -> bool:
+    return "query_id" in node and node.get("query_id") is None
+
+
+def keep_both(merged: dict, kept: dict, row: dict) -> None:
+    """Every search and every edge that reached the site stays on the node.
+
+    A read outranks a search: when either row read the site, the node is a
+    read, its evidence the reading, and every search joins `also_found_by`.
+    A parent the first row does not name joins `also_reached_from`.
+    """
+    queries = union(cited_queries(kept), cited_queries(row))
+    reader = kept if is_read(kept) else row if is_read(row) else None
+    if reader is not None:
+        merged["query_id"] = None
+        if reader.get("evidence"):
+            merged["evidence"] = reader["evidence"]
+    else:
+        merged["query_id"] = kept.get("query_id")
+    found = [item for item in queries if item != merged.get("query_id")]
+    if found:
+        merged["also_found_by"] = found
+    else:
+        merged.pop("also_found_by", None)
+    if not merged.get("evidence") and (kept.get("evidence") or row.get("evidence")):
+        merged["evidence"] = kept.get("evidence") or row.get("evidence")
+    if not merged.get("line_hash") and row.get("line_hash"):
+        merged["line_hash"] = row["line_hash"]
+    edges = union([kept.get("parent")] + list(kept.get("also_reached_from") or []),
+                  [row.get("parent")] + list(row.get("also_reached_from") or []))
+    edges = [edge for edge in edges if isinstance(edge, str) and edge]
+    merged["parent"] = kept.get("parent")
+    reached = [edge for edge in edges if edge != merged["parent"] and edge != merged.get("id")]
+    if reached:
+        merged["also_reached_from"] = reached
+    else:
+        merged.pop("also_reached_from", None)
+
+
+# Fields `keep_both` settles; filling them from the other row would turn a
+# read into a search or drop an edge.
+KEPT = ("query_id", "also_found_by", "parent", "also_reached_from", "evidence", "line_hash")
+
+
+def merge_node(kept: dict, row: dict) -> dict:
+    """Two fragments reached the same site; only a disagreement is news.
+
+    Agreement on the disposition and on every verdict is one node found twice:
+    the first row keeps its evidence, reason and parent, and the other search
+    joins `also_found_by`. A disagreement reopens the node.
+    """
+    same_site(kept, row)
     merged = dict(kept)
-    merged["disposition"] = "unverified"
-    merged["reason"] = f"conflict: {left} vs {right}"
-    merged["evidence"] = kept.get("evidence") or row.get("evidence")
+    keep_both(merged, kept, row)
+    left, right = kept.get("disposition"), row.get("disposition")
+    split = [f"{key} {kept[key]} vs {row[key]}" for key in VERDICTS
+             if kept.get(key) and row.get(key) and kept[key] != row[key]]
+    if left != right or split:
+        merged["disposition"] = "unverified"
+        merged["reason"] = "conflict: " + "; ".join(
+            ([f"{left} vs {right}"] if left != right else []) + split)
+        merged["evidence"] = kept.get("evidence") or row.get("evidence")
+        if any(item.startswith("impact_verdict") for item in split):
+            merged["impact_verdict"] = "unverified"
+        return merged
+    for key, value in row.items():
+        if key not in KEPT and merged.get(key) in (None, "", []):
+            merged[key] = value
+    pins = [pin for pin in (kept.get("pinned_by"), row.get("pinned_by"))
+            if isinstance(pin, str) and pin.strip()]
+    tests = [pin for pin in pins if pin != "unguarded"]
+    if tests:
+        merged["pinned_by"] = "; ".join(dict.fromkeys(tests))
     return merged
+
+
+def one_claim(merged: dict, kept: dict, row: dict) -> None:
+    """A class closed by searching and by reading keeps the search.
+
+    `sites` and `query_ids` are exclusive on a row, and the reading claim is
+    the one dropped; the read nodes stay in the nodes table.
+    """
+    if merged.get("sites") and merged.get("query_ids"):
+        del merged["sites"]
+        searcher = kept if kept.get("query_ids") else row
+        if searcher.get("method"):
+            merged["method"] = searcher["method"]
 
 
 def merge_boundary(kept: dict, row: dict) -> dict:
@@ -156,6 +228,7 @@ def merge_boundary(kept: dict, row: dict) -> dict:
     # count is the length of what the fold holds, never a sum over overlaps.
     merged["hit_ids"] = hit_ids = merged.get("hit_ids") or []
     merged["hits"] = len(hit_ids)
+    one_claim(merged, kept, row)
     if len(hit_ids) > HIT_LIMIT:
         raise MergeError(
             f"boundaries.{merged.get('class')}: {len(hit_ids)} hits, past the "
@@ -163,6 +236,47 @@ def merge_boundary(kept: dict, row: dict) -> dict:
             "narrower subject, never published as noise"
         )
     return merged
+
+
+# A staging row still in these states is a queue item, not an answer: the first
+# fragment row under its key answers it, and every later row folds against that
+# answer. Named in `LEDGER-FORMAT.md` § "Merging".
+OPEN_NODE = ("unverified",)
+OPEN_BOUNDARY = ("unverified", "judgment-only")
+
+
+def node_open(row: dict) -> bool:
+    """A node is a queue item while its disposition or any verdict is open."""
+    return any(row.get(key) in OPEN_NODE for key in ("disposition",) + VERDICTS)
+
+
+def answer_node(kept: dict, row: dict) -> dict:
+    """A fragment dispositions a node the staging ledger left open."""
+    same_site(kept, row)
+    answered = dict(row)
+    for key, value in kept.items():
+        if key not in ("disposition", "reason") + KEPT and answered.get(key) in (None, "", []):
+            answered[key] = value
+    keep_both(answered, row, kept)
+    return answered
+
+
+def answer_boundary(kept: dict, row: dict) -> dict:
+    """A fragment gives the verdict on a class the staging ledger left open.
+
+    The hits, queries and sites the staging row holds stay on the row, so every
+    node a search found is still counted, and every declared site still needs a
+    node that read it.
+    """
+    answered = merge_boundary(kept, row)
+    answered["status"] = row.get("status")
+    if row.get("reason"):
+        answered["reason"] = row["reason"]
+    else:
+        answered.pop("reason", None)
+    if row.get("method") and (answered.get("sites") or row.get("query_ids")):
+        answered["method"] = row["method"]
+    return answered
 
 
 CLAIM_ORDER = ("unverified", "inference", "fact")
@@ -282,8 +396,8 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
     own: list[str] = []
     citing: dict[str, int] = {}
     for row in rows(fragment, "nodes"):
-        if isinstance(row.get("query_id"), str):
-            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+        for query_id in cited_queries(row):
+            citing[query_id] = citing.get(query_id, 0) + 1
     for row in rows(fragment, "queries"):
         count, query_id = row.get("count"), row.get("id")
         if isinstance(count, int) and count != citing.get(query_id, 0):
@@ -386,12 +500,25 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                            check_key, merge_check),
     }
 
+    opened = {
+        "nodes": ({key for key, row in tables["nodes"][0].items()
+                   if node_open(row)}, answer_node),
+        "boundaries": ({key for key, row in tables["boundaries"][0].items()
+                        if row.get("status") in OPEN_BOUNDARY}, answer_boundary),
+    }
+
     said: list[str] = []
     seen_bodies: set[str] = set()
     folded = 0
     skipped: list[str] = []
     warnings: list[str] = list(merged["run"].get("config_warnings") or [])
-    for path, fragment in fragments:
+    # Where two rows agree, the first keeps its words; first is by partition
+    # id, so the ledger does not depend on the order fragments were named in.
+    def partition_of(item: tuple[Path, dict]) -> str:
+        partition = item[1].get("partition")
+        return str(partition.get("id") or "") if isinstance(partition, dict) else ""
+
+    for path, fragment in sorted(fragments, key=partition_of):
         fragment_head = fragment.get("run", {}).get("head")
         if fragment_head != head:
             raise MergeError(
@@ -453,9 +580,13 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
             if warning not in warnings:
                 warnings.append(warning)
         for table, (index, key_of, fold) in tables.items():
+            open_keys, answer = opened.get(table, (set(), None))
             for row in rows(fragment, table):
                 key = key_of(row)
-                if key in index:
+                if key in open_keys:
+                    index[key] = answer(index[key], row)
+                    open_keys.discard(key)
+                elif key in index:
                     index[key] = fold(index[key], row)
                 else:
                     index[key] = dict(row)
@@ -466,8 +597,8 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
     # folded nodes rather than adding up parts that overlap.
     citing: dict[str, int] = {}
     for row in merged["nodes"]:
-        if isinstance(row.get("query_id"), str):
-            citing[row["query_id"]] = citing.get(row["query_id"], 0) + 1
+        for query_id in cited_queries(row):
+            citing[query_id] = citing.get(query_id, 0) + 1
     for row in merged["queries"]:
         if "count" in row or row.get("id") in citing:
             row["count"] = citing.get(row.get("id"), 0)
