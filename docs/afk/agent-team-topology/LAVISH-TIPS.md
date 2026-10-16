@@ -46,7 +46,7 @@ Tooltip terms for this feature's lavish pages. Not a glossary: terms that outliv
 
 **debate pattern**: Two agents or more, on different models, doing the same piece of thinking independently, then critiquing each other and recording a verdict each. Used for research, design, planning, review and audit work.
 
-**talk edges**: The pairs of roles a pattern allows to message each other directly. Anything not listed relays through the contact agent.
+**talk edges**: The pairs of roles a pattern allows to message each other directly, each edge listing the message types it allows. Every message off a declared edge is refused, naming the edge. Four paths need no edge: any agent may send the contact agent a start request and its own finished, parked and exited messages; the contact agent may message any agent it started; a role's finished message goes to its report target; and a role and its report target, whoever it is, may message each other both ways. Siblings message each other only along declared edges.
 
 **worktree**: A second working directory of the same repository, checked out on its own branch, sharing one copy of the repository's history.
 
