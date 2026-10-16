@@ -78,3 +78,8 @@ Read `${AFK_PLUGIN_ROOT}/RATIONALE.md`; keep source comments to 2 lines and post
 ## worktree-per-session
 state: active | scope: all-repos | revision: 3 | doctrine: SAFETY.md §Worktree per session
 Read `${AFK_PLUGIN_ROOT}/SAFETY.md`; inspect, sync the base branch and use non-repository tools anywhere; change repository files only from a worktree your session or team owns.
+
+## ci-parity-before-push
+state: active | scope: all-repos | revision: 1 | doctrine: VERIFICATION.md §Before a push
+self-contained: yes
+Before each push, run the continuous integration (CI) checks locally on every CI platform you can reach. Name each platform you cannot reach; CI confirms results and never discovers failures.

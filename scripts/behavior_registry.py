@@ -81,6 +81,7 @@ EXPECTED_INVENTORY_IDS = frozenset(
         "bug-fix-with-future-co-scaffold",
         "build-scope-matches-change",
         "check-prd-before-contract-fix",
+        "ci-parity-before-push",
         "clear-stale-git-index-lock",
         "delegate-exploration",
         "diff-the-merge-first",
