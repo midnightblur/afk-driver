@@ -1354,8 +1354,8 @@ def test_review6_a_bare_powershell_null_redirect_reaches_no_file(repo, command):
     "cat < 'a$(b).txt'",
     "cat < 'a`b`.txt'",
     "cat < '<(b).txt'",
-    "cat < a\$\(b\).txt",
-    'cat < "a\$(b).txt"',
+    r"cat < a\$\(b\).txt",
+    r'cat < "a\$(b).txt"',
     "cat 'a$(b)'\"$f\"",
 ])
 def test_review6_a_literal_substitution_marker_runs_nothing(repo, command):
