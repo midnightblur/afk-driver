@@ -422,22 +422,37 @@ def fragment_defects(staging: dict, fragment: dict) -> list[str]:
 
 
 # What a delta may name as replacing an earlier row, and the table each lives in.
-SUPERSEDABLE = {"classes": "boundaries", "claims": "claims", "nodes": "nodes"}
+SUPERSEDABLE = {"classes": "boundaries", "claims": "claims", "nodes": "nodes",
+                "checks": "counter_checks"}
 WITHDRAWABLE = ("claims", "queries")
 
 
-def declared(path: Path, partition: dict, field: str, allowed) -> dict[str, list[str]]:
+def check_named(path: Path, field: str, entry) -> tuple:
+    """A check is named by its merge key: `{method, classes}`."""
+    if not (isinstance(entry, dict) and isinstance(entry.get("method"), str)
+            and entry["method"] and isinstance(entry.get("classes"), list)):
+        raise MergeError(f"{path}: partition.{field}.checks names each check as "
+                         "{method, classes}, its merge key")
+    return check_key(entry)
+
+
+def declared(path: Path, partition: dict, field: str, allowed) -> dict[str, list]:
     value = partition.get(field)
     if value is None:
         return {}
     if not isinstance(value, dict):
         raise MergeError(f"{path}: partition.{field} maps a table to the keys it names")
-    named: dict[str, list[str]] = {}
+    named: dict[str, list] = {}
     for table, keys in value.items():
         if table not in allowed:
             raise MergeError(f"{path}: partition.{field}.{table}: a delta {field} only "
                              f"{', '.join(allowed)}")
-        if not isinstance(keys, list) or not all(isinstance(key, str) and key for key in keys):
+        if not isinstance(keys, list):
+            raise MergeError(f"{path}: partition.{field}.{table} is a list of keys")
+        if table == "checks":
+            named[table] = [check_named(path, field, entry) for entry in keys]
+            continue
+        if not all(isinstance(key, str) and key for key in keys):
             raise MergeError(f"{path}: partition.{field}.{table} is a list of keys")
         named[table] = keys
     return named
@@ -576,7 +591,8 @@ def merge(staging: dict, fragments: list[tuple[Path, dict]]) -> dict:
                        if from_seed or row.get("status") == "judgment-only"},
     }
     resolvers = {"nodes": resolve_node, "boundaries": resolve_boundary,
-                 "claims": lambda kept, row: dict(row)}
+                 "claims": lambda kept, row: dict(row),
+                 "counter_checks": lambda kept, row: dict(row)}
 
     def running() -> dict:
         view = {"run": merged["run"]}

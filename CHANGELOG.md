@@ -105,7 +105,7 @@ release page from its section here. Nobody tags by hand.
 - **A `/afk:investigate` delta can replace an earlier answer.** A delta
   fragment names the class rows, claims and nodes it replaces in
   `partition.supersedes`, so it can raise a class from `partial`, settle a
-  claim, or correct a node in one fragment. It names the claims and queries it
+  claim, correct a node, or complete a `pending` counter-check in one fragment. It names the claims and queries it
   retracts in `partition.withdraws`. Name forms a tracer enumerated now carry
   into the merged ledger. A read and a search of one site keep the search's
   query and line hash, so class hit counts no longer drift by one.

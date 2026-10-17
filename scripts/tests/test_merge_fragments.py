@@ -953,6 +953,40 @@ class DeltaFoldTest(unittest.TestCase):
                                                classes=["B1"], boundaries=[]))
         self.assertIn(QUERY, str(refused.exception))
 
+    def pending_check(self):
+        return {"method": "name form carrying no simple name", "kind": "deterministic",
+                "classes": ["B1"], "targeted_claims": [CLAIM], "new_nodes": [],
+                "state": "pending", "reason": "no wire form declared", "query_ids": []}
+
+    def test_a_declared_supersede_completes_a_pending_check(self):
+        staging = merged_staging()
+        staging["counter_checks"].append(self.pending_check())
+        ran = {**self.pending_check(), "state": "complete", "query_ids": [COUNTER]}
+        del ran["reason"]
+        merged = self.merge(staging, delta(
+            supersedes={"checks": [{"method": ran["method"], "classes": ["B1"]}]},
+            nodes=[], counter_checks=[ran]))
+        row = next(item for item in merged["counter_checks"] if item["method"] == ran["method"])
+        self.assertEqual(row["state"], "complete")
+        self.assertNotIn("reason", row)
+        self.assertEqual(validate_coverage.validate(merged), ([], "closed"))
+
+    def test_a_complete_check_without_a_supersede_leaves_the_pending_one(self):
+        staging = merged_staging()
+        staging["counter_checks"].append(self.pending_check())
+        ran = {**self.pending_check(), "state": "complete", "query_ids": [COUNTER]}
+        merged = self.merge(staging, delta(nodes=[], counter_checks=[ran]))
+        row = next(item for item in merged["counter_checks"] if item["method"] == ran["method"])
+        self.assertEqual(row["state"], "pending")
+
+    def test_a_check_supersede_names_a_method_and_its_classes(self):
+        staging = merged_staging()
+        staging["counter_checks"].append(self.pending_check())
+        with self.assertRaises(merge_fragments.MergeError) as refused:
+            self.merge(staging, delta(supersedes={"checks": ["name form carrying no simple name"]},
+                                      nodes=[]))
+        self.assertIn("method", str(refused.exception))
+
     def test_a_declared_supersede_corrects_a_dispositioned_node(self):
         merged = self.merge(merged_staging(), delta(
             supersedes={"nodes": ["B1:alpha.java:9"]},
