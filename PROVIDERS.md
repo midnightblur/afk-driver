@@ -44,7 +44,9 @@ The rule is `SAFETY.md` "Worktree per session". This section owns the
 mechanics. Each provider file
 `hooks/lib/providers/<name>.json` declares what the guard needs: the detect
 variables, `harness_class`, the tool classes, `move_hint`, `worktree_folder`
-and `owner_pid_env`.
+and `owner_pid_env`. `shell_language` maps each shell tool whose text is
+always one shell to `bash` or `powershell`. On Windows, the guard reads an
+undeclared shell tool's command as both and requires both readings to prove it.
 
 A shell command is split into segments, each with the folder it runs in.
 In the main checkout or a protected branch's worktree, a segment runs only

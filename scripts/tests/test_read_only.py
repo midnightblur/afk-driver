@@ -159,3 +159,30 @@ def test_an_unlisted_or_unreadable_command_is_unproven(command):
 def test_null_redirect_is_shell_and_quote_aware(command, powershell, expected):
     segments = [s for s in sm.segments(command, powershell) if not s.mark]
     assert all(read_only.proven_segment(s) for s in segments) is expected
+
+
+@pytest.mark.parametrize("command,powershell,expected", [
+    (r'Test-Path "docs\"; Remove-Item a.txt', True, False),
+    (r'Test-Path "docs\"; Remove-Item a.txt', False, True),
+    (r'Test-Path "docs\"', True, True),
+    (r'Write-Output "\$(Remove-Item a.txt)"', True, False),
+    (r'Write-Output "`$(x)"', True, False),
+    ("Get-Content a.txt \\\nRemove-Item a.txt", True, False),
+    ("Get-Content a.txt `\n-Raw", True, True),
+    ("cat a.txt `\nrm a.txt `", False, False),
+    ("cat a.txt \\\n-n", False, True),
+    ("Write-Output a`;Remove-Item", True, True),
+    ("echo a`;rm", False, False),
+    (r"echo \`x\`", False, True),
+    (r"cat a\\;rm b", False, False),
+    (r"""cat $'a\'b' "$(rm b)" 'c'""", False, False),
+    (r"""cat $'a\\' 'b'""", False, True),
+    ("echo $(pwd)", False, True),
+    ('echo "$(pwd)"', False, False),
+    ("Write-Output “a\"; Remove-Item a.txt; \"b”", True, False),
+    ("Write-Output ‘a'; Remove-Item a.txt; 'b’", True, False),
+    ("Write-Output “a b”", True, True),
+])
+def test_word_reading_follows_each_shell(command, powershell, expected):
+    segments = [s for s in sm.segments(command, powershell) if not s.mark]
+    assert all(read_only.proven_segment(s) for s in segments) is expected

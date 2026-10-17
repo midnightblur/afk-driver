@@ -455,13 +455,28 @@ def command_of(tool_input: dict) -> str:
     return " ".join(map(str, value)) if isinstance(value, list) else str(value)
 
 
+def readings(tool: str, facts: dict) -> tuple[bool, ...]:
+    """The `powershell` flags a shell call is read under: its declared language, else both on Windows."""
+    declared = (facts.get("shell_language") or {}).get(tool) or ("powershell" if tool.lower() == "powershell" else None)
+    if declared:
+        return (declared == "powershell",)
+    return (False, True) if os.name == "nt" else (False,)
+
+
 def mutation_targets(kind: str, tool: str, tool_input: dict, cwd: Path, syncs: list,
-                     pulls: list | None = None, operations: list | None = None) -> list[Path]:
+                     pulls: list | None = None, operations: list | None = None, facts: dict | None = None) -> list[Path]:
     """Every path the call changes: an edit tool's targets, a command's recognized mutations."""
     if kind == "shell":
-        return shell_mutations.resources(command_of(tool_input), cwd, syncs, pulls=pulls,
-                                         powershell=tool.lower() == "powershell", toplevel=toplevel,
-                                         operations=operations)
+        found: list[Path] = []
+        for powershell in readings(tool, facts or {}):
+            more_syncs, more_pulls, more_operations = [], [], []
+            found += [path for path in shell_mutations.resources(
+                command_of(tool_input), cwd, more_syncs, pulls=more_pulls, powershell=powershell, toplevel=toplevel,
+                operations=more_operations) if path not in found]
+            for into, items in ((syncs, more_syncs), (pulls, more_pulls), (operations, more_operations)):
+                if into is not None:
+                    into += [item for item in items if item not in into]
+        return found
     found = targets_of(tool_input, cwd, loose=kind != "edit")
     return found or ([cwd] if kind == "edit" else [])
 
@@ -796,7 +811,8 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
         here = None
     command = command_of(tool_input)
     if kind == "shell":
-        gated = unproven(judge, command, cwd, tool.lower() == "powershell", state)
+        gated = next(filter(None, (unproven(judge, command, cwd, powershell, state)
+                                   for powershell in readings(tool, facts))), None)
         if gated:
             text, refused, cause, pull = gated
             pulled = {norm(refused["root"])} if pull and refused else set()
@@ -809,7 +825,7 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     pulls: list = []
     operations: list = []
     try:
-        resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls, operations)
+        resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls, operations, facts)
     except Exception:  # an unreadable call is not an identified mutation
         return 0
     if not resources and not syncs and not operations:

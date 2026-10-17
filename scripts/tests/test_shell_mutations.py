@@ -219,7 +219,7 @@ CONT_PS = "Set-Content `\n -Path guarded.txt -Value changed"
 
 def test_s1_002_line_continuations_join_before_splitting():
     assert res(CONT_BASH) == at("changed.txt")
-    assert res(CONT_PS) == at("guarded.txt")
+    assert sm.resources(CONT_PS, CWD, powershell=True) == at("guarded.txt")
     assert res("git \\\n  commit -m x") == at(".")
 
 

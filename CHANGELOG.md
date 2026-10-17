@@ -67,7 +67,10 @@ release page from its section here. Nobody tags by hand.
   a link or writes into the plugin or to a target the guard cannot place. Git variables (`GIT_DIR`,
   `GIT_WORK_TREE`, `GIT_COMMON_DIR`) and symbolic links are followed to their
   target, and a folder change the guard cannot read refuses every later
-  unproven part, in any checkout. The skills that ran a writing plugin script
+  unproven part, in any checkout. The guard reads each command by its shell's
+  quoting and escape rules. On Windows, a command from a shell tool whose
+  language the harness does not declare must be proven as both Bash and
+  PowerShell text. The skills that ran a writing plugin script
   from the main checkout (`/afk:gc`, `/afk:settle-change`, lesson appends,
   developer values, the native contract audit) now run it from a linked
   worktree. Edit tools are judged by their target as before, and

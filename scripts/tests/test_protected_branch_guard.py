@@ -1149,10 +1149,12 @@ def documented(path: str, pattern: str) -> str:
 @pytest.mark.parametrize("harness,manifest", [("claude", "hooks.json"), ("codex", "hooks.codex.json")])
 def test_review3_the_documented_setup_reads_run_under_each_manifest_environment(repo, harness, manifest):
     env = {manifest_root_variable(manifest): str(PLUGIN_ROOT)}
+    # Codex on Windows may send PowerShell, where `$AFK_PLUGIN_ROOT` is an unset shell variable
+    expected = 2 if harness == "codex" and os.name == "nt" else 0
     for command in (documented("skills/afk/setup/AUDIT.md", r"`(afk-python [^`]*glossary_usage\.py[^`]*)`"),
                     documented("skills/afk/setup/MANIFEST.md", r"\*\*Base probe:\*\* `([^`]*python_runtime\.py[^`]*)`")):
         assert "AFK_PLUGIN_ROOT" not in clean_env(harness, **env)
-        assert run(harness, repo["main"], "Bash", {"command": command}, **env).returncode == 0, command
+        assert run(harness, repo["main"], "Bash", {"command": command}, **env).returncode == expected, command
 
 
 @pytest.mark.parametrize("earlier", [
@@ -1360,3 +1362,61 @@ def test_review6_a_bare_powershell_null_redirect_reaches_no_file(repo, command):
 ])
 def test_review6_a_literal_substitution_marker_runs_nothing(repo, command):
     assert bash(repo["main"], command).returncode == 0, command
+
+
+# ---------------------------------------------------------------- review round 7
+
+@pytest.mark.parametrize("command", [
+    r"""cat $'a\'b' "$(touch changed)" 'c'""",
+    r"""cat $'a\'b' $(touch changed) 'c'""",
+    r"""cat <<< $'a\'b'"$(touch changed)"'c'""",
+    r"""cat < $'a\'b'"$(touch changed)"'c'""",
+    "cat README.md `\ntouch changed `\n",
+    'cat "README.md `\ntouch changed `\n"',
+    r"cat a\\;touch changed",
+    "echo $(touch changed)",
+])
+def test_review7_a_bash_substitution_or_command_hidden_in_a_word_is_unproven(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    r'Get-ChildItem -Path ".\sub\"; Set-Content -Path notes.md -Value "x"',
+    r'Test-Path "docs\"; Remove-Item -Path "README.md"',
+    r'Write-Output "\$(Set-Content -Path notes.md -Value x)"',
+    "Get-Content README.md \\\nSet-Content -Path notes.md -Value x",
+    "git status \\\nRemove-Item README.md",
+    "Write-Output \u201ca\"; Set-Content -Path notes.md -Value x; \"b\u201d",
+    "Write-Output 'a\u2019; Set-Content -Path notes.md -Value x; \u2018b'",
+])
+def test_review7_a_powershell_command_hidden_by_bash_quoting_is_unproven(repo, command):
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("tool,command", [
+    ("PowerShell", r'Get-ChildItem -Path "docs\"'),
+    ("PowerShell", r'Test-Path "C:\elsewhere\"'),
+    ("PowerShell", "Write-Output a`;b"),
+    ("PowerShell", "Get-Content $(git ls-files README.md)"),
+    ("Bash", r"echo \`x\`"),
+    ("Bash", "echo $(pwd)"),
+    ("Bash", "wc -l $(git ls-files)"),
+    ("Bash", "head $(git ls-files | head -1)"),
+    ("Bash", "ls $(git rev-parse --show-toplevel)"),
+    ("Bash", "cd $(git rev-parse --show-toplevel) && git status"),
+])
+def test_review7_a_read_with_a_shell_specific_word_runs(repo, tool, command):
+    assert run("claude", repo["main"], tool, {"command": command}).returncode == 0, command
+
+
+HIDDEN_FROM_BASH = r'Get-ChildItem -Path "docs\"; Remove-Item -Path "README.md"'
+
+
+def test_review7_a_shell_of_unknown_language_is_proven_under_both_readings(repo):
+    done = run("codex", repo["main"], "Bash", {"command": HIDDEN_FROM_BASH})
+    assert done.returncode == (2 if os.name == "nt" else 0), done.stderr
+    assert run("codex", repo["main"], "Bash", {"command": "git status --short"}).returncode == 0
+
+
+def test_review7_a_declared_bash_tool_reads_only_as_bash(repo):
+    assert run("claude", repo["main"], "Bash", {"command": HIDDEN_FROM_BASH}).returncode == 0

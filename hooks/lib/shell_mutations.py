@@ -25,7 +25,9 @@ PUSH = {"pushd", "push-location"}
 POP = {"popd", "pop-location"}
 TOPLEVEL = re.compile(r"^(?:\$\(git rev-parse --show-toplevel\)|`git rev-parse --show-toplevel`)([\\/][\w.\\/-]*)?$")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-CONTINUATION = re.compile(r"[\\`]\r?\n")  # Bash `\` and PowerShell backtick, outside comments and single quotes
+CONTINUATION = {False: re.compile(r"\\\r?\n"), True: re.compile(r"`\r?\n")}  # by `powershell`
+QUOTES = {False: ('"', "'"), True: ('"“”„', "'‘’‚‛")}  # PowerShell takes typographic quotes
+BASH_ESCAPED = " \t\"'$;&|<>()`\\"
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 GIT_ALWAYS = {"add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull", "rebase", "reset",
               "restore", "revert", "rm", "switch", "update-ref", "update-index"}
@@ -71,48 +73,59 @@ class Segment:
         self.git_env: list[tuple[str, Word | None]] = []  # set by steps(); None is an opaque value
 
 
-def read_word(text: str, i: int) -> tuple[Word | None, int]:
-    """One shell word from `i`: quotes and escapes resolved, `$`, backtick and globs mark it opaque."""
+def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None, int]:
+    """One shell word from `i`, quotes and escapes resolved by the shell's rules; `$`, backtick and globs mark it opaque.
+
+    `runs` marks a command substitution held inside the word: a double-quoted `$(`, or a Bash backtick.
+    An unquoted `$(` ends the word, and its `(` opens a group judged on its own.
+    """
     chars: list[str] = []
     opaque = quoted = split = runs = False
     n = len(text)
+    join, escape = CONTINUATION[powershell], "`" if powershell else "\\"
+    double, single = QUOTES[powershell]
     while i < n:
         c = text[i]
-        joined = CONTINUATION.match(text, i)
+        joined = join.match(text, i)
         if joined:
             i = joined.end()
             continue
         if c in " \t\r\n;&|()<>":
             break
-        if c == "'":
+        if c in single or (not powershell and c == "$" and text[i + 1:i + 2] == "'"):
             quoted = True
-            end = text.find("'", i + 1)
-            end = n if end < 0 else end
-            chars.append(text[i + 1:end])
+            ansi = c == "$"  # Bash `$'…'` honours backslash escapes, `\'` among them
+            end = i + 1 + ansi
+            while end < n and text[end] not in single:
+                end += 2 if ansi and text[end] == "\\" else 1
+            body = text[i + 1 + ansi:end]
+            opaque = opaque or (ansi and "\\" in body)  # an escape can spell any character
+            chars.append(body)
             i = end + 1
-        elif c == '"':
+        elif c in double:
             quoted = True
             i += 1
-            while i < n and text[i] != '"':
-                joined = CONTINUATION.match(text, i)
+            while i < n and text[i] not in double:
+                joined = join.match(text, i)
                 if joined:
                     i = joined.end()
                     continue
-                if text[i] == "\\" and i + 1 < n and text[i + 1] in '"\\$`':
+                if text[i] == escape and i + 1 < n and (powershell or text[i + 1] in '"\\$`'):
+                    runs = runs or (powershell and text[i + 1:i + 3] == "$(")
                     i += 1
-                elif text[i] in "$`":
+                elif text[i] == "$" or (text[i] == "`" and not powershell):
                     opaque = True
                     runs = runs or text[i] == "`" or text[i + 1:i + 2] == "("
                 chars.append(text[i])
                 i += 1
             i += 1
-        elif c == "\\" and i + 1 < n and text[i + 1] in " \"'$;&|<>()":
+        elif c == escape and i + 1 < n and (powershell or text[i + 1] in BASH_ESCAPED):
             chars.append(text[i + 1])
             i += 2
         else:
             if c in "$`*?[%":
                 opaque = split = True
-                runs = runs or c == "`" or (c == "$" and text[i + 1:i + 2] == "(")
+                runs = runs or c == "`"
             chars.append(c)
             i += 1
     if not chars and not quoted:
@@ -141,7 +154,7 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
         """The redirect target at `i`; only PowerShell reads a bare `$null` as no file."""
         nonlocal i
         start = i
-        word, i = read_word(text, i)
+        word, i = read_word(text, i, powershell)
         if word:
             word.sink = (not word.opaque and word.text.lower() in NO_TARGET) or (
                 powershell and text[start:i].lower() == "$null")
@@ -149,7 +162,7 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
 
     while i < n:
         c = text[i]
-        joined = CONTINUATION.match(text, i)
+        joined = CONTINUATION[powershell].match(text, i)
         if joined:
             i = joined.end()
         elif c in " \t\r":
@@ -200,14 +213,14 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
             i += 2 + (text[i + 2:i + 3] == "-")
             skip_blank()
             start = i
-            word, i = read_word(text, i)
+            word, i = read_word(text, i, powershell)
             if word:
                 quoted = any(c in text[start:i] for c in "'\"\\")
                 heredocs.append((word.text, not quoted, current))
         elif c == "<":
             i += 1
             skip_blank()
-            word, i = read_word(text, i)
+            word, i = read_word(text, i, powershell)
             if word and word.runs:
                 current.expands = True
         elif c in "{}" and (i + 1 >= n or text[i + 1] in " \t\r\n;"):
@@ -217,7 +230,7 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
             end = text.find("\n", i)
             i = n if end < 0 else end
         else:
-            word, i = read_word(text, i)
+            word, i = read_word(text, i, powershell)
             if word is None:
                 i += 1
             elif re.fullmatch(r"\d+", word.text) and text[i:i + 1] in (">", "<") and not word.opaque:
