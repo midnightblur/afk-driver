@@ -37,7 +37,7 @@ one checker of everything below.
 | `inventory_count` | how many files that list held |
 | `design_phase` | boolean, never absent: `true` when the caller is a design step; drives the counter-search requirement |
 | `config` | the configuration behind the run: `{path, sha256}`, `path` being the repository-relative config file or the literal `defaults` |
-| `merged_from` | how many fragments were folded in; absent in an unmerged ledger |
+| `merged_from` | how many fragments were folded in, across every fold; absent in an unmerged ledger |
 | `config_warnings` | the declared mechanisms whose pattern matches every occurrence in the repository, so their hits are not about the subject; absent when there are none |
 | `verdict` | `closed` · `closed-with-frontier` · `partial` — stamped from the validator's `VERDICT:` line, never by hand |
 | `started`, `finished` | ISO-8601 timestamps |
