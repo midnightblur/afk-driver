@@ -1,6 +1,6 @@
 # A change meter detects what the recognizer cannot see; a quarantine holds the session until it is undone
 
-> Status: Accepted
+> Status: Superseded by ADR-0014
 > Layer: Requirements
 > Context ticket: protected-branch-guard (provisional, no ticket)
 

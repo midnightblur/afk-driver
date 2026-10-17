@@ -24,7 +24,7 @@ fail closed. Provisioned and probed by the workflow doctor (`H6`).
 
 The committed `<repo>/.afk/config.yaml` holds none of these keys: K1 and K2 name
 a person, and a committed file never names a person. Each developer answers for
-themselves: `/afk:setup` asks in session, from the main checkout or any worktree.
+themselves: `/afk:setup` asks in session, from any linked worktree.
 
 Resolution, highest first: the `developer:` value from any layer (checkout
 beats repository beats machine), then — for `worktreeBasePath` alone — a derived value,

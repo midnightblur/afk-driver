@@ -20,9 +20,8 @@ capture belongs to the detection points.
 ### `status`
 
 Run `bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --all`
-(`<main-checkout>` = first entry of `git worktree list` — `GLOSSARY.md` "Main
-checkout")
-from the repo root and report per `REPORTING.md` (plugin root):
+from the repo root, in any checkout (it reads the main checkout's ledger,
+`GLOSSARY.md` "Main checkout") and report per `REPORTING.md` (plugin root):
 
 ```
 In plain terms: <one jargon-free sentence — what the workflow has learned and not yet absorbed>
@@ -48,7 +47,7 @@ Walk `open` lessons newest-first; for each, route by `target`:
   `filed --id <id> --issue "<issue URL, or the queued draft path>"`.
 
 Per outcome, append the transition via
-`bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh`:
+`bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh` from a linked worktree (`SAFETY.md` "Worktree per session"):
 `applied --id <id> --note "<file / commit>"` on a written edit,
 `rejected --id <id> --note "<reason>"` on a decline. A lesson the human defers
 stays `open` — no event. Approval is per-lesson (apply-all / by-number also

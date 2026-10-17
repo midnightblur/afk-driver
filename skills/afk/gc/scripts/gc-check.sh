@@ -5,7 +5,7 @@
 # lockstep pair, keep both in sync). Judgment (propose → approve → retire →
 # delete) stays with the skill; this script only checks and reports.
 #
-# Usage (from the MAIN checkout root, the integration base freshly fetched):
+# Usage (from a linked worktree other than the feature's, cut from the freshly fetched integration base):
 #   bash skills/afk/gc/scripts/gc-check.sh <spec-folder> [feature-branch]
 #
 #   <spec-folder>     the ticket's spec directory (holds plan/PLAN.md) — never guessed
@@ -154,7 +154,7 @@ dirty="$(git status --porcelain -- "$SPEC")"
 # --- Guard 4: not standing in the target ------------------------------------
 current="$(git rev-parse --abbrev-ref HEAD)"
 [ "$current" != "$BRANCH" ] \
-  || refuse inside_target_worktree "cwd checkout is on '$BRANCH' — re-run from the main checkout" "$EXIT_INSIDE_TARGET"
+  || refuse inside_target_worktree "cwd checkout is on '$BRANCH' — re-run from another linked worktree" "$EXIT_INSIDE_TARGET"
 
 # --- Worktree verify-safe (verdict, never an exit code) ---------------------
 wt=""

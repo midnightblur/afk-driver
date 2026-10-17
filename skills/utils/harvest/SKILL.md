@@ -25,7 +25,7 @@ Walk the session start to now. Qualify each candidate against the capture bar in
 
 Then subtract what is already handled: run
 `bash $AFK_PLUGIN_ROOT/hooks/lesson-digest.sh --all`
-from the repo root (`<main-checkout>` = first entry of `git worktree list` —
+from the repo root, in any checkout (it reads the main checkout's ledger,
 `GLOSSARY.md` "Main checkout") and drop any candidate whose `target` and substance already
 appear on an `applied` line — a detection point wrote that edit this run.
 

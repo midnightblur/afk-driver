@@ -852,7 +852,9 @@ first:
   mutation of the main checkout, a protected branch or a worktree another live
   session holds, and moves the session into a worktree instead (`SAFETY.md`
   "Worktree per session"; `PROVIDERS.md` for each harness's move and
-  `AFK_WORKTREE_GROUP`). Reads and unrecognized commands run anywhere. A human
+  `AFK_WORKTREE_GROUP`). Proven reads and the plugin script forms of ADR-0014 run anywhere; in
+  the main checkout or on a protected branch, every other command needs a
+  linked worktree. A human
   sets `AFK_ALLOW_PROTECTED=1` at launch to bypass it.
 - **Branch names** must match the repository's own `git.branch-pattern`, and a
   new branch is named from its `git.branch-template`. A repository that
