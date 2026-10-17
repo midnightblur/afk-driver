@@ -28,6 +28,9 @@ ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 CONTINUATION = {False: re.compile(r"\\\r?\n"), True: re.compile(r"`\r?\n")}  # by `powershell`
 QUOTES = {False: ('"', "'"), True: ('"“”„', "'‘’‚‛")}  # PowerShell takes typographic quotes
 BASH_ESCAPED = " \t\"'$;&|<>()`\\"
+BASH_SPECIAL = set("$?!#-@*0123456789")  # one-character parameters: `$$'` is a parameter then a plain quote
+PS_DASHES = "–—―"  # PowerShell reads these as a parameter's dash
+PS_HERE = re.compile(r"[ \t]*(?:\r?\n|$)")
 GITBASH_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 GIT_ALWAYS = {"add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull", "rebase", "reset",
               "restore", "revert", "rm", "switch", "update-ref", "update-index"}
@@ -59,7 +62,7 @@ class Word:
     def __init__(self, text: str, opaque: bool, split: bool | None = None, runs: bool = False):
         self.text, self.opaque = text, opaque
         self.split = opaque if split is None else split  # an unquoted expansion can become several words
-        self.runs = runs  # an unquoted or double-quoted `$(` or backtick: a command substitution
+        self.runs = runs  # a command substitution held in the word, or a quote form the parser does not model
         self.sink = False  # a redirect target that reaches no file
 
 
@@ -69,7 +72,7 @@ class Segment:
         self.redirects: list[Word] = []
         self.piped = False  # part of a pipeline: runs in a subshell
         self.mark = ""  # "open" / "close" for a `(` / `)` boundary
-        self.expands = False  # an unquoted heredoc body or an input redirect runs a substitution
+        self.expands = False  # a heredoc body or input redirect runs a substitution, or a block comment hides a quote
         self.git_env: list[tuple[str, Word | None]] = []  # set by steps(); None is an opaque value
 
 
@@ -122,11 +125,17 @@ def read_word(text: str, i: int, powershell: bool = False) -> tuple[Word | None,
         elif c == escape and i + 1 < n and (powershell or text[i + 1] in BASH_ESCAPED):
             chars.append(text[i + 1])
             i += 2
+        elif not powershell and c == "$" and text[i + 1:i + 2] in BASH_SPECIAL:
+            opaque = split = True
+            chars.append(text[i:i + 2])
+            i += 2
         else:
             if c in "$`*?[%":
                 opaque = split = True
                 runs = runs or c == "`"
-            chars.append(c)
+            if powershell and c == "@" and text[i + 1:i + 2] in double + single and PS_HERE.match(text, i + 2):
+                runs = True
+            chars.append("-" if powershell and not chars and c in PS_DASHES else c)
             i += 1
     if not chars and not quoted:
         return None, i
@@ -207,6 +216,9 @@ def segments(text: str, powershell: bool = False) -> list[Segment]:
             word = target()
             if word and not (dup and re.fullmatch(r"\d+|-", word.text)):
                 current.redirects.append(word)
+        elif powershell and c == "<" and text[i + 1:i + 2] == "#":
+            current.expands = True  # a block comment can hide a quote
+            i += 2
         elif c == "<" and text[i + 1:i + 3] == "<<":
             i += 3
         elif c == "<" and text[i + 1:i + 2] == "<":

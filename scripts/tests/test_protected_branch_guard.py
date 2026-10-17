@@ -1420,3 +1420,52 @@ def test_review7_a_shell_of_unknown_language_is_proven_under_both_readings(repo)
 
 def test_review7_a_declared_bash_tool_reads_only_as_bash(repo):
     assert run("claude", repo["main"], "Bash", {"command": HIDDEN_FROM_BASH}).returncode == 0
+
+
+# ---------------------------------------------------------------- review round 8
+
+@pytest.mark.parametrize("command", [
+    r"""cat $$'\'; touch changed; cat 'x'""",
+    r"""cat $$'\' "$(touch changed)" 'x'""",
+    r"""cat a$$'\'b; touch changed; cat 'x'""",
+    r"""cat $?'\'; touch changed; cat 'x'""",
+])
+def test_review8_a_quote_after_a_special_parameter_is_a_plain_quote(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review8_a_process_id_read_runs(repo):
+    assert bash(repo["main"], "echo $$").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "Write-Output @'\nx ' y \"\n'@\nSet-Content -Path notes.md -Value x",
+    "Write-Output @\"\na\" '$(Set-Content -Path notes.md -Value x)' \"\n\"@",
+    "Get-Content README.md <# ' #>; Set-Content -Path notes.md -Value x; <# ' #>",
+])
+def test_review8_a_powershell_here_string_or_block_comment_is_unproven(repo, command):
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    "Set-Content –Path {main}/README.md -Value x",
+    "Get-Content README.md | Out-File —FilePath {main}/copy.txt",
+    "Set-Content ―Path {main}/README.md -Value x",
+])
+def test_review8_a_powershell_dash_parameter_names_its_target(repo, command):
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("where,expected", [("main", 2), ("topic", 0)])
+def test_review8_an_unreadable_target_refuses_only_in_a_guarded_placement(repo, monkeypatch, capsys, where, expected):
+    import io
+    guard = load_guard()
+    monkeypatch.setattr(guard.shell_mutations, "resources", lambda *a, **k: 1 / 0)
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo[where], "Bash", {"command": "git status"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0
+    denied = '"permissionDecision": "deny"' in capsys.readouterr().out
+    assert denied is (expected == 2)

@@ -826,8 +826,13 @@ def decide(envelope: dict, facts: dict, state: dict) -> int:
     operations: list = []
     try:
         resources = mutation_targets(kind, tool, tool_input, cwd, syncs, pulls, operations, facts)
-    except Exception:  # an unreadable call is not an identified mutation
-        return 0
+    except Exception:  # an unreadable call is not an identified mutation, except where only proven commands run
+        cause = judge.verdict(here) if kind == "shell" else None
+        if not cause:
+            return 0
+        cause = f"{cause} ({here['root']}), where the guard could not read what this command changes"
+        return refuse(state, facts, f"run `{command.strip()[:80]}`", cause,
+                      lambda: move_hint(facts, envelope, judge, here, here, cause, set()), judge.notice_once)
     if not resources and not syncs and not operations:
         return 0
     state["identified"] = True
