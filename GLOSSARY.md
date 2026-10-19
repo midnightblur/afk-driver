@@ -73,7 +73,7 @@ An agent in its own terminal pane.
 A transport that starts pane agents. Finding one turns the pane-agent default on; nothing needs configuring.
 
 **Role agent**:
-An agent that does a role's work: it writes a plugin file, code or a ledger, or returns a gate verdict. Always a pane agent unless the pane switch says subagent.
+An agent that does a role's work: it writes a plugin file, code or a ledger, or returns a gate verdict. A pane agent when a pane transport is found and the pane switch does not say subagent; otherwise a subagent, and the run report says so.
 
 **Helper**:
 A subagent a pane agent starts for its own reading. Never a role, never in the run manifest.
@@ -166,7 +166,7 @@ What every pattern that starts agents carries, never empty: a pattern part with 
 One file per role per run, in the run directory, holding the charter's pattern part and then that role's part. For a one-off pattern these files are the run's only copy of its charter.
 
 **One-off pattern**:
-A pattern written for one task and not saved. It has no record: it reaches the run in the fields of a pattern record, with its charter, and is checked as a record with roles.
+A pattern written for one task and not saved. It has no record: it reaches the run in the fields of a pattern record. One with roles carries its charter and is checked as a record with roles; one with no roles carries no charter.
 
 ## Artifacts
 
