@@ -155,8 +155,11 @@ built-in pattern's name, 2 saved patterns with one name, an `includes` entry
 or a stage-map entry that names no pattern, a pattern key or role field not
 listed above, and two names under `transport`, a kind block, `stage-map` or
 `patterns` that export as one `AFK_CFG_*` name are refused. Names compare as
-their shell name does: `-`, `.`, `_` and letter case fold together. Pattern
-field values are checked when a team starts, not here.
+their shell name does: `-`, `.`, `_` and letter case fold together. Each
+pattern field gets a type check: `name`, `description` and `charter` are
+strings, the two versions whole numbers, `edges` and `steps` block lists of
+mappings, `includes` a block list of names, and a stage-map entry one name or
+a non-empty block list. What a value means is checked when a team starts.
 
 `review.ledger-only-paths` uses `/` separators. `*` matches one path segment.
 `**` matches any number of segments. Globs are relative to the repository root.

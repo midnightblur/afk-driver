@@ -609,8 +609,8 @@ def _fold(name: str) -> str:
 def _validate_saved_patterns(problems: list[str], config: dict) -> None:
     """Saved patterns and the stage map, checked against one name set.
 
-    A name is a built-in pattern's or a saved one's; field values are the
-    resolver's to check, since a one-off pattern never passes this reader.
+    A name is a built-in pattern's or a saved one's. Fields get a type check
+    here; what a value means is the resolver's to check.
     """
     builtin = {_fold(name): name for name in BUILTIN_PATTERNS}
     patterns = config.get("patterns")
@@ -640,7 +640,7 @@ def _validate_saved_patterns(problems: list[str], config: dict) -> None:
     for name, record in (patterns or {}).items():
         includes = record.get("includes") if isinstance(record, dict) else None
         for entry in includes if isinstance(includes, list) else []:
-            if entry not in known:
+            if isinstance(entry, str) and entry not in known:
                 problems.append(f"patterns.{name}.includes: {entry!r} names no pattern")
 
     stages = config.get("stage-map")
@@ -652,7 +652,7 @@ def _validate_saved_patterns(problems: list[str], config: dict) -> None:
     for stage, value in stages.items():
         where = f"stage-map.{stage}"
         names = value if isinstance(value, list) else [value]
-        if value is None or not all(isinstance(item, str) and item for item in names):
+        if not names or not all(isinstance(item, str) and item for item in names):
             problems.append(f"{where}: must be one pattern name or a block list of them")
             continue
         for item in names:

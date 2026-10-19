@@ -604,7 +604,10 @@ def test_an_unknown_kind_is_refused_and_absent_means_the_probe_chooses(tmp_path)
     assert done.returncode == 2
     assert ("transport.kind: 'tmux' is not one of subagent, headless, multiplexer, desktop"
             in done.stderr)
-    assert "transport" not in cfg.DEFAULTS
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text("schema: 1\n", encoding="utf-8")
+    absent = run(["get", "transport.kind"], root)
+    assert absent.returncode == 1 and absent.stdout == ""
     assert cfg.validate({"schema": 1, "transport": {"pane-switch": "pane"}}) == []
 
 
@@ -637,11 +640,37 @@ def test_the_charter_fields_read_and_an_unknown_role_field_is_refused(tmp_path):
     ("patterns:\n  mine:\n    team: x\n", "patterns.mine.team: unknown key"),
     ("patterns:\n  mine:\n    name: yours\n", "patterns.mine.name: 'yours' differs from its key"),
     ("stage-map:\n  review:\n", "stage-map.review: must be one pattern name or a block list"),
+    ("stage-map:\n  review:\n    - a: b\n",
+     "stage-map.review: must be one pattern name or a block list"),
+    ("stage-map: debate\n", "stage-map: must be a mapping of stage name to pattern"),
+    ("patterns: debate\n", "patterns: must be a mapping of pattern name to pattern"),
+    ("patterns:\n  mine: x\n", "patterns.mine: must be a mapping"),
+    ("transport: subagent\n", "transport: must be a mapping"),
+    ("headless: x\n", "headless: must be a mapping"),
+    ("patterns:\n  mine:\n    description: 3\n", "patterns.mine.description: must be a string"),
+    ("patterns:\n  mine:\n    schema-version: true\n",
+     "patterns.mine.schema-version: must be a whole number"),
+    ("patterns:\n  mine:\n    record-version: two\n",
+     "patterns.mine.record-version: must be a whole number"),
+    ("patterns:\n  mine:\n    edges: x\n", "patterns.mine.edges: must be a block list of mappings"),
+    ("patterns:\n  mine:\n    steps:\n      - x\n",
+     "patterns.mine.steps: must be a block list of mappings"),
+    ("patterns:\n  mine:\n    includes: debate\n",
+     "patterns.mine.includes: must be a block list of pattern names"),
+    ("patterns:\n  mine:\n    includes:\n      - a: b\n",
+     "patterns.mine.includes: must be a block list of pattern names"),
+    ("patterns:\n  mine:\n    roles:\n      lead: x\n", "patterns.mine.roles.lead: must be a mapping"),
 ])
 def test_a_misshapen_pattern_is_refused(tmp_path, text, problem):
     done = _validate_text(tmp_path, "schema: 1\n" + text)
     assert done.returncode == 2
     assert problem in done.stderr, done.stderr
+
+
+def test_an_empty_stage_entry_is_refused():
+    # The file subset cannot spell an empty list; a caller passing one is refused all the same.
+    assert cfg.validate({"schema": 1, "stage-map": {"review": []}}) == [
+        "stage-map.review: must be one pattern name or a block list of them"]
 
 
 @pytest.mark.parametrize("text,name", [
@@ -650,6 +679,8 @@ def test_a_misshapen_pattern_is_refused(tmp_path, text, problem):
      "AFK_CFG_STAGE_MAP_REVIEW_COUNT"),
     ("patterns:\n  mine:\n    roles:\n      a-b:\n        model: x\n      A_B:\n        model: y\n",
      "AFK_CFG_PATTERNS_MINE_ROLES_A_B_MODEL"),
+    ("transport:\n  pane-switch: pane\n  pane_switch: pane\n", "AFK_CFG_TRANSPORT_PANE_SWITCH"),
+    ("desktop:\n  a-b: x\n  a_b: y\n", "AFK_CFG_DESKTOP_A_B"),
 ])
 def test_keys_that_fold_to_one_shell_name_are_refused(tmp_path, text, name):
     done = _validate_text(tmp_path, "schema: 1\n" + text)
@@ -720,3 +751,27 @@ def test_the_registry_check_reads_the_transport_family_from_config_md():
     assert registry.family_enum(config_md, "transport") == set(cfg.TRANSPORTS)
     assert registry.family_enum(config_md, "tracker") == set(cfg.TRACKERS)
     assert registry.family_enum(config_md, "build-gate") == set(cfg.BUILD_GATES)
+
+
+def _bash():
+    spec = importlib.util.spec_from_file_location("afk_run_hook", SCRIPTS.parent / "hooks" / "run-hook.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.find_bash()
+
+
+@pytest.mark.parametrize("kind,shown", [("multiplexer", "multiplexer"), (None, "auto")])
+def test_the_issue_collector_reports_the_transport_kind(tmp_path, kind, shown):
+    bash = _bash()
+    if bash is None:
+        pytest.skip("no POSIX shell on this machine")
+    root = repo(tmp_path)
+    text = "schema: 1\n" + (f"transport:\n  kind: {kind}\n" if kind else "")
+    (root / ".afk" / "config.yaml").write_text(text, encoding="utf-8")
+    environ = {k: v for k, v in os.environ.items() if k not in ("AFK_CONFIG", "CLAUDE_PROJECT_DIR")}
+    environ["AFK_PYTHON"] = sys.executable
+    collector = SCRIPTS.parent / "skills" / "utils" / "report-issue" / "scripts" / "collect_env.sh"
+    done = subprocess.run([bash, str(collector)], cwd=str(root), capture_output=True,
+                          text=True, env=environ)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout)["transport"] == shown
