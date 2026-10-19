@@ -465,6 +465,61 @@ def test_ac031_identified_mutation_refused_in_guarded_place(command, repo, stubs
     assert verdict.denied, verdict
 
 
+def retirement(repo: Path, stubs: Stubs, command: str) -> Verdict:
+    return guard("codex", envelope("codex", "exec_command", repo, {"command": command}), repo, stubs)
+
+
+def test_worktree_remove_from_main_targets_clean_unprotected_linked_worktree(repo, tmp_path, stubs):
+    wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    gitdir = Path(git(wt, "rev-parse", "--path-format=absolute", "--git-dir").stdout.strip())
+    assert not retirement(repo, stubs, f'git worktree remove "{wt}"').denied
+    assert not (repo / ".git" / "afk-occupancy" / f"{gitdir.name}.json").exists()
+
+
+def test_worktree_remove_from_main_refuses_dirty_or_protected_target(repo, tmp_path, stubs):
+    dirty = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    (dirty / "README.md").write_text("dirty\n", encoding="utf-8")
+    assert retirement(repo, stubs, f'git worktree remove "{dirty}"').denied
+
+    protected = add_worktree(repo, tmp_path / "wts" / "rel", "release")
+    verdict = retirement(repo, stubs, f'git worktree remove "{protected}"')
+    assert verdict.denied
+    assert "git worktree remove <path>" in verdict.text
+
+
+def test_worktree_remove_force_only_allows_ignored_files(repo, tmp_path, stubs):
+    wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    assert retirement(repo, stubs, f'git worktree remove --force "{wt}"').denied
+    (wt / ".gitignore").write_text("cache/\n", encoding="utf-8")
+    git(wt, "add", ".gitignore")
+    git(wt, "commit", "-q", "-m", "ignore cache")
+    (wt / "cache").mkdir()
+    (wt / "cache" / "data.bin").write_bytes(b"data")
+    assert not retirement(repo, stubs, f'git worktree remove --force "{wt}"').denied
+
+    locked = add_worktree(repo, tmp_path / "wts" / "locked", "feature-y")
+    git(repo, "worktree", "lock", str(locked))
+    assert retirement(repo, stubs, f'git worktree remove --forc --forc "{locked}"').denied
+
+
+def test_worktree_move_from_main_targets_unprotected_source(repo, tmp_path, stubs):
+    wt = add_worktree(repo, tmp_path / "wts" / "fx", "feature-x")
+    destination = tmp_path / "moved" / "fx"
+    assert not retirement(repo, stubs, f'git worktree move "{wt}" "{destination}"').denied
+
+
+def test_branch_delete_from_main_allows_safe_form_only_for_unprotected_branch(repo, stubs):
+    git(repo, "branch", "feature-x")
+    git(repo, "branch", "release")
+    assert not retirement(repo, stubs, "git branch -d feature-x").denied
+    assert retirement(repo, stubs, "git branch -D feature-x").denied
+    assert retirement(repo, stubs, "git branch --delete --force feature-x").denied
+    assert retirement(repo, stubs, "git branch -d release").denied
+    assert retirement(repo, stubs, "git branch -r -d origin/main").denied
+    assert retirement(repo, stubs, "git branch --remotes --delete origin/main").denied
+    assert retirement(repo, stubs, "git branch --rem --delete origin/main").denied
+
+
 @pytest.mark.parametrize("tool", ["web__run", "webrun", "mcp__web__run"])
 def test_ac004_read_only_web_tools_allowed_in_guarded_place(tool, repo, stubs):
     verdict = guard("codex", envelope("codex", tool, repo, {}), repo, stubs)

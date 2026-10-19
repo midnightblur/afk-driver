@@ -230,6 +230,70 @@ def test_change_fetch_carries_immutable_refs_and_blob_source(tmp_path, kind):
     assert Path(answer["files"]["diff"]).exists()
 
 
+def _two_commit_repo(path: Path) -> tuple[str, str]:
+    def git(*args):
+        return subprocess.run(["git", "-C", str(path), *args], check=True,
+                              capture_output=True, text=True).stdout.strip()
+    path.mkdir()
+    git("init", "-q")
+    git("config", "user.email", "t@example.invalid")
+    git("config", "user.name", "t")
+    (path / "f.txt").write_text("one\n", encoding="utf-8")
+    git("add", "f.txt")
+    git("commit", "-qm", "base")
+    base = git("rev-parse", "HEAD")
+    (path / "f.txt").write_text("one\ntwo\n", encoding="utf-8")
+    git("commit", "-qam", "head")
+    return base, git("rev-parse", "HEAD")
+
+
+def _diff_stub(base: str, head: str, forge_diff: str) -> str:
+    return f"""
+case "$1 $2" in
+  "pr view") echo '{{"number":7,"baseRefOid":"{base}","headRefOid":"{head}"}}' ;;
+  "pr diff") {forge_diff} ;;
+  *) echo '{{}}' ;;
+esac
+"""
+
+
+def test_github_change_diff_builds_the_diff_from_local_commits(tmp_path):
+    repo = tmp_path / "repo"
+    base, head = _two_commit_repo(repo)
+    environ = stub(tmp_path, "github", _diff_stub(base, head, "echo 'stream error' >&2; exit 1"))
+    answer = json.loads(forge("github", environ, "change-diff", '{"id":"7"}', cwd=repo).stdout)
+    assert "diff --git a/f.txt b/f.txt" in answer["diff"]
+    assert "\n+two\n" in answer["diff"]
+    assert answer["lines"] == answer["diff"].count("\n")
+
+
+def test_github_change_diff_falls_back_to_the_forge_without_the_commits(tmp_path):
+    repo = tmp_path / "repo"
+    base, _ = _two_commit_repo(repo)
+    environ = stub(tmp_path, "github", _diff_stub(base, "f" * 40, "echo 'forge diff body'"))
+    answer = json.loads(forge("github", environ, "change-diff", '{"id":"7"}', cwd=repo).stdout)
+    assert answer["diff"] == "forge diff body\n"
+
+
+def test_github_change_diff_reports_the_forge_error_text(tmp_path):
+    repo = tmp_path / "repo"
+    base, _ = _two_commit_repo(repo)
+    environ = stub(tmp_path, "github", _diff_stub(base, "f" * 40, "echo 'diff text'; echo 'stream CANCEL' >&2; exit 1"))
+    answer = json.loads(forge("github", environ, "change-diff", '{"id":"7"}', cwd=repo).stdout)
+    assert answer["error"] is True
+    assert answer["reason"].strip() == "stream CANCEL"
+
+
+def test_github_change_fetch_writes_the_local_diff(tmp_path):
+    repo = tmp_path / "repo"
+    base, head = _two_commit_repo(repo)
+    environ = stub(tmp_path, "github", _diff_stub(base, head, "exit 1"))
+    out_dir = tmp_path / "fetch"
+    answer = json.loads(forge("github", environ, "change-fetch",
+                              json.dumps({"id": "7", "out_dir": str(out_dir)}), cwd=repo).stdout)
+    assert "\n+two\n" in Path(answer["files"]["diff"]).read_text(encoding="utf-8")
+
+
 def test_gitlab_change_view_resolves_the_source_project_blob_prefix(tmp_path):
     body = """
 case "$1 $2" in

@@ -127,6 +127,35 @@ def managed_behavior(repo):
     _git(repo, "add", "-A")
 
 
+DISPOSITIONS = Path("hooks") / "behavior-dispositions.tsv"
+
+
+def _edit_dispositions(repo, edit) -> None:
+    path = repo / DISPOSITIONS
+    path.write_text(edit(path.read_text(encoding="utf-8")), encoding="utf-8", newline="\n")
+    _git(repo, "add", "-A")
+
+
+def behavior_added(repo):
+    _append(repo / "BEHAVIORS.md", "\n## zz-fixture-rule\n"
+            "state: active | scope: all-repos | revision: 1 | doctrine: LANGUAGE.md §1–2\n"
+            "self-contained: yes\nKeep fixture replies short.\n")
+    _edit_dispositions(repo, lambda text: text + "zz-fixture-rule\tteam\tregistry\tzz-fixture-rule\n")
+
+
+def behavior_inconsistent(repo):
+    _edit_dispositions(repo, lambda text: text + "zz-fixture-rule\tteam\tregistry\tzz-fixture-rule\n")
+
+
+def disposition_deleted(repo):
+    _edit_dispositions(repo, lambda text: text.replace("adr-final-design-only\tteam\tfold\t-\n", ""))
+
+
+def disposition_retired(repo):
+    _edit_dispositions(repo, lambda text: text.replace("adr-final-design-only\tteam\tfold\t-\n",
+                                                       "adr-final-design-only\tteam\tretired\t-\n"))
+
+
 def registry_lockstep(repo):
     skill = repo / "skills" / "utils" / "zz-fixture" / "SKILL.md"
     skill.parent.mkdir(parents=True)
@@ -177,7 +206,8 @@ def shadowed_skill_registry(repo):
 
 
 FIXTURES = {f.__name__: f for f in (deletion, rename, untracked_before_stage, allowed_genericity,
-                                    provider_manifest, managed_behavior, registry_lockstep, crash, noop_gate,
+                                    provider_manifest, managed_behavior, behavior_added, behavior_inconsistent,
+                                    disposition_deleted, disposition_retired, registry_lockstep, crash, noop_gate,
                                     forced_sentinel, shadowed_native_contract, shadowed_skill_registry)}
 
 
@@ -280,6 +310,20 @@ def test_managed_behavior_drift_blocks_the_behavior_registry(results):
     assert rc == 2 and "behavior-registry" in blocked, err
 
 
+@pytest.mark.parametrize("name", ["behavior_added", "disposition_retired"])
+def test_a_consistent_inventory_change_passes_both_modes(results, name):
+    for rc, rows, err in results[name]:
+        assert rc == 0 and verdicts(rows)["behavior-registry"] == "pass", err
+
+
+@pytest.mark.parametrize("name, finding", [("behavior_inconsistent", "does not resolve to an active row"),
+                                           ("disposition_deleted", "deleted since the base: adr-final-design-only")])
+def test_an_inconsistent_or_deleted_inventory_row_blocks_both_modes(results, name, finding):
+    for rc, rows, err in results[name]:
+        assert rc == 2 and verdicts(rows)["behavior-registry"] == "blocked", err
+        assert any(finding in f for g, _v, f in rows if g == "behavior-registry"), rows
+
+
 def test_registry_lockstep_blocks_both_registry_gates(results):
     rc, blocked, _rows, err = _blocked(results, "registry_lockstep")
     assert rc == 2 and {"skill-registry", "native-contract"} <= blocked, err
@@ -302,6 +346,44 @@ def test_deleting_a_control_file_is_incomplete_input_in_both_modes(results, name
     for rc, rows, err in results[name]:
         assert rc == 2 and "NOT verified" in err and "the candidate deletes" in err, err
         assert rows == [], rows
+
+
+def test_a_row_the_target_branch_added_cannot_be_deleted(base):
+    repo = _clone(base, "release_target")
+    _git(repo, "checkout", "-q", "-b", "release")
+    _edit_dispositions(repo, lambda text: text + "zz-release-id\tteam\tretired\t-\n")
+    _git(repo, "commit", "-q", "-m", "release adds an id")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    _edit_dispositions(repo, lambda text: text.replace("zz-release-id\tteam\tretired\t-\n", ""))
+    staged = run_runner(repo, "--staged")
+    _git(repo, "commit", "-q", "-m", "topic deletes it")
+    ranged = run_runner(repo, "--range", "release")
+    for rc, rows, err in (staged, ranged):
+        assert rc == 2 and verdicts(rows).get("behavior-registry") == "blocked", err
+        assert "deleted since the base: zz-release-id" in " ".join(f for _g, _v, f in rows), rows
+
+
+def test_a_range_judges_behavior_revisions_against_the_target_branch(base):
+    repo = _clone(base, "release_revision")
+    registry = repo / "BEHAVIORS.md"
+    rule = "## reply-ste100\nstate: active | scope: all-repos | revision: {} | doctrine: LANGUAGE.md §1–2\n"
+
+    def rewrite(old, new):
+        registry.write_text(registry.read_text(encoding="utf-8").replace(old, new), encoding="utf-8", newline="\n")
+        _git(repo, "add", "-A")
+
+    _git(repo, "checkout", "-q", "-b", "release")
+    rewrite(rule.format(1), rule.format(2) + "Release wording.\n")
+    _git(repo, "commit", "-q", "-m", "release changes the body")
+    _git(repo, "checkout", "-q", "-b", "topic")
+    rewrite("Release wording.\n", "Topic wording.\n")
+    staged = run_runner(repo, "--staged")
+    _git(repo, "commit", "-q", "-m", "topic changes it again")
+    rc, rows, err = run_runner(repo, "--range", "release")
+    assert rc == 2 and verdicts(rows).get("behavior-registry") == "blocked", err
+    assert "reply-ste100: changed without a revision increase" in " ".join(f for _g, _v, f in rows), rows
+    rc, rows, err = staged
+    assert verdicts(rows).get("behavior-registry") == "pass", err
 
 
 def test_a_gate_the_branch_adds_runs_under_the_branch_runner(base):

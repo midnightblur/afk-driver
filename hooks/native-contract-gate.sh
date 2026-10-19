@@ -353,7 +353,7 @@ def launcher_form(root_var: str) -> re.Pattern[str]:
         r'run-hook\.py"(?: --soft)?'
         r'(?: --deadline [0-9]+)?'
         r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
-        r'| repo-list (?:SessionStart|PreToolUse|PostToolUse|PostCompact|Stop))'
+        r'| repo-list (?P<event>[A-Za-z]+))'
         r'|protected-branch-(?:guard|meter|occupancy)\.py")$'
     )
 
@@ -367,7 +367,8 @@ for manifest_rel, root_var in (("hooks/hooks.json", "CLAUDE_PLUGIN_ROOT"),
         for index, group in enumerate(groups if isinstance(groups, list) else []):
             for handler in (group.get("hooks", []) if isinstance(group, dict) else []) or []:
                 command = handler.get("command", "") if isinstance(handler, dict) else ""
-                if not isinstance(command, str) or not form.match(command):
+                matched = form.match(command) if isinstance(command, str) else None
+                if not matched or matched.group("event") not in (None, event):
                     problems.append(
                         f"{manifest_rel}: {event}[{index}] command must be "
                         f'afk-python "${{{root_var}}}/hooks/run-hook.py" '

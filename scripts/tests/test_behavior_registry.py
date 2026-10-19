@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -279,54 +280,149 @@ self-contained: yes
         behavior_registry.validate_registry(registry_with_body_bytes(over_cap), tmp_path)
 
 
-def test_validate_dispositions_cover_inventory_and_active_rows(tmp_path):
-    behavior_registry = load_module()
-    registry_path = write_registry(
-        tmp_path,
-        """## rule
+DISPOSITIONS_HEADER = "inventory_id\tclass\tdisposition\tbehavior_id\n"
+ONE_RULE = """## rule
 state: active | scope: all-repos | revision: 1 | doctrine: LANGUAGE.md §1
 Apply it.
-""",
-    )
-    dispositions = tmp_path / "dispositions.tsv"
-    rows = []
-    for inventory_id in sorted(behavior_registry.EXPECTED_INVENTORY_IDS):
-        if inventory_id == "reply-ste100":
-            rows.append(f"{inventory_id}\tteam\tregistry\trule")
-        else:
-            rows.append(f"{inventory_id}\tteam\tfold\t-")
-    dispositions.write_text(
-        "inventory_id\tclass\tdisposition\tbehavior_id\n" + "\n".join(rows) + "\n",
-        encoding="utf-8",
-    )
+"""
+
+
+def write_dispositions(path, rows):
+    path.write_text(DISPOSITIONS_HEADER + "".join(f"{row}\n" for row in rows), encoding="utf-8")
+    return path
+
+
+def test_validate_dispositions_cover_inventory_and_active_rows(tmp_path, capsys):
+    behavior_registry = load_module()
+    registry_path = write_registry(tmp_path, ONE_RULE)
+    rows = ["reply-ste100\tteam\tregistry\trule", "early-fold\tteam\tfold\t-", "late-fold\tteam\tfold\t-"]
+    dispositions = write_dispositions(tmp_path / "dispositions.tsv", rows)
 
     behavior_registry.validate_registry(registry_path, tmp_path, dispositions=dispositions)
+    assert "no base dispositions" in capsys.readouterr().err
 
-    dispositions.write_text(
-        dispositions.read_text(encoding="utf-8").replace(
-            "reply-ste100\tteam\tregistry\trule",
-            "reply-ste100\tteam\tregistry\tmissing",
-        ),
-        encoding="utf-8",
-    )
+    write_dispositions(dispositions, [rows[0].replace("\trule", "\tmissing"), *rows[1:]])
     with pytest.raises(behavior_registry.RegistryError, match="does not resolve to an active"):
         behavior_registry.validate_registry(registry_path, tmp_path, dispositions=dispositions)
 
-    dispositions.write_text(
-        "inventory_id\tclass\tdisposition\tbehavior_id\n" + "\n".join(rows[1:]) + "\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(behavior_registry.RegistryError, match="inventory set mismatch"):
-        behavior_registry.validate_registry(registry_path, tmp_path, dispositions=dispositions)
-
-    dispositions.write_text(
-        "inventory_id\tclass\tdisposition\tbehavior_id\n"
-        + "\n".join(rows).replace("\tteam\t", "\tpersonal\t", 1)
-        + "\n",
-        encoding="utf-8",
-    )
+    write_dispositions(dispositions, [rows[0].replace("\tteam\t", "\tpersonal\t"), *rows[1:]])
     with pytest.raises(behavior_registry.RegistryError, match="class must be team"):
         behavior_registry.validate_registry(registry_path, tmp_path, dispositions=dispositions)
+
+    write_dispositions(dispositions, [*rows, "Not_Kebab\tteam\tfold\t-"])
+    with pytest.raises(behavior_registry.RegistryError, match="lowercase kebab-case"):
+        behavior_registry.validate_registry(registry_path, tmp_path, dispositions=dispositions)
+
+
+def test_an_inventory_id_may_be_added_or_retired_but_never_deleted(tmp_path, capsys):
+    behavior_registry = load_module()
+    registry_path = write_registry(tmp_path, ONE_RULE)
+    rows = ["reply-ste100\tteam\tregistry\trule", "early-fold\tteam\tfold\t-"]
+    base = write_dispositions(tmp_path / "base.tsv", rows)
+    current = tmp_path / "current.tsv"
+
+    def check(current_rows):
+        write_dispositions(current, current_rows)
+        behavior_registry.validate_registry(
+            registry_path, tmp_path, dispositions=current, base_dispositions=base
+        )
+
+    check([*rows, "new-fold\tteam\tfold\t-"])
+    check([rows[0], "early-fold\tteam\tretired\t-"])
+    assert "no base dispositions" not in capsys.readouterr().err
+    with pytest.raises(behavior_registry.RegistryError, match="deleted since the base: early-fold; .*retired"):
+        check([rows[0], "new-fold\tteam\tfold\t-"])
+
+
+def test_the_base_dispositions_come_from_the_merge_base(tmp_path):
+    behavior_registry = load_module()
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                       check=True, capture_output=True)
+
+    tsv = tmp_path / behavior_registry.DISPOSITIONS_FILE
+    tsv.parent.mkdir(parents=True)
+    git("init", "-q", "-b", "main")
+    write_dispositions(tsv, ["kept\tteam\tfold\t-", "gone\tteam\tfold\t-"])
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "topic")
+    write_dispositions(tsv, ["kept\tteam\tfold\t-"])
+    git("commit", "-q", "-am", "drop")
+
+    text, label = behavior_registry._discover_base_text(tmp_path, behavior_registry.DISPOSITIONS_FILE)
+    assert behavior_registry._inventory_ids(text) == {"kept", "gone"}
+    assert label == f"main:{behavior_registry.DISPOSITIONS_FILE}"
+
+
+def test_a_named_base_revision_wins_over_the_guessed_branch(tmp_path, capsys):
+    behavior_registry = load_module()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    registry_path = write_registry(tmp_path, ONE_RULE)
+    tsv = tmp_path / behavior_registry.DISPOSITIONS_FILE
+    tsv.parent.mkdir(parents=True)
+    kept = "reply-ste100\tteam\tregistry\trule"
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "root")
+    root = git("rev-parse", "HEAD")
+    write_dispositions(tsv, [kept])
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "release")
+    write_dispositions(tsv, [kept, "release-only\tteam\tretired\t-"])
+    git("commit", "-q", "-am", "release adds an id")
+    release = git("rev-parse", "HEAD")
+    git("checkout", "-q", "-b", "topic")
+    write_dispositions(tsv, [kept])
+    git("commit", "-q", "-am", "topic deletes it")
+
+    def check(base_rev):
+        behavior_registry.validate_registry(registry_path, tmp_path, dispositions=tsv, base_rev=base_rev)
+
+    with pytest.raises(behavior_registry.RegistryError, match="deleted since the base: release-only"):
+        check(release)
+    check(root)
+    assert "no base dispositions" not in capsys.readouterr().err
+    with pytest.raises(behavior_registry.RegistryError, match="base revision no-such-rev does not resolve"):
+        check("no-such-rev")
+
+
+def test_revisions_compare_with_the_named_base_registry_revision(tmp_path):
+    behavior_registry = load_module()
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    def rule(revision, body):
+        return ONE_RULE.replace("revision: 1", f"revision: {revision}").replace("Apply it.", body)
+
+    git("init", "-q", "-b", "main")
+    git("commit", "-q", "--allow-empty", "-m", "root")
+    root = git("rev-parse", "HEAD")
+    registry_path = write_registry(tmp_path, rule(1, "Main wording."))
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    git("checkout", "-q", "-b", "release")
+    write_registry(tmp_path, rule(2, "Release wording."))
+    git("commit", "-q", "-am", "release bumps")
+    release = git("rev-parse", "HEAD")
+    git("checkout", "-q", "-b", "topic")
+    write_registry(tmp_path, rule(2, "Topic wording."))
+
+    def check(rev):
+        behavior_registry.validate_registry(registry_path, tmp_path, parity_root=None, base_registry_rev=rev)
+
+    with pytest.raises(behavior_registry.RegistryError, match="rule: changed without a revision increase"):
+        check(release)
+    check(root)
+    with pytest.raises(behavior_registry.RegistryError, match="base revision no-such-rev does not resolve"):
+        check("no-such-rev")
 
 
 def test_revision_check_compares_ids_to_an_explicit_base(tmp_path):
