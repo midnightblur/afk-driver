@@ -78,6 +78,30 @@ def test_an_undeclared_event_is_refused_even_in_the_claude_manifest(tree):
     assert done.returncode != 0 and "WorktreeElsewhere" in done.stderr + done.stdout
 
 
+def _repo_list(tree: Path, key: str, named: str) -> None:
+    for name, root_var in (("hooks.json", "CLAUDE_PLUGIN_ROOT"), ("hooks.codex.json", "PLUGIN_ROOT")):
+        path = tree / "hooks" / name
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["hooks"][key] = [{"hooks": [{"type": "command", "timeout": 60, "command":
+                                   f'afk-python "${{{root_var}}}/hooks/run-hook.py" --deadline 57 repo-list {named}'}]}]
+        path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def test_a_repo_list_entry_for_a_newly_declared_shared_event_passes(tree):
+    capabilities = tree / "CAPABILITIES.md"
+    text = capabilities.read_text(encoding="utf-8")
+    capabilities.write_text(text.replace("Shared hook events: SessionStart,", "Shared hook events: Notice, SessionStart,", 1),
+                            encoding="utf-8")
+    _repo_list(tree, "Notice", "Notice")
+    done = gate(tree)
+    assert done.returncode == 0, done.stderr + done.stdout
+
+
+def test_a_repo_list_entry_naming_another_event_is_refused(tree):
+    _repo_list(tree, "SessionStart", "Stop")
+    _refused(gate(tree), "SessionStart[0] command must be")
+
+
 # ---- check M: bounded hooks ----------------------------------------------------
 
 def _stop_entry(tree: Path, manifest_name: str = "hooks.json") -> tuple[Path, dict, dict]:

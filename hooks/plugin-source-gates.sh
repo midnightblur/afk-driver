@@ -252,7 +252,7 @@ afk_judge_dir() { printf '%s\n' "$JUDGE"; }
 export GATE_CACHE_DISABLE=1
 AFK_CTX_HEAD=$head AFK_CTX_BASE=$base AFK_CTX_MERGEBASE=$base
 AFK_CTX_CHANGED=$changed AFK_CTX_NEW=$new AFK_CTX_LIVE="" AFK_CTX_HASHES=""
-AFK_CTX_BRANCH="" AFK_CTX_BRANCH_READY=1 AFK_CTX_TREE="candidate:$mode:$head"
+AFK_CTX_BRANCH="" AFK_CTX_BRANCH_READY=1 AFK_CTX_TREE="candidate:$mode:$head" AFK_CTX_MODE=$mode
 while IFS= read -r path; do
   [ -n "$path" ] && [ -f "$path" ] && AFK_CTX_LIVE+="$path"$'\n'
 done <<<"$changed"

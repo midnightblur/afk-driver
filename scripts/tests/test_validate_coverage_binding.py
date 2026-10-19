@@ -283,6 +283,34 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertEqual(defects, [])
         self.assertEqual(verdict, "closed")
 
+    # LEDGER-FORMAT.md lets a read site end `irrelevant`: the read found the site off the path.
+    def test_a_read_site_dispositioned_irrelevant_closes_the_class(self):
+        document = read_evidence(read_closed(ledger(), "B3"), "B3")
+        document["nodes"][-1]["disposition"] = "irrelevant"
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
+    # An absence rests on sites read and found off the path; they ended there.
+    def test_a_load_bearing_claim_resting_on_irrelevant_nodes_is_followed(self):
+        document = ledger()
+        document["nodes"][1]["disposition"] = "irrelevant"
+        document["claims"][0]["supporting_nodes"] = ["B1:alpha.java:9"]
+        defects, verdict = self.check(document)
+        self.assertEqual(defects, [])
+        self.assertEqual(verdict, "closed")
+
+    # LEDGER-FORMAT.md asks an agent check for a node carrying evidence, read or searched.
+    def test_an_agent_check_may_cite_an_irrelevant_searched_node(self):
+        document = ledger()
+        document["nodes"][1]["disposition"] = "irrelevant"
+        document["counter_checks"].append(
+            {"method": "read every writer", "kind": "agent", "classes": ["B1"],
+             "targeted_claims": [CLAIM], "new_nodes": [], "state": "complete",
+             "evidence_nodes": ["B1:alpha.java:9"]})
+        defects, _ = self.check(document)
+        self.assertEqual(defects, [])
+
     def test_a_read_nodes_query_id_must_be_null(self):
         document = read_evidence(read_closed(ledger(), "B3"), "B3")
         document["nodes"][-1]["query_id"] = QUERY
@@ -582,9 +610,20 @@ class LedgerBindingTest(unittest.TestCase):
         self.assertTrue(any("read nothing of B2" in defect for defect in defects),
                         defects)
 
-    def test_an_agent_check_whose_only_read_is_irrelevant_is_a_defect(self):
+    # A read that finds a site off the path is a reading: LEDGER-FORMAT.md § "counter_checks".
+    def test_an_agent_check_whose_only_read_is_irrelevant_reads_its_class(self):
         document = read_evidence(ledger(), "B1")
         document["nodes"][-1].update({"disposition": "irrelevant"})
+        document["counter_checks"][0].update(
+            {"kind": "agent", "query_ids": [], "classes": ["B1"],
+             "evidence_nodes": ["B1:alpha/B1.java:4"]})
+        defects, _ = self.check(document)
+        self.assertFalse(any("read nothing of B1" in defect for defect in defects),
+                         defects)
+
+    def test_an_agent_check_whose_only_read_is_unverified_reads_nothing(self):
+        document = read_evidence(ledger(), "B1")
+        document["nodes"][-1].update({"disposition": "unverified", "reason": "not read"})
         document["counter_checks"][0].update(
             {"kind": "agent", "query_ids": [], "classes": ["B1"],
              "evidence_nodes": ["B1:alpha/B1.java:4"]})

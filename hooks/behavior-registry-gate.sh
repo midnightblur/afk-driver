@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Plugin-source gate for the managed behavior registry and its transport parity.
+# Plugin-source gate for the managed behavior registry, its inventory (base ids: the runner's base) and transport parity.
 # Disable with BEHAVIOR_REGISTRY_GATE_DISABLE=1.
 
 set -u
@@ -9,6 +9,7 @@ gate_behavior_registry() {
   [ "${AFK_IGNORE_GATE_SENTINEL:-0}" = 1 ] || [ ! -f .claude/hooks/.gate-disabled ] || return 0
 
   local PLUGIN_DIR PLUGIN_SCOPE JUDGE_DIR cache_key py rc=0
+  local -a base_rev=()
   PLUGIN_DIR=$(afk_plugin_dir)
   PLUGIN_SCOPE=$(afk_plugin_scope)
   [ -f "$PLUGIN_DIR/BEHAVIORS.md" ] || return 0
@@ -19,11 +20,13 @@ gate_behavior_registry() {
 
   py="${AFK_PYTHON:-afk-python}"
   JUDGE_DIR=$(afk_judge_dir 2>/dev/null) || JUDGE_DIR=$PLUGIN_DIR
+  [ -z "${AFK_CTX_MERGEBASE:-}" ] || base_rev=(--base-rev "$AFK_CTX_MERGEBASE")
+  [ "${AFK_CTX_MODE:-}" != range ] || base_rev+=(--base-registry-rev "$AFK_CTX_MERGEBASE")
   "$py" "$JUDGE_DIR/scripts/behavior_registry.py" validate \
     --registry "$PLUGIN_DIR/BEHAVIORS.md" \
     --plugin-root "$PLUGIN_DIR" \
     --dispositions "$PLUGIN_DIR/hooks/behavior-dispositions.tsv" \
-    --parity-root "$PLUGIN_DIR" || rc=$?
+    --parity-root "$PLUGIN_DIR" ${base_rev[@]+"${base_rev[@]}"} || rc=$?
 
   if [ "$rc" -ne 0 ]; then
     gate_metrics_emit behavior-registry blocked

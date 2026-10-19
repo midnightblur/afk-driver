@@ -123,6 +123,40 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- **The GitHub forge reads a very large pull request's diff.** `change-diff`
+  and `change-fetch` build the diff from the request's base and head commits
+  when both are in the local clone, and fall back to `gh pr diff` otherwise.
+  `gh pr diff` breaks off on a diff of about 200 MB, so the review settle
+  loop could not run. A failed `change-diff` now names the `gh` error, not
+  the start of the diff.
+- **`/afk:investigate` folds tracer answers onto the seed.** A tracer's
+  disposition replaces a seed node that nobody had triaged, instead of folding
+  to `conflict: unverified vs <x>`. A fragment row resolves a seed class row,
+  so a class the seed left `partial`, `judgment-only` or without a method can
+  close. A fold of a read and a search for one class keeps the search, so the
+  ledger no longer carries both `sites` and `query_ids`. Two tracers that agree
+  on a node keep both evidence lines instead of refusing the fold; a different
+  pinning test or verdict reopens the node. A delta tracer's fragment folded
+  into the merged ledger settles the nodes left in conflict.
+- **A `/afk:investigate` delta can replace an earlier answer.** A delta
+  fragment names the class rows, claims and nodes it replaces in
+  `partition.supersedes`, so it can raise a class from `partial`, settle a
+  claim, correct a node, or complete a `pending` counter-check in one fragment. It names the claims and queries it
+  retracts in `partition.withdraws`. Name forms a tracer enumerated now carry
+  into the merged ledger. A read and a search of one site keep the search's
+  query and line hash, so class hit counts no longer drift by one.
+  Counter-check defects in a fragment now stop the fold. A delta may cite a node
+  an earlier fragment of the same fold added. `run.merged_from` now counts every
+  fold.
+- **A site read into an `irrelevant` node closes its class**, as
+  `LEDGER-FORMAT.md` allows; the validator accepted only `traced` or
+  `terminal`. The same holds for a load-bearing claim resting on that node and
+  for an agent counter-check citing it.
+- **`/afk:investigate` publishes `REPORT.md` from any agent.**
+  `scripts/write_report.py` writes it beside a validated, stamped ledger and
+  computes the header line. The header names the remote repository and the
+  ledger's path inside it. The body comes from `--body <file>` or stdin. A
+  subagent could not write the report file itself.
 - **Hooks start fewer processes on Windows.** Where security software scans
   every process start, each start can cost up to 0.7 s. Hooks read input
   fields with bash builtins instead of a `grep`/`sed` pipe, and the provider
@@ -159,6 +193,19 @@ release page from its section here. Nobody tags by hand.
 - The wiring gate and `/afk:verify-seams` no longer treat untracked files as
   new artifacts. A file untracked before the work started cannot be wired by
   it; candidates are now staged adds and commits ahead of the merge-base (#98).
+- **The target branch's gates accept a new managed behavior.** The behavior
+  registry gate compared `hooks/behavior-dispositions.tsv` with an id list in
+  its own code, so the target branch's copy refused every added behavior. It
+  now compares the file with its copy at the runner's base revision (the
+  merge base with the target branch in a pull request, `HEAD` at commit): a
+  valid new row passes, and a deleted id still blocks. Retire an id in place
+  with disposition `retired`. In a pull request, the `BEHAVIORS.md` revision
+  check also compares with the merge base with the target branch; at commit,
+  it keeps the merge base with `main`, so a branch bumps a revision once. Run
+  alone, the gate guesses the merge base with `main`; with no base copy, it
+  says so and checks the file alone. The native-contract gate likewise
+  accepts a `repo-list` hook entry for any event `CAPABILITIES.md` declares,
+  when the entry names its own event.
 
 ## [1.15.0] - 2026-10-07
 
