@@ -149,6 +149,21 @@ view_json() {  # $1 = change ref (branch name, number or URL)
   gh pr view "$1" "${REPO_FLAG[@]}" --json "$VIEW_FIELDS" 2>"${VIEW_ERR:-/dev/null}"
 }
 
+# Writes change $1's diff from local commits to file $2 (`gh pr diff` breaks off
+# on a very large change). Fails when either commit is not in this clone.
+local_change_diff() {
+  local view base head
+  view=$(gh pr view "$1" "${REPO_FLAG[@]}" --json baseRefOid,headRefOid 2>/dev/null) || return 1
+  read -r base head < <(printf '%s' "$view" | "$PY" -c '
+import json, sys
+d = json.load(sys.stdin)
+print(d.get("baseRefOid") or "-", d.get("headRefOid") or "-")' 2>/dev/null | tr -d '\r') || return 1
+  git cat-file -e "$base^{commit}" 2>/dev/null && git cat-file -e "$head^{commit}" 2>/dev/null || return 1
+  git -c core.quotePath=true diff --no-color --no-ext-diff --no-textconv --no-relative \
+    -M --unified=3 --diff-algorithm=myers --src-prefix=a/ --dst-prefix=b/ \
+    "$base...$head" > "$2" 2>/dev/null
+}
+
 # Prints {threads, edited} (a null flag: no `lastEditedAt` answered) or {error}.
 review_threads_json() {  # $1 repo, $2 pull request number
   local owner=${1%%/*} name=${1#*/} raw
@@ -295,16 +310,21 @@ print(json.dumps({"error": True, "verb": "change-view", "missing": sys.argv[1] =
   ;;
 
 change-diff)
-  out=$(gh pr diff "$(arg id)" "${REPO_FLAG[@]}" 2>&1) || {
+  ref=$(arg id)
+  DIFF_OUT=$(mktemp); DIFF_ERR=$(mktemp)
+  if ! local_change_diff "$ref" "$DIFF_OUT" &&
+     ! gh pr diff "$ref" "${REPO_FLAG[@]}" > "$DIFF_OUT" 2> "$DIFF_ERR"; then
     printf '{"error":true,"verb":"change-diff","reason":%s}\n' \
-      "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[:2000]))' <<<"$out")"
+      "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()[-2000:] or "gh pr diff failed"))' < "$DIFF_ERR")"
+    rm -f "$DIFF_OUT" "$DIFF_ERR"
     exit 0
-  }
-  printf '%s' "$out" | "$PY" -c '
+  fi
+  "$PY" -c '
 import json, sys
-diff = sys.stdin.read()
+diff = sys.stdin.buffer.read().decode("utf-8", "replace")
 print(json.dumps({"diff": diff, "lines": diff.count(chr(10)), "bytes": len(diff)}))
-'
+' < "$DIFF_OUT"
+  rm -f "$DIFF_OUT" "$DIFF_ERR"
   ;;
 
 change-fetch)
@@ -319,7 +339,8 @@ change-fetch)
       "$("$PY" -c 'import json,sys;print(json.dumps(sys.stdin.read()))' <<<"$reason")"
     exit 0
   fi
-  if ! gh pr diff "$ref" "${REPO_FLAG[@]}" > "$out_dir/mr.diff" 2>>"$err"; then
+  if ! local_change_diff "$ref" "$out_dir/mr.diff" &&
+     ! gh pr diff "$ref" "${REPO_FLAG[@]}" > "$out_dir/mr.diff" 2>>"$err"; then
     printf '{"error":true,"verb":"change-fetch","reason":"gh pr diff failed; see %s"}\n' "$err"
     exit 0
   fi
