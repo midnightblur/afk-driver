@@ -144,16 +144,12 @@ def _check_manifest(data: object, feature: str) -> dict:
 
 
 def _load(path: Path, feature: str) -> dict | None:
-    for _ in range(50):
-        try:
-            text = path.read_text(encoding="utf-8")
-            break
-        except FileNotFoundError:
-            return None
-        except PermissionError:  # Windows: the file is mid-rename
-            time.sleep(0.02)
-    else:
-        raise ManifestError(f"manifest {path} stayed unreadable")
+    try:
+        text = _patient(path.read_text, "utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ManifestError(f"manifest {path} stayed unreadable: {exc}") from None
     try:
         data = json.loads(text)
     except ValueError as exc:
@@ -173,11 +169,24 @@ def read_manifest(root: str | os.PathLike, feature: str) -> dict | None:
     return _load(manifest_path(root, feature), feature)
 
 
-def _owner(lock: Path) -> str:
+def _patient(action: Callable, *args):
+    """Run a filesystem action, retrying while Windows reports the path in use."""
+    for _ in range(100):
+        try:
+            return action(*args)
+        except PermissionError:
+            time.sleep(0.02)
+    return action(*args)
+
+
+def _owner(lock: Path) -> str | None:
+    """The lock holder's token; "" when the lock has no owner file, None when it stays unreadable."""
     try:
-        return (lock / "owner").read_text(encoding="utf-8")
-    except OSError:
+        return _patient((lock / "owner").read_text, "utf-8")
+    except FileNotFoundError:
         return ""
+    except OSError:
+        return None
 
 
 def _steal_if_stale(lock: Path) -> None:
@@ -188,6 +197,8 @@ def _steal_if_stale(lock: Path) -> None:
     if age <= LOCK_STALE:
         return
     judged = _owner(lock)
+    if judged is None:
+        return
     grave = lock.with_name(f"{lock.name}.stale.{os.getpid()}.{uuid.uuid4().hex}")
     try:
         os.rename(lock, grave)  # only one contender wins the rename
@@ -208,7 +219,7 @@ def _acquire(lock: Path) -> str:
     while True:
         try:
             os.mkdir(lock)
-        except FileExistsError:
+        except (FileExistsError, PermissionError):  # Windows refuses a lock folder still being deleted
             _steal_if_stale(lock)
             if time.monotonic() >= end:
                 raise ManifestBusy(f"manifest lock {lock} held past {LOCK_WAIT:g}s") from None
@@ -216,13 +227,25 @@ def _acquire(lock: Path) -> str:
             continue
         except FileNotFoundError:
             raise ManifestError(f"no run directory {lock.parent}; call adopt_manifest first") from None
-        (lock / "owner").write_text(token, encoding="utf-8")
+        _patient((lock / "owner").write_text, token, "utf-8")
         return token
 
 
 def _release(lock: Path, token: str) -> None:
-    if _owner(lock) == token:
-        shutil.rmtree(lock, ignore_errors=True)
+    if _owner(lock) != token:
+        return
+    try:
+        _patient(os.unlink, lock / "owner")
+        for _ in range(100):
+            try:
+                os.rmdir(lock)
+                return
+            except FileNotFoundError:
+                return
+            except OSError:  # Windows: the owner file is still being deleted
+                time.sleep(0.02)
+    except OSError:
+        pass  # a lock left behind is stolen once stale
 
 
 def _publish(path: Path, data: dict) -> None:
@@ -231,14 +254,11 @@ def _publish(path: Path, data: dict) -> None:
         handle.write(json.dumps(data, indent=2) + "\n")
         handle.flush()
         os.fsync(handle.fileno())
-    for _ in range(50):
-        try:
-            os.replace(temp, path)
-            return
-        except PermissionError:  # Windows: a reader holds the file open
-            time.sleep(0.02)
-    temp.unlink(missing_ok=True)
-    raise ManifestError(f"could not publish {path}: the file stayed locked")
+    try:
+        _patient(os.replace, temp, path)
+    except OSError as exc:
+        temp.unlink(missing_ok=True)
+        raise ManifestError(f"could not publish {path}: {exc}") from None
 
 
 def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> dict | None:
@@ -253,7 +273,7 @@ def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> 
             if result is None:
                 return current
             _check_manifest(result, feature)
-            if _owner(lock) != token:  # the lock was taken from this writer: redo under a fresh one
+            if _owner(lock) not in (token, None):  # the lock was taken from this writer: redo under a fresh one
                 continue
             _publish(path, result)
             return result
