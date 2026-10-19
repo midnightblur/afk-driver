@@ -215,6 +215,10 @@ def _steal_if_stale(lock: Path) -> None:
     shutil.rmtree(grave, ignore_errors=True)
 
 
+def _unwritable(lock: Path, exc: OSError) -> ManifestError:
+    return ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}")
+
+
 def _acquire(lock: Path) -> str:
     token = f"{os.getpid()}-{uuid.uuid4().hex}"
     end = time.monotonic() + LOCK_WAIT
@@ -227,7 +231,7 @@ def _acquire(lock: Path) -> str:
         except (FileExistsError, PermissionError) as exc:
             refusals = refusals + 1 if isinstance(exc, PermissionError) and not lock.exists() else 0
             if refusals > 100:  # a lock folder being deleted clears in moments; an unwritable folder never does
-                raise ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}") from None
+                raise _unwritable(lock, exc) from None
             _steal_if_stale(lock)
             if time.monotonic() >= end:
                 raise ManifestBusy(f"manifest of {lock.parent.name} stayed busy past {LOCK_WAIT:g}s") from None
@@ -237,7 +241,7 @@ def _acquire(lock: Path) -> str:
             _patient((lock / "owner").write_text, token, "utf-8")
         except OSError as exc:
             shutil.rmtree(lock, ignore_errors=True)
-            raise ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}") from None
+            raise _unwritable(lock, exc) from None
         return token
 
 
@@ -266,14 +270,18 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
             handle.write(json.dumps(data, indent=2) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
-        if _owner(lock) not in (token, None):  # checked last, so a slow write cannot outlive its lock unseen
+        # Checked after the slow write; the rename after it takes at most about 2s, inside LOCK_STALE.
+        if _owner(lock) not in (token, None):
             return False
         _patient(os.replace, temp, path)
         return True
     except OSError as exc:
         raise ManifestError(f"could not publish {path}: {exc}") from None
     finally:
-        temp.unlink(missing_ok=True)
+        try:
+            _patient(temp.unlink, True)
+        except OSError:
+            pass
 
 
 def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> dict | None:

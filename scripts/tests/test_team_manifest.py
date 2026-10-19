@@ -252,8 +252,11 @@ def test_a_manifest_that_is_not_utf8_is_refused_and_kept(tmp_path: Path) -> None
     path = manifest.manifest_path(tmp_path, FEATURE)
     path.parent.mkdir(parents=True)
     path.write_bytes(b"\xff\xfe{")
-    with pytest.raises(manifest.ManifestError, match="UTF-8"):
-        manifest.read_manifest(tmp_path, FEATURE)
+    for call in (lambda: manifest.read_manifest(tmp_path, FEATURE),
+                 lambda: manifest.record_entry(tmp_path, FEATURE, agent()),
+                 lambda: manifest.adopt_manifest(tmp_path, FEATURE, "session-2")):
+        with pytest.raises(manifest.ManifestError, match="UTF-8"):
+            call()
     assert path.read_bytes() == b"\xff\xfe{"
 
 
@@ -282,6 +285,51 @@ def test_a_live_lock_makes_the_writer_wait_then_give_up(root: Path, monkeypatch)
     assert manifest.read_manifest(root, FEATURE)["agents"] == []
 
 
+def test_a_writer_waits_out_a_lock_held_past_a_hundred_polls(root: Path) -> None:
+    lock = lock_of(root)
+    lock.mkdir()
+    thread = release_later(lock, 2.5)
+    manifest.record_entry(root, FEATURE, agent())
+    thread.join()
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+
+
+def mkdir_refused(monkeypatch, times: int, while_held: Path | None = None) -> None:
+    """os.mkdir raises PermissionError `times` times, then works; `while_held` goes at the last refusal."""
+    real_mkdir, calls = os.mkdir, []
+
+    def refused(path, *args):
+        calls.append(path)
+        if len(calls) <= times:
+            if while_held is not None and len(calls) == times:
+                shutil.rmtree(while_held)
+            raise PermissionError("access denied")
+        return real_mkdir(path, *args)
+
+    monkeypatch.setattr(manifest.os, "mkdir", refused)
+    monkeypatch.setattr(manifest.time, "sleep", lambda _s: None)
+
+
+def test_a_lock_folder_being_deleted_is_waited_out(root: Path, monkeypatch) -> None:
+    lock = lock_of(root)
+    lock.mkdir()
+    mkdir_refused(monkeypatch, 150, while_held=lock)
+    manifest.record_entry(root, FEATURE, agent())
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+
+
+def test_a_refused_lock_lands_on_the_hundredth_retry(root: Path, monkeypatch) -> None:
+    mkdir_refused(monkeypatch, 100)
+    manifest.record_entry(root, FEATURE, agent())
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+
+
+def test_a_refused_lock_gives_up_after_a_hundred_retries(root: Path, monkeypatch) -> None:
+    mkdir_refused(monkeypatch, 101)
+    with pytest.raises(manifest.ManifestError, match="access denied"):
+        manifest.record_entry(root, FEATURE, agent())
+
+
 def test_a_waiting_writer_proceeds_once_the_lock_is_released(root: Path) -> None:
     lock = lock_of(root)
     lock.mkdir()
@@ -295,36 +343,82 @@ def test_a_waiting_writer_proceeds_once_the_lock_is_released(root: Path) -> None
 
 def test_a_writer_whose_lock_was_taken_mid_write_redoes_it(root: Path, monkeypatch) -> None:
     lock = lock_of(root)
-    loads: list[int] = []
+    path = manifest.manifest_path(root, FEATURE)
+    writes: list[int] = []
     real_fsync = os.fsync
 
     def stolen_during_write(fd: int) -> None:
         real_fsync(fd)
-        if not loads:
-            loads.append(1)
+        writes.append(fd)
+        if len(writes) == 1:  # a thief takes the lock, publishes its own change and lets go
             (lock / "owner").write_text("thief", encoding="utf-8")
-            release_later(lock)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["processes"].append(process())
+            path.write_text(json.dumps(data), encoding="utf-8")
+            shutil.rmtree(lock)
 
     monkeypatch.setattr(manifest.os, "fsync", stolen_during_write)
     manifest.record_entry(root, FEATURE, agent())
-    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+    data = manifest.read_manifest(root, FEATURE)
+    assert [e["agent_id"] for e in data["agents"]] == ["a1"]
+    assert [p["pid"] for p in data["processes"]] == [7]
+    assert len(writes) == 2
     assert sorted(p.name for p in root.joinpath(FEATURE).iterdir()) == ["manifest.json"]
 
 
-def test_a_failed_publish_leaves_the_old_manifest_and_no_temporary_file(root: Path, monkeypatch) -> None:
+def test_an_unreadable_lock_owner_does_not_stop_the_publish(root: Path, monkeypatch) -> None:
+    real_owner, real_fsync = manifest._owner, os.fsync
+    owners: list[str | None] = []
+    writes: list[int] = []
+
+    def unreadable_once(lock: Path) -> str | None:
+        owners.append(None if not owners else real_owner(lock))
+        return owners[-1]
+
+    def counted(fd: int) -> None:
+        writes.append(fd)
+        real_fsync(fd)
+
+    monkeypatch.setattr(manifest, "_owner", unreadable_once)
+    monkeypatch.setattr(manifest.os, "fsync", counted)
+    manifest.record_entry(root, FEATURE, agent())
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+    assert len(writes) == 1
+
+
+def disk_full(*_args):
+    raise OSError("disk full")
+
+
+@pytest.mark.parametrize("step", ["fsync", "replace"])
+def test_a_failed_publish_leaves_the_old_manifest_and_no_temporary_file(root: Path, monkeypatch, step) -> None:
     path = manifest.manifest_path(root, FEATURE)
     before = path.read_bytes()
+    monkeypatch.setattr(manifest.os, step, disk_full)
+    with pytest.raises(manifest.ManifestError, match="disk full"):
+        manifest.record_entry(root, FEATURE, agent())
+    assert path.read_bytes() == before
+    assert sorted(p.name for p in root.joinpath(FEATURE).iterdir()) == ["manifest.json"]
 
-    def broken(*_args):
-        raise OSError("disk full")
 
-    for name in ("replace", "fsync"):
-        monkeypatch.setattr(manifest.os, name, broken)
+@pytest.mark.parametrize("fails", [False, True])
+def test_a_temporary_file_that_will_not_delete_never_escapes_as_a_raw_error(root: Path, monkeypatch, fails) -> None:
+    real_unlink = pathlib.Path.unlink
+
+    def in_use(self, *args, **kwargs):
+        if self.name.endswith(".tmp"):
+            raise PermissionError("in use")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "unlink", in_use)
+    monkeypatch.setattr(manifest.time, "sleep", lambda _s: None)
+    if fails:
+        monkeypatch.setattr(manifest.os, "replace", disk_full)
         with pytest.raises(manifest.ManifestError, match="disk full"):
             manifest.record_entry(root, FEATURE, agent())
-        monkeypatch.undo()
-        assert path.read_bytes() == before
-        assert sorted(p.name for p in root.joinpath(FEATURE).iterdir()) == ["manifest.json"]
+    else:
+        manifest.record_entry(root, FEATURE, agent())
+        assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
 
 
 def test_a_failed_owner_write_frees_the_lock(root: Path, monkeypatch) -> None:
