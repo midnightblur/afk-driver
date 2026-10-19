@@ -44,3 +44,4 @@
 2026-10-19 17:41 | execute | 0002-config-transport-and-pattern-keys | pushed 017eb11..48fb989 (1 commits) — the issue template now shows the transport setting, with a test that every collected field appears in it
 2026-10-19 17:41 | execute | 0002-config-transport-and-pattern-keys | reviewing — round 2 of the review checks the two fixes since round 1
 2026-10-19 17:54 | execute | 0002-config-transport-and-pattern-keys | verified — on the new head the report-issue tests (307), publish-smoke (44), the settings tests and the native contract tests (42) all pass, and the native contract gate reports nothing
+2026-10-19 18:07 | execute | 0002-config-transport-and-pattern-keys | review advisory crit=0 high=0 med=0 low=1 — round 2: the two round 1 notes are fixed; one new note about an edited quote in the code-study record was withdrawn by an independent judge
