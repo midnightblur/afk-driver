@@ -75,7 +75,7 @@ class ForeignManifest(ManifestError):
 
 
 class ManifestBusy(ManifestError):
-    """The manifest's lock stayed held by a live writer past `LOCK_WAIT` seconds."""
+    """Another writer kept the manifest busy past `LOCK_WAIT` seconds; nothing was written."""
 
 
 def _name(value: object, what: str) -> str:
@@ -148,6 +148,8 @@ def _load(path: Path, feature: str) -> dict | None:
         text = _patient(path.read_text, "utf-8")
     except FileNotFoundError:
         return None
+    except UnicodeDecodeError:
+        raise ManifestError(f"manifest {path} is not UTF-8 text") from None
     except OSError as exc:
         raise ManifestError(f"manifest {path} stayed unreadable: {exc}") from None
     try:
@@ -216,18 +218,26 @@ def _steal_if_stale(lock: Path) -> None:
 def _acquire(lock: Path) -> str:
     token = f"{os.getpid()}-{uuid.uuid4().hex}"
     end = time.monotonic() + LOCK_WAIT
+    refusals = 0
     while True:
         try:
             os.mkdir(lock)
-        except (FileExistsError, PermissionError):  # Windows refuses a lock folder still being deleted
-            _steal_if_stale(lock)
-            if time.monotonic() >= end:
-                raise ManifestBusy(f"manifest lock {lock} held past {LOCK_WAIT:g}s") from None
-            time.sleep(0.02)
-            continue
         except FileNotFoundError:
             raise ManifestError(f"no run directory {lock.parent}; call adopt_manifest first") from None
-        _patient((lock / "owner").write_text, token, "utf-8")
+        except (FileExistsError, PermissionError) as exc:
+            refusals = refusals + 1 if isinstance(exc, PermissionError) and not lock.exists() else 0
+            if refusals > 100:  # a lock folder being deleted clears in moments; an unwritable folder never does
+                raise ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}") from None
+            _steal_if_stale(lock)
+            if time.monotonic() >= end:
+                raise ManifestBusy(f"manifest of {lock.parent.name} stayed busy past {LOCK_WAIT:g}s") from None
+            time.sleep(0.02)
+            continue
+        try:
+            _patient((lock / "owner").write_text, token, "utf-8")
+        except OSError as exc:
+            shutil.rmtree(lock, ignore_errors=True)
+            raise ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}") from None
         return token
 
 
@@ -248,17 +258,22 @@ def _release(lock: Path, token: str) -> None:
         pass  # a lock left behind is stolen once stale
 
 
-def _publish(path: Path, data: dict) -> None:
+def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
+    """Write a temporary file, then rename it over the manifest; False when this writer lost the lock."""
     temp = path.with_name(f"{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
-    with open(temp, "w", encoding="utf-8") as handle:
-        handle.write(json.dumps(data, indent=2) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
     try:
+        with open(temp, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(data, indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        if _owner(lock) not in (token, None):  # checked last, so a slow write cannot outlive its lock unseen
+            return False
         _patient(os.replace, temp, path)
+        return True
     except OSError as exc:
-        temp.unlink(missing_ok=True)
         raise ManifestError(f"could not publish {path}: {exc}") from None
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> dict | None:
@@ -273,9 +288,8 @@ def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> 
             if result is None:
                 return current
             _check_manifest(result, feature)
-            if _owner(lock) not in (token, None):  # the lock was taken from this writer: redo under a fresh one
+            if not _publish(path, result, lock, token):
                 continue
-            _publish(path, result)
             return result
         finally:
             _release(lock, token)
@@ -342,6 +356,8 @@ def record_entry(root: str | os.PathLike, feature: str, entry: dict) -> dict:
             _check(row, fields, what, full=True)
             rows.append(row)
         else:
+            if agent and found["state"] == "cleaned":
+                raise ManifestError(f"agent {found['agent_id']} is cleaned; a resume or replacement is a new entry")
             if agent and entry.get("state") not in (None, found["state"]):
                 raise ManifestError(f"agent {found['agent_id']} state changes only through move_entry")
             found.update(entry)

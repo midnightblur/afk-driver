@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
+import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -26,11 +29,20 @@ ALLOWED = {
     "cleaned": set(),
     "unkillable": {"cleaned"},
 }
+MOVES = [(s, t) for s in STATES for t in STATES + ("gone",)]
+LEGAL = [m for m in MOVES if m[1] in ALLOWED[m[0]]]
+ILLEGAL = [m for m in MOVES if m[1] not in ALLOWED[m[0]]]
 
 
 def agent(agent_id: str = "a1", **extra) -> dict:
     entry = {"agent_id": agent_id, "role": "builder", "model": "opus", "stage": "execute",
              "pattern_step": "build", "lifespan": "Step"}
+    entry.update(extra)
+    return entry
+
+
+def process(pid: int = 7, **extra) -> dict:
+    entry = {"pid": pid, "owner": "session-1", "label": "inbox wait", "started_at": "1700000000.25"}
     entry.update(extra)
     return entry
 
@@ -41,6 +53,10 @@ def root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def lock_of(root: Path) -> Path:
+    return manifest.manifest_path(root, FEATURE).with_name("manifest.lock")
+
+
 def force_state(root: Path, agent_id: str, state: str) -> None:
     path = manifest.manifest_path(root, FEATURE)
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -48,6 +64,12 @@ def force_state(root: Path, agent_id: str, state: str) -> None:
         if entry["agent_id"] == agent_id:
             entry["state"] = state
     path.write_text(json.dumps(data), encoding="utf-8")
+
+
+def release_later(lock: Path, delay: float = 0.3) -> threading.Thread:
+    thread = threading.Thread(target=lambda: (time.sleep(delay), shutil.rmtree(lock, ignore_errors=True)))
+    thread.start()
+    return thread
 
 
 def test_new_manifest_carries_the_header(root: Path) -> None:
@@ -70,6 +92,14 @@ def test_a_new_agent_entry_starts_in_starting_with_every_field(root: Path) -> No
     assert set(entry) == set(manifest.AGENT_FIELDS)
 
 
+def test_utc_times_to_the_second_are_stored(root: Path) -> None:
+    manifest.record_entry(root, FEATURE, agent(started_at="2026-10-19T18:38:12Z"))
+    manifest.record_entry(root, FEATURE, {"agent_id": "a1", "park_until": "2026-10-19T20:00:00Z",
+                                          "park_reason": "provider limit"})
+    [entry] = manifest.read_manifest(root, FEATURE)["agents"]
+    assert (entry["started_at"], entry["park_until"]) == ("2026-10-19T18:38:12Z", "2026-10-19T20:00:00Z")
+
+
 def test_a_new_agent_entry_in_another_state_is_refused(root: Path) -> None:
     with pytest.raises(manifest.TransitionRefused, match="new -> working"):
         manifest.record_entry(root, FEATURE, agent(state="working"))
@@ -84,47 +114,68 @@ def test_record_updates_fields_but_never_the_state(root: Path) -> None:
         manifest.record_entry(root, FEATURE, {"agent_id": "a1", "state": "working"})
 
 
+def test_a_cleaned_entry_takes_no_more_fields(root: Path) -> None:
+    manifest.record_entry(root, FEATURE, agent())
+    manifest.move_entry(root, FEATURE, "a1", "lost")
+    manifest.move_entry(root, FEATURE, "a1", "cleaned")
+    with pytest.raises(manifest.ManifestError, match="cleaned"):
+        manifest.record_entry(root, FEATURE, {"agent_id": "a1", "pid": 9})
+    assert manifest.read_manifest(root, FEATURE)["agents"][0]["pid"] is None
+
+
 @pytest.mark.parametrize("bad", [
     {"agent_id": "a1", "role": "builder"},
     agent(colour="red"),
     agent(pid="12"),
+    agent(pid=-1),
+    agent(pid=True),
+    agent(pid=1.5),
     agent(lifespan="Forever"),
     agent(park_until="tomorrow"),
-    {"pid": 7, "owner": "a1"},
-])
+    agent(park_until="2026-10-19 18:38:12Z"),
+    agent(started_at="2026-10-19T18:38:12+00:00"),
+    agent(owner_generation=5),
+    process(owner=None),
+    process(started_at=True),
+    process(started_at=""),
+], ids=lambda bad: ",".join(f"{k}={v!r}" for k, v in bad.items() if k not in ("role", "model", "stage",
+                                                                             "pattern_step", "label")))
 def test_malformed_entries_are_refused(root: Path, bad: dict) -> None:
     with pytest.raises(manifest.ManifestError):
         manifest.record_entry(root, FEATURE, bad)
-    assert manifest.read_manifest(root, FEATURE)["agents"] == []
+    data = manifest.read_manifest(root, FEATURE)
+    assert data["agents"] == [] and data["processes"] == []
 
 
 def test_a_process_entry_has_no_state_and_is_removed_by_id(root: Path) -> None:
-    manifest.record_entry(root, FEATURE, {"pid": 7, "owner": "session-1", "label": "inbox wait",
-                                          "started_at": "1700000000.25"})
-    [proc] = manifest.read_manifest(root, FEATURE)["processes"]
-    assert proc == {"pid": 7, "owner": "session-1", "label": "inbox wait", "started_at": "1700000000.25"}
+    manifest.record_entry(root, FEATURE, process())
+    manifest.record_entry(root, FEATURE, process(8, started_at=1700000001.5))
+    procs = manifest.read_manifest(root, FEATURE)["processes"]
+    assert procs == [process(), process(8, started_at=1700000001.5)]
     with pytest.raises(manifest.ManifestError):
-        manifest.record_entry(root, FEATURE, {"pid": 8, "owner": "a1", "label": "x", "started_at": "1",
-                                              "state": "working"})
+        manifest.record_entry(root, FEATURE, process(9, state="working"))
     assert manifest.remove_process(root, FEATURE, 7) is True
     assert manifest.remove_process(root, FEATURE, 7) is False
-    assert manifest.read_manifest(root, FEATURE)["processes"] == []
+    assert [p["pid"] for p in manifest.read_manifest(root, FEATURE)["processes"]] == [8]
 
 
-@pytest.mark.parametrize("source", STATES)
-@pytest.mark.parametrize("target", STATES + ("gone",))
-def test_every_move_follows_the_table(root: Path, source: str, target: str) -> None:
+@pytest.mark.parametrize("source,target", LEGAL)
+def test_every_allowed_move_succeeds(root: Path, source: str, target: str) -> None:
     manifest.record_entry(root, FEATURE, agent())
     force_state(root, "a1", source)
-    if target in ALLOWED[source]:
+    manifest.move_entry(root, FEATURE, "a1", target)
+    assert manifest.read_manifest(root, FEATURE)["agents"][0]["state"] == target
+
+
+@pytest.mark.parametrize("source,target", ILLEGAL)
+def test_every_other_move_is_refused_by_name(root: Path, source: str, target: str) -> None:
+    manifest.record_entry(root, FEATURE, agent())
+    force_state(root, "a1", source)
+    with pytest.raises(manifest.TransitionRefused) as refused:
         manifest.move_entry(root, FEATURE, "a1", target)
-        assert manifest.read_manifest(root, FEATURE)["agents"][0]["state"] == target
-    else:
-        with pytest.raises(manifest.TransitionRefused) as refused:
-            manifest.move_entry(root, FEATURE, "a1", target)
-        assert f"{source} -> {target}" in str(refused.value)
-        assert refused.value.move == ("a1", source, target)
-        assert manifest.read_manifest(root, FEATURE)["agents"][0]["state"] == source
+    assert f"{source} -> {target}" in str(refused.value)
+    assert refused.value.move == ("a1", source, target)
+    assert manifest.read_manifest(root, FEATURE)["agents"][0]["state"] == source
 
 
 def test_a_resume_is_a_new_entry_and_the_old_line_closes(root: Path) -> None:
@@ -144,31 +195,52 @@ def test_moving_an_unknown_agent_is_refused(root: Path) -> None:
         manifest.move_entry(root, FEATURE, "ghost", "working")
 
 
-def test_a_new_contact_session_adopts_the_manifest(root: Path) -> None:
+def test_a_new_contact_session_takes_over_the_run(root: Path) -> None:
     manifest.record_entry(root, FEATURE, agent())
     data = manifest.adopt_manifest(root, FEATURE, "session-2")
     assert (data["owning_session"], data["owner_generation"]) == ("session-2", 2)
     assert [e["agent_id"] for e in data["agents"]] == ["a1"]
-    again = manifest.adopt_manifest(root, FEATURE, "session-2")
-    assert again["owner_generation"] == 2
     assert list(root.joinpath(FEATURE).glob("manifest*.json")) == [manifest.manifest_path(root, FEATURE)]
+
+
+def test_the_owning_session_adopting_again_changes_nothing(root: Path) -> None:
+    before = manifest.manifest_path(root, FEATURE).read_bytes()
+    data = manifest.adopt_manifest(root, FEATURE, "session-1")
+    assert data["owner_generation"] == 1
+    assert manifest.manifest_path(root, FEATURE).read_bytes() == before
+
+
+def test_an_entry_written_after_a_takeover_copies_the_new_generation(root: Path) -> None:
+    manifest.adopt_manifest(root, FEATURE, "session-2")
     manifest.record_entry(root, FEATURE, agent("a2"))
-    entry = manifest.read_manifest(root, FEATURE)["agents"][1]
-    assert entry["owner_generation"] == 2
+    assert manifest.read_manifest(root, FEATURE)["agents"][0]["owner_generation"] == 2
 
 
-def test_writes_need_an_adopted_manifest(tmp_path: Path) -> None:
+@pytest.mark.parametrize("call", [
+    lambda r: manifest.record_entry(r, FEATURE, agent()),
+    lambda r: manifest.move_entry(r, FEATURE, "a1", "working"),
+    lambda r: manifest.remove_process(r, FEATURE, 7),
+], ids=["record", "move", "remove"])
+@pytest.mark.parametrize("with_dir", [False, True], ids=["no-run-dir", "empty-run-dir"])
+def test_writes_need_an_adopted_manifest(tmp_path: Path, call, with_dir: bool) -> None:
+    if with_dir:
+        tmp_path.joinpath(FEATURE).mkdir()
     with pytest.raises(manifest.ManifestError, match="adopt_manifest"):
-        manifest.record_entry(tmp_path, FEATURE, agent())
+        call(tmp_path)
+    assert not manifest.manifest_path(tmp_path, FEATURE).exists()
 
 
-def test_an_unknown_format_version_is_foreign_reported_once_and_kept(tmp_path: Path, capsys) -> None:
+@pytest.mark.parametrize("body", [{"format_version": 99}, {"format_version": True}, {"format_version": "1"},
+                                  {"format_version": 1.5}, [1, 2]], ids=["99", "true", "text", "float", "list"])
+def test_an_unknown_format_version_is_foreign_reported_once_and_kept(tmp_path: Path, capsys, body) -> None:
     path = manifest.manifest_path(tmp_path, FEATURE)
     path.parent.mkdir(parents=True)
-    original = json.dumps({"format_version": 99, "anything": True})
+    original = json.dumps(body)
     path.write_text(original, encoding="utf-8")
     for call in (lambda: manifest.read_manifest(tmp_path, FEATURE),
                  lambda: manifest.record_entry(tmp_path, FEATURE, agent()),
+                 lambda: manifest.move_entry(tmp_path, FEATURE, "a1", "working"),
+                 lambda: manifest.remove_process(tmp_path, FEATURE, 7),
                  lambda: manifest.adopt_manifest(tmp_path, FEATURE, "session-1")):
         with pytest.raises(manifest.ForeignManifest):
             call()
@@ -176,31 +248,109 @@ def test_an_unknown_format_version_is_foreign_reported_once_and_kept(tmp_path: P
     assert path.read_text(encoding="utf-8") == original
 
 
-def test_a_stale_lock_is_stolen(root: Path, monkeypatch) -> None:
-    lock = manifest.manifest_path(root, FEATURE).with_name("manifest.lock")
+def test_a_manifest_that_is_not_utf8_is_refused_and_kept(tmp_path: Path) -> None:
+    path = manifest.manifest_path(tmp_path, FEATURE)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"\xff\xfe{")
+    with pytest.raises(manifest.ManifestError, match="UTF-8"):
+        manifest.read_manifest(tmp_path, FEATURE)
+    assert path.read_bytes() == b"\xff\xfe{"
+
+
+def test_a_stale_lock_is_stolen_and_the_write_lands(root: Path, monkeypatch) -> None:
+    lock = lock_of(root)
     lock.mkdir()
     (lock / "owner").write_text("dead-holder", encoding="utf-8")
     old = time.time() - manifest.LOCK_STALE - 5
     os.utime(lock, (old, old))
     monkeypatch.setattr(manifest, "LOCK_WAIT", 2.0)
     manifest.record_entry(root, FEATURE, agent())
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
     assert not lock.exists()
     assert not list(root.joinpath(FEATURE).glob("manifest.lock.stale*"))
 
 
 def test_a_live_lock_makes_the_writer_wait_then_give_up(root: Path, monkeypatch) -> None:
-    lock = manifest.manifest_path(root, FEATURE).with_name("manifest.lock")
+    lock = lock_of(root)
     lock.mkdir()
     monkeypatch.setattr(manifest, "LOCK_WAIT", 0.3)
+    start = time.monotonic()
     with pytest.raises(manifest.ManifestBusy):
         manifest.record_entry(root, FEATURE, agent())
+    assert time.monotonic() - start >= 0.3
     assert lock.exists()
     assert manifest.read_manifest(root, FEATURE)["agents"] == []
 
 
-def test_no_temporary_file_is_left_after_a_write(root: Path) -> None:
+def test_a_waiting_writer_proceeds_once_the_lock_is_released(root: Path) -> None:
+    lock = lock_of(root)
+    lock.mkdir()
+    thread = release_later(lock)
+    start = time.monotonic()
     manifest.record_entry(root, FEATURE, agent())
+    thread.join()
+    assert time.monotonic() - start >= 0.25
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+
+
+def test_a_writer_whose_lock_was_taken_mid_write_redoes_it(root: Path, monkeypatch) -> None:
+    lock = lock_of(root)
+    loads: list[int] = []
+    real_fsync = os.fsync
+
+    def stolen_during_write(fd: int) -> None:
+        real_fsync(fd)
+        if not loads:
+            loads.append(1)
+            (lock / "owner").write_text("thief", encoding="utf-8")
+            release_later(lock)
+
+    monkeypatch.setattr(manifest.os, "fsync", stolen_during_write)
+    manifest.record_entry(root, FEATURE, agent())
+    assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
     assert sorted(p.name for p in root.joinpath(FEATURE).iterdir()) == ["manifest.json"]
+
+
+def test_a_failed_publish_leaves_the_old_manifest_and_no_temporary_file(root: Path, monkeypatch) -> None:
+    path = manifest.manifest_path(root, FEATURE)
+    before = path.read_bytes()
+
+    def broken(*_args):
+        raise OSError("disk full")
+
+    for name in ("replace", "fsync"):
+        monkeypatch.setattr(manifest.os, name, broken)
+        with pytest.raises(manifest.ManifestError, match="disk full"):
+            manifest.record_entry(root, FEATURE, agent())
+        monkeypatch.undo()
+        assert path.read_bytes() == before
+        assert sorted(p.name for p in root.joinpath(FEATURE).iterdir()) == ["manifest.json"]
+
+
+def test_a_failed_owner_write_frees_the_lock(root: Path, monkeypatch) -> None:
+    real = pathlib.Path.write_text
+
+    def broken(self, *args, **kwargs):
+        if self.name == "owner":
+            raise OSError("disk full")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "write_text", broken)
+    with pytest.raises(manifest.ManifestError, match="disk full"):
+        manifest.record_entry(root, FEATURE, agent())
+    assert not lock_of(root).exists()
+
+
+def test_a_run_directory_that_refuses_the_lock_is_reported_quickly(root: Path, monkeypatch) -> None:
+    def refused(_path):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(manifest.os, "mkdir", refused)
+    start = time.monotonic()
+    with pytest.raises(manifest.ManifestError, match="access denied") as error:
+        manifest.record_entry(root, FEATURE, agent())
+    assert not isinstance(error.value, manifest.ManifestBusy)
+    assert time.monotonic() - start < manifest.LOCK_WAIT
 
 
 WRITER = """
@@ -228,11 +378,12 @@ def test_two_racing_writers_lose_no_update(root: Path) -> None:
 def test_the_checkpoint_path_comes_from_feature_and_role(tmp_path: Path) -> None:
     path = manifest.checkpoint_path(tmp_path, FEATURE, "reviewer")
     assert path == tmp_path / FEATURE / "checkpoints" / "reviewer.json"
-    assert manifest.checkpoint_path(tmp_path, FEATURE, "reviewer") == path
+    assert path.parent.parent == manifest.manifest_path(tmp_path, FEATURE).parent
     assert manifest.checkpoint_path(tmp_path, FEATURE, "builder") != path
+    assert manifest.checkpoint_path(tmp_path, "feat-y", "reviewer") != path
 
 
-@pytest.mark.parametrize("name", ["", "..", "a/b", "a\\b", "."])
+@pytest.mark.parametrize("name", ["", "..", "a/b", "a\\b", ".", "a:b", "a\0b"])
 def test_unsafe_names_are_refused(tmp_path: Path, name: str) -> None:
     with pytest.raises(manifest.ManifestError):
         manifest.checkpoint_path(tmp_path, FEATURE, name)
