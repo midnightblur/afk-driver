@@ -314,3 +314,17 @@
 - Chosen: B — the resolver must check a one-off pattern that never passes the reader, so value checks in both would be two homes; SDD:1508 gives presence checks to the resolver
 - Supersedes: none
 - To reverse: add the value checks to `_validate_saved_patterns`
+
+## D-46 — The issue template shows the collector's transport field
+- 2026-10-19 · decided by /afk:autopilot (orchestrator, under the human's standing autonomous grant; resolves the 0002-config-transport-and-pattern-keys needs_decision park on review findings f001 and f003)
+- Options: A — widen 0002's Scope to skills/utils/report-issue/ISSUE-TEMPLATE.md and add `transport <transport>` to its Adapters row, plus `transport` in the collector field set that publish-smoke.sh:237 checks vs B — give that row to a later subtask and leave the collector field without a reader until then
+- Chosen: A — no other subtask touches ISSUE-TEMPLATE.md, the edit is one table cell, and without it the field collect_env.sh:74 writes reaches no issue
+- Supersedes: 0002-config-transport-and-pattern-keys.md ## Scope — the list gains skills/utils/report-issue/ISSUE-TEMPLATE.md and skills/utils/report-issue/scripts/tests/publish-smoke.sh for this run; the contract file is not edited
+- To reverse: revert the Adapters-row and need-set edits, and route findings f001 and f003 to the subtask that takes the row
+
+## D-47 — Drop a hostile test host from the INV-076 ledger's quoted evidence
+- 2026-10-19 · decided by /afk:execute (0002-config-transport-and-pattern-keys, Step 10 round 2 re-verification)
+- Options: A — replace the literal `git.corp.acme.local` in the evidence string of node `B12:scripts/tests/test_report_issue.py:732` of INV-076 COVERAGE.json with `<hostname>` vs B — change skills/utils/report-issue/scripts/redact.py so its plugin inventory skips investigation ledgers
+- Chosen: A — redact.py:351-353 counts every dotted token in tracked non-test text as public, so the ledger's verbatim quote made test_a_machine_named_like_a_config_key_still_goes fail; the ledger is already in this slice's diff (review finding f007 withdrawn), the evidence field needs only non-empty text (validate_coverage.py:263, still valid after the edit), and B is outside Scope
+- Supersedes: none
+- To reverse: restore the quoted host in that evidence string, after redact.py stops reading investigation ledgers
