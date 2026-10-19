@@ -3,7 +3,7 @@
 > Parent ticket: agent-team-topology   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/agent-team-topology
-> Last updated: 2026-10-07 (status column maintained by /afk:execute)
+> Last updated: 2026-10-19 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
 
@@ -126,7 +126,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-glossary-terms | Glossary terms the design defines | pending | — | static | — |
+| 1 | 0001-glossary-terms | Glossary terms the design defines | done | — | static | — |
 | 2 | 0002-config-transport-and-pattern-keys | Configuration reader learns the transport, switch and pattern keys | pending | — | static, unit | — |
 | 3 | 0003-manifest-module | Run manifest: record, move, read under one lock | pending | — | static, unit | — |
 | 4 | 0004-knowledge-store | Knowledge store: entries, finished stamp, debate release | pending | — | static, unit | — |

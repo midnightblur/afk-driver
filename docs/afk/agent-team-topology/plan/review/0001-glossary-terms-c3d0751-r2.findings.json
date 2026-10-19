@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "refactor-safety",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "compliance",
+  "file": "GLOSSARY.md",
+  "line": 60,
+  "side": "new",
+  "finding": "The new Run entry narrows a word that existing entries in the same glossary already use in a wider sense.",
+  "why": "GLOSSARY.md:61 defines run as 'All work on one feature under a team topology', but the existing entries at GLOSSARY.md:325 ('died mid-run'), :328 and :351 ('an `execute` run') and :445 ('Run history lines keep every run' of the smoke gate) use run for one skill execution with no team topology, so those entries now contradict the glossary that owns the term (LANGUAGE.md:21).",
+  "fix": "Word the Run entry so it also holds for the existing uses (one execution of a skill, or all team-topology work on one feature), or register the team sense under a separate compound and route the SDD term-table row (SDD.md:15) to /afk:grill-solution.",
+  "evidence": "+**Run**:\n+All work on one feature under a team topology.  vs  GLOSSARY.md:351 'The structured result tokens of an `execute` run'; LANGUAGE.md:21 'One term, one meaning \u2014 and one meaning, one term.' | also scope-and-impact: inject.py:227 wraps every case-insensitive whole-word 'run' on a lavish page with this definition",
+  "id": "r-001"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "Boundary values, empty/null/missing inputs",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "GLOSSARY.md",
+  "line": 76,
+  "side": "new",
+  "finding": "Role agent entry says 'always a pane agent' and omits the case where no pane transport is found",
+  "why": "The pane-agent default applies only when a pane transport is found (PRD AC-041; SDD:432 'absent means pane when a pane tool is found'). With no pane transport, role agents run as harness subagents (GLOSSARY.md:35). So the entry is false for a session with no multiplexer and contradicts the Pane transport entry 3 lines above it.",
+  "fix": "Write 'A pane agent when a pane transport is found and the pane switch does not say subagent; otherwise a subagent.'",
+  "evidence": "GLOSSARY.md:76 'Always a pane agent unless the pane switch says subagent.' vs GLOSSARY.md:73 'Finding one turns the pane-agent default on' and PRD AC-041 'The pane-agent default applies whenever the plugin is enabled and a pane transport is found'",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "medium",
+  "class": "test",
+  "file": "docs/afk/agent-team-topology/plan/0001-glossary-terms.md",
+  "line": 43,
+  "side": "new",
+  "finding": "The glossary usage tier cannot fail for the new entries: this contract and the feature docs that define the terms count as their consumers",
+  "why": "test_the_shipped_glossary_has_no_unconsumed_term (scripts/tests/test_glossary_usage.py:160-184) takes every repository file except GLOSSARY.md, CHANGELOG.md and the test itself as a consumer (scripts/glossary_usage.py:24,32,108-121); this contract's Acceptance line 20 names every new term, and outside GLOSSARY.md, CHANGELOG.md and docs/afk/agent-team-topology/** a ripgrep for 23 of the new terms finds only 'pane agent' (providers/CONFORMANCE.md:422-440) and 'result file' (hooks/lib/bounded_scan.py:18), so the check passes because the slice's own design documents name the terms, not because plugin prose consumes them.",
+  "fix": "Change the Proves cell to say the check cannot fail for these entries, or add a static check that greps each new term outside docs/afk/agent-team-topology/ and lists the entries that are still waiting for a consumer slice.",
+  "evidence": "| static | `afk-python -m pytest scripts/tests/test_glossary_usage.py -q` | the glossary usage check still passes with the new entries |",
+  "id": "r-003"
+ },
+ {
+  "concern": "spec-fidelity",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "spec",
+  "file": "GLOSSARY.md",
+  "line": 169,
+  "side": "new",
+  "finding": "One-off pattern entry says every one-off pattern carries a charter and is checked as a record with roles, dropping the no-roles exception",
+  "why": "SDD.md:85 and :406 and PRD AC-066 limit the charter and the with-roles check to a one-off pattern that starts agents; a one-off pattern with no roles carries no charter, so the entry overstates the rule for that case.",
+  "fix": "Qualify the entry: 'A one-off pattern that starts agents reaches the run ... with its charter, and is checked as a record with roles; one with no roles carries no charter.'",
+  "evidence": "GLOSSARY.md:169 'It has no record: it reaches the run in the fields of a pattern record, with its charter, and is checked as a record with roles.' vs SDD.md:406 'A one-off pattern that starts agents has no record, but reaches the resolver ... with its charter ... a one-off pattern with no roles carries none' | also logic-correctness: PRD AC-066 'a pattern written for one task with no roles carries no charter'",
+  "id": "r-004"
+ }
+]

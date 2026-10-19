@@ -272,3 +272,17 @@
 - Chosen: A — SDD:228 runs the identity check "for an agent entry as for a process entry" inside agent-stop, so one path holds the check; cleanup calls agent-stop for process entries too
 - Supersedes: none
 - To reverse: limit agent-stop to agent entries and give 0012 the identity check for process entries
+
+## D-40 — The adversary gate's running system is the plugin's command line
+- 2026-10-19 · decided by /afk:execute (0001-glossary-terms, Step 10.5)
+- Options: A — pass `cli:C:/Users/mvu/PersonalProjects/afk-driver-agent-teams` as the app base URL; the adversary runs the scripts and hooks the contract names in a scratch copy vs B — park the gate as `env_unreachable`, since the plugin has no app, api tier or browser tier
+- Chosen: A — the plugin has no app; its scripts and hooks are its running surface, and the invoker named this target for the run
+- Supersedes: none
+- To reverse: re-run Step 10.5 against a provisioned app instance once one exists
+
+## D-41 — Review round 2 re-reviews the slice's own commits at the moved head
+- 2026-10-19 · decided by /afk:execute (0001-glossary-terms, Step 10)
+- Options: A — a full lean-roster review of the `[0001-glossary-terms]` commits at head ade8ab1 vs B — a delta round over 52ada6a..ade8ab1, whose only change is the non-slice `.gitattributes` commit
+- Chosen: A — no remediation landed in round 1, and the head moved only by a commit outside this slice, so a delta round would review work this slice does not own
+- Supersedes: none
+- To reverse: run a delta round with `--base 52ada6a` and drop round 2's summary note
