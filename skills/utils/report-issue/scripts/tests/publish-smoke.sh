@@ -234,9 +234,15 @@ py="${AFK_PYTHON:-afk-python}"
 printf '%s' "$env_json" | "$py" -c '
 import json, sys
 d = json.load(sys.stdin)
-need = {"plugin_version", "provider", "os", "git", "gh", "python", "tracker", "forge", "notes", "build_gates", "journal_tail"}
+need = {"plugin_version", "provider", "os", "git", "gh", "python", "tracker", "forge", "notes", "build_gates", "transport", "journal_tail"}
 sys.exit(0 if need <= set(d) and d["journal_tail"] == "two" else 1)' \
   && [ $rc = 0 ] && ok "environment JSON carries every field and the journal tail" || bad "collect_env (rc=$rc): $env_json"
+printf '%s' "$env_json" | "$py" -c '
+import json, sys
+template = open(sys.argv[1], encoding="utf-8").read()
+missing = [k for k in json.load(sys.stdin) if k != "journal_tail" and "<" + k + ">" not in template]
+print(" ".join(missing)); sys.exit(1 if missing else 0)' "$SCRIPT_DIR/../../ISSUE-TEMPLATE.md" >"$sandbox/missing.txt" \
+  && ok "the issue template shows every environment field" || bad "template lacks: $(cat "$sandbox/missing.txt")"
 bash "$SCRIPT_DIR/../collect_env.sh" --bogus >/dev/null 2>&1; [ $? = 2 ] && ok "collect_env bad argument exits 2" || bad "collect_env usage"
 
 echo "publish-smoke: $PASS passed, $FAIL failed"

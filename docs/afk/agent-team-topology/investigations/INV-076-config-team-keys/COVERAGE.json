@@ -12234,7 +12234,7 @@
    "reason": "test that pins an unchanged reader or redaction behaviour",
    "impact_verdict": "unchanged",
    "pinned_by": "scripts/tests/test_report_issue.py:732",
-   "evidence": "@pytest.mark.parametrize(\"raw\", [\"telnet tracker.kind\", \"git.corp.acme.local is unreachable\"]) -- test that pins an unchanged reader or redaction behaviour",
+   "evidence": "@pytest.mark.parametrize(\"raw\", [\"telnet tracker.kind\", \"<hostname> is unreachable\"]) -- test that pins an unchanged reader or redaction behaviour",
    "line_hash": "ba1bb44860d1",
    "parent": null,
    "query_id": "q-c7c22320"

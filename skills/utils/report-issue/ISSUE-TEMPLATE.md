@@ -39,7 +39,7 @@ tail from the environment JSON>
 | Harness | <provider> |
 | OS | <os> |
 | git / gh / python | <git> / <gh> / <python> |
-| Adapters | tracker <tracker>, forge <forge>, notes <notes>, build gates <build_gates> |
+| Adapters | tracker <tracker>, forge <forge>, notes <notes>, build gates <build_gates>, transport <transport> |
 | Fingerprint | `<fp>` |
 
 ## Suspected owner
