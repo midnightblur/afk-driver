@@ -44,6 +44,10 @@ The adapter tests use a stub command-line tool. They do not contact GitHub.
   re-parses the command line, and the adapter then reads an unreadable payload
   and uses its defaults. Such a caller puts the payload in the environment and
   lets the shell expand it.
+- `change-diff` and `change-fetch` build the diff locally (`git diff base...head`)
+  when the clone holds both commits, and use `gh pr diff` only otherwise: the
+  forge endpoint breaks off on a very large change. A local diff honours the
+  clone's `.gitattributes`, so a `-diff` path shows as a binary file.
 - `change-comment` uses the issue-comment API for a plain note. It uses the
   review-comment API for an exact line.
 - `side: old` sends `LEFT`, `old_path`, and `old_line`. `new` and `context`

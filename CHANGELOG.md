@@ -93,6 +93,12 @@ release page from its section here. Nobody tags by hand.
 
 ### Fixed
 
+- **The GitHub forge reads a very large pull request's diff.** `change-diff`
+  and `change-fetch` build the diff from the request's base and head commits
+  when both are in the local clone, and fall back to `gh pr diff` otherwise.
+  `gh pr diff` breaks off on a diff of about 200 MB, so the review settle
+  loop could not run. A failed `change-diff` now names the `gh` error, not
+  the start of the diff.
 - **`/afk:investigate` folds tracer answers onto the seed.** A tracer's
   disposition replaces a seed node that nobody had triaged, instead of folding
   to `conflict: unverified vs <x>`. A fragment row resolves a seed class row,
