@@ -318,3 +318,29 @@ _Avoid_: retro item (aggregation comes later), todo (a lesson carries its own dr
 
 **Escalation ladder**:
 The graded response to an applied lesson whose signal recurs: reword → relocate → checklist criterion → Stop-hook gate. One rung per recurrence, each a new lesson superseding the old. Owned by `skills/afk/lessons/LEDGER-FORMAT.md`.
+
+## Repository setup
+
+**Worktree root**:
+The one folder on a machine under which agents create every new worktree of every repository in the repository list, each repository in its own subfolder. Chosen by the developer; worktrees that already exist elsewhere are not affected.
+_Avoid_: worktree base, worktree folder (reads as one per repository)
+
+**Repository list**:
+The stored list of main checkouts that `/afk:setup` manages for one developer on one machine. One entry per clone; a second clone of the same remote is a second entry.
+_Avoid_: repository register (the register is setup's dependency list), repo registry
+
+**Personal sign-in**:
+A developer's own account and secret for one forge host or one tracker site, kept by the vendor tool or a secret store, never in a repository file.
+_Avoid_: credential, token, auth, login (as synonyms in prose)
+
+**Change assignee**:
+The forge account set as assignee on every change the plugin opens. A change is a merge request on GitLab or a pull request on GitHub.
+_Avoid_: MR assignee, PR assignee
+
+**Repository personal file**:
+A developer's own settings for one repository: read by the main checkout and every worktree of that repository, never committed, never seen by a teammate.
+_Avoid_: shared overlay (reads as shared with the team)
+
+**Developer notes**:
+The notes a developer keeps for themselves, often written with an agent's help, in the note-taking app they chose for their machine. Agents never keep their own working files there; those live in the repository or on the change.
+_Avoid_: notes (alone, reads as any document an agent writes), spec notes
