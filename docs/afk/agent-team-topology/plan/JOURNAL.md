@@ -45,3 +45,7 @@
 2026-10-19 17:41 | execute | 0002-config-transport-and-pattern-keys | reviewing — round 2 of the review checks the two fixes since round 1
 2026-10-19 17:54 | execute | 0002-config-transport-and-pattern-keys | verified — on the new head the report-issue tests (307), publish-smoke (44), the settings tests and the native contract tests (42) all pass, and the native contract gate reports nothing
 2026-10-19 18:07 | execute | 0002-config-transport-and-pattern-keys | review advisory crit=0 high=0 med=0 low=1 — round 2: the two round 1 notes are fixed; one new note about an edited quote in the code-study record was withdrawn by an independent judge
+2026-10-19 18:11 | execute | 0002-config-transport-and-pattern-keys | review clean crit=0 high=0 med=0 low=0 — round 3 found nothing in the plan records; the review record on the PR is settled
+2026-10-19 18:23 | execute | 0002-config-transport-and-pattern-keys | adversary findings probed=126 crit=0 high=0 med=1 low=0 — an independent attack test found every bad setting refused, plus one non-blocking note: an empty transport section blanks the launch method; noted on the PR for the step that adds the machine check
+2026-10-19 18:23 | execute | 0002-config-transport-and-pattern-keys | wiring clean — the check for unused new files found nothing
+2026-10-19 18:24 | execute | 0002-config-transport-and-pattern-keys | done — the settings step is finished and pushed, all three posted reasons are confirmed on the PR, and the PR stays a draft for the human

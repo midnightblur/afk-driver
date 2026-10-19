@@ -127,7 +127,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
 | 1 | 0001-glossary-terms | Glossary terms the design defines | done | — | static | — |
-| 2 | 0002-config-transport-and-pattern-keys | Configuration reader learns the transport, switch and pattern keys | reviewing | — | static, unit | — |
+| 2 | 0002-config-transport-and-pattern-keys | Configuration reader learns the transport, switch and pattern keys | done | — | static, unit | — |
 | 3 | 0003-manifest-module | Run manifest: record, move, read under one lock | pending | — | static, unit | — |
 | 4 | 0004-knowledge-store | Knowledge store: entries, finished stamp, debate release | pending | — | static, unit | — |
 | 5 | 0005-pattern-resolver-and-builtin-records | Pattern resolver and built-in patterns BP-1 to BP-5 with their charters | pending | 0002-config-transport-and-pattern-keys | static, unit | — |
