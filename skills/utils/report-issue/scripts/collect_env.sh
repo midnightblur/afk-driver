@@ -4,8 +4,8 @@
 #   collect_env.sh [--plan-dir DIR] [--journal-lines N]
 #
 # Fields: plugin_version, provider, os, git, gh, python, the adapter KINDS the
-# repository selected (tracker, forge, notes, build_gates — never a value
-# under them), and journal_tail (the last N lines of DIR/JOURNAL.md, default
+# repository selected (tracker, forge, notes, build_gates, transport — never a
+# value under them), and journal_tail (the last N lines of DIR/JOURNAL.md, default
 # 20; empty without --plan-dir). Raw, unredacted: the caller redacts the body
 # it lands in. A tool that is absent reports "absent". Exit 2 on a usage error.
 
@@ -44,6 +44,7 @@ ENV_TRACKER="$(cfg tracker)" \
 ENV_FORGE="$(cfg forge)" \
 ENV_NOTES="$(cfg notes)" \
 ENV_BUILD_GATES="$(cfg build-gates)" \
+ENV_TRANSPORT="$(cfg transport.kind)" \
 ENV_JOURNAL="$journal" \
 "$py" - <<'PY'
 import json, os
@@ -70,6 +71,7 @@ print(json.dumps({
     "forge": env["ENV_FORGE"] or "none",
     "notes": env["ENV_NOTES"] or "unknown",
     "build_gates": gates,
+    "transport": env["ENV_TRANSPORT"] or "auto",  # unset: the machine probe picks
     "journal_tail": env["ENV_JOURNAL"],
 }, indent=2, ensure_ascii=True))
 PY

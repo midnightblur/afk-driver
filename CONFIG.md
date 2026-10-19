@@ -133,6 +133,11 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files approved plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (legacy Boolean, ignored; every GitHub write needs explicit human approval) |
 | `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
+| `transport.kind` | `subagent` \| `headless` \| `multiplexer` \| `desktop` | which transport adapter starts and stops agents; optional: absent means the machine probe picks the best kind it finds |
+| `transport` | map | the transport settings — `kind` (the row above), `pane-switch` (`pane` \| `subagent`: whether role agents run as pane agents or as subagents; absent means `pane` when a pane tool is found; `subagent` also returns `/afk:fix` to one agent) |
+| `subagent` / `headless` / `multiplexer` / `desktop` | map | the settings of one transport kind; each takes no keys yet |
+| `stage-map` | map | workflow stage name → one pattern name, or a block list of pattern names combined into one team. Optional: the plugin ships no stage map, and a stage with no entry runs as it does today |
+| `patterns` | map | saved team patterns, pattern name → the fields a built-in pattern declares: `name` (equal to the key), `description`, `charter` (the charter's pattern part), `schema-version`, `record-version`, `roles` (role name → `model`, `lifespan`, `count`, `report-target`, `hub`, `charter`), `edges`, `steps`, `includes` (pattern names to combine). A name may not be a built-in pattern's (`solo`, `debate`, `build-verify`, `review-panel`, `afk-lite`) |
 | `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
@@ -143,6 +148,15 @@ Every map in the table is validated one level down: a child key that is not
 listed is refused, named by its full dotted path. Below that level the names
 are the repository's own — a transition name, a state name, a tier name — so
 they are not constrained.
+
+Two maps are carved out: `stage-map` and `patterns` are keyed by names the
+repository chooses, and each has its own check. A saved pattern with a
+built-in pattern's name, 2 saved patterns with one name, an `includes` entry
+or a stage-map entry that names no pattern, a pattern key or role field not
+listed above, and two names under `transport`, a kind block, `stage-map` or
+`patterns` that export as one `AFK_CFG_*` name are refused. Names compare as
+their shell name does: `-`, `.`, `_` and letter case fold together. Pattern
+field values are checked when a team starts, not here.
 
 `review.ledger-only-paths` uses `/` separators. `*` matches one path segment.
 `**` matches any number of segments. Globs are relative to the repository root.

@@ -49,14 +49,28 @@ TRACKERS = ("jira", "github-issues", "none")
 FORGES = ("gitlab", "github", "none")
 NOTES = ("repo-files", "notion", "obsidian")
 BUILD_GATES = ("maven", "npm")
+TRANSPORTS = ("subagent", "headless", "multiplexer", "desktop")
+PANE_SWITCH = ("pane", "subagent")
+TRANSPORT_KEYS = {"kind", "pane-switch"}
+
+# Team patterns. A saved pattern may declare every field a built-in record does.
+BUILTIN_PATTERNS = ("solo", "debate", "build-verify", "review-panel", "afk-lite")
+PATTERN_KEYS = {
+    "name", "description", "charter", "schema-version", "record-version",
+    "roles", "edges", "steps", "includes",
+}
+ROLE_KEYS = {"model", "lifespan", "count", "report-target", "hub", "charter"}
 
 TOP_LEVEL = {
     "schema", "toolkit-version", "tracker", "forge", "notes", "build-gates",
     "jira", "github-issues", "gitlab", "github", "git", "repo-files",
     "obsidian", "notion", "artifacts", "maven", "npm", "verification",
     "repo-hooks", "setup", "developer", "worktree", "investigation",
-    "report-issue", "review",
+    "report-issue", "review", "transport", "subagent", "headless", "multiplexer",
+    "desktop", "stage-map", "patterns",
 }
+# The keys whose names the repository chooses, so two of them can fold to one shell name.
+FOLDED_KEYS = ("transport", *TRANSPORTS, "stage-map", "patterns")
 
 # Per-developer values: whose machine this is, not what the repository is.
 # Every one is OPTIONAL. The shared overlay holds one repository's values for all
@@ -127,6 +141,8 @@ CHILD_KEYS: dict[str, set[str]] = {
     # Keep auto-publish valid for old configs. Report publishing always needs approval.
     "report-issue": {"repository", "auto-publish"},
     "review": {"ledger-only-paths"},
+    "transport": TRANSPORT_KEYS,
+    **{kind: set() for kind in TRANSPORTS},
 }
 
 DEFAULTS: dict = {
@@ -572,6 +588,134 @@ def _investigation_boundaries(problems: list[str], boundaries: list) -> None:
             problems.append(f"{where}.note: must be a string")
 
 
+def _validate_transport_block(problems: list[str], config: dict) -> None:
+    """`transport.kind` forces one transport kind; `transport.pane-switch` picks
+    pane agents or subagents. Absent, the machine probe decides both."""
+    transport = config.get("transport")
+    if not isinstance(transport, dict):
+        return      # absent, or refused as `must be a mapping` with the other maps
+    for key, allowed in (("kind", TRANSPORTS), ("pane-switch", PANE_SWITCH)):
+        value = transport.get(key)
+        if value is not None and value not in allowed:
+            problems.append(
+                f"transport.{key}: {value!r} is not one of {', '.join(allowed)}")
+
+
+def _fold(name: str) -> str:
+    """The one shell name a pattern name exports under."""
+    return re.sub(r"[^A-Za-z0-9]", "_", name).upper()
+
+
+def _validate_saved_patterns(problems: list[str], config: dict) -> None:
+    """Saved patterns and the stage map, checked against one name set.
+
+    A name is a built-in pattern's or a saved one's; field values are the
+    resolver's to check, since a one-off pattern never passes this reader.
+    """
+    builtin = {_fold(name): name for name in BUILTIN_PATTERNS}
+    patterns = config.get("patterns")
+    saved: dict[str, str] = {}
+    if patterns is not None and not isinstance(patterns, dict):
+        problems.append("patterns: must be a mapping of pattern name to pattern")
+        patterns = None
+    for name, record in (patterns or {}).items():
+        where = f"patterns.{name}"
+        folded = _fold(name)
+        if folded in builtin:
+            problems.append(
+                f"{where}: `{builtin[folded]}` is a built-in pattern's name; "
+                "a saved pattern needs a name of its own")
+        elif folded in saved:
+            problems.append(
+                f"{where}: `{saved[folded]}` and `{name}` are 2 saved patterns "
+                "with one name")
+        else:
+            saved[folded] = name
+        if not isinstance(record, dict):
+            problems.append(f"{where}: must be a mapping")
+            continue
+        _pattern_fields(problems, where, name, record)
+
+    known = set(BUILTIN_PATTERNS) | set(saved.values())
+    for name, record in (patterns or {}).items():
+        includes = record.get("includes") if isinstance(record, dict) else None
+        for entry in includes if isinstance(includes, list) else []:
+            if entry not in known:
+                problems.append(f"patterns.{name}.includes: {entry!r} names no pattern")
+
+    stages = config.get("stage-map")
+    if stages is None:
+        return
+    if not isinstance(stages, dict):
+        problems.append("stage-map: must be a mapping of stage name to pattern")
+        return
+    for stage, value in stages.items():
+        where = f"stage-map.{stage}"
+        names = value if isinstance(value, list) else [value]
+        if value is None or not all(isinstance(item, str) and item for item in names):
+            problems.append(f"{where}: must be one pattern name or a block list of them")
+            continue
+        for item in names:
+            if item not in known:
+                problems.append(f"{where}: {item!r} names no pattern")
+
+
+def _pattern_fields(problems: list[str], where: str, name: str, record: dict) -> None:
+    for key in sorted(set(record) - PATTERN_KEYS):
+        problems.append(
+            f"{where}.{key}: unknown key; expected one of {', '.join(sorted(PATTERN_KEYS))}")
+    declared = record.get("name")
+    if declared is not None and declared != name:
+        problems.append(f"{where}.name: {declared!r} differs from its key `{name}`")
+    for key in ("description", "charter"):
+        if record.get(key) is not None and not isinstance(record[key], str):
+            problems.append(f"{where}.{key}: must be a string")
+    for key in ("schema-version", "record-version"):
+        value = record.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+            problems.append(f"{where}.{key}: must be a whole number")
+    for key in ("edges", "steps"):
+        value = record.get(key)
+        if value is not None and (not isinstance(value, list)
+                                  or not all(isinstance(item, dict) for item in value)):
+            problems.append(f"{where}.{key}: must be a block list of mappings")
+    includes = record.get("includes")
+    if includes is not None and (not isinstance(includes, list)
+                                 or not all(isinstance(item, str) for item in includes)):
+        problems.append(f"{where}.includes: must be a block list of pattern names")
+    roles = record.get("roles")
+    if roles is None:
+        return
+    if not isinstance(roles, dict):
+        problems.append(f"{where}.roles: must be a mapping of role name to role")
+        return
+    for role, fields in roles.items():
+        if not isinstance(fields, dict):
+            problems.append(f"{where}.roles.{role}: must be a mapping")
+            continue
+        for key in sorted(set(fields) - ROLE_KEYS):
+            problems.append(
+                f"{where}.roles.{role}.{key}: unknown role field; expected one of "
+                f"{', '.join(sorted(ROLE_KEYS))}")
+
+
+def _shell_collisions(problems: list[str], config: dict) -> None:
+    """Refuse two keys the shell view would export under one name: `eval` keeps
+    the last one silently, and a key ending `-count` overwrites a list's count."""
+    seen: dict[str, str] = {}
+    reported: set[str] = set()
+    for top in FOLDED_KEYS:
+        if top not in config:
+            continue
+        for path, _ in flatten({top: config[top]}):
+            name = shell_name(path)
+            first = seen.setdefault(name, path)
+            if first != path and name not in reported:
+                reported.add(name)
+                problems.append(
+                    f"{path}: exports as {name}, as `{first}` does; rename one of them")
+
+
 def validate(config: dict, root: Path | None = None) -> list[str]:
     problems: list[str] = []
 
@@ -633,8 +777,13 @@ def validate(config: dict, root: Path | None = None) -> list[str]:
         for key in sorted(set(block_value) - allowed):
             problems.append(
                 f"{name}.{key}: unknown key; expected one of "
-                f"{', '.join(sorted(allowed))}"
+                f"{', '.join(sorted(allowed))}" if allowed else
+                f"{name}.{key}: unknown key; `{name}` takes no keys yet"
             )
+
+    _validate_transport_block(problems, config)
+    _validate_saved_patterns(problems, config)
+    _shell_collisions(problems, config)
 
     ledger_paths = (config.get("review") or {}).get("ledger-only-paths") if isinstance(
         config.get("review"), dict) else None

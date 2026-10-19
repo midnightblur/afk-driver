@@ -132,9 +132,10 @@ def family_enum(config_md: str, family: str) -> set[str] | None:
     """The kinds CONFIG.md's table offers for a family, or None when it has no row.
 
     The row is `| `tracker` | `jira` \\| `github-issues` \\| `none` | … |`, and a
-    list-valued family reads `list of `maven` \\| `npm``.
+    list-valued family reads `list of `maven` \\| `npm``. A family whose key is
+    its settings map keeps the enum on a `<family>.kind` row, read first.
     """
-    for candidate in (family, family + "s"):
+    for candidate in (family + ".kind", family, family + "s"):
         match = re.search(rf"^\|\s*`{re.escape(candidate)}`\s*\|(.*)$", config_md, re.M)
         if not match:
             continue

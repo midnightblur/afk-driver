@@ -1,4 +1,4 @@
-# ADAPTERS.md — the four adapter families
+# ADAPTERS.md — the adapter families
 
 A skill asks for a VERB of a FAMILY. The configuration decides which KIND
 answers. No skill names a binary, and no skill names a kind.
@@ -186,3 +186,21 @@ inputs that decide the outcome, and what it did, skipped or warned about. Exit
 4. Add a row to the parity table in `README.md` and a probe under `hooks/tests/`.
 
 `skill-registry-gate.sh` fails until all four exist.
+
+## Adding a family
+
+1. Name the family; the name is its configuration key and its directory,
+   `adapters/<family>/`. Add its kinds as in "Adding a kind".
+2. In `scripts/afk-config.py`: a kinds tuple, the family key in `TOP_LEVEL`
+   with a check that its value is one of the kinds, and a `CHILD_KEYS` entry for each kind's
+   settings block. A family that carries settings of its own makes its key a
+   map and keeps the kind under `<family>.kind`.
+3. In `CONFIG.md`: the enum row, `<family>` or `<family>.kind`, which
+   `hooks/lib/adapter_registry_check.py` reads, and a map row per settings block,
+   which `scripts/tests/test_afk_config.py` holds against `CHILD_KEYS`.
+4. Add the family to the list in `skills/utils/report-issue/scripts/collect_env.sh`;
+   no gate or test checks that list.
+5. Add a `## <family>` section here with its verbs and kinds.
+
+The dispatcher needs no edit: `afk_adapter_kind` reads `AFK_CFG_<FAMILY>`. A
+family whose kind sits at `<family>.kind` hands its resolved kind in itself.

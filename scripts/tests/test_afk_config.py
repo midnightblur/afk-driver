@@ -339,6 +339,8 @@ TYPOS = {
     "worktree": "typo-copy",
     "developer": "typoReviewer",
     "review": "typo-ledger-paths",
+    "transport": "typo-kind",
+    "multiplexer": "typo-key",
 }
 
 
@@ -369,7 +371,7 @@ def test_every_map_in_the_schema_is_documented_the_same_way():
     # Words a row spells in backticks that are VALUES a key may take, not keys.
     values = {
         "isolated", "shared", "auto", "none", "ci", "false", "true",
-        "maven", "npm", "*-SNAPSHOT",
+        "maven", "npm", "*-SNAPSHOT", "pane", "subagent",
     }
     key = re.compile(r"^[a-z][A-Za-z0-9]*(?:-[a-z0-9]+)*$")
     for name, allowed in cfg.CHILD_KEYS.items():
@@ -487,3 +489,234 @@ def test_path_warnings_unit(tmp_path):
     assert cfg.path_warnings(config, None) == []
     assert cfg.path_warnings(config, tmp_path) == [
         "setup.extra: gone.md does not exist under the repository root"]
+
+
+# ---- team keys: transport settings, kind blocks, stage map, saved patterns --
+
+TEAM_CONFIG = """schema: 1
+transport:
+  kind: multiplexer
+  pane-switch: subagent
+stage-map:
+  to-sdd: debate
+  review:
+    - review-panel
+    - my-team
+patterns:
+  my-team:
+    name: my-team
+    description: two builders and a checker
+    charter: build, then check each other
+    schema-version: 1
+    record-version: 1
+    includes:
+      - solo
+    roles:
+      builder:
+        model: frontier
+        lifespan: step
+        count: 2
+        report-target: checker
+        hub: false
+        charter: build the slice
+      checker:
+        model: frontier
+        lifespan: step
+        charter: check the slice
+    edges:
+      - from: builder
+        to: checker
+    steps:
+      - name: build
+"""
+
+
+def _validate_text(tmp_path, text, name="config.yaml"):
+    target = tmp_path / name
+    target.write_text(text, encoding="utf-8")
+    return run(["validate", str(target)], tmp_path)
+
+
+def test_every_team_key_and_pattern_field_reads(tmp_path):
+    done = _validate_text(tmp_path, TEAM_CONFIG)
+    assert done.returncode == 0, done.stderr
+
+
+@pytest.mark.parametrize("text,refusal", [
+    ("patterns:\n  debate:\n    description: mine\n",
+     "patterns.debate: `debate` is a built-in pattern's name"),
+    ("patterns:\n  Afk_Lite:\n    description: mine\n",
+     "patterns.Afk_Lite: `afk-lite` is a built-in pattern's name"),
+    ("patterns:\n  my-team:\n    description: a\n  my_team:\n    description: b\n",
+     "`my-team` and `my_team` are 2 saved patterns with one name"),
+    ("patterns:\n  my-team:\n    description: a\n  my-team:\n    description: b\n",
+     "duplicate key 'my-team'"),
+    ("patterns:\n  my-team:\n    includes:\n      - nowhere\n",
+     "patterns.my-team.includes: 'nowhere' names no pattern"),
+    ("stage-map:\n  to-sdd: nowhere\n", "stage-map.to-sdd: 'nowhere' names no pattern"),
+    ("stage-map:\n  review:\n    - debate\n    - nowhere\n",
+     "stage-map.review: 'nowhere' names no pattern"),
+])
+def test_the_reader_refuses_the_three_pattern_errors(tmp_path, text, refusal):
+    done = _validate_text(tmp_path, "schema: 1\n" + text)
+    assert done.returncode == 2
+    assert refusal in done.stderr, done.stderr
+
+
+def test_includes_and_stage_entries_may_name_built_in_or_saved_patterns(tmp_path):
+    done = _validate_text(tmp_path, (
+        "schema: 1\npatterns:\n  mine:\n    includes:\n      - debate\n"
+        "  other:\n    includes:\n      - mine\nstage-map:\n  fix: other\n"
+        "  review:\n    - afk-lite\n    - mine\n"))
+    assert done.returncode == 0, done.stderr
+
+
+@pytest.mark.parametrize("value", ["pane", "subagent", None])
+def test_the_pane_switch_reads_pane_subagent_or_nothing(tmp_path, value):
+    line = f"transport:\n  pane-switch: {value}\n" if value else ""
+    done = _validate_text(tmp_path, "schema: 1\n" + line)
+    assert done.returncode == 0, done.stderr
+
+
+def test_another_pane_switch_value_is_refused(tmp_path):
+    done = _validate_text(tmp_path, "schema: 1\ntransport:\n  pane-switch: panes\n")
+    assert done.returncode == 2
+    assert "transport.pane-switch: 'panes' is not one of pane, subagent" in done.stderr
+
+
+def test_the_pane_switch_is_read_back_not_refused(tmp_path):
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(
+        "schema: 1\ntransport:\n  pane-switch: subagent\n", encoding="utf-8")
+    got = run(["get", "transport.pane-switch"], root)
+    assert got.returncode == 0 and got.stdout.strip() == "subagent"
+    assert run(["validate"], root).returncode == 0
+
+
+@pytest.mark.parametrize("kind", ["subagent", "headless", "multiplexer", "desktop"])
+def test_the_kind_override_names_one_kind(tmp_path, kind):
+    done = _validate_text(tmp_path, f"schema: 1\ntransport:\n  kind: {kind}\n")
+    assert done.returncode == 0, done.stderr
+
+
+def test_an_unknown_kind_is_refused_and_absent_means_the_probe_chooses(tmp_path):
+    done = _validate_text(tmp_path, "schema: 1\ntransport:\n  kind: tmux\n")
+    assert done.returncode == 2
+    assert ("transport.kind: 'tmux' is not one of subagent, headless, multiplexer, desktop"
+            in done.stderr)
+    assert "transport" not in cfg.DEFAULTS
+    assert cfg.validate({"schema": 1, "transport": {"pane-switch": "pane"}}) == []
+
+
+def test_every_transport_kind_has_its_settings_block():
+    assert set(cfg.TRANSPORTS) <= cfg.TOP_LEVEL
+    assert all(cfg.CHILD_KEYS[kind] == set() for kind in cfg.TRANSPORTS)
+
+
+def test_a_kind_block_takes_no_keys_yet(tmp_path):
+    done = _validate_text(tmp_path, "schema: 1\ndesktop:\n  tool: x\n")
+    assert done.returncode == 2
+    assert "desktop.tool: unknown key; `desktop` takes no keys yet" in done.stderr
+
+
+def test_the_charter_fields_read_and_an_unknown_role_field_is_refused(tmp_path):
+    done = _validate_text(tmp_path, (
+        "schema: 1\npatterns:\n  mine:\n    charter: the pattern part\n    roles:\n"
+        "      lead:\n        charter: the role part\n        modle: frontier\n"))
+    assert done.returncode == 2
+    refusals = [line for line in done.stderr.splitlines() if "afk-config: " in line]
+    assert refusals == [
+        "afk-config: patterns.mine.roles.lead.modle: unknown role field; expected one of "
+        "charter, count, hub, lifespan, model, report-target"], done.stderr
+
+
+@pytest.mark.parametrize("text,problem", [
+    ("patterns:\n  mine:\n    charter: 7\n", "patterns.mine.charter: must be a string"),
+    ("patterns:\n  mine:\n    roles:\n      - lead\n",
+     "patterns.mine.roles: must be a mapping of role name to role"),
+    ("patterns:\n  mine:\n    team: x\n", "patterns.mine.team: unknown key"),
+    ("patterns:\n  mine:\n    name: yours\n", "patterns.mine.name: 'yours' differs from its key"),
+    ("stage-map:\n  review:\n", "stage-map.review: must be one pattern name or a block list"),
+])
+def test_a_misshapen_pattern_is_refused(tmp_path, text, problem):
+    done = _validate_text(tmp_path, "schema: 1\n" + text)
+    assert done.returncode == 2
+    assert problem in done.stderr, done.stderr
+
+
+@pytest.mark.parametrize("text,name", [
+    ("stage-map:\n  to-sdd: debate\n  to_sdd: solo\n", "AFK_CFG_STAGE_MAP_TO_SDD"),
+    ("stage-map:\n  review:\n    - debate\n  review-count: solo\n",
+     "AFK_CFG_STAGE_MAP_REVIEW_COUNT"),
+    ("patterns:\n  mine:\n    roles:\n      a-b:\n        model: x\n      A_B:\n        model: y\n",
+     "AFK_CFG_PATTERNS_MINE_ROLES_A_B_MODEL"),
+])
+def test_keys_that_fold_to_one_shell_name_are_refused(tmp_path, text, name):
+    done = _validate_text(tmp_path, "schema: 1\n" + text)
+    assert done.returncode == 2
+    assert f"exports as {name}" in done.stderr, done.stderr
+
+
+@pytest.mark.parametrize("topology", [True, False])
+@pytest.mark.parametrize("models", [True, False])
+def test_topology_and_per_role_models_read_independently(tmp_path, topology, models):
+    text = "schema: 1\n"
+    if topology:
+        text += "stage-map:\n  fix: afk-lite\n"
+    if models:
+        text += "patterns:\n  mine:\n    roles:\n      lead:\n        model: frontier\n"
+    done = _validate_text(tmp_path, text)
+    assert done.returncode == 0, done.stderr
+
+
+def test_a_local_override_of_one_role_keeps_the_others(tmp_path, monkeypatch):
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", classmethod(lambda _: home))
+    monkeypatch.delenv("AFK_CONFIG", raising=False)
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(TEAM_CONFIG, encoding="utf-8")
+    (root / ".afk" / "config.local.yaml").write_text(
+        "patterns:\n  my-team:\n    roles:\n      checker:\n        model: other\n",
+        encoding="utf-8")
+    roles = cfg.load(root)["patterns"]["my-team"]["roles"]
+    assert roles["checker"]["model"] == "other"
+    assert roles["checker"]["charter"] == "check the slice"
+    assert roles["builder"]["count"] == 2
+
+
+def test_an_old_configuration_reads_as_before(tmp_path):
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(
+        (SAMPLES / "monorepo-config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    assert run(["validate"], root).returncode == 0
+    exported = run(["export-shell"], root).stdout
+    assert not any(line.startswith(("AFK_CFG_TRANSPORT", "AFK_CFG_STAGE_MAP", "AFK_CFG_PATTERNS"))
+                   for line in exported.splitlines())
+
+
+def test_the_team_keys_export_like_every_other_key(tmp_path):
+    root = repo(tmp_path)
+    (root / ".afk" / "config.yaml").write_text(TEAM_CONFIG, encoding="utf-8")
+    exported = dict(line.partition("=")[::2]
+                    for line in run(["export-shell"], root).stdout.splitlines())
+    assert exported["AFK_CFG_TRANSPORT_KIND"] == "multiplexer"
+    assert exported["AFK_CFG_STAGE_MAP_REVIEW_COUNT"] == "2"
+    assert exported["AFK_CFG_STAGE_MAP_REVIEW_1"] == "my-team"
+    assert "AFK_CFG_TRANSPORT" not in exported
+
+
+def _registry():
+    spec = importlib.util.spec_from_file_location(
+        "adapter_registry_check", SCRIPTS.parent / "hooks" / "lib" / "adapter_registry_check.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_registry_check_reads_the_transport_family_from_config_md():
+    config_md = (SCRIPTS.parent / "CONFIG.md").read_text(encoding="utf-8")
+    registry = _registry()
+    assert registry.family_enum(config_md, "transport") == set(cfg.TRANSPORTS)
+    assert registry.family_enum(config_md, "tracker") == set(cfg.TRACKERS)
+    assert registry.family_enum(config_md, "build-gate") == set(cfg.BUILD_GATES)
