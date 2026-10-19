@@ -286,3 +286,31 @@
 - Chosen: A — no remediation landed in round 1, and the head moved only by a commit outside this slice, so a delta round would review work this slice does not own
 - Supersedes: none
 - To reverse: run a delta round with `--base 52ada6a` and drop round 2's summary note
+
+## D-42 — Re-take the ground of the three Acceptance-carried seams with one fresh investigation
+- 2026-10-19 · decided by /afk:execute (0002-config-transport-and-pattern-keys, Step 4)
+- Options: A — no ground diff, since ## Seams holds no row in validator form (D-9) vs B — run the ground diff on INV-001, INV-002 and INV-005, and on drift run one fresh Q3+Q2 investigation (INV-076) at d9e1569 with one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — the three Acceptance bullets are §14 seams that name their ledgers; all three ground diffs exit 1 (scripts/afk-config.py, CONFIG.md and the tests changed since 9d9fce6 and 7e9c87a); the run allows one child at a time, so the fan-out runs in sequence
+- Supersedes: none
+- To reverse: drop INV-076 and cite INV-001, INV-002 and INV-005 again
+
+## D-43 — Literal names and shapes of the new configuration keys
+- 2026-10-19 · decided by /afk:execute (0002-config-transport-and-pattern-keys, Step 4)
+- Options: A — `transport: <kind>` as a scalar, like `tracker` vs B — `transport` is the transport settings map: `transport.kind` (the kind override, one of subagent, headless, multiplexer, desktop per D-3) and `transport.pane-switch` (pane or subagent); one top-level settings block per kind (`subagent`, `headless`, `multiplexer`, `desktop`, no child keys yet); `stage-map` (stage name to one pattern name or a list); `patterns` (a map keyed by pattern name, fields name, description, charter, schema-version, record-version, roles, edges, steps, includes; role fields model, lifespan, count, report-target, hub, charter)
+- Chosen: B — the SDD puts the pane switch "under the transport settings" and the plan's family-row anchor is `transport.kind`; with B no configuration ever sets AFK_CFG_TRANSPORT, so the probe's handed-in kind is never overwritten by a config load (SDD §14 dispatcher row); family_enum reads the `transport.kind` row; kebab-case follows every existing key
+- Supersedes: none
+- To reverse: rename the keys in scripts/afk-config.py, CONFIG.md and the tests in one commit before any configuration uses them
+
+## D-44 — The reader holds the built-in pattern names until 0005 ships the records
+- 2026-10-19 · decided by /afk:execute (0002-config-transport-and-pattern-keys, Step 4)
+- Options: A — read the names from records that do not exist yet vs B — one tuple in scripts/afk-config.py: solo, debate, build-verify, review-panel, afk-lite (PRD.md:67-71)
+- Chosen: B — AC-062 needs the built-in names now, and 0005, which writes the records and consumes `_validate_saved_patterns`, can switch the reader to the records or pin the tuple to them
+- Supersedes: none
+- To reverse: read the names from scripts/team/patterns/*.json in 0005 and delete the tuple
+
+## D-45 — The reader checks pattern field names and types; the resolver checks field values
+- 2026-10-19 · decided by /afk:execute (0002-config-transport-and-pattern-keys, Step 4)
+- Options: A — the reader also checks lifespan values, counts, hub limits, edge and step entries vs B — the reader refuses unknown pattern and role fields, wrong container types, name collisions and names that name no pattern; value checks stay with the resolver
+- Chosen: B — the resolver must check a one-off pattern that never passes the reader, so value checks in both would be two homes; SDD:1508 gives presence checks to the resolver
+- Supersedes: none
+- To reverse: add the value checks to `_validate_saved_patterns`

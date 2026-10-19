@@ -22,3 +22,17 @@
 2026-10-19 14:58 | execute | 0001-glossary-terms | wiring clean — the check for unused new files found nothing
 2026-10-19 14:58 | execute | 0001-glossary-terms | done — the glossary step is finished and pushed; the PR stays a draft for the human
 2026-10-19 14:58 | autopilot | run | heartbeat 1/26 done, starting 0002-config-transport-and-pattern-keys — the glossary step passed review and the attack test; the next step adds the team settings keys
+2026-10-19 15:00 | execute | 0002-config-transport-and-pattern-keys | designing — started planning the new team settings keys in the configuration reader
+2026-10-19 15:10 | execute | 0002-config-transport-and-pattern-keys | decision(D-42) — the code these settings touch changed since it was studied, so one fresh study of it runs before the change lands
+2026-10-19 15:10 | execute | 0002-config-transport-and-pattern-keys | decision(D-43) — the spec left the new setting names open; the run picked them to match the existing settings
+2026-10-19 15:10 | execute | 0002-config-transport-and-pattern-keys | decision(D-44) — the reader keeps the five built-in team names until the step that ships the team records
+2026-10-19 15:10 | execute | 0002-config-transport-and-pattern-keys | decision(D-45) — the reader checks setting names and shapes; the team builder checks the values
+2026-10-19 15:10 | execute | 0002-config-transport-and-pattern-keys | developing — writing the new settings checks and their tests
+2026-10-19 16:13 | execute | 0002-config-transport-and-pattern-keys | pushed — the settings change and its fresh code study are on the branch, ticked on pull request 112, with three reasons posted on its lines
+2026-10-19 16:13 | execute | 0002-config-transport-and-pattern-keys | verifying — re-running every check the contract lists on the pushed code
+2026-10-19 16:40 | execute | 0002-config-transport-and-pattern-keys | verified — every listed check passed again and the three promised names exist in the code
+2026-10-19 16:43 | execute | 0002-config-transport-and-pattern-keys | reviewing — fresh reviewers check the change one concern at a time, round 1
+2026-10-19 16:55 | execute | 0002-config-transport-and-pattern-keys | developing — fixing round 1 review findings: a crash on a malformed include, an empty stage entry, a wrong sentence in CONFIG.md, and missing tests
+2026-10-19 17:13 | execute | 0002-config-transport-and-pattern-keys | review — round 1 found 9 issues; 6 fixed in 44b1c34 and pushed, 1 withdrawn by an adjudicator, 2 left open because their fix is outside this slice's Scope
+2026-10-19 17:13 | execute | 0002-config-transport-and-pattern-keys | lesson(L-0001) — slicing left the reader of a new report field out of Scope; drafted a rule for the subtask contract
+2026-10-19 17:13 | execute | 0002-config-transport-and-pattern-keys | blocked(needs_decision) — the issue template row that shows the new transport field is outside Scope; a human must widen the Scope or give that row to another subtask
