@@ -171,6 +171,22 @@ Codex has no documented custom-agent tool allowlist or nesting-depth setting. Us
 
 Each provider declaration also names the exit code its harness reads a Stop block from (`stop_block_code` in `hooks/lib/providers/<name>.json`, default 0). The findings themselves go out on both channels, so an adapter never has to restate the message shape.
 
+## Spawn allow rule
+
+A team run's contact agent runs the team entry script for all six transport verbs. Before the run's first transport command, the spawn permission check (`scripts/team/permission.py`) reads the active provider's adapter in a bash child and refuses when the harness would ask first. Setup register row `H15` prints the same rule and probes with the same check. Setup never writes a settings file; the human adds the rule.
+
+| Adapter function | Claude Code (`claude.sh`) | Codex CLI (`codex.sh`) |
+|---|---|---|
+| `afk_<name>_spawn_allow_rule` | prints the one constant `AFK_SPAWN_ALLOW_RULE`: `Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)` | prints nothing: no rule is checked |
+| `afk_<name>_spawn_rule_files <root>` | the user file `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json` first, then `<root>/.claude/settings.json`, `<root>/.claude/settings.local.json` and the main checkout's `.claude/settings.local.json` | not defined |
+| `afk_<name>_spawn_rule_lists` | `allow permissions.allow`, `block permissions.deny`, `block permissions.ask` | not defined |
+
+- A Bash rule matches the command text as Claude Code receives it, and `*` stands for any text (Claude Code documentation, "Configure permissions", "Wildcard patterns", read 2026-10-20). The rule therefore covers every command written `afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" <verb> …`. Tab create, pane split and the settings copy run inside agent-start, so they need no rule of their own.
+- The rule names the plugin-root variable, never the versioned plugin path, so one rule text stays valid across plugin updates. A rule that matches the start command alone does not cover the other verbs.
+- Deny and ask rules resolve before allow rules (same page). The check answers ok only when the rule is in an allow list and in no block list. It refuses with `missing`, with `stale` when an allow entry names `afk-team.py` in another text, or with `blocked`. Each refusal names the rule and `/afk:setup`.
+- In a Codex agent shell, provider detection answers `unknown` (`providers/CONFORMANCE.md`, provider marker probe). An `unknown` provider and a provider whose adapter prints no rule both answer ok. A Codex contact agent under its own approval mode is not tried: unverified.
+- Live proof that the rule lets a Claude Code contact agent start and message pane agents in auto mode is owed to `providers/CONFORMANCE.md`.
+
 ## Credentials
 
 Jira reads exported `JIRA_*` variables first, then the supported user-config fallbacks. Never print secret values. The shared plugin `.mcp.json` starts the same server for each harness; tool prefixes vary, so skills use bare tool names. Its bootstrap does not depend on inherited environment: when a harness starts the MCP child with a filtered environment, it fills the `JIRA_*` values from the same chain the server documents — exported variables first, then the `tracker` server's `env` block (or afk's own pre-rename `jira` entry; another `jira` server is ignored; the test is `is_afk_entry` in `skills/afk/setup/scripts/tracker_registration.py`) in `~/.claude.json`, then `[mcp_servers.tracker.env]` in `~/.codex/config.toml`. It resolves the plugin root in this order: (1) an argument that is not a literal `${…}`; (2) `AFK_PLUGIN_ROOT`, `CLAUDE_PLUGIN_ROOT`, `PLUGIN_ROOT`; (3) the newest live install under the user's home, its own harness directory first. The search skips a copy the harness marked orphaned. An argument or variable that names an orphaned copy is tried only after the search. One harness interpolates the argument, another passes it through literally, and both reach the same server. The search sees only harness directories one level under the home directory. A Codex MCP child receives neither a root variable nor `CODEX_HOME`. With `CODEX_HOME` elsewhere, the launcher runs another harness's copy if one is there, else exits not found. A live root passed as the launcher's first argument is tried before the search. Codex passes the arguments of a user-scoped `[mcp_servers.tracker]` entry verbatim, so a root given there is used (live, codex-cli 0.159.0).

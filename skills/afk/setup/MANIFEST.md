@@ -372,6 +372,29 @@ a token value — not even partially.
   its own. The two remediations and the harness that walks above the repository
   are in `providers/HARNESS-MATRIX.md` and the standard.
 
+### H15 · spawn allow rule for the team entry script **[opt-in]**
+- **Needed by:** a team run whose contact agent runs in a harness that asks
+  before each shell command no allow rule covers. The run's spawn permission
+  check (`scripts/team/permission.py`) refuses the first transport command
+  until the rule is present. Which harness, the rule, and the settings files:
+  `PROVIDERS.md` "Spawn allow rule".
+- **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
+  — exit 0 when this session's harness needs no rule, or when the rule is in an
+  allow list and in no block list; exit 1 prints one JSON refusal whose `says`
+  names the rule, the settings file and the list.
+- **Fix:** `human:` print the rule as a JSON string with
+  `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" rule --json`, and
+  the probe's `says` line. The human adds that one entry to the allow list in
+  their own user settings file. Wait until the human says it is added, then
+  probe again (step 5). Setup never writes the rule or any settings file.
+- **Notes:** with no human present, skip this row: it stays deselected in
+  `SKILL.md` step 3's election and reports `skipped (user choice)`. The probe
+  checks this session's harness only; run `/afk:setup` from the other harness
+  to check its rule. The rule names the plugin-root variable, not a versioned
+  path, so one rule stays valid across plugin updates; an entry left from
+  another rule text makes the probe answer `stale`. To withdraw the rule, the
+  human removes the entry from the settings file.
+
 ## C — Shell & core CLIs
 
 ### C1 · bash (Git Bash on Windows) + POSIX utils

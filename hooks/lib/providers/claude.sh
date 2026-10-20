@@ -72,3 +72,23 @@ afk_claude_enablement() {
     printf 'absent\n'
   fi
 }
+
+# The one allow rule a contact agent needs to run the team entry script without asking (PROVIDERS.md "Spawn allow rule").
+AFK_SPAWN_ALLOW_RULE='Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)'
+
+afk_claude_spawn_allow_rule() {
+  printf '%s\n' "$AFK_SPAWN_ALLOW_RULE"
+}
+
+# Settings files whose permission lists this harness reads for a session in $1, the user file first.
+afk_claude_spawn_rule_files() {
+  local root=${1:-.} main
+  printf '%s\n' "${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/settings.json" \
+    "$root/.claude/settings.json" "$root/.claude/settings.local.json"
+  main=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
+  printf '%s\n' "${main%/.git}/.claude/settings.local.json"
+}
+
+afk_claude_spawn_rule_lists() {
+  printf '%s\n' 'allow permissions.allow' 'block permissions.deny' 'block permissions.ask'
+}

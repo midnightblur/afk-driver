@@ -72,3 +72,8 @@ afk_codex_enablement() {
     printf 'absent\n'
   fi
 }
+
+# This harness asks for no spawn allow rule (PROVIDERS.md "Spawn allow rule").
+afk_codex_spawn_allow_rule() {
+  :
+}
