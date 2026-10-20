@@ -10,3 +10,4 @@
 2026-10-20 15:28 | execute | 0001-diagnosis-format | decision(D-2) — D-1's ledger entry now quotes the contract bullet and SDD rows it overrides
 2026-10-20 15:28 | execute | 0001-diagnosis-format | developing — fixing review round 1 findings inside the slice
 2026-10-20 15:51 | execute | 0001-diagnosis-format | review r2 — 6 findings (1 medium test gap, 5 low); all fixed
+2026-10-20 16:07 | execute | 0001-diagnosis-format | review r3 — 1 low finding (the checker and appender split lines differently); fixed

@@ -232,6 +232,17 @@ def test_a_state_row_with_an_unknown_kind_is_an_unreadable_format(tmp_path):
     assert done.returncode == 2 and "In review" in done.stderr
 
 
+def test_the_checker_reads_an_appended_entry_as_one_line(tmp_path):
+    # A form feed inside an entry does not end its line, for the appender and the checker alike.
+    from outside_writes import append_outside_write
+    path = write(tmp_path, Approval="dev; \"go\"; code; 2026-10-20",
+                 **{"Outside writes": "- push: feat/x@0123abc\x0cpasted"})
+    append_outside_write(path, "in-review: 12")
+    result = check_diagnosis(path)
+    assert result.ok, result.problems
+    assert result.state == "In review"
+
+
 def test_an_outside_writes_line_that_is_not_a_list_item_is_refused(tmp_path):
     result = check_diagnosis(write(tmp_path, **{"Outside writes": "ticket: 12"}))
     assert not result.ok

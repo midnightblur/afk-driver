@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from diagnosis_file import BOM, entry_problem, headings, load_format, outside_write_kinds  # noqa: E402
+from diagnosis_file import (  # noqa: E402
+    BOM, entry_problem, headings, load_format, outside_write_kinds, split_lines)
 
 SECTION = "outside writes"
 BACKOFF = (5, 20)
@@ -132,9 +133,7 @@ def append_outside_write(diagnosis, entry: str, format_path=None) -> bool:
 def _read_lines(path: Path):
     """(had a BOM, lines split at `\\n` only, each with its own line end)."""
     text = path.read_bytes().decode("utf-8")
-    parts = text.removeprefix(BOM).split("\n")
-    lines = [part + "\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
-    return text.startswith(BOM), lines
+    return text.startswith(BOM), split_lines(text.removeprefix(BOM), keepends=True)
 
 
 def _normal(entry: str) -> str:
