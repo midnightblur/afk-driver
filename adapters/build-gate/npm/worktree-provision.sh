@@ -132,5 +132,9 @@ if [ "$install_rc" -eq 0 ]; then
   answer; exit 0
 fi
 # The worktree is usable without dependencies; the human runs the install again.
+# Not `provisioned`: the install failed, and a degraded answer must not be
+# recorded by the driver as finished provisioning (the maven adapter does
+# the same for its unusable configurations).
+STATUS=degraded
 add WARNINGS "\"$(quoted "$COMMAND") failed in $(quoted "$WORKSPACE_ROOT"); run it by hand\""
 answer; exit 4
