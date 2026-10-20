@@ -9,3 +9,4 @@
 2026-10-20 15:28 | execute | 0001-diagnosis-format | review r1 — 15 findings (1 high): 12 fixed, 2 low design deferred to the feature gate, 1 disputed and withdrawn
 2026-10-20 15:28 | execute | 0001-diagnosis-format | decision(D-2) — D-1's ledger entry now quotes the contract bullet and SDD rows it overrides
 2026-10-20 15:28 | execute | 0001-diagnosis-format | developing — fixing review round 1 findings inside the slice
+2026-10-20 15:51 | execute | 0001-diagnosis-format | review r2 — 6 findings (1 medium test gap, 5 low); all fixed

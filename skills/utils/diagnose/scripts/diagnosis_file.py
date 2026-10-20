@@ -13,7 +13,7 @@ FORMAT_PATH = Path(__file__).resolve().parent.parent / "DIAGNOSIS-FORMAT.md"
 HEADING = re.compile(r"^##\s+(.+?)\s*$")
 ENTRY = re.compile(r"^([a-z][a-z-]*):\s*(\S.*)$")
 EVIDENCE = re.compile(r"^afk-evidence \S+ [a-z][a-z0-9-]*$")
-BOM = "﻿"
+BOM = "\ufeff"
 
 
 def headings(lines):
