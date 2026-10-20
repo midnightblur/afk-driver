@@ -51,7 +51,9 @@ the upstream's lifetime to the wrapper, `127` `lavish-axi` is missing from
 exit `127` → run
 `/afk:setup`. `hooks/native-contract-gate.sh` (check N) rejects a direct
 `lavish-axi` run in plugin scripts and prose; the PreToolUse guard refuses one
-in a shell call.
+in a shell call. Render, reopen and poll rewrite the page in place, so the
+guard judges them at the page: a page inside a main checkout or on a protected
+branch needs a linked worktree (`SAFETY.md` "Worktree per session").
 
 Binds loopback (127.0.0.1) only; session state lives under `~/.lavish-axi/`,
 never under `~/.claude/`.

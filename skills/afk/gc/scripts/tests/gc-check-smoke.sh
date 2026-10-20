@@ -116,6 +116,14 @@ if grep -q '^GC_CHECK=refused(hands_off)$' <<<"$OUT"; then ok "refused(hands_off
 OUT="$( (cd "$WT" && bash "$GC" specs/tick-demo) )"; RC=$?
 if [[ $RC -eq 4 ]]; then ok "inside worktree exits 4"; else bad "inside worktree exited $RC ($OUT)"; fi
 if grep -q '^GC_CHECK=refused(inside_target_worktree)$' <<<"$OUT"; then ok "refused(inside_target_worktree)"; else bad "wrong refusal ($OUT)"; fi
+if grep -q '^REASON=.*re-run from another linked worktree' <<<"$OUT"; then ok "exit 4 sends the run to another linked worktree"; else bad "exit 4 reason ($OUT)"; fi
+
+# --- T4b: from another linked worktree (where the skill runs it) => pass -----
+OTHER="$TMP_ROOT/wt-gc"
+git -C "$REPO" worktree add -q -b gc-run "$OTHER" master
+OUT="$( (cd "$OTHER" && bash "$GC" specs/tick-demo "$FBRANCH") )"; RC=$?
+if [[ $RC -eq 0 ]] && grep -q '^GC_CHECK=pass$' <<<"$OUT"; then ok "another linked worktree passes"; else bad "another linked worktree exited $RC ($OUT)"; fi
+git -C "$REPO" worktree remove --force "$OTHER" && git -C "$REPO" branch -q -D gc-run
 
 # --- T5: dirty worktree => verdict dirty, still exit 0 -----------------------
 touch "$WT/untracked.txt"

@@ -57,10 +57,10 @@ def repo(tmp_path: Path):
 
 def clean_env(harness: str, **env) -> dict:
     environ = {k: v for k, v in os.environ.items()
-               if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
+               if k not in ("AFK_ALLOW_PROTECTED", "CLAUDECODE", "AFK_PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT",
                             "GH_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN", "AFK_GITHUB_API_URL", "AFK_GITLAB_API_URL",
                             "HERDR_ENV", "HERDR_TAB_ID", "AFK_WORKTREE_GROUP", "AFK_WORKTREE_OWNER")}
-    environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, "AFK_PLUGIN_ROOT": str(PLUGIN_ROOT), **env})
+    environ.update({"AFK_MOVE_SPAWN": "0", "AFK_PROVIDER": harness, **env})
     return environ
 
 
@@ -235,16 +235,26 @@ def test_read_and_worktree_tools_are_allowed_in_the_main_checkout(repo, tool):
     "ls | head -5",
     "git fetch origin",
     "herdr agent list",
+    "echo hi > /dev/null",
+])
+def test_proven_reads_and_their_composition_are_allowed_in_the_main_checkout(repo, harness, tool, command):
+    assert run(harness, repo["main"], tool, {"command": command}).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
     "gh issue create --title changed --body changed",
     "C:/tmp/git.exe status",
     "unknown-reader README.md",
     "rg --pre mutate pattern",
-    "echo hi > /dev/null",
     "touch $UNSET/x",
     'python -c "print(1)"',
+    "Remove-Item tracked.txt -WhatIf",
+    "git diff --output=$TMP/copy.diff",
 ])
-def test_reads_composition_and_unknown_programs_are_allowed_in_the_main_checkout(repo, harness, tool, command):
-    assert run(harness, repo["main"], tool, {"command": command}).returncode == 0
+def test_unproven_commands_are_refused_before_they_run_in_the_main_checkout(repo, command):
+    """Only a command the allow-list proves read-only runs in a guarded placement."""
+    done = run("claude", repo["main"], "Bash", {"command": command})
+    assert done.returncode == 2 and "cannot prove this part" in done.stderr, command
 
 
 def test_codex_exec_command_reads_its_native_cmd_field(repo):
@@ -707,15 +717,15 @@ def test_s1_judge_refuses_a_git_dir_with_an_outside_work_tree_from_outside(repo)
     assert run("claude", outside, "Bash", {"command": text}).returncode == 2
 
 
-@pytest.mark.parametrize("command", [
-    "Remove-Item {main}/tracked.txt -WhatIf",
-    "git diff --output=$env:TEMP\\copy.diff",
-    "git diff --output=$TMP/copy.diff",
-    "git status; (cd {topic} && touch ok)",
+@pytest.mark.parametrize("session,command", [
+    ("topic", "Remove-Item {main}/tracked.txt -WhatIf"),
+    ("topic", "git diff --output=$env:TEMP\\copy.diff"),
+    ("topic", "git diff --output=$TMP/copy.diff"),
+    ("main", "git status; (cd {topic} && touch ok)"),
 ])
-def test_s1_judge_allows_previews_and_opaque_values(repo, command):
+def test_s1_judge_allows_previews_and_opaque_values(repo, session, command):
     text = command.format(main=repo["main"], topic=repo["topic"])
-    assert run("claude", repo["main"], "Bash", {"command": text}).returncode == 0, text
+    assert run("claude", repo[session], "Bash", {"command": text}).returncode == 0, text
 
 
 def test_s1_005_a_fault_owes_a_refusal_for_every_identified_target(repo):
@@ -779,17 +789,6 @@ def test_s1_005_a_message_failure_after_a_refusal_still_denies(repo, monkeypatch
     assert '"permissionDecision": "deny"' in out and "main checkout" in out
 
 
-def test_s1_005_a_recovery_text_failure_for_a_held_session_still_denies(repo, monkeypatch, capsys):
-    sys.path.insert(0, str(LIB))
-    import change_meter
-    held = {"root": str(repo["main"]), "paths": {"a.txt": ["x"]}}
-    monkeypatch.setattr(change_meter, "active", lambda *a, **k: held)
-    monkeypatch.setattr(change_meter, "allows", lambda *a, **k: False)
-    monkeypatch.setattr(change_meter, "recovery", lambda *a, **k: 1 / 0)
-    guard, code, out = run_in_process(monkeypatch, capsys, repo["main"], "touch changed")
-    assert code == 0 and '"permissionDecision": "deny"' in out.out and "has not undone it" in out.out
-
-
 def test_o2_1_the_sync_hint_names_only_a_refused_pull(repo):
     pull = run("claude", repo["main"], "Bash", {"command": "git pull --rebase"})
     assert "git pull --ff-only" in pull.stderr
@@ -825,16 +824,648 @@ def test_f6_001_a_verdict_fault_with_a_failing_hint_still_denies_with_the_cause(
 
 
 def test_f6_002_whatif_exempts_only_cmdlets_and_aliases_in_every_shell(repo):
-    main = repo["main"]
-    for tool, command in [("PowerShell", "touch f -WhatIf"), ("PowerShell", "rm.exe f -WhatIf"),
-                          ("Bash", "touch f -WhatIf")]:
-        assert run("claude", main, tool, {"command": command}).returncode == 2, command
-    for tool, command in [("PowerShell", "Remove-Item f -WhatIf"), ("PowerShell", "ri f -WhatIf"),
-                          ("Bash", "Remove-Item f -WhatIf")]:
-        assert run("claude", main, tool, {"command": command}).returncode == 0, command
+    target = (repo["main"] / "f").as_posix()
+    for tool, command in [("PowerShell", f"touch {target} -WhatIf"), ("PowerShell", f"rm.exe {target} -WhatIf"),
+                          ("Bash", f"touch {target} -WhatIf")]:
+        assert run("claude", repo["topic"], tool, {"command": command}).returncode == 2, command
+    for tool, command in [("PowerShell", f"Remove-Item {target} -WhatIf"), ("PowerShell", f"ri {target} -WhatIf"),
+                          ("Bash", f"Remove-Item {target} -WhatIf")]:
+        assert run("claude", repo["topic"], tool, {"command": command}).returncode == 0, command
 
 
 def test_b8_the_human_launch_sentence_is_on_its_own_line(repo):
     done = run("claude", repo["main"], "Bash", {"command": "touch changed"})
     reason = json.loads(done.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
     assert "\nA human who needs this session here launches" in reason
+
+
+# ---------------------------------------------------------------- refuse before, not after
+
+def test_99_a_loop_that_moves_files_through_its_variable_is_refused_before_it_runs(repo):
+    main = repo["main"]
+    for name in ("a.txt", "b.txt"):
+        (main / name).write_text("x\n", encoding="utf-8")
+    command = 'for f in a.txt b.txt; do mkdir -p moved; mv "$f" moved/; done'
+    done = run("claude", main, "Bash", {"command": command})
+    assert done.returncode == 2 and "do mkdir -p moved" in deny_of(done) and "main checkout" in deny_of(done)
+    assert "EnterWorktree" in deny_of(done)
+    assert (main / "a.txt").exists() and not (main / "moved").exists()
+
+
+@pytest.mark.parametrize("tool,command", [
+    ("Bash", "ls"),
+    ("Bash", "find . -type f"),
+    ("Bash", "grep -rn x ."),
+    ("PowerShell", "Get-ChildItem -Force {outside}"),
+    ("PowerShell", "ls {outside}"),
+])
+def test_99_reads_run_in_the_main_checkout_and_list_a_folder_outside_it(repo, tool, command):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    assert run("claude", repo["main"], tool, {"command": command.format(outside=outside)}).returncode == 0
+
+
+@pytest.mark.parametrize("command", ["find . -delete", "sed -i s/a/b/ README.md", "curl -o x https://example.test",
+                                     "ls > listing.txt", "npm test"])
+def test_99_a_mutating_twin_is_refused_in_the_main_checkout_and_a_protected_worktree(repo, command):
+    for where in ("main", "protected"):
+        assert run("claude", repo[where], "Bash", {"command": command}).returncode == 2, (where, command)
+
+
+@pytest.mark.parametrize("command", ["npm test", 'python -c "print(1)"', "make", "find . -delete"])
+def test_99_a_linked_worktree_on_an_unprotected_branch_is_unaffected(repo, command):
+    assert run("claude", repo["topic"], "Bash", {"command": command}).returncode == 0
+
+
+def test_99_a_command_aimed_outside_every_guarded_placement_runs_from_the_main_checkout(repo):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    for command in (f"cd {outside.as_posix()} && npm install", f"mkdir {(outside / 'x').as_posix()}",
+                    f"cp README.md {(outside / 'copy.md').as_posix()}", f"cd {repo['topic'].as_posix()} && make",
+                    f"git -C {repo['topic'].as_posix()} gc", f"ls > {(outside / 'listing.txt').as_posix()}"):
+        assert run("claude", repo["main"], "Bash", {"command": command}).returncode == 0, command
+    for command in (f"cd {outside.as_posix()} && cd - && make", f"cd $DIR && make",
+                    f"mv README.md {(outside / 'moved.md').as_posix()}"):
+        assert run("claude", repo["main"], "Bash", {"command": command}).returncode == 2, command
+
+
+def test_99_a_session_in_its_worktree_is_refused_an_unproven_command_it_aims_at_the_main_checkout(repo):
+    done = run("claude", repo["topic"], "Bash", {"command": f"cd {repo['main'].as_posix()} && make"})
+    assert done.returncode == 2 and "`make`" in deny_of(done)
+    assert f"write inside this session's worktree {repo['topic']}" in deny_of(done)
+    pushed = f"pushd {repo['main'].as_posix()} && popd && make"
+    assert run("claude", repo["topic"], "Bash", {"command": pushed}).returncode == 0
+
+
+def test_99_the_plugin_create_worktree_runs_in_the_main_checkout(repo):
+    script = (PLUGIN_ROOT / "scripts" / "create-worktree").as_posix()
+    for command in (f"{script} --name x", '"${AFK_PLUGIN_ROOT}/scripts/create-worktree" --name x'):
+        assert run("claude", repo["main"], "Bash", {"command": command}).returncode == 0, command
+    assert run("claude", repo["main"], "Bash", {"command": "scripts/create-worktree --name x"}).returncode == 2
+
+
+def test_99_a_fault_on_an_unproven_segment_refuses_inside_a_work_tree(repo, monkeypatch, capsys):
+    guard = load_guard()
+
+    def fault(*a, **k):
+        raise RuntimeError("verdict trouble")
+
+    monkeypatch.setattr(guard.Judge, "verdict", fault)
+    import io
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo["main"], "Bash", {"command": "make"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0
+    assert '"permissionDecision": "deny"' in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- review round 1
+
+def bash(where: Path, command: str):
+    return run("claude", where, "Bash", {"command": command})
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_WORK_TREE={main} git reset --hard",
+    "GIT_DIR={main}/.git git update-ref refs/heads/other HEAD",
+    "env GIT_DIR={main}/.git git commit -q --allow-empty -m x",
+    "GIT_COMMON_DIR={main}/.git git commit -q --allow-empty -m x",
+    "GIT_DIR=$REPO git commit -q --allow-empty -m x",
+    "GIT_DIR={topic}/.git GIT_DIR={main}/.git git commit -q --allow-empty -m x",
+    "export GIT_DIR={main}/.git; git commit -q --allow-empty -m x",
+    "export $SETTING; git commit -q --allow-empty -m x",
+])
+def test_review1_a_git_variable_aims_the_segment_at_the_main_checkout_from_a_worktree(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review1_a_powershell_git_variable_aims_later_segments(repo):
+    command = f'$env:GIT_WORK_TREE = "{repo["main"].as_posix()}"; git reset --hard'
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2
+
+
+def test_review1_a_git_variable_naming_the_session_worktree_is_allowed(repo):
+    command = f"GIT_WORK_TREE={repo['topic'].as_posix()} git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", ['cd "$MAIN"; touch changed', "cd $X && make", "env -C $X make",
+                                     "cd -; make", "pushd -n {outside}; touch changed", "pushd +1; make",
+                                     "popd -n; make"])
+def test_review1_an_unknown_folder_stays_unknown_and_refuses_an_unproven_segment(repo, command):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    for where in ("topic", "main"):
+        done = bash(repo[where], command.format(outside=outside.as_posix()))
+        assert done.returncode == 2 and "cannot know" in deny_of(done), (where, command)
+
+
+def test_review1_a_literal_cd_restores_a_known_folder(repo):
+    topic = repo["topic"].as_posix()
+    assert bash(repo["topic"], f"cd $X; cd {topic} && make").returncode == 0
+    assert bash(repo["topic"], "cd $X && ls").returncode == 0
+
+
+def link(source: Path, target: Path, directory: bool) -> None:
+    try:
+        os.symlink(target, source, target_is_directory=directory)
+    except (OSError, NotImplementedError) as problem:
+        if directory and os.name == "nt":
+            import _winapi
+            _winapi.CreateJunction(str(target), str(source))
+            return
+        pytest.skip(f"this platform cannot create a symlink here: {problem}")
+
+
+def test_review1_a_write_through_a_file_symlink_is_judged_at_its_target(repo):
+    (repo["main"] / "a.txt").write_text("x\n", encoding="utf-8")
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    link(outside / "link.txt", repo["main"] / "a.txt", directory=False)
+    target = (outside / "link.txt").as_posix()
+    assert bash(repo["topic"], f"touch {target}").returncode == 2
+    assert run("claude", repo["topic"], "Edit", {"file_path": target}).returncode == 2
+
+
+def test_review1_a_write_through_a_directory_link_or_junction_is_judged_at_its_target(repo):
+    outside = repo["tmp"] / "elsewhere"
+    outside.mkdir()
+    link(outside / "into-main", repo["main"], directory=True)
+    target = (outside / "into-main" / "new.txt").as_posix()
+    assert bash(repo["topic"], f"touch {target}").returncode == 2
+    assert run("claude", repo["topic"], "Edit", {"file_path": target}).returncode == 2
+    assert bash(repo["topic"], f"touch {(outside / 'plain.txt').as_posix()}").returncode == 0
+
+
+@pytest.mark.parametrize("command", ["cat <<EOF\n$(touch changed)\nEOF", "env -S 'touch changed'",
+                                     "ACTION=-delete; find . $ACTION", "herdr worktree create other",
+                                     "X=$Y touch changed"])
+def test_review1_a_hidden_effect_is_refused_in_the_main_checkout(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review1_herdr_reads_and_powershell_built_in_reads_run_in_the_main_checkout(repo):
+    assert bash(repo["main"], "herdr pane list").returncode == 0
+    assert run("claude", repo["main"], "PowerShell", {"command": "Get-Content README.md"}).returncode == 0
+    assert run("claude", repo["main"], "PowerShell", {"command": "Get-Report"}).returncode == 2
+
+
+MC = '"${AFK_PLUGIN_ROOT}/skills/afk/mission-control/scripts/mission_control.py"'
+LAVISH = '"${AFK_PLUGIN_ROOT}/scripts/lavish_show.py"'
+
+
+def test_review1_a_verified_plugin_script_form_runs_in_the_main_checkout(repo):
+    spec = (repo["main"] / "docs" / "f").as_posix()
+    page = (repo["tmp"] / "page.html").as_posix()
+    for command in (f"afk-python {MC} {spec} --check-digests", f"afk-python {LAVISH} stop",
+                    f"afk-python {LAVISH} playbook", f"afk-python {LAVISH} {page} --no-open",
+                    f"afk-python {LAVISH} poll {page}", f"afk-python {MC} {(repo['topic'] / 'docs').as_posix()} --once",
+                    'bash "$AFK_PLUGIN_ROOT/hooks/lesson-digest.sh" --all',
+                    'afk-python "${AFK_PLUGIN_ROOT}/skills/afk/setup/scripts/python_runtime.py" check',
+                    f"afk-python {(PLUGIN_ROOT / 'scripts' / 'glossary_usage.py').as_posix()} x"):
+        assert bash(repo["main"], command).returncode == 0, command
+
+
+def test_review1_a_plugin_script_form_that_writes_the_main_checkout_is_refused(repo):
+    spec = (repo["main"] / "docs" / "f").as_posix()
+    page = (repo["main"] / "page.html").as_posix()
+    for command in (f"afk-python {MC} {spec} --once", f"afk-python {MC} {spec}", f"afk-python {LAVISH} {page}",
+                    f"afk-python {LAVISH} poll {page}", f"afk-python {MC} $SPEC --check-digests",
+                    'afk-python "${AFK_PLUGIN_ROOT}/skills/afk/setup/scripts/python_runtime.py" install',
+                    'afk-python "${AFK_PLUGIN_ROOT}/scripts/behavior_registry.py" render --output x',
+                    'bash "$AFK_PLUGIN_ROOT/hooks/native-contract-gate.sh"',
+                    f"afk-python {MC} {spec} --check-digests > digests.json"):
+        assert bash(repo["main"], command).returncode == 2, command
+
+
+# ---------------------------------------------------------------- review round 2
+
+STOP = 'afk-python "$AFK_PLUGIN_ROOT/scripts/lavish_show.py" stop'
+
+
+@pytest.mark.parametrize("command", [
+    "AFK_PLUGIN_ROOT={fake} " + STOP,
+    "export AFK_PLUGIN_ROOT={fake}; " + STOP,
+    "AFK_PLUGIN_ROOT={fake}; " + STOP,
+    "env AFK_PLUGIN_ROOT={fake} " + STOP,
+    'afk-python "${{AFK_PLUGIN_ROOT:={fake}}}/scripts/lavish_show.py" stop',
+    'export AFK_PLUGIN_ROOT={fake}; "$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other',
+])
+def test_review2_a_rebound_plugin_root_is_not_trusted(repo, command):
+    fake = repo["tmp"] / "not-afk"
+    assert bash(repo["main"], command.format(fake=fake.as_posix())).returncode == 2, command
+
+
+def test_review2_a_plugin_root_variable_names_the_guard_s_own_root(repo):
+    fake = repo["tmp"] / "not-afk"
+    (fake / "scripts").mkdir(parents=True)
+    assert run("claude", repo["main"], "Bash", {"command": STOP}, AFK_PLUGIN_ROOT=str(fake)).returncode == 0
+    assert bash(repo["main"], 'afk-python "$AFK_PLUGIN_ROOT/../x/scripts/lavish_show.py" stop').returncode == 2
+
+
+def test_review2_the_audit_glossary_check_runs_in_the_main_checkout(repo):
+    script = 'afk-python "$AFK_PLUGIN_ROOT/scripts/glossary_usage.py"'
+    assert bash(repo["main"], f'{script} "$AFK_PLUGIN_ROOT"').returncode == 0
+    assert bash(repo["main"], f'{script} "$OTHER"').returncode == 2
+    assert bash(repo["main"], f'{script} "$AFK_PLUGIN_ROOT/x"').returncode == 2
+
+
+def test_review2_the_runtime_base_probe_runs_in_the_main_checkout(repo):
+    script = 'afk-python "$AFK_PLUGIN_ROOT/skills/afk/setup/scripts/python_runtime.py"'
+    assert bash(repo["main"], f"{script} check --test").returncode == 0
+    assert bash(repo["main"], f"{script} install --test").returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR=repo/.git git -C {tmp} commit -q --allow-empty -m x",
+    "GIT_WORK_TREE=repo git -C {tmp} reset --hard",
+    "GIT_COMMON_DIR=repo/.git git -C {tmp} commit -q --allow-empty -m x",
+    "export GIT_DIR=repo/.git; git -C {tmp} commit -q --allow-empty -m x",
+])
+def test_review2_a_relative_git_variable_resolves_after_git_c(repo, command):
+    assert bash(repo["topic"], command.format(tmp=repo["tmp"].as_posix())).returncode == 2, command
+
+
+def test_review2_a_relative_git_variable_under_git_c_names_its_own_folder(repo):
+    command = f"GIT_WORK_TREE=. git -C {repo['topic'].as_posix()} reset --hard"
+    assert bash(repo["main"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR={main}/.git; export GIT_DIR; git commit -q --allow-empty -m x",
+    "GIT_DIR={main}/.git ; export GIT_DIR; git commit -q --allow-empty -m x",
+    "GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+    "export GIT_DIR; GIT_DIR={main}/.git; git commit -q --allow-empty -m x",
+])
+def test_review2_an_assigned_then_exported_git_variable_aims_git(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix()))
+    assert done.returncode == 2 and "cannot know" not in deny_of(done), command
+
+
+@pytest.mark.parametrize("command", ["export GIT_DIR; git commit -q --allow-empty -m x",
+                                     "GIT_DIR=$X; export GIT_DIR; git commit -q --allow-empty -m x"])
+def test_review2_an_exported_git_variable_without_a_known_value_is_unknown(repo, command):
+    done = bash(repo["topic"], command)
+    assert done.returncode == 2 and "cannot know" in deny_of(done), command
+
+
+def test_review2_an_assigned_then_exported_session_worktree_is_allowed(repo):
+    command = f"GIT_WORK_TREE={repo['topic'].as_posix()}; export GIT_WORK_TREE; git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0
+
+
+@pytest.mark.parametrize("command", ['cd "$(git rev-parse --show-toplevel)" && make',
+                                     "cd `git rev-parse --show-toplevel`; make",
+                                     'cd "`git rev-parse --show-toplevel`" && make'])
+def test_review2_the_repository_root_substitution_is_the_current_root(repo, command):
+    assert bash(repo["topic"], command).returncode == 0, command
+    done = bash(repo["main"], command)
+    assert done.returncode == 2 and "cannot know" not in deny_of(done), command
+
+
+@pytest.mark.parametrize("command", ['cd "$(git rev-parse --git-dir)" && make',
+                                     'cd "$(git rev-parse --show-toplevel; rm -rf x)" && make',
+                                     'export GIT_DIR=x; cd "$(git rev-parse --show-toplevel)" && make'])
+def test_review2_any_other_root_substitution_stays_unknown(repo, command):
+    done = bash(repo["topic"], command)
+    assert done.returncode == 2 and "cannot know" in deny_of(done), command
+
+
+# ---------------------------------------------------------------- review round 3
+
+def manifest_root_variable(manifest: str) -> str:
+    """The plugin-root variable a manifest's guard entry is launched with."""
+    entries = json.loads((PLUGIN_ROOT / "hooks" / manifest).read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    command = next(h["command"] for e in entries for h in e["hooks"] if "protected-branch-guard.py" in h["command"])
+    return re.search(r"\$\{(\w+)\}", command).group(1)
+
+
+def documented(path: str, pattern: str) -> str:
+    return re.search(pattern, (PLUGIN_ROOT / path).read_text(encoding="utf-8")).group(1)
+
+
+@pytest.mark.parametrize("harness,manifest", [("claude", "hooks.json"), ("codex", "hooks.codex.json")])
+def test_review3_the_documented_setup_reads_run_under_each_manifest_environment(repo, harness, manifest):
+    env = {manifest_root_variable(manifest): str(PLUGIN_ROOT)}
+    # Codex on Windows may send PowerShell, where `$AFK_PLUGIN_ROOT` is an unset shell variable
+    expected = 2 if harness == "codex" and os.name == "nt" else 0
+    for command in (documented("skills/afk/setup/AUDIT.md", r"`(afk-python [^`]*glossary_usage\.py[^`]*)`"),
+                    documented("skills/afk/setup/MANIFEST.md", r"\*\*Base probe:\*\* `([^`]*python_runtime\.py[^`]*)`")):
+        assert "AFK_PLUGIN_ROOT" not in clean_env(harness, **env)
+        assert run(harness, repo["main"], "Bash", {"command": command}, **env).returncode == expected, command
+
+
+@pytest.mark.parametrize("earlier", [
+    "cp {spare} {own}/scripts/lavish_show.py",
+    "mv {spare} {own}/scripts/lavish_show.py",
+    "ln -sf {spare} {own}/scripts/lavish_show.py",
+    "echo x > {own}/scripts/lavish_show.py",
+    'cp {spare} "$DEST"',
+])
+@pytest.mark.parametrize("later", [STOP, '"$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other',
+                                   'afk-python "{own}/scripts/lavish_show.py" stop'])
+def test_review3_a_plugin_form_after_a_write_into_the_plugin_is_unproven(repo, earlier, later):
+    own = PLUGIN_ROOT.as_posix()
+    command = f"{earlier}; {later}".format(spare=(repo["tmp"] / "spare").as_posix(), own=own)
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review3_a_plugin_form_after_a_write_outside_the_plugin_still_runs(repo):
+    spare = (repo["tmp"] / "spare").as_posix()
+    assert bash(repo["main"], f"cp {spare} {repo['tmp'].as_posix()}/copy; {STOP}").returncode == 0
+
+
+def test_review3_a_known_writer_after_the_root_substitution_is_judged_at_its_target(repo):
+    up = 'cd "$(git rev-parse --show-toplevel)"; touch ../../../guarded.txt'
+    assert bash(repo["topic"], up).returncode == 2
+    assert bash(repo["topic"], 'cd "$(git rev-parse --show-toplevel)"; touch inside.txt').returncode == 0
+
+
+@pytest.mark.parametrize("removal,allowed", [("unset GIT_WORK_TREE", True), ("export -n GIT_WORK_TREE", True),
+                                             ("unset -v GIT_WORK_TREE", True), ("unset -f GIT_WORK_TREE", False),
+                                             ("unset GIT_DIR", False)])
+def test_review3_an_unset_git_variable_no_longer_aims_git(repo, removal, allowed):
+    command = f"GIT_WORK_TREE={repo['main'].as_posix()}; export GIT_WORK_TREE; {removal}; git reset --hard"
+    assert bash(repo["topic"], command).returncode == (0 if allowed else 2), command
+
+
+# ---------------------------------------------------------------- review round 4
+
+LATER = [STOP, '"$AFK_PLUGIN_ROOT/scripts/create-worktree" --name other', 'afk-python "{own}/scripts/lavish_show.py" stop']
+
+
+@pytest.mark.parametrize("earlier", [
+    "ln -s {own} {tmp}/alias; cp {spare} {tmp}/alias/scripts/lavish_show.py",
+    "ln {own}/scripts/lavish_show.py {tmp}/hard; cp {spare} {tmp}/hard",
+    "ln -s {tmp}/a {tmp}/b",
+])
+@pytest.mark.parametrize("later", LATER)
+def test_review4_a_plugin_form_after_any_link_is_unproven(repo, earlier, later):
+    command = f"{earlier}; {later}".format(own=PLUGIN_ROOT.as_posix(), tmp=repo["tmp"].as_posix(),
+                                          spare=(repo["tmp"] / "spare").as_posix())
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+@pytest.mark.parametrize("kind", ["SymbolicLink", "HardLink", "Junction"])
+def test_review4_a_plugin_form_after_a_powershell_link_is_unproven(repo, kind):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    assert run("claude", repo["main"], "PowerShell", {"command": later}).returncode == 0
+    link = f"New-Item -ItemType {kind} -Path {repo['tmp'].as_posix()}/alias -Target {PLUGIN_ROOT.as_posix()}"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{link}; {later}"}).returncode == 2
+
+
+@pytest.mark.parametrize("command", [
+    "export GIT_WORK_TREE={topic}; export -n GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset GIT_WORK_TREE=x; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -fn GIT_WORK_TREE; git reset --hard",
+    "export -n GIT_WORK_TREE={main}; export GIT_WORK_TREE; git reset --hard",
+])
+def test_review4_an_unreadable_removal_leaves_the_git_state_unknown(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review4_a_plain_removal_after_an_unknown_one_restores_a_known_state(repo):
+    command = "unset -fn X; unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; git reset --hard"
+    assert bash(repo["topic"], command).returncode == 0
+
+
+# ---------------------------------------------------------------- retirement from the main checkout
+
+def test_a_branch_delete_runs_in_the_main_checkout(repo):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], "git branch -d spare").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR={main}/.git git branch -d spare",
+    "git branch -d spare; touch x",
+])
+def test_a_retirement_does_not_prove_its_neighbours(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], command.format(main=repo["main"].as_posix())).returncode == 2, command
+
+
+# ---------------------------------------------------------------- review round 5
+
+@pytest.mark.parametrize("command", [
+    'git branch -d spare > "$LOG"',
+    'git branch -d spare "$BRANCH"',
+    'git worktree move {topic} "$DEST"',
+    'git branch -d spare "$(touch changed; echo main)"',
+    'git branch -d spare < "$(touch changed)"',
+    'git branch -d spare > {main}/README.md',
+    'git worktree move {topic}',
+    'git worktree remove {topic} {topic}',
+    'FOO=1 git branch -d spare',
+    'git -c core.fsmonitor=x branch -d spare',
+])
+def test_review5_a_retirement_with_an_unparsed_effect_is_unproven(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix(), topic=repo["topic"].as_posix())
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review5_a_substitution_in_an_input_redirect_is_unproven(repo):
+    assert bash(repo["main"], 'cat < "$(touch changed)"').returncode == 2
+
+
+def test_review5_a_literal_retirement_with_a_null_redirect_runs(repo):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], f'git -C {repo["main"].as_posix()} branch -d spare 2>/dev/null').returncode == 0
+
+
+@pytest.mark.parametrize("kind", ["Directory", "file", "DIRECTORY"])
+def test_review5_a_plugin_form_after_a_plain_new_item_still_runs(repo, kind):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    item = f"New-Item -ItemType {kind} -Path {repo['tmp'].as_posix()}/plain"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{item}; {later}"}).returncode == 0
+
+
+@pytest.mark.parametrize("item", ["New-Item -ItemType Dir", "New-Item -ItemType $kind", "New-Item",
+                                  "New-Item -ItemType Directory -It SymbolicLink -Target {own}"])
+def test_review5_a_plugin_form_after_another_new_item_is_unproven(repo, item):
+    later = f'afk-python "{PLUGIN_ROOT.as_posix()}/scripts/lavish_show.py" stop'
+    item = item.format(own=PLUGIN_ROOT.as_posix()) + f" -Path {repo['tmp'].as_posix()}/alias"
+    assert run("claude", repo["main"], "PowerShell", {"command": f"{item}; {later}"}).returncode == 2, item
+
+
+@pytest.mark.parametrize("removal", ["unset -f helper", "unset -- PYTHONPATH"])
+def test_review5_a_removal_unrelated_to_git_keeps_the_git_state_known(repo, removal):
+    assert bash(repo["main"], f"{removal}; {STOP}").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "export GIT_WORK_TREE={main}; unset -f GIT_WORK_TREE; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -f $X; git reset --hard",
+    "export GIT_WORK_TREE={main}; unset -- -v GIT_WORK_TREE; git reset --hard",
+])
+def test_review5_a_function_or_mixed_removal_keeps_git_aimed(repo, command):
+    done = bash(repo["topic"], command.format(main=repo["main"].as_posix()))
+    assert done.returncode == 2, command
+
+
+def test_review5_a_literal_move_into_the_main_checkout_is_refused(repo):
+    command = f'git worktree move {repo["topic"].as_posix()} {repo["main"].as_posix()}/moved'
+    assert bash(repo["main"], command).returncode == 2
+
+
+# ---------------------------------------------------------------- review round 6
+
+@pytest.mark.parametrize("command", [
+    'echo hi > "$null"',
+    "echo hi > $null",
+    "null=README.md; echo hi > \"$null\"",
+    "echo hi > '$null'",
+    'git branch -d spare > "$null"',
+    "null=README.md; git -C {main} branch -d spare > \"$null\"",
+    "git branch -d spare 2> '$null'",
+])
+def test_review6_a_bash_null_variable_redirect_is_a_target(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    assert bash(repo["main"], command.format(main=repo["main"].as_posix())).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    'Get-Content README.md > "$null"',
+    "Get-Content README.md > '$null'",
+    '$null = "README.md"; Get-Content README.md > "$null"',
+    'git branch -d spare > "$null"',
+    "git -C {main} branch -d spare 2> '$null'",
+])
+def test_review6_a_quoted_powershell_null_redirect_is_a_target(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    "Get-Content README.md > $null",
+    "Get-Content README.md 2>$NULL",
+    "git -C {main} branch -d spare 2> $null",
+])
+def test_review6_a_bare_powershell_null_redirect_reaches_no_file(repo, command):
+    subprocess.run(["git", "-C", str(repo["main"]), "branch", "spare"], check=True)
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 0, command
+
+
+@pytest.mark.parametrize("command", [
+    "cat < 'a$(b).txt'",
+    "cat < 'a`b`.txt'",
+    "cat < '<(b).txt'",
+    r"cat < a\$\(b\).txt",
+    r'cat < "a\$(b).txt"',
+    "cat 'a$(b)'\"$f\"",
+])
+def test_review6_a_literal_substitution_marker_runs_nothing(repo, command):
+    assert bash(repo["main"], command).returncode == 0, command
+
+
+# ---------------------------------------------------------------- review round 7
+
+@pytest.mark.parametrize("command", [
+    r"""cat $'a\'b' "$(touch changed)" 'c'""",
+    r"""cat $'a\'b' $(touch changed) 'c'""",
+    r"""cat <<< $'a\'b'"$(touch changed)"'c'""",
+    r"""cat < $'a\'b'"$(touch changed)"'c'""",
+    "cat README.md `\ntouch changed `\n",
+    'cat "README.md `\ntouch changed `\n"',
+    r"cat a\\;touch changed",
+    "echo $(touch changed)",
+])
+def test_review7_a_bash_substitution_or_command_hidden_in_a_word_is_unproven(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    r'Get-ChildItem -Path ".\sub\"; Set-Content -Path notes.md -Value "x"',
+    r'Test-Path "docs\"; Remove-Item -Path "README.md"',
+    r'Write-Output "\$(Set-Content -Path notes.md -Value x)"',
+    "Get-Content README.md \\\nSet-Content -Path notes.md -Value x",
+    "git status \\\nRemove-Item README.md",
+    "Write-Output \u201ca\"; Set-Content -Path notes.md -Value x; \"b\u201d",
+    "Write-Output 'a\u2019; Set-Content -Path notes.md -Value x; \u2018b'",
+])
+def test_review7_a_powershell_command_hidden_by_bash_quoting_is_unproven(repo, command):
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("tool,command", [
+    ("PowerShell", r'Get-ChildItem -Path "docs\"'),
+    ("PowerShell", r'Test-Path "C:\elsewhere\"'),
+    ("PowerShell", "Write-Output a`;b"),
+    ("PowerShell", "Get-Content $(git ls-files README.md)"),
+    ("Bash", r"echo \`x\`"),
+    ("Bash", "echo $(pwd)"),
+    ("Bash", "wc -l $(git ls-files)"),
+    ("Bash", "head $(git ls-files | head -1)"),
+    ("Bash", "ls $(git rev-parse --show-toplevel)"),
+    ("Bash", "cd $(git rev-parse --show-toplevel) && git status"),
+])
+def test_review7_a_read_with_a_shell_specific_word_runs(repo, tool, command):
+    assert run("claude", repo["main"], tool, {"command": command}).returncode == 0, command
+
+
+HIDDEN_FROM_BASH = r'Get-ChildItem -Path "docs\"; Remove-Item -Path "README.md"'
+
+
+def test_review7_a_shell_of_unknown_language_is_proven_under_both_readings(repo):
+    done = run("codex", repo["main"], "Bash", {"command": HIDDEN_FROM_BASH})
+    assert done.returncode == (2 if os.name == "nt" else 0), done.stderr
+    assert run("codex", repo["main"], "Bash", {"command": "git status --short"}).returncode == 0
+
+
+def test_review7_a_declared_bash_tool_reads_only_as_bash(repo):
+    assert run("claude", repo["main"], "Bash", {"command": HIDDEN_FROM_BASH}).returncode == 0
+
+
+# ---------------------------------------------------------------- review round 8
+
+@pytest.mark.parametrize("command", [
+    r"""cat $$'\'; touch changed; cat 'x'""",
+    r"""cat $$'\' "$(touch changed)" 'x'""",
+    r"""cat a$$'\'b; touch changed; cat 'x'""",
+    r"""cat $?'\'; touch changed; cat 'x'""",
+])
+def test_review8_a_quote_after_a_special_parameter_is_a_plain_quote(repo, command):
+    assert bash(repo["main"], command).returncode == 2, command
+
+
+def test_review8_a_process_id_read_runs(repo):
+    assert bash(repo["main"], "echo $$").returncode == 0
+
+
+@pytest.mark.parametrize("command", [
+    "Write-Output @'\nx ' y \"\n'@\nSet-Content -Path notes.md -Value x",
+    "Write-Output @\"\na\" '$(Set-Content -Path notes.md -Value x)' \"\n\"@",
+    "Get-Content README.md <# ' #>; Set-Content -Path notes.md -Value x; <# ' #>",
+])
+def test_review8_a_powershell_here_string_or_block_comment_is_unproven(repo, command):
+    assert run("claude", repo["main"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("command", [
+    "Set-Content –Path {main}/README.md -Value x",
+    "Get-Content README.md | Out-File —FilePath {main}/copy.txt",
+    "Set-Content ―Path {main}/README.md -Value x",
+])
+def test_review8_a_powershell_dash_parameter_names_its_target(repo, command):
+    command = command.format(main=repo["main"].as_posix())
+    assert run("claude", repo["topic"], "PowerShell", {"command": command}).returncode == 2, command
+
+
+@pytest.mark.parametrize("where,expected", [("main", 2), ("topic", 0)])
+def test_review8_an_unreadable_target_refuses_only_in_a_guarded_placement(repo, monkeypatch, capsys, where, expected):
+    import io
+    guard = load_guard()
+    monkeypatch.setattr(guard.shell_mutations, "resources", lambda *a, **k: 1 / 0)
+    for key, value in clean_env("claude").items():
+        monkeypatch.setenv(key, value)
+    body = json.dumps(envelope_of(repo[where], "Bash", {"command": "git status"})).encode()
+    monkeypatch.setattr(sys, "stdin", type("In", (), {"buffer": io.BytesIO(body)})())
+    assert guard.main() == 0
+    denied = '"permissionDecision": "deny"' in capsys.readouterr().out
+    assert denied is (expected == 2)

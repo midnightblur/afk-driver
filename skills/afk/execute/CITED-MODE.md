@@ -23,9 +23,7 @@ Apply **only** in Cited mode (non-empty `## Design refs` + a `## Parent SDD`); s
 ## Step 2 — Preflight: verify Consumed contracts (cited mode)
 
 2. **Before any other work** — no status change, no commits, no verification
-   runs — run from the worktree root (`<main-checkout>` = first entry of
-   `git worktree list`; the script comes from the main checkout, never this
-   worktree's stale plugin copy — `GLOSSARY.md` "Main checkout"):
+   runs — run from the worktree root:
 
    ```
    bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/verify-contract.sh plan/{NNNN-slug}.md --direction consumes --root .

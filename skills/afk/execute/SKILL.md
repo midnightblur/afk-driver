@@ -44,7 +44,7 @@ When the invocation says DRIVEN (invoker passes the flag plus a live-app base UR
 
 2. **Preflight: verify Consumed contracts (cited mode).** If running in Cited mode, follow the additional steps in [CITED-MODE.md](CITED-MODE.md).
 
-3. **Status → `designing`.** `bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/plan-status.sh {plan-dir} {NNNN-slug} designing` (`<main-checkout>` = first entry of `git worktree list`; plugin files always run from the main checkout, never this worktree's stale copy — `GLOSSARY.md` "Main checkout") — sets the row's `Status` cell + stamps the header `Last updated` date, touching nothing else; every later status flip uses the same script.
+3. **Status → `designing`.** `bash $AFK_PLUGIN_ROOT/skills/afk/execute/scripts/plan-status.sh {plan-dir} {NNNN-slug} designing` — sets the row's `Status` cell + stamps the header `Last updated` date, touching nothing else; every later status flip uses the same script.
 
 4. **Plan inside Scope.** Stay strictly within the `## Scope` globs. Check your diff against those globs and the forbidden-pattern list before committing — entity classes fine; hand-written `UpgradeGroup_*.java` / liquibase changesets / `db/changelog/*` edits are not (see Hard rules).
 

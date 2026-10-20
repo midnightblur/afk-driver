@@ -44,9 +44,7 @@ before a ticket key is minted). Required.
 
 1. **Freshness first.** Run
    `afk-python $AFK_PLUGIN_ROOT/skills/afk/mission-control/scripts/mission_control.py {spec_dir} --check-digests`
-   (read-only, exit 0; `<main-checkout>` = first entry of `git worktree list`
-   — plugin scripts always run from the main checkout; `GLOSSARY.md` "Main
-   checkout") and tell the user which digest sections are fresh,
+   (read-only, exit 0; runs in any checkout) and tell the user which digest sections are fresh,
    stale, or unbuilt — with "run `/afk:mission-control {spec_dir} build` to
    refresh" when any aren't fresh. Never build uninvited.
 
@@ -55,7 +53,9 @@ before a ticket key is minted). Required.
    - Retro mode: `afk-python …/scripts/mission_control.py {spec_dir} --once`
 
    `--port` defaults to `8420`; pass it only if the user names a different
-   port or the default is in use.
+   port or the default is in use. Both modes write under `{spec_dir}`, so a
+   `{spec_dir}` in a main checkout or on a protected branch is refused;
+   render the feature worktree's copy (`SAFETY.md` "Worktree per session").
 
 3. **Interpret the exit code.** `0` = success. `2` = the path fence rejected
    `spec_dir` (not a directory inside a git checkout) — report to the user

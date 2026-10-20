@@ -39,8 +39,7 @@ issue".
      (`path:line`), so the next agent can confirm before changing the skill.
 
 3. **Record it.** Append the lesson to the lesson ledger as `opened`, from the
-   repo root (`<main-checkout>` = first entry of `git worktree list` — plugin
-   scripts always run from the main checkout; `GLOSSARY.md` "Main checkout"):
+   session's linked worktree (the script finds the main checkout's ledger):
 
    ```
    bash $AFK_PLUGIN_ROOT/hooks/lesson-append.sh opened \

@@ -14,8 +14,8 @@ MANIFEST = PLUGIN_ROOT / "hooks" / "hooks.codex.json"
 def keys() -> list[str]:
     events = json.loads(MANIFEST.read_text(encoding="utf-8"))["hooks"]
     out = []
-    for event, script in (("PreToolUse", "protected-branch-guard.py"), ("PostToolUse", "protected-branch-meter.py"),
-                          ("SessionEnd", "worktree-remove.sh"), ("SessionStart", "worktree-prune.sh"),
+    for event, script in (("PreToolUse", "protected-branch-guard.py"), ("SessionEnd", "worktree-remove.sh"),
+                          ("SessionStart", "worktree-prune.sh"),
                           ("SessionStart", "protected-branch-occupancy.py")):
         for group, entry in enumerate(events[event]):
             for handler, hook in enumerate(entry["hooks"]):
@@ -36,8 +36,8 @@ def table(position: str) -> str:
     return f'[hooks.state."afk@some-market:hooks/hooks.codex.json:{position}"]\ntrusted_hash = "sha256:0"\n\n'
 
 
-def test_the_manifest_positions_are_the_five_guarded_hooks():
-    assert len(keys()) == 5
+def test_the_manifest_positions_are_the_four_guarded_hooks():
+    assert len(keys()) == 4
 
 
 def test_every_key_present_is_trusted(tmp_path):
@@ -69,7 +69,7 @@ def test_a_key_without_a_hash_is_not_trusted(tmp_path):
 def test_r9_5_another_plugins_key_at_the_same_position_is_not_afks(tmp_path):
     text = "".join(table(p).replace("afk@some-market", "other@some-market") for p in keys())
     done = check(tmp_path, text)
-    assert done.returncode == 1 and done.stdout.count("missing:") == 5
+    assert done.returncode == 1 and done.stdout.count("missing:") == 4
 
 
 def test_no_config_file_is_not_applicable(tmp_path):

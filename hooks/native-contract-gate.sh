@@ -354,7 +354,7 @@ def launcher_form(root_var: str) -> re.Pattern[str]:
         r'(?: --deadline [0-9]+)?'
         r'(?: plugin [A-Za-z0-9._-]+\.sh(?: [A-Za-z0-9._=-]+)*'
         r'| repo-list (?P<event>[A-Za-z]+))'
-        r'|protected-branch-(?:guard|meter|occupancy)\.py")$'
+        r'|protected-branch-(?:guard|occupancy)\.py")$'
     )
 
 
@@ -373,7 +373,7 @@ for manifest_rel, root_var in (("hooks/hooks.json", "CLAUDE_PLUGIN_ROOT"),
                         f"{manifest_rel}: {event}[{index}] command must be "
                         f'afk-python "${{{root_var}}}/hooks/run-hook.py" '
                         f"[--soft] [--deadline N] plugin <handler.sh> [args] | repo-list <event>, "
-                        f"or hooks/protected-branch-guard.py / -meter.py / -occupancy.py - got {command!r}"
+                        f"or hooks/protected-branch-guard.py / -occupancy.py - got {command!r}"
                     )
     shared = {event: groups for event, groups in hmap.items()
               if event not in specific_events.get(MANIFEST_PROVIDER[manifest_rel], set())}

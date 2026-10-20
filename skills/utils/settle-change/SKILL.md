@@ -26,7 +26,7 @@ Change URL or provider id. Optional:
 
 ## Constants
 
-- `MAIN` = the invoking checkout's root — run from the target repo's main checkout, never from inside a change worktree. Checklists and plugin files are read from `MAIN`; code under review from the worktree (`WT`).
+- `MAIN` = the invoking checkout's root — run from a linked worktree of the target repo other than the change's own (`SAFETY.md` "Worktree per session"). Checklists and plugin files are read from `MAIN`; code under review from the worktree (`WT`).
 - Scratch (fetched change data, `spec.md`, diff files, per-round report drafts): provider scratch directory (`CAPABILITIES.md`), else a session-temp `change-<id>` directory.
 
 ## The change as the review record
