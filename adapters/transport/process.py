@@ -7,6 +7,7 @@ could not stop, by id, which a caller reports as survivors.
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -93,6 +94,33 @@ if WINDOWS:
     def _kill_one(pid: int, force: bool) -> None:
         subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=15, check=False)
 
+    def _msys_ps() -> str | None:
+        """Git for Windows' `ps`, which knows the MSYS parent of a process whose Windows parent is gone."""
+        found = [os.path.join(os.path.dirname(os.path.dirname(git)), "usr", "bin", "ps.exe")
+                 for git in filter(None, [shutil.which("git")])]
+        found += [os.path.join(os.environ.get(k, ""), "Git", "usr", "bin", "ps.exe")
+                  for k in ("ProgramFiles", "ProgramW6432", "LOCALAPPDATA") if os.environ.get(k)]
+        return next((path for path in found if os.path.isfile(path)), None)
+
+    def _msys_children() -> dict[int, list[int]]:
+        """Windows id of each MSYS process to the Windows ids of its MSYS children; empty without Git's ps."""
+        ps = _msys_ps()
+        if ps is None:
+            return {}
+        try:
+            done = subprocess.run([ps, "-e"], capture_output=True, text=True, timeout=10, check=False)
+        except (OSError, subprocess.SubprocessError):
+            return {}
+        rows = [line.split() for line in done.stdout.splitlines()[1:]]
+        rows = [r for r in rows if len(r) >= 4 and r[0].isdigit() and r[1].isdigit() and r[3].isdigit()]
+        winpid = {int(r[0]): int(r[3]) for r in rows}
+        out: dict[int, list[int]] = {}
+        for r in rows:
+            parent = winpid.get(int(r[1]))
+            if parent is not None and parent != int(r[3]):
+                out.setdefault(parent, []).append(int(r[3]))
+        return out
+
 else:
     def creation_time(pid: int) -> str | None:
         stat = f"/proc/{pid}/stat"
@@ -145,14 +173,20 @@ else:
         except (ProcessLookupError, PermissionError):
             pass
 
+    def _msys_children() -> dict[int, list[int]]:
+        return {}
+
 
 def tree(pid: int) -> list[int]:
-    """The process and every live descendant, root first."""
+    """The process and every live descendant, root first; on Windows also each MSYS child, whose
+    Windows parent is a fork stub that is gone by the time the child runs."""
     parents = _parents()
     children: dict[int, list[int]] = {}
     for child, parent in parents.items():
         if child != parent:
             children.setdefault(parent, []).append(child)
+    for parent, kids in _msys_children().items():
+        children.setdefault(parent, []).extend(k for k in kids if k in parents)
     out, queue = [], [pid]
     while queue:
         current = queue.pop(0)

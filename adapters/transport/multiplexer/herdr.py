@@ -28,6 +28,8 @@ GRID = 4                                  # panes per tab, a 2 by 2 grid
 READ_LINES = 2000
 MARKER_LINES = 3
 GONE = ("pane_not_found", "agent_not_found", "tab_not_found")
+DIALOG_LINES = 6                          # a dialog's question sits a few lines above its last line
+START_RESERVE_S = 40                     # left in the start budget after herdr's wait, for the checks and a cleanup
 
 
 @dataclass
@@ -134,13 +136,18 @@ class Herdr:
             if resume and harness == "codex":
                 self._resume_by_pane_run(pane, name, run, deadline)
             else:
-                timeout = int(max(1000, min(300000, (deadline.left() - 15) * 1000)))
-                self.call(["agent", "start", name, "--kind", run.binary, "--pane", pane,
-                           "--timeout", str(timeout), "--", *run.args], deadline, cap=timeout / 1000 + 10)
+                timeout = int(max(1000, min(300000, (deadline.left() - START_RESERVE_S) * 1000)))
+                try:
+                    self.call(["agent", "start", name, "--kind", run.binary, "--pane", pane,
+                               "--timeout", str(timeout), "--", *run.args], deadline, cap=timeout / 1000 + 10)
+                except HerdrError as error:
+                    if error.code != "timeout" or not self._started(pane, run.binary, deadline):
+                        raise
         except HerdrError as error:
+            screen = self._screen_line(pane, deadline) if error.code == "agent_not_ready" else ""
             self._discard(pane, deadline)
             if error.code == "agent_not_ready":
-                raise unavailable(f"a dialog blocks the agent's start: {self._screen_line(pane, deadline)}",
+                raise unavailable(f"a dialog blocks the agent's start: {screen}",
                                   dialog=True, recipe=RECIPE) from None
             if resume:
                 raise unavailable(f"the resume of session {resume} failed: {error}", recipe=RECIPE) from None
@@ -200,6 +207,17 @@ class Herdr:
             time.sleep(1)
         raise HerdrError("timeout", "the resumed agent never became ready")
 
+    def _started(self, pane: str, binary: str, deadline: Deadline) -> bool:
+        """herdr waits for an idle agent, so a launch prompt's first turn can outlast the wait; a working
+        agent has started. A blocked one is a dialog."""
+        try:
+            agent = self.call(["agent", "get", pane], deadline).get("agent", {})
+        except HerdrError:
+            return False
+        if agent.get("agent") == binary and agent.get("agent_status") == "blocked":
+            raise HerdrError("agent_not_ready", "blocked at start")
+        return agent.get("agent") == binary and agent.get("agent_status") in ("working", "idle", "done")
+
     def _shell_name(self, pane: str, deadline: Deadline) -> str:
         try:
             info = self.call(["pane", "process-info", "--pane", pane], deadline).get("process_info", {})
@@ -229,7 +247,7 @@ class Herdr:
         except HerdrError:
             return "the screen could not be read"
         lines = [line.strip() for line in str(text).splitlines() if line.strip()]
-        return lines[-1][:200] if lines else "the screen is empty"
+        return " / ".join(lines[-DIALOG_LINES:])[:400] if lines else "the screen is empty"
 
     def _discard(self, pane: str, deadline: Deadline) -> None:
         pid = self._agent_pid(pane, deadline)

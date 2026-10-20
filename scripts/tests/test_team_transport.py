@@ -234,6 +234,8 @@ class FakeHerdr:
         self.pids: list[int] = []
         self.alive_at_close: list[bool] = []
         self.screen = "line 1\nline 2\nline 3\n"
+        self.status = "idle"
+        self.start_timeout = False
         self._n = 1
 
     def _new_pane(self, tab: str) -> str:
@@ -271,6 +273,8 @@ class FakeHerdr:
         if key == "agent start":
             target = args[args.index("--pane") + 1]
             self.panes[target].update(agent=args[args.index("--kind") + 1], name=args[2])
+            if self.start_timeout:
+                raise herdr.HerdrError("timeout", "timed out waiting for agent startup")
             return {}
         if key == "pane run":
             self.panes[pane]["agent"] = "codex"
@@ -286,7 +290,7 @@ class FakeHerdr:
         if key == "agent get":
             if pane not in self.panes or not self.panes[pane]["agent"]:
                 raise herdr.HerdrError("agent_not_found", pane)
-            return {"agent": {"agent": self.panes[pane]["agent"], "agent_status": "idle",
+            return {"agent": {"agent": self.panes[pane]["agent"], "agent_status": self.status,
                               "agent_session": {"value": "sess-9"}}}
         if key == "agent prompt":
             if pane not in self.panes:
@@ -396,6 +400,27 @@ def test_a_start_a_dialog_blocks_is_stopped_and_answers_unavailable(fake):
         start("a1")
     assert caught.value.code == 4 and caught.value.body["dialog"] is True
     assert calls(fake, "pane close") and "w1:t2" not in fake.tabs
+    assert "line 1 / line 2 / line 3" in caught.value.body["reason"]
+
+
+def test_a_start_whose_first_turn_outlasts_herdrs_wait_counts_as_started(fake):
+    fake.start_timeout, fake.status = True, "working"
+    body = start("a1")
+    assert body["handle"] == "w1:p2" and not calls(fake, "pane close")
+
+
+def test_a_start_that_times_out_with_no_agent_is_refused_and_closed(fake):
+    fake.fail["agent start"] = "timeout"
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and calls(fake, "pane close") and "w1:t2" not in fake.tabs
+
+
+def test_a_start_that_times_out_at_a_dialog_answers_dialog(fake):
+    fake.start_timeout, fake.status = True, "blocked"
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and caught.value.body["dialog"] is True and calls(fake, "pane close")
 
 
 def test_a_message_goes_into_the_receivers_pane_by_agent_prompt(fake):
@@ -429,6 +454,20 @@ def test_a_stop_kills_the_whole_tree_before_it_closes_the_pane_and_the_empty_tab
     assert "w1:t2" not in fake.tabs and "w1:t1" in fake.tabs
     again = mux("agent-stop", {"pid": child.pid, "handle": pane})
     assert again["stopped"] is True and again["pane_closed"] is True
+
+
+@pytest.mark.skipif(sys.platform != "win32" or BASH is None,
+                    reason="an MSYS child's Windows parent is gone only under Git for Windows")
+def test_a_tree_kill_reaches_an_msys_child_whose_windows_parent_is_gone():
+    shell = subprocess.Popen([BASH, "-c", "sleep 300; true"])
+    try:
+        assert wait_for(lambda: len(process.tree(shell.pid)) >= 3)
+        members = process.tree(shell.pid)
+        assert process.kill_tree(shell.pid, force=True, wait_s=5) == []
+        assert not [m for m in members if process.alive(m)]
+    finally:
+        for member in process.tree(shell.pid):
+            process.kill_tree(member, force=True, wait_s=1)
 
 
 def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
