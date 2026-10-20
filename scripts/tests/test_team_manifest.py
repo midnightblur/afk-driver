@@ -381,6 +381,7 @@ def test_the_lock_is_refreshed_before_the_publish_check(root: Path, monkeypatch)
     lock = lock_of(root)
     real_fsync, real_replace, real_owner = os.fsync, os.replace, manifest._owner
     writes: list[int] = []
+    tried: list[Path] = []
     held: list[bool] = []
 
     def slow_write(fd: int) -> None:
@@ -390,9 +391,10 @@ def test_the_lock_is_refreshed_before_the_publish_check(root: Path, monkeypatch)
         os.utime(lock, (old, old))
 
     def contended(at: Path) -> str | None:
-        if writes and not held:  # a contender tries a steal at the publish check, then at the rename
-            held.append(True)
+        if writes and not tried:  # a contender tries a steal at the publish check, then at the rename
+            tried.append(at)
             manifest._steal_if_stale(lock)
+            held.append(lock.exists())
         return real_owner(at)
 
     def contended_replace(src, dst) -> None:
@@ -409,23 +411,84 @@ def test_the_lock_is_refreshed_before_the_publish_check(root: Path, monkeypatch)
     assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
 
 
-def test_a_steal_judged_before_a_refresh_gives_the_lock_back(root: Path, monkeypatch) -> None:
+def judged_stale(root: Path, owner: str) -> Path:
     lock = lock_of(root)
     lock.mkdir()
-    (lock / "owner").write_text("live-holder", encoding="utf-8")
+    (lock / "owner").write_text(owner, encoding="utf-8")
     old = time.time() - manifest.LOCK_STALE - 5
     os.utime(lock, (old, old))
-    real_rename = os.rename
+    return lock
 
-    def refreshed_first(src, dst) -> None:
-        if Path(src) == lock:  # the holder refreshes the lock between the judgement and the rename
-            os.utime(lock)
+
+def steal_with(monkeypatch, lock: Path, before_steal=None, before_give_back=None, in_use: int = 0) -> None:
+    """Run one steal; the hooks run just before the stealing rename and the give-back rename."""
+    real_rename, refused = os.rename, []
+
+    def rename(src, dst) -> None:
+        if Path(src) == lock and before_steal:
+            before_steal()
+        if Path(dst) == lock:
+            if before_give_back:
+                before_give_back()
+            if len(refused) < in_use:
+                refused.append(src)
+                raise PermissionError("in use")
         real_rename(src, dst)
 
-    monkeypatch.setattr(manifest.os, "rename", refreshed_first)
+    monkeypatch.setattr(manifest.os, "rename", rename)
+    monkeypatch.setattr(manifest.time, "sleep", lambda _s: None)
     manifest._steal_if_stale(lock)
+
+
+def graves(root: Path) -> list[Path]:
+    return list(root.joinpath(FEATURE).glob("manifest.lock.stale*"))
+
+
+def test_a_steal_judged_before_a_refresh_gives_the_lock_back(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "live-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock))
     assert (lock / "owner").read_text(encoding="utf-8") == "live-holder"
-    assert not list(root.joinpath(FEATURE).glob("manifest.lock.stale*"))
+    assert not graves(root)
+
+
+def test_a_give_back_rides_out_a_file_in_use_error(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "live-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), in_use=3)
+    assert (lock / "owner").read_text(encoding="utf-8") == "live-holder"
+    assert not graves(root)
+
+
+def test_a_lock_replaced_since_the_judgement_is_given_back(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "dead-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: (lock / "owner").write_text("new-holder", encoding="utf-8"))
+    assert (lock / "owner").read_text(encoding="utf-8") == "new-holder"
+    assert not graves(root)
+
+
+def test_a_lock_made_in_the_give_back_gap_leaves_one_lock_and_no_grave(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "live-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=lock.mkdir)
+    owner = lock / "owner"
+    assert lock.is_dir()
+    assert not owner.exists() or owner.read_text(encoding="utf-8") == "live-holder"
+    assert not graves(root)
+
+
+def test_a_writer_does_not_claim_a_lock_given_back_over_its_folder(root: Path, monkeypatch) -> None:
+    lock = lock_of(root)
+    real_mkdir = os.mkdir
+
+    def given_back(path, *args) -> None:
+        real_mkdir(path, *args)
+        if Path(path) == lock:  # a stealer's give-back lands on the new folder before the claim
+            (lock / "owner").write_text("live-holder", encoding="utf-8")
+
+    monkeypatch.setattr(manifest.os, "mkdir", given_back)
+    monkeypatch.setattr(manifest, "LOCK_WAIT", 0.3)
+    with pytest.raises(manifest.ManifestBusy):
+        manifest.record_entry(root, FEATURE, agent())
+    assert (lock / "owner").read_text(encoding="utf-8") == "live-holder"
+    assert manifest.read_manifest(root, FEATURE)["agents"] == []
 
 
 def test_an_unreadable_lock_owner_does_not_stop_the_publish(root: Path, monkeypatch) -> None:
@@ -497,14 +560,14 @@ def test_a_temporary_file_in_use_for_good_is_left_and_named(root: Path, monkeypa
 
 
 def test_a_failed_owner_write_frees_the_lock(root: Path, monkeypatch) -> None:
-    real = pathlib.Path.write_text
+    real = pathlib.Path.open
 
     def broken(self, *args, **kwargs):
         if self.name == "owner":
             raise OSError("disk full")
         return real(self, *args, **kwargs)
 
-    monkeypatch.setattr(pathlib.Path, "write_text", broken)
+    monkeypatch.setattr(pathlib.Path, "open", broken)
     with pytest.raises(manifest.ManifestError, match="disk full"):
         manifest.record_entry(root, FEATURE, agent())
     assert not lock_of(root).exists()

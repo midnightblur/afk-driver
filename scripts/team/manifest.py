@@ -211,7 +211,7 @@ def _steal_if_stale(lock: Path) -> None:
         return
     if _owner(grave) != judged or not _is_stale(grave):  # replaced or refreshed since judged: give it back
         try:
-            os.rename(grave, lock)
+            _patient(os.rename, grave, lock)
             return
         except OSError:
             pass
@@ -220,6 +220,11 @@ def _steal_if_stale(lock: Path) -> None:
 
 def _unwritable(lock: Path, exc: OSError) -> ManifestError:
     return ManifestError(f"cannot write the manifest of {lock.parent.name}: {exc}")
+
+
+def _claim(lock: Path, token: str) -> None:
+    with (lock / "owner").open("x", encoding="utf-8") as handle:
+        handle.write(token)
 
 
 def _acquire(lock: Path) -> str:
@@ -241,7 +246,9 @@ def _acquire(lock: Path) -> str:
             time.sleep(0.02)
             continue
         try:
-            _patient((lock / "owner").write_text, token, "utf-8")
+            _patient(_claim, lock, token)
+        except FileExistsError:
+            continue  # a stolen lock was given back over this folder: it is not ours
         except OSError as exc:
             shutil.rmtree(lock, ignore_errors=True)
             raise _unwritable(lock, exc) from None
@@ -277,7 +284,8 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
             _patient(os.utime, lock)
         except FileNotFoundError:
             return False
-        # Refreshed, then checked, after the slow write; a steal judged before the refresh is given back.
+        # Refreshed, then checked, after the slow write; a steal judged before the refresh is given back,
+        # except on Windows when another writer makes the lock in the instant before the give-back.
         if _owner(lock) not in (token, None):
             return False
         _patient(os.replace, temp, path)
