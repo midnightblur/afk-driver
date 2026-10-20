@@ -191,12 +191,15 @@ def _owner(lock: Path) -> str | None:
         return None
 
 
-def _steal_if_stale(lock: Path) -> None:
+def _is_stale(lock: Path) -> bool:
     try:
-        age = time.time() - lock.stat().st_mtime
+        return time.time() - lock.stat().st_mtime > LOCK_STALE
     except OSError:
-        return
-    if age <= LOCK_STALE:
+        return False
+
+
+def _steal_if_stale(lock: Path) -> None:
+    if not _is_stale(lock):
         return
     judged = _owner(lock)
     if judged is None:
@@ -206,7 +209,7 @@ def _steal_if_stale(lock: Path) -> None:
         os.rename(lock, grave)  # only one contender wins the rename
     except OSError:
         return
-    if _owner(grave) != judged:  # a fresh lock replaced the stale one: give it back
+    if _owner(grave) != judged or not _is_stale(grave):  # replaced or refreshed since judged: give it back
         try:
             os.rename(grave, lock)
             return
@@ -274,7 +277,7 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
             _patient(os.utime, lock)
         except FileNotFoundError:
             return False
-        # Refreshed, then checked, after the slow write: the rename keeps the whole LOCK_STALE margin.
+        # Refreshed, then checked, after the slow write; a steal judged before the refresh is given back.
         if _owner(lock) not in (token, None):
             return False
         _patient(os.replace, temp, path)

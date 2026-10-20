@@ -379,13 +379,21 @@ def test_a_writer_whose_lock_was_taken_mid_write_redoes_it(root: Path, monkeypat
 
 def test_the_lock_is_refreshed_before_the_publish_check(root: Path, monkeypatch) -> None:
     lock = lock_of(root)
-    real_fsync, real_replace = os.fsync, os.replace
+    real_fsync, real_replace, real_owner = os.fsync, os.replace, manifest._owner
+    writes: list[int] = []
     held: list[bool] = []
 
     def slow_write(fd: int) -> None:
         real_fsync(fd)
+        writes.append(fd)
         old = time.time() - manifest.LOCK_STALE - 5
         os.utime(lock, (old, old))
+
+    def contended(at: Path) -> str | None:
+        if writes and not held:  # a contender tries a steal at the publish check, then at the rename
+            held.append(True)
+            manifest._steal_if_stale(lock)
+        return real_owner(at)
 
     def contended_replace(src, dst) -> None:
         manifest._steal_if_stale(lock)
@@ -393,10 +401,31 @@ def test_the_lock_is_refreshed_before_the_publish_check(root: Path, monkeypatch)
         real_replace(src, dst)
 
     monkeypatch.setattr(manifest.os, "fsync", slow_write)
+    monkeypatch.setattr(manifest, "_owner", contended)
     monkeypatch.setattr(manifest.os, "replace", contended_replace)
     manifest.record_entry(root, FEATURE, agent())
-    assert held == [True]
+    assert held == [True, True]
+    assert len(writes) == 1
     assert [e["agent_id"] for e in manifest.read_manifest(root, FEATURE)["agents"]] == ["a1"]
+
+
+def test_a_steal_judged_before_a_refresh_gives_the_lock_back(root: Path, monkeypatch) -> None:
+    lock = lock_of(root)
+    lock.mkdir()
+    (lock / "owner").write_text("live-holder", encoding="utf-8")
+    old = time.time() - manifest.LOCK_STALE - 5
+    os.utime(lock, (old, old))
+    real_rename = os.rename
+
+    def refreshed_first(src, dst) -> None:
+        if Path(src) == lock:  # the holder refreshes the lock between the judgement and the rename
+            os.utime(lock)
+        real_rename(src, dst)
+
+    monkeypatch.setattr(manifest.os, "rename", refreshed_first)
+    manifest._steal_if_stale(lock)
+    assert (lock / "owner").read_text(encoding="utf-8") == "live-holder"
+    assert not list(root.joinpath(FEATURE).glob("manifest.lock.stale*"))
 
 
 def test_an_unreadable_lock_owner_does_not_stop_the_publish(root: Path, monkeypatch) -> None:
