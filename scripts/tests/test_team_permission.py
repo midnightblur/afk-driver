@@ -298,12 +298,23 @@ def test_a_block_entry_matching_no_verb_leaves_ok(home: dict, entry: str) -> Non
 @needs_bash
 def test_a_blocked_refusal_names_the_first_matching_entry(home: dict) -> None:
     _write(home["user"], allow=[RULE], deny=["Bash(git status)", "Read(./secrets/日本)"])
-    _write(home["local"], ask=["Bash(npm *)", "Bash(afk-python *)"])
+    _write(home["local"], ask=["Bash(npm *)", "Bash(afk-python *)", "Bash(*)"])
     answer = _check(home)
     _assert_refused(answer, "blocked")
     assert "repo/.claude/settings.local.json permissions.ask holds `Bash(afk-python *)`" in answer["says"].replace(
         "\\", "/")
-    assert "git status" not in answer["says"] and "npm" not in answer["says"]
+    assert not any(e in answer["says"] for e in ("git status", "npm", "`Bash(*)`"))
+
+
+@needs_bash
+def test_a_settings_file_under_a_non_ascii_folder_is_read(home: dict, tmp_path: Path) -> None:
+    config = tmp_path / "配置"
+    config.mkdir()
+    home["env"]["CLAUDE_CONFIG_DIR"] = str(config)
+    _write(config / "settings.json", allow=[RULE])
+    answer = _check(home)
+    assert answer["ok"] is True and answer["problem"] is None
+    assert [Path(f).parent.name for f in answer["files"]] == ["配置"]
 
 
 def _listing(home: dict) -> str:
@@ -414,6 +425,12 @@ def _layer_refusal(home: dict, run) -> dict:
 def test_a_provider_layer_timeout_refuses(home: dict) -> None:
     answer = _layer_refusal(home, _fake(raises=subprocess.TimeoutExpired(cmd="bash", timeout=30)))
     assert "timed out" in answer["says"] and answer["rule"] == ""
+
+
+@needs_bash
+def test_a_provider_layer_answer_that_is_not_utf8_refuses(home: dict) -> None:
+    answer = _layer_refusal(home, _fake(raises=UnicodeDecodeError("utf-8", b"\xe9", 0, 1, "invalid start byte")))
+    assert "did not answer" in answer["says"] and "utf-8" in answer["says"]
 
 
 @needs_bash

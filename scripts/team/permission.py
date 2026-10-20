@@ -133,8 +133,8 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
     child = dict(os.environ if env is None else env)
     try:
         done = run([str(bash), "-c", _ADAPTER, "permission", str(PLUGIN), str(root)], capture_output=True,
-                   text=True, encoding="utf-8", errors="replace", timeout=30, env=child, check=False)
-    except (OSError, subprocess.TimeoutExpired) as problem:
+                   text=True, encoding="utf-8", timeout=30, env=child, check=False)
+    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     found: dict = {"provider": "unknown", "rule": "", "files": [], "lists": []}
     undefined = ""
