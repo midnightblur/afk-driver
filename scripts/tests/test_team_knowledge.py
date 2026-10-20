@@ -213,7 +213,7 @@ def test_debaters_that_are_not_a_map_are_refused(tmp_path, debaters):
 
 
 @pytest.mark.parametrize("roles", ["pro", b"pro", 5, [None], ["pro", ""], [["pro"]], [{"pro"}]])
-def test_debater_roles_given_as_one_text_are_refused(tmp_path, roles):
+def test_debater_roles_that_are_not_a_list_of_role_names_are_refused(tmp_path, roles):
     finish(tmp_path, draft(tmp_path, "p1", "pro", "2026-10-19T08:00:00Z"))
     with pytest.raises(knowledge.KnowledgeError, match="W1"):
         knowledge.read_finished(tmp_path, FEATURE, ["design"], {"W1": roles})
