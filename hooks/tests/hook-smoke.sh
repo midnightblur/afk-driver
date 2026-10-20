@@ -994,6 +994,54 @@ fi
   . "$1"/hooks/gate-metrics.sh; . "$1"/hooks/comment-gate.sh; gate_comment' _ "$workflow")   && pass "COMMENT_GATE_DISABLE=1 skips the comment gate"   || fail "COMMENT_GATE_DISABLE=1 did not skip"
 rm -rf "$cg"
 
+# ---- inbox-wait.sh: the run's one wait job exits on a file or once park-until passes.
+echo "== inbox wait =="
+iw="$workflow/hooks/inbox-wait.sh"
+iwd=$(mktemp -d)
+mkdir -p "$iwd/early" "$iwd/late" "$iwd/park" "$iwd/idle" "$iwd/idle/processed"
+: > "$iwd/early/m.json"
+: > "$iwd/idle/processed/old.json"
+utc_in() { date -u -d "@$(( $(date +%s) + $1 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+  || date -u -r "$(( $(date +%s) + $1 ))" +%Y-%m-%dT%H:%M:%SZ; }
+start=$(date +%s)
+out=$(bash "$iw" "$iwd/early" "$(utc_in 3600)"); rc=$?
+if [ "$rc" = 0 ] && [ $(( $(date +%s) - start )) -lt 5 ] && printf '%s' "$out" | grep -q '^INBOX-WAIT: message'; then
+  pass "a file already in the inbox ends the job before its first wait"
+else
+  fail "early file (rc=$rc out=$out)"
+fi
+bash "$iw" "$iwd/late" > "$iwd/late.out" & late_pid=$!
+bash "$iw" "$iwd/park" "$(utc_in 3)" > "$iwd/park.out" & park_pid=$!
+bash "$iw" "$iwd/idle" > "$iwd/idle.out" & idle_pid=$!
+sleep 2; : > "$iwd/late/m.json"
+wait "$late_pid"; late_rc=$?
+wait "$park_pid"; park_rc=$?
+if [ "$late_rc" = 0 ] && grep -q '^INBOX-WAIT: message' "$iwd/late.out"; then
+  pass "a file landing during the wait ends the job at the next check"
+else
+  fail "late file (rc=$late_rc out=$(cat "$iwd/late.out"))"
+fi
+if [ "$park_rc" = 3 ] && grep -q '^INBOX-WAIT: park-until' "$iwd/park.out"; then
+  pass "a park-until time that passes ends the job with exit 3"
+else
+  fail "park-until (rc=$park_rc out=$(cat "$iwd/park.out"))"
+fi
+if kill -0 "$idle_pid" 2>/dev/null; then
+  pass "with nothing parked and no file the job keeps waiting, a subfolder's file aside"
+else
+  fail "idle job ended on its own (out=$(cat "$iwd/idle.out"))"
+fi
+kill "$idle_pid" 2>/dev/null; wait "$idle_pid" 2>/dev/null
+bad=0
+iw_usage() { bash "$iw" "$@" >/dev/null 2>&1; rc=$?; [ "$rc" = 2 ] || { bad=1; fail "usage error for '$*' (rc=$rc)"; }; }
+iw_usage
+iw_usage "$iwd/missing"
+iw_usage "$iwd/idle" 2026-10-20T07:41:09+00:00
+iw_usage "$iwd/idle" 2026-02-29T00:00:00Z
+iw_usage "$iwd/idle" x y
+[ "$bad" = 0 ] && pass "a missing folder, a time that is not UTC to the second, or a third argument is a usage error"
+rm -rf "$iwd"
+
 echo
 if [ "$fails" -gt 0 ]; then
   echo "hook-smoke: $fails failure(s)" >&2

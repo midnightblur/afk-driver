@@ -458,6 +458,21 @@ session had no permission to open herdr panes. Code: `adapters/transport/`.
 | The full-access Codex pane-agent launch | agent-start `harness` `codex` with `args` `["--dangerously-bypass-approvals-and-sandbox"]`; the agent runs one shell command | n/a | not run |
 | Parallel pane agents' wiring scans under the scan lock (§13 V38) | two pane agents run `/afk:execute` Step 11 at once in one run; each scan reports a verdict, and a busy lock never reads as a pass | not run | not run |
 
+## Background job wake probes (2026-10-20)
+
+The probes behind `CAPABILITIES.md` `background_job_wake`. Re-run both on every new harness version. Host: Windows 11, Claude Code 2.1.304, Codex CLI 0.163.0, each a headless session started in an empty probe folder (`<probe>`) with the harness's own login.
+
+- Claude Code: `claude -p "<brief>" --model haiku --allowedTools Bash --output-format stream-json --verbose`; the next turn is `claude -p --resume <session id> "<check>"`.
+- Codex CLI: `codex exec --json --skip-git-repo-check -s danger-full-access "<brief>"`; the next turn is `codex exec resume --json --skip-git-repo-check <thread id> "<check>"`. Under `-s read-only` the job runs as the sandbox user, so the operator's process list cannot see it.
+- `<brief>`: run `bash hooks/inbox-wait.sh <probe>/inbox` in the background (Claude: Bash with `run_in_background`), reply `ARMED`, and end the turn. `<check>`: read the run manifest, test whether each process entry's pid still runs, list the inbox, and reply `JOB=<running|gone> FILES=<names>`.
+
+| Probe | Steps | Claude Code | Codex CLI |
+|---|---|---|---|
+| An armed job's exit re-invokes the idle agent | Run `<brief>`; after `ARMED`, drop a file into the inbox; pass when a new turn starts and quotes the job's `INBOX-WAIT: message` line | pass 2026-10-20: turn 1 ended `ARMED`; the file landed at 04:33:03; the stream showed `task_notification` (completed), a second `init`, and the reply `WOKE INBOX-WAIT: message: a file is in <probe>/inbox` by 04:33:17. A print-mode session stays open while its background task runs | no wake 2026-10-20, as the capability row says. Under `-s read-only` the turn held the command until the file landed and it exited 0, then replied `ARMED`. Under `-s danger-full-access` the turn replied `ARMED` with the command still in progress, exec ended the session, and the job was gone a second later; exec has no later turn to start |
+| A session that ends while its wait job runs is recovered by the next turn's check of the inbox and the manifest | Run `<brief>`; record the job's process entry in a scratch run manifest (`scripts/team/manifest.py` `adopt_manifest`, `record_entry`); end the session; drop a file and wait 14 s; count the session's turns; run `<check>` as the next turn; pass when no turn followed the drop and the reply names the file and the job's actual state | pass 2026-10-20: the session was ended mid-wait by `taskkill /T /F` on the harness process; the job outlived it as an orphan, exited on the file with no wake (one result in the stream), and the next turn replied `JOB=gone FILES=m.json` | pass 2026-10-20: exec ended the session at its turn's end and the job was gone a second later; no turn followed the drop; the next turn replied `JOB=gone FILES=m.json` |
+
+Not run here: an interactive session of either harness and a contact agent that is itself a subagent. Before this pass, one interactive observation per harness (Claude Code 2.1.282: wakes; Codex CLI 0.157.0 and 0.158.0: the exit is logged and starts no turn) is the only record of those shapes.
+
 ## Managed behavior receipt matrix
 
 Native user files are the v1 transport. A generated block and a hook envelope

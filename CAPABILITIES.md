@@ -13,6 +13,7 @@ Use this table for every capability branch. Missing required capability stops th
 | `parallel_agents` | Native | Native | Serialize when unavailable |
 | `continuation` | Native | Use only after conformance proves same-child context | Use disk handoff |
 | `nesting` | Native within AFK cap | No depth contract | Root spawns; children run helpers inline |
+| `background_job_wake` | A background shell job's exit re-invokes the idle top-level agent, in an interactive and a headless session; a contact agent that is a subagent is untried. The run's wait job (`hooks/inbox-wait.sh`) relies on it; per-version probes: `providers/CONFORMANCE.md` "Background job wake probes" | No: in an interactive session the exit is logged and starts no turn; a headless `exec` session ends at its turn's end and the job with it | Without background job wake, the contact agent says at run start that results wait for the human's next message, and checks its inbox and the run manifest at its next turn |
 | `model_tiers` | Provider mapping | Provider mapping | Use nearest capability-compatible model |
 | `plugin_mcp` | Native | Native | Use a documented CLI or API fallback; otherwise stop |
 | `plugin_job_dir` | Native | No | Use plugin-data scratch space |

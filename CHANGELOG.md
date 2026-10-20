@@ -55,6 +55,12 @@ release page from its section here. Nobody tags by hand.
   pattern it cannot start: an unfillable role, a missing messaging ability, a
   self-include, an unknown version, a role defined 2 ways, an undefined role,
   or a missing charter part.
+- `hooks/inbox-wait.sh`, the wait job of an agent team's contact agent: run
+  in a background shell with the inbox folder and an optional park-until
+  time, it looks in the inbox, then every 10 seconds, and exits once, on the
+  first file there or when the park-until time passes, so its exit can wake
+  the contact agent. `CAPABILITIES.md` gains the `background_job_wake` row
+  and `providers/CONFORMANCE.md` its per-version probes.
 
 ### Changed
 
