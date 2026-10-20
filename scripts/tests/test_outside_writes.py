@@ -98,6 +98,46 @@ def test_an_entry_outside_the_grammar_is_refused(diagnosis, entry):
     assert diagnosis.read_text(encoding="utf-8") == DIAGNOSIS
 
 
+def test_a_fenced_heading_in_an_earlier_part_is_skipped(tmp_path):
+    path = tmp_path / "DIAGNOSIS.md"
+    text = ("## Reproduction\n```\n## Outside writes\n## Notes\n```\n\n"
+            "## Outside writes\n- ticket: 12\n\n## Notes\nkept\n")
+    path.write_text(text, encoding="utf-8")
+    append_outside_write(path, "in-review: 12")
+    assert path.read_text(encoding="utf-8") == text.replace("- ticket: 12\n", "- ticket: 12\n- in-review: 12\n")
+
+
+def test_append_keeps_a_byte_order_mark(diagnosis):
+    diagnosis.write_bytes(b"\xef\xbb\xbf" + DIAGNOSIS.encode("utf-8"))
+    assert listed(diagnosis, "ticket: 12")
+    append_outside_write(diagnosis, "in-review: 12")
+    data = diagnosis.read_bytes()
+    assert data.startswith(b"\xef\xbb\xbf# Diagnosis")
+    assert data.count(b"\xef\xbb\xbf") == 1 and b"- ticket: 12\n- in-review: 12\n" in data
+
+
+def test_earlier_line_ends_are_never_changed(tmp_path):
+    path = tmp_path / "DIAGNOSIS.md"
+    raw = b"## Reproduction\r\nlog\x0cpage two\nmixed\r\n\n## Outside writes\n- ticket: 12\n"
+    path.write_bytes(raw)
+    append_outside_write(path, "in-review: 12")
+    assert path.read_bytes() == raw + b"- in-review: 12\n"
+
+
+def test_a_last_line_without_a_line_end_gets_one(tmp_path):
+    path = tmp_path / "DIAGNOSIS.md"
+    path.write_bytes(b"## Outside writes\r\n- ticket: 12")
+    append_outside_write(path, "in-review: 12")
+    assert path.read_bytes() == b"## Outside writes\r\n- ticket: 12\r\n- in-review: 12\r\n"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+def test_append_keeps_the_file_mode(diagnosis):
+    diagnosis.chmod(0o644)
+    append_outside_write(diagnosis, "in-review: 12")
+    assert diagnosis.stat().st_mode & 0o777 == 0o644
+
+
 def test_a_file_without_the_list_is_refused(tmp_path):
     path = tmp_path / "DIAGNOSIS.md"
     path.write_text("## Work id\nbug-x\n", encoding="utf-8")
@@ -171,6 +211,27 @@ def test_an_unreadable_read_back_is_not_retried():
     outcome = retry_with_read_back(write, lambda: {"unavailable": True}, sleep=clock)
     assert not outcome.ok and write.call_count == 1 and clock.waits == []
     assert "read-back" in outcome.reason
+
+
+def test_read_first_finds_an_unlisted_write_and_does_not_send_it_again():
+    write = mock.Mock(return_value={"key": "13"})
+    outcome = retry_with_read_back(write, lambda: {"key": "12"}, key="key", read_first=True, sleep=Clock())
+    assert outcome.ok and outcome.found and outcome.answer == {"key": "12"}
+    write.assert_not_called()
+
+
+def test_read_first_that_finds_nothing_writes_once():
+    write = mock.Mock(return_value={"key": "13"})
+    read_back = mock.Mock(return_value=None)
+    outcome = retry_with_read_back(write, read_back, key="key", read_first=True, sleep=Clock())
+    assert outcome.ok and not outcome.found and write.call_count == 1 and read_back.call_count == 1
+
+
+def test_read_first_that_cannot_tell_sends_nothing():
+    write = mock.Mock(return_value={"key": "13"})
+    outcome = retry_with_read_back(write, lambda: {"unavailable": True}, read_first=True, sleep=Clock())
+    assert not outcome.ok and "read-back" in outcome.reason
+    write.assert_not_called()
 
 
 def test_a_write_that_raises_counts_as_failed():

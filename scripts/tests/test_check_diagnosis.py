@@ -129,6 +129,8 @@ def test_a_non_fact_part_needs_no_mark(tmp_path):
     ("dev; \"go\"; code, change; 2026-10-20", "- ticket: 12\n- change: https://forge/pr/3", "Shipped"),
     ("dev; \"go\"; code, change; 2026-10-20",
      "- ticket: 12\n- change: https://forge/pr/3\n- in-review: 12", "In review"),
+    ("dev; \"go\"; code, change; 2026-10-20", "- push: feat/x@0123abc\n- change: https://forge/pr/3", "Shipped"),
+    ("dev; \"go\"; code, change; 2026-10-20", "- push: feat/x@0123abc\n- in-review: 12", "In review"),
 ])
 def test_state_is_derived_from_approval_and_outside_writes(tmp_path, approval, writes, state):
     result = check_diagnosis(write(tmp_path, Approval=approval, **{"Outside writes": writes}))
@@ -172,11 +174,74 @@ def test_nothing_stores_the_state(tmp_path):
     assert "## State" not in before.decode("utf-8")
 
 
-def test_the_state_order_is_the_format_files(tmp_path):
-    from check_diagnosis import STATES
-    from diagnosis_file import table
-    rows = table(FORMAT.read_text(encoding="utf-8"), "State")
-    assert tuple(row[0] for row in rows) == STATES
+def _format_with(tmp_path, old, new):
+    text = FORMAT.read_text(encoding="utf-8")
+    assert old in text
+    custom = tmp_path / "FORMAT.md"
+    custom.write_text(text.replace(old, new), encoding="utf-8")
+    return custom
+
+
+def test_the_state_rows_come_from_the_format_file(tmp_path):
+    # Moving the Landed row above Shipped in a copy of the format file flips
+    # the state of a diagnosis holding both entries: the order is the table's.
+    text = FORMAT.read_text(encoding="utf-8")
+    shipped = next(line for line in text.splitlines() if line.startswith("| Shipped |"))
+    landed = next(line for line in text.splitlines() if line.startswith("| Landed |"))
+    custom = _format_with(tmp_path, f"{shipped}\n{landed}", f"{landed}\n{shipped}")
+    path = write(tmp_path, Approval="dev; \"go\"; code; 2026-10-20",
+                 **{"Outside writes": "- push: feat/x@0123abc\n- change: https://forge/pr/3"})
+    assert check_diagnosis(path).state == "Shipped"
+    assert check_diagnosis(path, format_path=custom).state == "Landed"
+
+
+def test_a_verdict_no_state_row_names_is_refused(tmp_path):
+    custom = _format_with(tmp_path, "| Diagnosed | verdict V-1 |", "| Diagnosed | verdict V-6 |")
+    result = check_diagnosis(write(tmp_path), format_path=custom)
+    assert not result.ok and result.state is None
+    assert any("State table" in p for p in result.problems)
+
+
+def test_a_state_row_naming_nothing_is_an_unreadable_format(tmp_path):
+    custom = _format_with(tmp_path, "| Diagnosed | verdict V-1 |", "| Diagnosed | the first verdict |")
+    done = subprocess.run([sys.executable, str(SCRIPTS / "check_diagnosis.py"), str(write(tmp_path)),
+                           "--format", str(custom)], capture_output=True, text=True)
+    assert done.returncode == 2 and "Diagnosed" in done.stderr
+
+
+def test_a_short_table_row_is_an_unreadable_format(tmp_path):
+    custom = _format_with(tmp_path, "| Diagnosed | verdict V-1 |", "| Diagnosed |")
+    done = subprocess.run([sys.executable, str(SCRIPTS / "check_diagnosis.py"), str(write(tmp_path)),
+                           "--format", str(custom)], capture_output=True, text=True)
+    assert done.returncode == 2 and "cells" in done.stderr
+
+
+def test_a_file_with_a_byte_order_mark_is_read(tmp_path):
+    path = write(tmp_path)
+    path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+    assert check_diagnosis(path).ok
+
+
+def test_a_repeated_part_heading_is_refused(tmp_path):
+    path = write(tmp_path)
+    path.write_text(path.read_text(encoding="utf-8") + "## Approval\n\n", encoding="utf-8")
+    result = check_diagnosis(path)
+    assert not result.ok
+    assert any("Approval" in p and "more than once" in p for p in result.problems)
+
+
+def test_a_fenced_heading_stays_inside_its_part(tmp_path):
+    body = "- [verified] pasted output below\n```\n## Outside writes\n- merged: yes\n```"
+    result = check_diagnosis(write(tmp_path, Reproduction=body))
+    assert result.ok, result.problems
+
+
+def test_an_evidence_entry_without_a_marker_is_refused(tmp_path):
+    result = check_diagnosis(write(tmp_path, **{"Outside writes": "- evidence: proof"}))
+    assert not result.ok
+    assert any("evidence marker" in p for p in result.problems)
+    good = check_diagnosis(write(tmp_path, **{"Outside writes": "- evidence: afk-evidence bug-x proof"}))
+    assert good.ok, good.problems
 
 
 def test_cli_exit_codes(tmp_path):

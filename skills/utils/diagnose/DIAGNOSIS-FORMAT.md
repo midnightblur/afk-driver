@@ -70,7 +70,7 @@ afk-evidence {work id} {step}
 
 ## State
 
-The check script derives the state from the file; nothing stores it. The first row that matches wins.
+The check script derives the state from the file; nothing stores it. The first row that matches wins. A Read from cell names its outside-write kinds in backticks, its verdicts as `V-n`, or Approval; the script reads nothing else from it.
 
 | State | Read from |
 |---|---|

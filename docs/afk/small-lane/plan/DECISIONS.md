@@ -6,3 +6,10 @@
 - Chosen: file-borne states only. SDD §8 gives the script one input ("path in → accept or refuse with the missing parts; state"). Fixed is read from commits and tiers, and the grill return from a size-call row whose grammar slice 0004 defines; neither is in the file.
 - Supersedes: none (narrows SDD §6 "Read from" to the rows a file can answer)
 - To reverse: add those inputs to `check_diagnosis.py` and its format-file state table
+
+## D-2 — which passage D-1 supersedes
+- 2026-10-20 · decided by execute (0001-diagnosis-format, review fix)
+- Options: D-1 stands with `Supersedes: none` vs record the passages its narrowing overrides
+- Chosen: record them. D-1 drops two §6 rows from the check script, so the contract bullet citing that table no longer holds as written; a ledger entry overrides only the passage it quotes.
+- Supersedes: 0001-diagnosis-format Acceptance "The check script derives the state from the file per the §6 \"Read from\" table and nothing stores it (design ADR-0002)" and SDD §6 "Read from" rows Fixed and the grill return, for the check script only; `/afk:fix` reads both
+- To reverse: as D-1
