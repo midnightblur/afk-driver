@@ -391,3 +391,83 @@
 - Chosen: B — it follows the Q35 (1) reading to its end, keeps step names unique across the list, and keeps the name and version of each source (S-229); a one-off pattern under a taken name would make an include of that name ambiguous
 - Supersedes: SDD §4 resolved pattern "source: one of built-in, saved, one-off" — for a pick of 2 or more names only
 - To reverse: give the list's first pattern the top-level fields and drop "combined"
+
+## D-57 — Re-take the ground of both seams with one fresh investigation
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 4)
+- Options: A — build on INV-057 and INV-065 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-078) at cedb959 over the union of both ledgers' subjects (MANIFEST, install_block, afk_adapter) and declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — both ground diffs exit 1 (the register, the dispatcher's callers and the docs that name them moved since 1210110 and 13bec6d); the run allows one child at a time, so the two tracers run in sequence, as D-42 and D-54 did
+- Supersedes: none
+- To reverse: drop INV-078 and cite INV-057 and INV-065 again
+
+## D-58 — Kind payloads and one shared launch builder
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — each kind builds its own harness command vs B — one `adapters/transport/launch.py` builds every start command (interactive for panes, no-terminal for headless) with the update-off switch on that launch only, and shared `contract.py` (verbs, budgets, answers, payload checks) and `process.py` (tree list then kill by id); answer fields in snake_case as `scripts/team/manifest.py` names them (pid, handle, started_at, pane_label, agent_name, session_id)
+- Chosen: B — the SDD §9b update-check row binds every kind to the same switches, and the script (0010) copies kind answers into manifest fields without a rename; payload field names the SDD leaves open are named in each kind's CONTRACT.md
+- Supersedes: none
+- To reverse: inline launch.py into each kind and rename the answer fields in the kinds and their CONTRACT.md files
+
+## D-59 — The subagent kind answers every verb unsupported
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — the subagent kind starts a harness child itself vs B — every verb answers exit 3 with a reason naming the harness's own spawn tool
+- Chosen: B — a subagent is spawned, messaged and ended by the harness inside the calling session, so no script can perform any of the six verbs (SDD §3 "implements all six verbs or answers unsupported")
+- Supersedes: none
+- To reverse: give the kind a cli entry that drives a harness child, if a harness exposes one
+
+## D-60 — Headless runs: a job owner process and a log-file read
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — Popen the harness directly vs B — a detached `job.py` owns the run: on Windows it creates a job object with kill-on-job-close, joins it, then starts the agent; elsewhere it leads its own session; it writes a status file (pid, start time, exit code); agent-read reads the log by byte offset with a 1 MiB cap; agent-send and agent-list answer unsupported
+- Chosen: B — the contract binds the headless kind to an operating-system job, and a job outlives the caller only when a process of its own holds it; a no-terminal run takes no message after its start and has no pane id
+- Supersedes: none
+- To reverse: drop job.py and spawn the harness from headless.py
+
+## D-61 — V31 proven by the register's own probe after a stub installer
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — a live `/afk:setup` agent run vs B — a test runs a stub installer that creates part of herdr's layout and exits 1, then runs the C15 Probe line parsed from MANIFEST.md and asserts it still fails, and pins setup step 5's rule that such a fix "is not fixed"
+- Chosen: B — setup is agent-run prose with no script of its own, so the deterministic parts are the probe line and the step 5 rule; setup/SKILL.md is outside Scope
+- Supersedes: none
+- To reverse: replace the test with a recorded live setup run
+
+## D-62 — herdr's removal line and the no-human skip in C15's note
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — leave the uninstall unstated vs B — print one removal line per platform for the layout seen (`Remove-Item -Recurse -Force "$env:USERPROFILE\.herdr"` on Windows, where `.herdr` held only `packages/`; `rm -f "$(command -v herdr)"` elsewhere), say herdr ships no uninstall command and that what the line leaves stays unverified (SDD §13 Q3); with no human, the row stays deselected in setup step 3's election and reports `skipped (user choice)`
+- Chosen: B — the contract asks for the tool's one-line uninstall in the note; herdr.dev/docs/install/ names none (checked 2026-10-20), and setup step 6 has no no-human status, so the note reuses its existing label rather than invent one setup cannot report
+- Supersedes: none
+- To reverse: replace the lines with the vendor's uninstall command once one ships; add a no-human status to setup step 6 and use it here
+- Surfaced gap: setup/SKILL.md step 6 has no status for an opt-in row skipped because no human is present (outside Scope)
+
+## D-63 — The empty `transport:` section cannot blank the handed-in kind
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — make validate refuse an empty `transport:` section vs B — the probe's shell loads the configuration first and then sets AFK_CFG_TRANSPORT, drops an inherited AFK_CFG_LOADED so the load always runs, and pins AFK_PLUGIN_ROOT to its own plugin; a test with an empty section, no section and a `transport.kind` section proves the kind survives, and fails when the order is swapped
+- Chosen: B — `scripts/afk-config.py` is outside Scope, and the order makes the empty export harmless for every caller that goes through the probe (INV-078: config.sh:31, adapter.sh:29-49); the carried 0002 finding (D-43) is closed for the probe
+- Supersedes: D-43's premise that no configuration sets AFK_CFG_TRANSPORT — an empty `transport:` section sets it to '' (INV-078 c-a6fd17be)
+- To reverse: move the assignment before the load and add the validate refusal in the config subtask
+- Surfaced gap: export-shell still prints `AFK_CFG_TRANSPORT=''` for an empty section, and adapter.sh:41's advice says to set `transport:`, which a scalar value fails validate for (INV-078; files outside Scope)
+
+## D-64 — Detection's fixable setting is herdr's agent integration
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — report herdr fixable only when its server is down vs B — herdr is usable when it is on PATH, this session runs inside a herdr pane, `herdr status` shows running and `herdr integration status` shows each started harness current; a missing integration is the named fixable setting `herdr integration for <harness>` with its fix command; outside a pane is `outside`, a silent server `broken`
+- Chosen: B — without the integration herdr reports no agent state and no session id, so starts and resumes cannot work (PRD AC-026, AC-027); the probe offers the fix in its answer and resolves the subagent kind until it is applied
+- Supersedes: none
+- To reverse: drop the integration check from herdr.detect
+
+## D-65 — The contact inbox and lifecycle copies stay with the team entry script
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — the multiplexer kind writes the contact agent's inbox file and the lifecycle copy vs B — the kind delivers only into panes and states in its detection answer that the contact agent's way is the inbox; the inbox write (temporary name, then rename) and the same-id lifecycle copy belong to the team entry script (0010)
+- Chosen: B — SDD §3 row "Delivery to the contact agent", §6 I13 and ADR-0007 name the script as the only writer of message files; the kind has no run directory
+- Supersedes: none
+- To reverse: give the kind an inbox path in its agent-send payload
+
+## D-66 — Plugin prose drops the transport catalog ids
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — keep the catalog ids (TR, a dash, a number) in CONTRACT.md headings and comments vs B — name the kinds by folder name only in plugin files
+- Chosen: B — the ticket shape in hooks/lib/sensitive-patterns.tsv matches those ids, so the genericity gate and the comment gate would block it (INV-078); the plan and SDD keep the ids
+- Supersedes: none
+- To reverse: add `TR` to the notation prefixes in sensitive-patterns.tsv
+
+## D-67 — FRESHNESS.md and CHANGELOG.md stay untouched by the transport slice
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 5)
+- Options: A — add a FRESHNESS.md registry row for adapters/transport/ and scripts/team/probe.py and a CHANGELOG line, outside Scope vs B — keep to Scope: the dependency half of the same-commit rule is met here (MANIFEST.md C15 and the env rows HERDR_*, AFK_CFG_TRANSPORT, DISABLE_AUTOUPDATER), and the registry row and the changelog line are left for a slice that owns those files
+- Chosen: B — Scope excludes both files; no developer reaches the transport before the team skill (0015) invokes it, so a changelog line now would announce nothing usable
+- Supersedes: none
+- To reverse: add the row and the line in this slice's commit
+- Surfaced gap: no plan contract names a FRESHNESS.md row for the transport family or the probe; the human adds it to 0015 or 0026
