@@ -200,12 +200,19 @@ def test_a_later_stage_reads_earlier_stages_and_a_stage_outside_the_list_is_not_
     assert knowledge.read_finished(tmp_path, FEATURE, ["design", "execute"]) == [design, execute]
 
 
-def test_stages_given_as_one_text_is_refused(tmp_path):
-    with pytest.raises(knowledge.KnowledgeError, match="stages"):
-        knowledge.read_finished(tmp_path, FEATURE, "execute")
+@pytest.mark.parametrize("stages", ["execute", b"execute", 5, [None], ["execute", ""], [["execute"]]])
+def test_stages_that_are_not_a_list_of_stage_names_are_refused(tmp_path, stages):
+    with pytest.raises(knowledge.KnowledgeError, match="stage"):
+        knowledge.read_finished(tmp_path, FEATURE, stages)
 
 
-@pytest.mark.parametrize("roles", ["pro", b"pro", 5, [None], ["pro", ""]])
+@pytest.mark.parametrize("debaters", [[("W1", ["pro"])], "W1", 5])
+def test_debaters_that_are_not_a_map_are_refused(tmp_path, debaters):
+    with pytest.raises(knowledge.KnowledgeError, match="debater"):
+        knowledge.read_finished(tmp_path, FEATURE, ["design"], debaters)
+
+
+@pytest.mark.parametrize("roles", ["pro", b"pro", 5, [None], ["pro", ""], [["pro"]], [{"pro"}]])
 def test_debater_roles_given_as_one_text_are_refused(tmp_path, roles):
     finish(tmp_path, draft(tmp_path, "p1", "pro", "2026-10-19T08:00:00Z"))
     with pytest.raises(knowledge.KnowledgeError, match="W1"):

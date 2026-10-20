@@ -184,13 +184,14 @@ def mark_finished(root: str | os.PathLike, feature: str, author: str, time: str)
     return entry
 
 
-def _roles(item: object, names: object) -> set[str]:
-    if isinstance(names, (str, bytes)) or not isinstance(names, Iterable):
-        raise KnowledgeError(f"debater roles of work item {item!r} must be a list of role names, got {names!r}")
-    roles = set(names)
-    if not all(isinstance(name, str) and name for name in roles):
-        raise KnowledgeError(f"debater roles of work item {item!r} must be non-empty role names, got {names!r}")
-    return roles
+def _names(value: object, what: str) -> set[str]:
+    """`value` as a set of non-empty names; refuses one text, a non-list, or a member that is not text."""
+    if isinstance(value, (str, bytes)) or not isinstance(value, Iterable):
+        raise KnowledgeError(f"{what} must be a list of names, got {value!r}")
+    names = list(value)
+    if not all(isinstance(name, str) and name for name in names):
+        raise KnowledgeError(f"{what} must hold only non-empty names, got {value!r}")
+    return set(names)
 
 
 def read_finished(root: str | os.PathLike, feature: str, stages: Iterable[str],
@@ -201,10 +202,10 @@ def read_finished(root: str | os.PathLike, feature: str, stages: Iterable[str],
     debater roles. A draft is returned only when every role of its item has a finished draft; a draft whose item
     is not in `debaters` is withheld.
     """
-    if isinstance(stages, str):
-        raise KnowledgeError(f"stages must be a list of stage names, got the text {stages!r}")
-    stages = set(stages)
-    roles = {item: _roles(item, names) for item, names in (debaters or {}).items()}
+    stages = _names(stages, "stages")
+    if not isinstance(debaters, (Mapping, type(None))):
+        raise KnowledgeError(f"debaters must map each work-item id to its debater roles, got {debaters!r}")
+    roles = {item: _names(names, f"debater roles of work item {item!r}") for item, names in (debaters or {}).items()}
     folder = store_path(root, feature)
     finished = []
     for path in sorted(folder.glob("*.json")) if folder.is_dir() else ():
