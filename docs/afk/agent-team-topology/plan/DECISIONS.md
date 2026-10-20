@@ -637,3 +637,17 @@
 - Chosen: B — deny and ask rules resolve before allow rules (PROVIDERS.md "Spawn allow rule"), so a rule present in an allow list and in a block list still makes the harness ask
 - Supersedes: ADR-0005 (`adr/design/0005-human-granted-spawn-rule.md`) sequence branches "alt rule present … ok" and "else missing or stale … refuse" — for a rule that is also in a block list, which answers `blocked`
 - To reverse: drop the block-list read (D-77) and this entry
+
+## D-91 — A start whose first turn outlasts herdr's wait counts a working agent as started
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 8 live probe row V38)
+- Options: A — pass the whole start budget to `herdr agent start` and refuse on its `timeout` vs B — pass the budget less a 40 s reserve, and on `timeout` read `agent get`: working, idle or done is started, blocked is a dialog, no agent is refused and closed
+- Chosen: B — `agent start` waits for idle, so a launch prompt's long first turn failed two live starts and an expired budget left a pane behind
+- Supersedes: none
+- To reverse: drop `START_RESERVE_S` and `_started` in `adapters/transport/multiplexer/herdr.py`
+
+## D-92 — The Windows tree kill adds MSYS children from Git for Windows' `ps`
+- 2026-10-20 · decided by /afk:execute (0006-transport-family-and-herdr, Step 8 live probe row V28)
+- Options: A — list the tree from Windows parent ids only vs B — also map each MSYS parent's Windows id to its children's Windows ids from `ps -e`, when Git's `ps` is found
+- Chosen: B — a Git Bash child's Windows parent is a gone fork stub, so a live `sleep` outlived agent-stop while it answered `stopped` true
+- Supersedes: none
+- To reverse: drop `_msys_ps` and `_msys_children` in `adapters/transport/process.py`
