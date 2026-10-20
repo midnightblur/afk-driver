@@ -287,12 +287,59 @@ def test_a_block_entry_matching_a_verb_refuses(home: dict, where: str, listed: s
 
 @pytest.mark.parametrize("entry", ["Bash(git status)", "Read(*)", "bash(*)", "Bash(afk-python)", "Bash(*[a]*)",
                                    'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-config.py" *)',
-                                   "Bash(* agent-send ?{}?)"])
+                                   "Bash(* agent-send ?{}?)", "Bash(afk-pyth:*)", "Bash(afk-pyth *)"])
 @needs_bash
 def test_a_block_entry_matching_no_verb_leaves_ok(home: dict, entry: str) -> None:
     _write(home["user"], allow=[RULE], deny=[entry])
     answer = _check(home)
     assert answer["ok"] is True and answer["problem"] is None
+
+
+@needs_bash
+def test_a_blocked_refusal_names_the_first_matching_entry(home: dict) -> None:
+    _write(home["user"], allow=[RULE], deny=["Bash(git status)", "Read(./secrets/日本)"])
+    _write(home["local"], ask=["Bash(npm *)", "Bash(afk-python *)"])
+    answer = _check(home)
+    _assert_refused(answer, "blocked")
+    assert "repo/.claude/settings.local.json permissions.ask holds `Bash(afk-python *)`" in answer["says"].replace(
+        "\\", "/")
+    assert "git status" not in answer["says"] and "npm" not in answer["says"]
+
+
+def _listing(home: dict) -> str:
+    return (f"provider\tclaude\nrule\t{RULE}\nfile\t{home['user']}\n"
+            "list\tallow permissions.allow\nlist\tblock permissions.deny\n")
+
+
+@pytest.mark.parametrize("second", [
+    {"returncode": 4, "stderr": "afk_claude_spawn_rule_blocks exited 2"},
+    {"raises": subprocess.TimeoutExpired(cmd="bash", timeout=30)},
+    {"raises": OSError("no such file")},
+], ids=["matcher failed", "timeout", "os error"])
+@needs_bash
+def test_a_block_matcher_failure_refuses(home: dict, second: dict) -> None:
+    _write(home["user"], allow=[RULE], deny=["Bash(git status)"])
+    calls = iter([_fake(stdout=_listing(home)), _fake(**second)])
+    answer = _layer_refusal(home, lambda *a, **k: next(calls)(*a, **k))
+    assert answer["rule"] == RULE and "provider layer" in answer["says"]
+
+
+@needs_bash
+def test_a_matcher_exit_other_than_1_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
+    core = tmp_path / "plugin" / "hooks" / "lib"
+    (core / "providers").mkdir(parents=True)
+    shutil.copy(REPO / "hooks" / "lib" / "provider.sh", core / "provider.sh")
+    (core / "providers" / "newharness.sh").write_text(
+        _PRINTS_RULE + f"afk_newharness_spawn_rule_files() {{ printf '%s\\n' '{home['user'].as_posix()}'; }}\n"
+        "afk_newharness_spawn_rule_lists() { printf '%s\\n' 'allow permissions.allow' 'block permissions.deny'; }\n"
+        "afk_newharness_spawn_rule_blocks() { return 2; }\n", encoding="utf-8", newline="\n")
+    _write(home["user"], allow=["Bash(x *)"], deny=["Bash(y)"])
+    bash = permission._bash()
+    monkeypatch.setattr(permission, "PLUGIN", tmp_path / "plugin")
+    monkeypatch.setattr(permission, "_bash", lambda: bash)
+    home["env"]["AFK_PROVIDER"] = "newharness"
+    answer = _layer_refusal(home, subprocess.run)
+    assert "afk_newharness_spawn_rule_blocks exited 2" in answer["says"]
 
 
 @needs_bash

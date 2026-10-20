@@ -54,7 +54,12 @@ shift
 n=0
 while IFS= read -r entry; do
   n=$((n + 1)) entry=${entry%$'\r'}
-  if hit=$("afk_${p}_spawn_rule_blocks" "$entry" "$@" </dev/null); then printf '%s\t%s\n' "$n" "$hit"; fi
+  hit=$("afk_${p}_spawn_rule_blocks" "$entry" "$@" </dev/null) && status=0 || status=$?
+  case $status in
+    0) printf '%s\t%s\n' "$n" "$hit" ;;
+    1) ;;
+    *) printf 'afk_%s_spawn_rule_blocks exited %s\n' "$p" "$status" >&2; exit 4 ;;
+  esac
 done
 '''
 
@@ -128,7 +133,7 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
     child = dict(os.environ if env is None else env)
     try:
         done = run([str(bash), "-c", _ADAPTER, "permission", str(PLUGIN), str(root)], capture_output=True,
-                   text=True, timeout=30, env=child, check=False)
+                   text=True, encoding="utf-8", errors="replace", timeout=30, env=child, check=False)
     except (OSError, subprocess.TimeoutExpired) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     found: dict = {"provider": "unknown", "rule": "", "files": [], "lists": []}
@@ -159,8 +164,8 @@ def _blocks(entries: list[str], env: Mapping[str, str] | None, run: Callable) ->
     child = dict(os.environ if env is None else env)
     try:
         done = run([str(bash), "-c", _BLOCKS, "permission", str(PLUGIN), *verb_commands()],
-                   input="".join(f"{e}\n" for e in entries), capture_output=True, text=True, timeout=30,
-                   env=child, check=False)
+                   input="".join(f"{e}\n" for e in entries), capture_output=True, text=True, encoding="utf-8",
+                   errors="replace", timeout=30, env=child, check=False)
     except (OSError, subprocess.TimeoutExpired) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     if done.returncode != 0:
