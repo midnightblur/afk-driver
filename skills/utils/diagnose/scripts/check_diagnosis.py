@@ -3,9 +3,10 @@
 
 Usage: check_diagnosis.py <path to DIAGNOSIS.md> [--format <DIAGNOSIS-FORMAT.md>]
 
-The parts, the required parts per verdict, the certainty marks and the outside
-write kinds come from the tables of DIAGNOSIS-FORMAT.md (beside this script's
-folder). Nothing is written. Exit 0 accept, 1 refuse, 2 unreadable input.
+The parts, the required parts per verdict, the certainty marks, the outside
+write kinds and the state rows come from the tables of DIAGNOSIS-FORMAT.md
+(beside this script's folder). Nothing is written. Exit 0 accept, 1 refuse,
+2 unreadable input or format file.
 """
 from __future__ import annotations
 
@@ -16,15 +17,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from diagnosis_file import load_format, outside_write_kinds, sections, table  # noqa: E402
+from diagnosis_file import (  # noqa: E402
+    entry_problem, load_format, outside_write_kinds, repeated, sections, table)
 
 VERDICT = re.compile(r"^V-(\d+)\b")
-ENTRY = re.compile(r"^[-*]\s+([a-z][a-z-]*):\s*(\S.*)$")
-# First match wins: the order of the format file's State table.
-STATES = ("In review", "Shipped", "Landed", "Approved", "Sent to a grill", "Stopped", "Diagnosed")
-STATE_BY_KIND = (("in-review", "In review"), ("change", "Shipped"), ("push", "Landed"))
-STATE_BY_VERDICT = {"V-1": "Diagnosed", "V-2": "Sent to a grill", "V-3": "Sent to a grill",
-                    "V-4": "Stopped", "V-5": "Stopped"}
+ITEM = re.compile(r"^[-*]\s+(.*)$")
 
 
 @dataclass
@@ -45,11 +42,17 @@ def check_diagnosis(path, format_path=None) -> Result:
                 for row in table(fmt, "Required parts per verdict")}
     marks = [row[0].strip("`") for row in table(fmt, "Certainty marks")]
     kinds = outside_write_kinds(fmt)
+    rules = state_rules(fmt, kinds)
 
-    found = sections(Path(path).read_text(encoding="utf-8"))
+    text = Path(path).read_text(encoding="utf-8")
+    found = sections(text)
     body = {name: found.get(name.lower(), []) for name in parts}
     filled = {name for name, lines in body.items() if any(line.strip() for line in lines)}
     result = Result(ok=False)
+    lowered = {name.lower(): name for name in parts}
+    for name in repeated(text):
+        if name in lowered:
+            result.problems.append(f"part `{lowered[name]}` appears more than once")
 
     verdict_line = next((line.strip() for line in body["Verdict"] if line.strip()), "")
     match = VERDICT.match(verdict_line)
@@ -71,17 +74,33 @@ def check_diagnosis(path, format_path=None) -> Result:
     for line in body["Outside writes"]:
         if not line.strip():
             continue
-        entry = ENTRY.match(line.strip())
-        if entry and entry.group(1) in kinds:
-            entries.append(entry.group(1))
+        item = ITEM.match(line.strip())
+        problem = entry_problem(item.group(1), kinds) if item else "not a list item"
+        if problem:
+            result.problems.append(f"Outside writes: entry outside the grammar: `{line.strip()}` ({problem})")
         else:
-            result.problems.append(f"Outside writes: entry outside the grammar: `{line.strip()}`")
+            entries.append(item.group(1).split(":", 1)[0])
 
+    if result.verdict:
+        result.state = _state(rules, result.verdict, "Approval" in filled, entries)
+        if result.state is None:
+            result.problems.append(f"verdict {result.verdict} matches no row of the State table")
     result.missing = list(dict.fromkeys(result.missing))
     result.ok = not result.missing and not result.problems
-    if result.verdict:
-        result.state = _state(result.verdict, "Approval" in filled, entries)
     return result
+
+
+def state_rules(fmt, kinds):
+    """(state, outside-write kinds, verdicts, needs approval) per State row, in table order."""
+    rules = []
+    for state, source in table(fmt, "State"):
+        named = set(re.findall(r"`([a-z][a-z-]*)`", source)) & kinds
+        verdicts = set(re.findall(r"\bV-\d+\b", source))
+        approval = "Approval" in source
+        if not (named or verdicts or approval):
+            raise ValueError(f"State row `{state}` names no outside-write kind, verdict or Approval")
+        rules.append((state, named, verdicts, approval))
+    return rules
 
 
 def _unmarked(lines, marks):
@@ -98,11 +117,12 @@ def _unmarked(lines, marks):
             yield line
 
 
-def _state(verdict, approved, kinds):
-    for kind, state in STATE_BY_KIND:
-        if kind in kinds:
+def _state(rules, verdict, approved, kinds):
+    """First State row that matches wins; None when no row does."""
+    for state, named, verdicts, approval in rules:
+        if named & set(kinds) or verdict in verdicts or (approval and approved):
             return state
-    return "Approved" if approved else STATE_BY_VERDICT[verdict]
+    return None
 
 
 def main(argv=None) -> int:
