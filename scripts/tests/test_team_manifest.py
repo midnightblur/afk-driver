@@ -468,8 +468,8 @@ def test_a_lock_replaced_since_the_judgement_is_given_back(root: Path, monkeypat
 def newcomer(lock: Path, owner: str | None = None):
     """A writer that makes the lock folder in the give-back gap, and claims it when `owner` is given."""
     def arrive() -> None:
-        lock.mkdir(exist_ok=True)
-        if owner is not None and not (lock / "owner").exists():
+        lock.mkdir()
+        if owner is not None:
             (lock / "owner").write_text(owner, encoding="utf-8")
     return arrive
 
