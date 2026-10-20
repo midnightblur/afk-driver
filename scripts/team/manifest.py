@@ -285,7 +285,7 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
         except FileNotFoundError:
             return False
         # Refreshed, then checked, after the slow write; a steal judged before the refresh is given back,
-        # except on Windows when another writer makes the lock in the instant before the give-back.
+        # unless another writer makes (Windows) or claims (POSIX) the lock during the give-back's retries.
         if _owner(lock) not in (token, None):
             return False
         _patient(os.replace, temp, path)

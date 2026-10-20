@@ -465,12 +465,36 @@ def test_a_lock_replaced_since_the_judgement_is_given_back(root: Path, monkeypat
     assert not graves(root)
 
 
-def test_a_lock_made_in_the_give_back_gap_leaves_one_lock_and_no_grave(root: Path, monkeypatch) -> None:
+def newcomer(lock: Path, owner: str | None = None):
+    """A writer that makes the lock folder in the give-back gap, and claims it when `owner` is given."""
+    def arrive() -> None:
+        lock.mkdir(exist_ok=True)
+        if owner is not None and not (lock / "owner").exists():
+            (lock / "owner").write_text(owner, encoding="utf-8")
+    return arrive
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX rename replaces an empty folder")
+def test_an_unclaimed_folder_in_the_give_back_gap_is_replaced_by_the_holder_lock(root: Path, monkeypatch) -> None:
     lock = judged_stale(root, "live-holder")
-    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=lock.mkdir)
-    owner = lock / "owner"
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=newcomer(lock))
+    assert (lock / "owner").read_text(encoding="utf-8") == "live-holder"
+    assert not graves(root)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows rename refuses any existing folder")
+def test_an_unclaimed_folder_in_the_give_back_gap_wins_on_windows(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "live-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=newcomer(lock))
     assert lock.is_dir()
-    assert not owner.exists() or owner.read_text(encoding="utf-8") == "live-holder"
+    assert not (lock / "owner").exists()
+    assert not graves(root)
+
+
+def test_a_claimed_lock_in_the_give_back_gap_wins(root: Path, monkeypatch) -> None:
+    lock = judged_stale(root, "live-holder")
+    steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=newcomer(lock, "newcomer"))
+    assert (lock / "owner").read_text(encoding="utf-8") == "newcomer"
     assert not graves(root)
 
 
