@@ -1,0 +1,1186 @@
+{
+ "schema": 1,
+ "purpose": "Solution grill",
+ "feature": "small-lane",
+ "stage": "design",
+ "spec_dir": "docs/afk/small-lane",
+ "rounds": [
+  {
+   "round": 1,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-1",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The 7 investigations stand as the ground for this design, although each is partial for the reasons listed.",
+     "evidence": "You accepted, with the note \"gap accepted\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-1",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The system shape is inherited: skills run by an agent in the current session, plus scripts and the existing adapters; no new process, and the bug pipeline's detached fixer goes.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-2",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "No new skill: diagnose stays a utility where it is, fix stays the small-lane skill, and to-ticket gains a bug and ad-hoc mode.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-1",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The in-place fix is a shared fix procedure file in the fix skill's folder, read by the fix skill and the 5 in-place callers; the fix skill runs standalone only.",
+     "evidence": "You chose B."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-3",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnosis file is the hand-off: diagnose writes it, fix reads it by path and passes the same path to the to-ticket bug mode.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-4",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The to-ticket bug mode reaches the tracker through the tracker adapter verbs, from one new script, on Jira and GitHub Issues alike.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-1",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A defect outside the slice that blocks it: the executing agent runs the standalone fix itself in a second worktree it owns, made from the base branch, then continues its slice.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-5",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The executor carries the fix to its feature branch by cherry-picking the fix commit after the fix's own change is open.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-6",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The feature's change names the fix's change as a dependency in a managed block of its description, and the fix's ticket gets a comment linking both.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2",
+     "round": 1,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The surfaces other people call, as packeted in round 1: the 3 skill invocations, the shared fix procedure file, the removed bug skill, and the adapter verbs used (none added).",
+     "evidence": "You signed: \"I sign\"."
+    }
+   ]
+  },
+  {
+   "round": 2,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "INV-008 to INV-010 stand as the ground for round 2, although each is partial.",
+     "evidence": "You accepted."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-7",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnosis is one file, DIAGNOSIS.md, in the bug's own spec folder, committed with the failing test on a local diagnosis branch made from the base branch and never pushed by diagnose; a fix continues on that branch.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-8",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A bug with no ticket gets a provisional work id; once the ticket exists, the bug mode asks for the spec folder again with the key and moves the folder if the path differs.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-9",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Proof is attached to the ticket only; no proof is committed to git.",
+     "evidence": "You reversed to the attachment option, with the note \"no proof to be git committed. only attached to ticket\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-2",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Proof stays on the ticket, text and images and any other file, never in git. The diagnosis file merges with the fix and stays, as recommended; your answer did not mention it.",
+     "evidence": "You wrote in: \"the proof stays in the ticket (text, images, and whatnot), not git\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-10",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The bug mode sets one named state, in review, through jira.transitions and state-labels; the code starts reading jira.transitions and 3 documents are corrected.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-11",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnosis file lists every outside write already done, and each evidence comment carries a visible marker.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Approval is enforced by the skill text alone; no script checks it.",
+     "evidence": "You chose A."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-12",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The bug mode takes any ticket key it is given.",
+     "evidence": "You reversed to the option that takes any ticket key."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-13",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A failed outside write may be retried, but before each retry the run checks whether the earlier attempt took effect.",
+     "evidence": "You reversed to the retry option, with the note \"as long as before retrying, check if the previous supposedly failed attempt actually produce something that we should not do again\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-14",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Proof carries no credentials, using the credential rules of the existing redaction script, shared.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-15",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Writes run as the developer; no new log and no feature flag.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: your answers to the proof, retention and approval cards in the same send changed what the packet described. It comes back below with the changes marked.",
+     "evidence": "You marked sign."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3",
+     "round": 2,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: your approval and ticket-key answers in the same send changed what the packet described. It comes back below with the changes marked.",
+     "evidence": "You signed: \"I sign\"."
+    }
+   ]
+  },
+  {
+   "round": 3,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-3",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "INV-011 stands as the ground for round 3, although it is partial. Its outside fact, that GitHub has no upload, turned out wrong; see the correction in round 4.",
+     "evidence": "You accepted."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-4",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Images on GitHub Issues go on the ticket, since you asked me to check and GitHub does support it, through its command-line tool. Text only applies only where that upload is not available.",
+     "evidence": "You wrote in: \"I do not know but I don't think Github does not support images upload to issue (seems like a very basic necessity), so please verify. if it's truly not supported, then text only and devs attach files manually\". GitHub CLI 2.99.0 uploads images and videos: docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli"
+    },
+    {
+     "component": "settled_card",
+     "id": "D-16",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The tracker adapter family gains one verb, attach; Jira sends the file's real type. Its line saying GitHub Issues answers unsupported is replaced in round 4.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-17",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Before each retry, the run reads back whether the failed write took effect. At most 2 retries, after 5 and 20 seconds. A write with no read-back is not retried.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-18",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The diagnosis file keeps an approval section: who, their words or the prior approval, what it covers, the date. Nothing checks it.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-19",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A given ticket key gets the write. It is recorded if the diagnosis file has no key yet, else listed with the outside writes.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-20",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The executor reads the change's description before it rewrites the dependency block.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1b",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: its GitHub proof row said images need a manual drag, which the check of your Q-4 answer proved wrong. It comes back below.",
+     "evidence": "You signed: \"I sign\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2b",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: its attach row said GitHub Issues answers unsupported, which the same check proved wrong. It comes back below.",
+     "evidence": "You signed: \"I sign\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-3b",
+     "round": 3,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: who is let through.",
+     "evidence": "You signed: \"I sign\"."
+    }
+   ]
+  },
+  {
+   "round": 4,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-4",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "GitHub's own documentation stands as the ground for uploading images to GitHub Issues; the first live run happens when the upload is built.",
+     "evidence": "You accepted."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-21",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "On GitHub Issues, attach posts the evidence comment with each image or video inline through gh; any other file is named for the developer to add.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-22",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A retried GitHub Issues attach first reads the ticket's comments for the evidence marker.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-23",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The dependency register requires gh 2.99.0 or later with GitHub Issues; an older gh names the files instead of uploading them.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1c",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: what the small lane stores.",
+     "evidence": "You signed: \"I sign\"."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2c",
+     "round": 4,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: the surfaces other people call.",
+     "evidence": "You signed: \"I sign\"."
+    }
+   ]
+  },
+  {
+   "round": 5,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-5",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "INV-012 to INV-014 stand as the ground for round 5, although each is partial.",
+     "evidence": "You accepted."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-24",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A bug's state is read from the diagnosis file's fields, never stored as its own field.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-25",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Each part of the diagnosis file has one writer; the list of outside writes is append-only, written by the bug mode and fix.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-26",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A script checks the diagnosis file's required parts, the verdict's evidence and the certainty marks; fix refuses a file that fails.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-27",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Running diagnose again rewrites the verdict, root cause and proposal and empties the approval; a steer re-runs diagnose.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-28",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Standalone fix order: ticket, local fix, push and Draft change, proof, ticket in review, CI wait, ready and reviewer.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-29",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The fix waits for CI in the background like preflight; anything but green leaves the change Draft with the reason.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-30",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "An agent's verdict on a defect outside its slice decides: fix, ticket and park, park, or ticket and go on.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-31",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "In a hands-off run, the separate change stays Draft; a person marks it ready.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-5",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A fix for a bug reported on a feature branch commits there and pushes, with no ticket and no new change.",
+     "evidence": "You chose A."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-4",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: your feature-branch answer in the same send adds a state and a rule. It comes back below.",
+     "evidence": "You marked sign."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5",
+     "round": 5,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed, then void: your feature-branch answer in the same send adds a push to a shared branch. It comes back below.",
+     "evidence": "You marked sign."
+    }
+   ]
+  },
+  {
+   "round": 6,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "D-32",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnose run off the base branch asks once which branch to start from, and records it.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-33",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A feature-branch fix lands by a fast-forward push, never forced; one rebase and full re-test if the branch moved, else it stops.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-34",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A feature-branch fix posts its proof on that branch's open change, or in the run's report.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1d",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: what the small lane stores.",
+     "evidence": "You marked sign."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2d",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: the surfaces other people call.",
+     "evidence": "You marked sign."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-4b",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: what the small lane refuses.",
+     "evidence": "You marked sign."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5b",
+     "round": 6,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: every outside write.",
+     "evidence": "You marked sign."
+    }
+   ]
+  },
+  {
+   "round": 7,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-6",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Accepted as ground: the investigations of a new tracker verb and of the skill files, scripts and checks.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-35",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "No new skill; each new file lives beside the skill that owns it.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-36",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The standalone fix's outside writes run from one script with three steps: open, ready, land.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-37",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "One shared helper is the only code that adds to a diagnosis's list of outside writes, and it runs the read-back before each retry.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-38",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The upload verb is tracker_attach: one comment carrying the files; the registry check matches whole verb names.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-39",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The shared fix procedure keeps today's results, and every caller handles every result.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-40",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The developer settings and their fail-closed rule move to the plugin's configuration document.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-2",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "New tests go in the main test folder, run in CI on Linux and Windows, against stub trackers and forges.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-3",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Dependency direction is the plugin's own; nothing names what calls it.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-41",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The check script holds a table of the parts each verdict needs, and works out the bug's state from the fields.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-42",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Both outside-writing scripts are a list of named steps; a listed step is skipped, a failed one retried through the helper.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "D-43",
+     "round": 7,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Kind differences between trackers, and between forges, stay inside each adapter.",
+     "evidence": "You accepted the recommendation."
+    }
+   ]
+  },
+  {
+   "round": 8,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-7",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Accepted as ground: the five seam investigations, partial; the forge and Jira behaviours they could not check live are checked before release.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-6",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A red smoke gate is fixed by autopilot between two gate runs, one shared-procedure fix per failing scenario; the gate itself only reports; one re-run, and a second red ends the run red.",
+     "evidence": "You chose A."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-4",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Starting a hands-off run is the prior approval for out-of-slice ticket and separate-change writes; merge, force push and ready stay forbidden.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-5",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The executor keeps its step numbers and caps; the procedure's results map onto existing statuses, and an out-of-slice design conflict is design_conflict when cited, needs_decision when uncited.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-6",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The dependency note lives inside the executor's existing checklist block, and the description is fetched before every rewrite.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-7",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The cherry-picked fix carries the bug's work id, not the slice prefix; the second worktree comes from create-worktree; reasons go on the separate change; the slice re-runs from Step 8.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-8",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Three new journal events and one autopilot report line for tickets written, separate changes and parked defects.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-9",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The procedure re-runs a failure once before diagnosing, and adds a seventh result: flaky.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-10",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The procedure records the caller, the input and the failing path from the reproduction.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-11",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnose keeps its trace-the-path heading word for word, its investigate and rationale reads, its name, description and language pointer; the dead hand-off is dropped.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-12",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Lesson-capture pointers move to the shared procedure file; workflow feedback uses the slice or finding id.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-13",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The grills accept a DIAGNOSIS.md as input; grill-solution runs without a PRD; the size call names fix only as a bounce target.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-14",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Fix retires the diagnosis worktree through remove-worktree; names are lower-cased and the base fetched; a branch-pattern refusal asks the person, or parks needs_decision in a hands-off run.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-15",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The Jira adapter turns markdown into Atlassian Document Format for create, comment and attach; attach embeds media.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-16",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "One in-review key on both trackers, given as name or id, checked against the ticket's transitions, refused when unconfigured; Jira refuses an unknown fix version; the scaffold key is renamed.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-17",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A missing assignee or reviewer is asked for when a person is present; a hands-off run leaves it unassigned and reports it; the literal none means unset.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-18",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "With tracker or forge set to none, that is found before the first write; the fix then stays local and stops.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-19",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The ship script opens the change before posting reasons, routes the CI wait on exit code and output, refuses an empty id and a protected target; landing fetches, checks fast-forward and sets upstream.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-20",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "To-ticket bug mode files only from a file on disk, never imports the PRD publisher, writes comments or its own region only, keeps the dry-run and the old bug publisher's safeguards, and names the gh 2.99.0 prerequisite.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-21",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The bug skill goes in one commit with its manifests, test and every reference; the reviewer setting and change-reviewers land with fix's ready step.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-22",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "adr/0008 supersedes ADR-0001; report-issue stays a separate egress.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-23",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A new commit check refuses /afk:bug and /afk-toolkit:bug mentions outside the changelog and spec folders.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-24",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The glossary commit goes with the PRD; the eight bug-pipeline terms and One-live-fixer are removed.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-25",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A major release, the bump being yours; a Migration line; the to-demo-plan and settle-mr aliases are removed.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-26",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A feature-branch fix lands through the feature's Draft change; one SAFETY sentence, no BEHAVIORS change.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-6",
+     "round": 8,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed: what existing callers, stored records and flows see differently; compatibility; rollback by pinning the previous plugin version.",
+     "evidence": "You signed: 'sign'."
+    }
+   ]
+  },
+  {
+   "round": 9,
+   "state": "settled",
+   "items": [
+    {
+     "component": "settled_card",
+     "id": "GAP-8",
+     "group": "ground9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Accepted as ground: the five closing investigations; the tickets-and-tracker one re-closes on this round's answers.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-7",
+     "group": "ask9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A flaky result counts as passed for that run; the caller writes one journal line naming the check and both runs; no new executor status.",
+     "evidence": "You chose A."
+    },
+    {
+     "component": "settled_card",
+     "id": "Q-8",
+     "group": "ask9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A ticket the bug mode creates gets the diagnosis summary as its description; on an existing ticket it writes comments only.",
+     "evidence": "You chose A."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-27",
+     "group": "diagfix9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Diagnose's one-line description is rewritten; its trace-the-path heading, name and language pointer stay word for word.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-28",
+     "group": "diagfix9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A grill that sends a bug back as still small records the call in its own section of the grill log in one new row shape; fix reads it before changing code.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-29",
+     "group": "diagfix9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "A solution grill without a requirements document ends at the size call: small goes back to fix, too big goes to the requirements grill.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-30",
+     "group": "diagfix9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The requirements' in-place return is served by the shared fix procedure file.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-31",
+     "group": "callers9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The three new journal events use the existing park form, a subject the dashboard does not join to a slice, and never the word pushed for the separate change.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-32",
+     "group": "callers9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The journal's park reasons gain several possible fixes, requirements gap and cannot reproduce for defects outside a slice.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-33",
+     "group": "callers9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The only-the-executor-commits rule widens to the fix helpers autopilot and preflight run.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-34",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Jira uploads are read back for stored name and type; file names carry the diagnosis id.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-35",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Spinoff tickets on Jira become formatted and refuse an unknown fix version.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-36",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "The GitLab adapter adds a reviewer instead of replacing the list.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-37",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Fix looks its change up by number once opened; several GitLab changes on one branch stop the run.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-38",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Unavailable, or an empty created key, counts as a failed write.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-39",
+     "group": "tracker9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Fix creates its worktree in the owned mode, retires it from outside, and reads the remove script's report.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "C-40",
+     "group": "removal9",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "None means unset for reviewer and assignee; the settings keep their K1 to K5 ids.",
+     "evidence": "You accepted the recommendation."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-1e",
+     "group": "resign",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed again: what the small lane stores, with the round 8 and round 9 changes.",
+     "evidence": "You signed: 'sign'."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-2e",
+     "group": "resign",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed again: the surfaces other people call, with the round 8 and round 9 changes.",
+     "evidence": "You signed: 'sign'."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-4c",
+     "group": "resign",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed again: what the small lane refuses, with the round 8 and round 9 changes.",
+     "evidence": "You signed: 'sign'."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-5c",
+     "group": "resign",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed again: every outside write, with the round 8 and round 9 changes.",
+     "evidence": "You signed: 'sign'."
+    },
+    {
+     "component": "settled_card",
+     "id": "HL-6b",
+     "group": "resign",
+     "round": 9,
+     "by": "human",
+     "audit": "explicit",
+     "decision": "Signed again: changes to existing behaviour, with the closing investigations' changes.",
+     "evidence": "You signed: 'sign'."
+    }
+   ]
+  },
+  {
+   "round": 10,
+   "state": "current",
+   "items": [],
+   "header": {
+    "round": 10,
+    "settled_last_round": [
+     "Every seam on a closed investigation; all six sign-offs renewed"
+    ],
+    "unlocks": [
+     "the design document (SDD) and its decision records"
+    ],
+    "parked": [
+     "medium and large lanes (#108)"
+    ],
+    "fork": "The design interview is finished. The agent now writes the design document from what you settled and runs its checks; nothing on this page waits for you.",
+    "touches": [
+     {
+      "name": "the design document to be written",
+      "anchor": "docs/afk/small-lane/SDD.md"
+     }
+    ],
+    "links": [
+     {
+      "label": "Requirements (PRD)",
+      "href": "../PRD.md"
+     }
+    ]
+   }
+  }
+ ]
+}
