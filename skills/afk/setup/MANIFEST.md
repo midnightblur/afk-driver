@@ -598,7 +598,10 @@ a token value — not even partially.
 - **Needed by:** developers who run several agent sessions side by side —
   herdr is a terminal workspace manager for AI coding agents (workspaces, tabs,
   panes, per-agent status). No skill invokes it; every skill runs without it.
-  Also needed by the H-2 worktree move (`scripts/afk-move.py`, which types the
+  Also needed by the multiplexer transport kind
+  (`adapters/transport/multiplexer/`), which runs agents in herdr panes when
+  this session runs inside one; without herdr the machine probe resolves
+  another kind. Also needed by the H-2 worktree move (`scripts/afk-move.py`, which types the
   `/cd` line into the agent's pane through `herdr agent get|read|prompt|send-keys`);
   without herdr the refusal prints the line for the human to type. Minimum
   version: unverified, built against 0.9.1.
@@ -610,7 +613,16 @@ a token value — not even partially.
   session reaches it only after a relaunch (`SKILL.md` step 2's stale-environment
   rule).
 - **Notes:** setup installs and verifies only. It does not start herdr, create
-  a workspace, or move a session. `herdr update` self-updates later.
+  a workspace, or move a session. `herdr update` self-updates later. With no
+  human present, skip this row: it stays deselected in `SKILL.md` step 3's
+  election and reports `skipped (user choice)`. After the install, re-probe
+  (step 5): a probe that still fails, as after an installer that stopped
+  part-way, is not fixed. After an install, print the removal line
+  for this platform; herdr ships no uninstall command (vendor install page,
+  checked 2026-10-20), so what the line leaves behind is unverified:
+  - native Windows: `Remove-Item -Recurse -Force "$env:USERPROFILE\.herdr"`
+    (the installer's folder, which holds every installed release)
+  - macOS / Linux: `rm -f "$(command -v herdr)"`
 
 ### C16 · herdr session reporting for the H-2 harness **[opt-in]**
 - **Needed by:** the H-2 worktree move (`scripts/afk-move.py`): it types the `/cd`
@@ -986,6 +998,8 @@ Each var is documented at its consumer — this table is just the map.
 | `AFK_CFG_GIT_BRANCH_PATTERN` | `hooks/branch-name-gate.sh` | the branch-name convention exported by `hooks/lib/config.sh` from `git.branch-pattern`; unset means the repository has no convention and the gate is off |
 | `AFK_CFG_GIT_BRANCH_TEMPLATE` | `hooks/branch-name-gate.sh` | the suggestion the gate prints on a refusal, exported from `git.branch-template`; its placeholders are expanded from the rejected name |
 | `AFK_CFG_GIT_BASE_BRANCH` | `hooks/gate-context.sh` | integration base exported by `hooks/lib/config.sh` from `git.base-branch`; unset or `auto` falls back to `origin/main`, `origin/master`, `@{u}`, HEAD |
+| `AFK_CFG_TRANSPORT` | `hooks/lib/adapter.sh` (reads), `scripts/team/probe.py` (sets, in its own shell after the configuration load) | the transport kind the machine probe hands to the dispatcher; the configuration keeps it at `transport.kind`, so only an empty `transport:` section exports it, as `''` |
+| `DISABLE_AUTOUPDATER` | `adapters/transport/launch.py` (sets) | `1` in the environment of an agent the transport starts, on that launch only, so the started harness skips its update check |
 | `AFK_CFG_LOAD_FAILED` | `hooks/lib/config.sh`, `hooks/precommit-gates.sh` | why the configuration export could not run; the commit gates print it |
 | `AFK_JUDGE_GIT` | `hooks/plugin-source-gates.sh`, `hooks/native-contract-gate.sh`, `scripts/behavior_registry.py` | absolute `git` outside the repository the plugin-source runner resolves; judge code starts git through it |
 | `NoDefaultCurrentDirectoryInExePath` | `hooks/plugin-source-gates.sh` | exported as `1` so Windows never resolves a bare program name from the candidate folder |
@@ -1008,9 +1022,10 @@ Each var is documented at its consumer — this table is just the map.
 | `CODEX_HOME` | `skills/afk/setup/scripts/check_hook_trust.py`, `skills/afk/setup/scripts/codex_marketplace_ref.py` | the H-2 harness's config folder; setup's trust and marketplace-pin probes read `config.toml` there, else `~/.codex` |
 | `AFK_WORKTREE_OWNER` | `scripts/worktree_owner.py` | `<pid>:<creation time>` of the harness that owns a worktree; set by `hooks/run-hook.py` for the creation handler, read by the owner record |
 | `CLAUDE_PID` | `scripts/worktree_owner.py` (named by `owner_pid_env` in `hooks/lib/providers/claude.json`) | the H-1 harness process id, used as the owner of a worktree it creates |
-| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `hooks/lib/occupancy.py`, `scripts/afk-move.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane |
+| `HERDR_ENV`, `HERDR_PANE_ID` | `hooks/lib/h2_move.py`, `hooks/lib/occupancy.py`, `scripts/afk-move.py`, `adapters/transport/multiplexer/herdr.py` | set by herdr inside its panes; the H-2 move types `/cd` into that pane; the multiplexer transport counts herdr usable only when both are set |
 | `AFK_HOOK_DEADLINE` | `hooks/run-hook.py` (sets), `scripts/remove-worktree.py` (reads) | Unix time in seconds at which the launcher kills a handler that runs under `--deadline`; worktree cleanup fits each git call inside it and keeps the worktree when time runs out; not for humans to set |
-| `HERDR_TAB_ID` | `hooks/lib/occupancy.py` | with `HERDR_ENV=1`, sessions in one herdr tab share a worktree group |
+| `HERDR_TAB_ID` | `hooks/lib/occupancy.py`, `adapters/transport/multiplexer/herdr.py` | with `HERDR_ENV=1`, sessions in one herdr tab share a worktree group; the multiplexer transport never opens a pane in this tab |
+| `HERDR_WORKSPACE_ID` | `adapters/transport/multiplexer/herdr.py` | set by herdr inside its panes; the workspace the multiplexer transport lists and makes tabs in |
 | `AFK_WORKTREE_GROUP` | `hooks/lib/occupancy.py` | names a team whose sessions may share one linked worktree; set by the human or launcher |
 | `AFK_WAIT_POLL` | `scripts/remove-worktree.py` | seconds between the session-end waiter's checks of the harness process (default 2; tests lower it) |
 | `AFK_WORKTREE_PATH`, `AFK_WORKTREE_BRANCH` | `scripts/create-worktree` (sets), the repository's `WorktreeCreated` scripts (read) | the new worktree's path and branch, passed to each repository setup script (`CONFIG.md`) |

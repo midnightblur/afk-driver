@@ -1,0 +1,25 @@
+{
+  "kind": "multiplexer",
+  "family": "transport",
+  "name": "transport/multiplexer",
+  "operations": [
+    "agent-start",
+    "agent-send",
+    "agent-status",
+    "agent-read",
+    "agent-stop",
+    "agent-list"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "transport.sh"
+  },
+  "configKeys": [
+    "transport.kind"
+  ],
+  "register": [
+    "C1",
+    "P1",
+    "C15"
+  ]
+}

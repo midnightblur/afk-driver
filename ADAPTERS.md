@@ -174,6 +174,46 @@ inputs that decide the outcome, and what it did, skipped or warned about. Exit
 | [`maven`](adapters/build-gate/maven/CONTRACT.md) | compile, format, lock, app-start, mutation, worktree-provision |
 | [`npm`](adapters/build-gate/npm/CONTRACT.md) | lint, worktree-provision |
 
+## transport
+
+Six verbs, the same six on every kind: `agent-start`, `agent-send`,
+`agent-status`, `agent-read`, `agent-stop`, `agent-list`. Closing a pane is part
+of `agent-stop`; `agent-list` returns every match in one answer. The input is the
+verb, then one JSON object as the next argument, never standard input. Every
+kind's runner is `cli`. The family contract is version 1.
+
+| Verb | Budget | Attempts |
+|---|---|---|
+| `agent-start` | 120000 ms | 1, no automatic retry |
+| `agent-send` | 30000 ms | 1, no automatic retry |
+| `agent-status` | 10000 ms | |
+| `agent-read` | 30000 ms | |
+| `agent-stop` | 60000 ms | |
+| `agent-list` | 10000 ms | |
+
+Answers follow "Answer shapes" above, plus one: a bad payload or field answers
+`{"error": true, "operation": "<verb>", "reason": "…"}` with exit 2, naming
+the field. A kind's `agent-stop` takes the process id and the pane handle as its
+caller gives them and never reads a run's records. Shared code:
+[`contract.py`](adapters/transport/contract.py) (verbs, budgets, answers),
+[`launch.py`](adapters/transport/launch.py) (each harness's start command and
+its update-off switch on that launch only),
+[`process.py`](adapters/transport/process.py) (the process tree kill by id).
+
+| Kind | Notes |
+|---|---|
+| [`subagent`](adapters/transport/subagent/CONTRACT.md) | the harness spawns its own child; every verb `unsupported` |
+| [`headless`](adapters/transport/headless/CONTRACT.md) | the harness with no terminal, under an operating-system job; no `agent-send`, no `agent-list` |
+| [`multiplexer`](adapters/transport/multiplexer/CONTRACT.md) | a pane of the multiplexer this session runs inside; one recipe per tool, [`herdr`](adapters/transport/multiplexer/herdr.md) |
+
+The kind sits at `transport.kind`, so configuration never sets
+`AFK_CFG_TRANSPORT`. The machine probe
+[`scripts/team/probe.py`](scripts/team/probe.py) resolves the kind — the
+configured one, else the best one detected in this session, else `subagent` —
+and runs a verb in a shell of its own: it loads the configuration first, then
+sets `AFK_CFG_TRANSPORT`, so no load can blank it, and it never exports
+`AFK_CFG_LOADED` or `AFK_CONFIG`.
+
 ## Adding a kind
 
 1. `adapters/<family>/<kind>/adapter.json` + `CONTRACT.md` + the entry file.
@@ -185,7 +225,7 @@ inputs that decide the outcome, and what it did, skipped or warned about. Exit
    `register`.
 4. Add a row to the parity table in `README.md` and a probe under `hooks/tests/`.
 
-`skill-registry-gate.sh` fails until all four exist.
+`skill-registry-gate.sh` fails until steps 1 to 3 exist; nothing checks step 4.
 
 ## Adding a family
 

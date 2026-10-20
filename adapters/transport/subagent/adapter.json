@@ -1,0 +1,24 @@
+{
+  "kind": "subagent",
+  "family": "transport",
+  "name": "transport/subagent",
+  "operations": [
+    "agent-start",
+    "agent-send",
+    "agent-status",
+    "agent-read",
+    "agent-stop",
+    "agent-list"
+  ],
+  "runner": {
+    "type": "cli",
+    "entry": "transport.sh"
+  },
+  "configKeys": [
+    "transport.kind"
+  ],
+  "register": [
+    "C1",
+    "P1"
+  ]
+}

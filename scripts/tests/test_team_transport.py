@@ -1,0 +1,519 @@
+"""The transport adapter family: the verb set, the answer shapes, the launch switches and the three kinds."""
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+FAMILY = REPO / "adapters" / "transport"
+sys.path.insert(0, str(FAMILY))
+sys.path.insert(0, str(FAMILY / "multiplexer"))
+
+import contract  # noqa: E402
+import herdr  # noqa: E402
+import launch  # noqa: E402
+import process  # noqa: E402
+from contract import Answer, Deadline, Payload  # noqa: E402
+
+KINDS = ("subagent", "headless", "multiplexer")
+VERBS = ("agent-start", "agent-send", "agent-status", "agent-read", "agent-stop", "agent-list")
+
+
+def _bash():
+    spec = importlib.util.spec_from_file_location("afk_run_hook_for_transport", REPO / "hooks" / "run-hook.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.find_bash()
+
+
+BASH = _bash()
+needs_bash = pytest.mark.skipif(BASH is None, reason="no POSIX shell on this machine")
+
+
+def kind_call(kind: str, *args: str, env: dict | None = None) -> tuple[int, str, str]:
+    entry = FAMILY / kind / "transport.sh"
+    full = {**(os.environ if env is None else env), "AFK_PYTHON": sys.executable}
+    done = subprocess.run([BASH, str(entry), *args], capture_output=True, text=True, env=full, timeout=120)
+    return done.returncode, done.stdout, done.stderr
+
+
+def answer(stdout: str) -> dict:
+    return json.loads(stdout.strip().splitlines()[-1])
+
+
+# ---- the family contract -------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_every_kind_registers_the_six_verbs_with_a_cli_runner(kind):
+    manifest = json.loads((FAMILY / kind / "adapter.json").read_text(encoding="utf-8"))
+    assert manifest["family"] == "transport" and manifest["kind"] == kind
+    assert tuple(manifest["operations"]) == VERBS == contract.VERBS
+    assert manifest["runner"] == {"type": "cli", "entry": "transport.sh"}
+    text = (FAMILY / kind / "CONTRACT.md").read_text(encoding="utf-8")
+    assert all(f"`{verb}`" in text for verb in VERBS)
+
+
+def test_each_verb_keeps_its_time_budget():
+    assert contract.BUDGET_MS == {"agent-start": 120000, "agent-send": 30000, "agent-status": 10000,
+                                  "agent-read": 30000, "agent-stop": 60000, "agent-list": 10000}
+
+
+@pytest.mark.parametrize("verb", VERBS)
+@needs_bash
+def test_the_subagent_kind_answers_every_verb_unsupported(verb):
+    code, out, _ = kind_call("subagent", verb, "{}")
+    body = answer(out)
+    assert code == 3 and body["unsupported"] is True and body["reason"]
+
+
+@pytest.mark.parametrize("args, code, field", [
+    (("agent-start", "[1, 2]"), 2, "error"),
+    (("agent-start", "not json"), 2, "error"),
+    (("agent-start",), 2, "error"),
+    (("agent-start", "{}", "{}"), 2, "error"),
+    ((), 2, "error"),
+    (("agent-close", "{}"), 3, "unsupported"),
+])
+@needs_bash
+def test_bad_input_answers_in_the_house_shapes(args, code, field):
+    got, out, _ = kind_call("subagent", *args)
+    body = answer(out)
+    assert got == code and body[field] is True and body["reason"]
+    if field == "error":
+        assert "operation" in body
+
+
+@needs_bash
+def test_a_payload_never_comes_from_standard_input():
+    entry = FAMILY / "subagent" / "transport.sh"
+    done = subprocess.run([BASH, str(entry), "agent-start"], input="{}", capture_output=True, text=True,
+                          env={**os.environ, "AFK_PYTHON": sys.executable}, timeout=60)
+    assert done.returncode == 2 and answer(done.stdout)["error"] is True
+
+
+def test_a_bad_field_names_the_field():
+    with pytest.raises(Answer) as caught:
+        Payload("agent-stop", {"pid": "12"}).integer("pid")
+    assert caught.value.code == 2 and "`pid`" in caught.value.body["reason"]
+    assert caught.value.body["operation"] == "agent-stop"
+
+
+# ---- the launch switches: seam-test for "Harness update check at an agent's start" ----------------------
+
+@pytest.mark.parametrize("build", [
+    lambda h: launch.interactive(h, "go", model="m", effort="high"),
+    lambda h: launch.interactive(h, "go", resume="sess-1"),
+    lambda h: launch.headless(h, "go", model="m"),
+])
+def test_each_start_command_carries_its_harness_update_switch_on_its_own_launch(build):
+    before = dict(os.environ)
+    claude, codex = build("claude"), build("codex")
+    assert claude.env == {"DISABLE_AUTOUPDATER": "1"}
+    assert "check_for_update_on_startup=false" not in claude.args
+    assert codex.env == {}
+    pair = [codex.args[i:i + 2] for i in range(len(codex.args) - 1)]
+    assert ["-c", "check_for_update_on_startup=false"] in pair
+    assert dict(os.environ) == before
+
+
+def test_launch_refuses_an_unknown_harness():
+    with pytest.raises(ValueError):
+        launch.interactive("other", "go")
+
+
+# ---- the headless kind, against a stub harness ---------------------------------------------------
+
+STUB = r'''
+import os, subprocess, sys, time
+open(sys.argv[1], "w").write(str(subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"]).pid))
+print("STUB-START", os.environ.get("DISABLE_AUTOUPDATER", "-"), *sys.argv[2:], flush=True)
+time.sleep(300)
+'''
+
+
+@pytest.fixture
+def stub_harness(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    script = tmp_path / "stub.py"
+    script.write_text(STUB, encoding="utf-8")
+    grand = tmp_path / "grandchild.pid"
+    if sys.platform == "win32":
+        (bin_dir / "claude.cmd").write_text(f'@"{sys.executable}" "{script}" "{grand}" %*\r\n', encoding="utf-8")
+    else:
+        stub = bin_dir / "claude"
+        stub.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}" "{grand}" "$@"\n', encoding="utf-8")
+        stub.chmod(0o755)
+    return bin_dir, grand
+
+
+def headless(*args: str, path: str) -> tuple[int, dict]:
+    done = subprocess.run([sys.executable, str(FAMILY / "headless" / "headless.py"), *args], capture_output=True,
+                          text=True, env={**os.environ, "PATH": path}, timeout=120)
+    return done.returncode, answer(done.stdout)
+
+
+def wait_for(check, seconds: float = 20.0) -> bool:
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if check():
+            return True
+        time.sleep(0.2)
+    return check()
+
+
+def test_headless_starts_reads_and_stops_a_run_and_its_whole_tree(tmp_path, stub_harness):
+    bin_dir, grand = stub_harness
+    path = str(bin_dir) + os.pathsep + os.environ["PATH"]
+    log = str(tmp_path / "run" / "agent.log")
+    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": "do it", "cwd": str(tmp_path),
+                                                     "log": log, "model": "m1"}), path=path)
+    assert code == 0, body
+    pid = body["pid"]
+    assert body["kind"] == "headless" and body["handle"] == str(pid)
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", body["started_at"])
+    assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+    assert wait_for(lambda: "STUB-START" in Path(log).read_text(encoding="utf-8", errors="replace"))
+    code, status = headless("agent-status", json.dumps({"pid": pid, "log": log}), path=path)
+    assert code == 0 and status["alive"] is True and status["state"] == "running"
+    code, read = headless("agent-read", json.dumps({"log": log}), path=path)
+    assert code == 0 and "STUB-START 1 -p --model m1" in read["text"] and read["complete"] is True
+    code, again = headless("agent-read", json.dumps({"log": log, "since_marker": read["marker"]}), path=path)
+    assert code == 0 and again["text"] == ""
+    code, stop = headless("agent-stop", json.dumps({"pid": pid}), path=path)
+    assert code == 0 and stop == {"stopped": True, "method": "killed the process tree"}
+    grandchild = int(grand.read_text().strip())
+    assert wait_for(lambda: not process.alive(grandchild)) and not process.alive(pid)
+    code, status = headless("agent-status", json.dumps({"pid": pid, "log": log}), path=path)
+    assert code == 0 and status["alive"] is False and status["state"] == "exited"
+    code, stop = headless("agent-stop", json.dumps({"pid": pid}), path=path)
+    assert code == 0 and stop["stopped"] is True
+
+
+def test_headless_answers_unavailable_when_the_harness_is_absent(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    code, body = headless("agent-start", json.dumps({"harness": "codex", "prompt": "p", "cwd": str(tmp_path),
+                                                     "log": str(tmp_path / "x.log")}), path=str(empty))
+    assert code == 4 and body["unavailable"] is True and "codex" in body["reason"]
+
+
+def test_headless_refuses_a_marker_it_never_gave(tmp_path):
+    log = tmp_path / "a.log"
+    log.write_text("abc", encoding="utf-8")
+    code, body = headless("agent-read", json.dumps({"log": str(log), "since_marker": "x9"}), path=os.environ["PATH"])
+    assert code == 2 and "since_marker" in body["reason"]
+    code, body = headless("agent-read", json.dumps({"log": str(log), "since_marker": "99"}), path=os.environ["PATH"])
+    assert code == 2
+
+
+@pytest.mark.parametrize("verb", ["agent-send", "agent-list"])
+def test_headless_has_no_message_and_no_list(verb):
+    code, body = headless(verb, "{}", path=os.environ["PATH"])
+    assert code == 3 and body["unsupported"] is True
+
+
+# ---- the multiplexer kind's herdr mapping, against a recorded herdr ------------------------------
+
+class FakeHerdr:
+    """herdr's JSON answers over an in-memory session; `fail` maps a command to an error code."""
+
+    def __init__(self):
+        self.tabs = {"w1:t1": {"label": "contact", "panes": ["w1:p1"]}}
+        self.panes = {"w1:p1": {"tab": "w1:t1", "label": "contact", "agent": "claude", "name": None, "pid": None}}
+        self.calls: list[list[str]] = []
+        self.fail: dict[str, str] = {}
+        self.pids: list[int] = []
+        self.alive_at_close: list[bool] = []
+        self.screen = "line 1\nline 2\nline 3\n"
+        self._n = 1
+
+    def _new_pane(self, tab: str) -> str:
+        self._n += 1
+        pane = f"w1:p{self._n}"
+        pid = self.pids.pop(0) if self.pids else None
+        self.panes[pane] = {"tab": tab, "label": "", "agent": None, "name": None, "pid": pid}
+        self.tabs[tab]["panes"].append(pane)
+        return pane
+
+    def handle(self, args: list[str]) -> dict:
+        self.calls.append(list(args))
+        key = " ".join(args[:2])
+        if key in self.fail:
+            raise herdr.HerdrError(self.fail[key], "refused by the fake")
+        if key == "tab list":
+            return {"tabs": [{"tab_id": t, "label": v["label"], "pane_count": len(v["panes"])}
+                             for t, v in self.tabs.items()]}
+        if key == "tab create":
+            tab = f"w1:t{len(self.tabs) + 1}"
+            self.tabs[tab] = {"label": args[args.index("--label") + 1], "panes": []}
+            pane = self._new_pane(tab)
+            return {"tab": {"tab_id": tab}, "root_pane": {"pane_id": pane}}
+        if key == "pane list":
+            return {"panes": [{"pane_id": p, "tab_id": v["tab"]} for p, v in self.panes.items()]}
+        if key == "pane split":
+            return {"pane": {"pane_id": self._new_pane(self.panes[args[2]]["tab"])}}
+        pane = args[2] if len(args) > 2 else ""
+        if key in ("pane get", "pane rename", "pane close", "pane run", "pane read", "agent start") \
+                and key != "agent start" and pane not in self.panes:
+            raise herdr.HerdrError("pane_not_found", pane)
+        if key == "pane rename":
+            self.panes[pane]["label"] = args[3]
+            return {}
+        if key == "agent start":
+            target = args[args.index("--pane") + 1]
+            self.panes[target].update(agent=args[args.index("--kind") + 1], name=args[2])
+            return {}
+        if key == "pane run":
+            self.panes[pane]["agent"] = "codex"
+            return {}
+        if key == "agent rename":
+            self.panes[pane]["name"] = args[3]
+            return {}
+        if key == "pane process-info":
+            target = args[args.index("--pane") + 1]
+            pid = self.panes[target]["pid"]
+            return {"process_info": {"foreground_processes": [{"pid": pid, "name": "claude"}] if pid else [],
+                                     "shell_pid": None}}
+        if key == "agent get":
+            if pane not in self.panes or not self.panes[pane]["agent"]:
+                raise herdr.HerdrError("agent_not_found", pane)
+            return {"agent": {"agent": self.panes[pane]["agent"], "agent_status": "idle",
+                              "agent_session": {"value": "sess-9"}}}
+        if key == "agent prompt":
+            if pane not in self.panes:
+                raise herdr.HerdrError("agent_not_found", pane)
+            return {}
+        if key == "pane get":
+            return {"pane": {"pane_id": pane, "tab_id": self.panes[pane]["tab"]}}
+        if key == "pane close":
+            pid = self.panes[pane]["pid"]
+            self.alive_at_close.append(bool(pid) and process.alive(pid))
+            tab = self.panes.pop(pane)["tab"]
+            self.tabs[tab]["panes"].remove(pane)
+            return {}
+        if key == "tab get":
+            if args[2] not in self.tabs:
+                raise herdr.HerdrError("tab_not_found", args[2])
+            return {"tab": {"pane_count": len(self.tabs[args[2]]["panes"])}}
+        if key == "tab close":
+            self.tabs.pop(args[2])
+            return {}
+        if key == "pane read":
+            return {"text": self.screen}
+        if key == "agent list":
+            return {"agents": [{"name": v["name"], "pane_id": p} for p, v in self.panes.items() if v["name"]]}
+        raise AssertionError(f"unexpected herdr call {args}")
+
+
+SESSION = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1", "HERDR_TAB_ID": "w1:t1", "HERDR_WORKSPACE_ID": "w1"}
+
+
+@pytest.fixture
+def fake(monkeypatch):
+    session = FakeHerdr()
+    monkeypatch.setattr(herdr.Herdr, "call", lambda self, args, deadline, cap=30.0: session.handle(args))
+    return session
+
+
+def mux(verb: str, data: dict) -> dict:
+    tool = herdr.Herdr({**os.environ, **SESSION})
+    return getattr(tool, verb.replace("-", "_"))(Payload(verb, data), Deadline(verb))
+
+
+def start(name: str, harness: str = "claude", tab: str = "goal step", **extra) -> dict:
+    return mux("agent-start", {"harness": harness, "name": name, "label": f"{name} label", "cwd": str(REPO),
+                               "tab": tab, "prompt": "brief", **extra})
+
+
+def calls(fake: FakeHerdr, key: str) -> list[list[str]]:
+    return [c for c in fake.calls if " ".join(c[:2]) == key]
+
+
+def test_a_start_opens_a_pane_in_a_new_tab_never_the_contact_tab(fake):
+    body = start("a1")
+    assert body["kind"] == "multiplexer" and body["tool"] == "herdr" and body["handle"] == "w1:p2"
+    assert body["pane_label"] == "a1 label" and body["agent_name"] == "a1" and body["session_id"] == "sess-9"
+    assert fake.panes["w1:p2"]["tab"] != "w1:t1" and fake.tabs["w1:t2"]["label"] == "goal step"
+    created = calls(fake, "tab create")[0]
+    assert "DISABLE_AUTOUPDATER=1" in created and created[created.index("DISABLE_AUTOUPDATER=1") - 1] == "--env"
+    assert calls(fake, "pane rename")[0][2:] == ["w1:p2", "a1 label"]
+    begun = calls(fake, "agent start")[0]
+    assert begun[2] == "a1" and begun[begun.index("--kind") + 1] == "claude"
+
+
+def test_one_step_fills_a_tab_as_a_2_by_2_grid_then_opens_the_next(fake):
+    for n in range(5):
+        start(f"a{n}")
+    splits = [(c[2], c[c.index("--direction") + 1]) for c in calls(fake, "pane split")]
+    assert splits == [("w1:p2", "right"), ("w1:p2", "down"), ("w1:p3", "down")]
+    assert len(fake.tabs["w1:t2"]["panes"]) == 4 and fake.tabs["w1:t3"]["label"] == "goal step 2"
+    assert fake.tabs["w1:t1"]["panes"] == ["w1:p1"]
+
+
+def test_another_step_gets_its_own_tab(fake):
+    start("a1", tab="goal build")
+    start("a2", tab="goal verify")
+    assert sorted(t["label"] for t in fake.tabs.values()) == ["contact", "goal build", "goal verify"]
+
+
+def test_a_tab_that_cannot_be_made_refuses_the_start_naming_the_tab(fake):
+    fake.fail["tab create"] = "error"
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and caught.value.body["tab"] == "goal step"
+    assert "goal step" in caught.value.body["reason"]
+    assert not calls(fake, "pane split") and fake.tabs["w1:t1"]["panes"] == ["w1:p1"]
+
+
+def test_a_codex_start_carries_the_update_switch_after_the_separator(fake):
+    start("c1", harness="codex", model="m2", effort="high")
+    begun = calls(fake, "agent start")[0]
+    native = begun[begun.index("--") + 1:]
+    assert native[:2] == ["-c", "check_for_update_on_startup=false"]
+    assert "DISABLE_AUTOUPDATER=1" not in calls(fake, "tab create")[0]
+
+
+def test_a_codex_resume_types_the_command_with_pane_run(fake):
+    body = start("c1", harness="codex", resume="sess-7")
+    assert not calls(fake, "agent start")
+    line = calls(fake, "pane run")[0][3]
+    assert "resume" in line and "sess-7" in line and "check_for_update_on_startup=false" in line
+    assert calls(fake, "agent rename")[0][2:] == [body["handle"], "c1"]
+
+
+def test_a_start_a_dialog_blocks_is_stopped_and_answers_unavailable(fake):
+    fake.fail["agent start"] = "agent_not_ready"
+    with pytest.raises(Answer) as caught:
+        start("a1")
+    assert caught.value.code == 4 and caught.value.body["dialog"] is True
+    assert calls(fake, "pane close") and "w1:t2" not in fake.tabs
+
+
+def test_a_message_goes_into_the_receivers_pane_by_agent_prompt(fake):
+    pane = start("a1")["handle"]
+    body = mux("agent-send", {"handle": pane, "text": "<envelope id=m1>"})
+    assert body["delivered"] is True and body["way"] == "agent-prompt"
+    assert calls(fake, "agent prompt")[0][2:] == [pane, "<envelope id=m1>"]
+    with pytest.raises(Answer) as caught:
+        mux("agent-send", {"handle": "w1:p99", "text": "x"})
+    assert caught.value.code == 4 and caught.value.body["receiver_gone"] is True
+
+
+def child_tree(tmp_path: Path) -> tuple[subprocess.Popen, Path]:
+    grand = tmp_path / "g.pid"
+    code = ("import subprocess,sys,time;"
+            "p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(300)']);"
+            f"open(r'{grand}','w').write(str(p.pid)); time.sleep(300)")
+    child = subprocess.Popen([sys.executable, "-c", code])
+    assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+    return child, grand
+
+
+def test_a_stop_kills_the_whole_tree_before_it_closes_the_pane_and_the_empty_tab(fake, tmp_path):
+    child, grand = child_tree(tmp_path)
+    fake.pids.append(child.pid)
+    pane = start("a1")["handle"]
+    body = mux("agent-stop", {"pid": child.pid, "handle": pane})
+    assert body == {"stopped": True, "method": "killed the process tree", "pane_closed": True, "pane_id": pane}
+    assert fake.alive_at_close == [False]
+    assert wait_for(lambda: not process.alive(int(grand.read_text())))
+    assert "w1:t2" not in fake.tabs and "w1:t1" in fake.tabs
+    again = mux("agent-stop", {"pid": child.pid, "handle": pane})
+    assert again["stopped"] is True and again["pane_closed"] is True
+
+
+def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
+    pane = start("a1")["handle"]
+    fake.fail["pane close"] = "error"
+    body = mux("agent-stop", {"handle": pane})
+    assert body["stopped"] is True and body["pane_closed"] is False and body["pane_id"] == pane
+
+
+def test_agent_list_returns_every_match_of_the_prefix(fake):
+    start("goal-a")
+    start("goal-b")
+    start("other-c", tab="x")
+    body = mux("agent-list", {"prefix": "goal-"})
+    assert sorted(a["agent_name"] for a in body["agents"]) == ["goal-a", "goal-b"]
+    assert all(a["pane_id"] for a in body["agents"])
+
+
+def test_agent_read_returns_the_text_after_its_marker(fake):
+    pane = start("a1")["handle"]
+    first = mux("agent-read", {"handle": pane})
+    assert first["text"].startswith("line 1") and first["complete"] is True
+    fake.screen += "line 4\n"
+    second = mux("agent-read", {"handle": pane, "since_marker": first["marker"]})
+    assert second["text"] == "line 4" and second["complete"] is True
+    fake.screen = "new\n"
+    third = mux("agent-read", {"handle": pane, "since_marker": first["marker"]})
+    assert third["complete"] is False and third["text"] == "new"
+    with pytest.raises(Answer) as caught:
+        mux("agent-read", {"handle": pane, "since_marker": "nope"})
+    assert caught.value.code == 2
+
+
+def test_agent_status_tells_a_live_agent_from_a_gone_pane(fake):
+    pane = start("a1")["handle"]
+    assert mux("agent-status", {"handle": pane})["alive"] is True
+    assert mux("agent-status", {"handle": "w1:p99"}) == {"alive": False, "state": "gone", "since": None}
+
+
+@needs_bash
+def test_the_multiplexer_kind_is_unavailable_outside_a_herdr_pane():
+    env = {k: v for k, v in os.environ.items() if not k.startswith("HERDR_")}
+    code, out, _ = kind_call("multiplexer", "agent-status", '{"handle": "w1:p1"}', env=env)
+    body = answer(out)
+    assert code == 4 and body["unavailable"] is True and "herdr" in body["reason"]
+
+
+# ---- the setup register row C15 ------------------------------------------------------------------------
+
+MANIFEST = REPO / "skills" / "afk" / "setup" / "MANIFEST.md"
+
+
+def c15() -> str:
+    text = MANIFEST.read_text(encoding="utf-8")
+    return text[text.index("### C15 · herdr"):text.index("### C16 ·")]
+
+
+def test_c15_is_edited_in_place_names_no_harness_and_keeps_its_no_skill_line():
+    text = MANIFEST.read_text(encoding="utf-8")
+    assert text.count("### C15 ·") == 1 and "herdr" in c15()
+    assert not re.search(r"\b(?:Claude Code|Codex|claude|codex)\b", c15())
+    assert "No skill invokes it" in c15() and "adapters/transport/multiplexer/" in c15()
+
+
+def test_c15_skips_with_no_human_reprobes_and_prints_a_removal_line():
+    row = " ".join(c15().split())
+    assert "With no human present, skip this row" in row and "`skipped (user choice)`" in row
+    assert "is not fixed" in row and "print the removal line" in row
+    assert r'`Remove-Item -Recurse -Force "$env:USERPROFILE\.herdr"`' in row
+    assert '`rm -f "$(command -v herdr)"`' in row
+    assert "teardown" not in row
+
+
+@needs_bash
+def test_an_installer_that_stops_part_way_leaves_the_row_not_fixed(tmp_path):
+    probe = re.search(r"- \*\*Probe:\*\* `([^`]+)`", c15()).group(1)
+    stub = tmp_path / "bin"
+    stub.mkdir()
+    (stub / "install.sh").write_text('mkdir -p "$1/.herdr/packages/standalone/releases"\nexit 1\n',
+                                     encoding="utf-8")
+    home = tmp_path / "home"
+    installed = subprocess.run([BASH, str(stub / "install.sh"), str(home)], capture_output=True, text=True)
+    assert installed.returncode == 1 and (home / ".herdr" / "packages").is_dir()
+    reprobe = subprocess.run([BASH, "-c", probe], capture_output=True, text=True, timeout=30,
+                             env={"PATH": f"{stub}{os.pathsep}{home / '.herdr'}", "HOME": str(home)})
+    assert reprobe.returncode != 0
+    step5 = (REPO / "skills" / "afk" / "setup" / "SKILL.md").read_text(encoding="utf-8")
+    assert "A fix not flipping its probe to exit 0\n   is not fixed" in step5
