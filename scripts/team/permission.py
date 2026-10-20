@@ -32,10 +32,14 @@ _ADAPTER = r'''
 host() { if command -v cygpath >/dev/null 2>&1; then cygpath -m -- "$1"; else printf '%s\n' "$1"; fi; }
 p=$(afk_provider)
 printf 'provider\t%s\n' "$p"
-command -v "afk_${p}_spawn_allow_rule" >/dev/null 2>&1 || exit 0
+[ "$p" != unknown ] || exit 0
+need() { command -v "$1" >/dev/null 2>&1 || { printf 'undefined\t%s\n' "$1"; exit 3; }; }
+need "afk_${p}_spawn_allow_rule"
 r=$("afk_${p}_spawn_allow_rule")
 printf 'rule\t%s\n' "$r"
 [ -n "$r" ] || exit 0
+need "afk_${p}_spawn_rule_files"
+need "afk_${p}_spawn_rule_lists"
 "afk_${p}_spawn_rule_files" "$2" | while IFS= read -r f; do printf 'file\t%s\n' "$(host "$f")"; done
 "afk_${p}_spawn_rule_lists" | while IFS= read -r l; do printf 'list\t%s\n' "$l"; done
 '''
@@ -51,7 +55,8 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
     """check() → ok, or a refusal carrying the rule text: {ok, provider, rule, problem, says, files}."""
     adapter = _adapter(Path(root).resolve(), env, run)
     if "error" in adapter:
-        return _refuse(adapter.get("provider", "unknown"), "", "provider-layer", adapter["error"], [])
+        return _refuse(adapter.get("provider", "unknown"), adapter.get("rule", ""), "provider-layer",
+                       f"{adapter['error']}; run {SETUP}; nothing was started", [])
     provider, rule = adapter["provider"], adapter["rule"]
     if provider == "unknown":
         return {"ok": True, "provider": provider, "rule": "", "problem": None, "files": [],
@@ -71,7 +76,7 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
             if kind == "allow":
                 if rule in entries:
                     allowed.append(path)
-                stale += [e for e in entries if ENTRY_NAME in e and e != rule]
+                stale += [(path, e) for e in entries if ENTRY_NAME in e and e != rule]
             elif rule in entries:
                 blocked.append(f"{path} {key}")
     allow_key = next((key for kind, key in adapter["lists"] if kind == "allow"), "allow list")
@@ -83,7 +88,8 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
         return {"ok": True, "provider": provider, "rule": rule, "problem": None, "files": read,
                 "says": f"the spawn rule is in {allowed[0]} {allow_key}"}
     if stale:
-        return _refuse(provider, rule, "stale", f"{target} {allow_key} holds `{stale[0]}`, which is not the current "
+        holder, entry = stale[0]
+        return _refuse(provider, rule, "stale", f"{holder} {allow_key} holds `{entry}`, which is not the current "
                        f"spawn rule; replace it with `{rule}`, then run {SETUP}; nothing was started", read)
     return _refuse(provider, rule, "missing", f"the harness asks before the contact agent runs the team entry "
                    f"script; add `{rule}` to {allow_key} in {target}, then run {SETUP}; nothing was started", read)
@@ -104,15 +110,21 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
     except (OSError, subprocess.TimeoutExpired) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     found: dict = {"provider": "unknown", "rule": "", "files": [], "lists": []}
+    undefined = ""
     for line in done.stdout.splitlines():
         field, _, value = line.partition("\t")
-        if field in ("provider", "rule"):
+        if field == "undefined":
+            undefined = value
+        elif field in ("provider", "rule"):
             found[field] = value
         elif field == "file" and value not in found["files"]:
             found["files"].append(value)
         elif field == "list" and len(value.split()) == 2:
             found["lists"].append(tuple(value.split()))
-    if done.returncode != 0:
+    if undefined:
+        found["error"] = (f"the {found['provider']} adapter does not define {undefined}; add it as PROVIDERS.md "
+                          '"Spawn allow rule" says')
+    elif done.returncode != 0:
         found["error"] = f"the provider layer exited {done.returncode}: {done.stderr.strip()}"
     return found
 

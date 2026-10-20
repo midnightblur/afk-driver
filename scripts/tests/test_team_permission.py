@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,12 +17,13 @@ sys.path.insert(0, str(REPO / "scripts" / "team"))
 import permission  # noqa: E402
 
 needs_bash = pytest.mark.skipif(permission._bash() is None, reason="no POSIX shell on this machine")
+needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="no git on this machine")
 CLAUDE_SH = REPO / "hooks" / "lib" / "providers" / "claude.sh"
 
 
 def _constant() -> str:
-    found = re.search(r"^AFK_SPAWN_ALLOW_RULE='([^']+)'$", CLAUDE_SH.read_text(encoding="utf-8"), re.M)
-    assert found, "claude.sh holds no single-quoted AFK_SPAWN_ALLOW_RULE line"
+    found = re.search(r"^\s+local AFK_SPAWN_ALLOW_RULE='([^']+)'$", CLAUDE_SH.read_text(encoding="utf-8"), re.M)
+    assert found, "claude.sh holds no single-quoted `local AFK_SPAWN_ALLOW_RULE` line"
     return found.group(1)
 
 
@@ -29,16 +31,16 @@ RULE = _constant()
 
 
 def _matches(rule: str, command: str) -> bool:
-    """A Bash rule's documented wildcard match: `*` is any text; a lone trailing ` *` also takes the bare command."""
-    inner = re.fullmatch(r"Bash\((.*)\)", rule, re.S)
-    assert inner, rule
-    pattern = inner.group(1)
-    if pattern.endswith(":*"):
-        pattern = pattern[:-2] + " *"
-    regex = ".*".join(re.escape(part) for part in pattern.split("*"))
-    if pattern.endswith(" *") and pattern.count("*") == 1:
-        regex = re.escape(pattern[:-2]) + "(?: .*)?"
-    return re.fullmatch(regex, command, re.S) is not None
+    """A Bash rule ending in one ` *` matches its prefix alone, or its prefix, a space and any text."""
+    inner = re.fullmatch(r"Bash\((.*) \*\)", rule, re.S)
+    assert inner and "*" not in inner.group(1), f"_matches models only a single trailing ` *`: {rule}"
+    return re.fullmatch(re.escape(inner.group(1)) + r"(?: .*)?", command, re.S) is not None
+
+
+def _windows_shell() -> bool:
+    """The same `uname -s` test the claude adapter makes, run in the check's own shell."""
+    done = subprocess.run([str(permission._bash()), "-c", "uname -s"], capture_output=True, text=True, check=True)
+    return done.stdout.strip().startswith(("MINGW", "MSYS", "CYGWIN"))
 
 
 @pytest.fixture
@@ -46,8 +48,10 @@ def home(tmp_path: Path) -> dict:
     config, repo = tmp_path / "config", tmp_path / "repo"
     config.mkdir()
     (repo / ".claude").mkdir(parents=True)
-    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CONFIG_DIR", "AFK_PROVIDER")}
-    env.update(AFK_PROVIDER="claude", CLAUDE_CONFIG_DIR=str(config), HOME=str(tmp_path / "nohome"))
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CLAUDE_CONFIG_DIR", "AFK_PROVIDER") and not k.startswith("GIT_")}
+    env.update(AFK_PROVIDER="claude", CLAUDE_CONFIG_DIR=str(config), HOME=str(tmp_path / "nohome"),
+               GIT_CEILING_DIRECTORIES=str(tmp_path))
     return {"env": env, "user": config / "settings.json", "repo": repo,
             "local": repo / ".claude" / "settings.local.json", "project": repo / ".claude" / "settings.json"}
 
@@ -102,6 +106,24 @@ def test_settings_with_the_rule_give_ok(home: dict, where: str) -> None:
 
 
 @needs_bash
+@needs_git
+def test_a_linked_worktree_reads_the_main_checkout_local_file_only_off_windows(home: dict, tmp_path: Path) -> None:
+    main, tree = tmp_path / "main", tmp_path / "tree"
+    main.mkdir()
+    git_env = dict(home["env"], GIT_CONFIG_NOSYSTEM="1")
+    for args in (["init", "-q"], ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q",
+                                  "--allow-empty", "-m", "init"], ["worktree", "add", "-q", str(tree)]):
+        subprocess.run(["git", *args], cwd=main, env=git_env, check=True, capture_output=True, text=True)
+    (main / ".claude").mkdir()
+    _write(main / ".claude" / "settings.local.json", allow=[RULE])
+    answer = permission.check_spawn_permission(tree, env=home["env"])
+    expected = "missing" if _windows_shell() else None
+    assert answer["problem"] == expected and answer["ok"] is (expected is None)
+    tail = "main/.claude/settings.local.json"
+    assert [f[-len(tail):] for f in answer["files"]] == ([] if expected else [tail])
+
+
+@needs_bash
 def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
     start_only = RULE[:-len(" *)")] + " agent-start *)"
     assert _matches(start_only, permission.verb_commands()[0])
@@ -119,6 +141,18 @@ def test_a_rule_naming_an_old_plugin_path_is_stale(home: dict) -> None:
     assert answer["ok"] is False and answer["problem"] == "stale" and "/afk:setup" in answer["says"]
 
 
+@pytest.mark.parametrize("where, suffix", [("project", "repo/.claude/settings.json"),
+                                           ("local", "repo/.claude/settings.local.json")])
+@needs_bash
+def test_a_stale_refusal_names_the_file_that_holds_the_entry(home: dict, where: str, suffix: str) -> None:
+    _write(home["user"], allow=["Bash(git status)"])
+    _write(home[where], allow=['Bash(afk-python "/old/scripts/afk-team.py" *)'])
+    answer = _check(home)
+    assert answer["problem"] == "stale"
+    assert f"{suffix} permissions.allow holds `Bash(afk-python \"/old/scripts/afk-team.py\" *)`" in answer["says"]
+    assert "config/settings.json" not in answer["says"]
+
+
 @pytest.mark.parametrize("listed", ["deny", "ask"])
 @needs_bash
 def test_the_rule_in_a_block_list_refuses(home: dict, listed: str) -> None:
@@ -133,7 +167,8 @@ def test_an_unreadable_settings_file_is_skipped(home: dict) -> None:
     home["user"].write_text("{not json", encoding="utf-8")
     _write(home["local"], allow=[RULE])
     answer = _check(home)
-    assert answer["ok"] is True and str(home["user"]).replace("\\", "/") not in answer["files"]
+    assert answer["ok"] is True and len(answer["files"]) == 1
+    assert answer["files"][0].endswith("repo/.claude/settings.local.json")
 
 
 @needs_bash
@@ -150,6 +185,66 @@ def test_an_undetected_harness_checks_no_rule(home: dict) -> None:
     assert answer["ok"] is True and answer["provider"] == "unknown" and "AFK_PROVIDER" in answer["says"]
 
 
+@pytest.mark.parametrize("adapter, missing", [
+    ("", "afk_newharness_spawn_allow_rule"),
+    ("afk_newharness_spawn_allow_rule() { printf '%s\\n' 'Bash(x *)'; }\n", "afk_newharness_spawn_rule_files"),
+])
+@needs_bash
+def test_a_detected_harness_without_the_spawn_functions_refuses(home: dict, tmp_path: Path, monkeypatch,
+                                                                adapter: str, missing: str) -> None:
+    core = tmp_path / "plugin" / "hooks" / "lib"
+    (core / "providers").mkdir(parents=True)
+    shutil.copy(REPO / "hooks" / "lib" / "provider.sh", core / "provider.sh")
+    (core / "providers" / "newharness.sh").write_text(adapter, encoding="utf-8", newline="\n")
+    bash = permission._bash()
+    monkeypatch.setattr(permission, "PLUGIN", tmp_path / "plugin")
+    monkeypatch.setattr(permission, "_bash", lambda: bash)
+    home["env"]["AFK_PROVIDER"] = "newharness"
+    answer = _check(home)
+    assert answer["ok"] is False and answer["problem"] == "provider-layer" and answer["provider"] == "newharness"
+    assert missing in answer["says"] and 'PROVIDERS.md "Spawn allow rule"' in answer["says"]
+    assert "/afk:setup" in answer["says"]
+
+
+def _fake(returncode: int = 0, stdout: str = "", stderr: str = "", raises: Exception | None = None):
+    def run(*_args, **_kwargs):
+        if raises is not None:
+            raise raises
+        return subprocess.CompletedProcess([], returncode, stdout, stderr)
+    return run
+
+
+def _layer_refusal(home: dict, run) -> dict:
+    answer = permission.check_spawn_permission(home["repo"], env=home["env"], run=run)
+    assert answer["ok"] is False and answer["problem"] == "provider-layer"
+    assert answer["says"].endswith("; run /afk:setup; nothing was started")
+    return answer
+
+
+@needs_bash
+def test_a_provider_layer_timeout_refuses(home: dict) -> None:
+    answer = _layer_refusal(home, _fake(raises=subprocess.TimeoutExpired(cmd="bash", timeout=30)))
+    assert "timed out" in answer["says"] and answer["rule"] == ""
+
+
+@needs_bash
+def test_a_provider_layer_failure_refuses_with_its_stderr(home: dict) -> None:
+    answer = _layer_refusal(home, _fake(returncode=2, stderr="adapter broke here"))
+    assert "exited 2" in answer["says"] and "adapter broke here" in answer["says"]
+
+
+@needs_bash
+def test_a_provider_layer_failure_keeps_the_printed_rule(home: dict) -> None:
+    answer = _layer_refusal(home, _fake(returncode=2, stdout=f"provider\tclaude\nrule\t{RULE}\n"))
+    assert answer["provider"] == "claude" and answer["rule"] == RULE and "exited 2" in answer["says"]
+
+
+def test_no_posix_shell_refuses(home: dict, monkeypatch) -> None:
+    monkeypatch.setattr(permission, "_bash", lambda: None)
+    answer = _layer_refusal(home, _fake(raises=AssertionError("run must not be called")))
+    assert "no POSIX shell" in answer["says"]
+
+
 @needs_bash
 def test_the_check_reads_the_one_constant(home: dict) -> None:
     answer = _check(home)
@@ -162,9 +257,13 @@ def _cli(home: dict, *args: str) -> subprocess.CompletedProcess:
 
 
 @needs_bash
-def test_cli_prints_the_rule_and_answers_by_exit_code(home: dict) -> None:
+def test_cli_rule_prints_the_rule_as_text_and_json(home: dict) -> None:
     assert _cli(home, "rule").stdout.strip() == RULE
     assert json.loads(_cli(home, "rule", "--json").stdout) == RULE
+
+
+@needs_bash
+def test_cli_check_answers_by_exit_code(home: dict) -> None:
     refused = _cli(home, "check")
     assert refused.returncode == 1 and json.loads(refused.stdout)["problem"] == "missing"
     _write(home["user"], allow=[RULE])

@@ -62,6 +62,10 @@ release page from its section here. Nobody tags by hand.
   not count) or when the park-until time passes, so its exit can wake
   the contact agent. `CAPABILITIES.md` gains the `background_job_wake` row
   and `providers/CONFORMANCE.md` its per-version probes.
+- `/afk:setup` row H15 (opt-in) prints the one allow rule an agent team's
+  contact agent needs to run the team entry script without a permission
+  prompt, waits while you add it to your own settings, then confirms it with
+  `scripts/team/permission.py check`; setup never writes a settings file.
 
 ### Changed
 
