@@ -270,7 +270,11 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
             handle.write(json.dumps(data, indent=2) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
-        # Checked after the slow write; the rename after it takes at most about 2s, inside LOCK_STALE.
+        try:
+            _patient(os.utime, lock)
+        except FileNotFoundError:
+            return False
+        # Refreshed, then checked, after the slow write: the rename keeps the whole LOCK_STALE margin.
         if _owner(lock) not in (token, None):
             return False
         _patient(os.replace, temp, path)
@@ -280,8 +284,8 @@ def _publish(path: Path, data: dict, lock: Path, token: str) -> bool:
     finally:
         try:
             _patient(temp.unlink, True)
-        except OSError:
-            pass
+        except OSError as exc:
+            print(f"manifest: left {temp} behind: {exc}", file=sys.stderr)
 
 
 def _write(root, feature: str, change: Callable[[dict | None], dict | None]) -> dict | None:
