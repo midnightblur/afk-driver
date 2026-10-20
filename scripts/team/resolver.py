@@ -122,6 +122,15 @@ def _check_record(name: str, record: object, source: str) -> dict:
         target = fields["report-target"]
         if target and target not in checked_roles:
             raise PatternRefused(f"pattern {name}: role {role} reports to {target!r}, a role it does not define")
+        if target == role:
+            raise PatternRefused(f"pattern {name}: role {role} reports to itself")
+        chain = [role]
+        while target and target not in chain:
+            chain.append(target)
+            target = checked_roles[target]["report-target"]
+        if target:
+            raise PatternRefused(f"pattern {name}: the report targets loop ({' -> '.join([*chain, target])}), "
+                                 f"so no result reaches the agent that asked")
     edges = [_check_edge(name, edge, checked_roles) for edge in _entries(name, record, "edges", required=False)]
     steps = [_check_step(name, step, checked_roles) for step in _entries(name, record, "steps", required=True)]
     seen: set[str] = set()
@@ -178,7 +187,7 @@ def _check_edge(pattern: str, edge: dict, roles: dict) -> dict:
     if unknown:
         raise PatternRefused(f"pattern {pattern}: an edge has unknown field {', '.join(unknown)}")
     for end in ("from", "to"):
-        if edge.get(end) not in roles:
+        if not isinstance(edge.get(end), str) or edge[end] not in roles:
             raise PatternRefused(f"pattern {pattern}: an edge's {end} {edge.get(end)!r} names a role it does not define")
     kinds = edge.get("kinds")
     if not isinstance(kinds, list) or not kinds or any(kind not in KINDS for kind in kinds):
@@ -197,7 +206,7 @@ def _check_step(pattern: str, step: dict, roles: dict) -> dict:
     if not isinstance(starts, list):
         raise PatternRefused(f"pattern {pattern}: step {step['name']} roles must be a list")
     for role in starts:
-        if role not in roles:
+        if not isinstance(role, str) or role not in roles:
             raise PatternRefused(f"pattern {pattern}: step {step['name']} starts {role!r}, a role it does not define")
     debate = step.get("debate", False)
     if not isinstance(debate, bool):
@@ -236,17 +245,27 @@ class _Flattener:
         for step in record["steps"]:
             starts = list(step["roles"])
             if step["debate"] and hub is None:
-                self.merge(MODERATOR, self.moderator, name)
+                self.add_moderator(name, step["name"])
                 for role in starts:
-                    if role != MODERATOR:
-                        self.edges.append({"from": MODERATOR, "to": role, "kinds": ["message"]})
-                        self.edges.append({"from": role, "to": MODERATOR, "kinds": ["message"]})
+                    for edge in ({"from": MODERATOR, "to": role, "kinds": ["message"]},
+                                 {"from": role, "to": MODERATOR, "kinds": ["message"]}):
+                        if role != MODERATOR and edge not in self.edges:
+                            self.edges.append(edge)
                 starts = [*starts, MODERATOR] if MODERATOR not in starts else starts
             self.steps.append({"name": f"{name}/{step['name']}" if qualify else step["name"],
                                "roles": starts, "debate": step["debate"],
                                "moderator": (hub or MODERATOR) if step["debate"] else None})
         for include in record["includes"]:
             self.walk(self.lookup(include), True, (*stack, name))
+
+    def add_moderator(self, pattern: str, step: str) -> None:
+        if MODERATOR in self.roles and self.roles[MODERATOR] != self.moderator:
+            raise PatternRefused(f"role moderator of pattern {self.owner[MODERATOR]} takes the name of the moderator "
+                                 f"added to debate step {step} of pattern {pattern}, which has no hub")
+        if not _text(self.moderator["charter"]):
+            raise PatternRefused(f"pattern {pattern}: role moderator, added to debate step {step}: "
+                                 f"its charter part is missing or empty")
+        self.merge(MODERATOR, self.moderator, pattern)
 
     def merge(self, role: str, fields: dict, pattern: str) -> None:
         known = self.roles.get(role)
@@ -276,8 +295,9 @@ def _needs(roles: dict, edges: list) -> list:
 
 
 def _moderator(model: str) -> dict:
+    part = PATTERNS_DIR / MODERATOR_PART
     return {"model": model, "lifespan": "Step", "count": 1, "report-target": "", "hub": False,
-            "charter": (PATTERNS_DIR / MODERATOR_PART).read_text(encoding="utf-8")}
+            "charter": part.read_text(encoding="utf-8") if part.is_file() else ""}
 
 
 def resolve_pattern(root: str | os.PathLike, feature: str, pick: str | list | dict, *, session: str,

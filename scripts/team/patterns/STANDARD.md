@@ -51,7 +51,7 @@ The resolver checks the values:
 | Field | Value |
 |---|---|
 | `schema-version`, `record-version` | 1, the only known version; a one-off pattern carries no record version |
-| role `model` | `<tier>@<provider>`: a tier row of `PROVIDERS.md` "Model tiers" in lower case, and a provider of `PROVIDERS.md` |
+| role `model` | non-empty, written `<tier>@<provider>`: a tier row of `PROVIDERS.md` "Model tiers" in lower case, and a provider of `PROVIDERS.md`; the resolver checks only that it is present and that the caller can fill it |
 | role `lifespan` | `Turn`, `Step` or `Feature` |
 | role `count` | 1 or more; one role, filled by that many agents |
 | role `report-target` | a role of the same pattern, or empty for the agent that asked |

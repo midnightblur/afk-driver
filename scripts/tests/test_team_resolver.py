@@ -24,6 +24,9 @@ FEATURE = "feat-x"
 ALL = list(resolver.ABILITIES)
 PROGRESS = "progress: MILESTONE — SENTENCE"
 PROPERTIES = ("Segregation of duty", "Independent cross-check", "Several angles", "Maximum autonomy")
+RECORD_FIELDS = {"name", "description", "charter", "schema-version", "record-version", "roles", "edges", "steps",
+                 "includes"}
+ROLE_FIELDS = {"model", "lifespan", "count", "report-target", "hub", "charter"}
 BUILTIN = {"BP-1-solo.json": "solo", "BP-2-debate.json": "debate", "BP-3-build-verify.json": "build-verify",
            "BP-4-review-panel.json": "review-panel", "BP-5-afk-lite.json": "afk-lite"}
 
@@ -86,9 +89,9 @@ def test_the_resolver_names_every_record_file_and_ships_nothing_else():
 def test_each_builtin_record_resolves_by_its_real_file_name(tmp_path, file, name):
     record = json.loads((PATTERNS / file).read_text(encoding="utf-8"))
     assert record["name"] == name and record["record-version"] == 1 and record["schema-version"] == 1
-    assert set(record) <= resolver.RECORD_KEYS, "no pattern record carries an agent, message or spend limit"
+    assert set(record) <= RECORD_FIELDS, "no pattern record carries an agent, message or spend limit"
     for fields in record["roles"].values():
-        assert set(fields) <= resolver.ROLE_KEYS
+        assert set(fields) <= ROLE_FIELDS
     done = run_cli(tmp_path, "--pattern", name, *every_model(), *every_ability())
     assert done.returncode == 0, done.stderr
     out = json.loads(done.stdout)
@@ -118,11 +121,11 @@ def test_bp1_solo_has_no_roles_no_charter_and_needs_none(tmp_path):
                                   "BP-5-afk-lite.json"])
 def test_every_role_part_and_the_moderator_part_carry_the_reporting_duties(file):
     record = json.loads((PATTERNS / file).read_text(encoding="utf-8"))
-    parts = [fields["charter"] for fields in record["roles"].values()]
-    parts.append((PATTERNS / resolver.MODERATOR_PART).read_text(encoding="utf-8"))
-    for part in parts:
-        assert PROGRESS in part
-        assert "Milestones:" in part
+    parts = {role: fields["charter"] for role, fields in record["roles"].items()}
+    parts["the moderator part"] = (PATTERNS / resolver.MODERATOR_PART).read_text(encoding="utf-8")
+    for where, part in parts.items():
+        assert PROGRESS in part, f"{file} {where}"
+        assert "Milestones:" in part, f"{file} {where}"
         assert "at each milestone" in part and "at once on a blocker or a question" in part
         assert "finished at the end" in part
         assert "only answers to their questions and data their current duty uses" in part
@@ -303,6 +306,7 @@ def test_a_one_off_with_no_roles_needs_no_charter(tmp_path):
     result = resolve(tmp_path, one_off, fill=lambda model: False, abilities=[])
     assert result.charters == {}
     assert result.pattern["source"] == "one-off" and result.pattern["record-version"] is None
+    assert result.pattern["sources"] == [{"name": "quick", "record-version": None, "source": "one-off"}]
 
 
 def test_a_one_off_with_roles_resolves_with_its_own_charter(tmp_path):
@@ -373,6 +377,103 @@ def test_an_edge_kind_outside_the_kind_set_is_refused(tmp_path):
 def test_a_pick_that_names_no_pattern_is_refused(tmp_path):
     assert "'nope' names no pattern" in refused(tmp_path, "nope")
     assert "'nope' names no pattern" in refused(tmp_path, "p", saved={"p": pattern("p", includes=["nope"])})
+
+
+@pytest.mark.parametrize("where", ["record", "role"])
+def test_a_saved_record_carrying_a_limit_field_is_refused(tmp_path, where):
+    record = pattern("p", **({"max-agents": 3} if where == "record" else {}))
+    if where == "role":
+        record["roles"]["worker"]["max-agents"] = 3
+    assert "unknown field max-agents" in refused(tmp_path, "p", saved={"p": record})
+
+
+@pytest.mark.parametrize("feature", ["", ".", "..", "a/b", "a\\b", "a:b"])
+def test_an_unsafe_feature_identifier_is_refused(tmp_path, feature):
+    with pytest.raises(PatternRefused, match="unsafe feature identifier"):
+        resolver.resolve_pattern(tmp_path, feature, "solo", session="contact-1", can_fill=lambda model: True,
+                                 abilities=ALL, moderator_model="mod-model")
+
+
+@pytest.mark.parametrize("name", ["..", "a/b", "a\\b", "a:b", " "])
+def test_a_role_or_report_target_that_is_no_safe_name_is_refused(tmp_path, name):
+    saved = {"p": pattern("p", roles={name: role()}, steps=[{"name": "s", "roles": []}])}
+    assert "is not a role name" in refused(tmp_path, "p", saved=saved)
+    saved = {"p": pattern("p", roles={"worker": role(target=name)})}
+    assert "is not a role name" in refused(tmp_path, "p", saved=saved)
+
+
+@pytest.mark.parametrize("record", [
+    pattern("p", roles={"a": role(), "b": role()}, edges=[{"from": ["a"], "to": "b", "kinds": ["message"]}]),
+    pattern("p", roles={"a": role(), "b": role()}, edges=[{"from": "a", "to": {"b": 1}, "kinds": ["message"]}]),
+    pattern("p", steps=[{"name": "s", "roles": [["worker"]]}]),
+])
+def test_an_edge_end_or_step_role_that_is_no_name_is_refused(tmp_path, record):
+    assert "a role it does not define" in refused(tmp_path, "p", saved={"p": record})
+
+
+def test_an_edge_end_that_is_no_name_exits_2_on_the_command_line(tmp_path):
+    one_off = pattern("quick", roles={"a": role(), "b": role()},
+                      edges=[{"from": ["a"], "to": "b", "kinds": ["message"]}])
+    path = tmp_path / "one-off.json"
+    path.write_text(json.dumps(one_off), encoding="utf-8")
+    done = run_cli(tmp_path, "--one-off", str(path), *every_model("m1"), *every_ability())
+    assert done.returncode == 2 and "pattern quick" in done.stderr, done.stderr
+
+
+@pytest.mark.parametrize("roles,needle", [
+    ({"a": role(target="a")}, "role a reports to itself"),
+    ({"a": role(target="b"), "b": role(target="a")}, "report targets loop"),
+    ({"a": role(target="b"), "b": role(target="c"), "c": role(target="b")}, "report targets loop"),
+])
+def test_a_role_reporting_to_itself_or_a_report_loop_is_refused(tmp_path, roles, needle):
+    assert needle in refused(tmp_path, "p", saved={"p": pattern("p", roles=roles)})
+
+
+def test_a_role_named_like_the_added_moderator_is_refused_naming_both(tmp_path):
+    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2"), resolver.MODERATOR: role()},
+                          steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}])}
+    message = refused(tmp_path, "p", saved=saved)
+    assert "role moderator" in message and "debate step argue" in message and "pattern p" in message
+
+
+@pytest.mark.parametrize("text", ["", "  \n"])
+def test_an_empty_moderator_part_is_refused_only_when_a_moderator_is_added(tmp_path, monkeypatch, text):
+    part = tmp_path / "moderator.md"
+    part.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(resolver, "MODERATOR_PART", str(part))
+    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2")},
+                          steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}])}
+    message = refused(tmp_path, "p", saved=saved)
+    assert "role moderator" in message and "charter part is missing or empty" in message
+    assert resolve(tmp_path, "build-verify").charters
+
+
+@pytest.mark.parametrize("kw,needle", [
+    ({"session": ""}, "owning contact session"), ({"session": 7}, "owning contact session"),
+    ({"moderator_model": ""}, "moderator's model"), ({"saved": [("p", {})]}, "saved patterns must be a map"),
+    ({"pick": []}, "the pick must be"), ({"pick": ["solo", ""]}, "the pick must be"),
+    ({"saved": {"p": {**pattern("p"), "includes": "q"}}, "pick": "p"}, "includes must be a list"),
+    ({"saved": {"p": {**pattern("p"), "name": "other"}}, "pick": "p"}, "its name field says 'other'"),
+    ({"saved": {"p": pattern("p", steps=[{"name": "s", "roles": [], "debate": "yes"}])}, "pick": "p"},
+     "is not true or false"),
+])
+def test_every_input_guard_refuses_naming_the_input(tmp_path, kw, needle):
+    args = {"session": "contact-1", "can_fill": lambda model: True, "abilities": ALL, "moderator_model": "mod-model",
+            "saved": None, "pick": "solo", **kw}
+    pick = args.pop("pick")
+    with pytest.raises(PatternRefused) as caught:
+        resolver.resolve_pattern(tmp_path, FEATURE, pick, **args)
+    assert needle in str(caught.value)
+    assert not resolver.resolved_path(tmp_path, FEATURE).exists()
+
+
+def test_two_debate_steps_over_one_pair_write_each_moderator_edge_once(tmp_path):
+    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2")},
+                          steps=[{"name": "one", "roles": ["a", "b"], "debate": True},
+                                 {"name": "two", "roles": ["a", "b"], "debate": True}])}
+    edges = resolve(tmp_path, "p", saved=saved).pattern["team"]["edges"]
+    plain = [json.dumps(edge, sort_keys=True) for edge in edges]
+    assert len(plain) == len(set(plain)) and len(edges) == 4 + 6
 
 
 # --- flattening -------------------------------------------------------------------------------------------------
