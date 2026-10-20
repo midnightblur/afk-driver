@@ -73,7 +73,7 @@ afk_codex_enablement() {
   fi
 }
 
-# This harness asks for no spawn allow rule (PROVIDERS.md "Spawn allow rule").
+# No spawn allow rule is checked for this harness; its contact agent's approval mode is untried (PROVIDERS.md "Spawn allow rule").
 afk_codex_spawn_allow_rule() {
   :
 }

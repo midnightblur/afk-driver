@@ -378,7 +378,8 @@ a token value — not even partially.
 - **Needed by:** a team run whose contact agent runs in a harness that asks
   before each shell command no allow rule covers. The run's spawn permission
   check (`scripts/team/permission.py`) refuses the first transport command
-  until the rule is present. Which harness, the rule, and the settings files:
+  until the rule is in an allow list and in no block list. Which harness, the
+  rule, and the settings files:
   `PROVIDERS.md` "Spawn allow rule".
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
   — exit 0 when this session's harness needs no rule, or when the rule is in an

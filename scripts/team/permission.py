@@ -86,7 +86,8 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
     target = adapter["files"][0] if adapter["files"] else "the user settings file"
     if blocked:
         return _refuse(provider, rule, "blocked", f"the spawn rule `{rule}` is also listed in {', '.join(blocked)}, "
-                       f"which the harness reads before {allow_key}; remove it there, then run {SETUP}", read)
+                       f"which the harness reads before {allow_key}; remove it there, then run {SETUP}; "
+                       "nothing was started", read)
     if allowed:
         return {"ok": True, "provider": provider, "rule": rule, "problem": None, "files": read,
                 "says": f"the spawn rule is in {allowed[0]} {allow_key}"}
@@ -94,8 +95,8 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
         holder, entry = stale[0]
         return _refuse(provider, rule, "stale", f"{holder} {allow_key} holds `{entry}`, which is not the current "
                        f"spawn rule; replace it with `{rule}`, then run {SETUP}; nothing was started", read)
-    return _refuse(provider, rule, "missing", f"the harness asks before the contact agent runs the team entry "
-                   f"script; add `{rule}` to {allow_key} in {target}, then run {SETUP}; nothing was started", read)
+    return _refuse(provider, rule, "missing", f"the spawn rule `{rule}` is in no allow list of the settings files "
+                   f"read; add it to {allow_key} in {target}, then run {SETUP}; nothing was started", read)
 
 
 def _refuse(provider: str, rule: str, problem: str, says: str, files: list[str]) -> dict:

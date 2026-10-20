@@ -87,13 +87,15 @@ def test_rule_names_no_plugin_version() -> None:
     assert "${AFK_PLUGIN_ROOT}" in RULE and not re.search(r"\d+\.\d+\.\d+", RULE)
 
 
+def _assert_refused(answer: dict, problem: str) -> None:
+    assert answer["ok"] is False and answer["problem"] == problem and answer["rule"] == RULE
+    assert RULE in answer["says"] and "/afk:setup" in answer["says"] and "nothing was started" in answer["says"]
+
+
 @needs_bash
 def test_settings_without_the_rule_refuse_naming_it_and_setup(home: dict) -> None:
     _write(home["user"], allow=["Bash(git status)"])
-    answer = _check(home)
-    assert answer["ok"] is False and answer["problem"] == "missing"
-    assert answer["rule"] == RULE and RULE in answer["says"] and "/afk:setup" in answer["says"]
-    assert "nothing was started" in answer["says"]
+    _assert_refused(_check(home), "missing")
 
 
 @needs_bash
@@ -213,8 +215,8 @@ def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
     assert not _matches(start_only, permission.verb_commands()[1])
     _write(home["user"], allow=[start_only])
     answer = _check(home)
-    assert answer["ok"] is False and answer["problem"] == "stale" and start_only in answer["says"]
-    assert RULE in answer["says"]
+    _assert_refused(answer, "stale")
+    assert start_only in answer["says"]
 
 
 @needs_bash
@@ -232,8 +234,7 @@ def test_the_current_rule_beside_an_old_entry_gives_ok(home: dict) -> None:
 @needs_bash
 def test_a_rule_naming_an_old_plugin_path_is_stale(home: dict) -> None:
     _write(home["user"], allow=['Bash(afk-python "/home/u/.claude/plugins/cache/afk/1.0.0/scripts/afk-team.py" *)'])
-    answer = _check(home)
-    assert answer["ok"] is False and answer["problem"] == "stale" and "/afk:setup" in answer["says"]
+    _assert_refused(_check(home), "stale")
 
 
 @pytest.mark.parametrize("where, suffix", [("project", "repo/.claude/settings.json"),
@@ -256,7 +257,8 @@ def test_the_rule_in_a_block_list_refuses(home: dict, listed: str, allowed: list
     _write(home["user"], allow=allowed)
     _write(home["local"], **{listed: [RULE]})
     answer = _check(home)
-    assert answer["ok"] is False and answer["problem"] == "blocked" and f"permissions.{listed}" in answer["says"]
+    _assert_refused(answer, "blocked")
+    assert f"permissions.{listed}" in answer["says"]
 
 
 @needs_bash

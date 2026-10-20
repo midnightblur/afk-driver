@@ -630,3 +630,10 @@
 - Chosen: B — the same unread managed settings reach each restatement; one entry closes the set (searched 2026-10-20 for "will let" and "would ask" across the SDD, PRD, ADR-0005 and the 0009, 0010 and 0015 contracts)
 - Supersedes: 0009 Goal "the check confirms, through the provider layer, that the harness will let the contact agent run the team entry script for all six transport verbs"; the SDD §8 quotations in 0009 Context excerpts and 0015 Context excerpts — each for organization-managed settings only: an ok means the rule is in an allow list and in no block list of the settings files the adapter names
 - To reverse: read the managed sources (D-81's option A), then drop D-85, D-88 and this entry
+
+## D-90 — A block-list entry outranks the rule's presence in ADR-0005's sequence
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 9, review key f053)
+- Options: A — leave ADR-0005's `alt rule present` → ok and `else missing or stale` branches as written vs B — record that the check refuses with `blocked` when the rule is in a deny or ask list, whatever the allow lists hold
+- Chosen: B — deny and ask rules resolve before allow rules (PROVIDERS.md "Spawn allow rule"), so a rule present in an allow list and in a block list still makes the harness ask
+- Supersedes: ADR-0005 (`adr/design/0005-human-granted-spawn-rule.md`) sequence branches "alt rule present … ok" and "else missing or stale … refuse" — for a rule that is also in a block list, which answers `blocked`
+- To reverse: drop the block-list read (D-77) and this entry
