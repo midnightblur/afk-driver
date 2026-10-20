@@ -58,7 +58,8 @@ release page from its section here. Nobody tags by hand.
 - `hooks/inbox-wait.sh`, the wait job of an agent team's contact agent: run
   in a background shell with the inbox folder and an optional park-until
   time, it looks in the inbox, then every 10 seconds, and exits once, on the
-  first file there or when the park-until time passes, so its exit can wake
+  first message file there (a write in flight under a `.` or `.tmp` name does
+  not count) or when the park-until time passes, so its exit can wake
   the contact agent. `CAPABILITIES.md` gains the `background_job_wake` row
   and `providers/CONFORMANCE.md` its per-version probes.
 

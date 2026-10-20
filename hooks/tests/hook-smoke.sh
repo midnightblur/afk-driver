@@ -998,9 +998,11 @@ rm -rf "$cg"
 echo "== inbox wait =="
 iw="$workflow/hooks/inbox-wait.sh"
 iwd=$(mktemp -d)
-mkdir -p "$iwd/early" "$iwd/late" "$iwd/park" "$iwd/idle" "$iwd/idle/processed"
+mkdir -p "$iwd/early" "$iwd/late" "$iwd/park" "$iwd/far" "$iwd/gone" "$iwd/idle" "$iwd/idle/processed"
 : > "$iwd/early/m.json"
 : > "$iwd/idle/processed/old.json"
+: > "$iwd/idle/.m2.json.0a1b"
+: > "$iwd/idle/m3.json.42.0a1b.tmp"
 utc_in() { date -u -d "@$(( $(date +%s) + $1 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
   || date -u -r "$(( $(date +%s) + $1 ))" +%Y-%m-%dT%H:%M:%SZ; }
 start=$(date +%s)
@@ -1011,35 +1013,56 @@ else
   fail "early file (rc=$rc out=$out)"
 fi
 bash "$iw" "$iwd/late" > "$iwd/late.out" & late_pid=$!
-bash "$iw" "$iwd/park" "$(utc_in 3)" > "$iwd/park.out" & park_pid=$!
+park_start=$(date +%s)
+{ bash "$iw" "$iwd/park" "$(utc_in 3)"; echo "rc=$?"; echo "end=$(date +%s)"; } > "$iwd/park.out" & park_pid=$!
 bash "$iw" "$iwd/idle" > "$iwd/idle.out" & idle_pid=$!
-sleep 2; : > "$iwd/late/m.json"
+bash "$iw" "$iwd/far" "$(utc_in 3600)" > "$iwd/far.out" & far_pid=$!
+bash "$iw" "$iwd/gone" > "$iwd/gone.out" 2>&1 & gone_pid=$!
+sleep 2; : > "$iwd/late/m.json"; rmdir "$iwd/gone"
 wait "$late_pid"; late_rc=$?
-wait "$park_pid"; park_rc=$?
+wait "$park_pid"
+park_rc=$(sed -n 's/^rc=//p' "$iwd/park.out"); park_took=$(( $(sed -n 's/^end=//p' "$iwd/park.out") - park_start ))
+for _ in $(seq 1 30); do kill -0 "$gone_pid" 2>/dev/null || break; sleep 0.5; done
+kill "$gone_pid" 2>/dev/null; wait "$gone_pid"; gone_rc=$?
 if [ "$late_rc" = 0 ] && grep -q '^INBOX-WAIT: message' "$iwd/late.out"; then
   pass "a file landing during the wait ends the job at the next check"
 else
   fail "late file (rc=$late_rc out=$(cat "$iwd/late.out"))"
 fi
-if [ "$park_rc" = 3 ] && grep -q '^INBOX-WAIT: park-until' "$iwd/park.out"; then
-  pass "a park-until time that passes ends the job with exit 3"
+if [ "$park_rc" = 3 ] && [ "$park_took" -ge 2 ] && [ "$park_took" -le 6 ] && grep -q '^INBOX-WAIT: park-until' "$iwd/park.out"; then
+  pass "a park-until time 3s ahead ends the job with exit 3 after about 3s"
 else
-  fail "park-until (rc=$park_rc out=$(cat "$iwd/park.out"))"
+  fail "park-until (rc=$park_rc took=${park_took}s out=$(cat "$iwd/park.out"))"
 fi
-if kill -0 "$idle_pid" 2>/dev/null; then
-  pass "with nothing parked and no file the job keeps waiting, a subfolder's file aside"
+if [ "$gone_rc" = 2 ] && grep -q 'is gone' "$iwd/gone.out"; then
+  pass "an inbox removed during the wait ends the job with exit 2"
 else
-  fail "idle job ended on its own (out=$(cat "$iwd/idle.out"))"
+  fail "removed inbox (rc=$gone_rc out=$(cat "$iwd/gone.out"))"
 fi
-kill "$idle_pid" 2>/dev/null; wait "$idle_pid" 2>/dev/null
+if kill -0 "$idle_pid" 2>/dev/null && kill -0 "$far_pid" 2>/dev/null; then
+  pass "with no file, or a park-until far ahead, the job keeps waiting; a subfolder's file and a write in flight aside"
+else
+  fail "idle job ended on its own (idle=$(cat "$iwd/idle.out") far=$(cat "$iwd/far.out"))"
+fi
+kill "$idle_pid" "$far_pid" 2>/dev/null; wait "$idle_pid" "$far_pid" 2>/dev/null
 bad=0
-iw_usage() { bash "$iw" "$@" >/dev/null 2>&1; rc=$?; [ "$rc" = 2 ] || { bad=1; fail "usage error for '$*' (rc=$rc)"; }; }
+iw_usage() { timeout 5 bash "$iw" "$@" >/dev/null 2>&1; rc=$?; [ "$rc" = 2 ] || { bad=1; fail "usage error for '$*' (rc=$rc)"; }; }
 iw_usage
 iw_usage "$iwd/missing"
 iw_usage "$iwd/idle" 2026-10-20T07:41:09+00:00
-iw_usage "$iwd/idle" 2026-02-29T00:00:00Z
-iw_usage "$iwd/idle" x y
-[ "$bad" = 0 ] && pass "a missing folder, a time that is not UTC to the second, or a third argument is a usage error"
+iw_usage "$iwd/idle" ""
+for t in 2026-02-29T00:00:00Z 1900-02-29T00:00:00Z 2026-01-01T24:00:00Z 2026-01-01T00:60:00Z 2026-01-01T00:00:60Z; do
+  iw_usage "$iwd/idle" "$t"
+done
+iw_usage "$iwd/idle" 2000-02-29T00:00:00Z x
+[ "$bad" = 0 ] && pass "a missing folder, an empty or impossible time, a time not UTC to the second, or a third argument is a usage error"
+bash "$iw" "$iwd/early" 2028-02-29T00:00:00Z >/dev/null; rc1=$?
+bash "$iw" "$iwd/idle" 2000-02-29T00:00:00Z >/dev/null; rc2=$?
+if [ "$rc1" = 0 ] && [ "$rc2" = 3 ]; then
+  pass "29 February of a leap year, 2000 included, is a valid park-until"
+else
+  fail "leap-day park-until (2028 rc=$rc1, 2000 rc=$rc2)"
+fi
 rm -rf "$iwd"
 
 echo

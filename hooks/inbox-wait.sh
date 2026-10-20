@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The run's one wait job: `inbox-wait.sh <inbox-folder> [<park-until>]`, run in a background shell.
-# Exits 0 on a file in the inbox, 3 once park-until passes, 2 on a usage error; hooks/README.md.
+# Exits 0 on a message file (not .* or *.tmp), 3 once park-until passes, 2 on a usage error or lost inbox.
 set -u
 
 POLL_SEC=10
@@ -33,13 +33,17 @@ park_until_utc() {
 inbox=$1
 [ -n "$inbox" ] && [ -d "$inbox" ] || usage "inbox folder '$inbox' is not a directory"
 until_epoch=''
-if [ -n "${2:-}" ]; then
+if [ $# -eq 2 ]; then
   until_epoch=$(park_until_utc "$2") || usage "park-until '$2' is not a UTC time to the second"
 fi
 
 # Look before the first sleep, so a file that landed before the job started is not missed.
 while :; do
-  hit=$(find "$inbox" -mindepth 1 -maxdepth 1 -type f -print -quit 2>/dev/null)
+  hit=$(find "$inbox" -mindepth 1 -maxdepth 1 -type f ! -name '.*' ! -name '*.tmp' -print -quit 2>/dev/null)
+  if [ -z "$hit" ] && ! { [ -d "$inbox" ] && [ -r "$inbox" ] && [ -x "$inbox" ]; }; then
+    echo "inbox-wait: inbox folder '$inbox' is gone or unreadable" >&2
+    exit 2
+  fi
   if [ -n "$hit" ]; then
     echo "INBOX-WAIT: message: a file is in $inbox"
     exit 0
