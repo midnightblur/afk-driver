@@ -356,3 +356,17 @@
 - Chosen: B — the gate keys a line by the exact file path and closes it on any file-name hit, so only a function key keeps the three owed callers tracked until /afk:verify-seams final
 - Supersedes: D-50 (its one file-keyed line, not its choice of an IOU over contract edits)
 - To reverse: put back one file-keyed line, or add Consumes lines to 0010, 0012 and 0015 and close the three lines
+
+## D-52 — The knowledge store module's call shape, layout and entry identity
+- 2026-10-19 · decided by /afk:execute (0004-knowledge-store, Step 4)
+- Options: A — the three verbs only, each finding the store by itself vs B — write_entry, mark_finished and read_finished take the ignored agent directory and the feature as arguments, plus store_path for the cleanup step that deletes the store; layout <root>/<feature>/knowledge/<YYYYMMDDTHHMMSSZ>-<author>.json, one JSON file per entry with format_version 1; a second entry with the same author and second is refused, and mark_finished takes the author and time that identify the entry
+- Chosen: B — SDD §8 passes dependencies as arguments (S-53), SDD §4 makes author and time the entry's identity, and cleanup (0012) deletes the store, so one function owns its path; the file name drops the colons of the ISO time, which Windows refuses in a name
+- Supersedes: none
+- To reverse: drop store_path and let 0012 build the path, before 0012 consumes it
+
+## D-53 — The read filter takes the reader's stages and each work item's debater roles as arguments
+- 2026-10-19 · decided by /afk:execute (0004-knowledge-store, Step 4)
+- Options: A — the module learns the stage order and the debater roles itself vs B — read_finished takes the stages the reader may read (its own and the earlier ones, in the caller's order) and a map from work-item id to that item's debater roles; an entry whose work item is in the map is read whatever its stage; a draft is returned only when every listed role has a finished draft for its item, and a draft whose item is not in the map is withheld
+- Chosen: B — the knowledge store module depends on nothing (SDD §8), the debater roles live in the resolved pattern, and the rule counts roles, so a role that has written nothing yet must still hold the release back; withholding an unmapped draft keeps AC-007 when a caller forgets the map
+- Supersedes: none
+- To reverse: have the module read the resolved pattern and the stage map, which adds a dependency SDD §8 does not list

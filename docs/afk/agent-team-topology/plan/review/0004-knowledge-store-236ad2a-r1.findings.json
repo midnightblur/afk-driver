@@ -1,0 +1,72 @@
+[
+ {
+  "concern": "logic-correctness",
+  "criterion": "boundary values / empty or malformed inputs",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/knowledge.py",
+  "line": 198,
+  "side": "new",
+  "finding": "A debaters map whose roles are one string, such as {\"W1\": \"pro\"}, silently becomes the character set {p,r,o}, so no draft of that item is ever released.",
+  "why": "read_finished refuses a string for `stages` but not for a role list, so the same slip fails silently here and the debate waits for ever with no error.",
+  "fix": "Raise KnowledgeError when a roles value is a str, as is already done for `stages`.",
+  "evidence": "`roles = {item: set(names) for item, names in (debaters or {}).items()}` versus the `isinstance(stages, str)` guard at line 195",
+  "id": "r-001"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "error and rollback paths",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/knowledge.py",
+  "line": 145,
+  "side": "new",
+  "finding": "The temporary file is written before the try/finally, so a failed write (disk full, interrupted) leaves a partial `.<name>.<uuid>.tmp` in the store, and nothing removes it.",
+  "why": "The cleanup in `finally` covers only the link or replace step, so a failure of write_text leaves a stray file in a store that is meant to hold only entries.",
+  "fix": "Move the `tmp.write_text(...)` call inside the existing try block so the finally clause removes the temporary file.",
+  "evidence": "`tmp.write_text(json.dumps({\"format_version\": FORMAT_VERSION, **entry}, indent=1), \"utf-8\")` precedes `try:`",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_knowledge.py",
+  "line": 133,
+  "side": "new",
+  "finding": "No test sets `verdict` outside a debate, so the verdict half of the 'stay empty outside a debate' guard is unpinned.",
+  "why": "Dropping `entry.get(\"verdict\") is not None` from the guard at knowledge.py:83 leaves every test green, because the test only exercises `reason`, `work_item` and `debate_step`.",
+  "fix": "Add `write(tmp_path, verdict=\"AGREE\")` expecting KnowledgeError match=\"verdict\" to this test; split the four behaviours into separate cases.",
+  "evidence": "test_debate_fields_stay_empty_outside_a_debate raises only for reason=, work_item=, debate_step=; production line 83: `if entry.get(\"verdict\") is not None or entry.get(\"reason\") is not None:`.",
+  "id": "r-003"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_knowledge.py",
+  "line": 318,
+  "side": "new",
+  "finding": "No damaged-file case covers a filename that disagrees with the entry's author/time, or an entry with an extra field; both _load guards are unpinned.",
+  "why": "Removing the filename check (knowledge.py:138) or the exact-fields check (knowledge.py:135) would not fail any test.",
+  "fix": "Add parametrized cases: a valid entry copied under another author/time filename, and a valid entry plus an extra key; assert both are skipped and reported.",
+  "evidence": "parametrize list is [\"{not json\", \"[]\", '{\"format_version\": 1, \"author\": \"a2\"}']; production lines 135 `if sorted(data) != sorted(FIELDS + (\"format_version\",))` and 138 `!= path` have no dedicated case.",
+  "id": "r-004"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_knowledge.py",
+  "line": 344,
+  "side": "new",
+  "finding": "The 'nothing is promoted' assertion checks only that no public function name contains 'promot'; the test name implies a stronger proof than it gives.",
+  "why": "A function that copies an entry to another record under any other name passes, so AC-019/ADR-0018 is asserted by a name grep, not by behaviour.",
+  "fix": "Keep the file-location assertion as the proof and drop or rename the name-grep line; or assert the exact public name set.",
+  "evidence": "`assert not any(\"promot\" in name.lower() for name in public)`",
+  "id": "r-005"
+ }
+]

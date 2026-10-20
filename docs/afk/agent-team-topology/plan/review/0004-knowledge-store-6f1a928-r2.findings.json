@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/knowledge.py",
+  "line": 190,
+  "side": "new",
+  "finding": "_roles builds set(names) before checking element types, so an unhashable role such as [[\"pro\"]] raises a bare TypeError instead of KnowledgeError.",
+  "why": "The new guard promises KnowledgeError for malformed debater roles, but a list-of-lists input escapes it and the test matrix (strings, bytes, 5, [None], [\"pro\",\"\"]) never covers it.",
+  "fix": "Validate each element (isinstance str and non-empty) while iterating, before or instead of set(), or catch TypeError and raise KnowledgeError.",
+  "evidence": "roles = set(names)\n    if not all(isinstance(name, str) and name for name in roles):"
+ }
+]

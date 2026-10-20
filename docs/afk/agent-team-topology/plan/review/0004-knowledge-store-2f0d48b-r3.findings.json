@@ -1,0 +1,16 @@
+[
+ {
+  "id": "r-001",
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_knowledge.py",
+  "line": 216,
+  "side": "new",
+  "finding": "Possible stale test name: 'given_as_one_text' now also covers ints, None members, empty names, nested lists and sets.",
+  "why": "The delta widened the parameter list to [[\"pro\"]] and [{\"pro\"}] but kept the name, so a failure on a non-text case points the reader at the wrong behaviour.",
+  "fix": "Rename to test_debater_roles_that_are_not_a_list_of_role_names_are_refused, matching the sibling stages test.",
+  "evidence": "def test_debater_roles_given_as_one_text_are_refused(tmp_path, roles) with @pytest.mark.parametrize(\"roles\", [\"pro\", b\"pro\", 5, [None], [\"pro\", \"\"], [[\"pro\"]], [{\"pro\"}]])"
+ }
+]
