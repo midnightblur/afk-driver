@@ -335,22 +335,34 @@ def test_a_block_matcher_failure_refuses(home: dict, second: dict) -> None:
     assert answer["rule"] == RULE and "provider layer" in answer["says"]
 
 
-@needs_bash
-def test_a_matcher_exit_other_than_1_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
+def _new_harness(home: dict, tmp_path: Path, monkeypatch, rule: str, blocks: str) -> dict:
+    """Run the real check against a scratch adapter `newharness` that prints `rule` and matches with `blocks`."""
     core = tmp_path / "plugin" / "hooks" / "lib"
     (core / "providers").mkdir(parents=True)
     shutil.copy(REPO / "hooks" / "lib" / "provider.sh", core / "provider.sh")
     (core / "providers" / "newharness.sh").write_text(
-        _PRINTS_RULE + f"afk_newharness_spawn_rule_files() {{ printf '%s\\n' '{home['user'].as_posix()}'; }}\n"
+        f"afk_newharness_spawn_allow_rule() {{ {rule}; }}\n"
+        f"afk_newharness_spawn_rule_files() {{ printf '%s\\n' '{home['user'].as_posix()}'; }}\n"
         "afk_newharness_spawn_rule_lists() { printf '%s\\n' 'allow permissions.allow' 'block permissions.deny'; }\n"
-        "afk_newharness_spawn_rule_blocks() { return 2; }\n", encoding="utf-8", newline="\n")
+        f"afk_newharness_spawn_rule_blocks() {{ {blocks}; }}\n", encoding="utf-8", newline="\n")
     _write(home["user"], allow=["Bash(x *)"], deny=["Bash(y)"])
     bash = permission._bash()
     monkeypatch.setattr(permission, "PLUGIN", tmp_path / "plugin")
     monkeypatch.setattr(permission, "_bash", lambda: bash)
     home["env"]["AFK_PROVIDER"] = "newharness"
-    answer = _layer_refusal(home, subprocess.run)
+    return _layer_refusal(home, subprocess.run)
+
+
+@needs_bash
+def test_a_matcher_exit_other_than_1_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
+    answer = _new_harness(home, tmp_path, monkeypatch, "printf '%s\\n' 'Bash(x *)'", "return 2")
     assert "afk_newharness_spawn_rule_blocks exited 2" in answer["says"]
+
+
+@needs_bash
+def test_a_provider_layer_answer_that_is_not_utf8_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
+    answer = _new_harness(home, tmp_path, monkeypatch, "printf 'Bash(x \\351 *)\\n'", "return 1")
+    assert "did not answer" in answer["says"] and "utf-8" in answer["says"] and answer["provider"] == "unknown"
 
 
 @needs_bash
@@ -410,7 +422,7 @@ def _fake(returncode: int = 0, stdout: str = "", stderr: str = "", raises: Excep
     def run(*_args, **_kwargs):
         if raises is not None:
             raise raises
-        return subprocess.CompletedProcess([], returncode, stdout, stderr)
+        return subprocess.CompletedProcess([], returncode, stdout.encode(), stderr.encode())
     return run
 
 
@@ -425,12 +437,6 @@ def _layer_refusal(home: dict, run) -> dict:
 def test_a_provider_layer_timeout_refuses(home: dict) -> None:
     answer = _layer_refusal(home, _fake(raises=subprocess.TimeoutExpired(cmd="bash", timeout=30)))
     assert "timed out" in answer["says"] and answer["rule"] == ""
-
-
-@needs_bash
-def test_a_provider_layer_answer_that_is_not_utf8_refuses(home: dict) -> None:
-    answer = _layer_refusal(home, _fake(raises=UnicodeDecodeError("utf-8", b"\xe9", 0, 1, "invalid start byte")))
-    assert "did not answer" in answer["says"] and "utf-8" in answer["says"]
 
 
 @needs_bash

@@ -133,12 +133,13 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
     child = dict(os.environ if env is None else env)
     try:
         done = run([str(bash), "-c", _ADAPTER, "permission", str(PLUGIN), str(root)], capture_output=True,
-                   text=True, encoding="utf-8", timeout=30, env=child, check=False)
+                   timeout=30, env=child, check=False)
+        stdout = done.stdout.decode("utf-8")
     except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     found: dict = {"provider": "unknown", "rule": "", "files": [], "lists": []}
     undefined = ""
-    for line in done.stdout.splitlines():
+    for line in stdout.splitlines():
         field, _, value = line.partition("\t")
         if field == "undefined":
             undefined = value
@@ -152,7 +153,7 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
         found["error"] = (f"the {found['provider']} adapter does not define {undefined}; add it as PROVIDERS.md "
                           '"Spawn allow rule" says')
     elif done.returncode != 0:
-        found["error"] = f"the provider layer exited {done.returncode}: {done.stderr.strip()}"
+        found["error"] = f"the provider layer exited {done.returncode}: {_text(done.stderr)}"
     return found
 
 
@@ -164,18 +165,22 @@ def _blocks(entries: list[str], env: Mapping[str, str] | None, run: Callable) ->
     child = dict(os.environ if env is None else env)
     try:
         done = run([str(bash), "-c", _BLOCKS, "permission", str(PLUGIN), *verb_commands()],
-                   input="".join(f"{e}\n" for e in entries), capture_output=True, text=True, encoding="utf-8",
-                   errors="replace", timeout=30, env=child, check=False)
+                   input="".join(f"{e}\n" for e in entries).encode("utf-8", "replace"), capture_output=True,
+                   timeout=30, env=child, check=False)
     except (OSError, subprocess.TimeoutExpired) as problem:
         return {"error": f"the provider layer did not answer: {problem}"}
     if done.returncode != 0:
-        return {"error": f"the provider layer exited {done.returncode}: {done.stderr.strip()}"}
+        return {"error": f"the provider layer exited {done.returncode}: {_text(done.stderr)}"}
     hits = {}
-    for line in done.stdout.splitlines():
+    for line in _text(done.stdout).splitlines():
         index, _, command = line.partition("\t")
         if index.isdigit() and 0 < int(index) <= len(entries):
             hits.setdefault(int(index) - 1, command)
     return hits
+
+
+def _text(output: bytes) -> str:
+    return output.decode("utf-8", "replace").strip()
 
 
 def _load(path: str) -> object | None:
