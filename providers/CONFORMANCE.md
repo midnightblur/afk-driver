@@ -407,6 +407,9 @@ recorded as the reason the pending Codex verdict does not gate the release.
    plugin data, and the plugin directory the harness manages.
    A missing one makes the managed-path answer undecidable, and every caller
    reads undecidable the safe way: `plugin-clone.sh` then says `installed`.
+   Also define the spawn functions `PROVIDERS.md` "Spawn allow rule" lists:
+   without `afk_<name>_spawn_allow_rule`, every team run refuses at its first
+   transport command.
 3. Add one envelope fixture per shared event under `hooks/tests/envelopes/<name>/`.
 4. Add a native manifest twin only when the harness cannot consume an existing manifest.
 5. Add unchanged agent-definition stubs when the harness cannot consume `agents/*.md`.

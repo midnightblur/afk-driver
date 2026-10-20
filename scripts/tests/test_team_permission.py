@@ -43,6 +43,11 @@ def _windows_shell() -> bool:
     return done.stdout.strip().startswith(("MINGW", "MSYS", "CYGWIN"))
 
 
+WINDOWS_SHELL = permission._bash() is not None and _windows_shell()
+on_windows = pytest.mark.skipif(not WINDOWS_SHELL, reason="the main-checkout skip applies only on a Windows shell")
+off_windows = pytest.mark.skipif(WINDOWS_SHELL, reason="a Windows shell never reads the main checkout's local file")
+
+
 @pytest.fixture
 def home(tmp_path: Path) -> dict:
     config, repo = tmp_path / "config", tmp_path / "repo"
@@ -105,22 +110,56 @@ def test_settings_with_the_rule_give_ok(home: dict, where: str) -> None:
     assert answer["ok"] is True and answer["problem"] is None and answer["rule"] == RULE
 
 
-@needs_bash
-@needs_git
-def test_a_linked_worktree_reads_the_main_checkout_local_file_only_off_windows(home: dict, tmp_path: Path) -> None:
+def _linked_worktree(home: dict, tmp_path: Path, *init: str) -> tuple[Path, Path]:
+    """A main checkout whose `.claude/settings.local.json` holds the rule, and a linked worktree of it."""
     main, tree = tmp_path / "main", tmp_path / "tree"
-    main.mkdir()
     git_env = dict(home["env"], GIT_CONFIG_NOSYSTEM="1")
-    for args in (["init", "-q"], ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q",
-                                  "--allow-empty", "-m", "init"], ["worktree", "add", "-q", str(tree)]):
+    subprocess.run(["git", "init", "-q", *init, str(main)], cwd=tmp_path, env=git_env, check=True, capture_output=True)
+    for args in (["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m",
+                  "init"], ["worktree", "add", "-q", str(tree)]):
         subprocess.run(["git", *args], cwd=main, env=git_env, check=True, capture_output=True, text=True)
     (main / ".claude").mkdir()
     _write(main / ".claude" / "settings.local.json", allow=[RULE])
+    return main, tree
+
+
+def _assert_main_file_unread(answer: dict) -> None:
+    assert answer["ok"] is False and answer["problem"] == "missing" and answer["files"] == []
+
+
+@needs_bash
+@needs_git
+@off_windows
+def test_a_linked_worktree_reads_the_main_checkout_local_file(home: dict, tmp_path: Path) -> None:
+    _, tree = _linked_worktree(home, tmp_path)
     answer = permission.check_spawn_permission(tree, env=home["env"])
-    expected = "missing" if _windows_shell() else None
-    assert answer["problem"] == expected and answer["ok"] is (expected is None)
+    assert answer["ok"] is True and answer["problem"] is None
     tail = "main/.claude/settings.local.json"
-    assert [f[-len(tail):] for f in answer["files"]] == ([] if expected else [tail])
+    assert [f[-len(tail):] for f in answer["files"]] == [tail]
+
+
+@needs_bash
+@needs_git
+@on_windows
+def test_a_linked_worktree_on_windows_skips_the_main_checkout_local_file(home: dict, tmp_path: Path) -> None:
+    _, tree = _linked_worktree(home, tmp_path)
+    _assert_main_file_unread(permission.check_spawn_permission(tree, env=home["env"]))
+
+
+@needs_bash
+@needs_git
+@off_windows
+def test_a_main_checkout_at_the_home_directory_is_not_read(home: dict, tmp_path: Path) -> None:
+    main, tree = _linked_worktree(home, tmp_path)
+    _assert_main_file_unread(permission.check_spawn_permission(tree, env=dict(home["env"], HOME=str(main))))
+
+
+@needs_bash
+@needs_git
+@off_windows
+def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> None:
+    _, tree = _linked_worktree(home, tmp_path, "--separate-git-dir", str(tmp_path / "store"))
+    _assert_main_file_unread(permission.check_spawn_permission(tree, env=home["env"]))
 
 
 @needs_bash
@@ -185,13 +224,18 @@ def test_an_undetected_harness_checks_no_rule(home: dict) -> None:
     assert answer["ok"] is True and answer["provider"] == "unknown" and "AFK_PROVIDER" in answer["says"]
 
 
-@pytest.mark.parametrize("adapter, missing", [
-    ("", "afk_newharness_spawn_allow_rule"),
-    ("afk_newharness_spawn_allow_rule() { printf '%s\\n' 'Bash(x *)'; }\n", "afk_newharness_spawn_rule_files"),
+_PRINTS_RULE = "afk_newharness_spawn_allow_rule() { printf '%s\\n' 'Bash(x *)'; }\n"
+
+
+@pytest.mark.parametrize("adapter, missing, rule", [
+    ("", "afk_newharness_spawn_allow_rule", ""),
+    (_PRINTS_RULE, "afk_newharness_spawn_rule_files", "Bash(x *)"),
+    (_PRINTS_RULE + "afk_newharness_spawn_rule_files() { printf '%s\\n' /nowhere; }\n",
+     "afk_newharness_spawn_rule_lists", "Bash(x *)"),
 ])
 @needs_bash
 def test_a_detected_harness_without_the_spawn_functions_refuses(home: dict, tmp_path: Path, monkeypatch,
-                                                                adapter: str, missing: str) -> None:
+                                                                adapter: str, missing: str, rule: str) -> None:
     core = tmp_path / "plugin" / "hooks" / "lib"
     (core / "providers").mkdir(parents=True)
     shutil.copy(REPO / "hooks" / "lib" / "provider.sh", core / "provider.sh")
@@ -204,6 +248,7 @@ def test_a_detected_harness_without_the_spawn_functions_refuses(home: dict, tmp_
     assert answer["ok"] is False and answer["problem"] == "provider-layer" and answer["provider"] == "newharness"
     assert missing in answer["says"] and 'PROVIDERS.md "Spawn allow rule"' in answer["says"]
     assert "/afk:setup" in answer["says"]
+    assert answer["rule"] == rule
 
 
 def _fake(returncode: int = 0, stdout: str = "", stderr: str = "", raises: Exception | None = None):

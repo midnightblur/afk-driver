@@ -380,8 +380,11 @@ a token value — not even partially.
   `PROVIDERS.md` "Spawn allow rule".
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
   — exit 0 when this session's harness needs no rule, or when the rule is in an
-  allow list and in no block list; exit 1 prints one JSON refusal whose `says`
-  names the rule, the settings file and the list.
+  allow list and in no block list; exit 1 prints one JSON refusal. Its
+  `problem` is `missing`, `stale` or `blocked` with a `says` that names the
+  rule, the settings file and the list, or `provider-layer` with a `says` that
+  names neither. A `provider-layer` refusal is a plugin defect, not a missing
+  entry: report its `says` and stop this row, with no rule print and no wait.
 - **Fix:** `human:` print the rule as a JSON string with
   `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" rule --json`, and
   the probe's `says` line. The human adds that one entry to the allow list in
