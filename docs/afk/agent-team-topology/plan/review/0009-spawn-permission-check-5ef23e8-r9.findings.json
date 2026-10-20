@@ -1,0 +1,72 @@
+[
+ {
+  "id": "tv-r9-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros): missing assertion on an acceptance promise",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 216,
+  "side": "new",
+  "finding": "No test checks that a `stale` refusal says nothing was started. The contract's Acceptance bullet requires it for a rule that does not cover every verb and for a rule left from an older plugin path. The two stale tests each check part of the message: the start-only test checks the rule, and the old-path test checks `/afk:setup`. Neither checks `nothing was started`. In the test file, only the `missing` test (line 96) and the provider-layer helper (line 323) assert that phrase. If the stale message in permission.py:95-96 dropped `nothing was started`, or dropped either of the other two parts, the suite would still pass.",
+  "why": "Contract 0009 Acceptance: \"A missing rule, a rule that does not cover every transport verb, or a rule that no longer matches after a plugin update makes the run refuse before its first transport command, naming the rule and /afk:setup; nothing is started\". Two of those three cases end in `stale`, and the full promise is tested only for `missing`.",
+  "fix": "In test_a_rule_for_the_start_alone_is_not_enough and test_a_rule_naming_an_old_plugin_path_is_stale, assert all three parts: `RULE in answer[\"says\"]`, `\"/afk:setup\" in answer[\"says\"]` and `\"nothing was started\" in answer[\"says\"]`. A shared helper, like `_layer_refusal`, would keep the two tests in step.",
+  "evidence": "test lines 216-217: `assert answer[\"ok\"] is False and answer[\"problem\"] == \"stale\" and start_only in answer[\"says\"]` / `assert RULE in answer[\"says\"]`; line 236: `assert answer[\"ok\"] is False and answer[\"problem\"] == \"stale\" and \"/afk:setup\" in answer[\"says\"]`; grep of `nothing was started` in the test file finds only lines 96 and 323; permission.py:95-96: `f\"spawn rule; replace it with `{rule}`, then run {SETUP}; nothing was started\"`"
+ },
+ {
+  "id": "tv-r9-002",
+  "concern": "test-veracity",
+  "criterion": "Assertion strength: a documented refusal property is left unasserted",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 259,
+  "side": "new",
+  "finding": "This delta extends the block-list test to three allow-list setups (the rule, an old entry, nothing). The test still checks only `problem == \"blocked\"` and the list name. It never checks that the refusal names the rule or `/afk:setup`, although the PROVIDERS.md sentence this delta rewrote promises both for every refusal. If the blocked message in permission.py:88-89 lost the rule text or the `/afk:setup` pointer, all six parameter cases would still pass.",
+  "why": "PROVIDERS.md:186, a line this delta changed: \"Each refusal names the rule it knows and `/afk:setup`.\" The contract's Acceptance also says the check \"refuses, naming the rule, when it will not\". Both are documented promises, and the blocked case does not test them.",
+  "fix": "Add `assert RULE in answer[\"says\"] and \"/afk:setup\" in answer[\"says\"] and answer[\"rule\"] == RULE` to test_the_rule_in_a_block_list_refuses.",
+  "evidence": "test line 259: `assert answer[\"ok\"] is False and answer[\"problem\"] == \"blocked\" and f\"permissions.{listed}\" in answer[\"says\"]`; PROVIDERS.md:186: `Each refusal names the rule it knows and `/afk:setup`.`"
+ },
+ {
+  "id": "cs-r9-001",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 97,
+  "side": "new",
+  "finding": "The `missing` refusal's `says` still states the old promise as fact: \"the harness asks before the contact agent runs the team entry script\". f048 narrowed the PROVIDERS.md intro from \"refuses when the harness would ask first\" to \"refuses when the settings files the adapter names do not allow the rule; organization-managed settings are not read\". f039 narrowed the docstring the same way. This message is the one copy of that claim a human actually sees, and it was not changed.",
+  "why": "The check knows only that the exact rule text is absent from the files the adapter lists (D-77: exact-text match, no wildcard matcher; D-81: no managed sources). A managed allow rule, or a broader user entry the harness's matcher accepts, means the harness does not ask, yet the refusal tells the human it does. That is the claim f048 removed from the section the message points readers to.",
+  "fix": "Reword the `missing` text to say what the check knows, for example: \"the spawn rule `{rule}` is in no allow list of the settings files read; add it to {allow_key} in {target}, then run /afk:setup; nothing was started\".",
+  "evidence": "stale scripts/team/permission.py:97 `return _refuse(provider, rule, \"missing\", f\"the harness asks before the contact agent runs the team entry \"`; corrected PROVIDERS.md:176 `refuses when the settings files the adapter names do not allow the rule; organization-managed settings are not read (below)`; corrected scripts/team/permission.py:1-3 docstring `is in an allow list and in no block list of the settings files the adapter names ... Organization-managed settings are not read.`; fixed key f048 stale text `refuses when the harness would ask first`. Pattern used: git grep `without asking|would ask|asks first|harness asks` over PROVIDERS.md, providers/, skills/afk/setup, scripts/team, hooks/lib/providers, CHANGELOG.md, .claude (the claim's verb, not its phrase)."
+ },
+ {
+  "id": "cs-r9-002",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 186,
+  "side": "new",
+  "finding": "f046 fixed the refusal order: `blocked` wins when the rule is in a block list, \"whatever the allow lists hold\". Two copies still say that the rule's presence alone gives ok. ADR-0005's sequence diagram branches `alt rule present` -> `ok`, with only `missing or stale` refusing. MANIFEST H15 says the check \"refuses the first transport command until the rule is present\". Both read as ok for a rule that is in an allow list and also in a deny or ask list; the check answers `blocked` there. D-88 supersedes ADR-0005:28 for organization-managed settings only. No ledger entry covers the block-list case or the `alt rule present` branch.",
+  "why": "Under the brief's rule, an ADR copy that no DECISIONS.md entry supersedes still stands. ADR-0005 is the design record 0009 quotes in its context excerpts. A reader of it, or of H15's Needed-by line, expects ok once the rule is added, while a leftover deny or ask entry makes the check refuse with `blocked`.",
+  "fix": "Append a DECISIONS.md entry, or extend D-88 by appending, that supersedes ADR-0005's branch \"alt rule present / ok\" (and its two-way missing-or-stale split) for a rule also listed in a block list, which refuses with `blocked`. Reword MANIFEST.md:380-381 to \"refuses the first transport command until the rule is in an allow list and in no block list\" (MANIFEST.md is in 0009's Scope).",
+  "evidence": "corrected PROVIDERS.md:186 `otherwise with `blocked` when the rule is in a block list, whatever the allow lists hold`; permission.py:87 `if blocked:` before :90 `if allowed:`; stale docs/afk/agent-team-topology/adr/design/0005-human-granted-spawn-rule.md:27-30 `alt rule present` / `P-->>T: ok, every verb runs under the rule` / `else missing or stale`; stale skills/afk/setup/MANIFEST.md:380-381 `refuses the first transport command` / `until the rule is present`; DECISIONS.md:624 D-88 `Supersedes: ADR-0005 ... sequence line \"ok, every verb runs under the rule\" — for organization-managed settings only`. Pattern used: git grep `rule present|runs under the rule|until the rule` over the specs, setup and PROVIDERS.md, then reading ADR-0005 in full."
+ },
+ {
+  "id": "cs-r9-003",
+  "concern": "consistency-sweep",
+  "criterion": "open question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "hooks/lib/providers/codex.sh",
+  "line": 76,
+  "side": "new",
+  "finding": "The Codex adapter's comment states as fact that \"This harness asks for no spawn allow rule\". The section it points to marks that same premise unverified: \"A Codex contact agent under its own approval mode is not tried: unverified.\" PROVIDERS.md's table also words it carefully: \"prints nothing: no rule is checked\". SDD §13 Q11 and ADR-0005's Follow-ups list the Codex contact agent under its approval mode as not tried.",
+  "why": "The code comment, which a harness author reads first, turns an unverified premise into a stated fact. An editor who trusts it will not add a Codex rule or a check after the live trial. The cited section says the opposite.",
+  "fix": "Reword the comment to match PROVIDERS.md, for example: \"# No spawn allow rule is checked for this harness; a Codex contact agent's approval mode is untried (PROVIDERS.md \\\"Spawn allow rule\\\").\"",
+  "evidence": "hooks/lib/providers/codex.sh:76 `# This harness asks for no spawn allow rule (PROVIDERS.md \"Spawn allow rule\").`; PROVIDERS.md:180 codex column `prints nothing: no rule is checked`; PROVIDERS.md:188 `A Codex contact agent under its own approval mode is not tried: unverified.`; SDD.md:1171 Q11 `Not tried: headless starts, the desktop tool, a Codex contact agent under its harness's own approval mode`; ADR-0005 Follow-ups `a Codex contact agent were not tried under their harnesses' approval modes`."
+ }
+]

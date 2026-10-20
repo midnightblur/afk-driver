@@ -1,0 +1,58 @@
+[
+ {
+  "id": "tv-r7-001",
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic (Meszaros)",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 177,
+  "side": "new",
+  "finding": "Possible Conditional Test Logic. The parametrized ownership test branches on its parameter with a nested `if`, and the branches build two different fixtures. The `.claude` case uses a real linked worktree. The `root` and `git dir` cases use a stub `git` on PATH and a tree that is not a git repository. One test body now holds three setups, so a reader must trace the branches to learn what each case proves.",
+  "why": "The checks are sound: I traced claude.sh lines 89-97 for each case. With its own guard removed, each case would print a fourth file, and `len(listed) == 3` fails. Only the readability suffers. The `ok is False / missing / files == []` half of `_assert_main_file_unread` holds in all three cases even with the guard removed, because no settings file exists under the foreign directory. So the listing assertion is the only discriminating one, and the branching hides that.",
+  "fix": "Split it into two tests: one for the real-worktree `.claude` case, and one parametrized over `root` and `git dir` that shares a stub-git helper. You could also note at the call site that the listing count is the assertion that matters.",
+  "evidence": "if entry == \".claude\":\n        main, tree = _linked_worktree(home, tmp_path)\n        ...\n    else:\n        # A stub git names the common dir, so the root or the git dir can belong to another user without root.\n        top = foreign if entry == \"root\" else tmp_path / \"top\"\n        if entry == \"git dir\":"
+ },
+ {
+  "id": "tv-r7-002",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology - weak assertion of the premise",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 212,
+  "side": "new",
+  "finding": "The new test of the current rule beside an old entry never checks that the file holding the old entry was read. If the user file at `config/settings.json` went unread, `answer[\"files\"]` would be just the local file and the test would still pass. It would then prove only that the rule in one file gives ok, which `test_settings_with_the_rule_give_ok[local]` already covers.",
+  "why": "The test does catch the bug it targets: if `if stale:` ran before `if allowed:` in permission.py lines 90-96, the answer would be `stale` and the test would fail. But its own name and MANIFEST row H15 (\"the current rule beside it answers ok\") rely on the old entry being seen, and the test asserts nothing about that.",
+  "fix": "Assert that both files were read, e.g. `assert len(answer[\"files\"]) == 2 and answer[\"files\"][0].endswith(\"config/settings.json\")`.",
+  "evidence": "_write(home[\"user\"], allow=[old])\n    _write(home[\"local\"], allow=[RULE])\n    answer = _check(home)\n    assert answer[\"ok\"] is True and answer[\"problem\"] is None and answer[\"rule\"] == RULE"
+ },
+ {
+  "id": "cs-r7-001",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 186,
+  "side": "new",
+  "finding": "f038 corrected row H15: an old afk-team.py entry gives `stale` only while the current rule is absent; the current rule beside it gives ok. PROVIDERS.md \"Spawn allow rule\" still says this the old way. It gives a necessary condition for ok (\"answers ok only when\") and then says, with no exception, that an allow entry naming afk-team.py in another text refuses with `stale`. Read literally, the current rule plus an old entry refuses. The code (permission.py:90 `if allowed:` before :93 `if stale:`) and the test (test_team_permission.py:207) answer ok.",
+  "why": "PROVIDERS.md is the section that H15, the adapter comment (claude.sh:87) and CONFORMANCE step 2 point readers to for the check's behaviour. A reader who trusts it predicts a refusal the check does not give. An editor could also move the `stale` branch above `allowed` to match the document, and only the new test would catch that.",
+  "fix": "Change the clause to \"with `stale` when the rule is in no allow list and an allow entry names `afk-team.py` in another text (naming the file that holds that entry)\", or add \"the current rule beside an old entry answers ok\".",
+  "evidence": "stale PROVIDERS.md:186 \"The check answers ok only when the rule is in an allow list and in no block list. It refuses with `missing`, with `stale` when an allow entry names `afk-team.py` in another text (naming the file that holds that entry)\"; corrected MANIFEST.md:402-404 \"an entry left from another rule text makes the probe answer `stale` while the current rule is absent, and the current rule beside it answers ok\"; permission.py:90 `if allowed:` / :93 `if stale:`; test_team_permission.py:207 `def test_the_current_rule_beside_an_old_entry_gives_ok`. Same unqualified wording in the ledger, DECISIONS.md:544 (D-77) \"an allow entry naming afk-team.py in another text is `stale`\" (a decision record: not asking for an edit). Pattern used: grep of the surface for the outcome token `stale` near `entry|afk-team`, then reading each hit in SDD.md, ADR-0005, PROVIDERS.md, MANIFEST.md and the 0009/0010/0015 contracts."
+ },
+ {
+  "id": "cs-r7-002",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 189,
+  "side": "new",
+  "finding": "D-81 and D-85 narrow what an ok means: it covers only the user, project and local settings, and organization-managed settings can still make the harness ask. ADR-0005's sequence diagram still promises, with no exception, that an ok means every verb runs under the rule. D-85 supersedes only SDD §8 row \"Spawn permission check\" and 0009 Acceptance bullet 5. No ledger entry covers ADR-0005.",
+  "why": "Under the brief's rule, a spec or ADR copy that no DECISIONS.md entry supersedes is stale. ADR-0005 is the design record that 0009 quotes in its context excerpts. A reader of the ADR takes an ok as proof that the harness will not ask, which PROVIDERS.md:189 now says is false on a machine with managed settings.",
+  "fix": "Append a DECISIONS.md entry, or extend D-85 by appending, that supersedes ADR-0005's diagram line \"ok, every verb runs under the rule\" for organization-managed settings. Or amend ADR-0005 under a recorded Scope extension.",
+  "evidence": "corrected PROVIDERS.md:189 \"The check reads no organization-managed settings. A managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask after an ok\"; DECISIONS.md:602 (D-85) \"Supersedes: SDD §8 row \\\"Spawn permission check\\\" and 0009 Acceptance bullet 5 — ... for organization-managed settings only\"; stale docs/afk/agent-team-topology/adr/design/0005-human-granted-spawn-rule.md:27-28 \"alt rule present\" / \"P-->>T: ok, every verb runs under the rule\". Pattern used: grep of the surface for `managed` (no hit in SDD.md, PRD.md, ADR-0005 or the 0009/0010/0015 contracts), then reading ADR-0005 in full for paraphrases of what an ok guarantees."
+ }
+]

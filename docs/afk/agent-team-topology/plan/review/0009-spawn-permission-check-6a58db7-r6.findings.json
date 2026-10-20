@@ -1,0 +1,72 @@
+[
+ {
+  "id": "tv-r6-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros): missing negative cases around a new guard",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 172,
+  "side": "new",
+  "finding": "The new comment says only `.claude` can belong to another user without root, so the root and git-dir ownership checks cannot be tested. That is not true. The adapter calls `git` through PATH (claude.sh:89). A stub `git` that prints a chosen common directory can drive both checks without root rights. I checked this in a WSL scratch folder (uid 1000), calling `afk_claude_spawn_rule_files` from the real claude.sh. First, a stub that prints `/usr/.git`, so the root is owned by root. Second, a stub that prints `<tmp>/x/.git`, where `.git` is a symlink to `/usr/bin`. The real adapter lists 3 files in both cases. With `\"$top\"` removed from the loop, the first case lists 4 files. With `\"$main\"` removed, the second case lists 4. `_assert_main_file_unread` already asserts exactly 3 files, so each of these mutants would fail a test built this way. The current suite passes with either mutant.",
+  "why": "PROVIDERS.md \"Spawn allow rule\" lists three ownership conditions. Two of them still have no test, and the comment now tells the next reader that a test cannot be written, so nobody will try. The tv-r5-001 fix asked for parametrizing over the three entries if a fixture could be built, and one can.",
+  "fix": "Parametrize the ownership test over the three entries. For the root and `.git` cases, put a stub `git` first on the env's PATH. It prints the chosen common directory: `/usr/.git` for the root, and a user-owned folder whose `.git` is a symlink to a directory owned by another user for the git dir. Assert with `_assert_main_file_unread`. Delete the comment's claim that these cases cannot be tested.",
+  "evidence": "test_team_permission.py:172 `# Only `.claude` can belong to another user without root; the root and git-dir ownership checks stay untested.`; claude.sh:89 `main=$(git -C \"$root\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0`; claude.sh:94 `for entry in \"$top\" \"$main\" \"$top/.claude\"; do`; scratch probe output: `orig root-foreign(/usr/.git): 3   gitdir-foreign(/tmp/.../x/.git): 3` / `no_top root-foreign(/usr/.git): 4` / `no_main ... gitdir-foreign(/tmp/.../x/.git): 4`"
+ },
+ {
+  "id": "tv-r6-002",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros): no boundary case where two refusal branches compete",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 108,
+  "side": "new",
+  "finding": "No test puts the current rule and a stale `afk-team.py` entry in the allow lists together. I listed every `allow=[` fixture in the file (lines 92, 108, 122, 187, 195, 204-205, 215, 224, 331). Each one holds either the rule or a stale entry, never both. The code checks `allowed` before `stale` (permission.py:87, :90), so having both answers ok. Moving the `stale` branch above the `allowed` branch would pass the whole suite. The prose does not agree on this case either. MANIFEST.md H15 says \"an entry left from another rule text makes the probe answer `stale`\" and does not exempt the case where the rule is also present.",
+  "why": "A human who adds the new rule and leaves an old-path entry in place hits exactly this case. Its answer is unpinned, and the setup row describes it the opposite way from the code.",
+  "fix": "Add a test that writes `allow=[RULE, 'Bash(afk-python \"/old/scripts/afk-team.py\" *)']` and asserts the answer you intend: ok, which is the current code. Then make the H15 Notes sentence agree with that answer.",
+  "evidence": "permission.py:87 `if allowed:` before permission.py:90 `if stale:`; MANIFEST.md:402-403 `an entry left from` / `another rule text makes the probe answer `stale``; test_team_permission.py:108 `_write(home[where], allow=[\"Bash(git status)\", RULE])`"
+ },
+ {
+  "id": "cs-r6-001",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 2,
+  "side": "new",
+  "finding": "The module docstring and the check_spawn_permission docstring still state the two promises that f035 (D-81, D-85) and f036 (D-86) narrowed. They say an ok confirms the harness runs the script without asking, and that every refusal names the rule. Two narrowings now apply. An ok covers only the user, project and local files: managed settings can still make the harness ask. And a provider-layer refusal raised before the adapter prints a rule carries an empty `rule`.",
+  "why": "Corrected text: PROVIDERS.md:186 'Each refusal names the rule it knows and `/afk:setup`' and PROVIDERS.md:189 'The check reads no organization-managed settings ... can still make the harness ask after an ok'. The code's own docstrings, which a reader of the check opens first, keep the old wording.",
+  "fix": "Reword permission.py:1-2 to 'confirm ... that the user, project and local settings let the contact agent run the team entry script ..., or refuse naming the rule when the adapter gives one, and /afk:setup', and permission.py:55 to 'a refusal carrying the rule text the adapter printed (empty for a provider-layer refusal raised before it)', or point both at PROVIDERS.md \"Spawn allow rule\".",
+  "evidence": "scripts/team/permission.py:1-2 \"confirm, through the provider layer, that the harness lets the contact agent run the team entry script for every transport verb without asking, or refuse naming the one allow rule and /afk:setup.\"; scripts/team/permission.py:55 \"check() → ok, or a refusal carrying the rule text\"; scripts/team/permission.py:58-59 provider-layer refusal passes adapter.get(\"rule\", \"\"); scripts/tests/test_team_permission.py:289 asserts answer[\"rule\"] == \"\" for a timeout. Pattern used: grep 'harness lets|refuse naming|refusal carrying|without asking' over permission.py."
+ },
+ {
+  "id": "cs-r6-002",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 186,
+  "side": "new",
+  "finding": "D-86 supersedes 'naming the rule' only in SDD §8 and §9b. The 0009 contract states the same claim in five places, and no decision entry covers any of them: Goal, Acceptance bullets 4, 5 and 7, and Produces. The same SDD §8 row's interface column says 'a refusal carrying the rule text', and D-86 does not quote it. D-84 and D-85 each name the 0009 bullet they narrow; D-86 does not.",
+  "why": "A copy that no DECISIONS.md entry supersedes is stale. 0009 Acceptance bullet 4 requires the interface 'unmodified: ... a refusal carrying the rule text'. The shipped check returns `rule: \"\"` for a provider-layer refusal raised before the adapter prints a rule, so a later reader marks that bullet unmet.",
+  "fix": "Append a DECISIONS.md entry, or extend D-86 by appending, so that it also supersedes these, for a provider-layer refusal raised before the adapter prints a rule: 0009 Goal 'refuses naming the rule', Acceptance bullets 4, 5 and 7, Produces 'a refusal naming the rule', and SDD §8 row 'Spawn permission check' interface 'a refusal carrying the rule text'. The 0009 contract is the human's file, so if its text must change, the run report asks the human.",
+  "evidence": "Corrected: PROVIDERS.md:186 \"Each refusal names the rule it knows and `/afk:setup`\"; DECISIONS.md:609 D-86 \"Supersedes: SDD §8 row \\\"Spawn permission check\\\" and §9b row \\\"Claude Code auto-mode classifier\\\" — \\\"naming the rule\\\"\". Surviving: docs/afk/agent-team-topology/plan/0009-spawn-permission-check.md:2 \"refuses naming the rule when it will not\"; :30 \"check() returns ok, or a refusal carrying the rule text\"; :31 \"refuses, naming the rule, when it will not\"; :33 \"makes the run refuse before its first transport command, naming the rule and /afk:setup\"; :44 \"check() → ok, or a refusal naming the rule\"; docs/afk/agent-team-topology/SDD.md:921 interface column \"check() → ok, or a refusal carrying the rule text\". Pattern used: grep 'naming the rule|names the rule|carrying the rule text', then a full read of the 0009 contract."
+ },
+ {
+  "id": "cs-r6-003",
+  "concern": "consistency-sweep",
+  "criterion": "Consumer reach",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 186,
+  "side": "new",
+  "finding": "The consumer contract 0015 still says that every refusal of the check names the rule. The f036 correction says a provider-layer refusal can carry an empty `rule`. D-86 records this only as a surfaced gap ('the human narrows that bullet') and does not supersede it, so the stale copy stands. Consumers checked: 0010 :37 and :128 only require that the check runs first, which is consistent; MANIFEST H15 :383-391 reports the cause, which is consistent; 0015 :37 is stale.",
+  "why": "The team skill built from 0015 :37 will tell the human to add a rule even when the refusal's `rule` is empty and its cause is the provider layer.",
+  "fix": "The human narrows 0015 :37 to 'a refusal stops the run and names the rule when the refusal carries one, and /afk:setup', as D-86's surfaced gap asks. The plan contract is the human's file.",
+  "evidence": "docs/afk/agent-team-topology/plan/0015-team-skill-and-manifests.md:37 \"a refusal stops the run and names the rule and /afk:setup\"; DECISIONS.md:610 D-86 \"Surfaced gap: ... the team skill built from it must name the rule only when the refusal's `rule` is not empty — the human narrows that bullet\"; corrected PROVIDERS.md:186 \"Each refusal names the rule it knows\"."
+ }
+]

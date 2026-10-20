@@ -1,0 +1,58 @@
+[
+ {
+  "id": "delta-sweep-1",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "PROVIDERS.md",
+  "line": 186,
+  "side": "new",
+  "finding": "The qualified `stale` condition still overlaps `blocked`. When the rule is in no allow list, is in a deny or ask list, and an old `afk-team.py` allow entry exists, the condition this delta wrote for `stale` holds. The check answers `blocked` in that case, because it tests `blocked` before `stale`. The sentence gives no condition for `blocked` and no order.",
+  "why": "The delta wanted the condition to say exactly when `stale` fires. It fixed the overlap with ok but left the overlap with `blocked`, so a reader of PROVIDERS.md predicts `stale` where the code answers `blocked`.",
+  "fix": "Say `blocked` wins: e.g. \"with `blocked` when the rule is in a block list; otherwise with `stale` when the rule is in no allow list and an allow entry names `afk-team.py` in another text …\".",
+  "evidence": "PROVIDERS.md:186 \"It refuses with `missing`, with `stale` when the rule is in no allow list and an allow entry names `afk-team.py` in another text (naming the file that holds that entry), with `blocked`, or with `provider-layer`\" vs scripts/team/permission.py:87-93 \"if blocked: return _refuse(... \\\"blocked\\\" ...) ... if allowed: ... if stale: ... \\\"stale\\\"\""
+ },
+ {
+  "id": "tv-r8-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros): missing negative case around refusal precedence",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 254,
+  "side": "new",
+  "finding": "No test puts the rule in a block list next to an old `afk-team.py` allow entry, or puts it in a block list with no allow entry at all. The only block-list test (lines 251-257) also lists the rule in the user allow list, so `stale` is empty there. This delta narrows the `stale` condition in PROVIDERS.md to \"the rule is in no allow list and an allow entry names `afk-team.py` in another text\". Both of those hold when the rule is in a deny list and an old entry is in an allow list. The code answers `blocked` in that case (permission.py:87 checks `blocked` before `stale` at :93), but no test fixes this order. If `if stale:` moved above `if blocked:`, the suite would stay green. The user would then be told to replace the old entry, rerun, and only then hear that a deny rule blocks the run.",
+  "why": "PROVIDERS.md says deny and ask rules resolve before allow rules, and that a `blocked` refusal names the block list to clear. The precedence of blocked over stale or missing is part of that contract, and no test pins it.",
+  "fix": "Add one case: user allow=[old afk-team.py entry], local deny=[RULE] (and parametrize ask). Assert problem == \"blocked\" and the block-list key in `says`. Optionally add a deny-only case with no allow entry, asserting `blocked`, not `missing`.",
+  "evidence": "test_team_permission.py:254-255 `_write(home[\"user\"], allow=[RULE])` / `_write(home[\"local\"], **{listed: [RULE]})` is the only deny/ask fixture (grep of `deny|ask=|\"blocked\"` over the file finds no other). PROVIDERS.md:186 \"with `stale` when the rule is in no allow list and an allow entry names `afk-team.py` in another text ... with `blocked`\". permission.py:87 `if blocked:` ... :93 `if stale:`"
+ },
+ {
+  "id": "cs-r8-001",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 176,
+  "side": "new",
+  "finding": "The opening paragraph of PROVIDERS.md \"Spawn allow rule\" still says, with no exception, that the check \"refuses when the harness would ask first\". f004 (D-81, D-85) and f039 narrowed that promise: an ok covers only the user, project and local settings files, and organization-managed settings can still make the harness ask after an ok. The bullet at :189 of the same section and the permission.py docstring (:1-3) carry the narrowed claim. This intro sentence paraphrases the pre-correction claim that f039 removed from the docstring (\"confirm ... that the harness lets the contact agent run the team entry script ... without asking\").",
+  "why": "The intro is the first sentence a reader of the section takes as the check's contract (H15, the claude.sh comment and CONFORMANCE step 2 all point at this section). It promises a refusal in a case where the check answers ok, and the qualification sits three bullets below.",
+  "fix": "Narrow the sentence to match :189 and the docstring, for example: \"... and refuses when the settings files the adapter names do not allow the rule (organization-managed settings are not read; see below)\".",
+  "evidence": "stale PROVIDERS.md:176 \"the spawn permission check (`scripts/team/permission.py`) reads the active provider's adapter in a bash child and refuses when the harness would ask first.\"; corrected PROVIDERS.md:189 \"The check reads no organization-managed settings. A managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask after an ok\"; corrected scripts/team/permission.py:1-3 \"confirm, through the provider layer, that the one allow rule ... is in an allow list and in no block list of the settings files the adapter names ... Organization-managed settings are not read.\" Pattern used: grep of the surface for the paraphrase verbs `would ask|will let|without asking|lets the contact`, then reading every line of the PROVIDERS.md section."
+ },
+ {
+  "id": "cs-r8-002",
+  "concern": "consistency-sweep",
+  "criterion": "Uncorrected copy",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 189,
+  "side": "new",
+  "finding": "The 0009 contract's Goal states the same unqualified promise that D-85 narrows for organization-managed settings: the check \"confirms ... that the harness will let the contact agent run the team entry script for all six transport verbs\". D-85 supersedes only SDD §8 row \"Spawn permission check\" and 0009 Acceptance bullet 5, and D-88 adds ADR-0005's sequence line. No entry names the 0009 Goal for the managed-settings narrowing. D-87 does name the Goal, but only for the empty-rule narrowing (\"refuses naming the rule when it will not\"), not for what an ok means.",
+  "why": "Under the brief's rule, a contract copy that no DECISIONS.md entry supersedes is stale. The Goal is the first thing a reader of the 0009 contract reads. It promises the guarantee that PROVIDERS.md:189 says the check does not give on a machine with managed settings. The earlier rounds' ledger entries (D-85, D-87, D-88) each extended coverage one passage at a time and missed this one.",
+  "fix": "Append a DECISIONS.md entry, or extend D-85 by appending, so it also supersedes the 0009 Goal's \"the check confirms, through the provider layer, that the harness will let the contact agent run the team entry script for all six transport verbs\" for organization-managed settings only. The 0009 contract is the human's file. If its text must change, the run report asks the human.",
+  "evidence": "stale docs/afk/agent-team-topology/plan/0009-spawn-permission-check.md:2 \"Before a run's first transport command, the check confirms, through the provider layer, that the harness will let the contact agent run the team entry script for all six transport verbs, and refuses naming the rule when it will not.\"; DECISIONS.md:602 (D-85) \"Supersedes: SDD §8 row \\\"Spawn permission check\\\" and 0009 Acceptance bullet 5 — ... for organization-managed settings only\"; DECISIONS.md:624 (D-88) supersedes only ADR-0005's sequence line; DECISIONS.md:617 (D-87) names \"0009 Goal \\\"refuses naming the rule when it will not\\\"\" for the empty-rule case only; corrected PROVIDERS.md:189 \"can still make the harness ask after an ok\". Pattern used: grep `will let|confirm` over the 0009, 0010 and 0015 contracts, SDD.md, PRD.md and ADR-0005, then matching each hit against the Supersedes lines of D-84 to D-88."
+ }
+]

@@ -1,0 +1,58 @@
+[
+ {
+  "id": "ds-001",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "skills/afk/setup/MANIFEST.md",
+  "line": 386,
+  "side": "new",
+  "finding": "Row H15 now calls every `provider-layer` refusal a plugin defect, but permission.py also returns `provider-layer` for local causes: no POSIX shell found, a timeout or OSError from the bash child, or a non-zero exit (for example provider.sh failing to source). So setup tells the human to report a plugin bug when the real fix is installing bash (row C1) or retrying after a timeout. The row also says 'stop this row' but names none of SKILL.md step 6's final statuses, so the row's table cell is undefined.",
+  "why": "The text in the changed lines covers only one of the paths that return `provider-layer`. A human sent to report a plugin defect for a missing Git Bash is misdirected, and a row with no named status breaks setup's 'Done when' rule: every entry ends `ok` or a precisely named `needs-human`.",
+  "fix": "Say that a `provider-layer` refusal means the provider layer could not be read: report its `says` (which names the cause: a missing adapter function, no POSIX shell, or the layer's exit or timeout), record the row as `needs-human: <says>`, and do not print the rule or wait. Or narrow the 'plugin defect' wording to the missing-function case only.",
+  "evidence": "MANIFEST.md:386-387 \"A `provider-layer` refusal is a plugin defect, not a missing entry: report its `says` and stop this row, with no rule print and no wait.\" vs scripts/team/permission.py:104-105 \"if bash is None: return {\\\"error\\\": \\\"no POSIX shell found to read the provider layer\\\"}\", :110-111 \"except (OSError, subprocess.TimeoutExpired) as problem: return {\\\"error\\\": f\\\"the provider layer did not answer: {problem}\\\"}\", :127-128 \"found[\\\"error\\\"] = f\\\"the provider layer exited {done.returncode}: ...\\\"\", and :57-59, where every `error` becomes `_refuse(..., \\\"provider-layer\\\", ...)`; skills/afk/setup/SKILL.md step 6 statuses \"`ok` / `fixed` / `deferred (until <first use>)` / `skipped (user choice)` / ... / `needs-human: <what>`\""
+ },
+ {
+  "id": "ds-002",
+  "concern": "delta-sweep",
+  "criterion": "open question",
+  "severity": "low",
+  "class": "spec",
+  "file": "PROVIDERS.md",
+  "line": 187,
+  "side": "new",
+  "finding": "The delta adds a test that pins a fourth condition for skipping the main checkout's local file: a common git directory not named `.git` (a `--separate-git-dir` checkout). PROVIDERS.md lists only three conditions (Windows, a root at the home directory, ownership), both in this bullet and in the `afk_<name>_spawn_rule_files` table row. Whether Claude Code also skips that file for a separate git directory is unverified: the cited documentation passage, as quoted, does not say.",
+  "why": "The tested behaviour and the provider document disagree. A later editor who follows PROVIDERS.md could remove the adapter's `*/.git` guard, or a human with a separate git dir gets a `missing` refusal that the document does not explain. The refusal errs to the safe side, so the cost is a confusing message, not a wrong ok.",
+  "fix": "Add the condition to the PROVIDERS.md table row and to this bullet, marked as the adapter's own safe-side choice (unverified against Claude Code) unless the documentation confirms it.",
+  "evidence": "PROVIDERS.md:187 \"Claude Code reads the main checkout's local file for a session in a linked worktree, except on Windows, when the repository root is the home directory, or when the root, its `.git` or its `.claude` entry is not owned by the user\"; delta test scripts/tests/test_team_permission.py:158-162 \"def test_a_git_dir_not_named_dot_git_is_not_read ... \\\"--separate-git-dir\\\" ... _assert_main_file_unread(...)\"; hooks/lib/providers/claude.sh:90 \"case \\\"$main\\\" in */.git) top=${main%/.git} ;; *) return 0 ;; esac\""
+ },
+ {
+  "id": "tv-r3-001",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only / mock-echo: a negative test whose assertion cannot fail when the guard it names is removed",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 162,
+  "side": "new",
+  "finding": "The test for a git directory not named `.git` stays green when the guard it names is deleted. It asserts only that no settings file was loaded (`files == []`). With the guard gone, the adapter prints `/.claude/settings.local.json`, a path that does not exist, so nothing loads and the test still passes.",
+  "why": "`_assert_main_file_unread` checks the files that loaded, not the files the adapter listed. A mutant that lists a wrong path passes whenever that path happens not to exist. That is the defect the guard at claude.sh:90 exists to prevent: reading a file the harness does not read. Scratch-copy probe (Git Bash, the Windows `uname` skip neutralised in both copies): the base function lists nothing past the three standard files. Mutant m1, with `*) return 0` deleted, lists `/.claude/settings.local.json`. The home-directory test does kill its own mutant: m2, with line 93 deleted, lists `.../a/main/.claude/settings.local.json`.",
+  "fix": "Assert on what the adapter lists, not on what loads. Run `afk_claude_spawn_rule_files <tree>` through the provider layer in a bash child and assert it prints exactly the three standard paths. Apply the same assertion in `_assert_main_file_unread`, so every main-checkout guard test fails when any extra path is listed.",
+  "evidence": "test_team_permission.py:126-127 `def _assert_main_file_unread(answer: dict) -> None:\n    assert answer[\"ok\"] is False and answer[\"problem\"] == \"missing\" and answer[\"files\"] == []`; :160-162 `def test_a_git_dir_not_named_dot_git_is_not_read(...): _, tree = _linked_worktree(home, tmp_path, \"--separate-git-dir\", ...); _assert_main_file_unread(...)`; claude.sh:90 `case \"$main\" in */.git) top=${main%/.git} ;; *) return 0 ;; esac`; permission.py:70-73 `settings = _load(path)\n        if settings is None:\n            continue\n        read.append(path)`; probe output for m1 sepgit: `/.claude/settings.local.json`"
+ },
+ {
+  "id": "sai-r3-01",
+  "concern": "scope-and-impact",
+  "criterion": "open question (PRECEDENCE rule 5): a changed register-row contract whose reader was not updated",
+  "severity": "low",
+  "class": "scope",
+  "file": "skills/afk/setup/MANIFEST.md",
+  "line": 387,
+  "side": "new",
+  "finding": "The H15 Probe now defines a new terminal outcome ('stop this row') for a provider-layer refusal, but the row's reader, /afk:setup, has no matching status or branch: the opt-in tier rule classifies any probe miss as `opt-in available` and offers it in the election (accept runs the Fix, which prints the rule), and step 6's final-table status set has no 'stopped' entry.",
+  "why": "An agent running setup on a provider-layer refusal gets two instructions that disagree (offer the row and print the rule on accept vs stop with no rule print), and no status to report it under, so the plugin-defect signal may be reported as a plain `skipped (user choice)` or lost.",
+  "fix": "Name the status the row reports in the stop case, using an existing step 6 status (for example `needs-human: plugin defect, <says>`), and say the row is not offered in the election when the probe's problem is provider-layer.",
+  "evidence": "MANIFEST.md:385-387 (delta): \"A `provider-layer` refusal is a plugin defect, not a missing entry: report its `says` and stop this row, with no rule print and no wait.\" vs MANIFEST.md:27-30: \"a probe miss classifies `opt-in available`, never `missing/broken`. Offered at report time as an election on **every** branch, deselected by default; accept ⇒ run the fix\" and skills/afk/setup/SKILL.md:133-135: \"final table (`ok` / `fixed` / `deferred (until <first use>)` / `skipped (user choice)` / `skipped (no repository config)` / `skipped (no repository)` / `needs-human: <what>`)\""
+ }
+]
