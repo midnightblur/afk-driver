@@ -37,6 +37,8 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-20
+
 ### Added
 
 - `/afk:execute` Step 11 runs the wiring scan as advice after review
