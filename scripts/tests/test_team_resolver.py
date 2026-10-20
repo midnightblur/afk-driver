@@ -449,7 +449,12 @@ def _same_as_added():
                    steps=[{"name": "one", "roles": ["a", "b"], "debate": True}]),
       "q": pattern("q", roles=DEBATERS, steps=[{"name": "two", "roles": ["a", "b"], "debate": True}]),
       "r": pattern("r", roles={resolver.MODERATOR: role()})}, "r", "one of pattern p"),
-], ids=["included-role", "own-role", "same-values-as-added", "first-debate-step-named"])
+    *[({"p": pattern("p", roles={}, charter=None, includes=["q", "r"], steps=[{"name": "go", "roles": []}]),
+        "q": pattern("q", roles={resolver.MODERATOR: fields()}),
+        "r": pattern("r", roles=DEBATERS, steps=ARGUE)}, "q", "argue of pattern r")
+      for fields in (role, _same_as_added)],
+], ids=["included-role", "own-role", "same-values-as-added", "first-debate-step-named", "role-walked-first",
+        "same-values-walked-first"])
 def test_a_role_named_like_the_added_moderator_is_refused_naming_both(tmp_path, saved, owner, step):
     message = refused(tmp_path, "p", saved=saved)
     assert f"role moderator of pattern {owner} takes the name" in message
