@@ -4,13 +4,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
-
-import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = PLUGIN_ROOT / "scripts" / "worktree_owner.py"
@@ -24,28 +21,21 @@ def load():
 
 
 owner = load()
-# afk-python is a venv launcher that cannot run renamed; copy the interpreter it starts.
 BASE = Path(getattr(sys, "_base_executable", None) or sys.executable)
 
 
-def fake_harness(tmp_path: Path) -> Path:
-    """A copy of the interpreter under a harness-like name."""
-    suffix = ".exe" if os.name == "nt" else ""
-    target = tmp_path / f"fakeharness{suffix}"
-    shutil.copy(BASE, target)
-    return target
-
-
 def find_in_child() -> str:
-    """Source for a child process of the renamed harness that prints `find_owner()` as JSON."""
+    """Source for a child process that prints `find_owner()` as JSON."""
     code = (f"import sys, json; sys.path.insert(0, {str(SCRIPT.parent)!r}); import worktree_owner; "
             "print(json.dumps(worktree_owner.find_owner()))")
     return f"subprocess.run([sys.executable, '-c', {code!r}], capture_output=True, text=True).stdout"
 
 
-def harness_env() -> dict:
+def harness_env(owner_process: str | None = None) -> dict:
     environ = dict(os.environ, PYTHONHOME=sys.base_prefix)
     environ["PATH"] = str(BASE.parent) + os.pathsep + environ["PATH"]
+    if owner_process:
+        environ["AFK_OWNER_PROCESS"] = owner_process
     return environ
 
 
@@ -72,28 +62,28 @@ def test_a_pid_that_does_not_exist_is_dead():
     assert owner.state(child.pid, "1") == "dead"
 
 
-def test_owner_is_the_first_ancestor_that_is_not_a_shell_or_interpreter(tmp_path):
-    harness = fake_harness(tmp_path)
-    inner = f"import subprocess, sys; sys.stdout.write({find_in_child()})"
-    done = subprocess.run([str(harness), "-c", inner], capture_output=True, text=True,
-                          env=harness_env(), timeout=60)
-    if done.returncode != 0:
-        pytest.skip(f"cannot run a renamed interpreter here: {done.stderr[:200]}")
-    found = json.loads(done.stdout)  # empty output is our code failing: a failure, never a skip
-    assert found["name"].lower().startswith("fakeharness")
-    assert found["ctime"]
+def test_owner_is_the_first_ancestor_that_is_not_a_shell_or_interpreter(monkeypatch):
+    processes = {
+        40: (30, "python.exe"),
+        30: (20, "bash.exe"),
+        20: (10, "ownerhost.exe"),
+        10: (0, "terminal.exe"),
+    }
+    created = {40: "40", 30: "30", 20: "20", 10: "10"}
+    monkeypatch.setattr(owner, "snapshot", lambda: processes)
+    monkeypatch.setattr(owner, "creation_time", lambda pid: created.get(pid))
+
+    assert owner.find_owner(40) == {"pid": 20, "ctime": "20", "name": "ownerhost.exe"}
 
 
 def test_a_creator_that_exited_leaves_the_recorded_owner_alive(tmp_path):
-    """The record names the harness, so the short-lived creator's exit changes nothing."""
-    harness = fake_harness(tmp_path)
+    """The record names the selected owner, so the short-lived creator's exit changes nothing."""
     inner = f"import subprocess, sys; print({find_in_child()}, flush=True)"
-    holder = subprocess.Popen([str(harness), "-c", inner + ";import time;time.sleep(20)"],
-                              stdout=subprocess.PIPE, text=True, env=harness_env())
+    holder = subprocess.Popen([str(BASE), "-c", inner + ";import time;time.sleep(20)"],
+                              stdout=subprocess.PIPE, text=True, cwd=tmp_path,
+                              env=harness_env(owner.basename(BASE.name)))
     try:
         line = holder.stdout.readline()
-        if not line.strip() and holder.poll() not in (None, 0):
-            pytest.skip("cannot run a renamed interpreter here")
         record = json.loads(line)
         assert owner.state(record["pid"], record["ctime"]) == "alive"
     finally:
@@ -101,6 +91,7 @@ def test_a_creator_that_exited_leaves_the_recorded_owner_alive(tmp_path):
         holder.wait()
     time.sleep(0.3)
     assert owner.state(record["pid"], record["ctime"]) in ("dead", "unknown")
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_cli_state_and_find_answer(tmp_path):
