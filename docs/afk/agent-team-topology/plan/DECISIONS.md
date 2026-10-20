@@ -515,3 +515,75 @@
 - Chosen: B — it is the start-time check repeated, so no new code reaches the README row or the arming step; checking only on an empty scan keeps a file renamed away mid-scan from ending the wait
 - Supersedes: D-69 — for the meaning of exit 2 only (usage error, or an inbox folder gone or unreadable)
 - To reverse: remove the folder check in the loop, the "is gone" smoke case and the README wording
+
+## D-74 — Re-take the ground of the setup-row seam with one fresh investigation
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 4)
+- Options: A — build on INV-068 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-080) at 53d1586 over INV-068's roots (MANIFEST, set_instruction_files) and its declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — the ground diff exits 1: the cited ledger ran in another worktree at 13bec6d, and scripts/team/manifest.py, its tests, the plan files and the review files that name MANIFEST were added since; the run allows one child at a time, so the two tracers run in sequence, as D-68 did
+- Supersedes: none
+- To reverse: drop INV-080 and cite INV-068 again
+
+## D-75 — The spawn rule names the plugin-root variable, so one text survives plugin updates
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 5)
+- Options: A — a rule on the installed, versioned path of scripts/afk-team.py, changed at every plugin update vs B — a wildcard before the script, `Bash(afk-python *afk-team.py *)` vs C — `Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" *)`, matching the command text the contact agent writes for each verb, `afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" <verb> '<json>'`
+- Chosen: C — a Bash rule matches the command text as written and `*` stands for any text (code.claude.com/docs/en/permissions, "Wildcard patterns", read 2026-10-20); A goes stale at every update; B draws the documented startup warning for a `*` before the subcommand and matches any script named afk-team.py; C settles SDD §13 Q11 for the rule text, and the run check still catches a stale entry
+- Supersedes: none
+- To reverse: change AFK_SPAWN_ALLOW_RULE and INVOCATION in scripts/team/permission.py together
+- Surfaced gap: 0010-team-entry-script and 0015-team-skill-and-manifests must write every entry-script call in exactly the form `permission.INVOCATION <verb> …`, with AFK_PLUGIN_ROOT set in the contact agent's shell; neither contract says so yet. Whether the harness lets a `${…}` reference in an allowed command run without asking is unverified until the live trial in SDD §9b row "Claude Code auto-mode classifier" is repeated with the rule present
+
+## D-76 — The provider adapter owns the rule, the settings files and the lists; the check holds no harness fact
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 5)
+- Options: A — scripts/team/permission.py reads the Claude settings files itself vs B — claude.sh answers three functions (afk_claude_spawn_allow_rule, afk_claude_spawn_rule_files, afk_claude_spawn_rule_lists), codex.sh answers afk_codex_spawn_allow_rule with nothing, and permission.py calls them by name in a bash child sourcing hooks/lib/provider.sh, as scripts/team/probe.py does
+- Chosen: B — AGENTS.md "Harness-agnostic by default" puts provider behaviour in hooks/lib/providers/<name>.sh, and Scope holds no claude_*.py helper; provider.sh has no dispatcher for these names (INV-080) and is outside Scope, so the check builds `afk_<provider>_spawn_*` itself
+- Supersedes: none
+- To reverse: move the file list and list keys into permission.py and drop the two Claude functions
+- Surfaced gap: the add-harness checklist in providers/CONFORMANCE.md:402-408 does not list the new adapter functions (INV-080); 0010 holds that file in its Scope
+
+## D-77 — What the check accepts and refuses
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 5)
+- Options: A — reimplement the harness's wildcard matcher and accept any allow entry that matches all six verb commands vs B — ok only when the constant itself is in an allow list of a readable settings file and in no block list (deny, ask); an allow entry naming afk-team.py in another text is `stale`, none is `missing`, the constant in a block list is `blocked`; unreadable files are skipped; a provider whose adapter prints no rule, and an `unknown` provider, answer ok with a reason
+- Chosen: B — ADR-0005 has setup print one exact rule and confirm it, so the constant is what the human adds; exact text keeps the harness's matcher out of the plugin, and a start-only or old-path entry still refuses. `unknown` answers ok because a Codex agent shell detects `unknown` (providers/CONFORMANCE.md:434, INV-080); refusing it would stop every Codex-contact run, which needs no rule
+- Supersedes: none
+- To reverse: add a wildcard matcher to permission.py and accept matching entries; refuse `unknown`
+
+## D-78 — An IOU carries the spawn rule's command form to the entry script and the team skill
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 1, review key f005)
+- Options: A — leave the requirement in D-75's surfaced gap only vs B — one anchored line in `.claude/wiring-ious.md` keyed on `scripts/team/permission.py#INVOCATION`, naming 0010 and 0015 as the callers that must write every entry-script call as `INVOCATION <verb> …` with AFK_PLUGIN_ROOT set
+- Chosen: B — the plan contracts are the human's, and the run's IOU file is where an artifact's not-yet-built consumer is tracked (D-71 precedent); without it the check can answer ok while the harness still asks at the first verb
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one IOU line only
+- To reverse: delete the line
+
+## D-79 — A detected harness whose adapter has no spawn functions refuses
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 1, review key f006)
+- Options: A — keep D-77: an adapter with no `afk_<provider>_spawn_allow_rule` answers ok vs B — answer ok only when the function exists and prints no rule (as codex.sh does); a detected provider missing it gets a `provider-layer` refusal pointing at PROVIDERS.md "Spawn allow rule"
+- Chosen: B — A lets a new harness that asks before shell commands ship without the functions and pass silently; only claude.sh and codex.sh exist and both define the function, so B refuses nothing today; `unknown` still answers ok per D-77
+- Supersedes: D-77 — the clause "a provider whose adapter prints no rule … answer ok", for an adapter that lacks the function
+- To reverse: exit 0 again when the function is undefined
+
+## D-80 — The setup register's new row gets its changelog line in this slice
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 1, review key f008)
+- Options: A — leave it to a later slice vs B — one line under `## [Unreleased]` in CHANGELOG.md now
+- Chosen: B — FRESHNESS.md's CHANGELOG row requires the line in the same commit as a dev-visible change, and no later contract that holds CHANGELOG.md names row H15
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one CHANGELOG line only
+- To reverse: delete the line
+
+## D-81 — The check leaves organization-managed settings out and says so
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 1, review key f004)
+- Options: A — read the three per-OS `managed-settings.json` paths vs B — read no managed source; PROVIDERS.md states that a managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask after an ok
+- Chosen: B — managed settings come from server-managed settings, an MDM plist or HKLM registry value, `managed-settings.json` plus `managed-settings.d/`, and an HKCU registry value, and the harness selects among them by rank (code.claude.com/docs/en/managed-settings, "How Claude Code combines managed sources", read 2026-10-20); a read of one file would answer for a source the harness may not select, and the live trial owed to providers/CONFORMANCE.md stays the proof
+- Supersedes: none
+- To reverse: add the managed sources to `afk_claude_spawn_rule_files` with block lists
+
+## D-82 — The add-harness checklist names the spawn functions now
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 2, review key f018)
+- Options: A — leave it to 0010, which holds providers/CONFORMANCE.md in its Scope but names no such task vs B — add the three `afk_<name>_spawn_*` functions to step 2 of "Add harness #N" in providers/CONFORMANCE.md now, pointing at PROVIDERS.md "Spawn allow rule"
+- Chosen: B — D-79 makes the functions required for any detected harness, so the checklist must name them; no contract or IOU tracks the step, and one added sentence is easy to undo
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for this one sentence only; D-76's surfaced gap is closed
+- To reverse: delete the sentence
+
+## D-83 — Correct where D-75's rule text lives
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 4, review key f030)
+- Options: A — leave D-75's "To reverse" line, which places AFK_SPAWN_ALLOW_RULE in scripts/team/permission.py vs B — record that the rule text is the variable AFK_SPAWN_ALLOW_RULE local to afk_claude_spawn_allow_rule in hooks/lib/providers/claude.sh, and the command form is INVOCATION in scripts/team/permission.py
+- Chosen: B — the round 1 fix for f007 moved the rule into the adapter function; the ledger is append-only, so this entry corrects D-75 instead of editing it
+- Supersedes: D-75 — its "To reverse" line: change AFK_SPAWN_ALLOW_RULE in afk_claude_spawn_allow_rule (hooks/lib/providers/claude.sh) and INVOCATION in scripts/team/permission.py together
+- To reverse: delete this entry

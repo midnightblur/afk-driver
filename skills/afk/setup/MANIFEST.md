@@ -26,9 +26,11 @@ tier is elective per item — the human picks what to install at report time
 
 **Opt-in tier.** Entries tagged **[opt-in]** are user preferences, never
 load-bearing: a probe miss classifies `opt-in available`, never
-`missing/broken`. Offered at report time as an election on **every** branch,
-deselected by default; accept ⇒ run the fix, decline ⇒ `skipped (user choice)`
-(mechanics: `SKILL.md` step 3).
+`missing/broken`, unless the entry's `Probe:` names another status for that
+miss; that status then holds with or without a human present. Offered at
+report time as an election on **every** branch, deselected by default;
+accept ⇒ run the fix, decline ⇒ `skipped (user choice)` (mechanics: `SKILL.md`
+step 3).
 
 **Secrets discipline.** Probes check *presence only*. Never print, log, or echo
 a token value — not even partially.
@@ -385,14 +387,16 @@ a token value — not even partially.
   rule, the settings file and the list, or `provider-layer` with a `says` that
   names the cause and no settings file. A `provider-layer` refusal is not a
   missing entry: do not offer this row in the election, print no rule, wait
-  for nothing, and report `needs-human: <says>`.
+  for nothing, and report `needs-human: <cause>`, the cause being the `says`
+  text before `; run /afk:setup`. This holds with no human present too.
 - **Fix:** `human:` print the rule as a JSON string with
   `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" rule --json`, and
   the probe's `says` line. The human adds that one entry to the allow list in
   their own user settings file. Wait until the human says it is added, then
   probe again (step 5). Setup never writes the rule or any settings file.
-- **Notes:** with no human present, skip this row: it stays deselected in
-  `SKILL.md` step 3's election and reports `skipped (user choice)`. The probe
+- **Notes:** with no human present, skip this row unless the probe refused
+  with `provider-layer`: it stays deselected in `SKILL.md` step 3's election
+  and reports `skipped (user choice)`. The probe
   checks this session's harness only; run `/afk:setup` from the other harness
   to check its rule. The rule names the plugin-root variable, not a versioned
   path, so one rule stays valid across plugin updates; an entry left from

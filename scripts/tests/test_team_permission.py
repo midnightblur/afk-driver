@@ -166,6 +166,19 @@ def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> 
 
 
 @needs_bash
+@needs_git
+@off_windows
+def test_a_main_checkout_entry_owned_by_another_user_is_not_read(home: dict, tmp_path: Path) -> None:
+    foreign = Path(shutil.which("sh") or "").parent
+    if not hasattr(os, "getuid") or not foreign.is_dir() or foreign.stat().st_uid == os.getuid():
+        pytest.skip("no directory owned by another user to link to")
+    main, tree = _linked_worktree(home, tmp_path)
+    shutil.rmtree(main / ".claude")
+    (main / ".claude").symlink_to(foreign, target_is_directory=True)
+    _assert_main_file_unread(tree, home["env"])
+
+
+@needs_bash
 def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
     start_only = RULE[:-len(" *)")] + " agent-start *)"
     assert _matches(start_only, permission.verb_commands()[0])

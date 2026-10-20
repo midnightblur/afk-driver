@@ -84,7 +84,7 @@ afk_claude_spawn_rule_files() {
   local root=${1:-.} main top home entry
   printf '%s\n' "${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/settings.json" \
     "$root/.claude/settings.json" "$root/.claude/settings.local.json"
-  # The main checkout's local file counts only off Windows, outside the home directory, on user-owned entries.
+  # The main checkout's local file counts only under the conditions PROVIDERS.md "Spawn allow rule" lists.
   case $(uname -s 2>/dev/null) in MINGW*|MSYS*|CYGWIN*) return 0 ;; esac
   main=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
   case "$main" in */.git) top=${main%/.git} ;; *) return 0 ;; esac
