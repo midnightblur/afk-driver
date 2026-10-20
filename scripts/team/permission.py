@@ -1,6 +1,7 @@
 """The spawn permission check: confirm, through the provider layer, that the one allow rule covering the team entry
-script for every transport verb is in an allow list and in no block list of the settings files the adapter names,
-or refuse naming /afk:setup and the rule when the adapter printed one. Organization-managed settings are not read.
+script for every transport verb is in an allow list, and that no block-list entry matches a verb command, in the
+settings files the adapter names; or refuse naming /afk:setup and the rule when the adapter printed one.
+Organization-managed settings are not read.
 
 The provider adapter owns the rule text, the settings files the harness reads and the lists in them
 (PROVIDERS.md "Spawn allow rule"); this module reads them in a bash child and holds no harness fact itself.
@@ -41,8 +42,20 @@ printf 'rule\t%s\n' "$r"
 [ -n "$r" ] || exit 0
 need "afk_${p}_spawn_rule_files"
 need "afk_${p}_spawn_rule_lists"
+need "afk_${p}_spawn_rule_blocks"
 "afk_${p}_spawn_rule_files" "$2" | while IFS= read -r f; do printf 'file\t%s\n' "$(host "$f")"; done
 "afk_${p}_spawn_rule_lists" | while IFS= read -r l; do printf 'list\t%s\n' "$l"; done
+'''
+
+_BLOCKS = r'''
+. "$1/hooks/lib/provider.sh" </dev/null || exit 2
+p=$(afk_provider </dev/null)
+shift
+n=0
+while IFS= read -r entry; do
+  n=$((n + 1)) entry=${entry%$'\r'}
+  if hit=$("afk_${p}_spawn_rule_blocks" "$entry" "$@" </dev/null); then printf '%s\t%s\n' "$n" "$hit"; fi
+done
 '''
 
 
@@ -80,14 +93,19 @@ def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | N
                 if rule in entries:
                     allowed.append(path)
                 stale += [(path, e) for e in entries if ENTRY_NAME in e and e != rule]
-            elif rule in entries:
-                blocked.append(f"{path} {key}")
+            else:
+                blocked += [(path, key, e) for e in entries if "\n" not in e]
     allow_key = next((key for kind, key in adapter["lists"] if kind == "allow"), "allow list")
     target = adapter["files"][0] if adapter["files"] else "the user settings file"
-    if blocked:
-        return _refuse(provider, rule, "blocked", f"the spawn rule `{rule}` is also listed in {', '.join(blocked)}, "
-                       f"which the harness reads before {allow_key}; remove it there, then run {SETUP}; "
-                       "nothing was started", read)
+    hits = _blocks([e for _, _, e in blocked], env, run) if blocked else {}
+    if "error" in hits:
+        return _refuse(provider, rule, "provider-layer", f"{hits['error']}; run {SETUP}; nothing was started", read)
+    if hits:
+        first = min(hits)
+        holder, key, entry = blocked[first]
+        return _refuse(provider, rule, "blocked", f"{holder} {key} holds `{entry}`, which matches `{hits[first]}`; "
+                       f"the harness reads it before {allow_key}, so the spawn rule `{rule}` does not apply; "
+                       f"remove it there, then run {SETUP}; nothing was started", read)
     if allowed:
         return {"ok": True, "provider": provider, "rule": rule, "problem": None, "files": read,
                 "says": f"the spawn rule is in {allowed[0]} {allow_key}"}
@@ -131,6 +149,28 @@ def _adapter(root: Path, env: Mapping[str, str] | None, run: Callable) -> dict:
     elif done.returncode != 0:
         found["error"] = f"the provider layer exited {done.returncode}: {done.stderr.strip()}"
     return found
+
+
+def _blocks(entries: list[str], env: Mapping[str, str] | None, run: Callable) -> dict:
+    """{index into entries: the first verb command that entry matches}, by the adapter's matcher."""
+    bash = _bash()
+    if bash is None:
+        return {"error": "no POSIX shell found to read the provider layer"}
+    child = dict(os.environ if env is None else env)
+    try:
+        done = run([str(bash), "-c", _BLOCKS, "permission", str(PLUGIN), *verb_commands()],
+                   input="".join(f"{e}\n" for e in entries), capture_output=True, text=True, timeout=30,
+                   env=child, check=False)
+    except (OSError, subprocess.TimeoutExpired) as problem:
+        return {"error": f"the provider layer did not answer: {problem}"}
+    if done.returncode != 0:
+        return {"error": f"the provider layer exited {done.returncode}: {done.stderr.strip()}"}
+    hits = {}
+    for line in done.stdout.splitlines():
+        index, _, command = line.partition("\t")
+        if index.isdigit() and 0 < int(index) <= len(entries):
+            hits.setdefault(int(index) - 1, command)
+    return hits
 
 
 def _load(path: str) -> object | None:

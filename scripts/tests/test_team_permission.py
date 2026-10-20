@@ -261,6 +261,40 @@ def test_the_rule_in_a_block_list_refuses(home: dict, listed: str, allowed: list
     assert f"permissions.{listed}" in answer["says"]
 
 
+_VERB = 'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-team.py" VERB *)'
+
+
+@pytest.mark.parametrize("where, listed, entry, verb", [
+    ("project", "deny", "Bash", "agent-start"),
+    ("project", "deny", "Bash(*)", "agent-start"),
+    ("project", "deny", "Bash(afk-python:*)", "agent-start"),
+    ("project", "deny", "Bash(afk-python *)", "agent-start"),
+    ("project", "deny", _VERB.replace("VERB", "agent-send"), "agent-send"),
+    ("user", "deny", _VERB.replace("VERB", "agent-start"), "agent-start"),
+    ("local", "ask", _VERB.replace("VERB", "agent-stop"), "agent-stop"),
+    ("local", "ask", "Bash(*afk-team.py*)", "agent-start"),
+])
+@needs_bash
+def test_a_block_entry_matching_a_verb_refuses(home: dict, where: str, listed: str, entry: str, verb: str) -> None:
+    _write(home["user"], allow=[RULE], **({listed: [entry]} if where == "user" else {}))
+    if where != "user":
+        _write(home[where], **{listed: [entry]})
+    answer = _check(home)
+    _assert_refused(answer, "blocked")
+    assert f"permissions.{listed} holds `{entry}`, which matches `" in answer["says"]
+    assert f'/scripts/afk-team.py" {verb} ' in answer["says"]
+
+
+@pytest.mark.parametrize("entry", ["Bash(git status)", "Read(*)", "bash(*)", "Bash(afk-python)", "Bash(*[a]*)",
+                                   'Bash(afk-python "${AFK_PLUGIN_ROOT}/scripts/afk-config.py" *)',
+                                   "Bash(* agent-send ?{}?)"])
+@needs_bash
+def test_a_block_entry_matching_no_verb_leaves_ok(home: dict, entry: str) -> None:
+    _write(home["user"], allow=[RULE], deny=[entry])
+    answer = _check(home)
+    assert answer["ok"] is True and answer["problem"] is None
+
+
 @needs_bash
 def test_an_unreadable_settings_file_is_skipped(home: dict) -> None:
     home["user"].write_text("{not json", encoding="utf-8")
@@ -292,6 +326,9 @@ _PRINTS_RULE = "afk_newharness_spawn_allow_rule() { printf '%s\\n' 'Bash(x *)'; 
     (_PRINTS_RULE, "afk_newharness_spawn_rule_files", "Bash(x *)"),
     (_PRINTS_RULE + "afk_newharness_spawn_rule_files() { printf '%s\\n' /nowhere; }\n",
      "afk_newharness_spawn_rule_lists", "Bash(x *)"),
+    (_PRINTS_RULE + "afk_newharness_spawn_rule_files() { printf '%s\\n' /nowhere; }\n"
+     "afk_newharness_spawn_rule_lists() { printf '%s\\n' 'allow permissions.allow'; }\n",
+     "afk_newharness_spawn_rule_blocks", "Bash(x *)"),
 ])
 @needs_bash
 def test_a_detected_harness_without_the_spawn_functions_refuses(home: dict, tmp_path: Path, monkeypatch,

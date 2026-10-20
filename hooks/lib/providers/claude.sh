@@ -100,3 +100,28 @@ afk_claude_spawn_rule_files() {
 afk_claude_spawn_rule_lists() {
   printf '%s\n' 'allow permissions.allow' 'block permissions.deny' 'block permissions.ask'
 }
+
+# Prints the first command in $2... that permission rule $1 matches, else exits 1 (PROVIDERS.md "Spawn allow rule").
+afk_claude_spawn_rule_blocks() {
+  local entry=$1 pat rest seg text command
+  shift
+  case $entry in
+    Bash) printf '%s\n' "$1"; return 0 ;;
+    'Bash('*')') pat=${entry#Bash\(}; pat=${pat%\)} ;;
+    *) return 1 ;;
+  esac
+  case $pat in *:\*) pat="${pat%:\*} *" ;; esac
+  for command in "$@"; do
+    case $pat in *\**) ;; *) [ "$pat" = "$command" ] && { printf '%s\n' "$command"; return 0; }; continue ;; esac
+    seg=${pat%%\**} rest=${pat#*\*}
+    case $command in "$seg"*) text=${command#"$seg"} ;; *) continue ;; esac
+    while :; do
+      case $rest in
+        *\**) seg=${rest%%\**} rest=${rest#*\*}
+              case $text in *"$seg"*) text=${text#*"$seg"} ;; *) continue 2 ;; esac ;;
+        *) case $text in *"$rest") printf '%s\n' "$command"; return 0 ;; esac; continue 2 ;;
+      esac
+    done
+  done
+  return 1
+}

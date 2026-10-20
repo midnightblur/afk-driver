@@ -378,12 +378,13 @@ a token value — not even partially.
 - **Needed by:** a team run whose contact agent runs in a harness that asks
   before each shell command no allow rule covers. The run's spawn permission
   check (`scripts/team/permission.py`) refuses the first transport command
-  until the rule is in an allow list and in no block list. Which harness, the
-  rule, and the settings files:
+  until the rule is in an allow list and no block-list entry matches a verb
+  command. Which harness, the rule, and the settings files:
   `PROVIDERS.md` "Spawn allow rule".
 - **Probe:** `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" check`
   — exit 0 when this session's harness needs no rule, or when the rule is in an
-  allow list and in no block list; exit 1 prints one JSON refusal. Its
+  allow list and no block-list entry matches a verb command; exit 1 prints one
+  JSON refusal. Its
   `problem` is `missing`, `stale` or `blocked` with a `says` that names the
   rule, the settings file and the list, or `provider-layer` with a `says` that
   names the cause and no settings file. A `provider-layer` refusal is not a
