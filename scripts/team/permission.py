@@ -1,5 +1,6 @@
-"""The spawn permission check: confirm, through the provider layer, that the harness lets the contact agent run the
-team entry script for every transport verb without asking, or refuse naming the one allow rule and /afk:setup.
+"""The spawn permission check: confirm, through the provider layer, that the one allow rule covering the team entry
+script for every transport verb is in an allow list and in no block list of the settings files the adapter names,
+or refuse naming /afk:setup and the rule when the adapter printed one. Organization-managed settings are not read.
 
 The provider adapter owns the rule text, the settings files the harness reads and the lists in them
 (PROVIDERS.md "Spawn allow rule"); this module reads them in a bash child and holds no harness fact itself.
@@ -52,7 +53,9 @@ def verb_commands() -> list[str]:
 
 def check_spawn_permission(root: Path | str = ".", *, env: Mapping[str, str] | None = None,
                            run: Callable = subprocess.run) -> dict:
-    """check() → ok, or a refusal carrying the rule text: {ok, provider, rule, problem, says, files}."""
+    """check() → ok, or a refusal carrying the adapter's rule text, "" if it printed none.
+
+    Returns {ok, provider, rule, problem, says, files}."""
     adapter = _adapter(Path(root).resolve(), env, run)
     if "error" in adapter:
         return _refuse(adapter.get("provider", "unknown"), adapter.get("rule", ""), "provider-layer",

@@ -165,18 +165,31 @@ def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> 
     _assert_main_file_unread(tree, home["env"])
 
 
+@pytest.mark.parametrize("entry", ["root", "git dir", ".claude"])
 @needs_bash
 @needs_git
 @off_windows
-def test_a_main_checkout_claude_dir_owned_by_another_user_is_not_read(home: dict, tmp_path: Path) -> None:
-    # Only `.claude` can belong to another user without root; the root and git-dir ownership checks stay untested.
+def test_a_main_checkout_entry_owned_by_another_user_is_not_read(home: dict, tmp_path: Path, entry: str) -> None:
     foreign = Path(shutil.which("sh") or "").parent
     if not hasattr(os, "getuid") or not foreign.is_dir() or foreign.stat().st_uid == os.getuid():
         pytest.skip("no directory owned by another user to link to")
-    main, tree = _linked_worktree(home, tmp_path)
-    shutil.rmtree(main / ".claude")
-    (main / ".claude").symlink_to(foreign, target_is_directory=True)
-    _assert_main_file_unread(tree, home["env"])
+    env, tree = home["env"], home["repo"]
+    if entry == ".claude":
+        main, tree = _linked_worktree(home, tmp_path)
+        shutil.rmtree(main / ".claude")
+        (main / ".claude").symlink_to(foreign, target_is_directory=True)
+    else:
+        # A stub git names the common dir, so the root or the git dir can belong to another user without root.
+        top = foreign if entry == "root" else tmp_path / "top"
+        if entry == "git dir":
+            top.mkdir()
+            (top / ".git").symlink_to(foreign, target_is_directory=True)
+        stub = tmp_path / "bin"
+        stub.mkdir()
+        (stub / "git").write_text(f"#!/bin/sh\nprintf '%s\\n' '{top}/.git'\n", encoding="utf-8", newline="\n")
+        (stub / "git").chmod(0o755)
+        env = dict(env, PATH=f"{stub}{os.pathsep}{env.get('PATH', '')}")
+    _assert_main_file_unread(tree, env)
 
 
 @needs_bash
@@ -188,6 +201,15 @@ def test_a_rule_for_the_start_alone_is_not_enough(home: dict) -> None:
     answer = _check(home)
     assert answer["ok"] is False and answer["problem"] == "stale" and start_only in answer["says"]
     assert RULE in answer["says"]
+
+
+@needs_bash
+def test_the_current_rule_beside_an_old_entry_gives_ok(home: dict) -> None:
+    old = 'Bash(afk-python "/opt/plugins/afk/1.0.0/scripts/afk-team.py" *)'
+    _write(home["user"], allow=[old])
+    _write(home["local"], allow=[RULE])
+    answer = _check(home)
+    assert answer["ok"] is True and answer["problem"] is None and answer["rule"] == RULE
 
 
 @needs_bash

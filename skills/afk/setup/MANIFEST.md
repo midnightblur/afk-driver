@@ -400,7 +400,8 @@ a token value — not even partially.
   checks this session's harness only; run `/afk:setup` from the other harness
   to check its rule. The rule names the plugin-root variable, not a versioned
   path, so one rule stays valid across plugin updates; an entry left from
-  another rule text makes the probe answer `stale`. To withdraw the rule, the
+  another rule text makes the probe answer `stale` while the current rule is
+  absent, and the current rule beside it answers ok. To withdraw the rule, the
   human removes the entry from the settings file.
 
 ## C — Shell & core CLIs

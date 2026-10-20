@@ -609,3 +609,10 @@
 - Supersedes: SDD §8 row "Spawn permission check" and §9b row "Claude Code auto-mode classifier" — "naming the rule", for a `provider-layer` refusal raised before the adapter prints a rule
 - To reverse: give the check a fallback rule text per provider
 - Surfaced gap: 0015-team-skill-and-manifests Acceptance (line 37) says a refusal "names the rule and /afk:setup"; the team skill built from it must name the rule only when the refusal's `rule` is not empty — the human narrows that bullet
+
+## D-87 — D-86 also narrows the contract's and the team skill's "names the rule"
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 6, review keys f040 and f041)
+- Options: A — leave D-86 superseding SDD §8 and §9b only vs B — extend it to every plan passage that promises a refusal names the rule
+- Chosen: B — the same empty rule on an early `provider-layer` refusal reaches every reader of these passages; one entry keeps the narrowing in one home
+- Supersedes: SDD §8 row "Spawn permission check" interface column "a refusal carrying the rule text"; 0009 Goal "refuses naming the rule when it will not", Acceptance bullets 4, 5 and 7 and the Produces line "a refusal naming the rule"; 0015 Acceptance line 37 "names the rule and /afk:setup" — each for a `provider-layer` refusal raised before the adapter prints a rule, which carries an empty `rule` and still names `/afk:setup`
+- To reverse: give the check a fallback rule text per provider, then drop D-86 and this entry
