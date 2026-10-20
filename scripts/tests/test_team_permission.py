@@ -126,7 +126,7 @@ def _linked_worktree(home: dict, tmp_path: Path, *init: str) -> tuple[Path, Path
 def _assert_main_file_unread(tree: Path, env: dict) -> None:
     listed = permission._adapter(tree.resolve(), env, subprocess.run)["files"]
     # The listing is the discriminating assertion: no settings file exists under a foreign entry.
-    assert len(listed) == 3,f"the adapter lists only the user file and the worktree's two files: {listed}"
+    assert len(listed) == 3, f"the adapter lists only the user file and the worktree's two files: {listed}"
     answer = permission.check_spawn_permission(tree, env=env)
     assert answer["ok"] is False and answer["problem"] == "missing" and answer["files"] == []
 
@@ -248,10 +248,12 @@ def test_a_stale_refusal_names_the_file_that_holds_the_entry(home: dict, where: 
     assert "config/settings.json" not in answer["says"]
 
 
+@pytest.mark.parametrize("allowed", [[RULE], ['Bash(afk-python "/opt/plugins/afk/1.0.0/scripts/afk-team.py" *)'], []],
+                         ids=["the rule", "an old entry", "nothing"])
 @pytest.mark.parametrize("listed", ["deny", "ask"])
 @needs_bash
-def test_the_rule_in_a_block_list_refuses(home: dict, listed: str) -> None:
-    _write(home["user"], allow=[RULE])
+def test_the_rule_in_a_block_list_refuses(home: dict, listed: str, allowed: list[str]) -> None:
+    _write(home["user"], allow=allowed)
     _write(home["local"], **{listed: [RULE]})
     answer = _check(home)
     assert answer["ok"] is False and answer["problem"] == "blocked" and f"permissions.{listed}" in answer["says"]

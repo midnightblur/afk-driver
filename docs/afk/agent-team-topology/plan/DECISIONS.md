@@ -623,3 +623,10 @@
 - Chosen: B — the same unread managed settings reach every reader of ADR-0005's sequence; one entry keeps the narrowing in the ledger
 - Supersedes: ADR-0005 (`adr/design/0005-human-granted-spawn-rule.md`) sequence line "ok, every verb runs under the rule" — for organization-managed settings only: a managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask after an ok
 - To reverse: read the managed sources (D-81's option A), then drop D-85 and this entry
+
+## D-89 — D-85 reaches every plan copy of SDD §8's "confirm the harness will let"
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 8, review key f049)
+- Options: A — extend D-85 one passage at a time vs B — extend it to every plan passage that restates SDD §8's promise
+- Chosen: B — the same unread managed settings reach each restatement; one entry closes the set (searched 2026-10-20 for "will let" and "would ask" across the SDD, PRD, ADR-0005 and the 0009, 0010 and 0015 contracts)
+- Supersedes: 0009 Goal "the check confirms, through the provider layer, that the harness will let the contact agent run the team entry script for all six transport verbs"; the SDD §8 quotations in 0009 Context excerpts and 0015 Context excerpts — each for organization-managed settings only: an ok means the rule is in an allow list and in no block list of the settings files the adapter names
+- To reverse: read the managed sources (D-81's option A), then drop D-85, D-88 and this entry
