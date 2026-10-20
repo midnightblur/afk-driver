@@ -122,6 +122,8 @@ def _check_record(name: str, record: object, source: str) -> dict:
         target = fields["report-target"]
         if target and target not in checked_roles:
             raise PatternRefused(f"pattern {name}: role {role} reports to {target!r}, a role it does not define")
+    for role, fields in checked_roles.items():
+        target = fields["report-target"]
         if target == role:
             raise PatternRefused(f"pattern {name}: role {role} reports to itself")
         chain = [role]
@@ -227,6 +229,7 @@ class _Flattener:
         self.parts: list = []
         self.sources: list = []
         self.reached: set = set()
+        self.added: tuple | None = None
 
     def walk(self, record: dict, qualify: bool, stack: tuple) -> None:
         name = record["name"]
@@ -259,16 +262,22 @@ class _Flattener:
             self.walk(self.lookup(include), True, (*stack, name))
 
     def add_moderator(self, pattern: str, step: str) -> None:
-        if MODERATOR in self.roles and self.roles[MODERATOR] != self.moderator:
-            raise PatternRefused(f"role moderator of pattern {self.owner[MODERATOR]} takes the name of the moderator "
-                                 f"added to debate step {step} of pattern {pattern}, which has no hub")
+        if MODERATOR in self.roles and self.roles[MODERATOR] is not self.moderator:
+            self.taken(self.owner[MODERATOR], pattern, step)
         if not _text(self.moderator["charter"]):
             raise PatternRefused(f"pattern {pattern}: role moderator, added to debate step {step}: "
                                  f"its charter part is missing or empty")
+        self.added = self.added or (pattern, step)
         self.merge(MODERATOR, self.moderator, pattern)
+
+    def taken(self, owner: str, pattern: str, step: str) -> None:
+        raise PatternRefused(f"role moderator of pattern {owner} takes the name of the moderator "
+                             f"added to debate step {step} of pattern {pattern}, which has no hub")
 
     def merge(self, role: str, fields: dict, pattern: str) -> None:
         known = self.roles.get(role)
+        if known is self.moderator and fields is not self.moderator:
+            self.taken(pattern, *self.added)
         if known is None:
             self.roles[role] = fields
             self.owner[role] = pattern

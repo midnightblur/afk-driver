@@ -424,22 +424,29 @@ def test_an_edge_end_that_is_no_name_exits_2_on_the_command_line(tmp_path):
     ({"a": role(target="a")}, "role a reports to itself"),
     ({"a": role(target="b"), "b": role(target="a")}, "report targets loop"),
     ({"a": role(target="b"), "b": role(target="c"), "c": role(target="b")}, "report targets loop"),
+    ({"a": role(target="b"), "b": role(target="c"), "c": role(target="a")}, "report targets loop"),
+    ({"a": role(target="b"), "b": role(target="ghost")}, "reports to 'ghost', a role it does not define"),
 ])
 def test_a_role_reporting_to_itself_or_a_report_loop_is_refused(tmp_path, roles, needle):
     assert needle in refused(tmp_path, "p", saved={"p": pattern("p", roles=roles)})
 
 
 def test_a_role_named_like_the_added_moderator_is_refused_naming_both(tmp_path):
+    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2")}, includes=["q"],
+                          steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}]),
+             "q": pattern("q", roles={resolver.MODERATOR: role()})}
+    message = refused(tmp_path, "p", saved=saved)
+    assert "role moderator of pattern q" in message and "debate step argue of pattern p" in message
     saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2"), resolver.MODERATOR: role()},
                           steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}])}
-    message = refused(tmp_path, "p", saved=saved)
-    assert "role moderator" in message and "debate step argue" in message and "pattern p" in message
+    assert "role moderator of pattern p takes the name" in refused(tmp_path, "p", saved=saved)
 
 
-@pytest.mark.parametrize("text", ["", "  \n"])
+@pytest.mark.parametrize("text", [None, "", "  \n"])
 def test_an_empty_moderator_part_is_refused_only_when_a_moderator_is_added(tmp_path, monkeypatch, text):
     part = tmp_path / "moderator.md"
-    part.write_text(text, encoding="utf-8")
+    if text is not None:
+        part.write_text(text, encoding="utf-8")
     monkeypatch.setattr(resolver, "MODERATOR_PART", str(part))
     saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2")},
                           steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}])}
