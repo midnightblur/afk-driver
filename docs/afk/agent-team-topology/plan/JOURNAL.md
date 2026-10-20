@@ -115,3 +115,21 @@
 2026-10-20 03:24 | execute | 0006-transport-family-and-herdr | decision(D-67) — the change-log and the freshness list are left to a later step, since this step may not touch them; the gap is named for the human
 2026-10-20 03:35 | execute | 0006-transport-family-and-herdr | verifying — the code checks, both unit rows and the part-way install test pass; the seven live herdr and Codex probe rows are written but not run
 2026-10-20 03:35 | execute | 0006-transport-family-and-herdr | blocked(test_fail) — seven checks need live herdr panes, and this run is not allowed to open any, so the step stops before review; the code is committed and pushed
+2026-10-20 03:37 | autopilot | 0006-transport-family-and-herdr | parked(test_fail) — seven live checks need herdr pane agents, which this run's resource limit does not allow; the code is built, tested at unit level and pushed, review not reached
+2026-10-20 03:37 | autopilot | 0007-desktop-tool-transport | parked(waiting on 0006-transport-family-and-herdr) — needs the transport family first
+2026-10-20 03:37 | autopilot | 0008-inbox-wait-script | heartbeat 5/26 done, starting 0008-inbox-wait-script
+2026-10-20 03:41 | execute | 0008-inbox-wait-script | designing — started planning the wait script that wakes the contact agent when a message lands in its inbox
+2026-10-20 03:41 | execute | 0008-inbox-wait-script | decision(D-68) — the watchdog and the docs this step stands on changed since they were investigated, so one fresh investigation re-takes them before any code
+2026-10-20 04:24 | execute | 0008-inbox-wait-script | investigated(INV-079) — the fresh check of the watchdog, its arm sites and the docs and gates the change touches is closed; only how each tool wakes an idle agent lies outside the repository, and nothing found blocks the planned script
+2026-10-20 04:24 | execute | 0008-inbox-wait-script | developing — writing the wait script, its rows in the capability, conformance and hooks docs, and its smoke test
+2026-10-20 04:50 | execute | 0008-inbox-wait-script | decision(D-69..D-71) — recorded the wait script's exit codes and file test, that the two tool checks ran in windowless sessions one at a time, and two follow-up notes naming who will call the script and read its capability row
+2026-10-20 09:30 | execute | 0008-inbox-wait-script | pushed 80b6f50..60f939f (1 commits) — the wait script, its docs rows and its smoke test are on the shared branch; the change checklist marks this step and four reasons were posted as change comments
+2026-10-20 09:30 | execute | 0008-inbox-wait-script | verifying — every check the step lists passes: the script parses and its names exist, the smoke test covers both exits and the first look, the gate tests pass, and the session-end and wake probes ran on both tools, with the wake missing on Codex as its row says
+2026-10-20 09:30 | execute | 0008-inbox-wait-script | reviewing — independent reviewers check the work, round 1
+2026-10-20 10:26 | execute | 0008-inbox-wait-script | review r1 advisory crit=0 high=0 med=4 low=3 — reviewers found no blocking problem; a removed inbox, half-written messages, an empty park-until and four weak tests are fixed in e5367fe, and two scope notes were withdrawn
+2026-10-20 10:26 | execute | 0008-inbox-wait-script | decision(D-72..D-73) — recorded which inbox names count as writes in flight and that a lost inbox ends the wait with exit 2
+2026-10-20 10:26 | execute | 0008-inbox-wait-script | pushed 60f939f..e5367fe (1 commits) — the review fixes are on the shared branch
+2026-10-20 10:26 | execute | 0008-inbox-wait-script | reviewing — independent reviewers check the fixes, round 2
+2026-10-20 10:31 | execute | 0008-inbox-wait-script | review r2 clean crit=0 high=0 med=0 low=0 — the second look at the fixes found nothing; the review gate is settled at e5367fe
+2026-10-20 10:37 | execute | 0008-inbox-wait-script | adversary clean probed=26 — a fresh checker that never saw the code ran the script 26 ways from the contract alone and it behaved as promised
+2026-10-20 10:37 | execute | 0008-inbox-wait-script | done — the wait script is built, reviewed, checked by the adversary and pushed; all six reasons for its lines are posted on the change

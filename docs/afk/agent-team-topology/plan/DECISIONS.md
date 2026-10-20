@@ -471,3 +471,47 @@
 - Supersedes: none
 - To reverse: add the row and the line in this slice's commit
 - Surfaced gap: no plan contract names a FRESHNESS.md row for the transport family or the probe; the human adds it to 0015 or 0026
+
+## D-68 — Re-take the ground of both seam roots with one fresh investigation
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 4)
+- Options: A — build on INV-058 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-079) at 80b6f50 over INV-058's roots (stall-watchdog, run_in_background) and its declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — the ground diff exits 1: hooks/README.md, CAPABILITIES.md, providers/CONFORMANCE.md, AGENTS.md, CHANGELOG.md, hooks/tests/hook-smoke.sh and the gates that read them moved since 1210110; the run allows one child at a time, so the two tracers run in sequence, as D-42, D-54 and D-57 did
+- Supersedes: none
+- To reverse: drop INV-079 and cite INV-058 again
+
+## D-69 — The wait script's exit codes, file test and argument checks
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 5)
+- Options: A — leave exit codes and the file test to the arming step vs B — exit 0 on a file, 3 once park-until passes, 2 on a usage error, each after one `INBOX-WAIT:` line; a file is a regular file directly in the inbox, so a subfolder for handled envelopes never wakes the job; a missing folder, a third argument or a time other than `YYYY-MM-DDTHH:MM:SSZ` (manifest.py:42) is a usage error; park-until is parsed in shell arithmetic, and the last sleep before it is shortened to end on time; the usage, codes and the 10-second check live in the hooks/README.md row and the usage line, since the comment gate caps a new script's header at 2 lines
+- Chosen: B — SDD §8 binds the 2 arguments and the 2 exits but names no codes; the watchdog's never-0 rule does not fit a job whose normal end is a message, and exit 3 keeps the two ends apart for the contact agent (SDD §7 sequence: a file → handle the inbox; park-until → move the parked agent back to working)
+- Supersedes: none
+- To reverse: change the codes in hooks/inbox-wait.sh, its README row and the hook-smoke case
+
+## D-70 — The harness probes run headless, one session at a time
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 8)
+- Options: A — write the two probe rows and leave them not run, since this run may open no pane vs B — run both probes now in headless sessions (`claude -p` print mode, `codex exec`), one child session at a time in the foreground, the Codex one with `-s danger-full-access` so the job is visible to the operator's process list; interactive sessions and a subagent contact stay unprobed and are named in providers/CONFORMANCE.md
+- Chosen: B — a headless session is a real harness session and needs no pane; it answers the wake (pass on Claude Code 2.1.304; Codex 0.163.0 exec has no later turn) and V25 (pass on both) on today's versions
+- Supersedes: none
+- To reverse: re-run both probes in interactive pane sessions and replace the rows' results
+- Surfaced gap: on Claude Code 2.1.304 a killed headless session's wait job outlived it as an orphan, where SDD §9b row "Background job at session end" records the job's shell killed; the fallback holds either way, since no wake arrives and the next turn recovers
+
+## D-71 — Wiring IOUs for the wait script and its capability row
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 11)
+- Options: A — no IOU, since the plan files already name the script vs B — one IOU each for `hooks/inbox-wait.sh#park_until_utc` (consumers: 0010 and 0014 ## Consumes) and `CAPABILITIES.md#background_job_wake` (reader: 0015's AC-065 run-start notice), in `.claude/wiring-ious.md`, outside this slice's Scope
+- Chosen: B — no runtime caller exists until 0010 and 0015 land, and the human's rule is that an artifact without a consumer carries an anchored IOU; execute Step 11 names `.claude/wiring-ious.md` as the place for one
+- Supersedes: SKILL.md hard rule "Stay inside Scope globs" — for these two IOU lines only
+- To reverse: delete the two lines
+
+## D-72 — Which inbox files are writes in flight
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 10, review key 0008-inbox-wait-script/f002)
+- Options: A — count every regular file and leave the temporary name to the sender vs B — skip a name starting with `.` or ending in `.tmp`, the two shapes the plugin's write-then-rename helpers use (scripts/team/knowledge.py:144, resolver.py:383 `.{name}.{id}.tmp`; manifest.py:277 `{name}.{pid}.{id}.tmp`)
+- Chosen: B — SDD §3 "Delivery to the contact agent" writes the envelope into the inbox under a temporary name, so under A a half-written envelope or a crashed writer's leftover would wake the contact agent
+- Supersedes: none
+- To reverse: drop the two `! -name` tests in hooks/inbox-wait.sh and the in-flight files in the hook-smoke case
+- Surfaced gap: 0010-team-entry-script must name its inbox temporary file in one of these two shapes; its contract does not say so yet
+
+## D-73 — A lost inbox ends the wait with exit 2
+- 2026-10-20 · decided by /afk:execute (0008-inbox-wait-script, Step 10, review key 0008-inbox-wait-script/f001)
+- Options: A — a new exit code for an inbox that disappears mid-wait vs B — the same exit 2 as a bad folder at start, with its own stderr line, checked only when find saw no message file
+- Chosen: B — it is the start-time check repeated, so no new code reaches the README row or the arming step; checking only on an empty scan keeps a file renamed away mid-scan from ending the wait
+- Supersedes: D-69 — for the meaning of exit 2 only (usage error, or an inbox folder gone or unreadable)
+- To reverse: remove the folder check in the loop, the "is gone" smoke case and the README wording
