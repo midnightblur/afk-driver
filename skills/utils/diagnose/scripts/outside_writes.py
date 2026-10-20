@@ -120,7 +120,7 @@ def append_outside_write(diagnosis, entry: str, format_path=None) -> bool:
     while at > start and not lines[at - 1].strip():
         at -= 1
     before = lines[at - 1]  # a non-blank line: an entry or the heading
-    eol = before[len(before.splitlines()[0]):]
+    eol = "\r\n" if before.endswith("\r\n") else "\n" if before.endswith("\n") else ""
     if not eol:
         eol = "\r\n" if any(line.endswith("\r\n") for line in lines) else "\n"
         lines[at - 1] = before + eol
@@ -130,9 +130,11 @@ def append_outside_write(diagnosis, entry: str, format_path=None) -> bool:
 
 
 def _read_lines(path: Path):
-    """(had a BOM, lines with their own line ends)."""
+    """(had a BOM, lines split at `\\n` only, each with its own line end)."""
     text = path.read_bytes().decode("utf-8")
-    return text.startswith(BOM), text.removeprefix(BOM).splitlines(keepends=True)
+    parts = text.removeprefix(BOM).split("\n")
+    lines = [part + "\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+    return text.startswith(BOM), lines
 
 
 def _normal(entry: str) -> str:

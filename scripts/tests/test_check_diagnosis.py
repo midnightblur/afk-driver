@@ -218,8 +218,24 @@ def test_a_short_table_row_is_an_unreadable_format(tmp_path):
 
 def test_a_file_with_a_byte_order_mark_is_read(tmp_path):
     path = write(tmp_path)
-    path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
-    assert check_diagnosis(path).ok
+    text = path.read_text(encoding="utf-8").replace("# Diagnosis\n\n", "", 1)
+    assert text.startswith("## Work id")
+    path.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+    result = check_diagnosis(path)
+    assert result.ok, (result.missing, result.problems)
+
+
+def test_a_state_row_with_an_unknown_kind_is_an_unreadable_format(tmp_path):
+    custom = _format_with(tmp_path, "an `in-review` entry", "an `in-reveiw` entry")
+    done = subprocess.run([sys.executable, str(SCRIPTS / "check_diagnosis.py"), str(write(tmp_path)),
+                           "--format", str(custom)], capture_output=True, text=True)
+    assert done.returncode == 2 and "In review" in done.stderr
+
+
+def test_an_outside_writes_line_that_is_not_a_list_item_is_refused(tmp_path):
+    result = check_diagnosis(write(tmp_path, **{"Outside writes": "ticket: 12"}))
+    assert not result.ok
+    assert any("not a list item" in p for p in result.problems)
 
 
 def test_a_repeated_part_heading_is_refused(tmp_path):

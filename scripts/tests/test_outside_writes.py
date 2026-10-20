@@ -124,6 +124,13 @@ def test_earlier_line_ends_are_never_changed(tmp_path):
     assert path.read_bytes() == raw + b"- in-review: 12\n"
 
 
+def test_a_form_feed_ending_the_last_entry_stays_on_its_line(tmp_path):
+    path = tmp_path / "DIAGNOSIS.md"
+    path.write_bytes(b"## Outside writes\n- ticket: 12\x0c\n\n## Notes\n")
+    append_outside_write(path, "in-review: 12")
+    assert path.read_bytes() == b"## Outside writes\n- ticket: 12\x0c\n- in-review: 12\n\n## Notes\n"
+
+
 def test_a_last_line_without_a_line_end_gets_one(tmp_path):
     path = tmp_path / "DIAGNOSIS.md"
     path.write_bytes(b"## Outside writes\r\n- ticket: 12")
@@ -217,6 +224,7 @@ def test_read_first_finds_an_unlisted_write_and_does_not_send_it_again():
     write = mock.Mock(return_value={"key": "13"})
     outcome = retry_with_read_back(write, lambda: {"key": "12"}, key="key", read_first=True, sleep=Clock())
     assert outcome.ok and outcome.found and outcome.answer == {"key": "12"}
+    assert outcome.attempts == 0
     write.assert_not_called()
 
 
