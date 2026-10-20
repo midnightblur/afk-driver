@@ -11,3 +11,6 @@
 2026-10-20 15:28 | execute | 0001-diagnosis-format | developing — fixing review round 1 findings inside the slice
 2026-10-20 15:51 | execute | 0001-diagnosis-format | review r2 — 6 findings (1 medium test gap, 5 low); all fixed
 2026-10-20 16:07 | execute | 0001-diagnosis-format | review r3 — 1 low finding (the checker and appender split lines differently); fixed
+2026-10-20 16:14 | execute | 0001-diagnosis-format | review r4 clean — closure gate settled after 4 rounds (19 fixed, 1 withdrawn, 2 deferred to the feature gate)
+2026-10-20 16:14 | execute | 0001-diagnosis-format | decision(D-3) — the adversary probes the check script's command line and the helper's functions, since this slice has no running app
+2026-10-20 16:52 | execute | 0001-diagnosis-format | adversary findings — 150 probes, 0 critical/high, 2 medium (carriage return in an appended entry, indented unmarked first line) and 7 low; advisory, noted on the pull request
