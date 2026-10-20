@@ -14,3 +14,4 @@
 2026-10-20 16:14 | execute | 0001-diagnosis-format | review r4 clean — closure gate settled after 4 rounds (19 fixed, 1 withdrawn, 2 deferred to the feature gate)
 2026-10-20 16:14 | execute | 0001-diagnosis-format | decision(D-3) — the adversary probes the check script's command line and the helper's functions, since this slice has no running app
 2026-10-20 16:52 | execute | 0001-diagnosis-format | adversary findings — 150 probes, 0 critical/high, 2 medium (carriage return in an appended entry, indented unmarked first line) and 7 low; advisory, noted on the pull request
+2026-10-20 17:05 | execute | 0001-diagnosis-format | done — rationale receipt confirmed, wiring anchored to slices 0004, 0005, 0007 and 0008; waiting on the Windows failure split before push
