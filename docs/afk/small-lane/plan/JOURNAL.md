@@ -15,3 +15,5 @@
 2026-10-20 16:14 | execute | 0001-diagnosis-format | decision(D-3) — the adversary probes the check script's command line and the helper's functions, since this slice has no running app
 2026-10-20 16:52 | execute | 0001-diagnosis-format | adversary findings — 150 probes, 0 critical/high, 2 medium (carriage return in an appended entry, indented unmarked first line) and 7 low; advisory, noted on the pull request
 2026-10-20 17:05 | execute | 0001-diagnosis-format | done — rationale receipt confirmed, wiring anchored to slices 0004, 0005, 0007 and 0008; waiting on the Windows failure split before push
+2026-10-20 17:40 | execute | 0001-diagnosis-format | pushed 9f54e99..3efb356 (2 commits) — round 4 and adversary records, done status; Windows failures split: none caused by this branch (3 fail on main too, 1 flaky, 9 from untracked investigation files)
+2026-10-20 17:55 | execute | 0002-developer-settings | decision(D-4) — none means unset for all three person keys; the bug skill keeps its own stop table until it is removed; ground re-read by hand because the scripted check hit its hit cap
