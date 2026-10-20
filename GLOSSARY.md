@@ -241,7 +241,7 @@ _Avoid_: evidence (the wider word, see Evidence grade)
 An explicit human instruction or approval given before a step, such as starting a hands-off run, that stands in for asking at that step.
 
 **In-place fix** / **standalone fix**:
-The two modes of `/afk:fix`. In place: inside a caller's branch, and the caller ships the change. Standalone: the fix ships the change itself.
+The two ways a fix runs. In place: a caller follows the shared fix procedure on its own branch and ships the change. Standalone: `/afk:fix` follows the same procedure, then ships the change itself.
 
 ## Bug pipeline
 
