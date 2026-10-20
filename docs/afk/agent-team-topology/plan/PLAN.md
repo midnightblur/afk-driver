@@ -130,7 +130,7 @@ Rows are the SDD §9b boundaries, in SDD order. A row with no SDD §14 seam row 
 | 2 | 0002-config-transport-and-pattern-keys | Configuration reader learns the transport, switch and pattern keys | done | — | static, unit | — |
 | 3 | 0003-manifest-module | Run manifest: record, move, read under one lock | done | — | static, unit | — |
 | 4 | 0004-knowledge-store | Knowledge store: entries, finished stamp, debate release | done | — | static, unit | — |
-| 5 | 0005-pattern-resolver-and-builtin-records | Pattern resolver and built-in patterns BP-1 to BP-5 with their charters | reviewing | 0002-config-transport-and-pattern-keys | static, unit | — |
+| 5 | 0005-pattern-resolver-and-builtin-records | Pattern resolver and built-in patterns BP-1 to BP-5 with their charters | done | 0002-config-transport-and-pattern-keys | static, unit | — |
 | 6 | 0006-transport-family-and-herdr | Transport family, herdr recipe, machine probe, multiplexer setup row | pending | 0002-config-transport-and-pattern-keys | static, unit, integration | impl §5, §8, §9, §15, §18, §20, §21; use §4 |
 | 7 | 0007-desktop-tool-transport | Desktop-tool kind and the 1DevTool recipe, after its trial | pending | 0006-transport-family-and-herdr | static, unit, integration | impl §3, §24 |
 | 8 | 0008-inbox-wait-script | The wait job: one per run, checks the contact inbox every 10 seconds | pending | — | static, unit, integration | impl §1, §2 |
