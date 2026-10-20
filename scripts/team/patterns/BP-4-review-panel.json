@@ -1,0 +1,37 @@
+{
+  "name": "review-panel",
+  "description": "Two reviewers on different models review one finished piece of work blind, then critique each other's findings and each give a verdict; a moderator runs the rounds. Useful for a review after a unit of work, a final review, or the audit of a written draft. Segregation of duty: the reviewers did not produce the work and never change it. Independent cross-check: each reviewer writes its findings before it sees the other's. Several angles: the 2 reviewers run on different models. Maximum autonomy: the panel runs to its verdicts without the human, and only a DISAGREE-FINAL point goes to the human.",
+  "charter": "Purpose: check one finished piece of work from 2 independent angles. Pattern standard: segregation of duty, because no reviewer produced or changes the work; independent cross-check, because each reviewer writes its findings blind; several angles, because the reviewers run on different models; maximum autonomy, because the panel decides and records everything except a DISAGREE-FINAL point, the one stop it names.",
+  "schema-version": 1,
+  "record-version": 1,
+  "roles": {
+    "reviewer-a": {
+      "model": "frontier@claude",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "",
+      "hub": false,
+      "charter": "Responsibility: review one finished change or written draft blind, then critique the other reviewer's findings, revise your own and give your verdict.\nDeliverable: a findings list, a critique, a revised list and a verdict entry (AGREE or DISAGREE-FINAL, with its reason) in the knowledge store, each stamped finished.\nMust not: change the work under review; read the other reviewer's findings before your own list is finished; merge your verdict with another.\nReports to: the agent that asked for this team, when your work is done and at each milestone.\nMay message: the moderator, to ask for the release of findings or to raise a blocker; the other reviewer (reviewer-b) only through its released entries.\nBehaviour: read the work in full; prefer a finding with evidence over an opinion; decide and record everything the brief leaves open.\nMilestones: findings drafted, critiqued, revised, verdict.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    },
+    "reviewer-b": {
+      "model": "frontier@codex",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "",
+      "hub": false,
+      "charter": "Responsibility: review one finished change or written draft blind, then critique the other reviewer's findings, revise your own and give your verdict.\nDeliverable: a findings list, a critique, a revised list and a verdict entry (AGREE or DISAGREE-FINAL, with its reason) in the knowledge store, each stamped finished.\nMust not: change the work under review; read the other reviewer's findings before your own list is finished; merge your verdict with another.\nReports to: the agent that asked for this team, when your work is done and at each milestone.\nMay message: the moderator, to ask for the release of findings or to raise a blocker; the other reviewer (reviewer-a) only through its released entries.\nBehaviour: read the work in full; prefer a finding with evidence over an opinion; decide and record everything the brief leaves open.\nMilestones: findings drafted, critiqued, revised, verdict.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    }
+  },
+  "edges": [],
+  "steps": [
+    {
+      "name": "review",
+      "roles": [
+        "reviewer-a",
+        "reviewer-b"
+      ],
+      "debate": true
+    }
+  ],
+  "includes": []
+}

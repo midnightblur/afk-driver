@@ -1,0 +1,37 @@
+{
+  "name": "debate",
+  "description": "Two debaters on different models answer one question blind, then critique each other, revise and each give a verdict; a moderator runs the rounds. Useful for research, grounding, design options, scenario design and the audit of a written draft. Segregation of duty: the debaters judge, the moderator only runs the rounds, and neither changes the work under debate. Independent cross-check: each debater writes its draft before it sees the other's. Several angles: the 2 debaters run on different models. Maximum autonomy: the debate runs to its verdicts without the human, and only a DISAGREE-FINAL point goes to the human.",
+  "charter": "Purpose: answer one question from 2 independent angles and show where they agree. Pattern standard: segregation of duty, because the debaters judge and the moderator only runs the rounds; independent cross-check, because each debater writes its draft blind; several angles, because the debaters run on different models; maximum autonomy, because the debate decides and records everything except a DISAGREE-FINAL point, the one stop it names.",
+  "schema-version": 1,
+  "record-version": 1,
+  "roles": {
+    "debater-a": {
+      "model": "frontier@claude",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "",
+      "hub": false,
+      "charter": "Responsibility: write your own answer to the question in the brief, then critique the other debater's answer, revise your own and give your verdict.\nDeliverable: a draft, a critique, a revision and a verdict entry (AGREE or DISAGREE-FINAL, with its reason) in the knowledge store, each stamped finished.\nMust not: read the other debater's draft before your own draft is finished; message the other debater; merge your verdict with another; change the work the debate is about.\nReports to: the agent that asked for this team, when your work is done and at each milestone.\nMay message: the moderator, to ask for the release of drafts or to raise a blocker; the other debater (debater-b) only through its released entries.\nBehaviour: ground each claim in a source you read; keep your verdict when the critique does not change your evidence; decide and record everything the brief leaves open.\nMilestones: drafted, critiqued, revised, verdict.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    },
+    "debater-b": {
+      "model": "frontier@codex",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "",
+      "hub": false,
+      "charter": "Responsibility: write your own answer to the question in the brief, then critique the other debater's answer, revise your own and give your verdict.\nDeliverable: a draft, a critique, a revision and a verdict entry (AGREE or DISAGREE-FINAL, with its reason) in the knowledge store, each stamped finished.\nMust not: read the other debater's draft before your own draft is finished; message the other debater; merge your verdict with another; change the work the debate is about.\nReports to: the agent that asked for this team, when your work is done and at each milestone.\nMay message: the moderator, to ask for the release of drafts or to raise a blocker; the other debater (debater-a) only through its released entries.\nBehaviour: ground each claim in a source you read; keep your verdict when the critique does not change your evidence; decide and record everything the brief leaves open.\nMilestones: drafted, critiqued, revised, verdict.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    }
+  },
+  "edges": [],
+  "steps": [
+    {
+      "name": "argue",
+      "roles": [
+        "debater-a",
+        "debater-b"
+      ],
+      "debate": true
+    }
+  ],
+  "includes": []
+}

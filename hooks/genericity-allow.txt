@@ -2,6 +2,11 @@
 # One exact token per line; keep the reason next to it.
 # A ticket id in an EXAMPLE does not belong here: use the reserved placeholder
 # prefix `PROJ` (`PROJ-123`), which the gate treats as notation.
+BP-1       # built-in team pattern record ids — the plugin's own notation, not tickets
+BP-2       # (records named by scripts/team/resolver.py BUILTIN_FILES)
+BP-3
+BP-4
+BP-5
 HL-1       # human-locked design aspects — the plugin's own notation, not tickets
 HL-2       # (set owned by skills/afk/grill-solution/HUMAN-SIGNOFF.md)
 HL-3
@@ -9,6 +14,10 @@ HL-4
 HL-5
 HL-6
 Invoice    # glossary-entry format example (skills/utils/glossary/GLOSSARY-FORMAT.md)
+PS-1       # pattern standard property ids — the plugin's own notation, not tickets
+PS-2       # (set owned by scripts/team/patterns/STANDARD.md)
+PS-3
+PS-4
 SEC-1      # understanding-artifact section ids — the plugin's own notation, not tickets
 SEC-2      # (set owned by skills/afk/understand/UNDERSTANDING-FORMAT.md)
 SEC-3

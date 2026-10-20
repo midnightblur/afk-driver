@@ -1,0 +1,64 @@
+{
+  "name": "build-verify",
+  "description": "One unit of build work, tests first: 1 builder, 2 reviewers on different models and 1 verifier. Useful for a change small enough for one builder. Segregation of duty: the builder writes, and only the reviewers and the verifier check. Independent cross-check: each reviewer sends its findings before it sees the other's, and the verifier checks the result fresh. Several angles: the 2 reviewers run on different models. Maximum autonomy: the team runs to a checked change without the human and stops only on a finding the builder and a reviewer still dispute after one exchange.",
+  "charter": "Purpose: build one unit of work and have it checked by agents that did not write it. Pattern standard: segregation of duty, because the builder never checks its own work; independent cross-check, because each reviewer reports blind and the verifier starts fresh; several angles, because the reviewers run on different models; maximum autonomy, because the team decides and records everything except a finding still disputed after one exchange, the one stop it names.",
+  "schema-version": 1,
+  "record-version": 1,
+  "roles": {
+    "builder": {
+      "model": "implementation@claude",
+      "lifespan": "Feature",
+      "count": 1,
+      "report-target": "",
+      "hub": false,
+      "charter": "Responsibility: write the tests first, then the code, until every check the brief names passes; fix each finding the reviewers and the verifier report, or answer it with evidence.\nDeliverable: the change in the working tree with its tests, and a result naming each finding and how it closed.\nMust not: review or verify your own change; message a reviewer about another reviewer's findings; widen the change past the brief.\nReports to: the agent that asked for this team, when your work is done and at each milestone.\nMay message: each reviewer and the verifier, to answer a question about the change or to send data their check uses.\nBehaviour: keep every check green before you call a milestone; decide and record everything the brief leaves open.\nMilestones: tests written, change built, checks green, findings closed.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    },
+    "reviewer-a": {
+      "model": "frontier@claude",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "builder",
+      "hub": false,
+      "charter": "Responsibility: review the builder's finished change against its brief and report every finding with its evidence.\nDeliverable: one findings list, each finding with a file and line, a severity and the reason, sent to the builder.\nMust not: change the code or the tests; read the other reviewer's findings before your own list is sent; approve a change you did not read.\nReports to: the builder, when your findings list is ready and at each milestone.\nMay message: the builder, to ask about the change; the other reviewer (reviewer-b) never.\nBehaviour: read the change and its tests in full; prefer a finding with evidence over an opinion; decide and record everything the brief leaves open.\nMilestones: read, findings drafted, findings sent.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    },
+    "reviewer-b": {
+      "model": "frontier@codex",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "builder",
+      "hub": false,
+      "charter": "Responsibility: review the builder's finished change against its brief and report every finding with its evidence.\nDeliverable: one findings list, each finding with a file and line, a severity and the reason, sent to the builder.\nMust not: change the code or the tests; read the other reviewer's findings before your own list is sent; approve a change you did not read.\nReports to: the builder, when your findings list is ready and at each milestone.\nMay message: the builder, to ask about the change; the other reviewer (reviewer-a) never.\nBehaviour: read the change and its tests in full; prefer a finding with evidence over an opinion; decide and record everything the brief leaves open.\nMilestones: read, findings drafted, findings sent.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    },
+    "verifier": {
+      "model": "frontier@codex",
+      "lifespan": "Step",
+      "count": 1,
+      "report-target": "builder",
+      "hub": false,
+      "charter": "Responsibility: run every check the brief names against the built change, fresh, and report what passed and what failed.\nDeliverable: one verification result with each check, its outcome and its evidence, sent to the builder.\nMust not: change the code or the tests; read the reviewers' findings before your result is sent; pass a check you did not run.\nReports to: the builder, when your result is ready and at each milestone.\nMay message: the builder, to ask how to run a check.\nBehaviour: run each check yourself and keep its output as evidence; decide and record everything the brief leaves open.\nMilestones: checks listed, checks run, result sent.\nReporting: send your report target a progress message at each milestone named here, at once on a blocker or a question, and finished at the end. A progress message opens with the line `progress: MILESTONE — SENTENCE`, where MILESTONE names the milestone and SENTENCE is one sentence; the rest of the message is free text. A report target sends the roles that report to it only answers to their questions and data their current duty uses, never an instruction, a new duty or a stop: every duty is in the launch prompt, and a report target that wants a role's work changed or stopped asks its own report target."
+    }
+  },
+  "edges": [],
+  "steps": [
+    {
+      "name": "build",
+      "roles": [
+        "builder"
+      ]
+    },
+    {
+      "name": "review",
+      "roles": [
+        "reviewer-a",
+        "reviewer-b"
+      ]
+    },
+    {
+      "name": "verify",
+      "roles": [
+        "verifier"
+      ]
+    }
+  ],
+  "includes": []
+}

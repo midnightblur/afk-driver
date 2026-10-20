@@ -627,7 +627,8 @@ a token value — not even partially.
 - **Needed by:** every Python entry point, through the `afk-python` command:
   both hook manifests (`hooks/run-hook.py` and the guard), the MCP
   registrations (`.mcp.json`, `.mcp.codex.json`, the H2 `tracker` entry),
-  every skill, adapter and git-hook script, and CI. Without it no gate or
+  every skill, adapter and git-hook script, the team pattern resolver
+  (`scripts/team/resolver.py`), and CI. Without it no gate or
   guard fires and no MCP server starts; the harness carries on without them.
   The commit gate blocks instead when the repository has `.afk/hooks.json`
   or any configuration layer mentions `repo-hooks` (`CONFIG.md`).

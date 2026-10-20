@@ -370,3 +370,24 @@
 - Chosen: B — the knowledge store module depends on nothing (SDD §8), the debater roles live in the resolved pattern, and the rule counts roles, so a role that has written nothing yet must still hold the release back; withholding an unmapped draft keeps AC-007 when a caller forgets the map
 - Supersedes: none
 - To reverse: have the module read the resolved pattern and the stage map, which adds a dependency SDD §8 does not list
+
+## D-54 — Re-take the ground of both seams with one fresh investigation
+- 2026-10-19 · decided by /afk:execute (0005-pattern-resolver-and-builtin-records, Step 4)
+- Options: A — build on INV-074 and INV-075 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-077) at b33b6d0 over the union of both ledgers' subjects and name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — both ground diffs exit 1: scripts/afk-config.py, CONFIG.md, GLOSSARY.md, AGENTS.md and .claude/wiring-ious.md changed since 13bec6d; the run allows one child at a time, so the two tracers run in sequence, as D-42 did
+- Supersedes: none
+- To reverse: drop INV-077 and cite INV-074 and INV-075 again
+
+## D-55 — The resolver's call shape and the record fields the SDD leaves open
+- 2026-10-19 · decided by /afk:execute (0005-pattern-resolver-and-builtin-records, Step 4)
+- Options: A — the resolver finds the run directory, the fill rule, the transport's abilities and the moderator's model itself vs B — resolve_pattern(root, feature, pick, session, can_fill, abilities, moderator_model, saved) writes `<root>/<feature>/pattern.json` and returns the path, the file's content and each role's charter text; refusals raise PatternRefused, exit code 2 on the command line; record keys are the configuration reader's kebab-case keys; an edge is {from, to, kinds}, a step {name, roles, debate}, where `debate: true` marks a debate step; a role's model is `<tier>@<provider>`; a pattern with roles needs worker-to-contact, exit-signal and limit-signal, plus worker-to-worker when any edge joins 2 roles; an added moderator is the role `moderator`, lifespan Step, on `moderator_model`
+- Chosen: B — SDD §8 passes dependencies as arguments (S-53) and I6 takes the abilities from each transport's trial record; the SDD names no debate marker and no model form, and the team entry script (0010) needs the charters, which the resolved file must not carry; one key set serves a saved pattern and a built-in record
+- Supersedes: none
+- To reverse: change the signature, the field names and the records in one commit before 0010 or 0021 consumes them
+
+## D-56 — Two readings the SDD leaves to the resolver
+- 2026-10-19 · decided by /afk:execute (0005-pattern-resolver-and-builtin-records, Step 4)
+- Options: A — a pick of 2 or more names keeps each pattern's own step names, and its file names the first pattern vs B — a pick of 2 or more names combines as a pattern with no steps of its own that includes them (SDD §13 Q35 (1)), so every step is named pattern-name/step-name, the file's pattern name joins the names with "+", its record version is empty and its source is "combined", while `sources` keeps each pattern's name, version and source; a one-off pattern may not take a built-in or saved name
+- Chosen: B — it follows the Q35 (1) reading to its end, keeps step names unique across the list, and keeps the name and version of each source (S-229); a one-off pattern under a taken name would make an include of that name ambiguous
+- Supersedes: SDD §4 resolved pattern "source: one of built-in, saved, one-off" — for a pick of 2 or more names only
+- To reverse: give the list's first pattern the top-level fields and drop "combined"

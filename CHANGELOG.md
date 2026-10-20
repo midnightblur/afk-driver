@@ -47,6 +47,14 @@ release page from its section here. Nobody tags by hand.
   gates run after the plugin's, in declaration order, and the first refusal
   blocks the commit. Each handler reads the staged tree and path list and
   writes one latency line.
+- Team patterns ship as data: the five built-in records solo, debate,
+  build-verify, review-panel and afk-lite live in `scripts/team/patterns/`,
+  each pattern that starts agents with its charter, beside the pattern
+  standard `STANDARD.md`. `scripts/team/resolver.py` combines the picked,
+  saved or one-off patterns into one team and refuses, with exit code 2, a
+  pattern it cannot start: an unfillable role, a missing messaging ability, a
+  self-include, an unknown version, a role defined 2 ways, an undefined role,
+  or a missing charter part.
 
 ### Changed
 

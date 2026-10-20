@@ -1,0 +1,15 @@
+{
+  "name": "solo",
+  "description": "The contact agent does the work itself and starts no agent. Useful for mechanical work and for writing from the conversation with the human. It starts no agent, so the pattern standard does not bind it and it carries no charter.",
+  "schema-version": 1,
+  "record-version": 1,
+  "roles": {},
+  "edges": [],
+  "steps": [
+    {
+      "name": "solo",
+      "roles": []
+    }
+  ],
+  "includes": []
+}
