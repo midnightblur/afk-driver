@@ -16,6 +16,15 @@ EVIDENCE = re.compile(r"^afk-evidence \S+ [a-z][a-z0-9-]*$")
 BOM = "\ufeff"
 
 
+def split_lines(text: str, keepends: bool = False) -> list[str]:
+    """Lines split at `\\n` only, the one line rule of both scripts; a line keeps
+    its own end with `keepends`, else loses it and a trailing `\\r`."""
+    parts = text.split("\n")
+    if keepends:
+        return [part + "\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+    return [part.removesuffix("\r") for part in (parts if parts[-1] else parts[:-1])]
+
+
 def headings(lines):
     """(index, lower-case name) of each `## ` heading outside a code fence."""
     fenced = False
@@ -30,7 +39,7 @@ def headings(lines):
 
 def sections(text: str) -> dict[str, list[str]]:
     """`## Heading` -> its content lines, keyed lower-case; the first of a repeated heading wins."""
-    lines = text.removeprefix(BOM).splitlines()
+    lines = split_lines(text.removeprefix(BOM))
     marks = list(headings(lines))
     found: dict[str, list[str]] = {}
     for n, (start, name) in enumerate(marks):
@@ -41,7 +50,7 @@ def sections(text: str) -> dict[str, list[str]]:
 
 def repeated(text: str) -> list[str]:
     """Lower-case names of headings that appear more than once."""
-    names = [name for _, name in headings(text.removeprefix(BOM).splitlines())]
+    names = [name for _, name in headings(split_lines(text.removeprefix(BOM)))]
     return sorted({name for name in names if names.count(name) > 1})
 
 
