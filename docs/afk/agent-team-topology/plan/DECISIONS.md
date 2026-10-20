@@ -587,3 +587,25 @@
 - Chosen: B — the round 1 fix for f007 moved the rule into the adapter function; the ledger is append-only, so this entry corrects D-75 instead of editing it
 - Supersedes: D-75 — its "To reverse" line: change AFK_SPAWN_ALLOW_RULE in afk_claude_spawn_allow_rule (hooks/lib/providers/claude.sh) and INVOCATION in scripts/team/permission.py together
 - To reverse: delete this entry
+
+## D-84 — A provider-layer refusal reports needs-human even with no human present
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 5, review key f034)
+- Options: A — skip row H15 with no human present in every case, as SDD §14 C19 says vs B — skip it with no human present except on a `provider-layer` refusal, which reports `needs-human: <cause>` whether or not a human is present
+- Chosen: B — a `provider-layer` refusal is no missing rule a human can add: its cause (an adapter without the spawn functions, no POSIX shell, a provider layer that did not answer) blocks every team run, and a skip would hide it in the setup summary; the opt-in tier paragraph of skills/afk/setup/MANIFEST.md lets an entry's probe name that status
+- Supersedes: SDD §14 row "Setup register `MANIFEST`: the spawn allow-rule offer" (C19) and 0009 Acceptance bullet 1 — the clause "skipped with no human present", for a `provider-layer` refusal only
+- To reverse: remove the provider-layer clauses from row H15 and the exception from the opt-in tier paragraph
+
+## D-85 — The check's ok does not cover organization-managed settings
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 5, review key f035)
+- Options: A — leave SDD §8 promising that the check confirms the harness will let the contact agent run the script vs B — record that D-81 narrows that promise: an ok means the rule is in a user, project or local allow list and in no block list of those files; a managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask
+- Chosen: B — D-81 left managed settings unread and PROVIDERS.md "Spawn allow rule" states the gap; the ledger must mark the spec passage it narrows
+- Supersedes: SDD §8 row "Spawn permission check" and 0009 Acceptance bullet 5 — "confirm the harness will let the contact agent run the team entry script … refuse … when it will not", for organization-managed settings only
+- To reverse: read the managed sources (D-81's option A) and drop this entry
+
+## D-86 — A provider-layer refusal carries the rule only when the adapter printed one
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 5, review key f036)
+- Options: A — every refusal names the rule vs B — a refusal names the rule the check knows; a `provider-layer` refusal raised before the adapter prints a rule (no POSIX shell, a provider layer that did not answer, an adapter without `afk_<name>_spawn_allow_rule`) carries an empty `rule` and still names `/afk:setup`
+- Chosen: B — with no adapter answer there is no rule text to name; inventing one would put a harness fact back in the check (D-76)
+- Supersedes: SDD §8 row "Spawn permission check" and §9b row "Claude Code auto-mode classifier" — "naming the rule", for a `provider-layer` refusal raised before the adapter prints a rule
+- To reverse: give the check a fallback rule text per provider
+- Surfaced gap: 0015-team-skill-and-manifests Acceptance (line 37) says a refusal "names the rule and /afk:setup"; the team skill built from it must name the rule only when the refusal's `rule` is not empty — the human narrows that bullet

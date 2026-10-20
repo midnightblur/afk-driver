@@ -168,7 +168,8 @@ def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> 
 @needs_bash
 @needs_git
 @off_windows
-def test_a_main_checkout_entry_owned_by_another_user_is_not_read(home: dict, tmp_path: Path) -> None:
+def test_a_main_checkout_claude_dir_owned_by_another_user_is_not_read(home: dict, tmp_path: Path) -> None:
+    # Only `.claude` can belong to another user without root; the root and git-dir ownership checks stay untested.
     foreign = Path(shutil.which("sh") or "").parent
     if not hasattr(os, "getuid") or not foreign.is_dir() or foreign.stat().st_uid == os.getuid():
         pytest.skip("no directory owned by another user to link to")
@@ -340,3 +341,7 @@ def test_setup_offers_the_rule_and_never_writes_it() -> None:
     assert re.search(r"\*\*Probe:\*\* .*permission\.py\" check", row)
     assert re.search(r"\*\*Fix:\*\* `human:`", row) and "permission.py\" rule" in row
     assert "never writes" in row and "no human present" in row
+    assert "`provider-layer`" in row and "needs-human: <cause>" in row
+    assert "skip this row unless the probe refused" in row
+    tier = text.split("**Opt-in tier.**", 1)[1].split("\n\n", 1)[0]
+    assert "names another status for that" in tier and "with or without a human present" in tier
