@@ -135,6 +135,12 @@ def main_checkout(root: Path) -> Path | None:
     return common.parent if common is not None and common.name == ".git" else None
 
 
+def said_none(config: dict, key: str) -> bool:
+    """The developer answered `none`: resolved as unset, yet answered."""
+    value = ac.get(config, f"developer.{key}")
+    return isinstance(value, str) and value.strip().lower() == "none"
+
+
 def status(root: Path) -> dict:
     config = ac.load(root)
     tracker = str(ac.get(config, "tracker") or "none")
@@ -179,7 +185,8 @@ def status(root: Path) -> dict:
         "tracker": tracker, "forge": forge,
         "repository_file": str(shared) if shared else None,
         "machine_file": str(machine_file()),
-        "missing": [k for k, e in keys.items() if e["need"] == "required" and e["value"] is None],
+        "missing": [k for k, e in keys.items()
+                    if e["need"] == "required" and e["value"] is None and not said_none(config, k)],
         # A machine default may name another repository's person or folder.
         "inherited": [k for k, e in keys.items()
                       if e["need"] != "n/a" and e["source"] == "machine" and k != "ideBinary"],

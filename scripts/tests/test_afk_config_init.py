@@ -200,10 +200,15 @@ def test_mr_assignee_unset_resolves_to_nothing():
     assert ac.developer_value({"developer": {}}, "mrAssignee") is None
 
 
-def test_mr_assignee_none_resolves_to_nothing():
-    # A recorded `none` must beat a broader layer's assignee, so it resolves as unset.
-    assert ac.developer_value({"developer": {"mrAssignee": "none"}}, "mrAssignee") is None
-    assert ac.developer_value({"developer": {"mrReviewer": "none"}}, "mrReviewer") == "none"
+@pytest.mark.parametrize("key", ["trackerAssignee", "mrAssignee", "mrReviewer"])
+@pytest.mark.parametrize("value", ["none", " None ", "NONE"])
+def test_none_resolves_to_nothing_for_every_person_key(key, value):
+    # A recorded `none` must beat a broader layer's person, so it resolves as unset.
+    assert ac.developer_value({"developer": {key: value}}, key) is None
+
+
+def test_none_is_a_path_for_the_other_keys():
+    assert ac.developer_value({"developer": {"ideBinary": "none"}}, "ideBinary") == "none"
 
 
 # ------------------------------------------------------- derived worktrees

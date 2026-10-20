@@ -37,6 +37,17 @@ release page from its section here. Nobody tags by hand.
 
 ## [Unreleased]
 
+### Changed
+
+- The developer settings K1–K5 (`trackerAssignee`, `mrReviewer`,
+  `worktreeBasePath`, `ideBinary`, `mrAssignee`) are documented in `CONFIG.md`
+  "Developer settings (K1–K5)", with the same ids, names and meanings. A
+  literal `none` now reads as unset for `trackerAssignee` and `mrReviewer` too,
+  not only for `mrAssignee`, and still counts as an answer for `/afk:setup`. A
+  missing assignee or reviewer is asked for when you are in the session; a
+  hands-off run leaves it unset and names it in its report. `/afk:bug` keeps
+  its own stricter stop rules on its page.
+
 ### Fixed
 
 - Concurrent worktree creation now uses a conditional Git-ref lock. A waiter

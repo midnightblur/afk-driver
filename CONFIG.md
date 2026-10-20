@@ -133,7 +133,7 @@ refused, so `build-gates` absent is the only way to say "no build gates".
 | `investigation` | map | `boundaries`, `generated`, `reactor` — which boundary classes this repository actually has, and how to enumerate each. Optional: absent means the investigation scripts run their generic defaults only, and a class with no method is reported `unverified(no method)`, never as absence. |
 | `report-issue` | map | `repository` (`owner/name` or its GitHub URL: where `/afk:report-issue` files approved plugin issues; absent means the plugin manifest's `repository`), `auto-publish` (legacy Boolean, ignored; every GitHub write needs explicit human approval) |
 | `review` | map | `ledger-only-paths` (repository-relative path globs that can close a final ledger-only review round; default `plan/review/**` and `plan/JOURNAL.md`) |
-| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; nothing resolving it means fail closed (`skills/afk/bug/CONFIG.md`), except `mrAssignee`, which never gates — unset or `none` means no assignee. |
+| `developer` | map | per-developer values — `trackerAssignee`, `mrReviewer`, `mrAssignee`, `worktreeBasePath`, `ideBinary`. Belongs in the shared overlay (one repository, all its worktrees), in `~/.afk/config.yaml` (a default for every repository), or, for a value that differs in one checkout, in that checkout's `config.local.yaml` — never the committed file, because each names a person or one machine's paths. `worktreeBasePath` names one repository's location, so `/afk:setup` never writes it to the machine file. There is no committed layer for them: `trackerAssignee`, `mrReviewer` and `mrAssignee` name a person, and a committed file never does, so `/afk:setup` asks each developer for their own in session, for each main checkout they name, suggesting the developer's own account for each assignee, and records the answers (`skills/afk/setup/MANIFEST.md` · H6). The two assignees pair up — `trackerAssignee` goes on every work item the plugin creates, `mrAssignee` on every change it opens. Resolve with `afk-config.py resolve <key>`, which applies the developer value, then (for `worktreeBasePath` alone) a derived one; ids, meanings and the missing-value rule: "Developer settings (K1–K5)" below. |
 
 The domain glossary's entry point is NOT configurable: `/afk:glossary` fixes it
 as a root `GLOSSARY-MAP.md` (`skills/utils/glossary/GLOSSARY-FORMAT.md`), and one
@@ -290,6 +290,69 @@ fold to the one spelling at the read, so what a consumer receives is `gen`
 whichever of those was written. A value that cannot fold to a
 repository-relative path — absolute, drive-lettered, or holding a `..` segment
 — is a configuration error, reported before any run starts.
+
+## Developer settings (K1–K5)
+
+Five per-developer values under `developer:`. Every one is optional, so a
+developer can often run the plugin having configured nothing at all. Read them
+through `scripts/afk-config.py resolve <key>`, never by opening a file and
+never with `get`: `resolve` applies the whole chain in one place. Exit 0 prints
+the value; exit 1 means nothing supplied it. Provisioned and probed by the
+workflow doctor (`skills/afk/setup/MANIFEST.md` · H6).
+
+| Layer | File | Holds |
+|-------|------|-------|
+| Machine | `~/.afk/config.yaml` | defaults for every repository on the machine |
+| Repository | `<git common dir>/afk/config.yaml` | one repository's values, read by all its worktrees; untracked; the default `/afk:setup` offers |
+| Checkout | `<repo>/.afk/config.local.yaml` | a value that differs in ONE checkout; gitignored |
+
+The committed `.afk/config.yaml` holds none of these keys: K1, K2 and K5 name a
+person, and a committed file never names a person. Resolution, highest first:
+the `developer:` value from any layer (checkout beats repository beats
+machine), then — for `worktreeBasePath` alone — a derived value, then nothing.
+
+| ID | Key | Type | Meaning | Falls back to |
+|----|-----|------|---------|---------------|
+| K1 | `trackerAssignee` | string | Account id or email every work item the plugin creates is assigned to — bug tickets and spinoff tickets. The tracker adapter resolves it by user search | nothing — a person has no default |
+| K2 | `mrReviewer` | string | Forge user assigned as reviewer on a change the plugin flips Ready | nothing — a person has no default |
+| K3 | `worktreeBasePath` | string | Base directory under which fixer worktrees are created | derived: a sibling directory `<main-checkout-name>-worktrees` beside the main checkout |
+| K4 | `ideBinary` | string | Path to the IDE executable launched for interactive worktree creation | nothing — no default could be right |
+| K5 | `mrAssignee` | string | Forge user every MR/PR the plugin opens is assigned to | nothing — a person has no default |
+
+K3's derivation reads `git rev-parse --git-common-dir`, which answers with the
+main checkout even from inside a worktree, so every worktree of one repository
+agrees on the directory. A bare clone derives nothing and needs the key.
+
+**A missing value.** The literal `none` for K1, K2 or K5 reads exactly as an
+unset key, and overrides a broader layer's value — it records "nobody". When an
+assignee or reviewer resolves to nothing:
+
+| Situation | What happens |
+|-----------|--------------|
+| a person is in the conversation | ask them, record the answer per H6 Fix steps 2-4, resolve again |
+| a hands-off run, or the person declines | file the work item or open the change unassigned, with no reviewer, and name the missing key in the run's report |
+
+An unresolved K3 stops the worktree creation that needs it and names the key;
+an unset K4 only skips launching the IDE. A skill may keep a stricter rule for
+its own operations and states it on its own page.
+
+New keys may be added; existing keys are never removed or repurposed. An
+unknown key under `developer:` is a validation error, so a typo is named rather
+than silently ignored.
+
+A hypothetical `~/.afk/config.yaml` that answers K1, K2, K4 and K5, with K3
+derived:
+
+```yaml
+developer:
+  trackerAssignee: dev@example.com   # account id or email
+  mrReviewer: reviewer.name          # forge user who reviews this developer's changes
+  mrAssignee: my.name                # forge user every opened change is assigned to
+  ideBinary: C:/Program Files/JetBrains/IntelliJ IDEA/bin/idea64.exe
+```
+
+A repository with a different reviewer adds its own `developer:` block in
+`<git common dir>/afk/config.yaml`; every worktree of it reads that block.
 
 ## Secrets
 

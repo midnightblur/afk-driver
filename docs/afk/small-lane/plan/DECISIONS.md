@@ -20,3 +20,10 @@
 - Chosen: probe the runtime surface. The gate is on by default and only a human may skip it; the slice's promises are observable by running the script and calling the helper, and the format file is the published contract the script reads.
 - Supersedes: none
 - To reverse: skip Step 10.5 for script-only slices and rerun nothing
+
+## D-4 — how the developer-settings slice reads "the assignee", and where the bug pipeline's own stop rules stay
+- 2026-10-20 · decided by execute (0002-developer-settings, Step 4)
+- Options: (a) `none` reads as unset for `mrAssignee` and `mrReviewer` only vs for all three person keys, `trackerAssignee` included; (b) move the bug pipeline's per-operation stop table into `CONFIG.md` vs leave it on the bug skill's page until that skill is removed
+- Chosen: (a) all three person keys — ADR-0010 names a ticket filed unassigned and a change opened unassigned, so "the assignee" covers both assignees, and a recorded `none` passed to the tracker as a user name can never resolve; (b) leave it — the table describes `/afk:bug`'s own operations, not the keys, and moving it would change that skill's behaviour outside this slice. The key definitions, the resolution order and the general missing-value rule move. The scripted ground check could not run (`seed_map` stops at its 20000-hit class cap on INV-026's declared aliases); every line INV-026 cites for this seam was re-read at the current head and still holds, and every reader of the three keys resolves through `afk-config.py resolve`.
+- Supersedes: none
+- To reverse: map `none` only for the two forge keys in `developer_value`; move the stop table with the keys
