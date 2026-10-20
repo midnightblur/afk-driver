@@ -123,7 +123,10 @@ def _linked_worktree(home: dict, tmp_path: Path, *init: str) -> tuple[Path, Path
     return main, tree
 
 
-def _assert_main_file_unread(answer: dict) -> None:
+def _assert_main_file_unread(tree: Path, env: dict) -> None:
+    listed = permission._adapter(tree.resolve(), env, subprocess.run)["files"]
+    assert len(listed) == 3, f"the adapter lists only the user file and the worktree's two files: {listed}"
+    answer = permission.check_spawn_permission(tree, env=env)
     assert answer["ok"] is False and answer["problem"] == "missing" and answer["files"] == []
 
 
@@ -143,7 +146,7 @@ def test_a_linked_worktree_reads_the_main_checkout_local_file(home: dict, tmp_pa
 @on_windows
 def test_a_linked_worktree_on_windows_skips_the_main_checkout_local_file(home: dict, tmp_path: Path) -> None:
     _, tree = _linked_worktree(home, tmp_path)
-    _assert_main_file_unread(permission.check_spawn_permission(tree, env=home["env"]))
+    _assert_main_file_unread(tree, home["env"])
 
 
 @needs_bash
@@ -151,7 +154,7 @@ def test_a_linked_worktree_on_windows_skips_the_main_checkout_local_file(home: d
 @off_windows
 def test_a_main_checkout_at_the_home_directory_is_not_read(home: dict, tmp_path: Path) -> None:
     main, tree = _linked_worktree(home, tmp_path)
-    _assert_main_file_unread(permission.check_spawn_permission(tree, env=dict(home["env"], HOME=str(main))))
+    _assert_main_file_unread(tree, dict(home["env"], HOME=str(main)))
 
 
 @needs_bash
@@ -159,7 +162,7 @@ def test_a_main_checkout_at_the_home_directory_is_not_read(home: dict, tmp_path:
 @off_windows
 def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> None:
     _, tree = _linked_worktree(home, tmp_path, "--separate-git-dir", str(tmp_path / "store"))
-    _assert_main_file_unread(permission.check_spawn_permission(tree, env=home["env"]))
+    _assert_main_file_unread(tree, home["env"])
 
 
 @needs_bash

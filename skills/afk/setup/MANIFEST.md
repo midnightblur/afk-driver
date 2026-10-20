@@ -383,8 +383,9 @@ a token value — not even partially.
   allow list and in no block list; exit 1 prints one JSON refusal. Its
   `problem` is `missing`, `stale` or `blocked` with a `says` that names the
   rule, the settings file and the list, or `provider-layer` with a `says` that
-  names neither. A `provider-layer` refusal is a plugin defect, not a missing
-  entry: report its `says` and stop this row, with no rule print and no wait.
+  names the cause and no settings file. A `provider-layer` refusal is not a
+  missing entry: do not offer this row in the election, print no rule, wait
+  for nothing, and report `needs-human: <says>`.
 - **Fix:** `human:` print the rule as a JSON string with
   `afk-python "$AFK_PLUGIN_ROOT/scripts/team/permission.py" rule --json`, and
   the probe's `says` line. The human adds that one entry to the allow list in
