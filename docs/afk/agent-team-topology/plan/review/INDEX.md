@@ -4,3 +4,4 @@
 | 0002-config-transport-and-pattern-keys | 0002-config-transport-and-pattern-keys-69d002b-r2.md | advisory | 0/0/0/1 | none |
 | 0003-manifest-module | 0003-manifest-module-27ead19-r8.md | clean | 0/0/0/0 | none |
 | 0004-knowledge-store | 0004-knowledge-store-5ab9a72-r4.md | clean | 0/0/0/0 | none |
+| 0005-pattern-resolver-and-builtin-records | 0005-pattern-resolver-and-builtin-records-824fd86-r5.md | clean | 0/0/0/0 | l: implied edge format (deferred to the feature review gate) |

@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/team/resolver.py",
+  "line": 130,
+  "side": "new",
+  "finding": "The new report-target loop walk indexes checked_roles[target] for a role whose own target is undefined. Roles are validated in one pass, so a role earlier in dict order can reach a later role's undefined target and raise KeyError instead of PatternRefused. The CLI does not catch KeyError, so it prints a traceback instead of exit 2.",
+  "why": "Roles {a: target b, b: target ghost} in that order refuse nothing cleanly, because a's walk reaches 'ghost', appends it to chain, then reads checked_roles['ghost']; the sibling 'reports to ... a role it does not define' check at line 123 only runs when the loop reaches b.",
+  "fix": "Validate every role's report-target exists in a first pass, then run the self and loop checks in a second pass (or guard the walk with `target in checked_roles`). Add a test with the dangling target on a later role.",
+  "evidence": "resolver.py:121-130: `for role, fields in checked_roles.items(): target = fields[\"report-target\"]; if target and target not in checked_roles: raise ...` followed by `while target and target not in chain: chain.append(target); target = checked_roles[target][\"report-target\"]`. The only dangling-target test (test_team_resolver.py:349) uses a single role, so it never walks a chain.",
+  "id": "r-001"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only / boundary cases",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_resolver.py",
+  "line": 428,
+  "side": "new",
+  "finding": "Report-loop test has no pure 3-role ring (a->b->c->a); a mutant detecting only 2-role loops survived all 105 tests.",
+  "why": "Mutation probe on a copy: replacing the chain walk with a one-hop `report-target == role` check passed the suite, so the general loop walk in _check_record is unproven.",
+  "fix": "Add {\"a\": role(target=\"b\"), \"b\": role(target=\"c\"), \"c\": role(target=\"a\")} to the parametrize list.",
+  "evidence": "@pytest.mark.parametrize(\"roles,needle\", [ ({\"a\": role(target=\"a\")}, ...), ({\"a\": role(target=\"b\"), \"b\": role(target=\"a\")}, ...), ({\"a\": role(target=\"b\"), \"b\": role(target=\"c\"), \"c\": role(target=\"b\")}, ...)  (survivor M4: one-hop check)",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only / mutation survivor",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_resolver.py",
+  "line": 440,
+  "side": "new",
+  "finding": "Moderator part MISSING (no file) is untested; the test writes an empty file only, so the new `if part.is_file() else \"\"` guard has no test.",
+  "why": "Mutation probe: reverting _moderator to an unguarded read_text() survived all tests, though the new refusal text says 'missing or empty' and the delta added the guard for the missing case.",
+  "fix": "Add a case that monkeypatches MODERATOR_PART to a non-existent file name and asserts the same 'charter part is missing or empty' refusal (and that build-verify still resolves).",
+  "evidence": "part = tmp_path / \"moderator.md\"; part.write_text(text, encoding=\"utf-8\")  (survivor M1: `part.read_text(encoding=\"utf-8\") if part.is_file() else \"\"` -> `part.read_text(encoding=\"utf-8\")`)",
+  "id": "r-003"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Mock echo / weak assertion",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_resolver.py",
+  "line": 432,
+  "side": "new",
+  "finding": "Test named '..._refused_naming_both' cannot tell the colliding role's owner pattern from the debating pattern: both are pattern p, and the assert only checks 'pattern p'.",
+  "why": "Mutation probe: replacing self.owner[MODERATOR] with the current pattern in the message (and, separately, restricting the check to owner==pattern) survived, so the cross-pattern case where owner and debating pattern differ is unproven.",
+  "fix": "Define the moderator role in an included saved pattern and the debate step in the includer, then assert both pattern names appear in the message.",
+  "evidence": "assert \"role moderator\" in message and \"debate step argue\" in message and \"pattern p\" in message  (survivors M2, M8)",
+  "id": "r-004"
+ }
+]

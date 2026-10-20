@@ -94,3 +94,12 @@
 2026-10-19 22:50 | execute | 0005-pattern-resolver-and-builtin-records | decision(D-56) — a pick of several patterns names every step by its pattern, and a one-off pattern may not reuse a taken name
 2026-10-19 23:47 | execute | 0005-pattern-resolver-and-builtin-records | investigated(INV-077) closed-with-frontier — the fresh look at the code this step stands on is complete: nothing reads team patterns yet, and the files the new ones touch are known
 2026-10-19 23:47 | execute | 0005-pattern-resolver-and-builtin-records | developing — writing the resolver, the five built-in patterns, the moderator part, the pattern standard and their tests
+2026-10-19 23:49 | execute | 0005-pattern-resolver-and-builtin-records | pushed 03ec150 — the resolver, the five built-in patterns and their tests are on pull request 112
+2026-10-19 23:49 | execute | 0005-pattern-resolver-and-builtin-records | verifying — running every check the step lists
+2026-10-20 00:17 | execute | 0005-pattern-resolver-and-builtin-records | verified static, unit — every listed check passed, and the four tests that walk the whole tree pass with the new files
+2026-10-20 00:17 | execute | 0005-pattern-resolver-and-builtin-records | reviewing — independent reviewers check the work, round 1
+2026-10-20 01:02 | execute | 0005-pattern-resolver-and-builtin-records | review r1 advisory crit=0 high=0 med=3 low=11 — reviewers found no blocking problem; 11 small gaps are fixed in 2454924, 2 were withdrawn after an independent check, 1 note waits for the feature review
+2026-10-20 01:18 | execute | 0005-pattern-resolver-and-builtin-records | review r2 advisory crit=0 high=0 med=3 low=1 — the second look found a crash path in the new loop check and three weak tests; all are fixed in af57533
+2026-10-20 01:31 | execute | 0005-pattern-resolver-and-builtin-records | review r3 advisory crit=0 high=0 med=0 low=3 — the third look found only three thin spots in one test; they are fixed in 824fd86
+2026-10-20 01:40 | execute | 0005-pattern-resolver-and-builtin-records | review r4 advisory crit=0 high=0 med=1 low=0 — one more test case was missing for a clash seen in the other order; it is added in e116c04
+2026-10-20 01:47 | execute | 0005-pattern-resolver-and-builtin-records | review settled r5 clean — the fifth look found nothing, and the pull request records every finding as fixed, withdrawn or sent to the feature review
