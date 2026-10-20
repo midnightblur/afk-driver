@@ -360,6 +360,20 @@ def test_a_matcher_exit_other_than_1_refuses(home: dict, tmp_path: Path, monkeyp
 
 
 @needs_bash
+def test_a_matcher_stderr_that_is_not_utf8_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
+    answer = _new_harness(home, tmp_path, monkeypatch, "printf '%s\\n' 'Bash(x *)'", "printf '\\351' >&2; return 2")
+    assert "exited 4" in answer["says"] and "�" in answer["says"]
+
+
+@needs_bash
+def test_a_block_entry_that_utf8_cannot_encode_is_matched_without_a_crash(home: dict) -> None:
+    _write(home["user"], allow=[RULE], deny=["Bash(\ud800 x)", "Bash(*)"])
+    answer = _check(home)
+    _assert_refused(answer, "blocked")
+    assert "holds `Bash(*)`" in answer["says"]
+
+
+@needs_bash
 def test_a_provider_layer_answer_that_is_not_utf8_refuses(home: dict, tmp_path: Path, monkeypatch) -> None:
     answer = _new_harness(home, tmp_path, monkeypatch, "printf 'Bash(x \\351 *)\\n'", "return 1")
     assert "did not answer" in answer["says"] and "utf-8" in answer["says"] and answer["provider"] == "unknown"
@@ -418,11 +432,12 @@ def test_a_detected_harness_without_the_spawn_functions_refuses(home: dict, tmp_
     assert answer["rule"] == rule
 
 
-def _fake(returncode: int = 0, stdout: str = "", stderr: str = "", raises: Exception | None = None):
+def _fake(returncode: int = 0, stdout: str = "", stderr: str | bytes = "", raises: Exception | None = None):
     def run(*_args, **_kwargs):
         if raises is not None:
             raise raises
-        return subprocess.CompletedProcess([], returncode, stdout.encode(), stderr.encode())
+        err = stderr if isinstance(stderr, bytes) else stderr.encode()
+        return subprocess.CompletedProcess([], returncode, stdout.encode(), err)
     return run
 
 
@@ -443,6 +458,12 @@ def test_a_provider_layer_timeout_refuses(home: dict) -> None:
 def test_a_provider_layer_failure_refuses_with_its_stderr(home: dict) -> None:
     answer = _layer_refusal(home, _fake(returncode=2, stderr="adapter broke here"))
     assert "exited 2" in answer["says"] and "adapter broke here" in answer["says"]
+
+
+@needs_bash
+def test_a_provider_layer_failure_with_stderr_that_is_not_utf8_refuses(home: dict) -> None:
+    answer = _layer_refusal(home, _fake(returncode=2, stderr=b"broke \xe9 here"))
+    assert "exited 2" in answer["says"] and "broke � here" in answer["says"]
 
 
 @needs_bash
