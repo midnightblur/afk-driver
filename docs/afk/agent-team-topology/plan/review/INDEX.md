@@ -2,3 +2,4 @@
 |---|---|---|---|---|
 | 0001-glossary-terms | 0001-glossary-terms-ade8ab1-r3.md | clean | 0/0/0/0 | m: Run entry narrows the word (deferred to the feature review gate) |
 | 0002-config-transport-and-pattern-keys | 0002-config-transport-and-pattern-keys-69d002b-r2.md | advisory | 0/0/0/1 | none |
+| 0003-manifest-module | 0003-manifest-module-27ead19-r8.md | clean | 0/0/0/0 | none |

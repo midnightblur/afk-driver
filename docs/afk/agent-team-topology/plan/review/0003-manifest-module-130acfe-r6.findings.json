@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_manifest.py",
+  "line": 470,
+  "side": "new",
+  "finding": "The give-back gap test only puts an empty folder in the gap, so on POSIX the failed give-back never happens and its fallback goes untested",
+  "why": "On POSIX os.rename silently replaces an empty target folder, so this test passes there through a successful give-back. The fallback at manifest.py:216-218, where the live holder's grave is deleted, then only runs on Windows. A newcomer that has already claimed its folder (non-empty target, so the POSIX rename fails too) is never modelled, so the 'except on Windows' limit in the manifest.py:288 comment has no test behind it.",
+  "fix": "Add a case whose before_give_back makes the folder and writes a newcomer owner file; on both OSes assert the newcomer's owner is kept and no grave is left, then make the line-288 comment match the result.",
+  "evidence": "steal_with(monkeypatch, lock, before_steal=lambda: os.utime(lock), before_give_back=lock.mkdir)",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/manifest.py",
+  "line": 288,
+  "side": "new",
+  "finding": "The new comment says the failed give-back happens only on Windows and only in an instant, but it also happens on POSIX and the retry widens the window",
+  "why": "On POSIX, os.rename(grave, lock) raises OSError when the new lock folder is non-empty, so a writer whose mkdir and _claim both land before the give-back makes line 218 delete the live holder's lock there too. The give-back is now wrapped in _patient (line 214), which retries a file-in-use refusal for up to 100 x 0.02 s, so the empty-lock gap can last about 2 s, not an instant. The one comment that records this lost-update race therefore understates it.",
+  "fix": "Reword the comment: the give-back fails when another writer makes the lock before it (on Windows) or makes and claims it before it (on POSIX), within a window of up to the give-back's retry time.",
+  "evidence": "+        # except on Windows when another writer makes the lock in the instant before the give-back.  /  +            _patient(os.rename, grave, lock)  /  `except OSError: pass` then `shutil.rmtree(grave, ignore_errors=True)` (lines 216-218)",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_manifest.py",
+  "line": 473,
+  "side": "new",
+  "finding": "A disjunctive assert accepts both 'given back' and 'live holder's lock destroyed' on every OS",
+  "why": "The or-assert lets each platform pass with either outcome. On POSIX, a version that never gives back (the owner file is missing) passes this test; only sibling tests catch that. The documented Windows outcome is never pinned either.",
+  "fix": "Split the test by platform (skipif) and assert the exact expected owner state for each OS.",
+  "evidence": "assert not owner.exists() or owner.read_text(encoding=\"utf-8\") == \"live-holder\"",
+  "id": "r-003"
+ }
+]

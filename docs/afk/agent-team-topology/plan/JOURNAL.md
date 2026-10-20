@@ -49,3 +49,25 @@
 2026-10-19 18:23 | execute | 0002-config-transport-and-pattern-keys | adversary findings probed=126 crit=0 high=0 med=1 low=0 — an independent attack test found every bad setting refused, plus one non-blocking note: an empty transport section blanks the launch method; noted on the PR for the step that adds the machine check
 2026-10-19 18:23 | execute | 0002-config-transport-and-pattern-keys | wiring clean — the check for unused new files found nothing
 2026-10-19 18:24 | execute | 0002-config-transport-and-pattern-keys | done — the settings step is finished and pushed, all three posted reasons are confirmed on the PR, and the PR stays a draft for the human
+2026-10-19 18:26 | autopilot | 0003-manifest-module | heartbeat 2/26 done, starting 0003-manifest-module
+2026-10-19 18:29 | execute | 0003-manifest-module | designing — started planning the module that keeps the list of a team run's agents and processes
+2026-10-19 18:29 | execute | 0003-manifest-module | decision(D-48) — the module takes the run folder and feature as inputs and also offers takeover, process removal and the two file paths
+2026-10-19 18:29 | execute | 0003-manifest-module | decision(D-49) — a manifest of an unknown version is never read or changed, and is reported once per program run
+2026-10-19 18:29 | execute | 0003-manifest-module | developing — writing the module and its tests, tests first
+2026-10-19 18:40 | execute | 0003-manifest-module | pushed b09d45b..6630765 (2 commits) — the run list module and its tests are on the branch, ticked on pull request 112, with four reasons posted on its lines
+2026-10-19 18:40 | execute | 0003-manifest-module | verifying — re-running every check the contract lists on the pushed code
+2026-10-19 18:40 | execute | 0003-manifest-module | verified — the compile check, the four promised names and the 83 module tests all pass on the pushed code
+2026-10-19 18:40 | execute | 0003-manifest-module | reviewing — fresh reviewers check the change one concern at a time, round 1
+2026-10-19 19:02 | execute | 0003-manifest-module | decision(D-50) — the three new functions no later step lists yet are written down as owed, with the step that will call each
+2026-10-19 19:23 | execute | 0003-manifest-module | review blocking crit=0 high=2 med=8 low=9 — round 1 found 19 problems, mostly missing tests; all 19 are fixed in a795621 and the checks pass again
+2026-10-19 19:49 | execute | 0003-manifest-module | review blocking crit=0 high=1 med=5 low=3 — round 2 found 9 problems in the round-1 fixes, mostly tests that could not fail; all 9 are fixed in 3bc3e23 and the checks pass on both systems
+2026-10-19 19:49 | execute | 0003-manifest-module | decision(D-51) — the three functions no later step lists yet now each get their own owed-caller line, which the unused-file check cannot close by mistake
+2026-10-19 20:15 | execute | 0003-manifest-module | review advisory crit=0 high=0 med=5 low=4 — round 3 found 9 smaller problems, among them a lock that could look abandoned during a slow save; all 9 are fixed in 284390f and the checks pass on both systems
+2026-10-19 20:29 | execute | 0003-manifest-module | review advisory crit=0 high=0 med=2 low=0 — round 4 found that a waiting writer could still take a lock its holder had just renewed, and a test that did not pin the order; both are fixed in 130acfe
+2026-10-19 20:41 | execute | 0003-manifest-module | review advisory crit=0 high=0 med=2 low=1 — round 5 found two more narrow lock races in the hand-back of a taken lock and one unclear test; all 3 are fixed in 23aae3a
+2026-10-19 20:51 | execute | 0003-manifest-module | review advisory crit=0 high=0 med=1 low=2 — round 6 found a comment that understated when a lock hand-back can lose and two tests that did not pin it; all 3 are fixed in 27ead19
+2026-10-19 20:58 | execute | 0003-manifest-module | review advisory crit=0 high=0 med=0 low=2 — round 7 found only a comment still too narrow and two unused test guards; both are fixed in 494e7b4
+2026-10-19 21:01 | execute | 0003-manifest-module | review clean — round 8 found nothing to fix, and the review record on pull request 112 is settled after 8 rounds and 47 fixed findings
+2026-10-19 21:16 | execute | 0003-manifest-module | adversary tainted probed=231 crit=0 high=0 med=3 low=6 — the independent attack test saw this branch's commit titles in the status block every new session receives, so it could not count itself blind; it is being run once more as the rules require
+2026-10-19 21:47 | execute | 0003-manifest-module | adversary findings probed=187 crit=0 high=0 med=0 low=5 — the second independent attack test found 5 small gaps (a rare lock error under many writers on Linux, impossible dates and a 1.0 format version accepted, a text process id not matched, a file blocking the lock on Linux); none blocks, all are noted on pull request 112
+2026-10-19 21:52 | execute | 0003-manifest-module | done — wiring scan clean, all 4 recorded reasons posted and receipted on pull request 112; the run manifest module is finished and waits for human review

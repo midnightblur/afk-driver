@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/team/manifest.py",
+  "line": 277,
+  "side": "new",
+  "finding": "New comment claims the refresh closes the steal window, but a stealer that judged the lock stale before the utime can still rename it after the owner check",
+  "why": "_steal_if_stale does stat -> age check -> _owner read -> rename with no re-check of age, so a contender whose stat landed during the slow write reads the unchanged token as `judged` after line 278 passes and wins the rename while os.replace runs; a third writer can then publish concurrently and one update is lost, and the replaced comment drops the earlier acknowledgement of a remaining window.",
+  "fix": "Either re-stat after reading the owner in _steal_if_stale and skip the rename if age <= LOCK_STALE (narrows the gap to stat-then-rename), or reword line 277 to name the remaining window instead of claiming the whole margin.",
+  "evidence": "line 277: \"# Refreshed, then checked, after the slow write: the rename keeps the whole LOCK_STALE margin.\"; lines 196-206: `age = time.time() - lock.stat().st_mtime` ... `if age <= LOCK_STALE: return` / `judged = _owner(lock)` / `os.rename(lock, grave)`, with no age check after `judged`; replaced comment (3bc3e23): \"# Checked after the slow write; the rename after it takes at most about 2s, inside LOCK_STALE.\"",
+  "id": "r-001"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_manifest.py",
+  "line": 380,
+  "side": "new",
+  "finding": "The refresh-before-check test does not pin the order its name claims; swapping the utime and the owner check survives",
+  "why": "The steal is injected only at os.replace, so a mutant that checks _owner first and refreshes after still sees a fresh lock at the rename and passes, although that order lets a stale-steal between check and refresh slip a lost update through.",
+  "fix": "Also inject the stale steal at the publish check (wrap manifest._owner to call _steal_if_stale(lock) before delegating once writes exist) and assert the lock survives and the write lands once.",
+  "evidence": "test: `def contended_replace(src, dst) -> None: manifest._steal_if_stale(lock); held.append(lock.exists())` (lines 390-392); production manifest.py:273-279 `_patient(os.utime, lock)` ... `# Refreshed, then checked, after the slow write` ... `if _owner(lock) not in (token, None): return False`",
+  "id": "r-002"
+ }
+]

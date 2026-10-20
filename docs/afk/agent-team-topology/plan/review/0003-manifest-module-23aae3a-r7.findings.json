@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "low",
+  "class": "smell",
+  "file": "scripts/team/manifest.py",
+  "line": 288,
+  "side": "new",
+  "finding": "The rewritten comment narrows the losing window to 'the give-back's retries', but the give-back also loses to a folder made before its first attempt",
+  "why": "_patient retries only on PermissionError, so with no file-in-use error there are no retries; a lock folder made by a polling writer between the stealing rename (line 209) and the give-back rename (line 214) still wins, which is exactly the case the new tests' before_give_back hook models.",
+  "fix": "Say 'between the steal and a successful give-back' instead of 'during the give-back's retries'.",
+  "evidence": "manifest.py:288 '# unless another writer makes (Windows) or claims (POSIX) the lock during the give-back's retries.' vs test_team_manifest.py:37/45/54 steal_with(..., before_give_back=newcomer(lock)) with in_use=0, i.e. no retry ever happens and the gap still loses on Windows (line 48 asserts no owner). (also reported by test-veracity: Comment narrows the lost-give-back window to the retries; the new tests show it opens before the first attempt)",
+  "id": "r-001"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Conditional test logic",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_manifest.py",
+  "line": 472,
+  "side": "new",
+  "finding": "newcomer helper carries idempotence guards no caller reaches",
+  "why": "Every caller uses in_use=0 and the real give-back rename fails with a non-PermissionError (ENOTEMPTY/FileExistsError) or succeeds, so _patient never retries and the hook fires once; the exist_ok and owner-exists branches are dead steering logic that hints at an untested retry scenario.",
+  "fix": "Drop exist_ok and the owner-exists check, or add one test that combines newcomer(...) with in_use>0 so the guards earn their place.",
+  "evidence": "lock.mkdir(exist_ok=True)\n        if owner is not None and not (lock / \"owner\").exists():  -- callers: steal_with(..., before_give_back=newcomer(lock)) / newcomer(lock, \"newcomer\") with default in_use=0",
+  "id": "r-002"
+ }
+]

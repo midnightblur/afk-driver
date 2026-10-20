@@ -328,3 +328,31 @@
 - Chosen: A — redact.py:351-353 counts every dotted token in tracked non-test text as public, so the ledger's verbatim quote made test_a_machine_named_like_a_config_key_still_goes fail; the ledger is already in this slice's diff (review finding f007 withdrawn), the evidence field needs only non-empty text (validate_coverage.py:263, still valid after the edit), and B is outside Scope
 - Supersedes: none
 - To reverse: restore the quoted host in that evidence string, after redact.py stops reading investigation ledgers
+
+## D-48 — The manifest module's call shape beyond record, move and read
+- 2026-10-19 · decided by /afk:execute (0003-manifest-module, Step 4)
+- Options: A — only record_entry, move_entry and read_manifest, with adoption and process removal folded into record vs B — the three verbs take the ignored agent directory and the feature as arguments, plus adopt_manifest (create or take over a run: owner session rewritten, generation + 1), remove_process (cleanup's removal of a killed process entry), manifest_path and checkpoint_path; layout <root>/<feature>/manifest.json, lock folder manifest.lock beside it, checkpoints/<role>.json
+- Chosen: B — SDD §8 passes dependencies as arguments (S-53), AC-015 needs an explicit takeover, and 0010's Acceptance says cleanup removes a process entry through this module; folding them into record would let any record take over a run or delete a kill-list line
+- Supersedes: none
+- To reverse: fold the extra functions into record_entry before 0010, 0012 or 0025 consume them
+
+## D-49 — An unknown manifest version is refused on every call and reported once per process
+- 2026-10-19 · decided by /afk:execute (0003-manifest-module, Step 4)
+- Options: A — persist a marker beside the foreign file so the report happens once across processes vs B — every read and write raises ForeignManifest and leaves the file untouched; the module writes one stderr line the first time a process meets that file and version
+- Chosen: B — SDD §4 says "not read, not deleted, reported once" and names no store for the report; a marker file would be a write beside a file the module must not touch
+- Supersedes: none
+- To reverse: add a marker file next to the manifest and check it before the stderr line
+
+## D-50 — The manifest module's later callers are held by one wiring IOU
+- 2026-10-19 · decided by /afk:execute (0003-manifest-module, Step 10 round 1, review findings f005, f006 and f012)
+- Options: A — add Consumes lines for adopt_manifest, remove_process and checkpoint_path to the 0010, 0012 and 0015 contracts vs B — one anchored line in .claude/wiring-ious.md naming each public function and the contract row or plan decision whose step will call it
+- Chosen: B — the contracts belong to the human and round-trip verbatim, while /afk:execute Step 11 names an anchored IOU in .claude/wiring-ious.md as the answer to a symbol whose consumer comes later
+- Supersedes: none
+- To reverse: add the Consumes lines to 0010, 0012 and 0015 and close the IOU line
+
+## D-51 — The manifest module's later callers get one wiring IOU each, keyed by function
+- 2026-10-19 · decided by /afk:execute (0003-manifest-module, Step 10 round 2, review finding f021)
+- Options: A — keep D-50's one line keyed by the file, which the wiring gate closes on its next run because other files already name `manifest` vs B — one line per function, keyed `scripts/team/manifest.py#<function>(`, which the file-name scan never matches, closed by hand when the call lands
+- Chosen: B — the gate keys a line by the exact file path and closes it on any file-name hit, so only a function key keeps the three owed callers tracked until /afk:verify-seams final
+- Supersedes: D-50 (its one file-keyed line, not its choice of an IOU over contract edits)
+- To reverse: put back one file-keyed line, or add Consumes lines to 0010, 0012 and 0015 and close the three lines

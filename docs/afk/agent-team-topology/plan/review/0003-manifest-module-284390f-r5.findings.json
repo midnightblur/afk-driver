@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/team/manifest.py",
+  "line": 212,
+  "side": "new",
+  "finding": "Give-back of a lock just proven live is not retried on a Windows file-in-use error, so it falls through to deleting that live lock",
+  "why": "The delta now routes a refreshed (live, possibly past-its-check) holder's lock into the bare os.rename(grave, lock) give-back; a transient PermissionError there drops to shutil.rmtree(grave), the stealer then mkdirs and loads while the holder runs os.replace, so 2 writers can lose an update, the sibling paths (_owner, utime, replace, unlink) all ride this error out through _patient.",
+  "fix": "Wrap the give-back rename in _patient(os.rename, grave, lock), so only a real collision (FileExistsError) reaches the rmtree.",
+  "evidence": "line 212 `if _owner(grave) != judged or not _is_stale(grave):  # replaced or refreshed since judged: give it back` then line 214 `os.rename(grave, lock)` (no _patient) and line 218 `shutil.rmtree(grave, ignore_errors=True)`; _patient docstring line 175: \"retrying while Windows reports the path in use\" (also reported by test-veracity: The owner-changed half of the give-back condition has no test; dropping it passes the whole suite) (also reported by test-veracity: No test covers the give-back rename failing for a refreshed grave, the branch that now deletes a live holder's lock)",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "scripts/team/manifest.py",
+  "line": 280,
+  "side": "new",
+  "finding": "Comment says a steal judged before the refresh is given back, but a third writer that mkdirs the lock in the rename gap defeats the give-back",
+  "why": "Between the stealer's rename and its give-back the lock path is empty: on POSIX os.rename(grave, lock) silently replaces the third writer's fresh empty lock folder (checked: rename onto an empty folder succeeds under WSL, raises FileExistsError on Windows), then that writer's write_text overwrites the restored owner, and on Windows the give-back fails and the live lock is deleted; either way a holder already past its check and the third writer publish concurrently, against the contract's \"2 racing writers lose no update\" guarantee widened to 3.",
+  "fix": "Create the owner file exclusively in _acquire (open mode 'x', back off on FileExistsError) so a restored lock is never overwritten, and name the remaining Windows gap in this comment instead of claiming the steal is always given back.",
+  "evidence": "line 280 `# Refreshed, then checked, after the slow write; a steal judged before the refresh is given back.`; _acquire line 244 `_patient((lock / \"owner\").write_text, token, \"utf-8\")`; scratch experiment: Windows `rename onto empty dir failed FileExistsError`, WSL `rename onto empty dir: replaced`",
+  "id": "r-002"
+ },
+ {
+  "concern": "test-veracity",
+  "criterion": "Obscure Test",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_manifest.py",
+  "line": 394,
+  "side": "new",
+  "finding": "The first item of `held` is a constant sentinel, so `held == [True, True]` partly asserts the fake's own recording",
+  "why": "`held.append(True)` runs before the steal and records nothing observed, so the claim that the lock survived the publish-check steal rests only on the indirect `len(writes) == 1`, and the list mixes a flag with an observation under one name.",
+  "fix": "Append `lock.exists()` after `manifest._steal_if_stale(lock)` in `contended`, and use a separate flag to make the steal run once.",
+  "evidence": "test_team_manifest.py:393-395 `if writes and not held: held.append(True); manifest._steal_if_stale(lock)`; :407 `assert held == [True, True]`",
+  "id": "r-003"
+ }
+]
