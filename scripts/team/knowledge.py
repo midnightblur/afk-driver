@@ -142,8 +142,8 @@ def _load(path: Path) -> dict:
 
 def _publish(path: Path, entry: dict, replace: bool) -> None:
     tmp = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
-    tmp.write_text(json.dumps({"format_version": FORMAT_VERSION, **entry}, indent=1), "utf-8")
     try:
+        tmp.write_text(json.dumps({"format_version": FORMAT_VERSION, **entry}, indent=1), "utf-8")
         if replace:
             _patient(os.replace, tmp, path)
         else:
@@ -184,6 +184,15 @@ def mark_finished(root: str | os.PathLike, feature: str, author: str, time: str)
     return entry
 
 
+def _roles(item: object, names: object) -> set[str]:
+    if isinstance(names, (str, bytes)) or not isinstance(names, Iterable):
+        raise KnowledgeError(f"debater roles of work item {item!r} must be a list of role names, got {names!r}")
+    roles = set(names)
+    if not all(isinstance(name, str) and name for name in roles):
+        raise KnowledgeError(f"debater roles of work item {item!r} must be non-empty role names, got {names!r}")
+    return roles
+
+
 def read_finished(root: str | os.PathLike, feature: str, stages: Iterable[str],
                   debaters: Mapping[str, Iterable[str]] | None = None) -> list[dict]:
     """Finished entries of `stages`, plus those of a work item in `debaters`, ordered by time then author.
@@ -195,7 +204,7 @@ def read_finished(root: str | os.PathLike, feature: str, stages: Iterable[str],
     if isinstance(stages, str):
         raise KnowledgeError(f"stages must be a list of stage names, got the text {stages!r}")
     stages = set(stages)
-    roles = {item: set(names) for item, names in (debaters or {}).items()}
+    roles = {item: _roles(item, names) for item, names in (debaters or {}).items()}
     folder = store_path(root, feature)
     finished = []
     for path in sorted(folder.glob("*.json")) if folder.is_dir() else ():

@@ -1,6 +1,7 @@
 """Knowledge store module: entry lifecycle, finished stamp, per-stage read filter, debate release rule."""
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import subprocess
@@ -130,15 +131,17 @@ def test_only_a_verdict_entry_carries_a_verdict(tmp_path, step):
     assert entry["reason"] == "optional here" and entry["verdict"] is None
 
 
-def test_debate_fields_stay_empty_outside_a_debate(tmp_path):
-    with pytest.raises(knowledge.KnowledgeError, match="reason"):
-        write(tmp_path, reason="no debate")
-    with pytest.raises(knowledge.KnowledgeError, match="work"):
-        write(tmp_path, work_item="W1")
-    with pytest.raises(knowledge.KnowledgeError, match="work"):
-        write(tmp_path, debate_step="draft")
-    with pytest.raises(knowledge.KnowledgeError, match="debate step"):
-        write(tmp_path, work_item="W1", debate_step="summary")
+@pytest.mark.parametrize("fields, word", [
+    ({"reason": "no debate"}, "reason"),
+    ({"verdict": "AGREE"}, "verdict"),
+    ({"work_item": "W1"}, "work"),
+    ({"debate_step": "draft"}, "work"),
+    ({"work_item": "W1", "debate_step": "summary"}, "debate step"),
+])
+def test_debate_fields_stay_empty_outside_a_debate(tmp_path, fields, word):
+    with pytest.raises(knowledge.KnowledgeError, match=word):
+        write(tmp_path, **fields)
+    assert not knowledge.store_path(tmp_path, FEATURE).exists()
 
 
 # --- mark finished ---
@@ -200,6 +203,33 @@ def test_a_later_stage_reads_earlier_stages_and_a_stage_outside_the_list_is_not_
 def test_stages_given_as_one_text_is_refused(tmp_path):
     with pytest.raises(knowledge.KnowledgeError, match="stages"):
         knowledge.read_finished(tmp_path, FEATURE, "execute")
+
+
+@pytest.mark.parametrize("roles", ["pro", b"pro", 5, [None], ["pro", ""]])
+def test_debater_roles_given_as_one_text_are_refused(tmp_path, roles):
+    finish(tmp_path, draft(tmp_path, "p1", "pro", "2026-10-19T08:00:00Z"))
+    with pytest.raises(knowledge.KnowledgeError, match="W1"):
+        knowledge.read_finished(tmp_path, FEATURE, ["design"], {"W1": roles})
+
+
+def test_a_failed_write_leaves_no_partial_file_in_the_store(tmp_path, monkeypatch):
+    real = Path.write_text
+
+    def torn(self, data, *args, **kwargs):
+        real(self, data[:10], *args, **kwargs)
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", torn)
+    with pytest.raises(OSError, match="disk full"):
+        write(tmp_path, time="2026-10-19T08:00:00Z")
+    assert files(tmp_path) == []
+    monkeypatch.setattr(Path, "write_text", real)
+    entry = write(tmp_path, time="2026-10-19T08:00:00Z")
+    monkeypatch.setattr(Path, "write_text", torn)
+    with pytest.raises(OSError, match="disk full"):
+        finish(tmp_path, entry)
+    assert files(tmp_path) == ["20261019T080000Z-a1.json"]
+    assert json.loads((knowledge.store_path(tmp_path, FEATURE) / files(tmp_path)[0]).read_text("utf-8"))["finished"] is False
 
 
 def test_a_read_returns_entries_ordered_by_time_then_author(tmp_path):
@@ -315,12 +345,32 @@ def test_an_entry_of_an_unknown_format_version_is_not_read_not_changed_and_repor
     assert foreign.read_bytes() == before
 
 
-@pytest.mark.parametrize("text", ["{not json", "[]", '{"format_version": 1, "author": "a2"}'])
-def test_a_damaged_entry_file_is_skipped_and_counts_as_no_finished_draft(tmp_path, capsys, text):
+FINISHED_CON = {"format_version": 1, "author": "c1", "role": "con", "model": "opus", "time": "2026-10-19T08:00:01Z",
+                "ground": "scripts/x.py:1", "stage": "design", "body": "b", "finished": True, "work_item": "W1",
+                "debate_step": "draft", "verdict": None, "reason": None}
+
+
+@pytest.mark.parametrize("name, text, why", [
+    ("20261019T080001Z-c1.json", "{not json", "unreadable"),
+    ("20261019T080001Z-c1.json", "[]", "not a JSON object"),
+    ("20261019T080001Z-c1.json", '{"format_version": 1, "author": "c1"}', "exactly"),
+    ("20261019T080001Z-c1.json", json.dumps({**FINISHED_CON, "extra": 1}), "exactly"),
+    ("20261019T080002Z-c1.json", json.dumps(FINISHED_CON), "file name"),
+    ("20261019T080001Z-c2.json", json.dumps(FINISHED_CON), "file name"),
+])
+def test_a_damaged_entry_file_is_skipped_and_counts_as_no_finished_draft(tmp_path, capsys, name, text, why):
     finish(tmp_path, draft(tmp_path, "p1", "pro", "2026-10-19T08:00:00Z"))
-    (knowledge.store_path(tmp_path, FEATURE) / "20261019T080001Z-c1.json").write_text(text, "utf-8")
+    (knowledge.store_path(tmp_path, FEATURE) / name).write_text(text, "utf-8")
     assert knowledge.read_finished(tmp_path, FEATURE, ["design"], ROLES) == []
-    assert "20261019T080001Z-c1.json" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert name in err and why in err
+
+
+def test_the_damaged_file_cases_differ_from_a_good_file_only_in_the_damage(tmp_path):
+    pro = finish(tmp_path, draft(tmp_path, "p1", "pro", "2026-10-19T08:00:00Z"))
+    (knowledge.store_path(tmp_path, FEATURE) / "20261019T080001Z-c1.json").write_text(json.dumps(FINISHED_CON), "utf-8")
+    con = {k: v for k, v in FINISHED_CON.items() if k != "format_version"}
+    assert knowledge.read_finished(tmp_path, FEATURE, ["design"], ROLES) == [pro, con]
 
 
 # --- location and promotion ---
@@ -331,7 +381,7 @@ def test_the_store_under_the_ignored_agent_directory_is_excluded_from_version_co
     assert result.returncode == 0
 
 
-def test_nothing_is_written_outside_the_store(tmp_path):
+def test_the_module_offers_no_way_out_of_the_store_and_writes_nothing_outside_it(tmp_path):
     entry = write(tmp_path, author="a1", time="2026-10-19T08:00:00Z", work_item="W1", debate_step="verdict",
                   verdict="AGREE", reason="holds")
     finish(tmp_path, entry)
@@ -339,6 +389,6 @@ def test_nothing_is_written_outside_the_store(tmp_path):
     store = knowledge.store_path(tmp_path, FEATURE)
     written = [p for p in tmp_path.rglob("*") if p.is_file()]
     assert written and all(store in p.parents for p in written)
-    public = {name for name in vars(knowledge) if not name.startswith("_") and callable(getattr(knowledge, name))}
-    assert {"write_entry", "mark_finished", "read_finished", "store_path"} <= public
-    assert not any("promot" in name.lower() for name in public)
+    public = {name for name, value in vars(knowledge).items() if not name.startswith("_")
+              and inspect.isfunction(value) and value.__module__ == knowledge.__name__}
+    assert public == {"write_entry", "mark_finished", "read_finished", "store_path"}
