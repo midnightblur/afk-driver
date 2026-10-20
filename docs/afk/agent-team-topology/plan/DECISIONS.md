@@ -616,3 +616,10 @@
 - Chosen: B — the same empty rule on an early `provider-layer` refusal reaches every reader of these passages; one entry keeps the narrowing in one home
 - Supersedes: SDD §8 row "Spawn permission check" interface column "a refusal carrying the rule text"; 0009 Goal "refuses naming the rule when it will not", Acceptance bullets 4, 5 and 7 and the Produces line "a refusal naming the rule"; 0015 Acceptance line 37 "names the rule and /afk:setup" — each for a `provider-layer` refusal raised before the adapter prints a rule, which carries an empty `rule` and still names `/afk:setup`
 - To reverse: give the check a fallback rule text per provider, then drop D-86 and this entry
+
+## D-88 — D-85 also narrows ADR-0005's "ok, every verb runs under the rule"
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 round 7, review key f045)
+- Options: A — leave D-85 superseding SDD §8 and 0009 Acceptance bullet 5 only vs B — extend it to the design record that promises the same ok
+- Chosen: B — the same unread managed settings reach every reader of ADR-0005's sequence; one entry keeps the narrowing in the ledger
+- Supersedes: ADR-0005 (`adr/design/0005-human-granted-spawn-rule.md`) sequence line "ok, every verb runs under the rule" — for organization-managed settings only: a managed deny or ask rule, or `allowManagedPermissionRulesOnly`, can still make the harness ask after an ok
+- To reverse: read the managed sources (D-81's option A), then drop D-85 and this entry

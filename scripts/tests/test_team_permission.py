@@ -125,7 +125,8 @@ def _linked_worktree(home: dict, tmp_path: Path, *init: str) -> tuple[Path, Path
 
 def _assert_main_file_unread(tree: Path, env: dict) -> None:
     listed = permission._adapter(tree.resolve(), env, subprocess.run)["files"]
-    assert len(listed) == 3, f"the adapter lists only the user file and the worktree's two files: {listed}"
+    # The listing is the discriminating assertion: no settings file exists under a foreign entry.
+    assert len(listed) == 3,f"the adapter lists only the user file and the worktree's two files: {listed}"
     answer = permission.check_spawn_permission(tree, env=env)
     assert answer["ok"] is False and answer["problem"] == "missing" and answer["files"] == []
 
@@ -165,31 +166,44 @@ def test_a_git_dir_not_named_dot_git_is_not_read(home: dict, tmp_path: Path) -> 
     _assert_main_file_unread(tree, home["env"])
 
 
-@pytest.mark.parametrize("entry", ["root", "git dir", ".claude"])
-@needs_bash
-@needs_git
-@off_windows
-def test_a_main_checkout_entry_owned_by_another_user_is_not_read(home: dict, tmp_path: Path, entry: str) -> None:
+def _foreign_dir() -> Path:
     foreign = Path(shutil.which("sh") or "").parent
     if not hasattr(os, "getuid") or not foreign.is_dir() or foreign.stat().st_uid == os.getuid():
         pytest.skip("no directory owned by another user to link to")
-    env, tree = home["env"], home["repo"]
-    if entry == ".claude":
-        main, tree = _linked_worktree(home, tmp_path)
-        shutil.rmtree(main / ".claude")
-        (main / ".claude").symlink_to(foreign, target_is_directory=True)
-    else:
-        # A stub git names the common dir, so the root or the git dir can belong to another user without root.
-        top = foreign if entry == "root" else tmp_path / "top"
-        if entry == "git dir":
-            top.mkdir()
-            (top / ".git").symlink_to(foreign, target_is_directory=True)
-        stub = tmp_path / "bin"
-        stub.mkdir()
-        (stub / "git").write_text(f"#!/bin/sh\nprintf '%s\\n' '{top}/.git'\n", encoding="utf-8", newline="\n")
-        (stub / "git").chmod(0o755)
-        env = dict(env, PATH=f"{stub}{os.pathsep}{env.get('PATH', '')}")
-    _assert_main_file_unread(tree, env)
+    return foreign
+
+
+def _git_naming(tmp_path: Path, env: dict, top: Path) -> dict:
+    stub = tmp_path / "bin"
+    stub.mkdir()
+    (stub / "git").write_text(f"#!/bin/sh\nprintf '%s\\n' '{top}/.git'\n", encoding="utf-8", newline="\n")
+    (stub / "git").chmod(0o755)
+    return dict(env, PATH=f"{stub}{os.pathsep}{env.get('PATH', '')}")
+
+
+@needs_bash
+@needs_git
+@off_windows
+def test_a_main_checkout_claude_dir_owned_by_another_user_is_not_read(home: dict, tmp_path: Path) -> None:
+    foreign = _foreign_dir()
+    main, tree = _linked_worktree(home, tmp_path)
+    shutil.rmtree(main / ".claude")
+    (main / ".claude").symlink_to(foreign, target_is_directory=True)
+    _assert_main_file_unread(tree, home["env"])
+
+
+@pytest.mark.parametrize("entry", ["root", "git dir"])
+@needs_bash
+@off_windows
+def test_a_main_checkout_root_or_git_dir_owned_by_another_user_is_not_read(home: dict, tmp_path: Path,
+                                                                         entry: str) -> None:
+    foreign = _foreign_dir()
+    top = foreign if entry == "root" else tmp_path / "top"
+    if entry == "git dir":
+        top.mkdir()
+        (top / ".git").symlink_to(foreign, target_is_directory=True)
+    # A stub git names that checkout, so an entry can belong to another user without root rights.
+    _assert_main_file_unread(home["repo"], _git_naming(tmp_path, home["env"], top))
 
 
 @needs_bash
@@ -210,6 +224,9 @@ def test_the_current_rule_beside_an_old_entry_gives_ok(home: dict) -> None:
     _write(home["local"], allow=[RULE])
     answer = _check(home)
     assert answer["ok"] is True and answer["problem"] is None and answer["rule"] == RULE
+    tails = ["config/settings.json", "repo/.claude/settings.local.json"]
+    assert [f.replace("\\", "/")[-len(t):] for f, t in zip(answer["files"], tails)] == tails
+    assert len(answer["files"]) == 2
 
 
 @needs_bash
