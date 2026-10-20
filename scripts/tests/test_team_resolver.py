@@ -431,15 +431,29 @@ def test_a_role_reporting_to_itself_or_a_report_loop_is_refused(tmp_path, roles,
     assert needle in refused(tmp_path, "p", saved={"p": pattern("p", roles=roles)})
 
 
-def test_a_role_named_like_the_added_moderator_is_refused_naming_both(tmp_path):
-    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2")}, includes=["q"],
-                          steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}]),
-             "q": pattern("q", roles={resolver.MODERATOR: role()})}
+DEBATERS = {"a": role(model="m1"), "b": role(model="m2")}
+ARGUE = [{"name": "argue", "roles": ["a", "b"], "debate": True}]
+
+
+def _same_as_added():
+    return role(model="mod-model", charter=(PATTERNS / resolver.MODERATOR_PART).read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("saved,owner,step", [
+    ({"p": pattern("p", roles=DEBATERS, includes=["q"], steps=ARGUE),
+      "q": pattern("q", roles={resolver.MODERATOR: role()})}, "q", "argue of pattern p"),
+    ({"p": pattern("p", roles={**DEBATERS, resolver.MODERATOR: role()}, steps=ARGUE)}, "p", "argue of pattern p"),
+    ({"p": pattern("p", roles=DEBATERS, includes=["q"], steps=ARGUE),
+      "q": pattern("q", roles={resolver.MODERATOR: _same_as_added()})}, "q", "argue of pattern p"),
+    ({"p": pattern("p", roles=DEBATERS, includes=["q", "r"],
+                   steps=[{"name": "one", "roles": ["a", "b"], "debate": True}]),
+      "q": pattern("q", roles=DEBATERS, steps=[{"name": "two", "roles": ["a", "b"], "debate": True}]),
+      "r": pattern("r", roles={resolver.MODERATOR: role()})}, "r", "one of pattern p"),
+], ids=["included-role", "own-role", "same-values-as-added", "first-debate-step-named"])
+def test_a_role_named_like_the_added_moderator_is_refused_naming_both(tmp_path, saved, owner, step):
     message = refused(tmp_path, "p", saved=saved)
-    assert "role moderator of pattern q" in message and "debate step argue of pattern p" in message
-    saved = {"p": pattern("p", roles={"a": role(model="m1"), "b": role(model="m2"), resolver.MODERATOR: role()},
-                          steps=[{"name": "argue", "roles": ["a", "b"], "debate": True}])}
-    assert "role moderator of pattern p takes the name" in refused(tmp_path, "p", saved=saved)
+    assert f"role moderator of pattern {owner} takes the name" in message
+    assert f"debate step {step}" in message
 
 
 @pytest.mark.parametrize("text", [None, "", "  \n"])
