@@ -3,7 +3,7 @@
 > Parent ticket: small-lane (no parent ticket; github-issues tracker)   Mode: cited
 > Sources: [PRD](../PRD.md) · [SDD](../SDD.md) · [ADRs](../adr/)
 > Branch (for /afk:execute): feat/feat-small-lane
-> Last updated: 2026-10-19 (status column maintained by /afk:execute)
+> Last updated: 2026-10-20 (status column maintained by /afk:execute)
 > Feature: in-progress   <!-- /afk:smoke-test stamps "complete (smoke green …)" iff a smoke gate exists -->
 > Before /afk:execute: fast-forward the main checkout to origin/main (needs 442cfa6, #113) and run its `skills/afk/to-subtasks/scripts/validate_plan.py` on this folder to a clean exit; older copies reject the INV-022..026 ledgers
 > Review policy: lean   <!-- lean | full — slice review-gate roster; semantics owned by skills/afk/review/SKILL.md "Gate policy". Seeded lean; flip to full by hand for the full roster on every slice; absent (older plans) reads full -->
@@ -83,7 +83,7 @@ Rows 8–9 are §14 change seams a later subtask uses; every other §14 row is l
 
 | # | Subtask | Title | Status | Blocked by | Tiers | Seams |
 |---|---------|-------|--------|------------|-------|-------|
-| 1 | 0001-diagnosis-format | diagnosis format file, check script, outside-writes helper | pending | — | static, unit, integration | — |
+| 1 | 0001-diagnosis-format | diagnosis format file, check script, outside-writes helper | developing | — | static, unit, integration | — |
 | 2 | 0002-developer-settings | developer settings K1–K5 move to CONFIG.md | pending | — | static, unit, integration | — |
 | 3 | 0003-tracker-attach | `tracker_attach`, Jira formatted text and refusals, registry check E | pending | — | static, unit, integration | impl §1, §2, §3, §7 |
 | 4 | 0004-diagnose-rewrite | diagnose never fixes; grills take a diagnosis and end with the size call | pending | 0001-diagnosis-format | static, unit, integration | — |
