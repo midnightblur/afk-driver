@@ -20,7 +20,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
 | Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
-| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names: each `providers/codex/agents/afk-afk-*.toml` stub's `name` field is the skill name, and Codex finds an agent by that field, not by its filename; delete the `afk-afk-*.toml` copies in `~/.codex/agents/`, then run `/afk:setup`, whose register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the renamed stubs |
+| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names: each `providers/codex/agents/afk-afk-*.toml` stub's `name` field is the skill name, and Codex finds an agent by that field, not by its filename; delete the `afk-afk-*.toml` copies in `~/.codex/agents/`, then run `/afk:setup`, whose register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the stubs again |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
@@ -154,7 +154,7 @@ Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not 
 
 A model cell is the one home of that tier's model. A cell holds an alias to follow the harness default, or an exact model id to pin. Claude Code accepts both in agent frontmatter `model:` (https://code.claude.com/docs/en/sub-agents).
 
-Each agent file repeats its tier's cell literally, because the harness reads frontmatter and TOML as written. To pin a tier, edit its cell; `hooks/native-contract-gate.sh` check L names every `agents/*.md` and `providers/codex/agents/*.toml` that must follow. Codex users then delete the `afk-afk-*.toml` copies in `~/.codex/agents/` and re-run `/afk:setup`, whose register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the TOMLs again.
+Each agent file repeats its tier's cell literally, because the harness reads frontmatter and TOML as written. To pin a tier, edit its cell; `hooks/native-contract-gate.sh` check L names every `agents/*.md` and `providers/codex/agents/*.toml` that must follow. Codex users then refresh their installed copies by the steps in the Construct mapping row "Spawn AFK role".
 
 A spawn may run a simple slice on `sonnet` (Claude Code) or at lower effort (Codex CLI) instead of the Implementation cell.
 
