@@ -183,7 +183,7 @@ STUB = r'''
 import os, subprocess, sys, time
 open(sys.argv[1], "w").write(str(subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"]).pid))
 print("STUB-START", os.environ.get("DISABLE_AUTOUPDATER", "-"), *sys.argv[2:], flush=True)
-print("STUB-STDIN", repr(sys.stdin.read()), flush=True)
+print("STUB-STDIN", repr(sys.stdin.buffer.read().decode("utf-8")), flush=True)
 time.sleep(300)
 '''
 
@@ -376,6 +376,24 @@ def test_a_cut_last_character_is_kept_only_once_the_run_has_finished(tmp_path, s
         (tmp_path / "a.log.status.json").write_text(json.dumps(status), encoding="utf-8")
     code, body = headless("agent-read", json.dumps({"log": str(log)}), path=os.environ["PATH"])
     assert code == 0 and body["text"] == text and body["complete"] is complete
+
+
+def test_a_run_that_ends_between_the_status_read_and_the_log_read_keeps_its_cut_character(tmp_path,
+                                                                                          monkeypatch):
+    spec = importlib.util.spec_from_file_location("headless_kind", FAMILY / "headless" / "headless.py")
+    kind = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(kind)
+    log = tmp_path / "a.log"
+    log.write_bytes(b"ab" + "\u00e9".encode("utf-8")[:1])
+    real = kind.os.path.getsize
+
+    def finish_then_size(path):
+        (tmp_path / "a.log.status.json").write_text(json.dumps({"exit_code": 0}), encoding="utf-8")
+        return real(path)
+
+    monkeypatch.setattr(kind.os.path, "getsize", finish_then_size)
+    body = kind.Headless().agent_read(Payload("agent-read", {"log": str(log)}), Deadline("agent-read"))
+    assert body["text"] == "ab" and body["marker"] == "2" and body["complete"] is False
 
 
 @pytest.mark.parametrize("verb", ["agent-send", "agent-list"])
@@ -658,7 +676,8 @@ def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
     pane = start("a1")["handle"]
     fake.fail["pane close"] = "error"
     body = mux("agent-stop", {"handle": pane})
-    assert body["stopped"] is True and body["pane_closed"] is False and body["pane_id"] == pane
+    assert body["stopped"] is False and body["pane_closed"] is False and body["pane_id"] == pane
+    assert pane in body["reason"] and body["survivors"] == [] and "method" not in body
 
 
 def test_agent_list_returns_every_match_of_the_prefix(fake):

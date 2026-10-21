@@ -14,7 +14,7 @@ session. The handle is the agent's process id. Entry: `transport.sh`, which runs
 | `agent-start` | `harness` (`claude` \| `codex`), `prompt`, `cwd`, `log` (the output file), optional `model`, `effort`, `args` (other native options), `env` | `kind`, `handle`, `pid`, `started_at` (the process's creation time), `session_id` (empty), `log` |
 | `agent-send` | — | exit 3, `unsupported`: the run takes no message after its start |
 | `agent-status` | `pid`, optional `log` | `alive`, `state` (`running` \| `exited`), `since`, and `exit_code` once exited |
-| `agent-read` | `log`, optional `since_marker` | `text` after the marker, `marker`, `complete` (false when the read stopped at its 1 MiB cap) |
+| `agent-read` | `log`, optional `since_marker` | `text` after the marker, `marker`, `complete` (false when the read stopped at its 1 MiB cap, or before a character a running harness has only half written) |
 | `agent-stop` | optional `pid`, `force` | `stopped` true with `method`, or `stopped` false with `reason` and `survivors` (process ids) |
 | `agent-list` | — | exit 3, `unsupported`: a headless run has no pane id |
 

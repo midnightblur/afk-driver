@@ -244,13 +244,17 @@ def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0) -> list[in
     return survivors
 
 
-def stop(pid: int | None, *, force: bool, wait_s: float, none: str = "nothing to kill") -> dict:
-    """agent-stop's answer for one process tree: stopped with a method, or not with its survivors."""
+def stop(pid: int | None, *, force: bool, wait_s: float, none: str = "nothing to kill",
+         session: int | None = None) -> dict:
+    """agent-stop's answer for one process tree, and on POSIX what is left of its `session`: stopped with
+    a method, or not with its survivors."""
     if pid is None:
         return {"stopped": True, "method": none}
     if not alive(pid):
         return {"stopped": True, "method": "not running"}
     survivors = kill_tree(pid, force=force, wait_s=wait_s)
+    if session is not None:
+        survivors += kill_session(session, keep=session, force=force)
     if survivors:
         return {"stopped": False, "reason": f"{len(survivors)} processes survived the kill", "survivors": survivors}
     return {"stopped": True, "method": "killed the process tree"}

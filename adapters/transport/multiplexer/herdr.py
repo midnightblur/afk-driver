@@ -312,6 +312,10 @@ class Herdr:
         if handle:
             closed = self._close(handle, deadline)
             answer.update({"pane_closed": closed, "pane_id": handle})
+            if pid is None and not closed:          # nothing was killed, and the agent runs on in its pane
+                answer.pop("method", None)
+                answer.update({"stopped": False, "survivors": [],
+                               "reason": f"no process id was given and pane {handle} did not close"})
         return answer
 
     def _close(self, pane: str, deadline: Deadline) -> bool:

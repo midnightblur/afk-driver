@@ -86,7 +86,7 @@ class Headless:
         status, given = _status_path(log), Path(log + ".prompt.txt")
         Path(log).parent.mkdir(parents=True, exist_ok=True)
         status.unlink(missing_ok=True)
-        given.write_text(run.stdin or "", encoding="utf-8")
+        given.write_bytes((run.stdin or "").encode("utf-8"))
         env = {**os.environ, **run.env, **extra}
         owner = _spawn_owner([sys.executable, str(HERE / "job.py"), "--status", str(status), "--log", log,
                               "--cwd", cwd, "--stdin", str(given), "--", binary, *run.args], env)
@@ -126,6 +126,7 @@ class Headless:
         if not marker.isdigit():
             raise bad(p.verb, f"field `since_marker`: {marker!r} is not a marker this kind gave")
         offset = int(marker)
+        state = _read_status(_status_path(log)) or {}       # first: an exit seen now makes every byte read final
         try:
             size = os.path.getsize(log)
         except OSError:
@@ -135,7 +136,6 @@ class Headless:
         with open(log, "rb") as handle:
             handle.seek(offset)
             chunk = handle.read(READ_CAP)
-        state = _read_status(_status_path(log)) or {}
         if len(chunk) == READ_CAP or "exit_code" not in state:      # a finished run's last byte is final
             chunk = _complete(chunk)
         end = offset + len(chunk)
@@ -143,18 +143,8 @@ class Headless:
 
     def agent_stop(self, p: Payload, deadline: contract.Deadline) -> dict:
         pid, force = p.integer("pid", False), p.boolean("force")
-        if pid is None:
-            return {"stopped": True, "method": "no process id given"}
-        if not process.alive(pid):
-            return {"stopped": True, "method": "not running"}
-        session = _session(pid)
-        survivors = process.kill_tree(pid, force=force, wait_s=min(20.0, deadline.left()))
-        if session is not None:
-            survivors += process.kill_session(session, keep=session, force=force)
-        if survivors:
-            return {"stopped": False, "reason": f"{len(survivors)} processes survived the kill",
-                    "survivors": survivors}
-        return {"stopped": True, "method": "killed the process tree"}
+        return process.stop(pid, force=force, wait_s=min(20.0, deadline.left()), none="no process id given",
+                            session=_session(pid) if pid is not None else None)
 
     def agent_list(self, p: Payload, deadline: contract.Deadline) -> dict:
         raise unsupported("a headless run has no pane id to list it by")

@@ -14,7 +14,7 @@ tool usable in this session, or exit 4 naming each tool's state.
 | `agent-send` | `handle`, `text` (the envelope) | `delivered`, `at`, `way` |
 | `agent-status` | `handle` | `alive`, `state`, `since` (empty when the tool reports no time) |
 | `agent-read` | `handle`, optional `since_marker` | `text` after the marker, `marker`, `complete` (false when the marker is no longer on screen) |
-| `agent-stop` | optional `pid`, `handle`, `force` | `stopped` true with `method`, or false with `reason` and `survivors`; `pane_closed` and `pane_id` when a handle is given, and `pane_reason` when no tool is usable to close it |
+| `agent-stop` | optional `pid`, `handle`, `force` | `stopped` true with `method`, or false with `reason` and `survivors`; `pane_closed` and `pane_id` when a handle is given, and `pane_reason` when no tool is usable to close it; with no `pid`, `stopped` follows the pane close |
 | `agent-list` | `prefix` (the agent-name prefix) | `agents`, each with `agent_name` and `pane_id` |
 
 `agent-start` never opens a pane in the contact agent's tab. It adds a pane to
