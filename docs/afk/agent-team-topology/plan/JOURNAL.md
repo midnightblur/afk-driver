@@ -251,3 +251,4 @@
 2026-10-21 14:42 | execute | 0013-provider-layer-codex | review(r4) — 1 reviewer of the last fix found nothing; the closure check on the change says the review is settled, with no item left open
 2026-10-21 14:58 | execute | 0013-provider-layer-codex | adversary — 19 attacks, nothing serious: 1 medium (the rule names no way to reach the other vendor's model when no agent team runs) and 3 low stay as advice on the change
 2026-10-21 14:59 | execute | 0013-provider-layer-codex | blocked(test_hold) — review settled, attack test advisory, links and reasons checked; 14 of the 42 gate tests wait to re-run after the review fixes because the coordinator paused all test runs
+2026-10-21 15:06 | execute | 0013-provider-layer-codex | done — the model backup rule and the renamed Codex agent files are built, reviewed and attacked; all 51 gate tests pass after the review fixes, and 4 attack-test advisories are noted on the change for the feature review
