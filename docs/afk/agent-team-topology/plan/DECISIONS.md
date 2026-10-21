@@ -692,3 +692,17 @@
 - Chosen: B — PRD AC-022 limits the switch to "where the tier map supplies one" and AC-023 forbids a reduced shape, so the only path left is the wait that already parks past the provider's limit; without it a role whose substitute also fails would switch back and forth
 - Supersedes: none
 - To reverse: drop the clause after "a role in a debate pattern waits" at PROVIDERS.md:138 and in the CHANGELOG.md entry
+
+## D-99 — Claude probe panes use launch flags and read-only commands, never a settings change
+- 2026-10-21 · decided by /afk:execute (0006-transport-family-and-herdr, Step 8 live probe rows, Claude cells)
+- Options: A — answer the permission prompts in the probe panes vs B — pass `--allowedTools`, `--permission-mode default` and `--add-dir` on the probe launch only, and give the main checkout read-only commands
+- Chosen: B — the run may not accept a dialog or change a harness setting; the installed guard runs only provably read-only commands in a main checkout, and Claude Code 2.1.305 refuses a foreground `sleep` and an outside script under auto mode
+- Supersedes: none
+- To reverse: re-run the Claude cells with the other launch, recorded in `providers/CONFORMANCE.md` "Transport kind probes"
+
+## D-100 — The herdr recipe records that a busy Claude pane takes queued messages before its Stop handlers
+- 2026-10-21 · decided by /afk:execute (0006-transport-family-and-herdr, Step 8 live probe rows V34 and V35)
+- Options: A — keep the recipe's sentence that a busy `claude` pane waits for its turn and Stop handlers vs B — state that `claude` 2.1.305 takes all queued messages when the running tool call ends, in the same turn
+- Chosen: B — the V35 re-run showed one Stop mark for the busy turn and its three queued answers; SDD §9b row "Busy pane message order" still holds: a delay, never a reorder
+- Supersedes: SDD §9b row "Stop gates in a pane session" — "A message to a busy pane waits for the repository's Stop handlers", for `claude` 2.1.305 and `codex` 0.163.0
+- To reverse: restore the delivery-way sentence and the busy-pane trap row in `adapters/transport/multiplexer/herdr.md`
