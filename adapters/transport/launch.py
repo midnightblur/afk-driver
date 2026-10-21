@@ -19,6 +19,7 @@ class Launch:
     binary: str                      # the harness command, also herdr's agent kind
     args: list[str]                  # the native arguments after the binary
     env: dict[str, str] = field(default_factory=dict)
+    stdin: str | None = None         # a headless run's prompt, fed on standard input
 
     def argv(self) -> list[str]:
         return [self.binary, *self.args]
@@ -62,12 +63,13 @@ def interactive(harness: str, prompt: str | None, *, model: str | None = None, e
 
 def headless(harness: str, prompt: str, *, model: str | None = None, effort: str | None = None,
              args: list[str] | None = None) -> Launch:
-    """A run with no terminal: it takes its whole task at the start and ends on its own."""
+    """A run with no terminal: it takes its whole task at the start, on standard input, and ends on its own.
+    The prompt stays off the command line, so no shell or batch shim can cut or expand it."""
     args = list(args or [])
     if harness == "claude":
-        return Launch("claude", ["-p", *_model_effort(harness, model, effort), *args, prompt],
-                      dict(CLAUDE_UPDATE_OFF))
-    if harness == "codex":
-        return Launch("codex", ["exec", *CODEX_UPDATE_OFF, *_model_effort(harness, model, effort), *args,
-                                prompt], {})
+        return Launch("claude", ["-p", *_model_effort(harness, model, effort), *args],
+                      dict(CLAUDE_UPDATE_OFF), prompt)
+    if harness == "codex":         # `codex exec -` reads its instructions from standard input
+        return Launch("codex", ["exec", *CODEX_UPDATE_OFF, *_model_effort(harness, model, effort), *args, "-"],
+                      {}, prompt)
     raise ValueError(f"unknown harness {harness!r}; one of {', '.join(HARNESSES)}")

@@ -28,6 +28,7 @@ sys.path.insert(0, str(PLUGIN / "adapters" / "transport" / "multiplexer"))
 import contract  # noqa: E402
 import herdr  # noqa: E402
 import launch  # noqa: E402
+import process  # noqa: E402
 
 KINDS = ("subagent", "headless", "multiplexer", "desktop")
 PANE_KINDS = ("multiplexer", "desktop")          # best first
@@ -40,10 +41,11 @@ class ConfigUnreadable(Exception):
 
 def _config(key: str, root: Path, env: Mapping[str, str], run: Callable) -> str | None:
     """One configured value; an absent key, an empty `transport:` section and a null all read as absent.
-    A reader failure (exit 2: a file that does not parse or cannot be read) raises ConfigUnreadable."""
+    A reader failure (exit 2, or exit 1 with an error on stderr) raises ConfigUnreadable; only an absent
+    key exits 1 silently."""
     done = run([sys.executable, str(PLUGIN / "scripts" / "afk-config.py"), "get", key], cwd=str(root),
                capture_output=True, text=True, timeout=30, env=dict(env), check=False)
-    if done.returncode not in (0, 1):
+    if done.returncode not in (0, 1) or (done.returncode == 1 and done.stderr.strip()):
         raise ConfigUnreadable((done.stderr or done.stdout or "").strip()[:400]
                                or f"afk-config.py get {key} exited {done.returncode}")
     value = done.stdout.strip() if done.returncode == 0 else ""
@@ -131,14 +133,22 @@ def dispatch(kind: str, verb: str, payload: Mapping, *, root: Path | str = ".",
     script = ('. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh" || exit 2; afk_config_load; AFK_CFG_TRANSPORT=$1; '
               'afk_adapter transport "$2" "$3"')
     seconds = contract.BUDGET_MS[verb] / 1000 + 15 if verb in contract.BUDGET_MS else 30
+    shell = subprocess.Popen([str(bash), "-c", script, "probe", kind, verb, json.dumps(payload)], cwd=str(root),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=child,
+                             **({"creationflags": 0x00000200} if process.WINDOWS else {"start_new_session": True}))
     try:
-        done = subprocess.run([str(bash), "-c", script, "probe", kind, verb, json.dumps(payload)], cwd=str(root),
-                              capture_output=True, text=True, timeout=seconds, env=child, check=False)
+        out, err = shell.communicate(timeout=seconds)
     except subprocess.TimeoutExpired:
-        late = {"unavailable": True, "timeout": True, "operation": verb,
-                "reason": f"{verb} on the {kind} kind ran past its {seconds:.0f} s limit and was stopped"}
+        survivors = process.kill_tree(shell.pid, force=True, wait_s=10)
+        try:
+            shell.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass                        # a survivor still holds the pipes
+        ended = "was stopped" if not survivors else f"was killed, but processes {survivors} survived"
+        late = {"unavailable": True, "timeout": True, "operation": verb, "survivors": survivors,
+                "reason": f"{verb} on the {kind} kind ran past its {seconds:.0f} s limit and {ended}"}
         return 4, json.dumps(late, sort_keys=True) + "\n", ""
-    return done.returncode, done.stdout, done.stderr
+    return shell.returncode, out, err
 
 
 def _bash() -> Path | None:

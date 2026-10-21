@@ -194,6 +194,21 @@ def test_an_unreadable_configuration_is_a_named_conflict_not_an_absent_key():
     assert ".afk/config.yaml:3: bad indent" in found["conflict"]["detail"]
 
 
+class LoudAbsent(Machine):
+    """The configuration reader exits 1 but names an error on stderr."""
+
+    def run(self, argv, **kw):
+        if any(str(a).endswith("afk-config.py") for a in argv):
+            return subprocess.CompletedProcess(argv, 1, "", "afk-config: cannot read .afk/config.yaml\n")
+        return super().run(argv, **kw)
+
+
+def test_a_reader_exit_1_with_an_error_is_unreadable_not_absent():
+    found = resolve(LoudAbsent())
+    assert found["kind"] is None and found["conflict"]["name"] == "configuration unreadable"
+    assert "cannot read" in found["conflict"]["detail"]
+
+
 def test_a_forced_kind_outside_the_enum_is_a_named_conflict():
     found = resolve(Machine(config={"transport.kind": "pigeon"}))
     assert found["kind"] is None and found["conflict"]["name"] == "unknown forced kind"
@@ -214,13 +229,19 @@ def test_a_real_configuration_file_forces_its_kind(tmp_path):
     assert found["kind"] == "headless" and found["source"] == "config" and found["conflict"] is None
 
 
-def test_a_verb_past_its_limit_answers_unavailable_with_timeout(monkeypatch):
-    def late(*args, **kw):
-        raise subprocess.TimeoutExpired(args[0], kw.get("timeout"))
-
-    monkeypatch.setattr(probe.subprocess, "run", late)
-    monkeypatch.setattr(probe, "_bash", lambda: Path("bash"))
-    code, out, err = probe.dispatch("multiplexer", "agent-status", {"handle": "w1:p2"})
+@needs_bash
+def test_a_verb_past_its_limit_is_killed_with_its_tree_and_answers_timeout(tmp_path, echo_plugin, monkeypatch):
+    sys.path.insert(0, str(REPO / "adapters" / "transport"))
+    import process
+    pidfile, sleeper = tmp_path / "verb.pid", tmp_path / "sleeper.py"
+    sleeper.write_text(f"import os, time\nopen({str(pidfile)!r}, 'w').write(str(os.getpid()))\ntime.sleep(300)\n",
+                       encoding="utf-8")
+    (echo_plugin / "adapters" / "transport" / "subagent" / "transport.sh").write_text(
+        f'"$AFK_PYTHON" "{sleeper.as_posix()}"\n', encoding="utf-8")
+    monkeypatch.setitem(probe.contract.BUDGET_MS, "agent-list", 1)
+    code, out, err = probe.dispatch("subagent", "agent-list", {}, root=repo_with(tmp_path, "schema: 1\n"),
+                                    env=child_env(), plugin=echo_plugin)
     body = json.loads(out)
-    assert code == 4 and body["unavailable"] is True and body["timeout"] is True
-    assert body["operation"] == "agent-status" and "25 s" in body["reason"] and err == ""
+    assert code == 4 and body["unavailable"] is True and body["timeout"] is True and body["survivors"] == []
+    assert body["operation"] == "agent-list" and "was stopped" in body["reason"]
+    assert not process.alive(int(pidfile.read_text()))

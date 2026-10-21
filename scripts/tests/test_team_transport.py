@@ -183,6 +183,7 @@ STUB = r'''
 import os, subprocess, sys, time
 open(sys.argv[1], "w").write(str(subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"]).pid))
 print("STUB-START", os.environ.get("DISABLE_AUTOUPDATER", "-"), *sys.argv[2:], flush=True)
+print("STUB-STDIN", repr(sys.stdin.read()), flush=True)
 time.sleep(300)
 '''
 
@@ -229,7 +230,7 @@ def test_headless_starts_reads_and_stops_a_run_and_its_whole_tree(tmp_path, stub
     assert body["kind"] == "headless" and body["handle"] == str(pid)
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", body["started_at"])
     assert wait_for(lambda: grand.exists() and grand.read_text().strip())
-    assert wait_for(lambda: "STUB-START" in Path(log).read_text(encoding="utf-8", errors="replace"))
+    assert wait_for(lambda: "STUB-STDIN" in Path(log).read_text(encoding="utf-8", errors="replace"))
     code, status = headless("agent-status", json.dumps({"pid": pid, "log": log}), path=path)
     assert code == 0 and status["alive"] is True and status["state"] == "running"
     code, read = headless("agent-read", json.dumps({"log": log}), path=path)
@@ -268,13 +269,29 @@ def test_the_headless_run_sits_under_its_owners_job(tmp_path, stub_harness):
         process.kill_tree(grandchild, force=True, wait_s=5)
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="a batch shim runs through cmd.exe only on Windows")
-def test_a_batch_shim_refuses_a_prompt_cmd_would_cut(tmp_path, stub_harness):
-    bin_dir, _ = stub_harness
-    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": "line one\nline two",
-                                                     "cwd": str(tmp_path), "log": str(tmp_path / "a.log")}),
+def test_the_prompt_reaches_the_harness_whole_on_standard_input(tmp_path, stub_harness):
+    bin_dir, grand = stub_harness           # on Windows the stub is a batch file, which cmd.exe runs
+    prompt = 'line one\nline "two" & 50% | <x> ^ !y'
+    log = tmp_path / "a.log"
+    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": prompt, "cwd": str(tmp_path),
+                                                     "log": str(log)}),
                           path=str(bin_dir) + os.pathsep + os.environ["PATH"])
-    assert code == 4 and "batch file" in body["reason"] and "claude.cmd" in body["reason"].lower()
+    assert code == 0, body
+    try:
+        assert wait_for(lambda: "STUB-STDIN" in log.read_text(encoding="utf-8", errors="replace"))
+        text = log.read_text(encoding="utf-8", errors="replace")
+        assert f"STUB-STDIN {prompt!r}" in text and "line one" not in text.split("STUB-STDIN")[0]
+    finally:
+        process.kill_tree(body["pid"], force=True, wait_s=5)
+        if grand.exists() and grand.read_text().strip():
+            process.kill_tree(int(grand.read_text()), force=True, wait_s=5)
+
+
+def test_a_codex_headless_run_reads_its_instructions_from_standard_input():
+    run = launch.headless("codex", "do it")
+    assert run.args[-1] == "-" and "do it" not in run.args and run.stdin == "do it"
+    run = launch.headless("claude", "do it")
+    assert "do it" not in run.args and run.stdin == "do it"
 
 
 def test_a_start_whose_owner_never_reports_ends_the_owner(tmp_path, monkeypatch, stub_harness):
@@ -346,6 +363,19 @@ def test_headless_refuses_a_marker_it_never_gave(tmp_path):
     assert code == 2 and "since_marker" in body["reason"]
     code, body = headless("agent-read", json.dumps({"log": str(log), "since_marker": "99"}), path=os.environ["PATH"])
     assert code == 2
+
+
+@pytest.mark.parametrize("status, text, complete", [
+    ({"exit_code": 0}, "ab\ufffd", True),
+    (None, "ab", False),
+])
+def test_a_cut_last_character_is_kept_only_once_the_run_has_finished(tmp_path, status, text, complete):
+    log = tmp_path / "a.log"
+    log.write_bytes(b"ab" + "\u00e9".encode("utf-8")[:1])
+    if status is not None:
+        (tmp_path / "a.log.status.json").write_text(json.dumps(status), encoding="utf-8")
+    code, body = headless("agent-read", json.dumps({"log": str(log)}), path=os.environ["PATH"])
+    assert code == 0 and body["text"] == text and body["complete"] is complete
 
 
 @pytest.mark.parametrize("verb", ["agent-send", "agent-list"])
@@ -616,6 +646,14 @@ def test_a_tree_skips_a_process_older_than_the_one_holding_its_parents_id(monkey
     assert process.tree(100) == [100, 200, 400]
 
 
+def test_a_tree_keeps_an_msys_child_newer_windows_parent_did_not_create(monkeypatch):
+    monkeypatch.setattr(process, "_parents", lambda: {100: 1, 200: 100, 300: 5})
+    monkeypatch.setattr(process, "_msys_children", lambda: {100: [300]})
+    born = {100: 50, 200: 60, 300: 10}
+    monkeypatch.setattr(process, "_created", born.get)
+    assert sorted(process.tree(100)) == [100, 200, 300]
+
+
 def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
     pane = start("a1")["handle"]
     fake.fail["pane close"] = "error"
@@ -668,6 +706,17 @@ def test_a_stop_with_no_usable_tool_still_kills_the_tree_and_names_the_pane(monk
     assert wait_for(lambda: not process.alive(int(grand.read_text()))) and not process.alive(child.pid)
 
 
+def test_a_stop_with_no_tool_and_no_process_id_answers_not_stopped(monkeypatch):
+    import multiplexer
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr",
+                        (lambda env, harnesses, timeout: herdr.Detection("herdr", "broken", "no server"),
+                         herdr.Herdr))
+    body = multiplexer.Multiplexer({}).agent_stop(Payload("agent-stop", {"handle": "w1:p2"}),
+                                                  Deadline("agent-stop"))
+    assert body["stopped"] is False and "no process id" in body["reason"] and body["survivors"] == []
+    assert body["pane_closed"] is False and body["pane_id"] == "w1:p2"
+
+
 @pytest.mark.parametrize("stdout, stderr, code, want", [
     ('{"id":"1","result":{"type":"pane_info","pane":{"pane_id":"w1:p2","tab_id":"w1:t2"}}}', "", 0,
      {"type": "pane_info", "pane": {"pane_id": "w1:p2", "tab_id": "w1:t2"}}),
@@ -699,6 +748,16 @@ def test_a_codex_resume_that_never_settles_leaves_time_to_close_its_pane(fake, m
     assert calls(fake, "pane close") and "w1:t2" not in fake.tabs
 
 
+def test_a_read_whose_marked_body_scrolled_away_is_not_complete(fake):
+    pane = start("a1")["handle"]
+    footer = "\n+------+\n| >    |\n+------+\n  ? for shortcuts\n"
+    fake.screen = "line 1\nline 2" + footer
+    first = mux("agent-read", {"handle": pane})
+    fake.screen = "other x\nother y" + footer
+    second = mux("agent-read", {"handle": pane, "since_marker": first["marker"]})
+    assert second["complete"] is False and second["text"].startswith("other x\nother y")
+
+
 def test_agent_read_finds_new_output_above_a_footer_that_never_changes(fake):
     pane = start("a1")["handle"]
     footer = "\n+------+\n| >    |\n+------+\n  ? for shortcuts\n"
@@ -709,6 +768,12 @@ def test_agent_read_finds_new_output_above_a_footer_that_never_changes(fake):
     assert second["complete"] is True and second["text"].startswith("line 3\nline 4")
     again = mux("agent-read", {"handle": pane, "since_marker": second["marker"]})
     assert again["text"].strip() == ""
+
+
+def test_a_successor_tab_takes_the_next_number_in_use(fake):
+    fake.tabs["w1:t9"] = {"label": "goal step 2", "panes": ["x1", "x2", "x3", "x4"]}
+    start("a1")
+    assert sorted(t["label"] for t in fake.tabs.values()) == ["contact", "goal step 2", "goal step 3"]
 
 
 def test_a_tab_name_that_ends_in_a_number_keeps_its_own_tab(fake):

@@ -1,6 +1,6 @@
 """Headless runs: the plugin starts the harness with no terminal, under an operating-system job.
 
-The run takes its whole task at its start and writes its output to the `log` file the caller names; its
+The run takes its whole task at its start, on standard input from a `<log>.prompt.txt` file, and writes its output to the `log` file the caller names; its
 handle is its process id. It takes no message after the start and has no pane, so agent-send and agent-list
 answer unsupported. Payloads and answers: CONTRACT.md beside this file.
 """
@@ -22,7 +22,6 @@ import process  # noqa: E402
 from contract import Payload, bad, unavailable, unsupported  # noqa: E402
 
 READ_CAP = 1 << 20
-BATCH_CUTS = set('\r\n%"^&|<>!')         # cmd.exe cuts or expands these in a batch shim's argument
 
 
 def _status_path(log: str) -> Path:
@@ -84,15 +83,13 @@ class Headless:
         binary = shutil.which(run.binary)
         if not binary:
             raise unavailable(f"`{run.binary}` is not on PATH, so no headless {harness} run can start")
-        if binary.lower().endswith((".cmd", ".bat")) and BATCH_CUTS & set(prompt):
-            raise unavailable(f"`{binary}` is a batch file, and cmd.exe would cut or expand the prompt's "
-                              "line breaks or special characters; use a prompt without them")
-        status = _status_path(log)
+        status, given = _status_path(log), Path(log + ".prompt.txt")
         Path(log).parent.mkdir(parents=True, exist_ok=True)
         status.unlink(missing_ok=True)
+        given.write_text(run.stdin or "", encoding="utf-8")
         env = {**os.environ, **run.env, **extra}
         owner = _spawn_owner([sys.executable, str(HERE / "job.py"), "--status", str(status), "--log", log,
-                              "--cwd", cwd, "--", binary, *run.args], env)
+                              "--cwd", cwd, "--stdin", str(given), "--", binary, *run.args], env)
         end = time.monotonic() + min(15.0, deadline.left())
         state = _read_status(status)
         while (state is None or ("pid" not in state and "error" not in state)) and time.monotonic() < end:
@@ -138,7 +135,9 @@ class Headless:
         with open(log, "rb") as handle:
             handle.seek(offset)
             chunk = handle.read(READ_CAP)
-        chunk = _complete(chunk)
+        state = _read_status(_status_path(log)) or {}
+        if len(chunk) == READ_CAP or "exit_code" not in state:      # a finished run's last byte is final
+            chunk = _complete(chunk)
         end = offset + len(chunk)
         return {"text": chunk.decode("utf-8", "replace"), "marker": str(end), "complete": end >= size}
 

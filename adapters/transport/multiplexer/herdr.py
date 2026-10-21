@@ -307,17 +307,8 @@ class Herdr:
     # ---- agent-stop
     def agent_stop(self, p: Payload, deadline: Deadline) -> dict:
         pid, handle, force = p.integer("pid", False), p.text("handle", False), p.boolean("force")
-        answer: dict = {"stopped": True, "method": "nothing to kill"}
-        if pid is not None:
-            if not process.alive(pid):
-                answer = {"stopped": True, "method": "not running"}
-            else:
-                survivors = process.kill_tree(pid, force=force, wait_s=min(20.0, max(1.0, deadline.left() - 20)))
-                answer = ({"stopped": False, "reason": f"{len(survivors)} processes survived the kill",
-                           "survivors": survivors} if survivors else
-                          {"stopped": True, "method": "killed the process tree"})
-        elif handle:
-            answer = {"stopped": True, "method": "pane close"}
+        answer = process.stop(pid, force=force, wait_s=min(20.0, max(1.0, deadline.left() - 20)),
+                              none="pane close" if handle else "nothing to kill")
         if handle:
             closed = self._close(handle, deadline)
             answer.update({"pane_closed": closed, "pane_id": handle})
@@ -413,6 +404,6 @@ def _after(lines: list[str], marker: str) -> int | None:
                     kept += 1
                 best = end + kept if best is None else min(best, end + kept)
                 break
-    if best is None:
-        return None
+    if best is None or (best == len(new) and new[-len(old):] != old):
+        return None                 # only a footer matched: the marked body is gone, so nothing is known new
     return filled[best - 1][0] + 1 if best else 0

@@ -1,6 +1,6 @@
 """The owner of one headless run: it holds the operating-system job, starts the agent in it, and waits.
 
-    job.py --status FILE --log FILE --cwd DIR -- <argv...>
+    job.py --status FILE --log FILE --cwd DIR [--stdin FILE] -- <argv...>
 
 Windows: a job object with the kill-on-job-close limit and no breakaway limit; this owner joins it before it
 starts the agent, so every child the agent starts is a member, and closing the owner ends them all. Elsewhere:
@@ -74,6 +74,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--status", required=True)
     parser.add_argument("--log", required=True)
     parser.add_argument("--cwd", required=True)
+    parser.add_argument("--stdin")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -83,8 +84,8 @@ def main(argv: list[str]) -> int:
         _write(status, {"error": f"could not place the run under an operating-system job: {problem}"})
         return 1
     try:
-        with open(args.log, "ab") as log:
-            child = subprocess.Popen(command, cwd=args.cwd, stdin=subprocess.DEVNULL, stdout=log,
+        with open(args.log, "ab") as log, open(args.stdin or os.devnull, "rb") as given:
+            child = subprocess.Popen(command, cwd=args.cwd, stdin=given, stdout=log,
                                      stderr=subprocess.STDOUT,
                                      creationflags=0x08000000 if process.WINDOWS else 0)  # CREATE_NO_WINDOW
     except OSError as error:

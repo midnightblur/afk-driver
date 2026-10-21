@@ -19,7 +19,9 @@ session. The handle is the agent's process id. Entry: `transport.sh`, which runs
 | `agent-list` | — | exit 3, `unsupported`: a headless run has no pane id |
 
 Each start carries the harness's update-off switch on its own launch only
-(`../launch.py`). `agent-stop` lists the whole process tree, then kills each
+(`../launch.py`). The prompt goes to the harness on standard input, from
+`<log>.prompt.txt`, never on its command line, so no shell or batch shim cuts
+or expands it. `agent-stop` lists the whole process tree, then kills each
 member by its id; elsewhere than Windows it then kills what is left of the
 run's session, which reaches a child that moved to init. It never relies on a
 shell trap. A start whose job owner reports no process in 15 s ends that owner.
@@ -27,9 +29,8 @@ shell trap. A start whose job owner reports no process in 15 s ends that owner.
 ## Exit codes
 
 0 the verb ran · 2 a bad payload or field, named · 3 not a verb of this kind ·
-4 `unavailable`: the harness command is not on `PATH`, the harness is a Windows
-batch file and the prompt holds a line break or a character `cmd.exe` expands,
-or the run could not be placed under an operating-system job. Any other failure
+4 `unavailable`: the harness command is not on `PATH`, or the run could not be
+placed under an operating-system job. Any other failure
 inside a verb also answers 4, naming the verb.
 
 ## Configuration keys read

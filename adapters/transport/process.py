@@ -184,24 +184,31 @@ else:
         return None                     # a POSIX orphan moves to init, so a parent id is never stale
 
     def session_members(sid: int) -> list[int]:
-        """Every live process of one session."""
-        done = subprocess.run(["ps", "-A", "-o", "pid=,sid="], capture_output=True, text=True,
-                              timeout=10, check=False)
-        rows = [line.split() for line in done.stdout.splitlines()]
-        return [int(r[0]) for r in rows if len(r) == 2 and r[0].isdigit() and r[1] == str(sid)]
+        """Every live process of one session, by os.getsid, which every POSIX system has."""
+        out = []
+        for pid in _parents():
+            try:
+                if os.getsid(pid) == sid:
+                    out.append(pid)
+            except OSError:
+                pass                    # gone, or another user's process
+        return out
 
 
 def tree(pid: int) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
     Windows parent is a fork stub that is gone by the time the child runs. Windows reuses a dead
-    parent's id, so a child older than the process holding its parent's id is not its child."""
+    parent's id, so a child older than the process holding its parent's id is not its child; an MSYS
+    edge is exempt, since an MSYS exec gives the parent a newer Windows process."""
     parents = _parents()
     children: dict[int, list[int]] = {}
     for child, parent in parents.items():
         if child != parent:
             children.setdefault(parent, []).append(child)
+    msys: set[tuple[int, int]] = set()
     for parent, kids in _msys_children().items():
         children.setdefault(parent, []).extend(k for k in kids if k in parents)
+        msys.update((parent, k) for k in kids)
     born: dict[int, int | None] = {}
 
     def created(member: int) -> int | None:
@@ -216,8 +223,8 @@ def tree(pid: int) -> list[int]:
             continue
         out.append(current)
         mine = created(current)
-        queue.extend(k for k in children.get(current, [])
-                     if mine is None or created(k) is None or created(k) >= mine)
+        queue.extend(k for k in children.get(current, []) if (current, k) in msys
+                     or mine is None or created(k) is None or created(k) >= mine)
     return out
 
 
@@ -235,6 +242,18 @@ def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0) -> list[in
                 _kill_one(member, True)
         survivors = [m for m in survivors if alive(m)]
     return survivors
+
+
+def stop(pid: int | None, *, force: bool, wait_s: float, none: str = "nothing to kill") -> dict:
+    """agent-stop's answer for one process tree: stopped with a method, or not with its survivors."""
+    if pid is None:
+        return {"stopped": True, "method": none}
+    if not alive(pid):
+        return {"stopped": True, "method": "not running"}
+    survivors = kill_tree(pid, force=force, wait_s=wait_s)
+    if survivors:
+        return {"stopped": False, "reason": f"{len(survivors)} processes survived the kill", "survivors": survivors}
+    return {"stopped": True, "method": "killed the process tree"}
 
 
 def kill_session(sid: int, *, keep: int, force: bool = False, wait_s: float = 5.0) -> list[int]:
