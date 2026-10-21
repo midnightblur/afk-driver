@@ -1,0 +1,44 @@
+[
+ {
+  "id": "ds-01",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 136,
+  "side": "new",
+  "finding": "The adapter listing is now decoded with errors=\"replace\", so a settings-file path holding a byte that is not UTF-8 turns into a path with U+FFFD. _load then fails to open it and the file is skipped exactly like an absent file, with no refusal. A deny or ask entry in that file is never matched, so the check can answer ok while the harness still blocks a later verb (the case D-94 closes). Before the delta the same input raised UnicodeDecodeError out of run(), a crash rather than a silent ok.",
+  "why": "The delta turns a loud failure into a silent skip on the path that feeds the block-list check; the module's contract is to refuse when it cannot read the provider layer faithfully.",
+  "fix": "Decode the _adapter stdout strictly and turn UnicodeDecodeError into a provider-layer refusal (catch it next to OSError/TimeoutExpired), or refuse when a `file` line holds U+FFFD; errors=\"replace\" can stay on the _blocks call, whose output is ASCII verb commands.",
+  "evidence": "permission.py:136 `text=True, encoding=\"utf-8\", errors=\"replace\", timeout=30, env=child, check=False)`; permission.py:91-93 `settings = _load(path)` / `if settings is None:` / `continue`; permission.py:182-185 `_load` returns None on OSError. Independent probe (child writes bytes `file\\t/x\\xe9/s\\n`, parent runs subprocess.run(..., text=True, encoding='utf-8', errors='replace')): stdout `'file\\t/x\\ufffd/s\\n'` exit 0, no exception. Reachable on Linux or a non-UTF-8 Git Bash locale when $HOME, CLAUDE_CONFIG_DIR or the repository root holds such a byte (likely rare; not reproduced end to end)."
+ },
+ {
+  "id": "TV-1",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only / missing discriminating case (Meszaros)",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 299,
+  "side": "new",
+  "finding": "The test named for the first matching entry has only one block entry that matches a verb command, so it cannot tell the first match from any other match.",
+  "why": "The fixture's block entries are `Bash(git status)`, `Read(./secrets/日本)`, `Bash(npm *)` and `Bash(afk-python *)`. By the matcher rules in PROVIDERS.md, only `Bash(afk-python *)` matches a verb command, so `_blocks` returns one key. A mutant of permission.py:109 from `first = min(hits)` to `max(hits)`, or to any other choice among the keys, still passes. The commit subject says this test pins the first matching entry, and no other test in the file has two matching entries (I read every block-list test: lines 252-306). The test pins only the alignment between the matcher's index and the entry list, which the `git status`/`npm` absence check covers.",
+  "fix": "Add a second matching entry after the expected one, for example `Bash(*)` in the local ask list after `Bash(afk-python *)`, or `Bash` in a file read later. Assert that the says text names the earlier entry and does not name the later one.",
+  "evidence": "_write(home[\"user\"], allow=[RULE], deny=[\"Bash(git status)\", \"Read(./secrets/日本)\"])\n    _write(home[\"local\"], ask=[\"Bash(npm *)\", \"Bash(afk-python *)\"])\n ... assert \"repo/.claude/settings.local.json permissions.ask holds `Bash(afk-python *)`\" in answer[\"says\"]"
+ },
+ {
+  "id": "TV-2",
+  "concern": "test-veracity",
+  "criterion": "Missing negative case for a changed branch (Meszaros)",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/team/permission.py",
+  "line": 136,
+  "side": "new",
+  "finding": "No test covers the UTF-8 decoding this delta adds to `_adapter`. Removing `encoding=\"utf-8\", errors=\"replace\"` from this call fails no test.",
+  "why": "On this machine, the shipped interpreter defaults to cp1252 without UTF-8 mode (afk-python 3.14.8: utf8_mode 0, preferred encoding cp1252), and CI runs windows-latest. `_adapter` decodes the file paths the adapter prints, such as CLAUDE_CONFIG_DIR and the repository root after `cygpath -m`. A non-ASCII directory name is decoded wrongly under cp1252, so `_load` fails and the check refuses with `missing`. The only non-ASCII text in the test file is the `日本` block entry at line 300, which goes to `_blocks` on stdin and never through `_adapter`'s stdout. Every fixture path comes from ASCII `tmp_path` names.",
+  "fix": "Add a needs_bash test whose user settings file sits under a non-ASCII directory, for example CLAUDE_CONFIG_DIR = tmp_path / \"配置\", with RULE in its allow list. Assert ok is True and that answer[\"files\"] names that path. On a Windows shell, this test fails without the encoding argument.",
+  "evidence": "done = run([str(bash), \"-c\", _ADAPTER, \"permission\", str(PLUGIN), str(root)], capture_output=True,\n                   text=True, encoding=\"utf-8\", errors=\"replace\", timeout=30, env=child, check=False)"
+ }
+]

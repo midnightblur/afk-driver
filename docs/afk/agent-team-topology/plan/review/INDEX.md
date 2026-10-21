@@ -6,4 +6,4 @@
 | 0004-knowledge-store | 0004-knowledge-store-5ab9a72-r4.md | clean | 0/0/0/0 | none |
 | 0005-pattern-resolver-and-builtin-records | 0005-pattern-resolver-and-builtin-records-824fd86-r5.md | clean | 0/0/0/0 | l: implied edge format (deferred to the feature review gate) |
 | 0008-inbox-wait-script | 0008-inbox-wait-script-60f939f-r2.md; adversary: 0008-inbox-wait-script-adversary.md | clean | 0/0/0/0 | none |
-| 0009-spawn-permission-check | 0009-spawn-permission-check-b397b3d-r10.md | advisory | 0/0/2/5 | 7 open at the round cap (f055 to f061, review_fail); l: f016, f031 deferred to the feature review gate |
+| 0009-spawn-permission-check | 0009-spawn-permission-check-295607a-r16.md; adversary: 0009-spawn-permission-check-adversary.md | clean | 0/0/0/0 | adversary m: check reads HOME while Claude Code on Windows reads USERPROFILE; l: tool-name glob block entries, `:*` rule form, long block lists; review l/m: f016, f031, f055 to f061, f072, f073, f076 deferred to the feature review gate |

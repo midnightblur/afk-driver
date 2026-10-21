@@ -1,0 +1,72 @@
+[
+ {
+  "id": "DS-1",
+  "concern": "delta-sweep",
+  "criterion": "open question",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 137,
+  "side": "new",
+  "finding": "The whole adapter listing is now decoded strictly in one call. One bad byte in any later line, such as a settings-file path, throws away the provider and rule lines the adapter already printed as valid UTF-8. The refusal then says provider `unknown`, an empty rule and 'did not answer', although the adapter did answer and did print the rule.",
+  "why": "The module docstring promises to 'refuse naming /afk:setup and the rule when the adapter printed one' (permission.py:3), and the returncode path keeps the printed rule (permission.py:155-156, pinned by test_a_provider_layer_failure_keeps_the_printed_rule). This is reachable on Linux when CLAUDE_CONFIG_DIR or the repository root holds a non-UTF-8 byte. Independent probe: a fake run returned bytes whose provider and rule lines were valid UTF-8 and whose file line was /home/u/caf<byte 0xE9>/settings.json. The check answered provider='unknown', rule='', says=\"the provider layer did not answer: 'utf-8' codec can't decode byte 0xe9 in position 97 ...\". The refusal itself stays safe; only the named rule and the wording are lost.",
+  "fix": "Decode line by line and parse provider and rule from the lines that decode. On the first line that does not decode, return an error dict that keeps the provider and rule found so far, and word it as 'the provider layer printed a line that is not UTF-8' rather than 'did not answer'.",
+  "evidence": "permission.py:137 `stdout = done.stdout.decode(\"utf-8\")`; :138-139 `except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError) as problem: return {\"error\": f\"the provider layer did not answer: {problem}\"}`; :3 `or refuse naming /afk:setup and the rule when the adapter printed one.`"
+ },
+ {
+  "id": "DS-2",
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "scripts/team/permission.py",
+  "line": 168,
+  "side": "new",
+  "finding": "The matcher's stdin is now bytes, so Windows text-mode newline translation no longer adds a CR. The CR strip in _BLOCKS (permission.py:56), which 2643b80 added together with the text-mode `input=`, is now a dead workaround. It still rewrites a real block-list entry that ends in CR before matching it.",
+  "why": "D-94 has the matcher treat 'other characters literal'. A deny or ask entry whose JSON text ends in a CR now reaches the matcher without that CR, so the check judges a different string from the one the harness holds. The check can then refuse on an entry the harness might not apply. That direction is safe, but the line no longer has a reason to exist.",
+  "fix": "Remove the `entry=${entry%$'\\r'}` assignment from _BLOCKS (permission.py:56) now that the input is sent as UTF-8 bytes with no newline translation.",
+  "evidence": "permission.py:168 `input=\"\".join(f\"{e}\\n\" for e in entries).encode(\"utf-8\", \"replace\"), capture_output=True,`; permission.py:56 `n=$((n + 1)) entry=${entry%$'\\r'}`; 2643b80 added both, the input then being `input=\"\".join(f\"{e}\\n\" for e in entries), capture_output=True, text=True`"
+ },
+ {
+  "id": "TV-1",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) - missing negative case",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/team/permission.py",
+  "line": 183,
+  "side": "new",
+  "finding": "No test feeds the new `_text` helper bytes that are not UTF-8, so its `\"replace\"` handler is unpinned. Every stderr the suite supplies is ASCII: `stderr=\"adapter broke here\"` (test file :444), `\"afk_claude_spawn_rule_blocks exited 2\"` (:326), and the real matcher's `afk_newharness_spawn_rule_blocks exited 2` (:359). The only non-UTF-8 input, `printf 'Bash(x \\\\351 *)\\\\n'` (:364), goes to the adapter's stdout, which is decoded strictly at line 137 and never reaches `_text`.",
+  "why": "`_text` runs outside each `try` (lines 156, 173, 175), so a strict decode there would raise UnicodeDecodeError out of check_spawn_permission and crash the check instead of refusing. That is the failure mode this delta fixes for stdout. If `\"replace\"` were dropped, every test would still pass.",
+  "fix": "Add one case where the adapter exits non-zero with a non-UTF-8 byte in stderr, and one where the matcher writes a non-UTF-8 byte to stderr and exits other than 1, e.g. `printf '\\\\351' >&2; return 2` through `_new_harness`. Assert a `provider-layer` refusal that keeps the readable part of the message.",
+  "evidence": "permission.py:182-183 `def _text(output: bytes) -> str:\\n    return output.decode(\"utf-8\", \"replace\").strip()`; :156 `found[\"error\"] = f\"the provider layer exited {done.returncode}: {_text(done.stderr)}\"` (after the try); test :444 `_fake(returncode=2, stderr=\"adapter broke here\")`"
+ },
+ {
+  "id": "TV-2",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) - missing negative case",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/team/permission.py",
+  "line": 168,
+  "side": "new",
+  "finding": "The block entries are now encoded with `.encode(\"utf-8\", \"replace\")`, but no test passes an entry that strict UTF-8 cannot encode. A settings file can hold one: json.loads accepts the escape `\"\\\\ud800\"` and returns a lone surrogate. I checked it here: `'Bash(\\\\ud800)'.encode('utf-8')` raises `surrogates not allowed`, and with `\"replace\"` it gives `b'Bash(?)\\\\n'`. The only non-ASCII entry in the suite is `Read(./secrets/日本)` (test :300), which encodes cleanly either way.",
+  "why": "The encode runs inside the `try`, but that `except` catches only `(OSError, subprocess.TimeoutExpired)`. If `\"replace\"` were dropped, a settings file with a lone-surrogate escape would crash the check, and every test would still pass.",
+  "fix": "Write a deny entry holding the JSON escape `\\\\ud800` (write raw JSON text, since json.dumps cannot emit a lone surrogate unescaped), together with a matching entry after it. Assert that the check still answers, and that the refusal names the later matching entry.",
+  "evidence": "permission.py:168 `input=\"\".join(f\"{e}\\n\" for e in entries).encode(\"utf-8\", \"replace\"), capture_output=True,`; :170 `except (OSError, subprocess.TimeoutExpired) as problem:`; test :300 `deny=[\"Bash(git status)\", \"Read(./secrets/日本)\"]`"
+ },
+ {
+  "id": "TV-3",
+  "concern": "test-veracity",
+  "criterion": "Obscure Test (Meszaros) - mystery guest / irrelevant setup",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 348,
+  "side": "new",
+  "finding": "`_new_harness` always writes `allow=[\"Bash(x *)\"], deny=[\"Bash(y)\"]` and an adapter whose rule line is supplied by the caller. The non-UTF-8 test never reaches that fixture: its listing fails to decode before any settings file is read, so the deny entry and `\"return 1\"` are noise. The matcher-exit test does depend on the hidden deny entry and on the rule matching the allow entry, and neither shows in its body.",
+  "why": "A reader cannot tell from either test body which fixture drives the asserted refusal. A later change to the helper's settings could silently move the matcher-exit test onto another path, for example by emptying `blocked` so the matcher is never called.",
+  "fix": "Pass the allow and deny lists in as `_new_harness` parameters, so each test states the fixture it relies on, or name the dependency in the helper's docstring.",
+  "evidence": "test :348 `_write(home[\"user\"], allow=[\"Bash(x *)\"], deny=[\"Bash(y)\"])`; :364 `_new_harness(home, tmp_path, monkeypatch, \"printf 'Bash(x \\\\351 *)\\\\n'\", \"return 1\")`; :358 `_new_harness(home, tmp_path, monkeypatch, \"printf '%s\\\\n' 'Bash(x *)'\", \"return 2\")`"
+ }
+]

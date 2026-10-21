@@ -651,3 +651,23 @@
 - Chosen: B — a Git Bash child's Windows parent is a gone fork stub, so a live `sleep` outlived agent-stop while it answered `stopped` true
 - Supersedes: none
 - To reverse: drop `_msys_ps` and `_msys_children` in `adapters/transport/process.py`
+
+## D-93 — Round 11 closes the slice review with a clean summary and no new review pass
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10 resume after the round cap)
+- Options: A — run an 11th review pass at ed074e6 before the summary vs B — write the round 11 summary at ed074e6 with `clean=true` and no new pass, after f055 to f061 take `deferred gate=feature`
+- Chosen: B — the human decision of 2026-10-20 ("for nitpicking, let them slip") makes the 7 round-cap findings non-actionable; the commits from d824640 to ed074e6 are slice 0006's and change no file in this slice's Scope; the closure gate needs a summary that names the forge head
+- Supersedes: SETTLEMENT.md "Termination" stalemate path and execute Step 10 "Stalemate → review_fail" — for this slice's round cap only
+- To reverse: reopen f055 to f061 with a new review round on this slice and mark the row blocked(review_fail)
+
+## D-94 — A block-list entry that matches any verb command refuses, by the adapter's own matcher
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10.5 adversary finding F1, high)
+- Options: A — keep D-77's exact-text block check, so `Bash`, `Bash(afk-python *)` or a one-verb deny entry answers ok vs B — the Claude Code adapter adds `afk_claude_spawn_rule_blocks`, which matches a block-list entry against the six verb commands (`*` is any text, other characters literal, a trailing `:*` reads as ` *`), and the check refuses `blocked` on the first match, naming the entry and the verb command
+- Chosen: B — Acceptance "refuses, naming the rule, when it will not" and SDD §9b "nothing is started"; Claude Code resolves deny, then ask, then allow, and a broad deny blocks every command it matches (Claude Code documentation, "Configure permissions", as quoted in plan/review/0009-spawn-permission-check-adversary.md), so a one-verb deny lets agent-start run and stops a later verb; the allow side stays exact text, so the plugin still holds no matcher that grants
+- Supersedes: D-77 "the constant in a block list is `blocked`" — any block-list entry the adapter matches against a verb command is `blocked`; D-90 "when the rule is in a deny or ask list" — the same widening
+- To reverse: drop `afk_claude_spawn_rule_blocks`, `_BLOCKS` and `_blocks` in scripts/team/permission.py, and restore the exact-text block check
+
+## D-95 — The r3 adversary verdict stands although the check's own refusal printed part of its bash text
+- 2026-10-20 · decided by /afk:execute (0009-spawn-permission-check, Step 10.5 adversary re-run 2)
+- Options: A — count the printout as a diet breach and spend the last re-run vs B — keep the `findings` verdict
+- Chosen: B — the adversary diet forbids reading the slice diff, tests, review findings and branch commits; this text came from running the check, every scenario was designed before it appeared, and no later scenario used it (plan/review/0009-spawn-permission-check-adversary.md, "Diet disclosure")
+- To reverse: re-run the gate in a fresh session without the long block-list probe and treat its verdict as the gate's

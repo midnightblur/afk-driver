@@ -1,0 +1,72 @@
+[
+ {
+  "id": "ds-1",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "high",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 162,
+  "side": "new",
+  "finding": "_blocks writes every deny and ask entry, of any tool, to the bash child's stdin in the locale encoding. On Windows that encoding is cp1252, so one entry holding a character outside cp1252 (for example a CJK path in a `Read(...)` deny entry) makes the check stall 30 s and then refuse with `provider-layer`.",
+  "why": "subprocess text mode encodes `input` with locale.getpreferredencoding(), which is cp1252 on this Windows host (probe: `afk-python -c \"import sys,locale;print(sys.flags.utf8_mode, locale.getpreferredencoding(False))\"` printed `0 cp1252`). On Windows, the encode error is raised in the stdin writer thread, so stdin never closes and the child blocks on read. A separate probe, `subprocess.run([...], input=\"Bash(echo 日本)\n\", text=True, timeout=20)`, logged `UnicodeEncodeError: 'charmap' codec can't encode characters` in Thread `_writerthread` and then raised `TimeoutExpired`. _blocks catches TimeoutExpired as `the provider layer did not answer`, so every team run on that machine refuses with a cause /afk:setup cannot fix. Line 97 sends all block-list entries, not only Bash ones (`blocked += [(path, key, e) for e in entries if \"\n\" not in e]`), so the trigger is not limited to Bash rules. The old exact-text check (`elif rule in entries`) spawned no child for block entries, so this path is new in the delta.",
+  "fix": "Pass `encoding=\"utf-8\"` (with errors=\"replace\" or \"surrogateescape\") to this run call, or send only entries that start with `Bash` (the only ones the matcher can hit) and pass them as argv instead of stdin.",
+  "evidence": "permission.py:161-163: `done = run([str(bash), \"-c\", _BLOCKS, \"permission\", str(PLUGIN), *verb_commands()],` / `input=\"\".join(f\"{e}\n\" for e in entries), capture_output=True, text=True, timeout=30,`; permission.py:164-165: `except (OSError, subprocess.TimeoutExpired) as problem:` / `return {\"error\": f\"the provider layer did not answer: {problem}\"}`"
+ },
+ {
+  "id": "ds-2",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 57,
+  "side": "new",
+  "finding": "The _BLOCKS loop reads every non-zero exit of the matcher as 'no match'. A missing function (127), or a provider that resolves differently in this second child, therefore answers ok without a refusal. The first child's `need` guard ran in a different process.",
+  "why": "PROVIDERS.md defines the contract as 'prints the first command the block-list entry matches, else exits 1'. Only exit 1 means no match. `if hit=$(...)` also treats 127 or 2 as no match, and the script still exits 0, so _blocks returns {} and the check falls through to ok. Inferred low likelihood: the same env is passed to both children, so provider detection should agree.",
+  "fix": "Capture the status: `hit=$(...); s=$?; case $s in 0) printf ...;; 1) ;; *) exit 4;; esac`, so _blocks returns its `provider layer exited` error. Or re-check `command -v \"afk_${p}_spawn_rule_blocks\"` in _BLOCKS before the loop.",
+  "evidence": "permission.py:57: `  if hit=$(\"afk_${p}_spawn_rule_blocks\" \"$entry\" \"$@\" </dev/null); then printf '%s\t%s\n' \"$n\" \"$hit\"; fi`; PROVIDERS.md:183: `prints the first command the block-list entry matches, else exits 1`"
+ },
+ {
+  "id": "tv-r12-1",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) - missing negative case",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 279,
+  "side": "new",
+  "finding": "Every blocked-refusal fixture holds exactly one block-list entry, so no test pins which entry the refusal names when several entries exist and only a later one matches.",
+  "why": "permission.py maps the bash child's 1-based line index back through `first = min(hits)` / `holder, key, entry = blocked[first]`. With one entry the index is always 0, so a mutant `blocked[0]` or `max(hits)` passes every test while the refusal names a non-matching entry (e.g. `Bash(git status)`) and the wrong file. PROVIDERS.md promises the refusal names 'the entry, its file and the verb command'. Enumerated every fixture writing deny/ask (test_the_rule_in_a_block_list_refuses, test_a_block_entry_matching_a_verb_refuses, test_a_block_entry_matching_no_verb_leaves_ok): each writes one block entry, `_write` defaults the other lists to empty.",
+  "fix": "Add a case with a non-matching entry first and the matching one later, spread across two files or two lists (e.g. user deny `Bash(git status)`, local ask `Bash(afk-python *)`), and assert the says names the local file, `permissions.ask` and `Bash(afk-python *)`, and not `Bash(git status)`.",
+  "evidence": "_write(home[\"user\"], allow=[RULE], **({listed: [entry]} if where == \"user\" else {}))  /  permission.py:104-105 `first = min(hits)` `holder, key, entry = blocked[first]`"
+ },
+ {
+  "id": "tv-r12-2",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) - missing negative case on the fail-closed branch",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/team/permission.py",
+  "line": 166,
+  "side": "new",
+  "finding": "No test drives `_blocks` into its error branches (no POSIX shell, OSError/timeout, non-zero exit), so the new `provider-layer` refusal at line 101 is never exercised and a fail-open mutant survives.",
+  "why": "The existing `_fake` runner tests fail the first `_adapter` call, so `check_spawn_permission` returns before `_blocks` runs; the missing-function case is caught by `_ADAPTER`'s `need`. Mutating `if done.returncode != 0: return {\"error\": ...}` to `return {}` (or dropping the except branch to return `{}`) makes a crashed matcher answer ok with the rule allowed - the opposite of D-94's refusal - and every test still passes. grep for `_blocks` / `_BLOCKS` in scripts/tests finds no reference.",
+  "fix": "Add a test whose injected `run` answers the adapter call with a valid claude listing (provider, rule, one file, the three lists) and fails the second call (non-zero exit, and a raised TimeoutExpired), with a block entry present, and assert `problem == \"provider-layer\"` and the says ends `; run /afk:setup; nothing was started`.",
+  "evidence": "if done.returncode != 0:\n        return {\"error\": f\"the provider layer exited {done.returncode}: {done.stderr.strip()}\"}  /  test file: `answer = _layer_refusal(home, _fake(returncode=2, stderr=\"adapter broke here\"))` (fails _adapter, never reaches _blocks)"
+ },
+ {
+  "id": "tv-r12-3",
+  "concern": "test-veracity",
+  "criterion": "Happy-path-only (Meszaros) - no off-boundary value around the new `:*` rewrite",
+  "severity": "low",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 270,
+  "side": "new",
+  "finding": "The `:*` rewrite to ` *` is tested only with a prefix that ends on a word boundary, so the space it inserts is unpinned.",
+  "why": "claude.sh line 113 rewrites `x:*` to `x *`. A mutant dropping the space (`pat=\"${pat%:\\*}*\"`) still matches `Bash(afk-python:*)` against `afk-python \"...\"`, and no negative case such as `Bash(afk-pyth:*)` exists to fail. Effect of the mutant is over-matching (a false `blocked`), the safe direction, hence low.",
+  "fix": "Add `Bash(afk-pyth:*)` (and `Bash(afk-pyth *)`) to test_a_block_entry_matching_no_verb_leaves_ok.",
+  "evidence": "(\"project\", \"deny\", \"Bash(afk-python:*)\", \"agent-start\"),  /  claude.sh:113 `case $pat in *:\\*) pat=\"${pat%:\\*} *\" ;; esac`"
+ }
+]

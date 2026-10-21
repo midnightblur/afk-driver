@@ -1,0 +1,30 @@
+[
+ {
+  "id": "delta-sweep-1",
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "high",
+  "class": "correctness",
+  "file": "scripts/team/permission.py",
+  "line": 137,
+  "side": "new",
+  "finding": "On Windows, a provider-layer listing that is not valid UTF-8 crashes the check with AttributeError instead of refusing. The new `except UnicodeDecodeError` is never reached there.",
+  "why": "On Windows, CPython's subprocess decodes captured output in reader threads (`_readerthread`: `buffer.append(fh.read())`). A decode error is raised inside that thread and printed by the thread excepthook. `communicate()` then returns stdout=None, so `run` returns normally and line 141 `done.stdout.splitlines()` raises AttributeError. The same happens to `done.stderr.strip()` at line 155 when stderr holds the bad bytes. `permission.py check` then exits with a traceback and no JSON, which breaks its 'one JSON answer; exit 0 ok, 1 refused' contract on a supported platform, on exactly the path this delta targets. Before the delta, errors='replace' always produced a string. POSIX raises from communicate(), so there the catch works.",
+  "fix": "Decode the bytes yourself: call run without text/encoding, then wrap `done.stdout.decode('utf-8')` and `done.stderr.decode('utf-8', 'replace')` in try/except UnicodeDecodeError and return the 'did not answer' error. This behaves the same on both OSes. Pin it with a test that drives a real bash child printing an invalid byte; the faked `raises=UnicodeDecodeError` in test_a_provider_layer_answer_that_is_not_utf8_refuses cannot show the Windows behaviour.",
+  "evidence": "permission.py:135-141 `text=True, encoding=\"utf-8\", timeout=30, env=child, check=False)` / `except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError) as problem:` / `for line in done.stdout.splitlines():`. C:/Python314/Lib/subprocess.py:1612-1614 `def _readerthread(self, fh, buffer): buffer.append(fh.read())` and later `stdout = stdout[0] if stdout else None`. Independent probe (afk-python 3.14.8, Git Bash, a printf of a provider line and a file line holding byte 0xe9 run with text=True, encoding='utf-8'): output `Exception in thread Thread-1 (_readerthread): ... UnicodeDecodeError: 'utf-8' codec can't decode byte 0xe9` then `returned; stdout= None rc= 0` then `AttributeError 'NoneType' object has no attribute 'splitlines'`."
+ },
+ {
+  "id": "TV-1",
+  "concern": "test-veracity",
+  "criterion": "Mock echo / tautology",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_permission.py",
+  "line": 432,
+  "side": "new",
+  "finding": "The non-UTF-8 test has its fake runner raise the UnicodeDecodeError itself, so it pins only the new except clause, not the strict decode this delta adds by removing errors=\"replace\".",
+  "why": "_fake ignores every keyword argument (`def run(*_args, **_kwargs)`), so the fake raises whether or not production passes errors=\"replace\". Mutation: put `errors=\"replace\"` back on permission.py:136 and this test still passes. Yet the real subprocess.run would then replace the bad bytes and carry on with a garbled path. I checked separately that real subprocess.run with text=True, encoding='utf-8' and no errors argument raises UnicodeDecodeError on byte 0xe9. So the behaviour the commit claims ('refuse on bytes that are not' UTF-8) has no test that would fail if it regressed.",
+  "fix": "Drive the real path the way test_a_matcher_exit_other_than_1_refuses does: monkeypatch PLUGIN to a scratch tree whose newharness adapter prints a non-UTF-8 byte (for example `printf 'rule\\t\\351\\n'`), call _layer_refusal(home, subprocess.run), and assert 'did not answer' and 'utf-8' in says. Keep the fake-raise case only if it adds something, or drop it.",
+  "evidence": "test line 432: `answer = _layer_refusal(home, _fake(raises=UnicodeDecodeError(\"utf-8\", b\"\\xe9\", 0, 1, \"invalid start byte\")))`; test line 410: `def run(*_args, **_kwargs):`; permission.py line 136: `text=True, encoding=\"utf-8\", timeout=30, env=child, check=False)`"
+ }
+]
