@@ -1,0 +1,58 @@
+[
+ {
+  "concern": "delta-sweep+logic-correctness",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "adapters/transport/headless/headless.py",
+  "line": 89,
+  "side": "new",
+  "finding": "On Windows the prompt file is written in text mode, so every line break in the prompt reaches the harness as CRLF, not as the prompt's own LF; the new test cannot see it because the stub reads stdin with universal newlines.",
+  "why": "Path.write_text with newline=None turns '\\n' into os.linesep, so the prompt the harness receives is not the prompt the caller sent (checked here: write_text('a\\nb') gives b'a\\r\\nb', and a child reading sys.stdin.buffer gets b'a\\r\\nb' while sys.stdin.read() gives 'a\\nb'); test_the_prompt_reaches_the_harness_whole_on_standard_input (test_team_transport.py:283) compares sys.stdin.read() output, so it passes either way.",
+  "fix": "Write the bytes unchanged (given.write_bytes((run.stdin or '').encode('utf-8')) or write_text(..., newline='')), and make the stub echo repr(sys.stdin.buffer.read()) so the test fails on a translated line break.",
+  "evidence": "headless.py:89 `given.write_text(run.stdin or \"\", encoding=\"utf-8\")` ; test_team_transport.py:186 `print(\"STUB-STDIN\", repr(sys.stdin.read()), flush=True)`",
+  "id": "r-001"
+ },
+ {
+  "concern": "logic-correctness",
+  "criterion": "Error and rollback paths, partial-failure handling",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "adapters/transport/multiplexer/herdr.py",
+  "line": 310,
+  "side": "new",
+  "finding": "The r-010 fix covers only the no-tool path: with herdr usable, a handle-only stop whose pane close fails still answers stopped true, method 'pane close', though nothing was killed and the agent runs on in its open pane.",
+  "why": "process.stop(None, none=\"pane close\") answers stopped true before _close runs, and a close failure (error code not in GONE) only adds pane_closed false; payload {\"handle\":\"w1:p2\"} with `pane close` erroring gives {stopped: true, method: 'pane close', pane_closed: false}, while the no-tool path now answers stopped false for the same unkilled agent; test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane (test_team_transport.py:657-661) asserts the stopped-true answer.",
+  "fix": "When pid is None, set stopped from the close result: stopped false with a reason naming the pane and survivors [] when _close returns False; update the test at line 661 to expect stopped false.",
+  "evidence": "herdr.py:310-314 `answer = process.stop(pid, ..., none=\"pane close\" if handle else \"nothing to kill\")` / `if handle: closed = self._close(handle, deadline); answer.update({\"pane_closed\": closed, \"pane_id\": handle})`; multiplexer.py:60-62 `if pid is None and handle: answer = {\"stopped\": False, \"reason\": f\"no process id was given and no tool can close pane {handle}\", ...}`",
+  "id": "r-002"
+ },
+ {
+  "concern": "delta-sweep+logic-correctness",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "adapters/transport/headless/headless.py",
+  "line": 138,
+  "side": "new",
+  "finding": "agent-read reads the status after the log chunk, so a run that finishes its cut character and exits between the two reads gets that cut lead byte decoded as U+FFFD and the marker moved past it, losing the character.",
+  "why": "The 'a finished run's last byte is final' rule holds only if the run had finished before the chunk was read; reading the status second lets a mid-write chunk be treated as final, and the next read then starts on orphan continuation bytes.",
+  "fix": "Read the status file before opening the log, and keep the cut character unless that earlier status already held exit_code.",
+  "evidence": "headless.py:135-139 `with open(log, \"rb\") as handle: ... chunk = handle.read(READ_CAP)` then `state = _read_status(_status_path(log)) or {}` / `if len(chunk) == READ_CAP or \"exit_code\" not in state:`",
+  "id": "r-003"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "adapters/transport/process.py",
+  "line": 247,
+  "side": "new",
+  "finding": "process.stop takes over the shared kill-and-answer block for herdr and the no-tool path, but Headless.agent_stop keeps its own copy of the same survivors answer, so the consolidation left a drifted third twin.",
+  "why": "The 'N processes survived the kill' / 'killed the process tree' / 'not running' answer now lives in process.stop and again in headless.py:146-158, so a later change to the stop answer shape will miss the headless kind.",
+  "fix": "Let process.stop take an optional session to sweep (or a post-kill hook) and have Headless.agent_stop call it too.",
+  "evidence": "process.py:247-256 `def stop(...): ... return {\"stopped\": False, \"reason\": f\"{len(survivors)} processes survived the kill\", \"survivors\": survivors}` vs headless.py:151-157 `survivors = process.kill_tree(pid, force=force, wait_s=min(20.0, deadline.left())) ... return {\"stopped\": False, \"reason\": f\"{len(survivors)} processes survived the kill\", \"survivors\": survivors}`",
+  "id": "r-004"
+ }
+]

@@ -5,6 +5,7 @@
 | 0003-manifest-module | 0003-manifest-module-27ead19-r8.md | clean | 0/0/0/0 | none |
 | 0004-knowledge-store | 0004-knowledge-store-5ab9a72-r4.md | clean | 0/0/0/0 | none |
 | 0005-pattern-resolver-and-builtin-records | 0005-pattern-resolver-and-builtin-records-824fd86-r5.md | clean | 0/0/0/0 | l: implied edge format (deferred to the feature review gate) |
+| 0006-transport-family-and-herdr | 0006-transport-family-and-herdr-cedb959-r4.md | advisory | 0/0/1/0 | l: f018, f023, f024 deferred to the feature review gate; round 4's one finding is fixed but its thread is open, and closure is unconfirmed because the forge thread list fails |
 | 0008-inbox-wait-script | 0008-inbox-wait-script-60f939f-r2.md; adversary: 0008-inbox-wait-script-adversary.md | clean | 0/0/0/0 | none |
 | 0009-spawn-permission-check | 0009-spawn-permission-check-295607a-r16.md; adversary: 0009-spawn-permission-check-adversary.md | clean | 0/0/0/0 | adversary m: check reads HOME while Claude Code on Windows reads USERPROFILE; l: tool-name glob block entries, `:*` rule form, long block lists; review l/m: f016, f031, f055 to f061, f072, f073, f076 deferred to the feature review gate |
 | 0013-provider-layer-codex | 0013-provider-layer-codex-a46c988-r4.md; adversary: 0013-provider-layer-codex-adversary.md | clean | 0/0/0/0 | adversary m: the rule names no way to reach another harness's model when no team runs; l: a missing or shared stub name passes the tier gate, the report's named fields and the effort cell are unstated |

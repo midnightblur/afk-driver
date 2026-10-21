@@ -706,3 +706,10 @@
 - Chosen: B — the V35 re-run showed one Stop mark for the busy turn and its three queued answers; SDD §9b row "Busy pane message order" still holds: a delay, never a reorder
 - Supersedes: SDD §9b row "Stop gates in a pane session" — "A message to a busy pane waits for the repository's Stop handlers", for `claude` 2.1.305 and `codex` 0.163.0
 - To reverse: restore the delivery-way sentence and the busy-pane trap row in `adapters/transport/multiplexer/herdr.md`
+
+## D-101 — A stop with no process id whose pane close fails answers stopped false
+- 2026-10-21 · decided by /afk:execute (0006-transport-family-and-herdr, Step 10 review round 3, key f036)
+- Options: A — answer `stopped` true for every failed close, as the settled row words it vs B — keep `stopped` true only when a process id was killed; a stop given only a pane id whose close fails answers `stopped` false with a reason naming the pane
+- Chosen: B — with no process id nothing was killed, so the agent still runs in its open pane; the contact agent marks the line unkillable on `stopped` false or `pane_closed` false alike (SDD §11 lifecycle row A7), and the no-tool path already answers the same way
+- Supersedes: GRILL-LOG.md S-234 — "When the close fails, 'stopped' stays true", for a stop given no process id
+- To reverse: drop the `pid is None and not closed` branch in `adapters/transport/multiplexer/herdr.py` agent_stop and its contract-row clause

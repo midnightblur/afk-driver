@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New test proves nothing",
+  "severity": "medium",
+  "class": "test",
+  "file": "scripts/tests/test_team_transport.py",
+  "line": 680,
+  "side": "new",
+  "finding": "No test covers the other side of the new `pid is None` guard: a stop given a pid whose pane close fails must still answer stopped true. If the guard were dropped, every test would still pass.",
+  "why": "The settled rule S-234 says 'When the close fails, stopped stays true'. The only failed-close test sends a handle and no pid (line 678), and the pid-plus-handle test at line 636 closes the pane successfully, so the guard is never tested with a pid.",
+  "fix": "Add a herdr test that kills a real child by pid with fake.fail[\"pane close\"] = \"error\", and assert stopped is True, a method is present, and pane_closed is False.",
+  "evidence": "herdr.py:315 `if pid is None and not closed:          # nothing was killed, and the agent runs on in its pane`; GRILL-LOG.md:669 `When the close fails, 'stopped' stays true, the answer names the pane`; test_team_transport.py:678 `body = mux(\"agent-stop\", {\"handle\": pane})`",
+  "id": "r-001"
+ }
+]
