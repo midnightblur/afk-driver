@@ -671,3 +671,24 @@
 - Options: A — count the printout as a diet breach and spend the last re-run vs B — keep the `findings` verdict
 - Chosen: B — the adversary diet forbids reading the slice diff, tests, review findings and branch commits; this text came from running the check, every scenario was designed before it appeared, and no later scenario used it (plan/review/0009-spawn-permission-check-adversary.md, "Diet disclosure")
 - To reverse: re-run the gate in a fresh session without the long block-list probe and treat its verdict as the gate's
+
+## D-96 — Re-take the ground of both seams with one fresh investigation
+- 2026-10-21 · decided by /afk:execute (0013-provider-layer-codex, Step 4)
+- Options: A — build on INV-067 and INV-013 as cited vs B — one fresh Q1+Q2+Q3 investigation (INV-081) at ecf0fd5 over the subjects `Model tiers`, `afk-reader` and `afk-afk-reader` with INV-067's declared name forms, one tracer then a blind counter-search tracer, in sequence
+- Chosen: B — both ground diffs exit 1: PROVIDERS.md, providers/CONFORMANCE.md, hooks/native-contract-gate.sh, CHANGELOG.md and the SDD changed since 13bec6d and 7e9c87a; INV-013's other roots (`DELEGATION`, `spawn`, `subagent`) are the spawn doctrine, which this slice does not change; the run allows one child at a time, so the two tracers run in sequence, as D-74 did
+- Supersedes: none
+- To reverse: drop INV-081 and cite INV-067 and INV-013 again
+
+## D-97 — The equivalence rule follows the in-harness fallback and covers only a provider failure
+- 2026-10-21 · decided by /afk:execute (0013-provider-layer-codex, Step 5)
+- Options: A — the cross-provider equivalent first, the in-harness fallback after it vs B — the in-harness fallback first, for a model the active harness cannot drive, then the equivalent model from another provider when a provider fails a call
+- Chosen: B — a provider failure fails every model that provider serves, so a model in the same harness column cannot replace it, while a model the harness cannot drive is a configuration gap the same column can still close (PROVIDERS.md:138; SDD §8 row "Model equivalence": "Same tier row, another harness column")
+- Supersedes: none
+- To reverse: reword the appended sentence at PROVIDERS.md:138
+
+## D-98 — A single-model role with no reachable equivalent waits like a debate role
+- 2026-10-21 · decided by /afk:execute (0013-provider-layer-codex, Step 10 review round 1, key f003)
+- Options: A — leave the case unstated vs B — the sentence says a single-model role waits when no other column names a model for its tier or that model's provider fails too
+- Chosen: B — PRD AC-022 limits the switch to "where the tier map supplies one" and AC-023 forbids a reduced shape, so the only path left is the wait that already parks past the provider's limit; without it a role whose substitute also fails would switch back and forth
+- Supersedes: none
+- To reverse: drop the clause after "a role in a debate pattern waits" at PROVIDERS.md:138 and in the CHANGELOG.md entry

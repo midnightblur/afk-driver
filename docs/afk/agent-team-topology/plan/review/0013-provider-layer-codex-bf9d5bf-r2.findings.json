@@ -1,0 +1,44 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "open-question",
+  "severity": "medium",
+  "class": "design",
+  "file": "CHANGELOG.md",
+  "line": 107,
+  "side": "new",
+  "finding": "Possible gap: the fix writes a manual workaround into the release notes and leaves setup's check unable to spot an outdated copy, so the failure can still happen.",
+  "why": "A Codex user who skips the changelog can keep `afk-afk-*` names. This applies when the baked root is the marketplace directory, which MANIFEST.md:870-874 says survives upgrades (inferred; not verified live). That user hits the failure SDD §9b names ('A skill's spawn of `afk-reader` fails as an unknown agent type'). The contract's rollback ('then run setup again so the old names come back') breaks the same way.",
+  "fix": "Make the O5 probe compare each installed copy with its source after the root is replaced (or at least check the `name` line), so setup replaces an outdated copy. Or record an IOU anchored to O5 if that is out of this slice's scope.",
+  "evidence": "CHANGELOG.md:106-109 \"Setup's check reads only the filename and the plugin root, so it keeps an installed copy with the old name: delete the `afk-afk-*.toml` copies in `~/.codex/agents/`, then run `/afk:setup`\"; contract Acceptance \"An installed stub keeps its old name until setup copies it again ... then running setup again\"",
+  "id": "ds-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "PROVIDERS.md",
+  "line": 157,
+  "side": "new",
+  "finding": "A related instruction still says re-running setup refreshes the Codex TOMLs, which the delta's own finding now contradicts.",
+  "why": "The delta establishes that setup's O5 probe checks only the filename and the plugin root, so after a tier pin edit a re-run of /afk:setup keeps the installed copy with the old `model`/effort, yet line 157 still tells Codex users that a re-run fixes it.",
+  "fix": "Give line 157 the same delete-first step, or point both lines at O5 once it detects stale content.",
+  "evidence": "PROVIDERS.md:157 \"Codex users re-run `/afk:setup` afterwards, since setup register entry O5 (`skills/afk/setup/MANIFEST.md`) copies the TOMLs.\" vs delta PROVIDERS.md:23 \"setup's check reads only the filename and the plugin root, so it keeps an installed copy with the old name\"; MANIFEST.md:867-869 probe = same filename + placeholder replaced by an existing root",
+  "id": "ds-002"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Documented-rule breach in changed lines",
+  "severity": "low",
+  "class": "compliance",
+  "file": "PROVIDERS.md",
+  "line": 23,
+  "side": "new",
+  "finding": "The changed row repeats how setup's O5 probe works instead of pointing to the file that owns it.",
+  "why": "The probe's shape belongs to skills/afk/setup/MANIFEST.md O5, and the delta now copies that fact into the PROVIDERS.md row, the CHANGELOG entry and the CONFORMANCE row, so the copies go stale when O5 changes.",
+  "fix": "Keep the delete-then-setup action in the row and point to `skills/afk/setup/MANIFEST.md` O5 for the reason.",
+  "evidence": "AGENTS.md: \"DRY — one fact, one home. State each fact ... in exactly ONE file — its owning file — every other skill points by path, never restates.\" Delta line: \"setup's check reads only the filename and the plugin root, so it keeps an installed copy with the old name\"",
+  "id": "ds-003"
+ }
+]
