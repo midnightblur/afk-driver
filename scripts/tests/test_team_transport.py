@@ -99,6 +99,54 @@ def test_a_payload_never_comes_from_standard_input():
     assert done.returncode == 2 and answer(done.stdout)["error"] is True
 
 
+class Crashing:
+    def agent_status(self, payload, deadline):
+        raise OSError("the disk went away")
+
+
+def test_a_verb_that_crashes_answers_unavailable_not_a_traceback():
+    import io
+    out = io.StringIO()
+    code = contract.run(Crashing(), ["agent-status", "{}"], out=out)
+    body = json.loads(out.getvalue())
+    assert code == 4 and body["unavailable"] is True and body["operation"] == "agent-status"
+    assert "OSError: the disk went away" in body["reason"]
+
+
+class Clock:
+    """A monotonic clock that moves `step` seconds on every read."""
+
+    def __init__(self, step: float):
+        self.now, self.step = 0.0, step
+
+    def __call__(self) -> float:
+        self.now += self.step
+        return self.now
+
+
+def test_a_herdr_call_with_no_budget_left_refuses_without_running_herdr(monkeypatch):
+    monkeypatch.setattr(herdr.subprocess, "run", lambda *a, **k: pytest.fail("herdr ran"))
+    with pytest.raises(Answer) as caught:
+        herdr.Herdr({}).agent_status(Payload("agent-status", {"handle": "w1:p2"}),
+                                     Deadline("agent-status", clock=Clock(20.0)))
+    assert caught.value.code == 4 and "no time left in the agent-status budget" in caught.value.body["reason"]
+
+
+def test_detection_waits_inside_the_verbs_budget(monkeypatch):
+    import multiplexer
+    waits = []
+
+    def detect(env, harnesses, timeout):
+        waits.append(timeout)
+        return herdr.Detection("herdr", "outside", "not in a pane")
+
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr", (detect, herdr.Herdr))
+    with pytest.raises(Answer):
+        multiplexer.Multiplexer({}).agent_status(Payload("agent-status", {"handle": "w1:p2"}),
+                                                 Deadline("agent-status"))
+    assert waits and 2 * waits[0] <= contract.BUDGET_MS["agent-status"] / 1000 / 2
+
+
 def test_a_bad_field_names_the_field():
     with pytest.raises(Answer) as caught:
         Payload("agent-stop", {"pid": "12"}).integer("pid")
@@ -196,6 +244,91 @@ def test_headless_starts_reads_and_stops_a_run_and_its_whole_tree(tmp_path, stub
     assert code == 0 and status["alive"] is False and status["state"] == "exited"
     code, stop = headless("agent-stop", json.dumps({"pid": pid}), path=path)
     assert code == 0 and stop["stopped"] is True
+
+
+def test_the_headless_run_sits_under_its_owners_job(tmp_path, stub_harness):
+    bin_dir, grand = stub_harness
+    path = str(bin_dir) + os.pathsep + os.environ["PATH"]
+    log = str(tmp_path / "agent.log")
+    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": "go", "cwd": str(tmp_path),
+                                                     "log": log}), path=path)
+    assert code == 0, body
+    pid = body["pid"]
+    assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+    grandchild = int(grand.read_text().strip())
+    try:
+        owner = process._parents()[pid]
+        if sys.platform == "win32":     # the kill-on-close job ends every member with its owner
+            subprocess.run(["taskkill", "/F", "/PID", str(owner)], capture_output=True, check=False)
+            assert wait_for(lambda: not process.alive(pid) and not process.alive(grandchild))
+        else:
+            assert os.getsid(pid) == owner == os.getsid(grandchild)
+    finally:
+        process.kill_tree(pid, force=True, wait_s=5)
+        process.kill_tree(grandchild, force=True, wait_s=5)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="a batch shim runs through cmd.exe only on Windows")
+def test_a_batch_shim_refuses_a_prompt_cmd_would_cut(tmp_path, stub_harness):
+    bin_dir, _ = stub_harness
+    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": "line one\nline two",
+                                                     "cwd": str(tmp_path), "log": str(tmp_path / "a.log")}),
+                          path=str(bin_dir) + os.pathsep + os.environ["PATH"])
+    assert code == 4 and "batch file" in body["reason"] and "claude.cmd" in body["reason"].lower()
+
+
+def test_a_start_whose_owner_never_reports_ends_the_owner(tmp_path, monkeypatch, stub_harness):
+    sys.path.insert(0, str(FAMILY / "headless"))
+    import headless as kind
+    owners = []
+
+    def silent(argv, env):
+        owners.append(subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"]))
+        return owners[-1]
+
+    monkeypatch.setattr(kind, "_spawn_owner", silent)
+    monkeypatch.setenv("PATH", str(stub_harness[0]) + os.pathsep + os.environ["PATH"])
+    log = tmp_path / "a.log"
+    with pytest.raises(Answer) as caught:
+        kind.Headless().agent_start(Payload("agent-start", {"harness": "claude", "prompt": "go",
+                                                            "cwd": str(tmp_path), "log": str(log)}),
+                                    Deadline("agent-start", clock=Clock(119.0)))
+    assert caught.value.code == 4 and "reported no process in time" in caught.value.body["reason"]
+    assert wait_for(lambda: owners[0].poll() is not None)
+    assert not Path(str(log) + ".status.json").exists()
+
+
+ORPHAN = r'''
+import subprocess, sys, time
+middle = subprocess.Popen([sys.executable, "-c",
+    "import subprocess,sys; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(300)']);"
+    "open(sys.argv[1],'w').write(str(p.pid))", sys.argv[1]])
+middle.wait()
+print("ORPHAN-READY", flush=True)
+time.sleep(300)
+'''
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX: a descendant whose parent ended moves to init")
+def test_a_posix_stop_reaches_a_descendant_that_moved_to_init(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    script, grand = tmp_path / "orphan.py", tmp_path / "orphan.pid"
+    script.write_text(ORPHAN, encoding="utf-8")
+    stub = bin_dir / "claude"
+    stub.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}" "{grand}"\n', encoding="utf-8")
+    stub.chmod(0o755)
+    path = str(bin_dir) + os.pathsep + os.environ["PATH"]
+    log = str(tmp_path / "a.log")
+    code, body = headless("agent-start", json.dumps({"harness": "claude", "prompt": "go", "cwd": str(tmp_path),
+                                                     "log": log}), path=path)
+    assert code == 0, body
+    assert wait_for(lambda: grand.exists() and grand.read_text().strip())
+    orphan = int(grand.read_text().strip())
+    assert orphan not in process.tree(body["pid"])
+    code, stop = headless("agent-stop", json.dumps({"pid": body["pid"]}), path=path)
+    assert code == 0 and stop["stopped"] is True
+    assert wait_for(lambda: not process.alive(orphan))
 
 
 def test_headless_answers_unavailable_when_the_harness_is_absent(tmp_path):
@@ -324,7 +457,12 @@ SESSION = {"HERDR_ENV": "1", "HERDR_PANE_ID": "w1:p1", "HERDR_TAB_ID": "w1:t1", 
 @pytest.fixture
 def fake(monkeypatch):
     session = FakeHerdr()
-    monkeypatch.setattr(herdr.Herdr, "call", lambda self, args, deadline, cap=30.0: session.handle(args))
+    def call(self, args, deadline, cap=30.0):
+        if deadline.left() <= 0:
+            raise herdr.HerdrError("timeout", f"no time left in the {deadline.verb} budget")
+        return session.handle(args)
+
+    monkeypatch.setattr(herdr.Herdr, "call", call)
     return session
 
 
@@ -470,6 +608,14 @@ def test_a_tree_kill_reaches_an_msys_child_whose_windows_parent_is_gone():
             process.kill_tree(member, force=True, wait_s=1)
 
 
+def test_a_tree_skips_a_process_older_than_the_one_holding_its_parents_id(monkeypatch):
+    monkeypatch.setattr(process, "_parents", lambda: {100: 1, 200: 100, 300: 100, 400: 200})
+    monkeypatch.setattr(process, "_msys_children", lambda: {})
+    born = {100: 50, 200: 60, 300: 10, 400: 70}
+    monkeypatch.setattr(process, "_created", born.get)
+    assert process.tree(100) == [100, 200, 400]
+
+
 def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
     pane = start("a1")["handle"]
     fake.fail["pane close"] = "error"
@@ -499,6 +645,76 @@ def test_agent_read_returns_the_text_after_its_marker(fake):
     with pytest.raises(Answer) as caught:
         mux("agent-read", {"handle": pane, "since_marker": "nope"})
     assert caught.value.code == 2
+
+
+def test_a_failed_send_makes_one_attempt(fake):
+    pane = start("a1")["handle"]
+    fake.fail["agent prompt"] = "error"
+    with pytest.raises(Answer) as caught:
+        mux("agent-send", {"handle": pane, "text": "x"})
+    assert caught.value.code == 4 and len(calls(fake, "agent prompt")) == 1
+
+
+def test_a_stop_with_no_usable_tool_still_kills_the_tree_and_names_the_pane(monkeypatch, tmp_path):
+    import multiplexer
+    monkeypatch.setitem(multiplexer.TOOLS, "herdr",
+                        (lambda env, harnesses, timeout: herdr.Detection("herdr", "broken", "no server"),
+                         herdr.Herdr))
+    child, grand = child_tree(tmp_path)
+    body = multiplexer.Multiplexer({}).agent_stop(Payload("agent-stop", {"pid": child.pid, "handle": "w1:p2"}),
+                                                  Deadline("agent-stop"))
+    assert body["stopped"] is True and body["pane_closed"] is False and body["pane_id"] == "w1:p2"
+    assert "no server" in body["pane_reason"]
+    assert wait_for(lambda: not process.alive(int(grand.read_text()))) and not process.alive(child.pid)
+
+
+@pytest.mark.parametrize("stdout, stderr, code, want", [
+    ('{"id":"1","result":{"type":"pane_info","pane":{"pane_id":"w1:p2","tab_id":"w1:t2"}}}', "", 0,
+     {"type": "pane_info", "pane": {"pane_id": "w1:p2", "tab_id": "w1:t2"}}),
+    ("line 1\nline 2\n", "", 0, {"text": "line 1\nline 2\n"}),
+    ("", '{"id":"1","error":{"code":"pane_not_found","message":"pane w1:p9 not found"}}', 1, "pane_not_found"),
+    ("", "server not running", 1, "error"),
+])
+def test_one_herdr_call_reads_herdrs_answer_shapes(monkeypatch, stdout, stderr, code, want):
+    monkeypatch.setattr(herdr.subprocess, "run",
+                        lambda argv, **kw: subprocess.CompletedProcess(argv, code, stdout, stderr))
+    tool = herdr.Herdr({})
+    if isinstance(want, dict):
+        assert tool.call(["pane", "get", "w1:p2"], Deadline("agent-status")) == want
+    else:
+        with pytest.raises(herdr.HerdrError) as caught:
+            tool.call(["pane", "get", "w1:p9"], Deadline("agent-status"))
+        assert caught.value.code == want
+
+
+def test_a_codex_resume_that_never_settles_leaves_time_to_close_its_pane(fake, monkeypatch):
+    monkeypatch.setattr(herdr.time, "sleep", lambda s: None)
+    fake.status = "working"
+    tool = herdr.Herdr({**os.environ, **SESSION})
+    payload = Payload("agent-start", {"harness": "codex", "name": "c1", "label": "c1 label", "cwd": str(REPO),
+                                      "tab": "goal step", "resume": "sess-7"})
+    with pytest.raises(Answer) as caught:
+        tool.agent_start(payload, Deadline("agent-start", clock=Clock(5.0)))
+    assert caught.value.code == 4 and "sess-7" in caught.value.body["reason"]
+    assert calls(fake, "pane close") and "w1:t2" not in fake.tabs
+
+
+def test_agent_read_finds_new_output_above_a_footer_that_never_changes(fake):
+    pane = start("a1")["handle"]
+    footer = "\n+------+\n| >    |\n+------+\n  ? for shortcuts\n"
+    fake.screen = "line 1\nline 2" + footer
+    first = mux("agent-read", {"handle": pane})
+    fake.screen = "line 1\nline 2\nline 3\nline 4" + footer
+    second = mux("agent-read", {"handle": pane, "since_marker": first["marker"]})
+    assert second["complete"] is True and second["text"].startswith("line 3\nline 4")
+    again = mux("agent-read", {"handle": pane, "since_marker": second["marker"]})
+    assert again["text"].strip() == ""
+
+
+def test_a_tab_name_that_ends_in_a_number_keeps_its_own_tab(fake):
+    start("a1", tab="goal step 2")
+    start("a2", tab="goal step 2")
+    assert [t["label"] for t in fake.tabs.values()].count("goal step 2") == 1
 
 
 def test_agent_status_tells_a_live_agent_from_a_gone_pane(fake):
@@ -546,13 +762,21 @@ def test_an_installer_that_stops_part_way_leaves_the_row_not_fixed(tmp_path):
     probe = re.search(r"- \*\*Probe:\*\* `([^`]+)`", c15()).group(1)
     stub = tmp_path / "bin"
     stub.mkdir()
-    (stub / "install.sh").write_text('mkdir -p "$1/.herdr/packages/standalone/releases"\nexit 1\n',
-                                     encoding="utf-8")
-    home = tmp_path / "home"
-    installed = subprocess.run([BASH, str(stub / "install.sh"), str(home)], capture_output=True, text=True)
-    assert installed.returncode == 1 and (home / ".herdr" / "packages").is_dir()
-    reprobe = subprocess.run([BASH, "-c", probe], capture_output=True, text=True, timeout=30,
-                             env={"PATH": f"{stub}{os.pathsep}{home / '.herdr'}", "HOME": str(home)})
-    assert reprobe.returncode != 0
+    # the part-way installer leaves a binary cut off mid-download; the complete one leaves a working one
+    (stub / "partial.sh").write_text('mkdir -p "$1/.herdr/packages/standalone/releases"\n'
+                                     "printf '#!/bin/sh\\nexit 1\\n' > \"$1/.herdr/herdr\"\n"
+                                     'chmod +x "$1/.herdr/herdr"\nexit 1\n', encoding="utf-8")
+    (stub / "complete.sh").write_text('mkdir -p "$1/.herdr"\n'
+                                      "printf '#!/bin/sh\\necho herdr 0.9.1\\n' > \"$1/.herdr/herdr\"\n"
+                                      'chmod +x "$1/.herdr/herdr"\n', encoding="utf-8")
+    codes = {}
+    for installer, expect in (("partial.sh", 1), ("complete.sh", 0)):
+        home = tmp_path / installer
+        installed = subprocess.run([BASH, str(stub / installer), str(home)], capture_output=True, text=True)
+        assert installed.returncode == expect and (home / ".herdr" / "herdr").is_file()
+        codes[installer] = subprocess.run([BASH, "-c", probe], capture_output=True, text=True, timeout=30,
+                                          env={"PATH": f"{home / '.herdr'}{os.pathsep}{stub}",
+                                               "HOME": str(home)}).returncode
+    assert codes == {"partial.sh": 1, "complete.sh": 0}
     step5 = (REPO / "skills" / "afk" / "setup" / "SKILL.md").read_text(encoding="utf-8")
     assert "A fix not flipping its probe to exit 0\n   is not fixed" in step5

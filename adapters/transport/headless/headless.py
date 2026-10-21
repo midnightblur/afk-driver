@@ -22,6 +22,7 @@ import process  # noqa: E402
 from contract import Payload, bad, unavailable, unsupported  # noqa: E402
 
 READ_CAP = 1 << 20
+BATCH_CUTS = set('\r\n%"^&|<>!')         # cmd.exe cuts or expands these in a batch shim's argument
 
 
 def _status_path(log: str) -> Path:
@@ -35,18 +36,40 @@ def _read_status(path: Path) -> dict | None:
         return None
 
 
-def _spawn_owner(argv: list[str], env: dict[str, str]) -> None:
+def _spawn_owner(argv: list[str], env: dict[str, str]) -> subprocess.Popen:
     if not process.WINDOWS:
-        subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
-        return
+        return subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
     detached = 0x00000008 | 0x00000200          # DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP
     try:
-        subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, close_fds=True, creationflags=detached | 0x01000000)
+        return subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, close_fds=True, creationflags=detached | 0x01000000)
     except OSError:     # the caller's job refuses breakaway: the owner's own job nests inside it
-        subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, close_fds=True, creationflags=detached)
+        return subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, close_fds=True, creationflags=detached)
+
+
+def _complete(chunk: bytes) -> bytes:
+    """The chunk without a UTF-8 character its end cuts in two."""
+    for back in range(1, min(4, len(chunk)) + 1):
+        lead = chunk[-back]
+        if lead < 0x80:
+            return chunk
+        if lead >= 0xC0:
+            size = 2 if lead < 0xE0 else 3 if lead < 0xF0 else 4
+            return chunk if back >= size else chunk[:-back]
+    return chunk
+
+
+def _session(pid: int) -> int | None:
+    """POSIX: the run's session, which its job owner leads; None on Windows or when it is this caller's."""
+    if process.WINDOWS:
+        return None
+    try:
+        sid = os.getsid(pid)
+    except OSError:
+        return None
+    return None if sid == os.getsid(0) else sid
 
 
 class Headless:
@@ -61,18 +84,24 @@ class Headless:
         binary = shutil.which(run.binary)
         if not binary:
             raise unavailable(f"`{run.binary}` is not on PATH, so no headless {harness} run can start")
+        if binary.lower().endswith((".cmd", ".bat")) and BATCH_CUTS & set(prompt):
+            raise unavailable(f"`{binary}` is a batch file, and cmd.exe would cut or expand the prompt's "
+                              "line breaks or special characters; use a prompt without them")
         status = _status_path(log)
         Path(log).parent.mkdir(parents=True, exist_ok=True)
         status.unlink(missing_ok=True)
         env = {**os.environ, **run.env, **extra}
-        _spawn_owner([sys.executable, str(HERE / "job.py"), "--status", str(status), "--log", log,
-                      "--cwd", cwd, "--", binary, *run.args], env)
+        owner = _spawn_owner([sys.executable, str(HERE / "job.py"), "--status", str(status), "--log", log,
+                              "--cwd", cwd, "--", binary, *run.args], env)
         end = time.monotonic() + min(15.0, deadline.left())
         state = _read_status(status)
         while (state is None or ("pid" not in state and "error" not in state)) and time.monotonic() < end:
             time.sleep(0.1)
             state = _read_status(status)
         if not state or "pid" not in state:
+            process.kill_tree(owner.pid, force=True, wait_s=min(10.0, deadline.left()))
+            process.kill_session(owner.pid, keep=0, force=True)
+            status.unlink(missing_ok=True)
             raise unavailable((state or {}).get("error") or "the run's job owner reported no process in time")
         pid = state["pid"]
         return {"kind": "headless", "handle": str(pid), "pid": pid,
@@ -109,6 +138,7 @@ class Headless:
         with open(log, "rb") as handle:
             handle.seek(offset)
             chunk = handle.read(READ_CAP)
+        chunk = _complete(chunk)
         end = offset + len(chunk)
         return {"text": chunk.decode("utf-8", "replace"), "marker": str(end), "complete": end >= size}
 
@@ -118,7 +148,10 @@ class Headless:
             return {"stopped": True, "method": "no process id given"}
         if not process.alive(pid):
             return {"stopped": True, "method": "not running"}
+        session = _session(pid)
         survivors = process.kill_tree(pid, force=force, wait_s=min(20.0, deadline.left()))
+        if session is not None:
+            survivors += process.kill_session(session, keep=session, force=force)
         if survivors:
             return {"stopped": False, "reason": f"{len(survivors)} processes survived the kill",
                     "survivors": survivors}

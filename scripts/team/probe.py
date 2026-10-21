@@ -34,10 +34,18 @@ PANE_KINDS = ("multiplexer", "desktop")          # best first
 SUBAGENT_SAYS = "no pane transport is usable in this session, so role agents run as subagents"
 
 
+class ConfigUnreadable(Exception):
+    """The configuration reader failed for a reason other than an absent key."""
+
+
 def _config(key: str, root: Path, env: Mapping[str, str], run: Callable) -> str | None:
-    """One configured value; an absent key, an empty `transport:` section and a null all read as absent."""
+    """One configured value; an absent key, an empty `transport:` section and a null all read as absent.
+    A reader failure (exit 2: a file that does not parse or cannot be read) raises ConfigUnreadable."""
     done = run([sys.executable, str(PLUGIN / "scripts" / "afk-config.py"), "get", key], cwd=str(root),
                capture_output=True, text=True, timeout=30, env=dict(env), check=False)
+    if done.returncode not in (0, 1):
+        raise ConfigUnreadable((done.stderr or done.stdout or "").strip()[:400]
+                               or f"afk-config.py get {key} exited {done.returncode}")
     value = done.stdout.strip() if done.returncode == 0 else ""
     return value or None
 
@@ -56,12 +64,19 @@ def resolve_kind(root: Path | str = ".", *, env: Mapping[str, str] | None = None
     root = Path(root)
     if harnesses is None:
         harnesses = tuple(h for h in launch.HARNESSES if which(h, path=env.get("PATH")))
-    forced = _config("transport.kind", root, env, run)
-    switch = _config("transport.pane-switch", root, env, run)
     tools = detect(env, harnesses, which=which, run=run)
     usable = [t for t in tools if t["status"] == "usable"]
     result = {"kind": None, "source": None, "says": "", "conflict": None, "tools": tools,
               "harnesses": list(harnesses)}
+    try:
+        forced = _config("transport.kind", root, env, run)
+        switch = _config("transport.pane-switch", root, env, run)
+    except ConfigUnreadable as problem:
+        return {**result, "source": "config", "conflict": {
+            "name": "configuration unreadable", "detail": f"the configuration reader failed: {problem}"}}
+    if forced and forced not in KINDS:
+        return {**result, "source": "config", "conflict": {
+            "name": "unknown forced kind", "detail": f"transport.kind is {forced}, not one of {', '.join(KINDS)}"}}
     if forced:
         result["source"] = "config"
         problem = _forced_problem(forced, switch, tools, harnesses)
@@ -116,8 +131,13 @@ def dispatch(kind: str, verb: str, payload: Mapping, *, root: Path | str = ".",
     script = ('. "$AFK_PLUGIN_ROOT/hooks/lib/adapter.sh" || exit 2; afk_config_load; AFK_CFG_TRANSPORT=$1; '
               'afk_adapter transport "$2" "$3"')
     seconds = contract.BUDGET_MS[verb] / 1000 + 15 if verb in contract.BUDGET_MS else 30
-    done = subprocess.run([str(bash), "-c", script, "probe", kind, verb, json.dumps(payload)],
-                          cwd=str(root), capture_output=True, text=True, timeout=seconds, env=child, check=False)
+    try:
+        done = subprocess.run([str(bash), "-c", script, "probe", kind, verb, json.dumps(payload)], cwd=str(root),
+                              capture_output=True, text=True, timeout=seconds, env=child, check=False)
+    except subprocess.TimeoutExpired:
+        late = {"unavailable": True, "timeout": True, "operation": verb,
+                "reason": f"{verb} on the {kind} kind ran past its {seconds:.0f} s limit and was stopped"}
+        return 4, json.dumps(late, sort_keys=True) + "\n", ""
     return done.returncode, done.stdout, done.stderr
 
 

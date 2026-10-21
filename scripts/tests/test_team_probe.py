@@ -177,3 +177,50 @@ def test_an_unresolvable_kind_exits_2_naming_the_configuration(tmp_path, echo_pl
 def test_dispatch_refuses_a_kind_outside_the_enum():
     with pytest.raises(ValueError, match="unknown transport kind"):
         probe.dispatch("pigeon", "agent-list", {})
+
+
+class BrokenConfig(Machine):
+    """The configuration reader fails for a reason other than an absent key."""
+
+    def run(self, argv, **kw):
+        if any(str(a).endswith("afk-config.py") for a in argv):
+            return subprocess.CompletedProcess(argv, 2, "", "afk-config: .afk/config.yaml:3: bad indent\n")
+        return super().run(argv, **kw)
+
+
+def test_an_unreadable_configuration_is_a_named_conflict_not_an_absent_key():
+    found = resolve(BrokenConfig())
+    assert found["kind"] is None and found["conflict"]["name"] == "configuration unreadable"
+    assert ".afk/config.yaml:3: bad indent" in found["conflict"]["detail"]
+
+
+def test_a_forced_kind_outside_the_enum_is_a_named_conflict():
+    found = resolve(Machine(config={"transport.kind": "pigeon"}))
+    assert found["kind"] is None and found["conflict"]["name"] == "unknown forced kind"
+    assert "pigeon" in found["conflict"]["detail"]
+
+
+def test_a_real_configuration_file_forces_its_kind(tmp_path):
+    root = repo_with(tmp_path, "schema: 1\ntransport:\n  kind: headless\n")
+    machine = Machine()
+
+    def run(argv, **kw):
+        if any(str(a).endswith("afk-config.py") for a in argv):
+            return subprocess.run(argv, **kw)
+        return machine.run(argv, **kw)
+
+    env = {**child_env(), **{k: v for k, v in INSIDE.items() if k != "PATH"}}
+    found = probe.resolve_kind(root, env=env, harnesses=("claude",), which=machine.which, run=run)
+    assert found["kind"] == "headless" and found["source"] == "config" and found["conflict"] is None
+
+
+def test_a_verb_past_its_limit_answers_unavailable_with_timeout(monkeypatch):
+    def late(*args, **kw):
+        raise subprocess.TimeoutExpired(args[0], kw.get("timeout"))
+
+    monkeypatch.setattr(probe.subprocess, "run", late)
+    monkeypatch.setattr(probe, "_bash", lambda: Path("bash"))
+    code, out, err = probe.dispatch("multiplexer", "agent-status", {"handle": "w1:p2"})
+    body = json.loads(out)
+    assert code == 4 and body["unavailable"] is True and body["timeout"] is True
+    assert body["operation"] == "agent-status" and "25 s" in body["reason"] and err == ""

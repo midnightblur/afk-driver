@@ -206,8 +206,8 @@ its update-off switch on that launch only),
 | [`headless`](adapters/transport/headless/CONTRACT.md) | the harness with no terminal, under an operating-system job; no `agent-send`, no `agent-list` |
 | [`multiplexer`](adapters/transport/multiplexer/CONTRACT.md) | a pane of the multiplexer this session runs inside; one recipe per tool, [`herdr`](adapters/transport/multiplexer/herdr.md) |
 
-The kind sits at `transport.kind`, so configuration never sets
-`AFK_CFG_TRANSPORT`. The machine probe
+The kind sits at `transport.kind`; only an empty `transport:` section exports
+`AFK_CFG_TRANSPORT`, as `''`. The machine probe
 [`scripts/team/probe.py`](scripts/team/probe.py) resolves the kind — the
 configured one, else the best one detected in this session, else `subagent` —
 and runs a verb in a shell of its own: it loads the configuration first, then

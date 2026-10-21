@@ -26,7 +26,9 @@ from contract import Answer, Deadline, Payload, bad, unavailable  # noqa: E402
 RECIPE = "adapters/transport/multiplexer/herdr.md"
 GRID = 4                                  # panes per tab, a 2 by 2 grid
 READ_LINES = 2000
-MARKER_LINES = 3
+MARKER_LINES = 3                          # lines one marker window holds
+MARKER_DEPTH = 16                         # last non-empty lines a marker records, one short hash each
+HASH_HEX = 8
 GONE = ("pane_not_found", "agent_not_found", "tab_not_found")
 DIALOG_LINES = 6                          # a dialog's question sits a few lines above its last line
 START_RESERVE_S = 40                     # left in the start budget after herdr's wait, for the checks and a cleanup
@@ -49,19 +51,19 @@ class Detection:
 
 
 def detect(env: Mapping[str, str], harnesses: tuple[str, ...], *, which: Callable = shutil.which,
-           run: Callable = subprocess.run) -> Detection:
+           run: Callable = subprocess.run, timeout: float = 10.0) -> Detection:
     """Usable means: herdr on PATH, this session inside a herdr pane, its server answering, and its
-    agent-state integration current for every harness the run starts."""
+    agent-state integration current for every harness the run starts. Each herdr call waits `timeout` s."""
     binary = which("herdr", path=env.get("PATH"))
     if not binary:
         return Detection("herdr", "absent", "the herdr command is not on PATH")
     if env.get("HERDR_ENV") != "1" or not env.get("HERDR_PANE_ID"):
         return Detection("herdr", "outside",
                          "herdr is installed, but this session does not run inside a herdr pane")
-    status = _plain(run, [binary, "status"], env)
+    status = _plain(run, [binary, "status"], env, timeout)
     if status is None or "status: running" not in status:
         return Detection("herdr", "broken", "the herdr server of this session does not answer `herdr status`")
-    integrations = _plain(run, [binary, "integration", "status"], env) or ""
+    integrations = _plain(run, [binary, "integration", "status"], env, timeout) or ""
     current = {line.split(":", 1)[0].strip() for line in integrations.splitlines()
                if ": current" in line}
     missing = [{"name": f"herdr integration for {h}", "fix": f"herdr integration install {h}"}
@@ -73,9 +75,9 @@ def detect(env: Mapping[str, str], harnesses: tuple[str, ...], *, which: Callabl
     return Detection("herdr", "usable", "herdr runs this session")
 
 
-def _plain(run: Callable, argv: list[str], env: Mapping[str, str]) -> str | None:
+def _plain(run: Callable, argv: list[str], env: Mapping[str, str], timeout: float = 10.0) -> str | None:
     try:
-        done = run(argv, capture_output=True, text=True, timeout=10, env=dict(env), check=False)
+        done = run(argv, capture_output=True, text=True, timeout=timeout, env=dict(env), check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     return done.stdout if done.returncode == 0 else None
@@ -166,10 +168,10 @@ class Herdr:
             tabs = self.call(["tab", "list", "--workspace", workspace], deadline).get("tabs", [])
         except HerdrError as error:
             raise unavailable(f"herdr could not list the tabs for tab {tab!r}: {error}", tab=tab) from None
-        ours = [t for t in tabs if t.get("tab_id") != contact_tab and _tab_group(t.get("label", "")) == tab]
+        ours = [t for t in tabs if t.get("tab_id") != contact_tab and _tab_number(t.get("label", ""), tab)]
         room = next((t for t in ours if int(t.get("pane_count", GRID)) < GRID), None)
         if room is None:
-            label = tab if not ours else f"{tab} {len(ours) + 1}"
+            label = tab if not ours else f"{tab} {max(_tab_number(t.get('label', ''), tab) for t in ours) + 1}"
             try:
                 made = self.call(["tab", "create", "--workspace", workspace, "--cwd", cwd, "--label", label,
                                   "--no-focus", *flags], deadline)
@@ -193,7 +195,7 @@ class Herdr:
         shell = self._shell_name(pane, deadline)
         line = _command_line(run.argv(), powershell="pwsh" in shell or "powershell" in shell)
         self.call(["pane", "run", pane, line], deadline)
-        while not deadline.expired():
+        while deadline.left() > START_RESERVE_S:
             try:
                 agent = self.call(["agent", "get", pane], deadline).get("agent", {})
                 if agent.get("agent") == run.binary and agent.get("agent_status") in ("idle", "done"):
@@ -352,10 +354,12 @@ class Herdr:
                            if str(a.get("name", "")).startswith(prefix)]}
 
 
-def _tab_group(label: str) -> str:
-    """The tab name without the number a full tab's successor carries."""
+def _tab_number(label: str, tab: str) -> int:
+    """1 for the step's first tab, N for its successor `<tab> N`, 0 for another step's tab."""
+    if label == tab:
+        return 1
     head, _, tail = label.rpartition(" ")
-    return head if head and tail.isdigit() else label
+    return int(tail) if head == tab and tail.isdigit() else 0
 
 
 def _grid_split(panes: list[str]) -> tuple[str, str]:
@@ -374,20 +378,41 @@ def _command_line(argv: list[str], powershell: bool) -> str:
     return "& " + " ".join("'" + arg.replace("'", "''") + "'" for arg in argv)
 
 
+def _line_hash(line: str) -> str:
+    return hashlib.sha1(line.encode("utf-8")).hexdigest()[:HASH_HEX]
+
+
 def _marker(lines: list[str]) -> str:
-    tail = [line for line in lines if line.strip()][-MARKER_LINES:]
-    return hashlib.sha1("\n".join(tail).encode("utf-8")).hexdigest()
+    """`m`, then a short hash of each of the last non-empty lines, oldest first."""
+    tail = [line for line in lines if line.strip()][-MARKER_DEPTH:]
+    return "m" + "".join(_line_hash(line) for line in tail)
 
 
 def _is_marker(text: str) -> bool:
-    return len(text) == 40 and all(c in "0123456789abcdef" for c in text)
+    body = text[1:]
+    return (text[:1] == "m" and len(body) % HASH_HEX == 0 and len(body) <= MARKER_DEPTH * HASH_HEX
+            and all(c in "0123456789abcdef" for c in body))
 
 
 def _after(lines: list[str], marker: str) -> int | None:
-    """The index after the last place whose last non-empty lines hash to the marker."""
+    """The index where the text after the marker starts. A TUI keeps a footer under new output, so each
+    split of the marked lines into body and footer is tried; marked lines that still follow the body's
+    window are old text, and the earliest start wins."""
+    old = [marker[i:i + HASH_HEX] for i in range(1, len(marker), HASH_HEX)]
     filled = [(i, line) for i, line in enumerate(lines) if line.strip()]
-    for end in range(len(filled), 0, -1):
-        window = [line for _, line in filled[max(0, end - MARKER_LINES):end]]
-        if hashlib.sha1("\n".join(window).encode("utf-8")).hexdigest() == marker:
-            return filled[end - 1][0] + 1
-    return None
+    new = [_line_hash(line) for _, line in filled]
+    if not old:
+        return 0
+    best = None
+    for footer in range(len(old)):
+        window = old[max(0, len(old) - footer - MARKER_LINES):len(old) - footer]
+        for end in range(len(new), len(window) - 1, -1):
+            if new[end - len(window):end] == window:
+                rest, kept = old[len(old) - footer:], 0
+                while kept < len(rest) and end + kept < len(new) and new[end + kept] == rest[kept]:
+                    kept += 1
+                best = end + kept if best is None else min(best, end + kept)
+                break
+    if best is None:
+        return None
+    return filled[best - 1][0] + 1 if best else 0

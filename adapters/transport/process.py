@@ -52,7 +52,8 @@ if WINDOWS:
         handle = _k32.OpenProcess(_QUERY, False, pid)
         return handle or None
 
-    def creation_time(pid: int) -> str | None:
+    def _created(pid: int) -> int | None:
+        """The creation time in 100 ns ticks, or None when the process cannot be opened."""
         handle = _open(pid)
         if not handle:
             return None
@@ -60,10 +61,13 @@ if WINDOWS:
             times = [wintypes.FILETIME() for _ in range(4)]
             if not _k32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
                 return None
-            ticks = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
-            return _iso(ticks / 10_000_000 - 11_644_473_600)
+            return (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
         finally:
             _k32.CloseHandle(handle)
+
+    def creation_time(pid: int) -> str | None:
+        ticks = _created(pid)
+        return None if ticks is None else _iso(ticks / 10_000_000 - 11_644_473_600)
 
     def alive(pid: int) -> bool:
         handle = _open(pid)
@@ -176,10 +180,21 @@ else:
     def _msys_children() -> dict[int, list[int]]:
         return {}
 
+    def _created(pid: int) -> int | None:
+        return None                     # a POSIX orphan moves to init, so a parent id is never stale
+
+    def session_members(sid: int) -> list[int]:
+        """Every live process of one session."""
+        done = subprocess.run(["ps", "-A", "-o", "pid=,sid="], capture_output=True, text=True,
+                              timeout=10, check=False)
+        rows = [line.split() for line in done.stdout.splitlines()]
+        return [int(r[0]) for r in rows if len(r) == 2 and r[0].isdigit() and r[1] == str(sid)]
+
 
 def tree(pid: int) -> list[int]:
     """The process and every live descendant, root first; on Windows also each MSYS child, whose
-    Windows parent is a fork stub that is gone by the time the child runs."""
+    Windows parent is a fork stub that is gone by the time the child runs. Windows reuses a dead
+    parent's id, so a child older than the process holding its parent's id is not its child."""
     parents = _parents()
     children: dict[int, list[int]] = {}
     for child, parent in parents.items():
@@ -187,13 +202,22 @@ def tree(pid: int) -> list[int]:
             children.setdefault(parent, []).append(child)
     for parent, kids in _msys_children().items():
         children.setdefault(parent, []).extend(k for k in kids if k in parents)
+    born: dict[int, int | None] = {}
+
+    def created(member: int) -> int | None:
+        if member not in born:
+            born[member] = _created(member)
+        return born[member]
+
     out, queue = [], [pid]
     while queue:
         current = queue.pop(0)
         if current in out:
             continue
         out.append(current)
-        queue.extend(children.get(current, []))
+        mine = created(current)
+        queue.extend(k for k in children.get(current, [])
+                     if mine is None or created(k) is None or created(k) >= mine)
     return out
 
 
@@ -211,3 +235,21 @@ def kill_tree(pid: int, *, force: bool = False, wait_s: float = 10.0) -> list[in
                 _kill_one(member, True)
         survivors = [m for m in survivors if alive(m)]
     return survivors
+
+
+def kill_session(sid: int, *, keep: int, force: bool = False, wait_s: float = 5.0) -> list[int]:
+    """POSIX: kill every process left in session `sid` but `keep`, which catches a descendant that moved
+    to init before the stop; answer those still alive. Windows has no sessions here: a job holds the run."""
+    if WINDOWS:
+        return []
+    members = [m for m in session_members(sid) if m != keep and m != os.getpid()]
+    for member in members:
+        _kill_one(member, force)
+    end = time.monotonic() + wait_s
+    survivors = [m for m in members if alive(m)]
+    while survivors and time.monotonic() < end:
+        time.sleep(0.2)
+        survivors = [m for m in survivors if alive(m)]
+    for member in survivors:
+        _kill_one(member, True)
+    return [m for m in survivors if alive(m)]

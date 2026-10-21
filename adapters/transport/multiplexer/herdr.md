@@ -28,7 +28,7 @@ integration list and `agent get` output).
 | `agent-start` | `tab list --workspace $HERDR_WORKSPACE_ID`; a tab of this step with fewer than 4 panes gets `pane split <pane> --direction right\|down --cwd <cwd> --no-focus --env K=V`, else `tab create --workspace … --cwd … --label <tab> --no-focus --env K=V`; then `pane rename <pane> <label>`; then `agent start <name> --kind <harness> --pane <pane> --timeout <ms> -- <args>`; then `pane process-info --pane <pane>` for the process id and `agent get <pane>` for the session id |
 | `agent-send` | `agent prompt <pane> <envelope>`, with no `--wait` |
 | `agent-status` | `agent get <pane>`; on a gone agent, `pane get <pane>` tells `exited` (the pane is left) from `gone` |
-| `agent-read` | `pane read <pane> --source recent-unwrapped --lines 2000`; the marker is a hash of the last 3 non-empty lines |
+| `agent-read` | `pane read <pane> --source recent-unwrapped --lines 2000`; the marker holds a short hash of each of the last 16 non-empty lines, so the text after it is found even under a footer a TUI keeps at the bottom |
 | `agent-stop` | the process tree kill by process id, then `pane get <pane>` for its tab, `pane close <pane>`, and `tab close <tab>` when `tab get` shows no pane left |
 | `agent-list` | `agent list`, filtered to names that start with the prefix |
 

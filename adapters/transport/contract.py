@@ -2,7 +2,8 @@
 
 A kind's entry is called as `<entry> <verb> '<json object>'` and never reads standard input. `run` maps the
 verb to the kind's method, enforces the verb's time budget and prints the answer in the house shapes of
-ADAPTERS.md: exit 0 the normalized object, 3 unsupported, 4 unavailable, 2 a bad payload or field.
+ADAPTERS.md: exit 0 the normalized object, 3 unsupported, 4 unavailable, 2 a bad payload or field. Any other
+failure inside a verb answers exit 4 unavailable naming the verb and the error.
 """
 from __future__ import annotations
 
@@ -131,11 +132,15 @@ def parse(argv: list[str]) -> tuple[str, Payload]:
 def run(kind: object, argv: list[str], out=None) -> int:
     """Answer one call: the kind object has one method per verb, `agent_start(payload, deadline)` and so on."""
     out = out or sys.stdout
+    verb = argv[0] if argv else ""
     try:
         verb, payload = parse(argv)
-        method = getattr(kind, verb.replace("-", "_"))
-        code, body = 0, method(payload, Deadline(verb))
+        deadline = Deadline(verb)
+        code, body = 0, getattr(kind, verb.replace("-", "_"))(payload, deadline)
     except Answer as answer:
         code, body = answer.code, answer.body
+    except Exception as error:      # any other failure still answers in a house shape, never a traceback
+        code, body = 4, {"unavailable": True, "operation": verb,
+                         "reason": f"{verb} failed: {type(error).__name__}: {error}"}
     out.write(json.dumps(body, sort_keys=True) + "\n")
     return code

@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -23,6 +24,12 @@ import process  # noqa: E402
 def _write(path: Path, data: dict) -> None:
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+    for _ in range(50):             # Windows refuses the replace while a reader holds the file open
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            time.sleep(0.1)
     os.replace(tmp, path)
 
 
@@ -78,7 +85,8 @@ def main(argv: list[str]) -> int:
     try:
         with open(args.log, "ab") as log:
             child = subprocess.Popen(command, cwd=args.cwd, stdin=subprocess.DEVNULL, stdout=log,
-                                     stderr=subprocess.STDOUT)
+                                     stderr=subprocess.STDOUT,
+                                     creationflags=0x08000000 if process.WINDOWS else 0)  # CREATE_NO_WINDOW
     except OSError as error:
         _write(status, {"error": f"could not start {command[0]}: {error}"})
         return 1
