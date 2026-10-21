@@ -39,8 +39,8 @@ command into the new pane with `pane run <pane> <command line>`, waits until
 ## Delivery way (herdr)
 
 One way: `agent prompt` into the receiver's pane. It sends the text and Enter as
-one submission. A busy `claude` pane queues the message until its turn and
-the repository's Stop handlers end. A busy `codex` 0.163.0 pane takes the
+one submission. A busy `claude` 2.1.305 pane queues the messages and takes them
+all once its running tool call ends, in the same turn. A busy `codex` 0.163.0 pane takes the
 first message into the running turn and queues the rest for the next one. Either
 way a busy pane delays delivery and never reorders it. herdr rejects a prompt to an agent waiting at a dialog
 (`agent_blocked`) before it sends anything.
@@ -66,7 +66,7 @@ closes. A tab that cannot be made refuses the start, naming the tab.
 | A pane close sends no signal a shell trap catches; a plain pane's process is killed within 10 s | probe row "A capture command's run-time limit…" (2026-09-30) | `agent-stop` kills the process tree by id before the close |
 | A `codex` pane agent's shell child outlived a pane close with no live parent, owned by the sandbox user, and the operator's `Stop-Process` got Access is denied | the same row, re-probe 2026-10-06 | the tree is listed before the kill, so an orphaned member is still killed by id; a member that survives is named in `survivors` and `stopped` is false |
 | A message sent while the pane holds unsent typed text is appended to it, and both are submitted as one prompt | trial T11 case D (2026-09-28) | nobody types in a pane agent's pane |
-| A busy pane holds messages until its turn and Stop handlers end; turn-end gates held 2 turns for 3 and 9 minutes. `codex` 0.163.0 takes the first into the running turn | trial T11; probe rows "A busy pane agent receives several sent messages in order" and "agent-send delivers each envelope once…" (2026-10-20) | a delay, never a reorder |
+| A busy pane holds messages until its turn and Stop handlers end; turn-end gates held 2 turns for 3 and 9 minutes. `codex` 0.163.0 takes the first into the running turn; `claude` 2.1.305 takes all queued messages when the running tool call ends, before the Stop handlers | trial T11; probe rows "A busy pane agent receives several sent messages in order" and "agent-send delivers each envelope once…" (2026-10-20, re-run 2026-10-21) | a delay, never a reorder |
 | `agent start` returns `agent_not_ready` when a dialog blocks the start; `claude`'s folder trust dialog blocks every start in a folder no trusted folder contains | herdr's own help; the trust-dialog probe row (2026-10-20) | the start reads the screen's last 6 lines, stops the agent, closes the pane, and answers exit 4 with `dialog` true and those lines |
 | `agent start` waits until the agent is idle, so a launch prompt's whole first turn counts against its timeout | probe row "Parallel pane agents' wiring scans…" (2026-10-20) | herdr gets the start budget less 40 s; on its `timeout`, a working agent counts as started and a blocked one as a dialog |
 | A Git Bash child's Windows parent is a fork stub that is gone, so the Windows process tree misses it | probe row "agent-stop leaves no process…" (2026-10-20) | the tree adds each MSYS child that Git for Windows' `ps` names |
