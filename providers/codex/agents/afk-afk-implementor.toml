@@ -1,4 +1,4 @@
-name = "afk-afk-implementor"
+name = "afk-implementor"
 description = "AFK implementation worker for one settled brief."
 model = "gpt-6-sol"
 model_reasoning_effort = "medium"

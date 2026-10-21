@@ -1,4 +1,4 @@
-name = "afk-afk-tracer"
+name = "afk-tracer"
 description = "AFK closure tracer; drives one investigation partition to closure and writes only its fragment."
 model = "gpt-6-sol"
 model_reasoning_effort = "high"

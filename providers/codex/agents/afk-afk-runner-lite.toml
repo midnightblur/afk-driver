@@ -1,4 +1,4 @@
-name = "afk-afk-runner-lite"
+name = "afk-runner-lite"
 description = "AFK deterministic-check runner; reports the command's own exit code."
 model = "gpt-6-luna"
 model_reasoning_effort = "low"

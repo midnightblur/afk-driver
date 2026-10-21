@@ -101,6 +101,13 @@ release page from its section here. Nobody tags by hand.
   mutation checks read control words as before.
 - Domain glossaries for tooltips come from the repository that holds the page,
   else from the session folder's repository.
+- The second harness's agent stubs (`providers/codex/agents/afk-afk-*.toml`)
+  carry the skill name in their `name` field, as in `afk-reader`, so a skill's
+  spawn of an AFK role by that name resolves there; the filenames stay. Re-run
+  `/afk:setup` so the copies in `~/.codex/agents/` take the new name.
+- `PROVIDERS.md` "Model tiers": when a provider fails a call, a role that runs
+  one model continues on the equivalent model from another provider, the same
+  tier row in another harness column; a role in a debate pattern waits.
 
 ### Removed
 

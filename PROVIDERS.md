@@ -20,7 +20,7 @@ Conformance holds the probe verdict and date per harness. `providers/CONFORMANCE
 | Enable plugin | `enabledPlugins` names `afk@afk-toolkit` | Native marketplace plus enabled `afk@afk-toolkit` |
 | Skill reference | `/afk:<x>` | Catalog name `afk:<x>`: strip the leading slash; `$afk:<x>` typing is unverified |
 | Project skill | Native skill name | Native skill name |
-| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names from unchanged user TOML stubs |
+| Spawn AFK role | Plugin agent `afk-reader`, `afk-runner`, `afk-runner-lite`, `afk-implementor`, or `afk-tracer` | Same names: each `providers/codex/agents/afk-afk-*.toml` stub's `name` field is the skill name, and Codex finds an agent by that field, not by its filename; re-run `/afk:setup` so the copies in `~/.codex/agents/` carry it |
 | Generic role | General-purpose or exploration role | Built-in worker or explorer role |
 | Parallel spawn | Parallel calls | Parallel agent spawns |
 | Continue child | Native continuation | Continue only where `providers/CONFORMANCE.md` proves same-child context; disk handoff otherwise |
@@ -135,7 +135,7 @@ changes hook command strings, such as the move to `afk-python`, asks again.
 
 ## Model tiers
 
-Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not a vendor claim: use the model in the active harness column; if that harness cannot drive it, use the nearest capability-compatible model.
+Tier roles are owned by `DELEGATION.md`. A column is harness configuration, not a vendor claim: use the model in the active harness column; if that harness cannot drive it, use the nearest capability-compatible model. After that fallback, when a provider fails a call, a role that runs one model continues on the equivalent model from another provider, which is the same tier row in another harness column where that cell names a model, and a role in a debate pattern waits; no availability or quota check runs before a call, the rule holds with team topology on or off, and a wait past the provider's limit parks the run with a dated report instead of continuing in a reduced shape.
 
 | Tier | Claude Code | Codex CLI | Codex effort |
 |---|---|---|---|

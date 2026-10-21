@@ -1,4 +1,4 @@
-name = "afk-afk-reader"
+name = "afk-reader"
 description = "Read-only AFK digester; returns a short cited conclusion."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
