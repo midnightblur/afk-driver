@@ -680,6 +680,16 @@ def test_a_failed_pane_close_answers_pane_closed_false_naming_the_pane(fake):
     assert pane in body["reason"] and body["survivors"] == [] and "method" not in body
 
 
+def test_a_killed_tree_whose_pane_close_fails_still_answers_stopped(fake, tmp_path):
+    child, grand = child_tree(tmp_path)
+    pane = start("a1")["handle"]
+    fake.fail["pane close"] = "error"
+    body = mux("agent-stop", {"pid": child.pid, "handle": pane})
+    assert body["stopped"] is True and body["method"] == "killed the process tree"
+    assert body["pane_closed"] is False and body["pane_id"] == pane
+    assert wait_for(lambda: not process.alive(int(grand.read_text())))
+
+
 def test_agent_list_returns_every_match_of_the_prefix(fake):
     start("goal-a")
     start("goal-b")
