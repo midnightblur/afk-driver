@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "medium",
+  "class": "correctness",
+  "file": "adapters/transport/multiplexer/herdr.md",
+  "line": 71,
+  "side": "new",
+  "finding": "Busy-pane trap row opens with 'holds messages until its turn and Stop handlers end' and then says claude/codex take them earlier, so the row contradicts itself.",
+  "why": "CONFORMANCE rows V35 and V34 (claude takes all queued messages after its running tool call ends, before the Stop handler; codex 2026-10-20 took v35-1 into the running turn) show the opening clause no longer holds for claude 2.1.305 or codex 0.163.0, and D-101 supersedes it.",
+  "fix": "Scope the opening clause to the 2026-09-30 trial (claude 2.1.285, codex 0.159.0), or reword it to say a message waits for the running tool call or command, not for the Stop handlers.",
+  "evidence": "herdr.md:71 \"A busy pane holds messages until its turn and Stop handlers end; ... `claude` 2.1.305 takes all queued messages when the running tool call ends, before the Stop handlers\"; providers/CONFORMANCE.md:457 \"The agent took them after its tool call ended, inside the same turn and before its Stop handler ran\"; DECISIONS.md:707 supersedes the SDD row 'A message to a busy pane waits for the repository's Stop handlers' for claude 2.1.305 and codex 0.163.0",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "Smell introduced by the change",
+  "severity": "low",
+  "class": "smell",
+  "file": "adapters/transport/multiplexer/herdr.md",
+  "line": 45,
+  "side": "new",
+  "finding": "The edited delivery paragraph now has 'either way' twice in consecutive sentences, and the second says nothing new.",
+  "why": "The added clause 'either way the turn that takes several queued messages together answers only the last' is directly followed by a bare 'Either way a busy pane delays delivery', so a reader parses one sentence as a repeat of the other.",
+  "fix": "Merge the two: '... answers only the last of them. A busy pane delays delivery and never reorders it.' and drop the stray 'Either way' break.",
+  "evidence": "herdr.md:45-47 \"...either way the turn that takes several queued messages together answers only the last of them. Either way a busy pane delays delivery and never reorders it.\"",
+  "id": "r-002"
+ }
+]

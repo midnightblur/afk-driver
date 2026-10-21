@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "adapters/transport/multiplexer/herdr.md",
+  "line": 44,
+  "side": "new",
+  "finding": "The recipe says the Codex hold-all case answers only the last message, but the sibling take-first case keeps the old claim that the rest are queued with no mention that they go unanswered.",
+  "why": "The 2026-10-20 probe row shows the take-first case also answered only the last queued message (v35-2 got no GOT line), so the take-first case needs the same caveat.",
+  "fix": "Extend the take-first branch: queues the rest for the next turn, which answers only the last of them.",
+  "evidence": "herdr.md:44-45 \"takes the first message into the running turn and queues the rest for the next one, or holds them all until the running command ends and answers only the last, in that turn\"; providers/CONFORMANCE.md:455 \"The agent answered `GOT v35-1` and `GOT v35-3`: it took `v35-2` and `v35-3` in one turn and answered only the last.\"",
+  "id": "r-001"
+ }
+]

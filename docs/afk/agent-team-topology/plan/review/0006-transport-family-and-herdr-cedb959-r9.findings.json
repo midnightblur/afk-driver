@@ -1,0 +1,16 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "adapters/transport/multiplexer/herdr.md",
+  "line": 71,
+  "side": "new",
+  "finding": "The busy-pane trap row credits trial T11 with messages waiting until 'the turn and its Stop handlers ended', but the repo evidence for that wait is the 2026-09-30 probe row, whose date the row's Source cell omits.",
+  "why": "The only repo source of a message arriving after a Stop hook is CONFORMANCE.md:442 (probes of 2026-09-30, earlier versions), and ADR-0007 attributes it to those probes. T11 (2026-09-28) is evidenced only for held turns (3 and 9 min, SDD.md:627), and its log is not in the repo, so the T11 attribution is unverified. The Source cell lists only 2026-10-20 and 2026-10-21, and those runs show the opposite for current versions.",
+  "fix": "Reword to 'In the 2026-09-30 probe they waited until the turn and its Stop handlers ended; trial T11 saw turn-end gates hold 2 turns for 3 and 9 minutes', and add 2026-09-30 to the Source cell.",
+  "evidence": "herdr.md:71 \"In trial T11 they waited until the turn and its Stop handlers ended, and turn-end gates held 2 turns for 3 and 9 minutes\"; providers/CONFORMANCE.md:442 \"Claude: 3 `herdr agent prompt` messages ... during a Stop hook ... arrived at 15:55:21\" and \"Codex: ... after the 300 s Stop hook\" (both 2026-09-30); adr/design/0007-inbox-for-contact-pane-for-others.md:39 \"probes of 2026-09-30: messages sent to a busy pane arrive in send order after the turn and its Stop gates end\"; SDD.md:627 \"Trial T11 saw turns held 3 and 9 minutes by the plugin's turn-end gates\"",
+  "id": "r-001"
+ }
+]

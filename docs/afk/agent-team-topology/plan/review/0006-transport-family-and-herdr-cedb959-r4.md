@@ -7,4 +7,4 @@ Verdict: advisory — crit=0 high=0 med=1 low=0
 
 | Id | Key | Severity | Class | Location | Finding | Outcome |
 |---|---|---|---|---|---|---|
-| r-001 | f039 | medium | test | scripts/tests/test_team_transport.py:680 | No test covers the other side of the new `pid is None` guard: a stop given a pid whose pane close fails must still answer stopped true. If the guard were dropped, every test would still pass. | fixed in 3ce1a42 (fixed record posted; thread left open: the forge thread list fails, see journal) |
+| r-001 | f039 | medium | test | scripts/tests/test_team_transport.py:680 | No test covers the other side of the new `pid is None` guard: a stop given a pid whose pane close fails must still answer stopped true. If the guard were dropped, every test would still pass. | fixed in 3ce1a42 |

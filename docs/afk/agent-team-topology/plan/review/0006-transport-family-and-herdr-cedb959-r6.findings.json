@@ -1,0 +1,30 @@
+[
+ {
+  "concern": "delta-sweep",
+  "criterion": "New test proves nothing",
+  "severity": "medium",
+  "class": "test",
+  "file": "providers/CONFORMANCE.md",
+  "line": 469,
+  "side": "new",
+  "finding": "The Codex V35 re-run cell claims 'both times' all 3 messages were held until the 90 s command ended and 'none went into the running turn', but the first run does not show that.",
+  "why": "In the first run v35-1..3 were sent 19:12:43-19:12:50 while the foreground command had not started (it printed 'busy done 19:14:58', so it began about 19:13:28), the turn began with the unanswered v33-idle-1 (rd-cx.txt shows one 'Worked for 4m 40s' turn with only 'GOT v35-3'), and the v35-busy message itself was absorbed into that already-running turn, which is the 2026-10-20 behaviour; only the second run (sends 19:15:49-19:15:56 during the command, which ended 19:17:07) isolates the 'held until command end' case.",
+  "fix": "Say the first run was inconclusive (the busy turn started behind an unanswered idle message) and cite the second run (v35b) as the evidence for 'held until the command ended', or drop 'none went into the running turn'.",
+  "evidence": "CONFORMANCE.md:469 'in send order, twice. Both times Codex held all 3 messages until the 90 s command ended and answered only the last, in the same turn; none went into the running turn as on 2026-10-20'; calls.log '19:12:25 agent-send send-cx-busy.json' ... '19:12:50'; rd-cx.txt 'busy done 19:14:58' ... 'Worked for 4m 40s • 7:15 PM'",
+  "id": "r-001"
+ },
+ {
+  "concern": "delta-sweep",
+  "criterion": "New defect in the change",
+  "severity": "low",
+  "class": "correctness",
+  "file": "adapters/transport/multiplexer/herdr.md",
+  "line": 45,
+  "side": "new",
+  "finding": "The recipe says a busy codex pane 'answers them in that turn', but the evidence in the same commit shows it answered only the last message.",
+  "why": "CONFORMANCE.md:469 records 'answered only the last' (rd-cx.txt shows only 'GOT v35-3' and 'GOT v35b-3'; v35-1, v35-2 and v33-idle-1 got no answer), so a reader of the recipe would expect one answer per envelope.",
+  "fix": "Write 'holds them all until the running command ends and answers only the last in that turn' (delivery is intact, answers are not per envelope).",
+  "evidence": "herdr.md:44-45 'or holds them all until the running command ends and answers them in that turn'; CONFORMANCE.md:469 'answered only the last, in the same turn'",
+  "id": "r-002"
+ }
+]
