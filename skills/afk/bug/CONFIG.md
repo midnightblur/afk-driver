@@ -23,7 +23,7 @@ stricter rule for its operations.
 
 | Operation | Required value | Nothing resolves it → |
 |-----------|----------------|------------------------|
-| Tracker publish | K1 | No tracker call is attempted; bug stays `captured` (S1); the unpublished capture is still fully on disk and shown by `status` |
+| Tracker publish | K1 (absent, or the literal `none`) | No tracker call is attempted; bug stays `captured` (S1); the unpublished capture is still fully on disk and shown by `status` |
 | Fixer dispatch | K3 | Dispatch refused; no worktree created, no fixer spawned; the reason names the key. Only reachable when the derivation also failed. |
 | Change Ready flip | K2 (absent, or the literal `none`) | The change is not flipped Ready and no reviewer is assigned; it stays Draft — the fix is never lost, only the reviewer assignment waits |
 | Interactive worktree open | K4 | Worktree is still created; the IDE simply isn't launched (K4 is optional — its absence never blocks) |

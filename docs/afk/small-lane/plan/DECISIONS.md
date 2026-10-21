@@ -27,3 +27,17 @@
 - Chosen: (a) all three person keys — ADR-0010 names a ticket filed unassigned and a change opened unassigned, so "the assignee" covers both assignees, and a recorded `none` passed to the tracker as a user name can never resolve; (b) leave it — the table describes `/afk:bug`'s own operations, not the keys, and moving it would change that skill's behaviour outside this slice. The key definitions, the resolution order and the general missing-value rule move. The scripted ground check could not run (`seed_map` stops at its 20000-hit class cap on INV-026's declared aliases); every line INV-026 cites for this seam was re-read at the current head and still holds, and every reader of the three keys resolves through `afk-config.py resolve`.
 - Supersedes: none
 - To reverse: map `none` only for the two forge keys in `developer_value`; move the stop table with the keys
+
+## D-5 — how the tracker slice's ground is re-taken when the scripted check cannot run
+- 2026-10-20 · decided by execute (0003-tracker-attach, Step 4)
+- Options: run a fresh /afk:investigate over the INV-024 ground vs diff the seam files INV-024 cites against its head
+- Chosen: diff the cited files. The 8-root seed map stops at its 20000-hit class cap (22798, grown by this feature's own plan and investigation files), and a per-root split searches other patterns, so ground_diff reports moved for every root without measuring drift. `git diff d346cfb..HEAD` over every file INV-024 cites for this seam (tracker adapters, MCP server, ADAPTERS.md, registry check, gate, publishers, CONFORMANCE.md, .mcp.json, comment gate, the four seam tests, CI) changes only test_plugin_source_gates.py, which gained behavior-registry fixtures from main; its check-E tests shift lines but are unchanged. The ground held.
+- Supersedes: none
+- To reverse: run /afk:investigate Q3 on the five seam symbols at the current head and re-plan from its ledger
+
+## D-6 — the H6 probe's test file joins the developer-settings slice's scope
+- 2026-10-20 · decided by execute (0002-developer-settings, review round 1)
+- Options: stop `blocked` for a re-slice vs add `scripts/tests/test_setup_h6_probe.py` to this slice's Scope
+- Chosen: add it. `skills/afk/setup/MANIFEST.md` is in Scope and its H6 probe had to change with the `none` rule; that test file runs the probe block verbatim and is the only place its branches can be pinned. A re-slice would move one test file into an identical contract.
+- Supersedes: 0002-developer-settings ## Scope, for this one file
+- To reverse: revert the test additions in that file; the probe change stays covered only through `developer_values.py status`

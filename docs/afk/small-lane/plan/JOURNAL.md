@@ -17,3 +17,8 @@
 2026-10-20 17:05 | execute | 0001-diagnosis-format | done — rationale receipt confirmed, wiring anchored to slices 0004, 0005, 0007 and 0008; waiting on the Windows failure split before push
 2026-10-20 17:40 | execute | 0001-diagnosis-format | pushed 9f54e99..3efb356 (2 commits) — round 4 and adversary records, done status; Windows failures split: none caused by this branch (3 fail on main too, 1 flaky, 9 from untracked investigation files)
 2026-10-20 17:55 | execute | 0002-developer-settings | decision(D-4) — none means unset for all three person keys; the bug skill keeps its own stop table until it is removed; ground re-read by hand because the scripted check hit its hit cap
+2026-10-20 18:20 | execute | 0002-developer-settings | developing — K1-K5 docs moved to CONFIG.md, none = unset for the three person keys, setup still counts a recorded none as answered
+2026-10-20 18:45 | execute | 0002-developer-settings | verifying — gates and unit tests green; full suite and hook smoke running on Windows and Linux before the push
+2026-10-20 19:10 | execute | 0002-developer-settings | WSL suite: 3350 passed, 25 failed — the same 25 fail on main, none from this branch; hook smoke not run there (jq missing in WSL)
+2026-10-20 20:35 | execute | 0002-developer-settings | pushed 3efb356..b7409d3 (1 commit); Windows suite green against its baseline, hook smoke green; reviewing — independent reviewers read the change
+2026-10-20 21:05 | execute | 0002-developer-settings | review r1 — 4 findings (2 medium tests, 1 low bug-page gap, 1 low probe test gap); decision(D-6) — the H6 probe's test file joins the slice; developing — fixing them
