@@ -103,11 +103,15 @@ release page from its section here. Nobody tags by hand.
   else from the session folder's repository.
 - The second harness's agent stubs (`providers/codex/agents/afk-afk-*.toml`)
   carry the skill name in their `name` field, as in `afk-reader`, so a skill's
-  spawn of an AFK role by that name resolves there; the filenames stay. Re-run
-  `/afk:setup` so the copies in `~/.codex/agents/` take the new name.
+  spawn of an AFK role by that name resolves there; the filenames stay. Setup's
+  check reads only the filename and the plugin root, so it keeps an installed
+  copy with the old name: delete the `afk-afk-*.toml` copies in
+  `~/.codex/agents/`, then run `/afk:setup` to copy the renamed stubs.
 - `PROVIDERS.md` "Model tiers": when a provider fails a call, a role that runs
   one model continues on the equivalent model from another provider, the same
-  tier row in another harness column; a role in a debate pattern waits.
+  tier row in another harness column; a role in a debate pattern waits, and so
+  does a single-model role when no other column names a model for its tier or
+  that model's provider fails too.
 
 ### Removed
 
