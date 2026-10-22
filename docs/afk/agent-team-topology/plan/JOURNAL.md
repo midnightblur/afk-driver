@@ -322,3 +322,6 @@
 2026-10-22 12:45 | execute | 0006-transport-family-and-herdr | review round 19 — 2 reviewers, nothing found at d01ac5a
 2026-10-22 12:45 | execute | 0006-transport-family-and-herdr | decision(D-111) — one live Claude round trip with backslashes in the folder and the text replaces a full live re-run; it passed and is recorded in providers/CONFORMANCE.md (b2abec0)
 2026-10-22 12:45 | execute | 0006-transport-family-and-herdr | review rounds 20 and 21 — round 20 found the live record claimed a process check with no saved file, fixed in 0d4c553; round 21 found only a low point on how two evidence files are cited, deferred; review settled at 0d4c553 under the human's override (D-110)
+2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | adversary cycle 3 — 127 probes, no critical or high finding: gate passed; 3 medium and 4 low points are advisory, noted on pull request 112 (comment 6346715766)
+2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | wiring scan clean (exit 0); every recorded reason is posted and receipted
+2026-10-22 13:15 | execute | 0006-transport-family-and-herdr | done — success: transport family, herdr recipe and machine probe built, reviewed and attack-tested; review settled under the human's override (D-110)
